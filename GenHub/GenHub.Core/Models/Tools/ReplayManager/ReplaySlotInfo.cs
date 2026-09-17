@@ -34,7 +34,12 @@ public sealed record ReplaySlotInfo(
         }
     }
 
-    private static bool HasAiIndicator(string name)
+    /// <summary>
+    /// Checks whether the specified player name indicates a computer AI.
+    /// </summary>
+    /// <param name="name">The player name.</param>
+    /// <returns>True if the name indicates AI; otherwise, false.</returns>
+    public static bool HasAiIndicator(string name)
     {
         if (string.IsNullOrWhiteSpace(name))
         {

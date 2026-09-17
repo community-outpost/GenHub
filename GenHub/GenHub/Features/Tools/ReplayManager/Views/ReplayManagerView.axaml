@@ -147,7 +147,7 @@
               <DataGridTemplateColumn.CellTemplate>
                 <DataTemplate>
                   <Border Padding="6,2" CornerRadius="6" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="4,0"
-                          ToolTip.Tip="{Binding CompatibilityTooltip, Converter={x:Static converters:LocalizedReplayTooltipConverter.Instance}}">
+                          ToolTip.Tip="{Binding Converter={x:Static converters:LocalizedReplayTooltipConverter.Instance}}">
                     <StackPanel Orientation="Horizontal" Spacing="5">
                       <TextBlock Text="●" FontSize="10" VerticalAlignment="Center" Foreground="{DynamicResource SuccessBrush}"
                                  IsVisible="{Binding CompatibilityStatus, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static enums:ReplayCompatibilityStatus.Compatible}}"/>
@@ -177,7 +177,7 @@
                             CommandParameter="{Binding}"
                             IsEnabled="{Binding !$parent[UserControl].((vm:ReplayManagerViewModel)DataContext).IsBusy}"
                             IsVisible="{Binding CanPlay}"
-                            ToolTip.Tip="{Binding PlayButtonTooltip, Converter={x:Static converters:LocalizedReplayTooltipConverter.Instance}}">
+                            ToolTip.Tip="{Binding Converter={x:Static converters:LocalizedReplayTooltipConverter.Instance}, ConverterParameter='Play'}">
                       <Button.ContextFlyout>
                         <MenuFlyout>
                           <MenuItem Header="{localization:Localize Tools.ReplayManager.Action.SelectProfile}"
@@ -199,7 +199,7 @@
                             Command="{Binding $parent[UserControl].((vm:ReplayManagerViewModel)DataContext).OpenCheckpointDrawerCommand}"
                             CommandParameter="{Binding}"
                             IsVisible="{Binding SupportsCheckpoints}"
-                            ToolTip.Tip="{Binding TakeoverButtonTooltip, Converter={x:Static converters:LocalizedReplayTooltipConverter.Instance}}">
+                            ToolTip.Tip="{Binding Converter={x:Static converters:LocalizedReplayTooltipConverter.Instance}, ConverterParameter='Takeover'}">
                       <StackPanel Orientation="Horizontal" Spacing="4">
                         <PathIcon Data="{StaticResource ToolIcon.Restore}" Width="11" Height="11" VerticalAlignment="Center"/>
                         <TextBlock Text="{localization:Localize Tools.ReplayManager.Action.Recovery}" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center"/>
@@ -657,7 +657,7 @@
                           HorizontalAlignment="Stretch">
                   <ComboBox.ItemTemplate>
                     <DataTemplate>
-                      <TextBlock Text="{Binding DisplayLabel}"/>
+                      <TextBlock Text="{Binding Converter={x:Static converters:LocalizedReplaySlotConverter.Instance}}"/>
                     </DataTemplate>
                   </ComboBox.ItemTemplate>
                 </ComboBox>

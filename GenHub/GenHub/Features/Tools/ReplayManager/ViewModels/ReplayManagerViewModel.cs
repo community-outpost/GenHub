@@ -129,6 +129,8 @@ public partial class ReplayManagerViewModel(
     [ObservableProperty]
     private ReplayFile? activeCheckpointReplay;
 
+    private CancellationTokenSource? _drawerOpenCts;
+
     /// <summary>
     /// Gets the list of compatible game profiles available for the active replay.
     /// </summary>
@@ -199,7 +201,7 @@ public partial class ReplayManagerViewModel(
     /// Gets or sets the maximum frame number for the active replay.
     /// </summary>
     [ObservableProperty]
-    private int maxCheckpointFrames = 18000;
+    private int maxCheckpointFrames = ReplayManagerConstants.DefaultMaxCheckpointFrames;
 
     /// <summary>
     /// Gets or sets the display text for the selected checkpoint time and frame.
@@ -436,9 +438,9 @@ public partial class ReplayManagerViewModel(
         if (IsDemoPath(demoPath))
         {
             // Show notification toast explaining what the button does
-            notificationService.ShowInfo(
-                "Import Replays",
-                "Imports replay files from URLs or by dragging and dropping files into your game's replay directory.");
+            var title = LocalizationService?.GetString("Tools.ReplayManager.Demo.ImportReplaysTitle") ?? "Import Replays";
+            var desc = LocalizationService?.GetString("Tools.ReplayManager.Demo.ImportReplaysDesc") ?? "Imports replay files from URLs or by dragging and dropping files into your game's replay directory.";
+            notificationService.ShowInfo(title, desc);
             return;
         }
 
@@ -494,6 +496,10 @@ public partial class ReplayManagerViewModel(
             {
                 LocalizationService.PropertyChanged -= OnLocalizationChanged;
             }
+
+            _drawerOpenCts?.Cancel();
+            _drawerOpenCts?.Dispose();
+            _drawerOpenCts = null;
 
             checkpointService.CancelActiveMint();
             WeakReferenceMessenger.Default.UnregisterAll(this);
@@ -553,9 +559,9 @@ public partial class ReplayManagerViewModel(
         if (IsDemoPath(demoPath))
         {
             IsHistoryOpen = false;
-            notificationService.ShowInfo(
-                "Upload History",
-                "Shows a list of your previously uploaded replays, allowing you to manage them and copy download links.");
+            var title = LocalizationService?.GetString("Tools.ReplayManager.Demo.UploadHistoryTitle") ?? "Upload History";
+            var desc = LocalizationService?.GetString("Tools.ReplayManager.Demo.UploadHistoryDesc") ?? "Shows a list of your previously uploaded replays, allowing you to manage them and copy download links.";
+            notificationService.ShowInfo(title, desc);
             return;
         }
 
@@ -632,9 +638,9 @@ public partial class ReplayManagerViewModel(
         var demoPath = directoryService.GetReplayDirectory(SelectedTab);
         if (IsDemoPath(demoPath))
         {
-            notificationService.ShowInfo(
-                "Copy Link",
-                "Copies the download link of the uploaded file to your clipboard.");
+            var title = LocalizationService?.GetString("Tools.ReplayManager.Demo.CopyLinkTitle") ?? "Copy Link";
+            var desc = LocalizationService?.GetString("Tools.ReplayManager.Demo.CopyLinkDesc") ?? "Copies the download link of the uploaded file to your clipboard.";
+            notificationService.ShowInfo(title, desc);
             return;
         }
 
@@ -667,9 +673,9 @@ public partial class ReplayManagerViewModel(
         var demoPath = directoryService.GetReplayDirectory(SelectedTab);
         if (IsDemoPath(demoPath))
         {
-            notificationService.ShowInfo(
-                "Delete Upload",
-                "Permanently deletes the uploaded file from cloud storage and removes it from history.");
+            var title = LocalizationService?.GetString("Tools.ReplayManager.Demo.DeleteUploadTitle") ?? "Delete Upload";
+            var desc = LocalizationService?.GetString("Tools.ReplayManager.Demo.DeleteUploadDesc") ?? "Permanently deletes the uploaded file from cloud storage and removes it from history.";
+            notificationService.ShowInfo(title, desc);
             return;
         }
 
@@ -720,19 +726,23 @@ public partial class ReplayManagerViewModel(
         var demoPath = directoryService.GetReplayDirectory(SelectedTab);
         if (IsDemoPath(demoPath))
         {
-            notificationService.ShowInfo(
-                "Clear History",
-                "Permanently deletes all uploaded files from cloud storage and clears upload history.");
+            var title = LocalizationService?.GetString("Tools.ReplayManager.Demo.ClearHistoryTitle") ?? "Clear History";
+            var desc = LocalizationService?.GetString("Tools.ReplayManager.Demo.ClearHistoryDesc") ?? "Permanently deletes all uploaded files from cloud storage and clears upload history.";
+            notificationService.ShowInfo(title, desc);
             return;
         }
 
         if (DialogService != null)
         {
+            var confirmTitle = LocalizationService?.GetString("Tools.ReplayManager.Dialog.ClearHistoryTitle") ?? "Clear Upload History";
+            var confirmDesc = LocalizationService?.GetString("Tools.ReplayManager.Dialog.ClearHistoryMessage") ?? "Are you sure you want to delete all uploaded replays from cloud storage and clear your upload history? This cannot be undone.";
+            var confirmText = LocalizationService?.GetString("Tools.ReplayManager.Dialog.ClearHistoryConfirm") ?? "Clear All";
+            var cancelText = LocalizationService?.GetString("Common.Button.Cancel") ?? "Cancel";
             var confirmed = await DialogService.ShowConfirmationAsync(
-                "Clear Upload History",
-                "Are you sure you want to delete all uploaded replays from cloud storage and clear your upload history? This cannot be undone.",
-                confirmText: "Clear All",
-                cancelText: "Cancel");
+                confirmTitle,
+                confirmDesc,
+                confirmText: confirmText,
+                cancelText: cancelText);
             if (!confirmed)
             {
                 return;
@@ -745,15 +755,19 @@ public partial class ReplayManagerViewModel(
             await LoadHistoryAsync();
             if (failed == 0)
             {
+                var clearedTitle = LocalizationService?.GetString("Tools.ReplayManager.Notify.ClearedTitle") ?? "Cleared";
+                var clearedDescFormat = LocalizationService?.GetString("Tools.ReplayManager.Notify.ClearedDescFormat") ?? "All {0} uploaded files deleted from cloud storage and history cleared.";
                 notificationService.ShowSuccess(
-                    "Cleared",
-                    $"All {deleted} uploaded files deleted from cloud storage and history cleared.");
+                    clearedTitle,
+                    string.Format(clearedDescFormat, deleted));
             }
             else
             {
+                var partiallyClearedTitle = LocalizationService?.GetString("Tools.ReplayManager.Notify.PartiallyClearedTitle") ?? "Partially Cleared";
+                var partiallyClearedDescFormat = LocalizationService?.GetString("Tools.ReplayManager.Notify.PartiallyClearedDescFormat") ?? "Cleared {0} history items. {1} item(s) could not be deleted from cloud storage.";
                 notificationService.ShowWarning(
-                    "Partially Cleared",
-                    $"Cleared {deleted} history items. {failed} item(s) could not be deleted from cloud storage.");
+                    partiallyClearedTitle,
+                    string.Format(partiallyClearedDescFormat, deleted, failed));
             }
         }
         catch (Exception ex) when ((ex is IOException or UnauthorizedAccessException or HttpRequestException or JsonException) && ex is not OperationCanceledException)
@@ -821,8 +835,10 @@ public partial class ReplayManagerViewModel(
         catch (Exception ex)
         {
             logger.LogError(ex, "Import failed");
-            notificationService.ShowError("Import Error", ex.Message);
-            StatusMessage = "Import error.";
+            var errorTitle = LocalizationService?.GetString("Tools.ReplayManager.Notify.ImportErrorTitle") ?? "Import Error";
+            var errorStatus = LocalizationService?.GetString("Tools.ReplayManager.Status.ImportError") ?? "Import error.";
+            notificationService.ShowError(errorTitle, ex.Message);
+            StatusMessage = errorStatus;
         }
         finally
         {
@@ -839,9 +855,9 @@ public partial class ReplayManagerViewModel(
         if (IsDemoPath(demoPath))
         {
             // Show notification toast explaining what the button does
-            notificationService.ShowInfo(
-                "Browse and Import",
-                "Opens a file picker dialog allowing you to select replay files (.rep) or zip archives from your computer to import into game.");
+            var title = LocalizationService?.GetString("Tools.ReplayManager.Demo.BrowseAndImportTitle") ?? "Browse and Import";
+            var desc = LocalizationService?.GetString("Tools.ReplayManager.Demo.BrowseAndImportDesc") ?? "Opens a file picker dialog allowing you to select replay files (.rep) or zip archives from your computer to import into game.";
+            notificationService.ShowInfo(title, desc);
             return;
         }
 
@@ -881,9 +897,9 @@ public partial class ReplayManagerViewModel(
         if (demoReplays.Count > 0)
         {
             // Show notification toast explaining what the button does
-            notificationService.ShowInfo(
-                "Delete Replays",
-                "Permanently deletes selected replays from your game's replay directory. This action cannot be undone.");
+            var title = LocalizationService?.GetString("Tools.ReplayManager.Demo.DeleteReplaysTitle") ?? "Delete Replays";
+            var desc = LocalizationService?.GetString("Tools.ReplayManager.Demo.DeleteReplaysDesc") ?? "Permanently deletes selected replays from your game's replay directory. This action cannot be undone.";
+            notificationService.ShowInfo(title, desc);
             return;
         }
 
@@ -896,7 +912,8 @@ public partial class ReplayManagerViewModel(
         {
             var deletedDesc = LocalizationService?.GetString("Tools.ReplayManager.Notify.DeletedReplaysFormat") ?? "Deleted {0} replays.";
             var deletedStatus = LocalizationService?.GetString("Tools.ReplayManager.Status.DeletedSuccessfully") ?? "Deleted successfully.";
-            notificationService.ShowSuccess("Deleted", string.Format(deletedDesc, count));
+            var deletedTitle = LocalizationService?.GetString("Tools.ReplayManager.Notify.DeletedTitle") ?? "Deleted";
+            notificationService.ShowSuccess(deletedTitle, string.Format(deletedDesc, count));
             StatusMessage = deletedStatus;
         }
         else
@@ -926,9 +943,9 @@ public partial class ReplayManagerViewModel(
         if (demoReplays.Count > 0)
         {
             // Show notification toast explaining what the button does
-            notificationService.ShowInfo(
-                "Export to ZIP",
-                "Creates a ZIP archive containing selected replays and saves it to your replay directory. You can then share the ZIP file with others or use it for backup purposes.");
+            var title = LocalizationService?.GetString("Tools.ReplayManager.Demo.ExportToZipTitle") ?? "Export to ZIP";
+            var desc = LocalizationService?.GetString("Tools.ReplayManager.Demo.ExportToZipDesc") ?? "Creates a ZIP archive containing selected replays and saves it to your replay directory. You can then share the ZIP file with others or use it for backup purposes.";
+            notificationService.ShowInfo(title, desc);
             return;
         }
 
@@ -1070,9 +1087,9 @@ public partial class ReplayManagerViewModel(
         var demoReplays = SelectedReplays.Where(r => IsDemoPath(r.FullPath)).ToList();
         if (demoReplays.Count > 0)
         {
-            notificationService.ShowInfo(
-                "Upload and Share",
-                "Uploads selected replays to UploadThing cloud service (max 10MB) and copies the share link to your clipboard. You can then share the link with others to download replays.");
+            var title = LocalizationService?.GetString("Tools.ReplayManager.Demo.UploadAndShareTitle") ?? "Upload and Share";
+            var desc = LocalizationService?.GetString("Tools.ReplayManager.Demo.UploadAndShareDesc") ?? "Uploads selected replays to UploadThing cloud service (max 10MB) and copies the share link to your clipboard. You can then share the link with others to download replays.";
+            notificationService.ShowInfo(title, desc);
             return true;
         }
 
@@ -1083,9 +1100,9 @@ public partial class ReplayManagerViewModel(
     {
         if (totalSizeBytes > ReplayManagerConstants.MaxUploadBytesPerPeriod)
         {
-            notificationService.ShowError(
-               "File Too Large",
-               "File too large. Maximum upload size is 10MB.");
+            var title = LocalizationService?.GetString("Tools.ReplayManager.Notify.FileTooLargeTitle") ?? "File Too Large";
+            var desc = LocalizationService?.GetString("Tools.ReplayManager.Notify.FileTooLargeDesc") ?? "File too large. Maximum upload size is 10MB.";
+            notificationService.ShowError(title, desc);
             StatusMessage = LocalizationService?.GetString("Tools.ReplayManager.Status.UploadTooLarge") ?? "Upload too large (Max 10MB).";
             return false;
         }
@@ -1095,9 +1112,9 @@ public partial class ReplayManagerViewModel(
         {
             var usage = await uploadHistoryService.GetUsageInfoAsync(ReplayManagerConstants.UploadCategory);
             var resetDateLocal = usage.ResetDate.ToLocalTime();
-            notificationService.ShowError(
-                "Rate Limit Exceeded",
-                "Upload limit exceeded for the current 3-day period. Please remove items from your Upload History to free up quota immediately.");
+            var title = LocalizationService?.GetString("Tools.ReplayManager.Notify.RateLimitExceededTitle") ?? "Rate Limit Exceeded";
+            var desc = LocalizationService?.GetString("Tools.ReplayManager.Notify.RateLimitExceededDesc") ?? "Upload limit exceeded for the current 3-day period. Please remove items from your Upload History to free up quota immediately.";
+            notificationService.ShowError(title, desc);
             var limitStatusFormat = LocalizationService?.GetString("Tools.ReplayManager.Status.UploadLimitReached") ?? "Limit reached. Resets {0:g}.";
             StatusMessage = string.Format(limitStatusFormat, resetDateLocal);
             return false;
@@ -1165,9 +1182,9 @@ public partial class ReplayManagerViewModel(
         if (IsDemoPath(demoPath))
         {
             // Show notification toast explaining what the button does
-            notificationService.ShowInfo(
-                "Open Replay Folder",
-                "Opens your game's replay directory in Windows Explorer, allowing you to manage your replay files directly.");
+            var title = LocalizationService?.GetString("Tools.ReplayManager.Demo.OpenFolderTitle") ?? "Open Replay Folder";
+            var desc = LocalizationService?.GetString("Tools.ReplayManager.Demo.OpenFolderDesc") ?? "Opens your game's replay directory in Windows Explorer, allowing you to manage your replay files directly.";
+            notificationService.ShowInfo(title, desc);
             return;
         }
 
@@ -1181,9 +1198,9 @@ public partial class ReplayManagerViewModel(
         if (IsDemoPath(replay.FullPath))
         {
             // Show notification toast explaining what the button does
-            notificationService.ShowInfo(
-                "Reveal Replay File",
-                "Opens Windows Explorer and highlights the selected replay file, making it easy to locate and manage.");
+            var title = LocalizationService?.GetString("Tools.ReplayManager.Demo.RevealFileTitle") ?? "Reveal Replay File";
+            var desc = LocalizationService?.GetString("Tools.ReplayManager.Demo.RevealFileDesc") ?? "Opens Windows Explorer and highlights the selected replay file, making it easy to locate and manage.";
+            notificationService.ShowInfo(title, desc);
             return;
         }
 
@@ -1204,9 +1221,9 @@ public partial class ReplayManagerViewModel(
         if (demoReplays.Count > 0)
         {
             // Show notification toast explaining what the button does
-            notificationService.ShowInfo(
-                "Uncompress ZIP",
-                "Extracts contents of the selected ZIP archives and imports any contained replays into your game's replay directory.");
+            var title = LocalizationService?.GetString("Tools.ReplayManager.Demo.UncompressZipTitle") ?? "Uncompress ZIP";
+            var desc = LocalizationService?.GetString("Tools.ReplayManager.Demo.UncompressZipDesc") ?? "Extracts contents of the selected ZIP archives and imports any contained replays into your game's replay directory.";
+            notificationService.ShowInfo(title, desc);
             return;
         }
 
@@ -1278,9 +1295,9 @@ public partial class ReplayManagerViewModel(
 
         if (IsDemoPath(replay.FullPath))
         {
-            notificationService.ShowInfo(
-                "Select Game Client",
-                "Choose from available game clients (such as Community Patch, MP Recovery, or detected installations) to configure a dedicated profile.");
+            var title = LocalizationService?.GetString("Tools.ReplayManager.Demo.SelectClientTitle") ?? "Select Game Client";
+            var desc = LocalizationService?.GetString("Tools.ReplayManager.Demo.SelectClientDesc") ?? "Choose from available game clients (such as Community Patch, MP Recovery, or detected installations) to configure a dedicated profile.";
+            notificationService.ShowInfo(title, desc);
             return null;
         }
 
@@ -1386,8 +1403,9 @@ public partial class ReplayManagerViewModel(
     {
         if (IsDemoPath(replay.FullPath))
         {
-            notificationService.ShowInfo(
-                "Create Profile for Replay", "Creates a dedicated game profile configured with the exact game client and INI configuration required by this replay.");
+            var title = LocalizationService?.GetString("Tools.ReplayManager.Demo.CreateProfileTitle") ?? "Create Profile for Replay";
+            var desc = LocalizationService?.GetString("Tools.ReplayManager.Demo.CreateProfileDesc") ?? "Creates a dedicated game profile configured with the exact game client and INI configuration required by this replay.";
+            notificationService.ShowInfo(title, desc);
             return;
         }
 
@@ -1508,9 +1526,9 @@ public partial class ReplayManagerViewModel(
 
         if (IsDemoPath(replay.FullPath))
         {
-            notificationService.ShowInfo(
-                "Select Profile to Run Replay",
-                "Choose a profile to watch this replay with.");
+            var title = LocalizationService?.GetString("Tools.ReplayManager.Demo.SelectProfileTitle") ?? "Select Profile to Run Replay";
+            var desc = LocalizationService?.GetString("Tools.ReplayManager.Demo.SelectProfileDesc") ?? "Choose a profile to watch this replay with.";
+            notificationService.ShowInfo(title, desc);
             return;
         }
 
@@ -1553,11 +1571,12 @@ public partial class ReplayManagerViewModel(
     {
         logger.LogDebug("[ReplayManager] Displaying profile selection dialog for '{FileName}'", replay.FileName);
         var profileVm = ActivatorUtilities.CreateInstance<ProfileSelectionViewModel>(sp);
-        profileVm.DialogTitle = $"Select Profile - {replay.FileName}";
-        profileVm.HeaderTitle = "Select Profile to Run Replay";
-        profileVm.HeaderSubtitle = "Click a profile to launch this replay";
-        profileVm.ActionBadgeText = "Play";
-        profileVm.CreateProfileCardSubtitle = "Choose an available game client to create a fresh profile";
+        var dialogTitleFormat = LocalizationService?.GetString("Tools.ReplayManager.ProfileSelection.DialogTitleFormat") ?? "Select Profile - {0}";
+        profileVm.DialogTitle = string.Format(dialogTitleFormat, replay.FileName);
+        profileVm.HeaderTitle = LocalizationService?.GetString("Tools.ReplayManager.ProfileSelection.HeaderTitle") ?? "Select Profile to Run Replay";
+        profileVm.HeaderSubtitle = LocalizationService?.GetString("Tools.ReplayManager.ProfileSelection.HeaderSubtitle") ?? "Click a profile to launch this replay";
+        profileVm.ActionBadgeText = LocalizationService?.GetString("Tools.ReplayManager.ProfileSelection.ActionBadge") ?? "Play";
+        profileVm.CreateProfileCardSubtitle = LocalizationService?.GetString("Tools.ReplayManager.ProfileSelection.CreateProfileCardSubtitle") ?? "Choose an available game client to create a fresh profile";
 
         var compatibleProfiles = await directoryService.GetCompatibleProfilesForReplayAsync(replay);
         var compatibleProfileIds = new HashSet<string>(compatibleProfiles.Select(p => p.Id), StringComparer.OrdinalIgnoreCase);
@@ -1589,8 +1608,9 @@ public partial class ReplayManagerViewModel(
 
         if (IsDemoPath(replay.FullPath))
         {
-            notificationService.ShowInfo(
-                "Launch Replay Profile", "Launches the game using the profile matching this replay so you can watch it without version or INI mismatch errors.");
+            var title = LocalizationService?.GetString("Tools.ReplayManager.Demo.LaunchProfileTitle") ?? "Launch Replay Profile";
+            var desc = LocalizationService?.GetString("Tools.ReplayManager.Demo.LaunchProfileDesc") ?? "Launches the game using the profile matching this replay so you can watch it without version or INI mismatch errors.";
+            notificationService.ShowInfo(title, desc);
             return;
         }
 
@@ -1605,9 +1625,9 @@ public partial class ReplayManagerViewModel(
             {
                 _runningProfiles.TryAdd(profileId, 0);
 
-                notificationService.ShowWarning(
-                    "Game Running",
-                    "The game profile for this replay is already running.");
+                var runningTitle = LocalizationService?.GetString("Tools.ReplayManager.Notify.GameRunningTitle") ?? "Game Running";
+                var runningDesc = LocalizationService?.GetString("Tools.ReplayManager.Notify.GameRunningDesc") ?? "The game profile for this replay is already running.";
+                notificationService.ShowWarning(runningTitle, runningDesc);
                 return;
             }
         }
@@ -1744,6 +1764,12 @@ public partial class ReplayManagerViewModel(
             return;
         }
 
+        _drawerOpenCts?.Cancel();
+        _drawerOpenCts?.Dispose();
+        var cts = new CancellationTokenSource();
+        _drawerOpenCts = cts;
+        var token = cts.Token;
+
         ActiveCheckpointReplay = replay;
         CompatibleProfiles.Clear();
         AvailableCheckpoints.Clear();
@@ -1751,20 +1777,24 @@ public partial class ReplayManagerViewModel(
 
         try
         {
-            await PopulateCompatibleProfilesAsync(replay);
-            if (ActiveCheckpointReplay != replay)
+            await PopulateCompatibleProfilesAsync(replay, token);
+            if (token.IsCancellationRequested || ActiveCheckpointReplay != replay)
             {
                 return;
             }
 
-            await PopulateCheckpointsAndSlotsAsync(replay);
-            if (ActiveCheckpointReplay != replay)
+            await PopulateCheckpointsAndSlotsAsync(replay, token);
+            if (token.IsCancellationRequested || ActiveCheckpointReplay != replay)
             {
                 return;
             }
 
             UpdateReplayTimingBounds();
             IsCheckpointDrawerOpen = true;
+        }
+        catch (OperationCanceledException)
+        {
+            // Drawer operation superseded
         }
         catch (Exception ex)
         {
@@ -1775,7 +1805,7 @@ public partial class ReplayManagerViewModel(
         }
     }
 
-    private async Task PopulateCompatibleProfilesAsync(ReplayFile replay)
+    private async Task PopulateCompatibleProfilesAsync(ReplayFile replay, CancellationToken cancellationToken = default)
     {
         var (manager, scope) = ResolveProfileManager();
         try
@@ -1789,7 +1819,12 @@ public partial class ReplayManagerViewModel(
                 return;
             }
 
-            var allProfilesResult = await manager.GetAllProfilesAsync();
+            var allProfilesResult = await manager.GetAllProfilesAsync(cancellationToken);
+            if (cancellationToken.IsCancellationRequested || ActiveCheckpointReplay != replay)
+            {
+                return;
+            }
+
             if (!allProfilesResult.Success || allProfilesResult.Data == null)
             {
                 var error = allProfilesResult.FirstError ?? "Failed to load profiles.";
@@ -1805,6 +1840,12 @@ public partial class ReplayManagerViewModel(
                 ? recoveryProfiles
                 : directoryService.FindCompatibleProfiles(replay, allProfilesResult.Data);
 
+            if (cancellationToken.IsCancellationRequested || ActiveCheckpointReplay != replay)
+            {
+                return;
+            }
+
+            CompatibleProfiles.Clear();
             foreach (var profile in profilesToAdd)
             {
                 CompatibleProfiles.Add(profile);
@@ -1849,9 +1890,15 @@ public partial class ReplayManagerViewModel(
             ?? CompatibleProfiles.FirstOrDefault();
     }
 
-    private async Task PopulateCheckpointsAndSlotsAsync(ReplayFile replay)
+    private async Task PopulateCheckpointsAndSlotsAsync(ReplayFile replay, CancellationToken cancellationToken = default)
     {
-        var checkpoints = await checkpointService.GetCheckpointsForReplayAsync(replay);
+        var checkpoints = await checkpointService.GetCheckpointsForReplayAsync(replay, cancellationToken);
+        if (cancellationToken.IsCancellationRequested || ActiveCheckpointReplay != replay)
+        {
+            return;
+        }
+
+        AvailableCheckpoints.Clear();
         foreach (var checkpoint in checkpoints)
         {
             AvailableCheckpoints.Add(checkpoint);
@@ -1859,6 +1906,7 @@ public partial class ReplayManagerViewModel(
 
         SelectedCheckpoint = AvailableCheckpoints.LastOrDefault();
 
+        AvailableSlots.Clear();
         if (replay.Metadata?.Slots != null)
         {
             foreach (var slot in replay.Metadata.Slots)
@@ -1876,6 +1924,9 @@ public partial class ReplayManagerViewModel(
     [RelayCommand]
     private void CloseCheckpointDrawer()
     {
+        _drawerOpenCts?.Cancel();
+        _drawerOpenCts?.Dispose();
+        _drawerOpenCts = null;
         checkpointService.CancelActiveMint();
         IsCheckpointDrawerOpen = false;
         ActiveCheckpointReplay = null;
@@ -2291,10 +2342,10 @@ public partial class ReplayManagerViewModel(
 
         if (IsGeneralsOnlineProfile(profile))
         {
-            return 60;
+            return ReplayManagerConstants.GeneralsOnlineFps;
         }
 
-        return replay?.FramesPerSecond ?? 30;
+        return replay?.FramesPerSecond ?? ReplayManagerConstants.ClassicFps;
     }
 
     [SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Instance method to satisfy StyleCop SA1204 member ordering.")]
@@ -2307,8 +2358,8 @@ public partial class ReplayManagerViewModel(
 
         var client = profile.GameClient;
         return string.Equals(client.PublisherType, PublisherTypeConstants.GeneralsOnline, StringComparison.OrdinalIgnoreCase) ||
-               (!string.IsNullOrEmpty(client.ExecutablePath) && client.ExecutablePath.Contains("60Hz", StringComparison.OrdinalIgnoreCase)) ||
-               (!string.IsNullOrEmpty(profile.Name) && profile.Name.Contains("60Hz", StringComparison.OrdinalIgnoreCase)) ||
-               (!string.IsNullOrEmpty(client.Name) && client.Name.Contains("60Hz", StringComparison.OrdinalIgnoreCase));
+               (!string.IsNullOrEmpty(client.ExecutablePath) && client.ExecutablePath.Contains(ReplayManagerConstants.HighRefreshRateKeyword, StringComparison.OrdinalIgnoreCase)) ||
+               (!string.IsNullOrEmpty(profile.Name) && profile.Name.Contains(ReplayManagerConstants.HighRefreshRateKeyword, StringComparison.OrdinalIgnoreCase)) ||
+               (!string.IsNullOrEmpty(client.Name) && client.Name.Contains(ReplayManagerConstants.HighRefreshRateKeyword, StringComparison.OrdinalIgnoreCase));
     }
 }

@@ -7153,4 +7153,166 @@ GenHub передает официальный идентификатор AppID 
   <data name="Tools.ReplayManager.Status.ImportedFilesFormat" xml:space="preserve">
     <value>Импортировано файлов: {0}.</value>
   </data>
+  <data name="Tools.ReplayManager.Checkpoint.SlotLabelFormat" xml:space="preserve">
+    <value>Слот {0}: {1}</value>
+  </data>
+  <data name="Tools.ReplayManager.Checkpoint.SlotLabelAiFormat" xml:space="preserve">
+    <value>Слот {0}: {1} ({2})</value>
+  </data>
+  <data name="Tools.ReplayManager.Checkpoint.AiLabel" xml:space="preserve">
+    <value>ИИ</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.DeletedTitle" xml:space="preserve">
+    <value>Удалено</value>
+  </data>
+  <data name="Tools.ReplayManager.Dialog.ClearHistoryTitle" xml:space="preserve">
+    <value>Очистить историю загрузок</value>
+  </data>
+  <data name="Tools.ReplayManager.Dialog.ClearHistoryMessage" xml:space="preserve">
+    <value>Вы уверены, что хотите удалить все загруженные повторы из облачного хранилища и очистить историю? Это действие нельзя отменить.</value>
+  </data>
+  <data name="Tools.ReplayManager.Dialog.ClearHistoryConfirm" xml:space="preserve">
+    <value>Очистить всё</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.ClearedTitle" xml:space="preserve">
+    <value>Очищено</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.ClearedDescFormat" xml:space="preserve">
+    <value>Все загруженные файлы ({0}) удалены из облачного хранилища, история очищена.</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.PartiallyClearedTitle" xml:space="preserve">
+    <value>Частично очищено</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.PartiallyClearedDescFormat" xml:space="preserve">
+    <value>Очищено элементов истории: {0}. Не удалось удалить из облачного хранилища: {1}.</value>
+  </data>
+  <data name="Tools.ReplayManager.Demo.ImportReplaysTitle" xml:space="preserve">
+    <value>Импорт повторов</value>
+  </data>
+  <data name="Tools.ReplayManager.Demo.ImportReplaysDesc" xml:space="preserve">
+    <value>Импортирует повторы по ссылкам или перетаскиванием файлов в каталог повторов игры.</value>
+  </data>
+  <data name="Tools.ReplayManager.Demo.UploadHistoryTitle" xml:space="preserve">
+    <value>История загрузок</value>
+  </data>
+  <data name="Tools.ReplayManager.Demo.UploadHistoryDesc" xml:space="preserve">
+    <value>Показывает список ранее загруженных повторов, позволяя управлять ими и копировать ссылки.</value>
+  </data>
+  <data name="Tools.ReplayManager.Demo.CopyLinkTitle" xml:space="preserve">
+    <value>Скопировать ссылку</value>
+  </data>
+  <data name="Tools.ReplayManager.Demo.CopyLinkDesc" xml:space="preserve">
+    <value>Копирует ссылку на скачивание загруженного файла в буфер обмена.</value>
+  </data>
+  <data name="Tools.ReplayManager.Demo.DeleteUploadTitle" xml:space="preserve">
+    <value>Удалить загрузку</value>
+  </data>
+  <data name="Tools.ReplayManager.Demo.DeleteUploadDesc" xml:space="preserve">
+    <value>Навсегда удаляет загруженный файл из облачного хранилища и убирает его из истории.</value>
+  </data>
+  <data name="Tools.ReplayManager.Demo.ClearHistoryTitle" xml:space="preserve">
+    <value>Очистить историю</value>
+  </data>
+  <data name="Tools.ReplayManager.Demo.ClearHistoryDesc" xml:space="preserve">
+    <value>Навсегда удаляет все загруженные файлы из облака и очищает историю загрузок.</value>
+  </data>
+  <data name="Tools.ReplayManager.Demo.BrowseAndImportTitle" xml:space="preserve">
+    <value>Обзор и импорт</value>
+  </data>
+  <data name="Tools.ReplayManager.Demo.BrowseAndImportDesc" xml:space="preserve">
+    <value>Открывает диалог выбора файлов (.rep или zip) на компьютере для импорта в игру.</value>
+  </data>
+  <data name="Tools.ReplayManager.Demo.DeleteReplaysTitle" xml:space="preserve">
+    <value>Удалить повторы</value>
+  </data>
+  <data name="Tools.ReplayManager.Demo.DeleteReplaysDesc" xml:space="preserve">
+    <value>Навсегда удаляет выбранные повторы из папки повторов игры. Это действие нельзя отменить.</value>
+  </data>
+  <data name="Tools.ReplayManager.Demo.ExportToZipTitle" xml:space="preserve">
+    <value>Экспорт в ZIP</value>
+  </data>
+  <data name="Tools.ReplayManager.Demo.ExportToZipDesc" xml:space="preserve">
+    <value>Создает ZIP-архив с выбранными повторами в папке повторов. Вы можете поделиться им или использовать для резервной копии.</value>
+  </data>
+  <data name="Tools.ReplayManager.Demo.UploadAndShareTitle" xml:space="preserve">
+    <value>Загрузить и поделиться</value>
+  </data>
+  <data name="Tools.ReplayManager.Demo.UploadAndShareDesc" xml:space="preserve">
+    <value>Загружает выбранные повторы в облачный сервис UploadThing (до 10 МБ) и копирует ссылку на общий доступ в буфер обмена.</value>
+  </data>
+  <data name="Tools.ReplayManager.Demo.OpenFolderTitle" xml:space="preserve">
+    <value>Открыть папку повторов</value>
+  </data>
+  <data name="Tools.ReplayManager.Demo.OpenFolderDesc" xml:space="preserve">
+    <value>Открывает папку повторов игры в проводнике, позволяя управлять файлами напрямую.</value>
+  </data>
+  <data name="Tools.ReplayManager.Demo.RevealFileTitle" xml:space="preserve">
+    <value>Показать файл повтора</value>
+  </data>
+  <data name="Tools.ReplayManager.Demo.RevealFileDesc" xml:space="preserve">
+    <value>Открывает проводник и выделяет выбранный файл повтора, упрощая его поиск и управление.</value>
+  </data>
+  <data name="Tools.ReplayManager.Demo.UncompressZipTitle" xml:space="preserve">
+    <value>Распаковать ZIP</value>
+  </data>
+  <data name="Tools.ReplayManager.Demo.UncompressZipDesc" xml:space="preserve">
+    <value>Распаковывает содержимое выбранных ZIP-архивов и импортирует найденные повторы в папку повторов игры.</value>
+  </data>
+  <data name="Tools.ReplayManager.Demo.SelectClientTitle" xml:space="preserve">
+    <value>Выбрать клиент игры</value>
+  </data>
+  <data name="Tools.ReplayManager.Demo.SelectClientDesc" xml:space="preserve">
+    <value>Выберите из доступных игровых клиентов для настройки выделенного профиля.</value>
+  </data>
+  <data name="Tools.ReplayManager.Demo.CreateProfileTitle" xml:space="preserve">
+    <value>Создать профиль для повтора</value>
+  </data>
+  <data name="Tools.ReplayManager.Demo.CreateProfileDesc" xml:space="preserve">
+    <value>Создает отдельный профиль игры, настроенный с точным клиентом и конфигурацией INI для этого повтора.</value>
+  </data>
+  <data name="Tools.ReplayManager.Demo.SelectProfileTitle" xml:space="preserve">
+    <value>Выбрать профиль для запуска повтора</value>
+  </data>
+  <data name="Tools.ReplayManager.Demo.SelectProfileDesc" xml:space="preserve">
+    <value>Выберите профиль для просмотра этого повтора.</value>
+  </data>
+  <data name="Tools.ReplayManager.Demo.LaunchProfileTitle" xml:space="preserve">
+    <value>Запустить профиль повтора</value>
+  </data>
+  <data name="Tools.ReplayManager.Demo.LaunchProfileDesc" xml:space="preserve">
+    <value>Запускает игру с профилем, соответствующим этому повтору, чтобы избежать ошибок несоответствия версий или INI.</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.GameRunningTitle" xml:space="preserve">
+    <value>Игра запущена</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.GameRunningDesc" xml:space="preserve">
+    <value>Игровой профиль для этого повтора уже запущен.</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.FileTooLargeTitle" xml:space="preserve">
+    <value>Файл слишком большой</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.FileTooLargeDesc" xml:space="preserve">
+    <value>Файл слишком большой. Максимальный размер загрузки составляет 10 МБ.</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.RateLimitExceededTitle" xml:space="preserve">
+    <value>Превышен лимит</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.RateLimitExceededDesc" xml:space="preserve">
+    <value>Превышен лимит загрузки за текущий 3-дневный период. Удалите элементы из истории загрузок, чтобы освободить место.</value>
+  </data>
+  <data name="Tools.ReplayManager.ProfileSelection.DialogTitleFormat" xml:space="preserve">
+    <value>Выбор профиля - {0}</value>
+  </data>
+  <data name="Tools.ReplayManager.ProfileSelection.HeaderTitle" xml:space="preserve">
+    <value>Выбор профиля для запуска повтора</value>
+  </data>
+  <data name="Tools.ReplayManager.ProfileSelection.HeaderSubtitle" xml:space="preserve">
+    <value>Нажмите на профиль для запуска повтора</value>
+  </data>
+  <data name="Tools.ReplayManager.ProfileSelection.ActionBadge" xml:space="preserve">
+    <value>Играть</value>
+  </data>
+  <data name="Tools.ReplayManager.ProfileSelection.CreateProfileCardSubtitle" xml:space="preserve">
+    <value>Выберите доступный клиент игры для создания нового профиля</value>
+  </data>
 </root>

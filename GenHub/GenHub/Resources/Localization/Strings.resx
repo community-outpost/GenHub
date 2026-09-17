@@ -7247,4 +7247,166 @@ Recovery Engine: Profile '{0}' supports checkpoint saves, replay resumption, and
   <data name="Tools.ReplayManager.Status.ImportedFilesFormat" xml:space="preserve">
     <value>Imported {0} file(s).</value>
   </data>
+  <data name="Tools.ReplayManager.Checkpoint.SlotLabelFormat" xml:space="preserve">
+    <value>Slot {0}: {1}</value>
+  </data>
+  <data name="Tools.ReplayManager.Checkpoint.SlotLabelAiFormat" xml:space="preserve">
+    <value>Slot {0}: {1} ({2})</value>
+  </data>
+  <data name="Tools.ReplayManager.Checkpoint.AiLabel" xml:space="preserve">
+    <value>AI</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.DeletedTitle" xml:space="preserve">
+    <value>Deleted</value>
+  </data>
+  <data name="Tools.ReplayManager.Dialog.ClearHistoryTitle" xml:space="preserve">
+    <value>Clear Upload History</value>
+  </data>
+  <data name="Tools.ReplayManager.Dialog.ClearHistoryMessage" xml:space="preserve">
+    <value>Are you sure you want to delete all uploaded replays from cloud storage and clear your upload history? This cannot be undone.</value>
+  </data>
+  <data name="Tools.ReplayManager.Dialog.ClearHistoryConfirm" xml:space="preserve">
+    <value>Clear All</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.ClearedTitle" xml:space="preserve">
+    <value>Cleared</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.ClearedDescFormat" xml:space="preserve">
+    <value>All {0} uploaded files deleted from cloud storage and history cleared.</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.PartiallyClearedTitle" xml:space="preserve">
+    <value>Partially Cleared</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.PartiallyClearedDescFormat" xml:space="preserve">
+    <value>Cleared {0} history items. {1} item(s) could not be deleted from cloud storage.</value>
+  </data>
+  <data name="Tools.ReplayManager.Demo.ImportReplaysTitle" xml:space="preserve">
+    <value>Import Replays</value>
+  </data>
+  <data name="Tools.ReplayManager.Demo.ImportReplaysDesc" xml:space="preserve">
+    <value>Imports replay files from URLs or by dragging and dropping files into your game's replay directory.</value>
+  </data>
+  <data name="Tools.ReplayManager.Demo.UploadHistoryTitle" xml:space="preserve">
+    <value>Upload History</value>
+  </data>
+  <data name="Tools.ReplayManager.Demo.UploadHistoryDesc" xml:space="preserve">
+    <value>Shows a list of your previously uploaded replays, allowing you to manage them and copy download links.</value>
+  </data>
+  <data name="Tools.ReplayManager.Demo.CopyLinkTitle" xml:space="preserve">
+    <value>Copy Link</value>
+  </data>
+  <data name="Tools.ReplayManager.Demo.CopyLinkDesc" xml:space="preserve">
+    <value>Copies the download link of the uploaded file to your clipboard.</value>
+  </data>
+  <data name="Tools.ReplayManager.Demo.DeleteUploadTitle" xml:space="preserve">
+    <value>Delete Upload</value>
+  </data>
+  <data name="Tools.ReplayManager.Demo.DeleteUploadDesc" xml:space="preserve">
+    <value>Permanently deletes the uploaded file from cloud storage and removes it from history.</value>
+  </data>
+  <data name="Tools.ReplayManager.Demo.ClearHistoryTitle" xml:space="preserve">
+    <value>Clear History</value>
+  </data>
+  <data name="Tools.ReplayManager.Demo.ClearHistoryDesc" xml:space="preserve">
+    <value>Permanently deletes all uploaded files from cloud storage and clears upload history.</value>
+  </data>
+  <data name="Tools.ReplayManager.Demo.BrowseAndImportTitle" xml:space="preserve">
+    <value>Browse and Import</value>
+  </data>
+  <data name="Tools.ReplayManager.Demo.BrowseAndImportDesc" xml:space="preserve">
+    <value>Opens a file picker dialog allowing you to select replay files (.rep) or zip archives from your computer to import into game.</value>
+  </data>
+  <data name="Tools.ReplayManager.Demo.DeleteReplaysTitle" xml:space="preserve">
+    <value>Delete Replays</value>
+  </data>
+  <data name="Tools.ReplayManager.Demo.DeleteReplaysDesc" xml:space="preserve">
+    <value>Permanently deletes selected replays from your game's replay directory. This action cannot be undone.</value>
+  </data>
+  <data name="Tools.ReplayManager.Demo.ExportToZipTitle" xml:space="preserve">
+    <value>Export to ZIP</value>
+  </data>
+  <data name="Tools.ReplayManager.Demo.ExportToZipDesc" xml:space="preserve">
+    <value>Creates a ZIP archive containing selected replays and saves it to your replay directory. You can then share the ZIP file with others or use it for backup purposes.</value>
+  </data>
+  <data name="Tools.ReplayManager.Demo.UploadAndShareTitle" xml:space="preserve">
+    <value>Upload and Share</value>
+  </data>
+  <data name="Tools.ReplayManager.Demo.UploadAndShareDesc" xml:space="preserve">
+    <value>Uploads selected replays to UploadThing cloud service (max 10MB) and copies the share link to your clipboard. You can then share the link with others to download replays.</value>
+  </data>
+  <data name="Tools.ReplayManager.Demo.OpenFolderTitle" xml:space="preserve">
+    <value>Open Replay Folder</value>
+  </data>
+  <data name="Tools.ReplayManager.Demo.OpenFolderDesc" xml:space="preserve">
+    <value>Opens your game's replay directory in Windows Explorer, allowing you to manage your replay files directly.</value>
+  </data>
+  <data name="Tools.ReplayManager.Demo.RevealFileTitle" xml:space="preserve">
+    <value>Reveal Replay File</value>
+  </data>
+  <data name="Tools.ReplayManager.Demo.RevealFileDesc" xml:space="preserve">
+    <value>Opens Windows Explorer and highlights the selected replay file, making it easy to locate and manage.</value>
+  </data>
+  <data name="Tools.ReplayManager.Demo.UncompressZipTitle" xml:space="preserve">
+    <value>Uncompress ZIP</value>
+  </data>
+  <data name="Tools.ReplayManager.Demo.UncompressZipDesc" xml:space="preserve">
+    <value>Extracts contents of the selected ZIP archives and imports any contained replays into your game's replay directory.</value>
+  </data>
+  <data name="Tools.ReplayManager.Demo.SelectClientTitle" xml:space="preserve">
+    <value>Select Game Client</value>
+  </data>
+  <data name="Tools.ReplayManager.Demo.SelectClientDesc" xml:space="preserve">
+    <value>Choose from available game clients (such as Community Patch, MP Recovery, or detected installations) to configure a dedicated profile.</value>
+  </data>
+  <data name="Tools.ReplayManager.Demo.CreateProfileTitle" xml:space="preserve">
+    <value>Create Profile for Replay</value>
+  </data>
+  <data name="Tools.ReplayManager.Demo.CreateProfileDesc" xml:space="preserve">
+    <value>Creates a dedicated game profile configured with the exact game client and INI configuration required by this replay.</value>
+  </data>
+  <data name="Tools.ReplayManager.Demo.SelectProfileTitle" xml:space="preserve">
+    <value>Select Profile to Run Replay</value>
+  </data>
+  <data name="Tools.ReplayManager.Demo.SelectProfileDesc" xml:space="preserve">
+    <value>Choose a profile to watch this replay with.</value>
+  </data>
+  <data name="Tools.ReplayManager.Demo.LaunchProfileTitle" xml:space="preserve">
+    <value>Launch Replay Profile</value>
+  </data>
+  <data name="Tools.ReplayManager.Demo.LaunchProfileDesc" xml:space="preserve">
+    <value>Launches the game using the profile matching this replay so you can watch it without version or INI mismatch errors.</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.GameRunningTitle" xml:space="preserve">
+    <value>Game Running</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.GameRunningDesc" xml:space="preserve">
+    <value>The game profile for this replay is already running.</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.FileTooLargeTitle" xml:space="preserve">
+    <value>File Too Large</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.FileTooLargeDesc" xml:space="preserve">
+    <value>File too large. Maximum upload size is 10MB.</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.RateLimitExceededTitle" xml:space="preserve">
+    <value>Rate Limit Exceeded</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.RateLimitExceededDesc" xml:space="preserve">
+    <value>Upload limit exceeded for the current 3-day period. Please remove items from your Upload History to free up quota immediately.</value>
+  </data>
+  <data name="Tools.ReplayManager.ProfileSelection.DialogTitleFormat" xml:space="preserve">
+    <value>Select Profile - {0}</value>
+  </data>
+  <data name="Tools.ReplayManager.ProfileSelection.HeaderTitle" xml:space="preserve">
+    <value>Select Profile to Run Replay</value>
+  </data>
+  <data name="Tools.ReplayManager.ProfileSelection.HeaderSubtitle" xml:space="preserve">
+    <value>Click a profile to launch this replay</value>
+  </data>
+  <data name="Tools.ReplayManager.ProfileSelection.ActionBadge" xml:space="preserve">
+    <value>Play</value>
+  </data>
+  <data name="Tools.ReplayManager.ProfileSelection.CreateProfileCardSubtitle" xml:space="preserve">
+    <value>Choose an available game client to create a fresh profile</value>
+  </data>
 </root>

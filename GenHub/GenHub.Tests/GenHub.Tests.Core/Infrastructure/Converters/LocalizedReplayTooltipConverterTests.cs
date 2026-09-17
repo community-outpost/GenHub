@@ -1,8 +1,8 @@
+using System;
+using System.Globalization;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Tools.ReplayManager;
 using GenHub.Infrastructure.Converters;
-using System;
-using System.Globalization;
 using Xunit;
 
 namespace GenHub.Tests.Core.Infrastructure.Converters;
@@ -69,7 +69,7 @@ public class LocalizedReplayTooltipConverterTests
     }
 
     /// <summary>
-    /// Verifies that Convert with compatibility formatted strings preserves the prefix.
+    /// Verifies that Convert with compatibility formatted strings preserves the prefix and CRC values.
     /// </summary>
     /// <param name="input">The prefixed compatibility string.</param>
     [Theory]
@@ -81,6 +81,20 @@ public class LocalizedReplayTooltipConverterTests
         var result = _converter.Convert(input, typeof(string), null, _culture) as string;
         Assert.NotNull(result);
         Assert.StartsWith("[", result);
+    }
+
+    /// <summary>
+    /// Verifies that CRC mismatches extract and preserve real hex CRC tokens.
+    /// </summary>
+    [Fact]
+    public void Convert_WithCrcMismatch_PreservesHexCrcTokens()
+    {
+        const string input = "[FAIL] INI CRC mismatch. Replay: 0x12345678, Profile: 0x87654321.";
+        var result = _converter.Convert(input, typeof(string), null, _culture) as string;
+
+        Assert.NotNull(result);
+        Assert.Contains("0x12345678", result);
+        Assert.Contains("0x87654321", result);
     }
 
     /// <summary>

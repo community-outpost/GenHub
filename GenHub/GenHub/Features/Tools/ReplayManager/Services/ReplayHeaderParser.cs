@@ -335,8 +335,7 @@ public sealed class ReplayHeaderParser(ILogger<ReplayHeaderParser> logger) : IRe
         }
 
         var seconds = ctx.EndTime - ctx.StartTime;
-        const long maxSanityDurationSeconds = 86400; // 24 hours
-        if (seconds <= 0 || seconds > maxSanityDurationSeconds)
+        if (seconds <= 0 || seconds > ReplayManagerConstants.MaxSaneReplayDurationSeconds)
         {
             return false;
         }

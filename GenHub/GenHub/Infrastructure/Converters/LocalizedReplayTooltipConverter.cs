@@ -202,7 +202,9 @@ public class LocalizedReplayTooltipConverter : IValueConverter
         }
         else if (text.Contains(CompatibilityOrphanedMarker, StringComparison.Ordinal))
         {
-            baseResult = loc.GetString("Tools.ReplayManager.Tooltip.Compatibility.Orphaned", "N/A", "N/A") ?? text;
+            var exeCrc = ExtractTokenBetween(text, "Exe CRC ", " /") ?? "N/A";
+            var iniCrc = ExtractTokenBetween(text, "INI CRC ", " ") ?? "N/A";
+            baseResult = loc.GetString("Tools.ReplayManager.Tooltip.Compatibility.Orphaned", exeCrc, iniCrc) ?? text;
         }
         else if (text.StartsWith("Replay header metadata is not available", StringComparison.Ordinal))
         {
@@ -231,5 +233,23 @@ public class LocalizedReplayTooltipConverter : IValueConverter
         var start = idx + prefix.Length;
         var end = text.IndexOf('\'', start);
         return end > start ? text.Substring(start, end - start) : null;
+    }
+
+    private static string? ExtractTokenBetween(string text, string prefix, string suffix)
+    {
+        var startIdx = text.IndexOf(prefix, StringComparison.Ordinal);
+        if (startIdx < 0)
+        {
+            return null;
+        }
+
+        startIdx += prefix.Length;
+        var endIdx = text.IndexOf(suffix, startIdx, StringComparison.Ordinal);
+        if (endIdx < 0)
+        {
+            return text[startIdx..].Trim();
+        }
+
+        return text[startIdx..endIdx].Trim();
     }
 }

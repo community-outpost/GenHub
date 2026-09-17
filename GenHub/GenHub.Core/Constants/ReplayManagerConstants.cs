@@ -67,9 +67,29 @@ public static class ReplayManagerConstants
     public const int DefaultMaxCheckpointSeconds = 600;
 
     /// <summary>
+    /// Default maximum checkpoint frames when replay frame count is unavailable (18000 frames / 10 minutes at 30 FPS).
+    /// </summary>
+    public const int DefaultMaxCheckpointFrames = 18000;
+
+    /// <summary>
     /// Default target checkpoint time in seconds when opening the checkpoint drawer (120s / 2 minutes).
     /// </summary>
     public const int DefaultTargetCheckpointSeconds = 120;
+
+    /// <summary>
+    /// Minimum valid player slot index for multiplayer matches (0-based).
+    /// </summary>
+    public const int MinPlayerSlotIndex = 0;
+
+    /// <summary>
+    /// Maximum valid player slot index for multiplayer matches (0-based, supports up to 8 players).
+    /// </summary>
+    public const int MaxPlayerSlotIndex = 7;
+
+    /// <summary>
+    /// Maximum sanity cap for replay match duration in seconds (24 hours).
+    /// </summary>
+    public const int MaxSaneReplayDurationSeconds = 86400;
 
     /// <summary>
     /// Display label suffix representing computer AI players in slot displays.

@@ -7153,4 +7153,166 @@ GenHub هو مشغل ومدير حديث لألعاب **Command &amp; Conquer: G
   <data name="Tools.ReplayManager.Status.ImportedFilesFormat" xml:space="preserve">
     <value>تم استيراد {0} ملف(ملفات).</value>
   </data>
+  <data name="Tools.ReplayManager.Checkpoint.SlotLabelFormat" xml:space="preserve">
+    <value>الخانة {0}: {1}</value>
+  </data>
+  <data name="Tools.ReplayManager.Checkpoint.SlotLabelAiFormat" xml:space="preserve">
+    <value>الخانة {0}: {1} ({2})</value>
+  </data>
+  <data name="Tools.ReplayManager.Checkpoint.AiLabel" xml:space="preserve">
+    <value>ذكاء اصطناعي</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.DeletedTitle" xml:space="preserve">
+    <value>تم الحذف</value>
+  </data>
+  <data name="Tools.ReplayManager.Dialog.ClearHistoryTitle" xml:space="preserve">
+    <value>مسح سجل الرفع</value>
+  </data>
+  <data name="Tools.ReplayManager.Dialog.ClearHistoryMessage" xml:space="preserve">
+    <value>هل أنت متأكد من رغبتك في حذف جميع الإعادات المرفوعة من التخزين السحابي ومسح سجل الرفع؟ لا يمكن التراجع عن هذا الإجراء.</value>
+  </data>
+  <data name="Tools.ReplayManager.Dialog.ClearHistoryConfirm" xml:space="preserve">
+    <value>مسح الكل</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.ClearedTitle" xml:space="preserve">
+    <value>تم المسح</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.ClearedDescFormat" xml:space="preserve">
+    <value>تم حذف جميع الملفات المرفوعة البالغ عددها {0} من التخزين السحابي ومسح السجل.</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.PartiallyClearedTitle" xml:space="preserve">
+    <value>تم المسح جزئيًا</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.PartiallyClearedDescFormat" xml:space="preserve">
+    <value>تم مسح {0} من عناصر السجل. تعذر حذف {1} عنصر/عناصر من التخزين السحابي.</value>
+  </data>
+  <data name="Tools.ReplayManager.Demo.ImportReplaysTitle" xml:space="preserve">
+    <value>استيراد الإعادات</value>
+  </data>
+  <data name="Tools.ReplayManager.Demo.ImportReplaysDesc" xml:space="preserve">
+    <value>يقوم باستيراد ملفات الإعادة من الروابط أو بسحب الملفات وإفلاتها في مجلد الإعادات الخاص باللعبة.</value>
+  </data>
+  <data name="Tools.ReplayManager.Demo.UploadHistoryTitle" xml:space="preserve">
+    <value>سجل الرفع</value>
+  </data>
+  <data name="Tools.ReplayManager.Demo.UploadHistoryDesc" xml:space="preserve">
+    <value>يعرض قائمة بالإعادات التي قمت برفعها مسبقًا، مما يتيح لك إدارتها ونسخ روابط التحميل.</value>
+  </data>
+  <data name="Tools.ReplayManager.Demo.CopyLinkTitle" xml:space="preserve">
+    <value>نسخ الرابط</value>
+  </data>
+  <data name="Tools.ReplayManager.Demo.CopyLinkDesc" xml:space="preserve">
+    <value>ينسخ رابط تحميل الملف المرفوع إلى الحافظة.</value>
+  </data>
+  <data name="Tools.ReplayManager.Demo.DeleteUploadTitle" xml:space="preserve">
+    <value>حذف الرفع</value>
+  </data>
+  <data name="Tools.ReplayManager.Demo.DeleteUploadDesc" xml:space="preserve">
+    <value>يحذف الملف المرفوع نهائيًا من التخزين السحابي ويزيله من السجل.</value>
+  </data>
+  <data name="Tools.ReplayManager.Demo.ClearHistoryTitle" xml:space="preserve">
+    <value>مسح السجل</value>
+  </data>
+  <data name="Tools.ReplayManager.Demo.ClearHistoryDesc" xml:space="preserve">
+    <value>يحذف نهائيًا جميع الملفات المرفوعة من التخزين السحابي ويمسح سجل الرفع.</value>
+  </data>
+  <data name="Tools.ReplayManager.Demo.BrowseAndImportTitle" xml:space="preserve">
+    <value>استعراض واستيراد</value>
+  </data>
+  <data name="Tools.ReplayManager.Demo.BrowseAndImportDesc" xml:space="preserve">
+    <value>يفتح نافذة لاختيار الملفات تتيح لك تحديد ملفات الإعادة (.rep) أو أرشيفات zip من حاسوبك لاستيرادها إلى اللعبة.</value>
+  </data>
+  <data name="Tools.ReplayManager.Demo.DeleteReplaysTitle" xml:space="preserve">
+    <value>حذف الإعادات</value>
+  </data>
+  <data name="Tools.ReplayManager.Demo.DeleteReplaysDesc" xml:space="preserve">
+    <value>يحذف نهائيًا الإعادات المحددة من مجلد إعادات اللعبة. لا يمكن التراجع عن هذا الإجراء.</value>
+  </data>
+  <data name="Tools.ReplayManager.Demo.ExportToZipTitle" xml:space="preserve">
+    <value>تصدير إلى ZIP</value>
+  </data>
+  <data name="Tools.ReplayManager.Demo.ExportToZipDesc" xml:space="preserve">
+    <value>ينشئ أرشيف ZIP يحتوي على الإعادات المحددة ويحفظه في مجلد الإعادات. يمكنك بعد ذلك مشاركة ملف ZIP مع الآخرين أو استخدامه للنسخ الاحتياطي.</value>
+  </data>
+  <data name="Tools.ReplayManager.Demo.UploadAndShareTitle" xml:space="preserve">
+    <value>رفع ومشاركة</value>
+  </data>
+  <data name="Tools.ReplayManager.Demo.UploadAndShareDesc" xml:space="preserve">
+    <value>يرفع الإعادات المحددة إلى خدمة UploadThing السحابية (بحد أقصى 10 ميجابايت) وينسخ رابط المشاركة إلى الحافظة.</value>
+  </data>
+  <data name="Tools.ReplayManager.Demo.OpenFolderTitle" xml:space="preserve">
+    <value>فتح مجلد الإعادات</value>
+  </data>
+  <data name="Tools.ReplayManager.Demo.OpenFolderDesc" xml:space="preserve">
+    <value>يفتح مجلد الإعادات الخاص باللعبة في مستكشف الملفات، مما يتيح لك إدارة ملفات الإعادة مباشرة.</value>
+  </data>
+  <data name="Tools.ReplayManager.Demo.RevealFileTitle" xml:space="preserve">
+    <value>إظهار ملف الإعادة</value>
+  </data>
+  <data name="Tools.ReplayManager.Demo.RevealFileDesc" xml:space="preserve">
+    <value>يفتح مستكشف الملفات ويحدد ملف الإعادة المختار، مما يسهل تحديد موقعه وإدارته.</value>
+  </data>
+  <data name="Tools.ReplayManager.Demo.UncompressZipTitle" xml:space="preserve">
+    <value>فك ضغط ZIP</value>
+  </data>
+  <data name="Tools.ReplayManager.Demo.UncompressZipDesc" xml:space="preserve">
+    <value>يستخرج محتويات أرشيفات ZIP المحددة ويستورد أي إعادات بداخلها إلى مجلد إعادات اللعبة.</value>
+  </data>
+  <data name="Tools.ReplayManager.Demo.SelectClientTitle" xml:space="preserve">
+    <value>تحديد عميل اللعبة</value>
+  </data>
+  <data name="Tools.ReplayManager.Demo.SelectClientDesc" xml:space="preserve">
+    <value>اختر من بين عملاء اللعبة المتاحين لتكوين ملف تعريف مخصص.</value>
+  </data>
+  <data name="Tools.ReplayManager.Demo.CreateProfileTitle" xml:space="preserve">
+    <value>إنشاء ملف تعريف للإعادة</value>
+  </data>
+  <data name="Tools.ReplayManager.Demo.CreateProfileDesc" xml:space="preserve">
+    <value>ينشئ ملف تعريف مخصص للعبة تم تكوينه بدقة وفقًا لعميل اللعبة وإعدادات INI المطلوبة لهذه الإعادة.</value>
+  </data>
+  <data name="Tools.ReplayManager.Demo.SelectProfileTitle" xml:space="preserve">
+    <value>تحديد ملف تعريف لتشغيل الإعادة</value>
+  </data>
+  <data name="Tools.ReplayManager.Demo.SelectProfileDesc" xml:space="preserve">
+    <value>اختر ملف تعريف لمشاهدة هذه الإعادة بواسطته.</value>
+  </data>
+  <data name="Tools.ReplayManager.Demo.LaunchProfileTitle" xml:space="preserve">
+    <value>تشغيل ملف تعريف الإعادة</value>
+  </data>
+  <data name="Tools.ReplayManager.Demo.LaunchProfileDesc" xml:space="preserve">
+    <value>يشغل اللعبة باستخدام ملف التعريف المطابق لهذه الإعادة حتى تتمكن من مشاهدتها دون أخطاء اختلاف الإصدار أو ملفات INI.</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.GameRunningTitle" xml:space="preserve">
+    <value>اللعبة قيد التشغيل</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.GameRunningDesc" xml:space="preserve">
+    <value>ملف تعريف اللعبة لهذه الإعادة قيد التشغيل بالفعل.</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.FileTooLargeTitle" xml:space="preserve">
+    <value>الملف كبير جدًا</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.FileTooLargeDesc" xml:space="preserve">
+    <value>الملف كبير جدًا. الحد الأقصى لحجم الرفع هو 10 ميجابايت.</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.RateLimitExceededTitle" xml:space="preserve">
+    <value>تم تجاوز حد الرفع</value>
+  </data>
+  <data name="Tools.ReplayManager.Notify.RateLimitExceededDesc" xml:space="preserve">
+    <value>تم تجاوز حد الرفع لفترة الـ 3 أيام الحالية. يرجى حذف عناصر من سجل الرفع لتحرير المساحة فورًا.</value>
+  </data>
+  <data name="Tools.ReplayManager.ProfileSelection.DialogTitleFormat" xml:space="preserve">
+    <value>تحديد ملف تعريف - {0}</value>
+  </data>
+  <data name="Tools.ReplayManager.ProfileSelection.HeaderTitle" xml:space="preserve">
+    <value>تحديد ملف تعريف لتشغيل الإعادة</value>
+  </data>
+  <data name="Tools.ReplayManager.ProfileSelection.HeaderSubtitle" xml:space="preserve">
+    <value>انقر فوق ملف تعريف لتشغيل هذه الإعادة</value>
+  </data>
+  <data name="Tools.ReplayManager.ProfileSelection.ActionBadge" xml:space="preserve">
+    <value>تشغيل</value>
+  </data>
+  <data name="Tools.ReplayManager.ProfileSelection.CreateProfileCardSubtitle" xml:space="preserve">
+    <value>اختر عميل لعبة متاح لإنشاء ملف تعريف جديد</value>
+  </data>
 </root>
