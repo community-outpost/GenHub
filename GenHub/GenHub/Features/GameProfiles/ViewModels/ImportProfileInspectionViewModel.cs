@@ -268,72 +268,114 @@ public sealed partial class ImportProfileInspectionViewModel(
         ILocalizationService? localizationService)
     {
         var warnings = new List<string>();
+
         if (result.SecurityWarningCodes is { Count: > 0 } codes)
         {
-            foreach (var code in codes)
-            {
-                var localized = code switch
-                {
-                    ProfileSecurityWarningCode.SanitizedShellCharacters =>
-                        localizationService?.GetString("GameProfiles.ImportInspection.Warning.SanitizedShellCharacters")
-                        ?? ProfileSharingCompressionHelper.ShellCharactersWarning,
-                    ProfileSecurityWarningCode.SanitizedQuotesOrPercent =>
-                        localizationService?.GetString("GameProfiles.ImportInspection.Warning.SanitizedQuotesOrPercent")
-                        ?? ProfileSharingCompressionHelper.QuotesOrPercentWarning,
-                    ProfileSecurityWarningCode.SanitizedControlCharacters =>
-                        localizationService?.GetString("GameProfiles.ImportInspection.Warning.SanitizedControlCharacters")
-                        ?? ProfileSharingCompressionHelper.ControlCharactersWarning,
-                    ProfileSecurityWarningCode.MissingDownloadSource =>
-                        result.SecurityWarnings.FirstOrDefault(w => w.Contains("download source", StringComparison.OrdinalIgnoreCase))
-                        ?? "Component is not cached locally and has no download source.",
-                    _ => null,
-                };
-
-                if (!string.IsNullOrWhiteSpace(localized))
-                {
-                    warnings.Add(localized);
-                }
-            }
+            AddWarningsFromCodes(warnings, codes, result, localizationService);
         }
         else
         {
-            foreach (var warning in result.SecurityWarnings)
+            AddWarningsFromRawStrings(warnings, result.SecurityWarnings, localizationService);
+        }
+
+        AddExecutableWarnings(warnings, totalExecutables, localizationService);
+        AddMissingSizeWarnings(warnings, result, localizationService);
+
+        return new ObservableCollection<string>(warnings);
+    }
+
+    private static void AddWarningsFromCodes(
+        List<string> warnings,
+        IReadOnlyList<ProfileSecurityWarningCode> codes,
+        SharedProfileInspectionResult result,
+        ILocalizationService? localizationService)
+    {
+        foreach (var code in codes)
+        {
+            var localized = ResolveWarningCodeText(code, result, localizationService);
+            if (!string.IsNullOrWhiteSpace(localized))
             {
-                if (warning.StartsWith("Disallowed special command characters", StringComparison.OrdinalIgnoreCase))
-                {
-                    warnings.Add(localizationService?.GetString("GameProfiles.ImportInspection.Warning.SanitizedShellCharacters") ?? warning);
-                }
-                else if (warning.StartsWith("Quote and percent characters were removed", StringComparison.OrdinalIgnoreCase))
-                {
-                    warnings.Add(localizationService?.GetString("GameProfiles.ImportInspection.Warning.SanitizedQuotesOrPercent") ?? warning);
-                }
-                else if (warning.StartsWith("Control characters were removed", StringComparison.OrdinalIgnoreCase))
-                {
-                    warnings.Add(localizationService?.GetString("GameProfiles.ImportInspection.Warning.SanitizedControlCharacters") ?? warning);
-                }
-                else
-                {
-                    warnings.Add(warning);
-                }
+                warnings.Add(localized);
             }
         }
+    }
 
-        if (totalExecutables > 0)
+    private static string? ResolveWarningCodeText(
+        ProfileSecurityWarningCode code,
+        SharedProfileInspectionResult result,
+        ILocalizationService? localizationService)
+    {
+        return code switch
         {
-            var extList = string.Join(", ", ProfileSharingConstants.ExecutableFileExtensions);
-            var format = localizationService?.GetString("GameProfiles.ImportInspection.Warning.ExecutablesDetected")
-                ?? "Executable binaries detected ({0} file(s) ending in {1}). Ensure you trust the author before running.";
-            warnings.Insert(0, string.Format(System.Globalization.CultureInfo.CurrentCulture, format, totalExecutables, extList));
+            ProfileSecurityWarningCode.SanitizedShellCharacters =>
+                localizationService?.GetString("GameProfiles.ImportInspection.Warning.SanitizedShellCharacters")
+                ?? ProfileSharingCompressionHelper.ShellCharactersWarning,
+            ProfileSecurityWarningCode.SanitizedQuotesOrPercent =>
+                localizationService?.GetString("GameProfiles.ImportInspection.Warning.SanitizedQuotesOrPercent")
+                ?? ProfileSharingCompressionHelper.QuotesOrPercentWarning,
+            ProfileSecurityWarningCode.SanitizedControlCharacters =>
+                localizationService?.GetString("GameProfiles.ImportInspection.Warning.SanitizedControlCharacters")
+                ?? ProfileSharingCompressionHelper.ControlCharactersWarning,
+            ProfileSecurityWarningCode.MissingDownloadSource =>
+                result.SecurityWarnings.FirstOrDefault(w => w.Contains("download source", StringComparison.OrdinalIgnoreCase))
+                ?? "Component is not cached locally and has no download source.",
+            _ => null,
+        };
+    }
+
+    private static void AddWarningsFromRawStrings(
+        List<string> warnings,
+        IReadOnlyList<string> rawWarnings,
+        ILocalizationService? localizationService)
+    {
+        foreach (var warning in rawWarnings)
+        {
+            if (warning.StartsWith("Disallowed special command characters", StringComparison.OrdinalIgnoreCase))
+            {
+                warnings.Add(localizationService?.GetString("GameProfiles.ImportInspection.Warning.SanitizedShellCharacters") ?? warning);
+            }
+            else if (warning.StartsWith("Quote and percent characters were removed", StringComparison.OrdinalIgnoreCase))
+            {
+                warnings.Add(localizationService?.GetString("GameProfiles.ImportInspection.Warning.SanitizedQuotesOrPercent") ?? warning);
+            }
+            else if (warning.StartsWith("Control characters were removed", StringComparison.OrdinalIgnoreCase))
+            {
+                warnings.Add(localizationService?.GetString("GameProfiles.ImportInspection.Warning.SanitizedControlCharacters") ?? warning);
+            }
+            else
+            {
+                warnings.Add(warning);
+            }
+        }
+    }
+
+    private static void AddExecutableWarnings(
+        List<string> warnings,
+        int totalExecutables,
+        ILocalizationService? localizationService)
+    {
+        if (totalExecutables <= 0)
+        {
+            return;
         }
 
+        var extList = string.Join(", ", ProfileSharingConstants.ExecutableFileExtensions);
+        var format = localizationService?.GetString("GameProfiles.ImportInspection.Warning.ExecutablesDetected")
+            ?? "Executable binaries detected ({0} file(s) ending in {1}). Ensure you trust the author before running.";
+        warnings.Insert(0, string.Format(System.Globalization.CultureInfo.CurrentCulture, format, totalExecutables, extList));
+    }
+
+    private static void AddMissingSizeWarnings(
+        List<string> warnings,
+        SharedProfileInspectionResult result,
+        ILocalizationService? localizationService)
+    {
         if (result.MissingManifestCount > 0 && result.TotalDownloadBytesRequired == 0)
         {
             var msg = localizationService?.GetString("GameProfiles.ImportInspection.Warning.MissingSizes")
                 ?? "Some required dependencies do not report an exact download size. Additional downloads will occur during import.";
             warnings.Add(msg);
         }
-
-        return new ObservableCollection<string>(warnings);
     }
 
     [RelayCommand]

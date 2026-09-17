@@ -25,6 +25,21 @@ public static class PublisherTypeConstants
     /// <summary>Unknown or unspecified publisher.</summary>
     public const string Unknown = "unknown";
 
+    /// <summary>Wildcard or matching placeholder publisher identifier.</summary>
+    public const string Any = "any";
+
+    /// <summary>Display name for GitHub publisher.</summary>
+    public const string GitHubDisplayName = "GitHub";
+
+    /// <summary>Display name or alias for Community Outpost publisher.</summary>
+    public const string CommunityOutpostDisplayName = "Community Outpost";
+
+    /// <summary>Display name or alias for Generals Online publisher.</summary>
+    public const string GeneralsOnlineDisplayName = "Generals Online";
+
+    /// <summary>Display name for The Super Hackers community publisher.</summary>
+    public const string TheSuperHackersDisplayName = "Super Hackers";
+
     /// <summary>GitHub platform publisher.</summary>
     public const string GitHub = "github";
 

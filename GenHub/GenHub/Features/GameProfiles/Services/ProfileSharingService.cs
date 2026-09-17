@@ -1353,15 +1353,20 @@ public class ProfileSharingService(
             return false;
         }
 
-        if (!string.IsNullOrWhiteSpace(explicitPackageUrl) ||
-            packageUrl.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
+        if (packageUrl.EndsWith(".json", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        if (packageUrl.EndsWith(".zip", StringComparison.OrdinalIgnoreCase) ||
+            packageUrl.Contains(ApiConstants.UploadThingUrlFragment, StringComparison.OrdinalIgnoreCase) ||
+            packageUrl.Contains(ApiConstants.UploadThingUfsUrlFragment, StringComparison.OrdinalIgnoreCase) ||
+            packageUrl.Contains(ApiConstants.UploadThingUfsShortUrlFragment, StringComparison.OrdinalIgnoreCase))
         {
             return true;
         }
 
-        return packageUrl.Contains(ApiConstants.UploadThingUrlFragment, StringComparison.OrdinalIgnoreCase) ||
-               packageUrl.Contains(ApiConstants.UploadThingUfsUrlFragment, StringComparison.OrdinalIgnoreCase) ||
-               packageUrl.Contains(ApiConstants.UploadThingUfsShortUrlFragment, StringComparison.OrdinalIgnoreCase);
+        return !string.IsNullOrWhiteSpace(explicitPackageUrl);
     }
 
     private static bool CanDownloadPerFile(SharedManifestDependency dependency) =>
@@ -1697,20 +1702,20 @@ public class ProfileSharingService(
         }
 
         if (publisher.Contains(CommunityOutpostConstants.PublisherType, StringComparison.OrdinalIgnoreCase) ||
-            publisher.Contains("community outpost", StringComparison.OrdinalIgnoreCase))
+            publisher.Contains(PublisherTypeConstants.CommunityOutpostDisplayName, StringComparison.OrdinalIgnoreCase))
         {
             return CommunityOutpostConstants.PublisherType;
         }
 
         if (publisher.Contains(PublisherTypeConstants.TheSuperHackers, StringComparison.OrdinalIgnoreCase) ||
-            publisher.Contains("superhackers", StringComparison.OrdinalIgnoreCase) ||
-            publisher.Contains("Super Hackers", StringComparison.OrdinalIgnoreCase))
+            publisher.Contains(PublisherTypeConstants.LegacySuperHackers, StringComparison.OrdinalIgnoreCase) ||
+            publisher.Contains(PublisherTypeConstants.TheSuperHackersDisplayName, StringComparison.OrdinalIgnoreCase))
         {
             return PublisherTypeConstants.TheSuperHackers;
         }
 
         if (publisher.Contains(GeneralsOnlineConstants.DiscovererSourceName, StringComparison.OrdinalIgnoreCase) ||
-            publisher.Contains("generals online", StringComparison.OrdinalIgnoreCase))
+            publisher.Contains(PublisherTypeConstants.GeneralsOnlineDisplayName, StringComparison.OrdinalIgnoreCase))
         {
             return GeneralsOnlineConstants.PublisherType;
         }
@@ -1787,7 +1792,7 @@ public class ProfileSharingService(
             var idPub = segments[2];
             if (!string.Equals(idPub, PublisherTypeConstants.Unknown, StringComparison.OrdinalIgnoreCase) &&
                 !string.Equals(idPub, PublisherTypeConstants.Local, StringComparison.OrdinalIgnoreCase) &&
-                !string.Equals(idPub, "any", StringComparison.OrdinalIgnoreCase))
+                !string.Equals(idPub, PublisherTypeConstants.Any, StringComparison.OrdinalIgnoreCase))
             {
                 return idPub;
             }
@@ -1806,7 +1811,7 @@ public class ProfileSharingService(
         if (string.Equals(publisherType, PublisherTypeConstants.GitHub, StringComparison.OrdinalIgnoreCase) ||
             publisherType.StartsWith(GitHubConstants.PublisherIdPrefix, StringComparison.OrdinalIgnoreCase))
         {
-            return "GitHub";
+            return PublisherTypeConstants.GitHubDisplayName;
         }
 
         if (publisherType.StartsWith(ModDBConstants.PublisherType, StringComparison.OrdinalIgnoreCase) ||

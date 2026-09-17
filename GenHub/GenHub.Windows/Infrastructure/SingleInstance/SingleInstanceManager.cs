@@ -150,7 +150,7 @@ public sealed class SingleInstanceManager : ISingleInstanceCommandReceiver, IDis
         var rawUser = Environment.UserName ?? "default";
         var userBytes = Encoding.UTF8.GetBytes(rawUser);
         var hash = Convert.ToHexString(SHA256.HashData(userBytes))[..8].ToLowerInvariant();
-        return $"Local\\\\GenHub_{hash}";
+        return $"Local\\GenHub_{hash}";
     }
 
     private void StartPipeServer()
