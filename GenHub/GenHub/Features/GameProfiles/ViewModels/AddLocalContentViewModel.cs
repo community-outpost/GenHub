@@ -261,14 +261,14 @@ public partial class AddLocalContentViewModel(
     {
         if (contentStorageService == null)
         {
-            StatusMessage = "Storage service unavailable.";
+            StatusMessage = GetLocalizedString("Profiles.AddLocalContent.StatusStorageUnavailable", "Storage service unavailable.");
             return;
         }
 
         try
         {
             IsBusy = true;
-            StatusMessage = "Loading existing content...";
+            StatusMessage = GetLocalizedString("Profiles.AddLocalContent.StatusLoadingContent", "Loading existing content...");
 
             _originalManifestId = item.ManifestId.Value;
             _pendingEntryPoint = item.Manifest?.EntryPoint;
@@ -297,18 +297,18 @@ public partial class AddLocalContentViewModel(
 
             if (result.Success)
             {
-                StatusMessage = "Success!";
+                StatusMessage = GetLocalizedString("Profiles.AddLocalContent.StatusLoadSuccess", "Success!");
                 await RefreshStagingTreeAsync();
             }
             else
             {
-                StatusMessage = $"Failed to load content: {result.FirstError}";
+                StatusMessage = GetLocalizedString("Profiles.AddLocalContent.StatusLoadFailed", "Failed to load content: {0}", result.FirstError ?? string.Empty);
             }
         }
         catch (Exception ex)
         {
             logger?.LogError(ex, "Error loading content for editing");
-            StatusMessage = $"Error loading content: {ex.Message}";
+            StatusMessage = GetLocalizedString("Profiles.AddLocalContent.StatusLoadError", "Error loading content: {0}", ex.Message);
         }
         finally
         {
@@ -762,19 +762,21 @@ public partial class AddLocalContentViewModel(
 
             logger?.LogInformation("GenLauncher files detected: {Summary}", detectionResult.GetSummary());
 
-            var normalizationPrompt =
-                $"This content contains GenLauncher-modified files:\n\n{detectionResult.GetSummary()}\n\nWould you like to normalize these files to standard format?\n\n" +
-                "This will:\n" +
-                $"• Convert {GenLauncherConstants.GibExtension} files to {GenLauncherConstants.BigExtension}\n" +
-                $"• Convert {GenLauncherConstants.CtrExtension} files to {GenLauncherConstants.BigExtension} or {GenLauncherConstants.ExeExtension} based on content\n" +
-                $"• Remove {string.Join(", ", GenLauncherConstants.AllSuffixes)} suffixes\n" +
-                "• Remove symbolic links";
+            var normalizationPrompt = GetLocalizedString(
+                "Profiles.AddLocalContent.GenLauncherPrompt",
+                "This content contains GenLauncher-modified files:\n\n{0}\n\nWould you like to normalize these files to standard format?\n\nThis will:\n• Convert {1} files to {2}\n• Convert {3} files to {2} or {4} based on content\n• Remove {5} suffixes\n• Remove symbolic links",
+                detectionResult.GetSummary(),
+                GenLauncherConstants.GibExtension,
+                GenLauncherConstants.BigExtension,
+                GenLauncherConstants.CtrExtension,
+                GenLauncherConstants.ExeExtension,
+                string.Join(", ", GenLauncherConstants.AllSuffixes));
 
             var shouldNormalize = await dialogService.ShowConfirmationAsync(
-                "GenLauncher Files Detected",
+                GetLocalizedString("Profiles.AddLocalContent.GenLauncherDialogTitle", "GenLauncher Files Detected"),
                 normalizationPrompt,
-                "Normalize",
-                "Skip",
+                GetLocalizedString("Profiles.AddLocalContent.GenLauncherDialogNormalize", "Normalize"),
+                GetLocalizedString("Profiles.AddLocalContent.GenLauncherDialogSkip", "Skip"),
                 sessionKey: GenLauncherConstants.NormalizationDialogSessionKey);
 
             if (shouldNormalize)
@@ -783,19 +785,19 @@ public partial class AddLocalContentViewModel(
             }
 
             logger?.LogInformation("User skipped normalization");
-            StatusMessage = "Import successful (GenLauncher files not normalized).";
+            StatusMessage = GetLocalizedString("Profiles.AddLocalContent.StatusNormalizedSkipped", "Import successful (GenLauncher files not normalized).");
             return true;
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
             logger?.LogInformation("GenLauncher detection/normalization was cancelled");
-            StatusMessage = "Import cancelled.";
+            StatusMessage = GetLocalizedString("Profiles.AddLocalContent.StatusOperationCancelled", "Operation cancelled");
             return null;
         }
         catch (Exception ex)
         {
             logger?.LogError(ex, "Error during GenLauncher detection/normalization");
-            StatusMessage = "Import successful (normalization check failed).";
+            StatusMessage = GetLocalizedString("Profiles.AddLocalContent.StatusNormalizationCheckFailed", "Import successful (normalization check failed).");
             return true;
         }
     }
@@ -807,7 +809,7 @@ public partial class AddLocalContentViewModel(
             return false;
         }
 
-        StatusMessage = "Normalizing GenLauncher files...";
+        StatusMessage = GetLocalizedString("Profiles.AddLocalContent.StatusNormalizingGenLauncher", "Normalizing GenLauncher files...");
         logger?.LogInformation("User confirmed normalization");
 
         var normalizationResult = await genLauncherNormalizationService.NormalizeFilesAsync(
@@ -832,7 +834,7 @@ public partial class AddLocalContentViewModel(
         }
         else
         {
-            StatusMessage = $"Normalization warning: {normalizationResult.FirstError}. Import will continue.";
+            StatusMessage = GetLocalizedString("Profiles.AddLocalContent.StatusNormalizationWarning", "Normalization warning: {0}. Import will continue.", normalizationResult.FirstError ?? string.Empty);
             logger?.LogWarning("Normalization failed: {Error}", normalizationResult.FirstError);
         }
 
@@ -880,7 +882,7 @@ public partial class AddLocalContentViewModel(
         try
         {
             IsBusy = true;
-            StatusMessage = $"Removing {item.Name}...";
+            StatusMessage = GetLocalizedString("Profiles.AddLocalContent.StatusRemovingItem", "Removing {0}...", item.Name);
             logger?.LogInformation("Deleting item from staging: {Name} ({Path})", item.Name, item.FullPath);
 
             if (item.IsFile && File.Exists(item.FullPath))
@@ -893,13 +895,13 @@ public partial class AddLocalContentViewModel(
             }
 
             await RefreshStagingTreeAsync();
-            StatusMessage = $"Removed {item.Name}.";
+            StatusMessage = GetLocalizedString("Profiles.AddLocalContent.StatusRemovedItem", "Removed {0}.", item.Name);
             logger?.LogInformation("Item successfully deleted: {Name}", item.Name);
             Validate();
         }
         catch (Exception ex)
         {
-            StatusMessage = $"Removal Error: {ex.Message}";
+            StatusMessage = GetLocalizedString("Profiles.AddLocalContent.StatusRemovalError", "Removal Error: {0}", ex.Message);
             logger?.LogError(ex, "Error deleting item from staging: {Path}", item.FullPath);
         }
         finally
@@ -921,14 +923,27 @@ public partial class AddLocalContentViewModel(
             IsBusy = true;
             IsProgressIndeterminate = true;
             ProgressDetailMessage = GetLocalizedString("Profiles.AddLocalContent.ProgressValidatingArchive", "Validating and converting archive formats...");
-            StatusMessage = GetLocalizedString("Profiles.AddLocalContent.ProgressNormalizingArchives", "Normalizing inactive archives (.ctr / .gib) to .big...");
+            StatusMessage = GetLocalizedString("Profiles.AddLocalContent.ProgressNormalizingArchives", "Normalizing inactive archives (.ctr / .gib / .skw) to .big...");
             logger?.LogInformation("User triggered archive normalization in staging: {StagingPath}", _stagingPath);
 
             await Task.Run(NormalizeStagingDirectory, _cts?.Token ?? CancellationToken.None);
 
             await RefreshStagingTreeAsync();
-            StatusMessage = GetLocalizedString("Profiles.AddLocalContent.StatusNormalizedSuccess", "Inactive archives normalized to .big successfully.");
+            HasInactiveArchives = CheckForInactiveArchives();
+            if (!HasInactiveArchives)
+            {
+                StatusMessage = GetLocalizedString("Profiles.AddLocalContent.StatusNormalizedSuccess", "Inactive archives normalized to .big successfully.");
+            }
+            else
+            {
+                StatusMessage = GetLocalizedString("Profiles.AddLocalContent.StatusNormalizationWarning", "Some inactive archives could not be normalized.");
+            }
+
             Validate();
+        }
+        catch (OperationCanceledException)
+        {
+            logger?.LogInformation("Archive normalization cancelled by user");
         }
         catch (Exception ex)
         {
@@ -963,6 +978,17 @@ public partial class AddLocalContentViewModel(
                 File.Move(inactiveFile, exeFile);
                 logger?.LogInformation("Normalized disguised executable '{InactiveFile}' to '{ExeFile}'", inactiveFile, exeFile);
             }
+            else if (FilesHaveIdenticalContent(inactiveFile, exeFile))
+            {
+                File.Delete(inactiveFile);
+                logger?.LogInformation("Removed duplicate identical inactive executable '{InactiveFile}' as '{ExeFile}' already exists", inactiveFile, exeFile);
+            }
+            else
+            {
+                var nonCollidingExePath = ArchivePayloadProcessor.GetNonCollidingDestinationPath(exeFile);
+                File.Move(inactiveFile, nonCollidingExePath);
+                logger?.LogInformation("Preserved differing inactive executable '{InactiveFile}' by renaming to '{NewExeFile}'", inactiveFile, nonCollidingExePath);
+            }
 
             return;
         }
@@ -979,11 +1005,19 @@ public partial class AddLocalContentViewModel(
             if (FilesHaveIdenticalContent(inactiveFile, bigFile))
             {
                 File.Delete(inactiveFile);
+                logger?.LogInformation("Removed duplicate identical inactive file '{InactiveFile}' as '{BigFile}' already exists", inactiveFile, bigFile);
+            }
+            else
+            {
+                var nonCollidingBigPath = ArchivePayloadProcessor.GetNonCollidingDestinationPath(bigFile);
+                File.Move(inactiveFile, nonCollidingBigPath);
+                logger?.LogInformation("Preserved differing inactive archive '{InactiveFile}' by renaming to '{NewBigFile}'", inactiveFile, nonCollidingBigPath);
             }
         }
         else
         {
             File.Move(inactiveFile, bigFile);
+            logger?.LogInformation("Normalized inactive mod archive '{InactiveFile}' to '{BigFile}'", inactiveFile, bigFile);
         }
     }
 
@@ -1006,7 +1040,7 @@ public partial class AddLocalContentViewModel(
             }
             else
             {
-                StatusMessage = $"'{ContentName}' registered in library. Ready to link to any game profile!";
+                StatusMessage = GetLocalizedString("Profiles.AddLocalContent.StatusDemoRegistered", "'{0}' registered in library. Ready to link to any game profile!", ContentName);
                 CanAdd = true;
             }
 
@@ -1015,13 +1049,13 @@ public partial class AddLocalContentViewModel(
 
         if (string.IsNullOrWhiteSpace(ContentName))
         {
-            StatusMessage = "Please enter a name for the content.";
+            StatusMessage = GetLocalizedString("Profiles.AddLocalContent.StatusEnterName", "Please enter a name for the content.");
             return;
         }
 
         if (!Directory.Exists(_stagingPath) || !Directory.EnumerateFileSystemEntries(_stagingPath).Any())
         {
-            StatusMessage = "No content to add. Please import files or folders.";
+            StatusMessage = GetLocalizedString("Profiles.AddLocalContent.StatusNoContent", "No content to add. Please import files or folders.");
             return;
         }
 
@@ -1095,7 +1129,8 @@ public partial class AddLocalContentViewModel(
                     SourcePath,
                     progress,
                     _cts.Token,
-                    entryPoint)
+                    entryPoint,
+                    normalizeInactiveArchives: false)
                 : await localContentService.CreateLocalContentManifestAsync(
                     _stagingPath,
                     ContentName,
@@ -1104,7 +1139,8 @@ public partial class AddLocalContentViewModel(
                     SourcePath,
                     progress,
                     _cts.Token,
-                    entryPoint);
+                    entryPoint,
+                    normalizeInactiveArchives: false);
 
             if (result.Success)
             {
@@ -1138,12 +1174,12 @@ public partial class AddLocalContentViewModel(
         }
         catch (OperationCanceledException)
         {
-            StatusMessage = "Operation cancelled";
+            StatusMessage = GetLocalizedString("Profiles.AddLocalContent.StatusOperationCancelled", "Operation cancelled");
             logger?.LogInformation("Content creation/update cancelled by user");
         }
         catch (Exception ex)
         {
-            StatusMessage = $"Error: {ex.Message}";
+            StatusMessage = GetLocalizedString("Profiles.AddLocalContent.StatusGenericError", "Error: {0}", ex.Message);
             logger?.LogError(ex, "Error adding local content");
         }
         finally

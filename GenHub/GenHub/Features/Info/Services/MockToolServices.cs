@@ -680,6 +680,10 @@ public class MockLocalContentService : ILocalContentService
 
     /// <inheritdoc/>
     public Task<OperationResult<ContentManifest>> CreateLocalContentManifestAsync(string directoryPath, string name, ContentType contentType, GameType targetGame, string? sourcePath = null, IProgress<ContentStorageProgress>? progress = null, CancellationToken cancellationToken = default, string? entryPoint = null)
+        => CreateLocalContentManifestAsync(directoryPath, name, contentType, targetGame, sourcePath, progress, cancellationToken, entryPoint, true);
+
+    /// <inheritdoc/>
+    public Task<OperationResult<ContentManifest>> CreateLocalContentManifestAsync(string directoryPath, string name, ContentType contentType, GameType targetGame, string? sourcePath, IProgress<ContentStorageProgress>? progress, CancellationToken cancellationToken, string? entryPoint, bool normalizeInactiveArchives)
     {
         var normalizedEntryPoint = !string.IsNullOrWhiteSpace(entryPoint)
             ? entryPoint.Replace('\\', '/').TrimStart('/')
@@ -693,6 +697,10 @@ public class MockLocalContentService : ILocalContentService
 
     /// <inheritdoc/>
     public Task<OperationResult<ContentManifest>> UpdateLocalContentManifestAsync(string existingManifestId, string name, string directoryPath, ContentType contentType, GameType targetGame, string? sourcePath = null, IProgress<ContentStorageProgress>? progress = null, CancellationToken cancellationToken = default, string? entryPoint = null)
+        => UpdateLocalContentManifestAsync(existingManifestId, name, directoryPath, contentType, targetGame, sourcePath, progress, cancellationToken, entryPoint, true);
+
+    /// <inheritdoc/>
+    public Task<OperationResult<ContentManifest>> UpdateLocalContentManifestAsync(string existingManifestId, string name, string directoryPath, ContentType contentType, GameType targetGame, string? sourcePath, IProgress<ContentStorageProgress>? progress, CancellationToken cancellationToken, string? entryPoint, bool normalizeInactiveArchives)
     {
         var normalizedEntryPoint = !string.IsNullOrWhiteSpace(entryPoint)
             ? entryPoint.Replace('\\', '/').TrimStart('/')

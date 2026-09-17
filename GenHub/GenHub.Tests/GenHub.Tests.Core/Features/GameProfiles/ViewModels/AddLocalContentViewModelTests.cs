@@ -430,9 +430,10 @@ public class AddLocalContentViewModelTests : IDisposable
                 It.IsAny<string?>(),
                 It.IsAny<IProgress<ContentStorageProgress>?>(),
                 It.IsAny<CancellationToken>(),
-                It.IsAny<string?>()))
-            .Callback<string, string, ContentType, GameType, string?, IProgress<ContentStorageProgress>?, CancellationToken, string?>(
-                (_, _, _, _, _, _, _, entryPoint) => capturedEntryPoint = entryPoint)
+                It.IsAny<string?>(),
+                It.IsAny<bool>()))
+            .Callback<string, string, ContentType, GameType, string?, IProgress<ContentStorageProgress>?, CancellationToken, string?, bool>(
+                (_, _, _, _, _, _, _, entryPoint, _) => capturedEntryPoint = entryPoint)
             .ReturnsAsync(OperationResult<ContentManifest>.CreateSuccess(new ContentManifest
             {
                 Id = ManifestId.Create("1.0.local.gameclient.test"),
@@ -480,9 +481,10 @@ public class AddLocalContentViewModelTests : IDisposable
                 It.IsAny<string?>(),
                 It.IsAny<IProgress<ContentStorageProgress>?>(),
                 It.IsAny<CancellationToken>(),
-                It.IsAny<string?>()))
-            .Callback<string, string, ContentType, GameType, string?, IProgress<ContentStorageProgress>?, CancellationToken, string?>(
-                (_, _, _, _, _, _, _, entryPoint) => capturedEntryPoint = entryPoint)
+                It.IsAny<string?>(),
+                It.IsAny<bool>()))
+            .Callback<string, string, ContentType, GameType, string?, IProgress<ContentStorageProgress>?, CancellationToken, string?, bool>(
+                (_, _, _, _, _, _, _, entryPoint, _) => capturedEntryPoint = entryPoint)
             .ReturnsAsync(OperationResult<ContentManifest>.CreateSuccess(new ContentManifest
             {
                 Id = ManifestId.Create("1.0.local.moddingtool.tool"),
@@ -553,9 +555,10 @@ public class AddLocalContentViewModelTests : IDisposable
                 It.IsAny<string?>(),
                 It.IsAny<IProgress<ContentStorageProgress>?>(),
                 It.IsAny<CancellationToken>(),
-                It.IsAny<string?>()))
-            .Callback<string, string, string, ContentType, GameType, string?, IProgress<ContentStorageProgress>?, CancellationToken, string?>(
-                (_, _, _, _, _, _, _, _, entryPoint) => capturedEntryPoint = entryPoint)
+                It.IsAny<string?>(),
+                It.IsAny<bool>()))
+            .Callback<string, string, string, ContentType, GameType, string?, IProgress<ContentStorageProgress>?, CancellationToken, string?, bool>(
+                (_, _, _, _, _, _, _, _, entryPoint, _) => capturedEntryPoint = entryPoint)
             .ReturnsAsync(OperationResult<ContentManifest>.CreateSuccess(manifest));
 
         var item = new GenHub.Features.GameProfiles.ViewModels.ContentDisplayItem
@@ -744,9 +747,10 @@ public class AddLocalContentViewModelTests : IDisposable
                 It.IsAny<string?>(),
                 It.IsAny<IProgress<ContentStorageProgress>?>(),
                 It.IsAny<CancellationToken>(),
-                It.IsAny<string?>()))
-            .Callback<string, string, ContentType, GameType, string?, IProgress<ContentStorageProgress>?, CancellationToken, string?>(
-                (_, _, _, _, _, _, _, entryPoint) => capturedEntryPoint = entryPoint)
+                It.IsAny<string?>(),
+                It.IsAny<bool>()))
+            .Callback<string, string, ContentType, GameType, string?, IProgress<ContentStorageProgress>?, CancellationToken, string?, bool>(
+                (_, _, _, _, _, _, _, entryPoint, _) => capturedEntryPoint = entryPoint)
             .ReturnsAsync(OperationResult<ContentManifest>.CreateSuccess(new ContentManifest
             {
                 Id = ManifestId.Create("1.0.local.mod.test"),

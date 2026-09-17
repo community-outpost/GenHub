@@ -51,7 +51,7 @@ public class LocalContentService(
     ];
 
     /// <inheritdoc />
-    public async Task<OperationResult<ContentManifest>> CreateLocalContentManifestAsync(
+    public Task<OperationResult<ContentManifest>> CreateLocalContentManifestAsync(
         string directoryPath,
         string name,
         ContentType contentType,
@@ -60,6 +60,30 @@ public class LocalContentService(
         IProgress<ContentStorageProgress>? progress = null,
         CancellationToken cancellationToken = default,
         string? entryPoint = null)
+    {
+        return CreateLocalContentManifestAsync(
+            directoryPath,
+            name,
+            contentType,
+            targetGame,
+            sourcePath,
+            progress,
+            cancellationToken,
+            entryPoint,
+            normalizeInactiveArchives: true);
+    }
+
+    /// <inheritdoc />
+    public async Task<OperationResult<ContentManifest>> CreateLocalContentManifestAsync(
+        string directoryPath,
+        string name,
+        ContentType contentType,
+        GameType targetGame,
+        string? sourcePath,
+        IProgress<ContentStorageProgress>? progress,
+        CancellationToken cancellationToken,
+        string? entryPoint,
+        bool normalizeInactiveArchives)
     {
         try
         {
@@ -98,6 +122,7 @@ public class LocalContentService(
                     directoryPath,
                     contentType,
                     targetGame,
+                    normalizeInactiveArchives,
                     cancellationToken);
             }
 
@@ -221,7 +246,7 @@ public class LocalContentService(
     }
 
     /// <inheritdoc />
-    public async Task<OperationResult<ContentManifest>> UpdateLocalContentManifestAsync(
+    public Task<OperationResult<ContentManifest>> UpdateLocalContentManifestAsync(
         string existingManifestId,
         string name,
         string directoryPath,
@@ -232,11 +257,37 @@ public class LocalContentService(
         CancellationToken cancellationToken = default,
         string? entryPoint = null)
     {
+        return UpdateLocalContentManifestAsync(
+            existingManifestId,
+            name,
+            directoryPath,
+            contentType,
+            targetGame,
+            sourcePath,
+            progress,
+            cancellationToken,
+            entryPoint,
+            normalizeInactiveArchives: true);
+    }
+
+    /// <inheritdoc />
+    public async Task<OperationResult<ContentManifest>> UpdateLocalContentManifestAsync(
+        string existingManifestId,
+        string name,
+        string directoryPath,
+        ContentType contentType,
+        GameType targetGame,
+        string? sourcePath,
+        IProgress<ContentStorageProgress>? progress,
+        CancellationToken cancellationToken,
+        string? entryPoint,
+        bool normalizeInactiveArchives)
+    {
         try
         {
             // 1. Create the new manifest/content
             // We do this FIRST to ensure the new content is valid before deleting the old one
-            var createResult = await CreateLocalContentManifestAsync(directoryPath, name, contentType, targetGame, sourcePath, progress, cancellationToken, entryPoint);
+            var createResult = await CreateLocalContentManifestAsync(directoryPath, name, contentType, targetGame, sourcePath, progress, cancellationToken, entryPoint, normalizeInactiveArchives);
 
             if (!createResult.Success)
             {

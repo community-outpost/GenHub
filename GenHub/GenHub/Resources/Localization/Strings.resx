@@ -4625,13 +4625,13 @@ This will modify game files and configuration settings at:
     <value>Normalize to .big (Direct Launch)</value>
   </data>
   <data name="Profiles.AddLocalContent.NormalizeTip" xml:space="preserve">
-    <value>Convert .ctr / .gib files to active .big format for direct modern GameClient launch</value>
+    <value>Convert .ctr / .gib / .skw files to active .big format for direct modern GameClient launch</value>
   </data>
   <data name="Profiles.AddLocalContent.ProgressValidatingArchive" xml:space="preserve">
     <value>Validating and converting archive formats...</value>
   </data>
   <data name="Profiles.AddLocalContent.ProgressNormalizingArchives" xml:space="preserve">
-    <value>Normalizing inactive archives (.ctr / .gib) to .big...</value>
+    <value>Normalizing inactive archives (.ctr / .gib / .skw) to .big...</value>
   </data>
   <data name="Profiles.AddLocalContent.StatusNormalizedSuccess" xml:space="preserve">
     <value>Inactive archives normalized to .big successfully.</value>
@@ -7468,6 +7468,7 @@ Recovery Engine: Profile '{0}' supports checkpoint saves, replay resumption, and
   </data>
   <data name="Tools.ReplayManager.ProfileSelection.CreateProfileCardSubtitle" xml:space="preserve">
     <value>Choose an available game client to create a fresh profile</value>
+  </data>
   <data name="Profiles.AddLocalContent.StatusCasProgressUpdating" xml:space="preserve">
     <value>Updating {0}: {1:0}% ({2}/{3} files)</value>
   </data>

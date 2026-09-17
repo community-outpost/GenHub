@@ -192,7 +192,7 @@
                                         IsVisible="{Binding HasInactiveArchives}"
                                         ToolTip.Tip="{localization:Localize Profiles.AddLocalContent.NormalizeTip}">
                                     <StackPanel Orientation="Horizontal" Spacing="6">
-                                        <TextBlock Text="?" FontSize="11"/>
+                                        <material:MaterialIcon Kind="AutoFix" Width="13" Height="13" VerticalAlignment="Center"/>
                                         <TextBlock Text="{localization:Localize Profiles.AddLocalContent.NormalizeButton}" FontSize="11" FontWeight="SemiBold"/>
                                     </StackPanel>
                                 </Button>

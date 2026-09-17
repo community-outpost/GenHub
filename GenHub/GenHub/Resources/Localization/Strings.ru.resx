@@ -4625,13 +4625,13 @@
     <value>Нормализовать в .big (Прямой запуск)</value>
   </data>
   <data name="Profiles.AddLocalContent.NormalizeTip" xml:space="preserve">
-    <value>Преобразовать файлы .ctr / .gib в активный формат .big для прямого запуска через GameClient</value>
+    <value>Преобразовать файлы .ctr / .gib / .skw в активный формат .big для прямого запуска через GameClient</value>
   </data>
   <data name="Profiles.AddLocalContent.ProgressValidatingArchive" xml:space="preserve">
     <value>Проверка и преобразование форматов архивов...</value>
   </data>
   <data name="Profiles.AddLocalContent.ProgressNormalizingArchives" xml:space="preserve">
-    <value>Нормализация неактивных архивов (.ctr / .gib) в .big...</value>
+    <value>Нормализация неактивных архивов (.ctr / .gib / .skw) в .big...</value>
   </data>
   <data name="Profiles.AddLocalContent.StatusNormalizedSuccess" xml:space="preserve">
     <value>Неактивные архивы успешно нормализованы в .big.</value>
@@ -7374,6 +7374,7 @@ GenHub передает официальный идентификатор AppID 
   </data>
   <data name="Tools.ReplayManager.ProfileSelection.CreateProfileCardSubtitle" xml:space="preserve">
     <value>Выберите доступный клиент игры для создания нового профиля</value>
+  </data>
   <data name="Profiles.AddLocalContent.StatusCasProgressUpdating" xml:space="preserve">
     <value>Обновление {0}: {1:0}% ({2}/{3} файлов)</value>
   </data>

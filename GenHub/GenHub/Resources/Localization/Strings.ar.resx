@@ -4625,13 +4625,13 @@
     <value>تسوية إلى .big (تشغيل مباشر)</value>
   </data>
   <data name="Profiles.AddLocalContent.NormalizeTip" xml:space="preserve">
-    <value>تحويل ملفات .ctr / .gib إلى تنسيق .big النشط للتشغيل المباشر عبر GameClient</value>
+    <value>تحويل ملفات .ctr / .gib / .skw إلى تنسيق .big النشط للتشغيل المباشر عبر GameClient</value>
   </data>
   <data name="Profiles.AddLocalContent.ProgressValidatingArchive" xml:space="preserve">
     <value>التحقق من صحة تنسيقات الأرشيف وتحويلها...</value>
   </data>
   <data name="Profiles.AddLocalContent.ProgressNormalizingArchives" xml:space="preserve">
-    <value>تطبيع الأرشيفات غير النشطة (.ctr / .gib) إلى .big...</value>
+    <value>تطبيع الأرشيفات غير النشطة (.ctr / .gib / .skw) إلى .big...</value>
   </data>
   <data name="Profiles.AddLocalContent.StatusNormalizedSuccess" xml:space="preserve">
     <value>تم تطبيع الأرشيفات غير النشطة إلى .big بنجاح.</value>
@@ -7374,6 +7374,7 @@ GenHub هو مشغل ومدير حديث لألعاب **Command &amp; Conquer: G
   </data>
   <data name="Tools.ReplayManager.ProfileSelection.CreateProfileCardSubtitle" xml:space="preserve">
     <value>اختر عميل لعبة متاح لإنشاء ملف تعريف جديد</value>
+  </data>
   <data name="Profiles.AddLocalContent.StatusCasProgressUpdating" xml:space="preserve">
     <value>جارٍ تحديث {0}: {1:0}% ({2}/{3} ملفات)</value>
   </data>

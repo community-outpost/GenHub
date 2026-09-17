@@ -230,6 +230,28 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
         return true;
     }
 
+    /// <summary>
+    /// Generates a non-colliding destination file path by appending a counter if a file already exists at the destination.
+    /// </summary>
+    /// <param name="destinationPath">The desired target path.</param>
+    /// <returns>A destination path that does not currently exist on disk.</returns>
+    internal static string GetNonCollidingDestinationPath(string destinationPath)
+    {
+        var dir = Path.GetDirectoryName(destinationPath) ?? string.Empty;
+        var fileNameWithoutExt = Path.GetFileNameWithoutExtension(destinationPath);
+        var ext = Path.GetExtension(destinationPath);
+        var counter = 1;
+        var newDestPath = string.Empty;
+        do
+        {
+            newDestPath = Path.Combine(dir, $"{fileNameWithoutExt}_{counter}{ext}");
+            counter++;
+        }
+        while (File.Exists(newDestPath));
+
+        return newDestPath;
+    }
+
     private static bool ShouldAttemptExecutableExtraction(ContentType? contentType)
     {
         if (!contentType.HasValue)
@@ -1912,23 +1934,6 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
         {
             // Best effort rollback
         }
-    }
-
-    private static string GetNonCollidingDestinationPath(string destinationPath)
-    {
-        var dir = Path.GetDirectoryName(destinationPath) ?? string.Empty;
-        var fileNameWithoutExt = Path.GetFileNameWithoutExtension(destinationPath);
-        var ext = Path.GetExtension(destinationPath);
-        var counter = 1;
-        var newDestPath = string.Empty;
-        do
-        {
-            newDestPath = Path.Combine(dir, $"{fileNameWithoutExt}_{counter}{ext}");
-            counter++;
-        }
-        while (File.Exists(newDestPath));
-
-        return newDestPath;
     }
 
     private static void CleanupEmptyDirectories(string rootDirectory)
