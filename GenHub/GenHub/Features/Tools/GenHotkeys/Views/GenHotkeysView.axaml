@@ -2,7 +2,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-             xmlns:vm="using:GenHub.Features.Tools.GenHotkeys.ViewModels"
+             xmlns:vm="clr-namespace:GenHub.Features.Tools.GenHotkeys.ViewModels;assembly=GenHub"
              xmlns:enums="using:GenHub.Core.Models.Enums"
              xmlns:hotkeyModels="using:GenHub.Core.Models.Tools.GenHotkeys"
              xmlns:converters="using:GenHub.Infrastructure.Converters"
