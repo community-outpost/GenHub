@@ -97,8 +97,11 @@ public class GameProcessManagerTests
         var exited = new TaskCompletionSource<GameProcessExitedEventArgs>(TaskCreationOptions.RunContinuationsAsynchronously);
         _processManager.ProcessExited += (_, args) => exited.TrySetResult(args);
         _loggerMock.Setup(x => x.Log(
-                It.IsAny<LogLevel>(), It.IsAny<EventId>(), It.IsAny<It.IsAnyType>(),
-                It.IsAny<Exception?>(), It.IsAny<Func<It.IsAnyType, Exception?, string>>()))
+                It.IsAny<LogLevel>(),
+                It.IsAny<EventId>(),
+                It.IsAny<It.IsAnyType>(),
+                It.IsAny<Exception?>(),
+                It.IsAny<Func<It.IsAnyType, Exception?, string>>()))
             .Callback(new InvocationAction(invocation =>
             {
                 if (invocation.Arguments[2].ToString()!.Contains("[Terminate] Force killing"))

@@ -1,16 +1,64 @@
-using System.Collections;
-using System.Diagnostics;
-using System.Reflection;
 using GenHub.Core.Models.Events;
 using GenHub.Features.GameProfiles.Infrastructure;
 using Microsoft.Extensions.Logging;
 using Moq;
+using System.Collections;
+using System.Diagnostics;
+using System.Reflection;
 
 namespace GenHub.Tests.Core.Features.GameProfiles;
 
 /// <summary>Verifies cleanup using inert Process objects; never starts or signals a process.</summary>
 public class GameProcessManagerExitFinalizationTests
 {
+    private sealed class DisposableProcess : Process
+    {
+        public bool WasDisposed { get; private set; }
+
+        protected override void Dispose(bool disposing)
+        {
+            WasDisposed = true;
+            base.Dispose(disposing);
+        }
+    }
+
+    /// <summary>Natural exits release their process after all subscribers have returned.</summary>
+    /// <param name="requested">Whether the termination caller owns disposal.</param>
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void OnProcessExited_DisposesNaturalExitAfterNotification(bool requested)
+    {
+        using var manager = new GameProcessManager(Mock.Of<ILogger<GameProcessManager>>());
+        using var process = new DisposableProcess();
+        const int processId = 12345;
+        GetState(manager, "_managedProcesses")[processId] = process;
+        if (requested)
+        {
+            GetState(manager, "_requestedTerminations")[process] = (byte)1;
+        }
+
+        GameProcessExitedEventArgs? notification = null;
+        var disposedDuringNotification = true;
+        manager.ProcessExited += (_, _) => throw new InvalidOperationException("Broken subscriber");
+        manager.ProcessExited += (_, args) =>
+        {
+            notification = args;
+            disposedDuringNotification = process.WasDisposed;
+        };
+
+        // The inert process has no OS handle. The callback finds its synthetic ID in tracking.
+        manager.OnProcessExited(process, EventArgs.Empty);
+
+        Assert.NotNull(notification);
+        Assert.Equal(processId, notification.ProcessId);
+        Assert.Equal(requested, notification.TerminationRequested);
+        Assert.False(disposedDuringNotification);
+        Assert.Equal(!requested, process.WasDisposed);
+        Assert.Empty(GetState(manager, "_managedProcesses"));
+        manager.OnProcessExited(process, EventArgs.Empty);
+    }
+
     /// <summary>A missing positive PID is a successful stop, using a lookup that cannot reach the OS.</summary>
     /// <returns>The asynchronous operation.</returns>
     [Fact]

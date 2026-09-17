@@ -121,6 +121,7 @@ public class LaunchRegistryTests
                 await registry.UnregisterLaunchAsync(launch.LaunchId);
             });
             Assert.True(unregisterStarted.Wait(TimeSpan.FromSeconds(5)));
+
             // Without the shared lock, unregistration completes in this window and
             // the exit transition subsequently sends another stop.
             await Task.WhenAny(unregister, Task.Delay(100));
@@ -580,6 +581,7 @@ public class LaunchRegistryTests
     }
 
     /// <summary>A retained terminated launch must not swallow a new exit for its recycled PID.</summary>
+    /// <param name="repeatOldEvent">Whether to repeat the prior process exit before the new exit.</param>
     /// <returns>The async task.</returns>
     [Theory]
     [InlineData(true)]
