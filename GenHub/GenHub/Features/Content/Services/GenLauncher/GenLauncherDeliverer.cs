@@ -100,7 +100,7 @@ public class GenLauncherDeliverer(
             // Extract archives and compute CAS hashes via ManifestFactory
             progress?.Report(new ContentAcquisitionProgress
             {
-                Phase = ContentAcquisitionPhase.Copying,
+                Phase = ContentAcquisitionPhase.Extracting,
                 ProgressPercentage = 85,
                 CurrentOperation = "Extracting archives and calculating content-addressable hashes",
             });
@@ -147,24 +147,26 @@ public class GenLauncherDeliverer(
         catch (Exception ex)
         {
             logger.LogError(ex, "Error delivering GenLauncher content for {Name}", packageManifest.Name);
-            return OperationResult<ContentManifest>.CreateFailure($"GenLauncher content delivery failed: {ex.Message}");
+            return OperationResult<ContentManifest>.CreateFailure($"Failed to deliver GenLauncher content: {ex.Message}");
         }
     }
 
     private async Task<OperationResult<bool>> DownloadAllFilesAsync(
-        IReadOnlyList<ManifestFile> filesToDownload,
+        List<ManifestFile> files,
         string targetDirectory,
         IProgress<ContentAcquisitionProgress>? progress,
         CancellationToken cancellationToken)
     {
-        var totalFiles = filesToDownload.Count;
+        var totalFiles = files.Count;
+
         for (var i = 0; i < totalFiles; i++)
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            var file = filesToDownload[i];
-            var destinationPath = Path.Combine(targetDirectory, file.RelativePath);
+            var file = files[i];
+            var destinationPath = Path.Combine(targetDirectory, file.RelativePath.Replace('/', Path.DirectorySeparatorChar));
 
+            // Prevent path traversal
             if (!ContentPathPolicy.IsContained(targetDirectory, destinationPath))
             {
                 logger.LogError("File {File} relative path traverses outside target directory {Dir}", file.RelativePath, targetDirectory);
@@ -190,7 +192,22 @@ public class GenLauncherDeliverer(
                 return OperationResult<bool>.CreateFailure($"Invalid download URL for file {file.RelativePath}: {file.DownloadUrl}");
             }
 
-            var downloadResult = await DownloadAndValidateFileAsync(file, destinationPath, downloadUri, cancellationToken);
+            IProgress<DownloadProgress>? fileProgress = progress == null ? null : new Progress<DownloadProgress>(p =>
+            {
+                var basePercent = (i / (double)totalFiles) * 80.0;
+                var sliceWidth = (1.0 / totalFiles) * 80.0;
+                var weightedPercent = basePercent + ((p.Percentage / 100.0) * sliceWidth);
+                progress.Report(new ContentAcquisitionProgress
+                {
+                    Phase = ContentAcquisitionPhase.Downloading,
+                    ProgressPercentage = Math.Min(80.0, Math.Max(0.0, weightedPercent)),
+                    CurrentOperation = $"Downloading {file.RelativePath} ({i + 1}/{totalFiles})",
+                    BytesProcessed = p.BytesReceived,
+                    TotalBytes = p.TotalBytes,
+                });
+            });
+
+            var downloadResult = await DownloadAndValidateFileAsync(file, destinationPath, downloadUri, fileProgress, cancellationToken);
             if (!downloadResult.Success)
             {
                 return OperationResult<bool>.CreateFailure(downloadResult.FirstError ?? $"Failed to download {file.RelativePath}");
@@ -204,6 +221,7 @@ public class GenLauncherDeliverer(
         ManifestFile file,
         string destinationPath,
         Uri downloadUri,
+        IProgress<DownloadProgress>? progress,
         CancellationToken cancellationToken)
     {
         const int maxAttempts = 3;
@@ -217,7 +235,7 @@ public class GenLauncherDeliverer(
                 downloadUri,
                 destinationPath,
                 expectedHash: null,
-                progress: null,
+                progress: progress,
                 cancellationToken);
 
             if (!downloadResult.Success)
@@ -230,7 +248,7 @@ public class GenLauncherDeliverer(
             // MD5 checksum validation against S3 ETag for engine extensions
             if (!string.IsNullOrWhiteSpace(file.Hash) &&
                 GenLauncherChecksumValidator.RequiresValidation(file.RelativePath) &&
-                !GenLauncherChecksumValidator.ValidateFile(destinationPath, file.Hash))
+                !await GenLauncherChecksumValidator.ValidateFileAsync(destinationPath, file.Hash, cancellationToken))
             {
                 lastError = $"Checksum mismatch for {file.RelativePath}! Expected ETag: {file.Hash}";
                 logger.LogWarning("Attempt {Attempt}/{Max}: {Error}", attempt, maxAttempts, lastError);
@@ -245,18 +263,18 @@ public class GenLauncherDeliverer(
         return OperationResult<bool>.CreateFailure($"Failed to download {file.RelativePath}: {lastError}");
     }
 
-    private void CleanupCorruptedFile(string destinationPath)
+    private void CleanupCorruptedFile(string filePath)
     {
         try
         {
-            if (File.Exists(destinationPath))
+            if (File.Exists(filePath))
             {
-                File.Delete(destinationPath);
+                File.Delete(filePath);
             }
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException)
+        catch (Exception ex)
         {
-            logger.LogWarning(ex, "Failed to delete corrupted file {Path}", destinationPath);
+            logger.LogWarning(ex, "Failed to delete corrupted file {File}", filePath);
         }
     }
 }

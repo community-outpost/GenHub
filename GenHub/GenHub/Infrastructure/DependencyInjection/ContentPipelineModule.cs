@@ -339,7 +339,7 @@ public static class ContentPipelineModule
         // Register named HTTP client for GenLauncher
         services.AddHttpClient(PublisherTypeConstants.GenLauncher, client =>
         {
-            client.Timeout = TimeSpan.FromSeconds(60);
+            client.Timeout = TimeSpan.FromSeconds(GenLauncherConstants.DefaultHttpTimeoutSeconds);
             client.DefaultRequestHeaders.UserAgent.ParseAdd("GenHub/1.0");
         });
 

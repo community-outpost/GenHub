@@ -3,6 +3,8 @@ using System;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Security.Cryptography;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace GenHub.Features.Content.Services.GenLauncher;
 
@@ -55,6 +57,23 @@ public static class GenLauncherChecksumValidator
     }
 
     /// <summary>
+    /// Checks if an ETag represents an S3 multipart upload (format: {hash}-{partCount}).
+    /// </summary>
+    /// <param name="etag">The raw or cleaned ETag.</param>
+    /// <returns>True if the ETag is a multipart upload hash; otherwise false.</returns>
+    public static bool IsMultipartETag(string? etag)
+    {
+        if (string.IsNullOrWhiteSpace(etag))
+        {
+            return false;
+        }
+
+        var cleaned = CleanETag(etag);
+        var dashIndex = cleaned.IndexOf('-');
+        return dashIndex > 0 && int.TryParse(cleaned[(dashIndex + 1)..], out _);
+    }
+
+    /// <summary>
     /// Computes MD5 hex hash of a file on disk.
     /// </summary>
     /// <param name="filePath">The local file path.</param>
@@ -65,6 +84,20 @@ public static class GenLauncherChecksumValidator
         using var stream = File.OpenRead(filePath);
         using var md5 = MD5.Create();
         var hashBytes = md5.ComputeHash(stream);
+        return Convert.ToHexString(hashBytes).ToLowerInvariant();
+    }
+
+    /// <summary>
+    /// Computes MD5 hex hash of a file on disk asynchronously.
+    /// </summary>
+    /// <param name="filePath">The local file path.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>A task returning the lowercase hex MD5 hash.</returns>
+    [SuppressMessage("Security", "S4790:Make sure that hashing data is safe here.", Justification = "MD5 is required by S3/MinIO ETag specification and legacy GenLauncher mod catalogs.")]
+    public static async Task<string> ComputeMd5HexAsync(string filePath, CancellationToken cancellationToken = default)
+    {
+        using var stream = File.OpenRead(filePath);
+        var hashBytes = await MD5.HashDataAsync(stream, cancellationToken).ConfigureAwait(false);
         return Convert.ToHexString(hashBytes).ToLowerInvariant();
     }
 
@@ -86,12 +119,51 @@ public static class GenLauncherChecksumValidator
             return true;
         }
 
+        if (IsMultipartETag(expectedMd5))
+        {
+            return true;
+        }
+
         if (!File.Exists(filePath))
         {
             return false;
         }
 
         var actualMd5 = ComputeMd5Hex(filePath);
+        var expectedClean = CleanETag(expectedMd5);
+        return string.Equals(actualMd5, expectedClean, StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// Validates a local file against an expected MD5 hash asynchronously if the file requires validation.
+    /// </summary>
+    /// <param name="filePath">The local file path.</param>
+    /// <param name="expectedMd5">The expected MD5 hash (ETag).</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>A task returning true if valid or validation not required; false if validation failed.</returns>
+    public static async Task<bool> ValidateFileAsync(string filePath, string? expectedMd5, CancellationToken cancellationToken = default)
+    {
+        if (!RequiresValidation(filePath))
+        {
+            return true;
+        }
+
+        if (string.IsNullOrWhiteSpace(expectedMd5))
+        {
+            return true;
+        }
+
+        if (IsMultipartETag(expectedMd5))
+        {
+            return true;
+        }
+
+        if (!File.Exists(filePath))
+        {
+            return false;
+        }
+
+        var actualMd5 = await ComputeMd5HexAsync(filePath, cancellationToken).ConfigureAwait(false);
         var expectedClean = CleanETag(expectedMd5);
         return string.Equals(actualMd5, expectedClean, StringComparison.OrdinalIgnoreCase);
     }

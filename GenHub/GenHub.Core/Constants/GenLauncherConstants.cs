@@ -1,3 +1,4 @@
+using System;
 using System.Diagnostics.CodeAnalysis;
 
 namespace GenHub.Core.Constants;
@@ -11,17 +12,17 @@ public static class GenLauncherConstants
     /// <summary>
     /// Publisher identifier for GenLauncher.
     /// </summary>
-    public const string PublisherId = "genlauncher";
+    public const string PublisherId = PublisherTypeConstants.GenLauncher;
 
     /// <summary>
     /// Publisher type for GenLauncher.
     /// </summary>
-    public const string PublisherType = "genlauncher";
+    public const string PublisherType = PublisherTypeConstants.GenLauncher;
 
     /// <summary>
     /// Display name for GenLauncher.
     /// </summary>
-    public const string PublisherName = "GenLauncher";
+    public const string PublisherName = PublisherInfoConstants.GenLauncher.Name;
 
     /// <summary>
     /// Short description for GenLauncher provider.
@@ -41,12 +42,32 @@ public static class GenLauncherConstants
     /// <summary>
     /// Official repository website URL.
     /// </summary>
-    public const string WebsiteUrl = "https://github.com/p0ls3r/GenLauncher";
+    public const string WebsiteUrl = PublisherInfoConstants.GenLauncher.Website;
 
     /// <summary>
     /// Official issues / support URL.
     /// </summary>
-    public const string SupportUrl = "https://github.com/p0ls3r/GenLauncher/issues";
+    public const string SupportUrl = PublisherInfoConstants.GenLauncher.SupportUrl;
+
+    /// <summary>
+    /// Probe timeout in seconds for GenLauncher size and availability probes.
+    /// </summary>
+    public const int ProbeTimeoutSeconds = 3;
+
+    /// <summary>
+    /// Catalog fetch timeout in seconds.
+    /// </summary>
+    public const int CatalogTimeoutSeconds = 30;
+
+    /// <summary>
+    /// Content acquisition timeout in seconds.
+    /// </summary>
+    public const int ContentTimeoutSeconds = 300;
+
+    /// <summary>
+    /// Default HTTP timeout in seconds for GenLauncher operations.
+    /// </summary>
+    public const int DefaultHttpTimeoutSeconds = 60;
 
     /// <summary>
     /// Default Zero Hour repository URL.
@@ -102,6 +123,11 @@ public static class GenLauncherConstants
     /// Session key for "do not ask again" preference for normalization dialog.
     /// </summary>
     public const string NormalizationDialogSessionKey = "genlauncher.normalization.skip";
+
+    /// <summary>
+    /// Probe timeout TimeSpan for GenLauncher size and availability probes.
+    /// </summary>
+    public static readonly TimeSpan ProbeTimeout = TimeSpan.FromSeconds(ProbeTimeoutSeconds);
 
     /// <summary>
     /// Engine extensions requiring MD5 checksum validation against S3 ETags.

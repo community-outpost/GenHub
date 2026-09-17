@@ -6,7 +6,7 @@
   "iconColor": "#FF9800",
   "providerType": "Static",
   "catalogFormat": "genlauncher-yaml",
-  "versionScheme": "semver",
+  "versionScheme": "numeric",
   "endpoints": {
     "catalogUrl": "https://raw.githubusercontent.com/p0ls3r/GenLauncherModsData/master/ReposModificationDataZH3.yaml",
     "websiteUrl": "https://github.com/p0ls3r/GenLauncher",

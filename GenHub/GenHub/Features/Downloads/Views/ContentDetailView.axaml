@@ -376,7 +376,7 @@
                                                             <Panel>
                                                                 <material:MaterialIcon Kind="PackageVariantClosed"
                                                                                        Width="24" Height="24"
-                                                                                       Foreground="{DynamicResource TextTertiary}"
+                                                                                       Foreground="{DynamicResource TextMuted}"
                                                                                        HorizontalAlignment="Center"
                                                                                        VerticalAlignment="Center" />
                                                                 <Image controls:ImageLoader.Source="{Binding ThumbnailUrl}"
@@ -754,7 +754,7 @@
                                                             <Panel>
                                                                 <material:MaterialIcon Kind="PuzzleOutline"
                                                                                        Width="24" Height="24"
-                                                                                       Foreground="{DynamicResource TextTertiary}"
+                                                                                       Foreground="{DynamicResource TextMuted}"
                                                                                        HorizontalAlignment="Center"
                                                                                        VerticalAlignment="Center" />
                                                                 <Image controls:ImageLoader.Source="{Binding ThumbnailUrl}"

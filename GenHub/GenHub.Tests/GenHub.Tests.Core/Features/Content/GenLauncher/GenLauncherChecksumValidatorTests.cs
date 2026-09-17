@@ -2,6 +2,8 @@ using GenHub.Features.Content.Services.GenLauncher;
 using System;
 using System.IO;
 using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
 using Xunit;
 
 namespace GenHub.Tests.Core.Features.Content.GenLauncher;
@@ -43,6 +45,46 @@ public sealed class GenLauncherChecksumValidatorTests
     }
 
     /// <summary>
+    /// Tests that IsMultipartETag identifies S3 multipart upload ETags.
+    /// </summary>
+    /// <param name="etag">The ETag value.</param>
+    /// <param name="expected">Whether it is multipart.</param>
+    [Theory]
+    [InlineData("d41d8cd98f00b204e9800998ecf8427e-1", true)]
+    [InlineData("d41d8cd98f00b204e9800998ecf8427e-42", true)]
+    [InlineData("\"d41d8cd98f00b204e9800998ecf8427e-2\"", true)]
+    [InlineData("d41d8cd98f00b204e9800998ecf8427e", false)]
+    [InlineData("abc-def", false)]
+    [InlineData("", false)]
+    public void IsMultipartETag_IdentifiesMultipartChecksumsCorrectly(string etag, bool expected)
+    {
+        var result = GenLauncherChecksumValidator.IsMultipartETag(etag);
+        Assert.Equal(expected, result);
+    }
+
+    /// <summary>
+    /// Tests that ValidateFile returns true for multipart ETags without failing.
+    /// </summary>
+    [Fact]
+    public void ValidateFile_MultipartETag_BypassesValidationAndReturnsTrue()
+    {
+        var tempFile = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N") + ".big");
+        try
+        {
+            File.WriteAllText(tempFile, "Some content", Encoding.UTF8);
+            var isValid = GenLauncherChecksumValidator.ValidateFile(tempFile, "d41d8cd98f00b204e9800998ecf8427e-5");
+            Assert.True(isValid);
+        }
+        finally
+        {
+            if (File.Exists(tempFile))
+            {
+                File.Delete(tempFile);
+            }
+        }
+    }
+
+    /// <summary>
     /// Tests that ValidateFile returns true when MD5 hashes match.
     /// </summary>
     [Fact]
@@ -81,6 +123,33 @@ public sealed class GenLauncherChecksumValidatorTests
 
             var isValid = GenLauncherChecksumValidator.ValidateFile(tempFile, "0123456789abcdef0123456789abcdef");
             Assert.False(isValid);
+        }
+        finally
+        {
+            if (File.Exists(tempFile))
+            {
+                File.Delete(tempFile);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Tests that ValidateFileAsync returns true when MD5 hashes match asynchronously.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ValidateFileAsync_MatchingMd5_ReturnsTrue()
+    {
+        var tempFile = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N") + ".big");
+        try
+        {
+            var content = "Generals Mod Data Content Async";
+            await File.WriteAllTextAsync(tempFile, content, Encoding.UTF8);
+
+            var expectedMd5 = await GenLauncherChecksumValidator.ComputeMd5HexAsync(tempFile, CancellationToken.None);
+            var isValid = await GenLauncherChecksumValidator.ValidateFileAsync(tempFile, $"\"{expectedMd5}\"", CancellationToken.None);
+
+            Assert.True(isValid);
         }
         finally
         {

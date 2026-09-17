@@ -67,11 +67,6 @@ public static partial class GenLauncherDownloadLinkParser
 
     private static string NormalizeOneDriveLink(string link)
     {
-        if (link.Contains("embed", StringComparison.OrdinalIgnoreCase))
-        {
-            return link.Replace("embed", "download", StringComparison.OrdinalIgnoreCase);
-        }
-
         if (Uri.TryCreate(link, UriKind.Absolute, out var uri))
         {
             var queryParams = ParseQueryString(uri.Query);
@@ -81,14 +76,28 @@ public static partial class GenLauncherDownloadLinkParser
 
             if (!string.IsNullOrEmpty(cid) && !string.IsNullOrEmpty(resid))
             {
-                var directUrl = $"https://onedrive.live.com/download?cid={cid}&resid={resid}";
-                if (!string.IsNullOrEmpty(authkey))
+                var builder = new UriBuilder("https://onedrive.live.com/download")
                 {
-                    directUrl += $"&authkey={authkey}";
-                }
-
-                return directUrl;
+                    Query = $"cid={Uri.EscapeDataString(cid)}&resid={Uri.EscapeDataString(resid)}" +
+                            (!string.IsNullOrEmpty(authkey) ? $"&authkey={Uri.EscapeDataString(authkey)}" : string.Empty),
+                };
+                return builder.Uri.ToString();
             }
+
+            var path = uri.AbsolutePath;
+            if (path.Contains("/embed", StringComparison.OrdinalIgnoreCase))
+            {
+                var newPath = Regex.Replace(path, @"/embed\b", "/download", RegexOptions.IgnoreCase);
+                var builder = new UriBuilder(uri)
+                {
+                    Path = newPath,
+                };
+                return builder.Uri.ToString();
+            }
+        }
+        else if (link.Contains("/embed", StringComparison.OrdinalIgnoreCase))
+        {
+            return Regex.Replace(link, @"/embed\b", "/download", RegexOptions.IgnoreCase);
         }
 
         return link;

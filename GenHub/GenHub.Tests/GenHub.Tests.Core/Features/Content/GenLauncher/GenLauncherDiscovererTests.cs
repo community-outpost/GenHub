@@ -453,4 +453,114 @@ globalAddonsData:
                 r.RequestUri.ToString().Contains("192.168.1.100")),
             ItExpr.IsAny<CancellationToken>());
     }
+
+    /// <summary>
+    /// Tests that child manifests inheriting default modification types are mapped correctly when type is omitted.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task DiscoverAsync_WhenChildManifestOmitsModificationType_InheritsDefaultType()
+    {
+        var mockHttp = new Mock<HttpMessageHandler>();
+
+        const string rootYaml = @"
+LauncherVersion: '1.0'
+modDatas:
+  - ModName: 'Test Mod'
+    ModLink: 'https://example.com/test-mod.yaml'
+    ModPatches:
+      - 'https://example.com/test-patch.yaml'
+";
+
+        const string parentYaml = @"
+Name: 'Test Mod'
+Version: '1.0.0'
+ModificationType: 0
+SimpleDownloadLink: 'https://example.com/test-mod.zip'
+";
+
+        // Omits ModificationType completely
+        const string patchYaml = @"
+Name: 'Test Patch'
+Version: '1.0.1'
+DependenceName: 'Test Mod'
+SimpleDownloadLink: 'https://example.com/test-patch.zip'
+";
+
+        mockHttp.Protected()
+            .Setup<Task<HttpResponseMessage>>(
+                "SendAsync",
+                ItExpr.Is<HttpRequestMessage>(r => r.RequestUri!.ToString().Contains("Generals")),
+                ItExpr.IsAny<CancellationToken>())
+            .ReturnsAsync(new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent("LauncherVersion: '1.0'\nmodDatas: []"),
+            });
+
+        mockHttp.Protected()
+            .Setup<Task<HttpResponseMessage>>(
+                "SendAsync",
+                ItExpr.Is<HttpRequestMessage>(r => r.RequestUri!.ToString().Contains("ZH")),
+                ItExpr.IsAny<CancellationToken>())
+            .ReturnsAsync(new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(rootYaml),
+            });
+
+        mockHttp.Protected()
+            .Setup<Task<HttpResponseMessage>>(
+                "SendAsync",
+                ItExpr.Is<HttpRequestMessage>(r => r.RequestUri!.ToString().Contains("test-mod.yaml")),
+                ItExpr.IsAny<CancellationToken>())
+            .ReturnsAsync(new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(parentYaml),
+            });
+
+        mockHttp.Protected()
+            .Setup<Task<HttpResponseMessage>>(
+                "SendAsync",
+                ItExpr.Is<HttpRequestMessage>(r => r.RequestUri!.ToString().Contains("test-patch.yaml")),
+                ItExpr.IsAny<CancellationToken>())
+            .ReturnsAsync(new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(patchYaml),
+            });
+
+        // HEAD requests
+        mockHttp.Protected()
+            .Setup<Task<HttpResponseMessage>>(
+                "SendAsync",
+                ItExpr.Is<HttpRequestMessage>(r => r.Method == HttpMethod.Head),
+                ItExpr.IsAny<CancellationToken>())
+            .ReturnsAsync(new HttpResponseMessage(HttpStatusCode.OK));
+
+        var httpClient = new HttpClient(mockHttp.Object);
+        var mockFactory = new Mock<IHttpClientFactory>();
+        mockFactory.Setup(f => f.CreateClient(PublisherTypeConstants.GenLauncher)).Returns(httpClient);
+
+        var mockLoader = new Mock<IProviderDefinitionLoader>();
+        mockLoader.Setup(l => l.GetProvider(GenLauncherConstants.PublisherId)).Returns((ProviderDefinition?)null);
+
+        var parser = new GenLauncherCatalogParser(NullLogger<GenLauncherCatalogParser>.Instance);
+        var discoverer = new GenLauncherDiscoverer(
+            mockFactory.Object,
+            mockLoader.Object,
+            parser,
+            NullLogger<GenLauncherDiscoverer>.Instance);
+
+        var query = new ContentSearchQuery
+        {
+            TargetGame = GameType.ZeroHour,
+        };
+
+        var result = await discoverer.DiscoverAsync(query, CancellationToken.None);
+
+        Assert.True(result.Success);
+        Assert.NotNull(result.Data);
+
+        var patchItem = result.Data.Items.FirstOrDefault(i => i.Name == "Test Patch");
+        Assert.NotNull(patchItem);
+        Assert.Equal(ContentType.Patch, patchItem.ContentType);
+    }
 }

@@ -56,6 +56,12 @@ public class GenLauncherResolver(
         {
             var client = httpClientFactory.CreateClient(PublisherTypeConstants.GenLauncher);
             var slug = GenLauncherCatalogParser.Slugify(discoveredItem.Name);
+            if (!string.IsNullOrEmpty(discoveredItem.VariantGroupId) &&
+                !string.Equals(discoveredItem.VariantGroupId, slug, StringComparison.OrdinalIgnoreCase))
+            {
+                slug = $"{discoveredItem.VariantGroupId}-{slug}";
+            }
+
             var gameToken = discoveredItem.TargetGame == GameType.ZeroHour ? "zerohour" : "generals";
             var publisherToken = $"{GenLauncherConstants.PublisherId}-{gameToken}";
 
@@ -118,13 +124,12 @@ public class GenLauncherResolver(
         {
             Description = discoveredItem.Description ?? string.Empty,
             IconUrl = versionManifest?.UIImageSourceLink ?? discoveredItem.IconUrl ?? string.Empty,
-            CoverUrl = discoveredItem.BannerUrl ?? string.Empty,
-            Tags = [.. discoveredItem.Tags],
+            ChangelogUrl = versionManifest?.NewsLink ?? GetMetadata(discoveredItem.ResolverMetadata, "newsLink") ?? string.Empty,
         };
 
-        if (versionManifest != null && !string.IsNullOrWhiteSpace(versionManifest.SupportLink))
+        if (discoveredItem.Tags.Count > 0)
         {
-            manifest.Publisher.SupportUrl = versionManifest.SupportLink;
+            manifest.Metadata.Tags = [.. discoveredItem.Tags];
         }
 
         // Base game installation dependency
@@ -132,21 +137,18 @@ public class GenLauncherResolver(
             ? BaseDependencyBuilder.CreateZeroHour104Dependency()
             : BaseDependencyBuilder.CreateGenerals108Dependency());
 
-        // Parent mod dependency
-        if (versionManifest != null && !string.IsNullOrWhiteSpace(versionManifest.DependenceName))
+        var dependenceName = versionManifest?.DependenceName ?? GetMetadata(discoveredItem.ResolverMetadata, "dependenceName");
+        if (!string.IsNullOrWhiteSpace(dependenceName))
         {
-            var depSlug = GenLauncherCatalogParser.Slugify(versionManifest.DependenceName);
-            var parentModId = ManifestId.Create(
-                ManifestIdGenerator.GeneratePublisherContentId(
-                    publisherToken,
-                    ContentType.Mod,
-                    depSlug,
-                    0));
-
+            var parentSlug = GenLauncherCatalogParser.Slugify(dependenceName);
             manifest.Dependencies.Add(new ContentDependency
             {
-                Id = parentModId,
-                Name = versionManifest.DependenceName,
+                Id = ManifestIdGenerator.GeneratePublisherContentId(
+                    publisherToken,
+                    ContentType.Mod,
+                    parentSlug,
+                    0),
+                Name = dependenceName,
                 DependencyType = ContentType.Mod,
                 StrictPublisher = false,
                 CompatibleGameTypes = [discoveredItem.TargetGame],
@@ -163,8 +165,18 @@ public class GenLauncherResolver(
     {
         var rawDownloadLink = versionManifest?.SimpleDownloadLink
             ?? discoveredItem.SelectedDownloadUrl
-            ?? GetMetadata(discoveredItem.ResolverMetadata, "simpleDownloadLink")
-            ?? discoveredItem.SourceUrl;
+            ?? GetMetadata(discoveredItem.ResolverMetadata, "simpleDownloadLink");
+
+        if (string.IsNullOrWhiteSpace(rawDownloadLink))
+        {
+            var sourceUrl = discoveredItem.SourceUrl;
+            if (!string.IsNullOrWhiteSpace(sourceUrl) &&
+                !sourceUrl.EndsWith(".yaml", StringComparison.OrdinalIgnoreCase) &&
+                !sourceUrl.EndsWith(".yml", StringComparison.OrdinalIgnoreCase))
+            {
+                rawDownloadLink = sourceUrl;
+            }
+        }
 
         if (string.IsNullOrWhiteSpace(rawDownloadLink))
         {
@@ -172,6 +184,11 @@ public class GenLauncherResolver(
         }
 
         var directUrl = GenLauncherDownloadLinkParser.ParseDownloadLink(rawDownloadLink);
+        if (!ImageCacheService.IsSafeRemoteUrl(directUrl, out _))
+        {
+            return;
+        }
+
         var fileName = GetFileNameFromUrl(directUrl, slug);
 
         manifest.Files.Add(new ManifestFile
@@ -210,23 +227,17 @@ public class GenLauncherResolver(
 
     private async Task<GenLauncherVersionManifest?> FetchVersionManifestIfNeededAsync(
         HttpClient client,
-        ContentSearchResult discoveredItem,
+        ContentSearchResult item,
         CancellationToken cancellationToken)
     {
-        if (discoveredItem.Data is GenLauncherVersionManifest manifest)
+        if (item.Data is GenLauncherVersionManifest manifest)
         {
             return manifest;
         }
 
-        var yamlUrl = GetMetadata(discoveredItem.ResolverMetadata, "yamlUrl");
-        if (string.IsNullOrWhiteSpace(yamlUrl))
+        var yamlUrl = GetMetadata(item.ResolverMetadata, "yamlUrl") ?? item.SourceUrl;
+        if (string.IsNullOrWhiteSpace(yamlUrl) || !ImageCacheService.IsSafeRemoteUrl(yamlUrl, out _))
         {
-            return null;
-        }
-
-        if (!ImageCacheService.IsSafeRemoteUrl(yamlUrl, out _))
-        {
-            logger.LogWarning("Rejecting unsafe or non-HTTP YAML manifest URL: {Url}", yamlUrl);
             return null;
         }
 
@@ -241,12 +252,11 @@ public class GenLauncherResolver(
         }
         catch (Exception ex)
         {
-            logger.LogWarning(ex, "Failed to fetch/parse version manifest from {Url}", yamlUrl);
+            logger.LogWarning(ex, "Could not fetch version manifest from {Url}", yamlUrl);
             return null;
         }
     }
 
-    [SuppressMessage("Security", "S5332:Using http protocol is insecure", Justification = "GenLauncher MinIO remotes operate over plain HTTP without TLS")]
     private async Task<bool> TryResolveS3StoragePayloadAsync(
         ContentManifest manifest,
         HttpClient client,
@@ -254,9 +264,9 @@ public class GenLauncherResolver(
         ContentSearchResult discoveredItem,
         CancellationToken cancellationToken)
     {
-        var s3Host = versionManifest?.S3HostLink ?? GetMetadata(discoveredItem.ResolverMetadata, "s3Host");
-        var s3Bucket = versionManifest?.S3BucketName ?? GetMetadata(discoveredItem.ResolverMetadata, "s3Bucket");
-        var s3Folder = versionManifest?.S3FolderName ?? GetMetadata(discoveredItem.ResolverMetadata, "s3Folder");
+        var s3Host = versionManifest?.S3HostLink ?? GetMetadata(discoveredItem.ResolverMetadata, "s3HostLink");
+        var s3Bucket = versionManifest?.S3BucketName ?? GetMetadata(discoveredItem.ResolverMetadata, "s3BucketName");
+        var s3Folder = versionManifest?.S3FolderName ?? GetMetadata(discoveredItem.ResolverMetadata, "s3FolderName");
 
         if (string.IsNullOrWhiteSpace(s3Host) || string.IsNullOrWhiteSpace(s3Bucket) || string.IsNullOrWhiteSpace(s3Folder))
         {
@@ -267,7 +277,10 @@ public class GenLauncherResolver(
         {
             var hasMorePages = true;
             string? nextMarker = null;
-            var anyFiles = false;
+            var s3Files = new List<ManifestFile>();
+            var seenMarkers = new HashSet<string>(StringComparer.Ordinal);
+            var pageCount = 0;
+            const int maxPages = 100;
 
             while (hasMorePages)
             {
@@ -290,14 +303,14 @@ public class GenLauncherResolver(
                     out var isTruncated,
                     out nextMarker);
 
-                if (fileEntries.Count == 0 && !anyFiles)
+                if (fileEntries.Count == 0 && s3Files.Count == 0)
                 {
                     return false;
                 }
 
                 foreach (var entry in fileEntries)
                 {
-                    manifest.Files.Add(new ManifestFile
+                    s3Files.Add(new ManifestFile
                     {
                         RelativePath = entry.RelativePath,
                         DownloadUrl = entry.DownloadUrl,
@@ -306,13 +319,30 @@ public class GenLauncherResolver(
                         SourceType = ContentSourceType.RemoteDownload,
                         IsRequired = true,
                     });
-                    anyFiles = true;
+                }
+
+                if (!string.IsNullOrEmpty(nextMarker) && !seenMarkers.Add(nextMarker))
+                {
+                    logger.LogWarning("Detected cycle or repeating marker '{Marker}' while querying S3 folder '{Folder}'", nextMarker, s3Folder);
+                    break;
+                }
+
+                if (++pageCount >= maxPages)
+                {
+                    logger.LogWarning("Reached maximum page limit ({Max}) while querying S3 folder '{Folder}'", maxPages, s3Folder);
+                    break;
                 }
 
                 hasMorePages = isTruncated && !string.IsNullOrEmpty(nextMarker);
             }
 
-            return anyFiles;
+            if (s3Files.Count > 0)
+            {
+                manifest.Files.AddRange(s3Files);
+                return true;
+            }
+
+            return false;
         }
         catch (OperationCanceledException)
         {

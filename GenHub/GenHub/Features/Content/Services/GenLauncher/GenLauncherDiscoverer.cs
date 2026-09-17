@@ -14,8 +14,10 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
+using System.IO;
 using System.Linq;
 using System.Net.Http;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -100,7 +102,7 @@ public class GenLauncherDiscoverer(
             var targetGames = DetermineTargetGames(query.TargetGame);
 
             var allItems = new List<ContentSearchResult>();
-            var semaphore = new SemaphoreSlim(6, 6);
+            using var semaphore = new SemaphoreSlim(6, 6);
 
             foreach (var game in targetGames)
             {
@@ -109,14 +111,16 @@ public class GenLauncherDiscoverer(
                 allItems.AddRange(gameItems);
             }
 
-            var resultList = FilterDiscoveredItems(allItems, query);
-            var discoveryResult = new ContentDiscoveryResult
+            var filteredItems = FilterDiscoveredItems(allItems, query);
+
+            var result = new ContentDiscoveryResult
             {
-                Items = resultList,
-                TotalItems = resultList.Count,
+                Items = filteredItems,
+                TotalItems = filteredItems.Count,
                 HasMoreItems = false,
             };
-            return OperationResult<ContentDiscoveryResult>.CreateSuccess(discoveryResult);
+
+            return OperationResult<ContentDiscoveryResult>.CreateSuccess(result);
         }
         catch (OperationCanceledException)
         {
@@ -124,32 +128,23 @@ public class GenLauncherDiscoverer(
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Error during GenLauncher content discovery");
+            logger.LogError(ex, "Failed to discover GenLauncher content");
             return OperationResult<ContentDiscoveryResult>.CreateFailure($"GenLauncher discovery failed: {ex.Message}");
         }
     }
 
-    private static List<GameType> DetermineTargetGames(GameType? queryGame)
+    private static List<GameType> DetermineTargetGames(GameType? requestedGame)
     {
-        if (queryGame == GameType.Generals)
+        if (requestedGame.HasValue && requestedGame.Value != GameType.Unknown)
         {
-            return [GameType.Generals];
-        }
-
-        if (queryGame == GameType.ZeroHour)
-        {
-            return [GameType.ZeroHour];
+            return [requestedGame.Value];
         }
 
         return [GameType.ZeroHour, GameType.Generals];
     }
 
-    private static string? CleanImageUrl(string? rawUrl) => ContentCardBadgeHelper.CleanImageUrl(rawUrl);
-
-    private static string? ResolveIconUrl(string? rawUrl, string? fallbackUrl) => ContentCardBadgeHelper.ResolveIconUrl(rawUrl, fallbackUrl);
-
     private static List<ContentSearchResult> FilterDiscoveredItems(
-        IEnumerable<ContentSearchResult> allItems,
+        List<ContentSearchResult> allItems,
         ContentSearchQuery query)
     {
         var filtered = allItems.AsEnumerable();
@@ -163,6 +158,8 @@ public class GenLauncherDiscoverer(
         {
             var term = query.SearchTerm.Trim();
             filtered = filtered.Where(item =>
+                string.Equals(item.Id, term, StringComparison.OrdinalIgnoreCase) ||
+                item.Id.Contains(term, StringComparison.OrdinalIgnoreCase) ||
                 item.Name.Contains(term, StringComparison.OrdinalIgnoreCase) ||
                 (item.Description?.Contains(term, StringComparison.OrdinalIgnoreCase) ?? false) ||
                 item.Tags.Any(t => t.Contains(term, StringComparison.OrdinalIgnoreCase)));
@@ -179,40 +176,58 @@ public class GenLauncherDiscoverer(
     {
         result.SetData(manifest);
 
-        if (!string.IsNullOrWhiteSpace(manifest.Version))
+        var finalIconUrl = ResolveIconUrl(manifest.UIImageSourceLink, fallbackIconUrl);
+        if (!string.IsNullOrEmpty(finalIconUrl))
         {
-            result.Version = manifest.Version;
+            result.IconUrl = finalIconUrl;
         }
 
-        var resolvedIcon = ResolveIconUrl(manifest.UIImageSourceLink, fallbackIconUrl ?? result.IconUrl);
-        if (!string.IsNullOrWhiteSpace(resolvedIcon))
+        if (!string.IsNullOrEmpty(manifest.NewsLink))
         {
-            result.IconUrl = resolvedIcon;
+            result.ResolverMetadata["newsLink"] = manifest.NewsLink;
         }
 
-        if (!string.IsNullOrWhiteSpace(manifest.SimpleDownloadLink) && IsValidHttpUrl(manifest.SimpleDownloadLink, out _))
+        if (!string.IsNullOrEmpty(manifest.SupportLink))
         {
-            result.SelectedDownloadUrl = manifest.SimpleDownloadLink;
+            result.ResolverMetadata["supportLink"] = manifest.SupportLink;
+        }
+
+        if (!string.IsNullOrEmpty(manifest.DiscordLink))
+        {
+            result.ResolverMetadata["discordLink"] = manifest.DiscordLink;
+        }
+
+        if (!string.IsNullOrEmpty(manifest.ModDBLink))
+        {
+            result.ResolverMetadata["modDbLink"] = manifest.ModDBLink;
+        }
+
+        if (!string.IsNullOrEmpty(manifest.DependenceName))
+        {
+            result.ResolverMetadata["dependenceName"] = manifest.DependenceName;
+        }
+
+        if (!string.IsNullOrEmpty(manifest.S3HostLink))
+        {
+            result.ResolverMetadata["s3HostLink"] = manifest.S3HostLink;
+        }
+
+        if (!string.IsNullOrEmpty(manifest.S3BucketName))
+        {
+            result.ResolverMetadata["s3BucketName"] = manifest.S3BucketName;
+        }
+
+        if (!string.IsNullOrEmpty(manifest.S3FolderName))
+        {
+            result.ResolverMetadata["s3FolderName"] = manifest.S3FolderName;
+        }
+
+        if (!string.IsNullOrEmpty(manifest.SimpleDownloadLink))
+        {
             result.ResolverMetadata["simpleDownloadLink"] = manifest.SimpleDownloadLink;
         }
 
-        result.Description = BuildDescription(manifest);
-
         result.ResolverMetadata["yamlUrl"] = manifestUrl;
-        if (!string.IsNullOrWhiteSpace(manifest.S3HostLink))
-        {
-            result.ResolverMetadata["s3Host"] = manifest.S3HostLink;
-        }
-
-        if (!string.IsNullOrWhiteSpace(manifest.S3BucketName))
-        {
-            result.ResolverMetadata["s3Bucket"] = manifest.S3BucketName;
-        }
-
-        if (!string.IsNullOrWhiteSpace(manifest.S3FolderName))
-        {
-            result.ResolverMetadata["s3Folder"] = manifest.S3FolderName;
-        }
     }
 
     private static string BuildDescription(GenLauncherVersionManifest manifest)
@@ -249,8 +264,37 @@ public class GenLauncherDiscoverer(
         return string.Join("\n\n", parts);
     }
 
-    private static bool IsValidHttpUrl(string url, [NotNullWhen(true)] out Uri? uri) =>
-        ImageCacheService.IsSafeRemoteUrl(url, out uri);
+    private static string? CleanImageUrl(string? rawUrl)
+    {
+        if (string.IsNullOrWhiteSpace(rawUrl))
+        {
+            return null;
+        }
+
+        if (rawUrl.StartsWith("https://cdn.discordapp.com/attachments/", StringComparison.OrdinalIgnoreCase))
+        {
+            return null;
+        }
+
+        return IsValidHttpUrl(rawUrl, out _) ? rawUrl : null;
+    }
+
+    private static string? ResolveIconUrl(string? primaryUrl, string? fallbackUrl)
+    {
+        var cleaned = CleanImageUrl(primaryUrl);
+        return !string.IsNullOrWhiteSpace(cleaned) ? cleaned : CleanImageUrl(fallbackUrl);
+    }
+
+    private static bool IsValidHttpUrl(string? url, [NotNullWhen(true)] out Uri? uri)
+    {
+        if (string.IsNullOrWhiteSpace(url))
+        {
+            uri = null;
+            return false;
+        }
+
+        return ImageCacheService.IsSafeRemoteUrl(url, out uri);
+    }
 
     private static async Task<long?> TryCalculateHeadSizeAsync(
         HttpClient client,
@@ -263,7 +307,7 @@ public class GenLauncherDiscoverer(
         }
 
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        cts.CancelAfter(TimeSpan.FromSeconds(3));
+        cts.CancelAfter(GenLauncherConstants.ProbeTimeout);
         using var req = new HttpRequestMessage(HttpMethod.Head, uri);
         using var resp = await client.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, cts.Token);
         if (resp.IsSuccessStatusCode && resp.Content.Headers.ContentLength.HasValue && resp.Content.Headers.ContentLength.Value > 0)
@@ -283,8 +327,12 @@ public class GenLauncherDiscoverer(
     {
         var items = new List<ContentSearchResult>();
         var catalogUrl = game == GameType.Generals
-            ? provider?.Endpoints.GetEndpoint("generalsCatalogUrl") ?? GenLauncherConstants.GeneralsCatalogUrl
-            : provider?.Endpoints.GetEndpoint("zeroHourCatalogUrl") ?? GenLauncherConstants.ZeroHourCatalogUrl;
+            ? provider?.Endpoints.Custom.GetValueOrDefault("generalsCatalogUrl", GenLauncherConstants.GeneralsCatalogUrl)
+            : provider?.Endpoints.Custom.GetValueOrDefault("zeroHourCatalogUrl", GenLauncherConstants.ZeroHourCatalogUrl);
+
+        catalogUrl ??= game == GameType.Generals
+            ? GenLauncherConstants.GeneralsCatalogUrl
+            : GenLauncherConstants.ZeroHourCatalogUrl;
 
         var rootYaml = await FetchStringWithCacheAsync(client, catalogUrl, cancellationToken);
         if (string.IsNullOrWhiteSpace(rootYaml))
@@ -304,23 +352,26 @@ public class GenLauncherDiscoverer(
             return items;
         }
 
-        var modTasks = rootManifest.ModDatas.Select(async modEntry =>
+        if (rootManifest.ModDatas != null)
         {
-            await semaphore.WaitAsync(cancellationToken);
-            try
+            var modTasks = rootManifest.ModDatas.Select(async modEntry =>
             {
-                return await ProcessModEntryAsync(client, modEntry, game, cancellationToken);
-            }
-            finally
-            {
-                semaphore.Release();
-            }
-        });
+                await semaphore.WaitAsync(cancellationToken);
+                try
+                {
+                    return await ProcessModEntryAsync(client, modEntry, game, cancellationToken);
+                }
+                finally
+                {
+                    semaphore.Release();
+                }
+            });
 
-        var modResults = await Task.WhenAll(modTasks);
-        foreach (var modResultList in modResults)
-        {
-            items.AddRange(modResultList);
+            var modResults = await Task.WhenAll(modTasks);
+            foreach (var modResultList in modResults)
+            {
+                items.AddRange(modResultList);
+            }
         }
 
         var originalPatches = await ProcessUrlListAsync(
@@ -368,14 +419,66 @@ public class GenLauncherDiscoverer(
             return results;
         }
 
-        if (!string.IsNullOrWhiteSpace(modEntry.ModLink) && !IsValidHttpUrl(modEntry.ModLink, out _))
+        var modSlug = GenLauncherCatalogParser.Slugify(modEntry.ModName);
+        var variants = new List<ContentVariantInfo>();
+        var filesSections = new List<ContentSection>();
+
+        // 1. Fetch parent version manifest if available
+        GenLauncherVersionManifest? parentManifest = null;
+        string? parentManifestUrl = null;
+        string? parentIconUrl = null;
+        long? parentSizeBytes = null;
+
+        if (!string.IsNullOrWhiteSpace(modEntry.ModLink))
         {
-            logger.LogWarning("Rejecting mod {ModName} with unsafe ModLink: {Url}", modEntry.ModName, modEntry.ModLink);
-            return results;
+            if (!IsValidHttpUrl(modEntry.ModLink, out _))
+            {
+                logger.LogWarning("Rejecting mod entry {ModName} with unsafe or invalid ModLink: {Url}", modEntry.ModName, modEntry.ModLink);
+                return results;
+            }
+
+            parentManifestUrl = modEntry.ModLink;
+            var parentYaml = await FetchStringWithCacheAsync(client, parentManifestUrl, cancellationToken);
+            if (!string.IsNullOrWhiteSpace(parentYaml))
+            {
+                try
+                {
+                    parentManifest = catalogParser.ParseVersionManifest(parentYaml);
+                    parentIconUrl = parentManifest.UIImageSourceLink;
+                    parentSizeBytes = await TryCalculateDownloadSizeAsync(client, parentManifest, cancellationToken);
+                }
+                catch (Exception ex)
+                {
+                    logger.LogWarning(ex, "Failed to parse parent version manifest for {Name}", modEntry.ModName);
+                }
+            }
         }
 
-        var modSlug = GenLauncherCatalogParser.Slugify(modEntry.ModName);
-        var mainResult = new ContentSearchResult
+        var context = new ModProcessingContext(
+            client,
+            game,
+            modEntry.ModName,
+            modSlug,
+            parentIconUrl,
+            results,
+            variants,
+            filesSections);
+
+        // 2. Process child manifests (patches, addons)
+        await ProcessModChildUrlsAsync(
+            context,
+            modEntry.ModPatches,
+            ContentType.Patch,
+            cancellationToken);
+
+        await ProcessModChildUrlsAsync(
+            context,
+            modEntry.ModAddons,
+            ContentType.Addon,
+            cancellationToken);
+
+        // 3. Create parent Mod search result
+        var parentResult = new ContentSearchResult
         {
             Id = $"genlauncher-{game.ToString().ToLowerInvariant()}-{modSlug}",
             Name = modEntry.ModName,
@@ -383,127 +486,71 @@ public class GenLauncherDiscoverer(
             TargetGame = game,
             ProviderName = PublisherTypeConstants.GenLauncher,
             ResolverId = GenLauncherConstants.PublisherId,
-            SourceUrl = modEntry.ModLink,
+            SourceUrl = parentManifest?.SimpleDownloadLink ?? modEntry.ModLink ?? string.Empty,
+            IconUrl = ResolveIconUrl(parentManifest?.UIImageSourceLink, null),
             RequiresResolution = true,
             VariantGroupId = modSlug,
             VariantFamilyName = modEntry.ModName,
         };
 
-        mainResult.Tags.Add("genlauncher");
-        mainResult.Tags.Add("mod");
-        mainResult.Tags.Add(game.ToString().ToLowerInvariant());
+        parentResult.Tags.Add("genlauncher");
+        parentResult.Tags.Add("mod");
+        parentResult.Tags.Add(game.ToString().ToLowerInvariant());
 
-        var mainManifest = await TryFetchAndEnrichManifestAsync(
-            client,
-            modEntry.ModLink,
-            modEntry.ModName,
-            mainResult,
-            cancellationToken);
-
-        var variants = new List<ContentVariantInfo>
+        if (parentManifest != null && parentManifestUrl != null)
         {
-            new()
+            EnrichSearchResult(parentResult, parentManifest, parentManifestUrl);
+            parentResult.Version = parentManifest.Version;
+            if (parentManifest.Deprecated)
             {
-                Id = "base",
-                Name = $"{modEntry.ModName} (Base)",
-                ManifestId = mainResult.Id,
-                IsDefault = true,
-            },
-        };
-
-        var filesSections = new List<ContentSection>();
-        if (mainManifest != null)
-        {
-            var mainSizeBytes = await TryCalculateDownloadSizeAsync(client, mainManifest, cancellationToken);
-            if (mainSizeBytes.HasValue && mainSizeBytes.Value > 0)
-            {
-                mainResult.DownloadSize = mainSizeBytes.Value;
+                parentResult.Tags.Add("deprecated");
             }
-
-            filesSections.Add(new DownloadableFile(
-                Name: $"{modEntry.ModName} {mainManifest.Version}".Trim(),
-                Version: mainManifest.Version,
-                SizeBytes: mainSizeBytes,
-                DownloadUrl: mainManifest.SimpleDownloadLink,
-                FileSectionType: FileSectionType.Downloads,
-                Description: BuildDescription(mainManifest),
-                ThumbnailUrl: ResolveIconUrl(mainManifest.UIImageSourceLink, mainResult.IconUrl)));
         }
 
-        var modContext = new ModProcessingContext(
-            client,
-            game,
-            modEntry.ModName,
-            modSlug,
-            mainResult.IconUrl,
-            results,
-            variants,
-            filesSections);
+        if (parentSizeBytes.HasValue && parentSizeBytes.Value > 0)
+        {
+            parentResult.DownloadSize = parentSizeBytes.Value;
+        }
 
-        await ProcessModChildrenAsync(
-            modContext,
-            modEntry.ModPatches,
-            ContentType.Patch,
-            FileSectionType.Downloads,
-            cancellationToken);
+        // Add parent variant
+        variants.Insert(0, new ContentVariantInfo
+        {
+            Id = modSlug,
+            Name = parentManifest?.Name ?? modEntry.ModName,
+            ManifestId = parentResult.Id,
+            IsDefault = true,
+        });
 
-        await ProcessModChildrenAsync(
-            modContext,
-            modEntry.ModAddons,
-            ContentType.Addon,
-            FileSectionType.Addons,
-            cancellationToken);
+        if (parentManifest != null)
+        {
+            filesSections.Insert(0, new DownloadableFile(
+                Name: $"{modEntry.ModName} {parentManifest.Version}".Trim(),
+                Version: parentManifest.Version,
+                SizeBytes: parentSizeBytes,
+                DownloadUrl: parentManifest.SimpleDownloadLink ?? modEntry.ModLink,
+                FileSectionType: FileSectionType.Downloads,
+                Description: BuildDescription(parentManifest),
+                ThumbnailUrl: ResolveIconUrl(parentManifest.UIImageSourceLink, parentResult.IconUrl)));
+        }
 
-        mainResult.Variants = variants;
+        parentResult.Variants = variants;
         if (filesSections.Count > 0)
         {
-            mainResult.ParsedPageData = new ParsedWebPage(
+            parentResult.ParsedPageData = new ParsedWebPage(
                 new Uri(string.IsNullOrWhiteSpace(modEntry.ModLink) ? GenLauncherConstants.WebsiteUrl : modEntry.ModLink),
                 new GlobalContext(modEntry.ModName, "GenLauncher Community", null, PublisherTypeConstants.GenLauncher),
                 filesSections,
                 PageType.Detail);
         }
 
-        results.Insert(0, mainResult);
+        results.Insert(0, parentResult);
         return results;
     }
 
-    private async Task<GenLauncherVersionManifest?> TryFetchAndEnrichManifestAsync(
-        HttpClient client,
-        string? modLink,
-        string modName,
-        ContentSearchResult mainResult,
-        CancellationToken cancellationToken)
-    {
-        if (string.IsNullOrWhiteSpace(modLink))
-        {
-            return null;
-        }
-
-        var manifestYaml = await FetchStringWithCacheAsync(client, modLink, cancellationToken);
-        if (string.IsNullOrWhiteSpace(manifestYaml))
-        {
-            return null;
-        }
-
-        try
-        {
-            var mainManifest = catalogParser.ParseVersionManifest(manifestYaml);
-            EnrichSearchResult(mainResult, mainManifest, modLink);
-            return mainManifest;
-        }
-        catch (Exception ex)
-        {
-            logger.LogWarning(ex, "Failed to parse version manifest for mod {ModName}", modName);
-            return null;
-        }
-    }
-
-    private async Task ProcessModChildrenAsync(
+    private async Task ProcessModChildUrlsAsync(
         ModProcessingContext context,
         IEnumerable<string>? urls,
         ContentType contentType,
-        FileSectionType sectionType,
         CancellationToken cancellationToken)
     {
         if (urls == null)
@@ -524,33 +571,43 @@ public class GenLauncherDiscoverer(
             context.ModSlug,
             context.ParentIconUrl);
 
+        using var semaphore = new SemaphoreSlim(6, 6);
         var childTasks = urlList.Select(async url =>
         {
-            cancellationToken.ThrowIfCancellationRequested();
-            var item = await ProcessChildManifestAsync(
-                childContext,
-                url,
-                contentType,
-                cancellationToken);
-            if (item == null)
+            await semaphore.WaitAsync(cancellationToken);
+            try
             {
-                return ((ContentSearchResult?)null, (long?)null);
-            }
-
-            long? sizeBytes = null;
-            if (item.Data is GenLauncherVersionManifest childManifest)
-            {
-                sizeBytes = await TryCalculateDownloadSizeAsync(context.Client, childManifest, cancellationToken);
-                if (sizeBytes.HasValue && sizeBytes.Value > 0)
+                cancellationToken.ThrowIfCancellationRequested();
+                var item = await ProcessChildManifestAsync(
+                    childContext,
+                    url,
+                    contentType,
+                    cancellationToken);
+                if (item == null)
                 {
-                    item.DownloadSize = sizeBytes.Value;
+                    return ((ContentSearchResult?)null, (long?)null);
                 }
-            }
 
-            return ((ContentSearchResult?)item, sizeBytes);
+                long? sizeBytes = null;
+                if (item.Data is GenLauncherVersionManifest childManifest)
+                {
+                    sizeBytes = await TryCalculateDownloadSizeAsync(context.Client, childManifest, cancellationToken);
+                    if (sizeBytes.HasValue && sizeBytes.Value > 0)
+                    {
+                        item.DownloadSize = sizeBytes.Value;
+                    }
+                }
+
+                return ((ContentSearchResult?)item, sizeBytes);
+            }
+            finally
+            {
+                semaphore.Release();
+            }
         });
 
         var childResults = await Task.WhenAll(childTasks);
+        var sectionType = contentType == ContentType.Patch ? FileSectionType.Downloads : FileSectionType.Addons;
         foreach (var (item, sizeBytes) in childResults)
         {
             if (item == null)
@@ -585,8 +642,9 @@ public class GenLauncherDiscoverer(
         ContentType defaultType,
         CancellationToken cancellationToken)
     {
-        if (string.IsNullOrWhiteSpace(manifestUrl))
+        if (!IsValidHttpUrl(manifestUrl, out _))
         {
+            logger.LogWarning("Rejecting child manifest with unsafe or non-HTTP URL: {Url}", manifestUrl);
             return null;
         }
 
@@ -607,6 +665,12 @@ public class GenLauncherDiscoverer(
             return null;
         }
 
+        if (versionManifest.GetParsedType() == GenLauncherModificationType.Advertising)
+        {
+            logger.LogDebug("Skipping advertising entry: {Name}", versionManifest.Name);
+            return null;
+        }
+
         if (!string.IsNullOrWhiteSpace(versionManifest.SimpleDownloadLink) && !IsValidHttpUrl(versionManifest.SimpleDownloadLink, out _))
         {
             logger.LogWarning("Rejecting child manifest {Name} with unsafe download link: {Url}", versionManifest.Name, versionManifest.SimpleDownloadLink);
@@ -618,9 +682,13 @@ public class GenLauncherDiscoverer(
             ? GenLauncherCatalogParser.MapContentType(versionManifest.GetParsedType())
             : defaultType;
 
+        var resultId = !string.IsNullOrEmpty(context.ParentModSlug) && !string.Equals(slug, context.ParentModSlug, StringComparison.OrdinalIgnoreCase)
+            ? $"genlauncher-{context.Game.ToString().ToLowerInvariant()}-{context.ParentModSlug}-{slug}"
+            : $"genlauncher-{context.Game.ToString().ToLowerInvariant()}-{slug}";
+
         var result = new ContentSearchResult
         {
-            Id = $"genlauncher-{context.Game.ToString().ToLowerInvariant()}-{slug}",
+            Id = resultId,
             Name = versionManifest.Name,
             Version = versionManifest.Version,
             ContentType = actualType,
@@ -637,6 +705,10 @@ public class GenLauncherDiscoverer(
         result.Tags.Add("genlauncher");
         result.Tags.Add(actualType.ToString().ToLowerInvariant());
         result.Tags.Add(context.Game.ToString().ToLowerInvariant());
+        if (versionManifest.Deprecated)
+        {
+            result.Tags.Add("deprecated");
+        }
 
         EnrichSearchResult(result, versionManifest, manifestUrl, context.ParentIconUrl);
         return result;
@@ -714,38 +786,64 @@ public class GenLauncherDiscoverer(
         GenLauncherVersionManifest manifest,
         CancellationToken cancellationToken)
     {
-        if (string.IsNullOrWhiteSpace(manifest.S3HostLink) || string.IsNullOrWhiteSpace(manifest.S3BucketName))
+        if (string.IsNullOrWhiteSpace(manifest.S3HostLink) ||
+            string.IsNullOrWhiteSpace(manifest.S3BucketName) ||
+            string.IsNullOrWhiteSpace(manifest.S3FolderName))
         {
             return null;
         }
 
-        var queryUrl = GenLauncherS3XmlParser.BuildS3QueryUrl(
-            manifest.S3HostLink,
-            manifest.S3BucketName,
-            manifest.S3FolderName);
+        long totalSize = 0;
+        string? nextMarker = null;
+        var hasMorePages = true;
+        var seenMarkers = new HashSet<string>(StringComparer.Ordinal);
+        var pageCount = 0;
+        const int maxPages = 50;
 
-        var xml = await FetchStringWithCacheAsync(client, queryUrl, cancellationToken);
-        if (string.IsNullOrWhiteSpace(xml))
+        while (hasMorePages)
         {
-            return null;
-        }
+            cancellationToken.ThrowIfCancellationRequested();
+            var queryUrl = GenLauncherS3XmlParser.BuildS3QueryUrl(
+                manifest.S3HostLink,
+                manifest.S3BucketName,
+                manifest.S3FolderName,
+                nextMarker);
 
-        var entries = GenLauncherS3XmlParser.ParseListBucketResult(
-            xml,
-            manifest.S3FolderName ?? string.Empty,
-            manifest.S3HostLink,
-            manifest.S3BucketName);
-
-        if (entries.Count > 0)
-        {
-            var totalSize = entries.Sum(e => e.Size);
-            if (totalSize > 0)
+            var xml = await FetchStringWithCacheAsync(client, queryUrl, cancellationToken);
+            if (string.IsNullOrWhiteSpace(xml))
             {
-                return totalSize;
+                return totalSize > 0 ? totalSize : null;
             }
+
+            var entries = GenLauncherS3XmlParser.ParseListBucketResult(
+                xml,
+                manifest.S3FolderName,
+                manifest.S3HostLink,
+                manifest.S3BucketName,
+                out var isTruncated,
+                out nextMarker);
+
+            if (entries.Count == 0 && totalSize == 0)
+            {
+                return null;
+            }
+
+            totalSize += entries.Sum(e => e.Size);
+
+            if (!string.IsNullOrEmpty(nextMarker) && !seenMarkers.Add(nextMarker))
+            {
+                break;
+            }
+
+            if (++pageCount >= maxPages)
+            {
+                break;
+            }
+
+            hasMorePages = isTruncated && !string.IsNullOrEmpty(nextMarker);
         }
 
-        return null;
+        return totalSize > 0 ? totalSize : null;
     }
 
     private async Task<string?> FetchStringWithCacheAsync(HttpClient client, string url, CancellationToken cancellationToken)
@@ -775,7 +873,32 @@ public class GenLauncherDiscoverer(
                 return null;
             }
 
-            var content = await response.Content.ReadAsStringAsync(cancellationToken);
+            const long maxBytes = 10 * 1024 * 1024; // 10 MB limit
+            if (response.Content.Headers.ContentLength.HasValue && response.Content.Headers.ContentLength.Value > maxBytes)
+            {
+                logger.LogWarning("Response body size {Length} from {Url} exceeds limit {Max}", response.Content.Headers.ContentLength.Value, url, maxBytes);
+                return null;
+            }
+
+            using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
+            using var reader = new StreamReader(stream);
+            var buffer = new char[8192];
+            var sb = new StringBuilder();
+            var totalRead = 0;
+            int read;
+            while ((read = await reader.ReadAsync(buffer.AsMemory(0, buffer.Length), cancellationToken)) > 0)
+            {
+                totalRead += read;
+                if (totalRead > maxBytes)
+                {
+                    logger.LogWarning("Response body from {Url} exceeded limit {Max} chars", url, maxBytes);
+                    return null;
+                }
+
+                sb.Append(buffer, 0, read);
+            }
+
+            var content = sb.ToString();
             StoreInCache(url, content);
             return content;
         }

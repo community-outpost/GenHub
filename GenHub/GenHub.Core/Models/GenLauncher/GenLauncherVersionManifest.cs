@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using YamlDotNet.Serialization;
 
 namespace GenHub.Core.Models.GenLauncher;
@@ -87,12 +88,14 @@ public class GenLauncherVersionManifest
     /// <returns>The resolved modification type.</returns>
     public GenLauncherModificationType GetParsedType()
     {
-        if (int.TryParse(ModificationType, out var intType))
+        if (int.TryParse(ModificationType, NumberStyles.Integer, CultureInfo.InvariantCulture, out var intType) &&
+            Enum.IsDefined(typeof(GenLauncherModificationType), intType))
         {
             return (GenLauncherModificationType)intType;
         }
 
-        if (Enum.TryParse<GenLauncherModificationType>(ModificationType, true, out var enumType))
+        if (Enum.TryParse<GenLauncherModificationType>(ModificationType, true, out var enumType) &&
+            Enum.IsDefined(typeof(GenLauncherModificationType), enumType))
         {
             return enumType;
         }

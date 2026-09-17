@@ -88,7 +88,14 @@ public partial class ContentDetailViewModel(
     private const string UnknownValue = "Unknown";
 
     // ===== Static Fields =====
-    private static readonly HttpClient SharedProbeHttpClient = new() { Timeout = TimeSpan.FromSeconds(5) };
+    private static readonly HttpClient SharedProbeHttpClient = new(new SocketsHttpHandler
+    {
+        AllowAutoRedirect = false,
+        ConnectTimeout = TimeSpan.FromSeconds(5),
+    })
+    {
+        Timeout = TimeSpan.FromSeconds(5),
+    };
 
     // ===== Instance Fields (Synchronization & Lifecycle) =====
     private readonly object _basicContentLoadLock = new();
@@ -1719,7 +1726,7 @@ public partial class ContentDetailViewModel(
         IEnumerable<InstallableVariant> variants,
         string? identifier) => VariantSwap.FindMatchingVariant(variants, identifier);
 
-    [GeneratedRegex(@"[\s\-_.]*v?\d+(?:\.\d+)*\s*$", RegexOptions.IgnoreCase)]
+    [GeneratedRegex(@"[\s\-_.]+(?:v\d+(?:\.\d+)*|\d+\.\d+(?:\.\d+)*)\s*$", RegexOptions.IgnoreCase)]
     private static partial Regex VersionSuffixRegex();
 
     [GeneratedRegex(@"(?:^|[\s\-_vV])(?<version>\d+(?:\.\d+)+)", RegexOptions.IgnoreCase)]
@@ -1769,13 +1776,13 @@ public partial class ContentDetailViewModel(
         if (!string.IsNullOrEmpty(name1) && !string.IsNullOrEmpty(name2))
         {
             if (name1.StartsWith(name2, StringComparison.OrdinalIgnoreCase) &&
-                (name1.Length == name2.Length || char.IsDigit(name1[name2.Length]) || (name1[name2.Length] == 'v' && name1.Length > name2.Length + 1 && char.IsDigit(name1[name2.Length + 1]))))
+                (name1.Length == name2.Length || name1[name2.Length] == '-' || name1[name2.Length] == '_' || (name1[name2.Length] == 'v' && name1.Length > name2.Length + 1 && char.IsDigit(name1[name2.Length + 1]))))
             {
                 return true;
             }
 
             if (name2.StartsWith(name1, StringComparison.OrdinalIgnoreCase) &&
-                (name2.Length == name1.Length || char.IsDigit(name2[name1.Length]) || (name2[name1.Length] == 'v' && name2.Length > name1.Length + 1 && char.IsDigit(name2[name1.Length + 1]))))
+                (name2.Length == name1.Length || name2[name1.Length] == '-' || name2[name1.Length] == '_' || (name2[name1.Length] == 'v' && name2.Length > name1.Length + 1 && char.IsDigit(name2[name1.Length + 1]))))
             {
                 return true;
             }
@@ -3480,22 +3487,34 @@ public partial class ContentDetailViewModel(
             return;
         }
 
-        foreach (var rel in Releases)
+        for (var i = 0; i < Releases.Count; i++)
         {
+            var rel = Releases[i];
             if (!rel.IsDownloaded)
             {
                 rel.IsUpdateAvailable = false;
                 continue;
             }
 
+            var relIndex = i;
             var relVersion = GetEffectiveVersion(rel);
 
             var candidateUpdate = Releases.FirstOrDefault(other =>
-                !other.IsDownloaded &&
-                !ReferenceEquals(other, rel) &&
-                IsSameReleaseLineage(rel, other) &&
-                ((relVersion != null && GetEffectiveVersion(other) is { } otherVersion && ContentStateService.CompareVersions(otherVersion, relVersion) > 0) ||
-                 (Releases.IndexOf(other) < Releases.IndexOf(rel) && !(other.Version != null && string.Equals(other.Version, rel.Version, StringComparison.OrdinalIgnoreCase)))));
+            {
+                if (other.IsDownloaded || ReferenceEquals(other, rel) || !IsSameReleaseLineage(rel, other))
+                {
+                    return false;
+                }
+
+                var otherVersion = GetEffectiveVersion(other);
+                if (relVersion != null && otherVersion != null)
+                {
+                    return ContentStateService.CompareVersions(otherVersion, relVersion) > 0;
+                }
+
+                var otherIndex = Releases.IndexOf(other);
+                return otherIndex < relIndex && !(other.Version != null && string.Equals(other.Version, rel.Version, StringComparison.OrdinalIgnoreCase));
+            });
 
             rel.IsUpdateAvailable = candidateUpdate != null;
         }
@@ -3670,6 +3689,7 @@ public partial class ContentDetailViewModel(
         IsDownloading = true;
         DownloadProgress = 0;
         var completed = 0;
+        var failed = false;
         try
         {
             foreach (var target in targets)
@@ -3699,9 +3719,12 @@ public partial class ContentDetailViewModel(
                 var result = await downloadCoordinator.DownloadContentAsync(target, progress, cancellationToken);
                 if (!result.Success || result.Data == null)
                 {
+                    failed = true;
+                    var errorMsg = result.FirstError ?? ContentConstants.DownloadFailedStatusMessage;
+                    notificationService.ShowError("Download Failed", errorMsg);
                     if (!_disposed)
                     {
-                        DownloadStatusMessage = result.FirstError ?? ContentConstants.DownloadFailedStatusMessage;
+                        DownloadStatusMessage = errorMsg;
                     }
 
                     return;
@@ -3743,7 +3766,10 @@ public partial class ContentDetailViewModel(
                 {
                     IsDownloading = false;
                     DownloadProgress = 0;
-                    DownloadStatusMessage = null;
+                    if (!failed)
+                    {
+                        DownloadStatusMessage = null;
+                    }
                 });
             }
         }
@@ -4191,7 +4217,7 @@ public partial class ContentDetailViewModel(
         try
         {
             using var probeCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-            probeCts.CancelAfter(TimeSpan.FromSeconds(3));
+            probeCts.CancelAfter(GenLauncherConstants.ProbeTimeout);
             using var req = new HttpRequestMessage(HttpMethod.Head, uri);
             using var resp = await SharedProbeHttpClient.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, probeCts.Token);
             if (resp.IsSuccessStatusCode && resp.Content.Headers.ContentLength.HasValue && resp.Content.Headers.ContentLength.Value > 0)
@@ -4236,7 +4262,7 @@ public partial class ContentDetailViewModel(
         {
             if (row.FileSize <= 0)
             {
-                await TryProbeRowFileSizeAsync(row, file.DownloadUrl, _cts.Token);
+                _ = TryProbeRowFileSizeAsync(row, file.DownloadUrl, _cts.Token);
             }
 
             var rowSearchResult = CreateFileSearchResult(file, row.ContentType);
@@ -4269,6 +4295,10 @@ public partial class ContentDetailViewModel(
                     RefreshSelectedTargetProperties();
                 }
             });
+        }
+        catch (OperationCanceledException)
+        {
+            // Expected during cancellation or navigation; do not warn
         }
         catch (Exception ex)
         {

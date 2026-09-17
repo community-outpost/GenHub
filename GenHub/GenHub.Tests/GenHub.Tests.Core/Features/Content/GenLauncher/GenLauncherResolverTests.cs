@@ -203,5 +203,10 @@ public sealed class GenLauncherResolverTests
         Assert.True(result.Success);
         Assert.NotNull(result.Data);
         Assert.Empty(result.Data.Files);
+        handlerMock.Protected().Verify(
+            "SendAsync",
+            Times.Never(),
+            ItExpr.IsAny<HttpRequestMessage>(),
+            ItExpr.IsAny<CancellationToken>());
     }
 }

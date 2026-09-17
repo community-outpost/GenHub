@@ -88,9 +88,10 @@ public class GenLauncherManifestFactory(
                 // MD5 validation for engine critical files when ETag is present
                 if (GenLauncherChecksumValidator.RequiresValidation(relativePath) &&
                     expectedEtags.TryGetValue(relativePath, out var expectedEtag) &&
-                    !GenLauncherChecksumValidator.ValidateFile(filePath, expectedEtag))
+                    !await GenLauncherChecksumValidator.ValidateFileAsync(filePath, expectedEtag, cancellationToken))
                 {
-                    logger.LogWarning("Checksum mismatch for engine file {File}! Expected ETag: {Expected}", relativePath, expectedEtag);
+                    logger.LogError("Checksum mismatch for engine file {File}! Expected ETag: {Expected}", relativePath, expectedEtag);
+                    return OperationResult<List<ContentManifest>>.CreateFailure($"Checksum mismatch for engine file {relativePath}");
                 }
 
                 // Compute SHA256 for CAS

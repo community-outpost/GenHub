@@ -25,7 +25,6 @@ namespace GenHub.Features.Content.Services.GenLauncher;
 /// <param name="discoverers">The collection of content discoverers.</param>
 /// <param name="resolvers">The collection of content resolvers.</param>
 /// <param name="deliverers">The collection of content deliverers.</param>
-/// <param name="manifestFactory">The GenLauncher manifest factory.</param>
 /// <param name="contentValidator">The content validator.</param>
 /// <param name="installationInstructionsService">The installation instructions service.</param>
 /// <param name="logger">The logger instance.</param>
@@ -34,7 +33,6 @@ public class GenLauncherProvider(
     IEnumerable<IContentDiscoverer> discoverers,
     IEnumerable<IContentResolver> resolvers,
     IEnumerable<IContentDeliverer> deliverers,
-    GenLauncherManifestFactory manifestFactory,
     IContentValidator contentValidator,
     IInstallationInstructionsService installationInstructionsService,
     ILogger<GenLauncherProvider> logger)
@@ -59,9 +57,6 @@ public class GenLauncherProvider(
 
     /// <inheritdoc/>
     public override string Description => GenLauncherConstants.ProviderDescription;
-
-    /// <inheritdoc/>
-    public override bool IsEnabled => true;
 
     /// <inheritdoc/>
     public override ContentSourceCapabilities Capabilities =>
@@ -136,19 +131,24 @@ public class GenLauncherProvider(
     }
 
     /// <inheritdoc/>
-    protected override Task<OperationResult<ContentManifest>> PrepareContentInternalAsync(
+    protected override async Task<OperationResult<ContentManifest>> PrepareContentInternalAsync(
         ContentManifest manifest,
         string workingDirectory,
         IProgress<ContentAcquisitionProgress>? progress,
         CancellationToken cancellationToken)
     {
         Logger.LogInformation("Preparing GenLauncher content: {Version}", manifest.Version);
-        return DeliverAndEnrichContentAsync(
-            Deliverer,
-            manifestFactory,
+        var deliveryResult = await Deliverer.DeliverContentAsync(
             manifest,
             workingDirectory,
             progress,
-            cancellationToken);
+            cancellationToken).ConfigureAwait(false);
+
+        if (!deliveryResult.Success || deliveryResult.Data == null)
+        {
+            return deliveryResult;
+        }
+
+        return OperationResult<ContentManifest>.CreateSuccess(deliveryResult.Data);
     }
 }

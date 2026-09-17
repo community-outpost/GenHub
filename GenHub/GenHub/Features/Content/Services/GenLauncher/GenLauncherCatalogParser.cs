@@ -45,6 +45,7 @@ public partial class GenLauncherCatalogParser(ILogger<GenLauncherCatalogParser> 
             GenLauncherModificationType.Addon => ContentType.Addon,
             GenLauncherModificationType.Patch => ContentType.Patch,
             GenLauncherModificationType.Executable => ContentType.GameClient,
+            GenLauncherModificationType.Advertising => ContentType.UnknownContentType,
             _ => ContentType.Mod,
         };
     }
@@ -84,8 +85,8 @@ public partial class GenLauncherCatalogParser(ILogger<GenLauncherCatalogParser> 
             var targetGame = provider.TargetGame ?? GameType.ZeroHour;
             var gameStr = targetGame.ToString().ToLowerInvariant();
 
-            // Check if this is a root catalog or a child version manifest
-            if (catalogContent.Contains("modDatas:", StringComparison.OrdinalIgnoreCase))
+            // Check if this is a root catalog or a child version manifest anchored at root level
+            if (RootCatalogRegex().IsMatch(catalogContent))
             {
                 var root = ParseRootCatalog(catalogContent);
                 foreach (var mod in root.ModDatas)
@@ -115,6 +116,11 @@ public partial class GenLauncherCatalogParser(ILogger<GenLauncherCatalogParser> 
                     searchResult.Tags.Add(gameStr);
 
                     searchResult.ResolverMetadata["modLink"] = mod.ModLink;
+                    if (!string.IsNullOrWhiteSpace(mod.ModLink))
+                    {
+                        searchResult.ResolverMetadata["yamlUrl"] = mod.ModLink;
+                    }
+
                     searchResult.ResolverMetadata["patchesCount"] = mod.ModPatches.Count.ToString();
                     searchResult.ResolverMetadata["addonsCount"] = mod.ModAddons.Count.ToString();
 
@@ -126,6 +132,11 @@ public partial class GenLauncherCatalogParser(ILogger<GenLauncherCatalogParser> 
 
             // Single version manifest
             var versionManifest = ParseVersionManifest(catalogContent);
+            if (versionManifest.GetParsedType() == GenLauncherModificationType.Advertising)
+            {
+                return Task.FromResult(OperationResult<IEnumerable<ContentSearchResult>>.CreateSuccess([]));
+            }
+
             var singleSlug = Slugify(versionManifest.Name);
             var contentType = MapContentType(versionManifest.GetParsedType());
 
@@ -147,6 +158,10 @@ public partial class GenLauncherCatalogParser(ILogger<GenLauncherCatalogParser> 
 
             singleResult.Tags.Add("genlauncher");
             singleResult.Tags.Add(contentType.ToString().ToLowerInvariant());
+            if (versionManifest.Deprecated)
+            {
+                singleResult.Tags.Add("deprecated");
+            }
 
             singleResult.SetData(versionManifest);
 
@@ -185,6 +200,9 @@ public partial class GenLauncherCatalogParser(ILogger<GenLauncherCatalogParser> 
         ArgumentException.ThrowIfNullOrWhiteSpace(yamlContent);
         return _deserializer.Deserialize<GenLauncherVersionManifest>(yamlContent);
     }
+
+    [GeneratedRegex(@"^[Mm]od[Dd]atas\s*:", RegexOptions.Multiline, matchTimeoutMilliseconds: 1000)]
+    private static partial Regex RootCatalogRegex();
 
     [GeneratedRegex(@"[^a-z0-9\-_]", RegexOptions.None, matchTimeoutMilliseconds: 1000)]
     private static partial Regex CleanSlugRegex();

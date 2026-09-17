@@ -902,6 +902,38 @@ public sealed partial class DownloadsBrowserViewModel(
         }
     }
 
+    private static string GetVariantVersion(ContentGridItemViewModel vm, InstallableVariant v)
+    {
+        if (!string.IsNullOrEmpty(v.ManifestId) &&
+            vm.VariantSearchResults.TryGetValue(v.ManifestId, out var sr) &&
+            !string.IsNullOrEmpty(sr.Version))
+        {
+            return sr.Version;
+        }
+
+        return string.Empty;
+    }
+
+    private static int CompareVariantVersions(string? v1, string? v2)
+    {
+        if (string.IsNullOrEmpty(v1) && string.IsNullOrEmpty(v2))
+        {
+            return 0;
+        }
+
+        if (string.IsNullOrEmpty(v1))
+        {
+            return -1;
+        }
+
+        if (string.IsNullOrEmpty(v2))
+        {
+            return 1;
+        }
+
+        return ContentStateService.CompareVersions(v1, v2);
+    }
+
     private void HandleSelectedPublisherChanged(PublisherItemViewModel? value)
     {
         if (value == null)
@@ -1715,7 +1747,18 @@ public sealed partial class DownloadsBrowserViewModel(
             var targetState = variantVm.SelectedVariant?.CurrentState ?? await contentStateService.GetStateAsync(defaultVariant, ct);
             if (targetState == ContentState.NotDownloaded && variantVm.Variants.Any(v => v.CurrentState is ContentState.Downloaded or ContentState.UpdateAvailable))
             {
-                var downloadedVariant = variantVm.Variants.FirstOrDefault(v => v.CurrentState is ContentState.Downloaded or ContentState.UpdateAvailable);
+                var downloadedVariants = variantVm.Variants
+                    .Where(v => v.CurrentState is ContentState.Downloaded or ContentState.UpdateAvailable)
+                    .ToList();
+
+                var downloadedVariant = downloadedVariants.Count > 1
+                    ? downloadedVariants
+                        .OrderByDescending(
+                            v => GetVariantVersion(variantVm, v),
+                            Comparer<string>.Create(CompareVariantVersions))
+                        .FirstOrDefault() ?? downloadedVariants[0]
+                    : downloadedVariants.FirstOrDefault();
+
                 if (downloadedVariant != null)
                 {
                     variantVm.SelectedVariant = downloadedVariant;
