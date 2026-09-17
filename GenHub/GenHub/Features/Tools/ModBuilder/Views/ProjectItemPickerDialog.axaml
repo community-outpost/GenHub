@@ -28,10 +28,10 @@
   <Grid RowDefinitions="Auto,*,Auto,Auto" Margin="18">
     <!-- Header -->
     <StackPanel Grid.Row="0" Spacing="4" Margin="0,0,0,12">
-      <TextBlock Text="Add Files &amp; Directories to Bundle Item"
+      <TextBlock Text="{localization:Localize Tools.ModBuilder.ProjectItemPicker.Header}"
                  FontSize="17" FontWeight="Bold"
                  Foreground="{DynamicResource TextPrimary}"/>
-      <TextBlock Text="Select folders to generate recursive wildcards or pick specific files to link."
+      <TextBlock Text="{localization:Localize Tools.ModBuilder.ProjectItemPicker.Subtitle}"
                  FontSize="12" Foreground="{DynamicResource TextSecondary}"/>
     </StackPanel>
 
@@ -72,18 +72,18 @@
             BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
             CornerRadius="8" Padding="12" Margin="0,12,0,12">
       <Grid ColumnDefinitions="Auto,*">
-        <TextBlock Grid.Column="0" Text="Folder Glob Pattern:"
+        <TextBlock Grid.Column="0" Text="{localization:Localize Tools.ModBuilder.ProjectItemPicker.LabelFolderGlobPattern}"
                    FontWeight="SemiBold" FontSize="12"
                    Foreground="{DynamicResource TextPrimary}"
                    VerticalAlignment="Center" Margin="0,0,12,0"/>
         <ComboBox Grid.Column="1" SelectedIndex="{Binding GlobOption, Mode=TwoWay}"
                   HorizontalAlignment="Stretch">
-          <ComboBoxItem Content="All Files in Directory (/**/*.*)"/>
-          <ComboBoxItem Content="INI Config Files only (/**/*.ini)"/>
-          <ComboBoxItem Content="TGA Texture Files only (/**/*.tga)"/>
-          <ComboBoxItem Content="Window UI Files only (/**/*.wnd)"/>
-          <ComboBoxItem Content="CSF String Tables only (/**/*.csf)"/>
-          <ComboBoxItem Content="Audio WAV Files only (/**/*.wav)"/>
+          <ComboBoxItem Content="{localization:Localize Tools.ModBuilder.ProjectItemPicker.GlobAllFiles}"/>
+          <ComboBoxItem Content="{localization:Localize Tools.ModBuilder.ProjectItemPicker.GlobIniFiles}"/>
+          <ComboBoxItem Content="{localization:Localize Tools.ModBuilder.ProjectItemPicker.GlobTgaFiles}"/>
+          <ComboBoxItem Content="{localization:Localize Tools.ModBuilder.ProjectItemPicker.GlobWndFiles}"/>
+          <ComboBoxItem Content="{localization:Localize Tools.ModBuilder.ProjectItemPicker.GlobCsfFiles}"/>
+          <ComboBoxItem Content="{localization:Localize Tools.ModBuilder.ProjectItemPicker.GlobWavFiles}"/>
         </ComboBox>
       </Grid>
     </Border>
@@ -94,12 +94,12 @@
                  FontSize="12" Foreground="{DynamicResource TextSecondary}"
                  VerticalAlignment="Center"/>
 
-      <Button Grid.Column="1" Content="Cancel" Click="OnCancelClick"
+      <Button Grid.Column="1" Content="{localization:Localize Common.Button.Cancel}" Click="OnCancelClick"
               Background="{DynamicResource SurfaceElevatedBrush}"
               BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
               Padding="16,8" CornerRadius="8" Margin="0,0,8,0" Cursor="Hand"/>
 
-      <Button Grid.Column="2" Content="Add to Bundle Item" Click="OnConfirmClick"
+      <Button Grid.Column="2" Content="{localization:Localize Tools.ModBuilder.ProjectItemPicker.ButtonAdd}" Click="OnConfirmClick"
               IsEnabled="{Binding HasSelection}"
               Background="{DynamicResource AccentBrush}" Foreground="White"
               FontWeight="SemiBold"
