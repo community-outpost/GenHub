@@ -103,10 +103,22 @@ public partial class AddReferralDialogViewModel : ObservableValidator, IDisposab
     /// <inheritdoc />
     public void Dispose()
     {
-        _discoveryCts?.Cancel();
-        _discoveryCts?.Dispose();
-        _discoveryCts = null;
+        Dispose(true);
         GC.SuppressFinalize(this);
+    }
+
+    /// <summary>
+    /// Releases unmanaged and - optionally - managed resources.
+    /// </summary>
+    /// <param name="disposing"><c>true</c> to release both managed and unmanaged resources; <c>false</c> to release only unmanaged resources.</param>
+    protected virtual void Dispose(bool disposing)
+    {
+        if (disposing)
+        {
+            _discoveryCts?.Cancel();
+            _discoveryCts?.Dispose();
+            _discoveryCts = null;
+        }
     }
 
     [RelayCommand]
@@ -165,82 +177,38 @@ public partial class AddReferralDialogViewModel : ObservableValidator, IDisposab
                 return;
             }
 
-            // Try as Publisher Definition first (Tier 3)
-            try
+            if (TryExtractPublisherFromDefinition(json, out var defProfile, out var newCatalogUrl))
             {
-                var definition = System.Text.Json.JsonSerializer.Deserialize<PublisherDefinition>(json);
-                if (definition?.Publisher != null)
+                DiscoveredPublisher = defProfile;
+                PublisherId = defProfile!.Id;
+                if (!string.IsNullOrEmpty(newCatalogUrl))
                 {
-                    DiscoveredPublisher = definition.Publisher;
-                    PublisherId = definition.Publisher.Id;
-
-                    // If definition has a catalog URL, use that instead
-                    if (!string.IsNullOrEmpty(definition.CatalogUrl))
-                    {
-                        CatalogUrl = definition.CatalogUrl;
-                    }
-
-                    return;
+                    CatalogUrl = newCatalogUrl;
                 }
-            }
-            catch (OperationCanceledException) when (ct.IsCancellationRequested)
-            {
-                throw;
-            }
-            catch
-            {
-                // Not a definition, try as catalog (Tier 2)
+
+                return;
             }
 
-            // Try as Publisher Catalog
-            try
+            if (TryExtractPublisherFromCatalog(json, out var catProfile, out var parseError))
             {
-                var catalog = System.Text.Json.JsonSerializer.Deserialize<PublisherCatalog>(json);
-                if (catalog?.Publisher != null)
-                {
-                    DiscoveredPublisher = catalog.Publisher;
-                    PublisherId = catalog.Publisher.Id;
-                }
-                else
-                {
-                    ValidationError = "No valid publisher information found at URL";
-                }
+                DiscoveredPublisher = catProfile;
+                PublisherId = catProfile!.Id;
+                return;
             }
-            catch (OperationCanceledException) when (ct.IsCancellationRequested)
-            {
-                throw;
-            }
-            catch (Exception ex)
-            {
-                ValidationError = $"Failed to parse catalog: {ex.Message}";
-            }
+
+            ValidationError = parseError;
         }
         catch (OperationCanceledException)
         {
-            if (_discoveryCts?.Token != ct)
-            {
-                return;
-            }
-
-            ValidationError = "Discovery request timed out or was canceled.";
+            SetDiscoveryErrorIfCurrentToken(ct, "Discovery request timed out or was canceled.");
         }
         catch (HttpRequestException ex)
         {
-            if (_discoveryCts?.Token != ct)
-            {
-                return;
-            }
-
-            ValidationError = $"Failed to fetch URL: {ex.Message}";
+            SetDiscoveryErrorIfCurrentToken(ct, $"Failed to fetch URL: {ex.Message}");
         }
         catch (Exception ex)
         {
-            if (_discoveryCts?.Token != ct)
-            {
-                return;
-            }
-
-            ValidationError = $"Discovery failed: {ex.Message}";
+            SetDiscoveryErrorIfCurrentToken(ct, $"Discovery failed: {ex.Message}");
         }
         finally
         {
@@ -262,6 +230,67 @@ public partial class AddReferralDialogViewModel : ObservableValidator, IDisposab
             SelectedPublisher = publisher;
             PublisherId = publisher.PublisherId;
             CatalogUrl = publisher.CatalogUrl;
+        }
+    }
+
+    private bool TryExtractPublisherFromDefinition(
+        string json,
+        out PublisherProfile? profile,
+        out string? catalogUrl)
+    {
+        profile = null;
+        catalogUrl = null;
+
+        try
+        {
+            var definition = System.Text.Json.JsonSerializer.Deserialize<PublisherDefinition>(json);
+            if (definition?.Publisher != null)
+            {
+                profile = definition.Publisher;
+                catalogUrl = definition.CatalogUrl;
+                return true;
+            }
+        }
+        catch
+        {
+            // Not a definition, fallback to catalog parser
+        }
+
+        return false;
+    }
+
+    private bool TryExtractPublisherFromCatalog(
+        string json,
+        out PublisherProfile? profile,
+        out string? error)
+    {
+        profile = null;
+        error = null;
+
+        try
+        {
+            var catalog = System.Text.Json.JsonSerializer.Deserialize<PublisherCatalog>(json);
+            if (catalog?.Publisher != null)
+            {
+                profile = catalog.Publisher;
+                return true;
+            }
+
+            error = "No valid publisher information found at URL";
+            return false;
+        }
+        catch (Exception ex)
+        {
+            error = $"Failed to parse catalog: {ex.Message}";
+            return false;
+        }
+    }
+
+    private void SetDiscoveryErrorIfCurrentToken(CancellationToken ct, string message)
+    {
+        if (_discoveryCts?.Token == ct)
+        {
+            ValidationError = message;
         }
     }
 

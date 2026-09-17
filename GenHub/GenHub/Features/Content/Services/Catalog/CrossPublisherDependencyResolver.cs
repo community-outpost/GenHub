@@ -133,16 +133,11 @@ public class CrossPublisherDependencyResolver(
     {
         try
         {
-            // Parse dependency ID to find publisher: "publisher:content-name"
-            var parts = dependency.Id.Value?.Split(':');
-            if (parts == null || parts.Length != 2)
+            if (!TryParseDependencyId(dependency.Id.Value, out var publisherId, out var contentName))
             {
-                logger.LogWarning("Dependency ID {DependencyId} is not in publisher:content format", dependency.Id);
-                return OperationResult<ContentSearchResult?>.CreateSuccess(null);
+                logger.LogWarning("Dependency ID {DependencyId} has invalid format", dependency.Id);
+                return OperationResult<ContentSearchResult?>.CreateFailure($"Invalid dependency ID format: {dependency.Id}");
             }
-
-            var publisherId = parts[0];
-            var contentName = parts[1];
 
             // Look up publisher subscription
             var subscriptionResult = await subscriptionStore.GetSubscriptionAsync(publisherId, cancellationToken);
@@ -297,6 +292,50 @@ public class CrossPublisherDependencyResolver(
         }
 
         return OperationResult<string>.CreateSuccess(Encoding.UTF8.GetString(memoryStream.ToArray()));
+    }
+
+    private static bool TryParseDependencyId(string? id, out string publisherId, out string contentName)
+    {
+        publisherId = string.Empty;
+        contentName = string.Empty;
+
+        if (string.IsNullOrWhiteSpace(id))
+        {
+            return false;
+        }
+
+        if (id.Contains(':'))
+        {
+            var colonParts = id.Split(':');
+            if (colonParts.Length == 2 && !string.IsNullOrWhiteSpace(colonParts[0]) && !string.IsNullOrWhiteSpace(colonParts[1]))
+            {
+                publisherId = colonParts[0];
+                contentName = colonParts[1];
+                return true;
+            }
+
+            return false;
+        }
+
+        if (id.Contains('.'))
+        {
+            var dotParts = id.Split('.');
+            if (dotParts.Length >= 5)
+            {
+                publisherId = dotParts[2];
+                contentName = string.Join('.', dotParts.Skip(4));
+                return !string.IsNullOrWhiteSpace(publisherId) && !string.IsNullOrWhiteSpace(contentName);
+            }
+
+            if (dotParts.Length == 3)
+            {
+                publisherId = dotParts[0];
+                contentName = dotParts[2];
+                return !string.IsNullOrWhiteSpace(publisherId) && !string.IsNullOrWhiteSpace(contentName);
+            }
+        }
+
+        return false;
     }
 
     private static VersionConstraint? CreateVersionConstraint(ContentDependency dependency)
