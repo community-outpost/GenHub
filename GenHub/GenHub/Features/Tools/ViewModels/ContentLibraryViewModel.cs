@@ -1,5 +1,7 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using GenHub.Core.Interfaces.Common;
+using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Models.Providers;
 using GenHub.Core.Models.Publishers;
 using GenHub.Features.Tools.Interfaces;
@@ -21,7 +23,9 @@ public partial class ContentLibraryViewModel(
     NamedCatalog activeCatalog,
     PublisherStudioViewModel parentViewModel,
     ILogger logger,
-    IPublisherStudioDialogService dialogService) : ObservableObject
+    IPublisherStudioDialogService dialogService,
+    INotificationService? notificationService = null,
+    ILocalizationService? localizationService = null) : ObservableObject
 {
     [ObservableProperty]
     private ObservableCollection<CatalogContentItem> _contentItems = activeCatalog?.Catalog?.Content != null
@@ -33,6 +37,22 @@ public partial class ContentLibraryViewModel(
 
     [ObservableProperty]
     private string _searchText = string.Empty;
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="ContentLibraryViewModel"/> class with default catalog.
+    /// </summary>
+    /// <param name="project">The publisher studio project.</param>
+    /// <param name="parentViewModel">The parent view model.</param>
+    /// <param name="logger">The logger.</param>
+    /// <param name="dialogService">The dialog service.</param>
+    public ContentLibraryViewModel(
+        PublisherStudioProject project,
+        PublisherStudioViewModel parentViewModel,
+        ILogger logger,
+        IPublisherStudioDialogService dialogService)
+        : this(project, project?.Catalogs.FirstOrDefault() ?? new NamedCatalog { Id = "default", Name = "Content", Catalog = project?.Catalog ?? new() }, parentViewModel, logger, dialogService, null, null)
+    {
+    }
 
     /// <summary>
     /// Gets the publisher studio project.
@@ -63,44 +83,6 @@ public partial class ContentLibraryViewModel(
                     (item.Id is { } id && id.Contains(query, StringComparison.OrdinalIgnoreCase)) ||
                     (item.Description is { } desc && desc.Contains(query, StringComparison.OrdinalIgnoreCase))));
         }
-    }
-
-    /// <summary>
-    /// Initializes a new instance of the <see cref="ContentLibraryViewModel"/> class with default catalog.
-    /// </summary>
-    /// <param name="project">The publisher studio project.</param>
-    /// <param name="parentViewModel">The parent view model.</param>
-    /// <param name="logger">The logger.</param>
-    /// <param name="dialogService">The dialog service.</param>
-    public ContentLibraryViewModel(
-        PublisherStudioProject project,
-        PublisherStudioViewModel parentViewModel,
-        ILogger logger,
-        IPublisherStudioDialogService dialogService)
-        : this(project, project?.Catalogs.FirstOrDefault() ?? new NamedCatalog { Id = "default", Name = "Content", Catalog = project?.Catalog ?? new() }, parentViewModel, logger, dialogService)
-    {
-    }
-
-    partial void OnSearchTextChanged(string value)
-    {
-        OnPropertyChanged(nameof(FilteredContent));
-    }
-
-    /// <summary>
-    /// Loads content items from the active catalog.
-    /// </summary>
-    private void LoadContent()
-    {
-        ContentItems.Clear();
-        if (activeCatalog?.Catalog?.Content != null)
-        {
-            foreach (var item in activeCatalog.Catalog.Content)
-            {
-                ContentItems.Add(item);
-            }
-        }
-
-        OnPropertyChanged(nameof(FilteredContent));
     }
 
     /// <summary>
@@ -149,9 +131,16 @@ public partial class ContentLibraryViewModel(
         var newContent = await dialogService.ShowAddContentDialogAsync(initialPath);
         if (newContent != null)
         {
-            if (activeCatalog.Catalog.Content.Any(c => string.Equals(c.Id, newContent.Id, System.StringComparison.OrdinalIgnoreCase)))
+            if (activeCatalog.Catalog.Content.Any(c => string.Equals(c.Id, newContent.Id, StringComparison.OrdinalIgnoreCase)))
             {
                 logger.LogWarning("Content with ID '{ContentId}' already exists in catalog '{CatalogId}'", newContent.Id, activeCatalog.Id);
+                var title = GetLocalizedString("Tools.PublisherStudio.Content.DuplicateIdTitle", "Duplicate Content ID");
+                var message = string.Format(
+                    GetLocalizedString(
+                        "Tools.PublisherStudio.Content.DuplicateIdMessageFormat",
+                        "A content item with ID '{0}' already exists in this catalog."),
+                    newContent.Id);
+                notificationService?.ShowWarning(title, message);
                 return;
             }
 
@@ -237,9 +226,15 @@ public partial class ContentLibraryViewModel(
             return;
         }
 
-        var confirmed = await dialogService.ShowConfirmationAsync(
-            "Delete Content Item",
-            $"Are you sure you want to delete '{SelectedContent.Name}' ({SelectedContent.Id})? This will also remove all its releases and artifacts.");
+        var title = GetLocalizedString("Tools.PublisherStudio.Content.DeleteContentTitle", "Delete Content Item");
+        var message = string.Format(
+            GetLocalizedString(
+                "Tools.PublisherStudio.Content.DeleteContentMessageFormat",
+                "Are you sure you want to delete '{0}' ({1})? This will also remove all its releases and artifacts."),
+            SelectedContent.Name,
+            SelectedContent.Id);
+
+        var confirmed = await dialogService.ShowConfirmationAsync(title, message);
 
         if (!confirmed)
         {
@@ -508,5 +503,32 @@ public partial class ContentLibraryViewModel(
 
             logger.LogInformation("Removed dependency {DependencyId} from release v{Version}", dependency.ContentId, release.Version);
         }
+    }
+
+    partial void OnSearchTextChanged(string value)
+    {
+        OnPropertyChanged(nameof(FilteredContent));
+    }
+
+    /// <summary>
+    /// Loads content items from the active catalog.
+    /// </summary>
+    private void LoadContent()
+    {
+        ContentItems.Clear();
+        if (activeCatalog?.Catalog?.Content != null)
+        {
+            foreach (var item in activeCatalog.Catalog.Content)
+            {
+                ContentItems.Add(item);
+            }
+        }
+
+        OnPropertyChanged(nameof(FilteredContent));
+    }
+
+    private string GetLocalizedString(string key, string fallback)
+    {
+        return localizationService?.GetString(key) ?? fallback;
     }
 }

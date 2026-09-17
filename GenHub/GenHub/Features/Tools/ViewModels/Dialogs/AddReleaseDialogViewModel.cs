@@ -20,7 +20,8 @@ public partial class AddReleaseDialogViewModel(
     CatalogContentItem contentItem,
     PublisherCatalog catalog,
     Action<ContentRelease> onReleaseCreated,
-    IPublisherStudioDialogService dialogService) : ObservableValidator
+    IPublisherStudioDialogService dialogService,
+    GenHub.Core.Interfaces.Common.ILocalizationService? localizationService = null) : ObservableValidator
 {
     private readonly string? _originalVersion;
 
@@ -52,6 +53,55 @@ public partial class AddReleaseDialogViewModel(
     private bool _isValid;
 
     /// <summary>
+    /// Gets a value indicating whether the dialog is in edit mode.
+    /// </summary>
+    [ObservableProperty]
+    private bool _isEditMode;
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="AddReleaseDialogViewModel"/> class in edit mode,
+    /// pre-populated with an existing release's data.
+    /// </summary>
+    /// <param name="existing">The existing release to edit.</param>
+    /// <param name="contentItem">The content item the release belongs to.</param>
+    /// <param name="catalog">The publisher catalog.</param>
+    /// <param name="onReleaseCreated">Callback invoked when release is successfully saved.</param>
+    /// <param name="dialogService">The dialog service.</param>
+    /// <param name="localizationService">Optional localization service.</param>
+    public AddReleaseDialogViewModel(
+        ContentRelease existing,
+        CatalogContentItem contentItem,
+        PublisherCatalog catalog,
+        Action<ContentRelease> onReleaseCreated,
+        IPublisherStudioDialogService dialogService,
+        GenHub.Core.Interfaces.Common.ILocalizationService? localizationService = null)
+        : this(contentItem, catalog, onReleaseCreated, dialogService, localizationService)
+    {
+        ArgumentNullException.ThrowIfNull(existing);
+
+        IsEditMode = true;
+        _originalVersion = existing.Version;
+        Version = existing.Version;
+        ReleaseDate = existing.ReleaseDate.HasValue ? new DateTimeOffset(DateTime.SpecifyKind(existing.ReleaseDate.Value, DateTimeKind.Utc)) : DateTimeOffset.UtcNow;
+        IsLatest = existing.IsLatest;
+        IsPrerelease = existing.IsPrerelease;
+        IsFeatured = existing.IsFeatured;
+        Changelog = existing.Changelog ?? string.Empty;
+
+        Artifacts.Clear();
+        foreach (var artifact in existing.Artifacts)
+        {
+            Artifacts.Add(artifact);
+        }
+
+        Dependencies.Clear();
+        foreach (var dep in existing.Dependencies)
+        {
+            Dependencies.Add(dep);
+        }
+    }
+
+    /// <summary>
     /// Gets the artifacts currently added to this release.
     /// </summary>
     public ObservableCollection<ReleaseArtifact> Artifacts { get; } = [];
@@ -62,22 +112,20 @@ public partial class AddReleaseDialogViewModel(
     public ObservableCollection<CatalogDependency> Dependencies { get; } = [];
 
     /// <summary>
-    /// Gets a value indicating whether the dialog is in edit mode.
-    /// </summary>
-    [ObservableProperty]
-    private bool _isEditMode;
-
-    /// <summary>
     /// Gets the dialog title based on the current mode.
     /// </summary>
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Major Code Smell", "S2325:Make member static", Justification = "ViewModel property bound to XAML view")]
-    public string DialogTitle => IsEditMode ? "Edit Release" : "Add New Release";
+    public string DialogTitle => IsEditMode
+        ? GetLocalizedString("Tools.PublisherStudio.Release.EditTitle", "Edit Release")
+        : GetLocalizedString("Tools.PublisherStudio.Release.AddTitle", "Add New Release");
 
     /// <summary>
     /// Gets the submit button text based on the current mode.
     /// </summary>
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Major Code Smell", "S2325:Make member static", Justification = "ViewModel property bound to XAML view")]
-    public string SubmitButtonText => IsEditMode ? "Save Changes" : "Create Release";
+    public string SubmitButtonText => IsEditMode
+        ? GetLocalizedString("Tools.PublisherStudio.Common.SaveChanges", "Save Changes")
+        : GetLocalizedString("Tools.PublisherStudio.Release.CreateRelease", "Create Release");
 
     /// <summary>
     /// Gets the content item name for display in the dialog title.
@@ -130,47 +178,6 @@ public partial class AddReleaseDialogViewModel(
         }
 
         return null;
-    }
-
-    /// <summary>
-    /// Initializes a new instance of the <see cref="AddReleaseDialogViewModel"/> class in edit mode,
-    /// pre-populated with an existing release's data.
-    /// </summary>
-    /// <param name="existing">The existing release to edit.</param>
-    /// <param name="contentItem">The content item the release belongs to.</param>
-    /// <param name="catalog">The publisher catalog.</param>
-    /// <param name="onReleaseCreated">Callback invoked when release is successfully saved.</param>
-    /// <param name="dialogService">The dialog service.</param>
-    public AddReleaseDialogViewModel(
-        ContentRelease existing,
-        CatalogContentItem contentItem,
-        PublisherCatalog catalog,
-        Action<ContentRelease> onReleaseCreated,
-        IPublisherStudioDialogService dialogService)
-        : this(contentItem, catalog, onReleaseCreated, dialogService)
-    {
-        ArgumentNullException.ThrowIfNull(existing);
-
-        IsEditMode = true;
-        _originalVersion = existing.Version;
-        Version = existing.Version;
-        ReleaseDate = existing.ReleaseDate.HasValue ? new DateTimeOffset(DateTime.SpecifyKind(existing.ReleaseDate.Value, DateTimeKind.Utc)) : DateTimeOffset.UtcNow;
-        IsLatest = existing.IsLatest;
-        IsPrerelease = existing.IsPrerelease;
-        IsFeatured = existing.IsFeatured;
-        Changelog = existing.Changelog ?? string.Empty;
-
-        Artifacts.Clear();
-        foreach (var artifact in existing.Artifacts)
-        {
-            Artifacts.Add(artifact);
-        }
-
-        Dependencies.Clear();
-        foreach (var dep in existing.Dependencies)
-        {
-            Dependencies.Add(dep);
-        }
     }
 
     partial void OnVersionChanged(string value) => Validate();
@@ -349,5 +356,10 @@ public partial class AddReleaseDialogViewModel(
 
         IsValid = errors.Count == 0;
         ValidationError = errors.Count > 0 ? string.Join(Environment.NewLine, errors) : null;
+    }
+
+    private string GetLocalizedString(string key, string fallback)
+    {
+        return localizationService?.GetString(key) ?? fallback;
     }
 }

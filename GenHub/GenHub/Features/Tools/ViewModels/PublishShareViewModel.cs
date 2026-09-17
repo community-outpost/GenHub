@@ -48,14 +48,12 @@ public partial class PublishShareViewModel(
     IHostingCredentialStore? credentialStore = null) : ObservableObject, IDisposable
 {
     private const string PleaseSelectHostingProviderMessage = "Please select a hosting provider";
-    private const string StatusLiveOnline = "Live Online";
-    private const string StatusPendingUpload = "Pending Upload";
-    private const string StatusExternalCdn = "External CDN";
     private const string SuccessLiteral = "Success";
     private const string WarningLiteral = "Warning";
     private const string CommonNotificationSuccessKey = "Common.Notification.Success";
     private const string CommonNotificationWarningKey = "Common.Notification.Warning";
     private const string CopiedToClipboardKey = "Tools.PublisherStudio.Publish.CopiedToClipboard";
+
     private HostingState? _currentHostingState;
 
     [ObservableProperty]
@@ -116,28 +114,6 @@ public partial class PublishShareViewModel(
     private CancellationTokenSource? _uploadCts;
     private CancellationTokenSource? _scanCts;
 
-    [RelayCommand]
-    private void CancelUpload()
-    {
-        if (IsUploading)
-        {
-            var cts = _uploadCts;
-            try
-            {
-                cts?.Cancel();
-            }
-            catch (ObjectDisposedException)
-            {
-                // Upload already completed or was disposed concurrently
-            }
-        }
-    }
-
-    /// <summary>
-    /// Gets the collection of hosted assets across definition, catalogs, and releases.
-    /// </summary>
-    public ObservableCollection<HostedAssetItemViewModel> HostedAssets { get; } = new();
-
     [ObservableProperty]
     private string _totalStorageUsedFormatted = "0 B";
 
@@ -165,11 +141,6 @@ public partial class PublishShareViewModel(
     [ObservableProperty]
     private string _hostingFolderPath = HostingConstants.DropboxDefaultPublisherFolder;
 
-    /// <summary>
-    /// Gets the three-tier upload hierarchy (1. Definition / 2. Catalogs / 3. Content items and releases).
-    /// </summary>
-    public UploadHierarchyItemViewModel UploadHierarchy { get; } = new();
-
     [ObservableProperty]
     private bool _isAuthenticating;
 
@@ -185,10 +156,43 @@ public partial class PublishShareViewModel(
     [ObservableProperty]
     private string _publishSummary = string.Empty;
 
+    [ObservableProperty]
+    private NamedCatalog? _activeCatalog = project?.Catalogs.FirstOrDefault();
+
+    /// <summary>
+    /// Gets the collection of hosted assets across definition, catalogs, and releases.
+    /// </summary>
+    public ObservableCollection<HostedAssetItemViewModel> HostedAssets { get; } = new();
+
+    /// <summary>
+    /// Gets the three-tier upload hierarchy (1. Definition / 2. Catalogs / 3. Content items and releases).
+    /// </summary>
+    public UploadHierarchyItemViewModel UploadHierarchy { get; } = new();
+
     /// <summary>
     /// Gets the collection of catalog publish statuses.
     /// </summary>
     public ObservableCollection<CatalogPublishStatus> CatalogStatuses { get; } = project?.Catalogs != null ? new ObservableCollection<CatalogPublishStatus>(project.Catalogs.Select(c => new CatalogPublishStatus(c))) : [];
+
+    /// <summary>
+    /// Gets the available catalogs in the project.
+    /// </summary>
+    public ObservableCollection<NamedCatalog> AvailableCatalogs { get; } = project?.Catalogs != null ? new ObservableCollection<NamedCatalog>(project.Catalogs) : [];
+
+    /// <summary>
+    /// Gets the list of artifact URL statuses.
+    /// </summary>
+    public ObservableCollection<ArtifactUrlStatus> ArtifactStatuses { get; } = new();
+
+    /// <summary>
+    /// Gets the upload queue for tracking artifact uploads.
+    /// </summary>
+    public ObservableCollection<ArtifactUploadTask> UploadQueue { get; } = new();
+
+    /// <summary>
+    /// Gets the available hosting providers.
+    /// </summary>
+    public ObservableCollection<IHostingProvider> HostingProviders { get; } = hostingProviderFactory != null ? new ObservableCollection<IHostingProvider>(hostingProviderFactory.GetCatalogHostingProviders()) : [];
 
     /// <summary>
     /// Gets a value indicating whether the selected provider requires authentication.
@@ -299,6 +303,22 @@ public partial class PublishShareViewModel(
         ActiveCatalogPendingArtifactsCount > 0;
 
     /// <summary>
+    /// Gets an explanatory warning message when the provider cannot host the pending local files.
+    /// </summary>
+    public string IncompatibleArtifactsWarningMessage =>
+        $"{SelectedHostingProvider?.DisplayName ?? "This provider"} only hosts catalog metadata (JSON). Your project has {PendingArtifactsCount} local file(s) pending upload. Either provide direct CDN URLs for those files, or switch to Google Drive or Dropbox to host binary archives.";
+
+    /// <summary>
+    /// Gets the content item count in the active catalog.
+    /// </summary>
+    public int ContentItemCount => ActiveCatalog?.Catalog.Content.Count ?? 0;
+
+    /// <summary>
+    /// Gets the total release count across all content items in the active catalog.
+    /// </summary>
+    public int TotalReleaseCount => ActiveCatalog?.Catalog.Content.Sum(c => c.Releases.Count) ?? 0;
+
+    /// <summary>
     /// Updates the catalog ID, name, and file name in the hosting state if present and persists the change.
     /// </summary>
     /// <param name="oldCatalogId">The former catalog ID.</param>
@@ -363,45 +383,6 @@ public partial class PublishShareViewModel(
         RefreshHostedAssets();
         RefreshArtifactStatuses();
     }
-
-    /// <summary>
-    /// Gets an explanatory warning message when the provider cannot host the pending local files.
-    /// </summary>
-    public string IncompatibleArtifactsWarningMessage =>
-        $"{SelectedHostingProvider?.DisplayName ?? "This provider"} only hosts catalog metadata (JSON). Your project has {PendingArtifactsCount} local file(s) pending upload. Either provide direct CDN URLs for those files, or switch to Google Drive or Dropbox to host binary archives.";
-
-    /// <summary>
-    /// Gets the available catalogs in the project.
-    /// </summary>
-    public ObservableCollection<NamedCatalog> AvailableCatalogs { get; } = project?.Catalogs != null ? new ObservableCollection<NamedCatalog>(project.Catalogs) : [];
-
-    [ObservableProperty]
-    private NamedCatalog? _activeCatalog = project?.Catalogs.FirstOrDefault();
-
-    /// <summary>
-    /// Gets the list of artifact URL statuses.
-    /// </summary>
-    public ObservableCollection<ArtifactUrlStatus> ArtifactStatuses { get; } = new();
-
-    /// <summary>
-    /// Gets the upload queue for tracking artifact uploads.
-    /// </summary>
-    public ObservableCollection<ArtifactUploadTask> UploadQueue { get; } = new();
-
-    /// <summary>
-    /// Gets the content item count in the active catalog.
-    /// </summary>
-    public int ContentItemCount => ActiveCatalog?.Catalog.Content.Count ?? 0;
-
-    /// <summary>
-    /// Gets the total release count across all content items in the active catalog.
-    /// </summary>
-    public int TotalReleaseCount => ActiveCatalog?.Catalog.Content.Sum(c => c.Releases.Count) ?? 0;
-
-    /// <summary>
-    /// Gets the available hosting providers.
-    /// </summary>
-    public ObservableCollection<IHostingProvider> HostingProviders { get; } = hostingProviderFactory != null ? new ObservableCollection<IHostingProvider>(hostingProviderFactory.GetCatalogHostingProviders()) : [];
 
     /// <summary>
     /// Asynchronously initializes hosting state, upload hierarchy, and validates catalogs.
@@ -592,7 +573,7 @@ public partial class PublishShareViewModel(
             Location = isDefHosted ? $"{providerName} ({HostingConstants.DropboxDefaultPublisherFolder})" : "Local only",
             FileSize = defSize,
             Url = defUrl ?? string.Empty,
-            Status = isDefHosted ? StatusLiveOnline : StatusPendingUpload,
+            Status = isDefHosted ? HostingConstants.StatusLiveOnline : HostingConstants.StatusPendingUpload,
             IsOnline = isDefHosted,
             IsExternalCdn = false,
             LastUpdated = defUpdated,
@@ -622,7 +603,7 @@ public partial class PublishShareViewModel(
                 Location = isCatHosted ? $"{providerName} ({HostingConstants.DropboxDefaultPublisherFolder})" : "Local only",
                 FileSize = catSize,
                 Url = catUrl,
-                Status = isCatHosted ? StatusLiveOnline : StatusPendingUpload,
+                Status = isCatHosted ? HostingConstants.StatusLiveOnline : HostingConstants.StatusPendingUpload,
                 IsOnline = isCatHosted,
                 IsExternalCdn = false,
                 LastUpdated = catUpdated,
@@ -664,18 +645,18 @@ public partial class PublishShareViewModel(
             artCount++;
             totalBytes += artSize;
             location = $"{providerName} ({HostingConstants.DropboxDefaultPublisherFolder})";
-            status = StatusLiveOnline;
+            status = HostingConstants.StatusLiveOnline;
         }
         else if (isExternal)
         {
             cdnCount++;
-            location = StatusExternalCdn;
-            status = StatusExternalCdn;
+            location = HostingConstants.StatusExternalCdn;
+            status = HostingConstants.StatusExternalCdn;
         }
         else
         {
             location = "Local file";
-            status = StatusPendingUpload;
+            status = HostingConstants.StatusPendingUpload;
         }
 
         HostedAssets.Add(new HostedAssetItemViewModel
@@ -714,7 +695,7 @@ public partial class PublishShareViewModel(
                 Location = $"{providerName} ({HostingConstants.DropboxDefaultPublisherFolder})",
                 FileSize = cloudCat.FileSize,
                 Url = cloudCat.Url,
-                Status = StatusLiveOnline,
+                Status = HostingConstants.StatusLiveOnline,
                 IsOnline = true,
                 IsExternalCdn = false,
                 LastUpdated = cloudCat.LastUpdated,
@@ -735,7 +716,7 @@ public partial class PublishShareViewModel(
                 Location = $"{providerName} ({HostingConstants.DropboxDefaultPublisherFolder})",
                 FileSize = cloudArt.FileSize,
                 Url = cloudArt.Url,
-                Status = StatusLiveOnline,
+                Status = HostingConstants.StatusLiveOnline,
                 IsOnline = true,
                 IsExternalCdn = false,
                 LastUpdated = cloudArt.LastUpdated,
@@ -809,7 +790,7 @@ public partial class PublishShareViewModel(
         _authCts = new System.Threading.CancellationTokenSource(TimeSpan.FromSeconds(HostingConstants.BrowserAuthTimeoutSeconds));
 
         IsAuthenticating = true;
-        AuthenticationStatusMessage = "Authenticating...";
+        AuthenticationStatusMessage = GetLocalizedString("Tools.PublisherStudio.Publish.Authenticating", "Authenticating...");
 
         try
         {
@@ -916,10 +897,12 @@ public partial class PublishShareViewModel(
 
         if (!hasCredentials)
         {
-            AuthenticationStatusMessage = "Google Drive requires client credentials. Enter your Client ID and Client Secret above.";
+            AuthenticationStatusMessage = GetLocalizedString(
+                "Tools.PublisherStudio.Publish.GoogleDriveCredentialsNeededMessage",
+                "Google Drive requires client credentials. Enter your Client ID and Client Secret above.");
             notificationService?.ShowWarning(
-                "Google Drive Credentials Needed",
-                "Please enter your Google OAuth Client ID and Secret to connect to Google Drive. Follow the Project Configuration guide above.");
+                GetLocalizedString("Tools.PublisherStudio.Publish.GoogleDriveCredentialsNeededTitle", "Google Drive Credentials Needed"),
+                GetLocalizedString("Tools.PublisherStudio.Publish.GoogleDriveCredentialsNeededMessage", "Please enter your Google OAuth Client ID and Secret to connect to Google Drive. Follow the Project Configuration guide above."));
             return false;
         }
 
@@ -1388,7 +1371,7 @@ public partial class PublishShareViewModel(
         }
         catch (OperationCanceledException ex)
         {
-            UploadStatusMessage = "Upload canceled.";
+            UploadStatusMessage = GetLocalizedString("Tools.PublisherStudio.Publish.UploadCanceled", "Upload canceled.");
             logger.LogInformation(ex, "Catalog upload was canceled.");
             return OperationResult<HostingUploadResult>.CreateFailure("Upload canceled");
         }
@@ -1415,7 +1398,7 @@ public partial class PublishShareViewModel(
         if (SelectedHostingProvider == null) return false;
         if (SelectedHostingProvider.RequiresAuthentication && !SelectedHostingProvider.IsAuthenticated)
         {
-            UploadStatusMessage = "Authenticating...";
+            UploadStatusMessage = GetLocalizedString("Tools.PublisherStudio.Publish.Authenticating", "Authenticating...");
             var authResult = await ExecuteAuthenticationByProviderTypeAsync(cancellationToken);
             if (authResult == null || !authResult.Success)
             {
@@ -1463,7 +1446,7 @@ public partial class PublishShareViewModel(
 
         SubscriptionUrl = SelectedHostingProvider.GetSubscriptionLink(CatalogUrl);
         UploadProgress = 100;
-        UploadStatusMessage = "Published successfully!";
+        UploadStatusMessage = GetLocalizedString("Tools.PublisherStudio.Publish.PublishedSuccessfully", "Published successfully!");
         logger.LogInformation("Catalog and artifacts uploaded to {Provider}: {Url}", SelectedHostingProvider.ProviderId, CatalogUrl);
 
         await SaveHostingStateAsync(data.FileId, data.DirectDownloadUrl, data.FileSize, cancellationToken);
@@ -1488,7 +1471,7 @@ public partial class PublishShareViewModel(
         }
         else
         {
-            UploadStatusMessage = "Published successfully!";
+            UploadStatusMessage = GetLocalizedString("Tools.PublisherStudio.Publish.PublishedSuccessfully", "Published successfully!");
         }
     }
 
@@ -2028,7 +2011,7 @@ public partial class PublishShareViewModel(
         GenerateSubscriptionUrl(); // Regenerate based on new definition URL
         RefreshUploadHierarchy();
         RefreshHostedAssets();
-        UploadStatusMessage = "Provider definition uploaded successfully.";
+        UploadStatusMessage = GetLocalizedString("Tools.PublisherStudio.Publish.ProviderDefinitionUploaded", "Provider definition uploaded successfully.");
         logger.LogInformation("Uploaded provider definition to {Url}", ProviderDefinitionUrl);
         notificationService?.ShowSuccess(
             GetLocalizedString("Tools.PublisherStudio.Publish.SuccessTitle", SuccessLiteral),
@@ -2042,6 +2025,22 @@ public partial class PublishShareViewModel(
     [RelayCommand]
     private async Task<OperationResult<HostingUploadResult>> UploadProviderDefinitionAsync()
     {
+        if (IsUploading)
+        {
+            return OperationResult<HostingUploadResult>.CreateFailure("An upload is already in progress.");
+        }
+
+        _uploadCts?.Dispose();
+        _uploadCts = new CancellationTokenSource();
+        var cancellationToken = _uploadCts.Token;
+
+        return await UploadProviderDefinitionCoreAsync(cancellationToken, manageUploadingState: true).ConfigureAwait(false);
+    }
+
+    private async Task<OperationResult<HostingUploadResult>> UploadProviderDefinitionCoreAsync(
+        CancellationToken cancellationToken,
+        bool manageUploadingState)
+    {
         var preconditionResult = await ValidateProviderDefinitionPreconditionsAsync().ConfigureAwait(false);
         if (preconditionResult != null || SelectedHostingProvider == null)
         {
@@ -2050,17 +2049,12 @@ public partial class PublishShareViewModel(
 
         try
         {
-            IsUploading = true;
-            UploadStatusMessage = "Uploading provider definition...";
-
-            if (_uploadCts != null)
+            if (manageUploadingState)
             {
-                await _uploadCts.CancelAsync();
-                _uploadCts.Dispose();
+                IsUploading = true;
             }
 
-            _uploadCts = new CancellationTokenSource();
-            var ct = _uploadCts.Token;
+            UploadStatusMessage = GetLocalizedString("Tools.PublisherStudio.Publish.UploadingProviderDefinition", "Uploading provider definition...");
 
             var fileName = project.ProviderDefinitionFileName ?? HostingConstants.DefaultDefinitionFileName;
             var existingDefFileId = _currentHostingState?.Definition?.FileId;
@@ -2068,12 +2062,12 @@ public partial class PublishShareViewModel(
             // Upload or update as a file
             using var stream = new MemoryStream(System.Text.Encoding.UTF8.GetBytes(ProviderDefinitionJson));
             var result = (!string.IsNullOrEmpty(existingDefFileId) && SelectedHostingProvider.SupportsUpdate)
-                ? await SelectedHostingProvider.UpdateFileAsync(existingDefFileId, stream, fileName, cancellationToken: ct)
-                : await SelectedHostingProvider.UploadFileAsync(stream, fileName, cancellationToken: ct);
+                ? await SelectedHostingProvider.UpdateFileAsync(existingDefFileId, stream, fileName, cancellationToken: cancellationToken).ConfigureAwait(false)
+                : await SelectedHostingProvider.UploadFileAsync(stream, fileName, cancellationToken: cancellationToken).ConfigureAwait(false);
 
             if (result.Success && result.Data != null)
             {
-                await HandleProviderDefinitionUploadSuccessAsync(result.Data, ct).ConfigureAwait(false);
+                await HandleProviderDefinitionUploadSuccessAsync(result.Data, cancellationToken).ConfigureAwait(false);
                 return result;
             }
 
@@ -2094,7 +2088,10 @@ public partial class PublishShareViewModel(
         }
         finally
         {
-            IsUploading = false;
+            if (manageUploadingState)
+            {
+                IsUploading = false;
+            }
         }
     }
 
@@ -2462,7 +2459,7 @@ public partial class PublishShareViewModel(
 
             if (publishedAny)
             {
-                await FinalizePublishAllSuccessAsync(succeededCount, totalCatalogs);
+                await FinalizePublishAllSuccessAsync(succeededCount, totalCatalogs, cancellationToken).ConfigureAwait(false);
             }
             else
             {
@@ -2522,7 +2519,7 @@ public partial class PublishShareViewModel(
         }
     }
 
-    private async Task FinalizePublishAllSuccessAsync(int succeededCount, int totalCatalogs)
+    private async Task FinalizePublishAllSuccessAsync(int succeededCount, int totalCatalogs, CancellationToken cancellationToken)
     {
         // Generate provider definition with all catalogs
         await GenerateProviderDefinitionAsync();
@@ -2530,7 +2527,7 @@ public partial class PublishShareViewModel(
         // Upload definition
         if (!string.IsNullOrWhiteSpace(ProviderDefinitionJson))
         {
-            var defResult = await UploadProviderDefinitionAsync();
+            var defResult = await UploadProviderDefinitionCoreAsync(cancellationToken, manageUploadingState: false).ConfigureAwait(false);
             if (defResult != null && !defResult.Success)
             {
                 UploadStatusMessage = succeededCount == totalCatalogs
@@ -2907,4 +2904,25 @@ public partial class PublishShareViewModel(
             OpenExternalBrowserUrl(url);
         }
     }
+
+    /// <summary>
+    /// Cancels the currently active upload operation.
+    /// </summary>
+    [RelayCommand]
+    private void CancelUpload()
+    {
+        if (IsUploading)
+        {
+            var cts = _uploadCts;
+            try
+            {
+                cts?.Cancel();
+            }
+            catch (ObjectDisposedException)
+            {
+                // Upload already completed or was disposed concurrently
+            }
+        }
+    }
+
 }

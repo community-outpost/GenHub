@@ -372,7 +372,11 @@ public class DropboxHostingProvider(ILogger<DropboxHostingProvider> logger, IHtt
 
             foreach (var entry in entries.EnumerateArray())
             {
-                await ProcessDropboxEntryAsync(entry, state, cancellationToken).ConfigureAwait(false);
+                var entryResult = await ProcessDropboxEntryAsync(entry, state, cancellationToken).ConfigureAwait(false);
+                if (!entryResult.Success)
+                {
+                    logger.LogWarning("Skipping Dropbox entry during state recovery: {Error}", entryResult.FirstError);
+                }
             }
 
             var hasMore = doc.RootElement.TryGetProperty("has_more", out var hasMoreProp) && hasMoreProp.GetBoolean();
@@ -511,7 +515,11 @@ public class DropboxHostingProvider(ILogger<DropboxHostingProvider> logger, IHtt
             {
                 foreach (var entry in continueEntries.EnumerateArray())
                 {
-                    await ProcessDropboxEntryAsync(entry, state, cancellationToken).ConfigureAwait(false);
+                    var entryResult = await ProcessDropboxEntryAsync(entry, state, cancellationToken).ConfigureAwait(false);
+                    if (!entryResult.Success)
+                    {
+                        logger.LogWarning("Skipping Dropbox entry during state recovery pagination: {Error}", entryResult.FirstError);
+                    }
                 }
             }
 
@@ -520,14 +528,14 @@ public class DropboxHostingProvider(ILogger<DropboxHostingProvider> logger, IHtt
         }
     }
 
-    private async Task ProcessDropboxEntryAsync(
+    private async Task<OperationResult> ProcessDropboxEntryAsync(
         JsonElement entry,
         HostingState state,
         CancellationToken cancellationToken)
     {
         if (!entry.TryGetProperty(".tag", out var tagProp) || tagProp.GetString() != "file")
         {
-            return;
+            return OperationResult.CreateSuccess();
         }
 
         var fileName = entry.TryGetProperty("name", out var nameProp) ? nameProp.GetString() ?? string.Empty : string.Empty;
@@ -542,7 +550,7 @@ public class DropboxHostingProvider(ILogger<DropboxHostingProvider> logger, IHtt
         if (linkResult is { Success: false })
         {
             logger.LogWarning("Failed to query shared link for {Path}: {Error}", pathLower, linkResult.FirstError);
-            throw new InvalidOperationException(linkResult.FirstError ?? "Failed to query Dropbox shared link due to missing permissions.");
+            return OperationResult.CreateFailure(linkResult.FirstError ?? "Failed to query Dropbox shared link due to missing permissions.");
         }
 
         var directUrl = (linkResult is { Success: true, Data: not null }) ? ConvertToDirectDownloadUrl(linkResult.Data) : string.Empty;
@@ -585,6 +593,8 @@ public class DropboxHostingProvider(ILogger<DropboxHostingProvider> logger, IHtt
             });
             logger.LogInformation("Discovered artifact '{File}' in Dropbox: {Url}", fileName, directUrl);
         }
+
+        return OperationResult.CreateSuccess();
     }
 
     private async Task<OperationResult<string>> CreateSharedLinkAsync(string path, CancellationToken cancellationToken)

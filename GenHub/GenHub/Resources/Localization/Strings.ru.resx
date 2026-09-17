@@ -11986,6 +11986,81 @@ GameFilesEdited/Data/INI/**/*.ini</value>
   <data name="Tools.PublisherStudio.Studio.CatalogAlreadyExists" xml:space="preserve">
     <value>Каталог с ID '{0}' уже существует.</value>
   </data>
+  <data name="Tools.PublisherStudio.Publish.GoogleDriveCredentialsNeededTitle" xml:space="preserve">
+    <value>Требуются учетные данные Google Drive</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.GoogleDriveCredentialsNeededMessage" xml:space="preserve">
+    <value>Пожалуйста, введите Client ID и Secret Google OAuth для подключения к Google Drive. Следуйте руководству по настройке проекта выше.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Notification.ProjectSavedTitle" xml:space="preserve">
+    <value>Проект сохранен</value>
+  </data>
+  <data name="Tools.PublisherStudio.Notification.ProjectSavedMessage" xml:space="preserve">
+    <value>Ваш проект издателя «{0}» успешно сохранен.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Notification.SaveFailedTitle" xml:space="preserve">
+    <value>Ошибка сохранения</value>
+  </data>
+  <data name="Tools.PublisherStudio.Notification.SaveErrorTitle" xml:space="preserve">
+    <value>Сбой сохранения</value>
+  </data>
+  <data name="Tools.PublisherStudio.Notification.DuplicateCatalogIdTitle" xml:space="preserve">
+    <value>Дубликат ID каталога</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.DuplicateIdTitle" xml:space="preserve">
+    <value>Дубликат ID контента</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.DuplicateIdMessageFormat" xml:space="preserve">
+    <value>Элемент контента с ID «{0}» уже существует в этом каталоге.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.DeleteContentTitle" xml:space="preserve">
+    <value>Удалить элемент контента</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.DeleteContentMessageFormat" xml:space="preserve">
+    <value>Вы уверены, что хотите удалить «{0}» ({1})? Это также приведет к удалению всех его выпусков и файлов.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.UploadCanceled" xml:space="preserve">
+    <value>Загрузка отменена.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.PublishedSuccessfully" xml:space="preserve">
+    <value>Успешно опубликовано!</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ProviderDefinitionUploaded" xml:space="preserve">
+    <value>Определение поставщика успешно загружено.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.UploadingProviderDefinition" xml:space="preserve">
+    <value>Загрузка определения поставщика...</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.EditTitle" xml:space="preserve">
+    <value>Редактировать элемент контента</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CreateContent" xml:space="preserve">
+    <value>Создать контент</value>
+  </data>
+  <data name="Tools.PublisherStudio.Release.EditTitle" xml:space="preserve">
+    <value>Редактировать выпуск</value>
+  </data>
+  <data name="Tools.PublisherStudio.Release.CreateRelease" xml:space="preserve">
+    <value>Создать выпуск</value>
+  </data>
+  <data name="Tools.PublisherStudio.Common.SaveChanges" xml:space="preserve">
+    <value>Сохранить изменения</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.NoFileConfigured" xml:space="preserve">
+    <value>Файл не настроен</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.StatusLocalFile" xml:space="preserve">
+    <value>Выбран локальный файл — будет загружен во время публикации</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.StatusExternalCdn" xml:space="preserve">
+    <value>Размещено внешне на CDN / зеркале (не будет загружаться)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.InvalidSize" xml:space="preserve">
+    <value>Недопустимый размер</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.InvalidSizeFormat" xml:space="preserve">
+    <value>Неверный формат размера файла (например, 10 MB, 500 KB, 1.5 GB)</value>
+  </data>
   <data name="GameProfiles.Notification.UnexpectedExit.Title" xml:space="preserve">
     <value>Игра неожиданно завершилась</value>
   </data>

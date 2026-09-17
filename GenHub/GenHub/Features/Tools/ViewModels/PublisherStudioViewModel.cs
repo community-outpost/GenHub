@@ -51,10 +51,6 @@ public partial class PublisherStudioViewModel(
     /// <summary>Tab index for the Publish &amp; Share tab.</summary>
     public const int TabPublishShare = 4;
 
-    private string StudioNotificationTitle =>
-        localizationService?.GetString("Tools.PublisherStudio.Title")
-        ?? localizationService?.GetString("Tools.PublisherStudio.Studio.Title")
-        ?? "Publisher Studio";
 
     private readonly string _settingsPath = Path.Combine(
         configurationProvider?.GetApplicationDataPath() ?? Path.GetTempPath(),
@@ -114,6 +110,12 @@ public partial class PublisherStudioViewModel(
     /// </summary>
     public bool ShouldShowSetupOverlay => !IsSetupComplete && SelectedTabIndex != 0;
 
+    private string StudioNotificationTitle =>
+        localizationService?.GetString("Tools.PublisherStudio.Title")
+        ?? localizationService?.GetString("Tools.PublisherStudio.Studio.Title")
+        ?? "Publisher Studio";
+
+
     /// <summary>
     /// Marks the current project as dirty (having unsaved changes).
     /// </summary>
@@ -161,9 +163,11 @@ public partial class PublisherStudioViewModel(
                     await SaveLastProjectPathAsync(CurrentProject.ProjectPath);
                 }
 
+                var savedTitle = localizationService?.GetString("Tools.PublisherStudio.Notification.ProjectSavedTitle") ?? "Project Saved";
+                var savedMsgTemplate = localizationService?.GetString("Tools.PublisherStudio.Notification.ProjectSavedMessage") ?? "Your publisher project '{0}' has been saved successfully.";
                 notificationService?.ShowSuccess(
-                    "Project Saved",
-                    $"Your publisher project '{CurrentProject.ProjectName}' has been saved successfully.",
+                    savedTitle,
+                    string.Format(savedMsgTemplate, CurrentProject.ProjectName),
                     autoDismissMs: 4000);
 
                 // Force a dirty state update to refresh UI
@@ -174,8 +178,9 @@ public partial class PublisherStudioViewModel(
                 StatusMessage = $"Failed to save: {result.FirstError}";
                 logger.LogError("Failed to save project: {Error}", result.FirstError);
 
+                var saveFailedTitle = localizationService?.GetString("Tools.PublisherStudio.Notification.SaveFailedTitle") ?? "Save Failed";
                 notificationService?.ShowError(
-                    "Save Failed",
+                    saveFailedTitle,
                     result.FirstError ?? "An unknown error occurred while saving the project.");
             }
         }
@@ -184,8 +189,9 @@ public partial class PublisherStudioViewModel(
             StatusMessage = $"Error saving: {ex.Message}";
             logger.LogError(ex, "Error saving project");
 
+            var saveErrorTitle = localizationService?.GetString("Tools.PublisherStudio.Notification.SaveErrorTitle") ?? "Save Error";
             notificationService?.ShowError(
-                "Save Error",
+                saveErrorTitle,
                 $"An error occurred while saving: {ex.Message}");
         }
     }
@@ -524,15 +530,19 @@ public partial class PublisherStudioViewModel(
         if (CurrentProject == null || catalog == null) return;
         if (CurrentProject.Catalogs.Count <= 1)
         {
-            StatusMessage = "Cannot remove the last catalog";
+            StatusMessage = localizationService?.GetString("Tools.PublisherStudio.Studio.CannotRemoveLastCatalog") ?? "Cannot remove the last catalog";
             notificationService?.ShowWarning(StudioNotificationTitle, StatusMessage, NotificationDurations.Medium);
             return;
         }
 
+        var deleteTitle = localizationService?.GetString("Tools.PublisherStudio.Studio.DeleteCatalogTitle") ?? "Delete Catalog";
+        var deleteMsgTemplate = localizationService?.GetString("Tools.PublisherStudio.Studio.DeleteCatalogMessage") ?? "Are you sure you want to delete catalog '{0}'? This cannot be undone.";
+        var deleteConfirm = localizationService?.GetString("Tools.PublisherStudio.Studio.DeleteConfirm") ?? "Delete";
+
         var confirmed = await dialogService.ShowConfirmationAsync(
-            "Delete Catalog",
-            $"Are you sure you want to delete the catalog '{catalog.Name}'? This action cannot be undone.",
-            confirmText: "Delete",
+            deleteTitle,
+            string.Format(deleteMsgTemplate, catalog.Name),
+            confirmText: deleteConfirm,
             sessionKey: "DeleteCatalogConfirmation");
 
         if (!confirmed)
@@ -566,8 +576,11 @@ public partial class PublisherStudioViewModel(
         var newId = Slugify(newName);
         if (CurrentProject?.Catalogs != null && CurrentProject.Catalogs.Any(c => c != target && string.Equals(c.Id, newId, StringComparison.OrdinalIgnoreCase)))
         {
-            StatusMessage = $"A catalog with ID '{newId}' already exists.";
-            notificationService?.ShowWarning("Duplicate Catalog ID", StatusMessage);
+            StatusMessage = string.Format(
+                localizationService?.GetString("Tools.PublisherStudio.Studio.CatalogAlreadyExists") ?? "A catalog with ID '{0}' already exists.",
+                newId);
+            var dupTitle = localizationService?.GetString("Tools.PublisherStudio.Notification.DuplicateCatalogIdTitle") ?? "Duplicate Catalog ID";
+            notificationService?.ShowWarning(dupTitle, StatusMessage);
             return;
         }
 
@@ -707,7 +720,7 @@ public partial class PublisherStudioViewModel(
         SelectedCatalog = selectedCatalog;
 
         PublisherProfileViewModel = new GenHub.Features.Tools.ViewModels.PublisherProfileViewModel(CurrentProject, this, logger);
-        ContentLibraryViewModel = new GenHub.Features.Tools.ViewModels.ContentLibraryViewModel(CurrentProject, selectedCatalog, this, logger, dialogService);
+        ContentLibraryViewModel = new GenHub.Features.Tools.ViewModels.ContentLibraryViewModel(CurrentProject, selectedCatalog, this, logger, dialogService, notificationService, localizationService);
         PublishShareViewModel?.Dispose();
         PublishShareViewModel = new GenHub.Features.Tools.ViewModels.PublishShareViewModel(CurrentProject, publisherStudioService, logger, hostingProviderFactory, hostingStateManager, notificationService, localizationService, credentialStore);
         await PublishShareViewModel.InitializeAsync().ConfigureAwait(false);

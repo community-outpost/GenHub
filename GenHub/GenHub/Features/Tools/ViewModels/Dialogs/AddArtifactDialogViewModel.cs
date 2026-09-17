@@ -21,7 +21,7 @@ namespace GenHub.Features.Tools.ViewModels.Dialogs;
 /// Provides validation and creation of new ReleaseArtifact entries.
 /// </summary>
 [SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "ViewModel properties and methods bound to MVVM UI.")]
-public partial class AddArtifactDialogViewModel(Action<ReleaseArtifact> onArtifactCreated) : ObservableValidator
+public partial class AddArtifactDialogViewModel(Action<ReleaseArtifact> onArtifactCreated, GenHub.Core.Interfaces.Common.ILocalizationService? localizationService = null) : ObservableValidator
 {
     [ObservableProperty]
     [NotifyDataErrorInfo]
@@ -64,7 +64,7 @@ public partial class AddArtifactDialogViewModel(Action<ReleaseArtifact> onArtifa
     private string? _lastAutoUrlFilename;
 
     [ObservableProperty]
-    private string _artifactStatus = "No file configured";
+    private string _artifactStatus = localizationService?.GetString("Tools.PublisherStudio.Artifact.NoFileConfigured") ?? "No file configured";
 
     /// <summary>
     /// Gets or sets a value indicating whether to use an existing URL instead of uploading a file.
@@ -244,8 +244,8 @@ public partial class AddArtifactDialogViewModel(Action<ReleaseArtifact> onArtifa
         else
         {
             FileSize = 0;
-            FileSizeDisplay = "Invalid size";
-            ValidationError = "Invalid file size format (e.g., 10 MB, 500 KB, 1.5 GB)";
+            FileSizeDisplay = GetLocalizedString("Tools.PublisherStudio.Artifact.InvalidSize", "Invalid size");
+            ValidationError = GetLocalizedString("Tools.PublisherStudio.Artifact.InvalidSizeFormat", "Invalid file size format (e.g., 10 MB, 500 KB, 1.5 GB)");
         }
     }
 
@@ -253,15 +253,21 @@ public partial class AddArtifactDialogViewModel(Action<ReleaseArtifact> onArtifa
     {
         if (!string.IsNullOrEmpty(LocalFilePath))
         {
-            ArtifactStatus = "Local file selected - will be uploaded during publish";
+            ArtifactStatus = GetLocalizedString(
+                "Tools.PublisherStudio.Artifact.StatusLocalFile",
+                "Local file selected - will be uploaded during publish");
         }
         else if (!string.IsNullOrEmpty(DownloadUrl))
         {
-            ArtifactStatus = "Hosted externally on CDN / mirror (will not be uploaded)";
+            ArtifactStatus = GetLocalizedString(
+                "Tools.PublisherStudio.Artifact.StatusExternalCdn",
+                "Hosted externally on CDN / mirror (will not be uploaded)");
         }
         else
         {
-            ArtifactStatus = "No file configured";
+            ArtifactStatus = GetLocalizedString(
+                "Tools.PublisherStudio.Artifact.NoFileConfigured",
+                "No file configured");
         }
     }
 
@@ -471,5 +477,10 @@ public partial class AddArtifactDialogViewModel(Action<ReleaseArtifact> onArtifa
         ValidationError = HasErrors
             ? string.Join(Environment.NewLine, GetErrors().Select(e => e.ErrorMessage))
             : null;
+    }
+
+    private string GetLocalizedString(string key, string fallback)
+    {
+        return localizationService?.GetString(key) ?? fallback;
     }
 }
