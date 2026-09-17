@@ -39,5 +39,6 @@ public interface IManifestProvider
     /// <param name="gameType">The game whose manifest is requested.</param>
     /// <param name="cancellationToken">A cancellation token.</param>
     /// <returns>The ContentManifest, or null if not found.</returns>
+    /// <exception cref="ArgumentOutOfRangeException">The game is neither Generals nor Zero Hour.</exception>
     Task<ContentManifest?> GetManifestAsync(GameInstallation gameInstallation, GameType gameType, CancellationToken cancellationToken = default);
 }
