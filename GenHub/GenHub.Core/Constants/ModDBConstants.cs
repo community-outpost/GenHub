@@ -610,6 +610,9 @@ public static class ModDBConstants
 
     // ===== Managed Chromium Runtime Notifications =====
 
+    /// <summary>Name for the managed Chromium runtime.</summary>
+    public const string ChromiumRuntimeName = "ModDB Chromium Runtime";
+
     /// <summary>Title for the Chromium runtime installation toast.</summary>
     public const string ChromiumInstallTitle = "Installing Chromium Runtime";
 

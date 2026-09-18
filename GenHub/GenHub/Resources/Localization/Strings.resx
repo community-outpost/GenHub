@@ -8159,4 +8159,30 @@ Do you want to download and inspect this profile package?</value>
   <data name="GameProfiles.ImportInspection.UnknownComponent" xml:space="preserve">
     <value>Unknown</value>
   </data>
+
+  <data name="ModDB.ChromiumRuntimeName" xml:space="preserve">
+    <value>ModDB Chromium Runtime</value>
+  </data>
+  <data name="ModDB.ChromiumInstallTitle" xml:space="preserve">
+    <value>Installing Chromium Runtime</value>
+  </data>
+  <data name="ModDB.ChromiumDownloadingMessage" xml:space="preserve">
+    <value>Downloading Chromium (~240 MB)... Please wait.</value>
+  </data>
+  <data name="ModDB.ChromiumExtractingMessage" xml:space="preserve">
+    <value>Extracting and configuring Chromium runtime...</value>
+  </data>
+  <data name="ModDB.ChromiumReadyTitle" xml:space="preserve">
+    <value>Chromium Runtime Ready</value>
+  </data>
+  <data name="ModDB.ChromiumReadyMessage" xml:space="preserve">
+    <value>Chromium runtime installed successfully.</value>
+  </data>
+  <data name="ModDB.ChromiumInstallFailedTitle" xml:space="preserve">
+    <value>Chromium Installation Failed</value>
+  </data>
+  <data name="ModDB.ChromiumInstallFailedMessage" xml:space="preserve">
+    <value>GenHub could not install its managed Chromium runtime. Check your network connection and try again.</value>
+  </data>
+
 </root>
