@@ -12,6 +12,7 @@ using GenHub.Core.Interfaces.Storage;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameInstallations;
+using GenHub.Core.Models.GameProfile;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Notifications;
 using GenHub.Core.Models.Results;
@@ -1253,39 +1254,24 @@ public partial class GeneralsOnlineProfileReconciler(
         foreach (var profile in relevantProfiles)
         {
             var targetProfileName = FormatUpdatedProfileName(profile.Name, newVersion, existingProfileNames, allowSameAsOriginal: false);
+            var (created, newProfileId) = await TryCloneGeneralsOnlineProfileAsync(
+                profile,
+                targetProfileName,
+                newClientManifest,
+                newVersion,
+                manifestMapping,
+                newManifests,
+                cancellationToken);
 
-            try
+            if (created)
             {
-                var updatedGameClient = BuildUpdatedGameClient(profile, newClientManifest, newVersion);
-                var newEnabledContent = ResolveUpdatedEnabledContent(profile, manifestMapping, newManifests);
-                var cloneRequest = BuildCloneProfileRequest(profile, targetProfileName, updatedGameClient, newEnabledContent, newClientManifest);
-
-                var createResult = await profileManager.CreateProfileAsync(cloneRequest, cancellationToken);
-                if (createResult != null && createResult.Success)
+                createdCount++;
+                existingProfileNames.Add(targetProfileName);
+                if (!string.IsNullOrEmpty(triggeringProfileId) &&
+                    string.Equals(profile.Id, triggeringProfileId, StringComparison.OrdinalIgnoreCase))
                 {
-                    createdCount++;
-                    existingProfileNames.Add(targetProfileName);
-                    if (!string.IsNullOrEmpty(triggeringProfileId) &&
-                        string.Equals(profile.Id, triggeringProfileId, StringComparison.OrdinalIgnoreCase) &&
-                        createResult.Data != null)
-                    {
-                        targetProfileId = createResult.Data.Id;
-                    }
-
-                    logger.LogInformation("[GO Reconciler] Created new profile '{Name}' for update", cloneRequest.Name);
+                    targetProfileId = newProfileId;
                 }
-                else
-                {
-                    logger.LogError("[GO Reconciler] Failed to create new profile for update: {Error}", createResult?.FirstError);
-                }
-            }
-            catch (OperationCanceledException)
-            {
-                throw;
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, "[GO Reconciler] Error creating profile for update");
             }
         }
 
@@ -1296,5 +1282,41 @@ public partial class GeneralsOnlineProfileReconciler(
         }
 
         return OperationResult<(int CreatedCount, string? TargetProfileId)>.CreateSuccess((createdCount, targetProfileId));
+    }
+
+    private async Task<(bool Created, string? NewProfileId)> TryCloneGeneralsOnlineProfileAsync(
+        GameProfile profile,
+        string targetProfileName,
+        ContentManifest? newClientManifest,
+        string newVersion,
+        Dictionary<string, string> manifestMapping,
+        List<ContentManifest> newManifests,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var updatedGameClient = BuildUpdatedGameClient(profile, newClientManifest, newVersion);
+            var newEnabledContent = ResolveUpdatedEnabledContent(profile, manifestMapping, newManifests);
+            var cloneRequest = BuildCloneProfileRequest(profile, targetProfileName, updatedGameClient, newEnabledContent, newClientManifest);
+
+            var createResult = await profileManager.CreateProfileAsync(cloneRequest, cancellationToken);
+            if (createResult != null && createResult.Success)
+            {
+                logger.LogInformation("[GO Reconciler] Created new profile '{Name}' for update", cloneRequest.Name);
+                return (true, createResult.Data?.Id);
+            }
+
+            logger.LogError("[GO Reconciler] Failed to create new profile for update: {Error}", createResult?.FirstError);
+            return (false, null);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "[GO Reconciler] Error creating profile for update");
+            return (false, null);
+        }
     }
 }

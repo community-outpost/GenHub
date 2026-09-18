@@ -9,6 +9,8 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
+using System.Linq.Expressions;
+using System.Reflection;
 
 namespace GenHub.Core.Helpers;
 
@@ -17,6 +19,8 @@ namespace GenHub.Core.Helpers;
 /// </summary>
 public static class GameSettingsMapper
 {
+    private static readonly Action<GameProfileSettingsBase, GameProfile> ProfileCopier = BuildProfileCopier();
+
     /// <summary>
     /// Applies settings from IniOptions to a GameProfile.
     /// Used when creating new profiles to inherit existing game settings.
@@ -107,7 +111,6 @@ public static class GameSettingsMapper
         ApplyVideoResolutionAndQualityToOptions(profile, options, logger);
         ApplyVideoAdditionalToOptions(profile, options, logger);
         ApplyAudioToOptions(profile, options, logger);
-        ApplyNetworkToOptions(profile, options);
         ApplyTshToOptions(profile, options);
     }
 
@@ -394,94 +397,7 @@ public static class GameSettingsMapper
         ArgumentNullException.ThrowIfNull(target);
         ArgumentNullException.ThrowIfNull(source);
 
-        target.VideoResolutionWidth = source.VideoResolutionWidth;
-        target.VideoResolutionHeight = source.VideoResolutionHeight;
-        target.VideoWindowed = source.VideoWindowed;
-        target.VideoTextureQuality = source.VideoTextureQuality;
-        target.EnableVideoShadows = source.EnableVideoShadows;
-        target.VideoParticleEffects = source.VideoParticleEffects;
-        target.VideoExtraAnimations = source.VideoExtraAnimations;
-        target.VideoBuildingAnimations = source.VideoBuildingAnimations;
-        target.VideoGamma = source.VideoGamma;
-        target.VideoAlternateMouseSetup = source.VideoAlternateMouseSetup;
-        target.VideoHeatEffects = source.VideoHeatEffects;
-        target.VideoStaticGameLOD = source.VideoStaticGameLOD;
-        target.VideoIdealStaticGameLOD = source.VideoIdealStaticGameLOD;
-        target.VideoUseDoubleClickAttackMove = source.VideoUseDoubleClickAttackMove;
-        target.VideoScrollFactor = source.VideoScrollFactor;
-        target.VideoRetaliation = source.VideoRetaliation;
-        target.VideoDynamicLOD = source.VideoDynamicLOD;
-        target.VideoMaxParticleCount = source.VideoMaxParticleCount;
-        target.VideoAntiAliasing = source.VideoAntiAliasing;
-        target.VideoDrawScrollAnchor = source.VideoDrawScrollAnchor;
-        target.VideoMoveScrollAnchor = source.VideoMoveScrollAnchor;
-        target.VideoGameTimeFontSize = source.VideoGameTimeFontSize;
-        target.GameLanguageFilter = source.GameLanguageFilter;
-        target.NetworkSendDelay = source.NetworkSendDelay;
-        target.VideoShowSoftWaterEdge = source.VideoShowSoftWaterEdge;
-        target.VideoShowTrees = source.VideoShowTrees;
-        target.VideoUseCloudMap = source.VideoUseCloudMap;
-        target.VideoUseLightMap = source.VideoUseLightMap;
-        target.VideoSkipEALogo = source.VideoSkipEALogo;
-        target.VideoUseShadowDecals = source.VideoUseShadowDecals;
-        target.VideoBuildingOcclusion = source.VideoBuildingOcclusion;
-        target.VideoShowProps = source.VideoShowProps;
-
-        target.AudioSoundVolume = source.AudioSoundVolume;
-        target.AudioThreeDSoundVolume = source.AudioThreeDSoundVolume;
-        target.AudioSpeechVolume = source.AudioSpeechVolume;
-        target.AudioMusicVolume = source.AudioMusicVolume;
-        target.AudioEnabled = source.AudioEnabled;
-        target.AudioNumSounds = source.AudioNumSounds;
-
-        target.TshArchiveReplays = source.TshArchiveReplays;
-        target.TshShowMoneyPerMinute = source.TshShowMoneyPerMinute;
-        target.TshPlayerObserverEnabled = source.TshPlayerObserverEnabled;
-        target.TshSystemTimeFontSize = source.TshSystemTimeFontSize;
-        target.TshNetworkLatencyFontSize = source.TshNetworkLatencyFontSize;
-        target.TshRenderFpsFontSize = source.TshRenderFpsFontSize;
-        target.TshResolutionFontAdjustment = source.TshResolutionFontAdjustment;
-        target.TshCursorCaptureEnabledInFullscreenGame = source.TshCursorCaptureEnabledInFullscreenGame;
-        target.TshCursorCaptureEnabledInFullscreenMenu = source.TshCursorCaptureEnabledInFullscreenMenu;
-        target.TshCursorCaptureEnabledInWindowedGame = source.TshCursorCaptureEnabledInWindowedGame;
-        target.TshCursorCaptureEnabledInWindowedMenu = source.TshCursorCaptureEnabledInWindowedMenu;
-        target.TshScreenEdgeScrollEnabledInFullscreenApp = source.TshScreenEdgeScrollEnabledInFullscreenApp;
-        target.TshScreenEdgeScrollEnabledInWindowedApp = source.TshScreenEdgeScrollEnabledInWindowedApp;
-        target.TshMoneyTransactionVolume = source.TshMoneyTransactionVolume;
-        target.TshGameWindowTransitionSpeedMultiplier = source.TshGameWindowTransitionSpeedMultiplier;
-
-        target.GoShowFps = source.GoShowFps;
-        target.GoShowPing = source.GoShowPing;
-        target.GoShowPlayerRanks = source.GoShowPlayerRanks;
-        target.GoAutoLogin = source.GoAutoLogin;
-        target.GoRememberUsername = source.GoRememberUsername;
-        target.GoEnableNotifications = source.GoEnableNotifications;
-        target.GoEnableSoundNotifications = source.GoEnableSoundNotifications;
-        target.GoChatFontSize = source.GoChatFontSize;
-
-        target.GoCameraMaxHeightOnlyWhenLobbyHost = source.GoCameraMaxHeightOnlyWhenLobbyHost;
-        target.GoCameraMinHeight = source.GoCameraMinHeight;
-        target.GoCameraMoveSpeedRatio = source.GoCameraMoveSpeedRatio;
-
-        target.GoChatDurationSecondsUntilFadeOut = source.GoChatDurationSecondsUntilFadeOut;
-
-        target.GoDebugVerboseLogging = source.GoDebugVerboseLogging;
-
-        target.GoRenderFpsLimit = source.GoRenderFpsLimit;
-        target.GoRenderLimitFramerate = source.GoRenderLimitFramerate;
-        target.GoRenderStatsOverlay = source.GoRenderStatsOverlay;
-
-        target.GoSocialNotificationFriendComesOnlineGameplay = source.GoSocialNotificationFriendComesOnlineGameplay;
-        target.GoSocialNotificationFriendComesOnlineMenus = source.GoSocialNotificationFriendComesOnlineMenus;
-        target.GoSocialNotificationFriendGoesOfflineGameplay = source.GoSocialNotificationFriendGoesOfflineGameplay;
-        target.GoSocialNotificationFriendGoesOfflineMenus = source.GoSocialNotificationFriendGoesOfflineMenus;
-        target.GoSocialNotificationPlayerAcceptsRequestGameplay = source.GoSocialNotificationPlayerAcceptsRequestGameplay;
-        target.GoSocialNotificationPlayerAcceptsRequestMenus = source.GoSocialNotificationPlayerAcceptsRequestMenus;
-        target.GoSocialNotificationPlayerSendsRequestGameplay = source.GoSocialNotificationPlayerSendsRequestGameplay;
-        target.GoSocialNotificationPlayerSendsRequestMenus = source.GoSocialNotificationPlayerSendsRequestMenus;
-
-        target.UseSteamLaunch = source.UseSteamLaunch;
-        target.GameSpyIPAddress = source.GameSpyIPAddress;
+        ProfileCopier(target, source);
     }
 
     /// <summary>
@@ -1057,19 +973,6 @@ public static class GameSettingsMapper
         }
     }
 
-    /// <summary>
-    /// Applies network configuration from the game profile to the INI options.
-    /// </summary>
-    /// <param name="profile">The game profile containing network settings.</param>
-    /// <param name="options">The target INI options instance.</param>
-    private static void ApplyNetworkToOptions(GameProfile profile, IniOptions options)
-    {
-        if (profile.GameSpyIPAddress != null)
-        {
-            options.Network.GameSpyIPAddress = profile.GameSpyIPAddress;
-        }
-    }
-
     private static void ApplyTshToOptions(GameProfile profile, IniOptions options)
     {
         var tshKey = options.AdditionalSections.Keys.FirstOrDefault(k =>
@@ -1239,4 +1142,35 @@ public static class GameSettingsMapper
         value == "1";
 
     private static string BoolToString(bool value) => value ? "yes" : "no";
+
+    private static Action<GameProfileSettingsBase, GameProfile> BuildProfileCopier()
+    {
+        var targetParam = Expression.Parameter(typeof(GameProfileSettingsBase), "target");
+        var sourceParam = Expression.Parameter(typeof(GameProfile), "source");
+        var expressions = new List<Expression>();
+
+        var targetProps = typeof(GameProfileSettingsBase)
+            .GetProperties(BindingFlags.Public | BindingFlags.Instance)
+            .Where(p => p.CanWrite);
+
+        var sourceProps = typeof(GameProfile)
+            .GetProperties(BindingFlags.Public | BindingFlags.Instance)
+            .Where(p => p.CanRead)
+            .ToDictionary(p => p.Name, StringComparer.Ordinal);
+
+        foreach (var targetProp in targetProps)
+        {
+            if (sourceProps.TryGetValue(targetProp.Name, out var sourceProp) &&
+                targetProp.PropertyType.IsAssignableFrom(sourceProp.PropertyType))
+            {
+                var assign = Expression.Assign(
+                    Expression.Property(targetParam, targetProp),
+                    Expression.Property(sourceParam, sourceProp));
+                expressions.Add(assign);
+            }
+        }
+
+        var block = Expression.Block(expressions);
+        return Expression.Lambda<Action<GameProfileSettingsBase, GameProfile>>(block, targetParam, sourceParam).Compile();
+    }
 }

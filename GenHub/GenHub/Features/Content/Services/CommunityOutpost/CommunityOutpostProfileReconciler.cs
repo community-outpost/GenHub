@@ -147,18 +147,28 @@ public class CommunityOutpostProfileReconciler(
                     "Community Patch Update");
 
                 // Step 5: Update affected profiles based on strategy
-                var updateOutcome = await ApplyUpdateStrategyAsync(
-                    strategy,
-                    oldManifests,
-                    newManifests,
-                    updateResult.LatestVersion ?? "Unknown",
-                    shouldDeleteOldVersions,
-                    triggeringProfileId,
+                var manifestMapping = BuildManifestMapping(oldManifests, newManifests);
+                var updateOutcome = await PublisherReconcilerHelper.ApplyUpdateStrategyAsync(
+                    new UpdateStrategyExecutionArgs(
+                        strategy,
+                        oldManifests,
+                        newManifests,
+                        manifestMapping,
+                        updateResult.LatestVersion ?? "Unknown",
+                        shouldDeleteOldVersions,
+                        triggeringProfileId),
+                    new PublisherReconciliationContext(
+                        profileManager,
+                        reconciliationService,
+                        notificationService,
+                        logger,
+                        "Community Patch",
+                        "[CO Reconciler]"),
                     cancellationToken);
 
-                if (!updateOutcome.Success)
+                if (!updateOutcome.Proceed)
                 {
-                    return OperationResult<PublisherReconciliationResult>.CreateFailure(updateOutcome.FirstError ?? "Update strategy execution failed");
+                    return OperationResult<PublisherReconciliationResult>.CreateFailure(updateOutcome.Error ?? "Update strategy execution failed");
                 }
 
                 var profilesUpdated = updateOutcome.ProfilesUpdated;
@@ -432,32 +442,5 @@ public class CommunityOutpostProfileReconciler(
         }
 
         return (true, strategy, shouldDeleteOldVersions);
-    }
-
-    private Task<(bool Success, string? FirstError, int ProfilesUpdated, bool AnyFailure, bool ShouldDeleteOldVersions, string? TargetProfileId)> ApplyUpdateStrategyAsync(
-        UpdateStrategy strategy,
-        IReadOnlyList<ContentManifest> oldManifests,
-        IReadOnlyList<ContentManifest> newManifests,
-        string latestVersion,
-        bool shouldDeleteOldVersions,
-        string? triggeringProfileId,
-        CancellationToken cancellationToken)
-    {
-        var manifestMapping = BuildManifestMapping(oldManifests, newManifests);
-        return PublisherReconcilerHelper.ApplyUpdateStrategyAsync(
-            strategy,
-            oldManifests,
-            newManifests,
-            manifestMapping,
-            latestVersion,
-            shouldDeleteOldVersions,
-            triggeringProfileId,
-            "Community Patch",
-            "[CO Reconciler]",
-            profileManager,
-            reconciliationService,
-            notificationService,
-            logger,
-            cancellationToken);
     }
 }
