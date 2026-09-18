@@ -223,7 +223,13 @@ public class GenLauncherDiscoverer(
         string? downloadUrl,
         CancellationToken cancellationToken)
     {
-        if (string.IsNullOrWhiteSpace(downloadUrl) || !IsValidHttpUrl(downloadUrl, out var uri))
+        if (string.IsNullOrWhiteSpace(downloadUrl))
+        {
+            return null;
+        }
+
+        var directUrl = GenLauncherDownloadLinkParser.ParseDownloadLink(downloadUrl);
+        if (!IsValidHttpUrl(directUrl, out var uri))
         {
             return null;
         }
@@ -237,6 +243,16 @@ public class GenLauncherDiscoverer(
             using var resp = await client.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, cts.Token);
             if (resp.IsSuccessStatusCode && resp.Content.Headers.ContentLength.HasValue && resp.Content.Headers.ContentLength.Value > 0)
             {
+                var mediaType = resp.Content.Headers.ContentType?.MediaType;
+                if (!string.IsNullOrWhiteSpace(mediaType) &&
+                    (mediaType.StartsWith("text/", StringComparison.OrdinalIgnoreCase) ||
+                     mediaType.Equals("application/xml", StringComparison.OrdinalIgnoreCase) ||
+                     mediaType.Equals("text/xml", StringComparison.OrdinalIgnoreCase) ||
+                     mediaType.Equals("application/json", StringComparison.OrdinalIgnoreCase)))
+                {
+                    return null;
+                }
+
                 return resp.Content.Headers.ContentLength.Value;
             }
         }

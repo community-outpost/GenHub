@@ -169,7 +169,9 @@ public class GenLauncherResolver(
 
         if (!string.IsNullOrWhiteSpace(rawDownloadLink) &&
             (rawDownloadLink.EndsWith(".yaml", StringComparison.OrdinalIgnoreCase) ||
-             rawDownloadLink.EndsWith(".yml", StringComparison.OrdinalIgnoreCase)))
+             rawDownloadLink.EndsWith(".yml", StringComparison.OrdinalIgnoreCase) ||
+             rawDownloadLink.EndsWith(".txt", StringComparison.OrdinalIgnoreCase) ||
+             rawDownloadLink.EndsWith(".json", StringComparison.OrdinalIgnoreCase)))
         {
             rawDownloadLink = null;
         }
@@ -179,7 +181,9 @@ public class GenLauncherResolver(
             var sourceUrl = discoveredItem.SourceUrl;
             if (!string.IsNullOrWhiteSpace(sourceUrl) &&
                 !sourceUrl.EndsWith(".yaml", StringComparison.OrdinalIgnoreCase) &&
-                !sourceUrl.EndsWith(".yml", StringComparison.OrdinalIgnoreCase))
+                !sourceUrl.EndsWith(".yml", StringComparison.OrdinalIgnoreCase) &&
+                !sourceUrl.EndsWith(".txt", StringComparison.OrdinalIgnoreCase) &&
+                !sourceUrl.EndsWith(".json", StringComparison.OrdinalIgnoreCase))
             {
                 rawDownloadLink = sourceUrl;
             }
