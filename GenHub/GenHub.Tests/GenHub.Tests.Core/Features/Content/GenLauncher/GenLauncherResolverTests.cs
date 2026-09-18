@@ -218,7 +218,19 @@ public sealed class GenLauncherResolverTests
     [Fact]
     public async Task ResolveAsync_WithYamlSourceUrl_DoesNotSetYamlAsDownloadFile()
     {
+        var handlerMock = new Mock<HttpMessageHandler>();
+        handlerMock.Protected()
+            .Setup<Task<HttpResponseMessage>>(
+                "SendAsync",
+                ItExpr.IsAny<HttpRequestMessage>(),
+                ItExpr.IsAny<CancellationToken>())
+            .ReturnsAsync(new HttpResponseMessage(HttpStatusCode.NotFound));
+
+        var httpClient = new HttpClient(handlerMock.Object);
         var factoryMock = new Mock<IHttpClientFactory>();
+        factoryMock.Setup(f => f.CreateClient(PublisherTypeConstants.GenLauncher))
+            .Returns(httpClient);
+
         var parser = new GenLauncherCatalogParser(Mock.Of<ILogger<GenLauncherCatalogParser>>());
         var loggerMock = new Mock<ILogger<GenLauncherResolver>>();
 
@@ -239,5 +251,67 @@ public sealed class GenLauncherResolverTests
         Assert.True(result.Success);
         Assert.NotNull(result.Data);
         Assert.Empty(result.Data.Files);
+        handlerMock.Protected().Verify(
+            "SendAsync",
+            Times.Once(),
+            ItExpr.Is<HttpRequestMessage>(req => req.RequestUri == new Uri("https://raw.githubusercontent.com/test/mod/main/mod.yaml")),
+            ItExpr.IsAny<CancellationToken>());
+    }
+
+    /// <summary>
+    /// Tests that ResolveAsync with game-prefixed VariantGroupId produces matching parent and dependency IDs.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ResolveAsync_WithGamePrefixedVariantGroupId_ProducesMatchingParentAndDependencyIds()
+    {
+        var factoryMock = new Mock<IHttpClientFactory>();
+        var parser = new GenLauncherCatalogParser(Mock.Of<ILogger<GenLauncherCatalogParser>>());
+        var loggerMock = new Mock<ILogger<GenLauncherResolver>>();
+
+        var resolver = new GenLauncherResolver(factoryMock.Object, parser, loggerMock.Object);
+
+        // Parent Mod with game-prefixed VariantGroupId as produced by GenLauncherDiscoverer
+        var parentSearchResult = new ContentSearchResult
+        {
+            Id = "gl-zh-shockwave",
+            Name = "Shockwave",
+            Version = "1.2",
+            ContentType = ContentType.Mod,
+            TargetGame = GameType.ZeroHour,
+            VariantGroupId = "zerohour-shockwave",
+        };
+
+        // Addon with game-prefixed VariantGroupId and DependenceName pointing to parent
+        var addonSearchResult = new ContentSearchResult
+        {
+            Id = "gl-zh-shockwave-patch",
+            Name = "Patch 1.201",
+            Version = "1.201",
+            ContentType = ContentType.Patch,
+            TargetGame = GameType.ZeroHour,
+            VariantGroupId = "zerohour-shockwave",
+            ResolverMetadata =
+            {
+                [GenLauncherConstants.DependenceNameMetadataKey] = "Shockwave",
+            },
+        };
+
+        var parentResult = await resolver.ResolveAsync(parentSearchResult, CancellationToken.None);
+        var addonResult = await resolver.ResolveAsync(addonSearchResult, CancellationToken.None);
+
+        Assert.True(parentResult.Success);
+        Assert.True(addonResult.Success);
+
+        var parentManifest = parentResult.Data!;
+        var addonManifest = addonResult.Data!;
+
+        // The parent manifest ID should not contain duplicate game/slug tokens
+        Assert.Equal("1.0.genlauncherzerohour.mod.shockwave", parentManifest.Id.Value);
+
+        // The addon should depend on the parent mod, and the dependency ID must equal the parent manifest ID
+        var parentDependency = addonManifest.Dependencies.Find(d => d.DependencyType == ContentType.Mod && d.Name == "Shockwave");
+        Assert.NotNull(parentDependency);
+        Assert.Equal(parentManifest.Id, parentDependency.Id);
     }
 }

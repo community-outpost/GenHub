@@ -86,9 +86,17 @@ public class GenLauncherManifestFactory(
                 .Where(f => !string.IsNullOrWhiteSpace(f.ETag ?? f.Hash))
                 .ToList();
 
-            var expectedEtags = filesWithEtag
-                .DistinctBy(f => f.RelativePath.Replace('\\', '/'), StringComparer.OrdinalIgnoreCase)
-                .ToDictionary(f => f.RelativePath.Replace('\\', '/'), f => f.ETag ?? f.Hash, StringComparer.OrdinalIgnoreCase);
+            var expectedEtags = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var file in filesWithEtag)
+            {
+                var normalizedPath = file.RelativePath.Replace('\\', '/');
+                var etag = file.ETag ?? file.Hash!;
+                if (!expectedEtags.TryAdd(normalizedPath, etag) &&
+                    !string.Equals(expectedEtags[normalizedPath], etag, StringComparison.OrdinalIgnoreCase))
+                {
+                    logger.LogWarning("Duplicate file entry with conflicting ETag/Hash dropped for {Path} in {ManifestName}", normalizedPath, originalManifest.Name);
+                }
+            }
 
             var filenameEtags = filesWithEtag
                 .GroupBy(f => Path.GetFileName(f.RelativePath), StringComparer.OrdinalIgnoreCase)

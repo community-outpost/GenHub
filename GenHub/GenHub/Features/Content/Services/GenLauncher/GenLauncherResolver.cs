@@ -57,15 +57,30 @@ public class GenLauncherResolver(
         try
         {
             var client = httpClientFactory.CreateClient(PublisherTypeConstants.GenLauncher);
-            var slug = GenLauncherCatalogParser.Slugify(discoveredItem.Name);
-            if (!string.IsNullOrEmpty(discoveredItem.VariantGroupId) &&
-                !string.Equals(discoveredItem.VariantGroupId, slug, StringComparison.OrdinalIgnoreCase))
-            {
-                slug = $"{discoveredItem.VariantGroupId}-{slug}";
-            }
-
-            var gameToken = discoveredItem.TargetGame == GameType.ZeroHour ? "zerohour" : "generals";
+            var gameToken = discoveredItem.TargetGame == GameType.ZeroHour
+                ? GenLauncherConstants.ZeroHourGameToken
+                : GenLauncherConstants.GeneralsGameToken;
             var publisherToken = $"{GenLauncherConstants.PublisherId}-{gameToken}";
+
+            var slug = GenLauncherCatalogParser.Slugify(discoveredItem.Name);
+            var rawGroupId = discoveredItem.VariantGroupId;
+            if (!string.IsNullOrEmpty(rawGroupId))
+            {
+                if (rawGroupId.StartsWith($"{gameToken}-", StringComparison.OrdinalIgnoreCase))
+                {
+                    rawGroupId = rawGroupId.Substring(gameToken.Length + 1);
+                }
+                else if (rawGroupId.StartsWith($"{GenLauncherConstants.PublisherId}-{gameToken}-", StringComparison.OrdinalIgnoreCase))
+                {
+                    rawGroupId = rawGroupId.Substring(GenLauncherConstants.PublisherId.Length + gameToken.Length + 2);
+                }
+
+                if (!string.IsNullOrEmpty(rawGroupId) &&
+                    !string.Equals(rawGroupId, slug, StringComparison.OrdinalIgnoreCase))
+                {
+                    slug = $"{rawGroupId}-{slug}";
+                }
+            }
 
             discoveredItem.ResolverMetadata.TryGetValue(ContentConstants.ParentContentIdMetadataKey, out var parentContentId);
             var effectiveOriginalContentId = !string.IsNullOrWhiteSpace(parentContentId)
