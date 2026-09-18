@@ -327,14 +327,13 @@ public sealed partial class ImportProfileInspectionViewModel(
         {
             var format = localizationService?.GetString("GameProfiles.ImportInspection.Warning.MissingDownloadSource")
                 ?? "Component '{0}' is not cached locally and has no download source. It cannot be acquired.";
+            var unknownComponent = localizationService?.GetString("GameProfiles.ImportInspection.UnknownComponent") ?? "Unknown";
 
-            foreach (var manifest in uncachedSourceless)
-            {
-                var componentName = !string.IsNullOrWhiteSpace(manifest.DisplayName)
-                    ? manifest.DisplayName
-                    : (localizationService?.GetString("GameProfiles.ImportInspection.UnknownComponent") ?? "Unknown");
-                warnings.Add(string.Format(System.Globalization.CultureInfo.CurrentCulture, format, componentName));
-            }
+            warnings.AddRange(uncachedSourceless.Select(manifest =>
+                string.Format(
+                    System.Globalization.CultureInfo.CurrentCulture,
+                    format,
+                    !string.IsNullOrWhiteSpace(manifest.DisplayName) ? manifest.DisplayName : unknownComponent)));
         }
         else
         {
