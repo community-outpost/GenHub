@@ -433,7 +433,7 @@ Constants related to Steam integration and the proxy launcher.
 
 ## InstallationSearchPathConstants Class
 
-Directory name fragments used by the platform installation search path providers (`WindowsInstallationSearchPathProvider`, `LinuxInstallationSearchPathProvider`, `MacOSInstallationSearchPathProvider`) to compose candidate game installation locations.
+Directory name fragments used by `LinuxInstallationSearchPathProvider` and `MacOSInstallationSearchPathProvider` to compose candidate game installation locations.
 
 ### Linux Fragments (`InstallationSearchPathConstants.Linux`)
 

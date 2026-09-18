@@ -60,7 +60,7 @@ public static class InstallationExtensions
     }
 
     /// <summary>
-    /// Attempts to find a file in a case-insensitive manner, returning the exact on-disk path if found.
+    /// Attempts to find a file in a case-insensitive manner, returning a path to the file if found.
     /// </summary>
     /// <param name="filePath">The full file path to check.</param>
     /// <param name="matchedPath">The actual on-disk path if found; otherwise null.</param>

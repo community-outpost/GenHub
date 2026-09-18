@@ -41,7 +41,7 @@ public sealed class InstallationPathResolverTests : IDisposable
                 Directory.Delete(_tempDirectory, true);
             }
         }
-        catch (IOException)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             // Best effort cleanup
         }
@@ -280,6 +280,115 @@ public sealed class InstallationPathResolverTests : IDisposable
 
         await Assert.ThrowsAsync<OperationCanceledException>(() =>
             _resolver.ResolveInstallationPathAsync(installation, cts.Token));
+    }
+
+    /// <summary>
+    /// Verifies that ResolveInstallationPathAsync correctly maps Zero Hour and Generals subdirectories
+    /// even when the directory names on disk differ in casing from defined constants.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ResolveInstallationPathAsync_WhenSubdirectoriesHaveDifferentCasing_ResolvesPathsCaseInsensitively()
+    {
+        var targetSearchDir = Path.Combine(_tempDirectory, "SearchRootCasing");
+        var resolvedGameDir = Path.Combine(targetSearchDir, "DiscoveredGameCasing");
+        var generalsDir = Path.Combine(resolvedGameDir, "generals");
+        var zhDir = Path.Combine(resolvedGameDir, "command and conquer generals zero hour");
+        Directory.CreateDirectory(generalsDir);
+        Directory.CreateDirectory(zhDir);
+        File.WriteAllText(Path.Combine(resolvedGameDir, GameClientConstants.GeneralsExecutable), "dummy-exe");
+
+        var pathProvider = new TestSearchPathProvider(targetSearchDir);
+        var resolver = new InstallationPathResolver(NullLogger<InstallationPathResolver>.Instance, pathProvider);
+
+        var stalePath = Path.Combine(_tempDirectory, "StalePathCasing");
+        var originalInstallation = new GameInstallation(stalePath, GameInstallationType.Retail)
+        {
+            HasGenerals = true,
+            HasZeroHour = true,
+        };
+
+        var result = await resolver.ResolveInstallationPathAsync(originalInstallation);
+
+        Assert.True(result.Success);
+        Assert.NotNull(result.Data);
+        Assert.Equal(generalsDir, result.Data.GeneralsPath);
+        Assert.Equal(zhDir, result.Data.ZeroHourPath);
+    }
+
+    /// <summary>
+    /// Verifies that SearchForInstallationAsync does not adopt an unrelated directory that only contains
+    /// a generic game.exe executable without corroborating Generals files or hash match.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task SearchForInstallationAsync_WhenGenericGameExeWithoutCorroboratingFiles_DoesNotMatchGenerals()
+    {
+        var targetSearchDir = Path.Combine(_tempDirectory, "SearchRootGeneric");
+        var unrelatedGameDir = Path.Combine(targetSearchDir, "UnrelatedGame");
+        Directory.CreateDirectory(unrelatedGameDir);
+        File.WriteAllText(Path.Combine(unrelatedGameDir, GameClientConstants.GameExecutable), "not-generals");
+
+        var pathProvider = new TestSearchPathProvider(targetSearchDir);
+        var resolver = new InstallationPathResolver(NullLogger<InstallationPathResolver>.Instance, pathProvider);
+
+        var installation = new GameInstallation(Path.Combine(_tempDirectory, "StaleGenerals"), GameInstallationType.Retail)
+        {
+            HasGenerals = true,
+        };
+
+        var result = await resolver.SearchForInstallationAsync(installation);
+
+        Assert.False(result.Success);
+    }
+
+    /// <summary>
+    /// Verifies that SearchForInstallationAsync adopts a directory with a generic executable
+    /// when corroborating Generals signature files are present.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task SearchForInstallationAsync_WhenGenericGameExeWithCorroboratingBigFile_MatchesGenerals()
+    {
+        var targetSearchDir = Path.Combine(_tempDirectory, "SearchRootCorroborated");
+        var generalsDir = Path.Combine(targetSearchDir, "GeneralsFolder");
+        Directory.CreateDirectory(generalsDir);
+        File.WriteAllText(Path.Combine(generalsDir, GameClientConstants.GameExecutable), "dummy-exe");
+        File.WriteAllText(Path.Combine(generalsDir, GameClientConstants.GeneralsIniBig), "dummy-big");
+
+        var pathProvider = new TestSearchPathProvider(targetSearchDir);
+        var resolver = new InstallationPathResolver(NullLogger<InstallationPathResolver>.Instance, pathProvider);
+
+        var installation = new GameInstallation(Path.Combine(_tempDirectory, "StaleGenerals"), GameInstallationType.Retail)
+        {
+            HasGenerals = true,
+        };
+
+        var result = await resolver.SearchForInstallationAsync(installation);
+
+        Assert.True(result.Success);
+        Assert.Equal(generalsDir, result.Data);
+    }
+
+    /// <summary>
+    /// Verifies that ValidateInstallationPathAsync returns false when both HasGenerals and HasZeroHour are false,
+    /// even if the root directory contains an executable.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ValidateInstallationPathAsync_WhenBothGeneralsAndZeroHourFalse_ReturnsFalseEvenWithRootExecutable()
+    {
+        var gameDir = Path.Combine(_tempDirectory, "HollowInstallation");
+        Directory.CreateDirectory(gameDir);
+        File.WriteAllText(Path.Combine(gameDir, GameClientConstants.GameExecutable), "binary");
+
+        var installation = new GameInstallation(gameDir, GameInstallationType.Retail);
+
+        // HasGenerals and HasZeroHour default to false
+        var result = await _resolver.ValidateInstallationPathAsync(installation);
+
+        Assert.True(result.Success);
+        Assert.False(result.Data);
     }
 
     private sealed class TestSearchPathProvider(string searchPath) : IInstallationSearchPathProvider

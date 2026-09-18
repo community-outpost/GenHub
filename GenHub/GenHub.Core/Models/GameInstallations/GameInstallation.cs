@@ -107,13 +107,13 @@ public class GameInstallation(
     {
         if (!string.IsNullOrEmpty(generalsPath))
         {
-            HasGenerals = Directory.Exists(generalsPath) && HasValidExecutable(generalsPath);
+            HasGenerals = Directory.Exists(generalsPath) && InstallationExtensions.HasValidGameExecutable(generalsPath);
             GeneralsPath = generalsPath;
         }
 
         if (!string.IsNullOrEmpty(zeroHourPath))
         {
-            HasZeroHour = Directory.Exists(zeroHourPath) && HasValidExecutable(zeroHourPath);
+            HasZeroHour = Directory.Exists(zeroHourPath) && InstallationExtensions.HasValidGameExecutable(zeroHourPath);
             ZeroHourPath = zeroHourPath;
         }
 
@@ -156,13 +156,13 @@ public class GameInstallation(
             bool foundZeroHour = false;
 
             // Preserve explicitly configured and valid paths (e.g. from platform detectors or manifests)
-            if (!string.IsNullOrEmpty(GeneralsPath) && Directory.Exists(GeneralsPath) && HasValidExecutable(GeneralsPath))
+            if (!string.IsNullOrEmpty(GeneralsPath) && Directory.Exists(GeneralsPath) && InstallationExtensions.HasValidGameExecutable(GeneralsPath))
             {
                 HasGenerals = true;
                 foundGenerals = true;
             }
 
-            if (!string.IsNullOrEmpty(ZeroHourPath) && Directory.Exists(ZeroHourPath) && HasValidExecutable(ZeroHourPath))
+            if (!string.IsNullOrEmpty(ZeroHourPath) && Directory.Exists(ZeroHourPath) && InstallationExtensions.HasValidGameExecutable(ZeroHourPath))
             {
                 HasZeroHour = true;
                 foundZeroHour = true;
@@ -207,16 +207,6 @@ public class GameInstallation(
     public override int GetHashCode()
     {
         return Id?.GetHashCode() ?? 0;
-    }
-
-    private static bool HasValidExecutable(string path)
-    {
-        return InstallationExtensions.HasValidGameExecutable(path);
-    }
-
-    private static bool HasRootExecutable(string path)
-    {
-        return InstallationExtensions.HasValidGameExecutable(path);
     }
 
     private static bool HasZeroHourArchiveOrExecutableSignature(string path)
@@ -366,7 +356,7 @@ public class GameInstallation(
 
     private void FetchRootInstallation(ref bool foundGenerals, ref bool foundZeroHour)
     {
-        if ((foundGenerals && foundZeroHour) || !HasRootExecutable(InstallationPath))
+        if ((foundGenerals && foundZeroHour) || !InstallationExtensions.HasValidGameExecutable(InstallationPath))
         {
             return;
         }

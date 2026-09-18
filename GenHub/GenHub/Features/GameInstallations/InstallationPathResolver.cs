@@ -66,7 +66,7 @@ public class InstallationPathResolver(
     }
 
     /// <inheritdoc/>
-    public async Task<OperationResult<bool>> ValidateInstallationPathAsync(
+    public Task<OperationResult<bool>> ValidateInstallationPathAsync(
         GameInstallation installation,
         CancellationToken cancellationToken = default)
     {
@@ -75,12 +75,12 @@ public class InstallationPathResolver(
 
         if (string.IsNullOrEmpty(installation.InstallationPath))
         {
-            return OperationResult<bool>.CreateFailure("Installation path is null or empty");
+            return Task.FromResult(OperationResult<bool>.CreateFailure("Installation path is null or empty"));
         }
 
         if (!Directory.Exists(installation.InstallationPath))
         {
-            return OperationResult<bool>.CreateSuccess(false);
+            return Task.FromResult(OperationResult<bool>.CreateSuccess(false));
         }
 
         // Check game-specific subdirectories and the root installation directory
@@ -89,17 +89,17 @@ public class InstallationPathResolver(
         var hasValidFiles =
             (installation.HasGenerals && InstallationExtensions.HasValidGameExecutable(installation.GeneralsPath)) ||
             (installation.HasZeroHour && InstallationExtensions.HasValidGameExecutable(installation.ZeroHourPath)) ||
-            InstallationExtensions.HasValidGameExecutable(installation.InstallationPath);
+            ((installation.HasGenerals || installation.HasZeroHour) && InstallationExtensions.HasValidGameExecutable(installation.InstallationPath));
 
         if (!hasValidFiles)
         {
             logger.LogDebug(
                 "Installation path {Path} does not contain valid game files",
                 installation.InstallationPath);
-            return OperationResult<bool>.CreateSuccess(false);
+            return Task.FromResult(OperationResult<bool>.CreateSuccess(false));
         }
 
-        return await Task.FromResult(OperationResult<bool>.CreateSuccess(true));
+        return Task.FromResult(OperationResult<bool>.CreateSuccess(true));
     }
 
     /// <inheritdoc/>
@@ -191,20 +191,27 @@ public class InstallationPathResolver(
 
     private static string ResolveGeneralsSubPath(string resolvedPath)
     {
-        var subPath = Path.Combine(resolvedPath, GameClientConstants.GeneralsSubdirectoryName);
-        return Directory.Exists(subPath) ? subPath : resolvedPath;
+        return resolvedPath.TryGetDirectoryCaseInsensitive(
+            GameClientConstants.GeneralsSubdirectoryName,
+            out var subPath)
+            ? subPath
+            : resolvedPath;
     }
 
     private static string ResolveZeroHourSubPath(string resolvedPath)
     {
-        var standardPath = Path.Combine(resolvedPath, GameClientConstants.ZeroHourDirectoryName);
-        if (Directory.Exists(standardPath))
+        if (resolvedPath.TryGetDirectoryCaseInsensitive(
+            GameClientConstants.ZeroHourDirectoryName,
+            out var standardPath))
         {
             return standardPath;
         }
 
-        var shortPath = Path.Combine(resolvedPath, GameClientConstants.ZeroHourSubdirectoryName);
-        return Directory.Exists(shortPath) ? shortPath : resolvedPath;
+        return resolvedPath.TryGetDirectoryCaseInsensitive(
+            GameClientConstants.ZeroHourSubdirectoryName,
+            out var shortPath)
+            ? shortPath
+            : resolvedPath;
     }
 
     private static async Task<string> ComputeFileHashAsync(string filePath, CancellationToken cancellationToken)
@@ -354,8 +361,22 @@ public class InstallationPathResolver(
 
             if (installation.HasGenerals)
             {
-                // Having a valid executable is enough for Generals
-                return true;
+                // Having a Generals-specific executable is enough for Generals
+                if (Path.Combine(directory, GameClientConstants.GeneralsExecutable).FileExistsCaseInsensitive() ||
+                    Path.Combine(directory, GameClientConstants.SuperHackersGeneralsExecutable).FileExistsCaseInsensitive() ||
+                    Path.Combine(directory, GameClientConstants.ContraExecutable).FileExistsCaseInsensitive())
+                {
+                    return true;
+                }
+
+                // If only a generic executable (e.g. game.exe, game.dat) was matched, require corroborating Generals files or hash
+                if (Path.Combine(directory, GameClientConstants.GeneralsIniBig).FileExistsCaseInsensitive() ||
+                    Path.Combine(directory, GameClientConstants.GeneralsPatchBig).FileExistsCaseInsensitive() ||
+                    Path.Combine(directory, GameClientConstants.DbgHelpDll).FileExistsCaseInsensitive() ||
+                    !string.IsNullOrEmpty(gameDatHash))
+                {
+                    return true;
+                }
             }
 
             return false;
