@@ -486,6 +486,10 @@ public class GameClientDetector(
             ? GameClientConstants.GeneralsExecutable
             : GameClientConstants.ZeroHourExecutable;
         var defaultPath = Path.Combine(installationPath, defaultExecutableName);
+        if (defaultPath.TryGetFileCaseInsensitive(out var resolvedDefaultPath))
+        {
+            defaultPath = resolvedDefaultPath;
+        }
 
         var fallbackVersion = DetectVersionFromFileVersionInfo(defaultPath, defaultExecutableName, gameType);
         fallbackVersion = NormalizeGenericVersion(fallbackVersion, gameType);
@@ -506,15 +510,14 @@ public class GameClientDetector(
         foreach (var executableName in hashRegistry.PossibleExecutableNames)
         {
             var executablePath = Path.Combine(installationPath, executableName);
-            if (!File.Exists(executablePath))
+            if (!executablePath.TryGetFileCaseInsensitive(out var actualExecutablePath))
             {
                 continue;
             }
 
             try
             {
-                var actualFileName = Path.GetFileName(new FileInfo(executablePath).FullName);
-                var actualExecutablePath = Path.Combine(installationPath, actualFileName);
+                var actualFileName = Path.GetFileName(actualExecutablePath);
 
                 var hash = await hashProvider.ComputeFileHashAsync(actualExecutablePath, cancellationToken);
                 if (string.IsNullOrEmpty(hash))
