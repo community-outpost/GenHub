@@ -2824,7 +2824,7 @@ public partial class ContentDetailViewModel(
         var parsedTitle = parsedPage.Context?.Title ?? string.Empty;
         if (parsedPage.Sections.Count == 0 &&
             (string.IsNullOrWhiteSpace(parsedTitle) ||
-             ModDBConstants.BotProtectionTitleMarkers.Any(marker => parsedTitle.Contains(marker, StringComparison.OrdinalIgnoreCase))))
+             ModDBConstants.IsChallengePageTitle(parsedTitle)))
         {
             logger.LogWarning(
                 "Parsed page for {Url} looks like a bot-protection challenge (title: '{Title}'); ignoring it",

@@ -21,7 +21,8 @@
         ExtendClientAreaChromeHints="NoChrome"
         ExtendClientAreaTitleBarHeightHint="-1"
         helpers:WindowChromeHelper.AdaptForPlatform="True"
-        Background="#111118">
+        Background="#111118"
+        DragDrop.AllowDrop="True">
 
     <Window.Styles>
         <Style Selector="Grid.TitleBarArea">

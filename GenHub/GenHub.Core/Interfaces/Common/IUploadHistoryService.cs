@@ -1,6 +1,8 @@
 using GenHub.Core.Models.Common;
 using GenHub.Core.Models.Tools;
+using System;
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace GenHub.Core.Interfaces.Common;
@@ -10,6 +12,11 @@ namespace GenHub.Core.Interfaces.Common;
 /// </summary>
 public interface IUploadHistoryService
 {
+    /// <summary>
+    /// Occurs when upload history or storage quota usage is updated.
+    /// </summary>
+    event EventHandler? UploadHistoryChanged;
+
     /// <summary>
     /// Gets the default maximum upload bytes per period.
     /// </summary>
@@ -24,11 +31,35 @@ public interface IUploadHistoryService
     Task<bool> CanUploadAsync(long fileSizeBytes, string? category = null);
 
     /// <summary>
+    /// Checks if an upload of the specified size is allowed, optionally within a category quota.
+    /// </summary>
+    /// <param name="fileSizeBytes">The file size in bytes.</param>
+    /// <param name="category">Optional category to check quota against.</param>
+    /// <param name="cancellationToken">Token to monitor for cancellation requests.</param>
+    /// <returns>A task representing the asynchronous operation, with a boolean indicating if the upload is allowed.</returns>
+    Task<bool> CanUploadAsync(long fileSizeBytes, string? category, CancellationToken cancellationToken);
+
+    /// <summary>
     /// Gets the usage info, optionally filtered by category.
     /// </summary>
     /// <param name="category">Optional category to evaluate usage for.</param>
     /// <returns>A task representing the asynchronous operation, with the usage info.</returns>
     Task<UsageInfo> GetUsageInfoAsync(string? category = null);
+
+    /// <summary>
+    /// Gets the usage info, optionally filtered by category.
+    /// </summary>
+    /// <param name="category">Optional category to evaluate usage for.</param>
+    /// <param name="cancellationToken">Token to monitor for cancellation requests.</param>
+    /// <returns>A task representing the asynchronous operation, with the usage info.</returns>
+    Task<UsageInfo> GetUsageInfoAsync(string? category, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Gets the usage info with cancellation support.
+    /// </summary>
+    /// <param name="cancellationToken">Token to monitor for cancellation requests.</param>
+    /// <returns>A task representing the asynchronous operation, with the usage info.</returns>
+    Task<UsageInfo> GetUsageInfoAsync(CancellationToken cancellationToken);
 
     /// <summary>
     /// Records an upload.
@@ -50,11 +81,34 @@ public interface IUploadHistoryService
     Task<UploadRecord?> FindExistingUploadAsync(string fileHash);
 
     /// <summary>
+    /// Finds an existing active upload record matching the specified file hash.
+    /// </summary>
+    /// <param name="fileHash">The SHA-256 hex string of the file.</param>
+    /// <param name="cancellationToken">Token to monitor for cancellation requests.</param>
+    /// <returns>A task representing the asynchronous operation, returning the matching <see cref="UploadRecord"/> if found.</returns>
+    Task<UploadRecord?> FindExistingUploadAsync(string fileHash, CancellationToken cancellationToken);
+
+    /// <summary>
     /// Gets the upload history, optionally filtered by category.
     /// </summary>
     /// <param name="category">Optional category filter (e.g. "replays", "maps"). If null, returns all history.</param>
     /// <returns>A task representing the asynchronous operation, with the history items.</returns>
     Task<IReadOnlyList<UploadHistoryItem>> GetUploadHistoryAsync(string? category = null);
+
+    /// <summary>
+    /// Gets the upload history, optionally filtered by category.
+    /// </summary>
+    /// <param name="category">Optional category filter (e.g. "replays", "maps"). If null, returns all history.</param>
+    /// <param name="cancellationToken">Token to monitor for cancellation requests.</param>
+    /// <returns>A task representing the asynchronous operation, with the history items.</returns>
+    Task<IReadOnlyList<UploadHistoryItem>> GetUploadHistoryAsync(string? category, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Gets the upload history with cancellation support.
+    /// </summary>
+    /// <param name="cancellationToken">Token to monitor for cancellation requests.</param>
+    /// <returns>A task representing the asynchronous operation, with the history items.</returns>
+    Task<IReadOnlyList<UploadHistoryItem>> GetUploadHistoryAsync(CancellationToken cancellationToken);
 
     /// <summary>
     /// Removes an item from upload history and deletes the hosted file from cloud storage if a delete token is present.
@@ -65,10 +119,43 @@ public interface IUploadHistoryService
     Task<bool> RemoveHistoryItemAsync(string url, bool deleteFromCloud = true);
 
     /// <summary>
+    /// Removes an item from upload history and deletes the hosted file from cloud storage if a delete token is present.
+    /// </summary>
+    /// <param name="url">The URL.</param>
+    /// <param name="deleteFromCloud">Whether to delete the file from cloud storage.</param>
+    /// <param name="cancellationToken">Token to monitor for cancellation requests.</param>
+    /// <returns>A task representing the asynchronous operation, returning true if removal succeeded.</returns>
+    Task<bool> RemoveHistoryItemAsync(string url, bool deleteFromCloud, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Removes an item from upload history and deletes the hosted file from cloud storage with cancellation support.
+    /// </summary>
+    /// <param name="url">The URL.</param>
+    /// <param name="cancellationToken">Token to monitor for cancellation requests.</param>
+    /// <returns>A task representing the asynchronous operation, returning true if removal succeeded.</returns>
+    Task<bool> RemoveHistoryItemAsync(string url, CancellationToken cancellationToken);
+
+    /// <summary>
     /// Clears upload history and deletes all hosted files from cloud storage if delete tokens are present.
     /// </summary>
     /// <param name="deleteFromCloud">Whether to delete all files from cloud storage. Defaults to true.</param>
     /// <param name="category">Optional category filter (e.g. "replays", "maps"). If null, clears all history.</param>
     /// <returns>A task representing the asynchronous operation returning the count of deleted and failed cloud deletions.</returns>
     Task<(int Deleted, int Failed)> ClearHistoryAsync(bool deleteFromCloud = true, string? category = null);
+
+    /// <summary>
+    /// Clears upload history and deletes all hosted files from cloud storage if delete tokens are present.
+    /// </summary>
+    /// <param name="deleteFromCloud">Whether to delete all files from cloud storage.</param>
+    /// <param name="category">Optional category filter (e.g. "replays", "maps"). If null, clears all history.</param>
+    /// <param name="cancellationToken">Token to monitor for cancellation requests.</param>
+    /// <returns>A task representing the asynchronous operation returning the count of deleted and failed cloud deletions.</returns>
+    Task<(int Deleted, int Failed)> ClearHistoryAsync(bool deleteFromCloud, string? category, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Clears upload history and deletes all hosted files from cloud storage with cancellation support.
+    /// </summary>
+    /// <param name="cancellationToken">Token to monitor for cancellation requests.</param>
+    /// <returns>A task representing the asynchronous operation returning the count of deleted and failed cloud deletions.</returns>
+    Task<(int Deleted, int Failed)> ClearHistoryAsync(CancellationToken cancellationToken);
 }

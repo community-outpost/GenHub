@@ -47,7 +47,8 @@ public class SuperHackersManifestFactory(
     public bool CanHandle(ContentManifest manifest)
     {
         // Only handle manifests with explicit thesuperhackers publisher type
-        var publisherMatches = manifest.Publisher?.PublisherType?.Equals(PublisherTypeConstants.TheSuperHackers, StringComparison.OrdinalIgnoreCase) == true;
+        var publisherMatches = manifest.Publisher?.PublisherType?.Equals(PublisherTypeConstants.TheSuperHackers, StringComparison.OrdinalIgnoreCase) == true
+            || manifest.Publisher?.PublisherType?.Equals(PublisherTypeConstants.LegacySuperHackers, StringComparison.OrdinalIgnoreCase) == true;
 
         // Only handle GameClient content type
         var isGameClient = manifest.ContentType == ContentType.GameClient;

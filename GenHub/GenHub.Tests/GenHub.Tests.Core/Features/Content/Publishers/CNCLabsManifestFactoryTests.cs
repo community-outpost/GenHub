@@ -109,6 +109,50 @@ public sealed class CNCLabsManifestFactoryTests : IDisposable
     }
 
     /// <summary>
+    /// Verifies that CanHandle returns false safely when publisher info is null.
+    /// </summary>
+    [Fact]
+    public void CanHandle_ShouldReturnFalse_WhenPublisherIsNull()
+    {
+        var factory = new CNCLabsManifestFactory(
+            () => new Mock<IContentManifestBuilder>().Object,
+            new Mock<IProviderDefinitionLoader>().Object,
+            new Mock<IFileHashProvider>().Object,
+            new Mock<ILogger<CNCLabsManifestFactory>>().Object);
+
+        var manifest = new ContentManifest
+        {
+            Id = "1.0.cnclabs.map.test",
+            Name = "Test",
+            Publisher = null!,
+        };
+
+        Assert.False(factory.CanHandle(manifest));
+    }
+
+    /// <summary>
+    /// Verifies that CanHandle returns true when publisher type matches case-insensitively.
+    /// </summary>
+    [Fact]
+    public void CanHandle_ShouldReturnTrue_WhenPublisherMatchesCaseInsensitive()
+    {
+        var factory = new CNCLabsManifestFactory(
+            () => new Mock<IContentManifestBuilder>().Object,
+            new Mock<IProviderDefinitionLoader>().Object,
+            new Mock<IFileHashProvider>().Object,
+            new Mock<ILogger<CNCLabsManifestFactory>>().Object);
+
+        var manifest = new ContentManifest
+        {
+            Id = "1.0.cnclabs.map.test",
+            Name = "Test",
+            Publisher = new PublisherInfo { PublisherType = "CNCLABS" },
+        };
+
+        Assert.True(factory.CanHandle(manifest));
+    }
+
+    /// <summary>
     /// Deletes the test staging directory.
     /// </summary>
     public void Dispose()

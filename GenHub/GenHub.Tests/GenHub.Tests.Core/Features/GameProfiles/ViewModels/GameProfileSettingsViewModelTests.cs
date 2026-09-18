@@ -339,4 +339,107 @@ public class GameProfileSettingsViewModelTests
                 It.IsAny<CancellationToken>()),
             Times.Once);
     }
+
+    /// <summary>
+    /// Verifies that changing the game type filter while initializing does not trigger content reload.
+    /// </summary>
+    [Fact]
+    public void OnGameTypeFilterChanged_WhenIsInitializing_DoesNotTriggerContentReload()
+    {
+        // Arrange
+        var mockGameSettingsService = new Mock<IGameSettingsService>();
+        var mockContentLoader = new Mock<IProfileContentLoader>();
+        var mockManifestPool = new Mock<IContentManifestPool>();
+
+        var vm = new GameProfileSettingsViewModel(
+            null,
+            mockGameSettingsService.Object,
+            null,
+            mockContentLoader.Object,
+            null,
+            null,
+            mockManifestPool.Object,
+            null,
+            null,
+            null,
+            null,
+            NullLogger<GameProfileSettingsViewModel>.Instance,
+            NullLogger<GameSettingsViewModel>.Instance);
+
+        vm.IsInitializing = true;
+
+        // Act
+        vm.GameTypeFilter = GameType.ZeroHour;
+
+        // Assert - verify content loader was never called while IsInitializing is true
+        mockContentLoader.Verify(
+            x => x.LoadAvailableContentAsync(
+                It.IsAny<GenHub.Core.Models.Enums.ContentType>(),
+                It.IsAny<ObservableCollection<CoreContentDisplayItem>>(),
+                It.IsAny<List<string>>()),
+            Times.Never);
+    }
+
+    /// <summary>
+    /// Verifies that changing the game type filter when not initializing triggers reload and populates matching content.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task OnGameTypeFilterChanged_WhenNotInitializing_LoadsFilteredContentAsync()
+    {
+        // Arrange
+        var mockGameSettingsService = new Mock<IGameSettingsService>();
+        var mockContentLoader = new Mock<IProfileContentLoader>();
+        var mockManifestPool = new Mock<IContentManifestPool>();
+
+        var zhItem = new CoreContentDisplayItem
+        {
+            Id = "1.0.moddb.mod.zhmod",
+            ManifestId = "1.0.moddb.mod.zhmod",
+            DisplayName = "ZH Mod",
+            GameType = GameType.ZeroHour,
+            ContentType = GenHub.Core.Models.Enums.ContentType.Mod,
+        };
+
+        var genItem = new CoreContentDisplayItem
+        {
+            Id = "1.0.moddb.mod.genmod",
+            ManifestId = "1.0.moddb.mod.genmod",
+            DisplayName = "Generals Mod",
+            GameType = GameType.Generals,
+            ContentType = GenHub.Core.Models.Enums.ContentType.Mod,
+        };
+
+        mockContentLoader
+            .Setup(x => x.LoadAvailableContentAsync(
+                It.IsAny<GenHub.Core.Models.Enums.ContentType>(),
+                It.IsAny<ObservableCollection<CoreContentDisplayItem>>(),
+                It.IsAny<IEnumerable<string>>()))
+            .ReturnsAsync([zhItem, genItem]);
+
+        var vm = new GameProfileSettingsViewModel(
+            null,
+            mockGameSettingsService.Object,
+            null,
+            mockContentLoader.Object,
+            null,
+            null,
+            mockManifestPool.Object,
+            null,
+            null,
+            null,
+            null,
+            NullLogger<GameProfileSettingsViewModel>.Instance,
+            NullLogger<GameSettingsViewModel>.Instance);
+
+        vm.IsInitializing = false;
+
+        // Act
+        vm.GameTypeFilter = GameType.ZeroHour;
+        await vm.RefreshFiltersAndContentAsync();
+
+        // Assert
+        Assert.Single(vm.AvailableContent);
+        Assert.Equal("ZH Mod", vm.AvailableContent[0].DisplayName);
+    }
 }

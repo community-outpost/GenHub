@@ -3,6 +3,14 @@ namespace GenHub.Core.Constants;
 /// <summary>GitHub-related constants for API interactions, parsing, and UI.</summary>
 public static class GitHubConstants
 {
+    // Host constants
+
+    /// <summary>Host name for GitHub.</summary>
+    public const string GitHubHost = "github.com";
+
+    /// <summary>Host name for GitHub user content.</summary>
+    public const string GitHubUserContentHost = "githubusercontent.com";
+
     // Rate limit constants
 
     /// <summary>Default rate limit warning threshold (90%).</summary>

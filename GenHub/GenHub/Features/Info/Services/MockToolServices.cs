@@ -123,23 +123,48 @@ public class MockNotificationService : INotificationService
 public class MockUploadHistoryService : IUploadHistoryService
 {
     /// <inheritdoc/>
-    public long MaxUploadBytesPerPeriod => 1024 * 1024 * 50; // 50MB mock
+    public long MaxUploadBytesPerPeriod => 10 * 1024 * 1024; // 10MB mock
 
     /// <inheritdoc/>
-    public Task<IReadOnlyList<UploadHistoryItem>> GetUploadHistoryAsync(string? category = null)
+#pragma warning disable CS0067 // Event is not used in mock
+    public event EventHandler? UploadHistoryChanged;
+#pragma warning restore CS0067
+
+    /// <inheritdoc/>
+    public Task<IReadOnlyList<UploadHistoryItem>> GetUploadHistoryAsync(string? category = null) =>
+        GetUploadHistoryAsync(category, CancellationToken.None);
+
+    /// <inheritdoc/>
+    public Task<IReadOnlyList<UploadHistoryItem>> GetUploadHistoryAsync(CancellationToken cancellationToken) =>
+        GetUploadHistoryAsync(null, cancellationToken);
+
+    /// <inheritdoc/>
+    public Task<IReadOnlyList<UploadHistoryItem>> GetUploadHistoryAsync(string? category, CancellationToken cancellationToken)
     {
         return Task.FromResult<IReadOnlyList<UploadHistoryItem>>([]);
     }
 
     /// <inheritdoc/>
-    public Task<UsageInfo> GetUsageInfoAsync(string? category = null)
+    public Task<UsageInfo> GetUsageInfoAsync(string? category = null) =>
+        GetUsageInfoAsync(category, CancellationToken.None);
+
+    /// <inheritdoc/>
+    public Task<UsageInfo> GetUsageInfoAsync(CancellationToken cancellationToken) =>
+        GetUsageInfoAsync(null, cancellationToken);
+
+    /// <inheritdoc/>
+    public Task<UsageInfo> GetUsageInfoAsync(string? category, CancellationToken cancellationToken)
     {
         // UsageInfo is a record struct with (UsedBytes, LimitBytes, ResetDate)
-        return Task.FromResult(new UsageInfo(1024 * 1024 * 5, 1024 * 1024 * 50, DateTime.UtcNow.AddDays(1)));
+        return Task.FromResult(new UsageInfo(1024 * 1024 * 5, 10 * 1024 * 1024, DateTime.UtcNow.AddDays(1)));
     }
 
     /// <inheritdoc/>
-    public Task<bool> CanUploadAsync(long fileSizeBytes, string? category = null)
+    public Task<bool> CanUploadAsync(long fileSizeBytes, string? category = null) =>
+        CanUploadAsync(fileSizeBytes, category, CancellationToken.None);
+
+    /// <inheritdoc/>
+    public Task<bool> CanUploadAsync(long fileSizeBytes, string? category, CancellationToken cancellationToken)
     {
         return Task.FromResult(true);
     }
@@ -150,19 +175,39 @@ public class MockUploadHistoryService : IUploadHistoryService
     }
 
     /// <inheritdoc/>
-    public Task<UploadRecord?> FindExistingUploadAsync(string fileHash)
+    public Task<UploadRecord?> FindExistingUploadAsync(string fileHash) =>
+        FindExistingUploadAsync(fileHash, CancellationToken.None);
+
+    /// <inheritdoc/>
+    public Task<UploadRecord?> FindExistingUploadAsync(string fileHash, CancellationToken cancellationToken)
     {
         return Task.FromResult<UploadRecord?>(null);
     }
 
     /// <inheritdoc/>
-    public Task<bool> RemoveHistoryItemAsync(string url, bool deleteFromCloud = true)
+    public Task<bool> RemoveHistoryItemAsync(string url, bool deleteFromCloud = true) =>
+        RemoveHistoryItemAsync(url, deleteFromCloud, CancellationToken.None);
+
+    /// <inheritdoc/>
+    public Task<bool> RemoveHistoryItemAsync(string url, CancellationToken cancellationToken) =>
+        RemoveHistoryItemAsync(url, true, cancellationToken);
+
+    /// <inheritdoc/>
+    public Task<bool> RemoveHistoryItemAsync(string url, bool deleteFromCloud, CancellationToken cancellationToken)
     {
         return Task.FromResult(true);
     }
 
     /// <inheritdoc/>
-    public Task<(int Deleted, int Failed)> ClearHistoryAsync(bool deleteFromCloud = true, string? category = null)
+    public Task<(int Deleted, int Failed)> ClearHistoryAsync(bool deleteFromCloud = true, string? category = null) =>
+        ClearHistoryAsync(deleteFromCloud, category, CancellationToken.None);
+
+    /// <inheritdoc/>
+    public Task<(int Deleted, int Failed)> ClearHistoryAsync(CancellationToken cancellationToken) =>
+        ClearHistoryAsync(true, null, cancellationToken);
+
+    /// <inheritdoc/>
+    public Task<(int Deleted, int Failed)> ClearHistoryAsync(bool deleteFromCloud, string? category, CancellationToken cancellationToken)
     {
         return Task.FromResult((0, 0));
     }
