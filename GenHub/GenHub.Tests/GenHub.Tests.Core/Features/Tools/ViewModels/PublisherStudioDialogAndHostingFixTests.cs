@@ -57,7 +57,7 @@ public class PublisherStudioDialogAndHostingFixTests
         try
         {
             File.WriteAllText(tempFile, "Test content data");
-            var vm = new AddContentDialogViewModel();
+            var vm = new AddContentDialogViewModel(_ => { });
 
             vm.UseDirectUrl = false;
             vm.LocalFilePath = tempFile;

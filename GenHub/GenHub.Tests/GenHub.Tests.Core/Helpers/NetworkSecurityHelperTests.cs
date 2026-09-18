@@ -12,6 +12,7 @@ public class NetworkSecurityHelperTests
     /// <summary>
     /// Verifies that safe external HTTPS URLs pass validation.
     /// </summary>
+    /// <param name="url">The URL to validate.</param>
     [Theory]
     [InlineData("https://raw.githubusercontent.com/user/repo/main/catalog.json")]
     [InlineData("https://cdn.example.com/mod/catalog.json")]
@@ -27,6 +28,7 @@ public class NetworkSecurityHelperTests
     /// <summary>
     /// Verifies that loopback, local, and private URLs are blocked.
     /// </summary>
+    /// <param name="url">The URL to validate.</param>
     [Theory]
     [InlineData("http://localhost/catalog.json")]
     [InlineData("http://127.0.0.1/catalog.json")]
@@ -48,6 +50,7 @@ public class NetworkSecurityHelperTests
     /// <summary>
     /// Verifies that null, empty, or non-HTTP(S) schemes are rejected.
     /// </summary>
+    /// <param name="url">The URL to validate.</param>
     [Theory]
     [InlineData(null)]
     [InlineData("")]
