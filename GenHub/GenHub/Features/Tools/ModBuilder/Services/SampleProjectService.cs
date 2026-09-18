@@ -130,12 +130,17 @@ public class SampleProjectService(
         var wndDir = Path.Combine(gameFilesDir, WindowDirectoryName);
         var dataDir = Path.Combine(gameFilesDir, DataDirectoryName);
 
+        // The bundle config references ControlBarPro.txt explicitly, so stale
+        // asset caches predating its acquisition must trigger re-acquisition.
+        var controlBarProTxt = Path.Combine(gameFilesDir, ModBuilderConstants.ControlBarProTxtFileName);
+
         return Directory.Exists(artDir) &&
                Directory.EnumerateFiles(artDir, "*.*", SearchOption.AllDirectories).Any() &&
                Directory.Exists(wndDir) &&
                Directory.EnumerateFiles(wndDir, ModBuilderConstants.FileNames.WndSearchPattern, SearchOption.AllDirectories).Any() &&
                Directory.Exists(dataDir) &&
-               Directory.EnumerateFiles(dataDir, ModBuilderConstants.FileNames.IniSearchPattern, SearchOption.AllDirectories).Any();
+               Directory.EnumerateFiles(dataDir, ModBuilderConstants.FileNames.IniSearchPattern, SearchOption.AllDirectories).Any() &&
+               File.Exists(controlBarProTxt);
     }
 
     private static bool HasImprovedMenusAssets(string gameFilesDir)

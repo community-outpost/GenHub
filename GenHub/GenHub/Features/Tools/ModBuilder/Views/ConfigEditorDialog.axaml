@@ -3,7 +3,7 @@
              xmlns:localization="clr-namespace:GenHub.Common.Markup"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        xmlns:vm="using:GenHub.Features.Tools.ModBuilder.ViewModels"
+        xmlns:vm="clr-namespace:GenHub.Features.Tools.ModBuilder.ViewModels;assembly=GenHub"
         mc:Ignorable="d" d:DesignWidth="1200" d:DesignHeight="800"
         x:Class="GenHub.Features.Tools.ModBuilder.Views.ConfigEditorDialog"
         x:DataType="vm:ConfigEditorViewModel"

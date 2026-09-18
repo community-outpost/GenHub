@@ -3,6 +3,7 @@ using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentAssertions;
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Tools.ModBuilder;
 using GenHub.Features.Content.Services.CommunityOutpost;
@@ -136,6 +137,53 @@ public sealed class SampleProjectServiceTests : IDisposable
         var editedDir = Path.Combine(projectDir, "GameFilesEdited", "Data", "INI");
         Directory.CreateDirectory(editedDir);
         File.WriteAllText(Path.Combine(editedDir, "GameData.ini"), "[GameData]\nWindowed = Yes");
+
+        // Act
+        var result = _service.HasSampleAssets(projectDir);
+
+        // Assert
+        result.Should().BeTrue();
+    }
+
+    [Fact]
+    public void HasSampleAssets_WhenLemonControlBarMissingControlBarProTxt_ReturnsFalse()
+    {
+        // Arrange: stale asset cache with Art/Window/Data but predating ControlBarPro.txt acquisition.
+        var projectDir = Path.Combine(_tempDirectory, "LemonControlBar");
+        var editedDir = Path.Combine(projectDir, ModBuilderConstants.GameFilesEditedDir);
+        var artDir = Path.Combine(editedDir, "Art");
+        var wndDir = Path.Combine(editedDir, "Window");
+        var dataDir = Path.Combine(editedDir, "Data");
+        Directory.CreateDirectory(artDir);
+        Directory.CreateDirectory(wndDir);
+        Directory.CreateDirectory(dataDir);
+        File.WriteAllText(Path.Combine(artDir, "texture.dds"), "dds");
+        File.WriteAllText(Path.Combine(wndDir, "MainMenu.wnd"), "wnd");
+        File.WriteAllText(Path.Combine(dataDir, "GameData.ini"), "ini");
+
+        // Act
+        var result = _service.HasSampleAssets(projectDir);
+
+        // Assert
+        result.Should().BeFalse();
+    }
+
+    [Fact]
+    public void HasSampleAssets_WhenLemonControlBarAssetsComplete_ReturnsTrue()
+    {
+        // Arrange
+        var projectDir = Path.Combine(_tempDirectory, "LemonControlBar");
+        var editedDir = Path.Combine(projectDir, ModBuilderConstants.GameFilesEditedDir);
+        var artDir = Path.Combine(editedDir, "Art");
+        var wndDir = Path.Combine(editedDir, "Window");
+        var dataDir = Path.Combine(editedDir, "Data");
+        Directory.CreateDirectory(artDir);
+        Directory.CreateDirectory(wndDir);
+        Directory.CreateDirectory(dataDir);
+        File.WriteAllText(Path.Combine(artDir, "texture.dds"), "dds");
+        File.WriteAllText(Path.Combine(wndDir, "MainMenu.wnd"), "wnd");
+        File.WriteAllText(Path.Combine(dataDir, "GameData.ini"), "ini");
+        File.WriteAllText(Path.Combine(editedDir, ModBuilderConstants.ControlBarProTxtFileName), "txt");
 
         // Act
         var result = _service.HasSampleAssets(projectDir);
