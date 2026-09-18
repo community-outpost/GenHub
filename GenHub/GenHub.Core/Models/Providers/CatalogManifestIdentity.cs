@@ -35,6 +35,14 @@ public static class CatalogManifestIdentity
         "720p",
         "zerohour",
         "generals",
+        "english",
+        "german",
+        "french",
+        "spanish",
+        "russian",
+        "chinese",
+        "italian",
+        "polish",
     ];
 
     /// <summary>

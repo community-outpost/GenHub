@@ -1095,6 +1095,32 @@ public class ProfileLauncherFacade(
         return ProfileOperationResult<bool>.CreateSuccess(true);
     }
 
+    private async Task<ContentManifest?> TryRetrieveManifestAsync(
+        string contentId,
+        CancellationToken cancellationToken)
+    {
+        if (!ManifestId.TryCreate(contentId, out var manifestId))
+        {
+            logger.LogWarning("Skipping invalid manifest ID during validation: {ContentId}", contentId);
+            return null;
+        }
+
+        try
+        {
+            var manifestResult = await manifestPool.GetManifestAsync(manifestId, cancellationToken);
+            if (manifestResult.Success)
+            {
+                return manifestResult.Data;
+            }
+        }
+        catch (ArgumentException ex)
+        {
+            logger.LogWarning(ex, "Skipping invalid manifest ID during validation: {ContentId}", contentId);
+        }
+
+        return null;
+    }
+
     private async Task<(List<ContentManifest> Manifests, bool HasInstallation, bool HasClient)> CollectAndValidateManifestsAsync(
         GameProfile profile,
         CancellationToken cancellationToken)
@@ -1103,39 +1129,35 @@ public class ProfileLauncherFacade(
         var hasGameClientManifest = false;
         var manifests = new List<ContentManifest>();
 
-        if (profile.EnabledContentIds == null)
+        if (profile.EnabledContentIds != null)
         {
-            return (manifests, false, false);
-        }
-
-        foreach (var contentId in profile.EnabledContentIds)
-        {
-            if (!ManifestId.TryCreate(contentId, out var manifestId))
+            foreach (var contentId in profile.EnabledContentIds)
             {
-                logger.LogWarning("Skipping invalid manifest ID during validation: {ContentId}", contentId);
-                continue;
-            }
-
-            try
-            {
-                var manifestResult = await manifestPool.GetManifestAsync(manifestId, cancellationToken);
-                if (manifestResult.Success && manifestResult.Data != null)
+                var manifest = await TryRetrieveManifestAsync(contentId, cancellationToken);
+                if (manifest == null)
                 {
-                    manifests.Add(manifestResult.Data);
+                    continue;
+                }
 
-                    if (manifestResult.Data.ContentType == Core.Models.Enums.ContentType.GameInstallation)
-                    {
-                        hasGameInstallationManifest = true;
-                    }
-                    else if (manifestResult.Data.ContentType == Core.Models.Enums.ContentType.GameClient)
-                    {
-                        hasGameClientManifest = true;
-                    }
+                manifests.Add(manifest);
+                if (manifest.ContentType == Core.Models.Enums.ContentType.GameInstallation)
+                {
+                    hasGameInstallationManifest = true;
+                }
+                else if (manifest.ContentType == Core.Models.Enums.ContentType.GameClient)
+                {
+                    hasGameClientManifest = true;
                 }
             }
-            catch (ArgumentException ex)
+        }
+
+        if (!hasGameClientManifest && !string.IsNullOrWhiteSpace(profile.GameClient?.Id))
+        {
+            var clientManifest = await TryRetrieveManifestAsync(profile.GameClient.Id, cancellationToken);
+            if (clientManifest != null)
             {
-                logger.LogWarning(ex, "Skipping invalid manifest ID during validation: {ContentId}", contentId);
+                manifests.Add(clientManifest);
+                hasGameClientManifest = true;
             }
         }
 
@@ -1377,60 +1399,55 @@ public class ProfileLauncherFacade(
         List<ContentManifest> potentialMatches,
         List<string> errors)
     {
-        ContentManifest? requiredManifest = null;
+        var matchedCatalogId = DependencyResolver.FindVersionIndependentCatalogMatch(
+            dependency.Id.ToString(),
+            dependency,
+            potentialMatches);
 
-        if (manifestsById.TryGetValue(dependency.Id.ToString(), out var exactMatch))
+        ContentManifest? requiredManifest = null;
+        if (!string.IsNullOrEmpty(matchedCatalogId))
+        {
+            requiredManifest = potentialMatches.FirstOrDefault(m =>
+                string.Equals(m.Id.Value, matchedCatalogId, StringComparison.OrdinalIgnoreCase))
+                ?? (manifestsById.TryGetValue(matchedCatalogId, out var direct) ? direct : null);
+        }
+
+        if (requiredManifest == null &&
+            manifestsById.TryGetValue(dependency.Id.ToString(), out var exactMatch) &&
+            IsVersionCompatible(exactMatch.Version, dependency))
         {
             requiredManifest = exactMatch;
-        }
-        else
-        {
-            var depIdSegments = dependency.Id.ToString().Split('.');
-            if (depIdSegments.Length >= 5)
-            {
-                var depPublisher = depIdSegments[2];
-                var depContentType = depIdSegments[3];
-                var depContentName = depIdSegments[4];
-
-                requiredManifest = potentialMatches.FirstOrDefault(m =>
-                {
-                    var manifestIdSegments = m.Id.ToString().Split('.');
-                    if (manifestIdSegments.Length >= 5)
-                    {
-                        var manifestPublisher = manifestIdSegments[2];
-                        var manifestContentType = manifestIdSegments[3];
-                        var manifestContentName = manifestIdSegments[4];
-
-                        var publisherMatches = !dependency.StrictPublisher ||
-                                               string.Equals(manifestPublisher, depPublisher, StringComparison.OrdinalIgnoreCase);
-
-                        var typeMatches = string.Equals(manifestContentType, depContentType, StringComparison.OrdinalIgnoreCase);
-
-                        var nameMatches = CatalogManifestIdentity.IsContentNameOrVariantMatch(manifestContentName, depContentName);
-
-                        return publisherMatches && typeMatches && nameMatches;
-                    }
-
-                    return false;
-                });
-
-                if (requiredManifest != null)
-                {
-                    logger.LogDebug(
-                        "Semantic dependency match: {DependencyId} satisfied by {MatchedId} (StrictPublisher={StrictPublisher})",
-                        dependency.Id,
-                        requiredManifest.Id,
-                        dependency.StrictPublisher);
-                }
-            }
         }
 
         if (requiredManifest == null)
         {
-            var msg = $"Content '{manifest.Name}' requires specific content '{dependency.Name}' (ID: {dependency.Id}), but it is not selected";
+            var depParts = dependency.Id.ToString().Split('.');
+            var candidateMatch = (manifestsById.TryGetValue(dependency.Id.ToString(), out var exact) ? exact : null)
+                ?? (depParts.Length == 5 ? potentialMatches.FirstOrDefault(m => DependencyResolver.HasCompatibleIdentity(depParts, dependency, m)) : null);
+
+            if (candidateMatch != null)
+            {
+                var versionInfo = BuildVersionRequirementString(dependency);
+                var msg = $"Content '{manifest.Name}' requires '{dependency.Name}' {versionInfo}, but version {candidateMatch.Version} is selected";
+                if (!dependency.IsOptional)
+                {
+                    errors.Add(msg);
+                }
+
+                logger.LogWarning(
+                    "Version compatibility failed: {ManifestName} requires {DependencyName} {VersionInfo}, but {ActualVersion} found (Optional: {IsOptional})",
+                    manifest.Name,
+                    dependency.Name,
+                    versionInfo,
+                    candidateMatch.Version,
+                    dependency.IsOptional);
+                return;
+            }
+
+            var missingMsg = $"Content '{manifest.Name}' requires specific content '{dependency.Name}' (ID: {dependency.Id}), but it is not selected";
             if (!dependency.IsOptional)
             {
-                errors.Add(msg);
+                errors.Add(missingMsg);
             }
 
             logger.LogWarning(
