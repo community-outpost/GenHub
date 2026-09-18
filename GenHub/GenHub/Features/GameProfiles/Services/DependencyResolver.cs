@@ -586,10 +586,10 @@ public class DependencyResolver(
             return null;
         }
 
+        var isDeclaredNonRet = IsNonRetailIdentifier(contentId);
         var matched = publisherManifests.FirstOrDefault(m =>
             MatchesContentKeyword(contentId, m) &&
-            AreGameVariantsCompatible(contentId, m.Id.Value) &&
-            AreGameVariantsCompatible(contentId, m.Name));
+            isDeclaredNonRet == (IsNonRetailIdentifier(m.Id.Value) || IsNonRetailIdentifier(m.Name)));
         if (matched != null)
         {
             logger.LogInformation(
