@@ -498,7 +498,7 @@ public partial class ContentManifestBuilder(
     /// <param name="progress">Optional progress reporter receiving file hashing progress updates.</param>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
     /// <returns>A task that yields the <see cref="IContentManifestBuilder"/> instance for chaining upon completion.</returns>
-    public async Task<IContentManifestBuilder> AddFilesFromDirectoryAsync(
+    public Task<IContentManifestBuilder> AddFilesFromDirectoryAsync(
         string sourceDirectory,
         ContentSourceType sourceType = ContentSourceType.ContentAddressable,
         string fileFilter = "*",
@@ -506,6 +506,18 @@ public partial class ContentManifestBuilder(
         IProgress<ContentStorageProgress>? progress = null,
         CancellationToken cancellationToken = default)
     {
+        return AddFilesFromDirectoryAsync(sourceDirectory, CancellationToken.None, sourceType, fileFilter, isExecutable);
+    }
+
+    /// <inheritdoc/>
+    public async Task<IContentManifestBuilder> AddFilesFromDirectoryAsync(
+        string sourceDirectory,
+        CancellationToken cancellationToken,
+        ContentSourceType sourceType = ContentSourceType.ContentAddressable,
+        string fileFilter = "*",
+        bool isExecutable = false)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
         if (!Directory.Exists(sourceDirectory))
         {
             logger.LogWarning("Source directory does not exist: {Directory}", sourceDirectory);

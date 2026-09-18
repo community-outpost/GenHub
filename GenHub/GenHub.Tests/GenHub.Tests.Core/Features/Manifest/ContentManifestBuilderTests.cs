@@ -339,6 +339,43 @@ public class ContentManifestBuilderTests
         Assert.NotNull(result.RequiredDirectories);
     }
 
+    /// <summary>Cancelled scans stop before inspecting a directory.</summary>
+    /// <returns>The asynchronous operation.</returns>
+    [Fact]
+    public async Task AddFilesFromDirectoryAsync_PreCancelled_StopsBeforeScanAsync()
+    {
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+        await Assert.ThrowsAsync<OperationCanceledException>(() =>
+            _builder.AddFilesFromDirectoryAsync("invalid\0directory", cancellation.Token, ContentSourceType.GameInstallation));
+    }
+
+    /// <summary>Cancellation reaches hashing and prevents the remaining files from being scanned.</summary>
+    /// <returns>The asynchronous operation.</returns>
+    [Fact]
+    public async Task AddFilesFromDirectoryAsync_CancelledDuringHash_StopsScanAsync()
+    {
+        var directory = Directory.CreateTempSubdirectory("GenHub.ManifestCancellation.").FullName;
+        using var cancellation = new CancellationTokenSource();
+        try
+        {
+            await File.WriteAllTextAsync(Path.Combine(directory, "first.big"), "data");
+            await File.WriteAllTextAsync(Path.Combine(directory, "second.big"), "data");
+            _hashProviderMock.Setup(x => x.ComputeFileHashAsync(It.IsAny<string>(), cancellation.Token))
+                .Returns((string _, CancellationToken token) =>
+                {
+                    cancellation.Cancel();
+                    return Task.FromCanceled<string>(token);
+                });
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(() => _builder.AddFilesFromDirectoryAsync(directory, cancellation.Token));
+            _hashProviderMock.Verify(x => x.ComputeFileHashAsync(It.IsAny<string>(), cancellation.Token), Times.Once);
+        }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
+        }
+    }
+
     /// <summary>
     /// Tests that AddFilesFromDirectoryAsync sets the correct InstallTarget based on file extensions.
     /// </summary>

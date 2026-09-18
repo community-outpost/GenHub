@@ -310,7 +310,7 @@ public class ManifestProvider(ILogger<ManifestProvider> logger, IContentManifest
         // For now: Manifest files will have Hash=null for GameInstallation source type
         if (!string.IsNullOrEmpty(sourcePath) && Directory.Exists(sourcePath))
         {
-            await builder.AddFilesFromDirectoryAsync(sourcePath, ContentSourceType.GameInstallation);
+            await builder.AddFilesFromDirectoryAsync(sourcePath, cancellationToken, ContentSourceType.GameInstallation);
         }
 
         var generated = builder.Build();
