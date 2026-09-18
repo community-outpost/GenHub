@@ -296,10 +296,10 @@ public class InstallationPathResolver(
                 }
             }
         }
-        catch (UnauthorizedAccessException)
+        catch (UnauthorizedAccessException ex)
         {
             // Skip directories we don't have access to
-            logger.LogDebug("Access denied to directory: {SearchPath}", searchPath);
+            logger.LogDebug(ex, "Access denied to directory: {SearchPath}", searchPath);
         }
         catch (IOException ex)
         {
