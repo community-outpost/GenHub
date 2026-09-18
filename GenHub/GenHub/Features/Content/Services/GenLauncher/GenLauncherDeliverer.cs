@@ -152,6 +152,21 @@ public class GenLauncherDeliverer(
         }
     }
 
+    private static string RedactUrl(string? url)
+    {
+        if (string.IsNullOrWhiteSpace(url))
+        {
+            return string.Empty;
+        }
+
+        if (Uri.TryCreate(url, UriKind.Absolute, out var uri))
+        {
+            return $"{uri.Scheme}://{uri.Authority}{uri.AbsolutePath}";
+        }
+
+        return "[redacted]";
+    }
+
     private async Task<OperationResult<bool>> DownloadAllFilesAsync(
         List<ManifestFile> files,
         string targetDirectory,
@@ -271,21 +286,6 @@ public class GenLauncherDeliverer(
         var safeLogUrl = RedactUrl(file.DownloadUrl);
         logger.LogError("Failed to download {File} from {Url} after {Max} attempts: {Error}", file.RelativePath, safeLogUrl, maxAttempts, lastError);
         return OperationResult<bool>.CreateFailure($"Failed to download {file.RelativePath}: {lastError}");
-    }
-
-    private string RedactUrl(string? url)
-    {
-        if (string.IsNullOrWhiteSpace(url))
-        {
-            return string.Empty;
-        }
-
-        if (Uri.TryCreate(url, UriKind.Absolute, out var uri))
-        {
-            return $"{uri.Scheme}://{uri.Authority}{uri.AbsolutePath}";
-        }
-
-        return "[redacted]";
     }
 
     private void CleanupCorruptedFile(string filePath)

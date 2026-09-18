@@ -97,38 +97,19 @@ public class GenLauncherManifestFactory(
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
-                var relativePath = Path.GetRelativePath(extractedDirectory, filePath).Replace('\\', '/');
-                var fileName = Path.GetFileName(filePath);
+                var fileResult = await ProcessExtractedFileAsync(
+                    extractedDirectory,
+                    filePath,
+                    expectedEtags,
+                    filenameEtags,
+                    cancellationToken);
 
-                var hasExpectedEtag = expectedEtags.TryGetValue(relativePath, out var expectedEtag) ||
-                                      filenameEtags.TryGetValue(fileName, out expectedEtag);
-
-                // MD5 validation for engine critical files when ETag is present
-                if (hasExpectedEtag && !string.IsNullOrWhiteSpace(expectedEtag))
+                if (!fileResult.Success)
                 {
-                    if (GenLauncherChecksumValidator.RequiresValidation(relativePath) &&
-                        !await GenLauncherChecksumValidator.ValidateFileAsync(filePath, expectedEtag, cancellationToken))
-                    {
-                        logger.LogError("Checksum mismatch for engine file {File}! Expected ETag: {Expected}", relativePath, expectedEtag);
-                        return OperationResult<List<ContentManifest>>.CreateFailure($"Checksum mismatch for engine file {relativePath}");
-                    }
+                    return OperationResult<List<ContentManifest>>.CreateFailure(fileResult.FirstError ?? "File validation failed");
                 }
 
-                // Compute SHA256 for CAS
-                using var stream = File.OpenRead(filePath);
-                var hashBytes = await SHA256.HashDataAsync(stream, cancellationToken);
-                var sha256Hash = Convert.ToHexString(hashBytes).ToLowerInvariant();
-
-                var fileInfo = new FileInfo(filePath);
-                manifest.Files.Add(new ManifestFile
-                {
-                    RelativePath = relativePath,
-                    Hash = sha256Hash,
-                    ETag = expectedEtag,
-                    Size = fileInfo.Length,
-                    SourceType = ContentSourceType.ContentAddressable,
-                    IsRequired = true,
-                });
+                manifest.Files.Add(fileResult.Data!);
             }
 
             if (string.IsNullOrWhiteSpace(manifest.EntryPoint))
@@ -157,5 +138,47 @@ public class GenLauncherManifestFactory(
     public string GetManifestDirectory(ContentManifest manifest, string extractedDirectory)
     {
         return extractedDirectory;
+    }
+
+    private async Task<OperationResult<ManifestFile>> ProcessExtractedFileAsync(
+        string extractedDirectory,
+        string filePath,
+        Dictionary<string, string> expectedEtags,
+        Dictionary<string, string> filenameEtags,
+        CancellationToken cancellationToken)
+    {
+        var relativePath = Path.GetRelativePath(extractedDirectory, filePath).Replace('\\', '/');
+        var fileName = Path.GetFileName(filePath);
+
+        var hasExpectedEtag = expectedEtags.TryGetValue(relativePath, out var expectedEtag) ||
+                              filenameEtags.TryGetValue(fileName, out expectedEtag);
+
+        // MD5 validation for engine critical files when ETag is present
+        if (hasExpectedEtag &&
+            !string.IsNullOrWhiteSpace(expectedEtag) &&
+            GenLauncherChecksumValidator.RequiresValidation(relativePath) &&
+            !await GenLauncherChecksumValidator.ValidateFileAsync(filePath, expectedEtag, cancellationToken))
+        {
+            logger.LogError("Checksum mismatch for engine file {File}! Expected ETag: {Expected}", relativePath, expectedEtag);
+            return OperationResult<ManifestFile>.CreateFailure($"Checksum mismatch for engine file {relativePath}");
+        }
+
+        // Compute SHA256 for CAS
+        using var stream = File.OpenRead(filePath);
+        var hashBytes = await SHA256.HashDataAsync(stream, cancellationToken);
+        var sha256Hash = Convert.ToHexString(hashBytes).ToLowerInvariant();
+
+        var fileInfo = new FileInfo(filePath);
+        var manifestFile = new ManifestFile
+        {
+            RelativePath = relativePath,
+            Hash = sha256Hash,
+            ETag = expectedEtag,
+            Size = fileInfo.Length,
+            SourceType = ContentSourceType.ContentAddressable,
+            IsRequired = true,
+        };
+
+        return OperationResult<ManifestFile>.CreateSuccess(manifestFile);
     }
 }

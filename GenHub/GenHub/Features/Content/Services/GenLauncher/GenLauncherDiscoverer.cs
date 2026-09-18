@@ -361,6 +361,39 @@ public class GenLauncherDiscoverer(
         return url;
     }
 
+    private static void RegisterChildResult(
+        ModProcessingContext context,
+        ContentSearchResult item,
+        long? sizeBytes,
+        FileSectionType sectionType)
+    {
+        context.Results.Add(item);
+        var slug = GenLauncherCatalogParser.Slugify(item.Name);
+        context.Variants.Add(new ContentVariantInfo
+        {
+            Id = slug,
+            Name = item.Name,
+            ManifestId = item.Id,
+            IsDefault = false,
+        });
+
+        var childManifest = item.Data as GenLauncherVersionManifest;
+        var fileName = childManifest != null
+            ? ResolveArchiveFileName(childManifest, item.Name)
+            : $"{item.Name}.zip";
+        var fileDownloadUrl = item.SelectedDownloadUrl;
+
+        context.FilesSections.Add(new DownloadableFile(
+            Name: item.Name,
+            Version: item.Version,
+            SizeBytes: sizeBytes,
+            DownloadUrl: fileDownloadUrl,
+            FileSectionType: sectionType,
+            Description: item.Description,
+            ThumbnailUrl: item.IconUrl ?? context.ParentIconUrl,
+            Filename: fileName));
+    }
+
     private string GetLocalizedString(string key, string fallback)
     {
         return localizationService?.GetString(key) ?? fallback;
@@ -802,83 +835,62 @@ public class GenLauncherDiscoverer(
             context.ParentIconUrl);
 
         using var semaphore = new SemaphoreSlim(6, 6);
-        var childTasks = urlList.Select(async url =>
-        {
-            await semaphore.WaitAsync(cancellationToken);
-            try
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-                var item = await ProcessChildManifestAsync(
-                    childContext,
-                    url,
-                    contentType,
-                    cancellationToken);
-                if (item == null)
-                {
-                    return ((ContentSearchResult?)null, (long?)null);
-                }
-
-                long? sizeBytes = null;
-                if (item.Data is GenLauncherVersionManifest childManifest)
-                {
-                    sizeBytes = await TryCalculateDownloadSizeAsync(context.Client, childManifest, cancellationToken);
-                    if (sizeBytes.HasValue && sizeBytes.Value > 0)
-                    {
-                        item.DownloadSize = sizeBytes.Value;
-                    }
-                }
-
-                return ((ContentSearchResult?)item, sizeBytes);
-            }
-            catch (OperationCanceledException)
-            {
-                throw;
-            }
-            catch (Exception ex)
-            {
-                logger.LogWarning(ex, "Failed to process child manifest from {Url}", url);
-                return ((ContentSearchResult?)null, (long?)null);
-            }
-            finally
-            {
-                semaphore.Release();
-            }
-        });
+        var childTasks = urlList.Select(url =>
+            FetchChildManifestSafelyAsync(childContext, context.Client, url, contentType, semaphore, cancellationToken));
 
         var childResults = await Task.WhenAll(childTasks);
         var sectionType = contentType == ContentType.Patch ? FileSectionType.Downloads : FileSectionType.Addons;
         foreach (var (item, sizeBytes) in childResults)
         {
+            if (item != null)
+            {
+                RegisterChildResult(context, item, sizeBytes, sectionType);
+            }
+        }
+    }
+
+    private async Task<(ContentSearchResult? Item, long? SizeBytes)> FetchChildManifestSafelyAsync(
+        ChildManifestContext childContext,
+        HttpClient client,
+        string url,
+        ContentType contentType,
+        SemaphoreSlim semaphore,
+        CancellationToken cancellationToken)
+    {
+        await semaphore.WaitAsync(cancellationToken);
+        try
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var item = await ProcessChildManifestAsync(childContext, url, contentType, cancellationToken);
             if (item == null)
             {
-                continue;
+                return (null, null);
             }
 
-            context.Results.Add(item);
-            var slug = GenLauncherCatalogParser.Slugify(item.Name);
-            context.Variants.Add(new ContentVariantInfo
+            long? sizeBytes = null;
+            if (item.Data is GenLauncherVersionManifest childManifest)
             {
-                Id = slug,
-                Name = item.Name,
-                ManifestId = item.Id,
-                IsDefault = false,
-            });
+                sizeBytes = await TryCalculateDownloadSizeAsync(client, childManifest, cancellationToken);
+                if (sizeBytes.HasValue && sizeBytes.Value > 0)
+                {
+                    item.DownloadSize = sizeBytes.Value;
+                }
+            }
 
-            var childManifest = item.Data as GenLauncherVersionManifest;
-            var fileName = childManifest != null
-                ? ResolveArchiveFileName(childManifest, item.Name)
-                : $"{item.Name}.zip";
-            var fileDownloadUrl = item.SelectedDownloadUrl;
-
-            context.FilesSections.Add(new DownloadableFile(
-                Name: item.Name,
-                Version: item.Version,
-                SizeBytes: sizeBytes,
-                DownloadUrl: fileDownloadUrl,
-                FileSectionType: sectionType,
-                Description: item.Description,
-                ThumbnailUrl: item.IconUrl ?? context.ParentIconUrl,
-                Filename: fileName));
+            return (item, sizeBytes);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Failed to process child manifest from {Url}", url);
+            return (null, null);
+        }
+        finally
+        {
+            semaphore.Release();
         }
     }
 
@@ -1054,6 +1066,7 @@ public class GenLauncherDiscoverer(
         CancellationToken cancellationToken)
     {
         var hasExplicitKeys = !string.IsNullOrWhiteSpace(manifest.S3HostPublicKey) && !string.IsNullOrWhiteSpace(manifest.S3HostSecretKey);
+        var credentials = hasExplicitKeys ? new S3Credentials(manifest.S3HostPublicKey, manifest.S3HostSecretKey) : null;
 
         string? xml = null;
         var usedAuth = true;
@@ -1065,8 +1078,7 @@ public class GenLauncherDiscoverer(
                 manifest.S3BucketName!,
                 manifest.S3FolderName!,
                 currentMarker,
-                manifest.S3HostPublicKey,
-                manifest.S3HostSecretKey,
+                credentials,
                 useAuth: true);
 
             xml = await FetchStringWithCacheAsync(client, queryUrl, cancellationToken);
@@ -1080,8 +1092,7 @@ public class GenLauncherDiscoverer(
                 manifest.S3BucketName!,
                 manifest.S3FolderName!,
                 currentMarker,
-                publicKey: null,
-                secretKey: null,
+                credentials: null,
                 useAuth: false);
 
             xml = await FetchStringWithCacheAsync(client, unsignedQueryUrl, cancellationToken);
@@ -1092,13 +1103,13 @@ public class GenLauncherDiscoverer(
             else
             {
                 // Fallback to signed query using default InSave credentials (for improved-ai, tpotw, cncpowerplay)
+                var fallbackCredentials = new S3Credentials(manifest.S3HostPublicKey, manifest.S3HostSecretKey);
                 var signedQueryUrl = GenLauncherS3XmlParser.BuildS3QueryUrl(
                     manifest.S3HostLink!,
                     manifest.S3BucketName!,
                     manifest.S3FolderName!,
                     currentMarker,
-                    manifest.S3HostPublicKey,
-                    manifest.S3HostSecretKey,
+                    fallbackCredentials,
                     useAuth: true);
 
                 xml = await FetchStringWithCacheAsync(client, signedQueryUrl, cancellationToken);
@@ -1260,40 +1271,14 @@ public class GenLauncherDiscoverer(
     private void StoreInCache(string cacheKey, string content)
     {
         var entryBytes = Encoding.UTF8.GetByteCount(content);
-        var now = DateTime.UtcNow;
 
-        if (_cache.Count >= MaxCacheEntries || _currentCacheBytes + entryBytes > GenLauncherConstants.MaxCacheTotalBytes)
+        if (IsCacheLimitExceeded(entryBytes))
         {
-            foreach (var key in _cache.Keys)
+            EvictExpiredCacheEntries(DateTime.UtcNow);
+
+            if (IsCacheLimitExceeded(entryBytes))
             {
-                if (_cache.TryGetValue(key, out var entry) && now - entry.CachedAt >= CacheTtl)
-                {
-                    if (_cache.TryRemove(key, out var removed))
-                    {
-                        Interlocked.Add(ref _currentCacheBytes, -removed.ByteCount);
-                    }
-                }
-            }
-
-            if (_cache.Count >= MaxCacheEntries || _currentCacheBytes + entryBytes > GenLauncherConstants.MaxCacheTotalBytes)
-            {
-                var oldestKeys = _cache
-                    .OrderBy(p => p.Value.CachedAt)
-                    .Select(p => p.Key)
-                    .ToList();
-
-                foreach (var key in oldestKeys)
-                {
-                    if (_cache.TryRemove(key, out var removed))
-                    {
-                        Interlocked.Add(ref _currentCacheBytes, -removed.ByteCount);
-                    }
-
-                    if (_cache.Count < MaxCacheEntries && _currentCacheBytes + entryBytes <= GenLauncherConstants.MaxCacheTotalBytes)
-                    {
-                        break;
-                    }
-                }
+                EvictOldestCacheEntries(entryBytes);
             }
         }
 
@@ -1304,5 +1289,44 @@ public class GenLauncherDiscoverer(
 
         _cache[cacheKey] = (DateTime.UtcNow, content, entryBytes);
         Interlocked.Add(ref _currentCacheBytes, entryBytes);
+    }
+
+    private bool IsCacheLimitExceeded(int entryBytes)
+    {
+        return _cache.Count >= MaxCacheEntries || _currentCacheBytes + entryBytes > GenLauncherConstants.MaxCacheTotalBytes;
+    }
+
+    private void EvictExpiredCacheEntries(DateTime now)
+    {
+        foreach (var key in _cache.Keys)
+        {
+            if (_cache.TryGetValue(key, out var entry) &&
+                now - entry.CachedAt >= CacheTtl &&
+                _cache.TryRemove(key, out var removed))
+            {
+                Interlocked.Add(ref _currentCacheBytes, -removed.ByteCount);
+            }
+        }
+    }
+
+    private void EvictOldestCacheEntries(int entryBytes)
+    {
+        var oldestKeys = _cache
+            .OrderBy(p => p.Value.CachedAt)
+            .Select(p => p.Key)
+            .ToList();
+
+        foreach (var key in oldestKeys)
+        {
+            if (_cache.TryRemove(key, out var removed))
+            {
+                Interlocked.Add(ref _currentCacheBytes, -removed.ByteCount);
+            }
+
+            if (!IsCacheLimitExceeded(entryBytes))
+            {
+                break;
+            }
+        }
     }
 }

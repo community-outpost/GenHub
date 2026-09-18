@@ -245,6 +245,42 @@ public class GenLauncherResolver(
         return null;
     }
 
+    private static bool IsS3ErrorXml(string? xml)
+    {
+        if (string.IsNullOrWhiteSpace(xml))
+        {
+            return true;
+        }
+
+        try
+        {
+            var doc = System.Xml.Linq.XDocument.Parse(xml);
+            return doc.Root != null && (doc.Root.Name.LocalName == "Error" || doc.Descendants().Any(e => e.Name.LocalName == "Error"));
+        }
+        catch
+        {
+            return true;
+        }
+    }
+
+    private static S3BucketQuery? ExtractS3BucketQuery(
+        GenLauncherVersionManifest? versionManifest,
+        ContentSearchResult discoveredItem)
+    {
+        var s3Host = versionManifest?.S3HostLink ?? GetMetadata(discoveredItem.ResolverMetadata, GenLauncherConstants.S3HostLinkMetadataKey) ?? GetMetadata(discoveredItem.ResolverMetadata, GenLauncherConstants.S3HostMetadataKey);
+        var s3Bucket = versionManifest?.S3BucketName ?? GetMetadata(discoveredItem.ResolverMetadata, GenLauncherConstants.S3BucketNameMetadataKey) ?? GetMetadata(discoveredItem.ResolverMetadata, GenLauncherConstants.S3BucketMetadataKey);
+        var s3Folder = versionManifest?.S3FolderName ?? GetMetadata(discoveredItem.ResolverMetadata, GenLauncherConstants.S3FolderNameMetadataKey) ?? GetMetadata(discoveredItem.ResolverMetadata, GenLauncherConstants.S3FolderMetadataKey);
+        var s3PublicKey = versionManifest?.S3HostPublicKey ?? GetMetadata(discoveredItem.ResolverMetadata, GenLauncherConstants.S3HostPublicKeyMetadataKey);
+        var s3SecretKey = versionManifest?.S3HostSecretKey ?? GetMetadata(discoveredItem.ResolverMetadata, GenLauncherConstants.S3HostSecretKeyMetadataKey);
+
+        if (string.IsNullOrWhiteSpace(s3Host) || string.IsNullOrWhiteSpace(s3Bucket) || string.IsNullOrWhiteSpace(s3Folder))
+        {
+            return null;
+        }
+
+        return new S3BucketQuery(s3Host, s3Bucket, s3Folder, s3PublicKey, s3SecretKey);
+    }
+
     private async Task<GenLauncherVersionManifest?> FetchVersionManifestIfNeededAsync(
         HttpClient client,
         ContentSearchResult item,
@@ -347,13 +383,13 @@ public class GenLauncherResolver(
         string? currentMarker,
         CancellationToken cancellationToken)
     {
+        var credentials = new S3Credentials(query.PublicKey, query.SecretKey);
         var queryUrl = GenLauncherS3XmlParser.BuildS3QueryUrl(
             query.Host,
             query.Bucket,
             query.Folder,
             currentMarker,
-            query.PublicKey,
-            query.SecretKey,
+            credentials,
             useAuth: true);
 
         if (!ImageCacheService.IsSafeRemoteUrl(queryUrl, out _))
@@ -385,8 +421,7 @@ public class GenLauncherResolver(
             query.Bucket,
             query.Folder,
             currentMarker,
-            publicKey: null,
-            secretKey: null,
+            credentials: null,
             useAuth: false);
 
         if (!ImageCacheService.IsSafeRemoteUrl(unsignedUrl, out _))
@@ -423,24 +458,6 @@ public class GenLauncherResolver(
         return (s3Xml, false);
     }
 
-    private bool IsS3ErrorXml(string? xml)
-    {
-        if (string.IsNullOrWhiteSpace(xml))
-        {
-            return true;
-        }
-
-        try
-        {
-            var doc = System.Xml.Linq.XDocument.Parse(xml);
-            return doc.Root != null && (doc.Root.Name.LocalName == "Error" || doc.Descendants().Any(e => e.Name.LocalName == "Error"));
-        }
-        catch
-        {
-            return true;
-        }
-    }
-
     private async Task<bool> TryResolveS3StoragePayloadAsync(
         ContentManifest manifest,
         HttpClient client,
@@ -448,62 +465,17 @@ public class GenLauncherResolver(
         ContentSearchResult discoveredItem,
         CancellationToken cancellationToken)
     {
-        var s3Host = versionManifest?.S3HostLink ?? GetMetadata(discoveredItem.ResolverMetadata, GenLauncherConstants.S3HostLinkMetadataKey) ?? GetMetadata(discoveredItem.ResolverMetadata, GenLauncherConstants.S3HostMetadataKey);
-        var s3Bucket = versionManifest?.S3BucketName ?? GetMetadata(discoveredItem.ResolverMetadata, GenLauncherConstants.S3BucketNameMetadataKey) ?? GetMetadata(discoveredItem.ResolverMetadata, GenLauncherConstants.S3BucketMetadataKey);
-        var s3Folder = versionManifest?.S3FolderName ?? GetMetadata(discoveredItem.ResolverMetadata, GenLauncherConstants.S3FolderNameMetadataKey) ?? GetMetadata(discoveredItem.ResolverMetadata, GenLauncherConstants.S3FolderMetadataKey);
-        var s3PublicKey = versionManifest?.S3HostPublicKey ?? GetMetadata(discoveredItem.ResolverMetadata, GenLauncherConstants.S3HostPublicKeyMetadataKey);
-        var s3SecretKey = versionManifest?.S3HostSecretKey ?? GetMetadata(discoveredItem.ResolverMetadata, GenLauncherConstants.S3HostSecretKeyMetadataKey);
-
-        if (string.IsNullOrWhiteSpace(s3Host) || string.IsNullOrWhiteSpace(s3Bucket) || string.IsNullOrWhiteSpace(s3Folder))
+        var query = ExtractS3BucketQuery(versionManifest, discoveredItem);
+        if (query == null)
         {
             return false;
         }
 
         try
         {
-            string? nextMarker = null;
-            var s3Files = new List<ManifestFile>();
-            var seenMarkers = new HashSet<string>(StringComparer.Ordinal);
-            var pageCount = 0;
-            const int maxPages = GenLauncherConstants.MaxS3ResolverPages;
-            var reachedTerminalPage = false;
-
-            var query = new S3BucketQuery(s3Host, s3Bucket, s3Folder, s3PublicKey, s3SecretKey);
-
-            while (pageCount++ < maxPages)
+            var s3Files = await FetchAllS3PagesAsync(client, query, discoveredItem.Name, cancellationToken);
+            if (s3Files == null || s3Files.Count == 0)
             {
-                cancellationToken.ThrowIfCancellationRequested();
-                var (files, isTruncated, marker) = await FetchS3PageFilesAsync(
-                    client, query, nextMarker, cancellationToken);
-
-                if (files == null || (files.Count == 0 && !isTruncated && s3Files.Count == 0))
-                {
-                    return false;
-                }
-
-                if (files.Count > 0)
-                {
-                    s3Files.AddRange(files);
-                }
-
-                if (!isTruncated)
-                {
-                    reachedTerminalPage = true;
-                    break;
-                }
-
-                if (string.IsNullOrEmpty(marker) || !seenMarkers.Add(marker))
-                {
-                    logger.LogWarning("S3 pagination indicated truncation but provided missing or repeated marker for {Name}", discoveredItem.Name);
-                    return false;
-                }
-
-                nextMarker = marker;
-            }
-
-            if (!reachedTerminalPage)
-            {
-                logger.LogWarning("S3 pagination exceeded max page limit ({MaxPages}) for {Name}", maxPages, discoveredItem.Name);
                 return false;
             }
 
@@ -519,6 +491,59 @@ public class GenLauncherResolver(
             logger.LogWarning(ex, "Failed to resolve S3 files for {Name}, falling back to download link", discoveredItem.Name);
             return false;
         }
+    }
+
+    private async Task<List<ManifestFile>?> FetchAllS3PagesAsync(
+        HttpClient client,
+        S3BucketQuery query,
+        string itemName,
+        CancellationToken cancellationToken)
+    {
+        string? nextMarker = null;
+        var s3Files = new List<ManifestFile>();
+        var seenMarkers = new HashSet<string>(StringComparer.Ordinal);
+        var pageCount = 0;
+        const int maxPages = GenLauncherConstants.MaxS3ResolverPages;
+        var reachedTerminalPage = false;
+
+        while (pageCount++ < maxPages)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var (files, isTruncated, marker) = await FetchS3PageFilesAsync(
+                client, query, nextMarker, cancellationToken);
+
+            if (files == null || (files.Count == 0 && !isTruncated && s3Files.Count == 0))
+            {
+                return null;
+            }
+
+            if (files.Count > 0)
+            {
+                s3Files.AddRange(files);
+            }
+
+            if (!isTruncated)
+            {
+                reachedTerminalPage = true;
+                break;
+            }
+
+            if (string.IsNullOrEmpty(marker) || !seenMarkers.Add(marker))
+            {
+                logger.LogWarning("S3 pagination indicated truncation but provided missing or repeated marker for {Name}", itemName);
+                return null;
+            }
+
+            nextMarker = marker;
+        }
+
+        if (!reachedTerminalPage)
+        {
+            logger.LogWarning("S3 pagination exceeded max page limit ({MaxPages}) for {Name}", maxPages, itemName);
+            return null;
+        }
+
+        return s3Files;
     }
 
     private sealed record S3BucketQuery(

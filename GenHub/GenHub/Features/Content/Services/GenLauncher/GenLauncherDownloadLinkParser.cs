@@ -11,6 +11,10 @@ namespace GenHub.Features.Content.Services.GenLauncher;
 public static partial class GenLauncherDownloadLinkParser
 {
     private const string OneDriveDownloadEndpoint = "https://onedrive.live.com/download";
+    private const string OneDriveViewAspx = "/view.aspx";
+    private const string OneDriveDownloadAspx = "/download.aspx";
+    private const string OneDriveEmbed = "/embed";
+    private const string OneDriveDownload = "/download";
 
     /// <summary>
     /// Normalizes download links from cloud storage providers to direct download URLs.
@@ -94,9 +98,9 @@ public static partial class GenLauncherDownloadLinkParser
             }
 
             var path = uri.AbsolutePath;
-            if (path.Contains("/embed", StringComparison.OrdinalIgnoreCase))
+            if (path.Contains(OneDriveEmbed, StringComparison.OrdinalIgnoreCase))
             {
-                var newPath = OneDriveEmbedRegex().Replace(path, "/download");
+                var newPath = OneDriveEmbedRegex().Replace(path, OneDriveDownload);
                 var builder = new UriBuilder(uri)
                 {
                     Path = newPath,
@@ -104,9 +108,9 @@ public static partial class GenLauncherDownloadLinkParser
                 return builder.Uri.ToString();
             }
 
-            if (path.Contains("/view.aspx", StringComparison.OrdinalIgnoreCase))
+            if (path.Contains(OneDriveViewAspx, StringComparison.OrdinalIgnoreCase))
             {
-                var newPath = path.Replace("/view.aspx", "/download.aspx", StringComparison.OrdinalIgnoreCase);
+                var newPath = path.Replace(OneDriveViewAspx, OneDriveDownloadAspx, StringComparison.OrdinalIgnoreCase);
                 var builder = new UriBuilder(uri)
                 {
                     Path = newPath,
@@ -114,13 +118,13 @@ public static partial class GenLauncherDownloadLinkParser
                 return builder.Uri.ToString();
             }
         }
-        else if (link.Contains("/embed", StringComparison.OrdinalIgnoreCase))
+        else if (link.Contains(OneDriveEmbed, StringComparison.OrdinalIgnoreCase))
         {
-            return OneDriveEmbedRegex().Replace(link, "/download");
+            return OneDriveEmbedRegex().Replace(link, OneDriveDownload);
         }
-        else if (link.Contains("/view.aspx", StringComparison.OrdinalIgnoreCase))
+        else if (link.Contains(OneDriveViewAspx, StringComparison.OrdinalIgnoreCase))
         {
-            return link.Replace("/view.aspx", "/download.aspx", StringComparison.OrdinalIgnoreCase);
+            return link.Replace(OneDriveViewAspx, OneDriveDownloadAspx, StringComparison.OrdinalIgnoreCase);
         }
 
         return link;

@@ -32,7 +32,7 @@ public static class GenLauncherS3Signer
             return false;
         }
 
-        var (scheme, hostHeader, _) = NormalizeHostAndPath(s3Host);
+        var (_, hostHeader, _) = NormalizeHostAndPath(s3Host);
         var colonIdx = hostHeader.IndexOf(':');
         var hostOnly = colonIdx >= 0 ? hostHeader[..colonIdx] : hostHeader;
 

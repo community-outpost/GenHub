@@ -180,8 +180,7 @@ public static class GenLauncherS3XmlParser
     /// <param name="bucketName">The S3 bucket name.</param>
     /// <param name="folderPrefix">The prefix folder path.</param>
     /// <param name="marker">Optional pagination marker/continuation token.</param>
-    /// <param name="publicKey">Explicit S3 public key, or null to check defaults.</param>
-    /// <param name="secretKey">Explicit S3 secret key, or null to check defaults.</param>
+    /// <param name="credentials">Optional S3 credentials.</param>
     /// <param name="useAuth">Whether to sign the request using AWS4.</param>
     /// <param name="region">AWS region string (defaults to us-east-1).</param>
     /// <returns>The constructed query URL.</returns>
@@ -190,8 +189,7 @@ public static class GenLauncherS3XmlParser
         string bucketName,
         string? folderPrefix,
         string? marker = null,
-        string? publicKey = null,
-        string? secretKey = null,
+        S3Credentials? credentials = null,
         bool useAuth = true,
         string region = GenLauncherConstants.DefaultS3Region)
     {
@@ -221,8 +219,8 @@ public static class GenLauncherS3XmlParser
             s3Host,
             bucketName,
             objectKey: null,
-            publicKey: publicKey,
-            secretKey: secretKey,
+            publicKey: credentials?.PublicKey,
+            secretKey: credentials?.SecretKey,
             extraQueryParams: extraParams,
             forceUnsigned: !useAuth,
             region: region);
