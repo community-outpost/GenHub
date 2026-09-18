@@ -175,6 +175,10 @@ public sealed class InstallationPathResolverTests : IDisposable
             DetectedAt = originalTimestamp,
         };
 
+        // Model an installation detected while its path was still valid: the Has flags
+        // persist on the stale record even though the directories are gone.
+        originalInstallation.HasGenerals = true;
+
         var result = await resolver.ResolveInstallationPathAsync(originalInstallation);
 
         Assert.True(result.Success);
@@ -206,6 +210,12 @@ public sealed class InstallationPathResolverTests : IDisposable
         var stalePath = Path.Combine(_tempDirectory, "StalePathSub");
         var originalInstallation = new GameInstallation(stalePath, GameInstallationType.Retail);
         originalInstallation.SetPaths(Path.Combine(stalePath, "Generals"), Path.Combine(stalePath, "ZeroHour"));
+
+        // Model an installation detected while its path was still valid: SetPaths against
+        // the nonexistent stale directories leaves both flags false, so raise them to
+        // reflect the persisted detection state.
+        originalInstallation.HasGenerals = true;
+        originalInstallation.HasZeroHour = true;
 
         var result = await resolver.ResolveInstallationPathAsync(originalInstallation);
 
