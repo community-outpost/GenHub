@@ -1,5 +1,6 @@
 using GenHub.Core.Constants;
 using GenHub.Core.Extensions;
+using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.GameInstallations;
@@ -470,70 +471,12 @@ public partial class GeneralsOnlineProfileReconciler(
             ? profile.Description
             : (newClientManifest?.Metadata?.Description ?? GeneralsOnlineConstants.ShortDescription);
 
-        return new Core.Models.GameProfile.CreateProfileRequest
-        {
-            Name = targetProfileName,
-            Description = description,
-            GameInstallationId = profile.GameInstallationId,
-            GameClientId = updatedGameClient.Id,
-            GameClient = updatedGameClient,
-            WorkspaceStrategy = profile.WorkspaceStrategy,
-            EnabledContentIds = newEnabledContent,
-            ThemeColor = themeColor,
-            IconPath = iconPath,
-            CoverPath = coverPath,
-            CommandLineArguments = profile.CommandLineArguments,
-            GameSpyIPAddress = profile.GameSpyIPAddress,
-            UseSteamLaunch = profile.UseSteamLaunch,
-
-            // Video Settings
-            VideoResolutionWidth = profile.VideoResolutionWidth,
-            VideoResolutionHeight = profile.VideoResolutionHeight,
-            VideoWindowed = profile.VideoWindowed,
-            VideoTextureQuality = profile.VideoTextureQuality,
-            EnableVideoShadows = profile.EnableVideoShadows,
-            VideoParticleEffects = profile.VideoParticleEffects,
-            VideoExtraAnimations = profile.VideoExtraAnimations,
-            VideoBuildingAnimations = profile.VideoBuildingAnimations,
-            VideoGamma = profile.VideoGamma,
-            VideoAlternateMouseSetup = profile.VideoAlternateMouseSetup,
-            VideoHeatEffects = profile.VideoHeatEffects,
-            VideoStaticGameLOD = profile.VideoStaticGameLOD,
-            VideoIdealStaticGameLOD = profile.VideoIdealStaticGameLOD,
-            VideoUseDoubleClickAttackMove = profile.VideoUseDoubleClickAttackMove,
-            VideoScrollFactor = profile.VideoScrollFactor,
-            VideoRetaliation = profile.VideoRetaliation,
-            VideoDynamicLOD = profile.VideoDynamicLOD,
-            VideoMaxParticleCount = profile.VideoMaxParticleCount,
-            VideoAntiAliasing = profile.VideoAntiAliasing,
-            VideoSkipEALogo = profile.VideoSkipEALogo,
-
-            // Audio Settings
-            AudioSoundVolume = profile.AudioSoundVolume,
-            AudioThreeDSoundVolume = profile.AudioThreeDSoundVolume,
-            AudioSpeechVolume = profile.AudioSpeechVolume,
-            AudioMusicVolume = profile.AudioMusicVolume,
-            AudioNumSounds = profile.AudioNumSounds,
-            AudioEnabled = profile.AudioEnabled,
-
-            // GeneralsOnline Settings
-            GoShowFps = profile.GoShowFps,
-            GoShowPing = profile.GoShowPing,
-            GoAutoLogin = profile.GoAutoLogin,
-            GoRememberUsername = profile.GoRememberUsername,
-            GoEnableNotifications = profile.GoEnableNotifications,
-            GoChatFontSize = profile.GoChatFontSize,
-            GoEnableSoundNotifications = profile.GoEnableSoundNotifications,
-            GoShowPlayerRanks = profile.GoShowPlayerRanks,
-            GoCameraMaxHeightOnlyWhenLobbyHost = profile.GoCameraMaxHeightOnlyWhenLobbyHost,
-            GoCameraMinHeight = profile.GoCameraMinHeight,
-            GoCameraMoveSpeedRatio = profile.GoCameraMoveSpeedRatio,
-            GoChatDurationSecondsUntilFadeOut = profile.GoChatDurationSecondsUntilFadeOut,
-            GoDebugVerboseLogging = profile.GoDebugVerboseLogging,
-            GoRenderFpsLimit = profile.GoRenderFpsLimit,
-            GoRenderLimitFramerate = profile.GoRenderLimitFramerate,
-            GoRenderStatsOverlay = profile.GoRenderStatsOverlay,
-        };
+        var request = GameSettingsMapper.CreateCloneRequest(profile, targetProfileName, updatedGameClient, newEnabledContent);
+        request.IconPath = iconPath;
+        request.CoverPath = coverPath;
+        request.ThemeColor = themeColor;
+        request.Description = description;
+        return request;
     }
 
     private static bool HasRelevantGeneralsOnlineProfiles(IEnumerable<Core.Models.GameProfile.GameProfile>? profiles) =>
@@ -566,42 +509,39 @@ public partial class GeneralsOnlineProfileReconciler(
         // Group new manifests by variant for fast lookup
         var newByVariant = GroupManifestsByVariant(newManifests);
 
-        foreach (var oldManifest in oldManifests)
+        // Map each old manifest to the corresponding new manifest
+        foreach (var oldM in oldManifests)
         {
-            var oldVariant = ExtractVariant(oldManifest);
-            if (oldVariant == null)
+            var variant = ExtractVariant(oldM);
+            if (variant == null)
             {
-                logger.LogWarning("[GO Reconciler] Could not determine variant for old manifest {Id}", oldManifest.Id);
+                logger.LogDebug("[GO Reconciler] Could not extract variant for old manifest {ManifestId}, skipping mapping", oldM.Id.Value);
                 continue;
             }
 
-            // Find candidates in the same variant
-            if (newByVariant.TryGetValue(oldVariant, out var candidates))
+            // Find matching new manifests with the same variant and content type (or legacy Mod -> GameClient mapping)
+            if (newByVariant.TryGetValue(variant, out var candidates))
             {
-                var match = FindMatchingCandidate(candidates, oldManifest, versionComparer);
-                if (match != null)
+                var matchingCandidate = FindMatchingCandidate(candidates, oldM, versionComparer);
+                if (matchingCandidate != null)
                 {
-                    mapping[oldManifest.Id.Value] = match.Id.Value;
-                    logger.LogDebug("[GO Reconciler] Mapped {OldId} -> {NewId} (variant: {Variant})", oldManifest.Id, match.Id, oldVariant);
-                    continue;
+                    mapping[oldM.Id.Value] = matchingCandidate.Id.Value;
                 }
-            }
-
-            // Fallback: match by content type regardless of variant (for backwards compatibility)
-            var fallbackMatch = newManifests
-                .Where(n => n.ContentType == oldManifest.ContentType ||
-                            (oldManifest.ContentType == ContentType.Mod && n.ContentType == ContentType.GameClient))
-                .OrderByDescending(n => n.Version, versionComparer ?? Comparer<string>.Default)
-                .FirstOrDefault();
-
-            if (fallbackMatch != null)
-            {
-                mapping[oldManifest.Id.Value] = fallbackMatch.Id.Value;
-                logger.LogDebug("[GO Reconciler] Fallback mapped {OldId} -> {NewId}", oldManifest.Id, fallbackMatch.Id);
+                else
+                {
+                    logger.LogDebug(
+                        "[GO Reconciler] No matching new manifest candidate found for old manifest {ManifestId} (variant: {Variant}, contentType: {ContentType})",
+                        oldM.Id.Value,
+                        variant,
+                        oldM.ContentType);
+                }
             }
             else
             {
-                logger.LogWarning("[GO Reconciler] No replacement found for old manifest {Id}", oldManifest.Id);
+                logger.LogDebug(
+                    "[GO Reconciler] No candidate list found for variant {Variant} of old manifest {ManifestId}",
+                    variant,
+                    oldM.Id.Value);
             }
         }
 
@@ -638,7 +578,8 @@ public partial class GeneralsOnlineProfileReconciler(
             updateResult.LatestVersion);
 
         // Check if the triggering profile already uses the latest version
-        if (await IsProfileAlreadyOnVersionAsync(triggeringProfileId, updateResult.LatestVersion ?? string.Empty, cancellationToken))
+        if (!string.IsNullOrEmpty(triggeringProfileId) &&
+            await IsTriggeringProfileUpToDateAsync(triggeringProfileId, updateResult.LatestVersion, cancellationToken))
         {
             return OperationResult<(bool, ContentUpdateCheckResult?, UpdateStrategy, bool, bool)>.CreateSuccess(
                 (false, null, UpdateStrategy.ReplaceCurrent, false, true));
@@ -679,14 +620,18 @@ public partial class GeneralsOnlineProfileReconciler(
     }
 
     /// <summary>
-    /// Checks if a profile is already using the specified version of the GeneralsOnline client.
+    /// Checks whether the triggering profile is already running the latest client version.
     /// </summary>
-    private async Task<bool> IsProfileAlreadyOnVersionAsync(
-        string triggeringProfileId,
-        string latestVersion,
+    /// <param name="triggeringProfileId">The profile ID that triggered reconciliation.</param>
+    /// <param name="latestVersion">The latest available version string.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>True if the profile already has the latest client version; otherwise false.</returns>
+    private async Task<bool> IsTriggeringProfileUpToDateAsync(
+        string? triggeringProfileId,
+        string? latestVersion,
         CancellationToken cancellationToken)
     {
-        if (string.IsNullOrEmpty(triggeringProfileId))
+        if (string.IsNullOrEmpty(latestVersion) || string.IsNullOrEmpty(triggeringProfileId))
         {
             return false;
         }
@@ -699,11 +644,21 @@ public partial class GeneralsOnlineProfileReconciler(
                 return false;
             }
 
-            var clientVersion = profileResult.Data.GameClient?.Version;
-            if (string.Equals(clientVersion, latestVersion, StringComparison.OrdinalIgnoreCase))
+            var profile = profileResult.Data;
+            var clientVersion = profile.GameClient?.Version;
+            if (string.IsNullOrEmpty(clientVersion))
+            {
+                return false;
+            }
+
+            var isGeneralsOnlineClient =
+                string.Equals(profile.GameClient?.PublisherType, GeneralsOnlineConstants.PublisherType, StringComparison.OrdinalIgnoreCase) ||
+                profile.GameClient?.Id.Contains(".generalsonline.", StringComparison.OrdinalIgnoreCase) == true;
+
+            if (isGeneralsOnlineClient && !versionComparer.IsNewer(latestVersion, clientVersion, GeneralsOnlineConstants.PublisherType))
             {
                 logger.LogInformation(
-                    "[GO Reconciler] Profile {ProfileId} already uses latest version {Version} (client version: {ClientVersion}). Skipping update.",
+                    "[GO Reconciler] Triggering profile {ProfileId} is already running latest version {LatestVersion} (profile client version: {ClientVersion}). Skipping update prompt.",
                     triggeringProfileId,
                     latestVersion,
                     clientVersion);

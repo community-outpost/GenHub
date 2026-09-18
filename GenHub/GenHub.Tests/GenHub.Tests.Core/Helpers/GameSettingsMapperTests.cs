@@ -1,4 +1,4 @@
-using GenHub.Core.Constants;
+﻿using GenHub.Core.Constants;
 using GenHub.Core.Helpers;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameProfile;
@@ -709,5 +709,94 @@ public class GameSettingsMapperTests
 
         // Assert
         Assert.Equal("192.168.1.100", options.Network.GameSpyIPAddress);
+    }
+
+    /// <summary>
+    /// Verifies that PopulateRequest copies all profile settings including UseSteamLaunch and GameSpyIPAddress from a GameProfile.
+    /// </summary>
+    [Fact]
+    public void PopulateRequest_FromGameProfile_CopiesAllSettingsIncludingUseSteamLaunch()
+    {
+        // Arrange
+        var profile = new GameProfile
+        {
+            UseSteamLaunch = false,
+            GameSpyIPAddress = "127.0.0.1",
+            VideoResolutionWidth = 2560,
+            VideoResolutionHeight = 1440,
+            AudioSoundVolume = 85,
+            TshArchiveReplays = true,
+            GoShowFps = true,
+        };
+        var target = new CreateProfileRequest
+        {
+            Name = "Clone",
+        };
+
+        // Act
+        GameSettingsMapper.PopulateRequest(target, profile);
+
+        // Assert
+        Assert.False(target.UseSteamLaunch);
+        Assert.Equal("127.0.0.1", target.GameSpyIPAddress);
+        Assert.Equal(2560, target.VideoResolutionWidth);
+        Assert.Equal(1440, target.VideoResolutionHeight);
+        Assert.Equal(85, target.AudioSoundVolume);
+        Assert.True(target.TshArchiveReplays);
+        Assert.True(target.GoShowFps);
+    }
+
+    /// <summary>
+    /// Verifies that CreateCloneRequest copies all settings and metadata while preserving UseSteamLaunch.
+    /// </summary>
+    [Fact]
+    public void CreateCloneRequest_PreservesUseSteamLaunchAndAllSettings()
+    {
+        // Arrange
+        var profile = new GameProfile
+        {
+            Id = "orig-id",
+            Name = "Original Profile",
+            Description = "Original Desc",
+            GameInstallationId = "inst-1",
+            WorkspaceStrategy = WorkspaceStrategy.HardLink,
+            UseSteamLaunch = false,
+            GameSpyIPAddress = "192.168.1.100",
+            VideoResolutionWidth = 1920,
+            VideoResolutionHeight = 1080,
+            AudioEnabled = true,
+            EnabledContentIds = ["mod1", "map1"],
+            ThemeColor = "#123456",
+            IconPath = "/icons/custom.png",
+            CoverPath = "/covers/custom.png",
+            CommandLineArguments = "-quickstart",
+        };
+
+        var newClient = new GameClient
+        {
+            Id = "client-v2",
+            Name = "Client V2",
+            Version = "2.0.0",
+        };
+
+        // Act
+        var cloneRequest = GameSettingsMapper.CreateCloneRequest(profile, "Cloned Profile", newClient, ["mod1", "map2"]);
+
+        // Assert
+        Assert.Equal("Cloned Profile", cloneRequest.Name);
+        Assert.Equal("Original Desc", cloneRequest.Description);
+        Assert.Equal("inst-1", cloneRequest.GameInstallationId);
+        Assert.Equal("client-v2", cloneRequest.GameClientId);
+        Assert.Same(newClient, cloneRequest.GameClient);
+        Assert.Equal(["mod1", "map2"], cloneRequest.EnabledContentIds);
+        Assert.False(cloneRequest.UseSteamLaunch);
+        Assert.Equal("192.168.1.100", cloneRequest.GameSpyIPAddress);
+        Assert.Equal(1920, cloneRequest.VideoResolutionWidth);
+        Assert.Equal(1080, cloneRequest.VideoResolutionHeight);
+        Assert.True(cloneRequest.AudioEnabled);
+        Assert.Equal("#123456", cloneRequest.ThemeColor);
+        Assert.Equal("/icons/custom.png", cloneRequest.IconPath);
+        Assert.Equal("/covers/custom.png", cloneRequest.CoverPath);
+        Assert.Equal("-quickstart", cloneRequest.CommandLineArguments);
     }
 }

@@ -1,6 +1,7 @@
 using GenHub.Core.Constants;
 using GenHub.Core.Extensions;
 using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.GameClients;
 using GenHub.Core.Models.GameProfile;
 using GenHub.Core.Models.GameSettings;
 using Microsoft.Extensions.Logging;
@@ -382,6 +383,143 @@ public static class GameSettingsMapper
     /// <param name="source">The source UpdateProfileRequest.</param>
     public static void PopulateRequest(UpdateProfileRequest target, UpdateProfileRequest source) =>
         PopulateRequest((GameProfileSettingsBase)target, source);
+
+    /// <summary>
+    /// Populates settings from a GameProfile into a GameProfileSettingsBase request.
+    /// </summary>
+    /// <param name="target">The target request to receive settings.</param>
+    /// <param name="source">The source GameProfile providing settings.</param>
+    public static void PopulateRequest(GameProfileSettingsBase target, GameProfile source)
+    {
+        ArgumentNullException.ThrowIfNull(target);
+        ArgumentNullException.ThrowIfNull(source);
+
+        target.VideoResolutionWidth = source.VideoResolutionWidth;
+        target.VideoResolutionHeight = source.VideoResolutionHeight;
+        target.VideoWindowed = source.VideoWindowed;
+        target.VideoTextureQuality = source.VideoTextureQuality;
+        target.EnableVideoShadows = source.EnableVideoShadows;
+        target.VideoParticleEffects = source.VideoParticleEffects;
+        target.VideoExtraAnimations = source.VideoExtraAnimations;
+        target.VideoBuildingAnimations = source.VideoBuildingAnimations;
+        target.VideoGamma = source.VideoGamma;
+        target.VideoAlternateMouseSetup = source.VideoAlternateMouseSetup;
+        target.VideoHeatEffects = source.VideoHeatEffects;
+        target.VideoStaticGameLOD = source.VideoStaticGameLOD;
+        target.VideoIdealStaticGameLOD = source.VideoIdealStaticGameLOD;
+        target.VideoUseDoubleClickAttackMove = source.VideoUseDoubleClickAttackMove;
+        target.VideoScrollFactor = source.VideoScrollFactor;
+        target.VideoRetaliation = source.VideoRetaliation;
+        target.VideoDynamicLOD = source.VideoDynamicLOD;
+        target.VideoMaxParticleCount = source.VideoMaxParticleCount;
+        target.VideoAntiAliasing = source.VideoAntiAliasing;
+        target.VideoDrawScrollAnchor = source.VideoDrawScrollAnchor;
+        target.VideoMoveScrollAnchor = source.VideoMoveScrollAnchor;
+        target.VideoGameTimeFontSize = source.VideoGameTimeFontSize;
+        target.GameLanguageFilter = source.GameLanguageFilter;
+        target.NetworkSendDelay = source.NetworkSendDelay;
+        target.VideoShowSoftWaterEdge = source.VideoShowSoftWaterEdge;
+        target.VideoShowTrees = source.VideoShowTrees;
+        target.VideoUseCloudMap = source.VideoUseCloudMap;
+        target.VideoUseLightMap = source.VideoUseLightMap;
+        target.VideoSkipEALogo = source.VideoSkipEALogo;
+        target.VideoUseShadowDecals = source.VideoUseShadowDecals;
+        target.VideoBuildingOcclusion = source.VideoBuildingOcclusion;
+        target.VideoShowProps = source.VideoShowProps;
+
+        target.AudioSoundVolume = source.AudioSoundVolume;
+        target.AudioThreeDSoundVolume = source.AudioThreeDSoundVolume;
+        target.AudioSpeechVolume = source.AudioSpeechVolume;
+        target.AudioMusicVolume = source.AudioMusicVolume;
+        target.AudioEnabled = source.AudioEnabled;
+        target.AudioNumSounds = source.AudioNumSounds;
+
+        target.TshArchiveReplays = source.TshArchiveReplays;
+        target.TshShowMoneyPerMinute = source.TshShowMoneyPerMinute;
+        target.TshPlayerObserverEnabled = source.TshPlayerObserverEnabled;
+        target.TshSystemTimeFontSize = source.TshSystemTimeFontSize;
+        target.TshNetworkLatencyFontSize = source.TshNetworkLatencyFontSize;
+        target.TshRenderFpsFontSize = source.TshRenderFpsFontSize;
+        target.TshResolutionFontAdjustment = source.TshResolutionFontAdjustment;
+        target.TshCursorCaptureEnabledInFullscreenGame = source.TshCursorCaptureEnabledInFullscreenGame;
+        target.TshCursorCaptureEnabledInFullscreenMenu = source.TshCursorCaptureEnabledInFullscreenMenu;
+        target.TshCursorCaptureEnabledInWindowedGame = source.TshCursorCaptureEnabledInWindowedGame;
+        target.TshCursorCaptureEnabledInWindowedMenu = source.TshCursorCaptureEnabledInWindowedMenu;
+        target.TshScreenEdgeScrollEnabledInFullscreenApp = source.TshScreenEdgeScrollEnabledInFullscreenApp;
+        target.TshScreenEdgeScrollEnabledInWindowedApp = source.TshScreenEdgeScrollEnabledInWindowedApp;
+        target.TshMoneyTransactionVolume = source.TshMoneyTransactionVolume;
+        target.TshGameWindowTransitionSpeedMultiplier = source.TshGameWindowTransitionSpeedMultiplier;
+
+        target.GoShowFps = source.GoShowFps;
+        target.GoShowPing = source.GoShowPing;
+        target.GoShowPlayerRanks = source.GoShowPlayerRanks;
+        target.GoAutoLogin = source.GoAutoLogin;
+        target.GoRememberUsername = source.GoRememberUsername;
+        target.GoEnableNotifications = source.GoEnableNotifications;
+        target.GoEnableSoundNotifications = source.GoEnableSoundNotifications;
+        target.GoChatFontSize = source.GoChatFontSize;
+
+        target.GoCameraMaxHeightOnlyWhenLobbyHost = source.GoCameraMaxHeightOnlyWhenLobbyHost;
+        target.GoCameraMinHeight = source.GoCameraMinHeight;
+        target.GoCameraMoveSpeedRatio = source.GoCameraMoveSpeedRatio;
+
+        target.GoChatDurationSecondsUntilFadeOut = source.GoChatDurationSecondsUntilFadeOut;
+
+        target.GoDebugVerboseLogging = source.GoDebugVerboseLogging;
+
+        target.GoRenderFpsLimit = source.GoRenderFpsLimit;
+        target.GoRenderLimitFramerate = source.GoRenderLimitFramerate;
+        target.GoRenderStatsOverlay = source.GoRenderStatsOverlay;
+
+        target.GoSocialNotificationFriendComesOnlineGameplay = source.GoSocialNotificationFriendComesOnlineGameplay;
+        target.GoSocialNotificationFriendComesOnlineMenus = source.GoSocialNotificationFriendComesOnlineMenus;
+        target.GoSocialNotificationFriendGoesOfflineGameplay = source.GoSocialNotificationFriendGoesOfflineGameplay;
+        target.GoSocialNotificationFriendGoesOfflineMenus = source.GoSocialNotificationFriendGoesOfflineMenus;
+        target.GoSocialNotificationPlayerAcceptsRequestGameplay = source.GoSocialNotificationPlayerAcceptsRequestGameplay;
+        target.GoSocialNotificationPlayerAcceptsRequestMenus = source.GoSocialNotificationPlayerAcceptsRequestMenus;
+        target.GoSocialNotificationPlayerSendsRequestGameplay = source.GoSocialNotificationPlayerSendsRequestGameplay;
+        target.GoSocialNotificationPlayerSendsRequestMenus = source.GoSocialNotificationPlayerSendsRequestMenus;
+
+        target.UseSteamLaunch = source.UseSteamLaunch;
+        target.GameSpyIPAddress = source.GameSpyIPAddress;
+    }
+
+    /// <summary>
+    /// Creates a CreateProfileRequest from an existing GameProfile, cloning all metadata and settings.
+    /// </summary>
+    /// <param name="profile">The source profile to clone.</param>
+    /// <param name="newName">The name for the new profile.</param>
+    /// <param name="newClient">Optional replacement GameClient.</param>
+    /// <param name="enabledContentIds">Optional replacement enabled content IDs.</param>
+    /// <returns>A fully populated CreateProfileRequest cloning the source profile.</returns>
+    public static CreateProfileRequest CreateCloneRequest(
+        GameProfile profile,
+        string newName,
+        GameClient? newClient = null,
+        IEnumerable<string>? enabledContentIds = null)
+    {
+        ArgumentNullException.ThrowIfNull(profile);
+
+        var request = new CreateProfileRequest
+        {
+            Name = newName,
+            Description = profile.Description,
+            GameInstallationId = profile.GameInstallationId,
+            GameClientId = (newClient ?? profile.GameClient)?.Id,
+            GameClient = newClient ?? profile.GameClient,
+            WorkspaceStrategy = profile.WorkspaceStrategy,
+            EnabledContentIds = enabledContentIds != null ? [.. enabledContentIds] : [.. profile.EnabledContentIds ?? []],
+            ThemeColor = profile.ThemeColor,
+            IconPath = profile.IconPath,
+            CoverPath = profile.CoverPath,
+            CommandLineArguments = profile.CommandLineArguments,
+            GameSpyIPAddress = profile.GameSpyIPAddress,
+            UseSteamLaunch = profile.UseSteamLaunch,
+        };
+
+        PopulateRequest(request, profile);
+        return request;
+    }
 
     /// <summary>
     /// Normalizes and clamps a transition speed multiplier value to the supported range.
