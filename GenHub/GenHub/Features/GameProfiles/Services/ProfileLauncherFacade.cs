@@ -657,6 +657,14 @@ public class ProfileLauncherFacade(
         return ProfileOperationResult<(string, string?)>.CreateSuccess((toolWorkspacePath, actualWorkspaceId));
     }
 
+    /// <summary>
+    /// Resolves the base installation path and tool workspace root path for a given profile and tool manifest.
+    /// </summary>
+    /// <param name="profile">The game profile requesting launch.</param>
+    /// <param name="toolManifest">The manifest of the tool to launch.</param>
+    /// <param name="appDataBase">The application base directory path.</param>
+    /// <param name="cancellationToken">Cancellation token to cancel the operation.</param>
+    /// <returns>A tuple containing the base installation path and the workspace root path.</returns>
     private async Task<(string BaseInstallationPath, string WorkspaceRootPath)> ResolveToolBaseAndWorkspacePathsAsync(
         GameProfile profile,
         ContentManifest toolManifest,

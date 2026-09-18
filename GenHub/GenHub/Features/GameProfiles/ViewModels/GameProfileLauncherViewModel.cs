@@ -770,7 +770,7 @@ public partial class GameProfileLauncherViewModel(
 
         bool anyPatchHandled = cpHandled || goHandled || shHandled;
 
-        if ((!anyPatchHandled && !anyPatchSelectedGlobally) || profilesCreated == 0)
+        if ((!anyPatchHandled && !anyPatchSelectedGlobally) || (anyPatchHandled && profilesCreated == 0))
         {
             logger.LogInformation("No patches selected or created for {InstallationId}, creating base game profiles", installation.Id);
             foreach (var client in installation.AvailableGameClients.Where(c => !c.IsPublisherClient).ToList())

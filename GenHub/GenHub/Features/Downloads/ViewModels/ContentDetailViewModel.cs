@@ -3655,11 +3655,36 @@ public partial class ContentDetailViewModel(
         }
     }
 
+    /// <summary>
+    /// Refreshes state for all bundle components, checking for disposal and handling cancellation.
+    /// </summary>
     private async Task RefreshBundleComponentStatesAsync()
     {
-        foreach (var component in BundleComponents)
+        if (_disposed)
         {
-            await component.RefreshStateAsync(contentStateService, _cts.Token);
+            return;
+        }
+
+        try
+        {
+            var cancellationToken = _cts.Token;
+            foreach (var component in BundleComponents)
+            {
+                if (_disposed)
+                {
+                    return;
+                }
+
+                await component.RefreshStateAsync(contentStateService, cancellationToken);
+            }
+        }
+        catch (ObjectDisposedException)
+        {
+            return;
+        }
+        catch (OperationCanceledException)
+        {
+            return;
         }
 
         if (_disposed)

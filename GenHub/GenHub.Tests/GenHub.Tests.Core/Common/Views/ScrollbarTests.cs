@@ -106,6 +106,18 @@ public class ScrollbarTests
         }
     }
 
+    /// <summary>
+    /// Asserts that dragging a scroll bar's thumb forward increases its value,
+    /// orthogonal wiggles do not drift the value, and dragging backward decreases its value.
+    /// </summary>
+    /// <param name="scrollBar">The scroll bar control under test.</param>
+    /// <param name="window">The parent window hosting the scroll bar.</param>
+    /// <param name="forwardDelta">The delta to move forward along the primary axis.</param>
+    /// <param name="orthogonalDelta">The delta to move along the orthogonal axis.</param>
+    /// <param name="backwardDelta">The delta to move backward along the primary axis.</param>
+    /// <param name="forwardDirectionName">Readable name of forward direction for failure messages.</param>
+    /// <param name="orthogonalDirectionName">Readable name of orthogonal direction for failure messages.</param>
+    /// <param name="backwardDirectionName">Readable name of backward direction for failure messages.</param>
     private static void AssertScrollBarThumbDrag(
         ScrollBar scrollBar,
         Window window,

@@ -1,8 +1,11 @@
+using System.Diagnostics.CodeAnalysis;
+
 namespace GenHub.Core.Constants;
 
 /// <summary>
 /// Constants related to Steam integration.
 /// </summary>
+[SuppressMessage("Minor Code Smell", "S1075:URIs should not be hardcoded", Justification = "Steam client URI scheme prefix is a fixed external protocol contract.")]
 public static class SteamConstants
 {
     /// <summary>
