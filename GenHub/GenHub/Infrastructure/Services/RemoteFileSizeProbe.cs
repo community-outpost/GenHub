@@ -15,13 +15,16 @@ namespace GenHub.Infrastructure.Services;
 /// Follows redirects hop by hop (validating every hop) so probes work with HTTP clients
 /// configured with AllowAutoRedirect = false, and rejects descriptor documents and
 /// non-payload content types so a manifest is never mistaken for a download payload.
+/// Per-hop validation only takes effect when the supplied client has automatic redirects
+/// disabled; callers must use a handler created by
+/// <see cref="ImageCacheService.CreateSsrfSafeSocketsHttpHandler"/> or equivalent.
 /// </remarks>
 public static class RemoteFileSizeProbe
 {
     /// <summary>
     /// Probes the Content-Length of a remote URL with HEAD requests, following redirects.
     /// </summary>
-    /// <param name="client">The HTTP client used for the probe.</param>
+    /// <param name="client">The HTTP client used for the probe. Automatic redirects must be disabled.</param>
     /// <param name="url">The URL to probe.</param>
     /// <param name="timeout">The probe timeout applied across all redirect hops.</param>
     /// <param name="cancellationToken">The cancellation token.</param>

@@ -88,6 +88,8 @@ public partial class ContentDetailViewModel(
     private const string UnknownValue = "Unknown";
 
     // ===== Static Fields =====
+    // The SSRF-safe handler disables auto-redirect (required so the size probe validates
+    // every redirect hop) and rejects private/internal addresses at connect time.
     private static readonly HttpClient SharedProbeHttpClient = new(
         ImageCacheService.CreateSsrfSafeSocketsHttpHandler(
             connectTimeout: TimeSpan.FromSeconds(5)))
