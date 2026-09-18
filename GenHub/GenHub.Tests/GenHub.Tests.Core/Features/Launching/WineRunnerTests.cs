@@ -295,6 +295,62 @@ public sealed class WineRunnerTests : IDisposable
             options.PrefixPath);
     }
 
+    /// <summary>
+    /// Verifies that WineRunner respects the priority order of BinaryNames across all search directories.
+    /// </summary>
+    [Fact]
+    public void ResolveCommand_WithMultipleBinaryNames_PrefersPrimaryBinaryNameAcrossSearchDirectories()
+    {
+        // Arrange
+        var dir1 = CreateDirectory("dir1");
+        var dir2 = CreateDirectory("dir2");
+        File.WriteAllText(Path.Combine(dir1, "wine64"), "fake wine64");
+        File.WriteAllText(Path.Combine(dir2, "wine"), "fake wine");
+
+        var options = new WineRunnerOptions(
+            BinaryNames: ["wine", "wine64"],
+            AbsoluteBinaryPaths: [],
+            ExtraSearchDirectories: [dir1, dir2],
+            PrefixPath: Path.Combine(_tempDirectory, "prefix"));
+        var runner = new WineRunner(options, NullLogger<WineRunner>.Instance);
+        var configuration = new GameLaunchConfiguration
+        {
+            ExecutablePath = Path.Combine(_tempDirectory, "game", "generals.exe"),
+        };
+
+        // Act
+        var result = runner.ResolveCommand(configuration);
+
+        // Assert
+        Assert.True(result.Success, result.AllErrors);
+        Assert.NotNull(result.Data);
+        Assert.Equal(Path.Combine(dir2, "wine"), result.Data.FileName);
+    }
+
+    /// <summary>
+    /// Verifies that QuoteArgument properly escapes embedded quotes in the executable path.
+    /// </summary>
+    [Fact]
+    public void ResolveCommand_WithQuotedExecutablePath_EscapesEmbeddedQuotes()
+    {
+        // Arrange
+        var binDirectory = CreateDirectory("bin");
+        File.WriteAllText(Path.Combine(binDirectory, "wine"), "fake wine");
+
+        var runner = CreateRunner([binDirectory], Path.Combine(_tempDirectory, "prefix"));
+        var weirdExePath = Path.Combine(_tempDirectory, "game", "mod \"v1\"", "game.exe");
+        var configuration = new GameLaunchConfiguration { ExecutablePath = weirdExePath };
+
+        // Act
+        var result = runner.ResolveCommand(configuration);
+
+        // Assert
+        Assert.True(result.Success, result.AllErrors);
+        Assert.NotNull(result.Data);
+        var expectedEscapedPath = $"\"{weirdExePath.Replace("\"", "\\\"")}\"";
+        Assert.Equal(expectedEscapedPath, result.Data.ArgumentPrefix);
+    }
+
     /// <inheritdoc/>
     public void Dispose()
     {

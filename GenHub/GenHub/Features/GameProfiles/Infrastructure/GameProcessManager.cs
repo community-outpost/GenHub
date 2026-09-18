@@ -66,7 +66,11 @@ public class GameProcessManager(
             if (!runnerResult.Success || runnerResult.Data is null)
             {
                 logger.LogWarning("[Process] Compatibility runner could not resolve a launch command: {Error}", runnerResult.FirstError);
-                return OperationResult<GameProcessInfo>.CreateFailure(GetMissingRunnerMessage());
+                var missingRunnerMessage = GetMissingRunnerMessage();
+                var errorMessage = string.IsNullOrWhiteSpace(runnerResult.FirstError)
+                    ? missingRunnerMessage
+                    : $"{missingRunnerMessage} ({runnerResult.FirstError})";
+                return OperationResult<GameProcessInfo>.CreateFailure(errorMessage);
             }
 
             var workingDirectory = configuration.WorkingDirectory
@@ -749,6 +753,68 @@ public class GameProcessManager(
             : ProfileValidationConstants.MissingCompatibilityRunner;
     }
 
+    private string QuoteArgumentValue(string value)
+    {
+        if (value.Contains(' ') || value.Contains('\t') || value.Contains('"'))
+        {
+            return $"\"{value.Replace("\"", "\\\"")}\"";
+        }
+
+        return value;
+    }
+
+    private void AppendFormattedArgument(List<string> argList, KeyValuePair<string, string> arg)
+    {
+        if (arg.Key.StartsWith('-'))
+        {
+            argList.Add(arg.Key);
+            if (!string.IsNullOrEmpty(arg.Value))
+            {
+                argList.Add(QuoteArgumentValue(arg.Value));
+            }
+
+            logger.LogDebug("Added flag argument: {Key} {Value}", arg.Key, arg.Value);
+        }
+        else if (arg.Key.StartsWith("_pos", StringComparison.Ordinal) || string.IsNullOrEmpty(arg.Key))
+        {
+            var quotedValue = QuoteArgumentValue(arg.Value);
+            argList.Add(quotedValue);
+            logger.LogDebug("Added positional argument: {Value}", quotedValue);
+        }
+        else
+        {
+            var quotedValue = QuoteArgumentValue(arg.Value);
+            argList.Add($"{arg.Key}={quotedValue}");
+            logger.LogDebug("Added key-value argument: {Key}={Value}", arg.Key, quotedValue);
+        }
+    }
+
+    private void ApplyEnvironmentVariables(
+        ProcessStartInfo processStartInfo,
+        IEnumerable<KeyValuePair<string, string>> environmentVariables,
+        string sourceLabel)
+    {
+        foreach (var (key, value) in environmentVariables)
+        {
+            processStartInfo.EnvironmentVariables[key] = value;
+            logger.LogDebug("[Process] Set {Source} environment variable: {Key}={Value}", sourceLabel, key, value);
+        }
+    }
+
+    private void AppendConfigurationArguments(List<string> argList, IReadOnlyDictionary<string, string>? arguments)
+    {
+        if (arguments is not { Count: > 0 })
+        {
+            return;
+        }
+
+        logger.LogDebug("[Process] Adding {ArgumentCount} arguments to process", arguments.Count);
+        foreach (var arg in arguments)
+        {
+            AppendFormattedArgument(argList, arg);
+        }
+    }
+
     private ProcessStartInfo ConfigureProcessStartInfo(GameLaunchConfiguration configuration, string workingDirectory, RunnerCommand runnerCommand)
     {
         var processStartInfo = new ProcessStartInfo
@@ -760,11 +826,7 @@ public class GameProcessManager(
             RedirectStandardError = true,
         };
 
-        foreach (var envVar in runnerCommand.EnvironmentVariables)
-        {
-            processStartInfo.EnvironmentVariables[envVar.Key] = envVar.Value;
-            logger.LogDebug("[Process] Set runner environment variable: {Key}={Value}", envVar.Key, envVar.Value);
-        }
+        ApplyEnvironmentVariables(processStartInfo, runnerCommand.EnvironmentVariables, "runner");
 
         var argList = new List<string>();
         if (!string.IsNullOrEmpty(runnerCommand.ArgumentPrefix))
@@ -772,37 +834,7 @@ public class GameProcessManager(
             argList.Add(runnerCommand.ArgumentPrefix);
         }
 
-        if (configuration.Arguments is { Count: > 0 } arguments)
-        {
-            logger.LogDebug("[Process] Adding {ArgumentCount} arguments to process", arguments.Count);
-
-            foreach (var arg in arguments)
-            {
-                if (arg.Key.StartsWith('-'))
-                {
-                    argList.Add(arg.Key);
-                    if (!string.IsNullOrEmpty(arg.Value))
-                    {
-                        var quotedValue = (arg.Value.Contains(' ') || arg.Value.Contains('\t')) ? $"\"{arg.Value}\"" : arg.Value;
-                        argList.Add(quotedValue);
-                    }
-
-                    logger.LogDebug("Added flag argument: {Key} {Value}", arg.Key, arg.Value);
-                }
-                else if (arg.Key.StartsWith("_pos") || string.IsNullOrEmpty(arg.Key))
-                {
-                    var quotedValue = (arg.Value.Contains(' ') || arg.Value.Contains('\t')) ? $"\"{arg.Value}\"" : arg.Value;
-                    argList.Add(quotedValue);
-                    logger.LogDebug("Added positional argument: {Value}", quotedValue);
-                }
-                else
-                {
-                    var quotedValue = (arg.Value.Contains(' ') || arg.Value.Contains('\t')) ? $"\"{arg.Value}\"" : arg.Value;
-                    argList.Add($"{arg.Key}={quotedValue}");
-                    logger.LogDebug("Added key-value argument: {Key}={Value}", arg.Key, quotedValue);
-                }
-            }
-        }
+        AppendConfigurationArguments(argList, configuration.Arguments);
 
         if (argList.Count > 0)
         {
@@ -812,12 +844,7 @@ public class GameProcessManager(
         if (configuration.EnvironmentVariables is { Count: > 0 } envVars)
         {
             logger.LogDebug("[Process] Setting {Count} environment variables", envVars.Count);
-
-            foreach (var envVar in envVars)
-            {
-                processStartInfo.EnvironmentVariables[envVar.Key] = envVar.Value;
-                logger.LogDebug("[Process] Set environment variable: {Key}={Value}", envVar.Key, envVar.Value);
-            }
+            ApplyEnvironmentVariables(processStartInfo, envVars, "configuration");
         }
 
         return processStartInfo;

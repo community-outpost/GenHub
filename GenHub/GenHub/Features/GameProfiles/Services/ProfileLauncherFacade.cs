@@ -1230,26 +1230,23 @@ public class ProfileLauncherFacade(
             return null;
         }
 
-        if (await IsSteamClientLaunchAsync(profile, cancellationToken))
+        if (profile.UseSteamLaunch == true && !string.IsNullOrWhiteSpace(profile.GameInstallationId))
         {
-            return null;
+            var installationResult = await installationService.GetInstallationAsync(profile.GameInstallationId, cancellationToken);
+            if (!installationResult.Success)
+            {
+                return installationResult.FirstError;
+            }
+
+            if (installationResult.Data?.InstallationType == GameInstallationType.Steam)
+            {
+                return null;
+            }
         }
 
         return localizationService?.TryGetString(ProfileValidationConstants.MissingCompatibilityRunnerKey, out var localized) == true
             ? localized
             : ProfileValidationConstants.MissingCompatibilityRunner;
-    }
-
-    private async Task<bool> IsSteamClientLaunchAsync(GameProfile profile, CancellationToken cancellationToken)
-    {
-        if (profile.UseSteamLaunch != true || string.IsNullOrWhiteSpace(profile.GameInstallationId))
-        {
-            return false;
-        }
-
-        var installationResult = await installationService.GetInstallationAsync(profile.GameInstallationId, cancellationToken);
-        return installationResult is { Success: true, Data: not null }
-            && installationResult.Data.InstallationType == GameInstallationType.Steam;
     }
 
     private async Task<ContentManifest?> TryRetrieveManifestAsync(

@@ -181,6 +181,33 @@ public sealed class ProfileLauncherFacadeRunnerValidationTests
         Assert.Contains(ProfileValidationConstants.MissingCompatibilityRunner, result.FirstError);
     }
 
+    /// <summary>
+    /// Verifies that when UseSteamLaunch is true and the installation lookup fails,
+    /// the lookup failure is surfaced directly rather than misreporting that Wine is missing.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task ValidateLaunchAsync_WhenSteamFlagWithFailedInstallationLookup_ReturnsInstallationErrorAsync()
+    {
+        // Arrange
+        ArrangePassingProfile(useSteamLaunch: true);
+        _launchRunnerMock
+            .Setup(r => r.CanLaunchWindowsExecutables())
+            .Returns(false);
+        const string installationError = "Installation lookup failed in storage";
+        _installationServiceMock
+            .Setup(s => s.GetInstallationAsync(InstallationId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<GameInstallation>.CreateFailure(installationError));
+        var facade = CreateFacade(localizationService: null);
+
+        // Act
+        var result = await facade.ValidateLaunchAsync(ProfileId);
+
+        // Assert
+        Assert.False(result.Success);
+        Assert.Equal(installationError, result.FirstError);
+    }
+
     private ProfileLauncherFacade CreateFacade(ILocalizationService? localizationService)
     {
         return new ProfileLauncherFacade(

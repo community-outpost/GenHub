@@ -69,7 +69,12 @@ public class WineRunner(
 
     private static string QuoteArgument(string value)
     {
-        return value.Contains(' ') || value.Contains('\t') ? $"\"{value}\"" : value;
+        if (value.Contains(' ') || value.Contains('\t') || value.Contains('"'))
+        {
+            return $"\"{value.Replace("\"", "\\\"")}\"";
+        }
+
+        return value;
     }
 
     private static string SanitizeUserName(string userName)
@@ -83,15 +88,12 @@ public class WineRunner(
 
     private bool TryFindWineBinary([NotNullWhen(true)] out string? wineBinary)
     {
-        wineBinary = null;
+        wineBinary = options.AbsoluteBinaryPaths
+            .FirstOrDefault(p => !string.IsNullOrWhiteSpace(p) && File.Exists(p));
 
-        foreach (var absolutePath in options.AbsoluteBinaryPaths)
+        if (wineBinary is not null)
         {
-            if (!string.IsNullOrWhiteSpace(absolutePath) && File.Exists(absolutePath))
-            {
-                wineBinary = absolutePath;
-                return true;
-            }
+            return true;
         }
 
         var pathVariable = Environment.GetEnvironmentVariable(WineConstants.PathEnvironmentVariable);
@@ -99,21 +101,21 @@ public class WineRunner(
             ? []
             : pathVariable.Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 
-        foreach (var directory in options.ExtraSearchDirectories.Concat(pathDirectories))
-        {
-            if (string.IsNullOrWhiteSpace(directory))
-            {
-                continue;
-            }
+        var searchDirectories = options.ExtraSearchDirectories
+            .Concat(pathDirectories)
+            .Where(d => !string.IsNullOrWhiteSpace(d))
+            .ToArray();
 
-            foreach (var binaryName in options.BinaryNames)
+        foreach (var binaryName in options.BinaryNames)
+        {
+            var match = searchDirectories
+                .Select(d => Path.Combine(d, binaryName))
+                .FirstOrDefault(File.Exists);
+
+            if (match is not null)
             {
-                var candidate = Path.Combine(directory, binaryName);
-                if (File.Exists(candidate))
-                {
-                    wineBinary = candidate;
-                    return true;
-                }
+                wineBinary = match;
+                return true;
             }
         }
 
