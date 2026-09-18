@@ -1737,7 +1737,12 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
                 await topLevel.Clipboard.SetTextAsync(GitHubUserCode);
             }
 
-            OpenGitHubVerificationUrl();
+            var url = string.IsNullOrEmpty(GitHubVerificationUrl) ? GitHubConstants.DeviceVerificationUrl : GitHubVerificationUrl;
+            if (topLevel?.Launcher != null && Uri.TryCreate(url, UriKind.Absolute, out var verificationUri))
+            {
+                await topLevel.Launcher.LaunchUriAsync(verificationUri);
+            }
+
             ShowGitHubSuccessToast(_localizationService?.GetString("Settings.GitHubAuth.Toast.CodeCopied") ?? "Code copied. Opening GitHub in your browser...");
         }
         catch (Exception ex)
@@ -1782,16 +1787,6 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     {
         var failedFormat = _localizationService?.GetString("Settings.GitHubAuth.Toast.SignInFailed") ?? "Sign-in failed: {0}";
         ShowGitHubErrorToast(string.Format(CultureInfo.InvariantCulture, failedFormat, detail));
-    }
-
-    private void OpenGitHubVerificationUrl()
-    {
-        var url = string.IsNullOrEmpty(GitHubVerificationUrl) ? GitHubConstants.DeviceVerificationUrl : GitHubVerificationUrl;
-        Process.Start(new ProcessStartInfo
-        {
-            FileName = url,
-            UseShellExecute = true,
-        });
     }
 
     /// <summary>
