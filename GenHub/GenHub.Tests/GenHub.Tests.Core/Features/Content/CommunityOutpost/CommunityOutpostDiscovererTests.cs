@@ -413,4 +413,94 @@ public class CommunityOutpostDiscovererTests
         Assert.Contains(CommunityOutpostConstants.NonRetailTag, item.Tags);
         Assert.Contains(CommunityOutpostConstants.StreamTag, item.Tags);
     }
+
+    /// <summary>
+    /// Verifies that ResolveDownloadUrl resolves relative URLs within the page directory whether or not the base URL ends with a slash.
+    /// </summary>
+    /// <param name="rawUrl">The raw URL found in href.</param>
+    /// <param name="baseUrl">The base page URL.</param>
+    /// <param name="expected">The expected resolved URL.</param>
+    [Theory]
+    [InlineData("generalszh_23-07-2026.zip", "https://legi.cc/patch", "https://legi.cc/patch/generalszh_23-07-2026.zip")]
+    [InlineData("generalszh_23-07-2026.zip", "https://legi.cc/patch/", "https://legi.cc/patch/generalszh_23-07-2026.zip")]
+    [InlineData("https://legi.cc/patch/generalszh_23-07-2026.zip", "https://legi.cc/patch", "https://legi.cc/patch/generalszh_23-07-2026.zip")]
+    [InlineData("/patch/generalszh_23-07-2026.zip", "https://legi.cc/patch", "https://legi.cc/patch/generalszh_23-07-2026.zip")]
+    [InlineData("generalszh_11-09-2026_NonRet.zip", "https://legi.cc/downloads/genpatcher/", "https://legi.cc/downloads/genpatcher/generalszh_11-09-2026_NonRet.zip")]
+    public void ResolveDownloadUrl_ResolvesCorrectly(string rawUrl, string baseUrl, string expected)
+    {
+        var result = CommunityOutpostDiscoverer.ResolveDownloadUrl(rawUrl, baseUrl);
+        Assert.Equal(expected, result);
+    }
+
+    /// <summary>
+    /// Verifies that DiscoverAsync correctly resolves relative URLs to the patch directory even when patchPageUrl lacks a trailing slash.
+    /// Regression test for download failure where relative links resolved to domain root instead of patch directory.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task DiscoverAsync_WithRelativeUrlsAndNoTrailingSlashBaseUrl_ResolvesToCorrectDirectoryAsync()
+    {
+        var mockHttp = new Mock<IHttpClientFactory>();
+        var mockLoader = new Mock<IProviderDefinitionLoader>();
+        var mockParserFactory = new Mock<ICatalogParserFactory>();
+        var mockLogger = new Mock<ILogger<CommunityOutpostDiscoverer>>();
+
+        var provider = new ProviderDefinition
+        {
+            ProviderId = CommunityOutpostConstants.PublisherId,
+            PublisherType = "communityoutpost",
+            DisplayName = "Community Outpost",
+        };
+        provider.Endpoints.CatalogUrl = "https://example.com/dl.dat";
+        provider.Endpoints.Mirrors.Add(new MirrorEndpoint { Name = "Main", Priority = 1 });
+        provider.Endpoints.Custom["patchPageUrl"] = "https://legi.cc/patch"; // No trailing slash
+
+        var htmlContent = @"
+            <html>
+                <body>
+                    <a href=""generalszh_11-09-2026_NonRet.zip"">Stream NonRet Build</a>
+                    <a href=""generalszh_23-07-2026.zip"">Retail Compatible Build</a>
+                </body>
+            </html>";
+
+        var handler = new Mock<HttpMessageHandler>();
+        handler
+            .Protected()
+            .Setup<Task<HttpResponseMessage>>(
+                "SendAsync",
+                ItExpr.IsAny<HttpRequestMessage>(),
+                ItExpr.IsAny<CancellationToken>())
+            .ReturnsAsync(new HttpResponseMessage
+            {
+                StatusCode = System.Net.HttpStatusCode.OK,
+                Content = new StringContent(htmlContent),
+            });
+
+        var client = new HttpClient(handler.Object);
+        mockHttp.Setup(f => f.CreateClient(It.IsAny<string>())).Returns(client);
+        mockLoader.Setup(l => l.GetProvider(It.IsAny<string>())).Returns(provider);
+
+        var discoverer = new CommunityOutpostDiscoverer(
+            mockHttp.Object,
+            mockLoader.Object,
+            mockParserFactory.Object,
+            mockLogger.Object);
+
+        var query = new ContentSearchQuery { SearchTerm = "Community Patch" };
+
+        // Act
+        var result = await discoverer.DiscoverAsync(query);
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.Equal(2, result.Data.Items.Count());
+
+        var retailItem = result.Data.Items.First(i => i.Id.EndsWith(CommunityOutpostConstants.CommunityPatchTag, StringComparison.Ordinal));
+        Assert.Equal("https://legi.cc/patch/generalszh_23-07-2026.zip", retailItem.SourceUrl);
+        Assert.Equal("https://legi.cc/patch/generalszh_23-07-2026.zip", retailItem.ResolverMetadata["downloadUrl"]);
+
+        var nonRetItem = result.Data.Items.First(i => i.Id.EndsWith(CommunityOutpostConstants.CommunityPatchNonRetCode, StringComparison.Ordinal));
+        Assert.Equal("https://legi.cc/patch/generalszh_11-09-2026_NonRet.zip", nonRetItem.SourceUrl);
+        Assert.Equal("https://legi.cc/patch/generalszh_11-09-2026_NonRet.zip", nonRetItem.ResolverMetadata["downloadUrl"]);
+    }
 }

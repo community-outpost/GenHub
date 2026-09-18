@@ -12,7 +12,7 @@
     "websiteUrl": "https://legi.cc",
     "supportUrl": "https://legi.cc/patch",
     "custom": {
-      "patchPageUrl": "https://legi.cc/patch",
+      "patchPageUrl": "https://legi.cc/patch/",
       "gentoolWebsite": "https://gentool.net"
     }
   },

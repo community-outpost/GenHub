@@ -333,20 +333,17 @@ public sealed partial class GameClientSelectionViewModel(
     private static bool IsNonRetailCommunityPatch(ContentManifest manifest)
     {
         var hasNonRetTag = manifest.Metadata?.Tags is { } tags &&
-                           tags.Any(t => string.Equals(t, CommunityOutpostConstants.CommunityPatchNonRetTag, StringComparison.OrdinalIgnoreCase) ||
-                                         string.Equals(t, CommunityOutpostConstants.NonRetailTag, StringComparison.OrdinalIgnoreCase) ||
-                                         string.Equals(t, CommunityOutpostConstants.StreamTag, StringComparison.OrdinalIgnoreCase));
+                           tags.Any(CommunityOutpostConstants.IsNonRetailIdentifier);
 
-        return manifest.Id.Value.Contains(CommunityOutpostConstants.CommunityPatchNonRetCode, StringComparison.OrdinalIgnoreCase) ||
-               manifest.Name.Contains(CommunityOutpostConstants.NonRetailTag, StringComparison.OrdinalIgnoreCase) ||
+        return CommunityOutpostConstants.IsNonRetailIdentifier(manifest.Id.Value) ||
+               CommunityOutpostConstants.IsNonRetailIdentifier(manifest.Name) ||
                hasNonRetTag;
     }
 
     private static bool IsNonRetailClient(GameClient client)
     {
-        return (client.Id is { } id && id.Contains(CommunityOutpostConstants.CommunityPatchNonRetCode, StringComparison.OrdinalIgnoreCase)) ||
-               (client.Name is { } name && (name.Contains(CommunityOutpostConstants.CommunityPatchNonRetDisplayName, StringComparison.OrdinalIgnoreCase) ||
-                                            name.Contains(CommunityOutpostConstants.NonRetailTag, StringComparison.OrdinalIgnoreCase)));
+        return CommunityOutpostConstants.IsNonRetailIdentifier(client.Id) ||
+               CommunityOutpostConstants.IsNonRetailIdentifier(client.Name);
     }
 
     private static bool IsCommunityPatchManifest(ContentManifest manifest)

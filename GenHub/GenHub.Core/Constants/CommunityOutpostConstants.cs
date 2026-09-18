@@ -182,46 +182,39 @@ public static class CommunityOutpostConstants
     /// <summary>Display name for Maps content type.</summary>
     public const string ContentTypeMaps = "Maps";
 
-    /// <summary>
-    /// Checks whether an identifier, filename, or display name represents a non-retail (stream) build.
-    /// </summary>
-    /// <param name="name">The name, identifier, or filename to check.</param>
-    /// <returns><c>true</c> if non-retail; otherwise, <c>false</c>.</returns>
-    public static bool IsNonRetailIdentifier(string? name)
-    {
-        if (string.IsNullOrWhiteSpace(name))
-        {
-            return false;
-        }
+    /// <summary>Tag for weekly patch builds.</summary>
+    public const string WeeklyTag = "weekly";
 
-        return name.Contains("nonret", System.StringComparison.OrdinalIgnoreCase) ||
-               name.Contains("non-ret", System.StringComparison.OrdinalIgnoreCase) ||
-               name.Contains("nonretail", System.StringComparison.OrdinalIgnoreCase) ||
-               name.Contains("non-retail", System.StringComparison.OrdinalIgnoreCase) ||
-               name.Contains(StreamTag, System.StringComparison.OrdinalIgnoreCase);
-    }
+    /// <summary>Keyword identifying nonret builds.</summary>
+    public const string NonRetKeyword = "nonret";
+
+    /// <summary>Keyword identifying hyphenated non-ret builds.</summary>
+    public const string NonRetHyphenatedKeyword = "non-ret";
+
+    /// <summary>Keyword identifying nonretail builds.</summary>
+    public const string NonRetailKeyword = "nonretail";
 
     /// <summary>
     /// Tags associated with the patch content.
     /// </summary>
-    public static readonly IReadOnlyList<string> PatchTags = ["patch", "community", "weekly", "legionnaire"];
+    public static readonly IReadOnlyList<string> PatchTags = ["patch", "community", WeeklyTag, "legionnaire"];
 
     /// <summary>
     /// Tags associated with community patch content.
     /// </summary>
-    public static readonly IReadOnlyList<string> CommunityPatchTags = [CommunityPatchTag, PublisherTypeConstants.TheSuperHackers, "weekly", GitHubTopicsConstants.GameClientTopic];
+    public static readonly IReadOnlyList<string> CommunityPatchTags = [CommunityPatchTag, PublisherTypeConstants.TheSuperHackers, WeeklyTag, GitHubTopicsConstants.GameClientTopic];
 
     /// <summary>
     /// Tags associated with the retail-compatible community patch content.
     /// </summary>
     public static readonly IReadOnlyList<string> CommunityPatchRetailTags =
-        [CommunityPatchTag, PublisherTypeConstants.TheSuperHackers, "weekly", GitHubTopicsConstants.GameClientTopic, RetailCompatibleTag];
+        [CommunityPatchTag, PublisherTypeConstants.TheSuperHackers, WeeklyTag, GitHubTopicsConstants.GameClientTopic, RetailCompatibleTag];
 
     /// <summary>
     /// Tags associated with the non-retail (stream) community patch content.
     /// </summary>
     public static readonly IReadOnlyList<string> CommunityPatchNonRetTags =
-        [CommunityPatchTag, CommunityPatchNonRetCode, PublisherTypeConstants.TheSuperHackers, "weekly", GitHubTopicsConstants.GameClientTopic, NonRetailTag, StreamTag];
+        [CommunityPatchTag, CommunityPatchNonRetCode, PublisherTypeConstants.TheSuperHackers, WeeklyTag, GitHubTopicsConstants.GameClientTopic, NonRetailTag, StreamTag];
 
     /// <summary>
     /// Tags associated with official patches.
@@ -272,4 +265,23 @@ public static class CommunityOutpostConstants
     /// Tags associated with addons.
     /// </summary>
     public static readonly IReadOnlyList<string> AddonTags = [AddonTag, "community", "genpatcher"];
+
+    /// <summary>
+    /// Checks whether an identifier, filename, or display name represents a non-retail (stream) build.
+    /// </summary>
+    /// <param name="name">The name, identifier, or filename to check.</param>
+    /// <returns><c>true</c> if non-retail; otherwise, <c>false</c>.</returns>
+    public static bool IsNonRetailIdentifier(string? name)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            return false;
+        }
+
+        return name.Contains(NonRetKeyword, System.StringComparison.OrdinalIgnoreCase) ||
+               name.Contains(NonRetHyphenatedKeyword, System.StringComparison.OrdinalIgnoreCase) ||
+               name.Contains(NonRetailKeyword, System.StringComparison.OrdinalIgnoreCase) ||
+               name.Contains(NonRetailTag, System.StringComparison.OrdinalIgnoreCase) ||
+               name.Contains(StreamTag, System.StringComparison.OrdinalIgnoreCase);
+    }
 }
