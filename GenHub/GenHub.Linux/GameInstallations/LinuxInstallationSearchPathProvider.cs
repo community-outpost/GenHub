@@ -24,20 +24,30 @@ public sealed class LinuxInstallationSearchPathProvider : IInstallationSearchPat
 
         if (installationType == GameInstallationType.Steam)
         {
-            paths.Add(Path.Combine(home, ".steam", "steam", SteamConstants.SteamAppsDirectoryName, SteamConstants.CommonDirectoryName));
-            paths.Add(Path.Combine(home, ".steam", "root", SteamConstants.SteamAppsDirectoryName, SteamConstants.CommonDirectoryName));
-            paths.Add(Path.Combine(home, ".local", "share", SteamConstants.SteamDirectoryName, SteamConstants.SteamAppsDirectoryName, SteamConstants.CommonDirectoryName));
-            paths.Add(Path.Combine(home, ".var", "app", "com.valvesoftware.Steam", ".local", "share", SteamConstants.SteamDirectoryName, SteamConstants.SteamAppsDirectoryName, SteamConstants.CommonDirectoryName));
-            paths.Add(Path.Combine(home, ".var", "app", "com.valvesoftware.Steam", "data", SteamConstants.SteamDirectoryName, SteamConstants.SteamAppsDirectoryName, SteamConstants.CommonDirectoryName));
-            paths.Add(Path.Combine(home, "snap", "steam", SteamConstants.CommonDirectoryName, ".local", "share", SteamConstants.SteamDirectoryName, SteamConstants.SteamAppsDirectoryName, SteamConstants.CommonDirectoryName));
+            AddSteamPaths(paths, home);
         }
         else
         {
-            paths.Add(Path.Combine(home, "Games"));
-            paths.Add(Path.Combine(home, ".wine", "drive_c", "Program Files (x86)", GameClientConstants.EaGamesParentDirectoryName));
-            paths.Add(Path.Combine(home, ".wine", "drive_c", "Program Files", GameClientConstants.EaGamesParentDirectoryName));
+            AddNonSteamPaths(paths, home);
         }
 
         return paths.AsReadOnly();
+    }
+
+    private static void AddSteamPaths(List<string> paths, string home)
+    {
+        paths.Add(Path.Combine(home, InstallationSearchPathConstants.Linux.DotSteamDirectoryName, InstallationSearchPathConstants.Linux.SteamInstallDirectoryName, SteamConstants.SteamAppsDirectoryName, SteamConstants.CommonDirectoryName));
+        paths.Add(Path.Combine(home, InstallationSearchPathConstants.Linux.DotSteamDirectoryName, InstallationSearchPathConstants.Linux.SteamRootDirectoryName, SteamConstants.SteamAppsDirectoryName, SteamConstants.CommonDirectoryName));
+        paths.Add(Path.Combine(home, InstallationSearchPathConstants.Linux.XdgLocalDirectoryName, InstallationSearchPathConstants.Linux.XdgShareDirectoryName, SteamConstants.SteamDirectoryName, SteamConstants.SteamAppsDirectoryName, SteamConstants.CommonDirectoryName));
+        paths.Add(Path.Combine(home, InstallationSearchPathConstants.Linux.FlatpakVarDirectoryName, InstallationSearchPathConstants.Linux.FlatpakAppDirectoryName, InstallationSearchPathConstants.Linux.SteamFlatpakApplicationId, InstallationSearchPathConstants.Linux.XdgLocalDirectoryName, InstallationSearchPathConstants.Linux.XdgShareDirectoryName, SteamConstants.SteamDirectoryName, SteamConstants.SteamAppsDirectoryName, SteamConstants.CommonDirectoryName));
+        paths.Add(Path.Combine(home, InstallationSearchPathConstants.Linux.FlatpakVarDirectoryName, InstallationSearchPathConstants.Linux.FlatpakAppDirectoryName, InstallationSearchPathConstants.Linux.SteamFlatpakApplicationId, InstallationSearchPathConstants.Linux.FlatpakDataDirectoryName, SteamConstants.SteamDirectoryName, SteamConstants.SteamAppsDirectoryName, SteamConstants.CommonDirectoryName));
+        paths.Add(Path.Combine(home, InstallationSearchPathConstants.Linux.SnapDirectoryName, InstallationSearchPathConstants.Linux.SteamInstallDirectoryName, SteamConstants.CommonDirectoryName, InstallationSearchPathConstants.Linux.XdgLocalDirectoryName, InstallationSearchPathConstants.Linux.XdgShareDirectoryName, SteamConstants.SteamDirectoryName, SteamConstants.SteamAppsDirectoryName, SteamConstants.CommonDirectoryName));
+    }
+
+    private static void AddNonSteamPaths(List<string> paths, string home)
+    {
+        paths.Add(Path.Combine(home, InstallationSearchPathConstants.Linux.GamesDirectoryName));
+        paths.Add(Path.Combine(home, InstallationSearchPathConstants.Linux.WinePrefixDirectoryName, InstallationSearchPathConstants.Linux.WineDriveCDirectoryName, InstallationSearchPathConstants.Linux.ProgramFilesX86DirectoryName, GameClientConstants.EaGamesParentDirectoryName));
+        paths.Add(Path.Combine(home, InstallationSearchPathConstants.Linux.WinePrefixDirectoryName, InstallationSearchPathConstants.Linux.WineDriveCDirectoryName, InstallationSearchPathConstants.Linux.ProgramFilesDirectoryName, GameClientConstants.EaGamesParentDirectoryName));
     }
 }

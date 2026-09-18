@@ -431,6 +431,41 @@ Constants related to Steam integration and the proxy launcher.
 
 ---
 
+## InstallationSearchPathConstants Class
+
+Directory name fragments used by the platform installation search path providers (`WindowsInstallationSearchPathProvider`, `LinuxInstallationSearchPathProvider`, `MacOSInstallationSearchPathProvider`) to compose candidate game installation locations.
+
+### Linux Fragments (`InstallationSearchPathConstants.Linux`)
+
+| Constant | Value | Description |
+| -------- | ----- | ----------- |
+| `DotSteamDirectoryName` | `".steam"` | Legacy Steam per-user configuration directory |
+| `SteamInstallDirectoryName` | `"steam"` | Steam install directory under the legacy config path and the snap revision path |
+| `SteamRootDirectoryName` | `"root"` | Legacy Steam runtime root directory |
+| `XdgLocalDirectoryName` | `".local"` | XDG local data parent directory |
+| `XdgShareDirectoryName` | `"share"` | XDG shared data directory |
+| `FlatpakVarDirectoryName` | `".var"` | Flatpak per-user application data root |
+| `FlatpakAppDirectoryName` | `"app"` | Flatpak application container directory |
+| `SteamFlatpakApplicationId` | `"com.valvesoftware.Steam"` | Steam Flatpak application identifier |
+| `FlatpakDataDirectoryName` | `"data"` | Flatpak writable data directory |
+| `SnapDirectoryName` | `"snap"` | Snap per-user data root |
+| `GamesDirectoryName` | `"Games"` | User games directory used for non-Steam installations |
+| `WinePrefixDirectoryName` | `".wine"` | Default Wine prefix directory |
+| `WineDriveCDirectoryName` | `"drive_c"` | Windows C: drive mapping inside a Wine prefix |
+| `ProgramFilesX86DirectoryName` | `"Program Files (x86)"` | 32-bit Windows program files directory inside a Wine prefix |
+| `ProgramFilesDirectoryName` | `"Program Files"` | 64-bit Windows program files directory inside a Wine prefix |
+
+### macOS Fragments (`InstallationSearchPathConstants.MacOS`)
+
+| Constant | Value | Description |
+| -------- | ----- | ----------- |
+| `LibraryDirectoryName` | `"Library"` | Per-user library directory |
+| `ApplicationSupportDirectoryName` | `"Application Support"` | Per-user application support directory |
+| `ApplicationsDirectoryName` | `"Applications"` | Per-user applications directory |
+| `SystemApplicationsDirectory` | `"/Applications"` | System-wide applications directory |
+
+---
+
 ## GameClientHashRegistry Class
 
 Extensible SHA-256 hash constants and registry for known game executables used for client detection across official and 3rd party distributions. Supports dynamic updates, external hash databases, and plugin extensibility.

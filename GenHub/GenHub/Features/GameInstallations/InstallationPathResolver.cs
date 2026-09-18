@@ -22,8 +22,6 @@ public class InstallationPathResolver(
     ILogger<InstallationPathResolver> logger,
     IInstallationSearchPathProvider? searchPathProvider = null) : IInstallationPathResolver
 {
-    private readonly ILogger<InstallationPathResolver> _logger = logger;
-
     /// <inheritdoc/>
     public async Task<OperationResult<GameInstallation>> ResolveInstallationPathAsync(
         GameInstallation installation,
@@ -36,13 +34,13 @@ public class InstallationPathResolver(
         var validationResult = await ValidateInstallationPathAsync(installation, cancellationToken);
         if (validationResult.Success && validationResult.Data)
         {
-            _logger.LogDebug(
+            logger.LogDebug(
                 "Installation path is valid, no resolution needed: {Path}",
                 installation.InstallationPath);
             return OperationResult<GameInstallation>.CreateSuccess(installation);
         }
 
-        _logger.LogInformation(
+        logger.LogInformation(
             "Installation path is invalid: {Path}. Attempting to resolve...",
             installation.InstallationPath);
 
@@ -51,7 +49,7 @@ public class InstallationPathResolver(
         if (searchResult.Success && !string.IsNullOrEmpty(searchResult.Data))
         {
             var resolvedPath = searchResult.Data;
-            _logger.LogInformation(
+            logger.LogInformation(
                 "Successfully resolved installation path to: {ResolvedPath}",
                 resolvedPath);
 
@@ -59,7 +57,7 @@ public class InstallationPathResolver(
             return OperationResult<GameInstallation>.CreateSuccess(updatedInstallation);
         }
 
-        _logger.LogWarning(
+        logger.LogWarning(
             "Failed to resolve installation path for: {Path}",
             installation.InstallationPath);
 
@@ -85,38 +83,17 @@ public class InstallationPathResolver(
             return OperationResult<bool>.CreateSuccess(false);
         }
 
-        // Check for game executables or known game data files
-        var hasValidFiles = false;
-
-        if (installation.HasGenerals && !string.IsNullOrEmpty(installation.GeneralsPath) && Directory.Exists(installation.GeneralsPath))
-        {
-            var generalsExe = Path.Combine(installation.GeneralsPath, GameClientConstants.GeneralsExecutable);
-            var gameDat = Path.Combine(installation.GeneralsPath, GameClientConstants.SteamGameDatExecutable);
-            if (generalsExe.FileExistsCaseInsensitive() || gameDat.FileExistsCaseInsensitive())
-            {
-                hasValidFiles = true;
-            }
-        }
-
-        if (installation.HasZeroHour && !string.IsNullOrEmpty(installation.ZeroHourPath) && Directory.Exists(installation.ZeroHourPath))
-        {
-            var zhExe = Path.Combine(installation.ZeroHourPath, GameClientConstants.GeneralsExecutable);
-            var zhGameDat = Path.Combine(installation.ZeroHourPath, GameClientConstants.SteamGameDatExecutable);
-            if (zhExe.FileExistsCaseInsensitive() || zhGameDat.FileExistsCaseInsensitive())
-            {
-                hasValidFiles = true;
-            }
-        }
-
-        // Fallback: Check root installation directory for any valid game executable
-        if (!hasValidFiles && InstallationExtensions.HasValidGameExecutable(installation.InstallationPath))
-        {
-            hasValidFiles = true;
-        }
+        // Check game-specific subdirectories and the root installation directory
+        // against the shared valid executable list so all locations accept
+        // every recognized edition (Steam, retail, SuperHackers, GeneralsOnline, Contra).
+        var hasValidFiles =
+            (installation.HasGenerals && InstallationExtensions.HasValidGameExecutable(installation.GeneralsPath)) ||
+            (installation.HasZeroHour && InstallationExtensions.HasValidGameExecutable(installation.ZeroHourPath)) ||
+            InstallationExtensions.HasValidGameExecutable(installation.InstallationPath);
 
         if (!hasValidFiles)
         {
-            _logger.LogDebug(
+            logger.LogDebug(
                 "Installation path {Path} does not contain valid game files",
                 installation.InstallationPath);
             return OperationResult<bool>.CreateSuccess(false);
@@ -134,7 +111,7 @@ public class InstallationPathResolver(
         ArgumentNullException.ThrowIfNull(installation);
         cancellationToken.ThrowIfCancellationRequested();
 
-        _logger.LogInformation(
+        logger.LogInformation(
             "Searching for {InstallationType} installation...",
             installation.InstallationType);
 
@@ -157,7 +134,7 @@ public class InstallationPathResolver(
                     continue;
                 }
 
-                _logger.LogDebug("Searching in: {SearchPath}", searchPath);
+                logger.LogDebug("Searching in: {SearchPath}", searchPath);
 
                 var foundPath = await SearchDirectoryForInstallationAsync(
                     searchPath,
@@ -167,21 +144,17 @@ public class InstallationPathResolver(
 
                 if (!string.IsNullOrEmpty(foundPath))
                 {
-                    _logger.LogInformation("Found installation at: {FoundPath}", foundPath);
+                    logger.LogInformation("Found installation at: {FoundPath}", foundPath);
                     return OperationResult<string>.CreateSuccess(foundPath);
                 }
             }
-            catch (OperationCanceledException)
-            {
-                throw;
-            }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
-                _logger.LogWarning(ex, "Error searching directory: {SearchPath}", searchPath);
+                logger.LogWarning(ex, "Error searching directory: {SearchPath}", searchPath);
             }
         }
 
-        _logger.LogWarning(
+        logger.LogWarning(
             "Could not find {InstallationType} installation in any common location",
             installation.InstallationType);
 
@@ -269,13 +242,9 @@ public class InstallationPathResolver(
         {
             return await ComputeFileHashAsync(resolvedGameDatPath, cancellationToken);
         }
-        catch (OperationCanceledException)
-        {
-            throw;
-        }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            _logger.LogDebug(ex, "Could not compute hash of game.dat at {Path}", resolvedGameDatPath);
+            logger.LogDebug(ex, "Could not compute hash of game.dat at {Path}", resolvedGameDatPath);
             return null;
         }
     }
@@ -327,18 +296,14 @@ public class InstallationPathResolver(
                 }
             }
         }
-        catch (OperationCanceledException)
-        {
-            throw;
-        }
         catch (UnauthorizedAccessException)
         {
             // Skip directories we don't have access to
-            _logger.LogDebug("Access denied to directory: {SearchPath}", searchPath);
+            logger.LogDebug("Access denied to directory: {SearchPath}", searchPath);
         }
         catch (IOException ex)
         {
-            _logger.LogWarning(ex, "Error searching directory: {SearchPath}", searchPath);
+            logger.LogWarning(ex, "Error searching directory: {SearchPath}", searchPath);
         }
 
         return null;
@@ -395,13 +360,9 @@ public class InstallationPathResolver(
 
             return false;
         }
-        catch (OperationCanceledException)
-        {
-            throw;
-        }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            _logger.LogDebug(ex, "Error checking directory: {Directory}", directory);
+            logger.LogDebug(ex, "Error checking directory: {Directory}", directory);
             return false;
         }
     }

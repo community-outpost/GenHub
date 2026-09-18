@@ -23,17 +23,17 @@ public sealed class MacOSInstallationSearchPathProvider : IInstallationSearchPat
             {
                 paths.Add(Path.Combine(
                     home,
-                    "Library",
-                    "Application Support",
+                    InstallationSearchPathConstants.MacOS.LibraryDirectoryName,
+                    InstallationSearchPathConstants.MacOS.ApplicationSupportDirectoryName,
                     SteamConstants.SteamDirectoryName,
                     SteamConstants.SteamAppsDirectoryName,
                     SteamConstants.CommonDirectoryName));
             }
 
-            paths.Add(Path.Combine(home, "Applications"));
+            paths.Add(Path.Combine(home, InstallationSearchPathConstants.MacOS.ApplicationsDirectoryName));
         }
 
-        paths.Add("/Applications");
+        paths.Add(InstallationSearchPathConstants.MacOS.SystemApplicationsDirectory);
 
         return paths.AsReadOnly();
     }

@@ -232,6 +232,30 @@ public sealed class InstallationPathResolverTests : IDisposable
     }
 
     /// <summary>
+    /// Verifies that ValidateInstallationPathAsync accepts edition-specific executables in game subdirectories,
+    /// using the same shared list as the root installation directory check.
+    /// </summary>
+    /// <param name="exeName">The executable name to test.</param>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Theory]
+    [InlineData("generalszh.exe")]
+    [InlineData("generals.ctr")]
+    public async Task ValidateInstallationPathAsync_WhenSubdirectoryHasEditionExecutable_ReturnsTrue(string exeName)
+    {
+        var generalsPath = Path.Combine(_tempDirectory, "GeneralsEdition");
+        Directory.CreateDirectory(generalsPath);
+        File.WriteAllText(Path.Combine(generalsPath, exeName), "mock executable content");
+
+        var installation = new GameInstallation(_tempDirectory, GameInstallationType.Retail);
+        installation.SetPaths(generalsPath, null);
+
+        var result = await _resolver.ValidateInstallationPathAsync(installation);
+
+        Assert.True(result.Success);
+        Assert.True(result.Data);
+    }
+
+    /// <summary>
     /// Verifies that ResolveInstallationPathAsync propagates OperationCanceledException when cancelled.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>

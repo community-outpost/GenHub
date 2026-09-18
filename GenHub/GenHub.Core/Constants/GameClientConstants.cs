@@ -13,6 +13,9 @@ public static class GameClientConstants
     public const string GeneralsExecutable = "generals.exe";
 
     /// <summary>Zero Hour executable filename (EA App/Retail installations).</summary>
+    /// <remarks>Both Generals and Zero Hour ship as <c>generals.exe</c>; this intentionally
+    /// shares its value with <see cref="GeneralsExecutable"/> and is covered by
+    /// <see cref="ValidGameExecutableNames"/> through that entry.</remarks>
     public const string ZeroHourExecutable = "generals.exe";
 
     /// <summary>Game engine executable filename.</summary>
@@ -280,6 +283,8 @@ public static class GameClientConstants
     /// <summary>
     /// List of valid game executable filenames for installation verification.
     /// </summary>
+    /// <remarks><see cref="ZeroHourExecutable"/> is deliberately absent: it shares its
+    /// filename with <see cref="GeneralsExecutable"/>, which already covers it.</remarks>
     public static readonly IReadOnlyList<string> ValidGameExecutableNames =
     [
         GeneralsExecutable,
