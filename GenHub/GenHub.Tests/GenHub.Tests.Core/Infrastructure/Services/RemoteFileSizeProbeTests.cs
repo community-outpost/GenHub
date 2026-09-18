@@ -16,6 +16,49 @@ namespace GenHub.Tests.Core.Infrastructure.Services;
 /// </summary>
 public sealed class RemoteFileSizeProbeTests
 {
+    private sealed record HeadResponse(
+        HttpStatusCode StatusCode,
+        long? ContentLength,
+        string? MediaType,
+        string? Location = null);
+
+    private sealed class QueueHandler(List<HeadResponse> responses) : HttpMessageHandler
+    {
+        public int RequestCount { get; private set; }
+
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var index = Math.Min(RequestCount, responses.Count - 1);
+            RequestCount++;
+
+            var planned = responses[index];
+            var message = new HttpResponseMessage(planned.StatusCode)
+            {
+                Content = new ByteArrayContent([]),
+                RequestMessage = request,
+            };
+
+            if (planned.ContentLength.HasValue)
+            {
+                message.Content.Headers.ContentLength = planned.ContentLength.Value;
+            }
+
+            if (!string.IsNullOrEmpty(planned.MediaType))
+            {
+                message.Content.Headers.ContentType = new MediaTypeHeaderValue(planned.MediaType);
+            }
+
+            if (!string.IsNullOrEmpty(planned.Location))
+            {
+                message.Headers.Location = new Uri(planned.Location, UriKind.RelativeOrAbsolute);
+            }
+
+            return Task.FromResult(message);
+        }
+    }
+
     private static readonly TimeSpan ProbeTimeout = TimeSpan.FromSeconds(5);
 
     /// <summary>
@@ -78,6 +121,7 @@ public sealed class RemoteFileSizeProbeTests
     [InlineData("https://raw.githubusercontent.com/test/mod/main/mod.yml")]
     [InlineData("https://example.com/manifest.txt")]
     [InlineData("https://example.com/manifest.json")]
+    [InlineData("https://example.com/manifest.xml")]
     public async Task TryProbeSizeAsync_DescriptorUrl_ReturnsNullWithoutRequest(string url)
     {
         var handler = new QueueHandler([new HeadResponse(HttpStatusCode.OK, 552, "text/plain")]);
@@ -100,6 +144,10 @@ public sealed class RemoteFileSizeProbeTests
     [InlineData("application/xml")]
     [InlineData("text/xml")]
     [InlineData("application/json")]
+    [InlineData("application/yaml")]
+    [InlineData("application/x-yaml")]
+    [InlineData("application/hal+json")]
+    [InlineData("application/atom+xml")]
     public async Task TryProbeSizeAsync_NonPayloadMediaType_ReturnsNull(string mediaType)
     {
         using var client = CreateClient(new HeadResponse(HttpStatusCode.OK, 552, mediaType));
@@ -192,48 +240,5 @@ public sealed class RemoteFileSizeProbeTests
     private static HeadResponse HeadRedirect(string location)
     {
         return new HeadResponse(HttpStatusCode.MovedPermanently, null, null, location);
-    }
-
-    private sealed record HeadResponse(
-        HttpStatusCode StatusCode,
-        long? ContentLength,
-        string? MediaType,
-        string? Location = null);
-
-    private sealed class QueueHandler(List<HeadResponse> responses) : HttpMessageHandler
-    {
-        public int RequestCount { get; private set; }
-
-        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-
-            var index = Math.Min(RequestCount, responses.Count - 1);
-            RequestCount++;
-
-            var planned = responses[index];
-            var message = new HttpResponseMessage(planned.StatusCode)
-            {
-                Content = new ByteArrayContent([]),
-                RequestMessage = request,
-            };
-
-            if (planned.ContentLength.HasValue)
-            {
-                message.Content.Headers.ContentLength = planned.ContentLength.Value;
-            }
-
-            if (!string.IsNullOrEmpty(planned.MediaType))
-            {
-                message.Content.Headers.ContentType = new MediaTypeHeaderValue(planned.MediaType);
-            }
-
-            if (!string.IsNullOrEmpty(planned.Location))
-            {
-                message.Headers.Location = new Uri(planned.Location, UriKind.RelativeOrAbsolute);
-            }
-
-            return Task.FromResult(message);
-        }
     }
 }

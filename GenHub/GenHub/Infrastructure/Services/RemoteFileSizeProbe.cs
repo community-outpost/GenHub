@@ -1,5 +1,6 @@
 using GenHub.Core.Constants;
 using System;
+using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Threading;
@@ -17,13 +18,6 @@ namespace GenHub.Infrastructure.Services;
 /// </remarks>
 public static class RemoteFileSizeProbe
 {
-    private const string TextMediaTypePrefix = "text/";
-    private const string XmlMediaType = "application/xml";
-    private const string TextXmlMediaType = "text/xml";
-    private const string JsonMediaType = "application/json";
-
-    private static readonly string[] DescriptorExtensions = [".yaml", ".yml", ".txt", ".json"];
-
     /// <summary>
     /// Probes the Content-Length of a remote URL with HEAD requests, following redirects.
     /// </summary>
@@ -147,23 +141,21 @@ public static class RemoteFileSizeProbe
             return false;
         }
 
-        foreach (var extension in DescriptorExtensions)
-        {
-            if (path.EndsWith(extension, StringComparison.OrdinalIgnoreCase))
-            {
-                return true;
-            }
-        }
-
-        return false;
+        return ContentConstants.SizeProbeDescriptorExtensions.Any(extension =>
+            path.EndsWith(extension, StringComparison.OrdinalIgnoreCase));
     }
 
     private static bool IsNonPayloadMediaType(string? mediaType)
     {
-        return !string.IsNullOrWhiteSpace(mediaType) &&
-            (mediaType.StartsWith(TextMediaTypePrefix, StringComparison.OrdinalIgnoreCase) ||
-             mediaType.Equals(XmlMediaType, StringComparison.OrdinalIgnoreCase) ||
-             mediaType.Equals(TextXmlMediaType, StringComparison.OrdinalIgnoreCase) ||
-             mediaType.Equals(JsonMediaType, StringComparison.OrdinalIgnoreCase));
+        if (string.IsNullOrWhiteSpace(mediaType))
+        {
+            return false;
+        }
+
+        return mediaType.StartsWith(ContentConstants.SizeProbeTextMediaTypePrefix, StringComparison.OrdinalIgnoreCase) ||
+            ContentConstants.SizeProbeDescriptorMediaTypes.Any(candidate =>
+                mediaType.Equals(candidate, StringComparison.OrdinalIgnoreCase)) ||
+            ContentConstants.SizeProbeDescriptorMediaTypeSuffixes.Any(suffix =>
+                mediaType.EndsWith(suffix, StringComparison.OrdinalIgnoreCase));
     }
 }

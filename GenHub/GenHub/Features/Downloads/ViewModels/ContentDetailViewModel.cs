@@ -88,11 +88,9 @@ public partial class ContentDetailViewModel(
     private const string UnknownValue = "Unknown";
 
     // ===== Static Fields =====
-    private static readonly HttpClient SharedProbeHttpClient = new(new SocketsHttpHandler
-    {
-        AllowAutoRedirect = false,
-        ConnectTimeout = TimeSpan.FromSeconds(5),
-    })
+    private static readonly HttpClient SharedProbeHttpClient = new(
+        ImageCacheService.CreateSsrfSafeSocketsHttpHandler(
+            connectTimeout: TimeSpan.FromSeconds(5)))
     {
         Timeout = TimeSpan.FromSeconds(5),
     };

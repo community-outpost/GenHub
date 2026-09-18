@@ -43,6 +43,11 @@ public static class ContentConstants
     public const int MaxSizeProbeRedirects = 5;
 
     /// <summary>
+    /// Media type prefix for plain text responses, which are never download payloads.
+    /// </summary>
+    public const string SizeProbeTextMediaTypePrefix = "text/";
+
+    /// <summary>
     /// Default progress step count for single-step operations.
     /// </summary>
     public const int SingleStepTotal = 1;
@@ -338,4 +343,26 @@ public static class ContentConstants
     /// URL prefix for Discord CDN attachment links that expire after 24 hours.
     /// </summary>
     public const string DiscordAttachmentCdnPrefix = "https://cdn.discordapp.com/attachments/";
+
+    /// <summary>
+    /// Descriptor file extensions that must never be reported as download payload sizes.
+    /// </summary>
+    public static readonly string[] SizeProbeDescriptorExtensions = [".yaml", ".yml", ".txt", ".json", ".xml"];
+
+    /// <summary>
+    /// Media types that indicate descriptor documents rather than download payloads.
+    /// </summary>
+    public static readonly string[] SizeProbeDescriptorMediaTypes =
+    [
+        "application/xml",
+        "text/xml",
+        "application/json",
+        "application/yaml",
+        "application/x-yaml",
+    ];
+
+    /// <summary>
+    /// Structured media type suffixes that indicate descriptor documents.
+    /// </summary>
+    public static readonly string[] SizeProbeDescriptorMediaTypeSuffixes = ["+json", "+xml"];
 }
