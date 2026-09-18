@@ -1,4 +1,5 @@
 using GenHub.Core.Models.Results;
+using GenHub.Core.Models.Results.Content;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -14,6 +15,6 @@ public interface ICommunityOutpostProfileReconciler
     /// </summary>
     /// <param name="triggeringProfileId">The ID of the profile triggering the check.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>Success with true if profile was updated/reconciled, false if no update needed.</returns>
-    Task<OperationResult<bool>> CheckAndReconcileIfNeededAsync(string triggeringProfileId, CancellationToken cancellationToken = default);
+    /// <returns>Success with reconciliation result if profile was updated/reconciled, false/none if no update needed.</returns>
+    Task<OperationResult<PublisherReconciliationResult>> CheckAndReconcileIfNeededAsync(string triggeringProfileId, CancellationToken cancellationToken = default);
 }

@@ -354,7 +354,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             _theme = ThemeConstants.DefaultTheme.Id;
         }
 
-        if (DownloadTimeoutSeconds == 0) DownloadTimeoutSeconds = ValidationLimits.MinDownloadTimeoutSeconds;
+        if (DownloadTimeoutSeconds == 0) DownloadTimeoutSeconds = DownloadDefaults.TimeoutSeconds;
         if (MaxConcurrentDownloads == 0) MaxConcurrentDownloads = DownloadDefaults.MaxConcurrentDownloads;
         if (string.IsNullOrEmpty(DownloadUserAgent)) DownloadUserAgent = ApiConstants.DefaultUserAgent;
 

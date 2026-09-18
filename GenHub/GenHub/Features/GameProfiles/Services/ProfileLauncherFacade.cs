@@ -819,6 +819,8 @@ public class ProfileLauncherFacade(
             }
 
             profile = reconcileResult.Data ?? profile;
+            profileId = profile.Id;
+            await TryRebindProfileInstallationAsync(profileId, profile, resolvedInstallation, cancellationToken);
 
             // Validate the profile before launching
             logger.LogDebug("[Launch] Step 3: Validating profile for launch");
@@ -1032,8 +1034,15 @@ public class ProfileLauncherFacade(
             }
             else if (reconcileResult.Data)
             {
-                logger.LogInformation("[Launch] Profile updated by {PublisherType} reconciliation, reloading", publisherType);
-                var reloadedProfileResult = await profileManager.GetProfileAsync(profileId, cancellationToken);
+                var targetProfileId = !string.IsNullOrWhiteSpace(reconcileResult.Data.TargetProfileId)
+                    ? reconcileResult.Data.TargetProfileId
+                    : profileId;
+                logger.LogInformation(
+                    "[Launch] Profile updated by {PublisherType} reconciliation (TargetProfileId: {TargetProfileId}, Strategy: {Strategy}), reloading",
+                    publisherType,
+                    targetProfileId,
+                    reconcileResult.Data.Strategy);
+                var reloadedProfileResult = await profileManager.GetProfileAsync(targetProfileId, cancellationToken);
                 if (reloadedProfileResult.Failed || reloadedProfileResult.Data == null)
                 {
                     var error = reloadedProfileResult.Failed ? string.Join(", ", reloadedProfileResult.Errors) : "Profile data is null after reload";

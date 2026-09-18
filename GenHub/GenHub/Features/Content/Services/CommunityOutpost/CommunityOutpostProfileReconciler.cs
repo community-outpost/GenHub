@@ -13,6 +13,7 @@ using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Notifications;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Results.Content;
+using GenHub.Features.Content.Services.Reconciliation;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
@@ -44,7 +45,7 @@ public class CommunityOutpostProfileReconciler(
     public string PublisherType => CommunityOutpostConstants.PublisherType;
 
     /// <inheritdoc/>
-    public async Task<OperationResult<bool>> CheckAndReconcileIfNeededAsync(
+    public async Task<OperationResult<PublisherReconciliationResult>> CheckAndReconcileIfNeededAsync(
         string triggeringProfileId,
         CancellationToken cancellationToken = default)
     {
@@ -62,7 +63,7 @@ public class CommunityOutpostProfileReconciler(
                 logger.LogWarning(
                     "[CO Reconciler] Update check failed: {Error}",
                     updateResult.FirstError);
-                return OperationResult<bool>.CreateFailure(
+                return OperationResult<PublisherReconciliationResult>.CreateFailure(
                     $"Failed to check for Community Outpost updates: {updateResult.FirstError}");
             }
 
@@ -71,7 +72,7 @@ public class CommunityOutpostProfileReconciler(
                 logger.LogInformation(
                     "[CO Reconciler] No update available. Current version: {Version}",
                     updateResult.CurrentVersion);
-                return OperationResult<bool>.CreateSuccess(false);
+                return OperationResult<PublisherReconciliationResult>.CreateSuccess(PublisherReconciliationResult.None);
             }
 
             logger.LogInformation(
@@ -84,14 +85,14 @@ public class CommunityOutpostProfileReconciler(
             if (settings.IsVersionSkipped(CommunityOutpostConstants.PublisherType, updateResult.LatestVersion ?? string.Empty))
             {
                 logger.LogInformation("[CO Reconciler] User opted to skip version {Version}. Skipping.", updateResult.LatestVersion);
-                return OperationResult<bool>.CreateSuccess(false);
+                return OperationResult<PublisherReconciliationResult>.CreateSuccess(PublisherReconciliationResult.None);
             }
 
             // Determine strategy
             var promptResult = await PromptUserForUpdateStrategyAsync(settings, updateResult);
             if (!promptResult.ShouldProceed)
             {
-                return OperationResult<bool>.CreateSuccess(false);
+                return OperationResult<PublisherReconciliationResult>.CreateSuccess(PublisherReconciliationResult.None);
             }
 
             var strategy = promptResult.Strategy;
@@ -131,7 +132,7 @@ public class CommunityOutpostProfileReconciler(
                         $"Failed to download update: {acquireResult.FirstError}",
                         NotificationDurations.Critical);
 
-                    return OperationResult<bool>.CreateFailure(
+                    return OperationResult<PublisherReconciliationResult>.CreateFailure(
                         $"Failed to acquire new Community Patch version: {acquireResult.FirstError}");
                 }
 
@@ -146,17 +147,28 @@ public class CommunityOutpostProfileReconciler(
                     "Community Patch Update");
 
                 // Step 5: Update affected profiles based on strategy
-                var updateOutcome = await ApplyUpdateStrategyAsync(
-                    strategy,
-                    oldManifests,
-                    newManifests,
-                    updateResult.LatestVersion ?? "Unknown",
-                    shouldDeleteOldVersions,
+                var manifestMapping = BuildManifestMapping(oldManifests, newManifests);
+                var updateOutcome = await PublisherReconcilerHelper.ApplyUpdateStrategyAsync(
+                    new UpdateStrategyExecutionArgs(
+                        strategy,
+                        oldManifests,
+                        newManifests,
+                        manifestMapping,
+                        updateResult.LatestVersion ?? "Unknown",
+                        shouldDeleteOldVersions,
+                        triggeringProfileId),
+                    new PublisherReconciliationContext(
+                        profileManager,
+                        reconciliationService,
+                        notificationService,
+                        logger,
+                        "Community Patch",
+                        "[CO Reconciler]"),
                     cancellationToken);
 
-                if (!updateOutcome.Success)
+                if (!updateOutcome.Proceed)
                 {
-                    return OperationResult<bool>.CreateFailure(updateOutcome.FirstError ?? "Update strategy execution failed");
+                    return OperationResult<PublisherReconciliationResult>.CreateFailure(updateOutcome.Error ?? "Update strategy execution failed");
                 }
 
                 var profilesUpdated = updateOutcome.ProfilesUpdated;
@@ -184,7 +196,10 @@ public class CommunityOutpostProfileReconciler(
                     profilesUpdated,
                     strategy);
 
-                return OperationResult<bool>.CreateSuccess(true);
+                return OperationResult<PublisherReconciliationResult>.CreateSuccess(PublisherReconciliationResult.Success(
+                    strategy,
+                    updateOutcome.TargetProfileId ?? triggeringProfileId,
+                    profilesUpdated));
             }
             finally
             {
@@ -203,7 +218,7 @@ public class CommunityOutpostProfileReconciler(
                 "Community Patch Update Error",
                 $"An error occurred during update: {ex.Message}",
                 NotificationDurations.Critical);
-            return OperationResult<bool>.CreateFailure($"Reconciliation failed: {ex.Message}");
+            return OperationResult<PublisherReconciliationResult>.CreateFailure($"Reconciliation failed: {ex.Message}");
         }
     }
 
@@ -298,12 +313,12 @@ public class CommunityOutpostProfileReconciler(
             if (!acquireOp.Success)
             {
                 logger.LogError(
-                    "[CO:Reconciler] Failed to acquire content {ContentId}: {Error}",
+                    "[CO Reconciler] Failed to acquire content {ContentId}: {Error}",
                     result.Id,
                     acquireOp.FirstError);
 
                 return OperationResult<bool>.CreateFailure(
-                    $"Failed to acquire Community Patch content {result.Id}: {acquireOp.FirstError}");
+                    $"Failed to acquire Community Outpost content {result.Id}: {acquireOp.FirstError}");
             }
         }
 
@@ -320,12 +335,11 @@ public class CommunityOutpostProfileReconciler(
             var query = new ContentSearchQuery
             {
                 ProviderName = CommunityOutpostConstants.PublisherType,
+                ContentType = ContentType.GameClient,
             };
 
             var searchResult = await contentOrchestrator.SearchAsync(query, cancellationToken);
 
-            // Layers beneath the orchestrator still report cancellation as a failed result, so a
-            // failure raised while shutting down must not be surfaced as a real acquisition error.
             cancellationToken.ThrowIfCancellationRequested();
 
             if (!searchResult.Success || searchResult.Data == null || !searchResult.Data.Any())
@@ -351,7 +365,7 @@ public class CommunityOutpostProfileReconciler(
             if (newManifests.Count == 0)
             {
                 return OperationResult<List<ContentManifest>>.CreateFailure(
-                    "Acquisition completed but no new Community Outpost manifests were found in the pool");
+                    "Acquisition completed but no new Community Outpost manifests were found");
             }
 
             return OperationResult<List<ContentManifest>>.CreateSuccess(newManifests);
@@ -365,107 +379,6 @@ public class CommunityOutpostProfileReconciler(
             logger.LogError(ex, "[CO Reconciler] Failed to acquire latest version");
             return OperationResult<List<ContentManifest>>.CreateFailure($"Failed to acquire latest version: {ex.Message}");
         }
-    }
-
-    /// <summary>
-    /// Creates new profiles for the update instead of replacing existing ones.
-    /// </summary>
-    private async Task<OperationResult<int>> CreateNewProfilesForUpdateAsync(
-        IReadOnlyList<ContentManifest> oldManifests,
-        IReadOnlyList<ContentManifest> newManifests,
-        string newVersion,
-        CancellationToken cancellationToken)
-    {
-        var oldIds = oldManifests.Select(m => m.Id.Value).ToHashSet(StringComparer.OrdinalIgnoreCase);
-        var manifestMapping = BuildManifestMapping(oldManifests, newManifests);
-        int createdCount = 0;
-
-        var allProfiles = await profileManager.GetAllProfilesAsync(cancellationToken);
-        if (!allProfiles.Success || allProfiles.Data == null) return OperationResult<int>.CreateSuccess(0);
-
-        foreach (var profile in allProfiles.Data)
-        {
-            // Check if profile is relevant (uses any Old CO manifest)
-            bool isRelevant = (profile.GameClient != null && oldIds.Contains(profile.GameClient.Id)) ||
-                              (profile.EnabledContentIds?.Any(id => oldIds.Contains(id)) == true);
-
-            if (!isRelevant) continue;
-
-            try
-            {
-                // Clone the profile
-                var cloneRequest = new Core.Models.GameProfile.CreateProfileRequest
-                {
-                    Name = $"{profile.Name} (v{newVersion})",
-                    GameInstallationId = profile.GameInstallationId,
-                    WorkspaceStrategy = profile.WorkspaceStrategy,
-                    GameClient = profile.GameClient, // Default to old, override below if mapping exists
-                };
-
-                // Update GameClient if mapped
-                if (profile.GameClient != null && manifestMapping.TryGetValue(profile.GameClient.Id, out var newClientId))
-                {
-                    var matchedManifest = newManifests.FirstOrDefault(m => m.Id.Value == newClientId);
-                    if (matchedManifest != null)
-                    {
-                        cloneRequest.GameClient = new Core.Models.GameClients.GameClient
-                        {
-                            Id = matchedManifest.Id.Value,
-                            Name = matchedManifest.Name,
-                            Version = matchedManifest.Version ?? string.Empty,
-                            GameType = matchedManifest.TargetGame,
-                            SourceType = matchedManifest.ContentType,
-                            PublisherType = matchedManifest.Publisher?.PublisherType,
-                            InstallationId = profile.GameClient.InstallationId,
-                        };
-                    }
-                }
-                else if (profile.GameClient != null)
-                {
-                    logger.LogDebug("No manifest mapping found for GameClient '{ClientId}' in profile '{ProfileName}'. Preserving existing client.", profile.GameClient.Id, profile.Name);
-                }
-
-                // Calculate new content IDs
-                var newEnabledContent = new List<string>();
-                if (profile.EnabledContentIds != null)
-                {
-                    foreach (var id in profile.EnabledContentIds)
-                    {
-                        if (manifestMapping.TryGetValue(id, out var newId))
-                        {
-                            newEnabledContent.Add(newId);
-                        }
-                        else
-                        {
-                            newEnabledContent.Add(id);
-                        }
-                    }
-                }
-
-                cloneRequest.EnabledContentIds = newEnabledContent;
-
-                var createResult = await profileManager.CreateProfileAsync(cloneRequest, cancellationToken);
-                if (createResult.Success)
-                {
-                    createdCount++;
-                    logger.LogInformation("[CO Reconciler] Created new profile '{Name}' for update", cloneRequest.Name);
-                }
-                else
-                {
-                    logger.LogError("[CO Reconciler] Failed to create new profile for update: {Error}", createResult.FirstError);
-                }
-            }
-            catch (OperationCanceledException)
-            {
-                throw;
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, "[CO Reconciler] Error creating profile for update");
-            }
-        }
-
-        return OperationResult<int>.CreateSuccess(createdCount);
     }
 
     private async Task<(bool ShouldProceed, UpdateStrategy Strategy, bool ShouldDeleteOldVersions)> PromptUserForUpdateStrategyAsync(
@@ -529,58 +442,5 @@ public class CommunityOutpostProfileReconciler(
         }
 
         return (true, strategy, shouldDeleteOldVersions);
-    }
-
-    private async Task<(bool Success, string? FirstError, int ProfilesUpdated, bool AnyFailure, bool ShouldDeleteOldVersions)> ApplyUpdateStrategyAsync(
-        UpdateStrategy strategy,
-        IReadOnlyList<ContentManifest> oldManifests,
-        IReadOnlyList<ContentManifest> newManifests,
-        string latestVersion,
-        bool shouldDeleteOldVersions,
-        CancellationToken cancellationToken)
-    {
-        int profilesUpdated = 0;
-        bool anyFailure = false;
-
-        if (strategy == UpdateStrategy.CreateNewProfile)
-        {
-            // keep old versions when creating new profiles
-            shouldDeleteOldVersions = false;
-
-            var createResult = await CreateNewProfilesForUpdateAsync(oldManifests, newManifests, latestVersion, cancellationToken);
-            if (createResult.Success)
-            {
-                profilesUpdated = createResult.Data;
-            }
-            else
-            {
-                anyFailure = true;
-                notificationService.ShowWarning("Community Patch Update Partial", $"Failed to create some new profiles: {createResult.FirstError}");
-            }
-
-            return (true, null, profilesUpdated, anyFailure, shouldDeleteOldVersions);
-        }
-
-        var manifestMapping = BuildManifestMapping(oldManifests, newManifests);
-        var bulkUpdateResult = await reconciliationService.OrchestrateBulkUpdateAsync(
-            manifestMapping,
-            shouldDeleteOldVersions,
-            cancellationToken);
-
-        if (bulkUpdateResult.Success)
-        {
-            profilesUpdated = bulkUpdateResult.Data.ProfilesUpdated;
-            if (bulkUpdateResult.Data.FailedProfilesCount > 0)
-            {
-                anyFailure = true;
-                notificationService.ShowWarning("Community Patch Update Partial", $"{bulkUpdateResult.Data.FailedProfilesCount} profiles could not be updated.", NotificationDurations.VeryLong);
-            }
-
-            return (true, null, profilesUpdated, anyFailure, shouldDeleteOldVersions);
-        }
-
-        anyFailure = true;
-        notificationService.ShowWarning("Community Patch Update Partial", $"Some profiles could not be updated: {bulkUpdateResult.FirstError}", NotificationDurations.VeryLong);
-        return (false, $"Bulk update failed: {bulkUpdateResult.FirstError}", profilesUpdated, anyFailure, shouldDeleteOldVersions);
     }
 }

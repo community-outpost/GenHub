@@ -1236,14 +1236,25 @@ public partial class GameProfileLauncherViewModel(
 
         if (launchResult.Success && launchResult.Data != null)
         {
-            // Look up the profile in the collection in case it was replaced by an update during launch
-            var liveProfile = Profiles.FirstOrDefault(p => p.ProfileId == profile.ProfileId) ?? profile;
+            var launchedProfileId = !string.IsNullOrWhiteSpace(launchResult.Data.ProfileId)
+                ? launchResult.Data.ProfileId
+                : profile.ProfileId;
+
+            // Look up the profile in the collection in case it was replaced or cloned by an update during launch
+            var liveProfile = Profiles.FirstOrDefault(p => p.ProfileId == launchedProfileId)
+                ?? Profiles.FirstOrDefault(p => p.ProfileId == profile.ProfileId)
+                ?? profile;
 
             liveProfile.IsProcessRunning = true;
             liveProfile.ProcessId = launchResult.Data.ProcessInfo.ProcessId;
 
             // Ensure notifications are sent for binding updates
             liveProfile.NotifyCanLaunchChanged();
+
+            if (liveProfile != profile && Profiles.Contains(liveProfile))
+            {
+                SelectedProfile = liveProfile;
+            }
 
             StatusMessage = localizationService.GetString("GameProfiles.Status.ProfileLaunchedSuccess", liveProfile.Name, launchResult.Data.ProcessInfo.ProcessId);
             notificationService.ShowSuccess(localizationService["GameProfiles.Notification.GameLaunched.Title"], localizationService.GetString("GameProfiles.Notification.GameLaunched.Message", liveProfile.Name));
@@ -1684,106 +1695,7 @@ public partial class GameProfileLauncherViewModel(
             var copyName = GenerateUniqueProfileName(sourceProfile.Name);
 
             // Create a copy request with all the same settings
-            var copyRequest = new CreateProfileRequest
-            {
-                Name = copyName,
-                Description = sourceProfile.Description,
-                GameInstallationId = sourceProfile.GameInstallationId,
-                GameClientId = sourceProfile.GameClient?.Id,
-                GameClient = sourceProfile.GameClient,
-                WorkspaceStrategy = sourceProfile.WorkspaceStrategy,
-                EnabledContentIds = sourceProfile.EnabledContentIds != null
-                    ? [.. sourceProfile.EnabledContentIds]
-                    : [],
-                ThemeColor = sourceProfile.ThemeColor,
-                IconPath = sourceProfile.IconPath,
-                CoverPath = sourceProfile.CoverPath,
-                UseSteamLaunch = sourceProfile.UseSteamLaunch,
-                CommandLineArguments = sourceProfile.CommandLineArguments,
-                GameSpyIPAddress = sourceProfile.GameSpyIPAddress,
-
-                // Video Settings
-                VideoResolutionWidth = sourceProfile.VideoResolutionWidth,
-                VideoResolutionHeight = sourceProfile.VideoResolutionHeight,
-                VideoWindowed = sourceProfile.VideoWindowed,
-                VideoTextureQuality = sourceProfile.VideoTextureQuality,
-                EnableVideoShadows = sourceProfile.EnableVideoShadows,
-                VideoParticleEffects = sourceProfile.VideoParticleEffects,
-                VideoExtraAnimations = sourceProfile.VideoExtraAnimations,
-                VideoBuildingAnimations = sourceProfile.VideoBuildingAnimations,
-                VideoGamma = sourceProfile.VideoGamma,
-                VideoAlternateMouseSetup = sourceProfile.VideoAlternateMouseSetup,
-                VideoHeatEffects = sourceProfile.VideoHeatEffects,
-                VideoStaticGameLOD = sourceProfile.VideoStaticGameLOD,
-                VideoIdealStaticGameLOD = sourceProfile.VideoIdealStaticGameLOD,
-                VideoUseDoubleClickAttackMove = sourceProfile.VideoUseDoubleClickAttackMove,
-                VideoScrollFactor = sourceProfile.VideoScrollFactor,
-                VideoRetaliation = sourceProfile.VideoRetaliation,
-                VideoDynamicLOD = sourceProfile.VideoDynamicLOD,
-                VideoMaxParticleCount = sourceProfile.VideoMaxParticleCount,
-                VideoAntiAliasing = sourceProfile.VideoAntiAliasing,
-                VideoSkipEALogo = sourceProfile.VideoSkipEALogo,
-                VideoDrawScrollAnchor = sourceProfile.VideoDrawScrollAnchor,
-                VideoMoveScrollAnchor = sourceProfile.VideoMoveScrollAnchor,
-                VideoGameTimeFontSize = sourceProfile.VideoGameTimeFontSize,
-
-                // Audio Settings
-                AudioSoundVolume = sourceProfile.AudioSoundVolume,
-                AudioThreeDSoundVolume = sourceProfile.AudioThreeDSoundVolume,
-                AudioSpeechVolume = sourceProfile.AudioSpeechVolume,
-                AudioMusicVolume = sourceProfile.AudioMusicVolume,
-                AudioNumSounds = sourceProfile.AudioNumSounds,
-                AudioEnabled = sourceProfile.AudioEnabled,
-
-                // Game Settings
-                GameLanguageFilter = sourceProfile.GameLanguageFilter,
-
-                // Network Settings
-                NetworkSendDelay = sourceProfile.NetworkSendDelay,
-
-                // TheSuperHackers Settings
-                TshArchiveReplays = sourceProfile.TshArchiveReplays,
-                TshCursorCaptureEnabledInFullscreenGame = sourceProfile.TshCursorCaptureEnabledInFullscreenGame,
-                TshCursorCaptureEnabledInFullscreenMenu = sourceProfile.TshCursorCaptureEnabledInFullscreenMenu,
-                TshCursorCaptureEnabledInWindowedGame = sourceProfile.TshCursorCaptureEnabledInWindowedGame,
-                TshCursorCaptureEnabledInWindowedMenu = sourceProfile.TshCursorCaptureEnabledInWindowedMenu,
-                TshMoneyTransactionVolume = sourceProfile.TshMoneyTransactionVolume,
-                TshNetworkLatencyFontSize = sourceProfile.TshNetworkLatencyFontSize,
-                TshPlayerObserverEnabled = sourceProfile.TshPlayerObserverEnabled,
-                TshRenderFpsFontSize = sourceProfile.TshRenderFpsFontSize,
-                TshResolutionFontAdjustment = sourceProfile.TshResolutionFontAdjustment,
-                TshScreenEdgeScrollEnabledInFullscreenApp = sourceProfile.TshScreenEdgeScrollEnabledInFullscreenApp,
-                TshScreenEdgeScrollEnabledInWindowedApp = sourceProfile.TshScreenEdgeScrollEnabledInWindowedApp,
-                TshShowMoneyPerMinute = sourceProfile.TshShowMoneyPerMinute,
-                TshSystemTimeFontSize = sourceProfile.TshSystemTimeFontSize,
-                TshGameWindowTransitionSpeedMultiplier = sourceProfile.TshGameWindowTransitionSpeedMultiplier,
-
-                // GeneralsOnline Settings
-                GoShowFps = sourceProfile.GoShowFps,
-                GoShowPing = sourceProfile.GoShowPing,
-                GoAutoLogin = sourceProfile.GoAutoLogin,
-                GoRememberUsername = sourceProfile.GoRememberUsername,
-                GoEnableNotifications = sourceProfile.GoEnableNotifications,
-                GoChatFontSize = sourceProfile.GoChatFontSize,
-                GoEnableSoundNotifications = sourceProfile.GoEnableSoundNotifications,
-                GoShowPlayerRanks = sourceProfile.GoShowPlayerRanks,
-                GoCameraMaxHeightOnlyWhenLobbyHost = sourceProfile.GoCameraMaxHeightOnlyWhenLobbyHost,
-                GoCameraMinHeight = sourceProfile.GoCameraMinHeight,
-                GoCameraMoveSpeedRatio = sourceProfile.GoCameraMoveSpeedRatio,
-                GoChatDurationSecondsUntilFadeOut = sourceProfile.GoChatDurationSecondsUntilFadeOut,
-                GoDebugVerboseLogging = sourceProfile.GoDebugVerboseLogging,
-                GoRenderFpsLimit = sourceProfile.GoRenderFpsLimit,
-                GoRenderLimitFramerate = sourceProfile.GoRenderLimitFramerate,
-                GoRenderStatsOverlay = sourceProfile.GoRenderStatsOverlay,
-                GoSocialNotificationFriendComesOnlineGameplay = sourceProfile.GoSocialNotificationFriendComesOnlineGameplay,
-                GoSocialNotificationFriendComesOnlineMenus = sourceProfile.GoSocialNotificationFriendComesOnlineMenus,
-                GoSocialNotificationFriendGoesOfflineGameplay = sourceProfile.GoSocialNotificationFriendGoesOfflineGameplay,
-                GoSocialNotificationFriendGoesOfflineMenus = sourceProfile.GoSocialNotificationFriendGoesOfflineMenus,
-                GoSocialNotificationPlayerAcceptsRequestGameplay = sourceProfile.GoSocialNotificationPlayerAcceptsRequestGameplay,
-                GoSocialNotificationPlayerAcceptsRequestMenus = sourceProfile.GoSocialNotificationPlayerAcceptsRequestMenus,
-                GoSocialNotificationPlayerSendsRequestGameplay = sourceProfile.GoSocialNotificationPlayerSendsRequestGameplay,
-                GoSocialNotificationPlayerSendsRequestMenus = sourceProfile.GoSocialNotificationPlayerSendsRequestMenus,
-            };
+            var copyRequest = GameSettingsMapper.CreateCloneRequest(sourceProfile, copyName);
 
             // Create the copied profile
             var createResult = await gameProfileManager.CreateProfileAsync(copyRequest);

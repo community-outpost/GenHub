@@ -170,7 +170,7 @@ public class ReconciliationIntegrationTests : IDisposable
 
         // Assert
         result.Success.Should().BeTrue(result.FirstError);
-        result.Data.Should().BeTrue("Reconciler should report true when update was applied");
+        result.Data!.Reconciled.Should().BeTrue("Reconciler should report true when update was applied");
 
         // Verify that the bulk update was orchestrated
         _reconciliationServiceMock.Verify(

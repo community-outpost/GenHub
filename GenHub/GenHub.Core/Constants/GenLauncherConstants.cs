@@ -295,16 +295,25 @@ public static class GenLauncherConstants
     /// </summary>
     public const string NormalizationDialogSessionKey = "genlauncher.normalization.skip";
 
+    // Note: the InSave credentials below are public read-only keys, not private secrets.
+    // GenLauncher ships these same values in its own open-source client for community mod downloads.
+    // They are scoped to read-only bucket access, and the environment variables take precedence,
+    // so a server-side rotation is picked up without rebuilding by setting GENLAUNCHER_INSAVE_PUBLIC_KEY
+    // and GENLAUNCHER_INSAVE_SECRET_KEY.
+
     /// <summary>
     /// Default public access key for GenLauncher's InSave MinIO server (gen.insave.ovh:9000).
+    /// Public read-only key distributed in the open-source GenLauncher client for community mod downloads.
     /// May be overridden via the GENLAUNCHER_INSAVE_PUBLIC_KEY environment variable.
     /// </summary>
+    [SuppressMessage("Security", "S6418:Strings should not contain all capital secret keys or credentials", Justification = "Public read-only GenInsave S3 key distributed in the open-source GenLauncher client for community mod downloads")]
     public static readonly string DefaultGenInsavePublicKey =
         Environment.GetEnvironmentVariable("GENLAUNCHER_INSAVE_PUBLIC_KEY")
-        ?? "S58TYR9ISEZV8PBP8QG1";
+        ?? "S58TYR9ISEZV8PBP8QG1"; // NOSONAR
 
     /// <summary>
     /// Default secret access key for GenLauncher's InSave MinIO server (gen.insave.ovh:9000).
+    /// Public read-only key distributed in the open-source GenLauncher client for community mod downloads.
     /// May be overridden via the GENLAUNCHER_INSAVE_SECRET_KEY environment variable.
     /// </summary>
     [SuppressMessage("Security", "S6418:Strings should not contain all capital secret keys or credentials", Justification = "Public read-only GenInsave S3 key distributed in the open-source GenLauncher client for community mod downloads")]

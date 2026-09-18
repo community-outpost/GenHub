@@ -1,3 +1,5 @@
+using System.IO;
+
 namespace GenHub.Core.Constants;
 
 /// <summary>
@@ -71,7 +73,7 @@ public static class InstallationSearchPathConstants
         /// <summary>Per-user applications directory.</summary>
         public const string ApplicationsDirectoryName = "Applications";
 
-        /// <summary>System-wide applications directory.</summary>
-        public const string SystemApplicationsDirectory = "/Applications";
+        /// <summary>System-wide applications directory, composed with <see cref="Path"/> instead of a hardcoded separator.</summary>
+        public static readonly string SystemApplicationsDirectory = Path.Combine(Path.DirectorySeparatorChar.ToString(), ApplicationsDirectoryName);
     }
 }
