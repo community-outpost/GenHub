@@ -97,11 +97,14 @@ public class GameProfileModuleTests
         services.AddSingleton(provider => new Mock<IGameInstallationService>().Object);
 
         // Act
+        services.AddSingleton<IFileHashProvider>(new Mock<IFileHashProvider>().Object);
         services.AddLaunchingServices();
         var serviceProvider = services.BuildServiceProvider();
 
         // Assert
         Assert.NotNull(serviceProvider.GetService<ILaunchRegistry>());
+        using var scope = serviceProvider.CreateScope();
+        Assert.NotNull(scope.ServiceProvider.GetRequiredService<ILaunchReceiptService>());
 
         // Note: GameLauncher requires many dependencies, tested separately
     }

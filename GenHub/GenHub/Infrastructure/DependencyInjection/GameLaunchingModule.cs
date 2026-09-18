@@ -27,6 +27,9 @@ public static class GameLaunchingModule
         // SteamLauncher for Steam integration - provisions files directly to game installation
         services.AddScoped<ISteamLauncher, SteamLauncher>();
 
+        // Records a receipt per launch and cheaply revalidates it before subsequent launches
+        services.AddScoped<ILaunchReceiptService, LaunchReceiptService>();
+
         return services;
     }
 }

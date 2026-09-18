@@ -8091,4 +8091,13 @@ GenHub هو مشغل ومدير حديث لألعاب **Command &amp; Conquer: G
     <value>تعذر على GenHub تثبيت بيئة Chromium المدارة. تحقق من الاتصال بالشبكة وحاول مرة أخرى.</value>
   </data>
 
+  <data name="GameProfiles.Notification.LaunchChanged.Title" xml:space="preserve">
+    <value>تم تغيير إعدادات التشغيل</value>
+  </data>
+  <data name="GameProfiles.Notification.LaunchChanged.Message" xml:space="preserve">
+    <value>يختلف هذا التشغيل عن آخر تشغيل مسجل:</value>
+  </data>
+  <data name="GameProfiles.Notification.LaunchChanged.More" xml:space="preserve">
+    <value>...و{0} تغييرات أخرى؛ راجع السجلات للاطلاع على التفاصيل الكاملة.</value>
+  </data>
 </root>

@@ -123,4 +123,9 @@ public static class FileTypes
     /// via CAS and has no source directory.
     /// </summary>
     public const string CasOnlySourceMarker = "CAS-ONLY";
+
+    /// <summary>
+    /// File name of the launch receipt written into a workspace; the latest launch wins.
+    /// </summary>
+    public const string LaunchReceiptFileName = "launch-receipt.json";
 }
