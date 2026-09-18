@@ -323,10 +323,11 @@ public sealed partial class ImportProfileInspectionViewModel(
                         (m.Files == null || !m.Files.Any(f => !string.IsNullOrWhiteSpace(f.DownloadUrl))))
             .ToList();
 
+        var format = localizationService?.GetString("GameProfiles.ImportInspection.Warning.MissingDownloadSource")
+            ?? "Component '{0}' is not cached locally and has no download source. It cannot be acquired.";
+
         if (uncachedSourceless.Count > 0)
         {
-            var format = localizationService?.GetString("GameProfiles.ImportInspection.Warning.MissingDownloadSource")
-                ?? "Component '{0}' is not cached locally and has no download source. It cannot be acquired.";
             foreach (var manifest in uncachedSourceless)
             {
                 warnings.Add(string.Format(System.Globalization.CultureInfo.CurrentCulture, format, manifest.DisplayName));
@@ -334,11 +335,9 @@ public sealed partial class ImportProfileInspectionViewModel(
         }
         else
         {
-            var rawMatches = result.SecurityWarnings.Where(w => w.Contains("download source", StringComparison.OrdinalIgnoreCase));
-            foreach (var raw in rawMatches)
-            {
-                warnings.Add(raw);
-            }
+            var componentName = result.Manifests.FirstOrDefault()?.DisplayName
+                ?? (!string.IsNullOrWhiteSpace(result.ProfileMetadata?.Name) ? result.ProfileMetadata.Name : "Unknown");
+            warnings.Add(string.Format(System.Globalization.CultureInfo.CurrentCulture, format, componentName));
         }
     }
 

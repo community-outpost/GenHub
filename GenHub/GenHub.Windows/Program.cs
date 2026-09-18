@@ -171,7 +171,7 @@ public class Program
             {
                 profileShareUri = Path.GetFullPath(profileShareUri);
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is ArgumentException or IOException or NotSupportedException)
             {
                 bootstrapLogger.LogDebug(ex, "Failed to resolve absolute path for profile file: {Path}", profileShareUri);
             }

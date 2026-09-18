@@ -117,7 +117,7 @@ public sealed partial class LinuxSingleInstanceManager : ISingleInstanceCommandR
                 {
                     profileShareUri = Path.GetFullPath(profileShareUri);
                 }
-                catch (Exception ex)
+                catch (Exception ex) when (ex is ArgumentException or IOException or NotSupportedException)
                 {
                     logger.LogDebug(ex, "Failed to resolve absolute path for profile file: {Path}", profileShareUri);
                 }

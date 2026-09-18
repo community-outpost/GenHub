@@ -2459,52 +2459,17 @@ public class ProfileSharingService(
                 return OperationResult<string>.CreateFailure($"Invalid manifest ID '{dependency.ManifestId}'.");
             }
 
-            // 1. Check if manifest is already fully acquired in the manifest pool
-            var acquiredResult = await manifestPool.IsManifestAcquiredAsync(validatedManifestId, cancellationToken);
-            if (acquiredResult.Success && acquiredResult.Data)
+            // 1 & 2. Check local manifest pool or CAS storage (zero-download path)
+            if (await TryAcquireFromLocalOrCasAsync(validatedManifestId, dependency, cancellationToken))
             {
                 return OperationResult<string>.CreateSuccess(validatedManifestId.Value);
             }
 
-            // 2. Check if all required files already exist in local CAS storage (zero-download path)
-            var casCheckResult = await TryRegisterFromExistingCasBlobsAsync(validatedManifestId, dependency, cancellationToken);
-            if (casCheckResult.Success && casCheckResult.Data)
+            // 3 & 4. Direct package zip or per-file downloads
+            var directDownloadResult = await TryDownloadDirectPackageOrFilesAsync(dependency, validatedManifestId, cancellationToken);
+            if (directDownloadResult != null)
             {
-                logger?.LogInformation("Manifest {ManifestId} was reconstructed directly from existing CAS pool objects without downloading.", dependency.ManifestId);
-                return OperationResult<string>.CreateSuccess(validatedManifestId.Value);
-            }
-
-            if (!casCheckResult.Success)
-            {
-                logger?.LogWarning(
-                    "CAS storage check/reconstruction failed for manifest {ManifestId}: {Error}. Falling back to download sources.",
-                    dependency.ManifestId,
-                    casCheckResult.FirstError);
-            }
-
-            // 3. Check if this is a shared package (e.g. UploadThing or direct zip package)
-            string? packageUrl = ResolvePackageUrl(dependency);
-            if (IsZipArchivePackage(packageUrl, dependency.PackageUrl))
-            {
-                var zipResult = await DownloadAndRegisterZipPackageAsync(dependency, validatedManifestId, packageUrl!, cancellationToken);
-                if (zipResult.Success)
-                {
-                    return OperationResult<string>.CreateSuccess(validatedManifestId.Value);
-                }
-
-                return OperationResult<string>.CreateFailure(zipResult.Errors);
-            }
-
-            // 4. Direct per-file download is only possible when files exist, and each file has a direct download URL and hash.
-            if (CanDownloadPerFile(dependency))
-            {
-                var fileResult = await DownloadAndRegisterManifestFilesAsync(dependency, validatedManifestId, cancellationToken);
-                if (fileResult.Success)
-                {
-                    return OperationResult<string>.CreateSuccess(validatedManifestId.Value);
-                }
-
-                return OperationResult<string>.CreateFailure(fileResult.Errors);
+                return directDownloadResult;
             }
 
             // 5. Fallback: Search & acquire from connected content provider pipeline (GeneralsOnline, ModDB, AODMaps, etc.)
@@ -2530,6 +2495,62 @@ public class ProfileSharingService(
             (logger ?? NullLogger<ProfileSharingService>.Instance).LogError(ex, "Error acquiring missing manifest {ManifestId}", dependency.ManifestId);
             return OperationResult<string>.CreateFailure($"Failed to acquire manifest: {ex.Message}");
         }
+    }
+
+    private async Task<bool> TryAcquireFromLocalOrCasAsync(
+        ManifestId validatedManifestId,
+        SharedManifestDependency dependency,
+        CancellationToken cancellationToken)
+    {
+        var acquiredResult = await manifestPool.IsManifestAcquiredAsync(validatedManifestId, cancellationToken);
+        if (acquiredResult.Success && acquiredResult.Data)
+        {
+            return true;
+        }
+
+        var casCheckResult = await TryRegisterFromExistingCasBlobsAsync(validatedManifestId, dependency, cancellationToken);
+        if (casCheckResult.Success && casCheckResult.Data)
+        {
+            logger?.LogInformation(
+                "Manifest {ManifestId} was reconstructed directly from existing CAS pool objects without downloading.",
+                dependency.ManifestId);
+            return true;
+        }
+
+        if (!casCheckResult.Success)
+        {
+            logger?.LogWarning(
+                "CAS storage check/reconstruction failed for manifest {ManifestId}: {Error}. Falling back to download sources.",
+                dependency.ManifestId,
+                casCheckResult.FirstError);
+        }
+
+        return false;
+    }
+
+    private async Task<OperationResult<string>?> TryDownloadDirectPackageOrFilesAsync(
+        SharedManifestDependency dependency,
+        ManifestId validatedManifestId,
+        CancellationToken cancellationToken)
+    {
+        string? packageUrl = ResolvePackageUrl(dependency);
+        if (IsZipArchivePackage(packageUrl, dependency.PackageUrl))
+        {
+            var zipResult = await DownloadAndRegisterZipPackageAsync(dependency, validatedManifestId, packageUrl!, cancellationToken);
+            return zipResult.Success
+                ? OperationResult<string>.CreateSuccess(validatedManifestId.Value)
+                : OperationResult<string>.CreateFailure(zipResult.Errors);
+        }
+
+        if (CanDownloadPerFile(dependency))
+        {
+            var fileResult = await DownloadAndRegisterManifestFilesAsync(dependency, validatedManifestId, cancellationToken);
+            return fileResult.Success
+                ? OperationResult<string>.CreateSuccess(validatedManifestId.Value)
+                : OperationResult<string>.CreateFailure(fileResult.Errors);
+        }
+
+        return null;
     }
 
     private async Task<bool> AreAllCasBlobsAvailableAsync(
