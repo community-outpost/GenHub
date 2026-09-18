@@ -252,7 +252,7 @@ public sealed class ContentDownloadCoordinator(
                     inFlight.UnsuppressedWaiterCount--;
                     if (inFlight.UnsuppressedWaiterCount <= 0 && inFlight.NotificationScope != null && inFlight.WaiterCount > 0)
                     {
-                        inFlight.NotificationScope.CompleteCanceled();
+                        inFlight.NotificationScope.CompleteCanceled(silent: true);
                     }
                 }
 
