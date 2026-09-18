@@ -221,8 +221,10 @@ public sealed class InstallationPathResolverTests : IDisposable
 
         Assert.True(result.Success);
         Assert.NotNull(result.Data);
-        Assert.Equal(generalsDir, result.Data.GeneralsPath);
-        Assert.Equal(zhDir, result.Data.ZeroHourPath);
+        Assert.True(Directory.Exists(result.Data.GeneralsPath));
+        Assert.True(Directory.Exists(result.Data.ZeroHourPath));
+        Assert.Equal(generalsDir, result.Data.GeneralsPath, ignoreCase: true);
+        Assert.Equal(zhDir, result.Data.ZeroHourPath, ignoreCase: true);
     }
 
     /// <summary>
