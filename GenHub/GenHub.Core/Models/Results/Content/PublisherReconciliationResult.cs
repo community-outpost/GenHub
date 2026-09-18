@@ -13,28 +13,6 @@ public sealed class PublisherReconciliationResult
     public static PublisherReconciliationResult None => new() { Reconciled = false };
 
     /// <summary>
-    /// Creates a result indicating reconciliation was performed.
-    /// </summary>
-    /// <param name="strategy">The strategy applied.</param>
-    /// <param name="targetProfileId">The ID of the target profile to launch.</param>
-    /// <param name="profilesAffectedCount">The number of profiles affected.</param>
-    /// <returns>A new <see cref="PublisherReconciliationResult"/>.</returns>
-    public static PublisherReconciliationResult Success(UpdateStrategy strategy, string? targetProfileId, int profilesAffectedCount = 1) =>
-        new()
-        {
-            Reconciled = true,
-            Strategy = strategy,
-            TargetProfileId = targetProfileId,
-            ProfilesAffectedCount = profilesAffectedCount,
-        };
-
-    /// <summary>
-    /// Implicitly converts a <see cref="PublisherReconciliationResult"/> to a boolean indicating whether reconciliation occurred.
-    /// </summary>
-    /// <param name="result">The reconciliation result.</param>
-    public static implicit operator bool(PublisherReconciliationResult? result) => result?.Reconciled ?? false;
-
-    /// <summary>
     /// Gets a value indicating whether reconciliation was needed and performed.
     /// </summary>
     public bool Reconciled { get; init; }
@@ -55,4 +33,26 @@ public sealed class PublisherReconciliationResult
     /// Gets the count of profiles created or updated during reconciliation.
     /// </summary>
     public int ProfilesAffectedCount { get; init; }
+
+    /// <summary>
+    /// Creates a result indicating reconciliation was performed.
+    /// </summary>
+    /// <param name="strategy">The strategy applied.</param>
+    /// <param name="targetProfileId">The ID of the target profile to launch.</param>
+    /// <param name="profilesAffectedCount">The number of profiles affected.</param>
+    /// <returns>A new <see cref="PublisherReconciliationResult"/>.</returns>
+    public static PublisherReconciliationResult Success(UpdateStrategy strategy, string? targetProfileId, int profilesAffectedCount = 1) =>
+        new()
+        {
+            Reconciled = true,
+            Strategy = strategy,
+            TargetProfileId = targetProfileId,
+            ProfilesAffectedCount = profilesAffectedCount,
+        };
+
+    /// <summary>
+    /// Implicitly converts a <see cref="PublisherReconciliationResult"/> to a boolean indicating whether reconciliation occurred.
+    /// </summary>
+    /// <param name="result">The reconciliation result.</param>
+    public static implicit operator bool(PublisherReconciliationResult? result) => result?.Reconciled ?? false;
 }

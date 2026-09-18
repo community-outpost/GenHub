@@ -42,9 +42,12 @@ public static class PublisherReconcilerHelper
         var allProfiles = await context.ProfileManager.GetAllProfilesAsync(cancellationToken);
         if (!allProfiles.Success || allProfiles.Data == null)
         {
-            return OperationResult<(int, string?)>.CreateSuccess((0, null));
+            var error = allProfiles.FirstError ?? "Failed to retrieve profiles for creating new profiles";
+            context.Logger.LogError("{Prefix} {Error}", context.LogPrefix, error);
+            return OperationResult<(int, string?)>.CreateFailure(error);
         }
 
+        int relevantCount = 0;
         foreach (var profile in allProfiles.Data)
         {
             if (!IsProfileRelevant(profile, oldIds))
@@ -52,6 +55,7 @@ public static class PublisherReconcilerHelper
                 continue;
             }
 
+            relevantCount++;
             var result = await TryCloneProfileForUpdateAsync(profile, args, context, cancellationToken);
             if (result.Created)
             {
@@ -61,6 +65,13 @@ public static class PublisherReconcilerHelper
                     targetProfileId = result.NewProfileId;
                 }
             }
+        }
+
+        if (createdCount == 0 && relevantCount > 0)
+        {
+            const string error = "Failed to create new profiles for update";
+            context.Logger.LogError("{Prefix} {Error}", context.LogPrefix, error);
+            return OperationResult<(int, string?)>.CreateFailure(error);
         }
 
         return OperationResult<(int, string?)>.CreateSuccess((createdCount, targetProfileId));
