@@ -843,4 +843,50 @@ public class GameInstallationServiceTests : IDisposable
             Assert.Equal(2, allResult.Data.Count);
         }
     }
+
+    /// <summary>
+    /// Tests that CreateAndRegisterInstallationManifestsAsync generates a GameClient manifest when the
+    /// Steam executable uses alternate casing (for example <c>Game.dat</c> on case-sensitive filesystems).
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task CreateAndRegisterInstallationManifestsAsync_WithCapitalizedSteamGameDat_GeneratesGameClientManifestAsync()
+    {
+        // Arrange
+        var tempDir = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        var generalsDir = Path.Combine(tempDir, "Generals");
+        Directory.CreateDirectory(generalsDir);
+        File.WriteAllText(Path.Combine(generalsDir, "Game.dat"), "dummy");
+
+        try
+        {
+            var installation = new GameInstallation(tempDir, GameInstallationType.Steam);
+            installation.SetPaths(generalsDir, null);
+            Assert.True(installation.HasGenerals);
+
+            var clientBuilderMock = new Mock<IContentManifestBuilder>();
+            clientBuilderMock.Setup(x => x.Build()).Returns(new ContentManifest());
+            _manifestServiceMock.Setup(x => x.CreateGameClientManifestAsync(
+                    It.IsAny<string>(), It.IsAny<GameType>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<PublisherInfo?>()))
+                .ReturnsAsync(clientBuilderMock.Object);
+
+            // Act
+            await _service.CreateAndRegisterInstallationManifestsAsync(installation);
+
+            // Assert
+            _manifestServiceMock.Verify(
+                x => x.CreateGameClientManifestAsync(
+                    generalsDir,
+                    GameType.Generals,
+                    It.IsAny<string>(),
+                    It.IsAny<string>(),
+                    It.Is<string>(p => p.EndsWith("Game.dat", StringComparison.OrdinalIgnoreCase)),
+                    It.IsAny<PublisherInfo?>()),
+                Times.Once);
+        }
+        finally
+        {
+            Directory.Delete(tempDir, true);
+        }
+    }
 }

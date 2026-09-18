@@ -849,6 +849,110 @@ public class GameClientDetectorTests : IDisposable
         // Verify CreateGeneralsOnlineClientManifestAsync was NOT called (no GeneralsOnline files)
     }
 
+    /// <summary>
+    /// Tests that DetectGameClientsFromInstallationsAsync detects a Generals client when the
+    /// executable uses alternate casing (for example <c>Generals.exe</c> on case-sensitive filesystems).
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task DetectGameClientsFromInstallationsAsync_WithCapitalizedGeneralsExecutable_DetectsGeneralsClientAsync()
+    {
+        // Arrange
+        var generalsPath = Path.Combine(_tempDirectory, "GeneralsCased");
+        Directory.CreateDirectory(generalsPath);
+        var executablePath = Path.Combine(generalsPath, "Generals.exe");
+        await File.WriteAllTextAsync(executablePath, "dummy content");
+
+        var installation = new GameInstallation("C:\\TestInstall", GameInstallationType.Steam)
+        {
+            HasGenerals = true,
+            GeneralsPath = generalsPath,
+        };
+
+        List<GameInstallation> installations = [installation];
+
+        // Setup hash provider to return known Generals hash for any resolved path
+        _hashProviderMock.Setup(x => x.ComputeFileHashAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(GameClientHashRegistry.Generals108HashPublic);
+
+        // Setup manifest generation
+        var manifestBuilderMock = new Mock<IContentManifestBuilder>();
+        var manifest = new ContentManifest { Id = ManifestId.Create("1.108.steam.gameclient.generals") };
+        manifestBuilderMock.Setup(x => x.Build()).Returns(manifest);
+
+        _manifestGenerationServiceMock.Setup(x => x.CreateGameClientManifestAsync(
+                It.IsAny<string>(), It.IsAny<GameType>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<PublisherInfo?>()))
+            .ReturnsAsync(manifestBuilderMock.Object);
+
+        _contentManifestPoolMock.Setup(x => x.AddManifestAsync(It.IsAny<ContentManifest>(), It.IsAny<string>(), It.IsAny<IProgress<ContentStorageProgress>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+
+        // Act
+        var result = await _detector.DetectGameClientsFromInstallationsAsync(installations);
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.Single(result.Items);
+        var client = result.Items[0];
+        Assert.Equal(GameType.Generals, client.GameType);
+        Assert.Equal("1.08", client.Version);
+        Assert.True(File.Exists(client.ExecutablePath));
+        Assert.Equal("Generals.exe", Path.GetFileName(client.ExecutablePath), ignoreCase: true);
+        Assert.Equal(generalsPath, client.WorkingDirectory);
+    }
+
+    /// <summary>
+    /// Tests that DetectGameClientsFromInstallationsAsync detects a Zero Hour client when the
+    /// executable uses alternate casing (for example <c>Generals.exe</c> on case-sensitive filesystems).
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task DetectGameClientsFromInstallationsAsync_WithCapitalizedZeroHourExecutable_DetectsZeroHourClientAsync()
+    {
+        // Arrange
+        var zeroHourPath = Path.Combine(_tempDirectory, "ZeroHourCased");
+        Directory.CreateDirectory(zeroHourPath);
+        var executablePath = Path.Combine(zeroHourPath, "Generals.exe");
+        await File.WriteAllTextAsync(executablePath, "dummy content");
+
+        var installation = new GameInstallation("C:\\TestInstall", GameInstallationType.Steam)
+        {
+            HasZeroHour = true,
+            ZeroHourPath = zeroHourPath,
+        };
+
+        List<GameInstallation> installations = [installation];
+
+        // Setup hash provider to return known Zero Hour hash for any resolved path
+        _hashProviderMock.Setup(x => x.ComputeFileHashAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(GameClientHashRegistry.ZeroHour105HashPublic);
+
+        // Setup manifest generation
+        var manifestBuilderMock = new Mock<IContentManifestBuilder>();
+        var manifest = new ContentManifest { Id = ManifestId.Create("1.105.steam.gameclient.zerohour") };
+        manifestBuilderMock.Setup(x => x.Build()).Returns(manifest);
+
+        _manifestGenerationServiceMock.Setup(x => x.CreateGameClientManifestAsync(
+                It.IsAny<string>(), It.IsAny<GameType>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<PublisherInfo?>()))
+            .ReturnsAsync(manifestBuilderMock.Object);
+
+        _contentManifestPoolMock.Setup(x => x.AddManifestAsync(It.IsAny<ContentManifest>(), It.IsAny<string>(), It.IsAny<IProgress<ContentStorageProgress>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+
+        // Act
+        var result = await _detector.DetectGameClientsFromInstallationsAsync(installations);
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.Single(result.Items);
+        var client = result.Items[0];
+        Assert.Equal(GameType.ZeroHour, client.GameType);
+        Assert.Equal("1.05", client.Version);
+        Assert.True(File.Exists(client.ExecutablePath));
+        Assert.Equal("Generals.exe", Path.GetFileName(client.ExecutablePath), ignoreCase: true);
+        Assert.Equal(zeroHourPath, client.WorkingDirectory);
+    }
+
     /// <inheritdoc/>
     public void Dispose()
     {
