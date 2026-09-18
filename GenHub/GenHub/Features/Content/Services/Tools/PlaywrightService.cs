@@ -30,11 +30,13 @@ namespace GenHub.Features.Content.Services.Tools;
 /// <param name="configurationProvider">Application configuration provider.</param>
 /// <param name="dialogService">Dialog service used to confirm managed Chromium installation.</param>
 /// <param name="notificationService">Optional notifications shown before a headed browser window opens.</param>
+/// <param name="localizationService">Optional localization service for notifications.</param>
 public sealed class PlaywrightService(
     ILogger<PlaywrightService> logger,
     IConfigurationProviderService configurationProvider,
     IDialogService dialogService,
-    INotificationService? notificationService = null) : IPlaywrightService, IDisposable, IAsyncDisposable
+    INotificationService? notificationService = null,
+    ILocalizationService? localizationService = null) : IPlaywrightService, IDisposable, IAsyncDisposable
 {
     private static readonly HashSet<string> UnsafeExtraHeaders = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -1417,27 +1419,8 @@ public sealed class PlaywrightService(
             Microsoft.Playwright.Program.Main,
             RequestManagedChromiumInstallConsentAsync,
             logger,
-            onInstallStarting: () => notificationService?.ShowInfo(
-                ModDBConstants.ChromiumInstallTitle,
-                ModDBConstants.ChromiumDownloadingMessage,
-                NotificationDurations.VeryLong),
-            onInstallCompleted: success =>
-            {
-                if (success)
-                {
-                    notificationService?.ShowSuccess(
-                        ModDBConstants.ChromiumReadyTitle,
-                        ModDBConstants.ChromiumReadyMessage,
-                        NotificationDurations.Medium);
-                }
-                else
-                {
-                    notificationService?.ShowError(
-                        ModDBConstants.ChromiumInstallFailedTitle,
-                        ModDBConstants.ChromiumInstallFailedMessage,
-                        NotificationDurations.Long);
-                }
-            });
+            notificationService,
+            localizationService);
 
         return Interlocked.CompareExchange(ref managedChromiumRuntime, newRuntime, null) ?? newRuntime;
     }

@@ -9082,4 +9082,30 @@ GameFilesEdited/Data/INI/**/*.ini</value>
   <data name="GameProfiles.ImportInspection.UnknownComponent" xml:space="preserve">
     <value>غير معروف</value>
   </data>
+
+  <data name="ModDB.ChromiumRuntimeName" xml:space="preserve">
+    <value>بيئة تشغيل ModDB Chromium</value>
+  </data>
+  <data name="ModDB.ChromiumInstallTitle" xml:space="preserve">
+    <value>تثبيت بيئة تشغيل Chromium</value>
+  </data>
+  <data name="ModDB.ChromiumDownloadingMessage" xml:space="preserve">
+    <value>جارٍ تنزيل Chromium (~240 ميغابايت)... يرجى الانتظار.</value>
+  </data>
+  <data name="ModDB.ChromiumExtractingMessage" xml:space="preserve">
+    <value>جارٍ استخراج وتكوين بيئة تشغيل Chromium...</value>
+  </data>
+  <data name="ModDB.ChromiumReadyTitle" xml:space="preserve">
+    <value>بيئة تشغيل Chromium جاهزة</value>
+  </data>
+  <data name="ModDB.ChromiumReadyMessage" xml:space="preserve">
+    <value>تم تثبيت بيئة تشغيل Chromium بنجاح.</value>
+  </data>
+  <data name="ModDB.ChromiumInstallFailedTitle" xml:space="preserve">
+    <value>فشل تثبيت Chromium</value>
+  </data>
+  <data name="ModDB.ChromiumInstallFailedMessage" xml:space="preserve">
+    <value>تعذر على GenHub تثبيت بيئة Chromium المدارة. تحقق من الاتصال بالشبكة وحاول مرة أخرى.</value>
+  </data>
+
 </root>

@@ -9082,4 +9082,30 @@ GameFilesEdited/Data/INI/**/*.ini</value>
   <data name="GameProfiles.ImportInspection.UnknownComponent" xml:space="preserve">
     <value>Неизвестно</value>
   </data>
+
+  <data name="ModDB.ChromiumRuntimeName" xml:space="preserve">
+    <value>Среда выполнения ModDB Chromium</value>
+  </data>
+  <data name="ModDB.ChromiumInstallTitle" xml:space="preserve">
+    <value>Установка среды выполнения Chromium</value>
+  </data>
+  <data name="ModDB.ChromiumDownloadingMessage" xml:space="preserve">
+    <value>Загрузка Chromium (~240 МБ)... Пожалуйста, подождите.</value>
+  </data>
+  <data name="ModDB.ChromiumExtractingMessage" xml:space="preserve">
+    <value>Распаковка и настройка среды выполнения Chromium...</value>
+  </data>
+  <data name="ModDB.ChromiumReadyTitle" xml:space="preserve">
+    <value>Среда выполнения Chromium готова</value>
+  </data>
+  <data name="ModDB.ChromiumReadyMessage" xml:space="preserve">
+    <value>Среда выполнения Chromium успешно установлена.</value>
+  </data>
+  <data name="ModDB.ChromiumInstallFailedTitle" xml:space="preserve">
+    <value>Сбой установки Chromium</value>
+  </data>
+  <data name="ModDB.ChromiumInstallFailedMessage" xml:space="preserve">
+    <value>GenHub не удалось установить управляемую среду Chromium. Проверьте сетевое подключение и повторите попытку.</value>
+  </data>
+
 </root>

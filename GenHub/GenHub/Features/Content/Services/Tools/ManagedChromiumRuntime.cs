@@ -1,7 +1,13 @@
+using GenHub.Core.Constants;
+using GenHub.Core.Helpers;
+using GenHub.Core.Interfaces.Common;
+using GenHub.Core.Interfaces.Notifications;
 using Microsoft.Extensions.Logging;
 using Microsoft.Playwright;
 using System;
+using System.Globalization;
 using System.IO;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -18,8 +24,9 @@ internal sealed class ManagedChromiumRuntime(
     Func<string[], int> installer,
     Func<string, Task<bool>> requestInstallConsentAsync,
     ILogger logger,
-    Action? onInstallStarting = null,
-    Action<bool>? onInstallCompleted = null)
+    INotificationService? notificationService = null,
+    ILocalizationService? localizationService = null,
+    ManagedChromiumRuntimeCallbacks? callbacks = null)
 {
     /// <summary>
     /// Environment variable used by Playwright to locate app-owned browser binaries.
@@ -88,44 +95,132 @@ internal sealed class ManagedChromiumRuntime(
 
             logger.LogDebug("Managed Chromium install consented. Installing under {RuntimeDirectory}", runtimeDirectory);
 
-            int exitCode = 0;
-            onInstallStarting?.Invoke();
-            try
+            Action? onInstallStarting = callbacks?.OnInstallStarting;
+            Action<bool>? onInstallCompleted = callbacks?.OnInstallCompleted;
+            Action? onInstallCanceled = callbacks?.OnInstallCanceled;
+            Func<DownloadNotificationScope?>? scopeFactory = callbacks?.ScopeFactory;
+
+            DownloadNotificationScope? scope = null;
+            if (scopeFactory != null)
             {
-                exitCode = await Task.Run(
-                    () =>
-                    {
-                        cancellationToken.ThrowIfCancellationRequested();
-                        return installer(["install", "chromium"]);
-                    },
-                    cancellationToken);
+                scope = scopeFactory();
             }
-            catch (OperationCanceledException)
+            else if (notificationService != null)
             {
-                throw;
-            }
-            catch (Exception ex)
-            {
-                onInstallCompleted?.Invoke(false);
-                throw new InvalidOperationException(
-                    "GenHub could not install its managed Chromium runtime. Check the network connection and try the ModDB action again.",
-                    ex);
+                var contentName = localizationService?.GetString("ModDB.ChromiumRuntimeName")
+                    ?? ModDBConstants.ChromiumRuntimeName;
+                var startTitle = localizationService?.GetString("ModDB.ChromiumInstallTitle")
+                    ?? ModDBConstants.ChromiumInstallTitle;
+                var startMessage = localizationService?.GetString("ModDB.ChromiumDownloadingMessage")
+                    ?? ModDBConstants.ChromiumDownloadingMessage;
+
+                scope = new DownloadNotificationScope(
+                    notificationService,
+                    contentName,
+                    new DownloadNotificationOptions(
+                        StartTitle: startTitle,
+                        StartMessage: startMessage),
+                    localization: localizationService);
             }
 
-            cancellationToken.ThrowIfCancellationRequested();
-            if (exitCode != 0 || !File.Exists(chromium.ExecutablePath))
+            using (scope)
             {
-                onInstallCompleted?.Invoke(false);
-                throw new InvalidOperationException(
-                    "GenHub could not install its managed Chromium runtime. Check the network connection and try the ModDB action again.");
-            }
+                onInstallStarting?.Invoke();
 
-            onInstallCompleted?.Invoke(true);
-            logger.LogInformation("Managed Chromium installation completed in {RuntimeDirectory}", runtimeDirectory);
+                using var monitorCts = new CancellationTokenSource();
+                using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, monitorCts.Token);
+
+                Task? monitorTask = null;
+                if (scope != null)
+                {
+                    monitorTask = Task.Run(
+                        () => MonitorProgressAsync(scope, chromium, linkedCts.Token),
+                        linkedCts.Token);
+                }
+
+                int exitCode = 0;
+                try
+                {
+                    exitCode = await Task.Run(
+                        () =>
+                        {
+                            cancellationToken.ThrowIfCancellationRequested();
+                            return installer(["install", "chromium"]);
+                        },
+                        cancellationToken);
+                }
+                catch (OperationCanceledException)
+                {
+                    await StopMonitorAsync(monitorCts, monitorTask);
+                    scope?.CompleteCanceled();
+                    onInstallCanceled?.Invoke();
+                    throw;
+                }
+                catch (Exception ex)
+                {
+                    await StopMonitorAsync(monitorCts, monitorTask);
+                    var failedTitle = localizationService?.GetString("ModDB.ChromiumInstallFailedTitle")
+                        ?? ModDBConstants.ChromiumInstallFailedTitle;
+                    var failedMessage = localizationService?.GetString("ModDB.ChromiumInstallFailedMessage")
+                        ?? ModDBConstants.ChromiumInstallFailedMessage;
+                    scope?.CompleteFailure(failedMessage, failedTitle);
+                    onInstallCompleted?.Invoke(false);
+                    throw new InvalidOperationException(
+                        "GenHub could not install its managed Chromium runtime. Check the network connection and try the ModDB action again.",
+                        ex);
+                }
+
+                await StopMonitorAsync(monitorCts, monitorTask);
+
+                if (cancellationToken.IsCancellationRequested)
+                {
+                    scope?.CompleteCanceled();
+                    onInstallCanceled?.Invoke();
+                    cancellationToken.ThrowIfCancellationRequested();
+                }
+
+                if (exitCode != 0 || !File.Exists(chromium.ExecutablePath))
+                {
+                    var failedTitle = localizationService?.GetString("ModDB.ChromiumInstallFailedTitle")
+                        ?? ModDBConstants.ChromiumInstallFailedTitle;
+                    var failedMessage = localizationService?.GetString("ModDB.ChromiumInstallFailedMessage")
+                        ?? ModDBConstants.ChromiumInstallFailedMessage;
+                    scope?.CompleteFailure(failedMessage, failedTitle);
+                    onInstallCompleted?.Invoke(false);
+                    throw new InvalidOperationException(
+                        "GenHub could not install its managed Chromium runtime. Check the network connection and try the ModDB action again.");
+                }
+
+                var readyTitle = localizationService?.GetString("ModDB.ChromiumReadyTitle")
+                    ?? ModDBConstants.ChromiumReadyTitle;
+                var readyMessage = localizationService?.GetString("ModDB.ChromiumReadyMessage")
+                    ?? ModDBConstants.ChromiumReadyMessage;
+                scope?.CompleteSuccess(readyMessage, readyTitle);
+                onInstallCompleted?.Invoke(true);
+                logger.LogInformation("Managed Chromium installation completed in {RuntimeDirectory}", runtimeDirectory);
+            }
         }
         finally
         {
             _installLock.Release();
+        }
+    }
+
+    private static async Task StopMonitorAsync(CancellationTokenSource monitorCts, Task? monitorTask)
+    {
+        if (monitorTask == null)
+        {
+            return;
+        }
+
+        try
+        {
+            await monitorCts.CancelAsync();
+            await monitorTask;
+        }
+        catch (OperationCanceledException)
+        {
+            // Expected when the monitor task responds to cancellation
         }
     }
 
@@ -178,6 +273,57 @@ internal sealed class ManagedChromiumRuntime(
         }
 
         return null;
+    }
+
+    private async Task MonitorProgressAsync(
+        DownloadNotificationScope scope,
+        IBrowserType chromium,
+        CancellationToken cancellationToken)
+    {
+        using var periodicTimer = new PeriodicTimer(TimeSpan.FromSeconds(1));
+        try
+        {
+            while (await periodicTimer.WaitForNextTickAsync(cancellationToken))
+            {
+                if (File.Exists(chromium.ExecutablePath))
+                {
+                    var extractingMessage = localizationService?.GetString("ModDB.ChromiumExtractingMessage")
+                        ?? ModDBConstants.ChromiumExtractingMessage;
+                    scope.ReportFraction(0.95, extractingMessage);
+                    continue;
+                }
+
+                try
+                {
+                    if (Directory.Exists(runtimeDirectory))
+                    {
+                        var dirInfo = new DirectoryInfo(runtimeDirectory);
+                        var totalBytes = dirInfo.EnumerateFiles("*", SearchOption.AllDirectories).Sum(fi => fi.Length);
+                        if (totalBytes > 0)
+                        {
+                            var fraction = Math.Clamp(totalBytes / ModDBConstants.ChromiumExpectedSizeBytes, 0.05, 0.90);
+                            var mbDownloaded = totalBytes / (1024.0 * 1024.0);
+                            var statusFormat = localizationService?.GetString("ModDB.ChromiumProgressStatusFormat")
+                                ?? ModDBConstants.ChromiumProgressStatusFormat;
+                            var status = string.Format(
+                                CultureInfo.CurrentCulture,
+                                statusFormat,
+                                mbDownloaded,
+                                ModDBConstants.ChromiumExpectedSizeMegabytes);
+                            scope.ReportFraction(fraction, status);
+                        }
+                    }
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                {
+                    logger.LogTrace(ex, "Transient error while measuring runtime directory size during installation");
+                }
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // Expected when the installer finishes or is cancelled
+        }
     }
 
     private void EnsureDriverEnvironmentVariable()

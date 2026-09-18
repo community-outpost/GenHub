@@ -2119,6 +2119,44 @@ public sealed class ContentDetailViewModelTests
     }
 
     /// <summary>
+    /// Verifies that synthesized variants carry their variant-specific target game, so selecting
+    /// a Generals variant on a Zero Hour parent applies Generals to the detail search result.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task SelectedVariant_SynthesizedVariant_AppliesVariantTargetGameAsync()
+    {
+        // Arrange: parent associated with Zero Hour, variants split across both games.
+        var searchResult = new ContentSearchResult
+        {
+            Id = "1.0.test.mod.weekly",
+            Name = "Weekly Build",
+            ProviderName = "superhackers",
+            ContentType = ContentType.Mod,
+            TargetGame = GameType.ZeroHour,
+            Variants =
+            [
+                new ContentVariantInfo { Id = "zerohour", Name = "Zero Hour", ManifestId = "1.0.test.mod.weekly-zh", TargetGame = GameType.ZeroHour },
+                new ContentVariantInfo { Id = "generals", Name = "Generals", ManifestId = "1.0.test.mod.weekly-gen", TargetGame = GameType.Generals },
+            ],
+        };
+
+        var viewModel = CreateViewModel(searchResult, new Mock<IContentDownloadCoordinator>().Object);
+        viewModel.Initialize();
+        await viewModel.WaitForInitializationAsync();
+
+        var generalsVariant = viewModel.Variants.First(v =>
+            string.Equals(v.ManifestId, "1.0.test.mod.weekly-gen", StringComparison.OrdinalIgnoreCase));
+
+        // Act
+        viewModel.SelectedVariant = generalsVariant;
+
+        // Assert
+        Assert.Equal(GameType.Generals, searchResult.TargetGame);
+        Assert.Equal("generals", searchResult.ResolverMetadata[CatalogConstants.SelectedVariantMetadataKey]);
+    }
+
+    /// <summary>
     /// Verifies that when SearchResult has ResolverMetadata selectedVariant,
     /// ContentDetailViewModel initializes with that variant selected.
     /// </summary>

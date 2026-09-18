@@ -88,11 +88,11 @@ public partial class ContentDetailViewModel(
     private const string UnknownValue = "Unknown";
 
     // ===== Static Fields =====
-    private static readonly HttpClient SharedProbeHttpClient = new(new SocketsHttpHandler
-    {
-        AllowAutoRedirect = false,
-        ConnectTimeout = TimeSpan.FromSeconds(5),
-    })
+    // The SSRF-safe handler disables auto-redirect (required so the size probe validates
+    // every redirect hop) and rejects private/internal addresses at connect time.
+    private static readonly HttpClient SharedProbeHttpClient = new(
+        ImageCacheService.CreateSsrfSafeSocketsHttpHandler(
+            connectTimeout: TimeSpan.FromSeconds(5)))
     {
         Timeout = TimeSpan.FromSeconds(5),
     };
@@ -2028,30 +2028,12 @@ public partial class ContentDetailViewModel(
                     ? v.Name
                     : $"{baseName} - {v.Name}";
 
-                var variantSr = new ContentSearchResult
-                {
-                    Id = manifestId,
-                    Name = variantName,
-                    Description = searchResult.Description,
-                    Version = searchResult.Version,
-                    ContentType = searchResult.ContentType,
-                    TargetGame = searchResult.TargetGame,
-                    ProviderName = searchResult.ProviderName,
-                    AuthorName = searchResult.AuthorName,
-                    IconUrl = searchResult.IconUrl,
-                    SourceUrl = searchResult.SourceUrl,
-                    DownloadSize = searchResult.DownloadSize,
-                    RequiresResolution = searchResult.RequiresResolution,
-                    ResolverId = searchResult.ResolverId,
-                    VariantGroupId = searchResult.VariantGroupId,
-                    VariantFamilyName = searchResult.VariantFamilyName,
-                    Variants = searchResult.Variants,
-                };
-
-                foreach (var kvp in searchResult.ResolverMetadata)
-                {
-                    variantSr.ResolverMetadata[kvp.Key] = kvp.Value;
-                }
+                // Clone the full result so variant swaps keep the direct download URL,
+                // parsed page data, and typed payload instead of falling back to the source URL.
+                var variantSr = VariantSwap.Clone(searchResult);
+                variantSr.Id = manifestId;
+                variantSr.Name = variantName;
+                variantSr.TargetGame = v.TargetGame ?? searchResult.TargetGame;
 
                 variantSr.ResolverMetadata[CatalogConstants.SelectedVariantMetadataKey] = v.Id;
 
@@ -4398,45 +4380,17 @@ public partial class ContentDetailViewModel(
             return;
         }
 
-        if (!ImageCacheService.IsSafeRemoteUrl(downloadUrl, out var uri))
+        var size = await RemoteFileSizeProbe.TryProbeSizeAsync(SharedProbeHttpClient, downloadUrl, GenLauncherConstants.ProbeTimeout, ct);
+        if (size.HasValue && size.Value > 0)
         {
-            return;
-        }
-
-        try
-        {
-            using var probeCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-            probeCts.CancelAfter(GenLauncherConstants.ProbeTimeout);
-            using var req = new HttpRequestMessage(HttpMethod.Head, uri);
-            using var resp = await SharedProbeHttpClient.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, probeCts.Token);
-            if (resp.IsSuccessStatusCode && resp.Content.Headers.ContentLength.HasValue && resp.Content.Headers.ContentLength.Value > 0)
+            await RunOnUiThreadAsync(() =>
             {
-                var size = resp.Content.Headers.ContentLength.Value;
-                await RunOnUiThreadAsync(() =>
+                row.FileSize = size.Value;
+                if (ReferenceEquals(SelectedDownloadableItem, row))
                 {
-                    row.FileSize = size;
-                    if (ReferenceEquals(SelectedDownloadableItem, row))
-                    {
-                        RefreshSelectedTargetProperties();
-                    }
-                });
-            }
-        }
-        catch (OperationCanceledException) when (ct.IsCancellationRequested)
-        {
-            throw;
-        }
-        catch (OperationCanceledException ex)
-        {
-            logger.LogDebug(ex, "Probe file size timed out for URL: {Url}", downloadUrl);
-        }
-        catch (HttpRequestException ex)
-        {
-            logger.LogDebug(ex, "Probe file size HTTP request failed for URL: {Url}", downloadUrl);
-        }
-        catch (Exception ex)
-        {
-            logger.LogDebug(ex, "Probe file size failed for URL: {Url}", downloadUrl);
+                    RefreshSelectedTargetProperties();
+                }
+            });
         }
     }
 
