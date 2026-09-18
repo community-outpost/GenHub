@@ -550,6 +550,7 @@
                                                 <Button Grid.Column="1"
                                                         Command="{Binding #RootView.((vm:PublishShareViewModel)DataContext).CopyCustomUrlCommand}"
                                                         CommandParameter="{Binding DirectDownloadUrl}"
+                                                        ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Hosting.CopyDownloadLinkTip}"
                                                         Margin="8,0,0,0"
                                                         Classes="glass-btn"
                                                         Padding="10,6">
@@ -568,7 +569,7 @@
                                                         <Border Classes="tier-badge" Background="{DynamicResource StatusInfoBadgeBackgroundBrush}" BorderBrush="{DynamicResource StatusInfoBrush}">
                                                             <TextBlock Text="{localization:Localize Tools.PublisherStudio.Publish.StepContentReleases}" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource StatusInfoBrush}"/>
                                                         </Border>
-                                                        <TextBlock Text="{Binding ContentItemCount, StringFormat='{}{0} items'}" FontSize="12" Foreground="#888899" VerticalAlignment="Center"/>
+                                                        <TextBlock Text="{Binding ContentItemCount, StringFormat='{}{0} items'}" FontSize="12" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center"/>
                                                     </StackPanel>
 
                                                     <!-- Content Items List -->

@@ -405,13 +405,8 @@ public class GoogleDriveHostingProvider(
             var folder = await createRequest.ExecuteAsync(cancellationToken);
             logger.LogInformation("Created Google Drive publisher folder with ID: {FolderId}", folder.Id);
 
-            // Make the folder publicly readable so files inside inherit read access
-            var folderPermResult = await MakePublicAsync(folder.Id, cancellationToken);
-            if (!folderPermResult.Success)
-            {
-                logger.LogWarning("Google Drive publisher folder created, but setting public permission failed: {Error}", folderPermResult.FirstError);
-            }
-
+            // Files uploaded through this provider receive their own public reader
+            // permission, so the folder itself stays private.
             return OperationResult<string>.CreateSuccess(folder.Id);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -451,7 +446,7 @@ public class GoogleDriveHostingProvider(
             {
                 ProviderId = ProviderId,
                 FolderId = folderId,
-                FolderUrl = $"https://drive.google.com/drive/folders/{folderId}",
+                FolderUrl = string.Format(HostingConstants.GoogleDriveFolderUrlTemplate, folderId),
                 LastPublished = DateTime.UtcNow,
             };
 
@@ -504,14 +499,24 @@ public class GoogleDriveHostingProvider(
             return false;
         }
 
-        return url.Contains("drive.google.com", StringComparison.OrdinalIgnoreCase) ||
-               url.Contains("docs.google.com", StringComparison.OrdinalIgnoreCase);
+        if (!Uri.TryCreate(url, UriKind.Absolute, out var uri))
+        {
+            return false;
+        }
+
+        return HostingConstants.IsCloudProviderHost(uri.Host) &&
+            (IsDriveHost(uri.Host, "drive.google.com") || IsDriveHost(uri.Host, "docs.google.com"));
     }
 
     /// <inheritdoc />
     // skipcq: CS-A1000
     public string GetDirectDownloadUrl(string shareUrl)
     {
+        if (string.IsNullOrEmpty(shareUrl))
+        {
+            return string.Empty;
+        }
+
         if (shareUrl.Contains("drive.google.com/uc?", StringComparison.OrdinalIgnoreCase))
         {
             return shareUrl;
@@ -538,6 +543,12 @@ public class GoogleDriveHostingProvider(
         };
     }
 
+    private static bool IsDriveHost(string host, string domain)
+    {
+        return host.Equals(domain, StringComparison.OrdinalIgnoreCase) ||
+            host.EndsWith("." + domain, StringComparison.OrdinalIgnoreCase);
+    }
+
     private static string? ExtractFileId(string url)
     {
         if (string.IsNullOrWhiteSpace(url))
@@ -551,6 +562,12 @@ public class GoogleDriveHostingProvider(
 
     private async Task<OperationResult<bool>> MakePublicAsync(string fileId, CancellationToken cancellationToken)
     {
+        var service = _driveService;
+        if (service == null)
+        {
+            return OperationResult<bool>.CreateFailure(HostingConstants.GoogleDriveNotAuthenticated);
+        }
+
         try
         {
             var permission = new Google.Apis.Drive.v3.Data.Permission
@@ -559,7 +576,7 @@ public class GoogleDriveHostingProvider(
                 Role = "reader",
             };
 
-            var permRequest = _driveService!.Permissions.Create(permission, fileId);
+            var permRequest = service.Permissions.Create(permission, fileId);
             await permRequest.ExecuteAsync(cancellationToken);
             logger.LogDebug("Made file/folder public: {FileId}", fileId);
             return OperationResult<bool>.CreateSuccess(true);

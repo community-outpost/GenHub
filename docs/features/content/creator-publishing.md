@@ -154,7 +154,7 @@ Publishers can have multiple catalogs within a single definition:
 
 ```json
 {
-  "$schemaVersion": 1,
+  "$schemaVersion": 2,
   "publisher": { "id": "my-mods", "name": "My Mods" },
   "catalogs": [
     { "id": "zh-mods", "name": "ZH Mods", "url": "https://..." },
@@ -189,19 +189,19 @@ Users subscribing to multi-catalog publishers see:
 `GenericCatalogResolver` calls:
 
 ```csharp
-await builder.AddDownloadedFileAsync(
-    relativePath: artifact.Filename,
+await builder.AddRemoteFileAsync(
+    relativePath: filename,
     downloadUrl: artifact.DownloadUrl,
-    ...
-);
+    sourceType: ContentSourceType.RemoteDownload,
+    isExecutable: false,
+    permissions: null);
 ```
 
 This automatically:
 
-- Downloads file to temp directory
-- Detects if it's an archive (ZIP/RAR/7z)
-- Extracts all files
-- Stores each file in CAS
+- Registers the remote file path and download URL on the manifest builder
+- Downloads the artifact through the standard content pipeline at install time
+- Records the SHA256 hash from the catalog metadata
 - Adds `ManifestFile` entries with hashes
 
 **No custom extraction logic needed per publisher.**

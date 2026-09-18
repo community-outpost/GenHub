@@ -193,11 +193,6 @@
       </controls:SidebarLayout.PaneFooter>
 
       <Grid RowDefinitions="Auto,*">
-         <!-- Click-outside to close overlay -->
-         <Panel Grid.RowSpan="2" Background="Transparent"
-                IsVisible="{Binding IsPaneOpen}"
-                PointerPressed="OnContentPointerPressed" />
-
          <!-- Header / Status Area -->
          <Grid Grid.Row="0" Margin="20" ColumnDefinitions="Auto,*" IsVisible="{Binding !SelectedTool.Metadata.IsFullScreen}">
            <TextBlock Text="{Binding SelectedTool, Converter={StaticResource LocalizedToolNameConverter}, FallbackValue='GenHub Tools'}" Classes="header" />

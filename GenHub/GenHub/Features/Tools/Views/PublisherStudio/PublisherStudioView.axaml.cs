@@ -35,6 +35,11 @@ public partial class PublisherStudioView : UserControl
             return;
         }
 
+        if (e.Data.Contains(DataFormats.Files))
+        {
+            e.Handled = true;
+        }
+
         try
         {
             var files = e.Data.GetFiles();
@@ -43,7 +48,6 @@ public partial class PublisherStudioView : UserControl
                 var first = files.FirstOrDefault();
                 if (first?.Path?.LocalPath is { } path)
                 {
-                    e.Handled = true;
                     await vm.HandleDroppedPathAsync(path);
                 }
             }

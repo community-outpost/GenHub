@@ -1,5 +1,8 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using GenHub.Core.Constants;
+using GenHub.Core.Interfaces.Common;
+using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Models.Publishers;
 using Microsoft.Extensions.Logging;
 using System;
@@ -15,12 +18,14 @@ namespace GenHub.Features.Tools.ViewModels;
 public partial class PublisherProfileViewModel(
     PublisherStudioProject project,
     PublisherStudioViewModel parentViewModel,
-    ILogger logger) : ObservableValidator
+    ILogger logger,
+    INotificationService? notificationService = null,
+    ILocalizationService? localizationService = null) : ObservableValidator
 {
     [ObservableProperty]
     [NotifyDataErrorInfo]
     [Required(ErrorMessage = "Publisher ID is required")]
-    [RegularExpression("^[a-z0-9-]+$", ErrorMessage = "Publisher ID must use lowercase letters, numbers, and hyphens only (no spaces or special characters)")]
+    [RegularExpression(RegexConstants.PublisherIdPattern, ErrorMessage = "Publisher ID must use lowercase letters, numbers, and hyphens only (no spaces or special characters)")]
     private string _publisherId = project?.Catalog?.Publisher?.Id ?? string.Empty;
 
     [ObservableProperty]
@@ -54,12 +59,6 @@ public partial class PublisherProfileViewModel(
 
     [ObservableProperty]
     private string _tagsString = project?.Tags != null ? string.Join(", ", project.Tags) : string.Empty;
-
-    [ObservableProperty]
-    private bool _isSavedSuccessfully;
-
-    [ObservableProperty]
-    private string? _statusMessage;
 
     /// <summary>
     /// Validates that a string is either empty or a valid HTTP/HTTPS URL.
@@ -123,7 +122,6 @@ public partial class PublisherProfileViewModel(
 
     private void MarkDirty()
     {
-        IsSavedSuccessfully = false;
         parentViewModel?.MarkDirty();
     }
 
@@ -138,8 +136,10 @@ public partial class PublisherProfileViewModel(
         if (HasErrors)
         {
             logger?.LogWarning("Cannot save publisher profile due to validation errors");
-            StatusMessage = "Please fix the validation errors before saving.";
-            IsSavedSuccessfully = false;
+            notificationService?.ShowWarning(
+                localizationService?.GetString("Tools.PublisherStudio.Profile.ValidationTitle") ?? "Validation Errors",
+                localizationService?.GetString("Tools.PublisherStudio.Profile.ValidationMessage") ?? "Please fix the validation errors before saving.",
+                NotificationDurations.Medium);
             return;
         }
 
@@ -172,15 +172,19 @@ public partial class PublisherProfileViewModel(
                 await parentViewModel.SaveProjectAsync();
             }
 
-            IsSavedSuccessfully = true;
-            StatusMessage = "Publisher profile saved successfully.";
+            notificationService?.ShowSuccess(
+                localizationService?.GetString("Tools.PublisherStudio.Profile.SavedTitle") ?? "Profile Saved",
+                localizationService?.GetString("Tools.PublisherStudio.Profile.SavedMessage") ?? "Publisher profile saved successfully.",
+                NotificationDurations.Short);
             logger?.LogInformation("Publisher profile saved: {PublisherId} ({PublisherName})", PublisherId, PublisherName);
         }
         catch (Exception ex)
         {
             logger?.LogError(ex, "Failed to save publisher profile");
-            StatusMessage = $"Failed to save: {ex.Message}";
-            IsSavedSuccessfully = false;
+            notificationService?.ShowError(
+                localizationService?.GetString("Tools.PublisherStudio.Profile.SaveFailedTitle") ?? "Save Failed",
+                $"Failed to save: {ex.Message}",
+                NotificationDurations.Long);
         }
     }
 }

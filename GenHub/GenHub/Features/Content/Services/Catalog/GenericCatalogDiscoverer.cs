@@ -241,6 +241,50 @@ public class GenericCatalogDiscoverer(
         }
     }
 
+    private static IReadOnlyList<string> ResolveDefinitionCatalogUrls(PublisherDefinition? definition)
+    {
+        var urls = new List<string>();
+        if (definition == null)
+        {
+            return urls;
+        }
+
+        AddDefinitionUrl(urls, definition.CatalogUrl);
+        if (definition.CatalogMirrors != null)
+        {
+            foreach (var mirror in definition.CatalogMirrors)
+            {
+                AddDefinitionUrl(urls, mirror);
+            }
+        }
+
+        if (definition.Catalogs != null)
+        {
+            foreach (var entry in definition.Catalogs)
+            {
+                AddDefinitionUrl(urls, entry.Url);
+                if (entry.Mirrors != null)
+                {
+                    foreach (var mirror in entry.Mirrors)
+                    {
+                        AddDefinitionUrl(urls, mirror);
+                    }
+                }
+            }
+        }
+
+        return urls;
+    }
+
+    private static void AddDefinitionUrl(List<string> urls, string? url)
+    {
+        if (!string.IsNullOrWhiteSpace(url) &&
+            !urls.Contains(url, StringComparer.OrdinalIgnoreCase))
+        {
+            urls.Add(url);
+        }
+    }
+
     private static IReadOnlyList<string> ResolveIncludedContentNames(
         ContentRelease release,
         IReadOnlyDictionary<string, string> contentNamesById)
@@ -618,6 +662,68 @@ public class GenericCatalogDiscoverer(
         }
     }
 
+    private async Task<OperationResult<PublisherCatalog>?> TryFetchFromDefinitionAsync(
+        HttpClient httpClient,
+        string definitionUrl,
+        CancellationToken cancellationToken)
+    {
+        PublisherDefinition? definition;
+        try
+        {
+            var defJson = await CatalogDocumentReader.ReadAsync(
+                httpClient,
+                definitionUrl,
+                CatalogConstants.MaxCatalogSizeBytes,
+                cancellationToken);
+            definition = JsonSerializer.Deserialize<PublisherDefinition>(defJson, DefinitionJsonOptions);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            logger.LogDebug(ex, "Failed to read publisher definition; falling back to direct catalog URL");
+            return null;
+        }
+
+        var candidateUrls = ResolveDefinitionCatalogUrls(definition);
+        if (candidateUrls.Count == 0)
+        {
+            return null;
+        }
+
+        foreach (var candidateUrl in candidateUrls)
+        {
+            OperationResult<PublisherCatalog>? parsed = null;
+            try
+            {
+                var candidateJson = await CatalogDocumentReader.ReadAsync(
+                    httpClient,
+                    candidateUrl,
+                    CatalogConstants.MaxCatalogSizeBytes,
+                    cancellationToken);
+                parsed = await catalogParser.ParseCatalogAsync(candidateJson, cancellationToken);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                logger.LogDebug(ex, "Definition catalog candidate failed: {CatalogUrl}", candidateUrl);
+            }
+
+            if (parsed?.Success == true && parsed.Data != null)
+            {
+                return OperationResult<PublisherCatalog>.CreateSuccess(parsed.Data);
+            }
+        }
+
+        return OperationResult<PublisherCatalog>.CreateFailure(
+            "Failed to fetch catalog from all definition URLs and mirrors.");
+    }
+
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1031:DoNotCatchGeneralExceptionTypes", Justification = "Catalog discovery failures are reported via OperationResult.")]
     private async Task<OperationResult<PublisherCatalog>> FetchCatalogAsync(CancellationToken cancellationToken)
     {
@@ -637,17 +743,10 @@ public class GenericCatalogDiscoverer(
             if (string.IsNullOrWhiteSpace(targetCatalogUrl) && !string.IsNullOrWhiteSpace(_subscription.DefinitionUrl))
             {
                 logger.LogInformation("Resolving catalog URL from definition: {DefinitionUrl}", _subscription.DefinitionUrl);
-                var defJson = await CatalogDocumentReader.ReadAsync(
-                    httpClient,
-                    _subscription.DefinitionUrl,
-                    CatalogConstants.MaxCatalogSizeBytes,
-                    cancellationToken);
-
-                var definition = JsonSerializer.Deserialize<PublisherDefinition>(defJson, DefinitionJsonOptions);
-                targetCatalogUrl = definition?.CatalogUrl;
-                if (string.IsNullOrWhiteSpace(targetCatalogUrl) && definition?.Catalogs?.Count > 0)
+                var definitionResult = await TryFetchFromDefinitionAsync(httpClient, _subscription.DefinitionUrl, cancellationToken);
+                if (definitionResult != null)
                 {
-                    targetCatalogUrl = definition.Catalogs[0].Url;
+                    return definitionResult;
                 }
             }
 

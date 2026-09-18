@@ -18,7 +18,7 @@ public interface ICrossPublisherDependencyResolver
     /// <param name="manifest">The manifest to check dependencies for.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>Operation result containing list of missing dependencies.</returns>
-    Task<OperationResult<IEnumerable<MissingDependency>>> CheckMissingDependenciesAsync(
+    Task<OperationResult<IReadOnlyList<MissingDependency>>> CheckMissingDependenciesAsync(
         ContentManifest manifest,
         CancellationToken cancellationToken = default);
 

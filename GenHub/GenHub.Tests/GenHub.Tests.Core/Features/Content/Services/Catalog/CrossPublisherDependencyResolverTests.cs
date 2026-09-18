@@ -82,7 +82,8 @@ public class CrossPublisherDependencyResolverTests
 
         // Assert
         Assert.True(result.Success);
-        Assert.Empty(result.Data ?? []);
+        Assert.NotNull(result.Data);
+        Assert.Empty(result.Data);
     }
 
     /// <summary>
@@ -178,7 +179,7 @@ public class CrossPublisherDependencyResolverTests
         _subscriptionStoreMock.Setup(s => s.GetSubscriptionAsync("otherpublisher", It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult<PublisherSubscription?>.CreateSuccess(subscription));
 
-        _catalogParserMock.Setup(p => p.ParseCatalogAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+        _catalogParserMock.Setup(p => p.ParseCatalogAsync("{}", It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult<PublisherCatalog>.CreateSuccess(catalog));
 
         // Act
@@ -372,7 +373,7 @@ public class CrossPublisherDependencyResolverTests
         _subscriptionStoreMock.Setup(s => s.GetSubscriptionAsync("otherpublisher", It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult<PublisherSubscription?>.CreateSuccess(subscription));
 
-        _catalogParserMock.Setup(p => p.ParseCatalogAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+        _catalogParserMock.Setup(p => p.ParseCatalogAsync("{}", It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult<PublisherCatalog>.CreateSuccess(catalog));
 
         // Act
@@ -447,6 +448,10 @@ public class CrossPublisherDependencyResolverTests
 
         _manifestPoolMock.Setup(m => m.GetManifestAsync(It.IsAny<ManifestId>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult<ContentManifest?>.CreateFailure("Not found"));
+
+        // Exercise the real resolution path instead of the resolver's exception handler.
+        _subscriptionStoreMock.Setup(s => s.GetSubscriptionAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<PublisherSubscription?>.CreateFailure("Not subscribed"));
 
         // Act
         var result = await resolver.CheckMissingDependenciesAsync(manifest);

@@ -10,6 +10,7 @@ using System.Collections.ObjectModel;
 using System.ComponentModel.DataAnnotations;
 using System.Linq;
 using System.Net.Http;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -22,7 +23,8 @@ namespace GenHub.Features.Tools.ViewModels.Dialogs;
 public partial class AddDependencyDialogViewModel(
     PublisherCatalog catalog,
     CatalogContentItem currentContent,
-    Action<CatalogDependency> onDependencyCreated) : ObservableValidator, IDisposable
+    Action<CatalogDependency> onDependencyCreated,
+    GenHub.Core.Interfaces.Common.ILocalizationService? localizationService = null) : ObservableValidator, IDisposable
 {
     private static readonly HttpClient SharedHttpClient = new(
         ImageCacheService.CreateSsrfSafeSocketsHttpHandler())
@@ -127,6 +129,7 @@ public partial class AddDependencyDialogViewModel(
     {
         if (disposing)
         {
+            _discoveryCts?.Cancel();
             _discoveryCts?.Dispose();
             _discoveryCts = null;
         }
@@ -183,7 +186,9 @@ public partial class AddDependencyDialogViewModel(
     {
         if (SelectedContent == null)
         {
-            ValidationError = "Please select a content item from your catalog";
+            ValidationError = GetLocalizedString(
+                "Tools.PublisherStudio.Dependency.SelectContentRequired",
+                "Please select a content item from your catalog");
             IsValid = false;
             return;
         }
@@ -205,14 +210,18 @@ public partial class AddDependencyDialogViewModel(
     {
         if (string.IsNullOrWhiteSpace(ExternalPublisherId))
         {
-            ValidationError = "Publisher ID is required for external dependencies";
+            ValidationError = GetLocalizedString(
+                "Tools.PublisherStudio.Dependency.PublisherIdRequired",
+                "Publisher ID is required for external dependencies");
             IsValid = false;
             return;
         }
 
         if (string.IsNullOrWhiteSpace(ExternalContentId))
         {
-            ValidationError = "Content ID is required for external dependencies";
+            ValidationError = GetLocalizedString(
+                "Tools.PublisherStudio.Dependency.ContentIdRequired",
+                "Content ID is required for external dependencies");
             IsValid = false;
             return;
         }
@@ -220,7 +229,9 @@ public partial class AddDependencyDialogViewModel(
         if (!string.IsNullOrWhiteSpace(ExternalCatalogUrl) &&
             !Uri.TryCreate(ExternalCatalogUrl, UriKind.Absolute, out _))
         {
-            ValidationError = "Please enter a valid catalog URL";
+            ValidationError = GetLocalizedString(
+                "Tools.PublisherStudio.Dependency.InvalidCatalogUrl",
+                "Please enter a valid catalog URL");
             IsValid = false;
             return;
         }
@@ -247,7 +258,9 @@ public partial class AddDependencyDialogViewModel(
     {
         if (string.IsNullOrWhiteSpace(ExternalCatalogUrl))
         {
-            ValidationError = "Please enter a Catalog or Provider Definition URL first";
+            ValidationError = GetLocalizedString(
+                "Tools.PublisherStudio.Dependency.EnterCatalogUrlFirst",
+                "Please enter a Catalog or Provider Definition URL first");
             return;
         }
 
@@ -282,7 +295,9 @@ public partial class AddDependencyDialogViewModel(
 
             if (DiscoveredContent.Count == 0)
             {
-                ValidationError = "No content found at the provided URL";
+                ValidationError = GetLocalizedString(
+                    "Tools.PublisherStudio.Dependency.NoContentFound",
+                    "No content found at the provided URL");
             }
         }
         catch (OperationCanceledException)
@@ -292,7 +307,9 @@ public partial class AddDependencyDialogViewModel(
                 return;
             }
 
-            ValidationError = "Discovery request timed out or was canceled.";
+            ValidationError = GetLocalizedString(
+                "Tools.PublisherStudio.Dependency.DiscoveryTimeout",
+                "Discovery request timed out or was canceled.");
         }
         catch (Exception ex)
         {
@@ -301,7 +318,9 @@ public partial class AddDependencyDialogViewModel(
                 return;
             }
 
-            ValidationError = $"Discovery failed: {ex.Message}";
+            ValidationError = localizationService?.GetString(
+                    "Tools.PublisherStudio.Dependency.DiscoveryFailed",
+                    ex.Message) ?? $"Discovery failed: {ex.Message}";
         }
         finally
         {
@@ -312,67 +331,96 @@ public partial class AddDependencyDialogViewModel(
         }
     }
 
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Major Code Smell", "S2325:Make member static", Justification = "Modifies instance state")]
     private async Task TryParseCatalogOrDefinitionAsync(HttpClient client, string json, CancellationToken cancellationToken)
     {
+        if (await TryPopulateFromDefinitionAsync(client, json, cancellationToken))
+        {
+            return;
+        }
+
+        PopulateFromCatalogJson(json);
+    }
+
+    private async Task<bool> TryPopulateFromDefinitionAsync(HttpClient client, string json, CancellationToken cancellationToken)
+    {
+        PublisherDefinition? definition;
         try
         {
-            var definition = System.Text.Json.JsonSerializer.Deserialize<PublisherDefinition>(json);
-            var hasCatalogs = definition != null && ((definition.Catalogs?.Count > 0) || !string.IsNullOrWhiteSpace(definition.CatalogUrl));
-            if (hasCatalogs && definition != null)
-            {
-                ExternalPublisherId = definition.Publisher.Id;
-
-                var targetUrl = !string.IsNullOrWhiteSpace(definition.CatalogUrl)
-                    ? definition.CatalogUrl
-                    : definition.Catalogs?.FirstOrDefault()?.Url;
-
-                if (!string.IsNullOrWhiteSpace(targetUrl) && NetworkSecurityHelper.IsSafeUrl(targetUrl, out _))
-                {
-                    var catalogJson = await client.GetStringAsync(targetUrl, cancellationToken);
-                    var parsedCatalog = System.Text.Json.JsonSerializer.Deserialize<PublisherCatalog>(catalogJson);
-                    if (parsedCatalog != null)
-                    {
-                        foreach (var item in parsedCatalog.Content)
-                        {
-                            DiscoveredContent.Add(item);
-                        }
-
-                        return;
-                    }
-                }
-            }
+            definition = JsonSerializer.Deserialize<PublisherDefinition>(json);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
             throw;
         }
-        catch (Exception)
+        catch (JsonException)
         {
-            // Fall through to try as catalog
+            return false;
         }
 
+        if (definition == null || (definition.Catalogs.Count == 0 && string.IsNullOrWhiteSpace(definition.CatalogUrl)))
+        {
+            return false;
+        }
+
+        var targetUrl = !string.IsNullOrWhiteSpace(definition.CatalogUrl)
+            ? definition.CatalogUrl
+            : definition.Catalogs.FirstOrDefault()?.Url;
+
+        if (string.IsNullOrWhiteSpace(targetUrl) || !NetworkSecurityHelper.IsSafeUrl(targetUrl, out _))
+        {
+            return false;
+        }
+
+        PublisherCatalog? parsedCatalog;
         try
         {
-            var parsedCatalog = System.Text.Json.JsonSerializer.Deserialize<PublisherCatalog>(json);
-            if (parsedCatalog != null && parsedCatalog.Content.Count > 0)
-            {
-                ExternalPublisherId = parsedCatalog.Publisher.Id;
-                foreach (var item in parsedCatalog.Content)
-                {
-                    DiscoveredContent.Add(item);
-                }
-
-                return;
-            }
+            var catalogJson = await client.GetStringAsync(targetUrl, cancellationToken);
+            parsedCatalog = JsonSerializer.Deserialize<PublisherCatalog>(catalogJson);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
             throw;
         }
-        catch (Exception)
+        catch (JsonException)
         {
-            // Failed to parse as either
+            return false;
+        }
+
+        if (parsedCatalog == null)
+        {
+            return false;
+        }
+
+        ExternalPublisherId = definition.Publisher.Id;
+        foreach (var item in parsedCatalog.Content)
+        {
+            DiscoveredContent.Add(item);
+        }
+
+        return true;
+    }
+
+    private void PopulateFromCatalogJson(string json)
+    {
+        PublisherCatalog? parsedCatalog;
+        try
+        {
+            parsedCatalog = JsonSerializer.Deserialize<PublisherCatalog>(json);
+        }
+        catch (JsonException)
+        {
+            return;
+        }
+
+        if (parsedCatalog == null || parsedCatalog.Content.Count == 0)
+        {
+            return;
+        }
+
+        ExternalPublisherId = parsedCatalog.Publisher.Id;
+        foreach (var item in parsedCatalog.Content)
+        {
+            DiscoveredContent.Add(item);
         }
     }
 
@@ -393,27 +441,40 @@ public partial class AddDependencyDialogViewModel(
         {
             if (SelectedContent == null && AvailableContent.Count > 0)
             {
-                errors.Add("Please select a content item from your catalog");
+                errors.Add(GetLocalizedString(
+                    "Tools.PublisherStudio.Dependency.SelectContentRequired",
+                    "Please select a content item from your catalog"));
             }
             else if (AvailableContent.Count == 0)
             {
-                errors.Add("No other content items available in your catalog");
+                errors.Add(GetLocalizedString(
+                    "Tools.PublisherStudio.Dependency.NoOtherContentItems",
+                    "No other content items available in your catalog"));
             }
         }
         else
         {
             if (string.IsNullOrWhiteSpace(ExternalPublisherId))
             {
-                errors.Add("Publisher ID is required for external dependencies");
+                errors.Add(GetLocalizedString(
+                    "Tools.PublisherStudio.Dependency.PublisherIdRequired",
+                    "Publisher ID is required for external dependencies"));
             }
 
             if (string.IsNullOrWhiteSpace(ExternalContentId))
             {
-                errors.Add("Content ID is required for external dependencies");
+                errors.Add(GetLocalizedString(
+                    "Tools.PublisherStudio.Dependency.ContentIdRequired",
+                    "Content ID is required for external dependencies"));
             }
         }
 
         IsValid = errors.Count == 0;
         ValidationError = errors.Count > 0 ? string.Join(Environment.NewLine, errors) : null;
+    }
+
+    private string GetLocalizedString(string key, string fallback)
+    {
+        return localizationService?.GetString(key) ?? fallback;
     }
 }

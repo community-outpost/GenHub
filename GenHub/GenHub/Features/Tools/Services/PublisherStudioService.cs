@@ -28,11 +28,26 @@ public class PublisherStudioService(
         WriteIndented = true,
     };
 
+    private static readonly JsonSerializerOptions ExportJsonOptions = new()
+    {
+        WriteIndented = true,
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+    };
+
+    private static readonly JsonSerializerOptions ProviderDefinitionJsonOptions = new()
+    {
+        WriteIndented = true,
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull,
+    };
+
     /// <inheritdoc />
     public Task<OperationResult<PublisherStudioProject>> CreateProjectAsync(
         string name,
         CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         try
         {
             if (string.IsNullOrWhiteSpace(name))
@@ -182,18 +197,14 @@ public class PublisherStudioService(
         NamedCatalog? catalog = null,
         CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         try
         {
             var catalogToExport = catalog?.Catalog ?? project.Catalog;
             var catalogName = catalog?.Name ?? "default";
 
-            var options = new JsonSerializerOptions
-            {
-                WriteIndented = true,
-                PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-            };
-
-            var json = JsonSerializer.Serialize(catalogToExport, options);
+            var json = JsonSerializer.Serialize(catalogToExport, ExportJsonOptions);
 
             logger.LogInformation("Exported catalog '{CatalogName}' for project: {ProjectName}", catalogName, project.ProjectName);
             return Task.FromResult(OperationResult<string>.CreateSuccess(json));
@@ -272,6 +283,8 @@ public class PublisherStudioService(
         string definitionUrl,
         CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         try
         {
             if (project.Catalog.Publisher == null)
@@ -282,6 +295,8 @@ public class PublisherStudioService(
             var catalogEntries = new List<CatalogEntry>();
             foreach (var catalog in project.Catalogs)
             {
+                cancellationToken.ThrowIfCancellationRequested();
+
                 if (catalogHostingInfo.TryGetValue(catalog.Id, out var catalogUrl))
                 {
                     catalogEntries.Add(new CatalogEntry
@@ -320,14 +335,7 @@ public class PublisherStudioService(
                 LastUpdated = DateTime.UtcNow,
             };
 
-            var options = new JsonSerializerOptions
-            {
-                WriteIndented = true,
-                PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-                DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull,
-            };
-
-            var json = JsonSerializer.Serialize(definition, options);
+            var json = JsonSerializer.Serialize(definition, ProviderDefinitionJsonOptions);
 
             logger.LogInformation(
                 "Exported provider definition for: {ProviderId} with {CatalogCount} catalogs",
@@ -348,12 +356,15 @@ public class PublisherStudioService(
         PublisherCatalog catalog,
         CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         try
         {
             var errors = new System.Collections.Generic.List<string>();
 
             foreach (var content in catalog.Content)
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 ValidateContentArtifactUrls(content, errors);
             }
 
@@ -383,7 +394,7 @@ public class PublisherStudioService(
             return OperationResult<bool>.CreateFailure("Publisher name is required");
         }
 
-        if (!System.Text.RegularExpressions.Regex.IsMatch(catalog.Publisher.Id, "^[a-z0-9-]+$", System.Text.RegularExpressions.RegexOptions.None, TimeSpan.FromSeconds(1)))
+        if (!System.Text.RegularExpressions.Regex.IsMatch(catalog.Publisher.Id, RegexConstants.PublisherIdPattern, System.Text.RegularExpressions.RegexOptions.None, TimeSpan.FromSeconds(1)))
         {
             return OperationResult<bool>.CreateFailure("Publisher ID must be lowercase alphanumeric with hyphens only");
         }
@@ -643,10 +654,10 @@ public class PublisherStudioService(
     private OperationResult<bool> ValidateContentReferences(PublisherCatalog catalog)
     {
         var errors = new List<string>();
-        var contentIds = new HashSet<string>(catalog.Content.Select(c => c.Id));
+        var contentIds = new HashSet<string>(catalog.Content.Select(c => c.Id), StringComparer.OrdinalIgnoreCase);
 
         // Regex for valid ExtendsContentId format: "contentId" or "publisherId/contentId"
-        var extendsIdRegex = new System.Text.RegularExpressions.Regex(@"^([a-z0-9-]+/)?[a-z0-9-]+$", System.Text.RegularExpressions.RegexOptions.None, TimeSpan.FromSeconds(1));
+        var extendsIdRegex = new System.Text.RegularExpressions.Regex(RegexConstants.ExtendsContentIdPattern, System.Text.RegularExpressions.RegexOptions.None, TimeSpan.FromSeconds(1));
 
         foreach (var content in catalog.Content)
         {

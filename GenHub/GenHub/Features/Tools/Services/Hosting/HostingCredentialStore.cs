@@ -68,19 +68,11 @@ public class HostingCredentialStore(
                 encryptedBytes = EncryptNonWindows(plainBytes);
             }
 
-            await File.WriteAllBytesAsync(filePath, encryptedBytes, cancellationToken).ConfigureAwait(false);
-
-            if (!OperatingSystem.IsWindows())
-            {
-                try
-                {
-                    File.SetUnixFileMode(filePath, UnixFileMode.UserRead | UnixFileMode.UserWrite);
-                }
-                catch (Exception ex)
-                {
-                    logger.LogDebug(ex, "Failed to set Unix 0600 permissions on credential file {FilePath}", filePath);
-                }
-            }
+            await WriteCredentialAtomicallyAsync(filePath, encryptedBytes, cancellationToken).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
         }
         catch (Exception ex)
         {
@@ -121,6 +113,10 @@ public class HostingCredentialStore(
             }
 
             return Encoding.UTF8.GetString(plainBytes);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
         }
         catch (Exception ex)
         {
@@ -205,5 +201,68 @@ public class HostingCredentialStore(
         var safeFileName = Path.GetInvalidFileNameChars()
             .Aggregate(providerId, (current, c) => current.Replace(c, '_'));
         return Path.Combine(configurationProvider.GetApplicationDataPath(), "credentials", $"{safeFileName}.dat");
+    }
+
+    private async Task WriteCredentialAtomicallyAsync(string filePath, byte[] encryptedBytes, CancellationToken cancellationToken)
+    {
+        var tempPath = $"{filePath}.tmp";
+        try
+        {
+            var options = new FileStreamOptions
+            {
+                Mode = FileMode.Create,
+                Access = FileAccess.Write,
+                Share = FileShare.None,
+            };
+
+            if (!OperatingSystem.IsWindows())
+            {
+                options.UnixCreateMode = UnixFileMode.UserRead | UnixFileMode.UserWrite;
+            }
+
+            using (var tempStream = new FileStream(tempPath, options))
+            {
+                await tempStream.WriteAsync(encryptedBytes, cancellationToken).ConfigureAwait(false);
+                await tempStream.FlushAsync(cancellationToken).ConfigureAwait(false);
+            }
+
+            if (!OperatingSystem.IsWindows())
+            {
+                try
+                {
+                    File.SetUnixFileMode(tempPath, UnixFileMode.UserRead | UnixFileMode.UserWrite);
+                }
+                catch (Exception ex)
+                {
+                    logger.LogWarning(ex, "Failed to enforce Unix 0600 permissions on credential file {FilePath}", filePath);
+                }
+            }
+
+            File.Move(tempPath, filePath, overwrite: true);
+        }
+        catch
+        {
+            DeleteTempFile(tempPath);
+            throw;
+        }
+    }
+
+    private void DeleteTempFile(string tempPath)
+    {
+        try
+        {
+            if (File.Exists(tempPath))
+            {
+                File.Delete(tempPath);
+            }
+        }
+        catch (IOException ex)
+        {
+            logger.LogDebug(ex, "Failed to clean up temporary credential file {TempPath}", tempPath);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            logger.LogDebug(ex, "Failed to clean up temporary credential file {TempPath}", tempPath);
+        }
     }
 }

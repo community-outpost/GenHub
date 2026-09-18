@@ -21,8 +21,8 @@ public interface IPublisherStudioDialogService
     Task<bool> ShowConfirmationAsync(
         string title,
         string message,
-        string confirmText = "Confirm",
-        string cancelText = "Cancel",
+        string? confirmText = null,
+        string? cancelText = null,
         string? sessionKey = null);
 
     /// <summary>

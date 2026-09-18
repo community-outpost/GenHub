@@ -13,8 +13,8 @@
 
     <UserControl.Styles>
         <Style Selector="Button.glass-btn">
-            <Setter Property="Background" Value="#15FFFFFF"/>
-            <Setter Property="BorderBrush" Value="#25FFFFFF"/>
+            <Setter Property="Background" Value="{DynamicResource GlassFillBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource GlassBorderBrush}"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="CornerRadius" Value="8"/>
             <Setter Property="Padding" Value="16,10"/>
@@ -26,12 +26,12 @@
             </Setter>
         </Style>
         <Style Selector="Button.glass-btn:pointerover">
-            <Setter Property="Background" Value="#25FFFFFF"/>
-            <Setter Property="BorderBrush" Value="#40FFFFFF"/>
+            <Setter Property="Background" Value="{DynamicResource GlassBorderBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource GlassBorderStrongBrush}"/>
         </Style>
         <Style Selector="Button.primary-btn">
             <Setter Property="Background" Value="{DynamicResource PrimaryGradientBrush}"/>
-            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
             <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="CornerRadius" Value="8"/>
             <Setter Property="Padding" Value="18,10"/>
@@ -42,41 +42,41 @@
             <Setter Property="Opacity" Value="0.85"/>
         </Style>
         <Style Selector="Button.small-glass-btn">
-            <Setter Property="Background" Value="#10FFFFFF"/>
-            <Setter Property="BorderBrush" Value="#25FFFFFF"/>
+            <Setter Property="Background" Value="{DynamicResource GlassFillSubtleBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource GlassBorderBrush}"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="CornerRadius" Value="6"/>
             <Setter Property="Padding" Value="10,6"/>
             <Setter Property="Cursor" Value="Hand"/>
         </Style>
         <Style Selector="Button.small-glass-btn:pointerover">
-            <Setter Property="Background" Value="#20FFFFFF"/>
-            <Setter Property="BorderBrush" Value="#40FFFFFF"/>
+            <Setter Property="Background" Value="{DynamicResource GlassStrongBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource GlassBorderStrongBrush}"/>
         </Style>
         <Style Selector="TextBox">
-            <Setter Property="Background" Value="#15FFFFFF"/>
-            <Setter Property="BorderBrush" Value="#25FFFFFF"/>
-            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Background" Value="{DynamicResource GlassFillBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource GlassBorderBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
             <Setter Property="CornerRadius" Value="6"/>
             <Setter Property="Padding" Value="12,10"/>
             <Setter Property="SelectionBrush" Value="{DynamicResource AccentColorBrush}"/>
         </Style>
         <Style Selector="TextBox:focus">
-            <Setter Property="Background" Value="#18FFFFFF"/>
+            <Setter Property="Background" Value="{DynamicResource GlassFillBrush}"/>
             <Setter Property="BorderBrush" Value="{DynamicResource AccentColorBrush}"/>
         </Style>
         <Style Selector="Border.glass-card">
-            <Setter Property="Background" Value="#10FFFFFF"/>
+            <Setter Property="Background" Value="{DynamicResource GlassFillSubtleBrush}"/>
             <Setter Property="CornerRadius" Value="12"/>
-            <Setter Property="BorderBrush" Value="#15FFFFFF"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource GlassFillBrush}"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="Padding" Value="24"/>
             <Setter Property="Margin" Value="0,0,0,20"/>
         </Style>
         <Style Selector="Border.metric-box">
-            <Setter Property="Background" Value="#12FFFFFF"/>
+            <Setter Property="Background" Value="{DynamicResource GlassFillSubtleBrush}"/>
             <Setter Property="CornerRadius" Value="10"/>
-            <Setter Property="BorderBrush" Value="#1AFFFFFF"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource GlassBorderSubtleBrush}"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="Padding" Value="16,14"/>
         </Style>
@@ -109,9 +109,9 @@
             <Setter Property="Padding" Value="8,3"/>
         </Style>
         <Style Selector="ComboBox">
-            <Setter Property="Background" Value="#15FFFFFF"/>
-            <Setter Property="BorderBrush" Value="#25FFFFFF"/>
-            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Background" Value="{DynamicResource GlassFillBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource GlassBorderBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
             <Setter Property="CornerRadius" Value="6"/>
             <Setter Property="Padding" Value="12,10"/>
         </Style>
@@ -125,9 +125,9 @@
                 <StackPanel Spacing="6">
                     <StackPanel Orientation="Horizontal" Spacing="10">
                         <Border Width="36" Height="36" CornerRadius="8" Background="{DynamicResource PrimaryGradientBrush}" VerticalAlignment="Center">
-                            <PathIcon Data="{StaticResource CloudStorageIcon}" Width="18" Height="18" Foreground="White"/>
+                            <PathIcon Data="{StaticResource CloudStorageIcon}" Width="18" Height="18" Foreground="{DynamicResource TextPrimary}"/>
                         </Border>
-                        <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.Title}" FontSize="24" FontWeight="Bold" Foreground="White" VerticalAlignment="Center"/>
+                        <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.Title}" FontSize="24" FontWeight="Bold" Foreground="{DynamicResource TextPrimary}" VerticalAlignment="Center"/>
                     </StackPanel>
                     <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.Subtitle}"
                                FontSize="13" Foreground="{DynamicResource TextSecondary}"/>
@@ -138,8 +138,8 @@
                             Command="{Binding OpenCloudFolderCommand}"
                             ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Hosting.OpenCloudFolderTip}">
                         <StackPanel Orientation="Horizontal" Spacing="8">
-                            <PathIcon Data="{StaticResource FolderOpenIcon}" Width="14" Height="14" Foreground="White"/>
-                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.OpenCloudFolder}" Foreground="White" FontSize="12"/>
+                            <PathIcon Data="{StaticResource FolderOpenIcon}" Width="14" Height="14" Foreground="{DynamicResource TextPrimary}"/>
+                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.OpenCloudFolder}" Foreground="{DynamicResource TextPrimary}" FontSize="12"/>
                         </StackPanel>
                     </Button>
 
@@ -148,9 +148,9 @@
                             IsEnabled="{Binding !IsScanningStorage}"
                             ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Hosting.ScanSyncStorageTip}">
                         <StackPanel Orientation="Horizontal" Spacing="8">
-                            <PathIcon Data="{StaticResource RefreshIcon}" Width="14" Height="14" Foreground="White"/>
-                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.Scanning}" IsVisible="{Binding IsScanningStorage}" Foreground="White" FontSize="12"/>
-                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.ScanSyncStorage}" IsVisible="{Binding !IsScanningStorage}" Foreground="White" FontSize="12"/>
+                            <PathIcon Data="{StaticResource RefreshIcon}" Width="14" Height="14" Foreground="{DynamicResource TextPrimary}"/>
+                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.Scanning}" IsVisible="{Binding IsScanningStorage}" Foreground="{DynamicResource TextPrimary}" FontSize="12"/>
+                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.ScanSyncStorage}" IsVisible="{Binding !IsScanningStorage}" Foreground="{DynamicResource TextPrimary}" FontSize="12"/>
                         </StackPanel>
                     </Button>
                 </StackPanel>
@@ -158,7 +158,7 @@
 
             <!-- Scanning Status Notification Banner -->
             <Border IsVisible="{Binding StorageScanStatusMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
-                    Background="#18FFFFFF" BorderBrush="#30FFFFFF" BorderThickness="1" CornerRadius="8"
+                    Background="{DynamicResource GlassFillBrush}" BorderBrush="{DynamicResource GlassBorderStrongBrush}" BorderThickness="1" CornerRadius="8"
                     Padding="14,10" Margin="0,0,0,20">
                 <Grid ColumnDefinitions="Auto,*,Auto">
                     <PathIcon Grid.Column="0" Data="{StaticResource RefreshIcon}" Width="14" Height="14" Foreground="{DynamicResource StatusInfoBrush}" Margin="0,0,10,0"/>
@@ -176,8 +176,8 @@
                             <PathIcon Data="{StaticResource CloudStorageIcon}" Width="13" Height="13" Foreground="{DynamicResource StatusInfoBrush}"/>
                             <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.StorageConsumed}" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource StatusInfoBrush}"/>
                         </StackPanel>
-                        <TextBlock Text="{Binding TotalStorageUsedFormatted}" FontSize="22" FontWeight="Bold" Foreground="White"/>
-                        <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.CloudFilesSummary}" FontSize="11" Foreground="#8888AA"/>
+                        <TextBlock Text="{Binding TotalStorageUsedFormatted}" FontSize="22" FontWeight="Bold" Foreground="{DynamicResource TextPrimary}"/>
+                        <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.CloudFilesSummary}" FontSize="11" Foreground="{DynamicResource TextSecondary}"/>
                     </StackPanel>
                 </Border>
 
@@ -185,26 +185,26 @@
                 <Border Grid.Column="1" Classes="metric-box" Margin="5,0,5,0">
                     <StackPanel Spacing="6">
                         <StackPanel Orientation="Horizontal" Spacing="6">
-                            <PathIcon Data="{StaticResource PackageIcon}" Width="13" Height="13" Foreground="#B388FF"/>
-                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.HostedAssets}" FontSize="10" FontWeight="Bold" Foreground="#B388FF"/>
+                            <PathIcon Data="{StaticResource PackageIcon}" Width="13" Height="13" Foreground="{DynamicResource AccentLightBrush}"/>
+                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.HostedAssets}" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource AccentLightBrush}"/>
                         </StackPanel>
-                        <TextBlock Text="{Binding TotalHostedFilesCount}" FontSize="22" FontWeight="Bold" Foreground="White"/>
-                        <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.FilesHostedOnCloud}" FontSize="11" Foreground="#8888AA"/>
+                        <TextBlock Text="{Binding TotalHostedFilesCount}" FontSize="22" FontWeight="Bold" Foreground="{DynamicResource TextPrimary}"/>
+                        <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.FilesHostedOnCloud}" FontSize="11" Foreground="{DynamicResource TextSecondary}"/>
                     </StackPanel>
                 </Border>
 
                 <!-- Card 3: Categorized Breakdown -->
                 <Border Grid.Column="2" Classes="metric-box" Margin="5,0,5,0">
                     <StackPanel Spacing="4">
-                        <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.AssetBreakdown}" FontSize="10" FontWeight="Bold" Foreground="#69F0AE"/>
+                        <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.AssetBreakdown}" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource SuccessBrush}"/>
                         <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto" Margin="0,2,0,0">
-                            <TextBlock Grid.Row="0" Grid.Column="0" Text="{localization:Localize Tools.PublisherStudio.Hosting.CatalogsPrefix}" FontSize="11" Foreground="#AAAAAA"/>
-                            <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding HostedCatalogsCount}" FontSize="11" FontWeight="Bold" Foreground="White"/>
+                            <TextBlock Grid.Row="0" Grid.Column="0" Text="{localization:Localize Tools.PublisherStudio.Hosting.CatalogsPrefix}" FontSize="11" Foreground="{DynamicResource TextSecondary}"/>
+                            <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding HostedCatalogsCount}" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource TextPrimary}"/>
 
-                            <TextBlock Grid.Row="1" Grid.Column="0" Text="{localization:Localize Tools.PublisherStudio.Hosting.ReleaseBinariesPrefix}" FontSize="11" Foreground="#AAAAAA"/>
-                            <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding HostedArtifactsCount}" FontSize="11" FontWeight="Bold" Foreground="White"/>
+                            <TextBlock Grid.Row="1" Grid.Column="0" Text="{localization:Localize Tools.PublisherStudio.Hosting.ReleaseBinariesPrefix}" FontSize="11" Foreground="{DynamicResource TextSecondary}"/>
+                            <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding HostedArtifactsCount}" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource TextPrimary}"/>
 
-                            <TextBlock Grid.Row="2" Grid.Column="0" Text="{localization:Localize Tools.PublisherStudio.Hosting.ExternalCdnPrefix}" FontSize="11" Foreground="#AAAAAA"/>
+                            <TextBlock Grid.Row="2" Grid.Column="0" Text="{localization:Localize Tools.PublisherStudio.Hosting.ExternalCdnPrefix}" FontSize="11" Foreground="{DynamicResource TextSecondary}"/>
                             <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding ExternalCdnCount}" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource StatusInfoBrush}"/>
                         </Grid>
                     </StackPanel>
@@ -214,10 +214,10 @@
                 <Border Grid.Column="3" Classes="metric-box" Margin="10,0,0,0">
                     <StackPanel Spacing="6">
                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Stretch">
-                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.StorageLocation}" FontSize="10" FontWeight="Bold" Foreground="#FFD54F"/>
+                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.StorageLocation}" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource WarningHighlightBrush}"/>
                         </StackPanel>
-                        <TextBlock Text="{Binding SelectedHostingProvider.DisplayName, FallbackValue='Not Connected'}" FontSize="18" FontWeight="Bold" Foreground="White"/>
-                        <TextBlock Text="{Binding HostingFolderPath}" FontSize="11" Foreground="#8888AA" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding HostingFolderPath}"/>
+                        <TextBlock Text="{Binding ProviderDisplayName}" FontSize="18" FontWeight="Bold" Foreground="{DynamicResource TextPrimary}"/>
+                        <TextBlock Text="{Binding HostingFolderPath}" FontSize="11" Foreground="{DynamicResource TextSecondary}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding HostingFolderPath}"/>
                     </StackPanel>
                 </Border>
             </Grid>
@@ -227,9 +227,9 @@
                 <StackPanel Spacing="16">
                     <Grid ColumnDefinitions="*,Auto">
                         <StackPanel Grid.Column="0" Spacing="4">
-                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.CloudProviderSetup}" FontSize="17" FontWeight="Bold" Foreground="White"/>
+                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.CloudProviderSetup}" FontSize="17" FontWeight="Bold" Foreground="{DynamicResource TextPrimary}"/>
                             <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.CloudProviderSetupSubtitle}"
-                                       FontSize="12" Foreground="#8888AA"/>
+                                       FontSize="12" Foreground="{DynamicResource TextSecondary}"/>
                         </StackPanel>
 
                         <!-- Connection Badge -->
@@ -260,7 +260,7 @@
                                 <DataTemplate x:DataType="interfaces:IHostingProvider">
                                     <StackPanel Orientation="Horizontal" Spacing="12">
                                         <TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold"/>
-                                        <TextBlock Text="{Binding Description}" Foreground="#888888" FontSize="12"/>
+                                        <TextBlock Text="{Binding Description}" Foreground="{DynamicResource TextSecondary}" FontSize="12"/>
                                     </StackPanel>
                                 </DataTemplate>
                             </ComboBox.ItemTemplate>
@@ -269,38 +269,38 @@
 
                     <!-- GOOGLE DRIVE SETUP GUIDE -->
                     <StackPanel IsVisible="{Binding ShowGoogleOAuthButton}" Spacing="12">
-                        <Border Background="#12FFFFFF" BorderBrush="#25FFFFFF" BorderThickness="1" CornerRadius="8" Padding="16">
+                        <Border Background="{DynamicResource GlassFillSubtleBrush}" BorderBrush="{DynamicResource GlassBorderBrush}" BorderThickness="1" CornerRadius="8" Padding="16">
                             <StackPanel Spacing="10">
                                 <StackPanel Orientation="Horizontal" Spacing="8">
                                     <Border Width="20" Height="20" CornerRadius="4" Background="#4285F4" VerticalAlignment="Center">
-                                        <TextBlock Text="G" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="11"/>
+                                        <TextBlock Text="G" FontWeight="Bold" Foreground="{DynamicResource TextPrimary}" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="11"/>
                                     </Border>
-                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.GDGuideTitle}" FontWeight="Bold" FontSize="13" Foreground="White" VerticalAlignment="Center"/>
+                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.GDGuideTitle}" FontWeight="Bold" FontSize="13" Foreground="{DynamicResource TextPrimary}" VerticalAlignment="Center"/>
                                 </StackPanel>
                                 <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.GDGuideSubtitle}"
-                                           FontSize="11" Foreground="#AAAAAA" TextWrapping="Wrap"/>
+                                           FontSize="11" Foreground="{DynamicResource TextSecondary}" TextWrapping="Wrap"/>
 
-                                <Border Height="1" Background="#20FFFFFF"/>
+                                <Border Height="1" Background="{DynamicResource GlassStrongBrush}"/>
 
                                 <!-- Steps -->
                                 <StackPanel Spacing="8">
                                     <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.GDStep1Title}" FontWeight="SemiBold" FontSize="12" Foreground="{DynamicResource StatusInfoBrush}"/>
-                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.GDStep1Desc}" FontSize="11" Foreground="#CCCCCC" TextWrapping="Wrap"/>
+                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.GDStep1Desc}" FontSize="11" Foreground="{DynamicResource TextSecondary}" TextWrapping="Wrap"/>
 
                                     <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.GDStep2Title}" FontWeight="SemiBold" FontSize="12" Foreground="{DynamicResource WarningHighlightBrush}"/>
-                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.GDStep2Desc}" FontSize="11" Foreground="#CCCCCC" TextWrapping="Wrap"/>
+                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.GDStep2Desc}" FontSize="11" Foreground="{DynamicResource TextSecondary}" TextWrapping="Wrap"/>
 
                                     <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.GDS3Title}" FontWeight="SemiBold" FontSize="12" Foreground="{DynamicResource StatusInfoBrush}"/>
-                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.GDStep3Desc}" FontSize="11" Foreground="#CCCCCC" TextWrapping="Wrap"/>
+                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.GDStep3Desc}" FontSize="11" Foreground="{DynamicResource TextSecondary}" TextWrapping="Wrap"/>
 
                                     <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.GDStep4Title}" FontWeight="SemiBold" FontSize="12" Foreground="{DynamicResource StatusErrorBrush}"/>
-                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.GDStep4Desc}" FontSize="11" Foreground="#FFCC80" TextWrapping="Wrap"/>
+                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.GDStep4Desc}" FontSize="11" Foreground="{DynamicResource WarningHighlightBrush}" TextWrapping="Wrap"/>
 
                                     <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.GDStep5Title}" FontWeight="SemiBold" FontSize="12" Foreground="{DynamicResource StatusErrorBrush}"/>
-                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.GDStep5Desc}" FontSize="11" Foreground="#FFCC80" TextWrapping="Wrap"/>
+                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.GDStep5Desc}" FontSize="11" Foreground="{DynamicResource WarningHighlightBrush}" TextWrapping="Wrap"/>
 
                                     <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.GDStep6Title}" FontWeight="SemiBold" FontSize="12" Foreground="{DynamicResource StatusInfoBrush}"/>
-                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.GDStep6Desc}" FontSize="11" Foreground="#CCCCCC" TextWrapping="Wrap"/>
+                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.GDStep6Desc}" FontSize="11" Foreground="{DynamicResource TextSecondary}" TextWrapping="Wrap"/>
                                 </StackPanel>
 
                                 <!-- Action buttons to consoles -->
@@ -327,11 +327,11 @@
 
                                 <!-- Inputs -->
                                 <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto" Margin="0,6,0,0">
-                                    <TextBlock Grid.Row="0" Grid.Column="0" Text="{localization:Localize Tools.PublisherStudio.Hosting.GoogleClientId}" FontSize="12" Foreground="#AAAAAA" Margin="0,0,6,4"/>
+                                    <TextBlock Grid.Row="0" Grid.Column="0" Text="{localization:Localize Tools.PublisherStudio.Hosting.GoogleClientId}" FontSize="12" Foreground="{DynamicResource TextSecondary}" Margin="0,0,6,4"/>
                                     <TextBox Grid.Row="1" Grid.Column="0" Text="{Binding GoogleClientId}" Watermark="{localization:Localize Tools.PublisherStudio.Hosting.GoogleClientIdPlaceholder}" FontSize="12" Margin="0,0,6,0"/>
 
                                     <!-- skipcq: SCT-A000 -->
-                                    <TextBlock Grid.Row="0" Grid.Column="1" Text="{localization:Localize Tools.PublisherStudio.Hosting.GoogleClientSecret}" FontSize="12" Foreground="#AAAAAA" Margin="6,0,0,4"/>
+                                    <TextBlock Grid.Row="0" Grid.Column="1" Text="{localization:Localize Tools.PublisherStudio.Hosting.GoogleClientSecret}" FontSize="12" Foreground="{DynamicResource TextSecondary}" Margin="6,0,0,4"/>
                                     <!-- skipcq: SCT-A000 -->
                                     <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding GoogleClientSecret}" PasswordChar="●" RevealPassword="True" FontSize="12" Margin="6,0,0,0"/>
                                 </Grid>
@@ -341,29 +341,29 @@
 
                     <!-- DROPBOX SETUP GUIDE -->
                     <StackPanel IsVisible="{Binding ShowDropboxTokenInput}" Spacing="12">
-                        <Border Background="#12FFFFFF" BorderBrush="#25FFFFFF" BorderThickness="1" CornerRadius="8" Padding="16">
+                        <Border Background="{DynamicResource GlassFillSubtleBrush}" BorderBrush="{DynamicResource GlassBorderBrush}" BorderThickness="1" CornerRadius="8" Padding="16">
                             <StackPanel Spacing="10">
                                 <StackPanel Orientation="Horizontal" Spacing="8">
                                     <Border Width="20" Height="20" CornerRadius="4" Background="#0061FF" VerticalAlignment="Center">
-                                        <TextBlock Text="D" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="11"/>
+                                        <TextBlock Text="D" FontWeight="Bold" Foreground="{DynamicResource TextPrimary}" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="11"/>
                                     </Border>
-                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.DBGuideTitle}" FontWeight="Bold" FontSize="13" Foreground="White" VerticalAlignment="Center"/>
+                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.DBGuideTitle}" FontWeight="Bold" FontSize="13" Foreground="{DynamicResource TextPrimary}" VerticalAlignment="Center"/>
                                 </StackPanel>
                                 <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.DBGuideSubtitle}"
-                                           FontSize="11" Foreground="#AAAAAA" TextWrapping="Wrap"/>
+                                           FontSize="11" Foreground="{DynamicResource TextSecondary}" TextWrapping="Wrap"/>
 
-                                <Border Height="1" Background="#20FFFFFF"/>
+                                <Border Height="1" Background="{DynamicResource GlassStrongBrush}"/>
 
                                 <!-- Steps -->
                                 <StackPanel Spacing="8">
                                     <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.DBStep1Title}" FontWeight="SemiBold" FontSize="12" Foreground="{DynamicResource StatusInfoBrush}"/>
-                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.DBStep1Desc}" FontSize="11" Foreground="#CCCCCC" TextWrapping="Wrap"/>
+                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.DBStep1Desc}" FontSize="11" Foreground="{DynamicResource TextSecondary}" TextWrapping="Wrap"/>
 
-                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.DBStep2Title}" FontWeight="SemiBold" FontSize="12" Foreground="#FF5252"/>
-                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.DBStep2Desc}" FontSize="11" Foreground="#FFCC80" TextWrapping="Wrap"/>
+                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.DBStep2Title}" FontWeight="SemiBold" FontSize="12" Foreground="{DynamicResource ErrorBrush}"/>
+                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.DBStep2Desc}" FontSize="11" Foreground="{DynamicResource WarningHighlightBrush}" TextWrapping="Wrap"/>
 
                                     <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.DBStep3Title}" FontWeight="SemiBold" FontSize="12" Foreground="{DynamicResource StatusInfoBrush}"/>
-                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.DBStep3Desc}" FontSize="11" Foreground="#CCCCCC" TextWrapping="Wrap"/>
+                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.DBStep3Desc}" FontSize="11" Foreground="{DynamicResource TextSecondary}" TextWrapping="Wrap"/>
                                 </StackPanel>
 
                                 <!-- Action button to Dropbox console -->
@@ -384,7 +384,7 @@
 
                                 <!-- Dropbox Token Input -->
                                 <StackPanel Spacing="4" Margin="0,6,0,0">
-                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.DropboxTokenPrompt}" FontSize="12" Foreground="#AAAAAA"/>
+                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.DropboxTokenPrompt}" FontSize="12" Foreground="{DynamicResource TextSecondary}"/>
                                     <TextBox Text="{Binding DropboxAccessToken}" Watermark="{localization:Localize Tools.PublisherStudio.Hosting.DropboxFullTokenPlaceholder}" PasswordChar="●" RevealPassword="True" FontSize="12"/>
                                 </StackPanel>
                             </StackPanel>
@@ -398,8 +398,8 @@
                                 IsEnabled="{Binding !IsAuthenticating}"
                                 ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Hosting.ConnectProviderTip}">
                             <StackPanel Orientation="Horizontal" Spacing="8">
-                                <PathIcon Data="{StaticResource ConfirmationCheckIcon}" Width="14" Height="14" Foreground="White"/>
-                                <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.ConnectProvider}" FontSize="12" Foreground="White"/>
+                                <PathIcon Data="{StaticResource ConfirmationCheckIcon}" Width="14" Height="14" Foreground="{DynamicResource TextPrimary}"/>
+                                <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.ConnectProvider}" FontSize="12" Foreground="{DynamicResource TextPrimary}"/>
                             </StackPanel>
                         </Button>
 
@@ -407,7 +407,7 @@
                                 Command="{Binding CancelAuthenticationCommand}"
                                 IsVisible="{Binding IsAuthenticating}"
                                 ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Hosting.CancelAuthTip}">
-                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.Cancel}" FontSize="12" Foreground="#FF8888"/>
+                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.Cancel}" FontSize="12" Foreground="{DynamicResource ErrorBrush}"/>
                         </Button>
 
                         <ProgressBar IsIndeterminate="True" Width="100" Height="4"
@@ -425,9 +425,9 @@
                 <StackPanel Spacing="16">
                     <Grid ColumnDefinitions="*,Auto">
                         <StackPanel Grid.Column="0" Spacing="4">
-                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.InventoryTitle}" FontSize="17" FontWeight="Bold" Foreground="White"/>
+                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.InventoryTitle}" FontSize="17" FontWeight="Bold" Foreground="{DynamicResource TextPrimary}"/>
                             <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.InventorySubtitle}"
-                                       FontSize="12" Foreground="#8888AA"/>
+                                       FontSize="12" Foreground="{DynamicResource TextSecondary}"/>
                         </StackPanel>
 
                         <Border Grid.Column="1" Classes="status-badge-info" VerticalAlignment="Center">
@@ -436,14 +436,14 @@
                     </Grid>
 
                     <!-- Table Header -->
-                    <Border Background="#15FFFFFF" BorderBrush="#25FFFFFF" BorderThickness="1" CornerRadius="6" Padding="12,8">
+                    <Border Background="{DynamicResource GlassFillBrush}" BorderBrush="{DynamicResource GlassBorderBrush}" BorderThickness="1" CornerRadius="6" Padding="12,8">
                         <Grid ColumnDefinitions="2*,1.5*,1*,1*,1.5*,Auto">
-                            <TextBlock Grid.Column="0" Text="{localization:Localize Tools.PublisherStudio.Hosting.ColFileName}" FontSize="11" FontWeight="Bold" Foreground="#AAAAAA"/>
-                            <TextBlock Grid.Column="1" Text="{localization:Localize Tools.PublisherStudio.Hosting.ColCategory}" FontSize="11" FontWeight="Bold" Foreground="#AAAAAA"/>
-                            <TextBlock Grid.Column="2" Text="{localization:Localize Tools.PublisherStudio.Hosting.ColSize}" FontSize="11" FontWeight="Bold" Foreground="#AAAAAA"/>
-                            <TextBlock Grid.Column="3" Text="{localization:Localize Tools.PublisherStudio.Hosting.ColStatus}" FontSize="11" FontWeight="Bold" Foreground="#AAAAAA"/>
-                            <TextBlock Grid.Column="4" Text="{localization:Localize Tools.PublisherStudio.Hosting.ColLocation}" FontSize="11" FontWeight="Bold" Foreground="#AAAAAA"/>
-                            <TextBlock Grid.Column="5" Text="{localization:Localize Tools.PublisherStudio.Hosting.ColActions}" FontSize="11" FontWeight="Bold" Foreground="#AAAAAA" Width="140" TextAlignment="Right"/>
+                            <TextBlock Grid.Column="0" Text="{localization:Localize Tools.PublisherStudio.Hosting.ColFileName}" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource TextSecondary}"/>
+                            <TextBlock Grid.Column="1" Text="{localization:Localize Tools.PublisherStudio.Hosting.ColCategory}" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource TextSecondary}"/>
+                            <TextBlock Grid.Column="2" Text="{localization:Localize Tools.PublisherStudio.Hosting.ColSize}" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource TextSecondary}"/>
+                            <TextBlock Grid.Column="3" Text="{localization:Localize Tools.PublisherStudio.Hosting.ColStatus}" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource TextSecondary}"/>
+                            <TextBlock Grid.Column="4" Text="{localization:Localize Tools.PublisherStudio.Hosting.ColLocation}" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource TextSecondary}"/>
+                            <TextBlock Grid.Column="5" Text="{localization:Localize Tools.PublisherStudio.Hosting.ColActions}" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource TextSecondary}" Width="140" TextAlignment="Right"/>
                         </Grid>
                     </Border>
 
@@ -451,23 +451,23 @@
                     <ItemsControl ItemsSource="{Binding HostedAssets}">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate DataType="vm:HostedAssetItemViewModel">
-                                <Border Background="#0CFFFFFF"
-                                        BorderBrush="#15FFFFFF"
+                                <Border Background="{DynamicResource GlassFillSubtleBrush}"
+                                        BorderBrush="{DynamicResource GlassFillBrush}"
                                         BorderThickness="0,0,0,1"
                                         Padding="12,12">
                                     <Grid ColumnDefinitions="2*,1.5*,1*,1*,1.5*,Auto">
                                         <!-- Column 0: File Name & SHA256 -->
                                         <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center" Margin="0,0,8,0">
-                                            <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="13" Foreground="White" TextTrimming="CharacterEllipsis"/>
-                                            <TextBlock Text="{Binding Url}" FontSize="10" Foreground="#666688" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Url}"
+                                            <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="13" Foreground="{DynamicResource TextPrimary}" TextTrimming="CharacterEllipsis"/>
+                                            <TextBlock Text="{Binding Url}" FontSize="10" Foreground="{DynamicResource TextMuted}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Url}"
                                                        IsVisible="{Binding Url, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
                                         </StackPanel>
 
                                         <!-- Column 1: Category -->
-                                        <TextBlock Grid.Column="1" Text="{Binding Category}" FontSize="12" Foreground="#CCCCCC" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                                        <TextBlock Grid.Column="1" Text="{Binding Category}" FontSize="12" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
 
                                         <!-- Column 2: File Size -->
-                                        <TextBlock Grid.Column="2" Text="{Binding FileSizeFormatted}" FontSize="12" FontWeight="SemiBold" Foreground="#E2E8F0" VerticalAlignment="Center"/>
+                                        <TextBlock Grid.Column="2" Text="{Binding FileSizeFormatted}" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" VerticalAlignment="Center"/>
 
                                         <!-- Column 3: Status Badge -->
                                         <StackPanel Grid.Column="3" Orientation="Horizontal" VerticalAlignment="Center">
@@ -483,7 +483,7 @@
                                         </StackPanel>
 
                                         <!-- Column 4: Location -->
-                                        <TextBlock Grid.Column="4" Text="{Binding Location}" FontSize="11" Foreground="#8888AA" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                                        <TextBlock Grid.Column="4" Text="{Binding Location}" FontSize="11" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
 
                                         <!-- Column 5: Action Buttons -->
                                         <StackPanel Grid.Column="5" Orientation="Horizontal" Spacing="6" HorizontalAlignment="Right" VerticalAlignment="Center" Width="140">
@@ -491,11 +491,11 @@
                                                     Command="{Binding ((vm:PublishShareViewModel)DataContext).CopyAssetUrlCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                                     CommandParameter="{Binding Url}"
                                                     IsEnabled="{Binding Url, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
-                                                    AutomationProperties.Name="Copy direct download link"
+                                                    AutomationProperties.Name="{localization:Localize Tools.PublisherStudio.Hosting.CopyDownloadLinkTip}"
                                                     ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Hosting.CopyDownloadLinkTip}">
                                                 <StackPanel Orientation="Horizontal" Spacing="4">
-                                                    <PathIcon Data="{StaticResource CopyIcon}" Width="10" Height="10" Foreground="White"/>
-                                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.Copy}" FontSize="10" Foreground="White"/>
+                                                    <PathIcon Data="{StaticResource CopyIcon}" Width="10" Height="10" Foreground="{DynamicResource TextPrimary}"/>
+                                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.Copy}" FontSize="10" Foreground="{DynamicResource TextPrimary}"/>
                                                 </StackPanel>
                                             </Button>
 
@@ -503,7 +503,7 @@
                                                     Command="{Binding ((vm:PublishShareViewModel)DataContext).OpenUrlInBrowserCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                                     CommandParameter="{Binding Url}"
                                                     IsEnabled="{Binding Url, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
-                                                    AutomationProperties.Name="Open download URL in browser"
+                                                    AutomationProperties.Name="{localization:Localize Tools.PublisherStudio.Hosting.OpenUrlTip}"
                                                     ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Hosting.OpenUrlTip}">
                                                 <PathIcon Data="{StaticResource ExternalLinkIcon}" Width="10" Height="10" Foreground="{DynamicResource AccentColorBrush}"/>
                                             </Button>
@@ -516,13 +516,13 @@
 
                     <!-- Empty State -->
                     <Border IsVisible="{Binding !HostedAssets.Count}"
-                            Background="#08FFFFFF" BorderBrush="#15FFFFFF" BorderThickness="1" CornerRadius="8"
+                            Background="{DynamicResource GlassFillSubtleBrush}" BorderBrush="{DynamicResource GlassFillBrush}" BorderThickness="1" CornerRadius="8"
                             Padding="32" Margin="0,10,0,0">
                         <StackPanel Spacing="10" HorizontalAlignment="Center">
-                            <PathIcon Data="{StaticResource CloudStorageIcon}" Width="32" Height="32" Foreground="#555577" HorizontalAlignment="Center"/>
-                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.NoAssetsTitle}" FontSize="14" FontWeight="Bold" Foreground="#AAAAAA" HorizontalAlignment="Center"/>
+                            <PathIcon Data="{StaticResource CloudStorageIcon}" Width="32" Height="32" Foreground="{DynamicResource TextMuted}" HorizontalAlignment="Center"/>
+                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.NoAssetsTitle}" FontSize="14" FontWeight="Bold" Foreground="{DynamicResource TextSecondary}" HorizontalAlignment="Center"/>
                             <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.NoAssetsSubtitle}"
-                                       FontSize="12" Foreground="#666688" HorizontalAlignment="Center" TextWrapping="Wrap" MaxWidth="400" TextAlignment="Center"/>
+                                       FontSize="12" Foreground="{DynamicResource TextMuted}" HorizontalAlignment="Center" TextWrapping="Wrap" MaxWidth="400" TextAlignment="Center"/>
                         </StackPanel>
                     </Border>
                 </StackPanel>

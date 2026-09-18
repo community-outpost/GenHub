@@ -11,7 +11,6 @@ using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
-using Xunit.Abstractions;
 using ContentType = GenHub.Core.Models.Enums.ContentType;
 using GameType = GenHub.Core.Models.Enums.GameType;
 
@@ -25,15 +24,12 @@ public class PublisherStudioServiceTests
     private readonly Mock<ILogger<PublisherStudioService>> _loggerMock;
     private readonly Mock<IPublisherCatalogParser> _catalogParserMock;
     private readonly PublisherStudioService _service;
-    private readonly ITestOutputHelper _output;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="PublisherStudioServiceTests"/> class.
     /// </summary>
-    /// <param name="output">The test output helper.</param>
-    public PublisherStudioServiceTests(ITestOutputHelper output)
+    public PublisherStudioServiceTests()
     {
-        _output = output;
         _loggerMock = new Mock<ILogger<PublisherStudioService>>();
         _catalogParserMock = new Mock<IPublisherCatalogParser>();
         _service = new PublisherStudioService(_loggerMock.Object, _catalogParserMock.Object);
@@ -310,9 +306,6 @@ public class PublisherStudioServiceTests
             },
         };
 
-        _catalogParserMock.Setup(p => p.ParseCatalogAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(OperationResult<PublisherCatalog>.CreateSuccess(catalog));
-
         // Act
         var result = await _service.ValidateCatalogAsync(catalog);
 
@@ -343,9 +336,6 @@ public class PublisherStudioServiceTests
             },
             Content = new List<CatalogContentItem>(),
         };
-
-        _catalogParserMock.Setup(p => p.ParseCatalogAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(OperationResult<PublisherCatalog>.CreateSuccess(catalog));
 
         // Act
         var result = await _service.ValidateCatalogAsync(catalog);
@@ -380,9 +370,6 @@ public class PublisherStudioServiceTests
                 },
             },
         };
-
-        _catalogParserMock.Setup(p => p.ParseCatalogAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(OperationResult<PublisherCatalog>.CreateSuccess(catalog));
 
         // Act
         var result = await _service.ValidateCatalogAsync(catalog);
@@ -424,9 +411,6 @@ public class PublisherStudioServiceTests
                 },
             },
         };
-
-        _catalogParserMock.Setup(p => p.ParseCatalogAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(OperationResult<PublisherCatalog>.CreateSuccess(catalog));
 
         // Act
         var result = await _service.ValidateCatalogAsync(catalog);

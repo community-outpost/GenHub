@@ -3,6 +3,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using GenHub.Core.Constants;
 using GenHub.Core.Helpers;
+using GenHub.Core.Interfaces.Common;
 using GenHub.Features.Content.Services.Catalog;
 using GenHub.Features.Content.ViewModels.Catalog;
 using GenHub.Features.Downloads.Views;
@@ -19,6 +20,7 @@ namespace GenHub.Features.Downloads.ViewModels;
 public partial class ImportSubscriptionViewModel : ObservableObject
 {
     private readonly IServiceProvider _serviceProvider;
+    private readonly ILocalizationService? _localizationService;
 
     [ObservableProperty]
     private string _inputUrl = string.Empty;
@@ -36,6 +38,7 @@ public partial class ImportSubscriptionViewModel : ObservableObject
     public ImportSubscriptionViewModel(IServiceProvider serviceProvider)
     {
         _serviceProvider = serviceProvider;
+        _localizationService = serviceProvider.GetService<ILocalizationService>();
     }
 
     /// <summary>
@@ -52,6 +55,17 @@ public partial class ImportSubscriptionViewModel : ObservableObject
         }
 
         return CloudUrlHelper.NormalizeDirectDownloadUrl(targetUrl);
+    }
+
+    private string GetLocalizedString(string key, string fallback) =>
+        _localizationService?.GetString(key) ?? fallback;
+
+    private string GetLocalizedString(string key, string fallback, params object?[] args)
+    {
+        var format = _localizationService?.GetString(key);
+        return string.IsNullOrEmpty(format) || string.Equals(format, key, StringComparison.Ordinal)
+            ? string.Format(System.Globalization.CultureInfo.InvariantCulture, fallback, args)
+            : string.Format(System.Globalization.CultureInfo.InvariantCulture, format, args);
     }
 
     private async Task LaunchConfirmationDialogAsync(string targetUrl)
@@ -85,16 +99,17 @@ public partial class ImportSubscriptionViewModel : ObservableObject
         ErrorMessage = null;
         if (string.IsNullOrWhiteSpace(InputUrl))
         {
-            ErrorMessage = "Please enter a URL or genhub:// link.";
+            ErrorMessage = GetLocalizedString("Downloads.ImportSubscription.Error.UrlRequired", "Please enter a URL or genhub:// link.");
             return;
         }
 
         var targetUrl = ResolveTargetUrl(InputUrl.Trim());
 
+        // The downstream catalog reader enforces HTTPS, so reject plain HTTP here for immediate feedback.
         if (!Uri.TryCreate(targetUrl, UriKind.Absolute, out var uri) ||
-            (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
+            uri.Scheme != Uri.UriSchemeHttps)
         {
-            ErrorMessage = "Invalid URL format. Please provide a valid HTTP, HTTPS, or genhub:// link.";
+            ErrorMessage = GetLocalizedString("Downloads.ImportSubscription.Error.InvalidUrl", "Invalid URL format. Please provide a valid HTTPS or genhub:// link.");
             return;
         }
 
@@ -105,7 +120,7 @@ public partial class ImportSubscriptionViewModel : ObservableObject
         }
         catch (Exception ex)
         {
-            ErrorMessage = $"Failed to launch subscription confirmation: {ex.Message}";
+            ErrorMessage = GetLocalizedString("Downloads.ImportSubscription.Error.LaunchFailedFormat", "Failed to launch subscription confirmation: {0}", ex.Message);
         }
         finally
         {

@@ -21,7 +21,7 @@ namespace GenHub.Features.Tools.ViewModels.Dialogs;
 /// Provides validation and creation of new ReleaseArtifact entries.
 /// </summary>
 [SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "ViewModel properties and methods bound to MVVM UI.")]
-public partial class AddArtifactDialogViewModel(Action<ReleaseArtifact> onArtifactCreated, GenHub.Core.Interfaces.Common.ILocalizationService? localizationService = null) : ObservableValidator
+public partial class AddArtifactDialogViewModel(Action<ReleaseArtifact> onArtifactCreated, GenHub.Core.Interfaces.Common.ILocalizationService? localizationService = null) : ObservableValidator, IDisposable
 {
     [ObservableProperty]
     [NotifyDataErrorInfo]
@@ -62,6 +62,8 @@ public partial class AddArtifactDialogViewModel(Action<ReleaseArtifact> onArtifa
     private string _fileSizeInput = string.Empty;
 
     private string? _lastAutoUrlFilename;
+
+    private CancellationTokenSource? _hashCts;
 
     [ObservableProperty]
     private string _artifactStatus = localizationService?.GetString("Tools.PublisherStudio.Artifact.NoFileConfigured") ?? "No file configured";
@@ -141,6 +143,27 @@ public partial class AddArtifactDialogViewModel(Action<ReleaseArtifact> onArtifa
         return true;
     }
 
+    /// <inheritdoc />
+    public void Dispose()
+    {
+        Dispose(true);
+        GC.SuppressFinalize(this);
+    }
+
+    /// <summary>
+    /// Releases unmanaged and - optionally - managed resources.
+    /// </summary>
+    /// <param name="disposing"><c>true</c> to release both managed and unmanaged resources; <c>false</c> to release only unmanaged resources.</param>
+    protected virtual void Dispose(bool disposing)
+    {
+        if (disposing)
+        {
+            _hashCts?.Cancel();
+            _hashCts?.Dispose();
+            _hashCts = null;
+        }
+    }
+
     private static string FormatFileSize(long bytes)
     {
         string[] suffixes = ["B", "KB", "MB", "GB", "TB"];
@@ -156,17 +179,47 @@ public partial class AddArtifactDialogViewModel(Action<ReleaseArtifact> onArtifa
         return $"{size:0.##} {suffixes[suffixIndex]}";
     }
 
-    private static string ComputeSha256(string filePath)
+    private static string ComputeSha256(string filePath, CancellationToken cancellationToken)
     {
+        const int BufferSize = 81920;
         using var sha256 = SHA256.Create();
         using var stream = File.OpenRead(filePath);
-        var hash = sha256.ComputeHash(stream);
-        return BitConverter.ToString(hash).Replace("-", string.Empty).ToLowerInvariant();
+        var buffer = new byte[BufferSize];
+        int bytesRead;
+        while ((bytesRead = stream.Read(buffer, 0, buffer.Length)) > 0)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            sha256.TransformBlock(buffer, 0, bytesRead, null, 0);
+        }
+
+        sha256.TransformFinalBlock([], 0, 0);
+        return Convert.ToHexString(sha256.Hash!).ToLowerInvariant();
     }
+
+    private void CancelPendingHash()
+    {
+        _hashCts?.Cancel();
+        _hashCts?.Dispose();
+        _hashCts = null;
+    }
+
+    /// <summary>
+    /// Gets the localized parsed file-size hint, or null when no size is parsed.
+    /// </summary>
+    public string? ParsedSizeDisplay => string.IsNullOrEmpty(FileSizeDisplay)
+        ? null
+        : string.Format(
+            localizationService?.GetString("Tools.PublisherStudio.Artifact.ParsedSize") ?? "Parsed: {0}",
+            FileSizeDisplay);
 
     partial void OnFilenameChanged(string value)
     {
         Validate();
+    }
+
+    partial void OnFileSizeDisplayChanged(string value)
+    {
+        OnPropertyChanged(nameof(ParsedSizeDisplay));
     }
 
     partial void OnUseLocalFileChanged(bool value)
@@ -177,6 +230,7 @@ public partial class AddArtifactDialogViewModel(Action<ReleaseArtifact> onArtifa
         }
         else
         {
+            CancelPendingHash();
             LocalFilePath = null;
             FileSize = 0;
             FileSizeDisplay = string.Empty;
@@ -193,6 +247,7 @@ public partial class AddArtifactDialogViewModel(Action<ReleaseArtifact> onArtifa
     {
         if (string.IsNullOrEmpty(value))
         {
+            CancelPendingHash();
             FileSize = 0;
             FileSizeDisplay = string.Empty;
             FileSizeInput = string.Empty;
@@ -327,14 +382,21 @@ public partial class AddArtifactDialogViewModel(Action<ReleaseArtifact> onArtifa
                     FileSizeInput = FileSizeDisplay;
 
                     // Compute SHA256 in background
+                    CancelPendingHash();
+                    _hashCts = new CancellationTokenSource();
+                    var hashCt = _hashCts.Token;
                     IsComputingHash = true;
                     try
                     {
-                        var computedHash = await Task.Run(() => ComputeSha256(path));
-                        if (LocalFilePath == path)
+                        var computedHash = await Task.Run(() => ComputeSha256(path, hashCt), hashCt);
+                        if (!hashCt.IsCancellationRequested && LocalFilePath == path)
                         {
                             Sha256Hash = computedHash;
                         }
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        // Superseded by a newer selection or dialog close
                     }
                     finally
                     {
@@ -343,9 +405,15 @@ public partial class AddArtifactDialogViewModel(Action<ReleaseArtifact> onArtifa
                 }
             }
         }
-        catch (Exception ex)
+        catch (OperationCanceledException)
         {
-            ArtifactStatus = $"Error: {ex.Message}";
+            // Selection or dialog was canceled
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            ArtifactStatus = localizationService?.GetString(
+                "Tools.PublisherStudio.Artifact.BrowseError",
+                ex.Message) ?? $"Error: {ex.Message}";
         }
     }
 
@@ -380,11 +448,16 @@ public partial class AddArtifactDialogViewModel(Action<ReleaseArtifact> onArtifa
     {
         if (string.IsNullOrWhiteSpace(LocalFilePath) || !File.Exists(LocalFilePath))
         {
-            ValidationError = "Please select a local file first";
+            ValidationError = GetLocalizedString(
+                "Tools.PublisherStudio.Artifact.SelectLocalFileFirst",
+                "Please select a local file first");
             return;
         }
 
         var targetPath = LocalFilePath;
+        CancelPendingHash();
+        _hashCts = new CancellationTokenSource();
+        var hashCt = _hashCts.Token;
         IsComputingHash = true;
         ValidationError = null;
 
@@ -392,17 +465,23 @@ public partial class AddArtifactDialogViewModel(Action<ReleaseArtifact> onArtifa
         {
             await using var stream = File.OpenRead(targetPath);
             using var sha256 = SHA256.Create();
-            var hashBytes = await sha256.ComputeHashAsync(stream, CancellationToken.None);
-            if (LocalFilePath == targetPath)
+            var hashBytes = await sha256.ComputeHashAsync(stream, hashCt);
+            if (!hashCt.IsCancellationRequested && LocalFilePath == targetPath)
             {
                 Sha256Hash = Convert.ToHexString(hashBytes).ToLowerInvariant();
             }
         }
-        catch (Exception ex)
+        catch (OperationCanceledException)
         {
-            if (LocalFilePath == targetPath)
+            // Superseded by a newer selection or dialog close
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            if (!hashCt.IsCancellationRequested && LocalFilePath == targetPath)
             {
-                ValidationError = $"Failed to compute hash: {ex.Message}";
+                ValidationError = localizationService?.GetString(
+                    "Tools.PublisherStudio.Artifact.HashComputeFailed",
+                    ex.Message) ?? $"Failed to compute hash: {ex.Message}";
             }
         }
         finally
@@ -432,7 +511,9 @@ public partial class AddArtifactDialogViewModel(Action<ReleaseArtifact> onArtifa
             // Local file mode - require local file path
             if (string.IsNullOrWhiteSpace(LocalFilePath) || !File.Exists(LocalFilePath))
             {
-                ValidationError = "Please select a local file to upload";
+                ValidationError = GetLocalizedString(
+                    "Tools.PublisherStudio.Artifact.LocalFileRequired",
+                    "Please select a local file to upload");
                 IsValid = false;
                 return;
             }
@@ -444,7 +525,9 @@ public partial class AddArtifactDialogViewModel(Action<ReleaseArtifact> onArtifa
                 !Uri.TryCreate(DownloadUrl, UriKind.Absolute, out var uri) ||
                 (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
             {
-                ValidationError = "Please enter a valid HTTP or HTTPS download URL";
+                ValidationError = GetLocalizedString(
+                    "Tools.PublisherStudio.Artifact.ValidUrlRequired",
+                    "Please enter a valid HTTP or HTTPS download URL");
                 IsValid = false;
                 return;
             }

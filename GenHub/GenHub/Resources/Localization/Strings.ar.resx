@@ -9910,4 +9910,235 @@ GenHub هو مشغل ومدير حديث لألعاب **Command &amp; Conquer: G
   <data name="Tools.PublisherStudio.Artifact.InvalidSizeFormat" xml:space="preserve">
     <value>تنسيق حجم الملف غير صالح (مثال: 10 MB، 500 KB، 1.5 GB)</value>
   </data>
+  <data name="Common.Notification.Error" xml:space="preserve">
+    <value>خطأ</value>
+  </data>
+  <data name="Downloads.ImportSubscription.Error.InvalidUrl" xml:space="preserve">
+    <value>صيغة الرابط غير صالحة. يرجى تقديم رابط HTTPS أو genhub:// صالح.</value>
+  </data>
+  <data name="Downloads.ImportSubscription.Error.LaunchFailedFormat" xml:space="preserve">
+    <value>فشل تشغيل تأكيد الاشتراك: {0}</value>
+  </data>
+  <data name="Downloads.ImportSubscription.Error.UrlRequired" xml:space="preserve">
+    <value>يرجى إدخال رابط أو رابط genhub://.</value>
+  </data>
+  <data name="Downloads.ImportSubscription.ImportErrorBody" xml:space="preserve">
+    <value>تعذر فتح حوار الاستيراد: {0}</value>
+  </data>
+  <data name="Downloads.ImportSubscription.ImportErrorTitle" xml:space="preserve">
+    <value>خطأ في الاستيراد</value>
+  </data>
+  <data name="Downloads.ImportSubscription.ManifestsErrorBody" xml:space="preserve">
+    <value>تعذر فتح مجلد البيانات: {0}</value>
+  </data>
+  <data name="Downloads.ImportSubscription.ManifestsErrorTitle" xml:space="preserve">
+    <value>خطأ</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.BrowseError" xml:space="preserve">
+    <value>خطأ: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.HashComputeFailed" xml:space="preserve">
+    <value>تعذر حساب البصمة: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.LocalFileRequired" xml:space="preserve">
+    <value>يرجى اختيار ملف محلي للرفع</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.SelectLocalFileFirst" xml:space="preserve">
+    <value>يرجى اختيار ملف محلي أولاً</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.ValidUrlRequired" xml:space="preserve">
+    <value>يرجى إدخال رابط تنزيل صحيح يبدأ بـ HTTP أو HTTPS</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.SelectArchiveTitle" xml:space="preserve">
+    <value>اختيار ملف أرشيف المحتوى</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.SelectFolderTitle" xml:space="preserve">
+    <value>اختيار مجلد المحتوى</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dependency.ContentIdRequired" xml:space="preserve">
+    <value>معرف المحتوى مطلوب للتبعيات الخارجية</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dependency.DiscoveryFailed" xml:space="preserve">
+    <value>فشل الاكتشاف: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dependency.DiscoveryTimeout" xml:space="preserve">
+    <value>انتهت مهلة طلب الاكتشاف أو تم إلغاؤه.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dependency.EnterCatalogUrlFirst" xml:space="preserve">
+    <value>يرجى إدخال رابط الكتالوج أو تعريف المزود أولاً</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dependency.InvalidCatalogUrl" xml:space="preserve">
+    <value>يرجى إدخال رابط كتالوج صحيح</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dependency.NoContentFound" xml:space="preserve">
+    <value>لم يتم العثور على محتوى في الرابط المقدم</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dependency.NoOtherContentItems" xml:space="preserve">
+    <value>لا توجد عناصر محتوى أخرى متاحة في الكتالوج</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dependency.PublisherIdRequired" xml:space="preserve">
+    <value>معرف الناشر مطلوب للتبعيات الخارجية</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dependency.SelectContentRequired" xml:space="preserve">
+    <value>يرجى اختيار عنصر محتوى من الكتالوج</value>
+  </data>
+  <data name="Tools.PublisherStudio.Profile.SaveFailedTitle" xml:space="preserve">
+    <value>فشل الحفظ</value>
+  </data>
+  <data name="Tools.PublisherStudio.Profile.SavedMessage" xml:space="preserve">
+    <value>تم حفظ ملف الناشر بنجاح.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Profile.SavedTitle" xml:space="preserve">
+    <value>تم حفظ الملف</value>
+  </data>
+  <data name="Tools.PublisherStudio.Profile.ValidationMessage" xml:space="preserve">
+    <value>يرجى إصلاح أخطاء التحقق قبل الحفظ.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Profile.ValidationTitle" xml:space="preserve">
+    <value>أخطاء التحقق</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.CatalogJsonCopiedMessage" xml:space="preserve">
+    <value>تم نسخ JSON الكتالوج إلى الحافظة!</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.DefinitionFailedTitle" xml:space="preserve">
+    <value>رابط التعريف غير متاح</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ExportFailedTitle" xml:space="preserve">
+    <value>فشل التصدير</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.FailedTitle" xml:space="preserve">
+    <value>فشل النشر</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.NoCatalogUrlMessage" xml:space="preserve">
+    <value>يرجى نشر هذا الكتالوج أولاً قبل نسخ رابطه.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.NoDefinitionUrlMessage" xml:space="preserve">
+    <value>يرجى رفع تعريف المزود أولاً قبل نسخ رابطه.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.NoProviderTitle" xml:space="preserve">
+    <value>المزود مطلوب</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.NoSubscriptionUrlMessage" xml:space="preserve">
+    <value>يرجى نشر الكتالوجات وتعريف المزود أولاً قبل نسخ رابط الاشتراك.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.NoSubscriptionUrlPlaceholder" xml:space="preserve">
+    <value>يرجى النشر لإنشاء رابط الاشتراك</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.NoSubscriptionUrlTitle" xml:space="preserve">
+    <value>رابط الاشتراك غير متاح</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.NoUrlToCopy" xml:space="preserve">
+    <value>لا يوجد رابط متاح للنسخ.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ProviderDefinitionJsonCopiedMessage" xml:space="preserve">
+    <value>تم نسخ JSON تعريف المزود إلى الحافظة!</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ProviderDefinitionUploadedMessage" xml:space="preserve">
+    <value>تم رفع تعريف المزود بنجاح.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ScanInProgress" xml:space="preserve">
+    <value>فحص التخزين جارٍ. يرجى المحاولة مرة أخرى قريباً.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ScanTimedOut" xml:space="preserve">
+    <value>انتهت مهلة الفحص أو تم إلغاؤه. يرجى المحاولة مرة أخرى.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.SuccessTitle" xml:space="preserve">
+    <value>تم النشر بنجاح</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.UploadStatus.Failed" xml:space="preserve">
+    <value>فشل</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.UploadStatus.Pending" xml:space="preserve">
+    <value>قيد الانتظار</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.UploadStatus.Uploaded" xml:space="preserve">
+    <value>تم الرفع</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.UploadStatus.Uploading" xml:space="preserve">
+    <value>جارٍ الرفع...</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ValidationFailedTitle" xml:space="preserve">
+    <value>فشل التحقق</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referral.CatalogUrlRequired" xml:space="preserve">
+    <value>رابط الكتالوج مطلوب</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referral.DiscoveryError" xml:space="preserve">
+    <value>خطأ في الاكتشاف: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referral.DiscoveryTimeout" xml:space="preserve">
+    <value>انتهت مهلة طلب الاكتشاف. يرجى المحاولة مرة أخرى.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referral.FetchFailed" xml:space="preserve">
+    <value>تعذر جلب الكتالوج: HTTP {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referral.InvalidCatalogUrl" xml:space="preserve">
+    <value>رابط كتالوج غير صالح</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referral.NoPublisherDetails" xml:space="preserve">
+    <value>تعذر العثور على تفاصيل الناشر في الاستجابة</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referral.NoPublisherInfo" xml:space="preserve">
+    <value>لم يتم العثور على معلومات ناشر صالحة في الرابط</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referral.ParseFailed" xml:space="preserve">
+    <value>فشل تحليل الكتالوج: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referral.PublisherIdRequired" xml:space="preserve">
+    <value>معرف الناشر مطلوب</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referral.ValidUrlRequired" xml:space="preserve">
+    <value>يرجى إدخال رابط صحيح أولاً</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referrals.CatalogUrlInvalid" xml:space="preserve">
+    <value>يجب أن يكون رابط الكتالوج رابط http أو https صالحاً.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referrals.PublisherIdRequired" xml:space="preserve">
+    <value>معرف الناشر مطلوب.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referrals.ValidationTitle" xml:space="preserve">
+    <value>إحالة غير صالحة</value>
+  </data>
+  <data name="Tools.PublisherStudio.Release.DuplicateVersion" xml:space="preserve">
+    <value>الإصدار {0} موجود بالفعل لهذا المحتوى</value>
+  </data>
+  <data name="Tools.PublisherStudio.SetupWizard.InvalidContactEmail" xml:space="preserve">
+    <value>يرجى إدخال عنوان بريد إلكتروني صحيح.</value>
+  </data>
+  <data name="Tools.PublisherStudio.SetupWizard.InvalidWebsiteUrl" xml:space="preserve">
+    <value>يرجى إدخال رابط موقع صحيح يبدأ بـ HTTP أو HTTPS.</value>
+  </data>
+  <data name="Tools.PublisherStudio.SetupWizard.StepComplete" xml:space="preserve">
+    <value>اكتمل الإعداد</value>
+  </data>
+  <data name="Tools.PublisherStudio.SetupWizard.StepContact" xml:space="preserve">
+    <value>معلومات الاتصال</value>
+  </data>
+  <data name="Tools.PublisherStudio.SetupWizard.StepIdentity" xml:space="preserve">
+    <value>هوية الناشر</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.CannotRemoveLastCatalog" xml:space="preserve">
+    <value>لا يمكن إزالة الكتالوج الأخير</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.CatalogCountFormat" xml:space="preserve">
+    <value>{0} كتالوجات</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.NoProjectLoaded" xml:space="preserve">
+    <value>لا يوجد مشروع محمل</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dialogs.ConfirmButton" xml:space="preserve">
+    <value>تأكيد</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dialogs.CancelButton" xml:space="preserve">
+    <value>إلغاء</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dialogs.WindowTitle" xml:space="preserve">
+    <value>استوديو النشر GenHub</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.ItemsInCatalog" xml:space="preserve">
+    <value>{0} عنصر في الكتالوج</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.ParsedSize" xml:space="preserve">
+    <value>تم التحليل: {0}</value>
+  </data>
 </root>

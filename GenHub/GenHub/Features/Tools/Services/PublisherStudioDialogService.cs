@@ -29,10 +29,12 @@ public class PublisherStudioDialogService(
     public async Task<bool> ShowConfirmationAsync(
         string title,
         string message,
-        string confirmText = "Confirm",
-        string cancelText = "Cancel",
+        string? confirmText = null,
+        string? cancelText = null,
         string? sessionKey = null)
     {
+        confirmText ??= localizationService?.GetString("Tools.PublisherStudio.Dialogs.ConfirmButton") ?? "Confirm";
+        cancelText ??= localizationService?.GetString("Tools.PublisherStudio.Dialogs.CancelButton") ?? "Cancel";
         if (dialogService != null)
         {
             return await dialogService.ShowConfirmationAsync(title, message, confirmText, cancelText, sessionKey);
@@ -44,8 +46,10 @@ public class PublisherStudioDialogService(
     /// <inheritdoc/>
     public async Task<bool> ShowSetupWizardAsync(PublisherStudioProject project)
     {
+        var wizardTitle = localizationService?.GetString("Tools.PublisherStudio.SetupWizard.Title") ?? "Publisher Setup Wizard";
         return await ShowWizardAsync<PublisherSetupWizardViewModel, PublisherSetupWizardView>(
-            closeAction => new PublisherSetupWizardViewModel(project, closeAction));
+            closeAction => new PublisherSetupWizardViewModel(project, closeAction, localizationService),
+            wizardTitle);
     }
 
     /// <inheritdoc/>
@@ -105,7 +109,7 @@ public class PublisherStudioDialogService(
     public async Task<CatalogDependency?> ShowAddDependencyDialogAsync(PublisherCatalog catalog, CatalogContentItem currentContent)
     {
         return await ShowDialogAsync<AddDependencyDialogViewModel, AddDependencyDialogView, CatalogDependency>(
-            callback => new AddDependencyDialogViewModel(catalog, currentContent, callback));
+            callback => new AddDependencyDialogViewModel(catalog, currentContent, callback, localizationService));
     }
 
     /// <inheritdoc/>
@@ -115,7 +119,7 @@ public class PublisherStudioDialogService(
         var availablePublishers = GetKnownPublishers();
 
         return await ShowDialogAsync<AddReferralDialogViewModel, AddReferralDialogView, PublisherReferral>(
-            callback => new AddReferralDialogViewModel(callback, availablePublishers));
+            callback => new AddReferralDialogViewModel(callback, availablePublishers, localizationService));
     }
 
     /// <inheritdoc/>
@@ -206,7 +210,7 @@ public class PublisherStudioDialogService(
     public async Task<string?> ShowRenameCatalogDialogAsync(string currentName)
     {
         return await ShowDialogAsync<RenameCatalogDialogViewModel, RenameCatalogDialogView, string>(
-            callback => new RenameCatalogDialogViewModel(currentName, res => callback(res!)));
+            callback => new RenameCatalogDialogViewModel(currentName, res => callback(res!), localizationService));
     }
 
     /// <summary>
@@ -293,11 +297,12 @@ public class PublisherStudioDialogService(
     }
 
     private static Task<bool> ShowWizardAsync<TViewModel, TView>(
-        Func<Action<bool>, TViewModel> viewModelFactory)
+        Func<Action<bool>, TViewModel> viewModelFactory,
+        string title)
         where TViewModel : class
         where TView : Control, new()
     {
-        return ShowDialogCoreAsync<TViewModel, TView, bool>(viewModelFactory, "Publisher Setup Wizard", false);
+        return ShowDialogCoreAsync<TViewModel, TView, bool>(viewModelFactory, title, false);
     }
 
     private static Window? GetMainWindow()

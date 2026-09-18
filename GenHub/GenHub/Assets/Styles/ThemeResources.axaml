@@ -181,6 +181,9 @@
     <SolidColorBrush x:Key="GlassFillSubtleBrush" Color="#0DFFFFFF" />
     <SolidColorBrush x:Key="GlassBorderBrush" Color="#25FFFFFF" />
     <SolidColorBrush x:Key="GlassBorderSubtleBrush" Color="#1AFFFFFF" />
+    <SolidColorBrush x:Key="GlassStrongBrush" Color="#20FFFFFF" />
+    <SolidColorBrush x:Key="GlassBorderStrongBrush" Color="#40FFFFFF" />
+    <SolidColorBrush x:Key="GlassDarkFillBrush" Color="#10000000" />
 
     <!-- Status Tokens: Draft -->
     <Color x:Key="StatusDraftColor">#6B7280</Color>

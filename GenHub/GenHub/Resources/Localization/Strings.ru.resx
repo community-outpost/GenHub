@@ -9910,4 +9910,235 @@ GenHub передает официальный идентификатор AppID 
   <data name="Tools.PublisherStudio.Artifact.InvalidSizeFormat" xml:space="preserve">
     <value>Неверный формат размера файла (например, 10 MB, 500 KB, 1.5 GB)</value>
   </data>
+  <data name="Common.Notification.Error" xml:space="preserve">
+    <value>Ошибка</value>
+  </data>
+  <data name="Downloads.ImportSubscription.Error.InvalidUrl" xml:space="preserve">
+    <value>Недопустимый формат URL. Укажите действительную ссылку HTTPS или genhub://.</value>
+  </data>
+  <data name="Downloads.ImportSubscription.Error.LaunchFailedFormat" xml:space="preserve">
+    <value>Не удалось открыть подтверждение подписки: {0}</value>
+  </data>
+  <data name="Downloads.ImportSubscription.Error.UrlRequired" xml:space="preserve">
+    <value>Введите URL или ссылку genhub://.</value>
+  </data>
+  <data name="Downloads.ImportSubscription.ImportErrorBody" xml:space="preserve">
+    <value>Не удалось открыть диалог импорта: {0}</value>
+  </data>
+  <data name="Downloads.ImportSubscription.ImportErrorTitle" xml:space="preserve">
+    <value>Ошибка импорта</value>
+  </data>
+  <data name="Downloads.ImportSubscription.ManifestsErrorBody" xml:space="preserve">
+    <value>Не удалось открыть каталог манифестов: {0}</value>
+  </data>
+  <data name="Downloads.ImportSubscription.ManifestsErrorTitle" xml:space="preserve">
+    <value>Ошибка</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.BrowseError" xml:space="preserve">
+    <value>Ошибка: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.HashComputeFailed" xml:space="preserve">
+    <value>Не удалось вычислить хеш: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.LocalFileRequired" xml:space="preserve">
+    <value>Выберите локальный файл для загрузки</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.SelectLocalFileFirst" xml:space="preserve">
+    <value>Сначала выберите локальный файл</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.ValidUrlRequired" xml:space="preserve">
+    <value>Введите действительный URL-адрес загрузки HTTP или HTTPS</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.SelectArchiveTitle" xml:space="preserve">
+    <value>Выбор файла архива содержимого</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.SelectFolderTitle" xml:space="preserve">
+    <value>Выбор папки содержимого</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dependency.ContentIdRequired" xml:space="preserve">
+    <value>Для внешних зависимостей требуется идентификатор содержимого</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dependency.DiscoveryFailed" xml:space="preserve">
+    <value>Ошибка обнаружения: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dependency.DiscoveryTimeout" xml:space="preserve">
+    <value>Время ожидания запроса обнаружения истекло или он был отменен.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dependency.EnterCatalogUrlFirst" xml:space="preserve">
+    <value>Сначала введите URL каталога или определения поставщика</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dependency.InvalidCatalogUrl" xml:space="preserve">
+    <value>Введите действительный URL каталога</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dependency.NoContentFound" xml:space="preserve">
+    <value>По указанному URL содержимое не найдено</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dependency.NoOtherContentItems" xml:space="preserve">
+    <value>В вашем каталоге нет других элементов содержимого</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dependency.PublisherIdRequired" xml:space="preserve">
+    <value>Для внешних зависимостей требуется идентификатор издателя</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dependency.SelectContentRequired" xml:space="preserve">
+    <value>Выберите элемент содержимого из вашего каталога</value>
+  </data>
+  <data name="Tools.PublisherStudio.Profile.SaveFailedTitle" xml:space="preserve">
+    <value>Ошибка сохранения</value>
+  </data>
+  <data name="Tools.PublisherStudio.Profile.SavedMessage" xml:space="preserve">
+    <value>Профиль издателя успешно сохранен.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Profile.SavedTitle" xml:space="preserve">
+    <value>Профиль сохранен</value>
+  </data>
+  <data name="Tools.PublisherStudio.Profile.ValidationMessage" xml:space="preserve">
+    <value>Исправьте ошибки проверки перед сохранением.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Profile.ValidationTitle" xml:space="preserve">
+    <value>Ошибки проверки</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.CatalogJsonCopiedMessage" xml:space="preserve">
+    <value>JSON каталога скопирован в буфер обмена!</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.DefinitionFailedTitle" xml:space="preserve">
+    <value>Ссылка на определение недоступна</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ExportFailedTitle" xml:space="preserve">
+    <value>Ошибка экспорта</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.FailedTitle" xml:space="preserve">
+    <value>Ошибка публикации</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.NoCatalogUrlMessage" xml:space="preserve">
+    <value>Сначала опубликуйте этот каталог, прежде чем копировать его URL.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.NoDefinitionUrlMessage" xml:space="preserve">
+    <value>Сначала загрузите определение поставщика, прежде чем копировать его URL.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.NoProviderTitle" xml:space="preserve">
+    <value>Требуется поставщик</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.NoSubscriptionUrlMessage" xml:space="preserve">
+    <value>Сначала опубликуйте каталоги и определение поставщика, прежде чем копировать ссылку на подписку.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.NoSubscriptionUrlPlaceholder" xml:space="preserve">
+    <value>Выполните публикацию, чтобы создать URL подписки</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.NoSubscriptionUrlTitle" xml:space="preserve">
+    <value>Ссылка на подписку недоступна</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.NoUrlToCopy" xml:space="preserve">
+    <value>Нет доступного URL для копирования.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ProviderDefinitionJsonCopiedMessage" xml:space="preserve">
+    <value>JSON определения поставщика скопирован в буфер обмена!</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ProviderDefinitionUploadedMessage" xml:space="preserve">
+    <value>Определение поставщика успешно загружено.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ScanInProgress" xml:space="preserve">
+    <value>Сканирование хранилища выполняется. Повторите попытку позже.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ScanTimedOut" xml:space="preserve">
+    <value>Время сканирования истекло или оно было отменено. Повторите попытку.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.SuccessTitle" xml:space="preserve">
+    <value>Публикация выполнена</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.UploadStatus.Failed" xml:space="preserve">
+    <value>Не удалось</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.UploadStatus.Pending" xml:space="preserve">
+    <value>Ожидание</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.UploadStatus.Uploaded" xml:space="preserve">
+    <value>Загружено</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.UploadStatus.Uploading" xml:space="preserve">
+    <value>Загрузка...</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ValidationFailedTitle" xml:space="preserve">
+    <value>Ошибка проверки</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referral.CatalogUrlRequired" xml:space="preserve">
+    <value>Требуется URL каталога</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referral.DiscoveryError" xml:space="preserve">
+    <value>Ошибка обнаружения: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referral.DiscoveryTimeout" xml:space="preserve">
+    <value>Время ожидания запроса обнаружения истекло. Повторите попытку.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referral.FetchFailed" xml:space="preserve">
+    <value>Не удалось получить каталог: HTTP {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referral.InvalidCatalogUrl" xml:space="preserve">
+    <value>Недействительный URL каталога</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referral.NoPublisherDetails" xml:space="preserve">
+    <value>Не удалось найти сведения об издателе в ответе</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referral.NoPublisherInfo" xml:space="preserve">
+    <value>По указанному URL не найдены действительные сведения об издателе</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referral.ParseFailed" xml:space="preserve">
+    <value>Не удалось разобрать каталог: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referral.PublisherIdRequired" xml:space="preserve">
+    <value>Требуется идентификатор издателя</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referral.ValidUrlRequired" xml:space="preserve">
+    <value>Сначала введите действительный URL</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referrals.CatalogUrlInvalid" xml:space="preserve">
+    <value>URL каталога должен быть действительным URL http или https.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referrals.PublisherIdRequired" xml:space="preserve">
+    <value>Требуется идентификатор издателя.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referrals.ValidationTitle" xml:space="preserve">
+    <value>Недействительная рекомендация</value>
+  </data>
+  <data name="Tools.PublisherStudio.Release.DuplicateVersion" xml:space="preserve">
+    <value>Версия {0} уже существует для этого содержимого</value>
+  </data>
+  <data name="Tools.PublisherStudio.SetupWizard.InvalidContactEmail" xml:space="preserve">
+    <value>Введите действительный адрес электронной почты.</value>
+  </data>
+  <data name="Tools.PublisherStudio.SetupWizard.InvalidWebsiteUrl" xml:space="preserve">
+    <value>Введите действительный URL веб-сайта HTTP или HTTPS.</value>
+  </data>
+  <data name="Tools.PublisherStudio.SetupWizard.StepComplete" xml:space="preserve">
+    <value>Настройка завершена</value>
+  </data>
+  <data name="Tools.PublisherStudio.SetupWizard.StepContact" xml:space="preserve">
+    <value>Контактная информация</value>
+  </data>
+  <data name="Tools.PublisherStudio.SetupWizard.StepIdentity" xml:space="preserve">
+    <value>Данные издателя</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.CannotRemoveLastCatalog" xml:space="preserve">
+    <value>Нельзя удалить последний каталог</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.CatalogCountFormat" xml:space="preserve">
+    <value>{0} каталогов</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.NoProjectLoaded" xml:space="preserve">
+    <value>Проект не загружен</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dialogs.ConfirmButton" xml:space="preserve">
+    <value>Подтвердить</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dialogs.CancelButton" xml:space="preserve">
+    <value>Отмена</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dialogs.WindowTitle" xml:space="preserve">
+    <value>Студия издателя GenHub</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.ItemsInCatalog" xml:space="preserve">
+    <value>{0} элементов в каталоге</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.ParsedSize" xml:space="preserve">
+    <value>Распознано: {0}</value>
+  </data>
 </root>

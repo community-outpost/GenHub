@@ -55,7 +55,7 @@ public partial class ArtifactUrlStatus : ObservableObject
                 OnPropertyChanged();
                 OnPropertyChanged(nameof(IsExternalCdn));
                 OnPropertyChanged(nameof(IsPendingUpload));
-                Validate();
+                ValidateUrlOnly();
             }
         }
     }
@@ -82,22 +82,11 @@ public partial class ArtifactUrlStatus : ObservableObject
     /// </summary>
     public void Validate()
     {
-        HasLocalFile = !string.IsNullOrEmpty(_artifact.LocalFilePath);
-        LocalFilePath = _artifact.LocalFilePath ?? string.Empty;
+        RefreshLocalFileState();
 
         if (!string.IsNullOrWhiteSpace(DownloadUrl))
         {
-            if (System.Uri.TryCreate(DownloadUrl, System.UriKind.Absolute, out var uri)
-                && (uri.Scheme == System.Uri.UriSchemeHttp || uri.Scheme == System.Uri.UriSchemeHttps))
-            {
-                IsValid = true;
-                StatusMessage = HasLocalFile ? "Hosted (local file available)" : "Hosted (External CDN)";
-            }
-            else
-            {
-                IsValid = false;
-                StatusMessage = "Invalid URL format";
-            }
+            ValidateUrlFormat();
         }
         else if (HasLocalFile)
         {
@@ -121,5 +110,52 @@ public partial class ArtifactUrlStatus : ObservableObject
 
         OnPropertyChanged(nameof(IsExternalCdn));
         OnPropertyChanged(nameof(IsPendingUpload));
+    }
+
+    /// <summary>
+    /// Revalidates only the URL format without touching the disk, for use on UI-thread binding updates.
+    /// </summary>
+    public void ValidateUrlOnly()
+    {
+        RefreshLocalFileState();
+
+        if (!string.IsNullOrWhiteSpace(DownloadUrl))
+        {
+            ValidateUrlFormat();
+        }
+        else if (HasLocalFile)
+        {
+            IsValid = true;
+            StatusMessage = "Pending cloud upload";
+        }
+        else
+        {
+            IsValid = false;
+            StatusMessage = "No file or URL configured";
+        }
+
+        OnPropertyChanged(nameof(IsExternalCdn));
+        OnPropertyChanged(nameof(IsPendingUpload));
+    }
+
+    private void RefreshLocalFileState()
+    {
+        HasLocalFile = !string.IsNullOrEmpty(_artifact.LocalFilePath);
+        LocalFilePath = _artifact.LocalFilePath ?? string.Empty;
+    }
+
+    private void ValidateUrlFormat()
+    {
+        if (System.Uri.TryCreate(DownloadUrl, System.UriKind.Absolute, out var uri)
+            && (uri.Scheme == System.Uri.UriSchemeHttp || uri.Scheme == System.Uri.UriSchemeHttps))
+        {
+            IsValid = true;
+            StatusMessage = HasLocalFile ? "Hosted (local file available)" : "Hosted (External CDN)";
+        }
+        else
+        {
+            IsValid = false;
+            StatusMessage = "Invalid URL format";
+        }
     }
 }

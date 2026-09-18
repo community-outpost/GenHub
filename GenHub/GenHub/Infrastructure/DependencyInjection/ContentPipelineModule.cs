@@ -215,17 +215,7 @@ public static class ContentPipelineModule
         // User-followed GenHub catalogs (catalog-direct now; definition URLs via Publisher Studio later)
         services.AddSingleton<IPublisherSubscriptionStore, PublisherSubscriptionStore>();
 
-        // Register publisher definition service and named HTTP clients
-        services.AddHttpClient("PublisherDefinition", client =>
-        {
-            client.Timeout = TimeSpan.FromSeconds(30);
-            client.DefaultRequestHeaders.Add(UserAgentHeader, "GenHub/1.0");
-        }).ConfigurePrimaryHttpMessageHandler(() => ImageCacheService.CreateSsrfSafeSocketsHttpHandler());
-        services.AddHttpClient("PublisherCatalog", client =>
-        {
-            client.Timeout = TimeSpan.FromSeconds(60);
-            client.DefaultRequestHeaders.Add(UserAgentHeader, "GenHub/1.0");
-        }).ConfigurePrimaryHttpMessageHandler(() => ImageCacheService.CreateSsrfSafeSocketsHttpHandler());
+        // Register publisher definition service (fetches via the shared catalog HTTP client)
         services.AddSingleton<IPublisherDefinitionService, PublisherDefinitionService>();
 
         // Register catalog parser and version selector
@@ -237,9 +227,6 @@ public static class ContentPipelineModule
         services.AddTransient<GenericCatalogDiscoverer>();
         services.AddTransient<GenericCatalogResolver>();
         services.AddTransient<IContentResolver>(sp => sp.GetRequiredService<GenericCatalogResolver>());
-
-        // Register cross-publisher dependency resolver
-        services.AddScoped<ICrossPublisherDependencyResolver, CrossPublisherDependencyResolver>();
 
         // Register generic catalog manifest factory
         services.AddTransient<GenericCatalogManifestFactory>();

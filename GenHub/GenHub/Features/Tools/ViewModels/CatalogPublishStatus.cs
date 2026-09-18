@@ -3,6 +3,7 @@ using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Models.Publishers;
 using System;
+using System.ComponentModel;
 using System.Diagnostics.CodeAnalysis;
 
 namespace GenHub.Features.Tools.ViewModels;
@@ -11,9 +12,10 @@ namespace GenHub.Features.Tools.ViewModels;
 /// Represents the publish status of a catalog.
 /// </summary>
 [SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "ViewModel properties and methods bound to MVVM UI.")]
-public partial class CatalogPublishStatus : ObservableObject
+public partial class CatalogPublishStatus : ObservableObject, IDisposable
 {
     private readonly ILocalizationService? _localizationService;
+    private bool _disposed;
 
     [ObservableProperty]
     private NamedCatalog _catalog;
@@ -89,6 +91,26 @@ public partial class CatalogPublishStatus : ObservableObject
     {
         _catalog = catalog;
         _localizationService = localizationService;
+        if (_localizationService != null)
+        {
+            _localizationService.PropertyChanged += OnLocalizationPropertyChanged;
+        }
+    }
+
+    /// <inheritdoc />
+    public void Dispose()
+    {
+        if (_disposed)
+        {
+            return;
+        }
+
+        if (_localizationService != null)
+        {
+            _localizationService.PropertyChanged -= OnLocalizationPropertyChanged;
+        }
+
+        _disposed = true;
     }
 
     partial void OnIsPublishedChanged(bool value) => NotifyStatusChanged();
@@ -104,5 +126,10 @@ public partial class CatalogPublishStatus : ObservableObject
     {
         OnPropertyChanged(nameof(StatusText));
         OnPropertyChanged(nameof(StatusColor));
+    }
+
+    private void OnLocalizationPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        NotifyStatusChanged();
     }
 }

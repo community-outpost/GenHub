@@ -12,9 +12,9 @@
 
     <UserControl.Styles>
         <Style Selector="TextBox">
-            <Setter Property="Background" Value="#15FFFFFF"/>
-            <Setter Property="BorderBrush" Value="#25FFFFFF"/>
-            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Background" Value="{DynamicResource GlassFillBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource GlassBorderBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
             <Setter Property="CornerRadius" Value="6"/>
             <Setter Property="Padding" Value="12,10"/>
             <Setter Property="BorderThickness" Value="1"/>
@@ -23,15 +23,15 @@
             <Setter Property="CaretBrush" Value="{DynamicResource TextPrimary}"/>
         </Style>
         <Style Selector="TextBox:focus">
-            <Setter Property="Background" Value="#18FFFFFF"/>
+            <Setter Property="Background" Value="{DynamicResource GlassBorderSubtleBrush}"/>
             <Setter Property="BorderBrush" Value="{DynamicResource AccentColorBrush}"/>
         </Style>
         <Style Selector="CheckBox">
-            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
         </Style>
         <Style Selector="ListBox">
-            <Setter Property="Background" Value="#05FFFFFF"/>
-            <Setter Property="BorderBrush" Value="#15FFFFFF"/>
+            <Setter Property="Background" Value="{DynamicResource GlassFillSubtleBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource GlassFillBrush}"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="CornerRadius" Value="6"/>
         </Style>
@@ -40,25 +40,25 @@
              <Setter Property="Padding" Value="8"/>
         </Style>
         <Style Selector="ListBoxItem:pointerover /template/ ContentPresenter">
-             <Setter Property="Background" Value="#10FFFFFF"/>
+             <Setter Property="Background" Value="{DynamicResource GlassFillBrush}"/>
         </Style>
          <Style Selector="TextBlock.label">
             <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="Foreground" Value="#D0D0E0"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextSecondary}"/>
             <Setter Property="FontSize" Value="13"/>
         </Style>
         <Style Selector="Button.small-glass-btn">
-            <Setter Property="Background" Value="#15FFFFFF"/>
-            <Setter Property="BorderBrush" Value="#25FFFFFF"/>
+            <Setter Property="Background" Value="{DynamicResource GlassFillBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource GlassBorderBrush}"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="CornerRadius" Value="4"/>
-            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
             <Setter Property="Padding" Value="12,6"/>
             <Setter Property="FontSize" Value="12"/>
         </Style>
         <Style Selector="Button.small-glass-btn:pointerover">
-            <Setter Property="Background" Value="#25FFFFFF"/>
-            <Setter Property="BorderBrush" Value="#40FFFFFF"/>
+            <Setter Property="Background" Value="{DynamicResource GlassBorderBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource GlassBorderBrush}"/>
         </Style>
     </UserControl.Styles>
 
@@ -80,10 +80,10 @@
                           Foreground="{DynamicResource TextMuted}"/>
                 <Button.Styles>
                     <Style Selector="Button:pointerover /template/ ContentPresenter">
-                        <Setter Property="Background" Value="#15FFFFFF"/>
+                        <Setter Property="Background" Value="{DynamicResource GlassFillBrush}"/>
                     </Style>
                     <Style Selector="Button:pointerover PathIcon">
-                        <Setter Property="Foreground" Value="White"/>
+                        <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
                     </Style>
                 </Button.Styles>
             </Button>
@@ -99,7 +99,7 @@
                 <StackPanel Spacing="8">
                     <StackPanel Orientation="Horizontal" Spacing="4">
                         <TextBlock Text="{localization:Localize Tools.PublisherStudio.Release.Version}" Classes="label"/>
-                        <TextBlock Text="*" Foreground="#FF5555"/>
+                        <TextBlock Text="*" Foreground="{DynamicResource StatusErrorBrush}"/>
                     </StackPanel>
                     <Grid ColumnDefinitions="*,8,Auto">
                          <TextBox Text="{Binding Version}" Watermark="{localization:Localize Tools.PublisherStudio.Release.VersionPlaceholder}"/>
@@ -111,7 +111,7 @@
 
                 <!-- Date & Options -->
                 <Grid ColumnDefinitions="*,Auto,Auto,Auto">
-                    <DatePicker Grid.Column="0" SelectedDate="{Binding ReleaseDate}" Foreground="{DynamicResource TextPrimary}" Background="#15FFFFFF" BorderBrush="#25FFFFFF" CornerRadius="6"/>
+                    <DatePicker Grid.Column="0" SelectedDate="{Binding ReleaseDate}" Foreground="{DynamicResource TextPrimary}" Background="{DynamicResource GlassFillBrush}" BorderBrush="{DynamicResource GlassBorderBrush}" CornerRadius="6"/>
                     <CheckBox Grid.Column="1" Content="{localization:Localize Tools.PublisherStudio.Release.Latest}" IsChecked="{Binding IsLatest}" Margin="8,0"/>
                     <CheckBox Grid.Column="2" Content="{localization:Localize Tools.PublisherStudio.Release.Prerelease}" IsChecked="{Binding IsPrerelease}" Margin="8,0"/>
                     <CheckBox Grid.Column="3" Content="{localization:Localize Tools.PublisherStudio.Release.Featured}" IsChecked="{Binding IsFeatured}" Margin="8,0"/>
@@ -131,7 +131,7 @@
                     <Grid ColumnDefinitions="*,Auto">
                         <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
                             <TextBlock Text="{localization:Localize Tools.PublisherStudio.Release.ArtifactsFiles}" Classes="label"/>
-                            <TextBlock Text="*" Foreground="#FF5555"/>
+                            <TextBlock Text="*" Foreground="{DynamicResource StatusErrorBrush}"/>
                         </StackPanel>
                         <Button Grid.Column="1"
                                 Command="{Binding AddArtifactCommand}"
@@ -149,7 +149,7 @@
                                  <Grid ColumnDefinitions="*,Auto">
                                      <StackPanel>
                                          <TextBlock Text="{Binding Filename}" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}"/>
-                                         <TextBlock Text="{Binding Size}" FontSize="11" Foreground="#AAAAAA"/>
+                                         <TextBlock Text="{Binding Size}" FontSize="11" Foreground="{DynamicResource TextSecondary}"/>
                                      </StackPanel>
                                      <Button Grid.Column="1"
                                              Command="{ReflectionBinding DataContext.RemoveArtifactCommand, ElementName=Root}"
@@ -157,13 +157,13 @@
                                              Background="Transparent"
                                              BorderThickness="0"
                                              Padding="8">
-                                         <PathIcon Data="{StaticResource CloseIcon}" Width="10" Height="10" Foreground="#FF5555"/>
+                                         <PathIcon Data="{StaticResource CloseIcon}" Width="10" Height="10" Foreground="{DynamicResource StatusErrorBrush}"/>
                                      </Button>
                                  </Grid>
                              </DataTemplate>
                          </ListBox.ItemTemplate>
                     </ListBox>
-                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Release.ArtifactRequired}" FontSize="11" Foreground="#FF5555" IsVisible="{Binding !Artifacts.Count}"/>
+                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Release.ArtifactRequired}" FontSize="11" Foreground="{DynamicResource StatusErrorBrush}" IsVisible="{Binding !Artifacts.Count}"/>
                 </StackPanel>
 
                 <!-- Dependencies Section -->
@@ -186,7 +186,7 @@
                                  <Grid ColumnDefinitions="*,Auto">
                                      <StackPanel>
                                          <TextBlock Text="{Binding ContentId}" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}"/>
-                                         <TextBlock Text="{Binding VersionConstraint, StringFormat='v{0}'}" FontSize="11" Foreground="#AAAAAA"/>
+                                         <TextBlock Text="{Binding VersionConstraint, StringFormat='v{0}'}" FontSize="11" Foreground="{DynamicResource TextSecondary}"/>
                                      </StackPanel>
                                       <Button Grid.Column="1"
                                               Command="{ReflectionBinding DataContext.RemoveDependencyCommand, ElementName=Root}"
@@ -194,7 +194,7 @@
                                               Background="Transparent"
                                               BorderThickness="0"
                                               Padding="8">
-                                          <PathIcon Data="{StaticResource CloseIcon}" Width="10" Height="10" Foreground="#FF5555"/>
+                                          <PathIcon Data="{StaticResource CloseIcon}" Width="10" Height="10" Foreground="{DynamicResource StatusErrorBrush}"/>
                                       </Button>
                                  </Grid>
                              </DataTemplate>
@@ -207,7 +207,7 @@
         <!-- Footer -->
         <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="16" HorizontalAlignment="Right">
              <TextBlock Text="{Binding ValidationError}"
-                        Foreground="#FF5555"
+                        Foreground="{DynamicResource StatusErrorBrush}"
                         VerticalAlignment="Center"
                         TextWrapping="Wrap"
                         MaxWidth="300"/>

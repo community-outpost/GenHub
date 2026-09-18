@@ -10003,4 +10003,235 @@ Then click the 'Submit' button at the bottom of the page! (If permissions are no
   <data name="Tools.PublisherStudio.Artifact.InvalidSizeFormat" xml:space="preserve">
     <value>Invalid file size format (e.g., 10 MB, 500 KB, 1.5 GB)</value>
   </data>
+  <data name="Common.Notification.Error" xml:space="preserve">
+    <value>Error</value>
+  </data>
+  <data name="Downloads.ImportSubscription.Error.InvalidUrl" xml:space="preserve">
+    <value>Invalid URL format. Please provide a valid HTTPS or genhub:// link.</value>
+  </data>
+  <data name="Downloads.ImportSubscription.Error.LaunchFailedFormat" xml:space="preserve">
+    <value>Failed to launch subscription confirmation: {0}</value>
+  </data>
+  <data name="Downloads.ImportSubscription.Error.UrlRequired" xml:space="preserve">
+    <value>Please enter a URL or genhub:// link.</value>
+  </data>
+  <data name="Downloads.ImportSubscription.ImportErrorBody" xml:space="preserve">
+    <value>Failed to open import dialog: {0}</value>
+  </data>
+  <data name="Downloads.ImportSubscription.ImportErrorTitle" xml:space="preserve">
+    <value>Import Error</value>
+  </data>
+  <data name="Downloads.ImportSubscription.ManifestsErrorBody" xml:space="preserve">
+    <value>Failed to open manifests directory: {0}</value>
+  </data>
+  <data name="Downloads.ImportSubscription.ManifestsErrorTitle" xml:space="preserve">
+    <value>Error</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.BrowseError" xml:space="preserve">
+    <value>Error: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.HashComputeFailed" xml:space="preserve">
+    <value>Failed to compute hash: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.LocalFileRequired" xml:space="preserve">
+    <value>Please select a local file to upload</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.SelectLocalFileFirst" xml:space="preserve">
+    <value>Please select a local file first</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.ValidUrlRequired" xml:space="preserve">
+    <value>Please enter a valid HTTP or HTTPS download URL</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.SelectArchiveTitle" xml:space="preserve">
+    <value>Select Content Archive File</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.SelectFolderTitle" xml:space="preserve">
+    <value>Select Content Folder</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dependency.ContentIdRequired" xml:space="preserve">
+    <value>Content ID is required for external dependencies</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dependency.DiscoveryFailed" xml:space="preserve">
+    <value>Discovery failed: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dependency.DiscoveryTimeout" xml:space="preserve">
+    <value>Discovery request timed out or was canceled.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dependency.EnterCatalogUrlFirst" xml:space="preserve">
+    <value>Please enter a Catalog or Provider Definition URL first</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dependency.InvalidCatalogUrl" xml:space="preserve">
+    <value>Please enter a valid catalog URL</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dependency.NoContentFound" xml:space="preserve">
+    <value>No content found at the provided URL</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dependency.NoOtherContentItems" xml:space="preserve">
+    <value>No other content items available in your catalog</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dependency.PublisherIdRequired" xml:space="preserve">
+    <value>Publisher ID is required for external dependencies</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dependency.SelectContentRequired" xml:space="preserve">
+    <value>Please select a content item from your catalog</value>
+  </data>
+  <data name="Tools.PublisherStudio.Profile.SaveFailedTitle" xml:space="preserve">
+    <value>Save Failed</value>
+  </data>
+  <data name="Tools.PublisherStudio.Profile.SavedMessage" xml:space="preserve">
+    <value>Publisher profile saved successfully.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Profile.SavedTitle" xml:space="preserve">
+    <value>Profile Saved</value>
+  </data>
+  <data name="Tools.PublisherStudio.Profile.ValidationMessage" xml:space="preserve">
+    <value>Please fix the validation errors before saving.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Profile.ValidationTitle" xml:space="preserve">
+    <value>Validation Errors</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.CatalogJsonCopiedMessage" xml:space="preserve">
+    <value>Catalog JSON copied to clipboard!</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.DefinitionFailedTitle" xml:space="preserve">
+    <value>Definition Link Unavailable</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ExportFailedTitle" xml:space="preserve">
+    <value>Export Failed</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.FailedTitle" xml:space="preserve">
+    <value>Publish Failed</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.NoCatalogUrlMessage" xml:space="preserve">
+    <value>Please publish this catalog first before copying its URL.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.NoDefinitionUrlMessage" xml:space="preserve">
+    <value>Please upload the provider definition first before copying its URL.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.NoProviderTitle" xml:space="preserve">
+    <value>Provider Required</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.NoSubscriptionUrlMessage" xml:space="preserve">
+    <value>Please publish your catalogs and provider definition first before copying the subscription link.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.NoSubscriptionUrlPlaceholder" xml:space="preserve">
+    <value>Please publish to generate subscription URL</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.NoSubscriptionUrlTitle" xml:space="preserve">
+    <value>Subscription Link Unavailable</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.NoUrlToCopy" xml:space="preserve">
+    <value>No URL available to copy.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ProviderDefinitionJsonCopiedMessage" xml:space="preserve">
+    <value>Provider definition JSON copied to clipboard!</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ProviderDefinitionUploadedMessage" xml:space="preserve">
+    <value>Provider definition uploaded successfully.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ScanInProgress" xml:space="preserve">
+    <value>Storage scan in progress. Please try again shortly.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ScanTimedOut" xml:space="preserve">
+    <value>Scan timed out or was canceled. Please try again.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.SuccessTitle" xml:space="preserve">
+    <value>Publish Success</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.UploadStatus.Failed" xml:space="preserve">
+    <value>Failed</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.UploadStatus.Pending" xml:space="preserve">
+    <value>Pending</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.UploadStatus.Uploaded" xml:space="preserve">
+    <value>Uploaded</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.UploadStatus.Uploading" xml:space="preserve">
+    <value>Uploading...</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ValidationFailedTitle" xml:space="preserve">
+    <value>Validation Failed</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referral.CatalogUrlRequired" xml:space="preserve">
+    <value>Catalog URL is required</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referral.DiscoveryError" xml:space="preserve">
+    <value>Discovery error: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referral.DiscoveryTimeout" xml:space="preserve">
+    <value>Discovery request timed out. Please try again.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referral.FetchFailed" xml:space="preserve">
+    <value>Could not fetch catalog: HTTP {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referral.InvalidCatalogUrl" xml:space="preserve">
+    <value>Invalid Catalog URL</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referral.NoPublisherDetails" xml:space="preserve">
+    <value>Could not find publisher details in the response</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referral.NoPublisherInfo" xml:space="preserve">
+    <value>No valid publisher information found at URL</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referral.ParseFailed" xml:space="preserve">
+    <value>Failed to parse catalog: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referral.PublisherIdRequired" xml:space="preserve">
+    <value>Publisher ID is required</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referral.ValidUrlRequired" xml:space="preserve">
+    <value>Please enter a valid URL first</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referrals.CatalogUrlInvalid" xml:space="preserve">
+    <value>Catalog URL must be a valid http or https URL.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referrals.PublisherIdRequired" xml:space="preserve">
+    <value>Publisher ID is required.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referrals.ValidationTitle" xml:space="preserve">
+    <value>Invalid Referral</value>
+  </data>
+  <data name="Tools.PublisherStudio.Release.DuplicateVersion" xml:space="preserve">
+    <value>Version {0} already exists for this content</value>
+  </data>
+  <data name="Tools.PublisherStudio.SetupWizard.InvalidContactEmail" xml:space="preserve">
+    <value>Please enter a valid email address.</value>
+  </data>
+  <data name="Tools.PublisherStudio.SetupWizard.InvalidWebsiteUrl" xml:space="preserve">
+    <value>Please enter a valid HTTP or HTTPS website URL.</value>
+  </data>
+  <data name="Tools.PublisherStudio.SetupWizard.StepComplete" xml:space="preserve">
+    <value>Setup Complete</value>
+  </data>
+  <data name="Tools.PublisherStudio.SetupWizard.StepContact" xml:space="preserve">
+    <value>Contact Information</value>
+  </data>
+  <data name="Tools.PublisherStudio.SetupWizard.StepIdentity" xml:space="preserve">
+    <value>Publisher Identity</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.CannotRemoveLastCatalog" xml:space="preserve">
+    <value>Cannot remove the last catalog</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.CatalogCountFormat" xml:space="preserve">
+    <value>{0} catalogs</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.NoProjectLoaded" xml:space="preserve">
+    <value>No project loaded</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dialogs.ConfirmButton" xml:space="preserve">
+    <value>Confirm</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dialogs.CancelButton" xml:space="preserve">
+    <value>Cancel</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dialogs.WindowTitle" xml:space="preserve">
+    <value>GenHub Publisher Studio</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.ItemsInCatalog" xml:space="preserve">
+    <value>{0} items in catalog</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.ParsedSize" xml:space="preserve">
+    <value>Parsed: {0}</value>
+  </data>
 </root>

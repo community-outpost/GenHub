@@ -5,14 +5,17 @@ using GenHub.Core.Models.Tools;
 using GenHub.Features.Tools.ViewModels;
 using GenHub.Features.Tools.Views.PublisherStudio;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using System;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace GenHub.Features.Tools;
 
 /// <summary>
 /// Built-in tool plugin for the Publisher Studio.
 /// </summary>
-public class PublisherStudioTool : IToolPlugin
+public class PublisherStudioTool(ILogger<PublisherStudioTool> logger) : IToolPlugin
 {
     private PublisherStudioViewModel? _viewModel;
     private PublisherStudioView? _view;
@@ -49,7 +52,11 @@ public class PublisherStudioTool : IToolPlugin
         if (_viewModel == null)
         {
             _viewModel = serviceProvider.GetRequiredService<PublisherStudioViewModel>();
-            _ = _viewModel.InitializeAsync();
+            _ = _viewModel.InitializeAsync().ContinueWith(
+                task => logger.LogError(task.Exception, "Publisher Studio background initialization failed."),
+                CancellationToken.None,
+                TaskContinuationOptions.OnlyOnFaulted,
+                TaskScheduler.Default);
         }
 
         if (_view != null)
@@ -62,13 +69,19 @@ public class PublisherStudioTool : IToolPlugin
     /// <inheritdoc/>
     public void OnDeactivated()
     {
-        // Auto-save if project has a path and has unsaved changes
+        // Auto-save if project has a path and has unsaved changes. The plugin contract
+        // is synchronous, so the save stays fire-and-forget but failures are observed
+        // and logged instead of silently discarding the user's changes.
         if (_viewModel?.CurrentProject != null
             && _viewModel.HasUnsavedChanges
             && !string.IsNullOrEmpty(_viewModel.CurrentProject.ProjectPath))
         {
             // Trigger auto-save asynchronously
-            _ = _viewModel.SaveProjectAsync();
+            _ = _viewModel.SaveProjectAsync().ContinueWith(
+                task => logger.LogError(task.Exception, "Publisher Studio auto-save on deactivation failed."),
+                CancellationToken.None,
+                TaskContinuationOptions.OnlyOnFaulted,
+                TaskScheduler.Default);
         }
     }
 
