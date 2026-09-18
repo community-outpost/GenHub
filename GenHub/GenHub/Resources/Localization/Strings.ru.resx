@@ -7579,4 +7579,8 @@ GenHub передает официальный идентификатор AppID 
   <data name="GameProfiles.Launch.WorkspaceFailedMessage" xml:space="preserve">
     <value>Не удалось инициализировать рабочую область для «{0}».</value>
   </data>
+  <data name="GitHub.TokenDialog.Title" xml:space="preserve">
+    <value>Аутентификация GitHub</value>
+    <comment>Title for GitHub PAT dialog</comment>
+  </data>
 </root>

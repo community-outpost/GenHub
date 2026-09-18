@@ -228,8 +228,8 @@ public static class InfoConstants
     /// <summary>
     /// The list of supported languages for the FAQ.
     /// </summary>
-    public static readonly IReadOnlyList<string> SupportedFaqLanguages = new[]
-    {
+    public static readonly IReadOnlyList<string> SupportedFaqLanguages =
+    [
         "en", "de", "ph", "ar",
-    };
+    ];
 }

@@ -321,6 +321,23 @@ public partial class GenPatcherDatCatalogParser(ILogger<GenPatcherDatCatalogPars
                 result.Tags.Add(metadata.LanguageCode);
             }
 
+            // when this content supports variants (resolution/language), populate variant grouping and selectable variants
+            if (metadata.SupportsVariants && metadata.Variants is { Count: > 0 } variants)
+            {
+                result.VariantFamilyName = metadata.DisplayName;
+                result.VariantGroupId = $"{CommunityOutpostConstants.PublisherType}.{contentType}.{item.ContentCode.ToLowerInvariant()}";
+                result.Variants = [.. variants
+                    .Select(v => new ContentVariantInfo
+                    {
+                        Id = v.Id,
+                        Name = v.Name,
+                        VariantType = v.VariantType ?? CommunityOutpostCatalogConstants.DefaultVariantType,
+                        ManifestId = $"1.0.{CommunityOutpostConstants.PublisherType}.{contentType}.{item.ContentCode.ToLowerInvariant()}-{v.Id}",
+                        IsDefault = v.IsDefault,
+                        TargetGame = v.TargetGame ?? metadata.TargetGame,
+                    })];
+            }
+
             // Store metadata for resolver
             result.ResolverMetadata[CommunityOutpostCatalogConstants.ContentCodeKey] = item.ContentCode;
             result.ResolverMetadata[CommunityOutpostCatalogConstants.CatalogVersionKey] = catalogVersion;
@@ -334,22 +351,6 @@ public partial class GenPatcherDatCatalogParser(ILogger<GenPatcherDatCatalogPars
                 .ToList();
             result.ResolverMetadata[CommunityOutpostCatalogConstants.MirrorUrlsKey] = JsonSerializer.Serialize(absoluteUrls);
             result.ResolverMetadata[CommunityOutpostCatalogConstants.MirrorsKey] = string.Join(", ", item.Mirrors.Select(m => m.Name));
-
-            // Populate variant options for content types that support variants (e.g. Control Bar Pro resolutions, Hotkeys languages)
-            if (metadata.SupportsVariants && metadata.Variants is { Count: > 0 })
-            {
-                result.VariantFamilyName = metadata.DisplayName;
-                result.VariantGroupId = $"communityoutpost.{contentType}.{item.ContentCode.ToLowerInvariant()}";
-                result.Variants = metadata.Variants.Select(v => new ContentVariantInfo
-                {
-                    Id = v.Id,
-                    Name = v.Name,
-                    VariantType = v.VariantType,
-                    ManifestId = $"1.0.{publisherName}.{contentType}.{item.ContentCode.ToLowerInvariant()}-{v.Id}",
-                    IsDefault = v.IsDefault,
-                    TargetGame = v.TargetGame ?? metadata.TargetGame,
-                }).ToList();
-            }
 
             logger.LogDebug(
                 "Created ContentSearchResult for {Code}: {Name} ({ContentType}, {Game})",

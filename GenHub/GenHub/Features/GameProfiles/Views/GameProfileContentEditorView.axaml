@@ -136,7 +136,7 @@
 
     <Grid>
         <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="190" />
+            <ColumnDefinition Width="190" MinWidth="68" MaxWidth="300" />
             <ColumnDefinition Width="4" />
             <ColumnDefinition Width="*" MinWidth="0" />
         </Grid.ColumnDefinitions>
@@ -152,7 +152,8 @@
                     <Button Classes="sidebar-btn"
                             Classes.selected="{Binding SelectedContentEditorCategory, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static vm:ContentEditorCategory.EnabledContent}}"
                             Command="{Binding SelectContentEditorCategoryCommand}"
-                            CommandParameter="{x:Static vm:ContentEditorCategory.EnabledContent}">
+                            CommandParameter="{x:Static vm:ContentEditorCategory.EnabledContent}"
+                            ToolTip.Tip="{localization:Localize GameProfiles.Content.TabEnabled}">
                         <StackPanel Orientation="Horizontal" Spacing="10">
                             <material:MaterialIcon Kind="CheckCircleOutline" Width="18" Height="18" Foreground="{DynamicResource SuccessBrush}" VerticalAlignment="Center"/>
                             <TextBlock Text="{localization:Localize GameProfiles.Content.TabEnabled}" VerticalAlignment="Center" FontSize="13.5"/>
@@ -162,7 +163,8 @@
                     <Button Classes="sidebar-btn"
                             Classes.selected="{Binding SelectedContentEditorCategory, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static vm:ContentEditorCategory.AvailableContent}}"
                             Command="{Binding SelectContentEditorCategoryCommand}"
-                            CommandParameter="{x:Static vm:ContentEditorCategory.AvailableContent}">
+                            CommandParameter="{x:Static vm:ContentEditorCategory.AvailableContent}"
+                            ToolTip.Tip="{localization:Localize GameProfiles.Content.TabAvailable}">
                         <StackPanel Orientation="Horizontal" Spacing="10">
                             <material:MaterialIcon Kind="PlusCircleOutline" Width="18" Height="18" Foreground="{DynamicResource AccentBrush}" VerticalAlignment="Center"/>
                             <TextBlock Text="{localization:Localize GameProfiles.Content.TabAvailable}" VerticalAlignment="Center" FontSize="13.5"/>

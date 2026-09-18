@@ -1158,7 +1158,15 @@ public class GameLauncher(
             wp =>
             {
                 var percentComplete = 20 + (int)(wp.FilesProcessed / (double)Math.Max(1, wp.TotalFiles) * 60);
-                progress?.Report(new LaunchProgress { Phase = LaunchPhase.PreparingWorkspace, PercentComplete = Math.Min(percentComplete, 80) });
+                progress?.Report(new LaunchProgress
+                {
+                    Phase = LaunchPhase.PreparingWorkspace,
+                    PercentComplete = Math.Min(percentComplete, 80),
+                    IsInitializingWorkspace = true,
+                    TotalFiles = wp.TotalFiles,
+                    FilesProcessed = wp.FilesProcessed,
+                    CurrentFile = wp.CurrentFile,
+                });
             });
 
         var workspaceResult = await workspaceManager.PrepareWorkspaceAsync(workspaceConfig, workspaceProgress, skipCleanup: isSteamLaunch, cancellationToken);

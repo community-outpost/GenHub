@@ -224,7 +224,7 @@ public static class AppUpdateConstants
     public const string UpdateFailedNotificationFormat = "Failed to install update: {0}";
 
     /// <summary>
-    /// View updates action button text.
+    /// "View Updates" action text.
     /// </summary>
     public const string ViewUpdatesAction = "View Updates";
 

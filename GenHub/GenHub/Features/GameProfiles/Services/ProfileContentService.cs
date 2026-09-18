@@ -304,6 +304,29 @@ public sealed class ProfileContentService(
 
             var manifest = manifestResult.Data;
 
+            if (manifest.ContentType.IsStandalone())
+            {
+                var standaloneRequest = BuildStandaloneCreateProfileRequest(profileName, manifest, manifestId, [manifestId]);
+                var standaloneResult = await profileManager.CreateProfileAsync(standaloneRequest, cancellationToken);
+                if (standaloneResult.Failed)
+                {
+                    var error = standaloneResult.FirstError ?? "Failed to create profile";
+                    logger.LogError("Failed to create profile '{ProfileName}': {Error}", profileName, error);
+                    return standaloneResult;
+                }
+
+                notificationService.ShowSuccess(
+                    "Profile Created",
+                    $"Created profile '{profileName}' with {manifest.Name}");
+
+                logger.LogInformation(
+                    "Successfully created profile {ProfileId} with content {ManifestId}",
+                    standaloneResult.Data!.Id,
+                    manifestId);
+
+                return standaloneResult;
+            }
+
             var resolution = await ResolveProfileContentAsync(requestedIds, requestedIds, cancellationToken);
             if (resolution.Failed || resolution.Data == null)
             {

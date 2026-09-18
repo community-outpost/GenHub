@@ -18,6 +18,7 @@ using GenHub.Core.Models.GameProfile;
 using GenHub.Core.Models.GameSettings;
 using GenHub.Core.Models.Launching;
 using GenHub.Core.Models.Manifest;
+using GenHub.Core.Models.Notifications;
 using GenHub.Core.Models.Providers;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Workspace;
@@ -30,6 +31,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Security.Principal;
 using System.Threading;
@@ -58,8 +60,14 @@ public class ProfileLauncherFacade(
     IGameProcessManager gameProcessManager,
     ISymlinkCapabilityProvider symlinkCapability,
     ILogger<ProfileLauncherFacade> logger,
-    IInstallationCasPoolService? installationCasPoolService = null) : IProfileLauncherFacade
+    IInstallationCasPoolService? installationCasPoolService = null,
+    ILocalizationService? localizationService = null) : IProfileLauncherFacade
 {
+    private sealed class SynchronousProgress<T>(Action<T> handler) : IProgress<T>
+    {
+        public void Report(T value) => handler(value);
+    }
+
     /// <inheritdoc/>
     public Task<ProfileOperationResult<GameLaunchInfo>> LaunchProfileAsync(
         string profileId,
@@ -617,6 +625,27 @@ public class ProfileLauncherFacade(
                 requestedToolStrategy);
         }
 
+        var baseInstallationPath = appDataBase;
+        var workspaceRootPath = Path.Combine(appDataBase, DirectoryNames.ToolWorkspaces);
+
+        if (toolManifest.TargetGame != GameType.Unknown)
+        {
+            var installationsResult = await installationService.GetAllInstallationsAsync(cancellationToken);
+            if (installationsResult.Success && installationsResult.Data != null)
+            {
+                var matchingInstall = installationsResult.Data.FirstOrDefault(i =>
+                    (!string.IsNullOrEmpty(profile.GameInstallationId) && i.Id == profile.GameInstallationId) ||
+                    i.AvailableGameClients.Any(c => c.GameType == toolManifest.TargetGame));
+
+                if (matchingInstall != null && !string.IsNullOrEmpty(matchingInstall.InstallationPath) && Directory.Exists(matchingInstall.InstallationPath))
+                {
+                    baseInstallationPath = matchingInstall.InstallationPath;
+                    workspaceRootPath = storageLocationService.GetWorkspacePath(matchingInstall);
+                    logger.LogInformation("[Launch] Tool workspace using base game installation: {Path}", baseInstallationPath);
+                }
+            }
+        }
+
         var actualWorkspaceId = $"{ProfileConstants.ToolProfileWorkspaceIdPrefix}-{profile.Id}";
         var workspaceConfig = new WorkspaceConfiguration
         {
@@ -626,8 +655,8 @@ public class ProfileLauncherFacade(
             Strategy = effectiveToolStrategy,
             ForceRecreate = false,
             ValidateAfterPreparation = true,
-            BaseInstallationPath = appDataBase,
-            WorkspaceRootPath = Path.Combine(appDataBase, DirectoryNames.ToolWorkspaces),
+            BaseInstallationPath = baseInstallationPath,
+            WorkspaceRootPath = workspaceRootPath,
             SkipCleanup = false,
         };
 
@@ -798,7 +827,62 @@ public class ProfileLauncherFacade(
             // Launch the game using the profile
             logger.LogDebug("[Launch] Step 6: Delegating to GameLauncher for workspace prep and process start");
 
-            var launchResult = await gameLauncher.LaunchProfileAsync(profile, progress: null, skipUserDataCleanup: skipUserDataCleanup, additionalArguments: additionalArguments, cancellationToken: cancellationToken);
+            var notificationLock = new object();
+            Guid? workspaceNotificationId = null;
+            var launchProgress = new SynchronousProgress<LaunchProgress>(p =>
+            {
+                if (p.IsInitializingWorkspace)
+                {
+                    NotificationMessage? messageToShow = null;
+                    lock (notificationLock)
+                    {
+                        if (workspaceNotificationId == null)
+                        {
+                            var title = localizationService?.GetString(ProfileConstants.WorkspacePreparingTitleKey)
+                                ?? ProfileConstants.WorkspacePreparingDefaultTitle;
+                            var body = localizationService != null
+                                ? localizationService.GetString(ProfileConstants.WorkspaceInitializingMessageKey, profile.Name)
+                                : string.Format(System.Globalization.CultureInfo.InvariantCulture, ProfileConstants.WorkspaceInitializingDefaultFormat, profile.Name);
+
+                            messageToShow = new NotificationMessage(
+                                NotificationType.Info,
+                                title,
+                                body,
+                                autoDismissMilliseconds: null,
+                                isPersistent: true);
+                            workspaceNotificationId = messageToShow.Id;
+                        }
+                    }
+
+                    if (messageToShow != null)
+                    {
+                        notificationService.Show(messageToShow);
+                    }
+                }
+            });
+
+            LaunchOperationResult<GameLaunchInfo> launchResult;
+            try
+            {
+                launchResult = await gameLauncher.LaunchProfileAsync(profile, progress: launchProgress, skipUserDataCleanup: skipUserDataCleanup, additionalArguments: additionalArguments, cancellationToken: cancellationToken);
+            }
+            finally
+            {
+                Guid? notificationToDismiss = null;
+                lock (notificationLock)
+                {
+                    if (workspaceNotificationId.HasValue)
+                    {
+                        notificationToDismiss = workspaceNotificationId.Value;
+                        workspaceNotificationId = null;
+                    }
+                }
+
+                if (notificationToDismiss.HasValue)
+                {
+                    notificationService.Dismiss(notificationToDismiss.Value);
+                }
+            }
 
             if (launchResult.Failed)
             {

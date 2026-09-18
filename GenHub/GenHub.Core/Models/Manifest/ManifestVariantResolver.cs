@@ -1,3 +1,4 @@
+using GenHub.Core.Constants;
 using GenHub.Core.Utilities;
 using System;
 using System.Collections.Generic;
@@ -120,51 +121,25 @@ public static class ManifestVariantResolver
 
         if (!string.IsNullOrWhiteSpace(declared))
         {
-            // A declared entry point that is not in the file list is a manifest defect.
-            // Failing here is far more diagnosable than failing at Process.Start.
-            var matchedFile = files.FirstOrDefault(f => PathsMatch(f.RelativePath, declared));
-
-            return matchedFile is not null
-                ? EntryPointResolution.Resolved(matchedFile.RelativePath, "declared entry point")
-                : EntryPointResolution.Failed(
-                    $"Manifest '{manifest.Id}' declares entry point '{declared}', which is not among its "
-                    + $"{files.Count} file(s).",
-                    files);
+            return ResolveDeclaredEntryPoint(manifest, files, declared);
         }
 
         var executable = files
             .Where(f =>
                 f.IsExecutable
                 && (ExecutableFileClassifier.IsLegacyLaunchCandidateFromName(f.RelativePath)
+                    || IsPrimaryGameExecutable(f.RelativePath)
                     || f.RelativePath.EndsWith(".dat", StringComparison.OrdinalIgnoreCase)))
             .ToList();
+
         if (executable.Count == 1)
         {
             return EntryPointResolution.Resolved(executable[0].RelativePath, "only file requiring execute permission");
         }
 
-        if (executable.Count == 0)
-        {
-            var legacy = files
-                .Where(f => ExecutableFileClassifier.IsLegacyLaunchCandidateFromName(f.RelativePath))
-                .ToList();
-
-            if (legacy.Count == 1)
-            {
-                return EntryPointResolution.Resolved(legacy[0].RelativePath, "only launch candidate by extension");
-            }
-
-            return EntryPointResolution.Failed(
-                legacy.Count == 0
-                    ? $"Manifest '{manifest.Id}' contains no launchable file."
-                    : $"Manifest '{manifest.Id}' contains {legacy.Count} possible launch targets and declares no entry point.",
-                files);
-        }
-
-        return EntryPointResolution.Failed(
-            $"Manifest '{manifest.Id}' marks {executable.Count} files as requiring execute permission and "
-            + "declares no entry point, so the launch target is ambiguous.",
-            files);
+        return executable.Count == 0
+            ? ResolveLegacyCandidates(manifest, files)
+            : ResolvePrimaryExecutable(manifest, files, executable);
     }
 
     /// <summary>
@@ -178,4 +153,94 @@ public static class ManifestVariantResolver
             left.Replace('\\', '/').TrimStart('/'),
             right.Replace('\\', '/').TrimStart('/'),
             StringComparison.OrdinalIgnoreCase);
+
+    private static EntryPointResolution ResolveDeclaredEntryPoint(
+        ContentManifest manifest,
+        IReadOnlyList<ManifestFile> files,
+        string declared)
+    {
+        var matchedFile = files.FirstOrDefault(f => PathsMatch(f.RelativePath, declared));
+
+        return matchedFile is not null
+            ? EntryPointResolution.Resolved(matchedFile.RelativePath, "declared entry point")
+            : EntryPointResolution.Failed(
+                $"Manifest '{manifest.Id}' declares entry point '{declared}', which is not among its "
+                + $"{files.Count} file(s).",
+                files);
+    }
+
+    private static EntryPointResolution ResolveLegacyCandidates(
+        ContentManifest manifest,
+        IReadOnlyList<ManifestFile> files)
+    {
+        var legacy = files
+            .Where(f =>
+                ExecutableFileClassifier.IsLegacyLaunchCandidateFromName(f.RelativePath)
+                || IsPrimaryGameExecutable(f.RelativePath))
+            .ToList();
+
+        if (legacy.Count == 1)
+        {
+            return EntryPointResolution.Resolved(legacy[0].RelativePath, "only launch candidate by extension");
+        }
+
+        if (TryResolveSinglePrimaryExecutable(legacy, out var primaryResolution))
+        {
+            return primaryResolution;
+        }
+
+        return EntryPointResolution.Failed(
+            legacy.Count == 0
+                ? $"Manifest '{manifest.Id}' contains no launchable file."
+                : $"Manifest '{manifest.Id}' contains {legacy.Count} possible launch targets and declares no entry point.",
+            files);
+    }
+
+    private static EntryPointResolution ResolvePrimaryExecutable(
+        ContentManifest manifest,
+        IReadOnlyList<ManifestFile> files,
+        IReadOnlyList<ManifestFile> executable)
+    {
+        if (TryResolveSinglePrimaryExecutable(executable, out var primaryResolution))
+        {
+            return primaryResolution;
+        }
+
+        return EntryPointResolution.Failed(
+            $"Manifest '{manifest.Id}' marks {executable.Count} files as requiring execute permission and "
+            + "declares no entry point, so the launch target is ambiguous.",
+            files);
+    }
+
+    private static bool TryResolveSinglePrimaryExecutable(
+        IReadOnlyList<ManifestFile> candidates,
+        out EntryPointResolution resolution)
+    {
+        var primary = candidates
+            .Where(f => IsPrimaryGameExecutable(f.RelativePath))
+            .ToList();
+
+        if (primary.Count == 1)
+        {
+            resolution = EntryPointResolution.Resolved(primary[0].RelativePath, "primary game executable candidate");
+            return true;
+        }
+
+        resolution = default!;
+        return false;
+    }
+
+    private static bool IsPrimaryGameExecutable(string relativePath)
+    {
+        var fileName = System.IO.Path.GetFileName(relativePath.Replace('\\', '/'));
+        return string.Equals(fileName, GameClientConstants.GeneralsOnlineEacLauncherExecutable, StringComparison.OrdinalIgnoreCase)
+            || string.Equals(fileName, GameClientConstants.SuperHackersZeroHourExecutable, StringComparison.OrdinalIgnoreCase)
+            || string.Equals(fileName, GameClientConstants.SuperHackersGeneralsExecutable, StringComparison.OrdinalIgnoreCase)
+            || string.Equals(fileName, GameClientConstants.GeneralsExecutable, StringComparison.OrdinalIgnoreCase)
+            || string.Equals(fileName, GameClientConstants.SteamGameDatExecutable, StringComparison.OrdinalIgnoreCase)
+            || string.Equals(fileName, GameClientConstants.GameExecutable, StringComparison.OrdinalIgnoreCase)
+            || string.Equals(fileName, GameClientConstants.GeneralsOnline60HzExecutable, StringComparison.OrdinalIgnoreCase)
+            || string.Equals(fileName, GameClientConstants.GeneralsOnlineDefaultExecutable, StringComparison.OrdinalIgnoreCase)
+            || string.Equals(fileName, GameClientConstants.ContraExecutable, StringComparison.OrdinalIgnoreCase);
+    }
 }

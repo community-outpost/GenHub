@@ -181,20 +181,24 @@ public static class GenPatcherDependencyBuilder
     }
 
     /// <summary>
-    /// Creates a dependency on the GenTool addon.
-    /// GenTool is required for many advanced features.
-    /// Uses RequireExisting behavior so users see a warning badge and must explicitly download it first.
+    /// Creates a GenTool dependency with customizable name, install behavior, and optionality.
     /// </summary>
+    /// <param name="name">The display name of the dependency.</param>
+    /// <param name="installBehavior">The install behavior for the dependency.</param>
+    /// <param name="isOptional">Whether the dependency is optional.</param>
     /// <returns>A content dependency for GenTool.</returns>
-    public static ContentDependency CreateGenToolDependency()
+    public static ContentDependency CreateGenToolDependency(
+        string name = "GenTool",
+        DependencyInstallBehavior installBehavior = DependencyInstallBehavior.RequireExisting,
+        bool isOptional = false)
     {
         return new ContentDependency
         {
             Id = ManifestId.Create($"1.{ManifestConstants.DefaultManifestVersion}.{CommunityOutpostConstants.PublisherType}.addon.gent"),
-            Name = "GenTool",
+            Name = name,
             DependencyType = ContentType.Addon,
-            InstallBehavior = DependencyInstallBehavior.RequireExisting,
-            IsOptional = false,
+            InstallBehavior = installBehavior,
+            IsOptional = isOptional,
         };
     }
 
@@ -202,17 +206,8 @@ public static class GenPatcherDependencyBuilder
     /// Creates an optional GenTool dependency for enhanced features.
     /// </summary>
     /// <returns>An optional content dependency for GenTool.</returns>
-    public static ContentDependency CreateOptionalGenToolDependency()
-    {
-        return new ContentDependency
-        {
-            Id = ManifestId.Create($"1.{ManifestConstants.DefaultManifestVersion}.{CommunityOutpostConstants.PublisherType}.addon.gent"),
-            Name = "GenTool (Recommended)",
-            DependencyType = ContentType.Addon,
-            InstallBehavior = DependencyInstallBehavior.Suggest,
-            IsOptional = true,
-        };
-    }
+    public static ContentDependency CreateOptionalGenToolDependency() =>
+        CreateGenToolDependency("GenTool (Recommended)", DependencyInstallBehavior.Suggest, isOptional: true);
 
     /// <summary>
     /// Creates a dependency on the Control Bar HD Base (cbbs).
@@ -426,6 +421,16 @@ public static class GenPatcherDependencyBuilder
             metadata.ContentCode.Equals("hleg", StringComparison.OrdinalIgnoreCase))
         {
             AddHotkeyIndicatorDependency(dependencies);
+        }
+
+        // Legionnaire's Hotkeys hooks through GenTool. This is an actual runtime
+        // requirement, so let the resolver acquire and reconcile it with the profile.
+        if (metadata.ContentCode.Equals("hleg", StringComparison.OrdinalIgnoreCase))
+        {
+            dependencies.Add(CreateGenToolDependency(
+                "GenTool (required for Legionnaire's Hotkeys)",
+                DependencyInstallBehavior.AutoInstall,
+                isOptional: false));
         }
     }
 

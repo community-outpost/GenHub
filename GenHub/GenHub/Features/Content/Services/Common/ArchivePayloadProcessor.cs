@@ -281,6 +281,38 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
         }
     }
 
+    /// <summary>
+    /// Validates that an archive payload file exists, is non-empty, and does not contain HTML error text.
+    /// </summary>
+    /// <param name="archivePath">Path to the archive file.</param>
+    internal static void EnsureValidArchivePayload(string archivePath)
+    {
+        var info = new FileInfo(archivePath);
+        if (!info.Exists || info.Length == 0)
+        {
+            throw new InvalidDataException($"Archive file is missing or empty: {archivePath}");
+        }
+
+        Span<byte> header = stackalloc byte[16];
+        using (var stream = File.OpenRead(archivePath))
+        {
+            var read = stream.Read(header);
+            if (read == 0)
+            {
+                throw new InvalidDataException($"Archive file is empty: {archivePath}");
+            }
+
+            header = header[..read];
+        }
+
+        if (LooksLikeHtml(header))
+        {
+            var preview = ReadTextPreview(archivePath, maxChars: 120);
+            throw new InvalidDataException(
+                $"Downloaded file is HTML, not an archive (likely a broken download URL or HTTP error page): {archivePath}. Preview: {preview}");
+        }
+    }
+
     private static bool ShouldAttemptExecutableExtraction(ContentType? contentType)
     {
         if (!contentType.HasValue)
@@ -553,34 +585,6 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
         return Directory.GetFiles(rootDirectory, "*", SearchOption.AllDirectories)
             .Where(file => IsArchiveFile(file, contentType))
             .ToList();
-    }
-
-    private static void EnsureValidArchivePayload(string archivePath)
-    {
-        var info = new FileInfo(archivePath);
-        if (!info.Exists || info.Length == 0)
-        {
-            throw new InvalidDataException($"Archive file is missing or empty: {archivePath}");
-        }
-
-        Span<byte> header = stackalloc byte[16];
-        using (var stream = File.OpenRead(archivePath))
-        {
-            var read = stream.Read(header);
-            if (read == 0)
-            {
-                throw new InvalidDataException($"Archive file is empty: {archivePath}");
-            }
-
-            header = header[..read];
-        }
-
-        if (LooksLikeHtml(header))
-        {
-            var preview = ReadTextPreview(archivePath, maxChars: 120);
-            throw new InvalidDataException(
-                $"Downloaded file is HTML, not an archive (likely a broken download URL or HTTP error page): {archivePath}. Preview: {preview}");
-        }
     }
 
     private static bool LooksLikeHtml(ReadOnlySpan<byte> header)

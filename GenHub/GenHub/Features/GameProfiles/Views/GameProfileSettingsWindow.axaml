@@ -8,7 +8,6 @@
         xmlns:conv="clr-namespace:GenHub.Infrastructure.Converters"
         xmlns:notifications="clr-namespace:GenHub.Features.Notifications.Views"
         xmlns:localization="clr-namespace:GenHub.Common.Markup;assembly=GenHub"
-        xmlns:helpers="clr-namespace:GenHub.Common.Helpers;assembly=GenHub"
         mc:Ignorable="d" d:DesignWidth="750" d:DesignHeight="700"
         x:Class="GenHub.Features.GameProfiles.Views.GameProfileSettingsWindow"
         x:DataType="vm:GameProfileSettingsViewModel"
@@ -18,10 +17,7 @@
         MinWidth="600" MinHeight="550"
         CanResize="True"
         WindowStartupLocation="CenterOwner"
-        Background="Transparent"
-        TransparencyLevelHint="AcrylicBlur"
-        SystemDecorations="Full"
-        helpers:WindowChromeHelper.AdaptForPlatform="True"
+        Background="{DynamicResource SurfaceBackgroundBrush}"
         Icon="avares://GenHub/Assets/Icons/generalshub-icon.png"
         ExtendClientAreaToDecorationsHint="True"
         ExtendClientAreaChromeHints="NoChrome"
@@ -446,6 +442,7 @@
                                                FontSize="18"
                                                FontWeight="Bold"
                                                TextTrimming="CharacterEllipsis"
+                                               TextWrapping="NoWrap"
                                                ToolTip.Tip="{Binding Name, Mode=OneWay, FallbackValue='New Profile'}"
                                                VerticalAlignment="Center" />
                                 </DockPanel>

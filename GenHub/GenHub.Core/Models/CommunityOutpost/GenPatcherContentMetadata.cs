@@ -109,4 +109,9 @@ public class GenPatcherContentMetadata
     /// If true, manifests can be generated for specific variants selected by the user.
     /// </summary>
     public bool SupportsVariants { get; set; } = false;
+
+    /// <summary>
+    /// Gets or sets the relative entry point executable for tools (e.g., "WorldBuilder.exe").
+    /// </summary>
+    public string? EntryPoint { get; set; }
 }
