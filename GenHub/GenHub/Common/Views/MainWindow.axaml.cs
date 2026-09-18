@@ -1,6 +1,7 @@
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Markup.Xaml;
+using GenHub.Common.Helpers;
 
 namespace GenHub.Common.Views;
 
@@ -15,6 +16,13 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+        WindowChromeHelper.ApplyPlatformDecorations(this);
+
+        var resizeGrips = this.FindControl<Panel>("LinuxResizeGrips");
+        if (resizeGrips is not null)
+        {
+            WindowChromeHelper.AttachResizeGrips(this, resizeGrips);
+        }
     }
 
     /// <summary>

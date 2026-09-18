@@ -5,6 +5,7 @@ using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Markup.Xaml;
 using Avalonia.Media;
+using GenHub.Common.Helpers;
 using GenHub.Features.Downloads.ViewModels;
 using System;
 
@@ -23,6 +24,7 @@ public partial class DependencyPreviewView : Window
     public DependencyPreviewView()
     {
         InitializeComponent();
+        WindowChromeHelper.ApplyPlatformDecorations(this);
     }
 
     /// <summary>

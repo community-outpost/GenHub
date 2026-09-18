@@ -2,6 +2,7 @@ using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Markup.Xaml;
+using GenHub.Common.Helpers;
 using GenHub.Features.AppUpdate.ViewModels;
 using Microsoft.Extensions.Logging;
 using System.Threading.Tasks;
@@ -23,6 +24,7 @@ public partial class UpdateNotificationWindow : Window
         _logger = AppLocator.GetServiceOrDefault<ILogger<UpdateNotificationWindow>>();
 
         InitializeComponent();
+        WindowChromeHelper.ApplyPlatformDecorations(this);
 
         try
         {
