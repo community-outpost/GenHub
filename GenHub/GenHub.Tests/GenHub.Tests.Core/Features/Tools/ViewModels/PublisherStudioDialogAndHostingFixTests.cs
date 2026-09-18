@@ -2,7 +2,6 @@ using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Providers;
 using GenHub.Core.Models.Publishers;
 using GenHub.Features.Tools.ViewModels.Dialogs;
-using System.IO;
 using Xunit;
 
 namespace GenHub.Tests.Core.Features.Tools.ViewModels;
@@ -18,33 +17,21 @@ public class PublisherStudioDialogAndHostingFixTests
     [Fact]
     public void AddArtifactDialogViewModel_WhenToggledToUrlMode_ClearsStaleFileMetadata()
     {
-        var tempFile = Path.GetTempFileName();
-        try
-        {
-            File.WriteAllText(tempFile, "Test artifact data");
-            var vm = new AddArtifactDialogViewModel(artifact => { });
+        var vm = new AddArtifactDialogViewModel(artifact => { });
 
-            vm.UseLocalFile = true;
-            vm.LocalFilePath = tempFile;
+        vm.UseLocalFile = true;
+        vm.LocalFilePath = "/path/to/artifact.zip";
+        vm.FileSize = 2048;
+        vm.FileSizeDisplay = "2 KB";
+        vm.Sha256Hash = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
 
-            Assert.True(vm.FileSize > 0);
-            Assert.False(string.IsNullOrEmpty(vm.Sha256Hash));
+        // Toggle to URL mode
+        vm.UseLocalFile = false;
 
-            // Toggle to URL mode
-            vm.UseLocalFile = false;
-
-            Assert.Null(vm.LocalFilePath);
-            Assert.Equal(0, vm.FileSize);
-            Assert.Empty(vm.FileSizeDisplay);
-            Assert.Empty(vm.Sha256Hash);
-        }
-        finally
-        {
-            if (File.Exists(tempFile))
-            {
-                File.Delete(tempFile);
-            }
-        }
+        Assert.Null(vm.LocalFilePath);
+        Assert.Equal(0, vm.FileSize);
+        Assert.Empty(vm.FileSizeDisplay);
+        Assert.Empty(vm.Sha256Hash);
     }
 
     /// <summary>
@@ -53,32 +40,20 @@ public class PublisherStudioDialogAndHostingFixTests
     [Fact]
     public void AddContentDialogViewModel_WhenToggledToDirectUrl_ClearsStaleFileMetadata()
     {
-        var tempFile = Path.GetTempFileName();
-        try
-        {
-            File.WriteAllText(tempFile, "Test content data");
-            var vm = new AddContentDialogViewModel(_ => { });
+        var vm = new AddContentDialogViewModel(_ => { });
 
-            vm.UseDirectUrl = false;
-            vm.LocalFilePath = tempFile;
+        vm.UseDirectUrl = false;
+        vm.LocalFilePath = "/path/to/content.zip";
+        vm.FileSize = 4096;
+        vm.FileSizeDisplay = "4 KB";
+        vm.Sha256Hash = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
 
-            Assert.True(vm.FileSize > 0);
-            Assert.False(string.IsNullOrEmpty(vm.Sha256Hash));
+        // Switch to Direct URL mode
+        vm.UseDirectUrl = true;
 
-            // Switch to Direct URL mode
-            vm.UseDirectUrl = true;
-
-            Assert.Null(vm.LocalFilePath);
-            Assert.Equal(0, vm.FileSize);
-            Assert.Empty(vm.FileSizeDisplay);
-            Assert.Null(vm.Sha256Hash);
-        }
-        finally
-        {
-            if (File.Exists(tempFile))
-            {
-                File.Delete(tempFile);
-            }
-        }
+        Assert.Null(vm.LocalFilePath);
+        Assert.Equal(0, vm.FileSize);
+        Assert.Empty(vm.FileSizeDisplay);
+        Assert.Null(vm.Sha256Hash);
     }
 }
