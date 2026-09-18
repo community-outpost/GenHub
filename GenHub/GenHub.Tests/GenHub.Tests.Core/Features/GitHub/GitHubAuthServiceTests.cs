@@ -183,7 +183,7 @@ public class GitHubAuthServiceTests
 
         // Assert
         Assert.False(result.Success);
-        Assert.Contains("denied", result.Errors.First(), StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Approve the request in your browser", result.Errors.First(), StringComparison.Ordinal);
         harness.TokenStorage.Verify(x => x.SaveTokenAsync(It.IsAny<SecureString>()), Times.Never);
         Assert.False(harness.Service.IsAuthenticated);
     }
@@ -209,7 +209,7 @@ public class GitHubAuthServiceTests
 
         // Assert
         Assert.False(result.Success);
-        Assert.Contains("expired", result.Errors.First(), StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Try signing in again", result.Errors.First(), StringComparison.Ordinal);
         harness.TokenStorage.Verify(x => x.SaveTokenAsync(It.IsAny<SecureString>()), Times.Never);
         Assert.False(harness.Service.IsAuthenticated);
     }
