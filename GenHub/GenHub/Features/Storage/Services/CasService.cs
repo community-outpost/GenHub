@@ -461,14 +461,14 @@ public class CasService(
         string? expectedHash = null,
         CancellationToken cancellationToken = default)
     {
+        // Use pool manager if available, otherwise fall back to default storage
+        if (poolManager == null)
+        {
+            return await StoreContentAsync(contentStream, expectedHash, cancellationToken);
+        }
+
         try
         {
-            // Use pool manager if available, otherwise fall back to default storage
-            if (poolManager == null)
-            {
-                return await StoreContentAsync(contentStream, expectedHash, cancellationToken);
-            }
-
             // Ensure all pools are properly initialized
             poolManager.EnsureAllPoolsInitialized();
 
@@ -534,14 +534,14 @@ public class CasService(
         ContentType contentType,
         CancellationToken cancellationToken = default)
     {
+        // Use pool manager if available, otherwise fall back to default storage
+        if (poolManager == null)
+        {
+            return await GetContentPathAsync(hash, cancellationToken);
+        }
+
         try
         {
-            // Use pool manager if available, otherwise fall back to default storage
-            if (poolManager == null)
-            {
-                return await GetContentPathAsync(hash, cancellationToken);
-            }
-
             // Ensure all pools are properly initialized before checking
             // This is important because the Installation Pool path may have been set after construction
             poolManager.EnsureAllPoolsInitialized();
@@ -594,14 +594,14 @@ public class CasService(
         ContentType contentType,
         CancellationToken cancellationToken = default)
     {
+        // Use pool manager if available, otherwise fall back to default storage
+        if (poolManager == null)
+        {
+            return await ExistsAsync(hash, cancellationToken);
+        }
+
         try
         {
-            // Use pool manager if available, otherwise fall back to default storage
-            if (poolManager == null)
-            {
-                return await ExistsAsync(hash, cancellationToken);
-            }
-
             // Ensure all pools are properly initialized before checking
             // This is important because the Installation Pool path may have been set after construction
             poolManager.EnsureAllPoolsInitialized();

@@ -474,7 +474,7 @@ public sealed class ProfileLauncherFacadeDependencyValidationTests
 
         // Assert: Validation must fail because installed version 1.0.0 is less than min version 2.0.0
         Assert.False(result.Success);
-        Assert.Contains(result.Errors, err => err.Contains("Sample Addon") && err.Contains("(version >= 2.0.0)") && err.Contains("1.0.0"));
+        Assert.Contains(result.Errors, err => err.Contains("Sample Addon") && err.Contains("2.0.0") && err.Contains("1.0.0"));
     }
 
     private ProfileLauncherFacade CreateFacade()

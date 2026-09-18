@@ -64,7 +64,7 @@ public class ManifestIngestionGateTests
         var manifest = new ContentManifest
         {
             Id = new("1.0.genhub.mod.futureformat"),
-            ManifestVersion = ManifestConstants.VariantsManifestFormatVersion.ToString(CultureInfo.InvariantCulture),
+            SchemaVersion = ManifestConstants.VariantsManifestFormatVersion.ToString(CultureInfo.InvariantCulture),
         };
 
         Assert.False(ManifestIngestionGate.TryAccept(manifest, out var reason));
@@ -81,7 +81,7 @@ public class ManifestIngestionGateTests
         var manifest = new ContentManifest
         {
             Id = new("1.0.genhub.mod.mislabelled"),
-            ManifestVersion = ManifestConstants.DefaultManifestVersion,
+            SchemaVersion = ManifestConstants.DefaultManifestVersion,
         };
         manifest.Variants.Add(new ArtifactVariant());
 
@@ -98,9 +98,28 @@ public class ManifestIngestionGateTests
         var manifest = new ContentManifest
         {
             Id = new("1.0.genhub.mod.legacy"),
-            ManifestVersion = ManifestConstants.DefaultManifestVersion,
+            SchemaVersion = ManifestConstants.DefaultManifestVersion,
         };
 
         Assert.True(ManifestIngestionGate.TryAccept(manifest, out _));
+    }
+
+    /// <summary>
+    /// Date-based content versions (e.g. 20260723) must never be accepted as a manifest
+    /// format version; regression guard for the Community Outpost resolver bug.
+    /// </summary>
+    [Fact]
+    public void TryAccept_DateBasedManifestVersion_IsRejected()
+    {
+        var manifest = new ContentManifest
+        {
+            Id = new("1.20260723.communityoutpost.gameclient.communitypatch"),
+            SchemaVersion = "20260723",
+        };
+
+        var accepted = ManifestIngestionGate.TryAccept(manifest, out var reason);
+
+        Assert.False(accepted);
+        Assert.NotNull(reason);
     }
 }

@@ -1339,7 +1339,7 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
         }
         catch (Exception ex)
         {
-             _logger?.LogError(ex, "Error during comprehensive dependency validation");
+            _logger?.LogError(ex, "Error during comprehensive dependency validation");
         }
 
         return errors;

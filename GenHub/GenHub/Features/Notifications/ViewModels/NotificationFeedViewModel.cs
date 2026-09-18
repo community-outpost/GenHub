@@ -86,6 +86,7 @@ public partial class NotificationFeedViewModel : ViewModelBase, IDisposable
 
         // Subscribe to notification history
         _historySubscription = notificationService.NotificationHistory.Subscribe(OnNotificationAdded);
+        _updateSubscription = notificationService.UpdateRequests.Subscribe(OnNotificationUpdated);
 
         _logger.LogInformation("NotificationFeedViewModel initialized");
     }
@@ -99,6 +100,7 @@ public partial class NotificationFeedViewModel : ViewModelBase, IDisposable
             return;
 
         _historySubscription?.Dispose();
+        _updateSubscription?.Dispose();
 
         foreach (var item in NotificationHistory)
         {
@@ -172,6 +174,7 @@ public partial class NotificationFeedViewModel : ViewModelBase, IDisposable
     private readonly ILogger<NotificationFeedViewModel> _logger;
     private readonly ILocalizationService? _localizationService;
     private readonly IDisposable _historySubscription;
+    private readonly IDisposable _updateSubscription;
     private readonly object _stateLock = new();
     private bool _disposed;
 
@@ -370,5 +373,34 @@ public partial class NotificationFeedViewModel : ViewModelBase, IDisposable
         }
 
         AddNotification(message);
+    }
+
+    /// <summary>
+    /// Handles notification updated from service.
+    /// </summary>
+    /// <param name="update">The notification update tuple containing id, optional title, and message.</param>
+    private void OnNotificationUpdated((Guid Id, string? Title, string Message) update)
+    {
+        if (_disposed)
+        {
+            return;
+        }
+
+        RunOnUI(() =>
+        {
+            lock (_stateLock)
+            {
+                var item = NotificationHistory.FirstOrDefault(n => n.Id == update.Id);
+                if (item != null)
+                {
+                    if (update.Title != null)
+                    {
+                        item.Title = update.Title;
+                    }
+
+                    item.Message = update.Message;
+                }
+            }
+        });
     }
 }

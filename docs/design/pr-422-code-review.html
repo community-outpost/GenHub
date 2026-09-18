@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PR 422 code review</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #000;
+      --fg: #fff;
+      --muted: #9a9a9a;
+      --line: #2a2a2a;
+      --panel: #111;
+      --blocker: #ff5a5a;
+      --warning: #e6b800;
+      --ok: #6f6;
+    }
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--fg);
+      font: 16px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    }
+    main {
+      max-width: 52rem;
+      margin: 0 auto;
+      padding: 1.25rem 1rem 4rem;
+    }
+    h1, h2, h3 { font-weight: 650; line-height: 1.2; }
+    h1 { font-size: 1.6rem; margin: 0 0 0.4rem; }
+    h2 { font-size: 1.15rem; margin: 2rem 0 0.6rem; border-top: 1px solid var(--line); padding-top: 1.1rem; }
+    h3 { font-size: 1rem; margin: 1.2rem 0 0.35rem; }
+    p, li { color: var(--fg); }
+    .muted, .meta { color: var(--muted); }
+    .meta { font-size: 0.92rem; margin: 0 0 1.2rem; }
+    a { color: var(--fg); }
+    code, pre {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 0.84rem;
+    }
+    code {
+      background: var(--panel);
+      padding: 0.05em 0.3em;
+      border: 1px solid var(--line);
+    }
+    pre {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      padding: 0.75rem;
+      overflow-x: auto;
+      white-space: pre-wrap;
+    }
+    table { width: 100%; border-collapse: collapse; font-size: 0.95rem; }
+    th, td { text-align: left; vertical-align: top; padding: 0.45rem 0.5rem; border-bottom: 1px solid var(--line); }
+    th { color: var(--muted); font-weight: 600; }
+    .sev { font-weight: 700; letter-spacing: 0.02em; text-transform: uppercase; font-size: 0.75rem; }
+    .blocker { color: var(--blocker); }
+    .warning { color: var(--warning); }
+    .ok { color: var(--ok); }
+    .callout {
+      border: 1px solid var(--line);
+      background: var(--panel);
+      padding: 0.85rem 1rem;
+      margin: 1rem 0;
+    }
+    ul { padding-left: 1.2rem; }
+    li { margin: 0.25rem 0; }
+  </style>
+</head>
+<body>
+<main>
+  <h1>PR 422 code review</h1>
+  <p class="meta">
+    <a href="https://github.com/community-outpost/GenHub/pull/422" target="_blank" rel="noopener noreferrer">feat(replay): add CRC mapping infrastructure and replay header parser</a>
+    · 64 files, +9104 / −298 · base <code>development</code>
+    · reviewed 9 Sep 2026 against HEAD of <code>feat/replay-manager-crc-mapping</code>
+  </p>
+
+  <div class="callout">
+    <p><strong class="blocker">Risk: high. Request changes.</strong></p>
+    <p>
+      Header parsing, the immutable registry swap, size bounds, and the RequiresProfile status are in decent shape.
+      Play is not. Compatibility still treats a known executable plus the wrong INI as a known client, data patches
+      match across GeneralsOnline QFEs, and a third-party replay profile is built pointing at the retail
+      <code>generals.exe</code>. Several unit tests assert those behaviors as success.
+    </p>
+  </div>
+
+  <h2>What the PR actually ships</h2>
+  <p>
+    Replay Manager now reads <code>GENREP</code> headers, looks up <code>exeCRC</code>/<code>iniCRC</code> in an
+    embedded <code>crc-mapping.json</code> (122-ish game clients), paints a compatibility badge, and can create
+    plus launch a dedicated profile. Catalog refresh polls
+    <code>raw.githubusercontent.com/.../development/.../crc-mapping.json</code> every 24 hours, with a local
+    fallback file. Steam launch, profile messenger wiring, and <code>HasCompatibleCatalogIdentity</code> were
+    widened so those replay profiles can start.
+  </p>
+  <p>
+    The PR description still talks about a GitHub Gist. The code does not. The live URL is the
+    <code>development</code> branch of this repo.
+  </p>
+
+  <h2>Blast radius</h2>
+  <p>
+    GitNexus <code>detect-changes</code> could not run here (pnpm store reflink failure). Manual caller walk:
+  </p>
+  <table>
+    <thead>
+      <tr><th>Change</th><th>Who feels it</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code>DependencyResolver.HasCompatibleCatalogIdentity</code> now treats any two game-client names as compatible unless one is Generals and the other is Zero Hour</td>
+        <td>Replay matching, dependency pool fallback, and launch validation. Not replay-only.</td>
+      </tr>
+      <tr>
+        <td><code>WorkspaceStrategyBase</code> filename fallback now runs even when a GameClient manifest exists but entry-point resolution fails</td>
+        <td>Every workspace prepare, including normal profile launch.</td>
+      </tr>
+      <tr>
+        <td><code>GameLauncher</code> workspace filename fallback plus Steam cleanup when a <code>.ghbak</code> exists on non-Steam launches</td>
+        <td>Launch path for all profiles.</td>
+      </tr>
+      <tr>
+        <td><code>GameProfileManager</code> persists <code>UseSteamLaunch</code> on create</td>
+        <td>Wizard and replay-created profiles.</td>
+      </tr>
+      <tr>
+        <td><code>ProfileLauncherFacade</code> sends launched/stopped messages and resolves missing manifests by catalog identity</td>
+        <td>Launcher cards plus replay Play.</td>
+      </tr>
+    </tbody>
+  </table>
+  <p>
+    ReplayDirectoryService itself is ~1790 lines and now owns parse, catalog match, acquire, profile create, and launch.
+    That is a lot of launch pipeline sitting in a tools service.
+  </p>
+
+  <h2>Blockers</h2>
+
+  <h3><span class="sev blocker">Blocker</span> Exe-only CRC fallback is treated as a hit</h3>
+  <p>
+    SAGE replays are identified by the pair. <code>TryGetEntry</code> misses the pair, then still returns the
+    ExeMap row and stamps <code>Custom INI (...)</code> with <code>DataPatchManifestId = null</code>.
+  </p>
+<pre>var normalized = NormalizeHex(exeCrc);
+if (!string.IsNullOrEmpty(normalized) &amp;&amp; state.ExeMap.TryGetValue(normalized, out var baseEntry))
+{
+    entry = baseEntry with
+    {
+        IniCrc = $"0x{NormalizeHex(iniCrc)}",
+        DataPatchName = $"Custom INI (0x{NormalizeHex(iniCrc)})",
+        DataPatchManifestId = null,
+    };
+    return true;
+}</pre>
+  <p>
+    Every SuperHackers Zero Hour row in the committed catalog shares vanilla INI <code>0x76B251A3</code>.
+    A TSH weekly exe with a community or GO INI therefore becomes “matched TSH client, no patch required.”
+    <code>FindMatchingProfile</code> then accepts any TSH profile of that version. Badge says Ready to Play.
+    The replay desyncs or refuses to load.
+  </p>
+  <p>
+    <code>CrcMappingRegistryTests</code> locks this in: <code>TryGetEntry("0x27533BB0", "0xDEADBEEF")</code>
+    must succeed. That is the wrong contract for replay playback.
+  </p>
+  <p>
+    Same-exe collisions in the catalog make ExeMap order-dependent. GeneralsOnline
+    <code>0xB9DB8815</code> is both <code>082826_QFE1</code> (<code>ini 0x81FB5632</code>) and base
+    <code>082826</code> (<code>ini 0x5CB7992C</code>). Pair lookup is fine. The fallback is not.
+  </p>
+
+  <h3><span class="sev blocker">Blocker</span> Third-party replay profiles point at the retail executable</h3>
+  <p>
+    <code>ResolveReplayGameClientAsync</code> takes the installation’s <code>ZeroHourClient.ExecutablePath</code>
+    (Steam/EA <code>generals.exe</code>). If that is set, <code>GetDefaultExecutableName</code> never runs, so
+    SuperHackers <code>generalszh.exe</code> is ignored. <code>ResolveThirdPartyGameClientAsync</code> then
+    writes that retail path and working directory onto the new <code>GameClient</code>.
+  </p>
+  <p>
+    This PR also taught launch to trust that filename:
+  </p>
+  <ul>
+    <li>
+      <code>WorkspaceStrategyBase.UpdateWorkspaceInfo</code> used to skip the filename fallback when a
+      GameClient manifest existed. It now falls back whenever <code>ExecutablePath</code> is still empty,
+      using <code>Path.GetFileName(configuration.GameClient.ExecutablePath)</code>. A TSH workspace that
+      still contains linked retail <code>generals.exe</code> will resolve to that file.
+    </li>
+    <li>
+      <code>GameLauncher.ResolveAndValidateExecutablePath</code> gained the same filename search inside the
+      workspace before falling back to the profile path.
+    </li>
+  </ul>
+  <p>
+    Create-profile tests for GO/TSH assert <code>GameClientId</code> only. The only
+    <code>ExecutablePath</code> assertion is the retail path-from-directory case. Nobody checks that Play
+    starts the acquired publisher binary.
+  </p>
+
+  <h3><span class="sev blocker">Blocker</span> Data patches match with no version check</h3>
+  <p>
+    Client matching at least AND-gates <code>HasMatchingClientVersion</code>. Data patches do not:
+  </p>
+<pre>return profile.EnabledContentIds?.Any(id =&gt;
+    string.Equals(id, dataPatchManifestId, StringComparison.OrdinalIgnoreCase) ||
+    DependencyResolver.HasCompatibleCatalogIdentity(dataPatchManifestId, id)) == true;</pre>
+  <p>
+    <code>HasCompatibleCatalogIdentity</code> ignores segment 1 (user version). For patch type it then
+    treats any two <code>gamedata</code> names as the same. So
+    <code>1.828261.generalsonline.patch.gamedata</code> matches
+    <code>1.82826.generalsonline.patch.gamedata</code> and also <code>1.60526....patch.gamedata</code>.
+  </p>
+  <p>
+    The same helper is the new launch-validation fallback in
+    <code>ProfileLauncherFacade.ResolveManifestForValidationAsync</code>: exact pool miss becomes
+    “first pooled manifest with the same publisher and type.” That is load-bearing for every profile, not
+    just replays.
+  </p>
+  <p>
+    There is no negative test for a wrong-week GO patch. The “version matches” third-party test sets both
+    sides to <code>082826</code> while using catalog id <code>1.828261</code> (QFE1).
+  </p>
+
+  <h3><span class="sev blocker">Blocker</span> QFE vs base prefix match when Version is empty</h3>
+  <p>
+    <code>HasMatchingVersionSegment</code> treats two version segments as equal when the shorter is at least
+    5 chars, the lengths differ by at most 1, and one is a prefix of the other.
+    <code>82826</code> vs <code>828261</code> is a hit. That is GeneralsOnline base vs QFE1.
+  </p>
+  <p>
+    The branch only runs when a Version string is missing on either side. Production
+    <code>GameClient.Version</code> is often empty on older profiles. The test
+    <code>CreateProfileForReplayAsync_WhenCatalogIdDiffersFromPooledClientVariant_ResolvesPooledManifestIdAsync</code>
+    sets Version <code>082826</code> on a QFE1 catalog id and expects the pooled
+    <code>1.82826.generalsonline.gameclient.60hz</code> client. That is the bug, signed off.
+  </p>
+  <p>
+    <code>DependencyResolverTests</code> also requires
+    <code>1.0828261.generalsonline.gameclient.zerohour</code> ≡
+    <code>1.82826.generalsonline.gameclient.60hz</code>. Fine for “any GO client satisfies a type
+    dependency.” Unsafe as a CRC stand-in.
+  </p>
+
+  <h2>Warnings</h2>
+
+  <h3><span class="sev warning">Warning</span> Installation pick ignores catalog publisher</h3>
+  <p>
+    Steam ZH exe CRC is <code>0x401D89EA</code>. Retail/EA in this catalog is <code>0xDA2B4B18</code> (and a
+    second EA row that reuses the Steam CRC with a different SHA-256). <code>ResolveInstallation</code> is
+    <code>FirstOrDefault</code> with <code>HasZeroHour</code>. A machine with Origin and Steam can build an
+    EA profile for a Steam replay. Pair lookup did the hard work, then create threw it away.
+  </p>
+
+  <h3><span class="sev warning">Warning</span> Null GameClient is treated as compatible</h3>
+<pre>if (profile.GameClient == null)
+{
+    // Profile without GameClient (e.g. In mocks/test harnesses) is assumed valid
+    return true;
+}</pre>
+  <p>
+    That comment is written for the test harness. <code>LaunchReplayAsync_WhenMatchingProfileExists</code>
+    depends on it. A persisted profile with a dropped client still launches.
+  </p>
+
+  <h3><span class="sev warning">Warning</span> Replay Play cleans other profiles’ user data</h3>
+  <p>
+    <code>LaunchReplayAsync</code> calls the facade with <code>skipUserDataCleanup: false</code>.
+    <code>skipCleanup: true</code> is the adopt-maps path. False means maps linked by the previously
+    active profile are not adopted, then lingering profiles are deactivated. Custom-map replays can lose
+    the map they need. Dedicated replay Play should pass <code>true</code>.
+  </p>
+
+  <h3><span class="sev warning">Warning</span> Catalog and generator do not measure SAGE iniCRC</h3>
+  <ul>
+    <li>Without <code>--inspect-binaries</code>, TSH ZH INI is hardcoded <code>0x76B251A3</code> and GO is <code>0x5CB7992C</code>. Empty <code>exeCrc</code> rows are skipped, so a crawl without inspect is a no-op.</li>
+    <li>With inspect, INI is <code>zlib.crc32</code> of <code>mapcachego.ini</code> / <code>generals.ini</code>. That is not the engine overlay CRC stored in the replay header.</li>
+    <li>Committed catalog: 49/49 TSH ZH INIs are vanilla <code>0x76B251A3</code>. 19/23 GO INIs are the default <code>0x5CB7992C</code>.</li>
+    <li>Steam last-write wins on duplicate pairs, so the EA row at <code>0x401D89EA</code>/<code>0x76B251A3</code> is unreachable. Those two rows also disagree on SHA-256 while claiming to be the same binary.</li>
+    <li>Two “Vanilla 1.04 INI” retail rows share a manifest id and differ only by INI (<code>0xFEAAE3F3</code> vs <code>0x76B251A3</code>). <code>RegisterEntry</code> replaces by ManifestId and would collapse them.</li>
+  </ul>
+
+  <h3><span class="sev warning">Warning</span> Steam replay profiles still install the proxy</h3>
+  <p>
+    <code>BuildReplayProfileRequest</code> sets <code>UseSteamLaunch</code> when the install is Steam.
+    Create now persists that flag. Play then replaces <code>generals.exe</code> with the proxy and
+    <code>ForceRecreate</code>s the workspace. That is existing Steam-launch machinery, now on the
+    “watch a replay” button. Surprising, and it multiplies the wrong-exe bug above.
+  </p>
+  <p>
+    Related launcher change: pre-launch cleanup now also runs when a <code>generals.exe.ghbak</code>
+    exists on a non-Steam launch, and failure is ignored unless <code>isSteamLaunch</code>. A leftover
+    proxy can stay in the install.
+  </p>
+
+  <h3><span class="sev warning">Warning</span> Header parser still swallows Exception</h3>
+  <p>
+    <code>ParseHeaderAsync(Stream)</code> uses <code>catch (Exception ex) when (ex is not OperationCanceledException)</code>.
+    Repo rule CS-R1008. File-path overload is correctly limited to <code>IOException</code> /
+    <code>UnauthorizedAccessException</code>. Non-seekable streams also skip the 10 MB cap.
+  </p>
+
+  <h3><span class="sev warning">Warning</span> UI and docs nits that will bite</h3>
+  <ul>
+    <li>Compatibility dots are literal <code>●</code> in <code>ReplayManagerView.axaml</code>. Styling guide wants PathIcon or a theme brush, not Unicode glyphs.</li>
+    <li>Grid Play / Profile / Setup have no <code>IsEnabled</code> against <code>IsBusy</code>. Double-click races two launches.</li>
+    <li><code>Receive(ProfileDeletedMessage)</code> mutates replay collections on the sender thread, then posts a reload. Launcher VM marshals the same messages with <code>RunOnUi</code>.</li>
+    <li><code>HasSelectedZips</code> hardcodes <code>".zip"</code> despite <code>ReplayManagerConstants.ZipFileExtension</code>.</li>
+    <li><code>IReplayDirectoryService.DeleteReplaysAsync</code> says Recycle Bin. Implementation is <code>File.Delete</code>.</li>
+    <li>Play launches the profile. It does not pass the replay filename to the process. The user still picks the file in-game. The button copy implies otherwise.</li>
+    <li><code>AcquireGeneralsOnlineMapPacksAsync</code> acquires every GO map pack the search returns, with no version pin.</li>
+    <li>PR includes a 1-line <code>AGENTS.md</code> GitNexus bump. Leave that off the feature branch.</li>
+  </ul>
+
+  <h2>What already looks fixed</h2>
+  <p>
+    Earlier bot threads are stale on several points. Do not re-litigate these:
+  </p>
+  <table>
+    <thead>
+      <tr><th>Old finding</th><th>Now</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Catalog maps cleared in place</td><td><code>BuildState</code> + <code>Interlocked.Exchange</code> of immutable dictionaries</td></tr>
+      <tr><td>Fallback file truncated then serialized</td><td>temp file + <code>File.Move(..., overwrite: true)</code></td></tr>
+      <tr><td>Single <code>ReadAsync</code> on the header stream</td><td>loop until buffer full or EOF</td></tr>
+      <tr><td><code>MaxReplaySizeBytes</code> unused</td><td>enforced at 10 MB on file and seekable stream</td></tr>
+      <tr><td>Compatible meant “has CdnUrl”</td><td><code>RequiresProfile</code> vs installed vs downloadable</td></tr>
+      <tr><td>Empty registry at startup, everything Orphaned for 30s</td><td>embedded <code>crc-mapping.json</code> preloaded in the singleton</td></tr>
+      <tr><td>Companions added by publisher+version only</td><td>requires a dependency link either way</td></tr>
+    </tbody>
+  </table>
+  <p>
+    Header parser tests for magic, short files, slot prefixes, and names like <code>captain</code> /
+    <code>Hank</code> are real. <code>FindMatchingProfile</code> ranking (dedicated vs general vs other
+    replay) is real. Atomic <code>LoadCatalog</code> replacement is tested.
+  </p>
+
+  <h2>Missing coverage</h2>
+  <ul>
+    <li>No <code>GetReplaysAsync</code> test. Two tests with that name call <code>CreateProfileForReplayAsync</code>.</li>
+    <li>No test that unknown INI on a known exe stays unmatched through <code>ResolveCompatibility</code>.</li>
+    <li>No test that a GO patch from another date is rejected.</li>
+    <li>No test that QFE1 vs base is rejected when <code>GameClient.Version</code> is null.</li>
+    <li>No assertion of the launched or stored executable name for TSH/GO.</li>
+    <li>No negative companion test (same version, no dependency link, must skip).</li>
+    <li><code>CrcCatalogUpdateServiceTests</code> look up CRCs that already exist in the embedded catalog, so they pass if <code>LoadCatalog</code> never runs. They do not assert cache skip, bad schema, or <code>GENHUB_CRC_CATALOG_URL</code>.</li>
+    <li>No tests for <code>scripts/generate_crc_catalog.py</code>.</li>
+    <li>Parser has no fixture built from a real <code>.rep</code>.</li>
+  </ul>
+
+  <h2>What I would change before merge</h2>
+  <ol>
+    <li>Make <code>TryGetEntry</code> pair-only. Keep <code>TryGetEntryByExeCrc</code> for diagnostics. Custom INI is Orphaned, not Ready to Play.</li>
+    <li>Resolve TSH/GO executable and working directory from the acquired client manifest, not from the Steam/EA install. Stop the filename fallback from selecting <code>generals.exe</code> when the profile’s publisher is not retail.</li>
+    <li>Require version (and GO variant) equality for data-patch identity. Do not reuse <code>HasCompatibleCatalogIdentity</code> as CRC equality in replay matching or launch validation.</li>
+    <li>Drop the prefix rule in <code>HasMatchingVersionSegment</code>, or require an exact segment. Fix the tests that want QFE1 to resolve to base 60 Hz.</li>
+    <li>Pick the installation whose publisher matches the catalog row. Null <code>GameClient</code> is not compatible.</li>
+    <li>Pass <code>skipUserDataCleanup: true</code> on replay launch. Strongly consider <code>UseSteamLaunch = false</code> on replay-created profiles.</li>
+    <li>Stop generating catalog INIs from defaults / zlib of loose ini files. Measure whatever the engine writes into the replay header, or leave INI empty and do not match.</li>
+  </ol>
+
+  <h2>Recommendation</h2>
+  <p>
+    <strong>Request changes.</strong> Builds and Core tests are green. That is the problem: the suite agrees
+    with the unsafe matching. I would not merge until pair-only CRC lookup, publisher-client binaries, and
+    version-strict patches are the behavior under test.
+  </p>
+  <p class="muted">
+    Prior bot comments (Greptile version-agnostic clients, Qodo empty registry, Kilo size cap) are partly
+    addressed. The remaining defects are in matching and launch, which those passes only grazed.
+  </p>
+</main>
+</body>
+</html>
