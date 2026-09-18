@@ -11,6 +11,7 @@ using Moq.Protected;
 using System.Collections.Generic;
 using System.Net;
 using System.Net.Http;
+using System.Net.Http.Headers;
 using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
@@ -562,5 +563,103 @@ SimpleDownloadLink: 'https://example.com/test-patch.zip'
         var patchItem = result.Data.Items.FirstOrDefault(i => i.Name == "Test Patch");
         Assert.NotNull(patchItem);
         Assert.Equal(ContentType.Patch, patchItem.ContentType);
+    }
+
+    /// <summary>
+    /// Tests that a plain-http download link redirecting to https still yields the real payload size.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task DiscoverAsync_WhenDownloadLinkRedirects_FollowsRedirectForSize()
+    {
+        var mockHttp = new Mock<HttpMessageHandler>();
+
+        const string rootYaml = @"
+LauncherVersion: '1.0'
+modDatas:
+  - ModName: 'Redirect Mod'
+    ModLink: 'https://example.com/redirect-mod.yaml'
+    ModPatches: []
+    ModAddons: []
+";
+
+        const string parentYaml = @"
+Name: 'Redirect Mod'
+Version: '1.5'
+ModificationType: 0
+SimpleDownloadLink: 'http://cdn.example.com/redirect-mod.zip'
+";
+
+        mockHttp.Protected()
+            .Setup<Task<HttpResponseMessage>>(
+                "SendAsync",
+                ItExpr.Is<HttpRequestMessage>(r => r.Method == HttpMethod.Get && r.RequestUri!.ToString().Contains("ZH")),
+                ItExpr.IsAny<CancellationToken>())
+            .ReturnsAsync(new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(rootYaml),
+            });
+
+        mockHttp.Protected()
+            .Setup<Task<HttpResponseMessage>>(
+                "SendAsync",
+                ItExpr.Is<HttpRequestMessage>(r => r.Method == HttpMethod.Get && r.RequestUri!.ToString().Contains("redirect-mod.yaml")),
+                ItExpr.IsAny<CancellationToken>())
+            .ReturnsAsync(new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(parentYaml),
+            });
+
+        // Plain-http HEAD answers with a redirect to https, mirroring gen.insave.ovh mirrors
+        var redirect = new HttpResponseMessage(HttpStatusCode.MovedPermanently)
+        {
+            Content = new ByteArrayContent([]),
+        };
+        redirect.Headers.Location = new Uri("https://cdn.example.com/redirect-mod.zip");
+        mockHttp.Protected()
+            .Setup<Task<HttpResponseMessage>>(
+                "SendAsync",
+                ItExpr.Is<HttpRequestMessage>(r => r.Method == HttpMethod.Head && r.RequestUri!.Scheme == Uri.UriSchemeHttp),
+                ItExpr.IsAny<CancellationToken>())
+            .ReturnsAsync(redirect);
+
+        const long expectedSize = 551417137;
+        var finalContent = new ByteArrayContent([]);
+        finalContent.Headers.ContentLength = expectedSize;
+        finalContent.Headers.ContentType = new MediaTypeHeaderValue("application/zip");
+        mockHttp.Protected()
+            .Setup<Task<HttpResponseMessage>>(
+                "SendAsync",
+                ItExpr.Is<HttpRequestMessage>(r => r.Method == HttpMethod.Head && r.RequestUri!.Scheme == Uri.UriSchemeHttps),
+                ItExpr.IsAny<CancellationToken>())
+            .ReturnsAsync(new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = finalContent,
+            });
+
+        var httpClient = new HttpClient(mockHttp.Object);
+        var mockFactory = new Mock<IHttpClientFactory>();
+        mockFactory.Setup(f => f.CreateClient(PublisherTypeConstants.GenLauncher)).Returns(httpClient);
+
+        var mockLoader = new Mock<IProviderDefinitionLoader>();
+        mockLoader.Setup(l => l.GetProvider(GenLauncherConstants.PublisherId)).Returns((ProviderDefinition?)null);
+
+        var parser = new GenLauncherCatalogParser(NullLogger<GenLauncherCatalogParser>.Instance);
+        var discoverer = new GenLauncherDiscoverer(
+            mockFactory.Object,
+            mockLoader.Object,
+            parser,
+            NullLogger<GenLauncherDiscoverer>.Instance);
+
+        var result = await discoverer.DiscoverAsync(
+            new ContentSearchQuery { TargetGame = GameType.ZeroHour },
+            CancellationToken.None);
+
+        Assert.True(result.Success);
+        Assert.NotNull(result.Data);
+
+        var item = result.Data.Items.FirstOrDefault(i => i.Name == "Redirect Mod");
+        Assert.NotNull(item);
+        Assert.Equal(expectedSize, item.DownloadSize);
     }
 }

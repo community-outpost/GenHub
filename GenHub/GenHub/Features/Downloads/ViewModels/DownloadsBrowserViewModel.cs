@@ -713,30 +713,12 @@ public sealed partial class DownloadsBrowserViewModel(
                 ? v.Name
                 : $"{baseName} - {v.Name}";
 
-            var variantSr = new ContentSearchResult
-            {
-                Id = manifestId,
-                Name = variantName,
-                Description = primaryItem.Description,
-                Version = primaryItem.Version,
-                ContentType = primaryItem.ContentType,
-                TargetGame = v.TargetGame ?? primaryItem.TargetGame,
-                ProviderName = primaryItem.ProviderName,
-                AuthorName = primaryItem.AuthorName,
-                IconUrl = primaryItem.IconUrl,
-                SourceUrl = primaryItem.SourceUrl,
-                DownloadSize = primaryItem.DownloadSize,
-                RequiresResolution = primaryItem.RequiresResolution,
-                ResolverId = primaryItem.ResolverId,
-                VariantGroupId = primaryItem.VariantGroupId,
-                VariantFamilyName = primaryItem.VariantFamilyName,
-                Variants = primaryItem.Variants,
-            };
-
-            foreach (var kvp in primaryItem.ResolverMetadata)
-            {
-                variantSr.ResolverMetadata[kvp.Key] = kvp.Value;
-            }
+            // Clone the full result so variant swaps keep the direct download URL,
+            // parsed page data, and typed payload instead of falling back to the source URL.
+            var variantSr = VariantSwap.Clone(primaryItem);
+            variantSr.Id = manifestId;
+            variantSr.Name = variantName;
+            variantSr.TargetGame = v.TargetGame ?? primaryItem.TargetGame;
 
             variantSr.ResolverMetadata[CatalogConstants.SelectedVariantMetadataKey] = v.Id;
 

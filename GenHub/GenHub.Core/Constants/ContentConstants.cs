@@ -38,6 +38,11 @@ public static class ContentConstants
     public const float DefaultRating = 0f;
 
     /// <summary>
+    /// Maximum redirect hops followed when probing a remote file size with HEAD requests.
+    /// </summary>
+    public const int MaxSizeProbeRedirects = 5;
+
+    /// <summary>
     /// Default progress step count for single-step operations.
     /// </summary>
     public const int SingleStepTotal = 1;
