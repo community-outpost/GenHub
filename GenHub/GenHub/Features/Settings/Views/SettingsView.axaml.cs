@@ -175,22 +175,6 @@ public partial class SettingsView : UserControl
         // This method exists for potential future enhancements
     }
 
-    private void OnOpenPatCreationUrl(object? sender, RoutedEventArgs e)
-    {
-        try
-        {
-            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(
-                Core.Constants.GitHubConstants.PatCreationUrl)
-            {
-                UseShellExecute = true,
-            });
-        }
-        catch
-        {
-            // Silently fail if browser cannot be opened
-        }
-    }
-
     /// <summary>
     /// Loads and initializes the XAML components for this view.
     /// </summary>

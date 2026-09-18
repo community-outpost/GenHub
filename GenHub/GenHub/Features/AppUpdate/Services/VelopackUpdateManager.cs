@@ -38,7 +38,7 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
 
     private readonly ILogger<VelopackUpdateManager> _logger;
     private readonly IHttpClientFactory _httpClientFactory;
-    private readonly IGitHubTokenStorage? _gitHubTokenStorage;
+    private readonly IGitHubAuthService? _gitHubAuthService;
     private readonly IUserSettingsService? _userSettingsService;
     private readonly IFileDownloader _fileDownloader;
     private readonly UpdateManager? _updateManager;
@@ -107,19 +107,19 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
     /// </summary>
     /// <param name="logger">The logger instance.</param>
     /// <param name="httpClientFactory">The HTTP client factory for creating HttpClient instances.</param>
-    /// <param name="gitHubTokenStorage">The GitHub token storage (optional).</param>
+    /// <param name="gitHubAuthService">The GitHub authentication service (optional).</param>
     /// <param name="userSettingsService">The user settings service (optional).</param>
     /// <param name="fileDownloader">The high-performance file downloader (optional).</param>
     public VelopackUpdateManager(
         ILogger<VelopackUpdateManager> logger,
         IHttpClientFactory httpClientFactory,
-        IGitHubTokenStorage? gitHubTokenStorage = null,
+        IGitHubAuthService? gitHubAuthService = null,
         IUserSettingsService? userSettingsService = null,
         IFileDownloader? fileDownloader = null)
     {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _httpClientFactory = httpClientFactory ?? throw new ArgumentNullException(nameof(httpClientFactory));
-        _gitHubTokenStorage = gitHubTokenStorage;
+        _gitHubAuthService = gitHubAuthService;
         _userSettingsService = userSettingsService;
         _fileDownloader = fileDownloader ?? new FastHttpClientFileDownloader();
 
@@ -417,9 +417,9 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
 
         _logger.LogInformation("Checking for artifact updates from GitHub Actions CI builds");
 
-        if (_gitHubTokenStorage == null)
+        if (_gitHubAuthService == null || !_gitHubAuthService.IsAuthenticated)
         {
-            _logger.LogDebug("No GitHub token storage available, skipping artifact updates check");
+            _logger.LogDebug("GitHub authentication not available, skipping artifact updates check");
             return null;
         }
 
@@ -488,19 +488,19 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
 
         var results = new List<PullRequestInfo>();
 
-        // Check if PAT is available
-        if (_gitHubTokenStorage == null || !_gitHubTokenStorage.HasToken())
+        // Check if GitHub authentication is available
+        if (_gitHubAuthService == null || !_gitHubAuthService.IsAuthenticated)
         {
-            _logger.LogDebug("No GitHub PAT available, skipping PR list fetch");
+            _logger.LogDebug("GitHub authentication not available, skipping PR list fetch");
             return results;
         }
 
         try
         {
-            var token = await _gitHubTokenStorage.LoadTokenAsync();
+            using var token = await _gitHubAuthService.GetAccessTokenAsync(cancellationToken);
             if (token == null)
             {
-                _logger.LogWarning("Failed to load GitHub PAT");
+                _logger.LogWarning("Failed to load GitHub access token");
                 return results;
             }
 
@@ -615,9 +615,9 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
         _logger.LogInformation("Fetching available branches");
         List<string> results = [];
 
-        if (_gitHubTokenStorage == null || !_gitHubTokenStorage.HasToken())
+        if (_gitHubAuthService == null || !_gitHubAuthService.IsAuthenticated)
         {
-            _logger.LogDebug("No GitHub PAT available, skipping branch list fetch");
+            _logger.LogDebug("GitHub authentication not available, skipping branch list fetch");
 
             // Return at least main & development as defaults if we can't fetch real ones
             return ["main", "development"];
@@ -625,7 +625,7 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
 
         try
         {
-            var token = await _gitHubTokenStorage.LoadTokenAsync();
+            using var token = await _gitHubAuthService.GetAccessTokenAsync(cancellationToken);
             if (token == null)
             {
                 return ["main", "development"];
@@ -684,9 +684,9 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
     {
         ArgumentNullException.ThrowIfNull(artifactInfo);
 
-        if (_gitHubTokenStorage == null || !_gitHubTokenStorage.HasToken())
+        if (_gitHubAuthService == null || !_gitHubAuthService.IsAuthenticated)
         {
-            throw new InvalidOperationException("GitHub PAT required to download artifacts");
+            throw new InvalidOperationException("GitHub authentication required to download artifacts");
         }
 
         SimpleHttpServer? server = null;
@@ -701,9 +701,10 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
             var commitInfo = !string.IsNullOrEmpty(artifactInfo.GitHash) ? $" ({artifactInfo.GitHash})" : string.Empty;
             progress?.Report(new UpdateProgress { Status = $"Downloading artifact for {label}{commitInfo}...", PercentComplete = 0 });
 
-            if (await _gitHubTokenStorage.LoadTokenAsync() is not { } token)
+            using var token = await _gitHubAuthService!.GetAccessTokenAsync(cancellationToken);
+            if (token == null)
             {
-                throw new InvalidOperationException("Failed to load GitHub PAT");
+                throw new InvalidOperationException("Failed to load GitHub access token");
             }
 
             var owner = AppConstants.GitHubRepositoryOwner;
@@ -894,10 +895,14 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
         CancellationToken cancellationToken = default)
     {
         var artifact = prInfo.LatestArtifact;
-        if (artifact == null && _gitHubTokenStorage is { } storage && await storage.LoadTokenAsync() is { } token)
+        if (artifact == null && _gitHubAuthService is { } auth)
         {
-            using var client = CreateConfiguredHttpClientWithToken(token);
-            artifact = await FindLatestArtifactForPrAsync(client, prInfo.Number, cancellationToken);
+            using var token = await auth.GetAccessTokenAsync(cancellationToken);
+            if (token != null)
+            {
+                using var client = CreateConfiguredHttpClientWithToken(token);
+                artifact = await FindLatestArtifactForPrAsync(client, prInfo.Number, cancellationToken);
+            }
         }
 
         if (artifact == null)
@@ -962,15 +967,15 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
     {
         _logger.LogInformation("Fetching all artifacts for PR #{PrNumber}", prNumber);
 
-        if (_gitHubTokenStorage == null || !_gitHubTokenStorage.HasToken())
+        if (_gitHubAuthService == null || !_gitHubAuthService.IsAuthenticated)
         {
-            _logger.LogWarning("No GitHub PAT available, cannot fetch artifacts");
+            _logger.LogWarning("GitHub authentication not available, cannot fetch artifacts");
             return [];
         }
 
         try
         {
-            var token = await _gitHubTokenStorage.LoadTokenAsync();
+            using var token = await _gitHubAuthService.GetAccessTokenAsync(cancellationToken);
             if (token == null) return [];
 
             using var client = CreateConfiguredHttpClientWithToken(token);
@@ -1002,15 +1007,15 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
     {
         _logger.LogInformation("Fetching all artifacts for branch '{Branch}'", branchName);
 
-        if (_gitHubTokenStorage == null || !_gitHubTokenStorage.HasToken())
+        if (_gitHubAuthService == null || !_gitHubAuthService.IsAuthenticated)
         {
-            _logger.LogWarning("No GitHub PAT available, cannot fetch artifacts");
+            _logger.LogWarning("GitHub authentication not available, cannot fetch artifacts");
             return [];
         }
 
         try
         {
-            var token = await _gitHubTokenStorage.LoadTokenAsync();
+            using var token = await _gitHubAuthService.GetAccessTokenAsync(cancellationToken);
             if (token == null) return [];
 
             using var client = CreateConfiguredHttpClientWithToken(token);
@@ -1251,15 +1256,18 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
     private async Task<string?> FetchGitHubReleasesJsonAsync(string owner, string repo, CancellationToken cancellationToken)
     {
         var apiUrl = $"https://api.github.com/repos/{owner}/{repo}/releases";
+        using var token = _gitHubAuthService != null
+            ? await _gitHubAuthService.GetAccessTokenAsync(cancellationToken)
+            : null;
         HttpClient client;
-        if (_gitHubTokenStorage != null && await _gitHubTokenStorage.LoadTokenAsync() is { } token)
+        if (token != null)
         {
-            _logger.LogDebug("Using GitHub PAT for update check to increase rate limits");
+            _logger.LogDebug("Using GitHub authentication for update check to increase rate limits");
             client = CreateConfiguredHttpClientWithToken(token);
         }
         else
         {
-            _logger.LogDebug("No GitHub PAT available for update check, using anonymous request");
+            _logger.LogDebug("No GitHub authentication available for update check, using anonymous request");
             client = CreateConfiguredHttpClient();
         }
 
@@ -1524,12 +1532,12 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
     /// </summary>
     private async Task<ArtifactUpdateInfo?> FindLatestArtifactAsync(string? branch, CancellationToken cancellationToken)
     {
-        if (_gitHubTokenStorage == null || !_gitHubTokenStorage.HasToken())
+        if (_gitHubAuthService == null || !_gitHubAuthService.IsAuthenticated)
             return null;
 
         try
         {
-            var token = await _gitHubTokenStorage.LoadTokenAsync();
+            using var token = await _gitHubAuthService.GetAccessTokenAsync(cancellationToken);
             if (token == null)
                 return null;
 

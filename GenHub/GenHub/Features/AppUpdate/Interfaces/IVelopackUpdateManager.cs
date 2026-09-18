@@ -22,7 +22,7 @@ public interface IVelopackUpdateManager
 
     /// <summary>
     /// Checks for available artifact updates from GitHub Actions CI builds.
-    /// Requires a GitHub PAT with repo access.
+    /// Requires GitHub sign-in (OAuth device flow).
     /// </summary>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>ArtifactUpdateInfo if an artifact update is available, otherwise null.</returns>
@@ -30,7 +30,7 @@ public interface IVelopackUpdateManager
 
     /// <summary>
     /// Gets a list of available branches from the repository.
-    /// Requires a GitHub PAT with repo access.
+    /// Requires GitHub sign-in (OAuth device flow).
     /// </summary>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>List of branch names.</returns>
@@ -38,7 +38,7 @@ public interface IVelopackUpdateManager
 
     /// <summary>
     /// Gets a list of open pull requests with available CI artifacts.
-    /// Requires a GitHub PAT with repo access.
+    /// Requires GitHub sign-in (OAuth device flow).
     /// </summary>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>List of open PRs with artifact info.</returns>
@@ -98,7 +98,7 @@ public interface IVelopackUpdateManager
     string? LatestVersionFromGitHub { get; }
 
     /// <summary>
-    /// Gets a value indicating whether artifact updates are available (requires PAT).
+    /// Gets a value indicating whether artifact updates are available (requires GitHub sign-in).
     /// </summary>
     bool HasArtifactUpdateAvailable { get; }
 

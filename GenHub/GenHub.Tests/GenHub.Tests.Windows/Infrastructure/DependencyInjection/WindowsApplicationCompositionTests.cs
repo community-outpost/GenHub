@@ -43,9 +43,9 @@ public class WindowsApplicationCompositionTests
                 && descriptor.ImplementationType == typeof(WindowsGitHubTokenStorage)
                 && descriptor.Lifetime == ServiceLifetime.Singleton);
 
-        var tokenStorageMock = new Mock<IGitHubTokenStorage>();
-        tokenStorageMock.Setup(storage => storage.HasToken()).Returns(true);
-        services.AddSingleton(tokenStorageMock.Object);
+        var authServiceMock = new Mock<IGitHubAuthService>();
+        authServiceMock.Setup(service => service.IsAuthenticated).Returns(true);
+        services.AddSingleton(authServiceMock.Object);
 
         using var serviceProvider = services.BuildServiceProvider();
 
@@ -60,11 +60,12 @@ public class WindowsApplicationCompositionTests
         Assert.IsType<WindowsInstallationSearchPathProvider>(
             serviceProvider.GetRequiredService<IInstallationSearchPathProvider>());
         Assert.NotNull(serviceProvider.GetRequiredService<IShortcutService>());
-        Assert.Same(tokenStorageMock.Object, serviceProvider.GetRequiredService<IGitHubTokenStorage>());
+        Assert.IsType<WindowsGitHubTokenStorage>(serviceProvider.GetRequiredService<IGitHubTokenStorage>());
 
         var settingsViewModel = serviceProvider.GetRequiredService<SettingsViewModel>();
-        Assert.True(settingsViewModel.HasGitHubPat);
-        tokenStorageMock.Verify(storage => storage.HasToken(), Times.Once);
+        Assert.NotNull(settingsViewModel);
+        Assert.Same(authServiceMock.Object, serviceProvider.GetRequiredService<IGitHubAuthService>());
+        authServiceMock.VerifyGet(service => service.IsAuthenticated, Times.AtLeastOnce);
         Assert.NotNull(serviceProvider.GetRequiredService<GameProfileSettingsViewModel>());
 
         var mainViewModel = serviceProvider.GetRequiredService<MainViewModel>();

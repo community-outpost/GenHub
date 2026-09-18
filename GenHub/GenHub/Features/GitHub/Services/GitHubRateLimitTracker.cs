@@ -15,6 +15,11 @@ public class GitHubRateLimitTracker(ILogger<GitHubRateLimitTracker> logger)
     private DateTime _resetTime = DateTime.UtcNow.AddHours(GitHubConstants.DefaultRateLimitResetHours);
 
     /// <summary>
+    /// Occurs when rate limit information is updated from API response headers or error responses.
+    /// </summary>
+    public event EventHandler? RateLimitUpdated;
+
+    /// <summary>
     /// Gets the number of remaining API requests.
     /// </summary>
     public int RemainingRequests => _remainingRequests;
@@ -75,6 +80,8 @@ public class GitHubRateLimitTracker(ILogger<GitHubRateLimitTracker> logger)
                 remaining,
                 RemainingPercentage);
         }
+
+        RateLimitUpdated?.Invoke(this, EventArgs.Empty);
     }
 
     /// <summary>
@@ -90,6 +97,8 @@ public class GitHubRateLimitTracker(ILogger<GitHubRateLimitTracker> logger)
             "GitHub API rate limit reached. Resets at {ResetTime} ({TimeUntilReset} remaining)",
             resetTime,
             TimeUntilReset);
+
+        RateLimitUpdated?.Invoke(this, EventArgs.Empty);
     }
 
     /// <summary>

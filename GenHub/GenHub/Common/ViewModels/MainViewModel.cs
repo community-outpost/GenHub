@@ -340,6 +340,13 @@ public partial class MainViewModel(
             userSettingsService.Update(s => s.LastSeenAppVersion = currentVersion);
             _ = userSettingsService.SaveAsync(_initializationCts.Token);
 
+            // Changelogs describe official releases only, so CI artifact builds from
+            // development branches and pull requests update the version stamp silently.
+            if (AppConstants.IsCiBuild)
+            {
+                return;
+            }
+
             var title = localizationService?.GetString("AppUpdate.PostUpdate.Title") ?? AppUpdateConstants.PostUpdateNotificationTitle;
             var message = localizationService?.GetString("AppUpdate.PostUpdate.Message", currentVersion) ??
                           string.Format(AppUpdateConstants.PostUpdateNotificationFormat, currentVersion);

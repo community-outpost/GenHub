@@ -5,6 +5,7 @@ using Avalonia.Markup.Xaml;
 using GenHub.Common.Helpers;
 using GenHub.Features.AppUpdate.ViewModels;
 using Microsoft.Extensions.Logging;
+using System;
 using System.Threading.Tasks;
 
 namespace GenHub.Features.AppUpdate.Views;
@@ -36,6 +37,16 @@ public partial class UpdateNotificationWindow : Window
         {
             _logger?.LogError(ex, "Failed to initialize UpdateNotificationWindow ViewModel");
         }
+
+        // The view model is transient but subscribes to singleton service events,
+        // so it must be disposed when the window closes to avoid leaking it.
+        Closed += (_, _) =>
+        {
+            if (DataContext is IDisposable disposable)
+            {
+                disposable.Dispose();
+            }
+        };
     }
 
     /// <summary>

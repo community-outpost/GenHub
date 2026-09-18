@@ -1,5 +1,7 @@
 using GenHub.Core.Interfaces.GameInstallations;
+using GenHub.Core.Interfaces.GitHub;
 using GenHub.Infrastructure.DependencyInjection;
+using GenHub.MacOS.Features.GitHub.Services;
 using GenHub.MacOS.GameInstallations;
 using GenHub.MacOS.Infrastructure.DependencyInjection;
 using GenHub.Tests.Shared;
@@ -27,6 +29,31 @@ public class MacOSCompositionRootTests
     {
         CompositionRootAssertions.AssertHostContainerIsComplete(
             services => services.AddMacOSServices());
+    }
+
+    /// <summary>
+    /// Verifies that the macOS host registers <see cref="MacOSGitHubTokenStorage"/>
+    /// as the concrete implementation for <see cref="IGitHubTokenStorage"/>.
+    /// </summary>
+    [Fact]
+    public void MacOSHost_RegistersMacOSGitHubTokenStorage()
+    {
+        using var testEnvironment = new TemporaryApplicationEnvironment();
+        var services = new ServiceCollection();
+        services.ConfigureApplicationServices(platformServices => platformServices.AddMacOSServices());
+
+        Assert.Contains(
+            services,
+            descriptor =>
+                descriptor.ServiceType == typeof(IGitHubTokenStorage)
+                && descriptor.ImplementationType == typeof(MacOSGitHubTokenStorage)
+                && descriptor.Lifetime == ServiceLifetime.Singleton);
+
+        using var serviceProvider = services.BuildServiceProvider();
+
+        Assert.IsType<MacOSGitHubTokenStorage>(
+            serviceProvider.GetRequiredService<IGitHubTokenStorage>());
+        Assert.NotNull(serviceProvider.GetRequiredService<IGitHubAuthService>());
     }
 
     /// <summary>
