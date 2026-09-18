@@ -349,6 +349,7 @@ public class RetailArchiveRootValidationTests : IDisposable
         var generals = Directory.CreateDirectory(Path.Combine(_tempDir, "gen-explicit")).FullName;
         var zeroHour = Directory.CreateDirectory(Path.Combine(_tempDir, "zh-steam-both")).FullName;
         var zhGenerals = Directory.CreateDirectory(Path.Combine(zeroHour, GameClientConstants.ZhGeneralsDirectory)).FullName;
+        File.WriteAllText(Path.Combine(zhGenerals, "Textures.big"), "base archive");
 
         var installation = new GameInstallation(
             Path.GetTempPath(),
