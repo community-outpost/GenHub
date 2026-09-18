@@ -3,7 +3,7 @@ namespace GenHub.ProxyLauncher;
 /// <summary>
 /// Constants for the GenHub Proxy Launcher.
 /// </summary>
-internal static class ProxyConstants
+public static class ProxyConstants
 {
     /// <summary>
     /// The name of the configuration file.

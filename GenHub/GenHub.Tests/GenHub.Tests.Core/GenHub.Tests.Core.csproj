@@ -25,6 +25,7 @@
     <ProjectReference Include="..\..\GenHub.Core\GenHub.Core.csproj" />
     <ProjectReference Include="..\..\GenHub\GenHub.csproj" />
     <ProjectReference Include="..\..\GenHub.Tools\GenHub.Tools.csproj" />
+    <ProjectReference Include="..\..\GenHub.ProxyLauncher\GenHub.ProxyLauncher.csproj" />
   </ItemGroup>
   <ItemGroup>
     <Using Include="Xunit" />
