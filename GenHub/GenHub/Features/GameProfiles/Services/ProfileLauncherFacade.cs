@@ -625,6 +625,27 @@ public class ProfileLauncherFacade(
                 requestedToolStrategy);
         }
 
+        var baseInstallationPath = appDataBase;
+        var workspaceRootPath = Path.Combine(appDataBase, DirectoryNames.ToolWorkspaces);
+
+        if (toolManifest.TargetGame != GameType.Unknown)
+        {
+            var installationsResult = await installationService.GetAllInstallationsAsync(cancellationToken);
+            if (installationsResult.Success && installationsResult.Data != null)
+            {
+                var matchingInstall = installationsResult.Data.FirstOrDefault(i =>
+                    (!string.IsNullOrEmpty(profile.GameInstallationId) && i.Id == profile.GameInstallationId) ||
+                    i.AvailableGameClients.Any(c => c.GameType == toolManifest.TargetGame));
+
+                if (matchingInstall != null && !string.IsNullOrEmpty(matchingInstall.InstallationPath) && Directory.Exists(matchingInstall.InstallationPath))
+                {
+                    baseInstallationPath = matchingInstall.InstallationPath;
+                    workspaceRootPath = storageLocationService.GetWorkspacePath(matchingInstall);
+                    logger.LogInformation("[Launch] Tool workspace using base game installation: {Path}", baseInstallationPath);
+                }
+            }
+        }
+
         var actualWorkspaceId = $"{ProfileConstants.ToolProfileWorkspaceIdPrefix}-{profile.Id}";
         var workspaceConfig = new WorkspaceConfiguration
         {
@@ -634,8 +655,8 @@ public class ProfileLauncherFacade(
             Strategy = effectiveToolStrategy,
             ForceRecreate = false,
             ValidateAfterPreparation = true,
-            BaseInstallationPath = appDataBase,
-            WorkspaceRootPath = Path.Combine(appDataBase, DirectoryNames.ToolWorkspaces),
+            BaseInstallationPath = baseInstallationPath,
+            WorkspaceRootPath = workspaceRootPath,
             SkipCleanup = false,
         };
 
@@ -812,6 +833,7 @@ public class ProfileLauncherFacade(
             {
                 if (p.IsInitializingWorkspace)
                 {
+                    NotificationMessage? messageToShow = null;
                     lock (notificationLock)
                     {
                         if (workspaceNotificationId == null)
@@ -822,15 +844,19 @@ public class ProfileLauncherFacade(
                                 ? localizationService.GetString(ProfileConstants.WorkspaceInitializingMessageKey, profile.Name)
                                 : string.Format(System.Globalization.CultureInfo.InvariantCulture, ProfileConstants.WorkspaceInitializingDefaultFormat, profile.Name);
 
-                            var message = new NotificationMessage(
+                            messageToShow = new NotificationMessage(
                                 NotificationType.Info,
                                 title,
                                 body,
                                 autoDismissMilliseconds: null,
                                 isPersistent: true);
-                            workspaceNotificationId = message.Id;
-                            notificationService.Show(message);
+                            workspaceNotificationId = messageToShow.Id;
                         }
+                    }
+
+                    if (messageToShow != null)
+                    {
+                        notificationService.Show(messageToShow);
                     }
                 }
             });
@@ -842,13 +868,19 @@ public class ProfileLauncherFacade(
             }
             finally
             {
+                Guid? notificationToDismiss = null;
                 lock (notificationLock)
                 {
                     if (workspaceNotificationId.HasValue)
                     {
-                        notificationService.Dismiss(workspaceNotificationId.Value);
+                        notificationToDismiss = workspaceNotificationId.Value;
                         workspaceNotificationId = null;
                     }
+                }
+
+                if (notificationToDismiss.HasValue)
+                {
+                    notificationService.Dismiss(notificationToDismiss.Value);
                 }
             }
 

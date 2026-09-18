@@ -209,20 +209,22 @@ public static class GenPatcherContentRegistry
             ContentCode = "ewba",
             DisplayName = "Enhanced World Builder (Advanced)",
             Description = "Advanced World Builder editor with additional tools, molds, and scripts.",
-            ContentType = ContentType.Addon,
+            ContentType = ContentType.ModdingTool,
             TargetGame = GameType.ZeroHour,
             Category = GenPatcherContentCategory.Tools,
             InstallTarget = ContentInstallTarget.Workspace,
+            EntryPoint = "WorldBuilder.exe",
         },
         ["ewbi"] = new GenPatcherContentMetadata
         {
             ContentCode = "ewbi",
             DisplayName = "Enhanced World Builder (International)",
             Description = "World Builder editor version 2.2 for international installations.",
-            ContentType = ContentType.Addon,
+            ContentType = ContentType.ModdingTool,
             TargetGame = GameType.ZeroHour,
             Category = GenPatcherContentCategory.Tools,
             InstallTarget = ContentInstallTarget.Workspace,
+            EntryPoint = "WorldBuilder_V2.2.exe",
         },
 
         // Hotkeys

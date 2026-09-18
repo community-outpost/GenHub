@@ -39,7 +39,6 @@ public partial class GitHubTokenDialogView : Window
         if (DataContext is GitHubTokenDialogViewModel { IsValidating: true })
         {
             e.Cancel = true;
-            return;
         }
 
         base.OnClosing(e);
@@ -54,6 +53,16 @@ public partial class GitHubTokenDialogView : Window
     }
 
     private void CloseButton_Click(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is GitHubTokenDialogViewModel { IsValidating: true })
+        {
+            return;
+        }
+
+        Close(false);
+    }
+
+    private void CancelButton_Click(object? sender, RoutedEventArgs e)
     {
         if (DataContext is GitHubTokenDialogViewModel { IsValidating: true })
         {
