@@ -442,6 +442,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      pull-requests: read
     steps:
       - name: Checkout Code
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
@@ -467,6 +468,24 @@ jobs:
           echo "CHANGELOG<<EOF" >> $GITHUB_OUTPUT
           echo "$CHANGELOG" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
+          echo "FALLBACK_BODY<<EOF" >> $GITHUB_OUTPUT
+          echo "## GenHub Alpha v${VERSION}" >> $GITHUB_OUTPUT
+          echo "" >> $GITHUB_OUTPUT
+          echo "### 🆕 What's New" >> $GITHUB_OUTPUT
+          echo "**${COUNT} commits** included:" >> $GITHUB_OUTPUT
+          echo "$CHANGELOG" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Generate Release Notes via Release Drafter
+        id: release_drafter
+        uses: release-drafter/release-drafter@b1476f6e6eb133afa41ed8589daba6dc69b4d3f5 # v6.1.0
+        continue-on-error: true
+        with:
+          version: ${{ steps.info.outputs.VERSION }}
+          tag: v${{ steps.info.outputs.VERSION }}
+          commitish: ${{ needs.promote.outputs.sha }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Download All Artifacts
         uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
@@ -496,11 +515,7 @@ jobs:
           name: GenHub Alpha v${{ steps.info.outputs.VERSION }}
           prerelease: true
           body: |
-            ## GenHub Alpha v${{ steps.info.outputs.VERSION }}
-
-            ### 🆕 What's New
-            **${{ steps.info.outputs.COUNT }} commits** included:
-            ${{ steps.info.outputs.CHANGELOG }}
+            ${{ steps.release_drafter.outputs.body != '' && steps.release_drafter.outputs.body || steps.info.outputs.FALLBACK_BODY }}
 
             ### 🔧 Assets
             - **Windows Installer:** [GenHub-win-Setup.exe](https://github.com/${{ github.repository }}/releases/download/v${{ steps.info.outputs.VERSION }}/GenHub-win-Setup.exe) *(supports custom install directory via `--installto <path>` / `-t <path>`)*

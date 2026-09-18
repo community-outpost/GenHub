@@ -311,7 +311,9 @@ public class BackgroundUpdateCoordinatorTests
         mockVelopack.Verify(x => x.CheckForUpdatesAsync(It.IsAny<CancellationToken>()), Times.Once);
         Assert.Equal(AppUpdateConstants.UpdateAvailableNotificationTitle, notification.Title);
         Assert.Contains("1.5.0", notification.Message);
-        Assert.Single(notification.Actions);
+        Assert.Equal(2, notification.Actions.Count);
+        Assert.Contains(notification.Actions, a => a.Text == AppUpdateConstants.ViewChangelogAction);
+        Assert.Contains(notification.Actions, a => a.Text == AppUpdateConstants.UpdateAction);
         Assert.True(notification.IsPersistent);
         Assert.True(notification.ShowInBadge);
     }

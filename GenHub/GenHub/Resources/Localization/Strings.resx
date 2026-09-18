@@ -4417,6 +4417,39 @@ This will modify game files and configuration settings at:
   <data name="Info.Changelog.ViewOnGitHub" xml:space="preserve">
     <value>View on GitHub</value>
   </data>
+  <data name="Info.Changelog.LatestRelease" xml:space="preserve">
+    <value>Latest Release</value>
+  </data>
+  <data name="Info.Changelog.OfflineCached" xml:space="preserve">
+    <value>Displaying cached changelog (offline or rate-limited)</value>
+  </data>
+  <data name="Info.Changelog.Collapse" xml:space="preserve">
+    <value>Collapse</value>
+  </data>
+  <data name="Info.Changelog.Expand" xml:space="preserve">
+    <value>Expand</value>
+  </data>
+  <data name="Info.Changelog.ToggleDetails" xml:space="preserve">
+    <value>Toggle release details</value>
+  </data>
+  <data name="Info.Changelog.RateLimited" xml:space="preserve">
+    <value>GitHub API rate limit exceeded. Please configure a GitHub Personal Access Token in Settings or try again later.</value>
+  </data>
+  <data name="Info.Changelog.NoReleasesFound" xml:space="preserve">
+    <value>No release changelogs found.</value>
+  </data>
+  <data name="Info.Changelog.LoadError" xml:space="preserve">
+    <value>An error occurred while loading changelogs.</value>
+  </data>
+  <data name="AppUpdate.Action.ViewChangelog" xml:space="preserve">
+    <value>View Changelog</value>
+  </data>
+  <data name="AppUpdate.PostUpdate.Title" xml:space="preserve">
+    <value>GenHub Updated</value>
+  </data>
+  <data name="AppUpdate.PostUpdate.Message" xml:space="preserve">
+    <value>GenHub has been updated to v{0}. Check out the changelog to see what's new!</value>
+  </data>
   <data name="Info.WorkspaceDemo.RunSimulator" xml:space="preserve">
     <value>Run Simulator</value>
   </data>

@@ -12,6 +12,7 @@ using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Messages;
 using GenHub.Core.Models.Dialogs;
 using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.Notifications;
 using GenHub.Features.AppUpdate.Interfaces;
 using GenHub.Features.Downloads.ViewModels;
 using GenHub.Features.GameProfiles.ViewModels;
@@ -202,6 +203,7 @@ public partial class MainViewModel(
         await backgroundUpdateCoordinator.InitializeAsync(_initializationCts.Token);
 
         CheckForQuickStart();
+        CheckPostUpdateAnnouncement();
     }
 
     /// <summary>
@@ -310,6 +312,63 @@ public partial class MainViewModel(
                     _ = userSettingsService.SaveAsync(_initializationCts.Token);
                 }
             });
+        }
+    }
+
+    private void CheckPostUpdateAnnouncement()
+    {
+        var currentVersion = typeof(MainViewModel).Assembly.GetName().Version?.ToString(3);
+        if (string.IsNullOrWhiteSpace(currentVersion))
+        {
+            return;
+        }
+
+        var settings = userSettingsService.Get();
+        var lastSeen = settings.LastSeenAppVersion;
+
+        if (string.IsNullOrWhiteSpace(lastSeen))
+        {
+            userSettingsService.Update(s => s.LastSeenAppVersion = currentVersion);
+            _ = userSettingsService.SaveAsync(_initializationCts.Token);
+            return;
+        }
+
+        if (Version.TryParse(currentVersion, out var parsedCurrent) &&
+            Version.TryParse(lastSeen, out var parsedLastSeen) &&
+            parsedCurrent > parsedLastSeen)
+        {
+            userSettingsService.Update(s => s.LastSeenAppVersion = currentVersion);
+            _ = userSettingsService.SaveAsync(_initializationCts.Token);
+
+            var title = localizationService?.GetString("AppUpdate.PostUpdate.Title") ?? AppUpdateConstants.PostUpdateNotificationTitle;
+            var message = localizationService?.GetString("AppUpdate.PostUpdate.Message", currentVersion) ??
+                          string.Format(AppUpdateConstants.PostUpdateNotificationFormat, currentVersion);
+            var viewChangelogText = localizationService?.GetString("AppUpdate.Action.ViewChangelog") ?? AppUpdateConstants.ViewChangelogAction;
+
+            notificationService.Show(new NotificationMessage(
+                NotificationType.Success,
+                title,
+                message,
+                autoDismissMilliseconds: NotificationDurations.VeryLong,
+                actions:
+                [
+                    new NotificationAction(
+                        viewChangelogText,
+                        () =>
+                        {
+                            SelectTab(NavigationTab.Info);
+                            InfoViewModel.OpenSection(InfoConstants.SectionChangelogs);
+                        },
+                        NotificationActionStyle.Primary,
+                        dismissOnExecute: true),
+                ],
+                isPersistent: false,
+                showInBadge: true));
+        }
+        else if (!string.Equals(currentVersion, lastSeen, StringComparison.OrdinalIgnoreCase))
+        {
+            userSettingsService.Update(s => s.LastSeenAppVersion = currentVersion);
+            _ = userSettingsService.SaveAsync(_initializationCts.Token);
         }
     }
 
