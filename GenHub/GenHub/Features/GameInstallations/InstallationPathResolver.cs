@@ -233,6 +233,46 @@ public class InstallationPathResolver(
         return Convert.ToHexString(hashBytes).ToLowerInvariant();
     }
 
+    private static async Task<bool> MatchesGameDatHashAsync(
+        string directory,
+        string gameDatHash,
+        CancellationToken cancellationToken)
+    {
+        var gameDatCandidate = Path.Combine(directory, GameClientConstants.SteamGameDatExecutable);
+        if (!gameDatCandidate.TryGetFileCaseInsensitive(out var resolvedGameDatPath))
+        {
+            return false;
+        }
+
+        var hash = await ComputeFileHashAsync(resolvedGameDatPath, cancellationToken);
+        return string.Equals(hash, gameDatHash, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool HasMatchingZeroHourFiles(string directory)
+    {
+        var dbgHelpDll = Path.Combine(directory, GameClientConstants.DbgHelpDll);
+        return dbgHelpDll.FileExistsCaseInsensitive() ||
+            Path.Combine(directory, GameClientConstants.ZeroHourIniBig).FileExistsCaseInsensitive() ||
+            Path.Combine(directory, GameClientConstants.ZeroHourPatchBig).FileExistsCaseInsensitive();
+    }
+
+    private static bool HasMatchingGeneralsFiles(string directory, string? gameDatHash)
+    {
+        // Having a Generals-specific executable is enough for Generals
+        if (Path.Combine(directory, GameClientConstants.GeneralsExecutable).FileExistsCaseInsensitive() ||
+            Path.Combine(directory, GameClientConstants.SuperHackersGeneralsExecutable).FileExistsCaseInsensitive() ||
+            Path.Combine(directory, GameClientConstants.ContraExecutable).FileExistsCaseInsensitive())
+        {
+            return true;
+        }
+
+        // If only a generic executable (e.g. game.exe, game.dat) was matched, require corroborating Generals files or hash
+        return Path.Combine(directory, GameClientConstants.GeneralsIniBig).FileExistsCaseInsensitive() ||
+            Path.Combine(directory, GameClientConstants.GeneralsPatchBig).FileExistsCaseInsensitive() ||
+            Path.Combine(directory, GameClientConstants.DbgHelpDll).FileExistsCaseInsensitive() ||
+            !string.IsNullOrEmpty(gameDatHash);
+    }
+
     private async Task<string?> TryComputeExistingGameDatHashAsync(
         string? installationPath,
         CancellationToken cancellationToken)
@@ -334,52 +374,21 @@ public class InstallationPathResolver(
             }
 
             // If we have a game.dat hash to match, verify it
-            if (!string.IsNullOrEmpty(gameDatHash))
+            if (!string.IsNullOrEmpty(gameDatHash) &&
+                !await MatchesGameDatHashAsync(directory, gameDatHash, cancellationToken))
             {
-                var gameDatCandidate = Path.Combine(directory, GameClientConstants.SteamGameDatExecutable);
-                if (!gameDatCandidate.TryGetFileCaseInsensitive(out var resolvedGameDatPath))
-                {
-                    return false;
-                }
-
-                var hash = await ComputeFileHashAsync(resolvedGameDatPath, cancellationToken);
-                if (!string.Equals(hash, gameDatHash, StringComparison.OrdinalIgnoreCase))
-                {
-                    return false;
-                }
+                return false;
             }
 
             // Check for game type specific files
-            if (installation.HasZeroHour)
+            if (installation.HasZeroHour && HasMatchingZeroHourFiles(directory))
             {
-                // Zero Hour has DbgHelp.dll or Zero Hour signature files
-                var dbgHelpDll = Path.Combine(directory, GameClientConstants.DbgHelpDll);
-                if (dbgHelpDll.FileExistsCaseInsensitive() ||
-                    Path.Combine(directory, GameClientConstants.ZeroHourIniBig).FileExistsCaseInsensitive() ||
-                    Path.Combine(directory, GameClientConstants.ZeroHourPatchBig).FileExistsCaseInsensitive())
-                {
-                    return true;
-                }
+                return true;
             }
 
-            if (installation.HasGenerals)
+            if (installation.HasGenerals && HasMatchingGeneralsFiles(directory, gameDatHash))
             {
-                // Having a Generals-specific executable is enough for Generals
-                if (Path.Combine(directory, GameClientConstants.GeneralsExecutable).FileExistsCaseInsensitive() ||
-                    Path.Combine(directory, GameClientConstants.SuperHackersGeneralsExecutable).FileExistsCaseInsensitive() ||
-                    Path.Combine(directory, GameClientConstants.ContraExecutable).FileExistsCaseInsensitive())
-                {
-                    return true;
-                }
-
-                // If only a generic executable (e.g. game.exe, game.dat) was matched, require corroborating Generals files or hash
-                if (Path.Combine(directory, GameClientConstants.GeneralsIniBig).FileExistsCaseInsensitive() ||
-                    Path.Combine(directory, GameClientConstants.GeneralsPatchBig).FileExistsCaseInsensitive() ||
-                    Path.Combine(directory, GameClientConstants.DbgHelpDll).FileExistsCaseInsensitive() ||
-                    !string.IsNullOrEmpty(gameDatHash))
-                {
-                    return true;
-                }
+                return true;
             }
 
             return false;
