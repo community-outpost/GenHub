@@ -127,8 +127,11 @@ public sealed class ManagedChromiumRuntimeTests : IDisposable
             },
             _ => Task.FromResult(true),
             new Mock<ILogger>().Object,
-            onInstallStarting: () => startingCalled = true,
-            onInstallCompleted: success => completedSuccess = success);
+            callbacks: new ManagedChromiumRuntimeCallbacks
+            {
+                OnInstallStarting = () => startingCalled = true,
+                OnInstallCompleted = success => completedSuccess = success,
+            });
 
         // Act
         await runtime.EnsureInstalledAsync(chromium.Object, default);
@@ -162,8 +165,11 @@ public sealed class ManagedChromiumRuntimeTests : IDisposable
             },
             _ => Task.FromResult(true),
             new Mock<ILogger>().Object,
-            onInstallStarting: () => startingCalled = true,
-            onInstallCompleted: success => completedSuccess = success);
+            callbacks: new ManagedChromiumRuntimeCallbacks
+            {
+                OnInstallStarting = () => startingCalled = true,
+                OnInstallCompleted = success => completedSuccess = success,
+            });
 
         // Act & Assert
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() => runtime.EnsureInstalledAsync(chromium.Object, cts.Token));
@@ -233,8 +239,11 @@ public sealed class ManagedChromiumRuntimeTests : IDisposable
             _ => Task.FromResult(true),
             new Mock<ILogger>().Object,
             notificationService: notificationService.Object,
-            onInstallStarting: () => startCalls++,
-            onInstallCompleted: success => completedSuccess = success);
+            callbacks: new ManagedChromiumRuntimeCallbacks
+            {
+                OnInstallStarting = () => startCalls++,
+                OnInstallCompleted = success => completedSuccess = success,
+            });
 
         // Act
         await runtime.EnsureInstalledAsync(chromium.Object, default);
@@ -269,7 +278,10 @@ public sealed class ManagedChromiumRuntimeTests : IDisposable
             _ => Task.FromResult(true),
             new Mock<ILogger>().Object,
             notificationService: notificationService.Object,
-            onInstallCompleted: success => completedSuccess = success);
+            callbacks: new ManagedChromiumRuntimeCallbacks
+            {
+                OnInstallCompleted = success => completedSuccess = success,
+            });
 
         // Act & Assert
         await Assert.ThrowsAsync<InvalidOperationException>(
@@ -303,7 +315,10 @@ public sealed class ManagedChromiumRuntimeTests : IDisposable
             _ => Task.FromResult(true),
             new Mock<ILogger>().Object,
             notificationService: notificationService.Object,
-            onInstallCanceled: () => canceledCalled = true);
+            callbacks: new ManagedChromiumRuntimeCallbacks
+            {
+                OnInstallCanceled = () => canceledCalled = true,
+            });
 
         // Act & Assert
         await Assert.ThrowsAsync<OperationCanceledException>(

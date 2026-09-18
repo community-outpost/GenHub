@@ -25,10 +25,7 @@ internal sealed class ManagedChromiumRuntime(
     ILogger logger,
     INotificationService? notificationService = null,
     ILocalizationService? localizationService = null,
-    Action? onInstallStarting = null,
-    Action<bool>? onInstallCompleted = null,
-    Action? onInstallCanceled = null,
-    Func<DownloadNotificationScope?>? scopeFactory = null)
+    ManagedChromiumRuntimeCallbacks? callbacks = null)
 {
     /// <summary>
     /// Environment variable used by Playwright to locate app-owned browser binaries.
@@ -98,6 +95,11 @@ internal sealed class ManagedChromiumRuntime(
             }
 
             logger.LogDebug("Managed Chromium install consented. Installing under {RuntimeDirectory}", runtimeDirectory);
+
+            Action? onInstallStarting = callbacks?.OnInstallStarting;
+            Action<bool>? onInstallCompleted = callbacks?.OnInstallCompleted;
+            Action? onInstallCanceled = callbacks?.OnInstallCanceled;
+            Func<DownloadNotificationScope?>? scopeFactory = callbacks?.ScopeFactory;
 
             DownloadNotificationScope? scope = null;
             if (scopeFactory != null)
@@ -214,7 +216,7 @@ internal sealed class ManagedChromiumRuntime(
 
         try
         {
-            monitorCts.Cancel();
+            await monitorCts.CancelAsync();
             await monitorTask;
         }
         catch (OperationCanceledException)
