@@ -111,6 +111,7 @@ public static class GameSettingsMapper
         ApplyVideoResolutionAndQualityToOptions(profile, options, logger);
         ApplyVideoAdditionalToOptions(profile, options, logger);
         ApplyAudioToOptions(profile, options, logger);
+        ApplyNetworkToOptions(profile, options);
         ApplyTshToOptions(profile, options);
     }
 
@@ -970,6 +971,19 @@ public static class GameSettingsMapper
                     GameSettingsConstants.Audio.MinNumSounds,
                     GameSettingsConstants.Audio.MaxNumSounds);
             }
+        }
+    }
+
+    /// <summary>
+    /// Applies network configuration from the game profile to the INI options.
+    /// </summary>
+    /// <param name="profile">The game profile containing network settings.</param>
+    /// <param name="options">The target INI options instance.</param>
+    private static void ApplyNetworkToOptions(GameProfile profile, IniOptions options)
+    {
+        if (profile.GameSpyIPAddress != null)
+        {
+            options.Network.GameSpyIPAddress = profile.GameSpyIPAddress;
         }
     }
 

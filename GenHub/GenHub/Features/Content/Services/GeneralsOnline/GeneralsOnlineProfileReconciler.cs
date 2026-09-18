@@ -496,6 +496,27 @@ public partial class GeneralsOnlineProfileReconciler(
                enabled.Any(id => id.Contains($".{GeneralsOnlineConstants.PublisherType}.", StringComparison.OrdinalIgnoreCase));
     }
 
+    private static bool IsProfileRelevant(Core.Models.GameProfile.GameProfile profile, HashSet<string> oldIds)
+    {
+        if (profile.GameClient != null && oldIds.Contains(profile.GameClient.Id))
+        {
+            return true;
+        }
+
+        if (profile.EnabledContentIds is { } enabled && enabled.Any(oldIds.Contains))
+        {
+            return true;
+        }
+
+        return IsProfileRelevantToGeneralsOnline(profile);
+    }
+
+    private static bool IsTriggeringProfile(Core.Models.GameProfile.GameProfile profile, string? triggeringProfileId)
+    {
+        return !string.IsNullOrEmpty(triggeringProfileId) &&
+               string.Equals(profile.Id, triggeringProfileId, StringComparison.OrdinalIgnoreCase);
+    }
+
     /// <summary>
     /// Builds a mapping from old manifest IDs to new manifest IDs based on variant matching.
     /// Handles 30hz, 60hz, quickmatch-maps, and gamedata variants.
@@ -1237,11 +1258,7 @@ public partial class GeneralsOnlineProfileReconciler(
 
         var existingProfileNames = allProfiles.Data.Select(p => p.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
 
-        var relevantProfiles = allProfiles.Data.Where(p =>
-            (p.GameClient != null && oldIds.Contains(p.GameClient.Id)) ||
-            (p.EnabledContentIds is { } enabled && enabled.Any(oldIds.Contains)) ||
-            (p.GameClient != null && string.Equals(p.GameClient.PublisherType, GeneralsOnlineConstants.PublisherType, StringComparison.OrdinalIgnoreCase)) ||
-            (p.GameClient != null && p.GameClient.Id.Contains($".{GeneralsOnlineConstants.PublisherType}.", StringComparison.OrdinalIgnoreCase))).ToList();
+        var relevantProfiles = allProfiles.Data.Where(p => IsProfileRelevant(p, oldIds)).ToList();
 
         if (relevantProfiles.Count == 0)
         {
@@ -1267,8 +1284,7 @@ public partial class GeneralsOnlineProfileReconciler(
             {
                 createdCount++;
                 existingProfileNames.Add(targetProfileName);
-                if (!string.IsNullOrEmpty(triggeringProfileId) &&
-                    string.Equals(profile.Id, triggeringProfileId, StringComparison.OrdinalIgnoreCase))
+                if (IsTriggeringProfile(profile, triggeringProfileId))
                 {
                     targetProfileId = newProfileId;
                 }
