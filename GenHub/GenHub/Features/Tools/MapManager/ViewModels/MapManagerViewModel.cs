@@ -1,4 +1,4 @@
-using Avalonia;
+﻿using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Platform.Storage;
@@ -502,6 +502,9 @@ public partial class MapManagerViewModel : ObservableObject, IDisposable
         catch (OperationCanceledException)
         {
             scope.CompleteCanceled();
+            var canceledTitle = _localizationService?.GetString("Downloads.Notification.Canceled.Title") ?? "Download Canceled";
+            var canceledMessage = _localizationService?.GetString("Downloads.Notification.Canceled.Message") ?? "Canceled download for {0}.";
+            _notificationService.ShowInfo(canceledTitle, string.Format(canceledMessage, ImportUrl));
             StatusMessage = "Import cancelled.";
         }
         catch (Exception ex)

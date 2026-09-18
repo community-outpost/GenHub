@@ -1,4 +1,4 @@
-using CommunityToolkit.Mvvm.Messaging;
+﻿using CommunityToolkit.Mvvm.Messaging;
 using GenHub.Core.Constants;
 using GenHub.Core.Extensions;
 using GenHub.Core.Helpers;
@@ -41,6 +41,8 @@ public sealed class ContentDownloadCoordinator(
 
         public int WaiterCount { get; set; }
 
+        public int UnsuppressedWaiterCount { get; set; }
+
         public Action<ContentAcquisitionProgress>? ProgressCallbacks { get; set; }
 
         public double LastProgressPercentage { get; set; }
@@ -51,12 +53,40 @@ public sealed class ContentDownloadCoordinator(
 
         public string? ParentContentId { get; set; }
 
-        public bool SuppressNotifications { get; set; }
+        public DownloadNotificationScope? NotificationScope { get; private set; }
 
         public object Lock { get; } = new();
 
+        public void EnsureNotificationScope(
+            INotificationService notifications,
+            string contentName,
+            ILocalizationService? localization)
+        {
+            lock (Lock)
+            {
+                UnsuppressedWaiterCount++;
+                if (NotificationScope != null || Task.IsCompleted || InternalCts.IsCancellationRequested)
+                {
+                    return;
+                }
+
+                NotificationScope = new DownloadNotificationScope(
+                    notifications,
+                    contentName,
+                    options: null,
+                    chained: null,
+                    localization: localization);
+
+                if (LastProgressPercentage > 0)
+                {
+                    NotificationScope.ReportFraction(LastProgressPercentage / 100.0, LastStatusMessage);
+                }
+            }
+        }
+
         public void Dispose()
         {
+            NotificationScope?.Dispose();
             InternalCts.Dispose();
         }
     }
@@ -76,9 +106,6 @@ public sealed class ContentDownloadCoordinator(
             ? $"{searchResult.ProviderName}::{searchResult.Id}"
             : $"{searchResult.ProviderName}::{searchResult.Name}";
     }
-
-    private static string GetInFlightKey(string baseKey, bool suppressNotifications) =>
-        suppressNotifications ? $"{baseKey}::suppressed" : baseKey;
 
     /// <inheritdoc />
     public bool HasActiveDownloads => !_inFlightDownloads.IsEmpty;
@@ -130,17 +157,21 @@ public sealed class ContentDownloadCoordinator(
         ArgumentNullException.ThrowIfNull(searchResult);
 
         var baseKey = GetDownloadKey(searchResult);
-        var inFlightKey = GetInFlightKey(baseKey, suppressNotifications);
         Action<ContentAcquisitionProgress>? callback = progress != null ? progress.Report : null;
 
-        var (inFlight, isInitiator) = await GetOrCreateInFlightDownloadAsync(inFlightKey, searchResult, suppressNotifications, cancellationToken);
+        var (inFlight, isInitiator) = await GetOrCreateInFlightDownloadAsync(baseKey, searchResult, cancellationToken);
 
         AttachProgressCallback(inFlight, callback);
+
+        if (!suppressNotifications)
+        {
+            inFlight.EnsureNotificationScope(notificationService, searchResult.Name, localizationService);
+        }
 
         if (isInitiator)
         {
             var multiplexedProgress = CreateMultiplexedProgress(inFlight, searchResult, baseKey);
-            _ = StartDownloadTaskAsync(inFlight, searchResult, inFlightKey, baseKey, multiplexedProgress);
+            _ = StartDownloadTaskAsync(inFlight, searchResult, baseKey, multiplexedProgress);
         }
 
         var unregistered = 0;
@@ -150,7 +181,7 @@ public sealed class ContentDownloadCoordinator(
         {
             if (cancellationToken.CanBeCanceled)
             {
-                reg = cancellationToken.Register(() => DecrementWaiterAndCancelIfEmpty(inFlight, ref unregistered));
+                reg = cancellationToken.Register(() => DecrementWaiterAndCancelIfEmpty(inFlight, suppressNotifications, ref unregistered));
             }
 
             return await inFlight.Task.WaitAsync(cancellationToken);
@@ -158,7 +189,7 @@ public sealed class ContentDownloadCoordinator(
         finally
         {
             await reg.DisposeAsync();
-            DecrementWaiterAndCancelIfEmpty(inFlight, ref unregistered);
+            DecrementWaiterAndCancelIfEmpty(inFlight, suppressNotifications, ref unregistered);
             DetachProgressCallback(inFlight, callback);
         }
     }
@@ -206,13 +237,25 @@ public sealed class ContentDownloadCoordinator(
         }
     }
 
-    private static void DecrementWaiterAndCancelIfEmpty(InFlightDownload inFlight, ref int unregistered)
+    private static void DecrementWaiterAndCancelIfEmpty(
+        InFlightDownload inFlight,
+        bool suppressNotifications,
+        ref int unregistered)
     {
         if (Interlocked.Exchange(ref unregistered, 1) == 0)
         {
             lock (inFlight.Lock)
             {
                 inFlight.WaiterCount--;
+                if (!suppressNotifications)
+                {
+                    inFlight.UnsuppressedWaiterCount--;
+                    if (inFlight.UnsuppressedWaiterCount <= 0 && inFlight.NotificationScope != null && inFlight.WaiterCount > 0)
+                    {
+                        inFlight.NotificationScope.CompleteCanceled();
+                    }
+                }
+
                 if (inFlight.WaiterCount <= 0)
                 {
                     try
@@ -262,22 +305,10 @@ public sealed class ContentDownloadCoordinator(
             return inFlight;
         }
 
-        var suppressedKey = GetInFlightKey(key, true);
-        if (_inFlightDownloads.TryGetValue(suppressedKey, out inFlight) && IsInFlightActive(inFlight))
-        {
-            return inFlight;
-        }
-
         if (!string.IsNullOrWhiteSpace(searchResult.Name))
         {
             var nameKey = $"{searchResult.ProviderName}::{searchResult.Name}";
             if (_inFlightDownloads.TryGetValue(nameKey, out inFlight) && IsInFlightActive(inFlight))
-            {
-                return inFlight;
-            }
-
-            var suppressedNameKey = GetInFlightKey(nameKey, true);
-            if (_inFlightDownloads.TryGetValue(suppressedNameKey, out inFlight) && IsInFlightActive(inFlight))
             {
                 return inFlight;
             }
@@ -289,7 +320,6 @@ public sealed class ContentDownloadCoordinator(
     private async Task<(InFlightDownload InFlight, bool IsInitiator)> GetOrCreateInFlightDownloadAsync(
         string key,
         ContentSearchResult searchResult,
-        bool suppressNotifications,
         CancellationToken cancellationToken)
     {
         while (true)
@@ -317,12 +347,12 @@ public sealed class ContentDownloadCoordinator(
                 }
                 else
                 {
-                    searchResult.ResolverMetadata.TryGetValue(ContentConstants.ParentContentIdMetadataKey, out var parentContentId);
+                    string? parentContentId = null;
+                    searchResult.ResolverMetadata?.TryGetValue(ContentConstants.ParentContentIdMetadataKey, out parentContentId);
                     var inFlight = new InFlightDownload
                     {
                         SearchResult = searchResult,
                         ParentContentId = parentContentId,
-                        SuppressNotifications = suppressNotifications,
                     };
                     _inFlightDownloads[key] = inFlight;
                     IncrementWaiterCount(inFlight);
@@ -347,14 +377,17 @@ public sealed class ContentDownloadCoordinator(
             var status = p.FormatProgressStatus();
             var clampedPercentage = double.IsNaN(p.ProgressPercentage) ? 0 : Math.Clamp(p.ProgressPercentage, 0, 100);
             Action<ContentAcquisitionProgress>? callbacks;
+            DownloadNotificationScope? scope;
             lock (inFlight.Lock)
             {
                 inFlight.LastProgressPercentage = clampedPercentage;
                 inFlight.LastStatusMessage = status;
                 callbacks = inFlight.ProgressCallbacks;
+                scope = inFlight.NotificationScope;
             }
 
             callbacks?.Invoke(p);
+            scope?.Report(p);
 
             BroadcastDownloadProgress(key, searchResult, clampedPercentage, status);
         });
@@ -362,7 +395,8 @@ public sealed class ContentDownloadCoordinator(
 
     private void BroadcastDownloadProgress(string key, ContentSearchResult searchResult, double progressPercentage, string status)
     {
-        searchResult.ResolverMetadata.TryGetValue(ContentConstants.ParentContentIdMetadataKey, out var parentContentId);
+        string? parentContentId = null;
+        searchResult.ResolverMetadata?.TryGetValue(ContentConstants.ParentContentIdMetadataKey, out parentContentId);
         try
         {
             WeakReferenceMessenger.Default.Send(new ContentDownloadProgressMessage(
@@ -383,11 +417,11 @@ public sealed class ContentDownloadCoordinator(
     private async Task StartDownloadTaskAsync(
         InFlightDownload inFlight,
         ContentSearchResult searchResult,
-        string inFlightKey,
         string baseKey,
         IProgress<ContentAcquisitionProgress> progress)
     {
-        searchResult.ResolverMetadata.TryGetValue(ContentConstants.ParentContentIdMetadataKey, out var parentContentId);
+        string? parentContentId = null;
+        searchResult.ResolverMetadata?.TryGetValue(ContentConstants.ParentContentIdMetadataKey, out parentContentId);
 
         try
         {
@@ -406,26 +440,25 @@ public sealed class ContentDownloadCoordinator(
         var success = false;
         string? errorMessage = null;
 
-        // The scope owns the pinned start toast, live updates, and the single terminal toast.
-        // Orchestrator reports flow through the scope into the multiplexed progress so view
-        // bindings, messenger broadcasts, and the toast share one clamped stream.
-        using var notificationScope = inFlight.SuppressNotifications
-            ? null
-            : new DownloadNotificationScope(notificationService, searchResult.Name, null, progress, localizationService);
-        var acquisitionProgress = (IProgress<ContentAcquisitionProgress>?)notificationScope ?? progress;
-
         try
         {
-            var result = await ExecuteDownloadAsync(searchResult, acquisitionProgress, inFlight.InternalCts.Token);
+            var result = await ExecuteDownloadAsync(searchResult, progress, inFlight.InternalCts.Token);
             success = result.Success;
             errorMessage = result.FirstError;
+
+            DownloadNotificationScope? scope;
+            lock (inFlight.Lock)
+            {
+                scope = inFlight.NotificationScope;
+            }
+
             if (result.Success)
             {
-                notificationScope?.CompleteSuccess();
+                scope?.CompleteSuccess();
             }
             else
             {
-                notificationScope?.CompleteFailure(errorMessage);
+                scope?.CompleteFailure(errorMessage);
             }
 
             inFlight.Tcs.TrySetResult(result);
@@ -433,22 +466,36 @@ public sealed class ContentDownloadCoordinator(
         catch (OperationCanceledException oce)
         {
             errorMessage = ContentConstants.DownloadCancelledStatusMessage;
-            notificationScope?.CompleteCanceled();
+
+            DownloadNotificationScope? scope;
+            lock (inFlight.Lock)
+            {
+                scope = inFlight.NotificationScope;
+            }
+
+            scope?.CompleteCanceled();
             inFlight.Tcs.TrySetCanceled(oce.CancellationToken);
         }
         catch (Exception ex)
         {
             errorMessage = ex.Message;
-            notificationScope?.CompleteFailure(ex.Message);
+
+            DownloadNotificationScope? scope;
+            lock (inFlight.Lock)
+            {
+                scope = inFlight.NotificationScope;
+            }
+
+            scope?.CompleteFailure(ex.Message);
             inFlight.Tcs.TrySetException(ex);
         }
         finally
         {
             lock (_inFlightDownloads)
             {
-                if (_inFlightDownloads.TryGetValue(inFlightKey, out var current) && ReferenceEquals(current, inFlight))
+                if (_inFlightDownloads.TryGetValue(baseKey, out var current) && ReferenceEquals(current, inFlight))
                 {
-                    _inFlightDownloads.TryRemove(inFlightKey, out _);
+                    _inFlightDownloads.TryRemove(baseKey, out _);
                 }
             }
 

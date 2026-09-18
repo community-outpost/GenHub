@@ -1,4 +1,4 @@
-using GenHub.Core.Constants;
+﻿using GenHub.Core.Constants;
 using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Models.Content;
@@ -195,5 +195,24 @@ public sealed class DownloadNotificationScopeTests
         notifications.Verify(
             n => n.ShowSuccess(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
             Times.Never);
+    }
+
+    /// <summary>
+    /// Verifies that clearing a pinned message allows a subsequent failure to dismiss the pinned toast and show an error toast.
+    /// </summary>
+    [Fact]
+    public void ClearPinnedMessage_AllowsSubsequentCompleteFailure()
+    {
+        var notifications = new Mock<INotificationService>();
+        var scope = new DownloadNotificationScope(notifications.Object, "GenHub");
+
+        scope.CompleteWithPinnedMessage("Update complete! Restarting...");
+        scope.ClearPinnedMessage();
+        scope.CompleteFailure("Restart failed");
+
+        notifications.Verify(n => n.Dismiss(scope.NotificationId), Times.Once);
+        notifications.Verify(
+            n => n.ShowError(It.IsAny<string>(), "Restart failed", It.IsAny<int?>(), It.IsAny<bool>()),
+            Times.Once);
     }
 }

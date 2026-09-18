@@ -1,4 +1,4 @@
-using Avalonia.Threading;
+﻿using Avalonia.Threading;
 using CommunityToolkit.Mvvm.Messaging;
 using GenHub.Core.Constants;
 using GenHub.Core.Helpers;
@@ -754,7 +754,15 @@ public class BackgroundUpdateCoordinator(
                 await velopackUpdateManager.DownloadUpdatesAsync(updateInfo!, progress, lifetimeToken);
                 await ClearStaleSubscriptionAsync(clearedPrNumber, clearedBranch, lifetimeToken);
                 scope.CompleteWithPinnedMessage(AppUpdateConstants.UpdateDownloadedRestartingMessage);
-                velopackUpdateManager.ApplyUpdatesAndRestart(updateInfo!);
+                try
+                {
+                    velopackUpdateManager.ApplyUpdatesAndRestart(updateInfo!);
+                }
+                catch
+                {
+                    scope.ClearPinnedMessage();
+                    throw;
+                }
             }
         }
         catch (OperationCanceledException) when (lifetimeToken.IsCancellationRequested)

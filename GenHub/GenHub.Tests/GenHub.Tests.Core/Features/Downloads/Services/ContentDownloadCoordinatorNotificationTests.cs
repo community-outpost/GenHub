@@ -1,4 +1,4 @@
-using GenHub.Core.Interfaces.Content;
+﻿using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
@@ -181,6 +181,54 @@ public sealed class ContentDownloadCoordinatorNotificationTests
 
         var results = await Task.WhenAll(taskSuppressed, taskUnsuppressed);
         Assert.All(results, r => Assert.True(r.Success));
+
+        // Exactly one acquisition was initiated across both callers
+        _orchestrator.Verify(
+            o => o.AcquireContentAsync(It.IsAny<ContentSearchResult>(), It.IsAny<IProgress<ContentAcquisitionProgress>>(), It.IsAny<CancellationToken>()),
+            Times.Once);
+
+        // Exactly one start and one success toast for the unsuppressed caller
+        _notifications.Verify(
+            n => n.Show(It.Is<NotificationMessage>(m => m.AutoDismissMilliseconds == null)),
+            Times.Once);
+        _notifications.Verify(
+            n => n.ShowSuccess(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
+            Times.Once);
+    }
+
+    /// <summary>
+    /// Verifies that when an unsuppressed caller starts first, a subsequent suppressed caller shares the acquisition
+    /// without duplicate notifications.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task DownloadContentAsync_MixedSuppression_UnsuppressedFirst_SharesSingleAcquisitionAsync()
+    {
+        var manifest = CreateManifest();
+        var searchResult = CreateSearchResult();
+        var tcs = new TaskCompletionSource<OperationResult<ContentManifest>>(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        _orchestrator
+            .Setup(o => o.AcquireContentAsync(It.IsAny<ContentSearchResult>(), It.IsAny<IProgress<ContentAcquisitionProgress>>(), It.IsAny<CancellationToken>()))
+            .Returns(tcs.Task);
+
+        var taskUnsuppressed = _coordinator.DownloadContentAsync(searchResult, null, CancellationToken.None, suppressNotifications: false);
+        var taskSuppressed = _coordinator.DownloadContentAsync(searchResult, null, CancellationToken.None, suppressNotifications: true);
+
+        // Unsuppressed download shows start toast
+        _notifications.Verify(
+            n => n.Show(It.Is<NotificationMessage>(m => m.AutoDismissMilliseconds == null)),
+            Times.Once);
+
+        tcs.TrySetResult(OperationResult<ContentManifest>.CreateSuccess(manifest));
+
+        var results = await Task.WhenAll(taskUnsuppressed, taskSuppressed);
+        Assert.All(results, r => Assert.True(r.Success));
+
+        // Exactly one acquisition was initiated across both callers
+        _orchestrator.Verify(
+            o => o.AcquireContentAsync(It.IsAny<ContentSearchResult>(), It.IsAny<IProgress<ContentAcquisitionProgress>>(), It.IsAny<CancellationToken>()),
+            Times.Once);
 
         // Exactly one start and one success toast for the unsuppressed caller
         _notifications.Verify(

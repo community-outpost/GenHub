@@ -1,4 +1,4 @@
-using Avalonia;
+﻿using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Platform.Storage;
@@ -805,7 +805,7 @@ public partial class ReplayManagerViewModel(
         using var scope = new DownloadNotificationScope(
             notificationService,
             ImportUrl,
-            new DownloadNotificationOptions(StartTitle: downloadingStatus, ShowTerminalToast: false),
+            new DownloadNotificationOptions(ShowTerminalToast: false),
             localization: LocalizationService);
 
         try
@@ -839,9 +839,12 @@ public partial class ReplayManagerViewModel(
                 StatusMessage = string.Format(errorStatus, errorMsg);
             }
         }
-        catch (OperationCanceledException)
+                catch (OperationCanceledException)
         {
             scope.CompleteCanceled();
+            var canceledTitle = LocalizationService?.GetString("Downloads.Notification.Canceled.Title") ?? "Download Canceled";
+            var canceledMessage = LocalizationService?.GetString("Downloads.Notification.Canceled.Message") ?? "Canceled download for {0}.";
+            notificationService.ShowInfo(canceledTitle, string.Format(canceledMessage, ImportUrl));
             StatusMessage = LocalizationService?.GetString("Tools.ReplayManager.Status.ImportCancelled") ?? "Import cancelled.";
         }
         catch (Exception ex)

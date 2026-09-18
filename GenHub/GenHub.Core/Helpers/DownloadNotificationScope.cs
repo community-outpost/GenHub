@@ -1,4 +1,4 @@
-using GenHub.Core.Constants;
+﻿using GenHub.Core.Constants;
 using GenHub.Core.Extensions;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Notifications;
@@ -294,6 +294,22 @@ public sealed class DownloadNotificationScope : IProgress<ContentAcquisitionProg
             }
 
             _notifications.Update(_notificationId, finalMessage, PinnedTitle);
+        }
+    }
+
+    /// <summary>
+    /// Clears a previous pinned completion so that a subsequent terminal failure or cancellation
+    /// can dismiss the pinned toast and display its terminal notification.
+    /// </summary>
+    public void ClearPinnedMessage()
+    {
+        lock (_lock)
+        {
+            if (_terminalShown)
+            {
+                _terminalShown = false;
+                _dismissed = false;
+            }
         }
     }
 
