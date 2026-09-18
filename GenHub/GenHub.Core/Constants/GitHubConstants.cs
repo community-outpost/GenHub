@@ -38,9 +38,9 @@ public static class GitHubConstants
 
     /// <summary>
     /// Default GitHub OAuth App client ID used for device flow sign-in.
-    /// Empty until maintainers provision the OAuth App; configure <see cref="OAuthClientIdEnvVar"/> meanwhile.
+    /// Public identifier for the GenHub OAuth App owned by community-outpost; safe to ship. Override via <see cref="OAuthClientIdEnvVar"/> for development.
     /// </summary>
-    public const string DefaultOAuthClientId = "";
+    public const string DefaultOAuthClientId = "Ov23li1ExfMehH1ZsBMsam";
 
     /// <summary>GitHub device activation page where users enter the device user code.</summary>
     public const string DeviceVerificationUrl = "https://github.com/login/device";

@@ -55,25 +55,29 @@ public class GitHubAuthServiceTests
     }
 
     /// <summary>
-    /// Verifies that initiating login fails when no OAuth client ID is configured.
+    /// Verifies that initiating login uses the embedded default client ID when no override is configured.
     /// </summary>
     /// <returns>A task representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task InitiateLoginAsync_WithoutClientId_ReturnsFailureAsync()
+    public async Task InitiateLoginAsync_WithoutEnvOverride_UsesEmbeddedDefaultAsync()
     {
         // Arrange
         SetGitHubEnvironment(clientId: null);
         var harness = new AuthHarness();
+        OauthDeviceFlowRequest? captured = null;
+        harness.Oauth
+            .Setup(x => x.InitiateDeviceFlow(It.IsAny<OauthDeviceFlowRequest>(), It.IsAny<CancellationToken>()))
+            .Callback<OauthDeviceFlowRequest, CancellationToken>((request, _) => captured = request)
+            .ReturnsAsync(new OauthDeviceFlowResponse("device-code", "USER-CODE", "https://github.com/login/device", 900, 5));
 
         // Act
         var result = await harness.Service.InitiateLoginAsync();
 
         // Assert
-        Assert.False(result.Success);
-        Assert.Contains(GitHubConstants.OAuthClientIdEnvVar, result.Errors.First());
-        harness.Oauth.Verify(
-            x => x.InitiateDeviceFlow(It.IsAny<OauthDeviceFlowRequest>(), It.IsAny<CancellationToken>()),
-            Times.Never);
+        Assert.True(result.Success);
+        Assert.NotNull(captured);
+        Assert.False(string.IsNullOrEmpty(GitHubConstants.DefaultOAuthClientId));
+        Assert.Equal(GitHubConstants.DefaultOAuthClientId, captured.ClientId);
     }
 
     /// <summary>
