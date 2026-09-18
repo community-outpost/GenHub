@@ -202,6 +202,8 @@ public sealed class InstallationPathResolverTests : IDisposable
         var zhDir = Path.Combine(resolvedGameDir, GameClientConstants.ZeroHourSubdirectoryName);
         Directory.CreateDirectory(generalsDir);
         Directory.CreateDirectory(zhDir);
+        File.WriteAllText(Path.Combine(generalsDir, GameClientConstants.GeneralsExecutable), "dummy-exe");
+        File.WriteAllText(Path.Combine(zhDir, GameClientConstants.ZeroHourExecutable), "dummy-exe");
         File.WriteAllText(Path.Combine(resolvedGameDir, GameClientConstants.GeneralsExecutable), "dummy-exe");
 
         var pathProvider = new TestSearchPathProvider(targetSearchDir);
@@ -225,6 +227,8 @@ public sealed class InstallationPathResolverTests : IDisposable
         Assert.True(Directory.Exists(result.Data.ZeroHourPath));
         Assert.Equal(generalsDir, result.Data.GeneralsPath, ignoreCase: true);
         Assert.Equal(zhDir, result.Data.ZeroHourPath, ignoreCase: true);
+        Assert.True(result.Data.HasGenerals);
+        Assert.True(result.Data.HasZeroHour);
     }
 
     /// <summary>
@@ -244,17 +248,39 @@ public sealed class InstallationPathResolverTests : IDisposable
     }
 
     /// <summary>
-    /// Verifies that ValidateInstallationPathAsync accepts edition-specific executables in game subdirectories,
-    /// using the same shared list as the root installation directory check.
+    /// Verifies that ValidateInstallationPathAsync accepts Zero Hour edition-specific executables in game subdirectories.
     /// </summary>
     /// <param name="exeName">The executable name to test.</param>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Theory]
     [InlineData("generalszh.exe")]
     [InlineData("generals.ctr")]
-    public async Task ValidateInstallationPathAsync_WhenSubdirectoryHasEditionExecutable_ReturnsTrue(string exeName)
+    public async Task ValidateInstallationPathAsync_WhenSubdirectoryHasZeroHourEditionExecutable_ReturnsTrue(string exeName)
     {
-        var generalsPath = Path.Combine(_tempDirectory, "GeneralsEdition");
+        var zhPath = Path.Combine(_tempDirectory, "ZeroHourEdition_" + Path.GetFileNameWithoutExtension(exeName));
+        Directory.CreateDirectory(zhPath);
+        File.WriteAllText(Path.Combine(zhPath, exeName), "mock executable content");
+
+        var installation = new GameInstallation(_tempDirectory, GameInstallationType.Retail);
+        installation.SetPaths(null, zhPath);
+
+        var result = await _resolver.ValidateInstallationPathAsync(installation);
+
+        Assert.True(result.Success);
+        Assert.True(result.Data);
+    }
+
+    /// <summary>
+    /// Verifies that ValidateInstallationPathAsync accepts Generals edition-specific executables in game subdirectories.
+    /// </summary>
+    /// <param name="exeName">The executable name to test.</param>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Theory]
+    [InlineData("generalsv.exe")]
+    [InlineData("generals.exe")]
+    public async Task ValidateInstallationPathAsync_WhenSubdirectoryHasGeneralsEditionExecutable_ReturnsTrue(string exeName)
+    {
+        var generalsPath = Path.Combine(_tempDirectory, "GeneralsEdition_" + Path.GetFileNameWithoutExtension(exeName));
         Directory.CreateDirectory(generalsPath);
         File.WriteAllText(Path.Combine(generalsPath, exeName), "mock executable content");
 
@@ -265,6 +291,26 @@ public sealed class InstallationPathResolverTests : IDisposable
 
         Assert.True(result.Success);
         Assert.True(result.Data);
+    }
+
+    /// <summary>
+    /// Verifies that ValidateInstallationPathAsync returns false when Generals subdirectory only contains a Zero Hour executable.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ValidateInstallationPathAsync_WhenGeneralsSubdirectoryOnlyHasZeroHourExecutable_ReturnsFalse()
+    {
+        var generalsPath = Path.Combine(_tempDirectory, "GeneralsWrongExe");
+        Directory.CreateDirectory(generalsPath);
+        File.WriteAllText(Path.Combine(generalsPath, GameClientConstants.SuperHackersZeroHourExecutable), "wrong edition exe");
+
+        var installation = new GameInstallation(_tempDirectory, GameInstallationType.Retail);
+        installation.SetPaths(generalsPath, null);
+
+        var result = await _resolver.ValidateInstallationPathAsync(installation);
+
+        Assert.True(result.Success);
+        Assert.False(result.Data);
     }
 
     /// <summary>
@@ -298,6 +344,8 @@ public sealed class InstallationPathResolverTests : IDisposable
         var zhDir = Path.Combine(resolvedGameDir, "command and conquer generals zero hour");
         Directory.CreateDirectory(generalsDir);
         Directory.CreateDirectory(zhDir);
+        File.WriteAllText(Path.Combine(generalsDir, GameClientConstants.GeneralsExecutable), "dummy-exe");
+        File.WriteAllText(Path.Combine(zhDir, GameClientConstants.ZeroHourExecutable), "dummy-exe");
         File.WriteAllText(Path.Combine(resolvedGameDir, GameClientConstants.GeneralsExecutable), "dummy-exe");
 
         var pathProvider = new TestSearchPathProvider(targetSearchDir);
@@ -314,8 +362,45 @@ public sealed class InstallationPathResolverTests : IDisposable
 
         Assert.True(result.Success);
         Assert.NotNull(result.Data);
-        Assert.Equal(generalsDir, result.Data.GeneralsPath);
-        Assert.Equal(zhDir, result.Data.ZeroHourPath);
+        Assert.True(Directory.Exists(result.Data.GeneralsPath));
+        Assert.True(Directory.Exists(result.Data.ZeroHourPath));
+        Assert.Equal(generalsDir, result.Data.GeneralsPath, ignoreCase: true);
+        Assert.Equal(zhDir, result.Data.ZeroHourPath, ignoreCase: true);
+        Assert.True(result.Data.HasGenerals);
+        Assert.True(result.Data.HasZeroHour);
+    }
+
+    /// <summary>
+    /// Verifies that ResolveInstallationPathAsync falls back to resolvedPath when subdirectories exist but lack game executables.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ResolveInstallationPathAsync_WhenSubdirectoriesLackExecutable_FallsBackToResolvedPath()
+    {
+        var targetSearchDir = Path.Combine(_tempDirectory, "SearchRootNoSubExe");
+        var resolvedGameDir = Path.Combine(targetSearchDir, "DiscoveredGameNoSubExe");
+        var generalsDir = Path.Combine(resolvedGameDir, GameClientConstants.GeneralsSubdirectoryName);
+        var zhDir = Path.Combine(resolvedGameDir, GameClientConstants.ZeroHourSubdirectoryName);
+        Directory.CreateDirectory(generalsDir);
+        Directory.CreateDirectory(zhDir);
+        File.WriteAllText(Path.Combine(resolvedGameDir, GameClientConstants.GeneralsExecutable), "dummy-exe");
+
+        var pathProvider = new TestSearchPathProvider(targetSearchDir);
+        var resolver = new InstallationPathResolver(NullLogger<InstallationPathResolver>.Instance, pathProvider);
+
+        var stalePath = Path.Combine(_tempDirectory, "StalePathNoSubExe");
+        var originalInstallation = new GameInstallation(stalePath, GameInstallationType.Retail)
+        {
+            HasGenerals = true,
+            HasZeroHour = true,
+        };
+
+        var result = await resolver.ResolveInstallationPathAsync(originalInstallation);
+
+        Assert.True(result.Success);
+        Assert.NotNull(result.Data);
+        Assert.Equal(resolvedGameDir, result.Data.GeneralsPath);
+        Assert.Equal(resolvedGameDir, result.Data.ZeroHourPath);
     }
 
     /// <summary>

@@ -107,13 +107,13 @@ public class GameInstallation(
     {
         if (!string.IsNullOrEmpty(generalsPath))
         {
-            HasGenerals = Directory.Exists(generalsPath) && InstallationExtensions.HasValidGameExecutable(generalsPath);
+            HasGenerals = Directory.Exists(generalsPath) && InstallationExtensions.HasValidGeneralsExecutable(generalsPath);
             GeneralsPath = generalsPath;
         }
 
         if (!string.IsNullOrEmpty(zeroHourPath))
         {
-            HasZeroHour = Directory.Exists(zeroHourPath) && InstallationExtensions.HasValidGameExecutable(zeroHourPath);
+            HasZeroHour = Directory.Exists(zeroHourPath) && InstallationExtensions.HasValidZeroHourExecutable(zeroHourPath);
             ZeroHourPath = zeroHourPath;
         }
 
@@ -156,13 +156,13 @@ public class GameInstallation(
             bool foundZeroHour = false;
 
             // Preserve explicitly configured and valid paths (e.g. from platform detectors or manifests)
-            if (!string.IsNullOrEmpty(GeneralsPath) && Directory.Exists(GeneralsPath) && InstallationExtensions.HasValidGameExecutable(GeneralsPath))
+            if (!string.IsNullOrEmpty(GeneralsPath) && Directory.Exists(GeneralsPath) && InstallationExtensions.HasValidGeneralsExecutable(GeneralsPath))
             {
                 HasGenerals = true;
                 foundGenerals = true;
             }
 
-            if (!string.IsNullOrEmpty(ZeroHourPath) && Directory.Exists(ZeroHourPath) && InstallationExtensions.HasValidGameExecutable(ZeroHourPath))
+            if (!string.IsNullOrEmpty(ZeroHourPath) && Directory.Exists(ZeroHourPath) && InstallationExtensions.HasValidZeroHourExecutable(ZeroHourPath))
             {
                 HasZeroHour = true;
                 foundZeroHour = true;

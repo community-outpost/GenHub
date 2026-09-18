@@ -87,8 +87,8 @@ public class InstallationPathResolver(
         // against the shared valid executable list so all locations accept
         // every recognized edition (Steam, retail, SuperHackers, GeneralsOnline, Contra).
         var hasValidFiles =
-            (installation.HasGenerals && InstallationExtensions.HasValidGameExecutable(installation.GeneralsPath)) ||
-            (installation.HasZeroHour && InstallationExtensions.HasValidGameExecutable(installation.ZeroHourPath)) ||
+            (installation.HasGenerals && InstallationExtensions.HasValidGeneralsExecutable(installation.GeneralsPath)) ||
+            (installation.HasZeroHour && InstallationExtensions.HasValidZeroHourExecutable(installation.ZeroHourPath)) ||
             ((installation.HasGenerals || installation.HasZeroHour) && InstallationExtensions.HasValidGameExecutable(installation.InstallationPath));
 
         if (!hasValidFiles)
@@ -193,7 +193,8 @@ public class InstallationPathResolver(
     {
         return resolvedPath.TryGetDirectoryCaseInsensitive(
             GameClientConstants.GeneralsSubdirectoryName,
-            out var subPath)
+            out var subPath) &&
+            InstallationExtensions.HasValidGeneralsExecutable(subPath)
             ? subPath
             : resolvedPath;
     }
@@ -202,14 +203,16 @@ public class InstallationPathResolver(
     {
         if (resolvedPath.TryGetDirectoryCaseInsensitive(
             GameClientConstants.ZeroHourDirectoryName,
-            out var standardPath))
+            out var standardPath) &&
+            InstallationExtensions.HasValidZeroHourExecutable(standardPath))
         {
             return standardPath;
         }
 
         return resolvedPath.TryGetDirectoryCaseInsensitive(
             GameClientConstants.ZeroHourSubdirectoryName,
-            out var shortPath)
+            out var shortPath) &&
+            InstallationExtensions.HasValidZeroHourExecutable(shortPath)
             ? shortPath
             : resolvedPath;
     }

@@ -281,7 +281,35 @@ public static class GameClientConstants
     ];
 
     /// <summary>
-    /// List of valid game executable filenames for installation verification.
+    /// List of valid game executable filenames for Generals installations.
+    /// </summary>
+    public static readonly IReadOnlyList<string> ValidGeneralsExecutableNames =
+    [
+        GeneralsExecutable,
+        SteamGameDatExecutable,
+        SuperHackersGeneralsExecutable,
+        GameExecutable,
+    ];
+
+    /// <summary>
+    /// List of valid game executable filenames for Zero Hour installations.
+    /// </summary>
+    /// <remarks><see cref="ZeroHourExecutable"/> is deliberately absent: it shares its
+    /// filename with <see cref="GeneralsExecutable"/>, which already covers it.</remarks>
+    public static readonly IReadOnlyList<string> ValidZeroHourExecutableNames =
+    [
+        GeneralsExecutable,
+        SteamGameDatExecutable,
+        SuperHackersZeroHourExecutable,
+        GameExecutable,
+        GeneralsOnlineDefaultExecutable,
+        GeneralsOnline60HzExecutable,
+        GeneralsOnlineEacLauncherExecutable,
+        ContraExecutable,
+    ];
+
+    /// <summary>
+    /// List of valid game executable filenames for installation verification across all editions.
     /// </summary>
     /// <remarks><see cref="ZeroHourExecutable"/> is deliberately absent: it shares its
     /// filename with <see cref="GeneralsExecutable"/>, which already covers it.</remarks>

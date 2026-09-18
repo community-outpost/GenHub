@@ -27,36 +27,43 @@ public static class InstallationExtensions
     public static IReadOnlyList<string> ValidGameExecutableNames => GameClientConstants.ValidGameExecutableNames;
 
     /// <summary>
+    /// Gets candidate executable file names for Generals installations across all platforms and editions.
+    /// </summary>
+    public static IReadOnlyList<string> ValidGeneralsExecutableNames => GameClientConstants.ValidGeneralsExecutableNames;
+
+    /// <summary>
+    /// Gets candidate executable file names for Zero Hour installations across all platforms and editions.
+    /// </summary>
+    public static IReadOnlyList<string> ValidZeroHourExecutableNames => GameClientConstants.ValidZeroHourExecutableNames;
+
+    /// <summary>
     /// Checks whether the directory contains a valid game executable in a case-insensitive manner.
     /// </summary>
     /// <param name="directoryPath">The directory path to check.</param>
     /// <returns>True if at least one recognized executable is found; otherwise false.</returns>
     public static bool HasValidGameExecutable(string? directoryPath)
     {
-        if (string.IsNullOrWhiteSpace(directoryPath) || !Directory.Exists(directoryPath))
-        {
-            return false;
-        }
+        return HasValidExecutableInternal(directoryPath, ValidGameExecutableNames);
+    }
 
-        // Fast path: exact-case check with no directory enumeration.
-        if (ValidGameExecutableNames.Any(exe => File.Exists(Path.Combine(directoryPath, exe))))
-        {
-            return true;
-        }
+    /// <summary>
+    /// Checks whether the directory contains a valid Generals executable in a case-insensitive manner.
+    /// </summary>
+    /// <param name="directoryPath">The directory path to check.</param>
+    /// <returns>True if at least one recognized Generals executable is found; otherwise false.</returns>
+    public static bool HasValidGeneralsExecutable(string? directoryPath)
+    {
+        return HasValidExecutableInternal(directoryPath, ValidGeneralsExecutableNames);
+    }
 
-        // Slow path for case-sensitive filesystems holding case-variant names:
-        // enumerate once and intersect instead of re-enumerating per candidate.
-        try
-        {
-            var fileNames = new HashSet<string>(
-                new DirectoryInfo(directoryPath).GetFiles().Select(f => f.Name),
-                StringComparer.OrdinalIgnoreCase);
-            return ValidGameExecutableNames.Any(fileNames.Contains);
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
-        {
-            return false;
-        }
+    /// <summary>
+    /// Checks whether the directory contains a valid Zero Hour executable in a case-insensitive manner.
+    /// </summary>
+    /// <param name="directoryPath">The directory path to check.</param>
+    /// <returns>True if at least one recognized Zero Hour executable is found; otherwise false.</returns>
+    public static bool HasValidZeroHourExecutable(string? directoryPath)
+    {
+        return HasValidExecutableInternal(directoryPath, ValidZeroHourExecutableNames);
     }
 
     /// <summary>
@@ -345,5 +352,33 @@ public static class InstallationExtensions
             GameInstallationType.Unknown => "unknown",
             _ => "unknown",
         };
+    }
+
+    private static bool HasValidExecutableInternal(string? directoryPath, IReadOnlyList<string> validExecutables)
+    {
+        if (string.IsNullOrWhiteSpace(directoryPath) || !Directory.Exists(directoryPath))
+        {
+            return false;
+        }
+
+        // Fast path: exact-case check with no directory enumeration.
+        if (validExecutables.Any(exe => File.Exists(Path.Combine(directoryPath, exe))))
+        {
+            return true;
+        }
+
+        // Slow path for case-sensitive filesystems holding case-variant names:
+        // enumerate once and intersect instead of re-enumerating per candidate.
+        try
+        {
+            var fileNames = new HashSet<string>(
+                new DirectoryInfo(directoryPath).GetFiles().Select(f => f.Name),
+                StringComparer.OrdinalIgnoreCase);
+            return validExecutables.Any(fileNames.Contains);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
+        {
+            return false;
+        }
     }
 }

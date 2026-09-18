@@ -642,4 +642,92 @@ public class GameInstallationTests
             Directory.Delete(tempParent, true);
         }
     }
+
+    /// <summary>
+    /// Verifies that SetPaths accepts Generals-specific executable for Generals and rejects Zero Hour-only executable.
+    /// </summary>
+    [Fact]
+    public void SetPaths_TitleSpecificGeneralsExecutableValidation()
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), "GenHubTitleTest_" + Guid.NewGuid().ToString("N"));
+        var generalsDir = Path.Combine(tempDir, "Generals");
+        Directory.CreateDirectory(generalsDir);
+        try
+        {
+            var installation = new GameInstallation(tempDir, GameInstallationType.Retail, NullLogger<GameInstallation>.Instance);
+
+            // Zero Hour-only executable in Generals directory -> HasGenerals must be false
+            File.WriteAllText(Path.Combine(generalsDir, GameClientConstants.SuperHackersZeroHourExecutable), string.Empty);
+            installation.SetPaths(generalsDir, null);
+            Assert.False(installation.HasGenerals);
+
+            // Generals-specific executable in Generals directory -> HasGenerals must be true
+            File.Delete(Path.Combine(generalsDir, GameClientConstants.SuperHackersZeroHourExecutable));
+            File.WriteAllText(Path.Combine(generalsDir, GameClientConstants.SuperHackersGeneralsExecutable), string.Empty);
+            installation.SetPaths(generalsDir, null);
+            Assert.True(installation.HasGenerals);
+        }
+        finally
+        {
+            Directory.Delete(tempDir, true);
+        }
+    }
+
+    /// <summary>
+    /// Verifies that SetPaths accepts Zero Hour-specific executable for Zero Hour and rejects Generals-only executable.
+    /// </summary>
+    [Fact]
+    public void SetPaths_TitleSpecificZeroHourExecutableValidation()
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), "GenHubZhTitleTest_" + Guid.NewGuid().ToString("N"));
+        var zhDir = Path.Combine(tempDir, "ZeroHour");
+        Directory.CreateDirectory(zhDir);
+        try
+        {
+            var installation = new GameInstallation(tempDir, GameInstallationType.Retail, NullLogger<GameInstallation>.Instance);
+
+            // Generals-only executable in Zero Hour directory -> HasZeroHour must be false
+            File.WriteAllText(Path.Combine(zhDir, GameClientConstants.SuperHackersGeneralsExecutable), string.Empty);
+            installation.SetPaths(null, zhDir);
+            Assert.False(installation.HasZeroHour);
+
+            // Zero Hour-specific executable in Zero Hour directory -> HasZeroHour must be true
+            File.Delete(Path.Combine(zhDir, GameClientConstants.SuperHackersGeneralsExecutable));
+            File.WriteAllText(Path.Combine(zhDir, GameClientConstants.SuperHackersZeroHourExecutable), string.Empty);
+            installation.SetPaths(null, zhDir);
+            Assert.True(installation.HasZeroHour);
+        }
+        finally
+        {
+            Directory.Delete(tempDir, true);
+        }
+    }
+
+    /// <summary>
+    /// Verifies that SetPaths accepts shared generals.exe for both Generals and Zero Hour paths.
+    /// </summary>
+    [Fact]
+    public void SetPaths_SharedGeneralsExecutableAcceptedByBothTitles()
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), "GenHubSharedTest_" + Guid.NewGuid().ToString("N"));
+        var generalsDir = Path.Combine(tempDir, "Generals");
+        var zhDir = Path.Combine(tempDir, "ZeroHour");
+        Directory.CreateDirectory(generalsDir);
+        Directory.CreateDirectory(zhDir);
+        try
+        {
+            File.WriteAllText(Path.Combine(generalsDir, GameClientConstants.GeneralsExecutable), string.Empty);
+            File.WriteAllText(Path.Combine(zhDir, GameClientConstants.GeneralsExecutable), string.Empty);
+
+            var installation = new GameInstallation(tempDir, GameInstallationType.Retail, NullLogger<GameInstallation>.Instance);
+            installation.SetPaths(generalsDir, zhDir);
+
+            Assert.True(installation.HasGenerals);
+            Assert.True(installation.HasZeroHour);
+        }
+        finally
+        {
+            Directory.Delete(tempDir, true);
+        }
+    }
 }
