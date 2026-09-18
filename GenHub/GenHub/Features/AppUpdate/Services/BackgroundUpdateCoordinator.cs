@@ -748,13 +748,13 @@ public class BackgroundUpdateCoordinator(
                 await ClearStaleSubscriptionAsync(clearedPrNumber, clearedBranch, lifetimeToken);
                 scope.CompleteWithPinnedMessage(AppUpdateConstants.UpdateCompleteRestartingMessage);
             }
-            else if (updateInfo != null)
+            else
             {
-                logger?.LogInformation("Starting one-click release update: {Version}", updateInfo.TargetFullRelease.Version);
-                await velopackUpdateManager.DownloadUpdatesAsync(updateInfo, progress, lifetimeToken);
+                logger?.LogInformation("Starting one-click release update: {Version}", updateInfo!.TargetFullRelease.Version);
+                await velopackUpdateManager.DownloadUpdatesAsync(updateInfo!, progress, lifetimeToken);
                 await ClearStaleSubscriptionAsync(clearedPrNumber, clearedBranch, lifetimeToken);
                 scope.CompleteWithPinnedMessage(AppUpdateConstants.UpdateDownloadedRestartingMessage);
-                velopackUpdateManager.ApplyUpdatesAndRestart(updateInfo);
+                velopackUpdateManager.ApplyUpdatesAndRestart(updateInfo!);
             }
         }
         catch (OperationCanceledException) when (lifetimeToken.IsCancellationRequested)

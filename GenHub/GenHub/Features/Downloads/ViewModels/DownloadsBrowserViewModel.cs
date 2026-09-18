@@ -2309,8 +2309,8 @@ public sealed partial class DownloadsBrowserViewModel(
                 });
             });
 
-            // Terminal toasts are owned by the coordinator (or the fallback scope below);
-            // the grid only mirrors inline progress so a download never toasts twice.
+            // Terminal toasts are owned by the coordinator (or the fallback scope below),
+            // and the grid only mirrors inline progress so a download never toasts twice.
             var result = _downloadCoordinator != null
                 ? await _downloadCoordinator.DownloadContentAsync(item.SearchResult, progress, effectiveToken)
                 : await AcquireWithNotificationsAsync(item.SearchResult, progress, item.Name, effectiveToken);

@@ -28,7 +28,6 @@ public sealed class DownloadNotificationScope : IProgress<ContentAcquisitionProg
     private readonly bool _showStartToast;
     private readonly bool _showTerminalToast;
     private readonly string? _startTitleOverride;
-    private readonly string? _startMessageOverride;
     private readonly Guid _notificationId = Guid.NewGuid();
     private readonly object _lock = new();
     private long _lastUpdateTimestamp = Stopwatch.GetTimestamp();
@@ -59,7 +58,6 @@ public sealed class DownloadNotificationScope : IProgress<ContentAcquisitionProg
         _showStartToast = options?.ShowStartToast ?? true;
         _showTerminalToast = options?.ShowTerminalToast ?? true;
         _startTitleOverride = options?.StartTitle;
-        _startMessageOverride = options?.StartMessage;
 
         if (_showStartToast)
         {
@@ -67,7 +65,7 @@ public sealed class DownloadNotificationScope : IProgress<ContentAcquisitionProg
                 DownloadNotificationConstants.DownloadingTitleKey,
                 DownloadNotificationConstants.DownloadingTitleFormat,
                 _contentName);
-            var message = _startMessageOverride ?? Localize(
+            var message = options?.StartMessage ?? Localize(
                 DownloadNotificationConstants.ConnectingMessageKey,
                 DownloadNotificationConstants.ConnectingMessage);
             _notifications.Show(new NotificationMessage(
