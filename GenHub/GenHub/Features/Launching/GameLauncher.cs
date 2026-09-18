@@ -1312,7 +1312,27 @@ public class GameLauncher(
             Arguments = arguments,
             EnvironmentVariables = BuildEnvironmentVariables(profile.EnvironmentVariables, installation),
             ExpectedChildProcessName = LaunchEntryPointResolver.ResolveExpectedChildProcessName(finalExecutablePath),
+            GameType = profile.GameClient?.GameType,
+            NativeOptionsIniPath = TryGetNativeOptionsIniPath(profile.GameClient?.GameType),
         };
+    }
+
+    private string? TryGetNativeOptionsIniPath(GameType? gameType)
+    {
+        if (gameType is null)
+        {
+            return null;
+        }
+
+        try
+        {
+            return gameSettingsService.GetOptionsFilePath(gameType.Value);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
+        {
+            logger.LogDebug(ex, "[GameLauncher] Could not resolve native Options.ini path for {GameType}", gameType);
+            return null;
+        }
     }
 
     private async Task<OperationResult<GameProcessInfo>> LaunchProcessAsync(

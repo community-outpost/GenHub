@@ -1,7 +1,10 @@
+using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Models.Launching;
 using GenHub.Core.Models.Manifest;
 using GenHub.Features.GameProfiles.Infrastructure;
+using GenHub.Features.Launching;
 using Microsoft.Extensions.Logging.Abstractions;
+using Moq;
 using System;
 using System.IO;
 using System.Linq;
@@ -31,7 +34,10 @@ public class NativeClientLaunchIntegrationTests
     /// <summary>How long the engine must stay up to count as a successful launch.</summary>
     private static readonly TimeSpan LaunchSettleTime = TimeSpan.FromSeconds(12);
 
-    private readonly GameProcessManager _processManager = new(NullLogger<GameProcessManager>.Instance);
+    private readonly GameProcessManager _processManager = new(
+        NullLogger<GameProcessManager>.Instance,
+        new DirectRunner(NullLogger<DirectRunner>.Instance),
+        Mock.Of<ILocalizationService>());
 
     /// <summary>
     /// Launches the engine with the install directory as the working directory, exactly

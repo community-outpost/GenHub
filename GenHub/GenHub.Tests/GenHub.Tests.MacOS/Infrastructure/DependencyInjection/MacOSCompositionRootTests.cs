@@ -1,11 +1,15 @@
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Interfaces.GitHub;
+using GenHub.Core.Interfaces.Launching;
+using GenHub.Features.Launching;
 using GenHub.Infrastructure.DependencyInjection;
 using GenHub.MacOS.Features.GitHub.Services;
 using GenHub.MacOS.GameInstallations;
 using GenHub.MacOS.Infrastructure.DependencyInjection;
 using GenHub.Tests.Shared;
 using Microsoft.Extensions.DependencyInjection;
+using System.IO;
 using System.Runtime.Versioning;
 using Xunit;
 
@@ -71,5 +75,28 @@ public class MacOSCompositionRootTests
 
         Assert.IsType<MacOSInstallationSearchPathProvider>(
             serviceProvider.GetRequiredService<IInstallationSearchPathProvider>());
+    }
+
+    /// <summary>
+    /// Verifies that the macOS host registers <see cref="WineRunner"/> with macOS
+    /// options for <see cref="IGameLaunchRunner"/>.
+    /// </summary>
+    [Fact]
+    public void MacOSHost_RegistersWineRunnerWithMacOSOptions()
+    {
+        using var testEnvironment = new TemporaryApplicationEnvironment();
+        var services = new ServiceCollection();
+        services.ConfigureApplicationServices(platformServices => platformServices.AddMacOSServices());
+
+        using var serviceProvider = services.BuildServiceProvider();
+
+        var launchRunner = Assert.IsType<WineRunner>(
+            serviceProvider.GetRequiredService<IGameLaunchRunner>());
+        Assert.Equal(
+            new[] { WineConstants.CrossOverWineBinaryPath },
+            launchRunner.Options.AbsoluteBinaryPaths);
+        Assert.Equal(
+            Path.Combine(testEnvironment.AppDataPath, WineConstants.ManagedPrefixDirectoryName),
+            launchRunner.Options.PrefixPath);
     }
 }

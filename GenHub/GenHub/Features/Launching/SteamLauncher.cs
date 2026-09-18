@@ -1,4 +1,5 @@
 using GenHub.Core.Constants;
+using GenHub.Core.Extensions.GameInstallations;
 using GenHub.Core.Interfaces.Launcher;
 using GenHub.Core.Models.Launching;
 using GenHub.Core.Models.Manifest;
@@ -127,7 +128,7 @@ public class SteamLauncher : ISteamLauncher
                     $"Game installation directory not found: {gameInstallPath}");
             }
 
-            var targetExePath = Path.Combine(gameInstallPath, executableName);
+            var targetExePath = ResolveOnDiskPath(Path.Combine(gameInstallPath, executableName));
             var backupPath = targetExePath + SteamConstants.BackupExtension;
             var proxyConfigPath = Path.Combine(gameInstallPath, ProxyConfigFileName);
 
@@ -149,7 +150,7 @@ public class SteamLauncher : ISteamLauncher
                     $"Backup executable path is a directory: {backupPath}");
             }
 
-            var effectiveTargetExecutable = Path.GetFullPath(targetExecutablePath);
+            var effectiveTargetExecutable = ResolveOnDiskPath(Path.GetFullPath(targetExecutablePath));
             if (!File.Exists(effectiveTargetExecutable))
             {
                 return OperationResult<SteamLaunchPrepResult>.CreateFailure(
@@ -175,8 +176,8 @@ public class SteamLauncher : ISteamLauncher
 
             var config = new ProxyConfig
             {
-                TargetExecutable = effectiveTargetExecutable,
-                WorkingDirectory = effectiveWorkingDirectory,
+                TargetExecutable = ToProxyPath(effectiveTargetExecutable),
+                WorkingDirectory = ToProxyPath(effectiveWorkingDirectory),
                 Arguments = targetArguments ?? [],
                 SteamAppId = steamAppId,
             };
@@ -314,7 +315,7 @@ public class SteamLauncher : ISteamLauncher
                 cancellationToken);
             _logger.LogInformation("[SteamLauncher] Cleaning up game directory: {Path}", gameInstallPath);
 
-            var targetExePath = Path.Combine(gameInstallPath, executableName);
+            var targetExePath = ResolveOnDiskPath(Path.Combine(gameInstallPath, executableName));
             var backupPath = targetExePath + SteamConstants.BackupExtension;
             var proxyConfigPath = Path.Combine(gameInstallPath, ProxyConfigFileName);
 
@@ -351,6 +352,21 @@ public class SteamLauncher : ISteamLauncher
         {
             installationMutationLock?.Dispose();
         }
+    }
+
+    /// <summary>
+    /// Maps a Unix host path through the Wine host-root drive (Z:).
+    /// </summary>
+    /// <param name="path">The host absolute path.</param>
+    /// <returns>The drive-mapped path, or the input when it is not a Unix path.</returns>
+    internal static string ToProtonPath(string path)
+    {
+        if (string.IsNullOrEmpty(path) || !path.StartsWith('/'))
+        {
+            return path;
+        }
+
+        return WineConstants.HostRootDrivePrefix + path.Replace('/', '\\');
     }
 
     private static bool FilesAreEqual(string firstPath, string secondPath)
@@ -412,6 +428,31 @@ public class SteamLauncher : ISteamLauncher
         }
 
         return false;
+    }
+
+    /// <summary>
+    /// Resolves a candidate file path to its actual on-disk casing, falling back to the
+    /// candidate when nothing matches so existing not-found failures keep their messages.
+    /// </summary>
+    /// <param name="candidatePath">The candidate file path.</param>
+    /// <returns>The on-disk path when found; otherwise the candidate path.</returns>
+    private static string ResolveOnDiskPath(string candidatePath)
+    {
+        return candidatePath.TryGetFileCaseInsensitive(out var resolvedPath)
+            ? resolvedPath
+            : candidatePath;
+    }
+
+    /// <summary>
+    /// Converts a host path to the form the proxy consumes: unchanged on Windows, and
+    /// mapped through the host-root drive (Z:) on Linux and macOS where the proxy runs
+    /// under Proton/Wine.
+    /// </summary>
+    /// <param name="hostPath">The host absolute path.</param>
+    /// <returns>The proxy-facing path.</returns>
+    private static string ToProxyPath(string hostPath)
+    {
+        return OperatingSystem.IsWindows() ? hostPath : ToProtonPath(hostPath);
     }
 
     private OperationResult<bool> RestoreOriginalExecutable(
@@ -604,12 +645,19 @@ public class SteamLauncher : ISteamLauncher
         {
             foreach (var file in filesToEnsure)
             {
-                var sourcePath = Path.Combine(sourceDirectory, file);
-                var destinationPath = Path.Combine(destinationDirectory, file);
-                if (File.Exists(sourcePath) && !File.Exists(destinationPath))
+                var candidateSource = Path.Combine(sourceDirectory, file);
+                if (!candidateSource.TryGetFileCaseInsensitive(out var sourcePath))
                 {
-                    copies.Add((sourcePath, destinationPath));
+                    continue;
                 }
+
+                var destinationPath = Path.Combine(destinationDirectory, Path.GetFileName(sourcePath));
+                if (destinationPath.TryGetFileCaseInsensitive(out _))
+                {
+                    continue;
+                }
+
+                copies.Add((sourcePath, destinationPath));
             }
         }
 

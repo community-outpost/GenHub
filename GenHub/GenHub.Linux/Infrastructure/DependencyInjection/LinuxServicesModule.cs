@@ -1,10 +1,14 @@
+using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Interfaces.GameSettings;
 using GenHub.Core.Interfaces.GitHub;
+using GenHub.Core.Interfaces.Launching;
 using GenHub.Core.Interfaces.Shortcuts;
 using GenHub.Core.Interfaces.Storage;
 using GenHub.Core.Interfaces.Workspace;
+using GenHub.Core.Models.Launching;
 using GenHub.Features.GameSettings;
+using GenHub.Features.Launching;
 using GenHub.Features.Workspace;
 using GenHub.Infrastructure.DependencyInjection;
 using GenHub.Linux.Features.GitHub.Services;
@@ -39,6 +43,9 @@ public static class LinuxServicesModule
         services.AddSingleton<IShortcutService, LinuxShortcutService>();
         services.Replace(ServiceDescriptor.Singleton<IInstallationLocationTracker, LinuxInstallationTracker>());
         services.Replace(ServiceDescriptor.Singleton<IInstallationSearchPathProvider, LinuxInstallationSearchPathProvider>());
+        services.Replace(ServiceDescriptor.Singleton<IGameLaunchRunner>(provider => new WineRunner(
+            WineRunnerOptions.Linux(provider.GetRequiredService<IConfigurationProviderService>().GetRootAppDataPath()),
+            provider.GetRequiredService<ILogger<WineRunner>>())));
 
         services.AddUnixFileOperations();
 

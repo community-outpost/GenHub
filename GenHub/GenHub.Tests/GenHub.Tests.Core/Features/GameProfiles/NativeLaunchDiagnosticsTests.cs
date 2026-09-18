@@ -1,6 +1,9 @@
+using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Models.Launching;
 using GenHub.Features.GameProfiles.Infrastructure;
+using GenHub.Features.Launching;
 using Microsoft.Extensions.Logging.Abstractions;
+using Moq;
 using System;
 using System.IO;
 using System.Runtime.InteropServices;
@@ -25,7 +28,10 @@ public class NativeLaunchDiagnosticsTests : IDisposable
         Path.GetTempPath(),
         $"genhub-launchdiag-{Guid.NewGuid():N}");
 
-    private readonly GameProcessManager _processManager = new(NullLogger<GameProcessManager>.Instance);
+    private readonly GameProcessManager _processManager = new(
+        NullLogger<GameProcessManager>.Instance,
+        new DirectRunner(NullLogger<DirectRunner>.Instance),
+        Mock.Of<ILocalizationService>());
 
     /// <summary>
     /// Initializes a new instance of the <see cref="NativeLaunchDiagnosticsTests"/> class.

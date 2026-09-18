@@ -136,4 +136,14 @@ public static class ProfileValidationConstants
     /// Notification title when content cannot be modified in the current mode.
     /// </summary>
     public const string CannotModifyContentTitle = "Cannot Modify Content";
+
+    /// <summary>
+    /// Resource key for the error shown when no compatibility runner (Wine) is available.
+    /// </summary>
+    public const string MissingCompatibilityRunnerKey = "Launch.Runner.Missing.Message";
+
+    /// <summary>
+    /// English fallback when the compatibility runner message resource is unavailable.
+    /// </summary>
+    public const string MissingCompatibilityRunner = "Wine is required to run Windows games on this system but was not found. Install Wine on Linux, or CrossOver or Wine on macOS, then try again.";
 }

@@ -24,4 +24,10 @@ internal static class ProxyConstants
     /// Delay in milliseconds to wait for the launcher to spawn the game process.
     /// </summary>
     public const int LauncherToGameSpawnDelayMs = 500;
+
+    /// <summary>
+    /// Extension for backed up game executables. Mirrors the canonical value so the
+    /// proxy ships with no project references and stays a tiny single file.
+    /// </summary>
+    public const string BackupExtension = ".ghbak";
 }

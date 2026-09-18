@@ -21,6 +21,7 @@ using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Results.Content;
 using GenHub.Core.Models.Storage;
 using GenHub.Features.GameProfiles.Services;
+using GenHub.Features.Launching;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using System.Collections.Generic;
@@ -259,6 +260,7 @@ public sealed class ProfileLauncherFacadePublisherReconciliationTests
         _gameProcessManagerMock.Object,
         _symlinkCapabilityMock.Object,
         NullLogger<ProfileLauncherFacade>.Instance,
+        new DirectRunner(NullLogger<DirectRunner>.Instance),
         installationCasPoolService: null,
         localizationService: null);
 }

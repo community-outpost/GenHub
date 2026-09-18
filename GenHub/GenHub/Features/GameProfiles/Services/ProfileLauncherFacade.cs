@@ -60,6 +60,7 @@ public class ProfileLauncherFacade(
     IGameProcessManager gameProcessManager,
     ISymlinkCapabilityProvider symlinkCapability,
     ILogger<ProfileLauncherFacade> logger,
+    IGameLaunchRunner launchRunner,
     IInstallationCasPoolService? installationCasPoolService = null,
     ILocalizationService? localizationService = null) : IProfileLauncherFacade
 {
@@ -1211,8 +1212,44 @@ public class ProfileLauncherFacade(
             return ProfileOperationResult<bool>.CreateFailure("CAS system is not available");
         }
 
+        var runnerError = await CheckCompatibilityRunnerAsync(profile, cancellationToken);
+        if (runnerError is not null)
+        {
+            logger.LogWarning("Profile {ProfileId} launch validation failed: {Error}", profile.Id, runnerError);
+            return ProfileOperationResult<bool>.CreateFailure(runnerError);
+        }
+
         logger.LogDebug("Profile {ProfileId} launch validation successful", profile.Id);
         return ProfileOperationResult<bool>.CreateSuccess(true);
+    }
+
+    private async Task<string?> CheckCompatibilityRunnerAsync(GameProfile profile, CancellationToken cancellationToken)
+    {
+        if (launchRunner.CanLaunchWindowsExecutables())
+        {
+            return null;
+        }
+
+        if (await IsSteamClientLaunchAsync(profile, cancellationToken))
+        {
+            return null;
+        }
+
+        return localizationService?.TryGetString(ProfileValidationConstants.MissingCompatibilityRunnerKey, out var localized) == true
+            ? localized
+            : ProfileValidationConstants.MissingCompatibilityRunner;
+    }
+
+    private async Task<bool> IsSteamClientLaunchAsync(GameProfile profile, CancellationToken cancellationToken)
+    {
+        if (profile.UseSteamLaunch != true || string.IsNullOrWhiteSpace(profile.GameInstallationId))
+        {
+            return false;
+        }
+
+        var installationResult = await installationService.GetInstallationAsync(profile.GameInstallationId, cancellationToken);
+        return installationResult is { Success: true, Data: not null }
+            && installationResult.Data.InstallationType == GameInstallationType.Steam;
     }
 
     private async Task<ContentManifest?> TryRetrieveManifestAsync(

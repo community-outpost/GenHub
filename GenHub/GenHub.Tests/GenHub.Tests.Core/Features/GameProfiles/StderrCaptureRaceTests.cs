@@ -1,5 +1,7 @@
+using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Models.Launching;
 using GenHub.Features.GameProfiles.Infrastructure;
+using GenHub.Features.Launching;
 using Microsoft.Extensions.Logging;
 using Moq;
 using System.Runtime.InteropServices;
@@ -51,7 +53,10 @@ public class StderrCaptureRaceTests
             $"echo {TailLine} >&2; " +
             "exit 3";
 
-        using var manager = new GameProcessManager(Mock.Of<ILogger<GameProcessManager>>());
+        using var manager = new GameProcessManager(
+            Mock.Of<ILogger<GameProcessManager>>(),
+            new DirectRunner(Mock.Of<ILogger<DirectRunner>>()),
+            Mock.Of<ILocalizationService>());
         var result = await manager.StartProcessAsync(new GameLaunchConfiguration
         {
             ExecutablePath = "/bin/sh",

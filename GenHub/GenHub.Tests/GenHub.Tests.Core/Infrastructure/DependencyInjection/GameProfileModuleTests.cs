@@ -36,6 +36,7 @@ public class GameProfileModuleTests
         configProviderMock.Setup(x => x.GetWorkspacePath()).Returns(tempDir);
         configProviderMock.Setup(x => x.GetApplicationDataPath()).Returns(Path.Combine(tempDir, "Content"));
         configProviderMock.Setup(x => x.GetProfilesPath()).Returns(Path.Combine(tempDir, "Profiles"));
+        configProviderMock.Setup(x => x.GetRootAppDataPath()).Returns(tempDir);
 
         // Add required dependencies
         services.AddLogging();
@@ -43,6 +44,7 @@ public class GameProfileModuleTests
         services.AddSingleton<IStorageLocationService>(new Mock<IStorageLocationService>().Object);
         services.AddSingleton<IGamePathProvider>(new Mock<IGamePathProvider>().Object);
         services.AddSingleton<ISymlinkCapabilityProvider>(new Mock<ISymlinkCapabilityProvider>().Object);
+        services.AddSingleton<ILocalizationService>(new Mock<ILocalizationService>().Object);
 
         // Mock missing dependencies
         services.AddScoped(provider => new Mock<IGameInstallationService>().Object);
@@ -277,12 +279,14 @@ public class GameProfileModuleTests
         configProvider_mock.Setup(x => x.GetWorkspacePath()).Returns(tempDir);
         configProvider_mock.Setup(x => x.GetApplicationDataPath()).Returns(Path.Combine(tempDir, "Content"));
         configProvider_mock.Setup(x => x.GetProfilesPath()).Returns(Path.Combine(tempDir, "Profiles"));
+        configProvider_mock.Setup(x => x.GetRootAppDataPath()).Returns(tempDir);
 
         services.AddLogging();
         services.AddSingleton<IConfigurationProviderService>(configProvider_mock.Object);
         services.AddSingleton<IStorageLocationService>(new Mock<IStorageLocationService>().Object);
         services.AddSingleton<IGamePathProvider>(new Mock<IGamePathProvider>().Object);
         services.AddSingleton<ISymlinkCapabilityProvider>(new Mock<ISymlinkCapabilityProvider>().Object);
+        services.AddSingleton<ILocalizationService>(new Mock<ILocalizationService>().Object);
 
         // Mock missing dependencies
         services.AddSingleton<IGameInstallationService>(new Mock<IGameInstallationService>().Object);

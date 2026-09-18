@@ -1950,3 +1950,22 @@ Constants for TheSuperHackers (TSH) client settings in `Options.ini`.
 | `DefaultGameWindowTransitionSpeedMultiplier` | `1.0f` | Default transition speed multiplier |
 | `MinGameWindowTransitionSpeedMultiplier` | `1.0f` | Minimum allowed transition speed multiplier |
 | `MaxGameWindowTransitionSpeedMultiplier` | `4.0f` | Maximum allowed transition speed multiplier |
+
+## WineConstants Class
+
+Constants for launching Windows games through Wine on Linux and macOS (`IGameLaunchRunner` / `WineRunner`). They cover PATH-based binary discovery (`wine`, `wine64`, CrossOver fallback), the managed `WINEPREFIX`, host-root drive mapping, and the prefix subfolders needed to mirror `Options.ini`.
+
+| Constant | Value | Description |
+|----------|-------|-------------|
+| `WineBinaryName` | `"wine"` | Primary Wine binary name resolved from PATH |
+| `Wine64BinaryName` | `"wine64"` | 64-bit Wine binary name resolved from PATH |
+| `PrefixEnvironmentVariable` | `"WINEPREFIX"` | Environment variable selecting the Wine prefix |
+| `PathEnvironmentVariable` | `"PATH"` | Process PATH environment variable used for binary lookup |
+| `ManagedPrefixDirectoryName` | `".genhub-wine"` | Directory name of the GenHub-managed Wine prefix under the app data root |
+| `DriveCDirectoryName` | `"drive_c"` | Windows C: drive mapping inside a Wine prefix |
+| `PrefixUsersDirectoryName` | `"users"` | User profiles directory inside a Wine prefix drive |
+| `MyDocumentsDirectoryName` | `"My Documents"` | Windows Documents folder name inside a Wine prefix user profile |
+| `FallbackPrefixUserName` | `"user"` | Fallback prefix user name when the login name is unusable as a directory name |
+| `HostRootDrivePrefix` | `"Z:"` | Wine drive prefix mapped to the host filesystem root (Proton uses the same mapping) |
+| `WindowsExecutableExtension` | `".exe"` | Executable extension the Wine runner wraps |
+| `CrossOverWineBinaryPath` | `"/Applications/CrossOver.app/Contents/SharedSupport/CrossOver/bin/wine"` | CrossOver bundled Wine binary absolute path on macOS |

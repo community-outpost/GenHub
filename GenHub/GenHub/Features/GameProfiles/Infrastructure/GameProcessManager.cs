@@ -2,6 +2,7 @@ using GenHub.Core.Constants;
 using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GameProfiles;
+using GenHub.Core.Interfaces.Launching;
 using GenHub.Core.Models.Events;
 using GenHub.Core.Models.Launching;
 using GenHub.Core.Models.Results;
@@ -22,7 +23,9 @@ namespace GenHub.Features.GameProfiles.Infrastructure;
 /// Manages game processes and their lifecycle.
 /// </summary>
 public class GameProcessManager(
-    ILogger<GameProcessManager> logger) : IGameProcessManager, IDisposable
+    ILogger<GameProcessManager> logger,
+    IGameLaunchRunner launchRunner,
+    ILocalizationService localizationService) : IGameProcessManager, IDisposable
 {
     private const int CleanupIntervalMs = ProcessConstants.ProcessCleanupIntervalMs;
     private readonly ConcurrentDictionary<int, Process> _managedProcesses = new();
@@ -59,6 +62,13 @@ public class GameProcessManager(
 
             logger.LogInformation("[Process] Starting process for executable: {ExecutablePath}", configuration.ExecutablePath);
 
+            var runnerResult = launchRunner.ResolveCommand(configuration);
+            if (!runnerResult.Success || runnerResult.Data is null)
+            {
+                logger.LogWarning("[Process] Compatibility runner could not resolve a launch command: {Error}", runnerResult.FirstError);
+                return OperationResult<GameProcessInfo>.CreateFailure(GetMissingRunnerMessage());
+            }
+
             var workingDirectory = configuration.WorkingDirectory
                 ?? Path.GetDirectoryName(configuration.ExecutablePath)
                 ?? Environment.CurrentDirectory;
@@ -68,7 +78,7 @@ public class GameProcessManager(
             var extension = Path.GetExtension(configuration.ExecutablePath).ToLowerInvariant();
             var isBatchFile = Environment.OSVersion.Platform == PlatformID.Win32NT && (extension == ".bat" || extension == ".cmd");
 
-            var processStartInfo = ConfigureProcessStartInfo(configuration, workingDirectory);
+            var processStartInfo = ConfigureProcessStartInfo(configuration, workingDirectory, runnerResult.Data);
 
             logger.LogInformation(
                 "[Process] Attempting to start process: {FileName} in {WorkingDirectory}",
@@ -731,21 +741,39 @@ public class GameProcessManager(
         }
     }
 
-    private ProcessStartInfo ConfigureProcessStartInfo(GameLaunchConfiguration configuration, string workingDirectory)
+    private string GetMissingRunnerMessage()
+    {
+        return localizationService.TryGetString(ProfileValidationConstants.MissingCompatibilityRunnerKey, out var localized)
+            ? localized
+            : ProfileValidationConstants.MissingCompatibilityRunner;
+    }
+
+    private ProcessStartInfo ConfigureProcessStartInfo(GameLaunchConfiguration configuration, string workingDirectory, RunnerCommand runnerCommand)
     {
         var processStartInfo = new ProcessStartInfo
         {
             WorkingDirectory = workingDirectory,
-            FileName = configuration.ExecutablePath,
+            FileName = runnerCommand.FileName,
             UseShellExecute = false,
             CreateNoWindow = false,
             RedirectStandardError = true,
         };
 
+        foreach (var envVar in runnerCommand.EnvironmentVariables)
+        {
+            processStartInfo.EnvironmentVariables[envVar.Key] = envVar.Value;
+            logger.LogDebug("[Process] Set runner environment variable: {Key}={Value}", envVar.Key, envVar.Value);
+        }
+
+        var argList = new List<string>();
+        if (!string.IsNullOrEmpty(runnerCommand.ArgumentPrefix))
+        {
+            argList.Add(runnerCommand.ArgumentPrefix);
+        }
+
         if (configuration.Arguments is { Count: > 0 } arguments)
         {
             logger.LogDebug("[Process] Adding {ArgumentCount} arguments to process", arguments.Count);
-            var argList = new List<string>();
 
             foreach (var arg in arguments)
             {
@@ -773,7 +801,10 @@ public class GameProcessManager(
                     logger.LogDebug("Added key-value argument: {Key}={Value}", arg.Key, quotedValue);
                 }
             }
+        }
 
+        if (argList.Count > 0)
+        {
             processStartInfo.Arguments = string.Join(" ", argList);
         }
 

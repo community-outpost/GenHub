@@ -1205,6 +1205,10 @@
     <value>Символические ссылки</value>
     <comment>Workspace status when using symlinks</comment>
   </data>
+  <data name="Launch.Runner.Missing.Message" xml:space="preserve">
+    <value>Для запуска Windows-игр в этой системе требуется Wine, но он не найден. Установите Wine в Linux или CrossOver/Wine в macOS и повторите попытку.</value>
+    <comment>Error shown when no Wine compatibility runner is available on Linux or macOS</comment>
+  </data>
   <data name="Maps.Button.ClearAllHistory" xml:space="preserve">
     <value>Очистить всю историю</value>
   </data>

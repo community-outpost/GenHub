@@ -9,6 +9,7 @@ using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Interfaces.Storage;
 using GenHub.Core.Interfaces.Workspace;
 using GenHub.Features.GameProfiles.Services;
+using GenHub.Features.Launching;
 using Microsoft.Extensions.Logging;
 using Moq;
 using System.Threading;
@@ -80,5 +81,6 @@ public class ProfileLauncherFacadeCancellationTests
         Mock.Of<IConfigurationProviderService>(),
         Mock.Of<IGameProcessManager>(),
         Mock.Of<ISymlinkCapabilityProvider>(),
-        Mock.Of<ILogger<ProfileLauncherFacade>>());
+        Mock.Of<ILogger<ProfileLauncherFacade>>(),
+        new DirectRunner(Mock.Of<ILogger<DirectRunner>>()));
 }
