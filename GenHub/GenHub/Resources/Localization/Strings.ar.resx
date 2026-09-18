@@ -8023,4 +8023,10 @@ GenHub هو مشغل ومدير حديث لألعاب **Command &amp; Conquer: G
   <data name="GameProfiles.ImportInspection.Warning.MissingDownloadSource" xml:space="preserve">
     <value>المكون '{0}' غير مخزن محلياً وليس له مصدر تنزيل. لا يمكن الحصول عليه.</value>
   </data>
+  <data name="GameProfiles.ImportInspection.Warning.MissingDownloadSourceGeneric" xml:space="preserve">
+    <value>واحد أو أكثر من المكونات المطلوبة غير مخزن مؤقتًا محليًا وليس له مصدر تنزيل. لا يمكن الحصول عليها.</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.UnknownComponent" xml:space="preserve">
+    <value>غير معروف</value>
+  </data>
 </root>

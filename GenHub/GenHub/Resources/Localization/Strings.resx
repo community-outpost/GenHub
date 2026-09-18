@@ -8117,4 +8117,10 @@ Do you want to download and inspect this profile package?</value>
   <data name="GameProfiles.ImportInspection.Warning.MissingDownloadSource" xml:space="preserve">
     <value>Component '{0}' is not cached locally and has no download source. It cannot be acquired.</value>
   </data>
+  <data name="GameProfiles.ImportInspection.Warning.MissingDownloadSourceGeneric" xml:space="preserve">
+    <value>One or more required components are not cached locally and have no download source. They cannot be acquired.</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.UnknownComponent" xml:space="preserve">
+    <value>Unknown</value>
+  </data>
 </root>

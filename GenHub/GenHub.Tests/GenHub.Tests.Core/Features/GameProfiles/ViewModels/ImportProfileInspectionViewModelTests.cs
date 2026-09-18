@@ -119,7 +119,7 @@ public class ImportProfileInspectionViewModelTests
             HasValidGameInstallation = true,
             MatchedGameInstallationId = "inst-steam",
             CompatibleInstallations = [installation],
-            TotalDownloadBytesRequired = 0,
+            TotalDownloadBytesRequired = 1024,
             CachedManifestCount = 0,
             MissingManifestCount = 0,
             HasNameConflict = false,
@@ -186,7 +186,7 @@ public class ImportProfileInspectionViewModelTests
             HasValidGameInstallation = true,
             MatchedGameInstallationId = "inst-steam",
             CompatibleInstallations = [installation],
-            TotalDownloadBytesRequired = 0,
+            TotalDownloadBytesRequired = 1024,
             CachedManifestCount = 0,
             MissingManifestCount = 0,
             HasNameConflict = false,
@@ -314,7 +314,7 @@ public class ImportProfileInspectionViewModelTests
             HasValidGameInstallation = true,
             MatchedGameInstallationId = "inst-1",
             CompatibleInstallations = [new GameInstallation("/games/zh", GameInstallationType.Steam) { Id = "inst-1", HasZeroHour = true }],
-            TotalDownloadBytesRequired = 0,
+            TotalDownloadBytesRequired = 1024,
             CachedManifestCount = 0,
             MissingManifestCount = 0,
             HasNameConflict = false,
@@ -365,7 +365,7 @@ public class ImportProfileInspectionViewModelTests
             HasValidGameInstallation = true,
             MatchedGameInstallationId = "inst-1",
             CompatibleInstallations = [new GameInstallation("/games/zh", GameInstallationType.Steam) { Id = "inst-1", HasZeroHour = true }],
-            TotalDownloadBytesRequired = 0,
+            TotalDownloadBytesRequired = 1024,
             CachedManifestCount = 0,
             MissingManifestCount = 0,
             HasNameConflict = false,
@@ -393,5 +393,113 @@ public class ImportProfileInspectionViewModelTests
                 It.IsAny<IProgress<ContentAcquisitionProgress>>(),
                 It.IsAny<CancellationToken>()),
             Times.Never);
+    }
+
+    /// <summary>
+    /// Verifies that MissingDownloadSource with uncached sourceless manifest produces a component-specific warning.
+    /// </summary>
+    [Fact]
+    public void MissingDownloadSource_WhenManifestUncachedAndNoSource_AddsComponentSpecificWarning()
+    {
+        var dependency = new SharedManifestDependency
+        {
+            ManifestId = "test.mod.missing",
+            DisplayName = "Missing Mod",
+            Version = "1.0",
+            ContentType = GenHub.Core.Models.Enums.ContentType.Mod,
+            Publisher = "Test",
+            DownloadSize = 1024,
+            IsCachedLocally = false,
+            PackageUrl = null,
+            Files = [],
+            Hash = "hash",
+        };
+
+        var package = new SharedGameProfilePackage
+        {
+            SchemaVersion = 1,
+            Profile = new SharedProfileMetadata { Name = "Missing Source Profile", GameType = GameType.ZeroHour },
+            RequiredManifests = [dependency],
+        };
+
+        var inspection = new SharedProfileInspectionResult
+        {
+            ProfileMetadata = package.Profile,
+            Manifests = [dependency],
+            HasValidGameInstallation = true,
+            MatchedGameInstallationId = null,
+            CompatibleInstallations = [],
+            TotalDownloadBytesRequired = 1024,
+            CachedManifestCount = 0,
+            MissingManifestCount = 1,
+            HasNameConflict = false,
+            SuggestedProfileName = "Missing Source Profile",
+            SecurityWarnings = ["Component 'Missing Mod' is not cached locally and has no download source. It cannot be acquired."],
+            SecurityWarningCodes = [ProfileSecurityWarningCode.MissingDownloadSource],
+            Package = package,
+        };
+
+        var vm = new ImportProfileInspectionViewModel(
+            inspection,
+            _sharingServiceMock.Object,
+            _notificationServiceMock.Object,
+            NullLogger<ImportProfileInspectionViewModel>.Instance);
+
+        Assert.Single(vm.SecurityWarnings);
+        Assert.Contains("Missing Mod", vm.SecurityWarnings[0]);
+    }
+
+    /// <summary>
+    /// Verifies that MissingDownloadSource with no uncached sourceless manifests emits a generic warning without attributing to arbitrary manifest.
+    /// </summary>
+    [Fact]
+    public void MissingDownloadSource_WhenDivergenceWithNoUncachedSourcelessManifests_EmitsGenericWarningWithoutFabricatingAttribution()
+    {
+        var cachedDependency = new SharedManifestDependency
+        {
+            ManifestId = "test.mod.cached",
+            DisplayName = "Cached Mod",
+            Version = "1.0",
+            ContentType = GenHub.Core.Models.Enums.ContentType.Mod,
+            Publisher = "Test",
+            DownloadSize = 100,
+            IsCachedLocally = true,
+            PackageUrl = "https://example.com/mod.zip",
+            Hash = "hash",
+        };
+
+        var package = new SharedGameProfilePackage
+        {
+            SchemaVersion = 1,
+            Profile = new SharedProfileMetadata { Name = "Divergence Profile", GameType = GameType.ZeroHour },
+            RequiredManifests = [cachedDependency],
+        };
+
+        var inspection = new SharedProfileInspectionResult
+        {
+            ProfileMetadata = package.Profile,
+            Manifests = [cachedDependency],
+            HasValidGameInstallation = true,
+            MatchedGameInstallationId = null,
+            CompatibleInstallations = [],
+            TotalDownloadBytesRequired = 0,
+            CachedManifestCount = 1,
+            MissingManifestCount = 0,
+            HasNameConflict = false,
+            SuggestedProfileName = "Divergence Profile",
+            SecurityWarnings = [],
+            SecurityWarningCodes = [ProfileSecurityWarningCode.MissingDownloadSource],
+            Package = package,
+        };
+
+        var vm = new ImportProfileInspectionViewModel(
+            inspection,
+            _sharingServiceMock.Object,
+            _notificationServiceMock.Object,
+            NullLogger<ImportProfileInspectionViewModel>.Instance);
+
+        Assert.Single(vm.SecurityWarnings);
+        Assert.DoesNotContain("Cached Mod", vm.SecurityWarnings[0]);
+        Assert.Contains("One or more required components", vm.SecurityWarnings[0]);
     }
 }

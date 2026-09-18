@@ -8023,4 +8023,10 @@ GenHub передает официальный идентификатор AppID 
   <data name="GameProfiles.ImportInspection.Warning.MissingDownloadSource" xml:space="preserve">
     <value>Компонент «{0}» не кэширован локально и не имеет источника загрузки. Его невозможно получить.</value>
   </data>
+  <data name="GameProfiles.ImportInspection.Warning.MissingDownloadSourceGeneric" xml:space="preserve">
+    <value>Один или несколько необходимых компонентов не кэшированы локально и не имеют источника для скачивания. Их невозможно получить.</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.UnknownComponent" xml:space="preserve">
+    <value>Неизвестно</value>
+  </data>
 </root>

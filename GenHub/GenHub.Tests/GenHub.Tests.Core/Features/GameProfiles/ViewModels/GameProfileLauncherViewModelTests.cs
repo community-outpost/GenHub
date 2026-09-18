@@ -680,6 +680,26 @@ public class GameProfileLauncherViewModelTests
         Assert.Equal(5678, origItem.ProcessId);
     }
 
+    /// <summary>
+    /// Verifies that TryExtractRemoteImportHost recognizes both import and view prefixes with url query.
+    /// </summary>
+    /// <param name="uriOrPath">The sharing URI or file path to evaluate.</param>
+    /// <param name="expectedHost">The expected remote host extracted, or null.</param>
+    [Theory]
+    [InlineData("genhub://profile/import?url=https://example.com/profile.ghprofile", "example.com")]
+    [InlineData("genhub://profile/view?url=https://example.com/profile.ghprofile", "example.com")]
+    [InlineData("GENHUB://PROFILE/VIEW?url=https://outpost.org/mod.ghprofile&foo=bar", "outpost.org")]
+    [InlineData("genhub://profile/import?data=eyJhbGciOi...", null)]
+    [InlineData("genhub://profile/view?data=eyJhbGciOi...", null)]
+    [InlineData("https://example.com/profile.ghprofile", null)]
+    [InlineData("/path/to/profile.ghprofile", null)]
+    public void TryExtractRemoteImportHost_RecognizesBothImportAndViewUrls(string uriOrPath, string? expectedHost)
+    {
+        var result = GameProfileLauncherViewModel.TryExtractRemoteImportHost(uriOrPath);
+        Assert.Equal(expectedHost, result);
+    }
+    }
+
     private static ProfileResourceService CreateProfileResourceService()
     {
         return new ProfileResourceService(NullLogger<ProfileResourceService>.Instance);

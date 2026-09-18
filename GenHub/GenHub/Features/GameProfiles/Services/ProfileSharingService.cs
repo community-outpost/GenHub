@@ -788,26 +788,34 @@ public class ProfileSharingService(
             return OperationResult<string>.CreateFailure($"Specified profile file does not exist: {input}");
         }
 
-        var fileInfo = new FileInfo(input);
-        if (fileInfo.Length > ProfileSharingConstants.MaxProfileFileBytes)
-        {
-            return OperationResult<string>.CreateFailure($"Profile file size exceeds maximum limit ({ProfileSharingConstants.MaxProfileFileBytes} bytes).");
-        }
-
-        var fileContent = await File.ReadAllTextAsync(input, cancellationToken);
-        if (fileContent.TrimStart().StartsWith('{'))
-        {
-            return OperationResult<string>.CreateSuccess(fileContent);
-        }
-
         try
         {
-            var decompressed = await ProfileSharingCompressionHelper.DecodeAndDecompressAsync(fileContent.Trim(), cancellationToken);
-            return OperationResult<string>.CreateSuccess(decompressed);
+            await using var stream = new FileStream(input, FileMode.Open, FileAccess.Read, FileShare.Read, 4096, useAsync: true);
+            if (stream.Length > ProfileSharingConstants.MaxProfileFileBytes)
+            {
+                return OperationResult<string>.CreateFailure($"Profile file size exceeds maximum limit ({ProfileSharingConstants.MaxProfileFileBytes} bytes).");
+            }
+
+            using var reader = new StreamReader(stream, Encoding.UTF8);
+            var fileContent = await reader.ReadToEndAsync(cancellationToken);
+            if (fileContent.TrimStart().StartsWith('{'))
+            {
+                return OperationResult<string>.CreateSuccess(fileContent);
+            }
+
+            try
+            {
+                var decompressed = await ProfileSharingCompressionHelper.DecodeAndDecompressAsync(fileContent.Trim(), cancellationToken);
+                return OperationResult<string>.CreateSuccess(decompressed);
+            }
+            catch (Exception ex) when (ex is FormatException or InvalidDataException or ArgumentException)
+            {
+                return OperationResult<string>.CreateFailure($"Unable to parse shared profile file '{input}': {ex.Message}");
+            }
         }
-        catch (Exception ex) when (ex is FormatException or InvalidDataException or ArgumentException)
+        catch (IOException ex)
         {
-            return OperationResult<string>.CreateFailure($"Unable to parse shared profile file '{input}': {ex.Message}");
+            return OperationResult<string>.CreateFailure($"Unable to read shared profile file '{input}': {ex.Message}");
         }
     }
 

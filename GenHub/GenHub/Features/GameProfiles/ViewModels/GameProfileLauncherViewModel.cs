@@ -544,6 +544,36 @@ public partial class GameProfileLauncherViewModel(
     }
 
     /// <summary>
+    /// Attempts to extract the remote host from a profile sharing URI, if it is an import or view URI with a url parameter.
+    /// </summary>
+    /// <param name="shareUriOrPath">The sharing URI or file path.</param>
+    /// <returns>The remote host name if applicable; otherwise, <c>null</c>.</returns>
+    internal static string? TryExtractRemoteImportHost(string shareUriOrPath)
+    {
+        if (!shareUriOrPath.StartsWith(CommandLineConstants.ProfileImportUriPrefix, StringComparison.OrdinalIgnoreCase) &&
+            !shareUriOrPath.StartsWith(CommandLineConstants.ProfileViewUriPrefix, StringComparison.OrdinalIgnoreCase))
+        {
+            return null;
+        }
+
+        int queryStart = shareUriOrPath.IndexOf("url=", StringComparison.OrdinalIgnoreCase);
+        if (queryStart == -1)
+        {
+            return null;
+        }
+
+        var urlValue = shareUriOrPath[(queryStart + 4)..];
+        int ampIndex = urlValue.IndexOf('&');
+        if (ampIndex != -1)
+        {
+            urlValue = urlValue[..ampIndex];
+        }
+
+        var unescaped = Uri.UnescapeDataString(urlValue);
+        return Uri.TryCreate(unescaped, UriKind.Absolute, out var uri) ? uri.Host : null;
+    }
+
+    /// <summary>
     /// Generates a unique profile name by appending a number if needed.
     /// </summary>
     /// <param name="baseName">The base name to use for the profile.</param>
@@ -622,30 +652,6 @@ public partial class GameProfileLauncherViewModel(
     private static bool IsStandardGameClient(GameClient client)
     {
         return !client.IsPublisherClient;
-    }
-
-    private static string? TryExtractRemoteImportHost(string shareUriOrPath)
-    {
-        if (!shareUriOrPath.StartsWith(CommandLineConstants.ProfileImportUriPrefix, StringComparison.OrdinalIgnoreCase))
-        {
-            return null;
-        }
-
-        int queryStart = shareUriOrPath.IndexOf("url=", StringComparison.OrdinalIgnoreCase);
-        if (queryStart == -1)
-        {
-            return null;
-        }
-
-        var urlValue = shareUriOrPath[(queryStart + 4)..];
-        int ampIndex = urlValue.IndexOf('&');
-        if (ampIndex != -1)
-        {
-            urlValue = urlValue[..ampIndex];
-        }
-
-        var unescaped = Uri.UnescapeDataString(urlValue);
-        return Uri.TryCreate(unescaped, UriKind.Absolute, out var uri) ? uri.Host : null;
     }
 
     private static async Task ShowImportProfileInspectionDialogAsync(ImportProfileInspectionViewModel inspectionViewModel)
