@@ -839,7 +839,7 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
                 if (!IsAuthenticated)
                 {
                     _logger.LogInformation("Subscribed to PR #{PrNumber} but GitHub authentication is not configured", SubscribedPr.Number);
-                    StatusMessage = AppUpdateConstants.AuthRequiredForArtifactsMessage;
+                    StatusMessage = GetLocalizedString("Updates.Status.AuthRequiredForArtifacts", AppUpdateConstants.AuthRequiredForArtifactsMessage);
                     IsUpdateAvailable = false;
                     return;
                 }
@@ -898,7 +898,7 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
                     if (!IsAuthenticated)
                     {
                         _logger.LogInformation("Subscribed to branch '{Branch}' but GitHub authentication is not configured", SubscribedBranch);
-                        StatusMessage = AppUpdateConstants.AuthRequiredForArtifactsMessage;
+                        StatusMessage = GetLocalizedString("Updates.Status.AuthRequiredForArtifacts", AppUpdateConstants.AuthRequiredForArtifactsMessage);
                         IsUpdateAvailable = false;
                         return;
                     }
@@ -1432,7 +1432,7 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private async Task LoadPullRequestsAsync()
     {
-        if (!IsAuthenticated || IsLoadingPullRequests) return;
+        if (_disposed || !IsAuthenticated || IsLoadingPullRequests) return;
 
         IsLoadingPullRequests = true;
         AvailablePullRequests.Clear();
@@ -1441,6 +1441,10 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
         {
             _logger.LogInformation("Loading open pull requests with artifacts");
             var prs = await _velopackUpdateManager.GetOpenPullRequestsAsync(_cancellationTokenSource.Token);
+            if (_disposed || !IsAuthenticated)
+            {
+                return;
+            }
 
             await Dispatcher.UIThread.InvokeAsync(() =>
             {
@@ -1506,7 +1510,7 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private async Task LoadBranchesAsync()
     {
-        if (!IsAuthenticated || IsLoadingBranches) return;
+        if (_disposed || !IsAuthenticated || IsLoadingBranches) return;
 
         IsLoadingBranches = true;
         AvailableBranches.Clear();
@@ -1515,6 +1519,10 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
         {
             _logger.LogInformation("Loading repository branches");
             var branches = await _velopackUpdateManager.GetBranchesAsync(_cancellationTokenSource.Token);
+            if (_disposed || !IsAuthenticated)
+            {
+                return;
+            }
 
             await Dispatcher.UIThread.InvokeAsync(() =>
             {
@@ -1695,10 +1703,21 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
 
     private void RefreshAuthenticationState(bool isAuthenticated)
     {
+        if (_disposed)
+        {
+            return;
+        }
+
         IsAuthenticated = isAuthenticated;
         if (isAuthenticated)
         {
             _ = Task.WhenAll(LoadPullRequestsAsync(), LoadBranchesAsync());
+        }
+        else
+        {
+            _allPullRequests.Clear();
+            AvailablePullRequests.Clear();
+            AvailableBranches.Clear();
         }
     }
 }

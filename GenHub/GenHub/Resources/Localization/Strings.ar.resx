@@ -3066,6 +3066,10 @@
     <value>جارٍ التحقق من وجود تحديثات...</value>
     <comment>Status message while checking for updates</comment>
   </data>
+  <data name="Updates.Status.AuthRequiredForArtifacts" xml:space="preserve">
+    <value>سجّل الدخول باستخدام GitHub للوصول إلى إصدارات الفروع وطلبات السحب.</value>
+    <comment>Status message when branch or PR builds require GitHub sign-in</comment>
+  </data>
   <data name="Updates.Status.NoUpdatesAvailable" xml:space="preserve">
     <value>لا توجد تحديثات متاحة</value>
     <comment>Status message when no updates are available</comment>
@@ -4390,7 +4394,7 @@
     <value>تبديل تفاصيل الإصدار</value>
   </data>
   <data name="Info.Changelog.RateLimited" xml:space="preserve">
-    <value>تم تجاوز حد طلبات GitHub API. يرجى تكوين رمز وصول شخصي في الإعدادات أو المحاولة مرة أخرى لاحقًا.</value>
+    <value>تم تجاوز حد طلبات GitHub API. سجّل الدخول باستخدام GitHub في الإعدادات لزيادة الحد، أو حاول مرة أخرى لاحقًا.</value>
   </data>
   <data name="Info.Changelog.NoReleasesFound" xml:space="preserve">
     <value>لم يتم العثور على سجلات تغيير للإصدارات.</value>
@@ -8037,6 +8041,15 @@ GenHub هو مشغل ومدير حديث لألعاب **Command &amp; Conquer: G
   </data>
   <data name="Settings.GitHubAuth.Toast.ServiceUnavailable" xml:space="preserve">
     <value>مصادقة GitHub غير متاحة.</value>
+  </data>
+  <data name="Settings.GitHubAuth.Status.SignedIn" xml:space="preserve">
+    <value>تم تسجيل الدخول</value>
+  </data>
+  <data name="Settings.GitHubAuth.Status.SignedOut" xml:space="preserve">
+    <value>لم يتم تسجيل الدخول</value>
+  </data>
+  <data name="Settings.GitHubAuth.Toast.BrowserOpenFailed" xml:space="preserve">
+    <value>تم نسخ الرمز إلى الحافظة، ولكن تعذر فتح GitHub تلقائيًا. أدخل الرمز يدويًا.</value>
   </data>
   <data name="Info.Demo.AppUpdates.AuthTitle" xml:space="preserve">
     <value>تسجيل الدخول باستخدام GitHub</value>

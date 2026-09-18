@@ -840,7 +840,9 @@
                   <TextBlock Text="{localization:Localize Settings.GitHubAuth.Label}"
                              Classes="setting-label" VerticalAlignment="Center" Margin="0" />
                   <Ellipse Width="8" Height="8" VerticalAlignment="Center"
-                           Fill="{Binding GitHubAuthStatusColor, Converter={StaticResource ColorToBrushConverter}}" />
+                           Fill="{Binding GitHubAuthStatusColor, Converter={StaticResource ColorToBrushConverter}}"
+                           ToolTip.Tip="{Binding GitHubAuthStatusText}"
+                           AutomationProperties.Name="{Binding GitHubAuthStatusText}" />
                 </StackPanel>
 
                 <!-- Signed Out -->

@@ -9,6 +9,7 @@ using Moq;
 using Octokit;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
@@ -23,8 +24,38 @@ namespace GenHub.Tests.Core.Features.GitHub;
 /// Contains unit tests for <see cref="GitHubAuthService"/>.
 /// </summary>
 [Collection(GitHubAuthEnvironmentCollection.Name)]
-public class GitHubAuthServiceTests
+public class GitHubAuthServiceTests : IDisposable
 {
+    private readonly string? _originalClientId;
+    private readonly string? _originalGenHubToken;
+    private readonly string? _originalGitHubToken;
+    private bool _disposed;
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="GitHubAuthServiceTests"/> class.
+    /// </summary>
+    public GitHubAuthServiceTests()
+    {
+        _originalClientId = Environment.GetEnvironmentVariable(GitHubConstants.OAuthClientIdEnvVar);
+        _originalGenHubToken = Environment.GetEnvironmentVariable(GitHubConstants.GenHubTokenEnvVar);
+        _originalGitHubToken = Environment.GetEnvironmentVariable(GitHubConstants.GitHubTokenEnvVar);
+    }
+
+    /// <inheritdoc />
+    public void Dispose()
+    {
+        if (_disposed)
+        {
+            return;
+        }
+
+        _disposed = true;
+        Environment.SetEnvironmentVariable(GitHubConstants.OAuthClientIdEnvVar, _originalClientId);
+        Environment.SetEnvironmentVariable(GitHubConstants.GenHubTokenEnvVar, _originalGenHubToken);
+        Environment.SetEnvironmentVariable(GitHubConstants.GitHubTokenEnvVar, _originalGitHubToken);
+        GC.SuppressFinalize(this);
+    }
+
     /// <summary>
     /// Verifies that initiating login requests the minimal scopes with the configured client ID.
     /// </summary>
@@ -316,6 +347,98 @@ public class GitHubAuthServiceTests
         Assert.Null(await harness.Service.GetAccessTokenAsync());
         Assert.NotNull(raised);
         Assert.False(raised.IsAuthenticated);
+    }
+
+    /// <summary>
+    /// Verifies that a failed profile fetch rolls back the staged credentials without persisting the token or raising the event.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task WaitForAuthorizationAsync_WhenProfileLoadFails_DoesNotPersistTokenAsync()
+    {
+        // Arrange
+        SetGitHubEnvironment(clientId: "test-client-id");
+        var harness = new AuthHarness();
+        harness.Oauth
+            .Setup(x => x.CreateAccessTokenForDeviceFlow(It.IsAny<string>(), It.IsAny<OauthDeviceFlowResponse>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new OauthToken("bearer", "oauth-access-token", 0, null!, 0, [], null!, null!, null!));
+        harness.UserClient.Setup(x => x.Current()).ThrowsAsync(new ApiException("Server error", HttpStatusCode.InternalServerError));
+        var raised = false;
+        harness.Service.AuthStateChanged += (_, _) => raised = true;
+        var deviceCode = new GitHubDeviceCodeResponse("device-code", "USER-CODE", "https://github.com/login/device", 900, 5);
+
+        // Act
+        var result = await harness.Service.WaitForAuthorizationAsync(deviceCode);
+
+        // Assert
+        Assert.False(result.Success);
+        Assert.Contains("profile could not be loaded", result.Errors.First(), StringComparison.Ordinal);
+        harness.TokenStorage.Verify(x => x.SaveTokenAsync(It.IsAny<SecureString>()), Times.Never);
+        Assert.False(raised);
+        Assert.False(harness.Service.IsAuthenticated);
+        Assert.Null(harness.Service.CurrentUser);
+    }
+
+    /// <summary>
+    /// Verifies that a sign-out during device flow polling aborts the login without persisting the token.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task WaitForAuthorizationAsync_WhenSignOutDuringPoll_AbortsLoginAsync()
+    {
+        // Arrange
+        SetGitHubEnvironment(clientId: "test-client-id");
+        var harness = new AuthHarness();
+        harness.Oauth
+            .Setup(x => x.CreateAccessTokenForDeviceFlow(It.IsAny<string>(), It.IsAny<OauthDeviceFlowResponse>(), It.IsAny<CancellationToken>()))
+            .Callback(() => harness.Service.SignOutAsync().GetAwaiter().GetResult())
+            .ReturnsAsync(new OauthToken("bearer", "oauth-access-token", 0, null!, 0, [], null!, null!, null!));
+        harness.UserClient.Setup(x => x.Current()).ReturnsAsync(CreateOctokitUser());
+        var signInRaised = false;
+        harness.Service.AuthStateChanged += (_, args) => signInRaised |= args.IsAuthenticated;
+        var deviceCode = new GitHubDeviceCodeResponse("device-code", "USER-CODE", "https://github.com/login/device", 900, 5);
+
+        // Act
+        var result = await harness.Service.WaitForAuthorizationAsync(deviceCode);
+
+        // Assert
+        Assert.False(result.Success);
+        Assert.Contains("was cancelled", result.Errors.First(), StringComparison.Ordinal);
+        harness.TokenStorage.Verify(x => x.SaveTokenAsync(It.IsAny<SecureString>()), Times.Never);
+        Assert.False(signInRaised);
+        Assert.False(harness.Service.IsAuthenticated);
+    }
+
+    /// <summary>
+    /// Verifies that token persistence I/O failures surface as login failures instead of escaping.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task WaitForAuthorizationAsync_WhenTokenSaveFails_ReturnsFailureAsync()
+    {
+        // Arrange
+        SetGitHubEnvironment(clientId: "test-client-id");
+        var harness = new AuthHarness();
+        harness.TokenStorage
+            .Setup(x => x.SaveTokenAsync(It.IsAny<SecureString>()))
+            .ThrowsAsync(new IOException("Disk full"));
+        harness.Oauth
+            .Setup(x => x.CreateAccessTokenForDeviceFlow(It.IsAny<string>(), It.IsAny<OauthDeviceFlowResponse>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new OauthToken("bearer", "oauth-access-token", 0, null!, 0, [], null!, null!, null!));
+        harness.UserClient.Setup(x => x.Current()).ReturnsAsync(CreateOctokitUser());
+        var raised = false;
+        harness.Service.AuthStateChanged += (_, _) => raised = true;
+        var deviceCode = new GitHubDeviceCodeResponse("device-code", "USER-CODE", "https://github.com/login/device", 900, 5);
+
+        // Act
+        var result = await harness.Service.WaitForAuthorizationAsync(deviceCode);
+
+        // Assert
+        Assert.False(result.Success);
+        Assert.Contains("could not be saved", result.Errors.First(), StringComparison.Ordinal);
+        Assert.False(raised);
+        Assert.False(harness.Service.IsAuthenticated);
+        Assert.Null(harness.Service.CurrentUser);
     }
 
     private static void SetGitHubEnvironment(string? clientId, string? genHubToken = null, string? gitHubToken = null)

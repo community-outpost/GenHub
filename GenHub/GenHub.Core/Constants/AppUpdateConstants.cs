@@ -314,7 +314,8 @@ public static class AppUpdateConstants
     public const string BranchStaleStatusMessageFormat = "Branch '{0}' has no available builds. Select a new branch or switch to MAIN.";
 
     /// <summary>
-    /// Message displayed when checking branch/PR artifacts without GitHub authentication.
+    /// Fallback English text displayed when checking branch/PR artifacts without GitHub authentication.
+    /// The localizable copy lives in the Updates.Status.AuthRequiredForArtifacts resource string.
     /// </summary>
     public const string AuthRequiredForArtifactsMessage = "Sign in with GitHub to access branch and PR builds.";
 

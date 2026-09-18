@@ -249,10 +249,14 @@ public class MainViewModelTests
         await vm.InitializeAsync();
 
         // Assert
+        // The announcement is suppressed on CI-built binaries (GitShortHash metadata
+        // present), so the expectation follows the build under test to stay
+        // deterministic for both local and CI-built test runs.
+        var expectedShows = AppConstants.IsCiBuild ? Times.Never() : Times.Once();
         mockNotificationService.Verify(
             x => x.Show(It.Is<NotificationMessage>(m =>
                 m.Actions.Any(a => a.Text == AppUpdateConstants.ViewChangelogAction))),
-            Times.Once);
+            expectedShows);
     }
 
     private static MainViewModel CreateMainViewModel(

@@ -71,6 +71,10 @@ public class GitHubAuthService(
                 $"GitHub OAuth client ID is not configured. Set the {GitHubConstants.OAuthClientIdEnvVar} environment variable.");
         }
 
+        // A new login supersedes any previous sign-out, so the post-poll guard in
+        // WaitForAuthorizationAsync only aborts when sign-out happens during this attempt.
+        BeginLoginAttempt();
+
         try
         {
             var request = new OauthDeviceFlowRequest(clientId)
@@ -136,13 +140,24 @@ public class GitHubAuthService(
                 .CreateAccessTokenForDeviceFlow(clientId, oauthResponse, cancellationToken)
                 .ConfigureAwait(false);
 
-            await PersistLoginAsync(token.AccessToken).ConfigureAwait(false);
+            // Stage the credentials in memory so the profile fetch below is authenticated.
+            // Nothing is persisted until the profile fetch and the sign-out guard both pass,
+            // keeping the visible state, the event stream, and the stored token atomic.
+            SetClientCredentials(new Credentials(token.AccessToken));
 
             var profile = await FetchUserProfileAsync(cancellationToken).ConfigureAwait(false);
             if (profile == null)
             {
+                SetClientCredentials(Credentials.Anonymous);
                 return OperationResult<GitHubUserProfile>.CreateFailure(
                     "Signed in, but the GitHub profile could not be loaded. Check your connection and reopen Settings.");
+            }
+
+            var persistError = await TryPersistLoginAsync(token.AccessToken).ConfigureAwait(false);
+            if (persistError != null)
+            {
+                SetClientCredentials(Credentials.Anonymous);
+                return OperationResult<GitHubUserProfile>.CreateFailure(persistError);
             }
 
             SetCurrentUser(profile);
@@ -285,22 +300,66 @@ public class GitHubAuthService(
         }
     }
 
-    private async Task PersistLoginAsync(string accessToken)
+    private async Task<string?> TryPersistLoginAsync(string accessToken)
     {
+        // A concurrent sign-out always wins over an in-flight device flow poll.
+        if (IsSessionSignedOut())
+        {
+            return "GitHub sign-in was cancelled.";
+        }
+
         using var secureToken = SecureStringHelper.ToSecureString(accessToken);
         if (tokenStorage != null)
         {
-            await tokenStorage.SaveTokenAsync(secureToken).ConfigureAwait(false);
+            try
+            {
+                await tokenStorage.SaveTokenAsync(secureToken).ConfigureAwait(false);
+            }
+            catch (IOException ex)
+            {
+                logger.LogWarning(ex, "Failed to save GitHub token after device authorization");
+                return $"GitHub sign-in succeeded, but the token could not be saved: {ex.Message}";
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                logger.LogWarning(ex, "Failed to save GitHub token after device authorization");
+                return $"GitHub sign-in succeeded, but the token could not be saved: {ex.Message}";
+            }
         }
         else
         {
             logger.LogWarning("No token storage available; GitHub login lasts for this session only");
         }
 
-        SetClientCredentials(new Credentials(accessToken));
-        lock (_syncLock)
+        if (IsSessionSignedOut())
         {
-            _sessionSignedOut = false;
+            // Sign-out ran while the save was in flight. Remove the file this attempt
+            // just wrote so a later launch does not resurrect a signed-out session.
+            await DeleteStoredTokenBestEffortAsync().ConfigureAwait(false);
+            return "GitHub sign-in was cancelled.";
+        }
+
+        return null;
+    }
+
+    private async Task DeleteStoredTokenBestEffortAsync()
+    {
+        if (tokenStorage == null)
+        {
+            return;
+        }
+
+        try
+        {
+            await tokenStorage.DeleteTokenAsync().ConfigureAwait(false);
+        }
+        catch (IOException ex)
+        {
+            logger.LogWarning(ex, "Failed to roll back the stored GitHub token after a cancelled sign-in");
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            logger.LogWarning(ex, "Failed to roll back the stored GitHub token after a cancelled sign-in");
         }
     }
 
@@ -392,6 +451,27 @@ public class GitHubAuthService(
         {
             logger.LogWarning(ex, "Failed to load GitHub user profile");
             return null;
+        }
+        catch (TaskCanceledException ex) when (!cancellationToken.IsCancellationRequested)
+        {
+            logger.LogWarning(ex, "Timed out while loading the GitHub user profile");
+            return null;
+        }
+    }
+
+    private void BeginLoginAttempt()
+    {
+        lock (_syncLock)
+        {
+            _sessionSignedOut = false;
+        }
+    }
+
+    private bool IsSessionSignedOut()
+    {
+        lock (_syncLock)
+        {
+            return _sessionSignedOut;
         }
     }
 

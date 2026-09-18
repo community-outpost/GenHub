@@ -10,6 +10,7 @@ using System.IO;
 using System.Security;
 using System.Security.Cryptography;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace GenHub.Features.GitHub.Services;
@@ -22,6 +23,7 @@ namespace GenHub.Features.GitHub.Services;
 public class EncryptedFileGitHubTokenStorage : IGitHubTokenStorage
 {
     private readonly string _tokenFilePath;
+    private readonly SemaphoreSlim _fileLock = new(1, 1);
 
     /// <summary>
     /// Initializes a new instance of the <see cref="EncryptedFileGitHubTokenStorage"/> class.
@@ -48,12 +50,37 @@ public class EncryptedFileGitHubTokenStorage : IGitHubTokenStorage
         try
         {
             var fileBytes = EncryptToFileBytes(plainBytes, key);
-            await using (var stream = OpenRestrictedWriteStream(_tokenFilePath))
+            await _fileLock.WaitAsync();
+            try
             {
-                await stream.WriteAsync(fileBytes);
-            }
+                // Write to a temp file and rename so a concurrent or crashing reader
+                // never observes a truncated token file.
+                var directory = Path.GetDirectoryName(_tokenFilePath)!;
+                var tempPath = Path.Combine(directory, $"{AppConstants.TokenFileName}.{Guid.NewGuid():N}.tmp");
+                await using (var stream = OpenRestrictedWriteStream(tempPath))
+                {
+                    await stream.WriteAsync(fileBytes);
+                }
 
-            RestrictFilePermissions(_tokenFilePath);
+                var moved = false;
+                try
+                {
+                    File.Move(tempPath, _tokenFilePath, overwrite: true);
+                    moved = true;
+                    RestrictFilePermissions(_tokenFilePath);
+                }
+                finally
+                {
+                    if (!moved)
+                    {
+                        FileOperationsService.DeleteFileIfExists(tempPath);
+                    }
+                }
+            }
+            finally
+            {
+                _fileLock.Release();
+            }
         }
         finally
         {
@@ -65,49 +92,66 @@ public class EncryptedFileGitHubTokenStorage : IGitHubTokenStorage
     /// <inheritdoc />
     public async Task<SecureString?> LoadTokenAsync()
     {
-        if (!File.Exists(_tokenFilePath))
-        {
-            return null;
-        }
-
-        var fileBytes = await File.ReadAllBytesAsync(_tokenFilePath);
-        var (secret, fromPrimarySource) = ResolveMachineSecret();
-        var key = DeriveKeyFromSecret(secret);
+        await _fileLock.WaitAsync();
         try
         {
-            if (!TryDecryptFileBytes(fileBytes, key, out var plainBytes) || plainBytes == null)
+            if (!File.Exists(_tokenFilePath))
             {
-                // Only drop the file when the secret came from its primary source. A fallback
-                // secret may indicate a transient lookup failure, in which case deleting would
-                // destroy a healthy token and force an avoidable re-authentication.
-                if (fromPrimarySource)
-                {
-                    await DeleteTokenAsync();
-                }
-
                 return null;
             }
 
+            var fileBytes = await File.ReadAllBytesAsync(_tokenFilePath);
+            var (secret, fromPrimarySource) = ResolveMachineSecret();
+            var key = DeriveKeyFromSecret(secret);
             try
             {
-                return SecureStringHelper.ToSecureString(Encoding.UTF8.GetString(plainBytes));
+                if (!TryDecryptFileBytes(fileBytes, key, out var plainBytes) || plainBytes == null)
+                {
+                    // Only drop the file when the secret came from its primary source. A fallback
+                    // secret may indicate a transient lookup failure, in which case deleting would
+                    // destroy a healthy token and force an avoidable re-authentication.
+                    // The lock serializes this delete against concurrent saves, so a racing
+                    // truncate-then-write can never be mistaken for corruption.
+                    if (fromPrimarySource)
+                    {
+                        DeleteTokenFile(_tokenFilePath);
+                    }
+
+                    return null;
+                }
+
+                try
+                {
+                    return SecureStringHelper.ToSecureString(Encoding.UTF8.GetString(plainBytes));
+                }
+                finally
+                {
+                    CryptographicOperations.ZeroMemory(plainBytes);
+                }
             }
             finally
             {
-                CryptographicOperations.ZeroMemory(plainBytes);
+                CryptographicOperations.ZeroMemory(key);
             }
         }
         finally
         {
-            CryptographicOperations.ZeroMemory(key);
+            _fileLock.Release();
         }
     }
 
     /// <inheritdoc />
-    public Task DeleteTokenAsync()
+    public async Task DeleteTokenAsync()
     {
-        FileOperationsService.DeleteFileIfExists(_tokenFilePath);
-        return Task.CompletedTask;
+        await _fileLock.WaitAsync();
+        try
+        {
+            DeleteTokenFile(_tokenFilePath);
+        }
+        finally
+        {
+            _fileLock.Release();
+        }
     }
 
     /// <inheritdoc />
@@ -141,6 +185,11 @@ public class EncryptedFileGitHubTokenStorage : IGitHubTokenStorage
         }
 
         return ($"{Environment.MachineName}:{Environment.UserName}", false);
+    }
+
+    private static void DeleteTokenFile(string tokenFilePath)
+    {
+        FileOperationsService.DeleteFileIfExists(tokenFilePath);
     }
 
     private static byte[] EncryptToFileBytes(byte[] plainBytes, byte[] key)
@@ -261,9 +310,12 @@ public class EncryptedFileGitHubTokenStorage : IGitHubTokenStorage
 
             if (!process.WaitForExit(TimeSpan.FromSeconds(GitHubConstants.MacOsIoRegTimeoutSeconds)))
             {
+                KillProcessBestEffort(process);
                 return null;
             }
 
+            // The process has exited, so the remaining buffered output can be
+            // drained without blocking on a full pipe.
             return ParseIoRegUuid(process.StandardOutput.ReadToEnd());
         }
         catch (IOException)
@@ -281,6 +333,22 @@ public class EncryptedFileGitHubTokenStorage : IGitHubTokenStorage
         catch (InvalidOperationException)
         {
             return null;
+        }
+    }
+
+    private static void KillProcessBestEffort(Process process)
+    {
+        try
+        {
+            process.Kill();
+        }
+        catch (InvalidOperationException)
+        {
+            // The process already exited between the timeout and the kill.
+        }
+        catch (Win32Exception)
+        {
+            // Best effort cleanup of the timed-out child process.
         }
     }
 

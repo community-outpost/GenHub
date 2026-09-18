@@ -95,7 +95,7 @@ public partial class ChangelogsViewModel(
             logger.LogWarning("No releases found.");
             HasError = true;
             ErrorMessage = gitHubApiClient.IsRateLimited
-                ? (localizationService?.GetString("Info.Changelog.RateLimited") ?? "GitHub API rate limit exceeded. Please configure a GitHub Personal Access Token in Settings or try again later.")
+                ? (localizationService?.GetString("Info.Changelog.RateLimited") ?? "GitHub API rate limit exceeded. Sign in with GitHub in Settings to increase the limit, or try again later.")
                 : (localizationService?.GetString("Info.Changelog.NoReleasesFound") ?? "No release changelogs found.");
         }
         catch (OperationCanceledException)

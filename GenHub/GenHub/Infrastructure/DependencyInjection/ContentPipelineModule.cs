@@ -166,7 +166,8 @@ public static class ContentPipelineModule
             return new Octokit.GitHubClient(new Octokit.ProductHeaderValue("GenHub"));
         });
 
-        // Register GitHub device flow authentication (must precede the API client, which subscribes to it)
+        // Register GitHub device flow authentication. Both this and the API client below are
+        // singletons; the client resolves the auth service and subscribes to its events lazily on first use.
         services.AddSingleton<IGitHubAuthService>(sp => new GitHubAuthService(
             sp.GetRequiredService<Octokit.IGitHubClient>(),
             sp.GetService<IGitHubTokenStorage>(),

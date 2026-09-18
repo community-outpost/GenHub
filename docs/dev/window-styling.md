@@ -145,7 +145,6 @@ private void MaximizeButton_Click(object? sender, RoutedEventArgs e)
 | `ConfirmationDialogWindow` | Modal confirmation dialog | `None` | `False` | Drag anywhere (`OnPointerPressed`) |
 | `UpdateOptionDialogWindow` | Modal update option dialog | `None` | `False` | Modal centered |
 | `SetupWizardView` | First-run wizard dialog | `None` | `False` | Modal centered |
-| `GitHubTokenDialogView` | GitHub PAT configuration dialog | `BorderOnly` | `False` | Modal centered |
 
 ---
 

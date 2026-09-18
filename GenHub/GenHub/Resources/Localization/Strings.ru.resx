@@ -3066,6 +3066,10 @@
     <value>Проверка обновлений...</value>
     <comment>Status message while checking for updates</comment>
   </data>
+  <data name="Updates.Status.AuthRequiredForArtifacts" xml:space="preserve">
+    <value>Войдите в GitHub, чтобы получить доступ к сборкам веток и запросов на слияние.</value>
+    <comment>Status message when branch or PR builds require GitHub sign-in</comment>
+  </data>
   <data name="Updates.Status.NoUpdatesAvailable" xml:space="preserve">
     <value>Нет доступных обновлений</value>
     <comment>Status message when no updates are available</comment>
@@ -4390,7 +4394,7 @@
     <value>Переключить сведения о выпуске</value>
   </data>
   <data name="Info.Changelog.RateLimited" xml:space="preserve">
-    <value>Превышен лимит запросов GitHub API. Настройте персональный токен доступа GitHub в Настройках или повторите попытку позже.</value>
+    <value>Превышен лимит запросов GitHub API. Войдите в GitHub в Настройках, чтобы увеличить лимит, или повторите попытку позже.</value>
   </data>
   <data name="Info.Changelog.NoReleasesFound" xml:space="preserve">
     <value>Журналы изменений выпусков не найдены.</value>
@@ -8037,6 +8041,15 @@ GenHub передает официальный идентификатор AppID 
   </data>
   <data name="Settings.GitHubAuth.Toast.ServiceUnavailable" xml:space="preserve">
     <value>Аутентификация GitHub недоступна.</value>
+  </data>
+  <data name="Settings.GitHubAuth.Status.SignedIn" xml:space="preserve">
+    <value>Выполнен вход</value>
+  </data>
+  <data name="Settings.GitHubAuth.Status.SignedOut" xml:space="preserve">
+    <value>Вход не выполнен</value>
+  </data>
+  <data name="Settings.GitHubAuth.Toast.BrowserOpenFailed" xml:space="preserve">
+    <value>Код скопирован в буфер обмена, но GitHub не удалось открыть автоматически. Введите код вручную.</value>
   </data>
   <data name="Info.Demo.AppUpdates.AuthTitle" xml:space="preserve">
     <value>Войти через GitHub</value>

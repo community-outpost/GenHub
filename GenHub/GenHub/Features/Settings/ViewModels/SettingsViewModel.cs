@@ -224,6 +224,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsGitHubSignedOut))]
     [NotifyPropertyChangedFor(nameof(GitHubAuthStatusColor))]
+    [NotifyPropertyChangedFor(nameof(GitHubAuthStatusText))]
     private bool _isGitHubAuthenticated;
 
     [ObservableProperty]
@@ -393,6 +394,9 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             _rateLimitTracker.RateLimitUpdated += OnRateLimitUpdated;
         }
 
+        // Render the cached auth state synchronously so signed-in users never see
+        // a transient signed-out card while the profile warm-up runs.
+        RefreshGitHubAuthState();
         _ = LoadGitHubAuthStateAsync();
 
         // Initialize with default if needed
@@ -449,6 +453,14 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     /// </summary>
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Instance property required for Avalonia UI data binding.")]
     public string GitHubAuthStatusColor => IsGitHubAuthenticated ? UiConstants.StatusSuccessColor : UiConstants.StatusInactiveColor;
+
+    /// <summary>
+    /// Gets the localized GitHub authentication state for tooltips and screen readers.
+    /// </summary>
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Instance property required for Avalonia UI data binding.")]
+    public string GitHubAuthStatusText => IsGitHubAuthenticated
+        ? (_localizationService?.GetString("Settings.GitHubAuth.Status.SignedIn") ?? "Signed in")
+        : (_localizationService?.GetString("Settings.GitHubAuth.Status.SignedOut") ?? "Signed out");
 
     /// <summary>
     /// Gets a value indicating whether to display the empty subscriptions state message.
@@ -789,6 +801,8 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             }
 
             InitializeSections();
+            UpdateGitHubRateLimitText();
+            OnPropertyChanged(nameof(GitHubAuthStatusText));
         }
     }
 
@@ -1747,15 +1761,31 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             var lifetime = Application.Current?.ApplicationLifetime as Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime;
             var mainWindow = lifetime?.MainWindow;
             var topLevel = mainWindow != null ? TopLevel.GetTopLevel(mainWindow) : null;
+            var copied = false;
             if (topLevel?.Clipboard != null)
             {
                 await topLevel.Clipboard.SetTextAsync(GitHubUserCode);
+                copied = true;
             }
 
+            var opened = false;
             var url = string.IsNullOrEmpty(GitHubVerificationUrl) ? GitHubConstants.DeviceVerificationUrl : GitHubVerificationUrl;
             if (topLevel?.Launcher != null && Uri.TryCreate(url, UriKind.Absolute, out var verificationUri))
             {
-                await topLevel.Launcher.LaunchUriAsync(verificationUri);
+                opened = await topLevel.Launcher.LaunchUriAsync(verificationUri);
+            }
+
+            if (!copied)
+            {
+                var failedFormat = _localizationService?.GetString("Settings.GitHubAuth.Toast.CodeCopyFailed") ?? "Could not copy the code: {0}";
+                ShowGitHubErrorToast(string.Format(CultureInfo.InvariantCulture, failedFormat, "Clipboard is not available"));
+                return;
+            }
+
+            if (!opened)
+            {
+                ShowGitHubErrorToast(_localizationService?.GetString("Settings.GitHubAuth.Toast.BrowserOpenFailed") ?? "Code copied to clipboard, but GitHub could not be opened automatically. Enter the code manually.");
+                return;
             }
 
             ShowGitHubSuccessToast(_localizationService?.GetString("Settings.GitHubAuth.Toast.CodeCopied") ?? "Code copied. Opening GitHub in your browser...");

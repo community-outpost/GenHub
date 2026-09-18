@@ -3066,6 +3066,10 @@
     <value>Checking for updates...</value>
     <comment>Status message while checking for updates</comment>
   </data>
+  <data name="Updates.Status.AuthRequiredForArtifacts" xml:space="preserve">
+    <value>Sign in with GitHub to access branch and PR builds.</value>
+    <comment>Status message when branch or PR builds require GitHub sign-in</comment>
+  </data>
   <data name="Updates.Status.NoUpdatesAvailable" xml:space="preserve">
     <value>No updates available</value>
     <comment>Status message when no updates are available</comment>
@@ -4390,7 +4394,7 @@ This will modify game files and configuration settings at:
     <value>Toggle release details</value>
   </data>
   <data name="Info.Changelog.RateLimited" xml:space="preserve">
-    <value>GitHub API rate limit exceeded. Please configure a GitHub Personal Access Token in Settings or try again later.</value>
+    <value>GitHub API rate limit exceeded. Sign in with GitHub in Settings to increase the limit, or try again later.</value>
   </data>
   <data name="Info.Changelog.NoReleasesFound" xml:space="preserve">
     <value>No release changelogs found.</value>
@@ -8131,6 +8135,15 @@ Do you want to download and inspect this profile package?</value>
   </data>
   <data name="Settings.GitHubAuth.Toast.ServiceUnavailable" xml:space="preserve">
     <value>GitHub authentication is not available.</value>
+  </data>
+  <data name="Settings.GitHubAuth.Status.SignedIn" xml:space="preserve">
+    <value>Signed in</value>
+  </data>
+  <data name="Settings.GitHubAuth.Status.SignedOut" xml:space="preserve">
+    <value>Signed out</value>
+  </data>
+  <data name="Settings.GitHubAuth.Toast.BrowserOpenFailed" xml:space="preserve">
+    <value>Code copied to clipboard, but GitHub could not be opened automatically. Enter the code manually.</value>
   </data>
   <data name="Info.Demo.AppUpdates.AuthTitle" xml:space="preserve">
     <value>Sign in with GitHub</value>

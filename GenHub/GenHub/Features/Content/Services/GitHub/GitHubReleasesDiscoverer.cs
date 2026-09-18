@@ -462,7 +462,7 @@ public partial class GitHubReleasesDiscoverer(IGitHubApiClient gitHubClient, ILo
         if (gitHubClient.IsRateLimited)
         {
             throw new InvalidOperationException(
-                "GitHub API rate limit exceeded. Configure a GitHub Personal Access Token in Settings to increase limit.");
+                "GitHub API rate limit exceeded. Sign in with GitHub in Settings to increase the limit.");
         }
 
         logger.LogDebug("Fetching releases for {Owner}/{Repo}", owner, repo);

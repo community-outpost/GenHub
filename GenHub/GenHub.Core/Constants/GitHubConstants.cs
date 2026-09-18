@@ -62,8 +62,8 @@ public static class GitHubConstants
     /// <summary>Encrypted token file format version byte.</summary>
     public const byte TokenFileFormatVersion = 1;
 
-    /// <summary>PBKDF2 iterations for deriving the token file encryption key.</summary>
-    public const int TokenFileKeyIterations = 100000;
+    /// <summary>PBKDF2-HMAC-SHA256 iterations for deriving the token file encryption key (OWASP guidance: 600,000).</summary>
+    public const int TokenFileKeyIterations = 600000;
 
     /// <summary>AES-256 key size for the token file encryption key, in bytes.</summary>
     public const int TokenFileKeySizeBytes = 32;

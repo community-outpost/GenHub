@@ -497,7 +497,7 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
 
         try
         {
-            var token = await _gitHubAuthService.GetAccessTokenAsync(cancellationToken);
+            using var token = await _gitHubAuthService.GetAccessTokenAsync(cancellationToken);
             if (token == null)
             {
                 _logger.LogWarning("Failed to load GitHub access token");
@@ -625,7 +625,7 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
 
         try
         {
-            var token = await _gitHubAuthService.GetAccessTokenAsync(cancellationToken);
+            using var token = await _gitHubAuthService.GetAccessTokenAsync(cancellationToken);
             if (token == null)
             {
                 return ["main", "development"];
@@ -701,7 +701,8 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
             var commitInfo = !string.IsNullOrEmpty(artifactInfo.GitHash) ? $" ({artifactInfo.GitHash})" : string.Empty;
             progress?.Report(new UpdateProgress { Status = $"Downloading artifact for {label}{commitInfo}...", PercentComplete = 0 });
 
-            if (await _gitHubAuthService!.GetAccessTokenAsync(cancellationToken) is not { } token)
+            using var token = await _gitHubAuthService!.GetAccessTokenAsync(cancellationToken);
+            if (token == null)
             {
                 throw new InvalidOperationException("Failed to load GitHub access token");
             }
@@ -894,10 +895,14 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
         CancellationToken cancellationToken = default)
     {
         var artifact = prInfo.LatestArtifact;
-        if (artifact == null && _gitHubAuthService is { } auth && await auth.GetAccessTokenAsync(cancellationToken) is { } token)
+        if (artifact == null && _gitHubAuthService is { } auth)
         {
-            using var client = CreateConfiguredHttpClientWithToken(token);
-            artifact = await FindLatestArtifactForPrAsync(client, prInfo.Number, cancellationToken);
+            using var token = await auth.GetAccessTokenAsync(cancellationToken);
+            if (token != null)
+            {
+                using var client = CreateConfiguredHttpClientWithToken(token);
+                artifact = await FindLatestArtifactForPrAsync(client, prInfo.Number, cancellationToken);
+            }
         }
 
         if (artifact == null)
@@ -970,7 +975,7 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
 
         try
         {
-            var token = await _gitHubAuthService.GetAccessTokenAsync(cancellationToken);
+            using var token = await _gitHubAuthService.GetAccessTokenAsync(cancellationToken);
             if (token == null) return [];
 
             using var client = CreateConfiguredHttpClientWithToken(token);
@@ -1010,7 +1015,7 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
 
         try
         {
-            var token = await _gitHubAuthService.GetAccessTokenAsync(cancellationToken);
+            using var token = await _gitHubAuthService.GetAccessTokenAsync(cancellationToken);
             if (token == null) return [];
 
             using var client = CreateConfiguredHttpClientWithToken(token);
@@ -1251,8 +1256,11 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
     private async Task<string?> FetchGitHubReleasesJsonAsync(string owner, string repo, CancellationToken cancellationToken)
     {
         var apiUrl = $"https://api.github.com/repos/{owner}/{repo}/releases";
+        using var token = _gitHubAuthService != null
+            ? await _gitHubAuthService.GetAccessTokenAsync(cancellationToken)
+            : null;
         HttpClient client;
-        if (_gitHubAuthService != null && await _gitHubAuthService.GetAccessTokenAsync(cancellationToken) is { } token)
+        if (token != null)
         {
             _logger.LogDebug("Using GitHub authentication for update check to increase rate limits");
             client = CreateConfiguredHttpClientWithToken(token);
@@ -1529,7 +1537,7 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
 
         try
         {
-            var token = await _gitHubAuthService.GetAccessTokenAsync(cancellationToken);
+            using var token = await _gitHubAuthService.GetAccessTokenAsync(cancellationToken);
             if (token == null)
                 return null;
 

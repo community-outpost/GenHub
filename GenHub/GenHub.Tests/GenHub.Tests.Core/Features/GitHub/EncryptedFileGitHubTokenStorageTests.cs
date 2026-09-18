@@ -6,6 +6,7 @@ using Moq;
 using System;
 using System.IO;
 using System.Security;
+using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
 using Xunit;
@@ -70,6 +71,11 @@ public class EncryptedFileGitHubTokenStorageTests : IDisposable
 
         // Assert
         Assert.True(storage.HasToken());
+        if (!OperatingSystem.IsWindows())
+        {
+            Assert.Equal(UnixFileMode.UserRead | UnixFileMode.UserWrite, File.GetUnixFileMode(TokenFilePath()));
+        }
+
         using var loaded = await storage.LoadTokenAsync();
         Assert.NotNull(loaded);
         Assert.Equal("oauth-token-value", SecureStringHelper.ToUnsecureString(loaded));
@@ -127,6 +133,29 @@ public class EncryptedFileGitHubTokenStorageTests : IDisposable
         // Arrange
         var storage = CreateStorage("machine-secret-d");
         await File.WriteAllBytesAsync(TokenFilePath(), [0x01, 0x02, 0x03]);
+
+        // Act
+        var loaded = await storage.LoadTokenAsync();
+
+        // Assert
+        Assert.Null(loaded);
+        Assert.False(storage.HasToken());
+    }
+
+    /// <summary>
+    /// Verifies that loading a file with a valid header but corrupt ciphertext drops the token.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task LoadToken_WithTamperedCiphertext_DeletesTokenAndReturnsNullAsync()
+    {
+        // Arrange
+        var storage = CreateStorage("machine-secret-tampered");
+        var headerLength = 1 + GitHubConstants.TokenFileNonceSizeBytes + GitHubConstants.TokenFileTagSizeBytes;
+        var tampered = new byte[headerLength + 16];
+        tampered[0] = GitHubConstants.TokenFileFormatVersion;
+        RandomNumberGenerator.Fill(tampered.AsSpan(1));
+        await File.WriteAllBytesAsync(TokenFilePath(), tampered);
 
         // Act
         var loaded = await storage.LoadTokenAsync();

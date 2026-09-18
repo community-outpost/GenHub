@@ -232,7 +232,7 @@ public partial class GitHubResolver(
             if (gitHubApiClient.IsRateLimited)
             {
                 return OperationResult<ContentManifest>.CreateFailure(
-                    $"GitHub API rate limit exceeded while resolving {owner}/{repo}. Please configure a GitHub Personal Access Token in Settings or try again later.");
+                    $"GitHub API rate limit exceeded while resolving {owner}/{repo}. Please sign in with GitHub in Settings to increase the limit, or try again later.");
             }
 
             return OperationResult<ContentManifest>.CreateFailure(
@@ -305,7 +305,7 @@ public partial class GitHubResolver(
             if (gitHubApiClient.IsRateLimited)
             {
                 return OperationResult<GitHubRelease>.CreateFailure(
-                    $"GitHub API rate limit exceeded while resolving {owner}/{repo}. Please configure a GitHub Personal Access Token in Settings or try again later.");
+                    $"GitHub API rate limit exceeded while resolving {owner}/{repo}. Please sign in with GitHub in Settings to increase the limit, or try again later.");
             }
 
             var errorTag = isLatest ? "latest stable" : $"tag '{tag}'";
