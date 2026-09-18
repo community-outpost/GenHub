@@ -1,4 +1,5 @@
 using GenHub.Core.Constants;
+using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameInstallations;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -810,11 +811,13 @@ public class GameInstallationTests
         var zhGeneralsDir = Path.Combine(zhDir, GameClientConstants.ZhGeneralsDirectory);
         Directory.CreateDirectory(generalsDir);
         Directory.CreateDirectory(zhGeneralsDir);
+        File.WriteAllText(Path.Combine(zhGeneralsDir, "Textures.big"), "archive");
         try
         {
             var installation = new GameInstallation(tempDir, GameInstallationType.Steam, NullLogger<GameInstallation>.Instance);
             installation.SetPaths(generalsDir, zhDir);
 
+            Assert.NotNull(installation.BundledGeneralsPath);
             Assert.Equal(generalsDir, installation.EffectiveGeneralsArchivePath);
         }
         finally
@@ -840,6 +843,33 @@ public class GameInstallationTests
             installation.SetPaths(null, tempDir);
 
             Assert.Equal(zhGeneralsDir, installation.EffectiveGeneralsArchivePath);
+        }
+        finally
+        {
+            Directory.Delete(tempDir, true);
+        }
+    }
+
+    /// <summary>
+    /// Verifies that IGameInstallation default implementations match GameInstallation behavior.
+    /// </summary>
+    [Fact]
+    public void IGameInstallation_InterfaceProperties_MatchGameInstallation()
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), "GenHubInterfaceParityTest_" + Guid.NewGuid().ToString("N"));
+        var zhGeneralsDir = Path.Combine(tempDir, GameClientConstants.ZhGeneralsDirectory);
+        Directory.CreateDirectory(zhGeneralsDir);
+        try
+        {
+            File.WriteAllText(Path.Combine(zhGeneralsDir, "Textures.big"), "archive");
+
+            var installation = new GameInstallation(tempDir, GameInstallationType.Steam, NullLogger<GameInstallation>.Instance);
+            installation.SetPaths(null, tempDir);
+            IGameInstallation iface = installation;
+
+            Assert.NotNull(installation.BundledGeneralsPath);
+            Assert.Equal(installation.BundledGeneralsPath, iface.BundledGeneralsPath);
+            Assert.Equal(installation.EffectiveGeneralsArchivePath, iface.EffectiveGeneralsArchivePath);
         }
         finally
         {

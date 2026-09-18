@@ -98,7 +98,7 @@ public class GameInstallation(
     /// and falling back to <see cref="BundledGeneralsPath"/> if present.
     /// </summary>
     public string? EffectiveGeneralsArchivePath =>
-        !string.IsNullOrEmpty(GeneralsPath) ? GeneralsPath : BundledGeneralsPath;
+        !string.IsNullOrWhiteSpace(GeneralsPath) ? GeneralsPath : BundledGeneralsPath;
 
     /// <summary>
     /// Gets or sets the date and time when this installation was detected/registered.
