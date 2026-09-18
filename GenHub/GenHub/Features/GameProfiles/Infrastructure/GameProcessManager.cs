@@ -230,16 +230,17 @@ public class GameProcessManager(
                 }
             }
 
+            cancellationToken.ThrowIfCancellationRequested();
+            if (!ownsProcess)
+            {
+                _requestedTerminations[process] = 1;
+            }
+
             logger.LogInformation("[Terminate] Force killing process {ProcessId} and its process tree", processId);
             await Task.Run(
                 () =>
                 {
                     cancellationToken.ThrowIfCancellationRequested();
-                    if (!ownsProcess)
-                    {
-                        _requestedTerminations[process] = 1;
-                    }
-
                     process.Kill(entireProcessTree: true);
                 },
                 cancellationToken);
@@ -290,7 +291,7 @@ public class GameProcessManager(
             {
                 if (process.HasExited)
                 {
-                    _managedProcesses.TryRemove(processId, out _);
+                    FinalizeProcessExit(process, processId);
                     return Task.FromResult(OperationResult<GameProcessInfo>.CreateFailure(ProcessConstants.ProcessNotFoundErrorMessage));
                 }
 
@@ -369,14 +370,14 @@ public class GameProcessManager(
                     }
                     else
                     {
-                        // Remove exited processes from tracking
-                        _managedProcesses.TryRemove(kvp.Key, out _);
+                        FinalizeProcessExit(process, kvp.Key);
                     }
                 }
                 catch (Exception ex)
                 {
                     logger.LogWarning(ex, "Failed to get info for managed process {ProcessId}", kvp.Key);
-                    _managedProcesses.TryRemove(kvp.Key, out _);
+                    _managedProcesses.TryRemove(new KeyValuePair<int, Process>(kvp.Key, kvp.Value));
+                    _stderrBuffers.TryRemove(kvp.Value, out _);
                 }
             }
 
@@ -587,9 +588,9 @@ public class GameProcessManager(
             exitTime = process.ExitTime.ToUniversalTime();
             exitCode = process.ExitCode;
         }
-        catch
+        catch (Exception ex) when (ex is InvalidOperationException or Win32Exception)
         {
-            // Process may have already been disposed
+            // Process may have already been disposed or its metadata may be inaccessible.
         }
 
         // A delayed callback must not remove a new process that reused the same PID.

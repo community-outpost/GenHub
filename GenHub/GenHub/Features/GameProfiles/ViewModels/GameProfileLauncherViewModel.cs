@@ -1892,7 +1892,7 @@ public partial class GameProfileLauncherViewModel(
                     var failureReason = e.DescribeFailure();
                     if (failureReason != null)
                     {
-                        notificationService.ShowError("Game Exited Unexpectedly", $"{profile.Name}: {failureReason}");
+                        notificationService.ShowError(localizationService["GameProfiles.Notification.UnexpectedExit.Title"], $"{profile.Name}: {failureReason}");
                     }
                 }
             }
