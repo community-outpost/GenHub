@@ -120,7 +120,7 @@ public class GenLauncherManifestFactory(
                     return OperationResult<List<ContentManifest>>.CreateFailure(fileResult.FirstError ?? "File validation failed");
                 }
 
-                manifest.Files.Add(fileResult.Data!);
+                manifest.Files.Add(fileResult.Data);
             }
 
             if (string.IsNullOrWhiteSpace(manifest.EntryPoint))
