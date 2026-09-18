@@ -15,6 +15,9 @@ public interface IDownloadableRowViewModel
     /// <summary>Gets the direct download URL for the row's file, if any.</summary>
     string? DownloadUrl { get; }
 
+    /// <summary>Gets or sets the file size in bytes.</summary>
+    long FileSize { get; set; }
+
     /// <summary>Gets or sets a value indicating whether the row's content is already installed.</summary>
     bool IsDownloaded { get; set; }
 

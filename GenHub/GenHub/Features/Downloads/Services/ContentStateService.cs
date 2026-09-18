@@ -290,6 +290,21 @@ public sealed partial class ContentStateService(
             return true;
         }
 
+        if (IsGenLauncherPublisher(p1) && IsGenLauncherPublisher(p2))
+        {
+            var p1HasZh = p1.Contains(GenLauncherConstants.ZeroHourGameToken, StringComparison.OrdinalIgnoreCase);
+            var p2HasZh = p2.Contains(GenLauncherConstants.ZeroHourGameToken, StringComparison.OrdinalIgnoreCase);
+            var p1HasGen = p1.Contains(GenLauncherConstants.GeneralsGameToken, StringComparison.OrdinalIgnoreCase) && !p1HasZh;
+            var p2HasGen = p2.Contains(GenLauncherConstants.GeneralsGameToken, StringComparison.OrdinalIgnoreCase) && !p2HasZh;
+
+            if ((p1HasZh && p2HasGen) || (p1HasGen && p2HasZh))
+            {
+                return false;
+            }
+
+            return true;
+        }
+
         return false;
     }
 
@@ -352,6 +367,22 @@ public sealed partial class ContentStateService(
         var p = NormalizeSegment(publisher);
         return p.StartsWith("aodmap", StringComparison.OrdinalIgnoreCase) ||
                string.Equals(p, "aod", StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// Checks whether the given publisher string corresponds to GenLauncher.
+    /// </summary>
+    /// <param name="publisher">The publisher string to inspect.</param>
+    /// <returns><see langword="true"/> if the publisher represents GenLauncher; otherwise, <see langword="false"/>.</returns>
+    internal static bool IsGenLauncherPublisher(string? publisher)
+    {
+        if (string.IsNullOrWhiteSpace(publisher))
+        {
+            return false;
+        }
+
+        var p = NormalizeSegment(publisher);
+        return p.StartsWith("genlauncher", StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary>
@@ -427,8 +458,8 @@ public sealed partial class ContentStateService(
         }
 
         if (!string.Equals(segments[3], expectedContentType, StringComparison.OrdinalIgnoreCase) ||
-            (expectedGame is GameType.Generals or GameType.ZeroHour &&
-             manifest.TargetGame is GameType.Generals or GameType.ZeroHour &&
+            (expectedGame != GameType.Unknown &&
+             manifest.TargetGame != GameType.Unknown &&
              manifest.TargetGame != expectedGame))
         {
             return false;
@@ -749,6 +780,34 @@ public sealed partial class ContentStateService(
         }
 
         return null;
+    }
+
+    /// <summary>
+    /// Strips a trailing recognized variant suffix (such as -720p, -1080p, -4k) from a content-name segment,
+    /// ensuring that hyphenated content names without recognized variant tokens (e.g. generals-gameplay vs generals-tools)
+    /// are not truncated and do not false-match.
+    /// </summary>
+    /// <param name="segment">The segment to strip the variant suffix from.</param>
+    /// <returns>The content-name segment without a recognized trailing variant suffix.</returns>
+    internal static string StripVariantSuffix(string segment)
+    {
+        var variantToken = ExtractVariantToken(segment);
+        if (string.IsNullOrEmpty(variantToken))
+        {
+            return segment;
+        }
+
+        var lastDash = segment.LastIndexOf('-');
+        if (lastDash > 0 && lastDash < segment.Length - 1)
+        {
+            var trailing = segment[(lastDash + 1)..];
+            if (string.Equals(ExtractVariantToken(trailing), variantToken, StringComparison.OrdinalIgnoreCase))
+            {
+                return segment[..lastDash];
+            }
+        }
+
+        return segment;
     }
 
     private static bool CompareVersionStrings(
@@ -1232,7 +1291,9 @@ public sealed partial class ContentStateService(
         {
             var cleanedItemVer = item.Version.Trim().TrimStart('v', 'V');
             var cleanedManVer = manifest.Version.Trim().TrimStart('v', 'V');
-            if (string.Equals(cleanedItemVer, cleanedManVer, StringComparison.OrdinalIgnoreCase))
+            if (string.Equals(cleanedItemVer, cleanedManVer, StringComparison.OrdinalIgnoreCase) &&
+                (string.IsNullOrWhiteSpace(item.Name) || string.IsNullOrWhiteSpace(manifest.Name) ||
+                 string.Equals(item.Name, manifest.Name, StringComparison.OrdinalIgnoreCase)))
             {
                 return true;
             }
@@ -1303,32 +1364,6 @@ public sealed partial class ContentStateService(
         }
 
         return 0;
-    }
-
-    /// <summary>
-    /// Strips a trailing recognized variant suffix (such as -720p, -1080p, -4k) from a content-name segment,
-    /// ensuring that hyphenated content names without recognized variant tokens (e.g. generals-gameplay vs generals-tools)
-    /// are not truncated and do not false-match.
-    /// </summary>
-    private static string StripVariantSuffix(string segment)
-    {
-        var variantToken = ExtractVariantToken(segment);
-        if (string.IsNullOrEmpty(variantToken))
-        {
-            return segment;
-        }
-
-        var lastDash = segment.LastIndexOf('-');
-        if (lastDash > 0 && lastDash < segment.Length - 1)
-        {
-            var trailing = segment[(lastDash + 1)..];
-            if (string.Equals(ExtractVariantToken(trailing), variantToken, StringComparison.OrdinalIgnoreCase))
-            {
-                return segment[..lastDash];
-            }
-        }
-
-        return segment;
     }
 
     /// <summary>
@@ -1408,6 +1443,81 @@ public sealed partial class ContentStateService(
         return false;
     }
 
+    private static bool FileRowMatchesManifest(ContentManifest manifest, ContentSearchResult item)
+    {
+        var checkUrl = !string.IsNullOrWhiteSpace(item.SelectedDownloadUrl) ? item.SelectedDownloadUrl : item.SourceUrl;
+        if (!string.IsNullOrWhiteSpace(checkUrl) &&
+            ((manifest.Files?.Any(f => !string.IsNullOrWhiteSpace(f.DownloadUrl) &&
+                                       string.Equals(f.DownloadUrl, checkUrl, StringComparison.OrdinalIgnoreCase)) == true) ||
+             (!string.IsNullOrWhiteSpace(manifest.Publisher?.ContentIndexUrl) &&
+              string.Equals(manifest.Publisher.ContentIndexUrl, checkUrl, StringComparison.OrdinalIgnoreCase))))
+        {
+            return true;
+        }
+
+        if (!string.IsNullOrWhiteSpace(item.Name) && !string.IsNullOrWhiteSpace(manifest.Name) &&
+            string.Equals(item.Name, manifest.Name, StringComparison.OrdinalIgnoreCase))
+        {
+            if (!string.IsNullOrWhiteSpace(item.Version) && !string.IsNullOrWhiteSpace(manifest.Version))
+            {
+                return string.Equals(
+                    item.Version.Trim().TrimStart('v', 'V'),
+                    manifest.Version.Trim().TrimStart('v', 'V'),
+                    StringComparison.OrdinalIgnoreCase);
+            }
+
+            return true;
+        }
+
+        var itemSlug = NormalizeSegment(item.Name);
+        var itemWithVersionSlug = !string.IsNullOrWhiteSpace(item.Version)
+            ? NormalizeSegment($"{item.Name}{item.Version}")
+            : null;
+
+        if (manifest.Id.Value.Split('.') is { Length: >= 4 } segments)
+        {
+            var lastSegment = NormalizeSegment(segments[^1]);
+            if (!string.IsNullOrEmpty(lastSegment))
+            {
+                if (!string.IsNullOrEmpty(itemSlug) &&
+                    string.Equals(lastSegment, itemSlug, StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+
+                if (!string.IsNullOrEmpty(itemWithVersionSlug) &&
+                    string.Equals(lastSegment, itemWithVersionSlug, StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+            }
+        }
+
+        // If the stored manifest does not specify release-level metadata (Name and Version are blank),
+        // fallback to matching the parent content source when the row slug matches the manifest publisher segment or parent ID.
+        if (string.IsNullOrWhiteSpace(manifest.Name) && string.IsNullOrWhiteSpace(manifest.Version))
+        {
+            if (manifest.Id.Value.Split('.') is { Length: >= 3 } idSegments)
+            {
+                var publisherOrSlugSegment = NormalizeSegment(idSegments[2]);
+                if (!string.IsNullOrEmpty(itemSlug) &&
+                    string.Equals(publisherOrSlugSegment, itemSlug, StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+            }
+
+            if (!string.IsNullOrEmpty(itemSlug) &&
+                !string.IsNullOrEmpty(manifest.OriginalContentId) &&
+                manifest.OriginalContentId.Contains(itemSlug, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     private static bool IsSameContentSource(ContentManifest manifest, ContentSearchResult item)
     {
         if (!string.IsNullOrWhiteSpace(item.SourceUrl) && MatchesSourceUrl(manifest, item.SourceUrl))
@@ -1419,7 +1529,9 @@ public sealed partial class ContentStateService(
             !string.IsNullOrWhiteSpace(manifest.OriginalContentId) && (
             string.Equals(manifest.OriginalContentId, item.Id, StringComparison.OrdinalIgnoreCase) ||
             (item.ResolverMetadata?.TryGetValue(ContentConstants.ParentContentIdMetadataKey, out var parentId) == true &&
-             string.Equals(manifest.OriginalContentId, parentId, StringComparison.OrdinalIgnoreCase)) ||
+             string.Equals(manifest.OriginalContentId, parentId, StringComparison.OrdinalIgnoreCase) &&
+             (!item.Id.StartsWith(FileSchemePrefix, StringComparison.OrdinalIgnoreCase) ||
+              FileRowMatchesManifest(manifest, item))) ||
             (item.ResolverMetadata?.TryGetValue(CNCLabsConstants.MapIdMetadataKey, out var cncMapId) == true &&
              (manifest.OriginalContentId.EndsWith($".{cncMapId}", StringComparison.OrdinalIgnoreCase) ||
               string.Equals(manifest.OriginalContentId, cncMapId, StringComparison.OrdinalIgnoreCase))) ||
@@ -1453,8 +1565,8 @@ public sealed partial class ContentStateService(
         string contentName,
         GameType targetGame)
     {
-        if (targetGame is GameType.Generals or GameType.ZeroHour &&
-            manifest.TargetGame is GameType.Generals or GameType.ZeroHour &&
+        if (targetGame != GameType.Unknown &&
+            manifest.TargetGame != GameType.Unknown &&
             manifest.TargetGame != targetGame)
         {
             return false;
@@ -1552,6 +1664,16 @@ public sealed partial class ContentStateService(
         {
             providerName = ModDBConstants.PublisherPrefix;
         }
+        else if (IsGenLauncherPublisher(providerName))
+        {
+            var gameToken = item.TargetGame switch
+            {
+                GameType.ZeroHour => GenLauncherConstants.ZeroHourGameToken,
+                GameType.Generals => GenLauncherConstants.GeneralsGameToken,
+                _ => string.Empty,
+            };
+            providerName = $"{GenLauncherConstants.PublisherId}{gameToken}";
+        }
 
         var contentName = SanitizeSegmentForManifest(item.Name, null)
             ?? SanitizeSegmentForManifest(item.Id, UnknownSegment)
@@ -1645,7 +1767,8 @@ public sealed partial class ContentStateService(
             (!string.IsNullOrEmpty(manifest.OriginalContentId) && (
                 string.Equals(manifest.OriginalContentId, item.Id, StringComparison.OrdinalIgnoreCase) ||
                 (item.ResolverMetadata?.TryGetValue(ContentConstants.ParentContentIdMetadataKey, out var parentId) == true &&
-                 string.Equals(manifest.OriginalContentId, parentId, StringComparison.OrdinalIgnoreCase)))) ||
+                 string.Equals(manifest.OriginalContentId, parentId, StringComparison.OrdinalIgnoreCase) &&
+                 FileRowMatchesManifest(manifest, item)))) ||
             (!string.IsNullOrWhiteSpace(item.SelectedDownloadUrl) && (
                 (manifest.Files?.Any(file =>
                     !string.IsNullOrWhiteSpace(file.DownloadUrl) &&

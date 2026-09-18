@@ -506,7 +506,7 @@ public class ContentOrchestrator : IContentOrchestrator
                     validationProgress = new Progress<ValidationProgress>(vp =>
                     {
                         // Map validation progress (0-100) into 70-80% range for acquisition
-                        var pct = ContentConstants.ProgressStepValidatingFiles + (int)(vp.PercentComplete / 10.0);
+                        var pct = Math.Clamp(ContentConstants.ProgressStepValidatingFiles + (int)(vp.PercentComplete / 10.0), 0, 100);
                         progress.Report(new ContentAcquisitionProgress
                         {
                             Phase = ContentAcquisitionPhase.ValidatingFiles,
@@ -545,7 +545,13 @@ public class ContentOrchestrator : IContentOrchestrator
                 // Check if the manifest was already stored by the deliverer
                 // This prevents double-storage which could overwrite files with empty arrays
                 var alreadyStoredResult = await _manifestPool.IsManifestAcquiredAsync(prepareResult.Data.Id, cancellationToken);
-                if (!alreadyStoredResult.Success || !alreadyStoredResult.Data)
+                if (!alreadyStoredResult.Success)
+                {
+                    return OperationResult<ContentManifest>.CreateFailure(
+                        $"Failed to check manifest storage status: {alreadyStoredResult.FirstError}");
+                }
+
+                if (!alreadyStoredResult.Data)
                 {
                     // Manifest not yet stored, store it now
                     _logger.LogDebug("Manifest {ManifestId} not yet stored, storing now from staging directory", prepareResult.Data.Id);

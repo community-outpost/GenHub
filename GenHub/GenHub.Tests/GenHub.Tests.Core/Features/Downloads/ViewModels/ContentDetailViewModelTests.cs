@@ -2268,4 +2268,136 @@ public sealed class ContentDetailViewModelTests
         Assert.True(viewModel.ShowUpdateButton);
         Assert.True(viewModel.ShowAddToProfileButton);
     }
+
+    /// <summary>
+    /// Verifies that when a content has multiple releases and a downloaded variant is selected
+    /// (e.g. on application restart), the matching release row is marked as downloaded with its manifest ID,
+    /// the main download button is hidden, and the Add to Profile button is displayed.
+    /// </summary>
+    [Fact]
+    public void SelectedVariant_WhenDownloadedOnRestart_MarksMatchingReleaseRowAsDownloadedAndShowsAddToProfile()
+    {
+        // Arrange
+        const string manifestId = "1.0.genlauncherzerohour.mod.riseofthereds187publicbuild20";
+        var parent = new ContentSearchResult
+        {
+            Id = "genlauncher-zerohour-riseofthereds",
+            Name = "Rise of the Reds",
+            ProviderName = "genlauncher",
+            ContentType = ContentType.Mod,
+            TargetGame = GameType.ZeroHour,
+        };
+
+        var stateService = new Mock<IContentStateService>();
+        stateService
+            .Setup(s => s.GetStateAsync(parent, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ContentState.Downloaded);
+        stateService
+            .Setup(s => s.GetLocalManifestIdAsync(parent, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(manifestId);
+        stateService
+            .Setup(s => s.GetStateAsync(It.Is<ContentSearchResult>(sr => sr.SelectedDownloadUrl == "http://example.com/build20.zip"), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ContentState.Downloaded);
+        stateService
+            .Setup(s => s.GetLocalManifestIdAsync(It.Is<ContentSearchResult>(sr => sr.SelectedDownloadUrl == "http://example.com/build20.zip"), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(manifestId);
+        stateService
+            .Setup(s => s.GetStateAsync(It.Is<ContentSearchResult>(sr => sr.SelectedDownloadUrl == "http://example.com/patch28.zip"), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ContentState.NotDownloaded);
+
+        var viewModel = CreateViewModel(
+            parent,
+            new Mock<IContentDownloadCoordinator>().Object,
+            contentStateService: stateService.Object);
+
+        var release1 = new DownloadableFile(
+            Name: "Rise Of The Reds 1.87 Patch 2.8",
+            DownloadUrl: "http://example.com/patch28.zip",
+            FileSectionType: FileSectionType.Downloads);
+
+        var release2 = new DownloadableFile(
+            Name: "Rise Of The Reds 1.87 Public Build 2.0",
+            DownloadUrl: "http://example.com/build20.zip",
+            FileSectionType: FileSectionType.Downloads);
+
+        viewModel.PopulateReleases([release1, release2]);
+
+        var variant = new InstallableVariant
+        {
+            Name = "Rise Of The Reds 1.87 Public Build 2.0",
+            ManifestId = manifestId,
+            CurrentState = ContentState.Downloaded,
+        };
+
+        viewModel.Variants.Add(variant);
+
+        // Act
+        viewModel.SelectedVariant = variant;
+
+        // Assert
+        Assert.NotNull(viewModel.SelectedDownloadableItem);
+        Assert.Equal("Rise Of The Reds 1.87 Public Build 2.0", viewModel.SelectedDownloadableItem.Name);
+        Assert.True(viewModel.SelectedDownloadableItem.IsDownloaded, "Selected release row must be marked IsDownloaded=true");
+        Assert.Equal(manifestId, viewModel.SelectedDownloadableItem.DownloadedManifestId);
+        Assert.False(viewModel.ShowDownloadButton, "ShowDownloadButton must be false when downloaded variant is selected");
+        Assert.True(viewModel.ShowAddToProfileButton, "ShowAddToProfileButton must be true when downloaded variant is selected");
+    }
+
+    /// <summary>
+    /// Verifies that LoadInitialStateAsync reconciles release rows when there are multiple releases.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task LoadInitialStateAsync_WithMultipleReleases_ReconcilesMatchingReleaseRowAsync()
+    {
+        // Arrange
+        const string manifestId = "1.0.genlauncherzerohour.mod.riseofthereds187publicbuild20";
+        var parent = new ContentSearchResult
+        {
+            Id = "genlauncher-zerohour-riseofthereds",
+            Name = "Rise of the Reds",
+            Version = "1.87 Public Build 2.0",
+            ProviderName = "genlauncher",
+            ContentType = ContentType.Mod,
+            TargetGame = GameType.ZeroHour,
+        };
+
+        var stateService = new Mock<IContentStateService>();
+        stateService
+            .Setup(s => s.GetStateAsync(parent, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ContentState.Downloaded);
+        stateService
+            .Setup(s => s.GetLocalManifestIdAsync(parent, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(manifestId);
+
+        var viewModel = CreateViewModel(
+            parent,
+            new Mock<IContentDownloadCoordinator>().Object,
+            contentStateService: stateService.Object);
+
+        var release1 = new DownloadableFile(
+            Name: "Rise Of The Reds 1.87 Patch 2.8",
+            Version: "1.87 Patch 2.8",
+            DownloadUrl: "http://example.com/patch28.zip",
+            FileSectionType: FileSectionType.Downloads);
+
+        var release2 = new DownloadableFile(
+            Name: "Rise Of The Reds 1.87 Public Build 2.0",
+            Version: "1.87 Public Build 2.0",
+            DownloadUrl: "http://example.com/build20.zip",
+            FileSectionType: FileSectionType.Downloads);
+
+        viewModel.PopulateReleases([release1, release2]);
+
+        // Act
+        viewModel.Initialize();
+        await viewModel.WaitForInitializationAsync();
+
+        // Assert
+        Assert.True(viewModel.IsDownloaded);
+        var matching = viewModel.Releases.FirstOrDefault(r => r.Name == "Rise Of The Reds 1.87 Public Build 2.0");
+        Assert.NotNull(matching);
+        Assert.True(matching.IsDownloaded);
+        Assert.Equal(manifestId, matching.DownloadedManifestId);
+    }
 }

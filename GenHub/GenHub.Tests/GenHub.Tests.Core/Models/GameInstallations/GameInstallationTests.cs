@@ -491,6 +491,130 @@ public class GameInstallationTests
     }
 
     /// <summary>
+    /// Verifies that Fetch does not detect Zero Hour when files with ZH suffixes are not .big archives (e.g. .txt, .bak).
+    /// </summary>
+    /// <param name="nonArchiveName">The non-big filename containing the ZH.big suffix.</param>
+    [Theory]
+    [InlineData("SpeechEnglishZH.big.txt")]
+    [InlineData("RussianZH.big.bak")]
+    [InlineData("GermanZH.big.log")]
+    [InlineData("ZH.big.zip")]
+    public void GameInstallation_Fetch_DoesNotDetectZeroHour_WhenNonBigFileHasZhSuffix(string nonArchiveName)
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), "NonArchiveZhTest_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tempDir);
+        try
+        {
+            File.WriteAllText(Path.Combine(tempDir, GameClientConstants.GeneralsExecutable), string.Empty);
+            File.WriteAllText(Path.Combine(tempDir, nonArchiveName), string.Empty);
+
+            var installation = new GameInstallation(tempDir, GameInstallationType.Retail, NullLogger<GameInstallation>.Instance);
+            installation.Fetch();
+
+            Assert.False(installation.HasZeroHour);
+            Assert.True(installation.HasGenerals);
+            Assert.Equal(tempDir, installation.GeneralsPath);
+        }
+        finally
+        {
+            Directory.Delete(tempDir, true);
+        }
+    }
+
+    /// <summary>
+    /// Verifies that Fetch does not detect Zero Hour when .big archives do not end with the Zero Hour suffix.
+    /// </summary>
+    /// <param name="bigArchiveName">The standard Generals big archive filename.</param>
+    [Theory]
+    [InlineData("Speech.big")]
+    [InlineData("Music.big")]
+    [InlineData("Textures.big")]
+    [InlineData("Generals.big")]
+    public void GameInstallation_Fetch_DoesNotDetectZeroHour_WhenNonZhBigArchivesPresent(string bigArchiveName)
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), "NonZhBigTest_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tempDir);
+        try
+        {
+            File.WriteAllText(Path.Combine(tempDir, GameClientConstants.GeneralsExecutable), string.Empty);
+            File.WriteAllText(Path.Combine(tempDir, bigArchiveName), string.Empty);
+
+            var installation = new GameInstallation(tempDir, GameInstallationType.Retail, NullLogger<GameInstallation>.Instance);
+            installation.Fetch();
+
+            Assert.False(installation.HasZeroHour);
+            Assert.True(installation.HasGenerals);
+            Assert.Equal(tempDir, installation.GeneralsPath);
+        }
+        finally
+        {
+            Directory.Delete(tempDir, true);
+        }
+    }
+
+    /// <summary>
+    /// Verifies that Fetch detects Zero Hour regardless of casing in the ZH.big archive filename.
+    /// </summary>
+    /// <param name="casedArchiveName">The localized Zero Hour archive filename with varying casing.</param>
+    [Theory]
+    [InlineData("speechenglishzh.big")]
+    [InlineData("SPEECHENGLISHZH.BIG")]
+    [InlineData("russian_ZH.BiG")]
+    [InlineData("GermanZH.BIG")]
+    public void GameInstallation_Fetch_DetectsZeroHour_WhenCasingVariesInZhArchive(string casedArchiveName)
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), "CaseVaryingZhTest_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tempDir);
+        try
+        {
+            File.WriteAllText(Path.Combine(tempDir, GameClientConstants.GeneralsExecutable), string.Empty);
+            File.WriteAllText(Path.Combine(tempDir, casedArchiveName), string.Empty);
+
+            var installation = new GameInstallation(tempDir, GameInstallationType.Retail, NullLogger<GameInstallation>.Instance);
+            installation.Fetch();
+
+            Assert.True(installation.HasZeroHour);
+            Assert.Equal(tempDir, installation.ZeroHourPath);
+        }
+        finally
+        {
+            Directory.Delete(tempDir, true);
+        }
+    }
+
+    /// <summary>
+    /// Verifies that Fetch detects Zero Hour correctly when a valid ZH.big archive is present alongside numerous unrelated files.
+    /// </summary>
+    [Fact]
+    public void GameInstallation_Fetch_DetectsZeroHour_WhenZhArchivePresentAmongManyFiles()
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), "MixedFilesZhTest_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tempDir);
+        try
+        {
+            File.WriteAllText(Path.Combine(tempDir, GameClientConstants.GeneralsExecutable), string.Empty);
+            for (var i = 0; i < 20; i++)
+            {
+                File.WriteAllText(Path.Combine(tempDir, $"data_{i}.dat"), string.Empty);
+                File.WriteAllText(Path.Combine(tempDir, $"texture_{i}.tga"), string.Empty);
+                File.WriteAllText(Path.Combine(tempDir, $"config_{i}.ini"), string.Empty);
+            }
+
+            File.WriteAllText(Path.Combine(tempDir, "SpeechEnglishZH.big"), string.Empty);
+
+            var installation = new GameInstallation(tempDir, GameInstallationType.Retail, NullLogger<GameInstallation>.Instance);
+            installation.Fetch();
+
+            Assert.True(installation.HasZeroHour);
+            Assert.Equal(tempDir, installation.ZeroHourPath);
+        }
+        finally
+        {
+            Directory.Delete(tempDir, true);
+        }
+    }
+
+    /// <summary>
     /// Verifies that Fetch preserves explicitly configured Generals paths even when a standard supported subdirectory also exists.
     /// </summary>
     [Fact]
@@ -516,6 +640,94 @@ public class GameInstallationTests
         finally
         {
             Directory.Delete(tempParent, true);
+        }
+    }
+
+    /// <summary>
+    /// Verifies that SetPaths accepts Generals-specific executable for Generals and rejects Zero Hour-only executable.
+    /// </summary>
+    [Fact]
+    public void SetPaths_TitleSpecificGeneralsExecutableValidation()
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), "GenHubTitleTest_" + Guid.NewGuid().ToString("N"));
+        var generalsDir = Path.Combine(tempDir, "Generals");
+        Directory.CreateDirectory(generalsDir);
+        try
+        {
+            var installation = new GameInstallation(tempDir, GameInstallationType.Retail, NullLogger<GameInstallation>.Instance);
+
+            // Zero Hour-only executable in Generals directory -> HasGenerals must be false
+            File.WriteAllText(Path.Combine(generalsDir, GameClientConstants.SuperHackersZeroHourExecutable), string.Empty);
+            installation.SetPaths(generalsDir, null);
+            Assert.False(installation.HasGenerals);
+
+            // Generals-specific executable in Generals directory -> HasGenerals must be true
+            File.Delete(Path.Combine(generalsDir, GameClientConstants.SuperHackersZeroHourExecutable));
+            File.WriteAllText(Path.Combine(generalsDir, GameClientConstants.SuperHackersGeneralsExecutable), string.Empty);
+            installation.SetPaths(generalsDir, null);
+            Assert.True(installation.HasGenerals);
+        }
+        finally
+        {
+            Directory.Delete(tempDir, true);
+        }
+    }
+
+    /// <summary>
+    /// Verifies that SetPaths accepts Zero Hour-specific executable for Zero Hour and rejects Generals-only executable.
+    /// </summary>
+    [Fact]
+    public void SetPaths_TitleSpecificZeroHourExecutableValidation()
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), "GenHubZhTitleTest_" + Guid.NewGuid().ToString("N"));
+        var zhDir = Path.Combine(tempDir, "ZeroHour");
+        Directory.CreateDirectory(zhDir);
+        try
+        {
+            var installation = new GameInstallation(tempDir, GameInstallationType.Retail, NullLogger<GameInstallation>.Instance);
+
+            // Generals-only executable in Zero Hour directory -> HasZeroHour must be false
+            File.WriteAllText(Path.Combine(zhDir, GameClientConstants.SuperHackersGeneralsExecutable), string.Empty);
+            installation.SetPaths(null, zhDir);
+            Assert.False(installation.HasZeroHour);
+
+            // Zero Hour-specific executable in Zero Hour directory -> HasZeroHour must be true
+            File.Delete(Path.Combine(zhDir, GameClientConstants.SuperHackersGeneralsExecutable));
+            File.WriteAllText(Path.Combine(zhDir, GameClientConstants.SuperHackersZeroHourExecutable), string.Empty);
+            installation.SetPaths(null, zhDir);
+            Assert.True(installation.HasZeroHour);
+        }
+        finally
+        {
+            Directory.Delete(tempDir, true);
+        }
+    }
+
+    /// <summary>
+    /// Verifies that SetPaths accepts shared generals.exe for both Generals and Zero Hour paths.
+    /// </summary>
+    [Fact]
+    public void SetPaths_SharedGeneralsExecutableAcceptedByBothTitles()
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), "GenHubSharedTest_" + Guid.NewGuid().ToString("N"));
+        var generalsDir = Path.Combine(tempDir, "Generals");
+        var zhDir = Path.Combine(tempDir, "ZeroHour");
+        Directory.CreateDirectory(generalsDir);
+        Directory.CreateDirectory(zhDir);
+        try
+        {
+            File.WriteAllText(Path.Combine(generalsDir, GameClientConstants.GeneralsExecutable), string.Empty);
+            File.WriteAllText(Path.Combine(zhDir, GameClientConstants.GeneralsExecutable), string.Empty);
+
+            var installation = new GameInstallation(tempDir, GameInstallationType.Retail, NullLogger<GameInstallation>.Instance);
+            installation.SetPaths(generalsDir, zhDir);
+
+            Assert.True(installation.HasGenerals);
+            Assert.True(installation.HasZeroHour);
+        }
+        finally
+        {
+            Directory.Delete(tempDir, true);
         }
     }
 }

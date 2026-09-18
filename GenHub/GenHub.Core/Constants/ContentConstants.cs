@@ -195,6 +195,11 @@ public static class ContentConstants
     public const string ContentNotDownloadedTitle = "Content Not Downloaded";
 
     /// <summary>
+    /// Localization key for the content not downloaded dialog title.
+    /// </summary>
+    public const string ContentNotDownloadedTitleKey = "Downloads.ContentDetail.ContentNotDownloadedTitle";
+
+    /// <summary>
     /// Release categorization keyword indicating a patch release.
     /// </summary>
     public const string PatchKeyword = "patch";
@@ -328,4 +333,9 @@ public static class ContentConstants
     /// Status prefix used when an operation failed.
     /// </summary>
     public const string FailedStatusPrefix = "Failed: ";
+
+    /// <summary>
+    /// URL prefix for Discord CDN attachment links that expire after 24 hours.
+    /// </summary>
+    public const string DiscordAttachmentCdnPrefix = "https://cdn.discordapp.com/attachments/";
 }

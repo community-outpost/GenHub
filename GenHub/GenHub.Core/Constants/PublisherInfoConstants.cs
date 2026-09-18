@@ -33,6 +33,7 @@ public static class PublisherInfoConstants
         (["genhublocal", "genhub local"], GenHubLocal.LogoSource),
         (["lutris"], Lutris.LogoSource),
         (["github"], GitHub.LogoSource),
+        (["genlauncher", "gen launcher", "gen-launcher"], GenLauncher.LogoSource),
     ];
 
     private static readonly (string[] Keywords, string CoverSource)[] CoverRules =
@@ -310,6 +311,24 @@ public static class PublisherInfoConstants
 
         /// <summary>Logo source for AODMaps.</summary>
         public const string LogoSource = "avares://GenHub/Assets/Logos/aodmaps-logo.png";
+    }
+
+    /// <summary>
+    /// Publisher information for GenLauncher.
+    /// </summary>
+    public static class GenLauncher
+    {
+        /// <summary>Display name for GenLauncher publisher.</summary>
+        public const string Name = "GenLauncher";
+
+        /// <summary>Website URL for GenLauncher.</summary>
+        public const string Website = "https://github.com/p0ls3r/GenLauncher";
+
+        /// <summary>Support URL for GenLauncher.</summary>
+        public const string SupportUrl = "https://github.com/p0ls3r/GenLauncher/issues";
+
+        /// <summary>Logo source for GenLauncher.</summary>
+        public const string LogoSource = "avares://GenHub/Assets/Logos/genlauncher-logo.png";
     }
 
     /// <summary>

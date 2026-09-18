@@ -22,9 +22,6 @@ namespace GenHub.Core.Constants;
 /// </remarks>
 public static class PublisherTypeConstants
 {
-    /// <summary>Combined view of all publishers.</summary>
-    public const string All = "all";
-
     /// <summary>Unknown or unspecified publisher.</summary>
     public const string Unknown = "unknown";
 
@@ -72,6 +69,9 @@ public static class PublisherTypeConstants
 
     /// <summary>Art of Defense Maps community site.</summary>
     public const string AODMaps = "aodmaps";
+
+    /// <summary>GenLauncher platform publisher.</summary>
+    public const string GenLauncher = "genlauncher";
 
     /// <summary>GenHub internal system content publisher.</summary>
     public const string GenHubInternal = "genhub";

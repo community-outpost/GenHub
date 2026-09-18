@@ -2,6 +2,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Markup.Xaml;
+using GenHub.Common.Helpers;
 using GenHub.Core.Constants;
 using GenHub.Features.GameProfiles.ViewModels;
 using System;
@@ -23,6 +24,7 @@ public partial class GameProfileSettingsWindow : Window
     public GameProfileSettingsWindow()
     {
         InitializeComponent();
+        WindowChromeHelper.ApplyPlatformDecorations(this);
 
         // Subscribe to DataContext changes to handle commands
         DataContextChanged += OnDataContextChanged;

@@ -1208,7 +1208,7 @@ public partial class GameProfileSettingsViewModel
                 _contentStorageService,
                 _genLauncherNormalizationService,
                 _dialogService,
-                null);
+                _archivePayloadProcessor);
             var window = new Views.AddLocalContentWindow
             {
                 DataContext = vm,
@@ -1276,7 +1276,7 @@ public partial class GameProfileSettingsViewModel
                 _contentStorageService,
                 _genLauncherNormalizationService,
                 _dialogService,
-                null);
+                _archivePayloadProcessor);
             await vm.LoadFromManifestAsync(contentItem);
 
             var window = new Views.AddLocalContentWindow

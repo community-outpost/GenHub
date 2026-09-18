@@ -342,6 +342,11 @@ public class CommunityOutpostResolver(
                 changelogUrl: patchPageUrl)
             .WithInstallationInstructions(WorkspaceConstants.DefaultWorkspaceStrategy);
 
+        if (!string.IsNullOrWhiteSpace(contentMetadata.EntryPoint))
+        {
+            manifest.WithEntryPoint(contentMetadata.EntryPoint);
+        }
+
         var dependencies = contentMetadata.GetDependencies();
         foreach (var dependency in dependencies)
         {

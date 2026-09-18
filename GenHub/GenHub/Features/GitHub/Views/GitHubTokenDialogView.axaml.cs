@@ -1,11 +1,14 @@
+using Avalonia;
 using Avalonia.Controls;
-using Avalonia.Markup.Xaml;
+using Avalonia.Input;
+using Avalonia.Interactivity;
 using GenHub.Features.GitHub.ViewModels;
+using System;
 
 namespace GenHub.Features.GitHub.Views;
 
 /// <summary>
-/// Code-behind for the GitHub Token Dialog view.
+/// Code-behind for the GitHub token dialog view.
 /// </summary>
 public partial class GitHubTokenDialogView : Window
 {
@@ -15,12 +18,13 @@ public partial class GitHubTokenDialogView : Window
     public GitHubTokenDialogView()
     {
         InitializeComponent();
+        GenHub.Common.Helpers.WindowChromeHelper.ApplyPlatformDecorations(this);
     }
 
     /// <summary>
-    /// Sets the ViewModel and wires up events.
+    /// Sets the view model and wires up events.
     /// </summary>
-    /// <param name="viewModel">The ViewModel to bind to.</param>
+    /// <param name="viewModel">The view model to bind to.</param>
     public void SetViewModel(GitHubTokenDialogViewModel viewModel)
     {
         DataContext = viewModel;
@@ -29,16 +33,45 @@ public partial class GitHubTokenDialogView : Window
         viewModel.CancelRequested += () => Close(false);
     }
 
+    /// <inheritdoc />
+    protected override void OnClosing(WindowClosingEventArgs e)
+    {
+        if (DataContext is GitHubTokenDialogViewModel { IsValidating: true })
+        {
+            e.Cancel = true;
+        }
+
+        base.OnClosing(e);
+    }
+
+    private void OnTitleBarPointerPressed(object? sender, PointerPressedEventArgs e)
+    {
+        if (e.GetCurrentPoint(sender as Visual).Properties.IsLeftButtonPressed)
+        {
+            BeginMoveDrag(e);
+        }
+    }
+
+    private void CloseButton_Click(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is GitHubTokenDialogViewModel { IsValidating: true })
+        {
+            return;
+        }
+
+        Close(false);
+    }
+
+    private void CancelButton_Click(object? sender, RoutedEventArgs e)
+    {
+        CloseButton_Click(sender, e);
+    }
+
     private void OnTokenPasswordChanged(object? sender, TextChangedEventArgs e)
     {
         if (sender is TextBox textBox && DataContext is GitHubTokenDialogViewModel vm)
         {
             vm.SetToken(textBox.Text ?? string.Empty);
         }
-    }
-
-    private void InitializeComponent()
-    {
-        AvaloniaXamlLoader.Load(this);
     }
 }

@@ -192,6 +192,127 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
     internal static bool IsBigArchiveFile(string filePath) =>
         BigArchiveClassifier.IsBigArchiveFile(filePath);
 
+    /// <summary>
+    /// Compares two files byte-by-byte to determine whether their contents are identical.
+    /// </summary>
+    /// <param name="file1">Path to the first file.</param>
+    /// <param name="file2">Path to the second file.</param>
+    /// <returns><c>true</c> if both files exist and have identical contents; otherwise, <c>false</c>.</returns>
+    internal static bool FilesHaveIdenticalContent(string file1, string file2)
+    {
+        const int bufferSize = 65536;
+        var buffer1 = new byte[bufferSize];
+        var buffer2 = new byte[bufferSize];
+
+        using var s1 = File.OpenRead(file1);
+        using var s2 = File.OpenRead(file2);
+
+        if (s1.Length != s2.Length)
+        {
+            return false;
+        }
+
+        var bytesRead1 = 0;
+        while ((bytesRead1 = s1.Read(buffer1, 0, bufferSize)) > 0)
+        {
+            var bytesRead2 = s2.Read(buffer2, 0, bufferSize);
+            if (bytesRead1 != bytesRead2)
+            {
+                return false;
+            }
+
+            if (!buffer1.AsSpan(0, bytesRead1).SequenceEqual(buffer2.AsSpan(0, bytesRead2)))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /// <summary>
+    /// Generates a non-colliding destination file path by appending a counter if a file already exists at the destination.
+    /// </summary>
+    /// <param name="destinationPath">The desired target path.</param>
+    /// <returns>A destination path that does not currently exist on disk.</returns>
+    internal static string GetNonCollidingDestinationPath(string destinationPath)
+    {
+        var dir = Path.GetDirectoryName(destinationPath) ?? string.Empty;
+        var fileNameWithoutExt = Path.GetFileNameWithoutExtension(destinationPath);
+        var ext = Path.GetExtension(destinationPath);
+        var counter = 1;
+        var newDestPath = string.Empty;
+        do
+        {
+            newDestPath = Path.Combine(dir, $"{fileNameWithoutExt}_{counter}{ext}");
+            counter++;
+        }
+        while (File.Exists(newDestPath));
+
+        return newDestPath;
+    }
+
+    /// <summary>
+    /// Normalizes an inactive BIG archive file (.gib, .ctr, .skw) to a .big extension, handling duplicate collisions.
+    /// </summary>
+    /// <param name="inactiveFile">The path of the inactive archive file.</param>
+    /// <param name="logger">Optional logger instance.</param>
+    internal static void NormalizeInactiveBigArchive(string inactiveFile, ILogger? logger = null)
+    {
+        var bigFile = Path.ChangeExtension(inactiveFile, GenLauncherConstants.BigExtension);
+        if (File.Exists(bigFile))
+        {
+            if (FilesHaveIdenticalContent(inactiveFile, bigFile))
+            {
+                File.Delete(inactiveFile);
+                logger?.LogInformation("Removed duplicate identical inactive file '{InactiveFile}' as '{BigFile}' already exists", inactiveFile, bigFile);
+            }
+            else
+            {
+                var nonCollidingBigPath = GetNonCollidingDestinationPath(bigFile);
+                File.Move(inactiveFile, nonCollidingBigPath);
+                logger?.LogInformation("Preserved differing inactive file '{InactiveFile}' by renaming to '{NewBigFile}'", inactiveFile, nonCollidingBigPath);
+            }
+        }
+        else
+        {
+            File.Move(inactiveFile, bigFile);
+            logger?.LogInformation("Normalized inactive mod archive '{InactiveFile}' to '{BigFile}'", inactiveFile, bigFile);
+        }
+    }
+
+    /// <summary>
+    /// Validates that an archive payload file exists, is non-empty, and does not contain HTML error text.
+    /// </summary>
+    /// <param name="archivePath">Path to the archive file.</param>
+    internal static void EnsureValidArchivePayload(string archivePath)
+    {
+        var info = new FileInfo(archivePath);
+        if (!info.Exists || info.Length == 0)
+        {
+            throw new InvalidDataException($"Archive file is missing or empty: {archivePath}");
+        }
+
+        Span<byte> header = stackalloc byte[16];
+        using (var stream = File.OpenRead(archivePath))
+        {
+            var read = stream.Read(header);
+            if (read == 0)
+            {
+                throw new InvalidDataException($"Archive file is empty: {archivePath}");
+            }
+
+            header = header[..read];
+        }
+
+        if (LooksLikeHtml(header))
+        {
+            var preview = ReadTextPreview(archivePath, maxChars: 120);
+            throw new InvalidDataException(
+                $"Downloaded file is HTML, not an archive (likely a broken download URL or HTTP error page): {archivePath}. Preview: {preview}");
+        }
+    }
+
     private static bool ShouldAttemptExecutableExtraction(ContentType? contentType)
     {
         if (!contentType.HasValue)
@@ -464,34 +585,6 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
         return Directory.GetFiles(rootDirectory, "*", SearchOption.AllDirectories)
             .Where(file => IsArchiveFile(file, contentType))
             .ToList();
-    }
-
-    private static void EnsureValidArchivePayload(string archivePath)
-    {
-        var info = new FileInfo(archivePath);
-        if (!info.Exists || info.Length == 0)
-        {
-            throw new InvalidDataException($"Archive file is missing or empty: {archivePath}");
-        }
-
-        Span<byte> header = stackalloc byte[16];
-        using (var stream = File.OpenRead(archivePath))
-        {
-            var read = stream.Read(header);
-            if (read == 0)
-            {
-                throw new InvalidDataException($"Archive file is empty: {archivePath}");
-            }
-
-            header = header[..read];
-        }
-
-        if (LooksLikeHtml(header))
-        {
-            var preview = ReadTextPreview(archivePath, maxChars: 120);
-            throw new InvalidDataException(
-                $"Downloaded file is HTML, not an archive (likely a broken download URL or HTTP error page): {archivePath}. Preview: {preview}");
-        }
     }
 
     private static bool LooksLikeHtml(ReadOnlySpan<byte> header)
@@ -1876,55 +1969,6 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
         }
     }
 
-    private static string GetNonCollidingDestinationPath(string destinationPath)
-    {
-        var dir = Path.GetDirectoryName(destinationPath) ?? string.Empty;
-        var fileNameWithoutExt = Path.GetFileNameWithoutExtension(destinationPath);
-        var ext = Path.GetExtension(destinationPath);
-        var counter = 1;
-        var newDestPath = string.Empty;
-        do
-        {
-            newDestPath = Path.Combine(dir, $"{fileNameWithoutExt}_{counter}{ext}");
-            counter++;
-        }
-        while (File.Exists(newDestPath));
-
-        return newDestPath;
-    }
-
-    private static bool FilesHaveIdenticalContent(string file1, string file2)
-    {
-        const int bufferSize = 65536;
-        var buffer1 = new byte[bufferSize];
-        var buffer2 = new byte[bufferSize];
-
-        using var s1 = File.OpenRead(file1);
-        using var s2 = File.OpenRead(file2);
-
-        if (s1.Length != s2.Length)
-        {
-            return false;
-        }
-
-        var bytesRead1 = 0;
-        while ((bytesRead1 = s1.Read(buffer1, 0, bufferSize)) > 0)
-        {
-            var bytesRead2 = s2.Read(buffer2, 0, bufferSize);
-            if (bytesRead1 != bytesRead2)
-            {
-                return false;
-            }
-
-            if (!buffer1.AsSpan(0, bytesRead1).SequenceEqual(buffer2.AsSpan(0, bytesRead2)))
-            {
-                return false;
-            }
-        }
-
-        return true;
-    }
-
     private static void CleanupEmptyDirectories(string rootDirectory)
     {
         try
@@ -2092,7 +2136,7 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
                 {
                     if (IsExecutableFile(inactiveFile))
                     {
-                        var exeFile = Path.ChangeExtension(inactiveFile, ".exe");
+                        var exeFile = Path.ChangeExtension(inactiveFile, GenLauncherConstants.ExeExtension);
                         if (!File.Exists(exeFile))
                         {
                             File.Move(inactiveFile, exeFile);
@@ -2108,26 +2152,7 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
                         continue;
                     }
 
-                    var bigFile = Path.ChangeExtension(inactiveFile, GenLauncherConstants.BigExtension);
-                    if (File.Exists(bigFile))
-                    {
-                        if (FilesHaveIdenticalContent(inactiveFile, bigFile))
-                        {
-                            File.Delete(inactiveFile);
-                            logger.LogInformation("Removed duplicate identical inactive file '{InactiveFile}' as '{BigFile}' already exists", inactiveFile, bigFile);
-                        }
-                        else
-                        {
-                            var nonCollidingBigPath = GetNonCollidingDestinationPath(bigFile);
-                            File.Move(inactiveFile, nonCollidingBigPath);
-                            logger.LogInformation("Preserved differing inactive file '{InactiveFile}' by renaming to '{NewBigFile}'", inactiveFile, nonCollidingBigPath);
-                        }
-                    }
-                    else
-                    {
-                        File.Move(inactiveFile, bigFile);
-                        logger.LogInformation("Normalized inactive mod archive '{InactiveFile}' to '{BigFile}'", inactiveFile, bigFile);
-                    }
+                    NormalizeInactiveBigArchive(inactiveFile, logger);
                 }
             }
         }

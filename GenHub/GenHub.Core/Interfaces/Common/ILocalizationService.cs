@@ -1,6 +1,7 @@
 using GenHub.Core.Models.Results;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 
 namespace GenHub.Core.Interfaces.Common;
@@ -34,6 +35,15 @@ public interface ILocalizationService : INotifyPropertyChanged
     /// <param name="arguments">Optional format arguments.</param>
     /// <returns>The localized value, its English fallback, or the key when no resource exists.</returns>
     string GetString(string key, params object?[] arguments);
+
+    /// <summary>
+    /// Attempts to get and optionally format a localized string without logging warnings if missing.
+    /// </summary>
+    /// <param name="key">The resource key to resolve.</param>
+    /// <param name="result">The localized and formatted value if found; otherwise null.</param>
+    /// <param name="arguments">Optional format arguments.</param>
+    /// <returns>True if the resource key was found; otherwise false.</returns>
+    bool TryGetString(string key, [NotNullWhen(true)] out string? result, params object?[] arguments);
 
     /// <summary>
     /// Changes the active culture when it has a deployed translation.

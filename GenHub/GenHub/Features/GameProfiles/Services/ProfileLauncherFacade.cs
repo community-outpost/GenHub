@@ -18,6 +18,7 @@ using GenHub.Core.Models.GameProfile;
 using GenHub.Core.Models.GameSettings;
 using GenHub.Core.Models.Launching;
 using GenHub.Core.Models.Manifest;
+using GenHub.Core.Models.Notifications;
 using GenHub.Core.Models.Providers;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Workspace;
@@ -30,6 +31,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Security.Principal;
 using System.Threading;
@@ -58,8 +60,14 @@ public class ProfileLauncherFacade(
     IGameProcessManager gameProcessManager,
     ISymlinkCapabilityProvider symlinkCapability,
     ILogger<ProfileLauncherFacade> logger,
-    IInstallationCasPoolService? installationCasPoolService = null) : IProfileLauncherFacade
+    IInstallationCasPoolService? installationCasPoolService = null,
+    ILocalizationService? localizationService = null) : IProfileLauncherFacade
 {
+    private sealed class SynchronousProgress<T>(Action<T> handler) : IProgress<T>
+    {
+        public void Report(T value) => handler(value);
+    }
+
     /// <inheritdoc/>
     public Task<ProfileOperationResult<GameLaunchInfo>> LaunchProfileAsync(
         string profileId,
@@ -617,6 +625,12 @@ public class ProfileLauncherFacade(
                 requestedToolStrategy);
         }
 
+        var (baseInstallationPath, workspaceRootPath) = await ResolveToolBaseAndWorkspacePathsAsync(
+            profile,
+            toolManifest,
+            appDataBase,
+            cancellationToken);
+
         var actualWorkspaceId = $"{ProfileConstants.ToolProfileWorkspaceIdPrefix}-{profile.Id}";
         var workspaceConfig = new WorkspaceConfiguration
         {
@@ -626,8 +640,8 @@ public class ProfileLauncherFacade(
             Strategy = effectiveToolStrategy,
             ForceRecreate = false,
             ValidateAfterPreparation = true,
-            BaseInstallationPath = appDataBase,
-            WorkspaceRootPath = Path.Combine(appDataBase, DirectoryNames.ToolWorkspaces),
+            BaseInstallationPath = baseInstallationPath,
+            WorkspaceRootPath = workspaceRootPath,
             SkipCleanup = false,
         };
 
@@ -641,6 +655,48 @@ public class ProfileLauncherFacade(
         var toolWorkspacePath = prepareResult.Data.WorkspacePath;
         logger.LogInformation("[Launch] Tool workspace prepared at: {Path}", toolWorkspacePath);
         return ProfileOperationResult<(string, string?)>.CreateSuccess((toolWorkspacePath, actualWorkspaceId));
+    }
+
+    /// <summary>
+    /// Resolves the base installation path and tool workspace root path for a given profile and tool manifest.
+    /// </summary>
+    /// <param name="profile">The game profile requesting launch.</param>
+    /// <param name="toolManifest">The manifest of the tool to launch.</param>
+    /// <param name="appDataBase">The application base directory path.</param>
+    /// <param name="cancellationToken">Cancellation token to cancel the operation.</param>
+    /// <returns>A tuple containing the base installation path and the workspace root path.</returns>
+    private async Task<(string BaseInstallationPath, string WorkspaceRootPath)> ResolveToolBaseAndWorkspacePathsAsync(
+        GameProfile profile,
+        ContentManifest toolManifest,
+        string appDataBase,
+        CancellationToken cancellationToken)
+    {
+        var baseInstallationPath = appDataBase;
+        var workspaceRootPath = Path.Combine(appDataBase, DirectoryNames.ToolWorkspaces);
+
+        if (toolManifest.TargetGame == GameType.Unknown)
+        {
+            return (baseInstallationPath, workspaceRootPath);
+        }
+
+        var installationsResult = await installationService.GetAllInstallationsAsync(cancellationToken);
+        if (!installationsResult.Success || installationsResult.Data == null)
+        {
+            return (baseInstallationPath, workspaceRootPath);
+        }
+
+        var matchingInstall = installationsResult.Data.FirstOrDefault(i =>
+            (!string.IsNullOrEmpty(profile.GameInstallationId) && i.Id == profile.GameInstallationId) ||
+            i.AvailableGameClients.Any(c => c.GameType == toolManifest.TargetGame));
+
+        if (matchingInstall != null && !string.IsNullOrEmpty(matchingInstall.InstallationPath) && Directory.Exists(matchingInstall.InstallationPath))
+        {
+            baseInstallationPath = matchingInstall.InstallationPath;
+            workspaceRootPath = storageLocationService.GetWorkspacePath(matchingInstall);
+            logger.LogInformation("[Launch] Tool workspace using base game installation: {Path}", baseInstallationPath);
+        }
+
+        return (baseInstallationPath, workspaceRootPath);
     }
 
     private ManifestFile? ResolveToolExecutable(ContentManifest toolManifest)
@@ -798,7 +854,62 @@ public class ProfileLauncherFacade(
             // Launch the game using the profile
             logger.LogDebug("[Launch] Step 6: Delegating to GameLauncher for workspace prep and process start");
 
-            var launchResult = await gameLauncher.LaunchProfileAsync(profile, progress: null, skipUserDataCleanup: skipUserDataCleanup, additionalArguments: additionalArguments, cancellationToken: cancellationToken);
+            var notificationLock = new object();
+            Guid? workspaceNotificationId = null;
+            var launchProgress = new SynchronousProgress<LaunchProgress>(p =>
+            {
+                if (p.IsInitializingWorkspace)
+                {
+                    NotificationMessage? messageToShow = null;
+                    lock (notificationLock)
+                    {
+                        if (workspaceNotificationId == null)
+                        {
+                            var title = localizationService?.GetString(ProfileConstants.WorkspacePreparingTitleKey)
+                                ?? ProfileConstants.WorkspacePreparingDefaultTitle;
+                            var body = localizationService != null
+                                ? localizationService.GetString(ProfileConstants.WorkspaceInitializingMessageKey, profile.Name)
+                                : string.Format(System.Globalization.CultureInfo.InvariantCulture, ProfileConstants.WorkspaceInitializingDefaultFormat, profile.Name);
+
+                            messageToShow = new NotificationMessage(
+                                NotificationType.Info,
+                                title,
+                                body,
+                                autoDismissMilliseconds: null,
+                                isPersistent: true);
+                            workspaceNotificationId = messageToShow.Id;
+                        }
+                    }
+
+                    if (messageToShow != null)
+                    {
+                        notificationService.Show(messageToShow);
+                    }
+                }
+            });
+
+            LaunchOperationResult<GameLaunchInfo> launchResult;
+            try
+            {
+                launchResult = await gameLauncher.LaunchProfileAsync(profile, progress: launchProgress, skipUserDataCleanup: skipUserDataCleanup, additionalArguments: additionalArguments, cancellationToken: cancellationToken);
+            }
+            finally
+            {
+                Guid? notificationToDismiss = null;
+                lock (notificationLock)
+                {
+                    if (workspaceNotificationId.HasValue)
+                    {
+                        notificationToDismiss = workspaceNotificationId.Value;
+                        workspaceNotificationId = null;
+                    }
+                }
+
+                if (notificationToDismiss.HasValue)
+                {
+                    notificationService.Dismiss(notificationToDismiss.Value);
+                }
+            }
 
             if (launchResult.Failed)
             {
@@ -1095,6 +1206,32 @@ public class ProfileLauncherFacade(
         return ProfileOperationResult<bool>.CreateSuccess(true);
     }
 
+    private async Task<ContentManifest?> TryRetrieveManifestAsync(
+        string contentId,
+        CancellationToken cancellationToken)
+    {
+        if (!ManifestId.TryCreate(contentId, out var manifestId))
+        {
+            logger.LogWarning("Skipping invalid manifest ID during validation: {ContentId}", contentId);
+            return null;
+        }
+
+        try
+        {
+            var manifestResult = await manifestPool.GetManifestAsync(manifestId, cancellationToken);
+            if (manifestResult.Success)
+            {
+                return manifestResult.Data;
+            }
+        }
+        catch (ArgumentException ex)
+        {
+            logger.LogWarning(ex, "Skipping invalid manifest ID during validation: {ContentId}", contentId);
+        }
+
+        return null;
+    }
+
     private async Task<(List<ContentManifest> Manifests, bool HasInstallation, bool HasClient)> CollectAndValidateManifestsAsync(
         GameProfile profile,
         CancellationToken cancellationToken)
@@ -1103,39 +1240,35 @@ public class ProfileLauncherFacade(
         var hasGameClientManifest = false;
         var manifests = new List<ContentManifest>();
 
-        if (profile.EnabledContentIds == null)
+        if (profile.EnabledContentIds != null)
         {
-            return (manifests, false, false);
-        }
-
-        foreach (var contentId in profile.EnabledContentIds)
-        {
-            if (!ManifestId.TryCreate(contentId, out var manifestId))
+            foreach (var contentId in profile.EnabledContentIds)
             {
-                logger.LogWarning("Skipping invalid manifest ID during validation: {ContentId}", contentId);
-                continue;
-            }
-
-            try
-            {
-                var manifestResult = await manifestPool.GetManifestAsync(manifestId, cancellationToken);
-                if (manifestResult.Success && manifestResult.Data != null)
+                var manifest = await TryRetrieveManifestAsync(contentId, cancellationToken);
+                if (manifest == null)
                 {
-                    manifests.Add(manifestResult.Data);
+                    continue;
+                }
 
-                    if (manifestResult.Data.ContentType == Core.Models.Enums.ContentType.GameInstallation)
-                    {
-                        hasGameInstallationManifest = true;
-                    }
-                    else if (manifestResult.Data.ContentType == Core.Models.Enums.ContentType.GameClient)
-                    {
-                        hasGameClientManifest = true;
-                    }
+                manifests.Add(manifest);
+                if (manifest.ContentType == Core.Models.Enums.ContentType.GameInstallation)
+                {
+                    hasGameInstallationManifest = true;
+                }
+                else if (manifest.ContentType == Core.Models.Enums.ContentType.GameClient)
+                {
+                    hasGameClientManifest = true;
                 }
             }
-            catch (ArgumentException ex)
+        }
+
+        if (!hasGameClientManifest && !string.IsNullOrWhiteSpace(profile.GameClient?.Id))
+        {
+            var clientManifest = await TryRetrieveManifestAsync(profile.GameClient.Id, cancellationToken);
+            if (clientManifest != null)
             {
-                logger.LogWarning(ex, "Skipping invalid manifest ID during validation: {ContentId}", contentId);
+                manifests.Add(clientManifest);
+                hasGameClientManifest = true;
             }
         }
 
@@ -1377,60 +1510,55 @@ public class ProfileLauncherFacade(
         List<ContentManifest> potentialMatches,
         List<string> errors)
     {
-        ContentManifest? requiredManifest = null;
+        var matchedCatalogId = DependencyResolver.FindVersionIndependentCatalogMatch(
+            dependency.Id.ToString(),
+            dependency,
+            potentialMatches);
 
-        if (manifestsById.TryGetValue(dependency.Id.ToString(), out var exactMatch))
+        ContentManifest? requiredManifest = null;
+        if (!string.IsNullOrEmpty(matchedCatalogId))
+        {
+            requiredManifest = potentialMatches.FirstOrDefault(m =>
+                string.Equals(m.Id.Value, matchedCatalogId, StringComparison.OrdinalIgnoreCase))
+                ?? (manifestsById.TryGetValue(matchedCatalogId, out var direct) ? direct : null);
+        }
+
+        if (requiredManifest == null &&
+            manifestsById.TryGetValue(dependency.Id.ToString(), out var exactMatch) &&
+            IsVersionCompatible(exactMatch.Version, dependency))
         {
             requiredManifest = exactMatch;
-        }
-        else
-        {
-            var depIdSegments = dependency.Id.ToString().Split('.');
-            if (depIdSegments.Length >= 5)
-            {
-                var depPublisher = depIdSegments[2];
-                var depContentType = depIdSegments[3];
-                var depContentName = depIdSegments[4];
-
-                requiredManifest = potentialMatches.FirstOrDefault(m =>
-                {
-                    var manifestIdSegments = m.Id.ToString().Split('.');
-                    if (manifestIdSegments.Length >= 5)
-                    {
-                        var manifestPublisher = manifestIdSegments[2];
-                        var manifestContentType = manifestIdSegments[3];
-                        var manifestContentName = manifestIdSegments[4];
-
-                        var publisherMatches = !dependency.StrictPublisher ||
-                                               string.Equals(manifestPublisher, depPublisher, StringComparison.OrdinalIgnoreCase);
-
-                        var typeMatches = string.Equals(manifestContentType, depContentType, StringComparison.OrdinalIgnoreCase);
-
-                        var nameMatches = CatalogManifestIdentity.IsContentNameOrVariantMatch(manifestContentName, depContentName);
-
-                        return publisherMatches && typeMatches && nameMatches;
-                    }
-
-                    return false;
-                });
-
-                if (requiredManifest != null)
-                {
-                    logger.LogDebug(
-                        "Semantic dependency match: {DependencyId} satisfied by {MatchedId} (StrictPublisher={StrictPublisher})",
-                        dependency.Id,
-                        requiredManifest.Id,
-                        dependency.StrictPublisher);
-                }
-            }
         }
 
         if (requiredManifest == null)
         {
-            var msg = $"Content '{manifest.Name}' requires specific content '{dependency.Name}' (ID: {dependency.Id}), but it is not selected";
+            var depParts = dependency.Id.ToString().Split('.');
+            var candidateMatch = (manifestsById.TryGetValue(dependency.Id.ToString(), out var exact) ? exact : null)
+                ?? (depParts.Length == 5 ? potentialMatches.FirstOrDefault(m => DependencyResolver.HasCompatibleIdentity(depParts, dependency, m)) : null);
+
+            if (candidateMatch != null)
+            {
+                var versionInfo = BuildVersionRequirementString(dependency);
+                var msg = $"Content '{manifest.Name}' requires '{dependency.Name}' {versionInfo}, but version {candidateMatch.Version} is selected";
+                if (!dependency.IsOptional)
+                {
+                    errors.Add(msg);
+                }
+
+                logger.LogWarning(
+                    "Version compatibility failed: {ManifestName} requires {DependencyName} {VersionInfo}, but {ActualVersion} found (Optional: {IsOptional})",
+                    manifest.Name,
+                    dependency.Name,
+                    versionInfo,
+                    candidateMatch.Version,
+                    dependency.IsOptional);
+                return;
+            }
+
+            var missingMsg = $"Content '{manifest.Name}' requires specific content '{dependency.Name}' (ID: {dependency.Id}), but it is not selected";
             if (!dependency.IsOptional)
             {
-                errors.Add(msg);
+                errors.Add(missingMsg);
             }
 
             logger.LogWarning(

@@ -690,4 +690,24 @@ public class GameSettingsMapperTests
         Assert.Equal(1920, profile.VideoResolutionWidth);
         Assert.Equal(1080, profile.VideoResolutionHeight);
     }
+
+    /// <summary>
+    /// Verifies that ApplyToOptions writes GameSpyIPAddress to options Network settings.
+    /// </summary>
+    [Fact]
+    public void ApplyToOptions_GameSpyIPAddress_AppliesToNetworkSettings()
+    {
+        // Arrange
+        var profile = new GameProfile
+        {
+            GameSpyIPAddress = "192.168.1.100",
+        };
+        var options = new IniOptions();
+
+        // Act
+        GameSettingsMapper.ApplyToOptions(profile, options);
+
+        // Assert
+        Assert.Equal("192.168.1.100", options.Network.GameSpyIPAddress);
+    }
 }

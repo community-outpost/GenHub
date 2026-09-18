@@ -50,6 +50,7 @@ public static class CompositionRootAssertions
         typeof(IGamePathProvider),
         typeof(IInstallationConflictService),
         typeof(IInstallationLocationTracker),
+        typeof(IInstallationSearchPathProvider),
         typeof(IShortcutService),
         typeof(IStorageMigrationService),
         typeof(ISymlinkCapabilityProvider),

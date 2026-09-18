@@ -22,6 +22,10 @@ public class InfoCardViewModelTests
     [Fact]
     public void UpdateLocalizedContent_ResolvesActionLabel_UsingActionIdWhenPresent()
     {
+        string? scanNowId = "Scan Now (ID)";
+        _localizationServiceMock
+            .Setup(l => l.TryGetString("Info.Card.quickstart.step1.Action.NAV_scan", out scanNowId, It.IsAny<object[]>()))
+            .Returns(true);
         _localizationServiceMock
             .Setup(l => l.GetString("Info.Card.quickstart.step1.Action.NAV_scan", It.IsAny<object[]>()))
             .Returns("Scan Now (ID)");
@@ -49,10 +53,18 @@ public class InfoCardViewModelTests
     [Fact]
     public void UpdateLocalizedContent_FallsBackToIndex_WhenActionIdMissingInCatalog()
     {
+        string? nullString = null;
+        _localizationServiceMock
+            .Setup(l => l.TryGetString("Info.Card.quickstart.step1.Action.NAV_scan", out nullString, It.IsAny<object[]>()))
+            .Returns(false);
         _localizationServiceMock
             .Setup(l => l.GetString("Info.Card.quickstart.step1.Action.NAV_scan", It.IsAny<object[]>()))
             .Returns("Info.Card.quickstart.step1.Action.NAV_scan"); // Key echoed back on miss
 
+        string? index0 = "Scan Now (Index 0)";
+        _localizationServiceMock
+            .Setup(l => l.TryGetString("Info.Card.quickstart.step1.Action.0", out index0, It.IsAny<object[]>()))
+            .Returns(true);
         _localizationServiceMock
             .Setup(l => l.GetString("Info.Card.quickstart.step1.Action.0", It.IsAny<object[]>()))
             .Returns("Scan Now (Index 0)");
@@ -80,6 +92,10 @@ public class InfoCardViewModelTests
     [Fact]
     public void UpdateLocalizedContent_FallsBackToModelLabel_WhenBothKeysMissing()
     {
+        string? nullString = null;
+        _localizationServiceMock
+            .Setup(l => l.TryGetString(It.IsAny<string>(), out nullString, It.IsAny<object[]>()))
+            .Returns(false);
         _localizationServiceMock
             .Setup(l => l.GetString(It.IsAny<string>(), It.IsAny<object[]>()))
             .Returns<string, object[]?>((key, _) => key); // Always echoes key

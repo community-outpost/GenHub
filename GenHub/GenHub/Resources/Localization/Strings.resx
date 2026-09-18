@@ -1,4 +1,4 @@
-﻿<?xml version='1.0' encoding='utf-8'?>
+<?xml version='1.0' encoding='utf-8'?>
 <root>
   <resheader name="resmimetype">
     <value>text/microsoft-resx</value>
@@ -4621,6 +4621,75 @@ This will modify game files and configuration settings at:
   <data name="Profiles.AddLocalContent.TypeLabel" xml:space="preserve">
     <value>TYPE</value>
   </data>
+  <data name="Profiles.AddLocalContent.NormalizeButton" xml:space="preserve">
+    <value>Normalize to .big (Direct Launch)</value>
+  </data>
+  <data name="Profiles.AddLocalContent.NormalizeTip" xml:space="preserve">
+    <value>Convert .ctr / .gib / .skw files to active .big format for direct modern GameClient launch</value>
+  </data>
+  <data name="Profiles.AddLocalContent.ProgressValidatingArchive" xml:space="preserve">
+    <value>Validating and converting archive formats...</value>
+  </data>
+  <data name="Profiles.AddLocalContent.ProgressNormalizingArchives" xml:space="preserve">
+    <value>Normalizing inactive archives (.ctr / .gib / .skw) to .big...</value>
+  </data>
+  <data name="Profiles.AddLocalContent.StatusNormalizedSuccess" xml:space="preserve">
+    <value>Inactive archives normalized to .big successfully.</value>
+  </data>
+  <data name="Profiles.AddLocalContent.StatusNormalizationFailed" xml:space="preserve">
+    <value>Normalization failed: {0}</value>
+  </data>
+  <data name="Profiles.AddLocalContent.ProgressAnalyzingFiles" xml:space="preserve">
+    <value>Analyzing files and computing hashes...</value>
+  </data>
+  <data name="Profiles.AddLocalContent.StatusScanningContent" xml:space="preserve">
+    <value>Scanning local content...</value>
+  </data>
+  <data name="Profiles.AddLocalContent.StatusUpdatingManifest" xml:space="preserve">
+    <value>Updating content manifest...</value>
+  </data>
+  <data name="Profiles.AddLocalContent.ProgressCasStorage" xml:space="preserve">
+    <value>{0} of {1} files stored in CAS pool{2}</value>
+  </data>
+  <data name="Profiles.AddLocalContent.ProgressWritingMetadata" xml:space="preserve">
+    <value>Writing metadata...</value>
+  </data>
+  <data name="Profiles.AddLocalContent.StatusUpdatingFiles" xml:space="preserve">
+    <value>Updating content files...</value>
+  </data>
+  <data name="Profiles.AddLocalContent.StatusImportingFiles" xml:space="preserve">
+    <value>Importing content files...</value>
+  </data>
+  <data name="Profiles.AddLocalContent.StatusImportCancelled" xml:space="preserve">
+    <value>Import cancelled.</value>
+  </data>
+  <data name="Profiles.AddLocalContent.StatusImportSuccessful" xml:space="preserve">
+    <value>Import successful.</value>
+  </data>
+  <data name="Profiles.AddLocalContent.StatusImportError" xml:space="preserve">
+    <value>Import Error: {0}</value>
+  </data>
+  <data name="Profiles.AddLocalContent.StatusImportingFile" xml:space="preserve">
+    <value>Importing {0}...</value>
+  </data>
+  <data name="Profiles.AddLocalContent.CollisionDialogTitle" xml:space="preserve">
+    <value>File Collisions Detected</value>
+  </data>
+  <data name="Profiles.AddLocalContent.CollisionDialogMessage" xml:space="preserve">
+    <value>Importing '{0}' conflicts with {1} existing file(s). Overwrite existing files?</value>
+  </data>
+  <data name="Profiles.AddLocalContent.CollisionDialogOverwrite" xml:space="preserve">
+    <value>Overwrite</value>
+  </data>
+  <data name="Profiles.AddLocalContent.CollisionDialogCancel" xml:space="preserve">
+    <value>Skip</value>
+  </data>
+  <data name="Profiles.AddLocalContent.StatusImportSkippedCollision" xml:space="preserve">
+    <value>Import skipped due to file collisions.</value>
+  </data>
+  <data name="Profiles.AddLocalContent.SingleCollisionDialogMessage" xml:space="preserve">
+    <value>The file '{0}' already exists in staging with different content. Overwrite?</value>
+  </data>
   <data name="Profiles.Settings.AddContentButton" xml:space="preserve">
     <value>Add Content</value>
   </data>
@@ -5429,6 +5498,9 @@ Your modern, community-focused command center for **C&amp;C: Generals &amp; Zero
   <data name="Info.Card.quickstart.step1-scan.Action.0" xml:space="preserve">
     <value>Go to Detection Guide</value>
   </data>
+  <data name="Info.Card.quickstart.step1-scan.Action.NAV_INFO_scan-games" xml:space="preserve">
+    <value>Go to Detection Guide</value>
+  </data>
   <data name="Info.Card.quickstart.step2-downloads.Title" xml:space="preserve">
     <value>Step 2: Essential Downloads</value>
   </data>
@@ -5438,7 +5510,13 @@ Your modern, community-focused command center for **C&amp;C: Generals &amp; Zero
   <data name="Info.Card.quickstart.step2-downloads.Action.0" xml:space="preserve">
     <value>Go to Downloads</value>
   </data>
+  <data name="Info.Card.quickstart.step2-downloads.Action.NAV_Downloads" xml:space="preserve">
+    <value>Go to Downloads</value>
+  </data>
   <data name="Info.Card.quickstart.step2-downloads.Action.1" xml:space="preserve">
+    <value>Learn about Content</value>
+  </data>
+  <data name="Info.Card.quickstart.step2-downloads.Action.NAV_INFO_game-profile-content" xml:space="preserve">
     <value>Learn about Content</value>
   </data>
   <data name="Info.Card.quickstart.step3-local-content.Title" xml:space="preserve">
@@ -5450,6 +5528,9 @@ Your modern, community-focused command center for **C&amp;C: Generals &amp; Zero
   <data name="Info.Card.quickstart.step3-local-content.Action.0" xml:space="preserve">
     <value>Learn how to Import</value>
   </data>
+  <data name="Info.Card.quickstart.step3-local-content.Action.NAV_INFO_local-content" xml:space="preserve">
+    <value>Learn how to Import</value>
+  </data>
   <data name="Info.Card.quickstart.manifests-cas.Title" xml:space="preserve">
     <value>The Core: Manifests &amp; CAS</value>
   </data>
@@ -5459,6 +5540,9 @@ Your modern, community-focused command center for **C&amp;C: Generals &amp; Zero
   <data name="Info.Card.quickstart.manifests-cas.Action.0" xml:space="preserve">
     <value>Storage Settings</value>
   </data>
+  <data name="Info.Card.quickstart.manifests-cas.Action.NAV_Settings" xml:space="preserve">
+    <value>Storage Settings</value>
+  </data>
   <data name="Info.Card.quickstart.automated-maintenance.Title" xml:space="preserve">
     <value>Automated Maintenance</value>
   </data>
@@ -5466,6 +5550,9 @@ Your modern, community-focused command center for **C&amp;C: Generals &amp; Zero
     <value>Automatic updates and version compatibility.</value>
   </data>
   <data name="Info.Card.quickstart.automated-maintenance.Action.0" xml:space="preserve">
+    <value>App Updates</value>
+  </data>
+  <data name="Info.Card.quickstart.automated-maintenance.Action.NAV_INFO_app-updates" xml:space="preserve">
     <value>App Updates</value>
   </data>
   <data name="Tools.ReplayManager.Badge.ProfileReady" xml:space="preserve">
@@ -8287,6 +8374,9 @@ Recovery Engine: Profile '{0}' supports checkpoint saves, replay resumption, and
   <data name="Tools.ReplayManager.ProfileSelection.CreateProfileCardSubtitle" xml:space="preserve">
     <value>Choose an available game client to create a fresh profile</value>
   </data>
+  <data name="Profiles.AddLocalContent.StatusCasProgressUpdating" xml:space="preserve">
+    <value>Updating {0}: {1:0}% ({2}/{3} files)</value>
+  </data>
   <data name="Downloads.ContentDetail.ModDbVerificationRequired" xml:space="preserve">
     <value>ModDB verification required</value>
   </data>
@@ -8468,4 +8558,168 @@ GameFilesEdited/Data/INI/**/*.ini</value>
   <data name="Tools.ModBuilder.Picker.ButtonApply" xml:space="preserve">
     <value>Apply Selection</value>
   </data>
+  <data name="Profiles.AddLocalContent.StatusCasProgressImporting" xml:space="preserve">
+    <value>Importing {0}: {1:0}% ({2}/{3} files)</value>
+  </data>
+  <data name="Profiles.AddLocalContent.DialogTitleAdd" xml:space="preserve">
+    <value>Add Local Content</value>
+  </data>
+  <data name="Profiles.AddLocalContent.DialogTitleEdit" xml:space="preserve">
+    <value>Edit Local Content</value>
+  </data>
+  <data name="Profiles.AddLocalContent.ActionButtonAdd" xml:space="preserve">
+    <value>Add to Library</value>
+  </data>
+  <data name="Profiles.AddLocalContent.ActionButtonSave" xml:space="preserve">
+    <value>Save Changes</value>
+  </data>
+  <data name="Profiles.AddLocalContent.StatusEnterName" xml:space="preserve">
+    <value>Please enter a name for the content.</value>
+  </data>
+  <data name="Profiles.AddLocalContent.StatusNoContent" xml:space="preserve">
+    <value>No content to add. Please import files or folders.</value>
+  </data>
+  <data name="Profiles.AddLocalContent.StatusStorageUnavailable" xml:space="preserve">
+    <value>Storage service unavailable.</value>
+  </data>
+  <data name="Profiles.AddLocalContent.StatusLoadingContent" xml:space="preserve">
+    <value>Loading existing content...</value>
+  </data>
+  <data name="Profiles.AddLocalContent.StatusLoadSuccess" xml:space="preserve">
+    <value>Success!</value>
+  </data>
+  <data name="Profiles.AddLocalContent.StatusLoadFailed" xml:space="preserve">
+    <value>Failed to load content: {0}</value>
+  </data>
+  <data name="Profiles.AddLocalContent.StatusLoadError" xml:space="preserve">
+    <value>Error loading content: {0}</value>
+  </data>
+  <data name="Profiles.AddLocalContent.StatusNormalizingGenLauncher" xml:space="preserve">
+    <value>Normalizing GenLauncher files...</value>
+  </data>
+  <data name="Profiles.AddLocalContent.StatusNormalizedSkipped" xml:space="preserve">
+    <value>Import successful (GenLauncher files not normalized).</value>
+  </data>
+  <data name="Profiles.AddLocalContent.StatusNormalizationCheckFailed" xml:space="preserve">
+    <value>Import successful (normalization check failed).</value>
+  </data>
+  <data name="Profiles.AddLocalContent.StatusNormalizationWarning" xml:space="preserve">
+    <value>Normalization warning: {0}. Import will continue.</value>
+  </data>
+  <data name="Profiles.AddLocalContent.StatusPartialNormalization" xml:space="preserve">
+    <value>Some inactive archives could not be normalized.</value>
+  </data>
+  <data name="Profiles.AddLocalContent.StatusRemovingItem" xml:space="preserve">
+    <value>Removing {0}...</value>
+  </data>
+  <data name="Profiles.AddLocalContent.StatusRemovedItem" xml:space="preserve">
+    <value>Removed {0}.</value>
+  </data>
+  <data name="Profiles.AddLocalContent.StatusRemovalError" xml:space="preserve">
+    <value>Removal Error: {0}</value>
+  </data>
+  <data name="Profiles.AddLocalContent.StatusOperationCancelled" xml:space="preserve">
+    <value>Operation cancelled</value>
+  </data>
+  <data name="Profiles.AddLocalContent.StatusGenericError" xml:space="preserve">
+    <value>Error: {0}</value>
+  </data>
+  <data name="Profiles.AddLocalContent.StatusDemoRegistered" xml:space="preserve">
+    <value>'{0}' registered in library. Ready to link to any game profile!</value>
+  </data>
+  <data name="Profiles.AddLocalContent.IdleMod" xml:space="preserve">
+    <value>Import mod content (e.g. .big, .zip)</value>
+  </data>
+  <data name="Profiles.AddLocalContent.IdleGameClient" xml:space="preserve">
+    <value>Import GameClient</value>
+  </data>
+  <data name="Profiles.AddLocalContent.IdleExecutable" xml:space="preserve">
+    <value>Import executable</value>
+  </data>
+  <data name="Profiles.AddLocalContent.IdleModdingTool" xml:space="preserve">
+    <value>Import tool executable</value>
+  </data>
+  <data name="Profiles.AddLocalContent.IdlePatch" xml:space="preserve">
+    <value>Import patch</value>
+  </data>
+  <data name="Profiles.AddLocalContent.IdleAddon" xml:space="preserve">
+    <value>Import addon content</value>
+  </data>
+  <data name="Profiles.AddLocalContent.IdleMap" xml:space="preserve">
+    <value>Import map files</value>
+  </data>
+  <data name="Profiles.AddLocalContent.IdleMapPack" xml:space="preserve">
+    <value>Import map pack files</value>
+  </data>
+  <data name="Profiles.AddLocalContent.IdleMission" xml:space="preserve">
+    <value>Import mission content</value>
+  </data>
+  <data name="Profiles.AddLocalContent.IdleDefault" xml:space="preserve">
+    <value>Drag and drop content to begin</value>
+  </data>
+  <data name="Profiles.AddLocalContent.GenLauncherDialogTitle" xml:space="preserve">
+    <value>GenLauncher Files Detected</value>
+  </data>
+  <data name="Profiles.AddLocalContent.GenLauncherDialogNormalize" xml:space="preserve">
+    <value>Normalize</value>
+  </data>
+  <data name="Profiles.AddLocalContent.GenLauncherDialogSkip" xml:space="preserve">
+    <value>Skip</value>
+  </data>
+  <data name="Profiles.AddLocalContent.GenLauncherPrompt" xml:space="preserve">
+    <value>This content contains GenLauncher-modified files:
+
+{0}
+
+Would you like to normalize these files to standard format?
+
+This will:
+• Convert {1} files to {2}
+• Convert {3} files to {2} or {4} based on content
+• Remove {5} suffixes
+• Remove symbolic links</value>
+  </data>
+  <data name="Profiles.AddLocalContent.NormalizationSuccess" xml:space="preserve">
+    <value>Normalized {0} file(s). Import successful.</value>
+  </data>
+  <data name="Profiles.AddLocalContent.NormalizationPartial" xml:space="preserve">
+    <value>Normalized {0} file(s); {1} skipped, {2} failed. Import completed.</value>
+  </data>
+  <data name="Profiles.AddLocalContent.NormalizationFailed" xml:space="preserve">
+    <value>Normalized {0} file(s); {1} failed. Import completed.</value>
+  </data>
+  <data name="Profiles.AddLocalContent.NormalizationSkipped" xml:space="preserve">
+    <value>Normalized {0} file(s); {1} skipped. Import completed.</value>  </data>
+  <data name="GameProfiles.Launch.WorkspacePreparingTitle" xml:space="preserve">
+    <value>Preparing Workspace</value>
+  </data>
+  <data name="GameProfiles.Launch.WorkspaceInitializingMessage" xml:space="preserve">
+    <value>Initializing workspace for '{0}'. First launch may take a moment while files are set up...</value>
+  </data>
+  <data name="GameProfiles.Launch.WorkspaceErrorTitle" xml:space="preserve">
+    <value>Workspace Error</value>
+  </data>
+  <data name="GameProfiles.Launch.WorkspaceFailedMessage" xml:space="preserve">
+    <value>Workspace initialization failed for '{0}'.</value>
+  </data>
+  <data name="GitHub.TokenDialog.Title" xml:space="preserve">
+    <value>GitHub Authentication</value>
+    <comment>Title for GitHub PAT dialog</comment>
+  </data>
+  <data name="GenLauncher.Prefix.News" xml:space="preserve">
+    <value>News</value>
+  </data>
+  <data name="GenLauncher.Prefix.Discord" xml:space="preserve">
+    <value>Discord</value>
+  </data>
+  <data name="GenLauncher.Prefix.ModDb" xml:space="preserve">
+    <value>ModDB</value>
+  </data>
+  <data name="GenLauncher.Prefix.Support" xml:space="preserve">
+    <value>Support</value>
+  </data>
+  <data name="GenLauncher.Context.Community" xml:space="preserve">
+    <value>GenLauncher Community</value>
+    </data>
+
 </root>

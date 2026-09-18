@@ -445,7 +445,7 @@ AODMaps uses a static publisher provider configuration definition (content disco
 {
   "publisherId": "aodmaps",
   "publisherType": "aodmaps",
-  "displayName": "Age of Defense Maps",
+  "displayName": "Art of Defense Maps",
   "providerType": "Static",
   "endpoints": {
     "catalogUrl": "https://aodmaps.com",

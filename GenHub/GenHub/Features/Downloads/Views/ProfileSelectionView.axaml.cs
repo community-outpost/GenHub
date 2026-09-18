@@ -5,6 +5,7 @@ using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Markup.Xaml;
 using Avalonia.Media;
+using GenHub.Common.Helpers;
 using GenHub.Features.Downloads.ViewModels;
 using System;
 
@@ -24,6 +25,7 @@ public partial class ProfileSelectionView : Window
     public ProfileSelectionView()
     {
         InitializeComponent();
+        WindowChromeHelper.ApplyPlatformDecorations(this);
     }
 
     /// <summary>

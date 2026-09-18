@@ -1,4 +1,4 @@
-﻿<?xml version='1.0' encoding='utf-8'?>
+<?xml version='1.0' encoding='utf-8'?>
 <root>
   <resheader name="resmimetype">
     <value>text/microsoft-resx</value>
@@ -4621,6 +4621,75 @@
   <data name="Profiles.AddLocalContent.TypeLabel" xml:space="preserve">
     <value>ТИП</value>
   </data>
+  <data name="Profiles.AddLocalContent.NormalizeButton" xml:space="preserve">
+    <value>Нормализовать в .big (Прямой запуск)</value>
+  </data>
+  <data name="Profiles.AddLocalContent.NormalizeTip" xml:space="preserve">
+    <value>Преобразовать файлы .ctr / .gib / .skw в активный формат .big для прямого запуска через GameClient</value>
+  </data>
+  <data name="Profiles.AddLocalContent.ProgressValidatingArchive" xml:space="preserve">
+    <value>Проверка и преобразование форматов архивов...</value>
+  </data>
+  <data name="Profiles.AddLocalContent.ProgressNormalizingArchives" xml:space="preserve">
+    <value>Нормализация неактивных архивов (.ctr / .gib / .skw) в .big...</value>
+  </data>
+  <data name="Profiles.AddLocalContent.StatusNormalizedSuccess" xml:space="preserve">
+    <value>Неактивные архивы успешно нормализованы в .big.</value>
+  </data>
+  <data name="Profiles.AddLocalContent.StatusNormalizationFailed" xml:space="preserve">
+    <value>Сбой нормализации: {0}</value>
+  </data>
+  <data name="Profiles.AddLocalContent.ProgressAnalyzingFiles" xml:space="preserve">
+    <value>Анализ файлов и вычисление хешей...</value>
+  </data>
+  <data name="Profiles.AddLocalContent.StatusScanningContent" xml:space="preserve">
+    <value>Сканирование локального контента...</value>
+  </data>
+  <data name="Profiles.AddLocalContent.StatusUpdatingManifest" xml:space="preserve">
+    <value>Обновление манифеста контента...</value>
+  </data>
+  <data name="Profiles.AddLocalContent.ProgressCasStorage" xml:space="preserve">
+    <value>{0} из {1} файлов сохранено в пуле CAS{2}</value>
+  </data>
+  <data name="Profiles.AddLocalContent.ProgressWritingMetadata" xml:space="preserve">
+    <value>Запись метаданных...</value>
+  </data>
+  <data name="Profiles.AddLocalContent.StatusUpdatingFiles" xml:space="preserve">
+    <value>Обновление файлов контента...</value>
+  </data>
+  <data name="Profiles.AddLocalContent.StatusImportingFiles" xml:space="preserve">
+    <value>Импорт файлов контента...</value>
+  </data>
+  <data name="Profiles.AddLocalContent.StatusImportCancelled" xml:space="preserve">
+    <value>Импорт отменен.</value>
+  </data>
+  <data name="Profiles.AddLocalContent.StatusImportSuccessful" xml:space="preserve">
+    <value>Импорт успешно завершен.</value>
+  </data>
+  <data name="Profiles.AddLocalContent.StatusImportError" xml:space="preserve">
+    <value>Ошибка импорта: {0}</value>
+  </data>
+  <data name="Profiles.AddLocalContent.StatusImportingFile" xml:space="preserve">
+    <value>Импорт {0}...</value>
+  </data>
+  <data name="Profiles.AddLocalContent.CollisionDialogTitle" xml:space="preserve">
+    <value>Обнаружены конфликты файлов</value>
+  </data>
+  <data name="Profiles.AddLocalContent.CollisionDialogMessage" xml:space="preserve">
+    <value>Импорт '{0}' конфликтует с существующими файлами ({1}). Перезаписать существующие файлы?</value>
+  </data>
+  <data name="Profiles.AddLocalContent.CollisionDialogOverwrite" xml:space="preserve">
+    <value>Перезаписать</value>
+  </data>
+  <data name="Profiles.AddLocalContent.CollisionDialogCancel" xml:space="preserve">
+    <value>Пропустить</value>
+  </data>
+  <data name="Profiles.AddLocalContent.StatusImportSkippedCollision" xml:space="preserve">
+    <value>Импорт пропущен из-за конфликтов файлов.</value>
+  </data>
+  <data name="Profiles.AddLocalContent.SingleCollisionDialogMessage" xml:space="preserve">
+    <value>Файл '{0}' уже существует в промежуточной области с другим содержимым. Перезаписать?</value>
+  </data>
   <data name="Profiles.Settings.AddContentButton" xml:space="preserve">
     <value>Добавить контент</value>
   </data>
@@ -5429,6 +5498,9 @@
   <data name="Info.Card.quickstart.step1-scan.Action.0" xml:space="preserve">
     <value>Перейти к руководству по обнаружению</value>
   </data>
+  <data name="Info.Card.quickstart.step1-scan.Action.NAV_INFO_scan-games" xml:space="preserve">
+    <value>Перейти к руководству по обнаружению</value>
+  </data>
   <data name="Info.Card.quickstart.step2-downloads.Title" xml:space="preserve">
     <value>Шаг 2: Необходимые загрузки</value>
   </data>
@@ -5438,7 +5510,13 @@
   <data name="Info.Card.quickstart.step2-downloads.Action.0" xml:space="preserve">
     <value>Перейти к загрузкам</value>
   </data>
+  <data name="Info.Card.quickstart.step2-downloads.Action.NAV_Downloads" xml:space="preserve">
+    <value>Перейти к загрузкам</value>
+  </data>
   <data name="Info.Card.quickstart.step2-downloads.Action.1" xml:space="preserve">
+    <value>Узнать о контенте</value>
+  </data>
+  <data name="Info.Card.quickstart.step2-downloads.Action.NAV_INFO_game-profile-content" xml:space="preserve">
     <value>Узнать о контенте</value>
   </data>
   <data name="Info.Card.quickstart.step3-local-content.Title" xml:space="preserve">
@@ -5450,6 +5528,9 @@
   <data name="Info.Card.quickstart.step3-local-content.Action.0" xml:space="preserve">
     <value>Узнать, как импортировать</value>
   </data>
+  <data name="Info.Card.quickstart.step3-local-content.Action.NAV_INFO_local-content" xml:space="preserve">
+    <value>Узнать, как импортировать</value>
+  </data>
   <data name="Info.Card.quickstart.manifests-cas.Title" xml:space="preserve">
     <value>Основа: Манифесты и CAS</value>
   </data>
@@ -5459,6 +5540,9 @@
   <data name="Info.Card.quickstart.manifests-cas.Action.0" xml:space="preserve">
     <value>Настройки хранилища</value>
   </data>
+  <data name="Info.Card.quickstart.manifests-cas.Action.NAV_Settings" xml:space="preserve">
+    <value>Настройки хранилища</value>
+  </data>
   <data name="Info.Card.quickstart.automated-maintenance.Title" xml:space="preserve">
     <value>Автоматическое обслуживание</value>
   </data>
@@ -5466,6 +5550,9 @@
     <value>Автоматические обновления и совместимость версий.</value>
   </data>
   <data name="Info.Card.quickstart.automated-maintenance.Action.0" xml:space="preserve">
+    <value>Обновления приложения</value>
+  </data>
+  <data name="Info.Card.quickstart.automated-maintenance.Action.NAV_INFO_app-updates" xml:space="preserve">
     <value>Обновления приложения</value>
   </data>
   <data name="Tools.ReplayManager.Badge.ProfileReady" xml:space="preserve">
@@ -8193,6 +8280,9 @@ GenHub передает официальный идентификатор AppID 
   <data name="Tools.ReplayManager.ProfileSelection.CreateProfileCardSubtitle" xml:space="preserve">
     <value>Выберите доступный клиент игры для создания нового профиля</value>
   </data>
+  <data name="Profiles.AddLocalContent.StatusCasProgressUpdating" xml:space="preserve">
+    <value>Обновление {0}: {1:0}% ({2}/{3} файлов)</value>
+  </data>
   <data name="Downloads.ContentDetail.ModDbVerificationRequired" xml:space="preserve">
     <value>Требуется проверка ModDB</value>
   </data>
@@ -8374,4 +8464,168 @@ GameFilesEdited/Data/INI/**/*.ini</value>
   <data name="Tools.ModBuilder.Picker.ButtonApply" xml:space="preserve">
     <value>Применить выбор</value>
   </data>
+  <data name="Profiles.AddLocalContent.StatusCasProgressImporting" xml:space="preserve">
+    <value>Импорт {0}: {1:0}% ({2}/{3} файлов)</value>
+  </data>
+  <data name="Profiles.AddLocalContent.DialogTitleAdd" xml:space="preserve">
+    <value>Добавить локальный контент</value>
+  </data>
+  <data name="Profiles.AddLocalContent.DialogTitleEdit" xml:space="preserve">
+    <value>Редактировать локальный контент</value>
+  </data>
+  <data name="Profiles.AddLocalContent.ActionButtonAdd" xml:space="preserve">
+    <value>Добавить в библиотеку</value>
+  </data>
+  <data name="Profiles.AddLocalContent.ActionButtonSave" xml:space="preserve">
+    <value>Сохранить изменения</value>
+  </data>
+  <data name="Profiles.AddLocalContent.StatusEnterName" xml:space="preserve">
+    <value>Пожалуйста, введите название контента.</value>
+  </data>
+  <data name="Profiles.AddLocalContent.StatusNoContent" xml:space="preserve">
+    <value>Нет контента для добавления. Пожалуйста, импортируйте файлы или папки.</value>
+  </data>
+  <data name="Profiles.AddLocalContent.StatusStorageUnavailable" xml:space="preserve">
+    <value>Служба хранилища недоступна.</value>
+  </data>
+  <data name="Profiles.AddLocalContent.StatusLoadingContent" xml:space="preserve">
+    <value>Загрузка существующего контента...</value>
+  </data>
+  <data name="Profiles.AddLocalContent.StatusLoadSuccess" xml:space="preserve">
+    <value>Успешно!</value>
+  </data>
+  <data name="Profiles.AddLocalContent.StatusLoadFailed" xml:space="preserve">
+    <value>Не удалось загрузить контент: {0}</value>
+  </data>
+  <data name="Profiles.AddLocalContent.StatusLoadError" xml:space="preserve">
+    <value>Ошибка загрузки контента: {0}</value>
+  </data>
+  <data name="Profiles.AddLocalContent.StatusNormalizingGenLauncher" xml:space="preserve">
+    <value>Нормализация файлов GenLauncher...</value>
+  </data>
+  <data name="Profiles.AddLocalContent.StatusNormalizedSkipped" xml:space="preserve">
+    <value>Импорт завершен успешно (файлы GenLauncher не нормализованы).</value>
+  </data>
+  <data name="Profiles.AddLocalContent.StatusNormalizationCheckFailed" xml:space="preserve">
+    <value>Импорт завершен успешно (проверка нормализации не удалась).</value>
+  </data>
+  <data name="Profiles.AddLocalContent.StatusNormalizationWarning" xml:space="preserve">
+    <value>Предупреждение нормализации: {0}. Импорт продолжится.</value>
+  </data>
+  <data name="Profiles.AddLocalContent.StatusPartialNormalization" xml:space="preserve">
+    <value>Некоторые неактивные архивы не удалось нормализовать.</value>
+  </data>
+  <data name="Profiles.AddLocalContent.StatusRemovingItem" xml:space="preserve">
+    <value>Удаление {0}...</value>
+  </data>
+  <data name="Profiles.AddLocalContent.StatusRemovedItem" xml:space="preserve">
+    <value>Удалено {0}.</value>
+  </data>
+  <data name="Profiles.AddLocalContent.StatusRemovalError" xml:space="preserve">
+    <value>Ошибка удаления: {0}</value>
+  </data>
+  <data name="Profiles.AddLocalContent.StatusOperationCancelled" xml:space="preserve">
+    <value>Операция отменена</value>
+  </data>
+  <data name="Profiles.AddLocalContent.StatusGenericError" xml:space="preserve">
+    <value>Ошибка: {0}</value>
+  </data>
+  <data name="Profiles.AddLocalContent.StatusDemoRegistered" xml:space="preserve">
+    <value>'{0}' зарегистрирован в библиотеке. Готов к привязке к любому профилю игры!</value>
+  </data>
+  <data name="Profiles.AddLocalContent.IdleMod" xml:space="preserve">
+    <value>Импорт контента мода (напр. .big, .zip)</value>
+  </data>
+  <data name="Profiles.AddLocalContent.IdleGameClient" xml:space="preserve">
+    <value>Импорт GameClient</value>
+  </data>
+  <data name="Profiles.AddLocalContent.IdleExecutable" xml:space="preserve">
+    <value>Импорт исполняемого файла</value>
+  </data>
+  <data name="Profiles.AddLocalContent.IdleModdingTool" xml:space="preserve">
+    <value>Импорт утилиты</value>
+  </data>
+  <data name="Profiles.AddLocalContent.IdlePatch" xml:space="preserve">
+    <value>Импорт патча</value>
+  </data>
+  <data name="Profiles.AddLocalContent.IdleAddon" xml:space="preserve">
+    <value>Импорт аддона</value>
+  </data>
+  <data name="Profiles.AddLocalContent.IdleMap" xml:space="preserve">
+    <value>Импорт файлов карт</value>
+  </data>
+  <data name="Profiles.AddLocalContent.IdleMapPack" xml:space="preserve">
+    <value>Импорт наборов карт</value>
+  </data>
+  <data name="Profiles.AddLocalContent.IdleMission" xml:space="preserve">
+    <value>Импорт миссий</value>
+  </data>
+  <data name="Profiles.AddLocalContent.IdleDefault" xml:space="preserve">
+    <value>Перетащите файлы сюда для начала</value>
+  </data>
+  <data name="Profiles.AddLocalContent.GenLauncherDialogTitle" xml:space="preserve">
+    <value>Обнаружены файлы GenLauncher</value>
+  </data>
+  <data name="Profiles.AddLocalContent.GenLauncherDialogNormalize" xml:space="preserve">
+    <value>Нормализовать</value>
+  </data>
+  <data name="Profiles.AddLocalContent.GenLauncherDialogSkip" xml:space="preserve">
+    <value>Пропустить</value>
+  </data>
+  <data name="Profiles.AddLocalContent.GenLauncherPrompt" xml:space="preserve">
+    <value>Этот контент содержит файлы, измененные GenLauncher:
+
+{0}
+
+Хотите нормализовать эти файлы до стандартного формата?
+
+Это действие:
+• Преобразует файлы {1} в {2}
+• Преобразует файлы {3} в {2} или {4} в зависимости от содержимого
+• Удалит суффиксы {5}
+• Удалит символические ссылки</value>
+  </data>
+  <data name="Profiles.AddLocalContent.NormalizationSuccess" xml:space="preserve">
+    <value>Нормализовано файлов: {0}. Импорт завершен успешно.</value>
+  </data>
+  <data name="Profiles.AddLocalContent.NormalizationPartial" xml:space="preserve">
+    <value>Нормализовано файлов: {0}; пропущено: {1}, ошибок: {2}. Импорт завершен.</value>
+  </data>
+  <data name="Profiles.AddLocalContent.NormalizationFailed" xml:space="preserve">
+    <value>Нормализовано файлов: {0}; ошибок: {1}. Импорт завершен.</value>
+  </data>
+  <data name="Profiles.AddLocalContent.NormalizationSkipped" xml:space="preserve">
+    <value>Нормализовано файлов: {0}; пропущено: {1}. Импорт завершен.</value>  </data>
+  <data name="GameProfiles.Launch.WorkspacePreparingTitle" xml:space="preserve">
+    <value>Подготовка рабочей области</value>
+  </data>
+  <data name="GameProfiles.Launch.WorkspaceInitializingMessage" xml:space="preserve">
+    <value>Инициализация рабочей области для «{0}». Первый запуск может занять некоторое время при подготовке файлов...</value>
+  </data>
+  <data name="GameProfiles.Launch.WorkspaceErrorTitle" xml:space="preserve">
+    <value>Ошибка рабочей области</value>
+  </data>
+  <data name="GameProfiles.Launch.WorkspaceFailedMessage" xml:space="preserve">
+    <value>Не удалось инициализировать рабочую область для «{0}».</value>
+  </data>
+  <data name="GitHub.TokenDialog.Title" xml:space="preserve">
+    <value>Аутентификация GitHub</value>
+    <comment>Title for GitHub PAT dialog</comment>
+  </data>
+  <data name="GenLauncher.Prefix.News" xml:space="preserve">
+    <value>Новости</value>
+  </data>
+  <data name="GenLauncher.Prefix.Discord" xml:space="preserve">
+    <value>Discord</value>
+  </data>
+  <data name="GenLauncher.Prefix.ModDb" xml:space="preserve">
+    <value>ModDB</value>
+  </data>
+  <data name="GenLauncher.Prefix.Support" xml:space="preserve">
+    <value>Поддержка</value>
+  </data>
+  <data name="GenLauncher.Context.Community" xml:space="preserve">
+    <value>Сообщество GenLauncher</value>
+    </data>
+
 </root>

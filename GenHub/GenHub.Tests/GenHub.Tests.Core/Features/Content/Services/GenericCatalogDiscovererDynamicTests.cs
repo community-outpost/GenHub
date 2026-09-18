@@ -36,11 +36,13 @@ public sealed class GenericCatalogDiscovererDynamicTests : IDisposable
     public GenericCatalogDiscovererDynamicTests()
     {
         GenericCatalogDiscoverer.ClearReleaseCache();
+        CatalogDocumentReader.AllowUnresolvableDnsForTesting = true;
     }
 
     /// <inheritdoc />
     public void Dispose()
     {
+        CatalogDocumentReader.AllowUnresolvableDnsForTesting = false;
         GenericCatalogDiscoverer.ClearReleaseCache();
     }
 

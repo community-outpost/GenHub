@@ -8,21 +8,28 @@
         mc:Ignorable="d" d:DesignWidth="500" d:DesignHeight="450"
         x:Class="GenHub.Features.GitHub.Views.GitHubTokenDialogView"
         x:DataType="vm:GitHubTokenDialogViewModel"
-        Title="{x:Static const:GitHubConstants.GitHubAuthenticationTitle}"
-        Icon="/Assets/Icons/generalshub-icon.png"
+        Title="{localization:Localize GitHub.TokenDialog.Title}"
+        Icon="avares://GenHub/Assets/Icons/generalshub-icon.png"
         Width="500"
-        Height="450"
+        Height="490"
         WindowStartupLocation="CenterOwner"
         CanResize="False"
-        SystemDecorations="BorderOnly">
+        SystemDecorations="Full"
+        ExtendClientAreaToDecorationsHint="True"
+        ExtendClientAreaChromeHints="NoChrome"
+        ExtendClientAreaTitleBarHeightHint="-1">
 
     <Window.Resources>
     </Window.Resources>
 
     <Window.Styles>
+        <Style Selector="Grid.TitleBarArea">
+            <Setter Property="Background" Value="{DynamicResource SurfaceBackgroundBrush}"/>
+            <Setter Property="Height" Value="40"/>
+        </Style>
         <Style Selector="Button.primary">
-            <Setter Property="Background" Value="#0078D4"/>
-            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Background" Value="{DynamicResource AccentBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
             <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="CornerRadius" Value="4"/>
             <Setter Property="Padding" Value="16,8"/>
@@ -30,26 +37,26 @@
         </Style>
 
         <Style Selector="Button.primary:pointerover">
-            <Setter Property="Background" Value="#106EBE"/>
+            <Setter Property="Background" Value="{DynamicResource AccentLightBrush}"/>
         </Style>
 
         <Style Selector="Button.secondary">
             <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="Foreground" Value="#E0E0E0"/>
-            <Setter Property="BorderBrush" Value="#606060"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="CornerRadius" Value="4"/>
             <Setter Property="Padding" Value="16,8"/>
         </Style>
 
         <Style Selector="Button.secondary:pointerover">
-            <Setter Property="Background" Value="#404040"/>
+            <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}"/>
         </Style>
 
         <Style Selector="TextBox">
-            <Setter Property="Background" Value="#1E1E1E"/>
-            <Setter Property="Foreground" Value="White"/>
-            <Setter Property="BorderBrush" Value="#606060"/>
+            <Setter Property="Background" Value="{DynamicResource SurfaceElevatedBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
             <Setter Property="CornerRadius" Value="4"/>
             <Setter Property="Padding" Value="8"/>
         </Style>
@@ -59,9 +66,56 @@
         <vm:GitHubTokenDialogViewModel />
     </Design.DataContext>
 
-    <Grid RowDefinitions="*,Auto" Background="#1A1A1A">
-        <!-- Content -->
-        <Border Grid.Row="0" Padding="32" Background="#2D2D30">
+    <Grid RowDefinitions="40,*" Background="{DynamicResource SurfaceBackgroundBrush}">
+        <!-- Title Bar -->
+        <Grid Grid.Row="0"
+              ColumnDefinitions="Auto,*,Auto"
+              Classes="TitleBarArea"
+              x:Name="TitleBarGrid"
+              PointerPressed="OnTitleBarPointerPressed">
+
+            <!-- App icon and title -->
+            <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center" Margin="12,0,0,0">
+                <Image Source="avares://GenHub/Assets/Icons/generalshub-icon.png"
+                       Width="24" Height="24" />
+                <TextBlock Text="{localization:Localize GitHub.TokenDialog.Title}"
+                           VerticalAlignment="Center"
+                           FontSize="14" FontWeight="SemiBold"
+                           Foreground="{DynamicResource TextPrimary}" />
+            </StackPanel>
+
+            <!-- Close Button -->
+            <Button Grid.Column="2"
+                    VerticalAlignment="Stretch"
+                    VerticalContentAlignment="Center"
+                    HorizontalContentAlignment="Center"
+                    Background="Transparent"
+                    Foreground="{DynamicResource TextSecondary}"
+                    BorderThickness="0"
+                    Padding="0"
+                    Width="46" Height="40"
+                    ToolTip.Tip="{localization:Localize Common.Button.Close}"
+                    AutomationProperties.Name="{localization:Localize Common.Button.Close}"
+                    Click="CloseButton_Click">
+                <Path Data="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z"
+                      Fill="{Binding $parent[Button].Foreground}"
+                      Width="12" Height="12"
+                      Stretch="Uniform"
+                      VerticalAlignment="Center"
+                      HorizontalAlignment="Center" />
+                <Button.Styles>
+                    <Style Selector="Button:pointerover">
+                        <Setter Property="Background" Value="{DynamicResource ErrorBrush}"/>
+                        <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+                    </Style>
+                </Button.Styles>
+            </Button>
+        </Grid>
+
+        <!-- Main Body -->
+        <Grid Grid.Row="1" RowDefinitions="*,Auto" Background="{DynamicResource SurfaceBackgroundBrush}">
+            <!-- Content -->
+            <Border Grid.Row="0" Padding="32" Background="{DynamicResource SurfaceElevatedBrush}">
             <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,*">
                 <!-- Header with Icon -->
                 <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="12" Margin="0,0,0,20">
@@ -69,14 +123,14 @@
                     <TextBlock Text="{x:Static const:GitHubConstants.GitHubTokenHeaderLabel}"
                               FontSize="18"
                               FontWeight="SemiBold"
-                              Foreground="White"
+                              Foreground="{DynamicResource TextPrimary}"
                               VerticalAlignment="Center" />
                 </StackPanel>
 
                 <TextBlock Grid.Row="1"
                           Text="{x:Static const:GitHubConstants.GitHubTokenDescription}"
                           TextWrapping="Wrap"
-                          Foreground="#AAAAAA"
+                          Foreground="{DynamicResource TextSecondary}"
                           LineHeight="22"
                           Margin="0,0,0,16" />
 
@@ -84,7 +138,7 @@
                 <StackPanel Grid.Row="2" Spacing="8" Margin="0,0,0,16">
                     <TextBlock Text="{localization:Localize GitHub.TokenDialog.TokenLabel}"
                               FontWeight="Medium"
-                              Foreground="White"
+                              Foreground="{DynamicResource TextPrimary}"
                               FontSize="13"/>
                     <TextBox x:Name="TokenPasswordBox"
                             PasswordChar="*"
@@ -96,7 +150,7 @@
                 <!-- Create PAT Link -->
                 <StackPanel Grid.Row="3" Spacing="8" Margin="0,0,0,16">
                     <TextBlock Text="{localization:Localize GitHub.TokenDialog.NoTokenPrompt}"
-                              Foreground="#AAAAAA"
+                              Foreground="{DynamicResource TextSecondary}"
                               FontSize="12"/>
                     <Button Content="{localization:Localize GitHub.TokenDialog.CreatePatLink}"
                             Command="{Binding OpenPatCreationCommand}"
@@ -134,7 +188,7 @@
                            IsVisible="{Binding IsValidating}">
                     <ProgressBar IsIndeterminate="True" Width="14" Height="14" VerticalAlignment="Center"/>
                     <TextBlock Text="{localization:Localize GitHub.TokenDialog.ValidatingToken}"
-                              Foreground="#AAAAAA"
+                              Foreground="{DynamicResource TextSecondary}"
                               FontSize="12"/>
                 </StackPanel>
 
@@ -151,8 +205,8 @@
 
         <!-- Buttons -->
         <Border Grid.Row="1"
-                Background="#2D2D30"
-                BorderBrush="#3F3F46"
+                Background="{DynamicResource SurfaceElevatedBrush}"
+                BorderBrush="{DynamicResource BorderBrush}"
                 BorderThickness="0,1,0,0"
                 Padding="32,16">
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="12">
@@ -168,4 +222,5 @@
             </StackPanel>
         </Border>
     </Grid>
+</Grid>
 </Window>

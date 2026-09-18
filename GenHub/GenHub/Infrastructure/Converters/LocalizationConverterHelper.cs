@@ -47,8 +47,7 @@ internal static class LocalizationConverterHelper
             return fallback;
         }
 
-        var localized = localizationService.GetString(key);
-        if (!string.IsNullOrEmpty(localized) && !string.Equals(localized, key, StringComparison.Ordinal))
+        if (localizationService.TryGetString(key, out var localized) && !string.IsNullOrEmpty(localized))
         {
             return localized;
         }
@@ -84,8 +83,7 @@ internal static class LocalizationConverterHelper
 
         foreach (var key in candidates)
         {
-            var localized = localizationService[key];
-            if (!string.IsNullOrEmpty(localized) && !string.Equals(localized, key, StringComparison.Ordinal))
+            if (localizationService.TryGetString(key, out var localized) && !string.IsNullOrEmpty(localized))
             {
                 return localized;
             }

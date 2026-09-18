@@ -34,4 +34,44 @@ public static class ProfileConstants
     /// The format string used for numbered profile copy names.
     /// </summary>
     public const string CopyNameNumberedFormat = "(Copy {0})";
+
+    /// <summary>
+    /// Localization key for workspace preparation notification title.
+    /// </summary>
+    public const string WorkspacePreparingTitleKey = "GameProfiles.Launch.WorkspacePreparingTitle";
+
+    /// <summary>
+    /// Default fallback title for workspace preparation notification.
+    /// </summary>
+    public const string WorkspacePreparingDefaultTitle = "Preparing Workspace";
+
+    /// <summary>
+    /// Localization key for workspace initialization notification message.
+    /// </summary>
+    public const string WorkspaceInitializingMessageKey = "GameProfiles.Launch.WorkspaceInitializingMessage";
+
+    /// <summary>
+    /// Default fallback format for workspace initialization notification message.
+    /// </summary>
+    public const string WorkspaceInitializingDefaultFormat = "Initializing workspace for '{0}'. First launch may take a moment while files are set up...";
+
+    /// <summary>
+    /// Localization key for workspace error notification title.
+    /// </summary>
+    public const string WorkspaceErrorTitleKey = "GameProfiles.Launch.WorkspaceErrorTitle";
+
+    /// <summary>
+    /// Default fallback title for workspace error notification.
+    /// </summary>
+    public const string WorkspaceErrorDefaultTitle = "Workspace Error";
+
+    /// <summary>
+    /// Localization key for workspace failed notification message.
+    /// </summary>
+    public const string WorkspaceFailedMessageKey = "GameProfiles.Launch.WorkspaceFailedMessage";
+
+    /// <summary>
+    /// Default fallback format for workspace failed notification message.
+    /// </summary>
+    public const string WorkspaceFailedDefaultFormat = "Workspace initialization failed for '{0}'.";
 }

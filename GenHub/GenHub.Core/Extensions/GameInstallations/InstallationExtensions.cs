@@ -22,14 +22,59 @@ public static class InstallationExtensions
         StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
-    /// Checks if a file exists in a case-insensitive manner, compatible across platforms.
-    /// On Windows (NTFS), this leverages filesystem case-insensitivity.
-    /// On Linux/macOS (case-sensitive filesystems), performs explicit case-insensitive search.
+    /// Gets candidate executable file names for Generals and Zero Hour installations across all platforms and editions.
+    /// </summary>
+    public static IReadOnlyList<string> ValidGameExecutableNames => GameClientConstants.ValidGameExecutableNames;
+
+    /// <summary>
+    /// Gets candidate executable file names for Generals installations across all platforms and editions.
+    /// </summary>
+    public static IReadOnlyList<string> ValidGeneralsExecutableNames => GameClientConstants.ValidGeneralsExecutableNames;
+
+    /// <summary>
+    /// Gets candidate executable file names for Zero Hour installations across all platforms and editions.
+    /// </summary>
+    public static IReadOnlyList<string> ValidZeroHourExecutableNames => GameClientConstants.ValidZeroHourExecutableNames;
+
+    /// <summary>
+    /// Checks whether the directory contains a valid game executable in a case-insensitive manner.
+    /// </summary>
+    /// <param name="directoryPath">The directory path to check.</param>
+    /// <returns>True if at least one recognized executable is found; otherwise false.</returns>
+    public static bool HasValidGameExecutable(string? directoryPath)
+    {
+        return HasValidExecutableInternal(directoryPath, ValidGameExecutableNames);
+    }
+
+    /// <summary>
+    /// Checks whether the directory contains a valid Generals executable in a case-insensitive manner.
+    /// </summary>
+    /// <param name="directoryPath">The directory path to check.</param>
+    /// <returns>True if at least one recognized Generals executable is found; otherwise false.</returns>
+    public static bool HasValidGeneralsExecutable(string? directoryPath)
+    {
+        return HasValidExecutableInternal(directoryPath, ValidGeneralsExecutableNames);
+    }
+
+    /// <summary>
+    /// Checks whether the directory contains a valid Zero Hour executable in a case-insensitive manner.
+    /// </summary>
+    /// <param name="directoryPath">The directory path to check.</param>
+    /// <returns>True if at least one recognized Zero Hour executable is found; otherwise false.</returns>
+    public static bool HasValidZeroHourExecutable(string? directoryPath)
+    {
+        return HasValidExecutableInternal(directoryPath, ValidZeroHourExecutableNames);
+    }
+
+    /// <summary>
+    /// Attempts to find a file in a case-insensitive manner, returning a path to the file if found.
     /// </summary>
     /// <param name="filePath">The full file path to check.</param>
-    /// <returns>True if the file exists (case-insensitive match).</returns>
-    public static bool FileExistsCaseInsensitive(this string filePath)
+    /// <param name="matchedPath">The actual on-disk path if found; otherwise null.</param>
+    /// <returns>True if the file was found; otherwise false.</returns>
+    public static bool TryGetFileCaseInsensitive(this string filePath, [NotNullWhen(true)] out string? matchedPath)
     {
+        matchedPath = null;
         if (string.IsNullOrEmpty(filePath))
         {
             return false;
@@ -38,6 +83,7 @@ public static class InstallationExtensions
         // First try direct filesystem check (efficient on Windows NTFS)
         if (File.Exists(filePath))
         {
+            matchedPath = filePath;
             return true;
         }
 
@@ -58,24 +104,31 @@ public static class InstallationExtensions
                 return false;
             }
 
-            var files = directoryInfo.GetFiles();
-            return files.Any(f => string.Equals(f.Name, fileName, StringComparison.OrdinalIgnoreCase));
+            var matchingFile = directoryInfo.GetFiles().FirstOrDefault(f => string.Equals(f.Name, fileName, StringComparison.OrdinalIgnoreCase));
+            if (matchingFile is not null)
+            {
+                matchedPath = matchingFile.FullName;
+                return true;
+            }
         }
-        catch (IOException)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
         {
-            // If directory enumeration fails, fall back to false
             return false;
         }
-        catch (UnauthorizedAccessException)
-        {
-            // If directory enumeration fails due to permissions, fall back to false
-            return false;
-        }
-        catch (ArgumentException)
-        {
-            // If path contains invalid characters, fall back to false
-            return false;
-        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Checks if a file exists in a case-insensitive manner, compatible across platforms.
+    /// On Windows (NTFS), this leverages filesystem case-insensitivity.
+    /// On Linux/macOS (case-sensitive filesystems), performs explicit case-insensitive search.
+    /// </summary>
+    /// <param name="filePath">The full file path to check.</param>
+    /// <returns>True if the file exists (case-insensitive match).</returns>
+    public static bool FileExistsCaseInsensitive(this string filePath)
+    {
+        return TryGetFileCaseInsensitive(filePath, out _);
     }
 
     /// <summary>
@@ -299,5 +352,33 @@ public static class InstallationExtensions
             GameInstallationType.Unknown => "unknown",
             _ => "unknown",
         };
+    }
+
+    private static bool HasValidExecutableInternal(string? directoryPath, IReadOnlyList<string> validExecutables)
+    {
+        if (string.IsNullOrWhiteSpace(directoryPath) || !Directory.Exists(directoryPath))
+        {
+            return false;
+        }
+
+        // Fast path: exact-case check with no directory enumeration.
+        if (validExecutables.Any(exe => File.Exists(Path.Combine(directoryPath, exe))))
+        {
+            return true;
+        }
+
+        // Slow path for case-sensitive filesystems holding case-variant names:
+        // enumerate once and intersect instead of re-enumerating per candidate.
+        try
+        {
+            var fileNames = new HashSet<string>(
+                new DirectoryInfo(directoryPath).GetFiles().Select(f => f.Name),
+                StringComparer.OrdinalIgnoreCase);
+            return validExecutables.Any(fileNames.Contains);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
+        {
+            return false;
+        }
     }
 }

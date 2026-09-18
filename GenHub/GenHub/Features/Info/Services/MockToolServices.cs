@@ -680,12 +680,16 @@ public class MockLocalContentService : ILocalContentService
 
     /// <inheritdoc/>
     public Task<OperationResult<ContentManifest>> CreateLocalContentManifestAsync(string directoryPath, string name, ContentType contentType, GameType targetGame, string? sourcePath = null, IProgress<ContentStorageProgress>? progress = null, CancellationToken cancellationToken = default, string? entryPoint = null)
+        => CreateLocalContentManifestAsync(directoryPath, name, contentType, targetGame, new LocalContentOptions { SourcePath = sourcePath, Progress = progress, CancellationToken = cancellationToken, EntryPoint = entryPoint });
+
+    /// <inheritdoc/>
+    public Task<OperationResult<ContentManifest>> CreateLocalContentManifestAsync(string directoryPath, string name, ContentType contentType, GameType targetGame, LocalContentOptions? options)
     {
-        var normalizedEntryPoint = !string.IsNullOrWhiteSpace(entryPoint)
-            ? entryPoint.Replace('\\', '/').TrimStart('/')
+        var normalizedEntryPoint = !string.IsNullOrWhiteSpace(options?.EntryPoint)
+            ? options.EntryPoint.Replace('\\', '/').TrimStart('/')
             : null;
 
-        return Task.FromResult(OperationResult<ContentManifest>.CreateSuccess(new ContentManifest { Name = name, ContentType = contentType, TargetGame = targetGame, SourcePath = sourcePath, EntryPoint = normalizedEntryPoint }));
+        return Task.FromResult(OperationResult<ContentManifest>.CreateSuccess(new ContentManifest { Name = name, ContentType = contentType, TargetGame = targetGame, SourcePath = options?.SourcePath, EntryPoint = normalizedEntryPoint }));
     }
 
     /// <inheritdoc/>
@@ -693,12 +697,16 @@ public class MockLocalContentService : ILocalContentService
 
     /// <inheritdoc/>
     public Task<OperationResult<ContentManifest>> UpdateLocalContentManifestAsync(string existingManifestId, string name, string directoryPath, ContentType contentType, GameType targetGame, string? sourcePath = null, IProgress<ContentStorageProgress>? progress = null, CancellationToken cancellationToken = default, string? entryPoint = null)
+        => UpdateLocalContentManifestAsync(existingManifestId, name, directoryPath, contentType, targetGame, new LocalContentOptions { SourcePath = sourcePath, Progress = progress, CancellationToken = cancellationToken, EntryPoint = entryPoint });
+
+    /// <inheritdoc/>
+    public Task<OperationResult<ContentManifest>> UpdateLocalContentManifestAsync(string existingManifestId, string name, string directoryPath, ContentType contentType, GameType targetGame, LocalContentOptions? options)
     {
-        var normalizedEntryPoint = !string.IsNullOrWhiteSpace(entryPoint)
-            ? entryPoint.Replace('\\', '/').TrimStart('/')
+        var normalizedEntryPoint = !string.IsNullOrWhiteSpace(options?.EntryPoint)
+            ? options.EntryPoint.Replace('\\', '/').TrimStart('/')
             : null;
 
-        return Task.FromResult(OperationResult<ContentManifest>.CreateSuccess(new ContentManifest { Name = name, ContentType = contentType, TargetGame = targetGame, SourcePath = sourcePath, EntryPoint = normalizedEntryPoint }));
+        return Task.FromResult(OperationResult<ContentManifest>.CreateSuccess(new ContentManifest { Name = name, ContentType = contentType, TargetGame = targetGame, SourcePath = options?.SourcePath, EntryPoint = normalizedEntryPoint }));
     }
 }
 

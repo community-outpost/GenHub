@@ -107,7 +107,7 @@ public partial class GitHubReleasesDiscoverer(IGitHubApiClient gitHubClient, ILo
 
         logger.LogInformation(
             "GitHubReleasesDiscoverer: Returning page {Page}, {ReturnCount} items of {TotalCount} total. HasMore: {HasMore}",
-            query.Page,
+            currentPage,
             paginatedResults.Count,
             totalItems,
             hasMoreItems);

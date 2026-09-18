@@ -594,6 +594,7 @@ public class CommunityOutpostManifestFactory(
             ContentType = originalManifest.ContentType,
             TargetGame = (variant != null && variant.TargetGame.HasValue) ? variant.TargetGame.Value : originalManifest.TargetGame,
             Files = fileEntries,
+            EntryPoint = originalManifest.EntryPoint ?? contentMetadata.EntryPoint,
             Dependencies = [.. contentMetadata.GetDependencies().Where(d => d.InstallBehavior != DependencyInstallBehavior.AutoInstall)],
             InstallationInstructions = originalManifest.InstallationInstructions ?? new InstallationInstructions(),
             Publisher = originalManifest.Publisher,

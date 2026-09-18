@@ -293,6 +293,58 @@ public sealed class LocalizationServiceTests : IDisposable
         }
     }
 
+    /// <summary>
+    /// Verifies that TryGetString returns true and the localized value for existing keys without logging warnings.
+    /// </summary>
+    [Fact]
+    public void TryGetString_ExistingKey_ReturnsTrueAndLocalizedValueWithoutWarnings()
+    {
+        var logger = new CountingLogger<LocalizationService>();
+        var service = CreateService(AppContext.BaseDirectory, logger);
+
+        var success = service.TryGetString("Greeting", out var value);
+
+        Assert.True(success);
+        Assert.Equal("Hello", value);
+        Assert.Equal(0, logger.WarningCount);
+    }
+
+    /// <summary>
+    /// Verifies that TryGetString returns false and null for unknown keys without logging warnings.
+    /// </summary>
+    [Fact]
+    public void TryGetString_UnknownKey_ReturnsFalseAndNullWithoutWarnings()
+    {
+        var logger = new CountingLogger<LocalizationService>();
+        var service = CreateService(AppContext.BaseDirectory, logger);
+
+        var success = service.TryGetString("Missing.Resource.Key", out var value);
+
+        Assert.False(success);
+        Assert.Null(value);
+        Assert.Equal(0, logger.WarningCount);
+    }
+
+    /// <summary>
+    /// Verifies that TryGetString returns false and null for null, empty, or whitespace keys.
+    /// </summary>
+    /// <param name="key">The key to test.</param>
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void TryGetString_NullOrWhitespaceKey_ReturnsFalse(string? key)
+    {
+        var logger = new CountingLogger<LocalizationService>();
+        var service = CreateService(AppContext.BaseDirectory, logger);
+
+        var success = service.TryGetString(key!, out var value);
+
+        Assert.False(success);
+        Assert.Null(value);
+        Assert.Equal(0, logger.WarningCount);
+    }
+
     private LocalizationService CreateService(string baseDirectory, ILogger<LocalizationService> logger)
     {
         var resourceAssembly = typeof(LocalizationServiceTests).Assembly;

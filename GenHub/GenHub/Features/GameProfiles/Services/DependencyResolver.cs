@@ -1,7 +1,9 @@
 using GenHub.Core.Constants;
 using GenHub.Core.Extensions;
+using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Interfaces.Manifest;
+using GenHub.Core.Models.CommunityOutpost;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Providers;
@@ -254,6 +256,86 @@ public class DependencyResolver(
         return DependencyResolutionResult.CreateSuccess([.. resolvedIds], resolvedManifests, missingContentIds);
     }
 
+    /// <summary>
+    /// Finds a compatible acquired manifest match for a declared catalog dependency by identity and version constraint.
+    /// </summary>
+    /// <param name="declaredDependencyId">The declared dependency identifier.</param>
+    /// <param name="dependency">The dependency requirements and version constraints.</param>
+    /// <param name="allManifests">All installed content manifests.</param>
+    /// <returns>The matching manifest identifier, or <see langword="null"/> when no candidate satisfies version requirements.</returns>
+    internal static string? FindVersionIndependentCatalogMatch(
+        string declaredDependencyId,
+        ContentDependency dependency,
+        IReadOnlyList<ContentManifest> allManifests)
+    {
+        var declaredParts = declaredDependencyId.Split('.');
+        if (declaredParts.Length != 5)
+        {
+            return null;
+        }
+
+        var matchingManifests = allManifests
+            .Where(manifest => HasCompatibleIdentity(declaredParts, dependency, manifest))
+            .ToList();
+
+        if (matchingManifests.Count == 0)
+        {
+            return null;
+        }
+
+        // Evaluate version constraints if specified on dependency
+        var versionConstraint = new VersionConstraint
+        {
+            MinVersion = dependency.MinVersion,
+            MaxVersion = dependency.MaxVersion,
+        };
+
+        var compatible = matchingManifests.Where(m =>
+        {
+            if (dependency.CompatibleVersions is { Count: > 0 } &&
+                !dependency.CompatibleVersions.Contains(m.Version, StringComparer.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+
+            if (!string.IsNullOrEmpty(dependency.MinVersion) || !string.IsNullOrEmpty(dependency.MaxVersion))
+            {
+                return versionConstraint.IsSatisfiedBy(m.Version);
+            }
+
+            return true;
+        }).ToList();
+
+        if (compatible.Count == 0)
+        {
+            return null;
+        }
+
+        // Sort descending by parsed version to pick latest compatible version
+        var best = compatible
+            .OrderByDescending(m => GameVersionHelper.ExtractVersionFromVersionString(m.Version))
+            .ThenByDescending(m => m.Version, StringComparer.OrdinalIgnoreCase)
+            .First();
+
+        return best.Id.Value;
+    }
+
+    /// <summary>
+    /// Checks whether an installed manifest matches a declared dependency's catalog or Community Outpost identity.
+    /// </summary>
+    /// <param name="declaredParts">The 5-part segments of the declared dependency ID.</param>
+    /// <param name="dependency">The dependency requirements.</param>
+    /// <param name="manifest">The candidate installed manifest.</param>
+    /// <returns>True if the manifest has a compatible identity; otherwise, false.</returns>
+    internal static bool HasCompatibleIdentity(
+        string[] declaredParts,
+        ContentDependency dependency,
+        ContentManifest manifest)
+    {
+        return HasCompatibleCatalogIdentity(declaredParts, manifest.Id.Value.Split('.')) ||
+               CommunityOutpostDependencyIdentity.IsCommunityOutpostMatch(declaredParts, dependency, manifest);
+    }
+
     private static bool IsPublisherCompatible(string declaredPublisher, string acquiredPublisher) =>
         declaredPublisher.Equals(ManifestConstants.AnyPublisherToken, StringComparison.OrdinalIgnoreCase) ||
         declaredPublisher.Equals(acquiredPublisher, StringComparison.OrdinalIgnoreCase);
@@ -439,7 +521,12 @@ public class DependencyResolver(
     private ContentManifest? FindCompatiblePooledManifest(string contentId, IReadOnlyList<ContentManifest> poolList)
     {
         // First pass: try HasCompatibleCatalogIdentity
-        var compatible = poolList.FirstOrDefault(m => HasCompatibleCatalogIdentity(contentId, m.Id.Value));
+        var compatible = poolList
+            .Where(m => HasCompatibleCatalogIdentity(contentId, m.Id.Value))
+            .OrderByDescending(m => GameVersionHelper.ExtractVersionFromVersionString(m.Version))
+            .ThenByDescending(m => m.Version, StringComparer.OrdinalIgnoreCase)
+            .FirstOrDefault();
+
         if (compatible != null)
         {
             logger.LogInformation(
