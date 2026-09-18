@@ -3355,7 +3355,7 @@ Applied: {2} / {3} applicable fixes.</value>
     <value>Try clicking 'Browse Builds' to see experimental developer versions!</value>
   </data>
   <data name="Info.Demo.AppUpdates.CiArtifactsTitle" xml:space="preserve">
-    <value>Advanced: CI Artifacts &amp; GitHub PAT</value>
+    <value>Advanced: CI Artifacts &amp; GitHub Sign-In</value>
   </data>
   <data name="Info.Demo.AppUpdates.CiArtifactsSubtitle" xml:space="preserve">
     <value>Subscribe to pull requests or specific branches to test new features before they are merged.</value>
@@ -8107,13 +8107,10 @@ Do you want to download and inspect this profile package?</value>
     <value>GitHub Account</value>
   </data>
   <data name="Settings.GitHubAuth.SignedOut.Description" xml:space="preserve">
-    <value>Sign in with GitHub to unlock higher API rate limits and access development, branch, and pull request builds. GenHub only requests read-only access to public repositories and your profile.</value>
+    <value>Sign in with GitHub to unlock higher API rate limits and access development, branch, and pull request builds. GenHub requests read/write access to public repositories and read-only access to your profile.</value>
   </data>
   <data name="Settings.GitHubAuth.SignedOut.SignInButton" xml:space="preserve">
     <value>Sign in with GitHub</value>
-  </data>
-  <data name="Settings.GitHubAuth.SignedOut.EnvVarHint" xml:space="preserve">
-    <value>Advanced: for headless or CI setups, set the GENHUB_GITHUB_TOKEN environment variable instead.</value>
   </data>
   <data name="Settings.GitHubAuth.Authorizing.Instructions" xml:space="preserve">
     <value>Enter this code on GitHub to authorize GenHub:</value>
@@ -8158,7 +8155,7 @@ Do you want to download and inspect this profile package?</value>
     <value>Sign in with GitHub</value>
   </data>
   <data name="Info.Demo.AppUpdates.AuthDescription" xml:space="preserve">
-    <value>Instead of manual tokens, GenHub uses GitHub's device flow: click sign in, enter the short code in your browser, and approve read-only access to public builds.</value>
+    <value>Instead of manual tokens, GenHub uses GitHub's device flow: click sign in, enter the short code in your browser, and approve access to public repositories.</value>
   </data>
   <data name="Info.Demo.AppUpdates.AuthSampleCode" xml:space="preserve">
     <value>WDAS-5678</value>

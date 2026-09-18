@@ -136,13 +136,6 @@ public class GitHubAuthService(
                 .CreateAccessTokenForDeviceFlow(clientId, oauthResponse, cancellationToken)
                 .ConfigureAwait(false);
 
-            var tokenError = GetTokenError(token);
-            if (tokenError != null)
-            {
-                logger.LogInformation("GitHub device authorization failed: {Error}", token?.Error ?? "empty token");
-                return OperationResult<GitHubUserProfile>.CreateFailure(tokenError);
-            }
-
             await PersistLoginAsync(token.AccessToken).ConfigureAwait(false);
 
             var profile = await FetchUserProfileAsync(cancellationToken).ConfigureAwait(false);
@@ -163,6 +156,13 @@ public class GitHubAuthService(
         }
         catch (ApiException ex)
         {
+            var terminalError = GetDeviceFlowTerminalError(ex);
+            if (terminalError != null)
+            {
+                logger.LogInformation("GitHub device authorization failed: {Error}", terminalError);
+                return OperationResult<GitHubUserProfile>.CreateFailure(terminalError);
+            }
+
             logger.LogWarning(ex, "GitHub device authorization polling failed");
             return OperationResult<GitHubUserProfile>.CreateFailure($"GitHub request failed: {ex.Message}");
         }
@@ -248,20 +248,22 @@ public class GitHubAuthService(
             || !string.IsNullOrEmpty(Environment.GetEnvironmentVariable(GitHubConstants.GitHubTokenEnvVar));
     }
 
-    private static string? GetTokenError(OauthToken? token)
+    private static string? GetDeviceFlowTerminalError(ApiException ex)
     {
-        if (token == null || string.IsNullOrEmpty(token.AccessToken))
+        // Octokit polls internally and throws for terminal device-flow states with
+        // "{error}: {description}\n{uri}", so a denial or expiry never returns a token.
+        var message = ex.Message;
+        if (message.StartsWith(GitHubConstants.DeviceFlowErrorAccessDenied, StringComparison.OrdinalIgnoreCase))
         {
-            return "GitHub authorization timed out before approval. Try signing in again.";
+            return "GitHub authorization was denied. Approve the request in your browser to sign in.";
         }
 
-        return token.Error switch
+        if (message.StartsWith(GitHubConstants.DeviceFlowErrorExpiredToken, StringComparison.OrdinalIgnoreCase))
         {
-            null or "" => null,
-            "access_denied" => "GitHub authorization was denied. Approve the request in your browser to sign in.",
-            "expired_token" => "The device code expired before approval. Try signing in again.",
-            _ => $"GitHub authorization failed ({token.Error}): {token.ErrorDescription ?? "unknown error"}.",
-        };
+            return "The device code expired before approval. Try signing in again.";
+        }
+
+        return null;
     }
 
     private bool HasClientCredentials()

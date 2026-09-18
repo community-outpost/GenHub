@@ -3355,7 +3355,7 @@
     <value>Попробуйте нажать «Обзор сборок», чтобы увидеть экспериментальные версии!</value>
   </data>
   <data name="Info.Demo.AppUpdates.CiArtifactsTitle" xml:space="preserve">
-    <value>Дополнительно: CI-артефакты и токен GitHub</value>
+    <value>Дополнительно: CI-артефакты и вход через GitHub</value>
   </data>
   <data name="Info.Demo.AppUpdates.CiArtifactsSubtitle" xml:space="preserve">
     <value>Подписывайтесь на pull request или ветки, чтобы тестировать новые возможности до их слияния.</value>
@@ -8013,13 +8013,10 @@ GenHub передает официальный идентификатор AppID 
     <value>Аккаунт GitHub</value>
   </data>
   <data name="Settings.GitHubAuth.SignedOut.Description" xml:space="preserve">
-    <value>Войдите через GitHub, чтобы увеличить лимиты API и получить доступ к dev-сборкам, веткам и pull request'ам. GenHub запрашивает только доступ на чтение к публичным репозиториям и вашему профилю.</value>
+    <value>Войдите через GitHub, чтобы увеличить лимиты API и получить доступ к dev-сборкам, веткам и pull request'ам. GenHub запрашивает доступ на чтение и запись к публичным репозиториям и доступ только на чтение к вашему профилю.</value>
   </data>
   <data name="Settings.GitHubAuth.SignedOut.SignInButton" xml:space="preserve">
     <value>Войти через GitHub</value>
-  </data>
-  <data name="Settings.GitHubAuth.SignedOut.EnvVarHint" xml:space="preserve">
-    <value>Дополнительно: для автоматических или CI-окружений задайте переменную окружения GENHUB_GITHUB_TOKEN.</value>
   </data>
   <data name="Settings.GitHubAuth.Authorizing.Instructions" xml:space="preserve">
     <value>Введите этот код на GitHub, чтобы авторизовать GenHub:</value>
@@ -8064,7 +8061,7 @@ GenHub передает официальный идентификатор AppID 
     <value>Войти через GitHub</value>
   </data>
   <data name="Info.Demo.AppUpdates.AuthDescription" xml:space="preserve">
-    <value>Вместо ручных токенов GenHub использует device flow GitHub: нажмите «Войти», введите короткий код в браузере и подтвердите доступ на чтение к публичным сборкам.</value>
+    <value>Вместо ручных токенов GenHub использует device flow GitHub: нажмите «Войти», введите короткий код в браузере и подтвердите доступ к публичным репозиториям.</value>
   </data>
   <data name="Info.Demo.AppUpdates.AuthSampleCode" xml:space="preserve">
     <value>WDAS-5678</value>

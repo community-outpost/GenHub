@@ -71,13 +71,20 @@ public class EncryptedFileGitHubTokenStorage : IGitHubTokenStorage
         }
 
         var fileBytes = await File.ReadAllBytesAsync(_tokenFilePath);
-        var key = DeriveKey();
+        var (secret, fromPrimarySource) = ResolveMachineSecret();
+        var key = DeriveKeyFromSecret(secret);
         try
         {
             if (!TryDecryptFileBytes(fileBytes, key, out var plainBytes) || plainBytes == null)
             {
-                // Token was encrypted with a different machine secret or is corrupt; drop it.
-                await DeleteTokenAsync();
+                // Only drop the file when the secret came from its primary source. A fallback
+                // secret may indicate a transient lookup failure, in which case deleting would
+                // destroy a healthy token and force an avoidable re-authentication.
+                if (fromPrimarySource)
+                {
+                    await DeleteTokenAsync();
+                }
+
                 return null;
             }
 
@@ -112,8 +119,8 @@ public class EncryptedFileGitHubTokenStorage : IGitHubTokenStorage
     /// <summary>
     /// Resolves the machine-bound secret used for key derivation.
     /// </summary>
-    /// <returns>A machine-specific secret, or a machine/user fallback.</returns>
-    protected virtual string ResolveMachineSecret()
+    /// <returns>The machine secret and whether it came from the primary platform source.</returns>
+    protected virtual (string Secret, bool FromPrimarySource) ResolveMachineSecret()
     {
         if (OperatingSystem.IsLinux())
         {
@@ -121,7 +128,7 @@ public class EncryptedFileGitHubTokenStorage : IGitHubTokenStorage
                 ?? ReadMachineIdFile(GitHubConstants.LinuxMachineIdFallbackPath);
             if (!string.IsNullOrEmpty(machineId))
             {
-                return machineId;
+                return (machineId, true);
             }
         }
         else if (OperatingSystem.IsMacOS())
@@ -129,11 +136,11 @@ public class EncryptedFileGitHubTokenStorage : IGitHubTokenStorage
             var platformUuid = TryGetMacOsPlatformUuid();
             if (!string.IsNullOrEmpty(platformUuid))
             {
-                return platformUuid;
+                return (platformUuid, true);
             }
         }
 
-        return $"{Environment.MachineName}:{Environment.UserName}";
+        return ($"{Environment.MachineName}:{Environment.UserName}", false);
     }
 
     private static byte[] EncryptToFileBytes(byte[] plainBytes, byte[] key)
@@ -311,6 +318,6 @@ public class EncryptedFileGitHubTokenStorage : IGitHubTokenStorage
 
     private byte[] DeriveKey()
     {
-        return DeriveKeyFromSecret(ResolveMachineSecret());
+        return DeriveKeyFromSecret(ResolveMachineSecret().Secret);
     }
 }

@@ -852,8 +852,6 @@
                           Background="{DynamicResource AccentBrush}"
                           Foreground="{DynamicResource PrimaryButtonForeground}"
                           Padding="20,8" FontWeight="SemiBold" HorizontalAlignment="Left" />
-                  <TextBlock Text="{localization:Localize Settings.GitHubAuth.SignedOut.EnvVarHint}"
-                             Classes="setting-description" FontSize="11" TextWrapping="Wrap" />
                 </StackPanel>
 
                 <!-- Authorizing -->

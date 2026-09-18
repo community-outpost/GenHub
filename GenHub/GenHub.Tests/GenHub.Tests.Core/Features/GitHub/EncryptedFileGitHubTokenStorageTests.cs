@@ -137,6 +137,25 @@ public class EncryptedFileGitHubTokenStorageTests : IDisposable
     }
 
     /// <summary>
+    /// Verifies that loading preserves the token file when the machine secret came from a fallback source.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task LoadToken_WithFallbackSecret_PreservesTokenFileAsync()
+    {
+        // Arrange
+        var storage = CreateStorage("fallback-secret", fromPrimarySource: false);
+        await File.WriteAllBytesAsync(TokenFilePath(), [0x01, 0x02, 0x03]);
+
+        // Act
+        var loaded = await storage.LoadTokenAsync();
+
+        // Assert
+        Assert.Null(loaded);
+        Assert.True(storage.HasToken());
+    }
+
+    /// <summary>
     /// Verifies that loading without a stored token returns null.
     /// </summary>
     /// <returns>A task representing the asynchronous unit test.</returns>
@@ -187,11 +206,11 @@ public class EncryptedFileGitHubTokenStorageTests : IDisposable
         await Assert.ThrowsAsync<ArgumentException>(() => storage.SaveTokenAsync(empty));
     }
 
-    private EncryptedFileGitHubTokenStorage CreateStorage(string machineSecret)
+    private EncryptedFileGitHubTokenStorage CreateStorage(string machineSecret, bool fromPrimarySource = true)
     {
         var configuration = new Mock<IConfigurationProviderService>();
         configuration.Setup(x => x.GetApplicationDataPath()).Returns(_tempDir);
-        return new TestStorage(configuration.Object, machineSecret);
+        return new TestStorage(configuration.Object, machineSecret, fromPrimarySource);
     }
 
     private string TokenFilePath()
@@ -199,12 +218,12 @@ public class EncryptedFileGitHubTokenStorageTests : IDisposable
         return Path.Combine(_tempDir, AppConstants.TokenFileName);
     }
 
-    private sealed class TestStorage(IConfigurationProviderService configurationProvider, string machineSecret)
+    private sealed class TestStorage(IConfigurationProviderService configurationProvider, string machineSecret, bool fromPrimarySource = true)
         : EncryptedFileGitHubTokenStorage(configurationProvider)
     {
-        protected override string ResolveMachineSecret()
+        protected override (string Secret, bool FromPrimarySource) ResolveMachineSecret()
         {
-            return machineSecret;
+            return (machineSecret, fromPrimarySource);
         }
     }
 }

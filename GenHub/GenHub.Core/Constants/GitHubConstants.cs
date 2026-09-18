@@ -45,11 +45,17 @@ public static class GitHubConstants
     /// <summary>GitHub device activation page where users enter the device user code.</summary>
     public const string DeviceVerificationUrl = "https://github.com/login/device";
 
-    /// <summary>OAuth scope granting read access to public repositories (CI artifacts, repo data).</summary>
+    /// <summary>OAuth scope granting read and write access to public repositories (CI artifacts, repo data).</summary>
     public const string OAuthScopePublicRepo = "public_repo";
 
     /// <summary>OAuth scope granting read access to the user profile (username, avatar).</summary>
     public const string OAuthScopeReadUser = "read:user";
+
+    /// <summary>Device flow error code returned when the user denies the authorization request.</summary>
+    public const string DeviceFlowErrorAccessDenied = "access_denied";
+
+    /// <summary>Device flow error code returned when the device code expires before approval.</summary>
+    public const string DeviceFlowErrorExpiredToken = "expired_token";
 
     // Encrypted token storage (Unix)
 

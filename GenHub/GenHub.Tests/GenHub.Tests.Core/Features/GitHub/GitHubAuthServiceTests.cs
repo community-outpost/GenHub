@@ -10,6 +10,7 @@ using Octokit;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net;
 using System.Net.Http;
 using System.Security;
 using System.Threading;
@@ -162,7 +163,8 @@ public class GitHubAuthServiceTests
     }
 
     /// <summary>
-    /// Verifies that completing authorization returns a failure when the user denies the request.
+    /// Verifies that completing authorization returns tailored guidance when the user denies the request.
+    /// Octokit throws for terminal device-flow states instead of returning an error token.
     /// </summary>
     /// <returns>A task representing the asynchronous unit test.</returns>
     [Fact]
@@ -173,7 +175,7 @@ public class GitHubAuthServiceTests
         var harness = new AuthHarness();
         harness.Oauth
             .Setup(x => x.CreateAccessTokenForDeviceFlow(It.IsAny<string>(), It.IsAny<OauthDeviceFlowResponse>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new OauthToken("bearer", "unused", 0, null!, 0, [], "access_denied", "User denied", null!));
+            .ThrowsAsync(new ApiException("access_denied: User denied access\nhttps://github.com/login/device", HttpStatusCode.BadRequest));
         var deviceCode = new GitHubDeviceCodeResponse("device-code", "USER-CODE", "https://github.com/login/device", 900, 5);
 
         // Act
@@ -182,6 +184,32 @@ public class GitHubAuthServiceTests
         // Assert
         Assert.False(result.Success);
         Assert.Contains("denied", result.Errors.First(), StringComparison.OrdinalIgnoreCase);
+        harness.TokenStorage.Verify(x => x.SaveTokenAsync(It.IsAny<SecureString>()), Times.Never);
+        Assert.False(harness.Service.IsAuthenticated);
+    }
+
+    /// <summary>
+    /// Verifies that completing authorization returns tailored guidance when the device code expires.
+    /// Octokit throws for terminal device-flow states instead of returning an error token.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task WaitForAuthorizationAsync_WhenExpired_ReturnsFailureAsync()
+    {
+        // Arrange
+        SetGitHubEnvironment(clientId: "test-client-id");
+        var harness = new AuthHarness();
+        harness.Oauth
+            .Setup(x => x.CreateAccessTokenForDeviceFlow(It.IsAny<string>(), It.IsAny<OauthDeviceFlowResponse>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new ApiException("expired_token: Device code expired\nhttps://github.com/login/device", HttpStatusCode.BadRequest));
+        var deviceCode = new GitHubDeviceCodeResponse("device-code", "USER-CODE", "https://github.com/login/device", 900, 5);
+
+        // Act
+        var result = await harness.Service.WaitForAuthorizationAsync(deviceCode);
+
+        // Assert
+        Assert.False(result.Success);
+        Assert.Contains("expired", result.Errors.First(), StringComparison.OrdinalIgnoreCase);
         harness.TokenStorage.Verify(x => x.SaveTokenAsync(It.IsAny<SecureString>()), Times.Never);
         Assert.False(harness.Service.IsAuthenticated);
     }

@@ -3355,7 +3355,7 @@
     <value>حاول النقر على 'استعراض الإصدارات' لرؤية الإصدارات التجريبية للمطورين!</value>
   </data>
   <data name="Info.Demo.AppUpdates.CiArtifactsTitle" xml:space="preserve">
-    <value>متقدم: عناصر CI ورمز وصول GitHub</value>
+    <value>متقدم: عناصر CI وتسجيل الدخول إلى GitHub</value>
   </data>
   <data name="Info.Demo.AppUpdates.CiArtifactsSubtitle" xml:space="preserve">
     <value>اشترك في طلبات السحب أو فروع معينة لاختبار الميزات الجديدة قبل دمجها.</value>
@@ -8013,13 +8013,10 @@ GenHub هو مشغل ومدير حديث لألعاب **Command &amp; Conquer: G
     <value>حساب GitHub</value>
   </data>
   <data name="Settings.GitHubAuth.SignedOut.Description" xml:space="preserve">
-    <value>سجّل الدخول باستخدام GitHub لفتح حدود أعلى لواجهة API والوصول إلى إصدارات التطوير والفروع وطلبات السحب. يطلب GenHub فقط صلاحية القراءة للمستودعات العامة وملفك الشخصي.</value>
+    <value>سجّل الدخول باستخدام GitHub لفتح حدود أعلى لواجهة API والوصول إلى إصدارات التطوير والفروع وطلبات السحب. يطلب GenHub صلاحية القراءة والكتابة للمستودعات العامة وصلاحية القراءة فقط لملفك الشخصي.</value>
   </data>
   <data name="Settings.GitHubAuth.SignedOut.SignInButton" xml:space="preserve">
     <value>تسجيل الدخول باستخدام GitHub</value>
-  </data>
-  <data name="Settings.GitHubAuth.SignedOut.EnvVarHint" xml:space="preserve">
-    <value>متقدم: لإعدادات التشغيل الآلي أو CI، عيّن متغير البيئة GENHUB_GITHUB_TOKEN بدلاً من ذلك.</value>
   </data>
   <data name="Settings.GitHubAuth.Authorizing.Instructions" xml:space="preserve">
     <value>أدخل هذا الرمز على GitHub لتفويض GenHub:</value>
@@ -8064,7 +8061,7 @@ GenHub هو مشغل ومدير حديث لألعاب **Command &amp; Conquer: G
     <value>تسجيل الدخول باستخدام GitHub</value>
   </data>
   <data name="Info.Demo.AppUpdates.AuthDescription" xml:space="preserve">
-    <value>بدلاً من الرموز اليدوية، يستخدم GenHub تدفق الأجهزة من GitHub: انقر على تسجيل الدخول، وأدخل الرمز القصير في المتصفح، ووافق على صلاحية القراءة للإصدارات العامة.</value>
+    <value>بدلاً من الرموز اليدوية، يستخدم GenHub تدفق الأجهزة من GitHub: انقر على تسجيل الدخول، وأدخل الرمز القصير في المتصفح، ووافق على الوصول إلى المستودعات العامة.</value>
   </data>
   <data name="Info.Demo.AppUpdates.AuthSampleCode" xml:space="preserve">
     <value>WDAS-5678</value>
