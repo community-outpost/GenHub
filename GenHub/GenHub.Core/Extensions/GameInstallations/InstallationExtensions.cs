@@ -38,7 +38,25 @@ public static class InstallationExtensions
             return false;
         }
 
-        return ValidGameExecutableNames.Any(exe => Path.Combine(directoryPath, exe).FileExistsCaseInsensitive());
+        // Fast path: exact-case check with no directory enumeration.
+        if (ValidGameExecutableNames.Any(exe => File.Exists(Path.Combine(directoryPath, exe))))
+        {
+            return true;
+        }
+
+        // Slow path for case-sensitive filesystems holding case-variant names:
+        // enumerate once and intersect instead of re-enumerating per candidate.
+        try
+        {
+            var fileNames = new HashSet<string>(
+                new DirectoryInfo(directoryPath).GetFiles().Select(f => f.Name),
+                StringComparer.OrdinalIgnoreCase);
+            return ValidGameExecutableNames.Any(fileNames.Contains);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
+        {
+            return false;
+        }
     }
 
     /// <summary>
