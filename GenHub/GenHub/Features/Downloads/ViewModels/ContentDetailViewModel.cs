@@ -3794,6 +3794,9 @@ public partial class ContentDetailViewModel(
         DownloadProgress = 0;
         var completed = 0;
         var failed = false;
+
+        // One aggregated notification covers every member so a bundle never toasts per member.
+        using var scope = new DownloadNotificationScope(notificationService, Name, localization: localizationService);
         try
         {
             foreach (var target in targets)
@@ -3806,6 +3809,9 @@ public partial class ContentDetailViewModel(
 
                 var progress = new Progress<ContentAcquisitionProgress>(p =>
                 {
+                    var slice = 100.0 / targets.Count;
+                    var overall = (completed * slice) + (p.ProgressPercentage * slice / 100.0);
+                    scope.ReportFraction(overall / 100.0, $"{target.Name}: {p.FormatProgressStatus()}");
                     Dispatcher.UIThread.Post(() =>
                     {
                         if (_disposed || !IsDownloading)
@@ -3813,19 +3819,18 @@ public partial class ContentDetailViewModel(
                             return;
                         }
 
-                        var slice = 100.0 / targets.Count;
-                        DownloadProgress = (int)((completed * slice) + (p.ProgressPercentage * slice / 100.0));
+                        DownloadProgress = (int)overall;
                         DownloadStatusMessage = $"{target.Name}: {p.FormatProgressStatus()}";
                     });
                 });
 
                 var originalContentId = target.Id ?? string.Empty;
-                var result = await downloadCoordinator.DownloadContentAsync(target, progress, cancellationToken);
+                var result = await downloadCoordinator.DownloadContentAsync(target, progress, cancellationToken, suppressNotifications: true);
                 if (!result.Success || result.Data == null)
                 {
                     failed = true;
                     var errorMsg = result.FirstError ?? ContentConstants.DownloadFailedStatusMessage;
-                    notificationService.ShowError(GetLocalizedString("Downloads.ContentDetail.DownloadFailed", "Download failed"), errorMsg);
+                    scope.CompleteFailure(errorMsg);
                     if (!_disposed)
                     {
                         DownloadStatusMessage = errorMsg;
@@ -3861,6 +3866,12 @@ public partial class ContentDetailViewModel(
 
             OnPropertyChanged(nameof(ShowDownloadButton));
             OnPropertyChanged(nameof(ShowAddToProfileButton));
+            scope.CompleteSuccess();
+        }
+        catch (OperationCanceledException)
+        {
+            scope.CompleteCanceled();
+            throw;
         }
         finally
         {
@@ -4072,9 +4083,8 @@ public partial class ContentDetailViewModel(
             var errorMsg = result.FirstError ?? "Unknown error";
             DownloadStatusMessage = $"{ContentConstants.ErrorStatusPrefix}{errorMsg}";
 
-            // Surface the failure as a toast so the user sees actionable text (e.g. the ModDB
-            // WAF block message) instead of only the inline status label.
-            notificationService.ShowError(GetLocalizedString("Downloads.ContentDetail.DownloadFailed", "Download failed"), errorMsg);
+            // The coordinator already toasted this failure (including actionable text such as
+            // the ModDB WAF block message); the detail view only mirrors inline status.
             return false;
         }
         catch (OperationCanceledException ex)

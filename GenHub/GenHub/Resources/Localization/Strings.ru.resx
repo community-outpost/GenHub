@@ -275,6 +275,42 @@
     <value>(Скоро)</value>
     <comment>Label indicating a feature is coming soon, with parentheses</comment>
   </data>
+  <data name="Downloads.Notification.Canceled.Message" xml:space="preserve">
+    <value>Загрузка отменена для {0}.</value>
+    <comment>Cancellation toast message, formatted with the content name</comment>
+  </data>
+  <data name="Downloads.Notification.Canceled.Title" xml:space="preserve">
+    <value>Загрузка отменена</value>
+    <comment>Cancellation toast title</comment>
+  </data>
+  <data name="Downloads.Notification.Complete.Message" xml:space="preserve">
+    <value>Загружено: {0}</value>
+    <comment>Success toast message, formatted with the content name</comment>
+  </data>
+  <data name="Downloads.Notification.Complete.Title" xml:space="preserve">
+    <value>Загрузка завершена</value>
+    <comment>Success toast title</comment>
+  </data>
+  <data name="Downloads.Notification.Connecting.Message" xml:space="preserve">
+    <value>Подключение...</value>
+    <comment>Initial pinned download message shown before progress arrives</comment>
+  </data>
+  <data name="Downloads.Notification.Downloading.Title" xml:space="preserve">
+    <value>Загрузка: {0}</value>
+    <comment>Pinned download title, formatted with the content name</comment>
+  </data>
+  <data name="Downloads.Notification.Failed.Title" xml:space="preserve">
+    <value>Ошибка загрузки: {0}</value>
+    <comment>Failure toast title, formatted with the content name</comment>
+  </data>
+  <data name="Downloads.Notification.Progress.Message" xml:space="preserve">
+    <value>{0}% - {1}</value>
+    <comment>Live progress message, formatted with percentage and status</comment>
+  </data>
+  <data name="Downloads.Notification.UnknownError" xml:space="preserve">
+    <value>Во время загрузки произошла неизвестная ошибка.</value>
+    <comment>Fallback failure detail when no error message is available</comment>
+  </data>
   <data name="Downloads.Section.AdditionalContent" xml:space="preserve">
     <value>Дополнительный контент</value>
     <comment>Section header for additional content area</comment>

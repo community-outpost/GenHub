@@ -109,7 +109,7 @@ public class GitHubContentDeliverer(
                         double downloadRange = 25.0; // 40% to 65%
                         double fileProgressRange = downloadRange / totalFiles;
                         double baseProgress = ContentConstants.ProgressStepDownloading + ((currentFileIndex - 1) * fileProgressRange);
-                        double currentProgress = baseProgress + (dp.Percentage / 100.0 * fileProgressRange);
+                        double currentProgress = Math.Clamp(baseProgress + (dp.Percentage / 100.0 * fileProgressRange), 0, 100);
 
                         progress.Report(new ContentAcquisitionProgress
                         {
@@ -324,7 +324,7 @@ public class GitHubContentDeliverer(
                     progress?.Report(new ContentAcquisitionProgress
                     {
                         Phase = ContentAcquisitionPhase.StoringInCas,
-                        ProgressPercentage = ContentConstants.ProgressStepStoring + (p.Percentage * 0.1), // Map to Storing phase
+                        ProgressPercentage = Math.Clamp(ContentConstants.ProgressStepStoring + (p.Percentage * 0.1), 0, 100), // Map to Storing phase
                         CurrentOperation = $"Storing content: {p.CurrentFileName} ({p.ProcessedCount}/{p.TotalCount})",
                         FilesProcessed = p.ProcessedCount,
                         TotalFiles = p.TotalCount,

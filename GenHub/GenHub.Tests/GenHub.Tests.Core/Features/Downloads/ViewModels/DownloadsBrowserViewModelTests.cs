@@ -748,7 +748,8 @@ public class DownloadsBrowserViewModelTests
             .Setup(c => c.DownloadContentAsync(
                 It.IsAny<ContentSearchResult>(),
                 It.IsAny<IProgress<ContentAcquisitionProgress>>(),
-                It.IsAny<CancellationToken>()))
+                It.IsAny<CancellationToken>(),
+                It.IsAny<bool>()))
             .ReturnsAsync(OperationResult<ContentManifest>.CreateSuccess(manifest));
 
         var stateService = new Mock<IContentStateService>();
@@ -787,7 +788,8 @@ public class DownloadsBrowserViewModelTests
             c => c.DownloadContentAsync(
                 item.SearchResult,
                 It.IsAny<IProgress<ContentAcquisitionProgress>>(),
-                It.IsAny<CancellationToken>()),
+                It.IsAny<CancellationToken>(),
+                It.IsAny<bool>()),
             Times.Once);
         orchestrator.Verify(
             o => o.AcquireContentAsync(
