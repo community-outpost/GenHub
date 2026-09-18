@@ -735,7 +735,7 @@ public class GameLauncher(
                    "The engine would abort during initialisation with a generic crash naming nothing, so the launch was stopped.";
         }
 
-        bool hasArchive;
+        bool hasArchive = false;
         try
         {
             hasArchive = Directory

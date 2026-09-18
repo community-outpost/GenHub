@@ -65,40 +65,13 @@ public class GameInstallation(
     /// Gets the path to the bundled base Generals assets within Zero Hour (e.g. 'ZH_Generals'),
     /// if present and containing retail archives.
     /// </summary>
-    public string? BundledGeneralsPath
-    {
-        get
-        {
-            if (string.IsNullOrWhiteSpace(ZeroHourPath))
-            {
-                return null;
-            }
-
-            var bundled = Path.Combine(ZeroHourPath, GameClientConstants.ZhGeneralsDirectory);
-            if (!Directory.Exists(bundled))
-            {
-                return null;
-            }
-
-            try
-            {
-                return Directory.EnumerateFiles(bundled, RetailArchiveConstants.ArchiveSearchPattern, RetailArchiveConstants.ArchiveSearch).Any()
-                    ? bundled
-                    : null;
-            }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-            {
-                return null;
-            }
-        }
-    }
+    public string? BundledGeneralsPath => ((IGameInstallation)this).BundledGeneralsPath;
 
     /// <summary>
     /// Gets the effective path to base Generals retail archives, checking <see cref="GeneralsPath"/> first
     /// and falling back to <see cref="BundledGeneralsPath"/> if present.
     /// </summary>
-    public string? EffectiveGeneralsArchivePath =>
-        !string.IsNullOrWhiteSpace(GeneralsPath) ? GeneralsPath : BundledGeneralsPath;
+    public string? EffectiveGeneralsArchivePath => ((IGameInstallation)this).EffectiveGeneralsArchivePath;
 
     /// <summary>
     /// Gets or sets the date and time when this installation was detected/registered.
