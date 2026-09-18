@@ -210,6 +210,17 @@ public interface IContentManifestBuilder
     Task<IContentManifestBuilder> AddFilesFromDirectoryAsync(string sourceDirectory, ContentSourceType sourceType = ContentSourceType.ContentAddressable, string fileFilter = "*", bool isExecutable = false);
 
     /// <summary>
+    /// Scans a directory with cancellation and adds files with the specified source type.
+    /// </summary>
+    /// <param name="sourceDirectory">The directory to scan.</param>
+    /// <param name="cancellationToken">Cancellation for enumeration and hashing.</param>
+    /// <param name="sourceType">How these files should be handled during workspace preparation.</param>
+    /// <param name="fileFilter">Optional file filter (e.g., "*.dll", "*.exe").</param>
+    /// <param name="isExecutable">Whether files should be marked as executable.</param>
+    /// <returns>A task that yields the <see cref="IContentManifestBuilder"/> instance for chaining upon completion.</returns>
+    Task<IContentManifestBuilder> AddFilesFromDirectoryAsync(string sourceDirectory, CancellationToken cancellationToken, ContentSourceType sourceType = ContentSourceType.ContentAddressable, string fileFilter = "*", bool isExecutable = false);
+
+    /// <summary>
     /// Adds a local file from the filesystem.
     /// </summary>
     /// <param name="relativePath">The relative path of the file in the workspace (destination).</param>

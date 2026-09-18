@@ -328,6 +328,11 @@ public class GameInstallationValidator(
         GameInstallation? installation,
         CancellationToken cancellationToken)
     {
+        if (manifestProvider is null)
+        {
+            return null;
+        }
+
         logger.LogDebug("Attempting fallback manifest lookup via IManifestProvider for '{Path}' ({GameType})", installationPath, gameType);
         var targetInstall = new GameInstallation(installationPath, installation?.InstallationType ?? GameInstallationType.Unknown, NullLogger<GameInstallation>.Instance);
         if (gameType == GameType.ZeroHour)
@@ -339,7 +344,7 @@ public class GameInstallationValidator(
             targetInstall.SetPaths(generalsPath: installationPath, zeroHourPath: null);
         }
 
-        return await manifestProvider!.GetManifestAsync(targetInstall, gameType, cancellationToken);
+        return await manifestProvider.GetManifestAsync(targetInstall, gameType, cancellationToken);
     }
 
     private void AddValidationUnavailableIssue(
