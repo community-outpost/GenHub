@@ -10,6 +10,7 @@ using GenHub.Core.Models.Results.Content;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Net.Http;
 using System.Text.Json;
@@ -163,10 +164,26 @@ public partial class CommunityOutpostDiscoverer(
     }
 
     /// <summary>
-    /// Regex for extracting community patch download links.
+    /// Regex for extracting community patch download links and optional anchor text.
     /// </summary>
-    [GeneratedRegex(@"href=[""']([^""']*generals-?zh.*?(\d{4}-\d{2}-\d{2}|\d{2}-\d{2}-\d{4}|\d{8}|\d{6}).*?\.(?:zip|7z|rar|exe))[""']", RegexOptions.IgnoreCase)]
+    [GeneratedRegex(@"href=[""']([^""']*generals-?zh.*?(\d{4}-\d{2}-\d{2}|\d{2}-\d{2}-\d{4}|\d{8}|\d{6}).*?\.(?:zip|7z|rar|exe))[""'](?:\s*[^>]*>(.*?)(?:</a>|$))?", RegexOptions.IgnoreCase | RegexOptions.Singleline)]
     internal static partial Regex CommunityPatchRegex();
+
+    /// <summary>
+    /// Determines whether the specified filename, URL, or link text indicates a non-retail build.
+    /// </summary>
+    /// <param name="urlOrFilename">The URL or filename of the build.</param>
+    /// <param name="linkText">Optional link text associated with the anchor element.</param>
+    /// <returns><c>true</c> if non-retail; otherwise, <c>false</c>.</returns>
+    internal static bool IsNonRetailBuild(string? urlOrFilename, string? linkText = null)
+    {
+        var target = $"{urlOrFilename} {linkText}";
+        return target.Contains("nonret", StringComparison.OrdinalIgnoreCase) ||
+               target.Contains("non-ret", StringComparison.OrdinalIgnoreCase) ||
+               target.Contains("nonretail", StringComparison.OrdinalIgnoreCase) ||
+               target.Contains("non-retail", StringComparison.OrdinalIgnoreCase) ||
+               target.Contains("stream", StringComparison.OrdinalIgnoreCase);
+    }
 
     /// <summary>
     /// Gets tags for a content category.
@@ -203,15 +220,6 @@ public partial class CommunityOutpostDiscoverer(
 
         host = null;
         return false;
-    }
-
-    private static bool IsNonRetailBuild(string urlOrFilename)
-    {
-        return urlOrFilename.Contains("nonret", StringComparison.OrdinalIgnoreCase) ||
-               urlOrFilename.Contains("non-ret", StringComparison.OrdinalIgnoreCase) ||
-               urlOrFilename.Contains("nonretail", StringComparison.OrdinalIgnoreCase) ||
-               urlOrFilename.Contains("non-retail", StringComparison.OrdinalIgnoreCase) ||
-               urlOrFilename.Contains("stream", StringComparison.OrdinalIgnoreCase);
     }
 
     private async Task FetchAndAppendCatalogResultsAsync(
@@ -391,6 +399,7 @@ public partial class CommunityOutpostDiscoverer(
 
             var matches = CommunityPatchRegex().Matches(pageContent);
             logger.LogDebug("Regex matches count: {Count}", matches.Count);
+            var effectiveBaseUrl = patchPageUrl;
 
             // Fallback: try different URL if configured one fails
             if (matches.Count == 0 && patchPageUrl != CommunityOutpostConstants.PatchPageUrl)
@@ -398,6 +407,7 @@ public partial class CommunityOutpostDiscoverer(
                 logger.LogInformation("No match on primary URL, trying fallback: {Url}", CommunityOutpostConstants.PatchPageUrl);
                 pageContent = await client.GetStringAsync(CommunityOutpostConstants.PatchPageUrl, cancellationToken);
                 matches = CommunityPatchRegex().Matches(pageContent);
+                effectiveBaseUrl = CommunityOutpostConstants.PatchPageUrl;
                 logger.LogDebug("Fallback regex matches count: {Count}", matches.Count);
             }
 
@@ -418,13 +428,22 @@ public partial class CommunityOutpostDiscoverer(
             {
                 var rawDownloadUrl = match.Groups[1].Value;
                 var versionDate = match.Groups[2].Value;
+                var linkText = match.Groups.Count > 3 ? match.Groups[3].Value : null;
 
                 // Make the URL absolute if it's relative
                 var downloadUrl = rawDownloadUrl;
                 if (!downloadUrl.StartsWith("http", StringComparison.OrdinalIgnoreCase))
                 {
-                    var baseUrl = patchPageUrl.TrimEnd('/');
-                    downloadUrl = $"{baseUrl}/{downloadUrl.TrimStart('/')}";
+                    if (Uri.TryCreate(effectiveBaseUrl, UriKind.Absolute, out var baseUri) &&
+                        Uri.TryCreate(baseUri, rawDownloadUrl, out var resolvedUri))
+                    {
+                        downloadUrl = resolvedUri.AbsoluteUri;
+                    }
+                    else
+                    {
+                        var baseUrl = effectiveBaseUrl.TrimEnd('/');
+                        downloadUrl = $"{baseUrl}/{downloadUrl.TrimStart('/')}";
+                    }
                 }
 
                 if (!seenUrls.Add(downloadUrl))
@@ -434,7 +453,7 @@ public partial class CommunityOutpostDiscoverer(
 
                 logger.LogDebug("Found Community Patch download: {Url} (version {Version})", downloadUrl, versionDate);
 
-                var isNonRetail = IsNonRetailBuild(rawDownloadUrl);
+                var isNonRetail = IsNonRetailBuild(rawDownloadUrl, linkText);
                 var contentCode = isNonRetail
                     ? CommunityOutpostConstants.CommunityPatchNonRetCode
                     : CommunityOutpostConstants.CommunityPatchTag;
@@ -463,9 +482,19 @@ public partial class CommunityOutpostDiscoverer(
                     IconUrl = CommunityOutpostConstants.LogoSource,
                 };
 
-                if (DateTime.TryParse(versionDate, out var date))
+                string[] dateFormats = ["dd-MM-yyyy", "yyyy-MM-dd", "dd.MM.yyyy", "yyyy.MM.dd", "yyyyMMdd"];
+                if (DateTime.TryParseExact(
+                    versionDate,
+                    dateFormats,
+                    CultureInfo.InvariantCulture,
+                    DateTimeStyles.None,
+                    out var parsedDate))
                 {
-                    result.LastUpdated = date;
+                    result.LastUpdated = parsedDate;
+                }
+                else if (DateTime.TryParse(versionDate, CultureInfo.InvariantCulture, DateTimeStyles.None, out var fallbackDate))
+                {
+                    result.LastUpdated = fallbackDate;
                 }
 
                 // Add tags

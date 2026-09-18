@@ -332,4 +332,85 @@ public class CommunityOutpostDiscovererTests
 
         Assert.Same(expected, tags);
     }
+
+    /// <summary>
+    /// Verifies that IsNonRetailBuild identifies non-retail builds when the indicator is present only in link text.
+    /// </summary>
+    /// <param name="filename">The filename or URL of the build.</param>
+    /// <param name="linkText">The anchor link text.</param>
+    /// <param name="expected">Expected non-retail classification.</param>
+    [Theory]
+    [InlineData("generalszh_23-07-2026.zip", "Download Stream Build", true)]
+    [InlineData("generalszh_23-07-2026.zip", "NonRet Version", true)]
+    [InlineData("generalszh_23-07-2026.zip", "Non-Retail Build", true)]
+    [InlineData("generalszh_23-07-2026.zip", "Regular Zero Hour Build", false)]
+    public void IsNonRetailBuild_EvaluatesFilenameAndLinkText(string filename, string linkText, bool expected)
+    {
+        var result = CommunityOutpostDiscoverer.IsNonRetailBuild(filename, linkText);
+        Assert.Equal(expected, result);
+    }
+
+    /// <summary>
+    /// Verifies that DiscoverAsync classifies a patch as non-retail when only the link text contains the indicator.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task DiscoverAsync_ClassifiesNonRetailBasedOnLinkTextAsync()
+    {
+        var mockHttp = new Mock<IHttpClientFactory>();
+        var mockLoader = new Mock<IProviderDefinitionLoader>();
+        var mockParserFactory = new Mock<ICatalogParserFactory>();
+        var mockLogger = new Mock<ILogger<CommunityOutpostDiscoverer>>();
+
+        var provider = new ProviderDefinition
+        {
+            ProviderId = CommunityOutpostConstants.PublisherId,
+            PublisherType = "communityoutpost",
+            DisplayName = "Community Outpost",
+        };
+        provider.Endpoints.CatalogUrl = "https://example.com/dl.dat";
+        provider.Endpoints.Mirrors.Add(new MirrorEndpoint { Name = "Main", Priority = 1 });
+        provider.Endpoints.Custom["patchPageUrl"] = "https://example.com/patch";
+
+        var htmlContent = @"
+            <html>
+                <body>
+                    <a href=""https://legi.cc/patch/generalszh_11-09-2026.zip"">Stream Build</a>
+                </body>
+            </html>";
+
+        var handler = new Mock<HttpMessageHandler>();
+        handler
+            .Protected()
+            .Setup<Task<HttpResponseMessage>>(
+                "SendAsync",
+                ItExpr.IsAny<HttpRequestMessage>(),
+                ItExpr.IsAny<CancellationToken>())
+            .ReturnsAsync(new HttpResponseMessage
+            {
+                StatusCode = System.Net.HttpStatusCode.OK,
+                Content = new StringContent(htmlContent),
+            });
+
+        var client = new HttpClient(handler.Object);
+        mockHttp.Setup(f => f.CreateClient(It.IsAny<string>())).Returns(client);
+        mockLoader.Setup(l => l.GetProvider(It.IsAny<string>())).Returns(provider);
+
+        var discoverer = new CommunityOutpostDiscoverer(
+            mockHttp.Object,
+            mockLoader.Object,
+            mockParserFactory.Object,
+            mockLogger.Object);
+
+        var query = new ContentSearchQuery { SearchTerm = "Community Patch" };
+
+        var result = await discoverer.DiscoverAsync(query);
+
+        Assert.True(result.Success, $"Discovery failed: {result.FirstError}");
+        var item = Assert.Single(result.Data.Items);
+        Assert.EndsWith(CommunityOutpostConstants.CommunityPatchNonRetCode, item.Id, StringComparison.Ordinal);
+        Assert.Equal(CommunityOutpostConstants.CommunityPatchNonRetDisplayName, item.Name);
+        Assert.Contains(CommunityOutpostConstants.NonRetailTag, item.Tags);
+        Assert.Contains(CommunityOutpostConstants.StreamTag, item.Tags);
+    }
 }

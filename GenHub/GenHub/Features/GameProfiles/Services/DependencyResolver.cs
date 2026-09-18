@@ -586,7 +586,10 @@ public class DependencyResolver(
             return null;
         }
 
-        var matched = publisherManifests.FirstOrDefault(m => MatchesContentKeyword(contentId, m));
+        var matched = publisherManifests.FirstOrDefault(m =>
+            MatchesContentKeyword(contentId, m) &&
+            AreGameVariantsCompatible(contentId, m.Id.Value) &&
+            AreGameVariantsCompatible(contentId, m.Name));
         if (matched != null)
         {
             logger.LogInformation(
