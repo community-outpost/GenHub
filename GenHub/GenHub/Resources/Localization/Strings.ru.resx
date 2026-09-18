@@ -7597,5 +7597,6 @@ GenHub передает официальный идентификатор AppID 
   </data>
   <data name="GenLauncher.Context.Community" xml:space="preserve">
     <value>Сообщество GenLauncher</value>
+    </data>
 
 </root>
