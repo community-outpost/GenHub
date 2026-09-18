@@ -305,6 +305,8 @@ public partial class ModBuilderViewModel(
     /// <summary>
     /// Gets or sets the current build progress.
     /// </summary>
+    private long _lastProgressTick;
+
     [ObservableProperty]
     private BuildProgress? _buildProgress;
 
@@ -927,10 +929,18 @@ public partial class ModBuilderViewModel(
     /// Creates a new project initialized from one or more existing .BIG files.
     /// Extracts all files into GameFilesEdited and automatically creates bundle pack configurations.
     /// </summary>
+    private bool CanImportBigMod() => !IsBuildRunning;
+
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
-    [RelayCommand]
+    [RelayCommand(CanExecute = nameof(CanImportBigMod))]
     private async Task ImportBigModAsync()
     {
+        if (IsBuildRunning)
+        {
+            notificationService.ShowWarning(ModBuilderConstants.OperationInProgressTitle, "Cannot import files while another operation is running.");
+            return;
+        }
+
         var lifetime = Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime;
         var topLevel = TopLevel.GetTopLevel(lifetime?.MainWindow);
         if (topLevel == null)
@@ -960,47 +970,66 @@ public partial class ModBuilderViewModel(
             return;
         }
 
-        var primaryBigName = Path.GetFileNameWithoutExtension(selectedPaths[0]);
-        var defaultFolder = GetUserModBuilderDirectory();
-        if (!Directory.Exists(defaultFolder))
+        var canStart = await InvokeOnUIThreadAsync(() =>
         {
-            try
+            if (IsBuildRunning)
             {
-                Directory.CreateDirectory(defaultFolder);
+                return false;
             }
-            catch (Exception ex)
-            {
-                logger.LogWarning(ex, "Could not create default ModBuilder directory at {Folder}", defaultFolder);
-            }
-        }
 
-        var suggestedFolder = Directory.Exists(defaultFolder)
-            ? await topLevel.StorageProvider.TryGetFolderFromPathAsync(defaultFolder).ConfigureAwait(false)
-            : null;
-
-        var saveFile = await topLevel.StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
-        {
-            Title = "Save Imported ModBuilder Project",
-            SuggestedFileName = $"{primaryBigName}.mbproj",
-            SuggestedStartLocation = suggestedFolder,
-            FileTypeChoices =
-            [
-                new FilePickerFileType("ModBuilder Project") { Patterns = [ModBuilderConstants.ProjectFilePattern], },
-            ],
+            IsBuildRunning = true;
+            return true;
         }).ConfigureAwait(false);
 
-        if (saveFile == null)
+        if (!canStart)
         {
+            notificationService.ShowWarning(ModBuilderConstants.OperationInProgressTitle, "Cannot import files while another operation is running.");
             return;
         }
 
-        var projectPath = saveFile.Path.LocalPath;
-        var projectName = Path.GetFileNameWithoutExtension(projectPath);
-
-        logger.LogInformation("Creating imported project '{ProjectName}' at {ProjectPath} from {BigCount} BIG archives", projectName, projectPath, selectedPaths.Count);
-        AppendBuildLog($"Creating project '{projectName}' from {selectedPaths.Count} .BIG archive(s)...");
-
         try
+        {
+            var primaryBigName = Path.GetFileNameWithoutExtension(selectedPaths[0]);
+            var defaultFolder = GetUserModBuilderDirectory();
+            if (!Directory.Exists(defaultFolder))
+            {
+                try
+                {
+                    Directory.CreateDirectory(defaultFolder);
+                }
+                catch (Exception ex)
+                {
+                    logger.LogWarning(ex, "Could not create default ModBuilder directory at {Folder}", defaultFolder);
+                }
+            }
+
+            var suggestedFolder = Directory.Exists(defaultFolder)
+                ? await topLevel.StorageProvider.TryGetFolderFromPathAsync(defaultFolder).ConfigureAwait(false)
+                : null;
+
+            var saveFile = await topLevel.StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+            {
+                Title = "Save Imported ModBuilder Project",
+                SuggestedFileName = $"{primaryBigName}.mbproj",
+                SuggestedStartLocation = suggestedFolder,
+                FileTypeChoices =
+                [
+                    new FilePickerFileType("ModBuilder Project") { Patterns = [ModBuilderConstants.ProjectFilePattern], },
+                ],
+            }).ConfigureAwait(false);
+
+            if (saveFile == null)
+            {
+                return;
+            }
+
+            var projectPath = saveFile.Path.LocalPath;
+            var projectName = Path.GetFileNameWithoutExtension(projectPath);
+
+            logger.LogInformation("Creating imported project '{ProjectName}' at {ProjectPath} from {BigCount} BIG archives", projectName, projectPath, selectedPaths.Count);
+            AppendBuildLog($"Creating project '{projectName}' from {selectedPaths.Count} .BIG archive(s)...");
+
+            try
         {
             var result = await projectConfigService.CreateProjectFromBigFilesAsync(
                 projectPath,
@@ -1043,6 +1072,11 @@ public partial class ModBuilderViewModel(
             logger.LogError(ex, "Failed to create project from BIG archive(s)");
             notificationService.ShowError("Import Error", ex.Message);
             AppendBuildLog($"Error importing BIG archive(s): {ex.Message}");
+        }
+        }
+        finally
+        {
+            await InvokeOnUIThreadAsync(() => IsBuildRunning = false).ConfigureAwait(false);
         }
     }
 
@@ -1990,7 +2024,11 @@ public partial class ModBuilderViewModel(
         logger.LogInformation("Project created successfully at {ProjectPath}", projectPath);
     }
 
-    private async Task EnsureSampleAssetsIfRequiredAsync(string projectPath, string projectDir, string projectName)
+    private async Task EnsureSampleAssetsIfRequiredAsync(
+        string projectPath,
+        string projectDir,
+        string projectName,
+        CancellationToken cancellationToken = default)
     {
         if (sampleProjectService is not { } sps ||
             !sps.IsSampleProject(projectPath) ||
@@ -2000,12 +2038,12 @@ public partial class ModBuilderViewModel(
         }
 
         var sampleId = Path.GetFileName(projectDir);
-        await InvokeOnUIThreadAsync(() => StatusMessage = $"Acquiring sample assets for {projectName}...");
+        await InvokeOnUIThreadAsync(() => StatusMessage = $"Acquiring sample assets for {projectName}...").ConfigureAwait(false);
         AppendBuildLog($"Sample assets missing for {projectName}. Downloading and extracting authentic game files on-demand...");
 
         var progressReporter = new Progress<string>(msg =>
         {
-            InvokeOnUIThreadAsync(() => StatusMessage = msg);
+            PostToUIThread(() => StatusMessage = msg);
             AppendBuildLog(msg);
         });
 
@@ -2013,7 +2051,7 @@ public partial class ModBuilderViewModel(
             projectDir,
             sampleId,
             progressReporter,
-            CancellationToken.None).ConfigureAwait(false);
+            cancellationToken).ConfigureAwait(false);
 
         if (acquireResult.Success)
         {
@@ -3205,6 +3243,17 @@ public partial class ModBuilderViewModel(
     /// </summary>
     private void OnBuildProgress(BuildProgress progress)
     {
+        var now = Environment.TickCount64;
+        var isArchiving = progress.CurrentStage == GenHub.Core.Models.Tools.ModBuilder.BuildStage.Archiving;
+        var isMilestone = progress.PercentComplete >= 100 || progress.ProcessedFiles == progress.TotalFiles;
+
+        if (!isMilestone && now - _lastProgressTick < 80)
+        {
+            return;
+        }
+
+        _lastProgressTick = now;
+
         PostToUIThread(() =>
         {
             BuildProgress = progress;
@@ -3215,13 +3264,13 @@ public partial class ModBuilderViewModel(
             PercentComplete = progress.PercentComplete;
             EstimatedTimeRemaining = progress.EstimatedTimeRemaining;
 
-            if (!string.IsNullOrEmpty(progress.CurrentFile))
-            {
-                AppendBuildLog($"{progress.CurrentStage}: {progress.CurrentFile}");
-            }
-            else if (!string.IsNullOrEmpty(progress.CurrentStep))
+            if (!string.IsNullOrEmpty(progress.CurrentStep))
             {
                 AppendBuildLog(progress.CurrentStep);
+            }
+            else if (!string.IsNullOrEmpty(progress.CurrentFile) && !isArchiving)
+            {
+                AppendBuildLog($"{progress.CurrentStage}: {progress.CurrentFile}");
             }
         });
     }
@@ -3243,6 +3292,7 @@ public partial class ModBuilderViewModel(
             AddBundleCommand.NotifyCanExecuteChanged();
             RemoveBundleCommand.NotifyCanExecuteChanged();
             EditBundleCommand.NotifyCanExecuteChanged();
+            ImportBigModCommand.NotifyCanExecuteChanged();
         });
     }
 

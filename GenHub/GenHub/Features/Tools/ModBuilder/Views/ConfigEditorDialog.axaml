@@ -77,9 +77,9 @@
                       Foreground="{DynamicResource ErrorBrush}"
                       Padding="14,8" CornerRadius="8" Cursor="Hand"
                       ToolTip.Tip="{localization:Localize Tools.ModBuilder.ConfigEditor.TooltipRemoveItem}">
-                <StackPanel Orientation="Horizontal" Spacing="6">
-                  <Path Data="{StaticResource IconRemove}" Fill="{DynamicResource ErrorBrush}" Width="13" Height="13" Stretch="Uniform"/>
-                  <TextBlock Text="{localization:Localize Tools.ModBuilder.ConfigEditor.ButtonRemoveItem}"/>
+                <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                  <Path Data="{StaticResource IconRemove}" Fill="{DynamicResource ErrorBrush}" Width="13" Height="13" Stretch="Uniform" VerticalAlignment="Center"/>
+                  <TextBlock Text="{localization:Localize Tools.ModBuilder.ConfigEditor.ButtonRemoveItem}" VerticalAlignment="Center"/>
                 </StackPanel>
               </Button>
             </StackPanel>
@@ -206,59 +206,84 @@
                         </Button>
                       </WrapPanel>
 
-                      <!-- Configured Source Items List -->
-                      <TextBlock Text="{localization:Localize Tools.ModBuilder.ConfigEditor.LabelConfiguredSources}" FontSize="11.5" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondary}"/>
-
-                      <ItemsControl ItemsSource="{Binding SelectedBundleItem.SourcePatternsList}">
-                        <ItemsControl.ItemTemplate>
-                          <DataTemplate x:DataType="vm:SourcePathItemViewModel">
-                            <Border Background="{DynamicResource CardBackground}"
-                                    BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
-                                    CornerRadius="6" Padding="10,6" Margin="0,2">
-                              <Grid ColumnDefinitions="Auto,*,Auto,Auto">
-                                <!-- Folder Icon -->
-                                <Path Grid.Column="0" Width="13" Height="13" Stretch="Uniform" VerticalAlignment="Center" Margin="0,0,8,0"
-                                      Fill="{DynamicResource AccentBrush}"
-                                      Data="{StaticResource IconOpenFolder}"
-                                      IsVisible="{Binding IsDirectoryGlob}"/>
-                                <!-- File Icon -->
-                                <Path Grid.Column="0" Width="13" Height="13" Stretch="Uniform" VerticalAlignment="Center" Margin="0,0,8,0"
-                                      Fill="{DynamicResource TextSecondary}"
-                                      Data="{StaticResource IconTextFile}"
-                                      IsVisible="{Binding !IsDirectoryGlob}"/>
-
-                                <!-- Pattern / Path -->
-                                <TextBlock Grid.Column="1" Text="{Binding Pattern}"
-                                           FontSize="12" FontWeight="SemiBold"
-                                           Foreground="{DynamicResource TextPrimary}"
-                                           VerticalAlignment="Center"
-                                           TextTrimming="CharacterEllipsis"
-                                           ToolTip.Tip="{Binding Pattern}"/>
-
-                                <!-- Type Badge -->
-                                <Border Grid.Column="2" Background="{DynamicResource SurfaceElevatedBrush}"
-                                        BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
-                                        CornerRadius="4" Padding="6,2" Margin="8,0" VerticalAlignment="Center">
-                                  <TextBlock Text="{Binding TypeLabel}" FontSize="10" Foreground="{DynamicResource TextSecondary}"/>
-                                </Border>
-
-                                <!-- Delete Button -->
-                                <Button Grid.Column="3"
-                                        Command="{Binding $parent[Window].((vm:ConfigEditorViewModel)DataContext).RemoveSourcePatternCommand}"
-                                        CommandParameter="{Binding .}"
-                                        Background="Transparent" BorderThickness="0"
-                                        Padding="6,4" CornerRadius="4" Cursor="Hand"
-                                        VerticalAlignment="Center"
-                                        ToolTip.Tip="{localization:Localize Tools.ModBuilder.ConfigEditor.TooltipRemovePattern}">
-                                  <Path Width="10" Height="10" Stretch="Uniform"
-                                        Fill="{DynamicResource TextSecondary}"
-                                        Data="{StaticResource IconClear}"/>
-                                </Button>
-                              </Grid>
+                      <!-- Configured Source Items Expander -->
+                      <Expander IsExpanded="True" HorizontalAlignment="Stretch" Margin="0,4,0,0">
+                        <Expander.Header>
+                          <StackPanel Orientation="Horizontal" Spacing="8">
+                            <TextBlock Text="{localization:Localize Tools.ModBuilder.ConfigEditor.LabelConfiguredSources}"
+                                       FontSize="12" FontWeight="SemiBold"
+                                       Foreground="{DynamicResource TextPrimary}" VerticalAlignment="Center"/>
+                            <Border Background="{DynamicResource SurfaceElevatedBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                                    CornerRadius="10" Padding="6,1" VerticalAlignment="Center">
+                              <TextBlock Text="{Binding SelectedBundleItem.SourcePatternsList.Count}"
+                                         FontSize="10" FontWeight="Bold"
+                                         Foreground="{DynamicResource TextSecondary}"/>
                             </Border>
-                          </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                      </ItemsControl>
+                          </StackPanel>
+                        </Expander.Header>
+
+                        <Border Margin="0,6,0,0" Background="{DynamicResource SurfaceBackgroundDarkBrush}"
+                                BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="6" Padding="6">
+                          <ScrollViewer MaxHeight="280" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                            <ItemsControl ItemsSource="{Binding SelectedBundleItem.SourcePatternsList}">
+                              <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="vm:SourcePathItemViewModel">
+                                  <Border Background="{DynamicResource CardBackground}"
+                                          BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                                          CornerRadius="6" Padding="10,6" Margin="0,2"
+                                          ToolTip.Tip="{Binding Pattern}">
+                                    <Grid ColumnDefinitions="Auto,*,Auto,Auto">
+                                      <!-- Folder Icon -->
+                                      <Path Grid.Column="0" Width="13" Height="13" Stretch="Uniform" VerticalAlignment="Center" Margin="0,0,8,0"
+                                            Fill="{DynamicResource AccentBrush}"
+                                            Data="{StaticResource IconOpenFolder}"
+                                            IsVisible="{Binding IsDirectoryGlob}"/>
+                                      <!-- File Icon -->
+                                      <Path Grid.Column="0" Width="13" Height="13" Stretch="Uniform" VerticalAlignment="Center" Margin="0,0,8,0"
+                                            Fill="{DynamicResource TextSecondary}"
+                                            Data="{StaticResource IconTextFile}"
+                                            IsVisible="{Binding !IsDirectoryGlob}"/>
+
+                                      <!-- Prominent Filename with Directory Subtitle -->
+                                      <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="1">
+                                        <TextBlock Text="{Binding DisplayFileName}"
+                                                   FontSize="12" FontWeight="SemiBold"
+                                                   Foreground="{DynamicResource TextPrimary}"
+                                                   TextTrimming="CharacterEllipsis"/>
+                                        <TextBlock Text="{Binding DisplayDirectory}"
+                                                   FontSize="10"
+                                                   Foreground="{DynamicResource TextSecondary}"
+                                                   TextTrimming="CharacterEllipsis"
+                                                   IsVisible="{Binding DisplayDirectory, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                                      </StackPanel>
+
+                                      <!-- Type Badge -->
+                                      <Border Grid.Column="2" Background="{DynamicResource SurfaceElevatedBrush}"
+                                              BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                                              CornerRadius="4" Padding="6,2" Margin="8,0" VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding TypeLabel}" FontSize="10" Foreground="{DynamicResource TextSecondary}"/>
+                                      </Border>
+
+                                      <!-- Delete Button -->
+                                      <Button Grid.Column="3"
+                                              Command="{Binding [Window].((vm:ConfigEditorViewModel)DataContext).RemoveSourcePatternCommand}"
+                                              CommandParameter="{Binding .}"
+                                              Background="Transparent" BorderThickness="0"
+                                              Padding="6,4" CornerRadius="4" Cursor="Hand"
+                                              VerticalAlignment="Center"
+                                              ToolTip.Tip="{localization:Localize Tools.ModBuilder.ConfigEditor.TooltipRemovePattern}">
+                                        <Path Width="10" Height="10" Stretch="Uniform"
+                                              Fill="{DynamicResource TextSecondary}"
+                                              Data="{StaticResource IconClear}"/>
+                                      </Button>
+                                    </Grid>
+                                  </Border>
+                                </DataTemplate>
+                              </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                          </ScrollViewer>
+                        </Border>
+                      </Expander>
 
                       <!-- Add Custom Pattern Field -->
                       <Grid ColumnDefinitions="*,Auto" Margin="0,4,0,0">

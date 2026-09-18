@@ -52,6 +52,7 @@ public enum DirectoryGlobOption
 public partial class ProjectItemPickerViewModel : ObservableObject
 {
     private readonly string _projectDir;
+    private readonly List<string> _initialPatterns = [];
 
     /// <summary>
     /// Gets the root nodes of the project file tree.
@@ -86,9 +87,15 @@ public partial class ProjectItemPickerViewModel : ObservableObject
     /// Initializes a new instance of the <see cref="ProjectItemPickerViewModel"/> class.
     /// </summary>
     /// <param name="projectDir">The root directory of the project.</param>
-    public ProjectItemPickerViewModel(string projectDir)
+    /// <param name="existingPatterns">Optional initial patterns to pre-select.</param>
+    public ProjectItemPickerViewModel(string projectDir, IEnumerable<string>? existingPatterns = null)
     {
         _projectDir = projectDir;
+        if (existingPatterns != null)
+        {
+            _initialPatterns.AddRange(existingPatterns.Where(p => !string.IsNullOrWhiteSpace(p)).Select(p => p.Trim().Replace("\\", "/")));
+        }
+
         BuildTree();
     }
 
@@ -105,6 +112,7 @@ public partial class ProjectItemPickerViewModel : ObservableObject
 
         var rootNode = CreateDirectoryNode(rootDir, _projectDir);
         rootNode.IsExpanded = true;
+        ExpandAncestorsOfSelected(rootNode);
         Nodes.Add(rootNode);
 
         UpdateSelectionSummary();
@@ -121,7 +129,8 @@ public partial class ProjectItemPickerViewModel : ObservableObject
             FullPath = dirPath,
             RelativePath = relPath,
             IsDirectory = true,
-            IsExpanded = true,
+            IsExpanded = false,
+            IsSelected = IsNodeInitiallySelected(relPath, true),
         };
 
         node.PropertyChanged += (_, e) =>
@@ -161,6 +170,7 @@ public partial class ProjectItemPickerViewModel : ObservableObject
                     IsDirectory = false,
                     Size = file.Length,
                     Extension = file.Extension,
+                    IsSelected = IsNodeInitiallySelected(fileRelPath, false),
                 };
 
                 fileNode.PropertyChanged += (_, e) =>
@@ -210,6 +220,105 @@ public partial class ProjectItemPickerViewModel : ObservableObject
         }
 
         SelectionSummary = $"Selected: {string.Join(", ", parts)}";
+    }
+
+    private bool IsNodeInitiallySelected(string relativePath, bool isDirectory)
+    {
+        if (_initialPatterns.Count == 0)
+        {
+            return false;
+        }
+
+        var normRel = relativePath.Trim('/').Replace("\\", "/");
+        var normRelNoPrefix = normRel.StartsWith("GameFilesEdited/", StringComparison.OrdinalIgnoreCase)
+            ? normRel["GameFilesEdited/".Length..]
+            : normRel;
+
+        foreach (var pattern in _initialPatterns)
+        {
+            var normPat = pattern.Trim('/').Replace("\\", "/");
+            var normPatNoPrefix = normPat.StartsWith("GameFilesEdited/", StringComparison.OrdinalIgnoreCase)
+                ? normPat["GameFilesEdited/".Length..]
+                : normPat;
+
+            if (normRel.Equals(normPat, StringComparison.OrdinalIgnoreCase) ||
+                normRelNoPrefix.Equals(normPatNoPrefix, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+
+            if (isDirectory)
+            {
+                var dirClean = normPat.Replace("/**/*.*", string.Empty)
+                                      .Replace("/**", string.Empty)
+                                      .Replace("/*.*", string.Empty);
+                var dirCleanNoPrefix = dirClean.StartsWith("GameFilesEdited/", StringComparison.OrdinalIgnoreCase)
+                    ? dirClean["GameFilesEdited/".Length..]
+                    : dirClean;
+
+                if (normRel.Equals(dirClean, StringComparison.OrdinalIgnoreCase) ||
+                    normRelNoPrefix.Equals(dirCleanNoPrefix, StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    private static bool ExpandAncestorsOfSelected(FileTreeNode node)
+    {
+        var hasSelectedDescendant = false;
+        foreach (var child in node.Children)
+        {
+            if (child.IsSelected || ExpandAncestorsOfSelected(child))
+            {
+                hasSelectedDescendant = true;
+            }
+        }
+
+        if (hasSelectedDescendant)
+        {
+            node.IsExpanded = true;
+        }
+
+        return hasSelectedDescendant;
+    }
+
+    partial void OnSearchTextChanged(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return;
+        }
+
+        var term = value.Trim();
+        foreach (var root in Nodes)
+        {
+            HighlightMatching(root, term);
+        }
+    }
+
+    private static bool HighlightMatching(FileTreeNode node, string term)
+    {
+        var matches = node.Name.Contains(term, StringComparison.OrdinalIgnoreCase);
+        var childMatches = false;
+        foreach (var child in node.Children)
+        {
+            if (HighlightMatching(child, term))
+            {
+                childMatches = true;
+            }
+        }
+
+        if (matches || childMatches)
+        {
+            node.IsExpanded = true;
+            return true;
+        }
+
+        return false;
     }
 
     private static IEnumerable<FileTreeNode> GetSelectedNodes(IEnumerable<FileTreeNode> nodes)

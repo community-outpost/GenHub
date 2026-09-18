@@ -28,14 +28,6 @@ public sealed class ProjectConfigService(
     ILogger<ProjectConfigService> logger,
     IConfigurationProviderService? configurationProvider = null) : IProjectConfigService
 {
-    private readonly string _recentProjectsPath = Path.Combine(
-        configurationProvider?.GetApplicationDataPath()
-            ?? Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
-                StorageConstants.DefaultDataDirectoryName),
-        ModBuilderConstants.ModBuilderDirName,
-        ModBuilderConstants.RecentProjectsFileName);
-
     private const string LemonControlBarSampleName = "LemonControlBar";
     private const string LemonControlBarArtItemName = "LemonControlBarArt";
     private const string LemonControlBarDataItemName = "LemonControlBarData";
@@ -46,6 +38,14 @@ public sealed class ProjectConfigService(
     private const string WindowTargetDir = "Window";
     private const string MenuWindowsItemName = "MenuWindows";
     private const string MenuMappedImagesItemName = "MenuMappedImages";
+
+    private readonly string _recentProjectsPath = Path.Combine(
+        configurationProvider?.GetApplicationDataPath()
+            ?? Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+                StorageConstants.DefaultDataDirectoryName),
+        ModBuilderConstants.ModBuilderDirName,
+        ModBuilderConstants.RecentProjectsFileName);
 
     private readonly JsonSerializerOptions _jsonOptions = new()
     {

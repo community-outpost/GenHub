@@ -401,7 +401,7 @@
                     CornerRadius="8" ClipToBounds="True">
               <ScrollViewer Name="BuildOutputScroller" VerticalScrollBarVisibility="Auto"
                             HorizontalScrollBarVisibility="Auto">
-                <TextBox Text="{Binding BuildOutput}" IsReadOnly="True" TextWrapping="NoWrap"
+                <TextBox Name="BuildOutputTextBox" Text="{Binding BuildOutput}" IsReadOnly="True" TextWrapping="NoWrap"
                          BorderThickness="0" Background="Transparent"
                          FontFamily="JetBrains Mono,Consolas,Courier New,monospace" FontSize="12"
                          Foreground="{DynamicResource TextPrimary}" Padding="14" AcceptsReturn="True"/>
