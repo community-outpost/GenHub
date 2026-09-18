@@ -1,3 +1,4 @@
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.GameProfiles;
@@ -87,6 +88,11 @@ public static class GameProfileModule
         }
 
         var appDataRoot = provider.GetRequiredService<IConfigurationProviderService>().GetRootAppDataPath();
+        if (string.IsNullOrWhiteSpace(appDataRoot))
+        {
+            appDataRoot = Path.Combine(Path.GetTempPath(), AppConstants.AppName);
+        }
+
         var options = OperatingSystem.IsMacOS()
             ? WineRunnerOptions.MacOS(appDataRoot)
             : WineRunnerOptions.Linux(appDataRoot);

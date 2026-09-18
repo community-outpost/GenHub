@@ -1,4 +1,5 @@
 using GenHub.Core.Constants;
+using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Interfaces.GitHub;
 using GenHub.Core.Interfaces.Launching;
@@ -96,7 +97,7 @@ public class MacOSCompositionRootTests
             new[] { WineConstants.CrossOverWineBinaryPath },
             launchRunner.Options.AbsoluteBinaryPaths);
         Assert.Equal(
-            Path.Combine(testEnvironment.AppDataPath, WineConstants.ManagedPrefixDirectoryName),
+            Path.Combine(serviceProvider.GetRequiredService<IConfigurationProviderService>().GetRootAppDataPath(), WineConstants.ManagedPrefixDirectoryName),
             launchRunner.Options.PrefixPath);
     }
 }

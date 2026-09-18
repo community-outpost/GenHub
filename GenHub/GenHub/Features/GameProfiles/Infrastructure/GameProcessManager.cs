@@ -555,7 +555,8 @@ public class GameProcessManager(
     /// <returns><c>true</c> on Windows, or when any execute bit is set.</returns>
     private static bool HasExecutePermission(string path)
     {
-        if (OperatingSystem.IsWindows())
+        if (OperatingSystem.IsWindows() ||
+            WineConstants.WindowsExecutableExtension.Equals(Path.GetExtension(path), StringComparison.OrdinalIgnoreCase))
         {
             return true;
         }

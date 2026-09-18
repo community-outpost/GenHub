@@ -59,7 +59,7 @@ public class LinuxApplicationCompositionTests
             new[] { WineConstants.WineBinaryName, WineConstants.Wine64BinaryName },
             launchRunner.Options.BinaryNames);
         Assert.Equal(
-            Path.Combine(testEnvironment.AppDataPath, WineConstants.ManagedPrefixDirectoryName),
+            Path.Combine(serviceProvider.GetRequiredService<IConfigurationProviderService>().GetRootAppDataPath(), WineConstants.ManagedPrefixDirectoryName),
             launchRunner.Options.PrefixPath);
         Assert.NotNull(serviceProvider.GetRequiredService<IShortcutService>());
         Assert.Contains(

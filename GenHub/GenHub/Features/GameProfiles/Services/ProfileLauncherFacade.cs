@@ -688,7 +688,7 @@ public class ProfileLauncherFacade(
 
         var matchingInstall = installationsResult.Data.FirstOrDefault(i =>
             (!string.IsNullOrEmpty(profile.GameInstallationId) && i.Id == profile.GameInstallationId) ||
-            i.AvailableGameClients.Any(c => c.GameType == toolManifest.TargetGame));
+            i.AvailableGameClients.Exists(c => c.GameType == toolManifest.TargetGame));
 
         if (matchingInstall != null && !string.IsNullOrEmpty(matchingInstall.InstallationPath) && Directory.Exists(matchingInstall.InstallationPath))
         {
