@@ -282,7 +282,7 @@ public class MainViewModelTests
         var mockUserDataTracker = new Mock<IUserDataTracker>();
         var mockDialogService = new Mock<IDialogService>();
         var mockStorageMigrationService = new Mock<IStorageMigrationService>();
-        var mockGitHubTokenStorage = new Mock<IGitHubTokenStorage>();
+        var mockGitHubAuthService = new Mock<IGitHubAuthService>();
 
         var settingsVm = new SettingsViewModel(
             mockUserSettings.Object,
@@ -300,7 +300,7 @@ public class MainViewModelTests
             mockDialogService.Object,
             mockStorageMigrationService.Object,
             themeService: null,
-            gitHubTokenStorage: mockGitHubTokenStorage.Object);
+            gitHubAuthService: mockGitHubAuthService.Object);
         return (settingsVm, mockUserSettings);
     }
 

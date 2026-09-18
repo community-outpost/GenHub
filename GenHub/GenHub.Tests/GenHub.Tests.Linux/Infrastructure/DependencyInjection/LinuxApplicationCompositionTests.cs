@@ -6,6 +6,7 @@ using GenHub.Core.Interfaces.Shortcuts;
 using GenHub.Features.GameProfiles.ViewModels;
 using GenHub.Features.Settings.ViewModels;
 using GenHub.Infrastructure.DependencyInjection;
+using GenHub.Linux.Features.GitHub.Services;
 using GenHub.Linux.GameInstallations;
 using GenHub.Linux.Infrastructure.DependencyInjection;
 using GenHub.Tests.Shared;
@@ -49,7 +50,14 @@ public class LinuxApplicationCompositionTests
         Assert.IsType<LinuxInstallationSearchPathProvider>(
             serviceProvider.GetRequiredService<IInstallationSearchPathProvider>());
         Assert.NotNull(serviceProvider.GetRequiredService<IShortcutService>());
-        Assert.Null(serviceProvider.GetService<IGitHubTokenStorage>());
+        Assert.Contains(
+            services,
+            descriptor =>
+                descriptor.ServiceType == typeof(IGitHubTokenStorage)
+                && descriptor.ImplementationType == typeof(LinuxGitHubTokenStorage)
+                && descriptor.Lifetime == ServiceLifetime.Singleton);
+        Assert.IsType<LinuxGitHubTokenStorage>(serviceProvider.GetRequiredService<IGitHubTokenStorage>());
+        Assert.NotNull(serviceProvider.GetRequiredService<IGitHubAuthService>());
 
         var settingsViewModel = serviceProvider.GetRequiredService<SettingsViewModel>();
         Assert.NotNull(serviceProvider.GetRequiredService<GameProfileSettingsViewModel>());

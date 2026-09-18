@@ -25,7 +25,8 @@ public class OctokitGitHubApiClient(
     ILogger<OctokitGitHubApiClient> logger,
     IMemoryCache cache,
     IGitHubTokenStorage? tokenStorage = null,
-    GitHubRateLimitTracker? rateLimitTracker = null)
+    GitHubRateLimitTracker? rateLimitTracker = null,
+    IGitHubAuthService? authService = null)
     : IGitHubApiClient
 {
     private const int MaxPerPage = 100;
@@ -34,6 +35,7 @@ public class OctokitGitHubApiClient(
     private SecureString? token;
     private bool _credentialsExplicitlyCleared;
     private bool _credentialsLoaded;
+    private bool _authSubscribed;
 
     /// <summary>
     /// Gets a value indicating whether the client is authenticated.
@@ -918,8 +920,38 @@ public class OctokitGitHubApiClient(
         };
     }
 
+    private void EnsureAuthSubscribed()
+    {
+        if (_authSubscribed)
+        {
+            return;
+        }
+
+        _authSubscribed = true;
+        if (authService is { } service)
+        {
+            // Both services are singletons, so this subscription never leaks.
+            service.AuthStateChanged += OnAuthStateChanged;
+        }
+    }
+
+    private void OnAuthStateChanged(object? sender, GitHubAuthStateChangedEventArgs e)
+    {
+        if (e.IsAuthenticated)
+        {
+            _credentialsExplicitlyCleared = false;
+            _credentialsLoaded = false;
+            EnsureCredentialsLoadedFast();
+        }
+        else
+        {
+            ClearAuthenticationToken();
+        }
+    }
+
     private void EnsureCredentialsLoadedFast()
     {
+        EnsureAuthSubscribed();
         if (_credentialsLoaded || _credentialsExplicitlyCleared)
         {
             return;
@@ -959,6 +991,7 @@ public class OctokitGitHubApiClient(
 
     private async Task EnsureCredentialsLoadedAsync()
     {
+        EnsureAuthSubscribed();
         if (_credentialsExplicitlyCleared)
         {
             return;

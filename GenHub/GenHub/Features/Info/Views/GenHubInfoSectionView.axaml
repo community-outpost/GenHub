@@ -352,45 +352,21 @@
                         <Border Classes="demo-container" Margin="0,10,0,0">
                           <Viewbox StretchDirection="DownOnly" Stretch="Uniform" HorizontalAlignment="Center">
                             <Border Background="{DynamicResource CardBackground}" CornerRadius="12" Padding="30" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" MaxWidth="600" HorizontalAlignment="Center">
-                                <StackPanel Spacing="20" DataContext="{Binding DemoGameSettingsVM}">
+                                <StackPanel Spacing="20">
                                      <StackPanel Orientation="Horizontal" Spacing="12">
-                                        <TextBlock Text="🔑" FontSize="20" VerticalAlignment="Center" />
-                                        <TextBlock Text="{localization:Localize Info.Demo.AppUpdates.PatTitle}"
+                                        <material:MaterialIcon Kind="Github" Width="24" Height="24" Foreground="{DynamicResource SystemAccentColorBrush}" VerticalAlignment="Center" />
+                                        <TextBlock Text="{localization:Localize Info.Demo.AppUpdates.AuthTitle}"
                                                    FontSize="18" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" VerticalAlignment="Center" />
                                      </StackPanel>
 
-                                     <!-- PAT Status -->
-                                     <Border Background="{DynamicResource AccentTintBackgroundBrush}" CornerRadius="6" Padding="12,8" HorizontalAlignment="Left">
-                                         <StackPanel Orientation="Horizontal" Spacing="10">
-                                            <Ellipse Width="10" Height="10" VerticalAlignment="Center" Fill="{Binding PatStatusColor, Converter={StaticResource ColorToBrushConverter}}" />
-                                            <TextBlock Text="{Binding PatStatusMessage}" Foreground="{DynamicResource TextPrimary}" FontSize="13" FontWeight="Medium" />
-                                         </StackPanel>
-                                     </Border>
+                                     <TextBlock Text="{localization:Localize Info.Demo.AppUpdates.AuthDescription}"
+                                                FontSize="13" Foreground="{DynamicResource TextSecondary}" TextWrapping="Wrap" />
 
-                                     <!-- PAT Input -->
-                                     <StackPanel Spacing="8">
-                                         <Grid ColumnDefinitions="*,Auto">
-                                            <TextBox Grid.Column="0"
-                                                     Text="{Binding GitHubPatInput}"
-                                                     PasswordChar=""
-                                                     Watermark="ghp_xxxxxxxxxxxxxxxxxxxx"
-                                                     IsEnabled="True"
-                                                     FontSize="14"
-                                                     Height="40"
-                                                     Margin="0,0,12,0"/>
-                                            <Button Grid.Column="1"
-                                                    Content="{localization:Localize Info.Demo.AppUpdates.PatSaveTest}"
-                                                    Command="{Binding TestPatCommand}"
-                                                    Background="{DynamicResource SystemAccentColorBrush}"
-                                                    Foreground="{DynamicResource PrimaryButtonForeground}"
-                                                    Padding="20,0"
-                                                    Height="40"
-                                                    FontWeight="SemiBold"
-                                                    CornerRadius="4" />
-                                         </Grid>
-                                         <TextBlock Text="{localization:Localize Info.Demo.AppUpdates.PatHint}"
-                                                   FontSize="11" Foreground="{DynamicResource TextMuted}" HorizontalAlignment="Left" Margin="2,0,0,0" />
-                                     </StackPanel>
+                                     <!-- Sample device code (static demo illustration) -->
+                                     <Border Background="{DynamicResource AccentTintBackgroundBrush}" CornerRadius="6" Padding="16,12" HorizontalAlignment="Left">
+                                         <TextBlock Text="{localization:Localize Info.Demo.AppUpdates.AuthSampleCode}"
+                                                    Foreground="{DynamicResource TextPrimary}" FontSize="20" FontWeight="Bold" LetterSpacing="4" />
+                                     </Border>
                                 </StackPanel>
                             </Border>
                           </Viewbox>

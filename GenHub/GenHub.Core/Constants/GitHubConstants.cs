@@ -28,6 +28,64 @@ public static class GitHubConstants
     /// <summary>Environment variable name for GenHub-specific GitHub token.</summary>
     public const string GenHubTokenEnvVar = "GENHUB_GITHUB_TOKEN";
 
+    // OAuth device flow authentication (RFC 8628)
+
+    /// <summary>Environment variable name for overriding the GitHub OAuth App client ID.</summary>
+    public const string OAuthClientIdEnvVar = "GENHUB_GITHUB_CLIENT_ID";
+
+    /// <summary>
+    /// Default GitHub OAuth App client ID used for device flow sign-in.
+    /// Empty until maintainers provision the OAuth App; configure <see cref="OAuthClientIdEnvVar"/> meanwhile.
+    /// </summary>
+    public const string DefaultOAuthClientId = "";
+
+    /// <summary>GitHub device activation page where users enter the device user code.</summary>
+    public const string DeviceVerificationUrl = "https://github.com/login/device";
+
+    /// <summary>OAuth scope granting read access to public repositories (CI artifacts, repo data).</summary>
+    public const string OAuthScopePublicRepo = "public_repo";
+
+    /// <summary>OAuth scope granting read access to the user profile (username, avatar).</summary>
+    public const string OAuthScopeReadUser = "read:user";
+
+    // Encrypted token storage (Unix)
+
+    /// <summary>Encrypted token file format version byte.</summary>
+    public const byte TokenFileFormatVersion = 1;
+
+    /// <summary>PBKDF2 iterations for deriving the token file encryption key.</summary>
+    public const int TokenFileKeyIterations = 100000;
+
+    /// <summary>AES-256 key size for the token file encryption key, in bytes.</summary>
+    public const int TokenFileKeySizeBytes = 32;
+
+    /// <summary>AES-GCM nonce size for token file encryption, in bytes.</summary>
+    public const int TokenFileNonceSizeBytes = 12;
+
+    /// <summary>AES-GCM authentication tag size for token file encryption, in bytes.</summary>
+    public const int TokenFileTagSizeBytes = 16;
+
+    /// <summary>Domain separation salt for the token file key derivation (machine secret provides uniqueness).</summary>
+    public const string TokenFileKeySalt = "GenHub.GitHubToken.v1";
+
+    /// <summary>Linux machine identity file used as key material.</summary>
+    public const string LinuxMachineIdPath = "/etc/machine-id";
+
+    /// <summary>Fallback Linux machine identity file used as key material.</summary>
+    public const string LinuxMachineIdFallbackPath = "/var/lib/dbus/machine-id";
+
+    /// <summary>macOS command used to read the platform UUID for key material.</summary>
+    public const string MacOsIoRegCommand = "ioreg";
+
+    /// <summary>Arguments listing the macOS platform expert device for UUID lookup.</summary>
+    public const string MacOsIoRegArguments = "-rd1 -c IOPlatformExpertDevice";
+
+    /// <summary>Property key holding the platform UUID in ioreg output.</summary>
+    public const string MacOsIoRegUuidKey = "IOPlatformUUID";
+
+    /// <summary>Timeout for the macOS platform UUID lookup, in seconds.</summary>
+    public const int MacOsIoRegTimeoutSeconds = 5;
+
     // Build parsing constants
 
     /// <summary>String identifier for Zero Hour game variant.</summary>
@@ -160,18 +218,6 @@ public static class GitHubConstants
     /// <summary>Message displayed when installation completes.</summary>
     public const string InstallationCompletedSuccessfullyMessage = "Installation completed";
 
-    /// <summary>Message displayed when token validation begins.</summary>
-    public const string ValidatingTokenMessage = "Validating token...";
-
-    /// <summary>Message displayed when token validation succeeds.</summary>
-    public const string TokenValidatedSuccessfullyMessage = "Token validated successfully";
-
-    /// <summary>Message displayed when no token is entered.</summary>
-    public const string EnterTokenMessage = "Please enter a token";
-
-    /// <summary>Format string for invalid token messages.</summary>
-    public const string InvalidTokenFormat = "Invalid token: {0}";
-
     /// <summary>Message displayed when tree view is cleared.</summary>
     public const string TreeViewClearedMessage = "Cleared all items from tree view";
 
@@ -222,12 +268,6 @@ public static class GitHubConstants
     /// <summary>Label for installation header.</summary>
     public const string InstallationHeaderLabel = "Installation";
 
-    /// <summary>Label for GitHub authentication dialog title.</summary>
-    public const string GitHubAuthenticationTitle = "GitHub Authentication";
-
-    /// <summary>Label for GitHub token dialog header.</summary>
-    public const string GitHubTokenHeaderLabel = "GitHub Personal Access Token";
-
     /// <summary>Label for GitHub manager button.</summary>
     public const string OpenGitHubManagerLabel = "Open GitHub Manager";
 
@@ -265,9 +305,6 @@ public static class GitHubConstants
     /// <summary>Watermark text for installation path input.</summary>
     public const string InstallationPathWatermark = "Installation directory path";
 
-    /// <summary>Watermark text for token input.</summary>
-    public const string TokenWatermark = "ghp_xxxxxxxxxxxxxxxxxxxx";
-
     // Button labels
 
     /// <summary>Label for load buttons.</summary>
@@ -291,9 +328,6 @@ public static class GitHubConstants
     /// <summary>Label for browse buttons.</summary>
     public const string BrowseButtonLabel = "Browse";
 
-    /// <summary>Label for validate token buttons.</summary>
-    public const string ValidateTokenButtonLabel = "Validate Token";
-
     /// <summary>Label for expand all buttons.</summary>
     public const string ExpandAllButtonLabel = "Expand All";
 
@@ -301,12 +335,6 @@ public static class GitHubConstants
     public const string CollapseAllButtonLabel = "Collapse All";
 
     // Descriptions
-
-    /// <summary>URL for creating a new GitHub PAT with repo scope.</summary>
-    public const string PatCreationUrl = "https://github.com/settings/tokens/new?description=GenHub&scopes=repo";
-
-    /// <summary>Description text for GitHub token requirements.</summary>
-    public const string GitHubTokenDescription = "Enter your GitHub Personal Access Token to access private repositories and increase rate limits:";
 
     /// <summary>Message displayed when no installation is in progress.</summary>
     public const string NoInstallationInProgressMessage = "No installation in progress. Select an item to install from the tree view.";

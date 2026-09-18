@@ -831,67 +831,76 @@
                          Classes="setting-description" />
             </StackPanel>
 
-            <!-- GitHub PAT for Artifact Access -->
+            <!-- GitHub Account (OAuth device flow) -->
             <Border Background="{DynamicResource SurfaceElevatedBrush}" CornerRadius="8" Padding="16" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1">
               <StackPanel Spacing="12">
                 <StackPanel Orientation="Horizontal" Spacing="8">
-                  <PathIcon Data="M12.65 10C11.83 7.67 9.61 6 7 6c-3.31 0-6 2.69-6 6s2.69 6 6 6c2.61 0 4.83-1.67 5.65-4H17v4h4v-4h2v-4H12.65zM7 14c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2z"
+                  <PathIcon Data="M12,2A10,10 0 0,0 2,12C2,16.42 4.87,20.17 8.84,21.5C9.34,21.58 9.5,21.27 9.5,21C9.5,20.77 9.5,20.14 9.5,19.31C6.73,19.91 6.14,17.97 6.14,17.97C5.68,16.81 5.03,16.5 5.03,16.5C4.12,15.88 5.1,15.9 5.1,15.9C6.1,15.97 6.63,16.93 6.63,16.93C7.5,18.45 8.97,18 9.54,17.76C9.63,17.11 9.89,16.67 10.17,16.42C7.95,16.17 5.62,15.31 5.62,11.5C5.62,10.39 6,9.5 6.65,8.79C6.55,8.54 6.2,7.5 6.75,6.15C6.75,6.15 7.59,5.88 9.5,7.17C10.29,6.95 11.15,6.84 12,6.84C12.85,6.84 13.71,6.95 14.5,7.17C16.41,5.88 17.25,6.15 17.25,6.15C17.8,7.5 17.45,8.54 17.35,8.79C18,9.5 18.38,10.39 18.38,11.5C18.38,15.32 16.04,16.16 13.81,16.41C14.17,16.72 14.5,17.33 14.5,18.26C14.5,19.6 14.5,20.68 14.5,21C14.5,21.27 14.66,21.59 15.17,21.5C19.14,20.16 22,16.42 22,12A10,10 0 0,0 12,2Z"
                             Width="16" Height="16" Foreground="{DynamicResource AccentBrush}" VerticalAlignment="Center" />
-                  <TextBlock Text="{localization:Localize Settings.Updates.GitHubPat.Label}"
+                  <TextBlock Text="{localization:Localize Settings.GitHubAuth.Label}"
                              Classes="setting-label" VerticalAlignment="Center" Margin="0" />
+                  <Ellipse Width="8" Height="8" VerticalAlignment="Center"
+                           Fill="{Binding GitHubAuthStatusColor, Converter={StaticResource ColorToBrushConverter}}" />
                 </StackPanel>
 
-                <!-- PAT Status -->
-                <StackPanel Orientation="Horizontal" Spacing="8">
-                   <Ellipse Width="8" Height="8" VerticalAlignment="Center"
-                            Fill="{Binding PatStatusColor, Converter={StaticResource ColorToBrushConverter}}" />
-                  <TextBlock Text="{Binding PatStatusMessage}" Foreground="{DynamicResource TextSecondary}" FontSize="12" />
+                <!-- Signed Out -->
+                <StackPanel Spacing="12" IsVisible="{Binding IsGitHubSignedOut}">
+                  <TextBlock Text="{localization:Localize Settings.GitHubAuth.SignedOut.Description}"
+                             Classes="setting-description" TextWrapping="Wrap" />
+                  <Button Content="{localization:Localize Settings.GitHubAuth.SignedOut.SignInButton}"
+                          Command="{Binding SignInWithGitHubCommand}"
+                          Background="{DynamicResource AccentBrush}"
+                          Foreground="{DynamicResource PrimaryButtonForeground}"
+                          Padding="20,8" FontWeight="SemiBold" HorizontalAlignment="Left" />
+                  <TextBlock Text="{localization:Localize Settings.GitHubAuth.SignedOut.EnvVarHint}"
+                             Classes="setting-description" FontSize="11" TextWrapping="Wrap" />
                 </StackPanel>
 
-                <!-- PAT Input -->
-                <Grid ColumnDefinitions="*,Auto,Auto" IsVisible="{Binding !HasGitHubPat}">
-                  <TextBox Grid.Column="0"
-                           Text="{Binding GitHubPatInput}"
-                           PasswordChar="●"
-                           Watermark="ghp_xxxxxxxxxxxxxxxxxxxx"
-                           Margin="0,0,8,0" />
-                  <Button Grid.Column="1"
-                          Content="{localization:Localize Settings.Updates.GitHubPat.SaveAndTest}"
-                          Command="{Binding TestPatCommand}"
-                          IsEnabled="{Binding !IsTestingPat}"
-                          Classes="browse-button" />
-                </Grid>
-
-                <!-- Delete PAT button (when PAT exists) -->
-                <StackPanel Orientation="Horizontal" Spacing="10" IsVisible="{Binding HasGitHubPat}">
-                  <Button Content="{localization:Localize Settings.Updates.GitHubPat.Remove}"
-                          Command="{Binding DeletePatCommand}"
-                          Classes="secondary-button" />
+                <!-- Authorizing -->
+                <StackPanel Spacing="12" IsVisible="{Binding IsAuthenticating}">
+                  <TextBlock Text="{localization:Localize Settings.GitHubAuth.Authorizing.Instructions}"
+                             Classes="setting-description" TextWrapping="Wrap" />
+                  <Border Background="{DynamicResource SurfaceCardBrush}" CornerRadius="8" Padding="16,12"
+                          HorizontalAlignment="Left" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1">
+                    <TextBlock Text="{Binding GitHubUserCode}" FontSize="24" FontWeight="Bold"
+                               Foreground="{DynamicResource TextPrimary}" LetterSpacing="4"
+                               HorizontalAlignment="Center" />
+                  </Border>
+                  <StackPanel Orientation="Horizontal" Spacing="10">
+                    <Button Content="{localization:Localize Settings.GitHubAuth.Authorizing.CopyAndOpen}"
+                            Command="{Binding CopyGitHubUserCodeCommand}"
+                            Background="{DynamicResource AccentBrush}"
+                            Foreground="{DynamicResource PrimaryButtonForeground}"
+                            Padding="20,8" FontWeight="SemiBold" />
+                    <Button Content="{localization:Localize Settings.GitHubAuth.Authorizing.Cancel}"
+                            Command="{Binding CancelSignInCommand}"
+                            Classes="secondary-button" />
+                  </StackPanel>
+                  <StackPanel Orientation="Horizontal" Spacing="8">
+                    <ProgressBar IsIndeterminate="True" Width="120" Height="4" VerticalAlignment="Center" />
+                    <TextBlock Text="{localization:Localize Settings.GitHubAuth.Authorizing.Waiting}"
+                               Foreground="{DynamicResource TextSecondary}" FontSize="12" VerticalAlignment="Center" />
+                  </StackPanel>
                 </StackPanel>
 
-                <StackPanel Orientation="Horizontal" Spacing="12">
-                  <TextBlock Text="{localization:Localize Settings.Updates.GitHubPat.ScopeDescription}"
-                             Classes="setting-description" VerticalAlignment="Center" />
-                  <Button Content="{localization:Localize Settings.Updates.GitHubPat.CreateButton}"
-                          Click="OnOpenPatCreationUrl"
-                          Background="Transparent"
-                          BorderThickness="0"
-                          Padding="0"
-                          Foreground="{DynamicResource AccentBrush}"
-                          FontSize="12"
-                          Cursor="Hand"
-                          ToolTip.Tip="{localization:Localize Settings.Updates.GitHubPat.CreateToolTip}" />
-                </StackPanel>
-
-                <!-- Prominent Warning/Note -->
-                <Border Background="{DynamicResource SurfaceCardBrush}" CornerRadius="8" Padding="14,12" Margin="0,8,0,0" BorderBrush="{DynamicResource WarningBrush}" BorderThickness="1">
-                  <Grid ColumnDefinitions="Auto,12,*">
-                      <PathIcon Grid.Column="0" Data="M13,14H11V10H13M13,18H11V16H13M1,21H23L12,2L1,21Z"
-                                Width="16" Height="16" Foreground="{DynamicResource WarningBrush}" VerticalAlignment="Center"/>
-                      <TextBlock Grid.Column="2" Text="{localization:Localize Settings.Updates.GitHubPat.Warning}"
-                                 FontSize="12" Foreground="{DynamicResource TextPrimary}" TextWrapping="Wrap" VerticalAlignment="Center"/>
+                <!-- Signed In -->
+                <StackPanel Spacing="12" IsVisible="{Binding IsGitHubAuthenticated}">
+                  <Grid ColumnDefinitions="Auto,*,Auto">
+                    <Border Grid.Column="0" Width="40" Height="40" CornerRadius="20" ClipToBounds="True"
+                            Background="{DynamicResource SurfaceHoverBrush}" Margin="0,0,12,0">
+                      <Image controls:ImageLoader.Source="{Binding GitHubAvatarUrl}" Stretch="UniformToFill" />
+                    </Border>
+                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                      <TextBlock Text="{Binding GitHubUserName}" FontWeight="SemiBold"
+                                 Foreground="{DynamicResource TextPrimary}" FontSize="14" />
+                      <TextBlock Text="{Binding GitHubRateLimitText}"
+                                 Foreground="{DynamicResource TextSecondary}" FontSize="12" />
+                    </StackPanel>
+                    <Button Grid.Column="2" Content="{localization:Localize Settings.GitHubAuth.SignedIn.SignOut}"
+                            Command="{Binding SignOutFromGitHubCommand}"
+                            Classes="secondary-button" VerticalAlignment="Center" />
                   </Grid>
-                </Border>
+                </StackPanel>
               </StackPanel>
             </Border>
           </StackPanel>

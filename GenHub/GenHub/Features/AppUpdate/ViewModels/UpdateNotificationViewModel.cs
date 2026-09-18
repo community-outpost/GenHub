@@ -1,3 +1,4 @@
+using Avalonia;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -6,6 +7,7 @@ using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GitHub;
 using GenHub.Core.Models.AppUpdate;
+using GenHub.Core.Models.GitHub;
 using GenHub.Features.AppUpdate.Interfaces;
 using Microsoft.Extensions.Logging;
 using System;
@@ -76,6 +78,7 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
     private readonly ILogger<UpdateNotificationViewModel> _logger;
     private readonly IUserSettingsService _userSettingsService;
     private readonly ILocalizationService? _localizationService;
+    private readonly IGitHubAuthService? _gitHubAuthService;
     private readonly CancellationTokenSource _cancellationTokenSource;
     private readonly List<PullRequestInfo> _allPullRequests = [];
     private CancellationTokenSource? _loadArtifactsCts;
@@ -231,10 +234,10 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
     private bool _isLoadingBranches;
 
     /// <summary>
-    /// Gets or sets a value indicating whether GitHub PAT is available.
+    /// Gets or sets a value indicating whether GitHub authentication is available.
     /// </summary>
     [ObservableProperty]
-    private bool _hasPat;
+    private bool _isAuthenticated;
 
     /// <summary>
     /// Gets or sets the list of available versions (artifacts) for the subscribed item.
@@ -314,7 +317,7 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
         await CheckForUpdatesAsync();
 
         // also refresh prs and branches if in browse mode
-        if (HasPat)
+        if (IsAuthenticated)
         {
             await LoadPullRequestsAsync();
             await LoadBranchesAsync();
@@ -333,19 +336,20 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
     /// <param name="velopackUpdateManager">The Velopack update manager.</param>
     /// <param name="logger">The logger.</param>
     /// <param name="userSettingsService">The user settings service.</param>
-    /// <param name="gitHubTokenStorage">The GitHub token storage.</param>
+    /// <param name="gitHubAuthService">The GitHub authentication service.</param>
     /// <param name="localizationService">The optional localization service.</param>
     public UpdateNotificationViewModel(
         IVelopackUpdateManager velopackUpdateManager,
         ILogger<UpdateNotificationViewModel> logger,
         IUserSettingsService userSettingsService,
-        IGitHubTokenStorage? gitHubTokenStorage = null,
+        IGitHubAuthService? gitHubAuthService = null,
         ILocalizationService? localizationService = null)
     {
         _velopackUpdateManager = velopackUpdateManager ?? throw new ArgumentNullException(nameof(velopackUpdateManager));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _userSettingsService = userSettingsService ?? throw new ArgumentNullException(nameof(userSettingsService));
         _localizationService = localizationService;
+        _gitHubAuthService = gitHubAuthService;
         _cancellationTokenSource = new CancellationTokenSource();
 
         if (_localizationService != null)
@@ -353,14 +357,19 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
             _localizationService.PropertyChanged += OnLocalizationPropertyChanged;
         }
 
+        if (_gitHubAuthService != null)
+        {
+            _gitHubAuthService.AuthStateChanged += OnGitHubAuthStateChanged;
+        }
+
         CheckForUpdatesCommand = new AsyncRelayCommand(CheckForUpdatesAsync, () => !IsChecking);
         ManualRefreshCommand = new AsyncRelayCommand(ManualRefreshAsync, () => !IsChecking);
         DismissCommand = new RelayCommand(DismissUpdate);
 
-        // check if pat is available
-        HasPat = gitHubTokenStorage?.HasToken() == true;
+        // check if GitHub authentication is available
+        IsAuthenticated = gitHubAuthService?.IsAuthenticated == true;
 
-        _logger.LogInformation("UpdateNotificationViewModel initialized with Velopack (HasPat={HasPat})", HasPat);
+        _logger.LogInformation("UpdateNotificationViewModel initialized with Velopack (IsAuthenticated={IsAuthenticated})", IsAuthenticated);
 
         // monitor collection changes to update placeholder text
         AvailableVersions.CollectionChanged += (s, e) => OnPropertyChanged(nameof(VersionPlaceholderText));
@@ -529,8 +538,8 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
             _logger.LogInformation("Loaded subscribed branch '{Branch}' from settings", settings.SubscribedBranch);
         }
 
-        // load data if we have a pat
-        if (HasPat)
+        // load data if we are authenticated
+        if (IsAuthenticated)
         {
             // initial check and load
             await Task.WhenAll(
@@ -648,6 +657,11 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
         if (_localizationService != null)
         {
             _localizationService.PropertyChanged -= OnLocalizationPropertyChanged;
+        }
+
+        if (_gitHubAuthService != null)
+        {
+            _gitHubAuthService.AuthStateChanged -= OnGitHubAuthStateChanged;
         }
 
         _loadArtifactsCts?.Cancel();
@@ -822,10 +836,10 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
             // check if subscribed to a pr
             if (SubscribedPr != null)
             {
-                if (!HasPat)
+                if (!IsAuthenticated)
                 {
-                    _logger.LogInformation("Subscribed to PR #{PrNumber} but GitHub PAT is not configured", SubscribedPr.Number);
-                    StatusMessage = AppUpdateConstants.PatRequiredForArtifactsMessage;
+                    _logger.LogInformation("Subscribed to PR #{PrNumber} but GitHub authentication is not configured", SubscribedPr.Number);
+                    StatusMessage = AppUpdateConstants.AuthRequiredForArtifactsMessage;
                     IsUpdateAvailable = false;
                     return;
                 }
@@ -866,7 +880,7 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
             {
                 if (string.Equals(SubscribedBranch, AppUpdateConstants.MainBranch, StringComparison.OrdinalIgnoreCase))
                 {
-                    if (HasPat)
+                    if (IsAuthenticated)
                     {
                         _logger.LogInformation("Checking for artifact updates on main branch");
                         var mainArtifact = await _velopackUpdateManager.CheckForArtifactUpdatesAsync(_cancellationTokenSource.Token);
@@ -881,10 +895,10 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
                 }
                 else
                 {
-                    if (!HasPat)
+                    if (!IsAuthenticated)
                     {
-                        _logger.LogInformation("Subscribed to branch '{Branch}' but GitHub PAT is not configured", SubscribedBranch);
-                        StatusMessage = AppUpdateConstants.PatRequiredForArtifactsMessage;
+                        _logger.LogInformation("Subscribed to branch '{Branch}' but GitHub authentication is not configured", SubscribedBranch);
+                        StatusMessage = AppUpdateConstants.AuthRequiredForArtifactsMessage;
                         IsUpdateAvailable = false;
                         return;
                     }
@@ -987,7 +1001,7 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
         _velopackUpdateManager.ClearCache();
 
         // reload data
-        if (HasPat)
+        if (IsAuthenticated)
         {
             await Task.WhenAll(
                 LoadPullRequestsAsync(),
@@ -1418,7 +1432,7 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private async Task LoadPullRequestsAsync()
     {
-        if (!HasPat || IsLoadingPullRequests) return;
+        if (!IsAuthenticated || IsLoadingPullRequests) return;
 
         IsLoadingPullRequests = true;
         AvailablePullRequests.Clear();
@@ -1492,7 +1506,7 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private async Task LoadBranchesAsync()
     {
-        if (!HasPat || IsLoadingBranches) return;
+        if (!IsAuthenticated || IsLoadingBranches) return;
 
         IsLoadingBranches = true;
         AvailableBranches.Clear();
@@ -1664,5 +1678,27 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
             AppUpdateConstants.SortOptionPrNumberAsc,
         ];
         OnPropertyChanged(nameof(SelectedSortOption));
+    }
+
+    private void OnGitHubAuthStateChanged(object? sender, GitHubAuthStateChangedEventArgs e)
+    {
+        if (Dispatcher.UIThread.CheckAccess() || Application.Current == null)
+        {
+            RefreshAuthenticationState(e.IsAuthenticated);
+        }
+        else
+        {
+            var isAuthenticated = e.IsAuthenticated;
+            Dispatcher.UIThread.Post(() => RefreshAuthenticationState(isAuthenticated));
+        }
+    }
+
+    private void RefreshAuthenticationState(bool isAuthenticated)
+    {
+        IsAuthenticated = isAuthenticated;
+        if (isAuthenticated)
+        {
+            _ = Task.WhenAll(LoadPullRequestsAsync(), LoadBranchesAsync());
+        }
     }
 }
