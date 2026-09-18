@@ -98,8 +98,7 @@ public class ContentPipelineIntegrationTests
         // Arrange
         var factory = new SuperHackersManifestFactory(
             NullLogger<SuperHackersManifestFactory>.Instance,
-            null, // IFileHashProvider
-            null); // IArchivePayloadProcessor
+            null!); // IFileHashProvider
 
         // Create a mock manifest
         var baseManifest = new Core.Models.Manifest.ContentManifest

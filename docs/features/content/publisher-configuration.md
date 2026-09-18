@@ -445,7 +445,7 @@ AODMaps uses a static publisher provider configuration definition (content disco
 {
   "publisherId": "aodmaps",
   "publisherType": "aodmaps",
-  "displayName": "Age of Defense Maps",
+  "displayName": "Art of Defense Maps",
   "providerType": "Static",
   "endpoints": {
     "catalogUrl": "https://aodmaps.com",
@@ -467,24 +467,6 @@ Dynamic publishers support multiple publishers where content authors become indi
     "method": "github-topic",
     "topics": ["cnc-generals", "zero-hour-mod"],
     "authorsAsPublishers": true
-  }
-}
-```
-
-#### AODMaps Configuration
-
-AODMaps uses a static publisher configuration to map its custom catalog format:
-
-```json
-{
-  "publisherId": "aodmaps",
-  "publisherType": "aodmaps",
-  "displayName": "Art of Defense Maps",
-  "providerType": "Static",
-  "catalogFormat": "html-scraping",
-  "endpoints": {
-    "catalogUrl": "https://aodmaps.com",
-    "websiteUrl": "https://aodmaps.com"
   }
 }
 ```

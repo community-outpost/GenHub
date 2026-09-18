@@ -213,7 +213,7 @@ public class CompressedImageToTgaConverter(ILogger<CompressedImageToTgaConverter
                         Volatile.Write(ref _avifCapabilityState, AvifCapabilityAvailable);
                     }
                 }
-                catch (Exception ex) when (isAvif && (ex is DllNotFoundException || ex is TypeInitializationException || ex is EntryPointNotFoundException || ex.GetType().FullName?.Contains("Heif", StringComparison.OrdinalIgnoreCase) == true || ex.InnerException?.GetType().FullName?.Contains("Heif", StringComparison.OrdinalIgnoreCase) == true))
+                catch (Exception ex) when (isAvif && (ex is DllNotFoundException || ex is TypeInitializationException || ex is EntryPointNotFoundException || ex is BadImageFormatException))
                 {
                     // libheif is not present or the native codec is not supported for this runtime.
                     // Remember it so the rest of the run skips AVIF instead of repeating the failure per file.

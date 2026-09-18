@@ -21,11 +21,6 @@ public static class InfoConstants
     public const string FaqDefaultLanguage = "en";
 
     /// <summary>
-    /// Section ID for the quickstart guide.
-    /// </summary>
-    public const string QuickstartSectionId = "quickstart";
-
-    /// <summary>
     /// Module name for GenHub Guide.
     /// </summary>
     public const string ModuleGuide = "GenHub Guide";

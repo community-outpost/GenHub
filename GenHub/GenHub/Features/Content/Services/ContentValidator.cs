@@ -118,8 +118,8 @@ public class ContentValidator(IFileOperationsService fileOperations, ICasService
 
                 var fullContentRoot = Path.GetFullPath(contentPath);
                 var resolvedFilePath = Path.GetFullPath(Path.Combine(fullContentRoot, file.RelativePath));
-                if (!resolvedFilePath.StartsWith(fullContentRoot + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase) &&
-                    !string.Equals(resolvedFilePath, fullContentRoot, StringComparison.OrdinalIgnoreCase))
+                var relativePath = Path.GetRelativePath(fullContentRoot, resolvedFilePath);
+                if (relativePath == ".." || relativePath.StartsWith(".." + Path.DirectorySeparatorChar, StringComparison.Ordinal) || Path.IsPathRooted(relativePath))
                 {
                     fileIssues.Add(new ValidationIssue($"Invalid file path (outside content directory): {file.RelativePath}", ValidationSeverity.Error));
                     return fileIssues;

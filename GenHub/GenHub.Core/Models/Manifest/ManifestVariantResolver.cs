@@ -184,13 +184,9 @@ public static class ManifestVariantResolver
             return EntryPointResolution.Resolved(legacy[0].RelativePath, "only launch candidate by extension");
         }
 
-        var primaryFromLegacy = legacy
-            .Where(f => IsPrimaryGameExecutable(f.RelativePath))
-            .ToList();
-
-        if (primaryFromLegacy.Count == 1)
+        if (TryResolveSinglePrimaryExecutable(legacy, out var primaryResolution))
         {
-            return EntryPointResolution.Resolved(primaryFromLegacy[0].RelativePath, "primary game executable candidate");
+            return primaryResolution;
         }
 
         return EntryPointResolution.Failed(
@@ -205,13 +201,9 @@ public static class ManifestVariantResolver
         IReadOnlyList<ManifestFile> files,
         IReadOnlyList<ManifestFile> executable)
     {
-        var primaryExecutables = executable
-            .Where(f => IsPrimaryGameExecutable(f.RelativePath))
-            .ToList();
-
-        if (primaryExecutables.Count == 1)
+        if (TryResolveSinglePrimaryExecutable(executable, out var primaryResolution))
         {
-            return EntryPointResolution.Resolved(primaryExecutables[0].RelativePath, "primary game executable candidate");
+            return primaryResolution;
         }
 
         return EntryPointResolution.Failed(
@@ -220,10 +212,29 @@ public static class ManifestVariantResolver
             files);
     }
 
+    private static bool TryResolveSinglePrimaryExecutable(
+        IReadOnlyList<ManifestFile> candidates,
+        out EntryPointResolution resolution)
+    {
+        var primary = candidates
+            .Where(f => IsPrimaryGameExecutable(f.RelativePath))
+            .ToList();
+
+        if (primary.Count == 1)
+        {
+            resolution = EntryPointResolution.Resolved(primary[0].RelativePath, "primary game executable candidate");
+            return true;
+        }
+
+        resolution = default!;
+        return false;
+    }
+
     private static bool IsPrimaryGameExecutable(string relativePath)
     {
         var fileName = System.IO.Path.GetFileName(relativePath.Replace('\\', '/'));
-        return string.Equals(fileName, GameClientConstants.SuperHackersZeroHourExecutable, StringComparison.OrdinalIgnoreCase)
+        return string.Equals(fileName, GameClientConstants.GeneralsOnlineEacLauncherExecutable, StringComparison.OrdinalIgnoreCase)
+            || string.Equals(fileName, GameClientConstants.SuperHackersZeroHourExecutable, StringComparison.OrdinalIgnoreCase)
             || string.Equals(fileName, GameClientConstants.SuperHackersGeneralsExecutable, StringComparison.OrdinalIgnoreCase)
             || string.Equals(fileName, GameClientConstants.GeneralsExecutable, StringComparison.OrdinalIgnoreCase)
             || string.Equals(fileName, GameClientConstants.SteamGameDatExecutable, StringComparison.OrdinalIgnoreCase)

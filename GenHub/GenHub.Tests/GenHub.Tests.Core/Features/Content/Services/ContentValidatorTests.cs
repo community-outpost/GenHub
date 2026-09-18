@@ -31,8 +31,12 @@ public sealed class ContentValidatorTests : IDisposable
         Directory.CreateDirectory(_stagingDirectory);
         await File.WriteAllTextAsync(Path.Combine(_stagingDirectory, "payload.map"), "map payload");
         var casService = new Mock<ICasService>();
+        var fileOperationsMock = new Mock<IFileOperationsService>();
+        fileOperationsMock
+            .Setup(f => f.VerifyFileHashAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
         var validator = new ContentValidator(
-            new Mock<IFileOperationsService>().Object,
+            fileOperationsMock.Object,
             casService.Object,
             new Mock<ILogger<ContentValidator>>().Object);
         var manifest = new ContentManifest
@@ -55,6 +59,7 @@ public sealed class ContentValidatorTests : IDisposable
 
         // Assert
         Assert.True(result.IsValid);
+        Assert.Empty(result.Issues);
         casService.Verify(service => service.ExistsAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 

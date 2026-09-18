@@ -332,7 +332,7 @@ public partial class GenPatcherDatCatalogParser(ILogger<GenPatcherDatCatalogPars
                         Id = v.Id,
                         Name = v.Name,
                         VariantType = v.VariantType ?? CommunityOutpostCatalogConstants.DefaultVariantType,
-                        ManifestId = $"1.{ManifestConstants.DefaultManifestVersion}.{CommunityOutpostConstants.PublisherType}.{contentType}.{item.ContentCode.ToLowerInvariant()}-{v.Id}",
+                        ManifestId = $"1.0.{CommunityOutpostConstants.PublisherType}.{contentType}.{item.ContentCode.ToLowerInvariant()}-{v.Id}",
                         IsDefault = v.IsDefault,
                         TargetGame = v.TargetGame ?? metadata.TargetGame,
                     })];

@@ -7673,4 +7673,8 @@ This will:
   <data name="GameProfiles.Launch.WorkspaceFailedMessage" xml:space="preserve">
     <value>Workspace initialization failed for '{0}'.</value>
   </data>
+  <data name="GitHub.TokenDialog.Title" xml:space="preserve">
+    <value>GitHub Authentication</value>
+    <comment>Title for GitHub PAT dialog</comment>
+  </data>
 </root>

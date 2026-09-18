@@ -2,13 +2,13 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
-using Avalonia.Markup.Xaml;
 using GenHub.Features.GitHub.ViewModels;
+using System;
 
 namespace GenHub.Features.GitHub.Views;
 
 /// <summary>
-/// code-behind for the github token dialog view.
+/// Code-behind for the GitHub token dialog view.
 /// </summary>
 public partial class GitHubTokenDialogView : Window
 {
@@ -18,18 +18,31 @@ public partial class GitHubTokenDialogView : Window
     public GitHubTokenDialogView()
     {
         InitializeComponent();
+        GenHub.Common.Helpers.WindowChromeHelper.ApplyPlatformDecorations(this);
     }
 
     /// <summary>
-    /// sets the view model and wires up events.
+    /// Sets the view model and wires up events.
     /// </summary>
-    /// <param name="viewModel">the view model to bind to.</param>
+    /// <param name="viewModel">The view model to bind to.</param>
     public void SetViewModel(GitHubTokenDialogViewModel viewModel)
     {
         DataContext = viewModel;
 
         viewModel.SaveCompleted += () => Close(true);
         viewModel.CancelRequested += () => Close(false);
+    }
+
+    /// <inheritdoc />
+    protected override void OnClosing(WindowClosingEventArgs e)
+    {
+        if (DataContext is GitHubTokenDialogViewModel { IsValidating: true })
+        {
+            e.Cancel = true;
+            return;
+        }
+
+        base.OnClosing(e);
     }
 
     private void OnTitleBarPointerPressed(object? sender, PointerPressedEventArgs e)
@@ -42,6 +55,11 @@ public partial class GitHubTokenDialogView : Window
 
     private void CloseButton_Click(object? sender, RoutedEventArgs e)
     {
+        if (DataContext is GitHubTokenDialogViewModel { IsValidating: true })
+        {
+            return;
+        }
+
         Close(false);
     }
 
@@ -51,10 +69,5 @@ public partial class GitHubTokenDialogView : Window
         {
             vm.SetToken(textBox.Text ?? string.Empty);
         }
-    }
-
-    private void InitializeComponent()
-    {
-        AvaloniaXamlLoader.Load(this);
     }
 }

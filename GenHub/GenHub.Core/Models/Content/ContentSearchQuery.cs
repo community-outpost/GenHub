@@ -171,20 +171,6 @@ public class ContentSearchQuery
         set => _language = NormalizeLanguage(value);
     }
 
-    /// <summary>
-    /// Generates a deterministic cache key representing the query and all its active filters.
-    /// </summary>
-    /// <returns>A string cache key.</returns>
-    public string ToCacheKey()
-    {
-        static string Escape(string? value) => System.Uri.EscapeDataString(value ?? string.Empty);
-        var tags = Tags.Count > 0 ? string.Join(",", Tags.OrderBy(t => t, StringComparer.OrdinalIgnoreCase).Select(Escape)) : string.Empty;
-        var cncTags = CNCLabsMapTags.Count > 0 ? string.Join(",", CNCLabsMapTags.OrderBy(t => t, StringComparer.OrdinalIgnoreCase).Select(Escape)) : string.Empty;
-        var minDate = MinDate?.ToString("o", System.Globalization.CultureInfo.InvariantCulture) ?? string.Empty;
-        var maxDate = MaxDate?.ToString("o", System.Globalization.CultureInfo.InvariantCulture) ?? string.Empty;
-        return $"search::{Escape(ProviderName)}::{Escape(SearchTerm)}::{Escape(AuthorName)}::{ContentType}::{TargetGame}::{Skip}::{Take}::{SortOrder}::{Escape(Sort)}::{IncludeInstalled}::{IncludeOlderVersions}::{NumberOfPlayers}::{Page}::{minDate}::{maxDate}::{Escape(ModDBCategory)}::{Escape(ModDBAddonCategory)}::{Escape(ModDBLicense)}::{Escape(ModDBTimeframe)}::{Escape(ModDBSection)}::{Escape(AODMapsPlayerCount)}::{Escape(AODMapsCategory)}::{Escape(AODMapsMapType)}::{Escape(GitHubTopic)}::{Escape(GitHubAuthor)}::{Escape(Language)}::{tags}::{cncTags}";
-    }
-
     private static readonly Dictionary<string, string> LanguageMap =
     new(StringComparer.OrdinalIgnoreCase)
     {

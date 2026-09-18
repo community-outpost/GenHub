@@ -184,28 +184,6 @@ public static class AppUpdateConstants
         "Update available: v{1}";
 
     /// <summary>
-    /// Default update notification title.
-    /// </summary>
-    public const string UpdateNotificationTitle = "Update Available";
-
-    /// <summary>
-    /// Update available notification message format.
-    /// {0}: Version.
-    /// </summary>
-    public const string UpdateAvailableMessageFormat = "A new version ({0}) is available.";
-
-    /// <summary>
-    /// Branch/Artifact update notification title.
-    /// </summary>
-    public const string BranchUpdateNotificationTitle = "Branch Update Available";
-
-    /// <summary>
-    /// Branch update available notification message format.
-    /// {0}: Version, {1}: Branch.
-    /// </summary>
-    public const string BranchUpdateAvailableMessageFormat = "A new build ({0}) is available on branch '{1}'.";
-
-    /// <summary>
     /// Update available notification title for release channel.
     /// </summary>
     public const string UpdateAvailableNotificationTitle = "Update Available";

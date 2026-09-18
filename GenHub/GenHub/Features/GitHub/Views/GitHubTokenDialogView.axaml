@@ -8,7 +8,7 @@
         mc:Ignorable="d" d:DesignWidth="500" d:DesignHeight="450"
         x:Class="GenHub.Features.GitHub.Views.GitHubTokenDialogView"
         x:DataType="vm:GitHubTokenDialogViewModel"
-        Title="{x:Static const:GitHubConstants.GitHubAuthenticationTitle}"
+        Title="{localization:Localize GitHub.TokenDialog.Title}"
         Icon="avares://GenHub/Assets/Icons/generalshub-icon.png"
         Width="500"
         Height="490"
@@ -37,7 +37,7 @@
         </Style>
 
         <Style Selector="Button.primary:pointerover">
-            <Setter Property="Background" Value="{DynamicResource AccentHoverBrush}"/>
+            <Setter Property="Background" Value="{DynamicResource AccentLightBrush}"/>
         </Style>
 
         <Style Selector="Button.secondary">
@@ -78,7 +78,7 @@
             <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center" Margin="12,0,0,0">
                 <Image Source="avares://GenHub/Assets/Icons/generalshub-icon.png"
                        Width="24" Height="24" />
-                <TextBlock Text="{x:Static const:GitHubConstants.GitHubAuthenticationTitle}"
+                <TextBlock Text="{localization:Localize GitHub.TokenDialog.Title}"
                            VerticalAlignment="Center"
                            FontSize="14" FontWeight="SemiBold"
                            Foreground="{DynamicResource TextPrimary}" />
@@ -94,6 +94,8 @@
                     BorderThickness="0"
                     Padding="0"
                     Width="46" Height="40"
+                    ToolTip.Tip="{localization:Localize Common.Button.Close}"
+                    AutomationProperties.Name="{localization:Localize Common.Button.Close}"
                     Click="CloseButton_Click">
                 <Path Data="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z"
                       Fill="{Binding $parent[Button].Foreground}"

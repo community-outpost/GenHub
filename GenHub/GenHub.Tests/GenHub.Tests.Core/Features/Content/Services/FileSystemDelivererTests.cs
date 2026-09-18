@@ -120,17 +120,21 @@ public sealed class FileSystemDelivererTests
     private FileSystemDeliverer CreateDeliverer(IContentManifestBuilder? manifestBuilder = null)
     {
         var builderMock = new Mock<IContentManifestBuilder>();
-        builderMock.Setup(b => b.WithBasicInfo(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string?>())).Returns(builderMock.Object);
+        string? capturedVersion = null;
+        builderMock
+            .Setup(b => b.WithBasicInfo(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string?>()))
+            .Callback<string, string, string?>((_, _, version) => capturedVersion = version)
+            .Returns(builderMock.Object);
         builderMock.Setup(b => b.WithContentType(It.IsAny<ContentType>(), It.IsAny<GameType>())).Returns(builderMock.Object);
         builderMock.Setup(b => b.WithPublisher(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>())).Returns(builderMock.Object);
         builderMock.Setup(b => b.WithMetadata(It.IsAny<string>(), It.IsAny<List<string>?>(), It.IsAny<string>(), It.IsAny<List<string>?>(), It.IsAny<string>())).Returns(builderMock.Object);
         builderMock.Setup(b => b.AddContentAddressableFileAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<long>(), It.IsAny<bool>(), It.IsAny<FilePermissions?>())).ReturnsAsync(builderMock.Object);
         builderMock.Setup(b => b.AddRequiredDirectories(It.IsAny<string[]>())).Returns(builderMock.Object);
-        builderMock.Setup(b => b.Build()).Returns(new ContentManifest
+        builderMock.Setup(b => b.Build()).Returns(() => new ContentManifest
         {
             Id = ManifestId.Create("1.0.thesuperhackers.gameclient.zerohour"),
             Name = "TheSuperHackers Zero Hour Game Code",
-            Version = "2026.07.31",
+            Version = capturedVersion ?? "1.0",
             ContentType = ContentType.GameClient,
             TargetGame = GameType.ZeroHour,
         });

@@ -806,25 +806,32 @@ public class ProfileLauncherFacade(
             // Launch the game using the profile
             logger.LogDebug("[Launch] Step 6: Delegating to GameLauncher for workspace prep and process start");
 
-            var workspaceNotificationHolder = new StrongBox<Guid?>(null);
+            var notificationLock = new object();
+            Guid? workspaceNotificationId = null;
             var launchProgress = new SynchronousProgress<LaunchProgress>(p =>
             {
-                if (p.IsInitializingWorkspace && workspaceNotificationHolder.Value == null)
+                if (p.IsInitializingWorkspace)
                 {
-                    var title = localizationService?.GetString(ProfileConstants.WorkspacePreparingTitleKey)
-                        ?? ProfileConstants.WorkspacePreparingDefaultTitle;
-                    var body = localizationService != null
-                        ? localizationService.GetString(ProfileConstants.WorkspaceInitializingMessageKey, profile.Name)
-                        : string.Format(System.Globalization.CultureInfo.InvariantCulture, ProfileConstants.WorkspaceInitializingDefaultFormat, profile.Name);
+                    lock (notificationLock)
+                    {
+                        if (workspaceNotificationId == null)
+                        {
+                            var title = localizationService?.GetString(ProfileConstants.WorkspacePreparingTitleKey)
+                                ?? ProfileConstants.WorkspacePreparingDefaultTitle;
+                            var body = localizationService != null
+                                ? localizationService.GetString(ProfileConstants.WorkspaceInitializingMessageKey, profile.Name)
+                                : string.Format(System.Globalization.CultureInfo.InvariantCulture, ProfileConstants.WorkspaceInitializingDefaultFormat, profile.Name);
 
-                    var message = new NotificationMessage(
-                        NotificationType.Info,
-                        title,
-                        body,
-                        autoDismissMilliseconds: null,
-                        isPersistent: true);
-                    workspaceNotificationHolder.Value = message.Id;
-                    notificationService.Show(message);
+                            var message = new NotificationMessage(
+                                NotificationType.Info,
+                                title,
+                                body,
+                                autoDismissMilliseconds: null,
+                                isPersistent: true);
+                            workspaceNotificationId = message.Id;
+                            notificationService.Show(message);
+                        }
+                    }
                 }
             });
 
@@ -833,19 +840,16 @@ public class ProfileLauncherFacade(
             {
                 launchResult = await gameLauncher.LaunchProfileAsync(profile, progress: launchProgress, skipUserDataCleanup: skipUserDataCleanup, additionalArguments: additionalArguments, cancellationToken: cancellationToken);
             }
-            catch (Exception)
+            finally
             {
-                if (workspaceNotificationHolder.Value.HasValue)
+                lock (notificationLock)
                 {
-                    notificationService.Dismiss(workspaceNotificationHolder.Value.Value);
+                    if (workspaceNotificationId.HasValue)
+                    {
+                        notificationService.Dismiss(workspaceNotificationId.Value);
+                        workspaceNotificationId = null;
+                    }
                 }
-
-                throw;
-            }
-
-            if (workspaceNotificationHolder.Value.HasValue)
-            {
-                notificationService.Dismiss(workspaceNotificationHolder.Value.Value);
             }
 
             if (launchResult.Failed)
