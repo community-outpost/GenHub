@@ -286,7 +286,7 @@ public class GenPatcherContentRegistryTests
     [InlineData("HLEI", "hlei")]
     [InlineData("cbpr-1080p", "cbpr")]
     [InlineData("community-patch", "community-patch")]
-    [InlineData("community-patch-retail", "community-patch")]
+    [InlineData("community-patch-retail", "community-patch-retail")]
     [InlineData("community-patch-nonret", "community-patch-nonret")]
     [InlineData("10zh", "10zh")]
     [InlineData("unknown_test", "unknown_test")]
