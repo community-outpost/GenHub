@@ -5,6 +5,7 @@ using GenHub.Core.Interfaces.Notifications;
 using Microsoft.Extensions.Logging;
 using Microsoft.Playwright;
 using System;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -36,8 +37,6 @@ internal sealed class ManagedChromiumRuntime(
     /// Environment variable used by Playwright to locate its driver binary (node.exe).
     /// </summary>
     internal const string DriverPathEnvironmentVariable = "PLAYWRIGHT_DRIVER_PATH";
-
-    private const double ExpectedChromiumBytes = 240.0 * 1024 * 1024;
 
     private readonly SemaphoreSlim _installLock = new(1, 1);
     private string? _cachedDriverPath;
@@ -302,14 +301,20 @@ internal sealed class ManagedChromiumRuntime(
                         var totalBytes = dirInfo.EnumerateFiles("*", SearchOption.AllDirectories).Sum(fi => fi.Length);
                         if (totalBytes > 0)
                         {
-                            var fraction = Math.Clamp(totalBytes / ExpectedChromiumBytes, 0.05, 0.90);
+                            var fraction = Math.Clamp(totalBytes / ModDBConstants.ChromiumExpectedSizeBytes, 0.05, 0.90);
                             var mbDownloaded = totalBytes / (1024.0 * 1024.0);
-                            var status = $"{mbDownloaded:F0} MB / ~240 MB";
+                            var statusFormat = localizationService?.GetString("ModDB.ChromiumProgressStatusFormat")
+                                ?? ModDBConstants.ChromiumProgressStatusFormat;
+                            var status = string.Format(
+                                CultureInfo.CurrentCulture,
+                                statusFormat,
+                                mbDownloaded,
+                                ModDBConstants.ChromiumExpectedSizeMegabytes);
                             scope.ReportFraction(fraction, status);
                         }
                     }
                 }
-                catch (Exception ex)
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
                 {
                     logger.LogTrace(ex, "Transient error while measuring runtime directory size during installation");
                 }

@@ -610,6 +610,15 @@ public static class ModDBConstants
 
     // ===== Managed Chromium Runtime Notifications =====
 
+    /// <summary>Expected download size in megabytes for the managed Chromium runtime.</summary>
+    public const double ChromiumExpectedSizeMegabytes = 240.0;
+
+    /// <summary>Expected download size in bytes for the managed Chromium runtime.</summary>
+    public const double ChromiumExpectedSizeBytes = ChromiumExpectedSizeMegabytes * 1024.0 * 1024.0;
+
+    /// <summary>Format string for progress reporting during Chromium runtime download.</summary>
+    public const string ChromiumProgressStatusFormat = "{0:F0} MB / ~{1:F0} MB";
+
     /// <summary>Name for the managed Chromium runtime.</summary>
     public const string ChromiumRuntimeName = "ModDB Chromium Runtime";
 
