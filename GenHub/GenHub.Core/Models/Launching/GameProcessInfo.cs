@@ -6,6 +6,10 @@ public class GameProcessInfo
     /// <summary>Gets or sets the process ID.</summary>
     public int ProcessId { get; set; }
 
+    /// <summary>Gets or sets the manager-assigned identity, which remains distinct when a PID is reused.</summary>
+    /// <remarks><see cref="Guid.Empty"/> means no identity was assigned by the process manager.</remarks>
+    public Guid ProcessInstanceId { get; set; }
+
     /// <summary>Gets or sets the executable path.</summary>
     public string ExecutablePath { get; set; } = string.Empty;
 
@@ -14,6 +18,9 @@ public class GameProcessInfo
 
     /// <summary>Gets or sets the start time.</summary>
     public DateTime StartTime { get; set; } = DateTime.UtcNow;
+
+    /// <summary>Gets or sets a value indicating whether StartTime was read from the OS rather than supplied as a fallback.</summary>
+    public bool HasVerifiedStartTime { get; set; }
 
     /// <summary>Gets or sets a value indicating whether the process is running.</summary>
     public bool IsRunning { get; set; }

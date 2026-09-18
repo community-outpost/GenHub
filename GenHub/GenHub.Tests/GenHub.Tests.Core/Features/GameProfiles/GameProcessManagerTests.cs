@@ -1,5 +1,6 @@
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
+using GenHub.Core.Models.Events;
 using GenHub.Core.Models.Launching;
 using GenHub.Features.GameProfiles.Infrastructure;
 using Microsoft.Extensions.Logging;
@@ -21,6 +22,108 @@ public class GameProcessManagerTests
     public GameProcessManagerTests()
     {
         _processManager = new GameProcessManager(_loggerMock.Object);
+    }
+
+    /// <summary>A throwing exit subscriber cannot suppress later subscribers or block subsequent stops.</summary>
+    /// <returns>The async task.</returns>
+    [Fact]
+    public async Task TerminateProcessAsync_WithThrowingExitSubscriber_CompletesAsync()
+    {
+        using var harness = LauncherHarness.Create(spawnChild: false);
+        var observed = new TaskCompletionSource<GameProcessExitedEventArgs>(TaskCreationOptions.RunContinuationsAsynchronously);
+        _processManager.ProcessExited += (_, _) => throw new InvalidOperationException("Broken subscriber");
+        _processManager.ProcessExited += (_, args) => observed.TrySetResult(args);
+        var started = await _processManager.StartProcessAsync(new GameLaunchConfiguration
+        {
+            ExecutablePath = harness.LauncherPath,
+            WorkingDirectory = harness.WorkingDirectory,
+        });
+        Assert.True(started.Success);
+
+        var stopped = await _processManager.TerminateProcessAsync(started.Data!.ProcessId).WaitAsync(TimeSpan.FromSeconds(10));
+        Assert.True(stopped.Success);
+        Assert.True((await observed.Task.WaitAsync(TimeSpan.FromSeconds(1))).TerminationRequested);
+        var second = await _processManager.StartProcessAsync(new GameLaunchConfiguration
+        {
+            ExecutablePath = harness.LauncherPath,
+            WorkingDirectory = harness.WorkingDirectory,
+        });
+        Assert.True(second.Success);
+        try
+        {
+            Assert.True((await _processManager.TerminateProcessAsync(second.Data!.ProcessId)
+                .WaitAsync(TimeSpan.FromSeconds(10))).Success);
+        }
+        finally
+        {
+            await _processManager.TerminateProcessAsync(second.Data!.ProcessId);
+        }
+    }
+
+    /// <summary>A delayed callback cannot throw when its process has already been disposed.</summary>
+    [Fact]
+    public void OnProcessExited_DisposedProcess_DoesNotThrow()
+    {
+        var process = new System.Diagnostics.Process();
+        process.Dispose();
+        _processManager.OnProcessExited(process, EventArgs.Empty);
+    }
+
+    /// <summary>A missing notification completes within the configured limit instead of waiting forever.</summary>
+    /// <returns>The async task.</returns>
+    [Fact]
+    public async Task WaitForExitNotificationAsync_MissingNotification_ReturnsAfterTimeoutAsync()
+    {
+        var missing = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        await _processManager.WaitForExitNotificationAsync(missing.Task, 12345)
+            .WaitAsync(TimeSpan.FromMilliseconds(ProcessConstants.TerminationExitNotificationTimeoutMs + 5000));
+        Assert.False(missing.Task.IsCompleted);
+    }
+
+    /// <summary>A cancelled stop keeps monitoring and does not mask a later unexpected exit.</summary>
+    /// <returns>The async task.</returns>
+    [Fact]
+    public async Task TerminateProcessAsync_CancelledBeforeKill_KeepsMonitoringAsync()
+    {
+        using var harness = LauncherHarness.Create(spawnChild: false);
+        using var cancellation = new CancellationTokenSource();
+        var started = await _processManager.StartProcessAsync(new GameLaunchConfiguration
+        {
+            ExecutablePath = harness.LauncherPath,
+            WorkingDirectory = harness.WorkingDirectory,
+        });
+        Assert.True(started.Success);
+        var processId = started.Data!.ProcessId;
+        var exited = new TaskCompletionSource<GameProcessExitedEventArgs>(TaskCreationOptions.RunContinuationsAsynchronously);
+        _processManager.ProcessExited += (_, args) => exited.TrySetResult(args);
+        _loggerMock.Setup(x => x.Log(
+                It.IsAny<LogLevel>(),
+                It.IsAny<EventId>(),
+                It.IsAny<It.IsAnyType>(),
+                It.IsAny<Exception?>(),
+                It.IsAny<Func<It.IsAnyType, Exception?, string>>()))
+            .Callback(new InvocationAction(invocation =>
+            {
+                if (invocation.Arguments[2].ToString()!.Contains("[Terminate] Force killing"))
+                {
+                    cancellation.Cancel();
+                }
+            }));
+        try
+        {
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(
+                () => _processManager.TerminateProcessAsync(processId, cancellation.Token));
+            Assert.True((await _processManager.GetProcessInfoAsync(processId)).Data!.IsRunning);
+            using var process = System.Diagnostics.Process.GetProcessById(processId);
+            process.Kill(entireProcessTree: true);
+            var observed = await exited.Task.WaitAsync(TimeSpan.FromSeconds(10));
+            Assert.Equal(processId, observed.ProcessId);
+            Assert.False(observed.TerminationRequested);
+        }
+        finally
+        {
+            await _processManager.TerminateProcessAsync(processId);
+        }
     }
 
     /// <summary>
@@ -352,18 +455,25 @@ public class GameProcessManagerTests
         Assert.False(result.Success);
     }
 
-    /// <summary>
-    /// Tests that TerminateProcessAsync with non-existent process ID returns success (idempotent).
-    /// </summary>
-    /// <returns>A task representing the asynchronous operation.</returns>
-    [Fact]
-    public async Task TerminateProcessAsync_WithNonExistentProcessId_ShouldReturnFailureAsync()
+    /// <summary>Rejects broadcast and process-group identifiers before accessing process APIs.</summary>
+    /// <param name="processId">An identifier that cannot safely name a single process.</param>
+    /// <returns>The asynchronous operation.</returns>
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    [InlineData(-42)]
+    [InlineData(int.MinValue)]
+    public async Task TerminateProcessAsync_WithNonPositiveProcessId_ReturnsFailureBeforeCancellationAsync(int processId)
     {
-        // Act
-        var result = await _processManager.TerminateProcessAsync(99999);
+        // Safety interlock: if validation regresses, the cancelled token stops execution
+        // at the semaphore before any process lookup or signal. Never remove this token.
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
 
-        // Assert - Terminating a non-existent process is considered successful (idempotent)
-        Assert.True(result.Success);
+        var result = await _processManager.TerminateProcessAsync(processId, cancellation.Token);
+
+        Assert.False(result.Success);
+        Assert.Equal(ProcessConstants.InvalidProcessIdError, result.FirstError);
     }
 
     /// <summary>

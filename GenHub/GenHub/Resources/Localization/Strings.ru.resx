@@ -8091,4 +8091,7 @@ GenHub передает официальный идентификатор AppID 
     <value>GenHub не удалось установить управляемую среду Chromium. Проверьте сетевое подключение и повторите попытку.</value>
   </data>
 
+  <data name="GameProfiles.Notification.UnexpectedExit.Title" xml:space="preserve">
+    <value>Игра неожиданно завершилась</value>
+  </data>
 </root>

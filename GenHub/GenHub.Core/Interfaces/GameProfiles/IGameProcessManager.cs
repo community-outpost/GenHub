@@ -13,6 +13,7 @@ public interface IGameProcessManager
     /// <summary>
     /// Occurs when a managed game process exits.
     /// </summary>
+    /// <remarks>Handlers must return promptly and must not synchronously wait for termination; schedule follow-up work asynchronously.</remarks>
     event EventHandler<GameProcessExitedEventArgs>? ProcessExited;
 
     /// <summary>
@@ -26,7 +27,7 @@ public interface IGameProcessManager
     /// <summary>
     /// Terminates a game process by its process ID.
     /// </summary>
-    /// <param name="processId">The process ID to terminate.</param>
+    /// <param name="processId">The positive process ID to terminate. Zero and negative values are rejected before process access.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>A process operation result indicating success or failure.</returns>
     Task<OperationResult<bool>> TerminateProcessAsync(int processId, CancellationToken cancellationToken = default);

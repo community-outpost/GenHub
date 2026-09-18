@@ -131,7 +131,7 @@ public class GameLauncher(
                     if (!process.Start())
                         return LaunchResult.CreateFailure("Failed to start process", null);
                     var launchDuration = DateTime.UtcNow - startTime;
-                    return LaunchResult.CreateSuccess(process.Id, process.StartTime, launchDuration);
+                    return LaunchResult.CreateSuccess(process.Id, process.StartTime.ToUniversalTime(), launchDuration);
                 },
                 cancellationToken);
         }
@@ -174,7 +174,8 @@ public class GameLauncher(
                     {
                         ProcessId = process.Id,
                         ProcessName = process.ProcessName,
-                        StartTime = process.StartTime,
+                        StartTime = process.StartTime.ToUniversalTime(),
+                        HasVerifiedStartTime = true,
                         WorkingDirectory = workingDirectory,
                         CommandLine = commandLine,
                         IsResponding = process.Responding,
