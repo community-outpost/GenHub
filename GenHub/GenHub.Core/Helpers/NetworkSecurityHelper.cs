@@ -13,6 +13,8 @@ using System.Threading.Tasks;
 /// </summary>
 public static class NetworkSecurityHelper
 {
+    private const string DisallowedAddressMessage = "Loopback, private, and local addresses are not allowed.";
+
     /// <summary>
     /// Validates whether a URL is a safe external HTTP or HTTPS URL (not loopback, private, or local network).
     /// </summary>
@@ -36,7 +38,7 @@ public static class NetworkSecurityHelper
         {
             if (!IsSafeIpAddress(literal))
             {
-                failureReason = "Loopback, private, and local addresses are not allowed.";
+                failureReason = DisallowedAddressMessage;
                 return false;
             }
 
@@ -48,7 +50,7 @@ public static class NetworkSecurityHelper
             var addresses = Dns.GetHostAddresses(uri.DnsSafeHost);
             if (addresses.Length > 0 && !addresses.All(IsSafeIpAddress))
             {
-                failureReason = "Loopback, private, and local addresses are not allowed.";
+                failureReason = DisallowedAddressMessage;
                 return false;
             }
         }
@@ -85,7 +87,7 @@ public static class NetworkSecurityHelper
         {
             return IsSafeIpAddress(literal)
                 ? (true, null)
-                : (false, "Loopback, private, and local addresses are not allowed.");
+                : (false, DisallowedAddressMessage);
         }
 
         try
@@ -93,7 +95,7 @@ public static class NetworkSecurityHelper
             var addresses = await Dns.GetHostAddressesAsync(uri.DnsSafeHost, cancellationToken);
             if (addresses.Length > 0 && !addresses.All(IsSafeIpAddress))
             {
-                return (false, "Loopback, private, and local addresses are not allowed.");
+                return (false, DisallowedAddressMessage);
             }
         }
         catch (SocketException)
