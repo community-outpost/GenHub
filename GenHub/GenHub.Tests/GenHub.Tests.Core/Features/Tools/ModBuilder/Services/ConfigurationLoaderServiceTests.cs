@@ -287,6 +287,47 @@ public sealed class ConfigurationLoaderServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task ResolveWildcardsAsync_WithRelativeExplicitEntry_AnchorsToProjectDirectory()
+    {
+        // Arrange
+        var editedDir = Path.Combine(_tempDirectory, "GameFilesEdited");
+        Directory.CreateDirectory(editedDir);
+        var testFile = Path.Combine(editedDir, "ControlBarPro.txt");
+        await File.WriteAllTextAsync(testFile, "content");
+
+        var config = new BuildConfiguration
+        {
+            Items = new List<BundleItem>
+            {
+                new()
+                {
+                    Name = "TestItem",
+                    Files = new List<BundleFile>
+                    {
+                        new()
+                        {
+                            AbsSourceParent = _tempDirectory,
+                            AbsSourceFile = "GameFilesEdited/ControlBarPro.txt",
+                            RelTargetFile = "ControlBarPro.txt"
+                        }
+                    }
+                }
+            }
+        };
+
+        // Act
+        var result = await _service.ResolveWildcardsAsync(config);
+
+        // Assert
+        result.Should().NotBeNull();
+        result.Items.Should().HaveCount(1);
+        result.Items[0].Files.Should().HaveCount(1);
+        var resolved = result.Items[0].Files[0].AbsSourceFile;
+        Path.IsPathRooted(resolved).Should().BeTrue();
+        File.Exists(resolved).Should().BeTrue();
+    }
+
+    [Fact]
     public async Task ResolveWildcardsAsync_WithWildcardPattern_ResolvesMultipleFiles()
     {
         // Arrange

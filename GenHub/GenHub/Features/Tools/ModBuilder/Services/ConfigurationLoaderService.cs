@@ -435,6 +435,17 @@ public class ConfigurationLoaderService(ILogger<ConfigurationLoaderService> logg
             }
             else
             {
+                // Explicit entries bypass wildcard expansion, so anchor relative
+                // paths to the project directory here. Otherwise downstream
+                // File.Exists checks resolve against the process working
+                // directory instead of the project.
+                if (!Path.IsPathRooted(file.AbsSourceFile))
+                {
+                    var basePath = DetermineBasePath(file.AbsSourceParent, projectDir);
+                    file.AbsSourceFile = Path.Combine(basePath, file.AbsSourceFile);
+                    file.AbsSourceParent = basePath;
+                }
+
                 resolvedFiles.Add(file);
             }
         }
