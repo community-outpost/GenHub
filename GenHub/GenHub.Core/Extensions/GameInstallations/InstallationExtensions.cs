@@ -354,6 +354,47 @@ public static class InstallationExtensions
         };
     }
 
+    /// <summary>
+    /// Probes for the bundled base Generals assets within a Zero Hour directory (e.g. 'ZH_Generals'),
+    /// returning the path if present and containing at least one retail archive (*.big).
+    /// </summary>
+    /// <param name="zeroHourPath">The Zero Hour installation path.</param>
+    /// <returns>The path to the bundled base Generals directory if valid and populated; otherwise <c>null</c>.</returns>
+    public static string? GetBundledGeneralsPath(string? zeroHourPath)
+    {
+        if (string.IsNullOrWhiteSpace(zeroHourPath))
+        {
+            return null;
+        }
+
+        var bundled = Path.Combine(zeroHourPath, GameClientConstants.ZhGeneralsDirectory);
+        if (!Directory.Exists(bundled))
+        {
+            return null;
+        }
+
+        try
+        {
+            return Directory.EnumerateFiles(bundled, RetailArchiveConstants.ArchiveSearchPattern, RetailArchiveConstants.ArchiveSearch).Any()
+                ? bundled
+                : null;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Resolves the effective path to base Generals retail archives, checking <paramref name="generalsPath"/> first
+    /// and falling back to <paramref name="bundledGeneralsPath"/> if present.
+    /// </summary>
+    /// <param name="generalsPath">The declared Generals path.</param>
+    /// <param name="bundledGeneralsPath">The bundled Generals path.</param>
+    /// <returns>The effective path to base Generals retail archives, or <c>null</c>.</returns>
+    public static string? GetEffectiveGeneralsArchivePath(string? generalsPath, string? bundledGeneralsPath) =>
+        !string.IsNullOrWhiteSpace(generalsPath) ? generalsPath : bundledGeneralsPath;
+
     private static bool HasValidExecutableInternal(string? directoryPath, IReadOnlyList<string> validExecutables)
     {
         if (string.IsNullOrWhiteSpace(directoryPath) || !Directory.Exists(directoryPath))
