@@ -20,7 +20,7 @@ namespace GenHub.Features.Tools.ViewModels.Dialogs;
 /// </summary>
 [System.Diagnostics.CodeAnalysis.SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "ViewModel properties and methods bound to MVVM UI and CommunityToolkit ObservableProperty generated properties.")]
 public partial class AddContentDialogViewModel(
-    Action<CatalogContentItem> onContentCreated,
+    Action<CatalogContentItem?> onContentCreated,
     IPublisherStudioDialogService? dialogService = null,
     GenHub.Core.Interfaces.Common.ILocalizationService? localizationService = null) : ObservableValidator, IDisposable
 {
@@ -107,7 +107,7 @@ public partial class AddContentDialogViewModel(
     /// <param name="localizationService">Optional localization service.</param>
     public AddContentDialogViewModel(
         CatalogContentItem existing,
-        Action<CatalogContentItem> onContentSaved,
+        Action<CatalogContentItem?> onContentSaved,
         IPublisherStudioDialogService? dialogService = null,
         GenHub.Core.Interfaces.Common.ILocalizationService? localizationService = null)
         : this(onContentSaved, dialogService, localizationService)
@@ -545,7 +545,7 @@ public partial class AddContentDialogViewModel(
     [RelayCommand]
     private void Close()
     {
-        onContentCreated(null!);
+        onContentCreated(null);
     }
 
     /// <summary>

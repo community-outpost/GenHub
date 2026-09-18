@@ -10322,6 +10322,12 @@ Then click the 'Submit' button at the bottom of the page! (If permissions are no
   <data name="Tools.PublisherStudio.Library.Primary" xml:space="preserve">
     <value>PRIMARY</value>
   </data>
+  <data name="Tools.PublisherStudio.Library.ManifestIdPrefix" xml:space="preserve">
+    <value>Manifest ID: </value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.SamePublisher" xml:space="preserve">
+    <value>(same)</value>
+  </data>
   <data name="Tools.PublisherStudio.Library.PublisherPrefix" xml:space="preserve">
     <value>Publisher: </value>
   </data>

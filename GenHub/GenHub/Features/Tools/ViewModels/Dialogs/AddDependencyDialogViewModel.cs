@@ -20,6 +20,7 @@ namespace GenHub.Features.Tools.ViewModels.Dialogs;
 /// ViewModel for the Add Dependency dialog.
 /// Provides validation and creation of new CatalogDependency entries.
 /// </summary>
+[System.Diagnostics.CodeAnalysis.SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "ViewModel properties and methods bound to MVVM UI and CommunityToolkit ObservableProperty generated properties.")]
 public partial class AddDependencyDialogViewModel(
     PublisherCatalog catalog,
     CatalogContentItem currentContent,
@@ -133,6 +134,82 @@ public partial class AddDependencyDialogViewModel(
             _discoveryCts?.Dispose();
             _discoveryCts = null;
         }
+    }
+
+    private static async Task<(string PublisherId, List<CatalogContentItem> Content)?> TryParseDefinitionCatalogAsync(
+        HttpClient client,
+        string json,
+        CancellationToken cancellationToken)
+    {
+        PublisherDefinition? definition;
+        try
+        {
+            definition = JsonSerializer.Deserialize<PublisherDefinition>(json);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
+
+        if (definition == null || (definition.Catalogs.Count == 0 && string.IsNullOrWhiteSpace(definition.CatalogUrl)))
+        {
+            return null;
+        }
+
+        var targetUrl = !string.IsNullOrWhiteSpace(definition.CatalogUrl)
+            ? definition.CatalogUrl
+            : definition.Catalogs.FirstOrDefault()?.Url;
+
+        if (string.IsNullOrWhiteSpace(targetUrl) || !NetworkSecurityHelper.IsSafeUrl(targetUrl, out _))
+        {
+            return null;
+        }
+
+        PublisherCatalog? parsedCatalog;
+        try
+        {
+            var catalogJson = await client.GetStringAsync(targetUrl, cancellationToken);
+            parsedCatalog = JsonSerializer.Deserialize<PublisherCatalog>(catalogJson);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
+
+        if (parsedCatalog == null)
+        {
+            return null;
+        }
+
+        return (definition.Publisher.Id, parsedCatalog.Content);
+    }
+
+    private static (string PublisherId, List<CatalogContentItem> Content)? TryParseCatalogJson(string json)
+    {
+        PublisherCatalog? parsedCatalog;
+        try
+        {
+            parsedCatalog = JsonSerializer.Deserialize<PublisherCatalog>(json);
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
+
+        if (parsedCatalog == null || parsedCatalog.Content.Count == 0)
+        {
+            return null;
+        }
+
+        return (parsedCatalog.Publisher.Id, parsedCatalog.Content);
     }
 
     partial void OnIsFromMyCatalogChanged(bool value) => Validate();
@@ -333,94 +410,26 @@ public partial class AddDependencyDialogViewModel(
 
     private async Task TryParseCatalogOrDefinitionAsync(HttpClient client, string json, CancellationToken cancellationToken)
     {
-        if (await TryPopulateFromDefinitionAsync(client, json, cancellationToken))
+        var definitionResult = await TryParseDefinitionCatalogAsync(client, json, cancellationToken);
+        if (definitionResult.HasValue)
         {
+            ExternalPublisherId = definitionResult.Value.PublisherId;
+            foreach (var item in definitionResult.Value.Content)
+            {
+                DiscoveredContent.Add(item);
+            }
+
             return;
         }
 
-        PopulateFromCatalogJson(json);
-    }
-
-    private async Task<bool> TryPopulateFromDefinitionAsync(HttpClient client, string json, CancellationToken cancellationToken)
-    {
-        PublisherDefinition? definition;
-        try
+        var catalogResult = TryParseCatalogJson(json);
+        if (catalogResult.HasValue)
         {
-            definition = JsonSerializer.Deserialize<PublisherDefinition>(json);
-        }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-        {
-            throw;
-        }
-        catch (JsonException)
-        {
-            return false;
-        }
-
-        if (definition == null || (definition.Catalogs.Count == 0 && string.IsNullOrWhiteSpace(definition.CatalogUrl)))
-        {
-            return false;
-        }
-
-        var targetUrl = !string.IsNullOrWhiteSpace(definition.CatalogUrl)
-            ? definition.CatalogUrl
-            : definition.Catalogs.FirstOrDefault()?.Url;
-
-        if (string.IsNullOrWhiteSpace(targetUrl) || !NetworkSecurityHelper.IsSafeUrl(targetUrl, out _))
-        {
-            return false;
-        }
-
-        PublisherCatalog? parsedCatalog;
-        try
-        {
-            var catalogJson = await client.GetStringAsync(targetUrl, cancellationToken);
-            parsedCatalog = JsonSerializer.Deserialize<PublisherCatalog>(catalogJson);
-        }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-        {
-            throw;
-        }
-        catch (JsonException)
-        {
-            return false;
-        }
-
-        if (parsedCatalog == null)
-        {
-            return false;
-        }
-
-        ExternalPublisherId = definition.Publisher.Id;
-        foreach (var item in parsedCatalog.Content)
-        {
-            DiscoveredContent.Add(item);
-        }
-
-        return true;
-    }
-
-    private void PopulateFromCatalogJson(string json)
-    {
-        PublisherCatalog? parsedCatalog;
-        try
-        {
-            parsedCatalog = JsonSerializer.Deserialize<PublisherCatalog>(json);
-        }
-        catch (JsonException)
-        {
-            return;
-        }
-
-        if (parsedCatalog == null || parsedCatalog.Content.Count == 0)
-        {
-            return;
-        }
-
-        ExternalPublisherId = parsedCatalog.Publisher.Id;
-        foreach (var item in parsedCatalog.Content)
-        {
-            DiscoveredContent.Add(item);
+            ExternalPublisherId = catalogResult.Value.PublisherId;
+            foreach (var item in catalogResult.Value.Content)
+            {
+                DiscoveredContent.Add(item);
+            }
         }
     }
 

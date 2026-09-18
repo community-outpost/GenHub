@@ -53,6 +53,8 @@ public partial class PublishShareViewModel(
     private const string CommonNotificationSuccessKey = "Common.Notification.Success";
     private const string CommonNotificationWarningKey = "Common.Notification.Warning";
     private const string CopiedToClipboardKey = "Tools.PublisherStudio.Publish.CopiedToClipboard";
+    private const string PublishWarningKey = "Tools.PublisherStudio.Publish.PublishWarning";
+    private const string PublishWarningDefaultMessage = "Publish Warning";
 
     private HostingState? _currentHostingState;
 
@@ -337,7 +339,7 @@ public partial class PublishShareViewModel(
     {
         if (_currentHostingState == null && !string.IsNullOrEmpty(project.ProjectPath))
         {
-            var loadResult = hostingStateManager != null ? await hostingStateManager.LoadStateAsync(project.ProjectPath, cancellationToken).ConfigureAwait(false) : null;
+            var loadResult = hostingStateManager != null ? await hostingStateManager.LoadStateAsync(project.ProjectPath, cancellationToken) : null;
             if (loadResult?.Success == true && loadResult.Data != null)
             {
                 _currentHostingState = loadResult.Data;
@@ -358,7 +360,7 @@ public partial class PublishShareViewModel(
 
             if (!string.IsNullOrEmpty(project.ProjectPath) && hostingStateManager != null)
             {
-                await hostingStateManager.SaveStateAsync(project.ProjectPath, _currentHostingState, cancellationToken).ConfigureAwait(false);
+                await hostingStateManager.SaveStateAsync(project.ProjectPath, _currentHostingState, cancellationToken);
             }
         }
     }
@@ -395,8 +397,8 @@ public partial class PublishShareViewModel(
         RefreshUploadHierarchy();
         RefreshHostedAssets();
         RefreshArtifactStatuses();
-        await LoadHostingStateAsync().ConfigureAwait(false);
-        await ValidateCatalogAsync().ConfigureAwait(false);
+        await LoadHostingStateAsync();
+        await ValidateCatalogAsync();
     }
 
     /// <summary>
@@ -1001,7 +1003,7 @@ public partial class PublishShareViewModel(
             await SelectedHostingProvider.SignOutAsync();
             if (credentialStore != null)
             {
-                await credentialStore.DeleteCredentialAsync(SelectedHostingProvider.ProviderId).ConfigureAwait(false);
+                await credentialStore.DeleteCredentialAsync(SelectedHostingProvider.ProviderId);
             }
 
             AuthenticationStatusMessage = GetLocalizedString("Tools.PublisherStudio.Publish.SignedOut", "Signed out");
@@ -1085,7 +1087,7 @@ public partial class PublishShareViewModel(
                 logger.LogInformation("Loaded hosting state with {CatalogCount} catalogs", _currentHostingState.Catalogs.Count);
 
                 // After loading state, try to restore authentication
-                await RestoreAuthenticationAsync().ConfigureAwait(false);
+                await RestoreAuthenticationAsync();
             }
         }
         catch (OperationCanceledException ex)
@@ -1323,7 +1325,7 @@ public partial class PublishShareViewModel(
             return OperationResult<HostingUploadResult>.CreateFailure(warningMsg);
         }
 
-        await ValidateCatalogAsync().ConfigureAwait(false);
+        await ValidateCatalogAsync();
         if (!IsValid)
         {
             UploadStatusMessage = string.IsNullOrWhiteSpace(ValidationMessage)
@@ -1342,7 +1344,7 @@ public partial class PublishShareViewModel(
         CancellationToken cancellationToken,
         bool manageUploadingState)
     {
-        var preconditionResult = await ValidateUploadPreconditionsAsync().ConfigureAwait(false);
+        var preconditionResult = await ValidateUploadPreconditionsAsync();
         if (preconditionResult != null || SelectedHostingProvider == null)
         {
             return preconditionResult ?? OperationResult<HostingUploadResult>.CreateFailure(PleaseSelectHostingProviderMessage);
@@ -1516,11 +1518,11 @@ public partial class PublishShareViewModel(
         if (defResult != null && !defResult.Success)
         {
             UploadStatusMessage = $"Catalog published, but provider definition upload failed: {defResult.FirstError}";
-            notificationService?.ShowWarning(GetLocalizedString("Tools.PublisherStudio.Publish.PublishWarning", "Publish Warning"), UploadStatusMessage);
+            notificationService?.ShowWarning(GetLocalizedString(PublishWarningKey, PublishWarningDefaultMessage), UploadStatusMessage);
         }
         else if (!definitionGenerated)
         {
-            notificationService?.ShowWarning(GetLocalizedString("Tools.PublisherStudio.Publish.PublishWarning", "Publish Warning"), UploadStatusMessage);
+            notificationService?.ShowWarning(GetLocalizedString(PublishWarningKey, PublishWarningDefaultMessage), UploadStatusMessage);
         }
         else
         {
@@ -1740,7 +1742,7 @@ public partial class PublishShareViewModel(
 
         if (!string.IsNullOrEmpty(project.ProjectPath) && hostingStateManager != null)
         {
-            await hostingStateManager.SaveStateAsync(project.ProjectPath, _currentHostingState, cancellationToken).ConfigureAwait(false);
+            await hostingStateManager.SaveStateAsync(project.ProjectPath, _currentHostingState, cancellationToken);
         }
 
         RefreshHostedAssets();
@@ -1875,12 +1877,12 @@ public partial class PublishShareViewModel(
 
         if (credentialStore != null && !string.IsNullOrEmpty(tokenToStore))
         {
-            await credentialStore.SaveCredentialAsync(SelectedHostingProvider.ProviderId, tokenToStore).ConfigureAwait(false);
+            await credentialStore.SaveCredentialAsync(SelectedHostingProvider.ProviderId, tokenToStore);
         }
 
         if (hostingStateManager != null)
         {
-            await hostingStateManager.SaveStateAsync(project.ProjectPath, _currentHostingState, CancellationToken.None).ConfigureAwait(false);
+            await hostingStateManager.SaveStateAsync(project.ProjectPath, _currentHostingState, CancellationToken.None);
         }
     }
 
@@ -1897,13 +1899,13 @@ public partial class PublishShareViewModel(
 
         SelectedHostingProvider = provider;
 
-        var token = await RetrieveOrMigrateTokenAsync(provider).ConfigureAwait(false);
+        var token = await RetrieveOrMigrateTokenAsync(provider);
         if (string.IsNullOrEmpty(token))
         {
             return;
         }
 
-        await TryRestoreProviderAuthenticationAsync(provider, token).ConfigureAwait(false);
+        await TryRestoreProviderAuthenticationAsync(provider, token);
     }
 
     private async Task<string?> RetrieveOrMigrateTokenAsync(IHostingProvider provider)
@@ -1911,7 +1913,7 @@ public partial class PublishShareViewModel(
         string? token = null;
         if (credentialStore != null)
         {
-            token = await credentialStore.GetCredentialAsync(provider.ProviderId, CancellationToken.None).ConfigureAwait(false);
+            token = await credentialStore.GetCredentialAsync(provider.ProviderId, CancellationToken.None);
         }
 
         // Migrate legacy token if found in hosting state
@@ -1920,13 +1922,13 @@ public partial class PublishShareViewModel(
             token = _currentHostingState.AuthToken;
             if (credentialStore != null)
             {
-                await credentialStore.SaveCredentialAsync(provider.ProviderId, token, CancellationToken.None).ConfigureAwait(false);
+                await credentialStore.SaveCredentialAsync(provider.ProviderId, token, CancellationToken.None);
             }
 
             _currentHostingState.AuthToken = null;
             if (hostingStateManager != null && !string.IsNullOrEmpty(project?.ProjectPath))
             {
-                await hostingStateManager.SaveStateAsync(project.ProjectPath, _currentHostingState, CancellationToken.None).ConfigureAwait(false);
+                await hostingStateManager.SaveStateAsync(project.ProjectPath, _currentHostingState, CancellationToken.None);
             }
         }
 
@@ -1940,7 +1942,7 @@ public partial class PublishShareViewModel(
             if (provider.ProviderId == HostingConstants.GitHub && provider is GitHubHostingProvider githubProvider)
             {
                 GitHubPersonalAccessToken = token;
-                var result = await githubProvider.AuthenticateWithTokenAsync(token, CancellationToken.None).ConfigureAwait(false);
+                var result = await githubProvider.AuthenticateWithTokenAsync(token, CancellationToken.None);
                 if (result.Success)
                 {
                     AuthenticationStatusMessage = GetLocalizedString("Tools.PublisherStudio.Publish.RestoredConnection", "Restored connection");
@@ -1950,7 +1952,7 @@ public partial class PublishShareViewModel(
             else if (provider.ProviderId == HostingConstants.Dropbox && provider is DropboxHostingProvider dropboxProvider)
             {
                 DropboxAccessToken = token;
-                var result = await dropboxProvider.AuthenticateWithTokenAsync(token, CancellationToken.None).ConfigureAwait(false);
+                var result = await dropboxProvider.AuthenticateWithTokenAsync(token, CancellationToken.None);
                 if (result.Success)
                 {
                     AuthenticationStatusMessage = GetLocalizedString("Tools.PublisherStudio.Publish.RestoredConnection", "Restored connection");
@@ -2044,7 +2046,7 @@ public partial class PublishShareViewModel(
         }
 
         // Regenerate to ensure latest values
-        await GenerateProviderDefinitionAsync().ConfigureAwait(false);
+        await GenerateProviderDefinitionAsync();
 
         if (string.IsNullOrWhiteSpace(ProviderDefinitionJson))
         {
@@ -2074,7 +2076,7 @@ public partial class PublishShareViewModel(
             };
             if (hostingStateManager != null)
             {
-                await hostingStateManager.SaveStateAsync(project.ProjectPath, _currentHostingState, ct).ConfigureAwait(false);
+                await hostingStateManager.SaveStateAsync(project.ProjectPath, _currentHostingState, ct);
             }
         }
 
@@ -2104,14 +2106,14 @@ public partial class PublishShareViewModel(
         _uploadCts = new CancellationTokenSource();
         var cancellationToken = _uploadCts.Token;
 
-        return await UploadProviderDefinitionCoreAsync(cancellationToken, manageUploadingState: true).ConfigureAwait(false);
+        return await UploadProviderDefinitionCoreAsync(cancellationToken, manageUploadingState: true);
     }
 
     private async Task<OperationResult<HostingUploadResult>> UploadProviderDefinitionCoreAsync(
         CancellationToken cancellationToken,
         bool manageUploadingState)
     {
-        var preconditionResult = await ValidateProviderDefinitionPreconditionsAsync().ConfigureAwait(false);
+        var preconditionResult = await ValidateProviderDefinitionPreconditionsAsync();
         if (preconditionResult != null || SelectedHostingProvider == null)
         {
             return preconditionResult ?? OperationResult<HostingUploadResult>.CreateFailure(PleaseSelectHostingProviderMessage);
@@ -2138,12 +2140,12 @@ public partial class PublishShareViewModel(
             // Upload or update as a file
             using var stream = new MemoryStream(System.Text.Encoding.UTF8.GetBytes(ProviderDefinitionJson));
             var result = (!string.IsNullOrEmpty(existingDefFileId) && SelectedHostingProvider.SupportsUpdate)
-                ? await SelectedHostingProvider.UpdateFileAsync(existingDefFileId, stream, fileName, cancellationToken: cancellationToken).ConfigureAwait(false)
-                : await SelectedHostingProvider.UploadFileAsync(stream, fileName, cancellationToken: cancellationToken).ConfigureAwait(false);
+                ? await SelectedHostingProvider.UpdateFileAsync(existingDefFileId, stream, fileName, cancellationToken: cancellationToken)
+                : await SelectedHostingProvider.UploadFileAsync(stream, fileName, cancellationToken: cancellationToken);
 
             if (result.Success && result.Data != null)
             {
-                await HandleProviderDefinitionUploadSuccessAsync(result.Data, cancellationToken).ConfigureAwait(false);
+                await HandleProviderDefinitionUploadSuccessAsync(result.Data, cancellationToken);
                 return result;
             }
 
@@ -2215,7 +2217,7 @@ public partial class PublishShareViewModel(
             var clipboard = (mainWindow != null ? Avalonia.Controls.TopLevel.GetTopLevel(mainWindow)?.Clipboard : null) ?? mainWindow?.Clipboard;
             if (clipboard != null)
             {
-                await clipboard.SetTextAsync(text).ConfigureAwait(false);
+                await clipboard.SetTextAsync(text);
                 notificationService?.ShowSuccess(successTitle, successMessage, autoDismissMs: 3000);
                 logger.LogInformation("Copied text to clipboard");
             }
@@ -2252,7 +2254,7 @@ public partial class PublishShareViewModel(
         await CopyToClipboardAsync(
             SubscriptionUrl,
             GetLocalizedString(CommonNotificationSuccessKey, SuccessLiteral),
-            GetLocalizedString(CopiedToClipboardKey, "Subscription link copied to clipboard!")).ConfigureAwait(false);
+            GetLocalizedString(CopiedToClipboardKey, "Subscription link copied to clipboard!"));
     }
 
     /// <summary>
@@ -2264,7 +2266,7 @@ public partial class PublishShareViewModel(
         if (string.IsNullOrWhiteSpace(CatalogJson))
         {
             // Generate first if not already done
-            await ExportCatalogAsync().ConfigureAwait(false);
+            await ExportCatalogAsync();
         }
 
         if (string.IsNullOrWhiteSpace(CatalogJson))
@@ -2278,7 +2280,7 @@ public partial class PublishShareViewModel(
         await CopyToClipboardAsync(
             CatalogJson,
             GetLocalizedString(CommonNotificationSuccessKey, SuccessLiteral),
-            GetLocalizedString("Tools.PublisherStudio.Publish.CatalogJsonCopiedMessage", "Catalog JSON copied to clipboard!")).ConfigureAwait(false);
+            GetLocalizedString("Tools.PublisherStudio.Publish.CatalogJsonCopiedMessage", "Catalog JSON copied to clipboard!"));
     }
 
     /// <summary>
@@ -2290,7 +2292,7 @@ public partial class PublishShareViewModel(
         if (string.IsNullOrWhiteSpace(ProviderDefinitionJson))
         {
             // Generate first if not already done
-            await GenerateProviderDefinitionAsync().ConfigureAwait(false);
+            await GenerateProviderDefinitionAsync();
         }
 
         if (string.IsNullOrWhiteSpace(ProviderDefinitionJson))
@@ -2304,7 +2306,7 @@ public partial class PublishShareViewModel(
         await CopyToClipboardAsync(
             ProviderDefinitionJson,
             GetLocalizedString(CommonNotificationSuccessKey, SuccessLiteral),
-            GetLocalizedString("Tools.PublisherStudio.Publish.ProviderDefinitionJsonCopiedMessage", "Provider definition JSON copied to clipboard!")).ConfigureAwait(false);
+            GetLocalizedString("Tools.PublisherStudio.Publish.ProviderDefinitionJsonCopiedMessage", "Provider definition JSON copied to clipboard!"));
     }
 
     /// <summary>
@@ -2324,7 +2326,7 @@ public partial class PublishShareViewModel(
         await CopyToClipboardAsync(
             ProviderDefinitionUrl,
             GetLocalizedString(CommonNotificationSuccessKey, SuccessLiteral),
-            GetLocalizedString(CopiedToClipboardKey, "Provider definition URL copied to clipboard!")).ConfigureAwait(false);
+            GetLocalizedString(CopiedToClipboardKey, "Provider definition URL copied to clipboard!"));
     }
 
     /// <summary>
@@ -2344,7 +2346,7 @@ public partial class PublishShareViewModel(
         await CopyToClipboardAsync(
             CatalogUrl,
             GetLocalizedString(CommonNotificationSuccessKey, SuccessLiteral),
-            GetLocalizedString(CopiedToClipboardKey, "Catalog URL copied to clipboard!")).ConfigureAwait(false);
+            GetLocalizedString(CopiedToClipboardKey, "Catalog URL copied to clipboard!"));
     }
 
     /// <summary>
@@ -2415,7 +2417,7 @@ public partial class PublishShareViewModel(
 
         try
         {
-            var uploadResult = await UploadCatalogAsync().ConfigureAwait(false);
+            var uploadResult = await UploadCatalogAsync();
             if (uploadResult.Success)
             {
                 // Update status
@@ -2459,7 +2461,7 @@ public partial class PublishShareViewModel(
 
         if (SelectedHostingProvider.RequiresAuthentication && !SelectedHostingProvider.IsAuthenticated)
         {
-            var authOk = await EnsureProviderAuthenticatedAsync(CancellationToken.None).ConfigureAwait(false);
+            var authOk = await EnsureProviderAuthenticatedAsync(CancellationToken.None);
             if (!authOk)
             {
                 notificationService?.ShowWarning(
@@ -2477,7 +2479,7 @@ public partial class PublishShareViewModel(
             return false;
         }
 
-        await ValidateCatalogAsync().ConfigureAwait(false);
+        await ValidateCatalogAsync();
         if (!IsValid)
         {
             UploadStatusMessage = string.IsNullOrWhiteSpace(ValidationMessage)
@@ -2503,7 +2505,7 @@ public partial class PublishShareViewModel(
             return;
         }
 
-        if (!await ValidatePublishAllPreconditionsAsync().ConfigureAwait(false))
+        if (!await ValidatePublishAllPreconditionsAsync())
         {
             return;
         }
@@ -2535,7 +2537,7 @@ public partial class PublishShareViewModel(
 
             if (publishedAny)
             {
-                await FinalizePublishAllSuccessAsync(succeededCount, totalCatalogs, cancellationToken).ConfigureAwait(false);
+                await FinalizePublishAllSuccessAsync(succeededCount, totalCatalogs, cancellationToken);
             }
             else
             {
@@ -2604,20 +2606,20 @@ public partial class PublishShareViewModel(
         // Upload definition
         if (!string.IsNullOrWhiteSpace(ProviderDefinitionJson))
         {
-            var defResult = await UploadProviderDefinitionCoreAsync(cancellationToken, manageUploadingState: false).ConfigureAwait(false);
+            var defResult = await UploadProviderDefinitionCoreAsync(cancellationToken, manageUploadingState: false);
             if (defResult != null && !defResult.Success)
             {
                 definitionProblem = true;
                 UploadStatusMessage = succeededCount == totalCatalogs
                     ? $"Successfully published all {totalCatalogs} catalog(s), but provider definition upload failed: {defResult.FirstError}"
                     : $"Published {succeededCount} of {totalCatalogs} catalog(s), but provider definition upload failed: {defResult.FirstError}";
-                notificationService?.ShowWarning(GetLocalizedString("Tools.PublisherStudio.Publish.PublishWarning", "Publish Warning"), UploadStatusMessage);
+                notificationService?.ShowWarning(GetLocalizedString(PublishWarningKey, PublishWarningDefaultMessage), UploadStatusMessage);
             }
         }
 
         if (definitionProblem && string.IsNullOrWhiteSpace(ProviderDefinitionJson))
         {
-            notificationService?.ShowWarning(GetLocalizedString("Tools.PublisherStudio.Publish.PublishWarning", "Publish Warning"), UploadStatusMessage);
+            notificationService?.ShowWarning(GetLocalizedString(PublishWarningKey, PublishWarningDefaultMessage), UploadStatusMessage);
         }
 
         GenerateSubscriptionUrl();
@@ -2651,7 +2653,7 @@ public partial class PublishShareViewModel(
         await CopyToClipboardAsync(
             url,
             GetLocalizedString(CopiedToClipboardKey, "Copied to Clipboard"),
-            GetLocalizedString("Tools.PublisherStudio.Publish.DirectDownloadUrlCopied", "Direct download URL copied.")).ConfigureAwait(false);
+            GetLocalizedString("Tools.PublisherStudio.Publish.DirectDownloadUrlCopied", "Direct download URL copied."));
     }
 
     /// <summary>
@@ -2812,7 +2814,7 @@ public partial class PublishShareViewModel(
 
                 if (!string.IsNullOrEmpty(project.ProjectPath) && _currentHostingState != null && hostingStateManager != null)
                 {
-                    await hostingStateManager.SaveStateAsync(project.ProjectPath, _currentHostingState, ct).ConfigureAwait(false);
+                    await hostingStateManager.SaveStateAsync(project.ProjectPath, _currentHostingState, ct);
                 }
 
                 InitializeCatalogStatuses();
@@ -2866,7 +2868,7 @@ public partial class PublishShareViewModel(
                 MergeCloudHostingState(result.Data);
                 if (!string.IsNullOrEmpty(project.ProjectPath) && _currentHostingState != null && hostingStateManager != null)
                 {
-                    await hostingStateManager.SaveStateAsync(project.ProjectPath, _currentHostingState, silentCt).ConfigureAwait(false);
+                    await hostingStateManager.SaveStateAsync(project.ProjectPath, _currentHostingState, silentCt);
                 }
 
                 InitializeCatalogStatuses();

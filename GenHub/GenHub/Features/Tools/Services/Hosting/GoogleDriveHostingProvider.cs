@@ -165,6 +165,10 @@ public class GoogleDriveHostingProvider(
 
             return OperationResult<bool>.CreateFailure($"Authentication failed: {errorMsg}");
         }
+        finally
+        {
+            CustomClientSecret = null;
+        }
     }
 
     /// <inheritdoc />

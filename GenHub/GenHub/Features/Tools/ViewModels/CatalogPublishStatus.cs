@@ -100,12 +100,22 @@ public partial class CatalogPublishStatus : ObservableObject, IDisposable
     /// <inheritdoc />
     public void Dispose()
     {
+        Dispose(true);
+        GC.SuppressFinalize(this);
+    }
+
+    /// <summary>
+    /// Releases unmanaged and - optionally - managed resources.
+    /// </summary>
+    /// <param name="disposing"><c>true</c> to release both managed and unmanaged resources; <c>false</c> to release only managed resources.</param>
+    protected virtual void Dispose(bool disposing)
+    {
         if (_disposed)
         {
             return;
         }
 
-        if (_localizationService != null)
+        if (disposing && _localizationService != null)
         {
             _localizationService.PropertyChanged -= OnLocalizationPropertyChanged;
         }

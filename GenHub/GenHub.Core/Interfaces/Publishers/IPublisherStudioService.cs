@@ -88,7 +88,7 @@ public interface IPublisherStudioService
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Validates that all artifacts in the catalog have valid, reachable URLs.
+    /// Validates that all artifacts in the catalog have valid, well-formed download URLs.
     /// </summary>
     /// <param name="catalog">The catalog to validate.</param>
     /// <param name="cancellationToken">Cancellation token.</param>

@@ -67,7 +67,7 @@ public class PublisherStudioDialogService(
         return await ShowDialogAsync<AddContentDialogViewModel, AddContentDialogView, CatalogContentItem>(
             callback =>
             {
-                var vm = new AddContentDialogViewModel(callback, this, localizationService);
+                var vm = new AddContentDialogViewModel(res => callback(res!), this, localizationService);
                 if (!string.IsNullOrWhiteSpace(initialPath))
                 {
                     vm.PopulateFromPath(initialPath);
@@ -81,7 +81,7 @@ public class PublisherStudioDialogService(
     public async Task<CatalogContentItem?> ShowEditContentDialogAsync(CatalogContentItem existing)
     {
         return await ShowDialogAsync<AddContentDialogViewModel, AddContentDialogView, CatalogContentItem>(
-            callback => new AddContentDialogViewModel(existing, callback, this, localizationService));
+            callback => new AddContentDialogViewModel(existing, res => callback(res!), this, localizationService));
     }
 
     /// <inheritdoc/>

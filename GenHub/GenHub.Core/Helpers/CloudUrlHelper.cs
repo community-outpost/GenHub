@@ -46,45 +46,79 @@ public static class CloudUrlHelper
 
         var trimmed = url.Trim();
 
-        // 1. Google Drive (file view links, open?id links, uc?id links)
-        if (trimmed.Contains("drive.google.com", StringComparison.OrdinalIgnoreCase) ||
-            trimmed.Contains("docs.google.com", StringComparison.OrdinalIgnoreCase))
+        if (TryNormalizeGoogleDriveUrl(trimmed, out var googleDriveUrl))
         {
-            var match = GoogleDriveRegex.Match(trimmed);
+            return googleDriveUrl;
+        }
+
+        if (TryNormalizeDropboxUrl(trimmed, out var dropboxUrl))
+        {
+            return dropboxUrl;
+        }
+
+        if (TryNormalizeGitHubBlobUrl(trimmed, out var gitHubBlobUrl))
+        {
+            return gitHubBlobUrl;
+        }
+
+        return trimmed;
+    }
+
+    private static bool TryNormalizeGoogleDriveUrl(string url, out string normalizedUrl)
+    {
+        if (url.Contains("drive.google.com", StringComparison.OrdinalIgnoreCase) ||
+            url.Contains("docs.google.com", StringComparison.OrdinalIgnoreCase))
+        {
+            var match = GoogleDriveRegex.Match(url);
             if (match.Success)
             {
                 var fileId = match.Groups[1].Value;
-                return string.Format(CultureInfo.InvariantCulture, HostingConstants.GoogleDriveDownloadUrlTemplate, fileId);
+                normalizedUrl = string.Format(CultureInfo.InvariantCulture, HostingConstants.GoogleDriveDownloadUrlTemplate, fileId);
+                return true;
             }
         }
 
-        // 2. Dropbox share links (force dl=1)
-        if (trimmed.Contains("dropbox.com", StringComparison.OrdinalIgnoreCase))
+        normalizedUrl = url;
+        return false;
+    }
+
+    private static bool TryNormalizeDropboxUrl(string url, out string normalizedUrl)
+    {
+        if (url.Contains("dropbox.com", StringComparison.OrdinalIgnoreCase))
         {
-            if (DropboxDlRegex.IsMatch(trimmed))
+            if (DropboxDlRegex.IsMatch(url))
             {
-                return DropboxDlRegex.Replace(trimmed, "dl=1");
+                normalizedUrl = DropboxDlRegex.Replace(url, "dl=1");
+                return true;
             }
 
-            if (!DropboxDl1Regex.IsMatch(trimmed))
+            if (!DropboxDl1Regex.IsMatch(url))
             {
-                var separator = trimmed.Contains('?') ? "&dl=1" : "?dl=1";
-                var fragmentIndex = trimmed.IndexOf('#');
-                return fragmentIndex == -1 ? trimmed + separator : trimmed.Insert(fragmentIndex, separator);
+                var separator = url.Contains('?') ? "&dl=1" : "?dl=1";
+                var fragmentIndex = url.IndexOf('#');
+                normalizedUrl = fragmentIndex == -1 ? url + separator : url.Insert(fragmentIndex, separator);
+                return true;
             }
         }
 
-        // 3. GitHub blob URLs to raw user content
-        var ghMatch = GitHubBlobRegex.Match(trimmed);
+        normalizedUrl = url;
+        return false;
+    }
+
+    private static bool TryNormalizeGitHubBlobUrl(string url, out string normalizedUrl)
+    {
+        var ghMatch = GitHubBlobRegex.Match(url);
         if (ghMatch.Success)
         {
             var owner = ghMatch.Groups[1].Value;
             var repo = ghMatch.Groups[2].Value;
             var branch = ghMatch.Groups[3].Value;
             var path = ghMatch.Groups[4].Value;
-            return $"https://raw.githubusercontent.com/{owner}/{repo}/{branch}/{path}";
+            normalizedUrl = $"https://raw.githubusercontent.com/{owner}/{repo}/{branch}/{path}";
+            return true;
         }
 
-        return trimmed;
+        normalizedUrl = url;
+        return false;
     }
 }
