@@ -718,6 +718,18 @@ public class BackgroundUpdateCoordinator(
             return;
         }
 
+        if (!string.IsNullOrWhiteSpace(githubVersion))
+        {
+            logger?.LogInformation("Opening update window for GitHub API update: {Version}", githubVersion);
+            OpenUpdateSettings();
+            return;
+        }
+
+        if (artifactUpdate == null && updateInfo == null)
+        {
+            return;
+        }
+
         using var scope = new DownloadNotificationScope(
             notificationService,
             AppConstants.AppName,
@@ -743,11 +755,6 @@ public class BackgroundUpdateCoordinator(
                 await ClearStaleSubscriptionAsync(clearedPrNumber, clearedBranch, lifetimeToken);
                 scope.CompleteWithPinnedMessage(AppUpdateConstants.UpdateDownloadedRestartingMessage);
                 velopackUpdateManager.ApplyUpdatesAndRestart(updateInfo);
-            }
-            else if (!string.IsNullOrWhiteSpace(githubVersion))
-            {
-                logger?.LogInformation("Opening update window for GitHub API update: {Version}", githubVersion);
-                OpenUpdateSettings();
             }
         }
         catch (OperationCanceledException) when (lifetimeToken.IsCancellationRequested)

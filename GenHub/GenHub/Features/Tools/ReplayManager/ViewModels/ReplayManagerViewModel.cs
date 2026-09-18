@@ -820,6 +820,7 @@ public partial class ReplayManagerViewModel(
             var result = await importService.ImportFromUrlAsync(ImportUrl, SelectedTab, progressHandler);
             if (result.Success)
             {
+                scope.CompleteSuccess();
                 var title = LocalizationService?.GetString("Tools.ReplayManager.Notify.ImportCompleteTitle") ?? "Import Complete";
                 var descFormat = LocalizationService?.GetString("Tools.ReplayManager.Notify.ImportCompleteDesc") ?? "Imported {0} file(s) from URL.";
                 var statusFormat = LocalizationService?.GetString("Tools.ReplayManager.Status.ImportComplete") ?? "Successfully imported {0} file(s).";
@@ -831,15 +832,22 @@ public partial class ReplayManagerViewModel(
             else
             {
                 var errorMsg = string.Join(" ", result.Errors);
+                scope.CompleteFailure(errorMsg);
                 var errorTitle = LocalizationService?.GetString("Tools.ReplayManager.Notify.ImportFailedTitle") ?? "Import Failed";
                 var errorStatus = LocalizationService?.GetString("Tools.ReplayManager.Status.ImportFailed") ?? "Import failed: {0}";
                 notificationService.ShowError(errorTitle, errorMsg);
                 StatusMessage = string.Format(errorStatus, errorMsg);
             }
         }
+        catch (OperationCanceledException)
+        {
+            scope.CompleteCanceled();
+            StatusMessage = LocalizationService?.GetString("Tools.ReplayManager.Status.ImportCancelled") ?? "Import cancelled.";
+        }
         catch (Exception ex)
         {
             logger.LogError(ex, "Import failed");
+            scope.CompleteFailure(ex.Message);
             var errorTitle = LocalizationService?.GetString("Tools.ReplayManager.Notify.ImportErrorTitle") ?? "Import Error";
             var errorStatus = LocalizationService?.GetString("Tools.ReplayManager.Status.ImportError") ?? "Import error.";
             notificationService.ShowError(errorTitle, ex.Message);

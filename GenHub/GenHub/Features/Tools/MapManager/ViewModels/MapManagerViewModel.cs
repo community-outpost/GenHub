@@ -463,13 +463,14 @@ public partial class MapManagerViewModel : ObservableObject, IDisposable
         IsBusy = true;
         IsIndeterminate = false;
         Progress = 0;
-        StatusMessage = "Downloading from URL...";
+        var downloadingStatus = _localizationService?.GetString("Downloads.Status.Downloading") ?? "Downloading...";
+        StatusMessage = downloadingStatus;
 
         // Pinned progress only; terminal toasts stay here so the import toasts once.
         using var scope = new DownloadNotificationScope(
             _notificationService,
             ImportUrl,
-            new DownloadNotificationOptions(StartTitle: StatusMessage, ShowTerminalToast: false),
+            new DownloadNotificationOptions(ShowTerminalToast: false),
             localization: _localizationService);
 
         try
@@ -477,13 +478,14 @@ public partial class MapManagerViewModel : ObservableObject, IDisposable
             var progressHandler = new Progress<double>(p =>
             {
                 Progress = p;
-                StatusMessage = "Downloading from URL...";
+                StatusMessage = downloadingStatus;
                 scope.ReportFraction(p, StatusMessage);
             });
 
             var result = await _importService.ImportFromUrlAsync(ImportUrl, SelectedTab, progressHandler);
             if (result.Success)
             {
+                scope.CompleteSuccess();
                 _notificationService.ShowSuccess("Import Complete", $"Imported {result.FilesImported} file(s) from URL.");
                 StatusMessage = $"Successfully imported {result.FilesImported} file(s).";
                 ImportUrl = string.Empty;
@@ -492,13 +494,20 @@ public partial class MapManagerViewModel : ObservableObject, IDisposable
             else
             {
                 var errorMsg = string.Join(" ", result.Errors);
+                scope.CompleteFailure(errorMsg);
                 _notificationService.ShowError("Import Failed", errorMsg);
                 StatusMessage = $"Import failed: {errorMsg}";
             }
         }
+        catch (OperationCanceledException)
+        {
+            scope.CompleteCanceled();
+            StatusMessage = "Import cancelled.";
+        }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Import failed");
+            scope.CompleteFailure(ex.Message);
             _notificationService.ShowError("Import Error", ex.Message);
             StatusMessage = "Import error.";
         }

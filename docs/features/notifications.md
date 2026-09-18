@@ -584,8 +584,10 @@ When launching a profile with symlink strategies without admin rights:
 ## Download Notification Lifecycle
 
 Every user-visible download follows one standard three-phase lifecycle, owned by
-`DownloadNotificationScope` (`GenHub.Core/Helpers`). The scope guarantees the pinned toast
-is always dismissed and exactly one terminal toast is shown.
+`DownloadNotificationScope` (`GenHub.Core/Helpers`). When terminal-toast handling is enabled
+(the default), the scope guarantees the pinned toast is always dismissed and exactly one
+terminal toast is shown. When `ShowTerminalToast: false` is configured, the caller owns
+terminal toast display while the scope guarantees pinned toast dismissal.
 
 ### Phase 1: Pinned start toast
 
@@ -644,7 +646,8 @@ Disposal always dismisses the pinned toast, so it can never be orphaned by an ea
 - Background sub-steps of a larger notified operation (profile dependency auto-acquire)
   use `SilentProgress<T>.Instance` explicitly instead of passing null progress.
 - Callers that own localized terminal messaging (replay/map imports) use
-  `ShowTerminalToast: false` so the scope manages the pinned toast only.
+  `ShowTerminalToast: false` so the scope manages the pinned toast only, leaving terminal
+  toast delivery to the caller.
 
 ### Progress clamping
 

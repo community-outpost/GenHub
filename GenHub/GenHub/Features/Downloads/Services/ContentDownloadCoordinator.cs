@@ -77,6 +77,9 @@ public sealed class ContentDownloadCoordinator(
             : $"{searchResult.ProviderName}::{searchResult.Name}";
     }
 
+    private static string GetInFlightKey(string baseKey, bool suppressNotifications) =>
+        suppressNotifications ? $"{baseKey}::suppressed" : baseKey;
+
     /// <inheritdoc />
     public bool HasActiveDownloads => !_inFlightDownloads.IsEmpty;
 
@@ -126,17 +129,18 @@ public sealed class ContentDownloadCoordinator(
     {
         ArgumentNullException.ThrowIfNull(searchResult);
 
-        var key = GetDownloadKey(searchResult);
+        var baseKey = GetDownloadKey(searchResult);
+        var inFlightKey = GetInFlightKey(baseKey, suppressNotifications);
         Action<ContentAcquisitionProgress>? callback = progress != null ? progress.Report : null;
 
-        var (inFlight, isInitiator) = await GetOrCreateInFlightDownloadAsync(key, searchResult, suppressNotifications, cancellationToken);
+        var (inFlight, isInitiator) = await GetOrCreateInFlightDownloadAsync(inFlightKey, searchResult, suppressNotifications, cancellationToken);
 
         AttachProgressCallback(inFlight, callback);
 
         if (isInitiator)
         {
-            var multiplexedProgress = CreateMultiplexedProgress(inFlight, searchResult, key);
-            _ = StartDownloadTaskAsync(inFlight, searchResult, key, multiplexedProgress);
+            var multiplexedProgress = CreateMultiplexedProgress(inFlight, searchResult, baseKey);
+            _ = StartDownloadTaskAsync(inFlight, searchResult, inFlightKey, baseKey, multiplexedProgress);
         }
 
         var unregistered = 0;
@@ -258,10 +262,22 @@ public sealed class ContentDownloadCoordinator(
             return inFlight;
         }
 
+        var suppressedKey = GetInFlightKey(key, true);
+        if (_inFlightDownloads.TryGetValue(suppressedKey, out inFlight) && IsInFlightActive(inFlight))
+        {
+            return inFlight;
+        }
+
         if (!string.IsNullOrWhiteSpace(searchResult.Name))
         {
             var nameKey = $"{searchResult.ProviderName}::{searchResult.Name}";
             if (_inFlightDownloads.TryGetValue(nameKey, out inFlight) && IsInFlightActive(inFlight))
+            {
+                return inFlight;
+            }
+
+            var suppressedNameKey = GetInFlightKey(nameKey, true);
+            if (_inFlightDownloads.TryGetValue(suppressedNameKey, out inFlight) && IsInFlightActive(inFlight))
             {
                 return inFlight;
             }
@@ -367,7 +383,8 @@ public sealed class ContentDownloadCoordinator(
     private async Task StartDownloadTaskAsync(
         InFlightDownload inFlight,
         ContentSearchResult searchResult,
-        string key,
+        string inFlightKey,
+        string baseKey,
         IProgress<ContentAcquisitionProgress> progress)
     {
         searchResult.ResolverMetadata.TryGetValue(ContentConstants.ParentContentIdMetadataKey, out var parentContentId);
@@ -375,7 +392,7 @@ public sealed class ContentDownloadCoordinator(
         try
         {
             WeakReferenceMessenger.Default.Send(new ContentDownloadStartedMessage(
-                key,
+                baseKey,
                 searchResult.Id,
                 searchResult.ProviderName,
                 searchResult.Name,
@@ -383,7 +400,7 @@ public sealed class ContentDownloadCoordinator(
         }
         catch (Exception ex)
         {
-            logger.LogWarning(ex, "Failed to broadcast ContentDownloadStartedMessage for {Key}", key);
+            logger.LogWarning(ex, "Failed to broadcast ContentDownloadStartedMessage for {Key}", baseKey);
         }
 
         var success = false;
@@ -429,16 +446,16 @@ public sealed class ContentDownloadCoordinator(
         {
             lock (_inFlightDownloads)
             {
-                if (_inFlightDownloads.TryGetValue(key, out var current) && ReferenceEquals(current, inFlight))
+                if (_inFlightDownloads.TryGetValue(inFlightKey, out var current) && ReferenceEquals(current, inFlight))
                 {
-                    _inFlightDownloads.TryRemove(key, out _);
+                    _inFlightDownloads.TryRemove(inFlightKey, out _);
                 }
             }
 
             try
             {
                 WeakReferenceMessenger.Default.Send(new ContentDownloadCompletedMessage(
-                    key,
+                    baseKey,
                     searchResult.Id,
                     searchResult.ProviderName,
                     searchResult.Name,
@@ -448,7 +465,7 @@ public sealed class ContentDownloadCoordinator(
             }
             catch (Exception ex)
             {
-                logger.LogWarning(ex, "Failed to broadcast ContentDownloadCompletedMessage for {Key}", key);
+                logger.LogWarning(ex, "Failed to broadcast ContentDownloadCompletedMessage for {Key}", baseKey);
             }
 
             inFlight.Dispose();

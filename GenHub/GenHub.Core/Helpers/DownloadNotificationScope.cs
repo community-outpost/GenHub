@@ -192,18 +192,17 @@ public sealed class DownloadNotificationScope : IProgress<ContentAcquisitionProg
             }
 
             _terminalShown = true;
+            DismissPinnedToastLocked();
+
+            if (!_showTerminalToast)
+            {
+                return;
+            }
+
+            var successTitle = title ?? Localize(DownloadNotificationConstants.CompleteTitleKey, DownloadNotificationConstants.CompleteTitle);
+            var successMessage = message ?? Localize(DownloadNotificationConstants.CompleteMessageKey, DownloadNotificationConstants.CompleteMessageFormat, _contentName);
+            _notifications.ShowSuccess(successTitle, successMessage, NotificationDurations.Medium);
         }
-
-        DismissPinnedToast();
-
-        if (!_showTerminalToast)
-        {
-            return;
-        }
-
-        var successTitle = title ?? Localize(DownloadNotificationConstants.CompleteTitleKey, DownloadNotificationConstants.CompleteTitle);
-        var successMessage = message ?? Localize(DownloadNotificationConstants.CompleteMessageKey, DownloadNotificationConstants.CompleteMessageFormat, _contentName);
-        _notifications.ShowSuccess(successTitle, successMessage, NotificationDurations.Medium);
     }
 
     /// <summary>
@@ -221,23 +220,22 @@ public sealed class DownloadNotificationScope : IProgress<ContentAcquisitionProg
             }
 
             _terminalShown = true;
+            DismissPinnedToastLocked();
+
+            if (!_showTerminalToast)
+            {
+                return;
+            }
+
+            var failureTitle = title ?? Localize(DownloadNotificationConstants.FailedTitleKey, DownloadNotificationConstants.FailedTitleFormat, _contentName);
+            var failureMessage = errorMessage;
+            if (string.IsNullOrWhiteSpace(failureMessage))
+            {
+                failureMessage = Localize(DownloadNotificationConstants.UnknownErrorKey, DownloadNotificationConstants.UnknownErrorMessage);
+            }
+
+            _notifications.ShowError(failureTitle, failureMessage, NotificationDurations.Medium);
         }
-
-        DismissPinnedToast();
-
-        if (!_showTerminalToast)
-        {
-            return;
-        }
-
-        var failureTitle = title ?? Localize(DownloadNotificationConstants.FailedTitleKey, DownloadNotificationConstants.FailedTitleFormat, _contentName);
-        var failureMessage = errorMessage;
-        if (string.IsNullOrWhiteSpace(failureMessage))
-        {
-            failureMessage = Localize(DownloadNotificationConstants.UnknownErrorKey, DownloadNotificationConstants.UnknownErrorMessage);
-        }
-
-        _notifications.ShowError(failureTitle, failureMessage, NotificationDurations.Medium);
     }
 
     /// <summary>
@@ -254,24 +252,23 @@ public sealed class DownloadNotificationScope : IProgress<ContentAcquisitionProg
             }
 
             _terminalShown = true;
+            DismissPinnedToastLocked();
+
+            if (!_showTerminalToast || silent)
+            {
+                return;
+            }
+
+            _notifications.ShowInfo(
+                Localize(
+                    DownloadNotificationConstants.CanceledTitleKey,
+                    DownloadNotificationConstants.CanceledTitle),
+                Localize(
+                    DownloadNotificationConstants.CanceledMessageKey,
+                    DownloadNotificationConstants.CanceledMessageFormat,
+                    _contentName),
+                NotificationDurations.Short);
         }
-
-        DismissPinnedToast();
-
-        if (!_showTerminalToast || silent)
-        {
-            return;
-        }
-
-        _notifications.ShowInfo(
-            Localize(
-                DownloadNotificationConstants.CanceledTitleKey,
-                DownloadNotificationConstants.CanceledTitle),
-            Localize(
-                DownloadNotificationConstants.CanceledMessageKey,
-                DownloadNotificationConstants.CanceledMessageFormat,
-                _contentName),
-            NotificationDurations.Short);
     }
 
     /// <summary>
@@ -292,14 +289,14 @@ public sealed class DownloadNotificationScope : IProgress<ContentAcquisitionProg
 
             _terminalShown = true;
             _dismissed = true;
-        }
 
-        if (!_showStartToast)
-        {
-            return;
-        }
+            if (!_showStartToast)
+            {
+                return;
+            }
 
-        _notifications.Update(_notificationId, finalMessage, PinnedTitle);
+            _notifications.Update(_notificationId, finalMessage, PinnedTitle);
+        }
     }
 
     /// <summary>
@@ -307,13 +304,17 @@ public sealed class DownloadNotificationScope : IProgress<ContentAcquisitionProg
     /// </summary>
     public void Dispose()
     {
-        if (_disposed)
+        lock (_lock)
         {
-            return;
+            if (_disposed)
+            {
+                return;
+            }
+
+            _disposed = true;
+            DismissPinnedToastLocked();
         }
 
-        _disposed = true;
-        DismissPinnedToast();
         GC.SuppressFinalize(this);
     }
 
@@ -346,28 +347,24 @@ public sealed class DownloadNotificationScope : IProgress<ContentAcquisitionProg
             }
 
             _lastUpdateTimestamp = Stopwatch.GetTimestamp();
-        }
 
-        var message = Localize(
-            DownloadNotificationConstants.ProgressMessageKey,
-            DownloadNotificationConstants.ProgressMessageFormat,
-            ((int)clampedPercentage).ToString(CultureInfo.InvariantCulture),
-            status);
-        _notifications.Update(_notificationId, message, title);
+            var message = Localize(
+                DownloadNotificationConstants.ProgressMessageKey,
+                DownloadNotificationConstants.ProgressMessageFormat,
+                ((int)clampedPercentage).ToString(CultureInfo.InvariantCulture),
+                status);
+            _notifications.Update(_notificationId, message, title);
+        }
     }
 
-    private void DismissPinnedToast()
+    private void DismissPinnedToastLocked()
     {
-        lock (_lock)
+        if (!_showStartToast || _dismissed)
         {
-            if (!_showStartToast || _dismissed)
-            {
-                return;
-            }
-
-            _dismissed = true;
+            return;
         }
 
+        _dismissed = true;
         _notifications.Dismiss(_notificationId);
     }
 

@@ -153,6 +153,44 @@ public sealed class ContentDownloadCoordinatorNotificationTests
             Times.Never);
     }
 
+    /// <summary>
+    /// Verifies that suppressed and non-suppressed callers for the same content do not coalesce
+    /// into a shared notification mode, keeping notification isolation intact.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task DownloadContentAsync_MixedSuppression_MaintainsNotificationIsolationAsync()
+    {
+        var manifest = CreateManifest();
+        var searchResult = CreateSearchResult();
+        var tcs = new TaskCompletionSource<OperationResult<ContentManifest>>(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        _orchestrator
+            .Setup(o => o.AcquireContentAsync(It.IsAny<ContentSearchResult>(), It.IsAny<IProgress<ContentAcquisitionProgress>>(), It.IsAny<CancellationToken>()))
+            .Returns(tcs.Task);
+
+        var taskSuppressed = _coordinator.DownloadContentAsync(searchResult, null, CancellationToken.None, suppressNotifications: true);
+        var taskUnsuppressed = _coordinator.DownloadContentAsync(searchResult, null, CancellationToken.None, suppressNotifications: false);
+
+        // Unsuppressed download shows start toast
+        _notifications.Verify(
+            n => n.Show(It.Is<NotificationMessage>(m => m.AutoDismissMilliseconds == null)),
+            Times.Once);
+
+        tcs.TrySetResult(OperationResult<ContentManifest>.CreateSuccess(manifest));
+
+        var results = await Task.WhenAll(taskSuppressed, taskUnsuppressed);
+        Assert.All(results, r => Assert.True(r.Success));
+
+        // Exactly one start and one success toast for the unsuppressed caller
+        _notifications.Verify(
+            n => n.Show(It.Is<NotificationMessage>(m => m.AutoDismissMilliseconds == null)),
+            Times.Once);
+        _notifications.Verify(
+            n => n.ShowSuccess(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
+            Times.Once);
+    }
+
     private static ContentSearchResult CreateSearchResult()
     {
         return new ContentSearchResult
