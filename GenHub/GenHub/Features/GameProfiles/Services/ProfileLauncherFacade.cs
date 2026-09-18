@@ -1272,36 +1272,50 @@ public class ProfileLauncherFacade(
             return profile.GameClient.ExecutablePath;
         }
 
-        if (manifests != null)
+        var manifestTarget = TryResolveManifestTargetExecutable(manifests);
+        if (manifestTarget is not null)
         {
-            var targetManifest = manifests.FirstOrDefault(m => m.ContentType == ContentType.GameClient)
-                ?? manifests.FirstOrDefault(m => m.ContentType == ContentType.Executable || !string.IsNullOrWhiteSpace(m.EntryPoint));
-
-            if (targetManifest != null)
-            {
-                var resolution = ManifestVariantResolver.ResolveEntryPoint(targetManifest);
-                if (resolution.Success && !string.IsNullOrWhiteSpace(resolution.RelativePath))
-                {
-                    logger.LogDebug("[Launch] Target executable resolved from manifest {ManifestId}: {RelativePath}", targetManifest.Id, resolution.RelativePath);
-                    return resolution.RelativePath;
-                }
-
-                var variant = ManifestVariantResolver.ResolveVariant(targetManifest);
-                if (!string.IsNullOrWhiteSpace(variant?.EntryPoint))
-                {
-                    logger.LogDebug("[Launch] Target executable resolved from variant entry point {ManifestId}: {EntryPoint}", targetManifest.Id, variant.EntryPoint);
-                    return variant.EntryPoint;
-                }
-
-                if (!string.IsNullOrWhiteSpace(targetManifest.EntryPoint))
-                {
-                    logger.LogDebug("[Launch] Target executable resolved from manifest declared entry point {ManifestId}: {EntryPoint}", targetManifest.Id, targetManifest.EntryPoint);
-                    return targetManifest.EntryPoint;
-                }
-            }
+            return manifestTarget;
         }
 
         logger.LogDebug("[Launch] Could not resolve explicit target executable for profile {ProfileId}", profile.Id);
+        return null;
+    }
+
+    private string? TryResolveManifestTargetExecutable(IReadOnlyList<ContentManifest>? manifests)
+    {
+        if (manifests is null)
+        {
+            return null;
+        }
+
+        var targetManifest = manifests.FirstOrDefault(m => m.ContentType == ContentType.GameClient)
+            ?? manifests.FirstOrDefault(m => m.ContentType == ContentType.Executable || !string.IsNullOrWhiteSpace(m.EntryPoint));
+        if (targetManifest is null)
+        {
+            return null;
+        }
+
+        var resolution = ManifestVariantResolver.ResolveEntryPoint(targetManifest);
+        if (resolution.Success && !string.IsNullOrWhiteSpace(resolution.RelativePath))
+        {
+            logger.LogDebug("[Launch] Target executable resolved from manifest {ManifestId}: {RelativePath}", targetManifest.Id, resolution.RelativePath);
+            return resolution.RelativePath;
+        }
+
+        var variant = ManifestVariantResolver.ResolveVariant(targetManifest);
+        if (!string.IsNullOrWhiteSpace(variant?.EntryPoint))
+        {
+            logger.LogDebug("[Launch] Target executable resolved from variant entry point {ManifestId}: {EntryPoint}", targetManifest.Id, variant.EntryPoint);
+            return variant.EntryPoint;
+        }
+
+        if (!string.IsNullOrWhiteSpace(targetManifest.EntryPoint))
+        {
+            logger.LogDebug("[Launch] Target executable resolved from manifest declared entry point {ManifestId}: {EntryPoint}", targetManifest.Id, targetManifest.EntryPoint);
+            return targetManifest.EntryPoint;
+        }
+
         return null;
     }
 

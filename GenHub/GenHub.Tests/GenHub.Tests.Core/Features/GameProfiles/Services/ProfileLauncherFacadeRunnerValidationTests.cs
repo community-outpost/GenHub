@@ -253,6 +253,29 @@ public sealed class ProfileLauncherFacadeRunnerValidationTests
     }
 
     /// <summary>
+    /// Verifies that when the client manifest declares a native entry point with no matching file,
+    /// the declared entry point fallback still classifies the target as native and validation
+    /// passes without a compatibility runner.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task ValidateLaunchAsync_WhenRunnerMissingAndClientEntryPointHasNoMatchingFile_PassesValidationAsync()
+    {
+        // Arrange
+        ArrangePassingProfile(useSteamLaunch: false, clientEntryPoint: "generalszh", includeClientFiles: false);
+        _launchRunnerMock
+            .Setup(r => r.CanLaunchWindowsExecutables())
+            .Returns(false);
+        var facade = CreateFacade(localizationService: null);
+
+        // Act
+        var result = await facade.ValidateLaunchAsync(ProfileId);
+
+        // Assert
+        Assert.True(result.Success, string.Join("; ", result.Errors));
+    }
+
+    /// <summary>
     /// Verifies that when a launch runner cannot launch Windows executables and the profile targets
     /// a Windows executable, launch validation fails with the runner missing message.
     /// </summary>
@@ -301,7 +324,8 @@ public sealed class ProfileLauncherFacadeRunnerValidationTests
     private void ArrangePassingProfile(
         bool useSteamLaunch,
         string? executablePath = null,
-        string? clientEntryPoint = null)
+        string? clientEntryPoint = null,
+        bool includeClientFiles = true)
     {
         var installationManifest = new ContentManifest
         {
@@ -318,7 +342,7 @@ public sealed class ProfileLauncherFacadeRunnerValidationTests
             ContentType = ContentType.GameClient,
             TargetGame = GameType.ZeroHour,
             EntryPoint = clientEntryPoint,
-            Files = !string.IsNullOrWhiteSpace(clientEntryPoint)
+            Files = !string.IsNullOrWhiteSpace(clientEntryPoint) && includeClientFiles
                 ? [new ManifestFile { RelativePath = clientEntryPoint, Size = 100, IsExecutable = true }]
                 : [],
         };
