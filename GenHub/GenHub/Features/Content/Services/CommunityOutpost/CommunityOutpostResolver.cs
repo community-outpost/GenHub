@@ -433,7 +433,9 @@ public class CommunityOutpostResolver(
 
     private static string ResolveManifestVersion(string contentCode, GenPatcherContentMetadata contentMetadata, ContentSearchResult discoveredItem)
     {
-        if (contentCode == "community-patch" && !string.IsNullOrWhiteSpace(discoveredItem.Version))
+        if ((contentCode is "community-patch" or CommunityOutpostConstants.CommunityPatchNonRetCode ||
+             contentMetadata.Category == GenPatcherContentCategory.CommunityPatch) &&
+            !string.IsNullOrWhiteSpace(discoveredItem.Version))
         {
             return discoveredItem.Version;
         }

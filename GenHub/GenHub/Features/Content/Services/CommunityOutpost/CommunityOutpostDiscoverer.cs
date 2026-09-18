@@ -115,12 +115,15 @@ public partial class CommunityOutpostDiscoverer(
             using var client = httpClientFactory.CreateClient();
             client.Timeout = TimeSpan.FromSeconds(catalogTimeout);
 
-            // First, discover the Community Patch GameClient from legi.cc/patch
-            var (communityPatchResult, patchHostFailed) = await DiscoverCommunityPatchAsync(client, patchPageUrl, provider, cancellationToken);
-            if (communityPatchResult != null && MatchesQuery(communityPatchResult, query))
+            // First, discover the Community Patch GameClients from legi.cc/patch (supporting both retail and non-retail builds)
+            var (communityPatchResults, patchHostFailed) = await DiscoverCommunityPatchesAsync(client, patchPageUrl, provider, cancellationToken);
+            foreach (var communityPatchResult in communityPatchResults)
             {
-                results.Add(communityPatchResult);
-                logger.LogInformation("Discovered Community Patch: {Version}", communityPatchResult.Version);
+                if (MatchesQuery(communityPatchResult, query))
+                {
+                    results.Add(communityPatchResult);
+                    logger.LogInformation("Discovered Community Patch: {Name} ({Version})", communityPatchResult.Name, communityPatchResult.Version);
+                }
             }
 
             if (patchHostFailed && TryGetSameHost(patchPageUrl, catalogUrl, out var unreachableHost))
@@ -160,7 +163,7 @@ public partial class CommunityOutpostDiscoverer(
     }
 
     /// <summary>
-    /// Regex for extracting community patch download link.
+    /// Regex for extracting community patch download links.
     /// </summary>
     [GeneratedRegex(@"href=[""']([^""']*generals-?zh.*?(\d{4}-\d{2}-\d{2}|\d{2}-\d{2}-\d{4}|\d{8}|\d{6}).*?\.(?:zip|7z|rar|exe))[""']", RegexOptions.IgnoreCase)]
     internal static partial Regex CommunityPatchRegex();
@@ -361,10 +364,19 @@ public partial class CommunityOutpostDiscoverer(
             result.TargetGame);
     }
 
+    private static bool IsNonRetailBuild(string urlOrFilename)
+    {
+        return urlOrFilename.Contains("nonret", StringComparison.OrdinalIgnoreCase) ||
+               urlOrFilename.Contains("non-ret", StringComparison.OrdinalIgnoreCase) ||
+               urlOrFilename.Contains("nonretail", StringComparison.OrdinalIgnoreCase) ||
+               urlOrFilename.Contains("non-retail", StringComparison.OrdinalIgnoreCase) ||
+               urlOrFilename.Contains("stream", StringComparison.OrdinalIgnoreCase);
+    }
+
     /// <summary>
-    /// Discovers the Community Patch (TheSuperHackers Patch Build) from legi.cc/patch.
+    /// Discovers the Community Patch builds (both retail-compatible and non-retail stream builds) from legi.cc/patch.
     /// </summary>
-    private async Task<(ContentSearchResult? Result, bool HostFailed)> DiscoverCommunityPatchAsync(
+    private async Task<(IReadOnlyList<ContentSearchResult> Results, bool HostFailed)> DiscoverCommunityPatchesAsync(
         HttpClient client,
         string patchPageUrl,
         ProviderDefinition? provider,
@@ -377,107 +389,143 @@ public partial class CommunityOutpostDiscoverer(
             var pageContent = await client.GetStringAsync(patchPageUrl, cancellationToken);
             logger.LogDebug("Page content length: {Length} bytes", pageContent.Length);
 
-            var downloadUrlMatch = CommunityPatchRegex().Match(pageContent);
-            logger.LogDebug("Regex match result: {Success}, Matches count: {Count}", downloadUrlMatch.Success, downloadUrlMatch.Captures.Count);
+            var matches = CommunityPatchRegex().Matches(pageContent);
+            logger.LogDebug("Regex matches count: {Count}", matches.Count);
 
             // Fallback: try different URL if configured one fails
-            if (!downloadUrlMatch.Success && patchPageUrl != CommunityOutpostConstants.PatchPageUrl)
+            if (matches.Count == 0 && patchPageUrl != CommunityOutpostConstants.PatchPageUrl)
             {
                 logger.LogInformation("No match on primary URL, trying fallback: {Url}", CommunityOutpostConstants.PatchPageUrl);
                 pageContent = await client.GetStringAsync(CommunityOutpostConstants.PatchPageUrl, cancellationToken);
-                downloadUrlMatch = CommunityPatchRegex().Match(pageContent);
-                logger.LogDebug("Fallback regex match result: {Success}", downloadUrlMatch.Success);
+                matches = CommunityPatchRegex().Matches(pageContent);
+                logger.LogDebug("Fallback regex matches count: {Count}", matches.Count);
             }
 
-            if (!downloadUrlMatch.Success)
+            if (matches.Count == 0)
             {
-                logger.LogWarning("Could not find Community Patch download link on {Url}", patchPageUrl);
-                return (null, false);
+                logger.LogWarning("Could not find Community Patch download links on {Url}", patchPageUrl);
+                return ([], false);
             }
 
-            logger.LogInformation("Community Patch regex matched successfully");
-
-            var downloadUrl = downloadUrlMatch.Groups[1].Value;
-            var versionDate = downloadUrlMatch.Groups[2].Value;
-
-            // Make the URL absolute if it's relative
-            if (!downloadUrl.StartsWith("http", StringComparison.OrdinalIgnoreCase))
-            {
-                var baseUrl = patchPageUrl.TrimEnd('/');
-                downloadUrl = $"{baseUrl}/{downloadUrl.TrimStart('/')}";
-            }
-
-            logger.LogDebug("Found Community Patch download: {Url} (version {Version})", downloadUrl, versionDate);
+            logger.LogInformation("Community Patch regex matched {Count} link(s) successfully", matches.Count);
 
             var providerId = provider?.ProviderId ?? CommunityOutpostConstants.PublisherId;
             var providerName = provider?.PublisherType ?? CommunityOutpostConstants.PublisherType;
+            var results = new List<ContentSearchResult>();
+            var seenUrls = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-            // Use the standard 5-segment ID format expected by the manifest factory
-            var result = new ContentSearchResult
+            foreach (Match match in matches)
             {
-                Id = $"1.{versionDate.Replace("-", string.Empty)}.{providerName.ToLowerInvariant()}.gameclient.community-patch",
-                Name = "Community Patch (TheSuperHackers Build)",
-                Description = "The latest TheSuperHackers patch build for Zero Hour. Includes bug fixes, balance changes, and quality of life improvements.",
-                Version = versionDate,
-                ContentType = ContentType.GameClient,
-                TargetGame = GameType.ZeroHour,
-                ProviderName = providerName,
-                AuthorName = "TheSuperHackers",
-                SourceUrl = downloadUrl,
-                RequiresResolution = true,
-                ResolverId = providerId,
-                IconUrl = CommunityOutpostConstants.LogoSource,
-            };
+                var rawDownloadUrl = match.Groups[1].Value;
+                var versionDate = match.Groups[2].Value;
 
-            if (DateTime.TryParse(versionDate, out var date))
-            {
-                result.LastUpdated = date;
-            }
-
-            // Add tags
-            result.Tags.Add("community-patch");
-            result.Tags.Add("thesuperhackers");
-            result.Tags.Add("weekly");
-            result.Tags.Add("game-client");
-
-            // Add default tags from provider
-            if (provider != null)
-            {
-                foreach (var tag in provider.DefaultTags)
+                // Make the URL absolute if it's relative
+                var downloadUrl = rawDownloadUrl;
+                if (!downloadUrl.StartsWith("http", StringComparison.OrdinalIgnoreCase))
                 {
-                    if (!result.Tags.Contains(tag))
+                    var baseUrl = patchPageUrl.TrimEnd('/');
+                    downloadUrl = $"{baseUrl}/{downloadUrl.TrimStart('/')}";
+                }
+
+                if (!seenUrls.Add(downloadUrl))
+                {
+                    continue;
+                }
+
+                logger.LogDebug("Found Community Patch download: {Url} (version {Version})", downloadUrl, versionDate);
+
+                var isNonRetail = IsNonRetailBuild(rawDownloadUrl);
+                var contentCode = isNonRetail
+                    ? CommunityOutpostConstants.CommunityPatchNonRetCode
+                    : CommunityOutpostConstants.CommunityPatchTag;
+
+                var name = isNonRetail
+                    ? CommunityOutpostConstants.CommunityPatchNonRetDisplayName
+                    : CommunityOutpostConstants.CommunityPatchRetailDisplayName;
+
+                var description = isNonRetail
+                    ? CommunityOutpostConstants.CommunityPatchNonRetDescription
+                    : CommunityOutpostConstants.CommunityPatchRetailDescription;
+
+                var result = new ContentSearchResult
+                {
+                    Id = $"1.{versionDate.Replace("-", string.Empty)}.{providerName.ToLowerInvariant()}.gameclient.{contentCode}",
+                    Name = name,
+                    Description = description,
+                    Version = versionDate,
+                    ContentType = ContentType.GameClient,
+                    TargetGame = GameType.ZeroHour,
+                    ProviderName = providerName,
+                    AuthorName = PublisherTypeConstants.TheSuperHackers,
+                    SourceUrl = downloadUrl,
+                    RequiresResolution = true,
+                    ResolverId = providerId,
+                    IconUrl = CommunityOutpostConstants.LogoSource,
+                };
+
+                if (DateTime.TryParse(versionDate, out var date))
+                {
+                    result.LastUpdated = date;
+                }
+
+                // Add tags
+                result.Tags.Add(CommunityOutpostConstants.CommunityPatchTag);
+                result.Tags.Add(PublisherTypeConstants.TheSuperHackers);
+                result.Tags.Add("weekly");
+                result.Tags.Add("game-client");
+
+                if (isNonRetail)
+                {
+                    result.Tags.Add(CommunityOutpostConstants.CommunityPatchNonRetTag);
+                    result.Tags.Add(CommunityOutpostConstants.NonRetailTag);
+                    result.Tags.Add(CommunityOutpostConstants.StreamTag);
+                }
+                else
+                {
+                    result.Tags.Add(CommunityOutpostConstants.RetailCompatibleTag);
+                }
+
+                // Add default tags from provider
+                if (provider != null)
+                {
+                    foreach (var tag in provider.DefaultTags)
                     {
-                        result.Tags.Add(tag);
+                        if (!result.Tags.Contains(tag))
+                        {
+                            result.Tags.Add(tag);
+                        }
                     }
                 }
+
+                // Store metadata for resolver
+                result.ResolverMetadata["contentCode"] = contentCode;
+                result.ResolverMetadata["downloadUrl"] = downloadUrl;
+                result.ResolverMetadata["category"] = "CommunityPatch";
+
+                results.Add(result);
             }
 
-            // Store metadata for resolver
-            result.ResolverMetadata["contentCode"] = "community-patch";
-            result.ResolverMetadata["downloadUrl"] = downloadUrl;
-            result.ResolverMetadata["category"] = "CommunityPatch";
-
-            return (result, false);
+            return (results, false);
         }
         catch (HttpRequestException ex)
         {
             logger.LogWarning(ex, "Failed to reach Community Patch page from {Url} (host unreachable)", patchPageUrl);
-            return (null, true);
+            return ([], true);
         }
         catch (TimeoutException ex)
         {
             logger.LogWarning(ex, "Timed out reaching Community Patch page from {Url} (host unresponsive)", patchPageUrl);
-            return (null, true);
+            return ([], true);
         }
         catch (OperationCanceledException ex) when (!cancellationToken.IsCancellationRequested)
         {
             logger.LogWarning(ex, "Timed out reaching Community Patch page from {Url} (host unresponsive)", patchPageUrl);
-            return (null, true);
+            return ([], true);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
             logger.LogWarning(ex, "Failed to discover Community Patch from {Url}", patchPageUrl);
-            return (null, false);
+            return ([], false);
         }
     }
 

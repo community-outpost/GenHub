@@ -65,6 +65,51 @@ public static class CommunityOutpostConstants
     public const string CommunityPatchTag = "community-patch";
 
     /// <summary>
+    /// Content code and tag for the Non-Retail (stream) Community Patch build.
+    /// </summary>
+    public const string CommunityPatchNonRetCode = "community-patch-nonret";
+
+    /// <summary>
+    /// Tag for the Non-Retail Community Patch build.
+    /// </summary>
+    public const string CommunityPatchNonRetTag = "community-patch-nonret";
+
+    /// <summary>
+    /// Tag for non-retail game client builds.
+    /// </summary>
+    public const string NonRetailTag = "non-retail";
+
+    /// <summary>
+    /// Tag for retail-compatible game client builds.
+    /// </summary>
+    public const string RetailCompatibleTag = "retail-compatible";
+
+    /// <summary>
+    /// Tag for stream-specific game client builds.
+    /// </summary>
+    public const string StreamTag = "stream";
+
+    /// <summary>
+    /// Display name for the retail-compatible Community Patch build.
+    /// </summary>
+    public const string CommunityPatchRetailDisplayName = "Community Patch (TheSuperHackers Build)";
+
+    /// <summary>
+    /// Display name for the non-retail (stream) Community Patch build.
+    /// </summary>
+    public const string CommunityPatchNonRetDisplayName = "Community Patch (TheSuperHackers Non-Retail Build)";
+
+    /// <summary>
+    /// Description for the retail-compatible Community Patch build.
+    /// </summary>
+    public const string CommunityPatchRetailDescription = "The latest TheSuperHackers patch build for Zero Hour. Compatible with regular C&C Generals Zero Hour retail multiplayer.";
+
+    /// <summary>
+    /// Description for the non-retail (stream) Community Patch build.
+    /// </summary>
+    public const string CommunityPatchNonRetDescription = "The latest TheSuperHackers non-retail patch build for Zero Hour (stream build). Note: This build has a different executable CRC and is not compatible with regular C&C Generals Zero Hour retail multiplayer.";
+
+    /// <summary>
     /// Tag for addon content items.
     /// </summary>
     public const string AddonTag = "addon";
@@ -141,6 +186,18 @@ public static class CommunityOutpostConstants
     /// Tags associated with community patch content.
     /// </summary>
     public static readonly IReadOnlyList<string> CommunityPatchTags = [CommunityPatchTag, PublisherTypeConstants.TheSuperHackers, "weekly", GitHubTopicsConstants.GameClientTopic];
+
+    /// <summary>
+    /// Tags associated with the retail-compatible community patch content.
+    /// </summary>
+    public static readonly IReadOnlyList<string> CommunityPatchRetailTags =
+        [CommunityPatchTag, PublisherTypeConstants.TheSuperHackers, "weekly", GitHubTopicsConstants.GameClientTopic, RetailCompatibleTag];
+
+    /// <summary>
+    /// Tags associated with the non-retail (stream) community patch content.
+    /// </summary>
+    public static readonly IReadOnlyList<string> CommunityPatchNonRetTags =
+        [CommunityPatchTag, CommunityPatchNonRetCode, PublisherTypeConstants.TheSuperHackers, "weekly", GitHubTopicsConstants.GameClientTopic, NonRetailTag, StreamTag];
 
     /// <summary>
     /// Tags associated with official patches.

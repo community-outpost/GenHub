@@ -1,3 +1,4 @@
+using GenHub.Core.Constants;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
 using System;
@@ -65,12 +66,34 @@ public static class GenPatcherContentRegistry
     /// </summary>
     private static readonly Dictionary<string, GenPatcherContentMetadata> KnownContent = new(StringComparer.OrdinalIgnoreCase)
     {
-        // Community Patch (TheSuperHackers Build from legi.cc/patch)
-        ["community-patch"] = new GenPatcherContentMetadata
+        // Community Patch (TheSuperHackers Retail-Compatible Build from legi.cc/patch)
+        [CommunityOutpostConstants.CommunityPatchTag] = new GenPatcherContentMetadata
         {
-            ContentCode = "community-patch",
-            DisplayName = "Community Patch (TheSuperHackers Build)",
-            Description = "The latest TheSuperHackers patch build for Zero Hour. Includes bug fixes, balance changes, and quality of life improvements.",
+            ContentCode = CommunityOutpostConstants.CommunityPatchTag,
+            DisplayName = CommunityOutpostConstants.CommunityPatchRetailDisplayName,
+            Description = CommunityOutpostConstants.CommunityPatchRetailDescription,
+            ContentType = ContentType.GameClient,
+            TargetGame = GameType.ZeroHour,
+            Category = GenPatcherContentCategory.CommunityPatch,
+            InstallTarget = ContentInstallTarget.Workspace,
+        },
+        ["community-patch-retail"] = new GenPatcherContentMetadata
+        {
+            ContentCode = CommunityOutpostConstants.CommunityPatchTag,
+            DisplayName = CommunityOutpostConstants.CommunityPatchRetailDisplayName,
+            Description = CommunityOutpostConstants.CommunityPatchRetailDescription,
+            ContentType = ContentType.GameClient,
+            TargetGame = GameType.ZeroHour,
+            Category = GenPatcherContentCategory.CommunityPatch,
+            InstallTarget = ContentInstallTarget.Workspace,
+        },
+
+        // Community Patch (TheSuperHackers Non-Retail / Stream Build from legi.cc/patch)
+        [CommunityOutpostConstants.CommunityPatchNonRetCode] = new GenPatcherContentMetadata
+        {
+            ContentCode = CommunityOutpostConstants.CommunityPatchNonRetCode,
+            DisplayName = CommunityOutpostConstants.CommunityPatchNonRetDisplayName,
+            Description = CommunityOutpostConstants.CommunityPatchNonRetDescription,
             ContentType = ContentType.GameClient,
             TargetGame = GameType.ZeroHour,
             Category = GenPatcherContentCategory.CommunityPatch,
