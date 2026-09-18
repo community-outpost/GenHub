@@ -148,6 +148,7 @@ public class RetailArchiveRootValidationTests : IDisposable
 
         var root = Directory.CreateDirectory(Path.Combine(_tempDir, "uppercased")).FullName;
         File.WriteAllText(Path.Combine(root, "INIZH.BIG"), "archive");
+        File.WriteAllText(Path.Combine(root, "TEXTURES.BIG"), "archive");
 
         Assert.Null(Validate(InstallationWithZeroHour(root)));
     }
@@ -254,6 +255,93 @@ public class RetailArchiveRootValidationTests : IDisposable
     }
 
     /// <summary>
+    /// When Zero Hour has no separate Generals root, no bundled ZH_Generals folder, and no base archives in its directory,
+    /// validation must reject the launch with an informative message.
+    /// </summary>
+    [Fact]
+    public void Validate_LaunchingZeroHour_WithNoGeneralsRootAndNoBaseArchives_Rejects()
+    {
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        {
+            return;
+        }
+
+        var zeroHour = Directory.CreateDirectory(Path.Combine(_tempDir, "zh-no-base")).FullName;
+        File.WriteAllText(Path.Combine(zeroHour, "INIZH.big"), "archive");
+
+        var error = ValidateFor(GameType.ZeroHour, null, zeroHour);
+
+        Assert.NotNull(error);
+        Assert.Contains("Zero Hour requires base Command & Conquer Generals retail archives", error);
+    }
+
+    /// <summary>
+    /// When Zero Hour has no separate Generals root, but has a bundled ZH_Generals directory with base archives,
+    /// validation accepts.
+    /// </summary>
+    [Fact]
+    public void Validate_LaunchingZeroHour_WithBundledZhGenerals_Accepts()
+    {
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        {
+            return;
+        }
+
+        var zeroHour = Directory.CreateDirectory(Path.Combine(_tempDir, "zh-steam")).FullName;
+        File.WriteAllText(Path.Combine(zeroHour, "INIZH.big"), "archive");
+        var zhGenerals = Directory.CreateDirectory(Path.Combine(zeroHour, GameClientConstants.ZhGeneralsDirectory)).FullName;
+        File.WriteAllText(Path.Combine(zhGenerals, "Textures.big"), "base archive");
+
+        Assert.Null(ValidateFor(GameType.ZeroHour, null, zeroHour));
+    }
+
+    /// <summary>
+    /// AddRetailArchiveRoots populates CNC_GENERALS_INSTALLPATH from bundled ZH_Generals when separate Generals root is null.
+    /// </summary>
+    [Fact]
+    public void AddRetailArchiveRoots_ForZeroHour_WithBundledZhGenerals_SetsGeneralsInstallPath()
+    {
+        var zeroHour = Directory.CreateDirectory(Path.Combine(_tempDir, "zh-steam-env")).FullName;
+        var zhGenerals = Directory.CreateDirectory(Path.Combine(zeroHour, GameClientConstants.ZhGeneralsDirectory)).FullName;
+        File.WriteAllText(Path.Combine(zhGenerals, "Textures.big"), "base archive");
+
+        var installation = new GameInstallation(
+            Path.GetTempPath(),
+            GameInstallationType.Steam,
+            new Mock<ILogger<GameInstallation>>().Object);
+        installation.SetPaths(null, zeroHour);
+
+        var env = new Dictionary<string, string>();
+        BuildEnvironment(env, installation);
+
+        Assert.True(env.ContainsKey(RetailArchiveConstants.GeneralsInstallPathVariable));
+        Assert.StartsWith(zhGenerals, env[RetailArchiveConstants.GeneralsInstallPathVariable]);
+    }
+
+    /// <summary>
+    /// AddRetailArchiveRoots prioritizes an explicit Generals path over bundled ZH_Generals when both are present.
+    /// </summary>
+    [Fact]
+    public void AddRetailArchiveRoots_ForZeroHour_WithExplicitGeneralsPath_PrefersExplicitPath()
+    {
+        var generals = Directory.CreateDirectory(Path.Combine(_tempDir, "gen-explicit")).FullName;
+        var zeroHour = Directory.CreateDirectory(Path.Combine(_tempDir, "zh-steam-both")).FullName;
+        var zhGenerals = Directory.CreateDirectory(Path.Combine(zeroHour, GameClientConstants.ZhGeneralsDirectory)).FullName;
+
+        var installation = new GameInstallation(
+            Path.GetTempPath(),
+            GameInstallationType.Steam,
+            new Mock<ILogger<GameInstallation>>().Object);
+        installation.SetPaths(generals, zeroHour);
+
+        var env = new Dictionary<string, string>();
+        BuildEnvironment(env, installation);
+
+        Assert.True(env.ContainsKey(RetailArchiveConstants.GeneralsInstallPathVariable));
+        Assert.StartsWith(generals, env[RetailArchiveConstants.GeneralsInstallPathVariable]);
+    }
+
+    /// <summary>
     /// Launching Generals must not fail over a stale Zero Hour root: it does not read it.
     /// </summary>
     [Fact]
@@ -311,6 +399,7 @@ public class RetailArchiveRootValidationTests : IDisposable
         if (withArchive)
         {
             File.WriteAllText(Path.Combine(root, "INIZH.big"), "archive");
+            File.WriteAllText(Path.Combine(root, "Textures.big"), "archive");
         }
 
         return root;

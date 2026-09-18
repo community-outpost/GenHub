@@ -670,20 +670,12 @@ public class GameLauncher(
 
         if (gameType == GameType.ZeroHour)
         {
-            // Checked only when declared, because an absent Generals root is not by itself
-            // wrong: the engine mounts archives from the working directory as well, so base
-            // content may legitimately sit in the workspace instead of a retail root. That
-            // is the arrangement this whole mechanism replaces, but it remains valid.
-            //
-            // KNOWN GAP: when no Generals root is declared and the workspace does not carry
-            // base content either, Zero Hour still starts with nothing to mount and this
-            // check cannot tell. Archive filenames are arbitrary — a real install holds mod,
-            // hotkey and control-bar archives alongside the retail ones — so presence of
-            // "*.big" anywhere proves nothing about base content specifically. Detecting it
-            // needs the engine to report a failed mount; see the engine-side work tracked
-            // for GeneralsGameCode. A workspace "*.big" check was considered and rejected:
-            // a Zero Hour workspace always contains archives, so it would always pass.
-            roots.Add((RetailArchiveConstants.GeneralsInstallPathVariable, installation?.GeneralsPath));
+            // Zero Hour is an expansion and mounts the base Generals archives as well.
+            // Base content may come from:
+            // 1. An explicit GeneralsPath (or profile environment override).
+            // 2. A bundled 'ZH_Generals' directory within the Zero Hour installation (Steam/EA App).
+            // 3. Directly within the Zero Hour root directory or workspace (monolithic/merged install).
+            roots.Add((RetailArchiveConstants.GeneralsInstallPathVariable, installation?.EffectiveGeneralsArchivePath));
         }
 
         foreach (var (variableName, declaredPath) in roots)
@@ -696,6 +688,25 @@ public class GameLauncher(
             // Nothing configured means that game is simply not installed separately.
             if (string.IsNullOrWhiteSpace(root))
             {
+                if (gameType == GameType.ZeroHour &&
+                    variableName == RetailArchiveConstants.GeneralsInstallPathVariable)
+                {
+                    // No Generals root was declared or bundled in ZH_Generals.
+                    // Check whether the Zero Hour directory itself carries base Generals archives (monolithic install).
+                    var zeroHourRoot = environment.TryGetValue(RetailArchiveConstants.ZeroHourInstallPathVariable, out var envZh) && !string.IsNullOrWhiteSpace(envZh)
+                        ? envZh
+                        : installation?.ZeroHourPath;
+
+                    if (!string.IsNullOrWhiteSpace(zeroHourRoot) && RetailArchiveConstants.HasBaseGeneralsArchives(zeroHourRoot))
+                    {
+                        continue;
+                    }
+
+                    return $"Zero Hour requires base Command & Conquer Generals retail archives (such as Textures.big or W3D.big). " +
+                           $"No Generals archive root was declared, '{GameClientConstants.ZhGeneralsDirectory}' was not found in '{zeroHourRoot}', " +
+                           $"and no base archives were found in the Zero Hour directory. The engine would fail during startup or run with missing assets.";
+                }
+
                 continue;
             }
 
@@ -767,7 +778,7 @@ public class GameLauncher(
         }
 
         AddArchiveRoot(environment, RetailArchiveConstants.ZeroHourInstallPathVariable, installation.ZeroHourPath);
-        AddArchiveRoot(environment, RetailArchiveConstants.GeneralsInstallPathVariable, installation.GeneralsPath);
+        AddArchiveRoot(environment, RetailArchiveConstants.GeneralsInstallPathVariable, installation.EffectiveGeneralsArchivePath);
     }
 
     /// <summary>

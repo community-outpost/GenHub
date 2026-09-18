@@ -730,4 +730,94 @@ public class GameInstallationTests
             Directory.Delete(tempDir, true);
         }
     }
+
+    /// <summary>
+    /// Verifies that BundledGeneralsPath returns the ZH_Generals directory path when it exists.
+    /// </summary>
+    [Fact]
+    public void GameInstallation_BundledGeneralsPath_ReturnsPath_WhenZhGeneralsDirectoryExists()
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), "GenHubBundledZhTest_" + Guid.NewGuid().ToString("N"));
+        var zhGeneralsDir = Path.Combine(tempDir, GameClientConstants.ZhGeneralsDirectory);
+        Directory.CreateDirectory(zhGeneralsDir);
+        try
+        {
+            var installation = new GameInstallation(tempDir, GameInstallationType.Steam, NullLogger<GameInstallation>.Instance);
+            installation.SetPaths(null, tempDir);
+
+            Assert.Equal(zhGeneralsDir, installation.BundledGeneralsPath);
+        }
+        finally
+        {
+            Directory.Delete(tempDir, true);
+        }
+    }
+
+    /// <summary>
+    /// Verifies that BundledGeneralsPath returns null when the ZH_Generals directory does not exist.
+    /// </summary>
+    [Fact]
+    public void GameInstallation_BundledGeneralsPath_ReturnsNull_WhenZhGeneralsDirectoryDoesNotExist()
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), "GenHubNoBundledZhTest_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tempDir);
+        try
+        {
+            var installation = new GameInstallation(tempDir, GameInstallationType.Steam, NullLogger<GameInstallation>.Instance);
+            installation.SetPaths(null, tempDir);
+
+            Assert.Null(installation.BundledGeneralsPath);
+        }
+        finally
+        {
+            Directory.Delete(tempDir, true);
+        }
+    }
+
+    /// <summary>
+    /// Verifies that EffectiveGeneralsArchivePath prefers GeneralsPath over BundledGeneralsPath when both exist.
+    /// </summary>
+    [Fact]
+    public void GameInstallation_EffectiveGeneralsArchivePath_PrefersGeneralsPath_WhenBothPresent()
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), "GenHubEffectivePrefersGenTest_" + Guid.NewGuid().ToString("N"));
+        var generalsDir = Path.Combine(tempDir, "Generals");
+        var zhDir = Path.Combine(tempDir, "ZeroHour");
+        var zhGeneralsDir = Path.Combine(zhDir, GameClientConstants.ZhGeneralsDirectory);
+        Directory.CreateDirectory(generalsDir);
+        Directory.CreateDirectory(zhGeneralsDir);
+        try
+        {
+            var installation = new GameInstallation(tempDir, GameInstallationType.Steam, NullLogger<GameInstallation>.Instance);
+            installation.SetPaths(generalsDir, zhDir);
+
+            Assert.Equal(generalsDir, installation.EffectiveGeneralsArchivePath);
+        }
+        finally
+        {
+            Directory.Delete(tempDir, true);
+        }
+    }
+
+    /// <summary>
+    /// Verifies that EffectiveGeneralsArchivePath falls back to BundledGeneralsPath when GeneralsPath is null or empty.
+    /// </summary>
+    [Fact]
+    public void GameInstallation_EffectiveGeneralsArchivePath_FallsBackToBundledGeneralsPath_WhenGeneralsPathNullOrEmpty()
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), "GenHubEffectiveFallbackTest_" + Guid.NewGuid().ToString("N"));
+        var zhGeneralsDir = Path.Combine(tempDir, GameClientConstants.ZhGeneralsDirectory);
+        Directory.CreateDirectory(zhGeneralsDir);
+        try
+        {
+            var installation = new GameInstallation(tempDir, GameInstallationType.Steam, NullLogger<GameInstallation>.Instance);
+            installation.SetPaths(null, tempDir);
+
+            Assert.Equal(zhGeneralsDir, installation.EffectiveGeneralsArchivePath);
+        }
+        finally
+        {
+            Directory.Delete(tempDir, true);
+        }
+    }
 }

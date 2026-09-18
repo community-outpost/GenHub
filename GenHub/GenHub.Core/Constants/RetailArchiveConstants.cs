@@ -1,4 +1,6 @@
+using System;
 using System.IO;
+using System.Linq;
 
 namespace GenHub.Core.Constants;
 
@@ -63,4 +65,46 @@ public static class RetailArchiveConstants
         ZeroHourInstallPathVariable,
         GeneralsInstallPathVariable,
     ];
+
+    /// <summary>
+    /// Signature base Generals archive filenames used to detect whether base Generals archives
+    /// are present directly within a standalone Zero Hour directory or workspace root.
+    /// Unlike Zero Hour archives (which carry a 'ZH' token, e.g. TexturesZH.big), these archives
+    /// belong exclusively to the base Generals game.
+    /// </summary>
+    public static readonly string[] BaseGeneralsArchiveSignatures =
+    [
+        "Textures.big",
+        "W3D.big",
+        "Audio.big",
+    ];
+
+    /// <summary>
+    /// Checks whether the specified directory exists and contains at least one signature base Generals archive.
+    /// </summary>
+    /// <param name="directory">The directory to inspect.</param>
+    /// <returns><c>true</c> if base Generals archives are present; otherwise, <c>false</c>.</returns>
+    public static bool HasBaseGeneralsArchives(string? directory)
+    {
+        if (string.IsNullOrWhiteSpace(directory) || !Directory.Exists(directory))
+        {
+            return false;
+        }
+
+        try
+        {
+            return Directory
+                .EnumerateFiles(directory, ArchiveSearchPattern, ArchiveSearch)
+                .Any(file =>
+                {
+                    var fileName = Path.GetFileName(file);
+                    return BaseGeneralsArchiveSignatures.Any(sig =>
+                        string.Equals(sig, fileName, StringComparison.OrdinalIgnoreCase));
+                });
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return false;
+        }
+    }
 }
