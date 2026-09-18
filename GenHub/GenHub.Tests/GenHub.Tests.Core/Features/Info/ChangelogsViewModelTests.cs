@@ -1,4 +1,5 @@
 using FluentAssertions;
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GitHub;
 using GenHub.Core.Models.GitHub;
@@ -104,7 +105,7 @@ public sealed class ChangelogsViewModelTests : IDisposable
         {
             new() { TagName = "v0.0.4-cached", Name = "Alpha 4 Cached", PublishedAt = DateTime.UtcNow, Body = "Cached body" },
         };
-        var cacheFilePath = Path.Combine(_tempCacheDir, "changelogs-cache.json");
+        var cacheFilePath = Path.Combine(_tempCacheDir, InfoConstants.ChangelogsCacheFileName);
         await File.WriteAllTextAsync(cacheFilePath, JsonSerializer.Serialize(cachedReleases));
 
         _gitHubApiClientMock

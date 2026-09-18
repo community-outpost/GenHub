@@ -5,6 +5,8 @@ categories:
   - title: '🚀 New Features & Enhancements'
     labels:
       - 'Enhancement'
+      - 'enhancement'
+      - 'Feature'
       - 'feature'
       - 'feat'
   - title: '🎨 User Interface & Experience'
@@ -16,6 +18,7 @@ categories:
   - title: '🛠️ Tools & Engine Integrations'
     labels:
       - 'Tools'
+      - 'tools'
       - 'Mapping'
   - title: '📦 Content Pipeline & Distribution'
     labels:
@@ -37,6 +40,7 @@ categories:
     labels:
       - 'Refactor'
       - 'refactor'
+      - 'refactoring'
       - 'Chore'
       - 'chore'
       - 'Infrastructure'
@@ -44,6 +48,7 @@ categories:
   - title: '📖 Documentation'
     labels:
       - 'Documentation'
+      - 'documentation'
       - 'docs'
 
 change-template: '- $TITLE (@$AUTHOR in #$NUMBER)'

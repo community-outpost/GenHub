@@ -234,11 +234,6 @@ public static class AppUpdateConstants
     public const string ViewChangelogAction = "View Changelog";
 
     /// <summary>
-    /// "What's New" action text.
-    /// </summary>
-    public const string WhatsNewAction = "What's New";
-
-    /// <summary>
     /// Title for post-update announcement notification.
     /// </summary>
     public const string PostUpdateNotificationTitle = "GenHub Updated";

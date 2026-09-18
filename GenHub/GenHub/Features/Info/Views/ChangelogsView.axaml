@@ -7,6 +7,7 @@
              xmlns:controls="clr-namespace:GenHub.Infrastructure.Controls"
              xmlns:localization="clr-namespace:GenHub.Common.Markup;assembly=GenHub"
              mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="600"
+             ScrollViewer.HorizontalScrollBarVisibility="Disabled"
              x:Class="GenHub.Features.Info.Views.ChangelogsView"
              x:DataType="vm:ChangelogsViewModel"
              x:Name="Root">
@@ -62,7 +63,7 @@
     </Border>
 
     <!-- List -->
-    <ItemsControl ItemsSource="{Binding Releases}">
+    <ItemsControl ItemsSource="{Binding Releases}" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
        <ItemsControl.ItemTemplate>
           <DataTemplate x:DataType="vm:ChangelogItemViewModel">
              <Border Background="{DynamicResource CardBackground}" CornerRadius="8" Padding="16" Margin="0,0,0,12"
@@ -72,8 +73,8 @@
                     <Grid ColumnDefinitions="*, Auto">
                         <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
                             <TextBlock Text="{Binding Release.TagName}" FontSize="16" FontWeight="Bold" Foreground="{StaticResource SystemAccentColorBrush}"/>
-                            <Border Background="{DynamicResource SystemAccentColorBrush}" CornerRadius="4" Padding="6,2" IsVisible="{Binding IsLatest}">
-                                <TextBlock Text="{localization:Localize Info.Changelog.LatestRelease}" FontSize="10" FontWeight="Bold" Foreground="White"/>
+                            <Border Background="{DynamicResource AccentBadgeBackgroundBrush}" CornerRadius="4" Padding="6,2" IsVisible="{Binding IsLatest}">
+                                <TextBlock Text="{localization:Localize Info.Changelog.LatestRelease}" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource AccentBadgeForegroundBrush}"/>
                             </Border>
                             <Border Background="{DynamicResource SurfaceElevatedBrush}" CornerRadius="4" Padding="6,2" IsVisible="{Binding Release.IsPrerelease}">
                                 <TextBlock Text="{localization:Localize Info.Changelog.PreRelease}" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource WarningBrush}"/>

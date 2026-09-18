@@ -181,6 +181,12 @@ public class BackgroundUpdateCoordinator(
         }
     }
 
+    private static void NavigateToChangelogs()
+    {
+        WeakReferenceMessenger.Default.Send(new NavigationMessage(NavigationTab.Info));
+        WeakReferenceMessenger.Default.Send(new OpenInfoSectionMessage(InfoConstants.SectionChangelogs));
+    }
+
     private void RegisterMessages()
     {
         if (!WeakReferenceMessenger.Default.IsRegistered<UpdateSettingsChangedMessage>(this))
@@ -954,11 +960,5 @@ public class BackgroundUpdateCoordinator(
             lifetimeToken = _cts.Token;
             return true;
         }
-    }
-
-    private void NavigateToChangelogs()
-    {
-        WeakReferenceMessenger.Default.Send(new NavigationMessage(NavigationTab.Info));
-        WeakReferenceMessenger.Default.Send(new OpenInfoSectionMessage(InfoConstants.SectionChangelogs));
     }
 }

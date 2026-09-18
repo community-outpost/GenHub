@@ -349,7 +349,7 @@ public partial class MainViewModel(
                 NotificationType.Success,
                 title,
                 message,
-                autoDismissMilliseconds: 10000,
+                autoDismissMilliseconds: NotificationDurations.VeryLong,
                 actions:
                 [
                     new NotificationAction(

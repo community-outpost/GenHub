@@ -1,5 +1,6 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GitHub;
 using GenHub.Core.Models.GitHub;
@@ -10,6 +11,7 @@ using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
 using System.Text.Json;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace GenHub.Features.Info.ViewModels;
@@ -29,7 +31,6 @@ public partial class ChangelogsViewModel(
 {
     private const string RepositoryOwner = "community-outpost";
     private const string RepositoryName = "GenHub";
-    private const string CacheFileName = "changelogs-cache.json";
 
     [ObservableProperty]
     private bool _isLoading;
@@ -44,16 +45,17 @@ public partial class ChangelogsViewModel(
     private string _errorMessage = string.Empty;
 
     /// <summary>
-    /// Gets the collection of GitHub releases wrapped in view models with expansion state.
+    /// Gets the collection of changelog release items.
     /// </summary>
     public ObservableCollection<ChangelogItemViewModel> Releases { get; } = [];
 
     /// <summary>
     /// Loads the changelogs from GitHub or local cache fallback.
     /// </summary>
+    /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
     [RelayCommand]
-    public async Task LoadChangelogsAsync()
+    public async Task LoadChangelogsAsync(CancellationToken cancellationToken = default)
     {
         if (IsLoading)
         {
@@ -67,7 +69,7 @@ public partial class ChangelogsViewModel(
             IsUsingCachedData = false;
             ErrorMessage = string.Empty;
 
-            var releases = await gitHubApiClient.GetReleasesAsync(RepositoryOwner, RepositoryName);
+            var releases = await gitHubApiClient.GetReleasesAsync(RepositoryOwner, RepositoryName, cancellationToken);
             var releaseList = releases?.ToList();
 
             if (releaseList != null && releaseList.Count > 0)
@@ -80,12 +82,12 @@ public partial class ChangelogsViewModel(
                     Releases.Add(new ChangelogItemViewModel(sortedReleases[i], isLatest, OpenReleaseUrl));
                 }
 
-                await SaveToCacheAsync(sortedReleases);
+                await SaveToCacheAsync(sortedReleases, cancellationToken);
                 return;
             }
 
             // If empty or null, attempt reading from offline cache
-            if (await TryLoadFromCacheAsync())
+            if (await TryLoadFromCacheAsync(cancellationToken))
             {
                 return;
             }
@@ -99,7 +101,7 @@ public partial class ChangelogsViewModel(
         catch (Exception ex)
         {
             logger.LogError(ex, "Error loading changelogs from GitHub API, falling back to cache");
-            if (await TryLoadFromCacheAsync())
+            if (await TryLoadFromCacheAsync(cancellationToken))
             {
                 return;
             }
@@ -148,7 +150,7 @@ public partial class ChangelogsViewModel(
             if (!string.IsNullOrWhiteSpace(cacheDir))
             {
                 Directory.CreateDirectory(cacheDir);
-                return Path.Combine(cacheDir, CacheFileName);
+                return Path.Combine(cacheDir, InfoConstants.ChangelogsCacheFileName);
             }
         }
         catch (Exception ex)
@@ -159,7 +161,7 @@ public partial class ChangelogsViewModel(
         return null;
     }
 
-    private async Task SaveToCacheAsync(List<GitHubRelease> releases)
+    private async Task SaveToCacheAsync(List<GitHubRelease> releases, CancellationToken cancellationToken = default)
     {
         var cachePath = GetCacheFilePath();
         if (string.IsNullOrWhiteSpace(cachePath))
@@ -170,7 +172,7 @@ public partial class ChangelogsViewModel(
         try
         {
             using var fileStream = File.Create(cachePath);
-            await JsonSerializer.SerializeAsync(fileStream, releases);
+            await JsonSerializer.SerializeAsync(fileStream, releases, cancellationToken: cancellationToken);
         }
         catch (Exception ex)
         {
@@ -178,7 +180,7 @@ public partial class ChangelogsViewModel(
         }
     }
 
-    private async Task<bool> TryLoadFromCacheAsync()
+    private async Task<bool> TryLoadFromCacheAsync(CancellationToken cancellationToken = default)
     {
         var cachePath = GetCacheFilePath();
         if (string.IsNullOrWhiteSpace(cachePath) || !File.Exists(cachePath))
@@ -189,7 +191,7 @@ public partial class ChangelogsViewModel(
         try
         {
             using var fileStream = File.OpenRead(cachePath);
-            var cachedReleases = await JsonSerializer.DeserializeAsync<List<GitHubRelease>>(fileStream);
+            var cachedReleases = await JsonSerializer.DeserializeAsync<List<GitHubRelease>>(fileStream, cancellationToken: cancellationToken);
             if (cachedReleases != null && cachedReleases.Count > 0)
             {
                 Releases.Clear();
@@ -203,7 +205,6 @@ public partial class ChangelogsViewModel(
                 IsUsingCachedData = true;
                 HasError = false;
                 ErrorMessage = string.Empty;
-                logger.LogInformation("Loaded {Count} changelog releases from local offline cache", Releases.Count);
                 return true;
             }
         }
