@@ -2033,6 +2033,7 @@ public partial class ContentDetailViewModel(
                 var variantSr = VariantSwap.Clone(searchResult);
                 variantSr.Id = manifestId;
                 variantSr.Name = variantName;
+                variantSr.TargetGame = v.TargetGame ?? searchResult.TargetGame;
 
                 variantSr.ResolverMetadata[CatalogConstants.SelectedVariantMetadataKey] = v.Id;
 
