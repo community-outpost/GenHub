@@ -8652,4 +8652,13 @@ Install location:
   <data name="GameSettings.Camera.ResetDefaultsToolTip" xml:space="preserve">
     <value>Reset all camera settings to standard game engine defaults.</value>
   </data>
+  <data name="GameProfiles.Notification.LaunchChanged.Title" xml:space="preserve">
+    <value>Launch Configuration Changed</value>
+  </data>
+  <data name="GameProfiles.Notification.LaunchChanged.Message" xml:space="preserve">
+    <value>This launch differs from the last recorded launch:</value>
+  </data>
+  <data name="GameProfiles.Notification.LaunchChanged.More" xml:space="preserve">
+    <value>...and {0} more; see the logs for full detail.</value>
+  </data>
 </root>
