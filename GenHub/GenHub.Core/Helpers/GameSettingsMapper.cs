@@ -106,6 +106,7 @@ public static class GameSettingsMapper
         ApplyVideoResolutionAndQualityToOptions(profile, options, logger);
         ApplyVideoAdditionalToOptions(profile, options, logger);
         ApplyAudioToOptions(profile, options, logger);
+        ApplyNetworkToOptions(profile, options, logger);
         ApplyTshToOptions(profile, options);
     }
 
@@ -915,6 +916,14 @@ public static class GameSettingsMapper
                     GameSettingsConstants.Audio.MinNumSounds,
                     GameSettingsConstants.Audio.MaxNumSounds);
             }
+        }
+    }
+
+    private static void ApplyNetworkToOptions(GameProfile profile, IniOptions options, ILogger? logger = null)
+    {
+        if (profile.GameSpyIPAddress != null)
+        {
+            options.Network.GameSpyIPAddress = profile.GameSpyIPAddress;
         }
     }
 

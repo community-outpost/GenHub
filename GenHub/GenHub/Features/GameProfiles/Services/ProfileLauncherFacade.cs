@@ -625,26 +625,11 @@ public class ProfileLauncherFacade(
                 requestedToolStrategy);
         }
 
-        var baseInstallationPath = appDataBase;
-        var workspaceRootPath = Path.Combine(appDataBase, DirectoryNames.ToolWorkspaces);
-
-        if (toolManifest.TargetGame != GameType.Unknown)
-        {
-            var installationsResult = await installationService.GetAllInstallationsAsync(cancellationToken);
-            if (installationsResult.Success && installationsResult.Data != null)
-            {
-                var matchingInstall = installationsResult.Data.FirstOrDefault(i =>
-                    (!string.IsNullOrEmpty(profile.GameInstallationId) && i.Id == profile.GameInstallationId) ||
-                    i.AvailableGameClients.Any(c => c.GameType == toolManifest.TargetGame));
-
-                if (matchingInstall != null && !string.IsNullOrEmpty(matchingInstall.InstallationPath) && Directory.Exists(matchingInstall.InstallationPath))
-                {
-                    baseInstallationPath = matchingInstall.InstallationPath;
-                    workspaceRootPath = storageLocationService.GetWorkspacePath(matchingInstall);
-                    logger.LogInformation("[Launch] Tool workspace using base game installation: {Path}", baseInstallationPath);
-                }
-            }
-        }
+        var (baseInstallationPath, workspaceRootPath) = await ResolveToolBaseAndWorkspacePathsAsync(
+            profile,
+            toolManifest,
+            appDataBase,
+            cancellationToken);
 
         var actualWorkspaceId = $"{ProfileConstants.ToolProfileWorkspaceIdPrefix}-{profile.Id}";
         var workspaceConfig = new WorkspaceConfiguration
@@ -670,6 +655,40 @@ public class ProfileLauncherFacade(
         var toolWorkspacePath = prepareResult.Data.WorkspacePath;
         logger.LogInformation("[Launch] Tool workspace prepared at: {Path}", toolWorkspacePath);
         return ProfileOperationResult<(string, string?)>.CreateSuccess((toolWorkspacePath, actualWorkspaceId));
+    }
+
+    private async Task<(string BaseInstallationPath, string WorkspaceRootPath)> ResolveToolBaseAndWorkspacePathsAsync(
+        GameProfile profile,
+        ContentManifest toolManifest,
+        string appDataBase,
+        CancellationToken cancellationToken)
+    {
+        var baseInstallationPath = appDataBase;
+        var workspaceRootPath = Path.Combine(appDataBase, DirectoryNames.ToolWorkspaces);
+
+        if (toolManifest.TargetGame == GameType.Unknown)
+        {
+            return (baseInstallationPath, workspaceRootPath);
+        }
+
+        var installationsResult = await installationService.GetAllInstallationsAsync(cancellationToken);
+        if (!installationsResult.Success || installationsResult.Data == null)
+        {
+            return (baseInstallationPath, workspaceRootPath);
+        }
+
+        var matchingInstall = installationsResult.Data.FirstOrDefault(i =>
+            (!string.IsNullOrEmpty(profile.GameInstallationId) && i.Id == profile.GameInstallationId) ||
+            i.AvailableGameClients.Any(c => c.GameType == toolManifest.TargetGame));
+
+        if (matchingInstall != null && !string.IsNullOrEmpty(matchingInstall.InstallationPath) && Directory.Exists(matchingInstall.InstallationPath))
+        {
+            baseInstallationPath = matchingInstall.InstallationPath;
+            workspaceRootPath = storageLocationService.GetWorkspacePath(matchingInstall);
+            logger.LogInformation("[Launch] Tool workspace using base game installation: {Path}", baseInstallationPath);
+        }
+
+        return (baseInstallationPath, workspaceRootPath);
     }
 
     private ManifestFile? ResolveToolExecutable(ContentManifest toolManifest)

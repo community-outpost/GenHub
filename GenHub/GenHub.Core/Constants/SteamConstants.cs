@@ -16,6 +16,11 @@ public static class SteamConstants
     public const string ZeroHourAppId = "2732960";
 
     /// <summary>
+    /// The URL scheme prefix used to run a game by AppID through Steam.
+    /// </summary>
+    public const string RunGameIdUrlPrefix = "steam://rungameid/";
+
+    /// <summary>
     /// The name of the tracking file used for Steam launches.
     /// </summary>
     public const string TrackingFileName = ".genhub-files.json";

@@ -1332,7 +1332,7 @@ public class GameLauncher(
             return OperationResult<GameProcessInfo>.CreateFailure("Steam AppId missing");
         }
 
-        var steamUrl = $"steam://rungameid/{steamAppId}";
+        var steamUrl = $"{SteamConstants.RunGameIdUrlPrefix}{steamAppId}";
         logger.LogInformation("[GameLauncher] Launching via Steam URL: {SteamUrl}", steamUrl);
 
         try
