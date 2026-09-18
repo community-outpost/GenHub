@@ -107,13 +107,13 @@ public class GameInstallation(
     {
         if (!string.IsNullOrEmpty(generalsPath))
         {
-            HasGenerals = Directory.Exists(generalsPath) && HasValidExecutable(generalsPath);
+            HasGenerals = Directory.Exists(generalsPath) && InstallationExtensions.HasValidGeneralsExecutable(generalsPath);
             GeneralsPath = generalsPath;
         }
 
         if (!string.IsNullOrEmpty(zeroHourPath))
         {
-            HasZeroHour = Directory.Exists(zeroHourPath) && HasValidExecutable(zeroHourPath);
+            HasZeroHour = Directory.Exists(zeroHourPath) && InstallationExtensions.HasValidZeroHourExecutable(zeroHourPath);
             ZeroHourPath = zeroHourPath;
         }
 
@@ -156,13 +156,13 @@ public class GameInstallation(
             bool foundZeroHour = false;
 
             // Preserve explicitly configured and valid paths (e.g. from platform detectors or manifests)
-            if (!string.IsNullOrEmpty(GeneralsPath) && Directory.Exists(GeneralsPath) && HasValidExecutable(GeneralsPath))
+            if (!string.IsNullOrEmpty(GeneralsPath) && Directory.Exists(GeneralsPath) && InstallationExtensions.HasValidGeneralsExecutable(GeneralsPath))
             {
                 HasGenerals = true;
                 foundGenerals = true;
             }
 
-            if (!string.IsNullOrEmpty(ZeroHourPath) && Directory.Exists(ZeroHourPath) && HasValidExecutable(ZeroHourPath))
+            if (!string.IsNullOrEmpty(ZeroHourPath) && Directory.Exists(ZeroHourPath) && InstallationExtensions.HasValidZeroHourExecutable(ZeroHourPath))
             {
                 HasZeroHour = true;
                 foundZeroHour = true;
@@ -207,30 +207,6 @@ public class GameInstallation(
     public override int GetHashCode()
     {
         return Id?.GetHashCode() ?? 0;
-    }
-
-    private static bool HasValidExecutable(string path)
-    {
-        var possibleExes = new[] { GameClientConstants.SteamGameDatExecutable, GameClientConstants.GeneralsExecutable, GameClientConstants.ZeroHourExecutable };
-        return possibleExes.Any(exe => Path.Combine(path, exe).FileExistsCaseInsensitive());
-    }
-
-    private static bool HasRootExecutable(string path)
-    {
-        var possibleExes = new[]
-        {
-            GameClientConstants.GeneralsExecutable,
-            GameClientConstants.SuperHackersZeroHourExecutable,
-            GameClientConstants.SuperHackersGeneralsExecutable,
-            GameClientConstants.GeneralsOnlineDefaultExecutable,
-            GameClientConstants.GeneralsOnline60HzExecutable,
-            GameClientConstants.GeneralsOnlineEacLauncherExecutable,
-            GameClientConstants.ContraExecutable,
-            GameClientConstants.SteamGameDatExecutable,
-            GameClientConstants.GameExecutable,
-        };
-
-        return possibleExes.Any(exe => Path.Combine(path, exe).FileExistsCaseInsensitive());
     }
 
     private static bool HasZeroHourArchiveOrExecutableSignature(string path)
@@ -380,7 +356,7 @@ public class GameInstallation(
 
     private void FetchRootInstallation(ref bool foundGenerals, ref bool foundZeroHour)
     {
-        if ((foundGenerals && foundZeroHour) || !HasRootExecutable(InstallationPath))
+        if ((foundGenerals && foundZeroHour) || !InstallationExtensions.HasValidGameExecutable(InstallationPath))
         {
             return;
         }

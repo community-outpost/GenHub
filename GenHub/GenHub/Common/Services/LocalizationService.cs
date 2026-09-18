@@ -6,6 +6,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Linq;
 using System.Resources;
@@ -47,6 +48,34 @@ internal sealed class LocalizationService(
         ArgumentException.ThrowIfNullOrWhiteSpace(key);
         ArgumentNullException.ThrowIfNull(arguments);
 
+        if (TryGetString(key, out var result, arguments))
+        {
+            return result;
+        }
+
+        var culture = CurrentCulture;
+        if (_missingResourceWarnings.TryAdd((culture.Name, key), 0))
+        {
+            logger.LogWarning(
+                "Localization resource '{ResourceKey}' was not found for culture '{CultureName}' or its English fallback",
+                key,
+                culture.Name);
+        }
+
+        return key;
+    }
+
+    /// <inheritdoc/>
+    public bool TryGetString(string key, [NotNullWhen(true)] out string? result, params object?[] arguments)
+    {
+        if (string.IsNullOrWhiteSpace(key))
+        {
+            result = null;
+            return false;
+        }
+
+        ArgumentNullException.ThrowIfNull(arguments);
+
         var culture = CurrentCulture;
 
         try
@@ -54,41 +83,39 @@ internal sealed class LocalizationService(
             var value = resources.ResourceManager.GetString(key, culture);
             if (value is null)
             {
-                if (_missingResourceWarnings.TryAdd((culture.Name, key), 0))
-                {
-                    logger.LogWarning(
-                        "Localization resource '{ResourceKey}' was not found for culture '{CultureName}' or its English fallback",
-                        key,
-                        culture.Name);
-                }
-
-                return key;
+                result = null;
+                return false;
             }
 
             if (arguments.Length == 0)
             {
-                return value;
+                result = value;
+                return true;
             }
 
             try
             {
-                return string.Format(culture, value, arguments);
+                result = string.Format(culture, value, arguments);
+                return true;
             }
             catch (FormatException ex)
             {
                 logger.LogError(ex, "Localization resource '{ResourceKey}' contains an invalid format string", key);
-                return value;
+                result = value;
+                return true;
             }
         }
         catch (MissingManifestResourceException ex)
         {
             logger.LogError(ex, "The default localization resource set could not be loaded");
-            return key;
+            result = null;
+            return false;
         }
         catch (MissingSatelliteAssemblyException ex)
         {
             logger.LogError(ex, "The fallback localization satellite assembly could not be loaded");
-            return key;
+            result = null;
+            return false;
         }
     }
 

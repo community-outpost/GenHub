@@ -34,7 +34,7 @@ public interface IInstallationPathResolver
     /// Searches common installation locations for a game installation matching the given criteria.
     /// </summary>
     /// <param name="installation">The installation to search for (uses game type, installation type as hints).</param>
-    /// <param name="gameDatHash">Optional game.dat hash to match against for precise identification.</param>
+    /// <param name="gameDatHash">Optional game.dat hash to match against for precise identification. When null, the hash is automatically computed from the existing installation path if available.</param>
     /// <param name="cancellationToken">A cancellation token.</param>
     /// <returns>An operation result containing the found installation path, or failure if not found.</returns>
     Task<OperationResult<string>> SearchForInstallationAsync(

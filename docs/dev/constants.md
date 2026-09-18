@@ -425,6 +425,44 @@ Constants related to Steam integration and the proxy launcher.
 | `ProxyLauncherName`      | `"GenHub.ProxyLauncher"`  | Product and internal name of the proxy launcher  |
 | `AppNameToken`           | `"GenHub"`                | Application name token used for identifying proxy launchers |
 | `ProxyDescriptionToken`  | `"Proxy"`                 | Proxy description token used for identifying proxy launchers |
+| `SteamDirectoryName`     | `"Steam"`                 | Steam directory name                             |
+| `SteamAppsDirectoryName` | `"steamapps"`             | Steam apps directory name                        |
+| `CommonDirectoryName`    | `"common"`                | Steam common directory name                      |
+
+---
+
+## InstallationSearchPathConstants Class
+
+Directory name fragments used by `LinuxInstallationSearchPathProvider` and `MacOSInstallationSearchPathProvider` to compose candidate game installation locations.
+
+### Linux Fragments (`InstallationSearchPathConstants.Linux`)
+
+| Constant | Value | Description |
+| -------- | ----- | ----------- |
+| `DotSteamDirectoryName` | `".steam"` | Legacy Steam per-user configuration directory |
+| `SteamInstallDirectoryName` | `"steam"` | Steam install directory under the legacy config path and the snap revision path |
+| `SteamRootDirectoryName` | `"root"` | Legacy Steam runtime root directory |
+| `XdgLocalDirectoryName` | `".local"` | XDG local data parent directory |
+| `XdgShareDirectoryName` | `"share"` | XDG shared data directory |
+| `FlatpakVarDirectoryName` | `".var"` | Flatpak per-user application data root |
+| `FlatpakAppDirectoryName` | `"app"` | Flatpak application container directory |
+| `SteamFlatpakApplicationId` | `"com.valvesoftware.Steam"` | Steam Flatpak application identifier |
+| `FlatpakDataDirectoryName` | `"data"` | Flatpak writable data directory |
+| `SnapDirectoryName` | `"snap"` | Snap per-user data root |
+| `GamesDirectoryName` | `"Games"` | User games directory used for non-Steam installations |
+| `WinePrefixDirectoryName` | `".wine"` | Default Wine prefix directory |
+| `WineDriveCDirectoryName` | `"drive_c"` | Windows C: drive mapping inside a Wine prefix |
+| `ProgramFilesX86DirectoryName` | `"Program Files (x86)"` | 32-bit Windows program files directory inside a Wine prefix |
+| `ProgramFilesDirectoryName` | `"Program Files"` | 64-bit Windows program files directory inside a Wine prefix |
+
+### macOS Fragments (`InstallationSearchPathConstants.MacOS`)
+
+| Constant | Value | Description |
+| -------- | ----- | ----------- |
+| `LibraryDirectoryName` | `"Library"` | Per-user library directory |
+| `ApplicationSupportDirectoryName` | `"Application Support"` | Per-user application support directory |
+| `ApplicationsDirectoryName` | `"Applications"` | Per-user applications directory |
+| `SystemApplicationsDirectory` | `"/Applications"` | System-wide applications directory |
 
 ---
 
@@ -749,6 +787,13 @@ Constants related to game client detection and management.
 | `ZeroHourDirectoryNameAmpersandHyphen` | `"Command & Conquer Generals - Zero Hour"`  | Zero Hour directory name with ampersand and hyphen (Steam standard) |
 | `ZeroHourDirectoryNameColonVariant`    | `"Command & Conquer: Generals - Zero Hour"` | Zero Hour directory name with colon variant |
 | `ZeroHourDirectoryNameAbbreviated`     | `"C&C Generals Zero Hour"`                  | Zero Hour directory name abbreviated form |
+| `EaGamesParentDirectoryName`        | `"EA Games"`                               | EA Games parent directory name                 |
+| `ElectronicArtsParentDirectoryName` | `"Electronic Arts"`                        | Electronic Arts parent directory name          |
+| `GeneralsSubdirectoryName`          | `"Generals"`                               | Generals subdirectory name                     |
+| `ZeroHourSubdirectoryName`          | `"ZeroHour"`                               | Zero Hour subdirectory name                    |
+| `GeneralsRetailDirectoryName`       | `"Command & Conquer Generals"`             | Standard retail Generals directory name        |
+| `ZeroHourRetailDirectoryName`       | `"Command & Conquer Generals Zero Hour"`   | Standard retail Zero Hour directory name       |
+| `ZhGeneralsDirectory`               | `"ZH_Generals"`                            | Directory marker for Zero Hour's Generals link |
 
 ### Core Game Archives
 

@@ -11,6 +11,7 @@ using GenHub.Linux.Infrastructure.DependencyInjection;
 using GenHub.Tests.Shared;
 using Microsoft.Extensions.DependencyInjection;
 using System.Runtime.Versioning;
+using Xunit;
 
 namespace GenHub.Tests.Linux.Infrastructure.DependencyInjection;
 
@@ -45,6 +46,8 @@ public class LinuxApplicationCompositionTests
             serviceProvider.GetRequiredService<IConfigurationProviderService>().GetCasConfiguration().CasRootPath);
         Assert.IsType<LinuxInstallationDetector>(
             serviceProvider.GetRequiredService<IGameInstallationDetector>());
+        Assert.IsType<LinuxInstallationSearchPathProvider>(
+            serviceProvider.GetRequiredService<IInstallationSearchPathProvider>());
         Assert.NotNull(serviceProvider.GetRequiredService<IShortcutService>());
         Assert.Null(serviceProvider.GetService<IGitHubTokenStorage>());
 

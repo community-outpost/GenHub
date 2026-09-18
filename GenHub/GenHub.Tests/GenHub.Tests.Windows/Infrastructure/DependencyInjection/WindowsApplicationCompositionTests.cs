@@ -12,6 +12,7 @@ using GenHub.Windows.GameInstallations;
 using GenHub.Windows.Infrastructure.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection;
 using Moq;
+using Xunit;
 
 namespace GenHub.Tests.Windows.Infrastructure.DependencyInjection;
 
@@ -56,6 +57,8 @@ public class WindowsApplicationCompositionTests
             serviceProvider.GetRequiredService<IConfigurationProviderService>().GetCasConfiguration().CasRootPath);
         Assert.IsType<WindowsInstallationDetector>(
             serviceProvider.GetRequiredService<IGameInstallationDetector>());
+        Assert.IsType<WindowsInstallationSearchPathProvider>(
+            serviceProvider.GetRequiredService<IInstallationSearchPathProvider>());
         Assert.NotNull(serviceProvider.GetRequiredService<IShortcutService>());
         Assert.Same(tokenStorageMock.Object, serviceProvider.GetRequiredService<IGitHubTokenStorage>());
 

@@ -34,6 +34,7 @@ public static class LinuxServicesModule
         services.AddSingleton<ISymlinkCapabilityProvider, UnixSymlinkCapabilityProvider>();
         services.AddSingleton<IShortcutService, LinuxShortcutService>();
         services.Replace(ServiceDescriptor.Singleton<IInstallationLocationTracker, LinuxInstallationTracker>());
+        services.Replace(ServiceDescriptor.Singleton<IInstallationSearchPathProvider, LinuxInstallationSearchPathProvider>());
 
         // Real hard links via link(2). Without this the base implementation throws, which
         // is deliberate: silently copying made a missing registration invisible while

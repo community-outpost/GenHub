@@ -13,6 +13,9 @@ public static class GameClientConstants
     public const string GeneralsExecutable = "generals.exe";
 
     /// <summary>Zero Hour executable filename (EA App/Retail installations).</summary>
+    /// <remarks>Both Generals and Zero Hour ship as <c>generals.exe</c>; this intentionally
+    /// shares its value with <see cref="GeneralsExecutable"/> and is covered by
+    /// <see cref="ValidGameExecutableNames"/> through that entry.</remarks>
     public const string ZeroHourExecutable = "generals.exe";
 
     /// <summary>Game engine executable filename.</summary>
@@ -60,6 +63,15 @@ public static class GameClientConstants
 
     /// <summary>EA Games parent directory name.</summary>
     public const string EaGamesParentDirectoryName = "EA Games";
+
+    /// <summary>Electronic Arts parent directory name.</summary>
+    public const string ElectronicArtsParentDirectoryName = "Electronic Arts";
+
+    /// <summary>Generals subdirectory name.</summary>
+    public const string GeneralsSubdirectoryName = "Generals";
+
+    /// <summary>Zero Hour subdirectory name.</summary>
+    public const string ZeroHourSubdirectoryName = "ZeroHour";
 
     /// <summary>Standard retail Generals directory name.</summary>
     public const string GeneralsRetailDirectoryName = "Command & Conquer Generals";
@@ -266,6 +278,52 @@ public static class GameClientConstants
     [
         SuperHackersGeneralsExecutable,  // generalsv.exe
         SuperHackersZeroHourExecutable,  // generalszh.exe
+    ];
+
+    /// <summary>
+    /// List of valid game executable filenames for Generals installations.
+    /// </summary>
+    public static readonly IReadOnlyList<string> ValidGeneralsExecutableNames =
+    [
+        GeneralsExecutable,
+        SteamGameDatExecutable,
+        SuperHackersGeneralsExecutable,
+        GameExecutable,
+    ];
+
+    /// <summary>
+    /// List of valid game executable filenames for Zero Hour installations.
+    /// </summary>
+    /// <remarks><see cref="ZeroHourExecutable"/> is deliberately absent: it shares its
+    /// filename with <see cref="GeneralsExecutable"/>, which already covers it.</remarks>
+    public static readonly IReadOnlyList<string> ValidZeroHourExecutableNames =
+    [
+        GeneralsExecutable,
+        SteamGameDatExecutable,
+        SuperHackersZeroHourExecutable,
+        GameExecutable,
+        GeneralsOnlineDefaultExecutable,
+        GeneralsOnline60HzExecutable,
+        GeneralsOnlineEacLauncherExecutable,
+        ContraExecutable,
+    ];
+
+    /// <summary>
+    /// List of valid game executable filenames for installation verification across all editions.
+    /// </summary>
+    /// <remarks><see cref="ZeroHourExecutable"/> is deliberately absent: it shares its
+    /// filename with <see cref="GeneralsExecutable"/>, which already covers it.</remarks>
+    public static readonly IReadOnlyList<string> ValidGameExecutableNames =
+    [
+        GeneralsExecutable,
+        SteamGameDatExecutable,
+        SuperHackersZeroHourExecutable,
+        SuperHackersGeneralsExecutable,
+        GameExecutable,
+        GeneralsOnlineDefaultExecutable,
+        GeneralsOnline60HzExecutable,
+        GeneralsOnlineEacLauncherExecutable,
+        ContraExecutable,
     ];
 
     /// <summary>

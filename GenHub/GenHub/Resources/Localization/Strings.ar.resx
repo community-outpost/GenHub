@@ -5498,6 +5498,9 @@
   <data name="Info.Card.quickstart.step1-scan.Action.0" xml:space="preserve">
     <value>الانتقال إلى دليل الاكتشاف</value>
   </data>
+  <data name="Info.Card.quickstart.step1-scan.Action.NAV_INFO_scan-games" xml:space="preserve">
+    <value>الانتقال إلى دليل الاكتشاف</value>
+  </data>
   <data name="Info.Card.quickstart.step2-downloads.Title" xml:space="preserve">
     <value>الخطوة 2: التنزيلات الأساسية</value>
   </data>
@@ -5507,7 +5510,13 @@
   <data name="Info.Card.quickstart.step2-downloads.Action.0" xml:space="preserve">
     <value>الانتقال إلى التنزيلات</value>
   </data>
+  <data name="Info.Card.quickstart.step2-downloads.Action.NAV_Downloads" xml:space="preserve">
+    <value>الانتقال إلى التنزيلات</value>
+  </data>
   <data name="Info.Card.quickstart.step2-downloads.Action.1" xml:space="preserve">
+    <value>معرفة المزيد حول المحتوى</value>
+  </data>
+  <data name="Info.Card.quickstart.step2-downloads.Action.NAV_INFO_game-profile-content" xml:space="preserve">
     <value>معرفة المزيد حول المحتوى</value>
   </data>
   <data name="Info.Card.quickstart.step3-local-content.Title" xml:space="preserve">
@@ -5519,6 +5528,9 @@
   <data name="Info.Card.quickstart.step3-local-content.Action.0" xml:space="preserve">
     <value>معرفة كيفية الاستيراد</value>
   </data>
+  <data name="Info.Card.quickstart.step3-local-content.Action.NAV_INFO_local-content" xml:space="preserve">
+    <value>معرفة كيفية الاستيراد</value>
+  </data>
   <data name="Info.Card.quickstart.manifests-cas.Title" xml:space="preserve">
     <value>الأساس: البيانات الوصفية و CAS</value>
   </data>
@@ -5528,6 +5540,9 @@
   <data name="Info.Card.quickstart.manifests-cas.Action.0" xml:space="preserve">
     <value>إعدادات التخزين</value>
   </data>
+  <data name="Info.Card.quickstart.manifests-cas.Action.NAV_Settings" xml:space="preserve">
+    <value>إعدادات التخزين</value>
+  </data>
   <data name="Info.Card.quickstart.automated-maintenance.Title" xml:space="preserve">
     <value>الصيانة التلقائية</value>
   </data>
@@ -5535,6 +5550,9 @@
     <value>تحديثات تلقائية وتوافق الإصدارات.</value>
   </data>
   <data name="Info.Card.quickstart.automated-maintenance.Action.0" xml:space="preserve">
+    <value>تحديثات التطبيق</value>
+  </data>
+  <data name="Info.Card.quickstart.automated-maintenance.Action.NAV_INFO_app-updates" xml:space="preserve">
     <value>تحديثات التطبيق</value>
   </data>
   <data name="Tools.ReplayManager.Badge.ProfileReady" xml:space="preserve">

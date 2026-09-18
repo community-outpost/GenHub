@@ -1,6 +1,11 @@
+using GenHub.Core.Interfaces.GameInstallations;
+using GenHub.Infrastructure.DependencyInjection;
+using GenHub.MacOS.GameInstallations;
 using GenHub.MacOS.Infrastructure.DependencyInjection;
 using GenHub.Tests.Shared;
+using Microsoft.Extensions.DependencyInjection;
 using System.Runtime.Versioning;
+using Xunit;
 
 namespace GenHub.Tests.MacOS.Infrastructure.DependencyInjection;
 
@@ -22,5 +27,22 @@ public class MacOSCompositionRootTests
     {
         CompositionRootAssertions.AssertHostContainerIsComplete(
             services => services.AddMacOSServices());
+    }
+
+    /// <summary>
+    /// Verifies that the macOS host registers <see cref="MacOSInstallationSearchPathProvider"/>
+    /// as the concrete implementation for <see cref="IInstallationSearchPathProvider"/>.
+    /// </summary>
+    [Fact]
+    public void MacOSHost_RegistersMacOSInstallationSearchPathProvider()
+    {
+        using var testEnvironment = new TemporaryApplicationEnvironment();
+        var services = new ServiceCollection();
+        services.ConfigureApplicationServices(platformServices => platformServices.AddMacOSServices());
+
+        using var serviceProvider = services.BuildServiceProvider();
+
+        Assert.IsType<MacOSInstallationSearchPathProvider>(
+            serviceProvider.GetRequiredService<IInstallationSearchPathProvider>());
     }
 }
