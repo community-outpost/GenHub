@@ -172,14 +172,17 @@ public class InfoTabResponsivenessTests
         var loggerMock = new Mock<ILogger<ChangelogsViewModel>>();
         var changelogVm = new ChangelogsViewModel(gitHubMock.Object, loggerMock.Object);
 
-        changelogVm.Releases.Add(new GitHubRelease
-        {
-            TagName = "v1.0.0",
-            Name = "Release 1.0.0",
-            Body = "This is a very long line of changelog notes that would definitely overflow if horizontal scroll or infinity measure was allowed. " +
-                   "It contains many details about features, bugfixes, improvements, and other changes that developers have made to the codebase over the course of the release cycle.",
-            Assets = new List<GitHubReleaseAsset>(),
-        });
+        changelogVm.Releases.Add(new ChangelogItemViewModel(
+            new GitHubRelease
+            {
+                TagName = "v1.0.0",
+                Name = "Release 1.0.0",
+                Body = "This is a very long line of changelog notes that would definitely overflow if horizontal scroll or infinity measure was allowed. " +
+                       "It contains many details about features, bugfixes, improvements, and other changes that developers have made to the codebase over the course of the release cycle.",
+                Assets = new List<GitHubReleaseAsset>(),
+            },
+            isLatest: true,
+            _ => { }));
 
         var view = new ChangelogsView { DataContext = changelogVm };
         var window = new Window { Width = 700, Height = 800, Content = view };

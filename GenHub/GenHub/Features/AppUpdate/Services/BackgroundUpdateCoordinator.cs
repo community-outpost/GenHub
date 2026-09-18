@@ -29,12 +29,14 @@ namespace GenHub.Features.AppUpdate.Services;
 /// <param name="notificationService">Service for showing notifications.</param>
 /// <param name="logger">Logger instance.</param>
 /// <param name="gitHubTokenStorage">Optional GitHub token storage for checking token availability.</param>
+/// <param name="localizationService">Optional localization service.</param>
 public class BackgroundUpdateCoordinator(
     IVelopackUpdateManager velopackUpdateManager,
     IUserSettingsService userSettingsService,
     INotificationService notificationService,
     ILogger<BackgroundUpdateCoordinator> logger,
-    IGitHubTokenStorage? gitHubTokenStorage = null) : IBackgroundUpdateCoordinator, IRecipient<UpdateSettingsChangedMessage>
+    IGitHubTokenStorage? gitHubTokenStorage = null,
+    ILocalizationService? localizationService = null) : IBackgroundUpdateCoordinator, IRecipient<UpdateSettingsChangedMessage>
 {
     private readonly CancellationTokenSource _cts = new();
     private readonly object _lifecycleLock = new();
@@ -644,6 +646,11 @@ public class BackgroundUpdateCoordinator(
                     actions:
                     [
                         new NotificationAction(
+                            localizationService?.GetString("AppUpdate.Action.ViewChangelog") ?? AppUpdateConstants.ViewChangelogAction,
+                            NavigateToChangelogs,
+                            NotificationActionStyle.Secondary,
+                            dismissOnExecute: false),
+                        new NotificationAction(
                             AppUpdateConstants.UpdateAction,
                             () => _ = PerformOneClickUpdateAsync(null, updateInfo, null),
                             NotificationActionStyle.Primary,
@@ -678,6 +685,11 @@ public class BackgroundUpdateCoordinator(
                     autoDismissMilliseconds: null,
                     actions:
                     [
+                        new NotificationAction(
+                            localizationService?.GetString("AppUpdate.Action.ViewChangelog") ?? AppUpdateConstants.ViewChangelogAction,
+                            NavigateToChangelogs,
+                            NotificationActionStyle.Secondary,
+                            dismissOnExecute: false),
                         new NotificationAction(
                             AppUpdateConstants.UpdateAction,
                             () => _ = PerformOneClickUpdateAsync(null, null, githubVersion),
@@ -942,5 +954,11 @@ public class BackgroundUpdateCoordinator(
             lifetimeToken = _cts.Token;
             return true;
         }
+    }
+
+    private void NavigateToChangelogs()
+    {
+        WeakReferenceMessenger.Default.Send(new NavigationMessage(NavigationTab.Info));
+        WeakReferenceMessenger.Default.Send(new OpenInfoSectionMessage(InfoConstants.SectionChangelogs));
     }
 }

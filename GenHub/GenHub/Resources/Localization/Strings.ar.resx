@@ -4417,6 +4417,39 @@
   <data name="Info.Changelog.ViewOnGitHub" xml:space="preserve">
     <value>عرض على GitHub</value>
   </data>
+  <data name="Info.Changelog.LatestRelease" xml:space="preserve">
+    <value>أحدث إصدار</value>
+  </data>
+  <data name="Info.Changelog.OfflineCached" xml:space="preserve">
+    <value>عرض سجل التغييرات المخزن مؤقتًا (غير متصل أو تم تجاوز حد الطلبات)</value>
+  </data>
+  <data name="Info.Changelog.Collapse" xml:space="preserve">
+    <value>طي</value>
+  </data>
+  <data name="Info.Changelog.Expand" xml:space="preserve">
+    <value>توسيع</value>
+  </data>
+  <data name="Info.Changelog.ToggleDetails" xml:space="preserve">
+    <value>تبديل تفاصيل الإصدار</value>
+  </data>
+  <data name="Info.Changelog.RateLimited" xml:space="preserve">
+    <value>تم تجاوز حد طلبات GitHub API. يرجى تكوين رمز وصول شخصي في الإعدادات أو المحاولة مرة أخرى لاحقًا.</value>
+  </data>
+  <data name="Info.Changelog.NoReleasesFound" xml:space="preserve">
+    <value>لم يتم العثور على سجلات تغيير للإصدارات.</value>
+  </data>
+  <data name="Info.Changelog.LoadError" xml:space="preserve">
+    <value>حدث خطأ أثناء تحميل سجلات التغيير.</value>
+  </data>
+  <data name="AppUpdate.Action.ViewChangelog" xml:space="preserve">
+    <value>عرض التغييرات</value>
+  </data>
+  <data name="AppUpdate.PostUpdate.Title" xml:space="preserve">
+    <value>تم تحديث GenHub</value>
+  </data>
+  <data name="AppUpdate.PostUpdate.Message" xml:space="preserve">
+    <value>تم تحديث GenHub إلى v{0}. تفقد سجل التغييرات لمعرفة الجديد!</value>
+  </data>
   <data name="Info.WorkspaceDemo.RunSimulator" xml:space="preserve">
     <value>تشغيل المحاكي</value>
   </data>

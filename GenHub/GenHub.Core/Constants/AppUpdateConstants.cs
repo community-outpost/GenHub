@@ -229,6 +229,26 @@ public static class AppUpdateConstants
     public const string ViewUpdatesAction = "View Updates";
 
     /// <summary>
+    /// "View Changelog" action text.
+    /// </summary>
+    public const string ViewChangelogAction = "View Changelog";
+
+    /// <summary>
+    /// "What's New" action text.
+    /// </summary>
+    public const string WhatsNewAction = "What's New";
+
+    /// <summary>
+    /// Title for post-update announcement notification.
+    /// </summary>
+    public const string PostUpdateNotificationTitle = "GenHub Updated";
+
+    /// <summary>
+    /// Post-update notification message format ({0}: version).
+    /// </summary>
+    public const string PostUpdateNotificationFormat = "GenHub has been updated to v{0}. Check out the changelog to see what's new!";
+
+    /// <summary>
     /// Release update notification body format string ({0}: version).
     /// </summary>
     public const string ReleaseUpdateNotificationFormat = "A new version ({0}) is available.";

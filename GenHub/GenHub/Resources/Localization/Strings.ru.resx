@@ -4417,6 +4417,39 @@
   <data name="Info.Changelog.ViewOnGitHub" xml:space="preserve">
     <value>Просмотреть на GitHub</value>
   </data>
+  <data name="Info.Changelog.LatestRelease" xml:space="preserve">
+    <value>Последний выпуск</value>
+  </data>
+  <data name="Info.Changelog.OfflineCached" xml:space="preserve">
+    <value>Отображение сохраненного списка изменений (автономный режим или лимит запросов)</value>
+  </data>
+  <data name="Info.Changelog.Collapse" xml:space="preserve">
+    <value>Свернуть</value>
+  </data>
+  <data name="Info.Changelog.Expand" xml:space="preserve">
+    <value>Развернуть</value>
+  </data>
+  <data name="Info.Changelog.ToggleDetails" xml:space="preserve">
+    <value>Переключить сведения о выпуске</value>
+  </data>
+  <data name="Info.Changelog.RateLimited" xml:space="preserve">
+    <value>Превышен лимит запросов GitHub API. Настройте персональный токен доступа GitHub в Настройках или повторите попытку позже.</value>
+  </data>
+  <data name="Info.Changelog.NoReleasesFound" xml:space="preserve">
+    <value>Журналы изменений выпусков не найдены.</value>
+  </data>
+  <data name="Info.Changelog.LoadError" xml:space="preserve">
+    <value>Произошла ошибка при загрузке журнала изменений.</value>
+  </data>
+  <data name="AppUpdate.Action.ViewChangelog" xml:space="preserve">
+    <value>Посмотреть список изменений</value>
+  </data>
+  <data name="AppUpdate.PostUpdate.Title" xml:space="preserve">
+    <value>GenHub обновлен</value>
+  </data>
+  <data name="AppUpdate.PostUpdate.Message" xml:space="preserve">
+    <value>GenHub был обновлен до v{0}. Ознакомьтесь со списком изменений, чтобы узнать о новинках!</value>
+  </data>
   <data name="Info.WorkspaceDemo.RunSimulator" xml:space="preserve">
     <value>Запустить симулятор</value>
   </data>

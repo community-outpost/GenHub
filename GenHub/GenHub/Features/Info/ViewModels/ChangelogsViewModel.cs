@@ -1,11 +1,15 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GitHub;
 using GenHub.Core.Models.GitHub;
 using Microsoft.Extensions.Logging;
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.IO;
 using System.Linq;
+using System.Text.Json;
 using System.Threading.Tasks;
 
 namespace GenHub.Features.Info.ViewModels;
@@ -15,10 +19,17 @@ namespace GenHub.Features.Info.ViewModels;
 /// </summary>
 /// <param name="gitHubApiClient">The GitHub API client.</param>
 /// <param name="logger">The logger.</param>
-public partial class ChangelogsViewModel(IGitHubApiClient gitHubApiClient, ILogger<ChangelogsViewModel> logger) : ObservableObject
+/// <param name="configurationProvider">Optional configuration provider for cache path resolution.</param>
+/// <param name="localizationService">Optional localization service.</param>
+public partial class ChangelogsViewModel(
+    IGitHubApiClient gitHubApiClient,
+    ILogger<ChangelogsViewModel> logger,
+    IConfigurationProviderService? configurationProvider = null,
+    ILocalizationService? localizationService = null) : ObservableObject
 {
     private const string RepositoryOwner = "community-outpost";
     private const string RepositoryName = "GenHub";
+    private const string CacheFileName = "changelogs-cache.json";
 
     [ObservableProperty]
     private bool _isLoading;
@@ -27,15 +38,18 @@ public partial class ChangelogsViewModel(IGitHubApiClient gitHubApiClient, ILogg
     private bool _hasError;
 
     [ObservableProperty]
+    private bool _isUsingCachedData;
+
+    [ObservableProperty]
     private string _errorMessage = string.Empty;
 
     /// <summary>
-    /// Gets the collection of GitHub releases.
+    /// Gets the collection of GitHub releases wrapped in view models with expansion state.
     /// </summary>
-    public ObservableCollection<GitHubRelease> Releases { get; } = [];
+    public ObservableCollection<ChangelogItemViewModel> Releases { get; } = [];
 
     /// <summary>
-    /// Loads the changelogs from GitHub.
+    /// Loads the changelogs from GitHub or local cache fallback.
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [RelayCommand]
@@ -50,33 +64,48 @@ public partial class ChangelogsViewModel(IGitHubApiClient gitHubApiClient, ILogg
         {
             IsLoading = true;
             HasError = false;
+            IsUsingCachedData = false;
             ErrorMessage = string.Empty;
-            Releases.Clear();
 
             var releases = await gitHubApiClient.GetReleasesAsync(RepositoryOwner, RepositoryName);
+            var releaseList = releases?.ToList();
 
-            if (releases != null)
+            if (releaseList != null && releaseList.Count > 0)
             {
-                foreach (var release in releases.OrderByDescending(r => r.PublishedAt))
+                Releases.Clear();
+                var sortedReleases = releaseList.OrderByDescending(r => r.PublishedAt).ToList();
+                for (var i = 0; i < sortedReleases.Count; i++)
                 {
-                    Releases.Add(release);
+                    var isLatest = i == 0;
+                    Releases.Add(new ChangelogItemViewModel(sortedReleases[i], isLatest, OpenReleaseUrl));
                 }
+
+                await SaveToCacheAsync(sortedReleases);
+                return;
             }
 
-            if (Releases.Count == 0)
+            // If empty or null, attempt reading from offline cache
+            if (await TryLoadFromCacheAsync())
             {
-                logger.LogWarning("No releases found.");
-                HasError = true;
-                ErrorMessage = gitHubApiClient.IsRateLimited
-                    ? "GitHub API rate limit exceeded. Please configure a GitHub Personal Access Token in Settings or try again later."
-                    : "No release changelogs found.";
+                return;
             }
+
+            logger.LogWarning("No releases found.");
+            HasError = true;
+            ErrorMessage = gitHubApiClient.IsRateLimited
+                ? (localizationService?.GetString("Info.Changelog.RateLimited") ?? "GitHub API rate limit exceeded. Please configure a GitHub Personal Access Token in Settings or try again later.")
+                : (localizationService?.GetString("Info.Changelog.NoReleasesFound") ?? "No release changelogs found.");
         }
         catch (Exception ex)
         {
+            logger.LogError(ex, "Error loading changelogs from GitHub API, falling back to cache");
+            if (await TryLoadFromCacheAsync())
+            {
+                return;
+            }
+
             HasError = true;
-            ErrorMessage = "An error occurred while loading changelogs.";
-            logger.LogError(ex, "Error loading changelogs");
+            ErrorMessage = localizationService?.GetString("Info.Changelog.LoadError") ?? "An error occurred while loading changelogs.";
         }
         finally
         {
@@ -85,11 +114,11 @@ public partial class ChangelogsViewModel(IGitHubApiClient gitHubApiClient, ILogg
     }
 
     /// <summary>
-    /// Opens the release on GitHub.
+    /// Opens the release on GitHub in the default browser.
     /// </summary>
     /// <param name="url">The URL to open.</param>
     [RelayCommand]
-    private void OpenReleaseUrl(string? url)
+    public void OpenReleaseUrl(string? url)
     {
         if (string.IsNullOrEmpty(url) || !Uri.TryCreate(url, UriKind.Absolute, out var uri) || (uri.Scheme != "http" && uri.Scheme != "https"))
         {
@@ -109,5 +138,80 @@ public partial class ChangelogsViewModel(IGitHubApiClient gitHubApiClient, ILogg
         {
             logger.LogError(ex, "Failed to open release URL: {Url}", url);
         }
+    }
+
+    private string? GetCacheFilePath()
+    {
+        try
+        {
+            var cacheDir = configurationProvider?.GetCachePath();
+            if (!string.IsNullOrWhiteSpace(cacheDir))
+            {
+                Directory.CreateDirectory(cacheDir);
+                return Path.Combine(cacheDir, CacheFileName);
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogDebug(ex, "Failed to resolve cache directory for changelogs");
+        }
+
+        return null;
+    }
+
+    private async Task SaveToCacheAsync(List<GitHubRelease> releases)
+    {
+        var cachePath = GetCacheFilePath();
+        if (string.IsNullOrWhiteSpace(cachePath))
+        {
+            return;
+        }
+
+        try
+        {
+            using var fileStream = File.Create(cachePath);
+            await JsonSerializer.SerializeAsync(fileStream, releases);
+        }
+        catch (Exception ex)
+        {
+            logger.LogDebug(ex, "Failed to write changelogs cache to {Path}", cachePath);
+        }
+    }
+
+    private async Task<bool> TryLoadFromCacheAsync()
+    {
+        var cachePath = GetCacheFilePath();
+        if (string.IsNullOrWhiteSpace(cachePath) || !File.Exists(cachePath))
+        {
+            return false;
+        }
+
+        try
+        {
+            using var fileStream = File.OpenRead(cachePath);
+            var cachedReleases = await JsonSerializer.DeserializeAsync<List<GitHubRelease>>(fileStream);
+            if (cachedReleases != null && cachedReleases.Count > 0)
+            {
+                Releases.Clear();
+                var sortedReleases = cachedReleases.OrderByDescending(r => r.PublishedAt).ToList();
+                for (var i = 0; i < sortedReleases.Count; i++)
+                {
+                    var isLatest = i == 0;
+                    Releases.Add(new ChangelogItemViewModel(sortedReleases[i], isLatest, OpenReleaseUrl));
+                }
+
+                IsUsingCachedData = true;
+                HasError = false;
+                ErrorMessage = string.Empty;
+                logger.LogInformation("Loaded {Count} changelog releases from local offline cache", Releases.Count);
+                return true;
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogDebug(ex, "Failed to read changelogs cache from {Path}", cachePath);
+        }
+
+        return false;
     }
 }
