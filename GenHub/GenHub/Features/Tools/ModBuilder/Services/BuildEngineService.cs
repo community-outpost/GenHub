@@ -571,25 +571,7 @@ public sealed class BuildEngineService(
             var totalFiles = item.Files.Count;
             var currentFile = 0;
 
-            var uniqueDirs = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            foreach (var file in item.Files)
-            {
-                var targetRelPath = GetTargetRelativePath(file);
-                var targetStagedFile = Path.Combine(stagingDir, targetRelPath);
-                var targetStagedDir = Path.GetDirectoryName(targetStagedFile);
-                if (!string.IsNullOrEmpty(targetStagedDir))
-                {
-                    uniqueDirs.Add(targetStagedDir);
-                }
-            }
-
-            foreach (var dir in uniqueDirs)
-            {
-                if (!Directory.Exists(dir))
-                {
-                    Directory.CreateDirectory(dir);
-                }
-            }
+            CreateStagingDirectories(item.Files, stagingDir);
 
             var parallelOptions = new ParallelOptions
             {
@@ -650,19 +632,7 @@ public sealed class BuildEngineService(
                 });
             });
 
-            var archiveResult = await archiveService.CreateBigArchiveAsync(stagingDir, bigFilePath, archiveProgress, cancellationToken)
-                .ConfigureAwait(false);
-
-            if (!archiveResult.Success)
-            {
-                Interlocked.Increment(ref _filesFailed);
-                logger.LogError("Failed to create BIG archive for item {ItemName}: {Error}", item.Name, archiveResult.FirstError);
-                _lastErrorMessage = $"Failed to create BIG archive for item {item.Name}: {archiveResult.FirstError}";
-            }
-            else
-            {
-                logger.LogInformation("Successfully created BIG archive: {Path}", bigFilePath);
-            }
+            await CreateBigArchiveWithLoggingAsync(stagingDir, bigFilePath, item.Name, archiveProgress, cancellationToken).ConfigureAwait(false);
         }
         finally
         {
@@ -677,6 +647,47 @@ public sealed class BuildEngineService(
                     logger.LogDebug(ex, "Failed to clean up staging directory: {StagingDir}", stagingDir);
                 }
             }
+        }
+    }
+
+    private static void CreateStagingDirectories(IReadOnlyList<BundleFile> files, string stagingDir)
+    {
+        var uniqueDirs = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var file in files)
+        {
+            var targetRelPath = GetTargetRelativePath(file);
+            var targetStagedFile = Path.Combine(stagingDir, targetRelPath);
+            var targetStagedDir = Path.GetDirectoryName(targetStagedFile);
+            if (!string.IsNullOrEmpty(targetStagedDir))
+            {
+                uniqueDirs.Add(targetStagedDir);
+            }
+        }
+
+        foreach (var dir in uniqueDirs.Where(dir => !Directory.Exists(dir)))
+        {
+            Directory.CreateDirectory(dir);
+        }
+    }
+
+    private async Task CreateBigArchiveWithLoggingAsync(
+        string stagingDir,
+        string bigFilePath,
+        string itemName,
+        IProgress<double> progress,
+        CancellationToken cancellationToken)
+    {
+        var archiveResult = await archiveService.CreateBigArchiveAsync(stagingDir, bigFilePath, progress, cancellationToken).ConfigureAwait(false);
+
+        if (!archiveResult.Success)
+        {
+            Interlocked.Increment(ref _filesFailed);
+            logger.LogError("Failed to create BIG archive for item {ItemName}: {Error}", itemName, archiveResult.FirstError);
+            _lastErrorMessage = $"Failed to create BIG archive for item {itemName}: {archiveResult.FirstError}";
+        }
+        else
+        {
+            logger.LogInformation("Successfully created BIG archive: {Path}", bigFilePath);
         }
     }
 
@@ -997,12 +1008,9 @@ public sealed class BuildEngineService(
             }
         }
 
-        foreach (var dir in uniqueDirs)
+        foreach (var dir in uniqueDirs.Where(dir => !Directory.Exists(dir)))
         {
-            if (!Directory.Exists(dir))
-            {
-                Directory.CreateDirectory(dir);
-            }
+            Directory.CreateDirectory(dir);
         }
 
         Parallel.ForEach(filesToStage, new ParallelOptions

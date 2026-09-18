@@ -111,6 +111,11 @@ public static class ModBuilderConstants
     public const string OperationInProgressTitle = "Operation in Progress";
 
     /// <summary>
+    /// Message displayed when files cannot be imported because another operation is running.
+    /// </summary>
+    public const string CannotImportWhileOperationInProgress = "Cannot import files while another operation is running.";
+
+    /// <summary>
     /// Message displayed when no project is loaded.
     /// </summary>
     public const string NoProjectMessage = "Please load or create a project first";
@@ -199,6 +204,11 @@ public static class ModBuilderConstants
     /// Directory name for edited game source files.
     /// </summary>
     public const string GameFilesEditedDir = "GameFilesEdited";
+
+    /// <summary>
+    /// Normalized path prefix for edited game source files, using forward slashes.
+    /// </summary>
+    public const string GameFilesEditedPrefix = "GameFilesEdited/";
 
     /// <summary>
     /// Directory name for project configuration files.

@@ -7424,6 +7424,9 @@ GenHub هو مشغل ومدير حديث لألعاب **Command &amp; Conquer: G
   <data name="Tools.ModBuilder.ProjectItemPicker.Subtitle" xml:space="preserve">
     <value>حدد المجلدات لإنشاء أحرف بدل متكررة أو اختر ملفات محددة للربط.</value>
   </data>
+  <data name="Tools.ModBuilder.ProjectItemPicker.SearchWatermark" xml:space="preserve">
+    <value>تصفية الملفات والمجلدات...</value>
+  </data>
   <data name="Tools.ModBuilder.ProjectItemPicker.LabelFolderGlobPattern" xml:space="preserve">
     <value>نمط تطابق المجلد:</value>
   </data>

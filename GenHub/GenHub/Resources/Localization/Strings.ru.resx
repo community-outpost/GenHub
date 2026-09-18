@@ -7424,6 +7424,9 @@ GenHub передает официальный идентификатор AppID 
   <data name="Tools.ModBuilder.ProjectItemPicker.Subtitle" xml:space="preserve">
     <value>Выберите папки для создания рекурсивных шаблонов или укажите конкретные файлы.</value>
   </data>
+  <data name="Tools.ModBuilder.ProjectItemPicker.SearchWatermark" xml:space="preserve">
+    <value>Фильтр файлов и папок...</value>
+  </data>
   <data name="Tools.ModBuilder.ProjectItemPicker.LabelFolderGlobPattern" xml:space="preserve">
     <value>Шаблон поиска папки:</value>
   </data>

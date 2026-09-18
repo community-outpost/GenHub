@@ -230,16 +230,12 @@ public partial class ProjectItemPickerViewModel : ObservableObject
         }
 
         var normRel = relativePath.Trim('/').Replace("\\", "/");
-        var normRelNoPrefix = normRel.StartsWith("GameFilesEdited/", StringComparison.OrdinalIgnoreCase)
-            ? normRel["GameFilesEdited/".Length..]
-            : normRel;
+        var normRelNoPrefix = StripEditedPrefix(normRel);
 
         foreach (var pattern in _initialPatterns)
         {
             var normPat = pattern.Trim('/').Replace("\\", "/");
-            var normPatNoPrefix = normPat.StartsWith("GameFilesEdited/", StringComparison.OrdinalIgnoreCase)
-                ? normPat["GameFilesEdited/".Length..]
-                : normPat;
+            var normPatNoPrefix = StripEditedPrefix(normPat);
 
             if (normRel.Equals(normPat, StringComparison.OrdinalIgnoreCase) ||
                 normRelNoPrefix.Equals(normPatNoPrefix, StringComparison.OrdinalIgnoreCase))
@@ -252,9 +248,7 @@ public partial class ProjectItemPickerViewModel : ObservableObject
                 var dirClean = normPat.Replace("/**/*.*", string.Empty)
                                       .Replace("/**", string.Empty)
                                       .Replace("/*.*", string.Empty);
-                var dirCleanNoPrefix = dirClean.StartsWith("GameFilesEdited/", StringComparison.OrdinalIgnoreCase)
-                    ? dirClean["GameFilesEdited/".Length..]
-                    : dirClean;
+                var dirCleanNoPrefix = StripEditedPrefix(dirClean);
 
                 if (normRel.Equals(dirClean, StringComparison.OrdinalIgnoreCase) ||
                     normRelNoPrefix.Equals(dirCleanNoPrefix, StringComparison.OrdinalIgnoreCase))
@@ -300,16 +294,18 @@ public partial class ProjectItemPickerViewModel : ObservableObject
         }
     }
 
+    private static string StripEditedPrefix(string normalizedPath) =>
+        normalizedPath.StartsWith(ModBuilderConstants.GameFilesEditedPrefix, StringComparison.OrdinalIgnoreCase)
+            ? normalizedPath[ModBuilderConstants.GameFilesEditedPrefix.Length..]
+            : normalizedPath;
+
     private static bool HighlightMatching(FileTreeNode node, string term)
     {
         var matches = node.Name.Contains(term, StringComparison.OrdinalIgnoreCase);
         var childMatches = false;
-        foreach (var child in node.Children)
+        foreach (var child in node.Children.Where(child => HighlightMatching(child, term)))
         {
-            if (HighlightMatching(child, term))
-            {
-                childMatches = true;
-            }
+            childMatches = true;
         }
 
         if (matches || childMatches)

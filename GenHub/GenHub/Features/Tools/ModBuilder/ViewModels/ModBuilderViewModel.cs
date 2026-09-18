@@ -795,7 +795,7 @@ public partial class ModBuilderViewModel(
 
         if (IsBuildRunning)
         {
-            notificationService.ShowWarning(ModBuilderConstants.OperationInProgressTitle, "Cannot import files while another operation is running.");
+            notificationService.ShowWarning(ModBuilderConstants.OperationInProgressTitle, ModBuilderConstants.CannotImportWhileOperationInProgress);
             return;
         }
 
@@ -818,7 +818,7 @@ public partial class ModBuilderViewModel(
 
         if (!canStart)
         {
-            notificationService.ShowWarning(ModBuilderConstants.OperationInProgressTitle, "Cannot import files while another operation is running.");
+            notificationService.ShowWarning(ModBuilderConstants.OperationInProgressTitle, ModBuilderConstants.CannotImportWhileOperationInProgress);
             return;
         }
 
@@ -937,7 +937,7 @@ public partial class ModBuilderViewModel(
     {
         if (IsBuildRunning)
         {
-            notificationService.ShowWarning(ModBuilderConstants.OperationInProgressTitle, "Cannot import files while another operation is running.");
+            notificationService.ShowWarning(ModBuilderConstants.OperationInProgressTitle, ModBuilderConstants.CannotImportWhileOperationInProgress);
             return;
         }
 
@@ -983,7 +983,7 @@ public partial class ModBuilderViewModel(
 
         if (!canStart)
         {
-            notificationService.ShowWarning(ModBuilderConstants.OperationInProgressTitle, "Cannot import files while another operation is running.");
+            notificationService.ShowWarning(ModBuilderConstants.OperationInProgressTitle, ModBuilderConstants.CannotImportWhileOperationInProgress);
             return;
         }
 
@@ -1029,7 +1029,17 @@ public partial class ModBuilderViewModel(
             logger.LogInformation("Creating imported project '{ProjectName}' at {ProjectPath} from {BigCount} BIG archives", projectName, projectPath, selectedPaths.Count);
             AppendBuildLog($"Creating project '{projectName}' from {selectedPaths.Count} .BIG archive(s)...");
 
-            try
+            await CreateImportedProjectAsync(projectPath, projectName, selectedPaths).ConfigureAwait(false);
+        }
+        finally
+        {
+            await InvokeOnUIThreadAsync(() => IsBuildRunning = false).ConfigureAwait(false);
+        }
+    }
+
+    private async Task CreateImportedProjectAsync(string projectPath, string projectName, IReadOnlyList<string> selectedPaths)
+    {
+        try
         {
             var result = await projectConfigService.CreateProjectFromBigFilesAsync(
                 projectPath,
@@ -1072,11 +1082,6 @@ public partial class ModBuilderViewModel(
             logger.LogError(ex, "Failed to create project from BIG archive(s)");
             notificationService.ShowError("Import Error", ex.Message);
             AppendBuildLog($"Error importing BIG archive(s): {ex.Message}");
-        }
-        }
-        finally
-        {
-            await InvokeOnUIThreadAsync(() => IsBuildRunning = false).ConfigureAwait(false);
         }
     }
 
@@ -2009,7 +2014,7 @@ public partial class ModBuilderViewModel(
         var newProjectDir = Path.GetDirectoryName(projectPath);
         if (!string.IsNullOrEmpty(newProjectDir))
         {
-            await EnsureSampleAssetsIfRequiredAsync(projectPath, newProjectDir, projectName).ConfigureAwait(false);
+            await EnsureSampleAssetsIfRequiredAsync(projectPath, newProjectDir, projectName, CancellationToken.None).ConfigureAwait(false);
         }
 
         await LoadProjectDataAsync().ConfigureAwait(false);
