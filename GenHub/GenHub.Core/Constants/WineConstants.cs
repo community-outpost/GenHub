@@ -27,7 +27,10 @@ public static class WineConstants
     public const string PrefixUsersDirectoryName = "users";
 
     /// <summary>Windows Documents folder name inside a Wine prefix user profile.</summary>
-    public const string MyDocumentsDirectoryName = "My Documents";
+    public const string DocumentsDirectoryName = "Documents";
+
+    /// <summary>Legacy Windows Documents folder name in older Wine prefixes.</summary>
+    public const string LegacyMyDocumentsDirectoryName = "My Documents";
 
     /// <summary>Fallback prefix user name when the login name is unusable as a directory name.</summary>
     public const string FallbackPrefixUserName = "user";

@@ -552,7 +552,7 @@ public class GameProcessManager(
     /// Determines whether a file carries the Unix execute bit for the current user.
     /// </summary>
     /// <param name="path">The executable path.</param>
-    /// <returns><c>true</c> on Windows, or when any execute bit is set.</returns>
+    /// <returns><c>true</c> on Windows, for <c>.exe</c> files, or when any execute bit is set.</returns>
     private static bool HasExecutePermission(string path)
     {
         if (OperatingSystem.IsWindows() ||

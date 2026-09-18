@@ -1964,7 +1964,8 @@ Constants for launching Windows games through Wine on Linux and macOS (`IGameLau
 | `ManagedPrefixDirectoryName` | `".genhub-wine"` | Directory name of the GenHub-managed Wine prefix under the app data root |
 | `DriveCDirectoryName` | `"drive_c"` | Windows C: drive mapping inside a Wine prefix |
 | `PrefixUsersDirectoryName` | `"users"` | User profiles directory inside a Wine prefix drive |
-| `MyDocumentsDirectoryName` | `"My Documents"` | Windows Documents folder name inside a Wine prefix user profile |
+| `DocumentsDirectoryName` | `"Documents"` | Windows Documents folder name inside a Wine prefix user profile |
+| `LegacyMyDocumentsDirectoryName` | `"My Documents"` | Legacy Windows Documents folder name in older Wine prefixes |
 | `FallbackPrefixUserName` | `"user"` | Fallback prefix user name when the login name is unusable as a directory name |
 | `HostRootDrivePrefix` | `"Z:"` | Wine drive prefix mapped to the host filesystem root (Proton uses the same mapping) |
 | `WindowsExecutableExtension` | `".exe"` | Executable extension the Wine runner wraps |

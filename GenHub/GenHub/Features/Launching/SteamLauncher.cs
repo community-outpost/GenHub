@@ -582,9 +582,9 @@ public class SteamLauncher : ISteamLauncher
 
         var developmentPaths = new[]
         {
-            Path.GetFullPath(Path.Combine(currentBaseDir, "..", "..", "..", "..", ProxyLauncherName, "bin", "Debug", "net8.0-windows", "win-x64", ProxyLauncherExeName)),
-            Path.GetFullPath(Path.Combine(currentBaseDir, "..", "..", "..", "..", ProxyLauncherName, "bin", "Release", "net8.0-windows", "win-x64", ProxyLauncherExeName)),
-            Path.GetFullPath(Path.Combine(currentBaseDir, "net8.0-windows", ProxyLauncherExeName)),
+            Path.GetFullPath(Path.Combine(currentBaseDir, "..", "..", "..", "..", ProxyLauncherName, "bin", "Debug", "net8.0", "win-x64", ProxyLauncherExeName)),
+            Path.GetFullPath(Path.Combine(currentBaseDir, "..", "..", "..", "..", ProxyLauncherName, "bin", "Release", "net8.0", "win-x64", ProxyLauncherExeName)),
+            Path.GetFullPath(Path.Combine(currentBaseDir, "net8.0", ProxyLauncherExeName)),
         };
 
         return developmentPaths.FirstOrDefault(File.Exists) ?? defaultPath;

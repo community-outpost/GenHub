@@ -150,12 +150,18 @@ public class WineRunner(
             var dataDirectoryName = configuration.GameType == GameType.ZeroHour
                 ? MapManagerConstants.ZeroHourDataDirectoryName
                 : MapManagerConstants.GeneralsDataDirectoryName;
-            var userDocuments = Path.Combine(
+            var userDirectory = Path.Combine(
                 options.PrefixPath,
                 WineConstants.DriveCDirectoryName,
                 WineConstants.PrefixUsersDirectoryName,
-                SanitizeUserName(Environment.UserName),
-                WineConstants.MyDocumentsDirectoryName,
+                SanitizeUserName(Environment.UserName));
+            var documentsDirectoryName = !Directory.Exists(Path.Combine(userDirectory, WineConstants.DocumentsDirectoryName))
+                && Directory.Exists(Path.Combine(userDirectory, WineConstants.LegacyMyDocumentsDirectoryName))
+                ? WineConstants.LegacyMyDocumentsDirectoryName
+                : WineConstants.DocumentsDirectoryName;
+            var userDocuments = Path.Combine(
+                userDirectory,
+                documentsDirectoryName,
                 dataDirectoryName);
             Directory.CreateDirectory(userDocuments);
 

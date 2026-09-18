@@ -186,6 +186,7 @@ public sealed class WineRunnerTests : IDisposable
         var mirroredPath = Assert.Single(mirrored);
         Assert.Equal("native-settings", File.ReadAllText(mirroredPath));
         Assert.Contains(WineConstants.DriveCDirectoryName, mirroredPath);
+        Assert.Contains(WineConstants.DocumentsDirectoryName, mirroredPath);
         Assert.Contains(MapManagerConstants.ZeroHourDataDirectoryName, mirroredPath);
     }
 
