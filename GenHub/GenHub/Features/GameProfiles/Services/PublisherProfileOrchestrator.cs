@@ -258,29 +258,41 @@ public class PublisherProfileOrchestrator(
                 contentToAcquire.Name,
                 contentToAcquire.Version);
 
-            var acquireResult = await contentOrchestrator.AcquireContentAsync(contentToAcquire, cancellationToken: cancellationToken);
-            if (acquireResult.Success && acquireResult.Data != null)
+            using var scope = new DownloadNotificationScope(notificationService, contentToAcquire.Name);
+            try
             {
-                logger.LogInformation(
-                    "Successfully acquired content for publisher client {ClientName}, manifest: {ManifestId}",
-                    gameClient.Name,
-                    acquireResult.Data.Id);
+                var acquireResult = await contentOrchestrator.AcquireContentAsync(contentToAcquire, scope, cancellationToken);
+                if (acquireResult.Success && acquireResult.Data != null)
+                {
+                    logger.LogInformation(
+                        "Successfully acquired content for publisher client {ClientName}, manifest: {ManifestId}",
+                        gameClient.Name,
+                        acquireResult.Data.Id);
 
-                notificationService.ShowSuccess(
-                    $"{publisherDisplayName} Downloaded",
-                    $"Successfully downloaded {contentToAcquire.Name} v{contentToAcquire.Version}.");
+                    scope.CompleteSuccess(
+                        $"Successfully downloaded {contentToAcquire.Name} v{contentToAcquire.Version}.",
+                        $"{publisherDisplayName} Downloaded");
+                }
+                else
+                {
+                    var errorMsg = ManifestHelper.FormatErrors(acquireResult.Errors);
+                    logger.LogWarning(
+                        "Failed to acquire content for publisher client {ClientName}: {Errors}",
+                        gameClient.Name,
+                        errorMsg);
+
+                    scope.CompleteFailure(errorMsg, $"{publisherDisplayName} Download Failed");
+                }
             }
-            else
+            catch (OperationCanceledException)
             {
-                var errorMsg = ManifestHelper.FormatErrors(acquireResult.Errors);
-                logger.LogWarning(
-                    "Failed to acquire content for publisher client {ClientName}: {Errors}",
-                    gameClient.Name,
-                    errorMsg);
-
-                notificationService.ShowError(
-                    $"{publisherDisplayName} Download Failed",
-                    errorMsg);
+                scope.CompleteCanceled();
+                throw;
+            }
+            catch (Exception ex)
+            {
+                scope.CompleteFailure(ex.Message, $"{publisherDisplayName} Download Failed");
+                throw;
             }
         }
         catch (Exception ex)

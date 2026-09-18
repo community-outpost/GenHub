@@ -177,6 +177,11 @@ public class UserSettings
     public string? DismissedUpdateVersion { get; set; }
 
     /// <summary>
+    /// Gets or sets the last known running application version to detect version upgrades.
+    /// </summary>
+    public string? LastSeenAppVersion { get; set; }
+
+    /// <summary>
     /// Gets or sets a value indicating whether the user has seen the quickstart guide.
     /// </summary>
     public bool HasSeenQuickStart { get; set; }
@@ -226,6 +231,7 @@ public class UserSettings
             SubscribedPrNumber = SubscribedPrNumber,
             SubscribedBranch = SubscribedBranch,
             DismissedUpdateVersion = DismissedUpdateVersion,
+            LastSeenAppVersion = LastSeenAppVersion,
             ContentDirectories = ContentDirectories != null ? [.. ContentDirectories] : null,
             CustomInstallationDirectories = CustomInstallationDirectories != null ? [.. CustomInstallationDirectories] : [],
             GitHubDiscoveryRepositories = GitHubDiscoveryRepositories != null ? [.. GitHubDiscoveryRepositories] : null,

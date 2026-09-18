@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -59,7 +60,10 @@ public partial class GameProfileLauncherViewModel(
     IDialogService dialogService,
     ILogger<GameProfileLauncherViewModel> logger,
     ILocalizationService localizationService,
-    ILaunchRegistry? launchRegistry = null) : ViewModelBase,
+    ILaunchRegistry? launchRegistry = null,
+    ILoggerFactory? loggerFactory = null,
+    IUploadHistoryService? uploadHistoryService = null,
+    Func<IProfileSharingService>? profileSharingServiceFactory = null) : ViewModelBase,
     IRecipient<ProfileCreatedMessage>,
     IRecipient<ProfileUpdatedMessage>,
     IRecipient<ProfileListUpdatedMessage>,
@@ -68,6 +72,9 @@ public partial class GameProfileLauncherViewModel(
     IRecipient<ProfileDeletedMessage>
 {
     private readonly SemaphoreSlim _launchSemaphore = new(1, 1);
+    private readonly SemaphoreSlim _importDialogSemaphore = new(1, 1);
+    private readonly SemaphoreSlim _shareDialogSemaphore = new(1, 1);
+
     private readonly System.Timers.Timer _headerCollapseTimer = new(TimeIntervals.HeaderCollapseDelayMs);
     private readonly System.Timers.Timer _headerExpansionTimer = new(TimeIntervals.HeaderExpansionDelayMs);
     private bool _isHovering;
@@ -191,6 +198,7 @@ public partial class GameProfileLauncherViewModel(
                         StopProfileAction = StopProfile,
                         ToggleSteamLaunchAction = ToggleSteamLaunch,
                         CopyProfileAction = CopyProfile,
+                        ShareProfileAction = ShareProfileFromCardAsync,
                     };
 
                     // Add to collection before the "Add New Profile" button (which is always at the end)
@@ -459,6 +467,113 @@ public partial class GameProfileLauncherViewModel(
     }
 
     /// <summary>
+    /// Imports a profile from a file path or sharing URI.
+    /// </summary>
+    /// <param name="shareUriOrPath">The .ghprofile path, JSON string, or genhub:// URI.</param>
+    /// <param name="cancellationToken">Optional cancellation token.</param>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [SuppressMessage("Design", "CA1031:Do not catch general exception types", Justification = "Top-level UI exception handler prevents unhandled exceptions from crashing the application.")]
+    public async Task ImportProfileFromFileOrUriAsync(string shareUriOrPath, CancellationToken cancellationToken = default)
+    {
+        var service = GetSharingService();
+        if (service == null)
+        {
+            var title = localizationService?.GetString("GameProfiles.Launcher.Notify.ImportFailedTitle") ?? "Import Failed";
+            var msg = localizationService?.GetString("GameProfiles.Launcher.Notify.SharingServiceUnavailable") ?? "Profile sharing service is not available.";
+            notificationService.ShowError(title, msg);
+            return;
+        }
+
+        if (!await _importDialogSemaphore.WaitAsync(0, cancellationToken))
+        {
+            logger.LogWarning("Profile import dialog is already active. Ignoring concurrent request.");
+            var title = localizationService?.GetString("GameProfiles.Launcher.Notify.ImportInProgressTitle") ?? "Import In Progress";
+            var msg = localizationService?.GetString("GameProfiles.Launcher.Notify.ImportInProgressMsg") ?? "A profile import dialog is already open.";
+            notificationService.ShowWarning(title, msg);
+            return;
+        }
+
+        var safeSource = shareUriOrPath.StartsWith(CommandLineConstants.UriScheme, StringComparison.OrdinalIgnoreCase)
+            ? $"{CommandLineConstants.UriScheme} URI"
+            : Path.GetFileName(shareUriOrPath);
+
+        try
+        {
+            var targetHost = TryExtractRemoteImportHost(shareUriOrPath);
+            if (!string.IsNullOrEmpty(targetHost) && !await PromptRemoteDownloadConsentAsync(targetHost))
+            {
+                return;
+            }
+
+            logger.LogInformation("Inspecting shared profile for import from source: {Source}", safeSource);
+            var inspectResult = await service.InspectSharedProfileAsync(shareUriOrPath, cancellationToken);
+
+            if (!inspectResult.Success || inspectResult.Data == null)
+            {
+                logger.LogWarning("Failed to inspect shared profile: {Error}", inspectResult.FirstError);
+                var title = localizationService?.GetString("GameProfiles.Launcher.Notify.ProfileImportErrorTitle") ?? "Profile Import Error";
+                var defaultMsg = localizationService?.GetString("GameProfiles.Launcher.Notify.ProfilePackageInspectFailed") ?? "Failed to inspect profile package.";
+                notificationService.ShowError(title, inspectResult.FirstError ?? defaultMsg);
+                return;
+            }
+
+            var inspectionViewModel = new ImportProfileInspectionViewModel(
+                inspectResult.Data,
+                service,
+                notificationService,
+                loggerFactory?.CreateLogger<ImportProfileInspectionViewModel>() ?? Microsoft.Extensions.Logging.Abstractions.NullLogger<ImportProfileInspectionViewModel>.Instance,
+                localizationService);
+
+            await ShowImportProfileInspectionDialogAsync(inspectionViewModel);
+        }
+        catch (OperationCanceledException ex)
+        {
+            logger.LogInformation(ex, "Profile import cancelled from source: {Source}", safeSource);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error importing profile from {Source}", safeSource);
+            var title = localizationService?.GetString("GameProfiles.Launcher.Notify.ImportErrorTitle") ?? "Import Error";
+            var format = localizationService?.GetString("GameProfiles.Launcher.Notify.ImportErrorFormat") ?? "An error occurred during profile import: {0}";
+            notificationService.ShowError(title, string.Format(System.Globalization.CultureInfo.CurrentCulture, format, ex.Message));
+        }
+        finally
+        {
+            _importDialogSemaphore.Release();
+        }
+    }
+
+    /// <summary>
+    /// Attempts to extract the remote host from a profile sharing URI, if it is an import or view URI with a url parameter.
+    /// </summary>
+    /// <param name="shareUriOrPath">The sharing URI or file path.</param>
+    /// <returns>The remote host name if applicable; otherwise, <c>null</c>.</returns>
+    internal static string? TryExtractRemoteImportHost(string shareUriOrPath)
+    {
+        if (!shareUriOrPath.StartsWith(CommandLineConstants.ProfileImportUriPrefix, StringComparison.OrdinalIgnoreCase) &&
+            !shareUriOrPath.StartsWith(CommandLineConstants.ProfileViewUriPrefix, StringComparison.OrdinalIgnoreCase))
+        {
+            return null;
+        }
+
+        int queryStart = shareUriOrPath.IndexOf("url=", StringComparison.OrdinalIgnoreCase);
+        if (queryStart == -1)
+        {
+            return null;
+        }
+
+        var urlValue = shareUriOrPath[(queryStart + 4)..];
+        int ampIndex = urlValue.IndexOf('&');
+        if (ampIndex != -1)
+        {
+            urlValue = urlValue[..ampIndex];
+        }
+
+        var unescaped = Uri.UnescapeDataString(urlValue);
+        return Uri.TryCreate(unescaped, UriKind.Absolute, out var uri) ? uri.Host : null;
+    }
+
+    /// <summary>
     /// Generates a unique profile name by appending a number if needed.
     /// </summary>
     /// <param name="baseName">The base name to use for the profile.</param>
@@ -537,6 +652,29 @@ public partial class GameProfileLauncherViewModel(
     private static bool IsStandardGameClient(GameClient client)
     {
         return !client.IsPublisherClient;
+    }
+
+    private static async Task ShowImportProfileInspectionDialogAsync(ImportProfileInspectionViewModel inspectionViewModel)
+    {
+        var desktop = Avalonia.Application.Current?.ApplicationLifetime as Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime;
+        var parent = desktop?.Windows.FirstOrDefault(w => w.IsActive) ?? desktop?.MainWindow;
+
+        var dialog = new Views.ImportProfileInspectionWindow
+        {
+            DataContext = inspectionViewModel,
+        };
+
+        if (parent != null)
+        {
+            await dialog.ShowDialog(parent);
+        }
+        else
+        {
+            var tcs = new TaskCompletionSource<bool>();
+            dialog.Closed += (s, e) => tcs.TrySetResult(true);
+            dialog.Show();
+            await tcs.Task;
+        }
     }
 
     private void OnLocalizationPropertyChanged(object? sender, PropertyChangedEventArgs e)
@@ -1157,6 +1295,7 @@ public partial class GameProfileLauncherViewModel(
                 StopProfileAction = StopProfile,
                 ToggleSteamLaunchAction = ToggleSteamLaunch,
                 CopyProfileAction = CopyProfile,
+                ShareProfileAction = ShareProfileFromCardAsync,
             };
 
             // Add to collection before the "Add New Profile" button (which is always at the end)
@@ -1236,14 +1375,25 @@ public partial class GameProfileLauncherViewModel(
 
         if (launchResult.Success && launchResult.Data != null)
         {
-            // Look up the profile in the collection in case it was replaced by an update during launch
-            var liveProfile = Profiles.FirstOrDefault(p => p.ProfileId == profile.ProfileId) ?? profile;
+            var launchedProfileId = !string.IsNullOrWhiteSpace(launchResult.Data.ProfileId)
+                ? launchResult.Data.ProfileId
+                : profile.ProfileId;
+
+            // Look up the profile in the collection in case it was replaced or cloned by an update during launch
+            var liveProfile = Profiles.FirstOrDefault(p => p.ProfileId == launchedProfileId)
+                ?? Profiles.FirstOrDefault(p => p.ProfileId == profile.ProfileId)
+                ?? profile;
 
             liveProfile.IsProcessRunning = true;
             liveProfile.ProcessId = launchResult.Data.ProcessInfo.ProcessId;
 
             // Ensure notifications are sent for binding updates
             liveProfile.NotifyCanLaunchChanged();
+
+            if (liveProfile != profile && Profiles.Contains(liveProfile))
+            {
+                SelectedProfile = liveProfile;
+            }
 
             StatusMessage = localizationService.GetString("GameProfiles.Status.ProfileLaunchedSuccess", liveProfile.Name, launchResult.Data.ProcessInfo.ProcessId);
             notificationService.ShowSuccess(localizationService["GameProfiles.Notification.GameLaunched.Title"], localizationService.GetString("GameProfiles.Notification.GameLaunched.Message", liveProfile.Name));
@@ -1684,106 +1834,7 @@ public partial class GameProfileLauncherViewModel(
             var copyName = GenerateUniqueProfileName(sourceProfile.Name);
 
             // Create a copy request with all the same settings
-            var copyRequest = new CreateProfileRequest
-            {
-                Name = copyName,
-                Description = sourceProfile.Description,
-                GameInstallationId = sourceProfile.GameInstallationId,
-                GameClientId = sourceProfile.GameClient?.Id,
-                GameClient = sourceProfile.GameClient,
-                WorkspaceStrategy = sourceProfile.WorkspaceStrategy,
-                EnabledContentIds = sourceProfile.EnabledContentIds != null
-                    ? [.. sourceProfile.EnabledContentIds]
-                    : [],
-                ThemeColor = sourceProfile.ThemeColor,
-                IconPath = sourceProfile.IconPath,
-                CoverPath = sourceProfile.CoverPath,
-                UseSteamLaunch = sourceProfile.UseSteamLaunch,
-                CommandLineArguments = sourceProfile.CommandLineArguments,
-                GameSpyIPAddress = sourceProfile.GameSpyIPAddress,
-
-                // Video Settings
-                VideoResolutionWidth = sourceProfile.VideoResolutionWidth,
-                VideoResolutionHeight = sourceProfile.VideoResolutionHeight,
-                VideoWindowed = sourceProfile.VideoWindowed,
-                VideoTextureQuality = sourceProfile.VideoTextureQuality,
-                EnableVideoShadows = sourceProfile.EnableVideoShadows,
-                VideoParticleEffects = sourceProfile.VideoParticleEffects,
-                VideoExtraAnimations = sourceProfile.VideoExtraAnimations,
-                VideoBuildingAnimations = sourceProfile.VideoBuildingAnimations,
-                VideoGamma = sourceProfile.VideoGamma,
-                VideoAlternateMouseSetup = sourceProfile.VideoAlternateMouseSetup,
-                VideoHeatEffects = sourceProfile.VideoHeatEffects,
-                VideoStaticGameLOD = sourceProfile.VideoStaticGameLOD,
-                VideoIdealStaticGameLOD = sourceProfile.VideoIdealStaticGameLOD,
-                VideoUseDoubleClickAttackMove = sourceProfile.VideoUseDoubleClickAttackMove,
-                VideoScrollFactor = sourceProfile.VideoScrollFactor,
-                VideoRetaliation = sourceProfile.VideoRetaliation,
-                VideoDynamicLOD = sourceProfile.VideoDynamicLOD,
-                VideoMaxParticleCount = sourceProfile.VideoMaxParticleCount,
-                VideoAntiAliasing = sourceProfile.VideoAntiAliasing,
-                VideoSkipEALogo = sourceProfile.VideoSkipEALogo,
-                VideoDrawScrollAnchor = sourceProfile.VideoDrawScrollAnchor,
-                VideoMoveScrollAnchor = sourceProfile.VideoMoveScrollAnchor,
-                VideoGameTimeFontSize = sourceProfile.VideoGameTimeFontSize,
-
-                // Audio Settings
-                AudioSoundVolume = sourceProfile.AudioSoundVolume,
-                AudioThreeDSoundVolume = sourceProfile.AudioThreeDSoundVolume,
-                AudioSpeechVolume = sourceProfile.AudioSpeechVolume,
-                AudioMusicVolume = sourceProfile.AudioMusicVolume,
-                AudioNumSounds = sourceProfile.AudioNumSounds,
-                AudioEnabled = sourceProfile.AudioEnabled,
-
-                // Game Settings
-                GameLanguageFilter = sourceProfile.GameLanguageFilter,
-
-                // Network Settings
-                NetworkSendDelay = sourceProfile.NetworkSendDelay,
-
-                // TheSuperHackers Settings
-                TshArchiveReplays = sourceProfile.TshArchiveReplays,
-                TshCursorCaptureEnabledInFullscreenGame = sourceProfile.TshCursorCaptureEnabledInFullscreenGame,
-                TshCursorCaptureEnabledInFullscreenMenu = sourceProfile.TshCursorCaptureEnabledInFullscreenMenu,
-                TshCursorCaptureEnabledInWindowedGame = sourceProfile.TshCursorCaptureEnabledInWindowedGame,
-                TshCursorCaptureEnabledInWindowedMenu = sourceProfile.TshCursorCaptureEnabledInWindowedMenu,
-                TshMoneyTransactionVolume = sourceProfile.TshMoneyTransactionVolume,
-                TshNetworkLatencyFontSize = sourceProfile.TshNetworkLatencyFontSize,
-                TshPlayerObserverEnabled = sourceProfile.TshPlayerObserverEnabled,
-                TshRenderFpsFontSize = sourceProfile.TshRenderFpsFontSize,
-                TshResolutionFontAdjustment = sourceProfile.TshResolutionFontAdjustment,
-                TshScreenEdgeScrollEnabledInFullscreenApp = sourceProfile.TshScreenEdgeScrollEnabledInFullscreenApp,
-                TshScreenEdgeScrollEnabledInWindowedApp = sourceProfile.TshScreenEdgeScrollEnabledInWindowedApp,
-                TshShowMoneyPerMinute = sourceProfile.TshShowMoneyPerMinute,
-                TshSystemTimeFontSize = sourceProfile.TshSystemTimeFontSize,
-                TshGameWindowTransitionSpeedMultiplier = sourceProfile.TshGameWindowTransitionSpeedMultiplier,
-
-                // GeneralsOnline Settings
-                GoShowFps = sourceProfile.GoShowFps,
-                GoShowPing = sourceProfile.GoShowPing,
-                GoAutoLogin = sourceProfile.GoAutoLogin,
-                GoRememberUsername = sourceProfile.GoRememberUsername,
-                GoEnableNotifications = sourceProfile.GoEnableNotifications,
-                GoChatFontSize = sourceProfile.GoChatFontSize,
-                GoEnableSoundNotifications = sourceProfile.GoEnableSoundNotifications,
-                GoShowPlayerRanks = sourceProfile.GoShowPlayerRanks,
-                GoCameraMaxHeightOnlyWhenLobbyHost = sourceProfile.GoCameraMaxHeightOnlyWhenLobbyHost,
-                GoCameraMinHeight = sourceProfile.GoCameraMinHeight,
-                GoCameraMoveSpeedRatio = sourceProfile.GoCameraMoveSpeedRatio,
-                GoChatDurationSecondsUntilFadeOut = sourceProfile.GoChatDurationSecondsUntilFadeOut,
-                GoDebugVerboseLogging = sourceProfile.GoDebugVerboseLogging,
-                GoRenderFpsLimit = sourceProfile.GoRenderFpsLimit,
-                GoRenderLimitFramerate = sourceProfile.GoRenderLimitFramerate,
-                GoRenderStatsOverlay = sourceProfile.GoRenderStatsOverlay,
-                GoSocialNotificationFriendComesOnlineGameplay = sourceProfile.GoSocialNotificationFriendComesOnlineGameplay,
-                GoSocialNotificationFriendComesOnlineMenus = sourceProfile.GoSocialNotificationFriendComesOnlineMenus,
-                GoSocialNotificationFriendGoesOfflineGameplay = sourceProfile.GoSocialNotificationFriendGoesOfflineGameplay,
-                GoSocialNotificationFriendGoesOfflineMenus = sourceProfile.GoSocialNotificationFriendGoesOfflineMenus,
-                GoSocialNotificationPlayerAcceptsRequestGameplay = sourceProfile.GoSocialNotificationPlayerAcceptsRequestGameplay,
-                GoSocialNotificationPlayerAcceptsRequestMenus = sourceProfile.GoSocialNotificationPlayerAcceptsRequestMenus,
-                GoSocialNotificationPlayerSendsRequestGameplay = sourceProfile.GoSocialNotificationPlayerSendsRequestGameplay,
-                GoSocialNotificationPlayerSendsRequestMenus = sourceProfile.GoSocialNotificationPlayerSendsRequestMenus,
-            };
+            var copyRequest = GameSettingsMapper.CreateCloneRequest(sourceProfile, copyName);
 
             // Create the copied profile
             var createResult = await gameProfileManager.CreateProfileAsync(copyRequest);
@@ -1961,6 +2012,122 @@ public partial class GameProfileLauncherViewModel(
                 localizationService["GameProfiles.Notification.Error.Title"],
                 localizationService.GetString("GameProfiles.Notification.ProcessDirectoryError.Message", ex.Message));
             return null;
+        }
+    }
+
+    private IProfileSharingService? GetSharingService() => profileSharingServiceFactory?.Invoke();
+
+    private Task ShareProfileFromCardAsync(GameProfileItemViewModel item) => ShareProfileFromCardAsync(item, CancellationToken.None);
+
+    private async Task ShareProfileFromCardAsync(GameProfileItemViewModel item, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrEmpty(item.ProfileId))
+        {
+            return;
+        }
+
+        var service = GetSharingService();
+        if (service == null)
+        {
+            var title = localizationService?.GetString("GameProfiles.ShareDialog.Notification.ShareErrorTitle") ?? "Share Error";
+            var msg = localizationService?.GetString("GameProfiles.Launcher.Notify.SharingServiceUnavailable") ?? "Profile sharing service is not available.";
+            notificationService.ShowError(title, msg);
+            return;
+        }
+
+        if (!await _shareDialogSemaphore.WaitAsync(0, cancellationToken))
+        {
+            return;
+        }
+
+        try
+        {
+            await Helpers.ProfileSharingDialogHelper.OpenShareDialogAsync(
+                item.ProfileId,
+                gameProfileManager,
+                service,
+                notificationService,
+                loggerFactory,
+                uploadHistoryService,
+                logger,
+                localizationService);
+        }
+        finally
+        {
+            _shareDialogSemaphore.Release();
+        }
+    }
+
+    private async Task<bool> PromptRemoteDownloadConsentAsync(string host)
+    {
+        var title = localizationService?.GetString("GameProfiles.RemoteDownload.Dialog.Title") ?? "Download Remote Profile?";
+        var messageFormat = localizationService?.GetString("GameProfiles.RemoteDownload.Dialog.Message") ?? "A link requested to import a shared game profile from host '{0}'.\n\nDo you want to download and inspect this profile package?";
+        var confirmText = localizationService?.GetString("GameProfiles.RemoteDownload.Dialog.Confirm") ?? "Download & Inspect";
+        var cancelText = localizationService?.GetString("Common.Cancel") ?? "Cancel";
+
+        var confirmed = await dialogService.ShowConfirmationAsync(
+            title,
+            string.Format(System.Globalization.CultureInfo.CurrentCulture, messageFormat, host),
+            confirmText: confirmText,
+            cancelText: cancelText);
+
+        if (!confirmed)
+        {
+            logger.LogInformation("User declined remote profile download from {Host}", host);
+            return false;
+        }
+
+        return true;
+    }
+
+    /// <summary>
+    /// Prompts the user to select a profile file and opens the import inspection dialog.
+    /// </summary>
+    [RelayCommand]
+    [SuppressMessage("Design", "CA1031:Do not catch general exception types", Justification = "Top-level UI command handler catches file picker and import exceptions to notify user.")]
+    private async Task ImportProfileAsync()
+    {
+        try
+        {
+            var desktop = Avalonia.Application.Current?.ApplicationLifetime as Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime;
+            var mainWindow = desktop?.MainWindow;
+            if (mainWindow == null)
+            {
+                return;
+            }
+
+            var topLevel = Avalonia.Controls.TopLevel.GetTopLevel(mainWindow);
+            if (topLevel?.StorageProvider == null)
+            {
+                return;
+            }
+
+            var pickerTitle = localizationService?.GetString("GameProfiles.Import.FilePicker.Title") ?? "Select Game Profile Package to Import";
+            var files = await topLevel.StorageProvider.OpenFilePickerAsync(new Avalonia.Platform.Storage.FilePickerOpenOptions
+            {
+                Title = pickerTitle,
+                AllowMultiple = false,
+                FileTypeFilter =
+                [
+                    new Avalonia.Platform.Storage.FilePickerFileType(ProfileSharingConstants.ProfileFileTypeDisplayName)
+                    {
+                        Patterns = [ProfileSharingConstants.ProfileFilePattern, FileTypes.JsonFilePattern],
+                    },
+                    Avalonia.Platform.Storage.FilePickerFileTypes.All,
+                ],
+            });
+
+            if (files.Count > 0 && files[0]?.Path?.LocalPath is { } filePath)
+            {
+                await ImportProfileFromFileOrUriAsync(filePath);
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to select profile file for import");
+            var title = localizationService?.GetString("GameProfiles.Launcher.Notify.ImportFailedTitle") ?? "Import Failed";
+            var format = localizationService?.GetString("GameProfiles.Launcher.Notify.SelectProfileFileFailedFormat") ?? "Failed to select profile file: {0}";
+            notificationService.ShowError(title, string.Format(System.Globalization.CultureInfo.CurrentCulture, format, ex.Message));
         }
     }
 }

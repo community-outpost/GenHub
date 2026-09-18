@@ -141,6 +141,7 @@ public partial class SettingsView : UserControl
             SettingsConstants.SectionGitHubDiscovery => "Expander_GitHubDiscovery",
             SettingsConstants.SectionUpdates => "Expander_Updates",
             SettingsConstants.SectionSubscriptions => "Expander_Subscriptions",
+            SettingsConstants.SectionCloudUploads => SettingsConstants.ExpanderCloudUploads,
             SettingsConstants.SectionDangerZone => "Expander_DangerZone",
             _ => null,
         };

@@ -18,6 +18,7 @@ using GenHub.Core.Interfaces.UserData;
 using GenHub.Core.Interfaces.Workspace;
 using GenHub.Core.Messages;
 using GenHub.Core.Models.AppUpdate;
+using GenHub.Core.Models.Common;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameInstallations;
 using GenHub.Core.Models.Providers;
@@ -63,7 +64,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     private readonly IGameProfileManager _profileManager;
     private readonly IWorkspaceManager _workspaceManager;
     private readonly IContentManifestPool _manifestPool;
-    private readonly IVelopackUpdateManager _updateManager;
+    private readonly IVelopackUpdateManager? _updateManager;
     private readonly INotificationService _notificationService;
     private readonly ILogger<SettingsViewModel> _logger;
     private readonly IGitHubTokenStorage? _gitHubTokenStorage;
@@ -78,6 +79,9 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     private readonly IUserDataTracker _userDataTracker;
     private readonly IDialogService _dialogService;
     private readonly IStorageMigrationService _storageMigrationService;
+    private readonly IUploadHistoryService? _uploadHistoryService;
+    private readonly SemaphoreSlim _uploadsLock = new(1, 1);
+    private readonly ObservableCollection<UploadHistoryItem> _activeUploads = [];
     private readonly IThemeService? _themeService;
     private readonly ILocalizationService? _localizationService;
 
@@ -226,6 +230,18 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     private bool _isPatValid;
 
     [ObservableProperty]
+    private bool _hasUploads;
+
+    [ObservableProperty]
+    private bool _isLoadingUploads;
+
+    [ObservableProperty]
+    private string _uploadQuotaText = string.Empty;
+
+    [ObservableProperty]
+    private double _uploadQuotaPercent;
+
+    [ObservableProperty]
     private bool _isTestingPat;
 
     [ObservableProperty]
@@ -279,6 +295,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     /// <param name="storageMigrationService">Storage and installation migration service.</param>
     /// <param name="themeService">Theme service for dynamic accent theming.</param>
     /// <param name="gitHubTokenStorage">GitHub token storage.</param>
+    /// <param name="uploadHistoryService">Upload history service.</param>
     /// <param name="gitHubApiClient">GitHub API client.</param>
     /// <param name="subscriptionStore">The publisher subscription store.</param>
     /// <param name="catalogRefreshService">The publisher catalog refresh service.</param>
@@ -290,7 +307,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         IGameProfileManager profileManager,
         IWorkspaceManager workspaceManager,
         IContentManifestPool manifestPool,
-        IVelopackUpdateManager updateManager,
+        IVelopackUpdateManager? updateManager,
         INotificationService notificationService,
         IConfigurationProviderService configurationProvider,
         IGameInstallationService installationService,
@@ -300,6 +317,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         IStorageMigrationService storageMigrationService,
         IThemeService? themeService = null,
         IGitHubTokenStorage? gitHubTokenStorage = null,
+        IUploadHistoryService? uploadHistoryService = null,
         IGitHubApiClient? gitHubApiClient = null,
         IPublisherSubscriptionStore? subscriptionStore = null,
         IPublisherCatalogRefreshService? catalogRefreshService = null,
@@ -311,7 +329,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         _profileManager = profileManager ?? throw new ArgumentNullException(nameof(profileManager));
         _workspaceManager = workspaceManager ?? throw new ArgumentNullException(nameof(workspaceManager));
         _manifestPool = manifestPool ?? throw new ArgumentNullException(nameof(manifestPool));
-        _updateManager = updateManager ?? throw new ArgumentNullException(nameof(updateManager));
+        _updateManager = updateManager;
         _notificationService = notificationService ?? throw new ArgumentNullException(nameof(notificationService));
         _configurationProvider = configurationProvider ?? throw new ArgumentNullException(nameof(configurationProvider));
         _installationService = installationService ?? throw new ArgumentNullException(nameof(installationService));
@@ -321,6 +339,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         _storageMigrationService = storageMigrationService ?? throw new ArgumentNullException(nameof(storageMigrationService));
         _themeService = themeService;
         _gitHubTokenStorage = gitHubTokenStorage;
+        _uploadHistoryService = uploadHistoryService;
         _gitHubApiClient = gitHubApiClient;
         _subscriptionStore = subscriptionStore;
         _catalogRefreshService = catalogRefreshService;
@@ -345,7 +364,15 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             _localizationService.PropertyChanged += OnLocalizationPropertyChanged;
         }
 
+        ActiveUploads = new(_activeUploads);
+
+        if (_uploadHistoryService != null)
+        {
+            _uploadHistoryService.UploadHistoryChanged += OnUploadHistoryChanged;
+        }
+
         LoadSettings();
+        _ = RefreshUploadsAsync();
         _ = LoadPatStatusAsync();
 
         // Initialize with default if needed
@@ -354,7 +381,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             _theme = ThemeConstants.DefaultTheme.Id;
         }
 
-        if (DownloadTimeoutSeconds == 0) DownloadTimeoutSeconds = ValidationLimits.MinDownloadTimeoutSeconds;
+        if (DownloadTimeoutSeconds == 0) DownloadTimeoutSeconds = DownloadDefaults.TimeoutSeconds;
         if (MaxConcurrentDownloads == 0) MaxConcurrentDownloads = DownloadDefaults.MaxConcurrentDownloads;
         if (string.IsNullOrEmpty(DownloadUserAgent)) DownloadUserAgent = ApiConstants.DefaultUserAgent;
 
@@ -385,6 +412,11 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     /// Gets the available themes for selection in the UI.
     /// </summary>
     public IReadOnlyList<ColorTheme> AvailableThemes => _themeService?.AvailableThemes ?? ThemeConstants.AllThemes;
+
+    /// <summary>
+    /// Gets the list of active upload records across all tools and shared profiles.
+    /// </summary>
+    public ReadOnlyObservableCollection<UploadHistoryItem> ActiveUploads { get; }
 
     /// <summary>
     /// Gets the status color for the PAT indicator.
@@ -535,6 +567,8 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     {
         if (!_disposed)
         {
+            _disposed = true;
+
             if (disposing)
             {
                 if (_localizationService != null)
@@ -542,11 +576,15 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
                     _localizationService.PropertyChanged -= OnLocalizationPropertyChanged;
                 }
 
+                if (_uploadHistoryService != null)
+                {
+                    _uploadHistoryService.UploadHistoryChanged -= OnUploadHistoryChanged;
+                }
+
                 _memoryUpdateTimer?.Dispose();
                 _dangerZoneUpdateTimer?.Dispose();
+                _uploadsLock.Dispose();
             }
-
-            _disposed = true;
         }
     }
 
@@ -1097,7 +1135,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
                 "Remove Custom Installation",
                 $"Are you sure you want to remove '{installation.DisplayName}' ({installation.InstallationPath})? No files on disk will be deleted.",
                 "Remove",
-                "Cancel");
+                SettingsConstants.CancelButtonText);
 
             if (!confirmed)
             {
@@ -1295,7 +1333,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
                 "Confirm Installation Migration",
                 confirmMessage,
                 "Migrate & Restart",
-                "Cancel");
+                SettingsConstants.CancelButtonText);
 
             if (!confirmed)
             {
@@ -1606,6 +1644,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
 
             _gitHubApiClient?.SetAuthenticationToken(secureString);
 
+            var validated = false;
             if (_gitHubApiClient != null)
             {
                 var user = await _gitHubApiClient.GetAuthenticatedUserAsync(cancellationToken);
@@ -1616,18 +1655,16 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
                     IsPatValid = false;
                     return;
                 }
-            }
-            else
-            {
-                PatStatusMessage = _localizationService?.GetString("Settings.GitHubPat.Status.ClientNotAvailable") ?? "GitHub API client not available";
-                IsPatValid = false;
-                return;
+
+                validated = true;
             }
 
             await _gitHubTokenStorage.SaveTokenAsync(secureString);
 
-            PatStatusMessage = _localizationService?.GetString("Settings.GitHubPat.Status.ValidatedSuccess") ?? "PAT validated successfully ✓";
-            IsPatValid = true;
+            PatStatusMessage = validated
+                ? _localizationService?.GetString("Settings.GitHubPat.Status.ValidatedSuccess") ?? "PAT validated successfully ✓"
+                : _localizationService?.GetString("Settings.GitHubPat.Status.SavedPending") ?? "PAT saved (validation pending)";
+            IsPatValid = validated;
             HasGitHubPat = true;
             GitHubPatInput = string.Empty;
         }
@@ -1829,7 +1866,10 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
                 return;
             }
 
-            await Task.Run(() => _updateManager.Uninstall());
+            if (_updateManager != null)
+            {
+                await Task.Run(() => _updateManager.Uninstall());
+            }
         }
         catch (Exception ex)
         {
@@ -2667,6 +2707,213 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         }
     }
 
+    private void OnUploadHistoryChanged(object? sender, EventArgs e)
+    {
+        Avalonia.Threading.Dispatcher.UIThread.Post(() => _ = RefreshUploadsAsync());
+    }
+
+    /// <summary>
+    /// Refreshes the list of active uploads and quota usage from the upload history service.
+    /// </summary>
+    [RelayCommand]
+    private async Task RefreshUploadsAsync(CancellationToken cancellationToken = default)
+    {
+        if (_uploadHistoryService == null || _disposed)
+        {
+            return;
+        }
+
+        try
+        {
+            await _uploadsLock.WaitAsync(cancellationToken);
+        }
+        catch (OperationCanceledException)
+        {
+            return;
+        }
+        catch (ObjectDisposedException)
+        {
+            return;
+        }
+
+        try
+        {
+            if (_disposed)
+            {
+                return;
+            }
+
+            IsLoadingUploads = true;
+            var usage = await _uploadHistoryService.GetUsageInfoAsync(null, cancellationToken);
+            var items = (await _uploadHistoryService.GetUploadHistoryAsync(null, cancellationToken)).ToList();
+
+            _activeUploads.Clear();
+            foreach (var item in items.OrderByDescending(i => i.Timestamp))
+            {
+                _activeUploads.Add(item);
+            }
+
+            HasUploads = ActiveUploads.Count > 0;
+            long totalUsedBytes = Math.Max(usage.UsedBytes, items.Sum(i => i.SizeBytes));
+            double usedMb = totalUsedBytes / (double)ConversionConstants.BytesPerMegabyte;
+            double limitMb = usage.LimitBytes / (double)ConversionConstants.BytesPerMegabyte;
+            UploadQuotaPercent = usage.LimitBytes > 0
+                ? Math.Clamp((double)totalUsedBytes / usage.LimitBytes * 100.0, 0.0, 100.0)
+                : 0.0;
+
+            string formattedUsed = totalUsedBytes switch
+            {
+                >= ConversionConstants.BytesPerMegabyte => $"{usedMb:F1} MB",
+                >= ConversionConstants.BytesPerKilobyte => $"{totalUsedBytes / (double)ConversionConstants.BytesPerKilobyte:F1} KB",
+                _ => $"{totalUsedBytes} B",
+            };
+
+            string percentText = UploadQuotaPercent switch
+            {
+                >= 1.0 => $"{UploadQuotaPercent:F0}%",
+                > 0.0 => $"{UploadQuotaPercent:F2}%",
+                _ => "0%",
+            };
+
+            UploadQuotaText = $"{formattedUsed} / {limitMb:F1} MB Used ({percentText})";
+        }
+        catch (OperationCanceledException)
+        {
+            // Operation was cancelled
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to refresh upload records in settings");
+        }
+        finally
+        {
+            IsLoadingUploads = false;
+            try
+            {
+                _uploadsLock.Release();
+            }
+            catch (ObjectDisposedException)
+            {
+                // Lock was disposed while operation was running
+            }
+        }
+    }
+
+    /// <summary>
+    /// Removes an upload record from local upload history.
+    /// </summary>
+    /// <param name="item">The upload history item to remove.</param>
+    /// <param name="cancellationToken">Optional token to cancel the operation.</param>
+    [RelayCommand]
+    private async Task DeleteUploadAsync(UploadHistoryItem? item, CancellationToken cancellationToken = default)
+    {
+        if (_uploadHistoryService == null || item == null)
+        {
+            return;
+        }
+
+        try
+        {
+            await _uploadHistoryService.RemoveHistoryItemAsync(item.Url, true, cancellationToken);
+            var title = _localizationService?.GetString("Settings.CloudStorage.Notification.UploadRemoved.Title") ?? "Upload Removed";
+            var messageFormat = _localizationService?.GetString("Settings.CloudStorage.Notification.UploadRemoved.Message") ?? "Removed {0} from upload history.";
+            _notificationService.ShowSuccess(title, string.Format(System.Globalization.CultureInfo.CurrentCulture, messageFormat, item.FileName));
+            await RefreshUploadsAsync(cancellationToken);
+        }
+        catch (OperationCanceledException)
+        {
+            // Operation was cancelled
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to delete upload {Url}", item.Url);
+            var errorMessage = _localizationService?.GetString("Settings.CloudStorage.Notification.UploadRemoveError") ?? "Failed to remove upload history record.";
+            _notificationService.ShowError(ErrorTitle, errorMessage);
+        }
+    }
+
+    /// <summary>
+    /// Clears all upload history records.
+    /// </summary>
+    /// <param name="cancellationToken">Optional token to cancel the operation.</param>
+    [RelayCommand]
+    private async Task ClearAllUploadsAsync(CancellationToken cancellationToken = default)
+    {
+        if (_uploadHistoryService == null)
+        {
+            return;
+        }
+
+        var dialogTitle = _localizationService?.GetString("Settings.CloudStorage.Dialog.ClearAll.Title") ?? "Clear Upload History";
+        var dialogMessage = _localizationService?.GetString("Settings.CloudStorage.Dialog.ClearAll.Message") ?? "Are you sure you want to clear all upload history and remove uploaded files from cloud storage?";
+        var confirmText = _localizationService?.GetString("Settings.CloudStorage.Dialog.ClearAll.Confirm") ?? "Clear All";
+        var cancelText = _localizationService?.GetString("Common.Cancel") ?? SettingsConstants.CancelButtonText;
+
+        var confirmed = await _dialogService.ShowConfirmationAsync(
+            dialogTitle,
+            dialogMessage,
+            confirmText,
+            cancelText);
+
+        if (!confirmed)
+        {
+            return;
+        }
+
+        try
+        {
+            await _uploadHistoryService.ClearHistoryAsync(true, null, cancellationToken);
+            var title = _localizationService?.GetString("Settings.CloudStorage.Notification.UploadsCleared.Title") ?? "Uploads Cleared";
+            var message = _localizationService?.GetString("Settings.CloudStorage.Notification.UploadsCleared.Message") ?? "Purged all active upload records.";
+            _notificationService.ShowSuccess(title, message);
+            await RefreshUploadsAsync(cancellationToken);
+        }
+        catch (OperationCanceledException)
+        {
+            // Operation was cancelled
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to clear upload records");
+            var errorMessage = _localizationService?.GetString("Settings.CloudStorage.Notification.ClearUploadsError") ?? "Failed to clear uploads.";
+            _notificationService.ShowError(ErrorTitle, errorMessage);
+        }
+    }
+
+    /// <summary>
+    /// Copies an upload's public URL to the clipboard.
+    /// </summary>
+    /// <param name="url">The URL to copy.</param>
+    [RelayCommand]
+    private async Task CopyUploadUrlAsync(string? url)
+    {
+        if (string.IsNullOrWhiteSpace(url))
+        {
+            return;
+        }
+
+        try
+        {
+            var lifetime = Application.Current?.ApplicationLifetime as Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime;
+            var mainWindow = lifetime?.MainWindow;
+            var topLevel = mainWindow != null ? TopLevel.GetTopLevel(mainWindow) : null;
+
+            if (topLevel?.Clipboard != null)
+            {
+                await topLevel.Clipboard.SetTextAsync(url);
+                var title = _localizationService?.GetString("Settings.CloudStorage.Notification.Copied.Title") ?? "Copied";
+                var message = _localizationService?.GetString("Settings.CloudStorage.Notification.Copied.Message") ?? "Upload URL copied to clipboard.";
+                _notificationService.ShowSuccess(title, message);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to copy upload URL to clipboard");
+            var errorMessage = _localizationService?.GetString("Settings.CloudStorage.Notification.CopyError") ?? "Failed to copy URL to clipboard.";
+            _notificationService.ShowError(ErrorTitle, errorMessage);
+        }
+    }
+
     [RelayCommand]
     private async Task ClearLogs()
     {
@@ -2721,7 +2968,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             return;
         }
 
-        var freedMb = freedBytes / (1024.0 * 1024.0);
+        var freedMb = freedBytes / (double)ConversionConstants.BytesPerMegabyte;
         var sizeText = freedMb >= 0.1 ? $" ({freedMb:F1} MB freed)" : string.Empty;
         var skippedText = lockedCount > 0 ? $", {lockedCount} file(s) skipped (in use)" : string.Empty;
         _notificationService.ShowSuccess("Logs Cleared", $"Successfully cleared {deletedCount} log file(s){sizeText}{skippedText}.", 3000);

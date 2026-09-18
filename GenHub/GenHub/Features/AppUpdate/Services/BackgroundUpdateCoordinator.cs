@@ -1,4 +1,4 @@
-using Avalonia.Threading;
+﻿using Avalonia.Threading;
 using CommunityToolkit.Mvvm.Messaging;
 using GenHub.Core.Constants;
 using GenHub.Core.Helpers;
@@ -29,12 +29,14 @@ namespace GenHub.Features.AppUpdate.Services;
 /// <param name="notificationService">Service for showing notifications.</param>
 /// <param name="logger">Logger instance.</param>
 /// <param name="gitHubTokenStorage">Optional GitHub token storage for checking token availability.</param>
+/// <param name="localizationService">Optional localization service.</param>
 public class BackgroundUpdateCoordinator(
     IVelopackUpdateManager velopackUpdateManager,
     IUserSettingsService userSettingsService,
     INotificationService notificationService,
     ILogger<BackgroundUpdateCoordinator> logger,
-    IGitHubTokenStorage? gitHubTokenStorage = null) : IBackgroundUpdateCoordinator, IRecipient<UpdateSettingsChangedMessage>
+    IGitHubTokenStorage? gitHubTokenStorage = null,
+    ILocalizationService? localizationService = null) : IBackgroundUpdateCoordinator, IRecipient<UpdateSettingsChangedMessage>
 {
     private readonly CancellationTokenSource _cts = new();
     private readonly object _lifecycleLock = new();
@@ -177,6 +179,12 @@ public class BackgroundUpdateCoordinator(
             timerToDispose?.Dispose();
             _cts.Dispose();
         }
+    }
+
+    private static void NavigateToChangelogs()
+    {
+        WeakReferenceMessenger.Default.Send(new NavigationMessage(NavigationTab.Info));
+        WeakReferenceMessenger.Default.Send(new OpenInfoSectionMessage(InfoConstants.SectionChangelogs));
     }
 
     private void RegisterMessages()
@@ -644,6 +652,11 @@ public class BackgroundUpdateCoordinator(
                     actions:
                     [
                         new NotificationAction(
+                            localizationService?.GetString("AppUpdate.Action.ViewChangelog") ?? AppUpdateConstants.ViewChangelogAction,
+                            NavigateToChangelogs,
+                            NotificationActionStyle.Secondary,
+                            dismissOnExecute: false),
+                        new NotificationAction(
                             AppUpdateConstants.UpdateAction,
                             () => _ = PerformOneClickUpdateAsync(null, updateInfo, null),
                             NotificationActionStyle.Primary,
@@ -678,6 +691,11 @@ public class BackgroundUpdateCoordinator(
                     autoDismissMilliseconds: null,
                     actions:
                     [
+                        new NotificationAction(
+                            localizationService?.GetString("AppUpdate.Action.ViewChangelog") ?? AppUpdateConstants.ViewChangelogAction,
+                            NavigateToChangelogs,
+                            NotificationActionStyle.Secondary,
+                            dismissOnExecute: false),
                         new NotificationAction(
                             AppUpdateConstants.UpdateAction,
                             () => _ = PerformOneClickUpdateAsync(null, null, githubVersion),
@@ -718,84 +736,63 @@ public class BackgroundUpdateCoordinator(
             return;
         }
 
-        var progressNotificationId = Guid.NewGuid();
+        if (!string.IsNullOrWhiteSpace(githubVersion))
+        {
+            logger?.LogInformation("Opening update window for GitHub API update: {Version}", githubVersion);
+            OpenUpdateSettings();
+            return;
+        }
+
+        if (artifactUpdate == null && updateInfo == null)
+        {
+            return;
+        }
+
+        using var scope = new DownloadNotificationScope(
+            notificationService,
+            AppConstants.AppName,
+            new DownloadNotificationOptions(
+                StartTitle: AppUpdateConstants.UpdatingAppNotificationTitle,
+                StartMessage: AppUpdateConstants.UpdateStartingMessage));
 
         try
         {
-            // show the progress notification immediately
-            notificationService.Show(new NotificationMessage(
-                NotificationType.Info,
-                AppUpdateConstants.UpdatingAppNotificationTitle,
-                AppUpdateConstants.UpdateStartingMessage,
-                autoDismissMilliseconds: null,
-                isPersistent: false,
-                showInBadge: false)
-            {
-                Id = progressNotificationId,
-            });
-
-            var progress = new Progress<UpdateProgress>(p =>
-            {
-                string statusText;
-                if (!string.IsNullOrWhiteSpace(p.Message))
-                {
-                    statusText = p.Message;
-                }
-                else if (!string.IsNullOrWhiteSpace(p.Status))
-                {
-                    statusText = p.Status;
-                }
-                else
-                {
-                    statusText = $"{p.PercentComplete}%";
-                }
-
-                notificationService.Update(
-                    progressNotificationId,
-                    statusText,
-                    AppUpdateConstants.UpdatingAppNotificationTitle);
-            });
+            var progress = new Progress<UpdateProgress>(scope.Report);
 
             if (artifactUpdate != null)
             {
                 logger?.LogInformation("Starting one-click artifact install: {Version}", artifactUpdate.DisplayVersion);
                 await velopackUpdateManager.InstallArtifactAsync(artifactUpdate, progress, lifetimeToken);
                 await ClearStaleSubscriptionAsync(clearedPrNumber, clearedBranch, lifetimeToken);
-                notificationService.Update(
-                    progressNotificationId,
-                    AppUpdateConstants.UpdateCompleteRestartingMessage,
-                    AppUpdateConstants.UpdatingAppNotificationTitle);
+                scope.CompleteWithPinnedMessage(AppUpdateConstants.UpdateCompleteRestartingMessage);
             }
-            else if (updateInfo != null)
+            else
             {
-                logger?.LogInformation("Starting one-click release update: {Version}", updateInfo.TargetFullRelease.Version);
-                await velopackUpdateManager.DownloadUpdatesAsync(updateInfo, progress, lifetimeToken);
+                logger?.LogInformation("Starting one-click release update: {Version}", updateInfo!.TargetFullRelease.Version);
+                await velopackUpdateManager.DownloadUpdatesAsync(updateInfo!, progress, lifetimeToken);
                 await ClearStaleSubscriptionAsync(clearedPrNumber, clearedBranch, lifetimeToken);
-                notificationService.Update(
-                    progressNotificationId,
-                    AppUpdateConstants.UpdateDownloadedRestartingMessage,
-                    AppUpdateConstants.UpdatingAppNotificationTitle);
-                velopackUpdateManager.ApplyUpdatesAndRestart(updateInfo);
-            }
-            else if (!string.IsNullOrWhiteSpace(githubVersion))
-            {
-                logger?.LogInformation("Opening update window for GitHub API update: {Version}", githubVersion);
-                notificationService.Dismiss(progressNotificationId);
-                OpenUpdateSettings();
+                scope.CompleteWithPinnedMessage(AppUpdateConstants.UpdateDownloadedRestartingMessage);
+                try
+                {
+                    velopackUpdateManager.ApplyUpdatesAndRestart(updateInfo!);
+                }
+                catch
+                {
+                    scope.ClearPinnedMessage();
+                    throw;
+                }
             }
         }
         catch (OperationCanceledException) when (lifetimeToken.IsCancellationRequested)
         {
-            notificationService.Dismiss(progressNotificationId);
+            scope.CompleteCanceled(silent: true);
         }
         catch (Exception ex)
         {
             logger?.LogError(ex, "Failed to install update");
-            notificationService.Dismiss(progressNotificationId);
-            notificationService.ShowError(
-                AppUpdateConstants.UpdateFailedNotificationTitle,
+            scope.CompleteFailure(
                 string.Format(AppUpdateConstants.UpdateFailedNotificationFormat, ex.Message),
-                autoDismissMs: NotificationConstants.DefaultAutoDismissMs);
+                AppUpdateConstants.UpdateFailedNotificationTitle);
         }
     }
 

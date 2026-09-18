@@ -49,7 +49,49 @@ public sealed class GitHubManifestFactoryTests : IDisposable
         Directory.CreateDirectory(_tempDirectory);
     }
 
-    /// <inheritdoc />
+    /// <summary>
+    /// Verifies that CanHandle returns false safely when publisher info is null.
+    /// </summary>
+    [Fact]
+    public void CanHandle_ShouldReturnFalse_WhenPublisherIsNull()
+    {
+        var manifest = new ContentManifest
+        {
+            Id = "1.0.github.mod.test",
+            Name = "Test",
+            Publisher = null!,
+        };
+
+        Assert.False(_factory.CanHandle(manifest));
+    }
+
+    /// <summary>
+    /// Verifies that CanHandle returns true when publisher type matches case-insensitively or starts with github prefix.
+    /// </summary>
+    [Fact]
+    public void CanHandle_ShouldReturnTrue_WhenPublisherMatchesCaseInsensitiveOrPrefix()
+    {
+        var standard = new ContentManifest
+        {
+            Id = "1.0.github.mod.test",
+            Name = "Test",
+            Publisher = new PublisherInfo { PublisherType = "GITHUB" },
+        };
+
+        var prefixed = new ContentManifest
+        {
+            Id = "1.0.github.mod.test",
+            Name = "Test",
+            Publisher = new PublisherInfo { PublisherType = "github-release" },
+        };
+
+        Assert.True(_factory.CanHandle(standard));
+        Assert.True(_factory.CanHandle(prefixed));
+    }
+
+    /// <summary>
+    /// Disposes test resources.
+    /// </summary>
     public void Dispose()
     {
         if (Directory.Exists(_tempDirectory))

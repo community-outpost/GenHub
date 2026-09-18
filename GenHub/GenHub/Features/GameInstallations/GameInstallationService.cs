@@ -472,13 +472,16 @@ IUserSettingsService? userSettingsService = null) : IGameInstallationService, ID
         }
 
         if (installation.InstallationType is GameInstallationType.Steam or GameInstallationType.Wine or GameInstallationType.Lutris or GameInstallationType.TheFirstDecade or GameInstallationType.EaApp &&
-            File.Exists(Path.Combine(gamePath, GameClientConstants.SteamGameDatExecutable)))
+            Path.Combine(gamePath, GameClientConstants.SteamGameDatExecutable).TryGetFileCaseInsensitive(out var steamDatPath))
         {
-            return Path.Combine(gamePath, GameClientConstants.SteamGameDatExecutable);
+            return steamDatPath;
         }
 
         var defaultExe = gameType == GameType.ZeroHour ? GameClientConstants.ZeroHourExecutable : GameClientConstants.GeneralsExecutable;
-        return Path.Combine(gamePath, defaultExe);
+        var defaultPath = Path.Combine(gamePath, defaultExe);
+        return defaultPath.TryGetFileCaseInsensitive(out var resolvedDefaultPath)
+            ? resolvedDefaultPath
+            : defaultPath;
     }
 
     /// <summary>
@@ -838,16 +841,16 @@ IUserSettingsService? userSettingsService = null) : IGameInstallationService, ID
                     normalizedVersion);
 
                 var defaultExe = gameType == GameType.ZeroHour ? GameClientConstants.ZeroHourExecutable : GameClientConstants.GeneralsExecutable;
-                if (installation.InstallationType is GameInstallationType.Steam or GameInstallationType.Wine or GameInstallationType.Lutris)
+                if (installation.InstallationType is GameInstallationType.Steam or GameInstallationType.Wine or GameInstallationType.Lutris &&
+                    Path.Combine(gamePath, GameClientConstants.SteamGameDatExecutable).TryGetFileCaseInsensitive(out _))
                 {
-                    var steamDatPath = Path.Combine(gamePath, GameClientConstants.SteamGameDatExecutable);
-                    if (File.Exists(steamDatPath))
-                    {
-                        defaultExe = GameClientConstants.SteamGameDatExecutable;
-                    }
+                    defaultExe = GameClientConstants.SteamGameDatExecutable;
                 }
 
-                var exePath = Path.Combine(gamePath, defaultExe);
+                var candidateExePath = Path.Combine(gamePath, defaultExe);
+                var exePath = candidateExePath.TryGetFileCaseInsensitive(out var resolvedExePath)
+                    ? resolvedExePath
+                    : candidateExePath;
 
                 // Create a game client from the manifest
                 var gameClient = new GameClient
@@ -1069,7 +1072,7 @@ IUserSettingsService? userSettingsService = null) : IGameInstallationService, ID
 
             var exePath = ResolveClientExecutablePath(gameClient, installation, gamePath, gameType);
 
-            if (!File.Exists(exePath))
+            if (!exePath.TryGetFileCaseInsensitive(out var resolvedExePath))
             {
                 logger.LogWarning(
                     "Cannot generate GameClient manifest {ClientId}: executable not found at {ExePath}",
@@ -1094,7 +1097,7 @@ IUserSettingsService? userSettingsService = null) : IGameInstallationService, ID
                 gameType,
                 clientName,
                 versionForManifest,
-                exePath,
+                resolvedExePath,
                 publisherInfo);
 
             var manifest = builder.Build();

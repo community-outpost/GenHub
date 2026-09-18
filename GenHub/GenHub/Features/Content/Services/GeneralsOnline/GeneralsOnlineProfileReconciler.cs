@@ -1,5 +1,6 @@
 using GenHub.Core.Constants;
 using GenHub.Core.Extensions;
+using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.GameInstallations;
@@ -11,6 +12,7 @@ using GenHub.Core.Interfaces.Storage;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameInstallations;
+using GenHub.Core.Models.GameProfile;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Notifications;
 using GenHub.Core.Models.Results;
@@ -54,7 +56,7 @@ public partial class GeneralsOnlineProfileReconciler(
     public string PublisherType => GeneralsOnlineConstants.PublisherType;
 
     /// <inheritdoc/>
-    public async Task<OperationResult<bool>> CheckAndReconcileIfNeededAsync(
+    public async Task<OperationResult<PublisherReconciliationResult>> CheckAndReconcileIfNeededAsync(
         string triggeringProfileId,
         CancellationToken cancellationToken = default)
     {
@@ -68,13 +70,13 @@ public partial class GeneralsOnlineProfileReconciler(
             var checkResult = await CheckUpdateAvailabilityAndStrategyAsync(triggeringProfileId, cancellationToken);
             if (!checkResult.Success)
             {
-                return OperationResult<bool>.CreateFailure(checkResult.FirstError ?? "Failed to check update availability");
+                return OperationResult<PublisherReconciliationResult>.CreateFailure(checkResult.FirstError ?? "Failed to check update availability");
             }
 
             var (proceed, updateResult, strategy, _, shouldDeleteOldVersions) = checkResult.Data;
             if (!proceed || updateResult == null)
             {
-                return OperationResult<bool>.CreateSuccess(false);
+                return OperationResult<PublisherReconciliationResult>.CreateSuccess(PublisherReconciliationResult.None);
             }
 
             var progressNotificationId = Guid.NewGuid();
@@ -109,7 +111,7 @@ public partial class GeneralsOnlineProfileReconciler(
                         $"Failed to download update: {acquireResult.FirstError}",
                         NotificationDurations.Critical);
 
-                    return OperationResult<bool>.CreateFailure(
+                    return OperationResult<PublisherReconciliationResult>.CreateFailure(
                         $"Failed to acquire new GeneralsOnline version: {acquireResult.FirstError}");
                 }
 
@@ -121,13 +123,13 @@ public partial class GeneralsOnlineProfileReconciler(
                     "Applying update to profiles...",
                     "GeneralsOnline Update");
 
-                var updateResultData = await ApplyUpdateStrategyAsync(strategy, oldManifests, newManifests, updateResult.LatestVersion ?? "Unknown", cancellationToken);
+                var updateResultData = await ApplyUpdateStrategyAsync(strategy, oldManifests, newManifests, updateResult.LatestVersion ?? "Unknown", triggeringProfileId, cancellationToken);
                 if (!updateResultData.Success)
                 {
-                    return OperationResult<bool>.CreateFailure(updateResultData.FirstError ?? "Failed to apply update strategy");
+                    return OperationResult<PublisherReconciliationResult>.CreateFailure(updateResultData.FirstError ?? "Failed to apply update strategy");
                 }
 
-                var (profilesUpdated, anyFailure, manifestMapping) = updateResultData.Data;
+                var (profilesUpdated, anyFailure, manifestMapping, targetProfileId) = updateResultData.Data;
 
                 var enforceResult = await EnforceMapPackDependencyAsync(newManifests, cancellationToken);
                 if (!enforceResult.Success)
@@ -154,7 +156,10 @@ public partial class GeneralsOnlineProfileReconciler(
                         NotificationDurations.Long);
                 }
 
-                return OperationResult<bool>.CreateSuccess(true);
+                return OperationResult<PublisherReconciliationResult>.CreateSuccess(PublisherReconciliationResult.Success(
+                    strategy,
+                    targetProfileId ?? triggeringProfileId,
+                    profilesUpdated));
             }
             finally
             {
@@ -168,7 +173,7 @@ public partial class GeneralsOnlineProfileReconciler(
         catch (Exception ex)
         {
             logger.LogError(ex, "[GO Reconciler] Failed to reconcile GeneralsOnline update");
-            return OperationResult<bool>.CreateFailure($"GeneralsOnline update reconciliation failed: {ex.Message}");
+            return OperationResult<PublisherReconciliationResult>.CreateFailure($"GeneralsOnline update reconciliation failed: {ex.Message}");
         }
         finally
         {
@@ -467,70 +472,12 @@ public partial class GeneralsOnlineProfileReconciler(
             ? profile.Description
             : (newClientManifest?.Metadata?.Description ?? GeneralsOnlineConstants.ShortDescription);
 
-        return new Core.Models.GameProfile.CreateProfileRequest
-        {
-            Name = targetProfileName,
-            Description = description,
-            GameInstallationId = profile.GameInstallationId,
-            GameClientId = updatedGameClient.Id,
-            GameClient = updatedGameClient,
-            WorkspaceStrategy = profile.WorkspaceStrategy,
-            EnabledContentIds = newEnabledContent,
-            ThemeColor = themeColor,
-            IconPath = iconPath,
-            CoverPath = coverPath,
-            CommandLineArguments = profile.CommandLineArguments,
-            GameSpyIPAddress = profile.GameSpyIPAddress,
-            UseSteamLaunch = profile.UseSteamLaunch,
-
-            // Video Settings
-            VideoResolutionWidth = profile.VideoResolutionWidth,
-            VideoResolutionHeight = profile.VideoResolutionHeight,
-            VideoWindowed = profile.VideoWindowed,
-            VideoTextureQuality = profile.VideoTextureQuality,
-            EnableVideoShadows = profile.EnableVideoShadows,
-            VideoParticleEffects = profile.VideoParticleEffects,
-            VideoExtraAnimations = profile.VideoExtraAnimations,
-            VideoBuildingAnimations = profile.VideoBuildingAnimations,
-            VideoGamma = profile.VideoGamma,
-            VideoAlternateMouseSetup = profile.VideoAlternateMouseSetup,
-            VideoHeatEffects = profile.VideoHeatEffects,
-            VideoStaticGameLOD = profile.VideoStaticGameLOD,
-            VideoIdealStaticGameLOD = profile.VideoIdealStaticGameLOD,
-            VideoUseDoubleClickAttackMove = profile.VideoUseDoubleClickAttackMove,
-            VideoScrollFactor = profile.VideoScrollFactor,
-            VideoRetaliation = profile.VideoRetaliation,
-            VideoDynamicLOD = profile.VideoDynamicLOD,
-            VideoMaxParticleCount = profile.VideoMaxParticleCount,
-            VideoAntiAliasing = profile.VideoAntiAliasing,
-            VideoSkipEALogo = profile.VideoSkipEALogo,
-
-            // Audio Settings
-            AudioSoundVolume = profile.AudioSoundVolume,
-            AudioThreeDSoundVolume = profile.AudioThreeDSoundVolume,
-            AudioSpeechVolume = profile.AudioSpeechVolume,
-            AudioMusicVolume = profile.AudioMusicVolume,
-            AudioNumSounds = profile.AudioNumSounds,
-            AudioEnabled = profile.AudioEnabled,
-
-            // GeneralsOnline Settings
-            GoShowFps = profile.GoShowFps,
-            GoShowPing = profile.GoShowPing,
-            GoAutoLogin = profile.GoAutoLogin,
-            GoRememberUsername = profile.GoRememberUsername,
-            GoEnableNotifications = profile.GoEnableNotifications,
-            GoChatFontSize = profile.GoChatFontSize,
-            GoEnableSoundNotifications = profile.GoEnableSoundNotifications,
-            GoShowPlayerRanks = profile.GoShowPlayerRanks,
-            GoCameraMaxHeightOnlyWhenLobbyHost = profile.GoCameraMaxHeightOnlyWhenLobbyHost,
-            GoCameraMinHeight = profile.GoCameraMinHeight,
-            GoCameraMoveSpeedRatio = profile.GoCameraMoveSpeedRatio,
-            GoChatDurationSecondsUntilFadeOut = profile.GoChatDurationSecondsUntilFadeOut,
-            GoDebugVerboseLogging = profile.GoDebugVerboseLogging,
-            GoRenderFpsLimit = profile.GoRenderFpsLimit,
-            GoRenderLimitFramerate = profile.GoRenderLimitFramerate,
-            GoRenderStatsOverlay = profile.GoRenderStatsOverlay,
-        };
+        var request = GameSettingsMapper.CreateCloneRequest(profile, targetProfileName, updatedGameClient, newEnabledContent);
+        request.IconPath = iconPath;
+        request.CoverPath = coverPath;
+        request.ThemeColor = themeColor;
+        request.Description = description;
+        return request;
     }
 
     private static bool HasRelevantGeneralsOnlineProfiles(IEnumerable<Core.Models.GameProfile.GameProfile>? profiles) =>
@@ -549,6 +496,27 @@ public partial class GeneralsOnlineProfileReconciler(
                enabled.Any(id => id.Contains($".{GeneralsOnlineConstants.PublisherType}.", StringComparison.OrdinalIgnoreCase));
     }
 
+    private static bool IsProfileRelevant(Core.Models.GameProfile.GameProfile profile, HashSet<string> oldIds)
+    {
+        if (profile.GameClient != null && oldIds.Contains(profile.GameClient.Id))
+        {
+            return true;
+        }
+
+        if (profile.EnabledContentIds is { } enabled && enabled.Any(oldIds.Contains))
+        {
+            return true;
+        }
+
+        return IsProfileRelevantToGeneralsOnline(profile);
+    }
+
+    private static bool IsTriggeringProfile(Core.Models.GameProfile.GameProfile profile, string? triggeringProfileId)
+    {
+        return !string.IsNullOrEmpty(triggeringProfileId) &&
+               string.Equals(profile.Id, triggeringProfileId, StringComparison.OrdinalIgnoreCase);
+    }
+
     /// <summary>
     /// Builds a mapping from old manifest IDs to new manifest IDs based on variant matching.
     /// Handles 30hz, 60hz, quickmatch-maps, and gamedata variants.
@@ -559,6 +527,8 @@ public partial class GeneralsOnlineProfileReconciler(
         IComparer<string>? versionComparer = null)
     {
         var mapping = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+        // Group new manifests by variant for fast lookup
         var newByVariant = GroupManifestsByVariant(newManifests);
 
         // Map each old manifest to the corresponding new manifest
@@ -600,61 +570,75 @@ public partial class GeneralsOnlineProfileReconciler(
         return mapping;
     }
 
-    private async Task<OperationResult<(bool Proceed, ContentUpdateCheckResult? UpdateResult, UpdateStrategy Strategy, PublisherSubscription? Subscription, bool ShouldDeleteOldVersions)>>
-        CheckUpdateAvailabilityAndStrategyAsync(string? triggeringProfileId, CancellationToken cancellationToken)
+    /// <summary>
+    /// Checks update availability and determines the update strategy.
+    /// Returns (proceed: false, ...) if update is not needed or cancelled.
+    /// </summary>
+    private async Task<OperationResult<(bool Proceed, ContentUpdateCheckResult? UpdateResult, UpdateStrategy Strategy, bool AutoUpdate, bool ShouldDeleteOldVersions)>>
+        CheckUpdateAvailabilityAndStrategyAsync(
+            string triggeringProfileId,
+            CancellationToken cancellationToken)
     {
         var updateResult = await updateService.CheckForUpdatesAsync(cancellationToken);
         if (!updateResult.Success)
         {
             logger.LogWarning("[GO Reconciler] Update check failed: {Error}", updateResult.FirstError);
-            return OperationResult<(bool, ContentUpdateCheckResult?, UpdateStrategy, PublisherSubscription?, bool)>.CreateFailure(
+            return OperationResult<(bool, ContentUpdateCheckResult?, UpdateStrategy, bool, bool)>.CreateFailure(
                 $"Failed to check for GeneralsOnline updates: {updateResult.FirstError}");
         }
 
         if (!updateResult.IsUpdateAvailable)
         {
             logger.LogInformation("[GO Reconciler] No update available. Current version: {Version}", updateResult.CurrentVersion);
-            return OperationResult<(bool, ContentUpdateCheckResult?, UpdateStrategy, PublisherSubscription?, bool)>.CreateSuccess((false, null, UpdateStrategy.ReplaceCurrent, null, true));
+            return OperationResult<(bool, ContentUpdateCheckResult?, UpdateStrategy, bool, bool)>.CreateSuccess(
+                (false, null, UpdateStrategy.ReplaceCurrent, false, true));
         }
 
+        logger.LogInformation(
+            "[GO Reconciler] Update available! Current: {CurrentVersion}, Latest: {LatestVersion}",
+            updateResult.CurrentVersion,
+            updateResult.LatestVersion);
+
+        // Check if the triggering profile already uses the latest version
         if (!string.IsNullOrEmpty(triggeringProfileId) &&
             await IsTriggeringProfileUpToDateAsync(triggeringProfileId, updateResult.LatestVersion, cancellationToken))
         {
-            return OperationResult<(bool, ContentUpdateCheckResult?, UpdateStrategy, PublisherSubscription?, bool)>.CreateSuccess(
-                (false, null, UpdateStrategy.ReplaceCurrent, null, true));
+            return OperationResult<(bool, ContentUpdateCheckResult?, UpdateStrategy, bool, bool)>.CreateSuccess(
+                (false, null, UpdateStrategy.ReplaceCurrent, false, true));
         }
 
         var settings = userSettingsService.Get();
         if (settings.IsVersionSkipped(GeneralsOnlineConstants.PublisherType, updateResult.LatestVersion ?? string.Empty))
         {
             logger.LogInformation("[GO Reconciler] User opted to skip version {Version}. Skipping.", updateResult.LatestVersion);
-            return OperationResult<(bool, ContentUpdateCheckResult?, UpdateStrategy, PublisherSubscription?, bool)>.CreateSuccess((false, null, UpdateStrategy.ReplaceCurrent, null, true));
+            return OperationResult<(bool, ContentUpdateCheckResult?, UpdateStrategy, bool, bool)>.CreateSuccess(
+                (false, null, UpdateStrategy.ReplaceCurrent, false, true));
         }
 
         var subscription = settings.GetSubscription(GeneralsOnlineConstants.PublisherType);
         var strategy = subscription?.PreferredUpdateStrategy ?? settings.PreferredUpdateStrategy ?? UpdateStrategy.ReplaceCurrent;
-        var autoUpdate = subscription is { AutoUpdateEnabled: true };
+        var autoUpdate = subscription?.AutoUpdateEnabled == true;
         var shouldDeleteOldVersions = subscription?.DeleteOldVersions ?? true;
 
         if (!autoUpdate)
         {
             var promptResult = await PromptUserForUpdateStrategyAsync(
-                updateResult.LatestVersion ?? string.Empty,
+                updateResult.LatestVersion ?? "Unknown",
                 strategy,
                 shouldDeleteOldVersions);
 
             if (!promptResult.Proceed)
             {
-                return OperationResult<(bool, ContentUpdateCheckResult?, UpdateStrategy, PublisherSubscription?, bool)>.CreateSuccess(
-                    (false, null, promptResult.Strategy, subscription, promptResult.ShouldDeleteOldVersions));
+                return OperationResult<(bool, ContentUpdateCheckResult?, UpdateStrategy, bool, bool)>.CreateSuccess(
+                    (false, null, strategy, false, shouldDeleteOldVersions));
             }
 
             strategy = promptResult.Strategy;
             shouldDeleteOldVersions = promptResult.ShouldDeleteOldVersions;
         }
 
-        return OperationResult<(bool, ContentUpdateCheckResult?, UpdateStrategy, PublisherSubscription?, bool)>.CreateSuccess(
-            (true, updateResult, strategy, subscription, shouldDeleteOldVersions));
+        return OperationResult<(bool, ContentUpdateCheckResult?, UpdateStrategy, bool, bool)>.CreateSuccess(
+            (true, updateResult, strategy, autoUpdate, shouldDeleteOldVersions));
     }
 
     /// <summary>
@@ -665,11 +649,11 @@ public partial class GeneralsOnlineProfileReconciler(
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>True if the profile already has the latest client version; otherwise false.</returns>
     private async Task<bool> IsTriggeringProfileUpToDateAsync(
-        string triggeringProfileId,
+        string? triggeringProfileId,
         string? latestVersion,
         CancellationToken cancellationToken)
     {
-        if (string.IsNullOrEmpty(latestVersion))
+        if (string.IsNullOrEmpty(latestVersion) || string.IsNullOrEmpty(triggeringProfileId))
         {
             return false;
         }
@@ -771,24 +755,25 @@ public partial class GeneralsOnlineProfileReconciler(
         return (true, strategy, shouldDeleteOldVersions);
     }
 
-    private async Task<OperationResult<(int ProfilesUpdated, bool AnyFailure, Dictionary<string, string>? ManifestMapping)>>
+    private async Task<OperationResult<(int ProfilesUpdated, bool AnyFailure, Dictionary<string, string>? ManifestMapping, string? TargetProfileId)>>
         ApplyUpdateStrategyAsync(
             UpdateStrategy strategy,
             List<ContentManifest> oldManifests,
             List<ContentManifest> newManifests,
             string newVersion,
+            string? triggeringProfileId,
             CancellationToken cancellationToken)
     {
         if (strategy == UpdateStrategy.CreateNewProfile)
         {
-            var createResult = await CreateNewProfilesForUpdateAsync(oldManifests, newManifests, newVersion, cancellationToken);
+            var createResult = await CreateNewProfilesForUpdateAsync(oldManifests, newManifests, newVersion, triggeringProfileId, cancellationToken);
             if (createResult.Success)
             {
-                return OperationResult<(int, bool, Dictionary<string, string>?)>.CreateSuccess((createResult.Data, false, null));
+                return OperationResult<(int, bool, Dictionary<string, string>?, string?)>.CreateSuccess((createResult.Data.CreatedCount, false, null, createResult.Data.TargetProfileId));
             }
 
             notificationService.ShowWarning("GeneralsOnline Update Partial", $"Failed to create some new profiles: {createResult.FirstError}", NotificationDurations.VeryLong);
-            return OperationResult<(int, bool, Dictionary<string, string>?)>.CreateSuccess((0, true, null));
+            return OperationResult<(int, bool, Dictionary<string, string>?, string?)>.CreateSuccess((0, true, null, null));
         }
 
         var manifestMapping = BuildManifestMapping(oldManifests, newManifests, versionComparer.GetScheme(GeneralsOnlineConstants.PublisherType));
@@ -797,10 +782,11 @@ public partial class GeneralsOnlineProfileReconciler(
         if (!bulkUpdateResult.Success)
         {
             notificationService.ShowWarning("GeneralsOnline Update Partial", $"Some profiles could not be updated: {bulkUpdateResult.FirstError}", NotificationDurations.VeryLong);
-            return OperationResult<(int, bool, Dictionary<string, string>?)>.CreateFailure($"Bulk update failed: {bulkUpdateResult.FirstError}");
+            return OperationResult<(int, bool, Dictionary<string, string>?, string?)>.CreateFailure($"Bulk update failed: {bulkUpdateResult.FirstError}");
         }
 
         int profilesUpdated = bulkUpdateResult.Data?.ProfilesUpdated ?? 0;
+        string? targetProfileId = triggeringProfileId;
 
         // If no profiles were updated because none existed, create a fresh profile
         if (profilesUpdated == 0)
@@ -812,11 +798,12 @@ public partial class GeneralsOnlineProfileReconciler(
                 var freshResult = await CreateFreshGeneralsOnlineProfileAsync(newManifests, newVersion, cancellationToken);
                 if (freshResult.Success)
                 {
-                    profilesUpdated = freshResult.Data;
+                    profilesUpdated = freshResult.Data.CreatedCount;
+                    targetProfileId = freshResult.Data.TargetProfileId;
                 }
                 else
                 {
-                    return OperationResult<(int, bool, Dictionary<string, string>?)>.CreateFailure(freshResult.FirstError ?? "Failed to create fresh GeneralsOnline profile");
+                    return OperationResult<(int, bool, Dictionary<string, string>?, string?)>.CreateFailure(freshResult.FirstError ?? "Failed to create fresh GeneralsOnline profile");
                 }
             }
         }
@@ -827,7 +814,7 @@ public partial class GeneralsOnlineProfileReconciler(
             notificationService.ShowWarning("Generals Online Update Partial", $"{bulkUpdateResult.Data?.FailedProfilesCount} profiles could not be updated.", NotificationDurations.VeryLong);
         }
 
-        return OperationResult<(int, bool, Dictionary<string, string>?)>.CreateSuccess((profilesUpdated, anyFailure, manifestMapping));
+        return OperationResult<(int, bool, Dictionary<string, string>?, string?)>.CreateSuccess((profilesUpdated, anyFailure, manifestMapping, targetProfileId));
     }
 
     private async Task HandleOldManifestsAndCleanupAsync(
@@ -1152,7 +1139,7 @@ public partial class GeneralsOnlineProfileReconciler(
     /// <summary>
     /// Creates a fresh GeneralsOnline profile when no existing relevant profiles are present.
     /// </summary>
-    private async Task<OperationResult<int>> CreateFreshGeneralsOnlineProfileAsync(
+    private async Task<OperationResult<(int CreatedCount, string? TargetProfileId)>> CreateFreshGeneralsOnlineProfileAsync(
         List<ContentManifest> newManifests,
         string newVersion,
         CancellationToken cancellationToken)
@@ -1241,39 +1228,37 @@ public partial class GeneralsOnlineProfileReconciler(
         if (createResult != null && createResult.Success)
         {
             logger.LogInformation("[GO Reconciler] Successfully created fresh profile '{Name}' for update", createRequest.Name);
-            return OperationResult<int>.CreateSuccess(1);
+            return OperationResult<(int CreatedCount, string? TargetProfileId)>.CreateSuccess((1, createResult.Data?.Id));
         }
 
         logger.LogError("[GO Reconciler] Failed to create fresh profile for update: {Error}", createResult?.FirstError);
-        return OperationResult<int>.CreateFailure(createResult?.FirstError ?? "Failed to create fresh GeneralsOnline profile");
+        return OperationResult<(int CreatedCount, string? TargetProfileId)>.CreateFailure(createResult?.FirstError ?? "Failed to create fresh GeneralsOnline profile");
     }
 
     /// <summary>
     /// Creates new profiles for the update instead of replacing existing ones.
     /// </summary>
-    private async Task<OperationResult<int>> CreateNewProfilesForUpdateAsync(
+    private async Task<OperationResult<(int CreatedCount, string? TargetProfileId)>> CreateNewProfilesForUpdateAsync(
         List<ContentManifest> oldManifests,
         List<ContentManifest> newManifests,
         string newVersion,
+        string? triggeringProfileId,
         CancellationToken cancellationToken)
     {
         var oldIds = oldManifests.Select(m => m.Id.Value).ToHashSet(StringComparer.OrdinalIgnoreCase);
         var manifestMapping = BuildManifestMapping(oldManifests, newManifests, versionComparer.GetScheme(GeneralsOnlineConstants.PublisherType));
         int createdCount = 0;
+        string? targetProfileId = null;
 
         var allProfiles = await profileManager.GetAllProfilesAsync(cancellationToken);
         if (!allProfiles.Success || allProfiles.Data == null)
         {
-            return OperationResult<int>.CreateFailure("Failed to retrieve profiles for creating new profiles");
+            return OperationResult<(int CreatedCount, string? TargetProfileId)>.CreateFailure("Failed to retrieve profiles for creating new profiles");
         }
 
         var existingProfileNames = allProfiles.Data.Select(p => p.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
 
-        var relevantProfiles = allProfiles.Data.Where(p =>
-            (p.GameClient != null && oldIds.Contains(p.GameClient.Id)) ||
-            (p.EnabledContentIds is { } enabled && enabled.Any(oldIds.Contains)) ||
-            (p.GameClient != null && string.Equals(p.GameClient.PublisherType, GeneralsOnlineConstants.PublisherType, StringComparison.OrdinalIgnoreCase)) ||
-            (p.GameClient != null && p.GameClient.Id.Contains($".{GeneralsOnlineConstants.PublisherType}.", StringComparison.OrdinalIgnoreCase))).ToList();
+        var relevantProfiles = allProfiles.Data.Where(p => IsProfileRelevant(p, oldIds)).ToList();
 
         if (relevantProfiles.Count == 0)
         {
@@ -1286,32 +1271,23 @@ public partial class GeneralsOnlineProfileReconciler(
         foreach (var profile in relevantProfiles)
         {
             var targetProfileName = FormatUpdatedProfileName(profile.Name, newVersion, existingProfileNames, allowSameAsOriginal: false);
+            var (created, newProfileId) = await TryCloneGeneralsOnlineProfileAsync(
+                profile,
+                targetProfileName,
+                newClientManifest,
+                newVersion,
+                manifestMapping,
+                newManifests,
+                cancellationToken);
 
-            try
+            if (created)
             {
-                var updatedGameClient = BuildUpdatedGameClient(profile, newClientManifest, newVersion);
-                var newEnabledContent = ResolveUpdatedEnabledContent(profile, manifestMapping, newManifests);
-                var cloneRequest = BuildCloneProfileRequest(profile, targetProfileName, updatedGameClient, newEnabledContent, newClientManifest);
-
-                var createResult = await profileManager.CreateProfileAsync(cloneRequest, cancellationToken);
-                if (createResult != null && createResult.Success)
+                createdCount++;
+                existingProfileNames.Add(targetProfileName);
+                if (IsTriggeringProfile(profile, triggeringProfileId))
                 {
-                    createdCount++;
-                    existingProfileNames.Add(targetProfileName);
-                    logger.LogInformation("[GO Reconciler] Created new profile '{Name}' for update", cloneRequest.Name);
+                    targetProfileId = newProfileId;
                 }
-                else
-                {
-                    logger.LogError("[GO Reconciler] Failed to create new profile for update: {Error}", createResult?.FirstError);
-                }
-            }
-            catch (OperationCanceledException)
-            {
-                throw;
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, "[GO Reconciler] Error creating profile for update");
             }
         }
 
@@ -1321,6 +1297,42 @@ public partial class GeneralsOnlineProfileReconciler(
             return await CreateFreshGeneralsOnlineProfileAsync(newManifests, newVersion, cancellationToken);
         }
 
-        return OperationResult<int>.CreateSuccess(createdCount);
+        return OperationResult<(int CreatedCount, string? TargetProfileId)>.CreateSuccess((createdCount, targetProfileId));
+    }
+
+    private async Task<(bool Created, string? NewProfileId)> TryCloneGeneralsOnlineProfileAsync(
+        GameProfile profile,
+        string targetProfileName,
+        ContentManifest? newClientManifest,
+        string newVersion,
+        Dictionary<string, string> manifestMapping,
+        List<ContentManifest> newManifests,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var updatedGameClient = BuildUpdatedGameClient(profile, newClientManifest, newVersion);
+            var newEnabledContent = ResolveUpdatedEnabledContent(profile, manifestMapping, newManifests);
+            var cloneRequest = BuildCloneProfileRequest(profile, targetProfileName, updatedGameClient, newEnabledContent, newClientManifest);
+
+            var createResult = await profileManager.CreateProfileAsync(cloneRequest, cancellationToken);
+            if (createResult != null && createResult.Success)
+            {
+                logger.LogInformation("[GO Reconciler] Created new profile '{Name}' for update", cloneRequest.Name);
+                return (true, createResult.Data?.Id);
+            }
+
+            logger.LogError("[GO Reconciler] Failed to create new profile for update: {Error}", createResult?.FirstError);
+            return (false, null);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "[GO Reconciler] Error creating profile for update");
+            return (false, null);
+        }
     }
 }

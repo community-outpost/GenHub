@@ -15,6 +15,7 @@ using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameClients;
 using GenHub.Core.Models.GameInstallations;
 using GenHub.Core.Models.GameProfile;
+using GenHub.Core.Models.Launching;
 using GenHub.Core.Models.Results;
 using GenHub.Features.Content.Services.Publishers;
 using GenHub.Features.GameProfiles.Services;
@@ -607,6 +608,97 @@ public class GameProfileLauncherViewModelTests
         Assert.Equal(45678, item.ProcessId);
     }
 
+    /// <summary>
+    /// Verifies that when LaunchProfileAsync launches a new profile ID (e.g. from reconciler clone),
+    /// the launcher ViewModel switches SelectedProfile to the new profile item.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [AvaloniaFact]
+    public async Task LaunchProfileCommand_WhenNewProfileLaunched_SwitchesSelectionToNewProfileAsync()
+    {
+        var launcherFacade = new Mock<IProfileLauncherFacade>();
+        var launchInfo = new GameLaunchInfo
+        {
+            LaunchId = "launch-1",
+            ProfileId = "new-profile-id",
+            WorkspaceId = "ws-1",
+            ProcessInfo = new GameProcessInfo { ProcessId = 1234 },
+        };
+        launcherFacade.Setup(x => x.LaunchProfileAsync("orig-profile-id", false, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameLaunchInfo>.CreateSuccess(launchInfo));
+
+        var vm = CreateViewModelWithLauncherFacade(launcherFacade.Object);
+
+        var origProfile = new GameProfile { Id = "orig-profile-id", Name = "Original Profile" };
+        var newProfile = new GameProfile { Id = "new-profile-id", Name = "New Profile" };
+
+        var origItem = new GameProfileItemViewModel("orig-profile-id", origProfile, string.Empty, string.Empty);
+        var newItem = new GameProfileItemViewModel("new-profile-id", newProfile, string.Empty, string.Empty);
+
+        vm.Profiles.Add(origItem);
+        vm.Profiles.Add(newItem);
+        vm.SelectedProfile = origItem;
+
+        await vm.LaunchProfileCommand.ExecuteAsync(origItem);
+
+        Assert.Same(newItem, vm.SelectedProfile);
+        Assert.True(newItem.IsProcessRunning);
+        Assert.Equal(1234, newItem.ProcessId);
+    }
+
+    /// <summary>
+    /// Verifies that when LaunchProfileAsync launches the original profile,
+    /// SelectedProfile remains on that profile.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [AvaloniaFact]
+    public async Task LaunchProfileCommand_WhenOriginalProfileLaunched_MaintainsSelectionAsync()
+    {
+        var launcherFacade = new Mock<IProfileLauncherFacade>();
+        var launchInfo = new GameLaunchInfo
+        {
+            LaunchId = "launch-1",
+            ProfileId = "orig-profile-id",
+            WorkspaceId = "ws-1",
+            ProcessInfo = new GameProcessInfo { ProcessId = 5678 },
+        };
+        launcherFacade.Setup(x => x.LaunchProfileAsync("orig-profile-id", false, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameLaunchInfo>.CreateSuccess(launchInfo));
+
+        var vm = CreateViewModelWithLauncherFacade(launcherFacade.Object);
+
+        var origProfile = new GameProfile { Id = "orig-profile-id", Name = "Original Profile" };
+        var origItem = new GameProfileItemViewModel("orig-profile-id", origProfile, string.Empty, string.Empty);
+
+        vm.Profiles.Add(origItem);
+        vm.SelectedProfile = origItem;
+
+        await vm.LaunchProfileCommand.ExecuteAsync(origItem);
+
+        Assert.Same(origItem, vm.SelectedProfile);
+        Assert.True(origItem.IsProcessRunning);
+        Assert.Equal(5678, origItem.ProcessId);
+    }
+
+    /// <summary>
+    /// Verifies that TryExtractRemoteImportHost recognizes both import and view prefixes with url query.
+    /// </summary>
+    /// <param name="uriOrPath">The sharing URI or file path to evaluate.</param>
+    /// <param name="expectedHost">The expected remote host extracted, or null.</param>
+    [Theory]
+    [InlineData("genhub://profile/import?url=https://example.com/profile.ghprofile", "example.com")]
+    [InlineData("genhub://profile/view?url=https://example.com/profile.ghprofile", "example.com")]
+    [InlineData("GENHUB://PROFILE/VIEW?url=https://outpost.org/mod.ghprofile&foo=bar", "outpost.org")]
+    [InlineData("genhub://profile/import?data=eyJhbGciOi...", null)]
+    [InlineData("genhub://profile/view?data=eyJhbGciOi...", null)]
+    [InlineData("https://example.com/profile.ghprofile", null)]
+    [InlineData("/path/to/profile.ghprofile", null)]
+    public void TryExtractRemoteImportHost_RecognizesBothImportAndViewUrls(string uriOrPath, string? expectedHost)
+    {
+        var result = GameProfileLauncherViewModel.TryExtractRemoteImportHost(uriOrPath);
+        Assert.Equal(expectedHost, result);
+    }
+
     private static ProfileResourceService CreateProfileResourceService()
     {
         return new ProfileResourceService(NullLogger<ProfileResourceService>.Instance);
@@ -691,5 +783,42 @@ public class GameProfileLauncherViewModelTests
         mock.Setup(m => m[It.IsAny<string>()])
             .Returns<string>(key => resourceManager.GetString(key, System.Globalization.CultureInfo.InvariantCulture) ?? key);
         return mock.Object;
+    }
+
+    private static GameProfileLauncherViewModel CreateViewModelWithLauncherFacade(IProfileLauncherFacade launcherFacade)
+    {
+        var gameProfileManager = new Mock<IGameProfileManager>();
+
+        return new GameProfileLauncherViewModel(
+            new Mock<IGameInstallationService>().Object,
+            gameProfileManager.Object,
+            launcherFacade,
+            new GameProfileSettingsViewModel(
+                new Mock<IGameProfileManager>().Object,
+                new Mock<IGameSettingsService>().Object,
+                new Mock<IConfigurationProviderService>().Object,
+                new Mock<IProfileContentLoader>().Object,
+                CreateProfileResourceService(),
+                new Mock<INotificationService>().Object,
+                null,
+                new Mock<IContentStorageService>().Object,
+                null, // ILocalContentService
+                null, // IGenLauncherNormalizationService
+                null, // IDialogService
+                NullLogger<GameProfileSettingsViewModel>.Instance,
+                NullLogger<GameSettingsViewModel>.Instance),
+            new Mock<IProfileEditorFacade>().Object,
+            new Mock<IConfigurationProviderService>().Object,
+            new Mock<IGameProcessManager>().Object,
+            new Mock<IShortcutService>().Object,
+            new Mock<IPublisherProfileOrchestrator>().Object,
+            new Mock<ISteamManifestPatcher>().Object,
+            CreateProfileResourceService(),
+            new Mock<IGameClientDetector>().Object,
+            new Mock<INotificationService>().Object,
+            new Mock<ISetupWizardService>().Object,
+            new Mock<IDialogService>().Object,
+            NullLogger<GameProfileLauncherViewModel>.Instance,
+            CreateLocalizationService());
     }
 }

@@ -201,6 +201,30 @@ public class MainViewModelTests
         Assert.Equal(tool, vm.ToolsViewModel.SelectedTool);
     }
 
+    /// <summary>
+    /// Tests that InitializeAsync announces post-update when a new app version is detected.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task InitializeAsync_WhenAppVersionUpgraded_UpdatesLastSeenAppVersion()
+    {
+        // Arrange
+        var userSettings = new UserSettings { LastSeenAppVersion = "0.0.0" };
+        var mockUserSettings = new Mock<IUserSettingsService>();
+        mockUserSettings.Setup(s => s.Get()).Returns(userSettings);
+        mockUserSettings.Setup(s => s.Update(It.IsAny<Action<UserSettings>>()))
+            .Callback<Action<UserSettings>>(action => action(userSettings));
+
+        var vm = CreateMainViewModel(mockUserSettings: mockUserSettings);
+
+        // Act
+        await vm.InitializeAsync();
+
+        // Assert
+        Assert.NotNull(userSettings.LastSeenAppVersion);
+        Assert.NotEqual("0.0.0", userSettings.LastSeenAppVersion);
+    }
+
     private static MainViewModel CreateMainViewModel(
         Mock<IBackgroundUpdateCoordinator>? mockBackgroundCoordinator = null,
         Mock<IUserSettingsService>? mockUserSettings = null)

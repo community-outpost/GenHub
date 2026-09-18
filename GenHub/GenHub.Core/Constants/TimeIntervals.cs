@@ -16,6 +16,11 @@ public static class TimeIntervals
     public const int HeaderExpansionDelayMs = 500;
 
     /// <summary>
+    /// Delay in milliseconds between retry attempts when forwarding arguments to the primary instance.
+    /// </summary>
+    public const int SingleInstanceForwardRetryDelayMs = 250;
+
+    /// <summary>
     /// Default timeout for updater operations.
     /// </summary>
     public static readonly TimeSpan UpdaterTimeout = TimeSpan.FromMinutes(10);

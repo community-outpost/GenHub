@@ -275,6 +275,42 @@
     <value>(Скоро)</value>
     <comment>Label indicating a feature is coming soon, with parentheses</comment>
   </data>
+  <data name="Downloads.Notification.Canceled.Message" xml:space="preserve">
+    <value>Загрузка отменена для {0}.</value>
+    <comment>Cancellation toast message, formatted with the content name</comment>
+  </data>
+  <data name="Downloads.Notification.Canceled.Title" xml:space="preserve">
+    <value>Загрузка отменена</value>
+    <comment>Cancellation toast title</comment>
+  </data>
+  <data name="Downloads.Notification.Complete.Message" xml:space="preserve">
+    <value>Загружено: {0}</value>
+    <comment>Success toast message, formatted with the content name</comment>
+  </data>
+  <data name="Downloads.Notification.Complete.Title" xml:space="preserve">
+    <value>Загрузка завершена</value>
+    <comment>Success toast title</comment>
+  </data>
+  <data name="Downloads.Notification.Connecting.Message" xml:space="preserve">
+    <value>Подключение...</value>
+    <comment>Initial pinned download message shown before progress arrives</comment>
+  </data>
+  <data name="Downloads.Notification.Downloading.Title" xml:space="preserve">
+    <value>Загрузка: {0}</value>
+    <comment>Pinned download title, formatted with the content name</comment>
+  </data>
+  <data name="Downloads.Notification.Failed.Title" xml:space="preserve">
+    <value>Ошибка загрузки: {0}</value>
+    <comment>Failure toast title, formatted with the content name</comment>
+  </data>
+  <data name="Downloads.Notification.Progress.Message" xml:space="preserve">
+    <value>{0}% - {1}</value>
+    <comment>Live progress message, formatted with percentage and status</comment>
+  </data>
+  <data name="Downloads.Notification.UnknownError" xml:space="preserve">
+    <value>Во время загрузки произошла неизвестная ошибка.</value>
+    <comment>Fallback failure detail when no error message is available</comment>
+  </data>
   <data name="Downloads.Section.AdditionalContent" xml:space="preserve">
     <value>Дополнительный контент</value>
     <comment>Section header for additional content area</comment>
@@ -4066,6 +4102,9 @@
   <data name="Settings.GitHubPat.Status.ValidatedSuccess" xml:space="preserve">
     <value>PAT успешно проверен ✓</value>
   </data>
+  <data name="Settings.GitHubPat.Status.SavedPending" xml:space="preserve">
+    <value>PAT сохранен (ожидает проверки)</value>
+  </data>
   <data name="Tools.Dialog.PluginFileType" xml:space="preserve">
     <value>Сборка плагина инструмента</value>
   </data>
@@ -4416,6 +4455,39 @@
   </data>
   <data name="Info.Changelog.ViewOnGitHub" xml:space="preserve">
     <value>Просмотреть на GitHub</value>
+  </data>
+  <data name="Info.Changelog.LatestRelease" xml:space="preserve">
+    <value>Последний выпуск</value>
+  </data>
+  <data name="Info.Changelog.OfflineCached" xml:space="preserve">
+    <value>Отображение сохраненного списка изменений (автономный режим или лимит запросов)</value>
+  </data>
+  <data name="Info.Changelog.Collapse" xml:space="preserve">
+    <value>Свернуть</value>
+  </data>
+  <data name="Info.Changelog.Expand" xml:space="preserve">
+    <value>Развернуть</value>
+  </data>
+  <data name="Info.Changelog.ToggleDetails" xml:space="preserve">
+    <value>Переключить сведения о выпуске</value>
+  </data>
+  <data name="Info.Changelog.RateLimited" xml:space="preserve">
+    <value>Превышен лимит запросов GitHub API. Настройте персональный токен доступа GitHub в Настройках или повторите попытку позже.</value>
+  </data>
+  <data name="Info.Changelog.NoReleasesFound" xml:space="preserve">
+    <value>Журналы изменений выпусков не найдены.</value>
+  </data>
+  <data name="Info.Changelog.LoadError" xml:space="preserve">
+    <value>Произошла ошибка при загрузке журнала изменений.</value>
+  </data>
+  <data name="AppUpdate.Action.ViewChangelog" xml:space="preserve">
+    <value>Посмотреть список изменений</value>
+  </data>
+  <data name="AppUpdate.PostUpdate.Title" xml:space="preserve">
+    <value>GenHub обновлен</value>
+  </data>
+  <data name="AppUpdate.PostUpdate.Message" xml:space="preserve">
+    <value>GenHub был обновлен до v{0}. Ознакомьтесь со списком изменений, чтобы узнать о новинках!</value>
   </data>
   <data name="Info.WorkspaceDemo.RunSimulator" xml:space="preserve">
     <value>Запустить симулятор</value>
@@ -8280,6 +8352,246 @@ GenHub передает официальный идентификатор AppID 
   <data name="Tools.ReplayManager.ProfileSelection.CreateProfileCardSubtitle" xml:space="preserve">
     <value>Выберите доступный клиент игры для создания нового профиля</value>
   </data>
+  <data name="GameProfiles.Card.Menu.ShareProfile" xml:space="preserve">
+    <value>Поделиться профилем...</value>
+  </data>
+  <data name="GameProfiles.Card.Tooltip.ShareProfile" xml:space="preserve">
+    <value>Поделиться профилем</value>
+  </data>
+  <data name="GameProfiles.Launcher.Button.Import" xml:space="preserve">
+    <value>ИМПОРТ</value>
+  </data>
+  <data name="GameProfiles.Launcher.Tooltip.Import" xml:space="preserve">
+    <value>Импортировать пакет профиля игры (.ghprofile, .json или перетащите в окно)</value>
+  </data>
+  <data name="Settings.CloudStorage.Title" xml:space="preserve">
+    <value>Облачное хранилище и загрузки</value>
+  </data>
+  <data name="Settings.CloudStorage.PoolTitle" xml:space="preserve">
+    <value>Пул облачного хранилища UploadThing</value>
+  </data>
+  <data name="Settings.CloudStorage.PoolDescription" xml:space="preserve">
+    <value>Временный пул хранилища для обмена картами, повторами и пользовательскими пакетами профилей.</value>
+  </data>
+  <data name="Settings.CloudStorage.RetentionNotice" xml:space="preserve">
+    <value>Срок действия файлов автоматически истекает через 14 дней. Удаление записей очищает локальное отслеживание без удаления размещенных файлов.</value>
+  </data>
+  <data name="Settings.CloudStorage.ActiveRecordsHeader" xml:space="preserve">
+    <value>Активные записи загрузок</value>
+  </data>
+  <data name="Settings.CloudStorage.Button.Refresh" xml:space="preserve">
+    <value>Обновить</value>
+  </data>
+  <data name="Settings.CloudStorage.Button.ClearAll" xml:space="preserve">
+    <value>Очистить все</value>
+  </data>
+  <data name="Settings.CloudStorage.EmptyMessage" xml:space="preserve">
+    <value>Нет активных облачных загрузок. Когда вы загружаете пользовательские повторы, карты или делитесь профилями с локальным контентом, они появятся здесь.</value>
+  </data>
+  <data name="Settings.CloudStorage.Button.CopyLink" xml:space="preserve">
+    <value>Скопировать ссылку</value>
+  </data>
+  <data name="Settings.CloudStorage.Button.Delete" xml:space="preserve">
+    <value>Удалить</value>
+  </data>
+  <data name="GameProfiles.ShareDialog.Title" xml:space="preserve">
+    <value>ПОДЕЛИТЬСЯ ПРОФИЛЕМ ИГРЫ</value>
+  </data>
+  <data name="GameProfiles.ShareDialog.Subtitle" xml:space="preserve">
+    <value>Отправляйте свой профиль и модификации друзьям напрямую</value>
+  </data>
+  <data name="GameProfiles.ShareDialog.Tooltip.Close" xml:space="preserve">
+    <value>Закрыть</value>
+  </data>
+  <data name="GameProfiles.ShareDialog.CloudStorageTitle" xml:space="preserve">
+    <value>Синхронизация и квота облачного хранилища</value>
+  </data>
+  <data name="GameProfiles.ShareDialog.GenerateLink" xml:space="preserve">
+    <value>Создать ссылку для публикации</value>
+  </data>
+  <data name="GameProfiles.ShareDialog.ProtocolShareLink" xml:space="preserve">
+    <value>Ссылка протокола публикации (genhub://):</value>
+  </data>
+  <data name="GameProfiles.ShareDialog.CopyLink" xml:space="preserve">
+    <value>Скопировать ссылку</value>
+  </data>
+  <data name="GameProfiles.ShareDialog.RecipientInfo" xml:space="preserve">
+    <value>Получатели, открывающие эту ссылку или пакет .ghprofile, запустят инспектор импорта GenHub.</value>
+  </data>
+  <data name="GameProfiles.ShareDialog.StandalonePackage" xml:space="preserve">
+    <value>Автономный пакет профиля (.ghprofile)</value>
+  </data>
+  <data name="GameProfiles.ShareDialog.ExportDescription" xml:space="preserve">
+    <value>Экспортируйте переносимый файл профиля, которым можно делиться с друзьями напрямую.</value>
+  </data>
+  <data name="GameProfiles.ShareDialog.ExportFile" xml:space="preserve">
+    <value>Экспортировать файл</value>
+  </data>
+  <data name="GameProfiles.ShareDialog.Button.Close" xml:space="preserve">
+    <value>Закрыть</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.Title" xml:space="preserve">
+    <value>ИМПОРТ ОБЩЕГО ПРОФИЛЯ</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.Subtitle" xml:space="preserve">
+    <value>Проверьте включенные манифесты содержимого, целевую версию клиента и необходимые загрузки перед импортом.</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.ProfileName" xml:space="preserve">
+    <value>Имя профиля:</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.NameAutoRenamed" xml:space="preserve">
+    <value>Имя автоматически изменено</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.SecurityGuardrails" xml:space="preserve">
+    <value>Защитные барьеры безопасности и очистки</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.BreakdownHeader" xml:space="preserve">
+    <value>ОБЗОР МАНИФЕСТОВ КОНТЕНТА И МОДОВ</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.Tooltip.SafeDataOnly" xml:space="preserve">
+    <value>Безопасно: компонент содержит только ресурсы и файлы конфигурации.</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.Badge.DataOnly" xml:space="preserve">
+    <value>ТОЛЬКО ДАННЫЕ</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.Tooltip.WarningExecutables" xml:space="preserve">
+    <value>Предупреждение: компонент содержит исполняемые файлы (.exe, .dll или .asi). Убедитесь, что вы доверяете автору.</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.Badge.Executables" xml:space="preserve">
+    <value>ИСПОЛНЯЕМЫЕ ФАЙЛЫ</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.Badge.Cached" xml:space="preserve">
+    <value>В КЭШЕ</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.Tooltip.Details" xml:space="preserve">
+    <value>Показать/скрыть сведения о загрузке, проверке и файлах</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.Button.Details" xml:space="preserve">
+    <value>Подробности</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.ManifestId" xml:space="preserve">
+    <value>ID манифеста:</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.Sha256Hash" xml:space="preserve">
+    <value>Хэш SHA-256:</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.Tooltip.CopyHash" xml:space="preserve">
+    <value>Скопировать хэш SHA-256</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.DownloadUrl" xml:space="preserve">
+    <value>URL загрузки:</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.Tooltip.CopyUrl" xml:space="preserve">
+    <value>Скопировать URL загрузки</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.Badge.Binary" xml:space="preserve">
+    <value>БИНАРНЫЙ</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.TargetOptionsHeader" xml:space="preserve">
+    <value>ЦЕЛЕВАЯ УСТАНОВКА И ПАРАМЕТРЫ ЗАПУСКА</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.TargetInstallation" xml:space="preserve">
+    <value>Целевая установка игры:</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.TargetInstallationDescription" xml:space="preserve">
+    <value>Выберите локальную установку игры (например, Steam, EA App), которая предоставляет базовый исполняемый файл и ресурсы для этого профиля.</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.NoCompatibleInstallation" xml:space="preserve">
+    <value>Совместимая установка для этого игрового клиента не найдена.</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.LaunchArguments" xml:space="preserve">
+    <value>Параметры запуска:</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.IncludeGameSettings" xml:space="preserve">
+    <value>Применить переопределения разрешения видео и настроек звука</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.AllCachedLocally" xml:space="preserve">
+    <value>Весь необходимый контент уже сохранен в локальном кэше.</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.Button.Cancel" xml:space="preserve">
+    <value>Отмена</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.ImportingProgress" xml:space="preserve">
+    <value>Импорт профиля и контента...</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.Button.CancelImport" xml:space="preserve">
+    <value>Отменить импорт</value>
+  </data>
+  <data name="GameProfiles.ShareDialog.Status.LinkGenerated" xml:space="preserve">
+    <value>Ссылка для публикации создана!</value>
+  </data>
+  <data name="GameProfiles.ShareDialog.Status.LinkGenerationFailed" xml:space="preserve">
+    <value>Сбой создания: {0}</value>
+  </data>
+  <data name="GameProfiles.ShareDialog.Status.PackagingUploading" xml:space="preserve">
+    <value>Упаковка и загрузка пользовательского контента...</value>
+  </data>
+  <data name="GameProfiles.ShareDialog.Status.EncodingPackage" xml:space="preserve">
+    <value>Кодирование пакета профиля...</value>
+  </data>
+  <data name="GameProfiles.ShareDialog.Status.CopiedToClipboard" xml:space="preserve">
+    <value>Скопировано в буфер обмена!</value>
+  </data>
+  <data name="GameProfiles.ShareDialog.Status.ClipboardUnavailable" xml:space="preserve">
+    <value>Буфер обмена недоступен.</value>
+  </data>
+  <data name="GameProfiles.ShareDialog.Status.FailedToCopy" xml:space="preserve">
+    <value>Не удалось скопировать ссылку.</value>
+  </data>
+  <data name="GameProfiles.ShareDialog.Status.ExportSuccess" xml:space="preserve">
+    <value>Пакет профиля успешно экспортирован!</value>
+  </data>
+  <data name="GameProfiles.ShareDialog.Status.ExportFailed" xml:space="preserve">
+    <value>Сбой экспорта: {0}</value>
+  </data>
+  <data name="GameProfiles.ShareDialog.Status.FailedToExport" xml:space="preserve">
+    <value>Не удалось экспортировать файл профиля.</value>
+  </data>
+  <data name="GameProfiles.ShareDialog.Status.CloudNotice" xml:space="preserve">
+    <value>Этот профиль содержит пользовательский локальный контент, который необходимо загрузить во временное облачное хранилище (срок хранения 14 дней) для создания общедоступной ссылки. Вы также можете экспортировать автономный файл .ghprofile без загрузки в облако.</value>
+  </data>
+  <data name="GameProfiles.ShareDialog.Title.Notification" xml:space="preserve">
+    <value>Публикация профиля</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.Button.ImportProfile" xml:space="preserve">
+    <value>Импортировать профиль</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.Button.ImportAndDownload" xml:space="preserve">
+    <value>Импорт и загрузка</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.Button.ImportAndDownloadSize" xml:space="preserve">
+    <value>Импорт и загрузка ({0})</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.Error.EmptyName" xml:space="preserve">
+    <value>Имя профиля не может быть пустым.</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.Error.NameTooLong" xml:space="preserve">
+    <value>Имя профиля не может превышать {0} символов.</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.Error.SelectInstallation" xml:space="preserve">
+    <value>Пожалуйста, выберите действительную установку игры.</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.Status.StartingImport" xml:space="preserve">
+    <value>Начало импорта...</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.Status.ProcessingContent" xml:space="preserve">
+    <value>Обработка содержимого...</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.Notification.ImportSuccess" xml:space="preserve">
+    <value>Успешно импортирован '{0}'.</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.Notification.ImportSuccessTitle" xml:space="preserve">
+    <value>Профиль импортирован</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.Notification.ImportFailedTitle" xml:space="preserve">
+    <value>Сбой импорта профиля</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.Warning.ExecutablesDetected" xml:space="preserve">
+    <value>Обнаружены исполняемые бинарные файлы ({0} файл(ов) с расширением {1}). Убедитесь, что вы доверяете автору перед запуском.</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.Warning.MissingSizes" xml:space="preserve">
+    <value>Некоторые необходимые зависимости не сообщают точный размер загрузки. Во время импорта потребуются дополнительные загрузки.</value>
+  </data>
   <data name="Profiles.AddLocalContent.StatusCasProgressUpdating" xml:space="preserve">
     <value>Обновление {0}: {1:0}% ({2}/{3} файлов)</value>
   </data>
@@ -8608,6 +8920,74 @@ GameFilesEdited/Data/INI/**/*.ini</value>
   <data name="GameProfiles.Launch.WorkspaceFailedMessage" xml:space="preserve">
     <value>Не удалось инициализировать рабочую область для «{0}».</value>
   </data>
+  <data name="Settings.CloudStorage.Notification.UploadRemoved.Title" xml:space="preserve">
+    <value>Загрузка удалена</value>
+  </data>
+  <data name="Settings.CloudStorage.Notification.UploadRemoved.Message" xml:space="preserve">
+    <value>Файл {0} удален из истории загрузок.</value>
+  </data>
+  <data name="Settings.CloudStorage.Notification.UploadRemoveError" xml:space="preserve">
+    <value>Не удалось удалить запись из истории загрузок.</value>
+  </data>
+  <data name="Settings.CloudStorage.Dialog.ClearAll.Title" xml:space="preserve">
+    <value>Очистить историю загрузок</value>
+  </data>
+  <data name="Settings.CloudStorage.Dialog.ClearAll.Message" xml:space="preserve">
+    <value>Вы уверены, что хотите очистить всю историю загрузок и удалить загруженные файлы из облачного хранилища?</value>
+  </data>
+  <data name="Settings.CloudStorage.Dialog.ClearAll.Confirm" xml:space="preserve">
+    <value>Очистить все</value>
+  </data>
+  <data name="Settings.CloudStorage.Notification.UploadsCleared.Title" xml:space="preserve">
+    <value>Загрузки очищены</value>
+  </data>
+  <data name="Settings.CloudStorage.Notification.UploadsCleared.Message" xml:space="preserve">
+    <value>Все активные записи о загрузках удалены.</value>
+  </data>
+  <data name="Settings.CloudStorage.Notification.ClearUploadsError" xml:space="preserve">
+    <value>Не удалось очистить загрузки.</value>
+  </data>
+  <data name="Settings.CloudStorage.Notification.Copied.Title" xml:space="preserve">
+    <value>Скопировано</value>
+  </data>
+  <data name="Settings.CloudStorage.Notification.Copied.Message" xml:space="preserve">
+    <value>URL загрузки скопирован в буфер обмена.</value>
+  </data>
+  <data name="Settings.CloudStorage.Notification.CopyError" xml:space="preserve">
+    <value>Не удалось скопировать URL в буфер обмена.</value>
+  </data>
+  <data name="GameProfiles.RemoteDownload.Dialog.Title" xml:space="preserve">
+    <value>Загрузить удаленный профиль?</value>
+  </data>
+  <data name="GameProfiles.RemoteDownload.Dialog.Message" xml:space="preserve">
+    <value>Ссылка запрашивает импорт общего игрового профиля с узла &#x27;{0}&#x27;.
+
+Вы хотите загрузить и проверить этот пакет профиля?</value>
+  </data>
+  <data name="GameProfiles.RemoteDownload.Dialog.Confirm" xml:space="preserve">
+    <value>Загрузить и проверить</value>
+  </data>
+  <data name="GameProfiles.Import.FilePicker.Title" xml:space="preserve">
+    <value>Выберите пакет игрового профиля для импорта</value>
+  </data>
+  <data name="GameProfiles.ShareDialog.Status.GenerateLinkFailed" xml:space="preserve">
+    <value>Не удалось создать ссылку.</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.Error.ImportFailedDefault" xml:space="preserve">
+    <value>Не удалось импортировать профиль.</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.Error.ImportFailed" xml:space="preserve">
+    <value>Сбой импорта: {0}</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.Error.ImportTimeout" xml:space="preserve">
+    <value>Время ожидания импорта профиля истекло. Проверьте сетевое подключение и повторите попытку.</value>
+  </data>
+  <data name="GameProfiles.ShareDialog.Notification.LoadProfileFailed.Title" xml:space="preserve">
+    <value>Сбой отправки</value>
+  </data>
+  <data name="GameProfiles.ShareDialog.Notification.LoadProfileFailed.Message" xml:space="preserve">
+    <value>Не удалось загрузить сведения о профиле.</value>
+  </data>
   <data name="GitHub.TokenDialog.Title" xml:space="preserve">
     <value>Аутентификация GitHub</value>
     <comment>Title for GitHub PAT dialog</comment>
@@ -8627,5 +9007,73 @@ GameFilesEdited/Data/INI/**/*.ini</value>
   <data name="GenLauncher.Context.Community" xml:space="preserve">
     <value>Сообщество GenLauncher</value>
     </data>
-
+  <data name="GameProfiles.ImportInspection.Provenance.CloudPackage" xml:space="preserve">
+    <value>Облако GenHub (UploadThing)</value>
+  </data>
+  <data name="GameProfiles.ShareDialog.ExportPickerTitle" xml:space="preserve">
+    <value>Экспорт пакета профиля игры</value>
+  </data>
+  <data name="GameProfiles.ShareDialog.Quota.Format" xml:space="preserve">
+    <value>Квота хранилища: {0:F1} МБ / {1:F1} МБ (использовано {2:F0}%)</value>
+  </data>
+  <data name="GameProfiles.ShareDialog.Quota.ExceededWarning" xml:space="preserve">
+    <value>Достигнут лимит облачного хранилища ({0:F0} МБ). Старые загрузки можно удалить в меню «Настройки &gt; Облачное хранилище и загрузки» или экспортировать файл .ghprofile.</value>
+  </data>
+  <data name="GameProfiles.ShareDialog.Notification.ShareErrorTitle" xml:space="preserve">
+    <value>Ошибка отправки</value>
+  </data>
+  <data name="GameProfiles.ShareDialog.Notification.ShareErrorMessage" xml:space="preserve">
+    <value>Произошла ошибка при подготовке к отправке: {0}</value>
+  </data>
+  <data name="GameProfiles.ShareDialog.Notification.CannotShareTitle" xml:space="preserve">
+    <value>Невозможно поделиться</value>
+  </data>
+  <data name="GameProfiles.ShareDialog.Notification.SaveBeforeShareMsg" xml:space="preserve">
+    <value>Пожалуйста, сохраните профиль перед тем, как делиться им.</value>
+  </data>
+  <data name="GameProfiles.Launcher.Notify.ImportFailedTitle" xml:space="preserve">
+    <value>Сбой импорта</value>
+  </data>
+  <data name="GameProfiles.Launcher.Notify.SharingServiceUnavailable" xml:space="preserve">
+    <value>Служба обмена профилями недоступна.</value>
+  </data>
+  <data name="GameProfiles.Launcher.Notify.ImportInProgressTitle" xml:space="preserve">
+    <value>Импорт выполняется</value>
+  </data>
+  <data name="GameProfiles.Launcher.Notify.ImportInProgressMsg" xml:space="preserve">
+    <value>Диалоговое окно импорта профиля уже открыто.</value>
+  </data>
+  <data name="GameProfiles.Launcher.Notify.ProfileImportErrorTitle" xml:space="preserve">
+    <value>Ошибка импорта профиля</value>
+  </data>
+  <data name="GameProfiles.Launcher.Notify.ProfilePackageInspectFailed" xml:space="preserve">
+    <value>Не удалось проверить пакет профиля.</value>
+  </data>
+  <data name="GameProfiles.Launcher.Notify.ImportErrorTitle" xml:space="preserve">
+    <value>Ошибка импорта</value>
+  </data>
+  <data name="GameProfiles.Launcher.Notify.ImportErrorFormat" xml:space="preserve">
+    <value>Произошла ошибка во время импорта профиля: {0}</value>
+  </data>
+  <data name="GameProfiles.Launcher.Notify.SelectProfileFileFailedFormat" xml:space="preserve">
+    <value>Не удалось выбрать файл профиля: {0}</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.Warning.SanitizedShellCharacters" xml:space="preserve">
+    <value>Недопустимые специальные символы команд (| &amp; ; &gt; &lt; ` $ ^ ! ( )) были удалены из аргументов запуска.</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.Warning.SanitizedQuotesOrPercent" xml:space="preserve">
+    <value>Символы кавычек и процентов были удалены из аргументов запуска. Проверьте аргументы, если использовались пути с пробелами.</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.Warning.SanitizedControlCharacters" xml:space="preserve">
+    <value>Управляющие символы были удалены из аргументов запуска.</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.Warning.MissingDownloadSource" xml:space="preserve">
+    <value>Компонент «{0}» не кэширован локально и не имеет источника загрузки. Его невозможно получить.</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.Warning.MissingDownloadSourceGeneric" xml:space="preserve">
+    <value>Один или несколько необходимых компонентов не кэшированы локально и не имеют источника для скачивания. Их невозможно получить.</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.UnknownComponent" xml:space="preserve">
+    <value>Неизвестно</value>
+  </data>
 </root>

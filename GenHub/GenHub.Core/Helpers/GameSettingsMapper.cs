@@ -1,6 +1,7 @@
 using GenHub.Core.Constants;
 using GenHub.Core.Extensions;
 using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.GameClients;
 using GenHub.Core.Models.GameProfile;
 using GenHub.Core.Models.GameSettings;
 using Microsoft.Extensions.Logging;
@@ -8,6 +9,8 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
+using System.Linq.Expressions;
+using System.Reflection;
 
 namespace GenHub.Core.Helpers;
 
@@ -16,6 +19,8 @@ namespace GenHub.Core.Helpers;
 /// </summary>
 public static class GameSettingsMapper
 {
+    private static readonly Action<GameProfileSettingsBase, GameProfile> ProfileCopier = BuildProfileCopier();
+
     /// <summary>
     /// Applies settings from IniOptions to a GameProfile.
     /// Used when creating new profiles to inherit existing game settings.
@@ -382,6 +387,56 @@ public static class GameSettingsMapper
     /// <param name="source">The source UpdateProfileRequest.</param>
     public static void PopulateRequest(UpdateProfileRequest target, UpdateProfileRequest source) =>
         PopulateRequest((GameProfileSettingsBase)target, source);
+
+    /// <summary>
+    /// Populates settings from a GameProfile into a GameProfileSettingsBase request.
+    /// </summary>
+    /// <param name="target">The target request to receive settings.</param>
+    /// <param name="source">The source GameProfile providing settings.</param>
+    public static void PopulateRequest(GameProfileSettingsBase target, GameProfile source)
+    {
+        ArgumentNullException.ThrowIfNull(target);
+        ArgumentNullException.ThrowIfNull(source);
+
+        ProfileCopier(target, source);
+    }
+
+    /// <summary>
+    /// Creates a CreateProfileRequest from an existing GameProfile, cloning all metadata and settings.
+    /// </summary>
+    /// <param name="profile">The source profile to clone.</param>
+    /// <param name="newName">The name for the new profile.</param>
+    /// <param name="newClient">Optional replacement GameClient.</param>
+    /// <param name="enabledContentIds">Optional replacement enabled content IDs.</param>
+    /// <returns>A fully populated CreateProfileRequest cloning the source profile.</returns>
+    public static CreateProfileRequest CreateCloneRequest(
+        GameProfile profile,
+        string newName,
+        GameClient? newClient = null,
+        IEnumerable<string>? enabledContentIds = null)
+    {
+        ArgumentNullException.ThrowIfNull(profile);
+
+        var request = new CreateProfileRequest
+        {
+            Name = newName,
+            Description = profile.Description,
+            GameInstallationId = profile.GameInstallationId,
+            GameClientId = (newClient ?? profile.GameClient)?.Id,
+            GameClient = newClient ?? profile.GameClient,
+            WorkspaceStrategy = profile.WorkspaceStrategy,
+            EnabledContentIds = enabledContentIds != null ? [.. enabledContentIds] : [.. profile.EnabledContentIds ?? []],
+            ThemeColor = profile.ThemeColor,
+            IconPath = profile.IconPath,
+            CoverPath = profile.CoverPath,
+            CommandLineArguments = profile.CommandLineArguments,
+            GameSpyIPAddress = profile.GameSpyIPAddress,
+            UseSteamLaunch = profile.UseSteamLaunch,
+        };
+
+        PopulateRequest(request, profile);
+        return request;
+    }
 
     /// <summary>
     /// Normalizes and clamps a transition speed multiplier value to the supported range.
@@ -1101,4 +1156,35 @@ public static class GameSettingsMapper
         value == "1";
 
     private static string BoolToString(bool value) => value ? "yes" : "no";
+
+    private static Action<GameProfileSettingsBase, GameProfile> BuildProfileCopier()
+    {
+        var targetParam = Expression.Parameter(typeof(GameProfileSettingsBase), "target");
+        var sourceParam = Expression.Parameter(typeof(GameProfile), "source");
+        var expressions = new List<Expression>();
+
+        var targetProps = typeof(GameProfileSettingsBase)
+            .GetProperties(BindingFlags.Public | BindingFlags.Instance)
+            .Where(p => p.CanWrite);
+
+        var sourceProps = typeof(GameProfile)
+            .GetProperties(BindingFlags.Public | BindingFlags.Instance)
+            .Where(p => p.CanRead)
+            .ToDictionary(p => p.Name, StringComparer.Ordinal);
+
+        foreach (var targetProp in targetProps)
+        {
+            if (sourceProps.TryGetValue(targetProp.Name, out var sourceProp) &&
+                targetProp.PropertyType.IsAssignableFrom(sourceProp.PropertyType))
+            {
+                var assign = Expression.Assign(
+                    Expression.Property(targetParam, targetProp),
+                    Expression.Property(sourceParam, sourceProp));
+                expressions.Add(assign);
+            }
+        }
+
+        var block = Expression.Block(expressions);
+        return Expression.Lambda<Action<GameProfileSettingsBase, GameProfile>>(block, targetParam, sourceParam).Compile();
+    }
 }

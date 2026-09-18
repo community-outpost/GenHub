@@ -103,6 +103,16 @@ public static class DemoViewModelFactory
                 await Task.CompletedTask;
             },
 
+            ShareProfileAction = async _ =>
+            {
+                notificationService?.Show(new NotificationMessage(
+                    NotificationType.Info,
+                    "Demo",
+                    "Sharing profiles is simulated in this interactive guide.",
+                    3000));
+                await Task.CompletedTask;
+            },
+
             // Enable specific visual highlights requested for the demos
             // Explicitly set these to ensure no default state bleed
             IsDemoSteamHighlightVisible = showSteamHighlight,

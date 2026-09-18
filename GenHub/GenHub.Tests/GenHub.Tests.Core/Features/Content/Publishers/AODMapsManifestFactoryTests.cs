@@ -204,6 +204,52 @@ public sealed class AODMapsManifestFactoryTests : IDisposable
     }
 
     /// <summary>
+    /// Verifies that CanHandle returns false safely when publisher info is null.
+    /// </summary>
+    [Fact]
+    public void CanHandle_ShouldReturnFalse_WhenPublisherIsNull()
+    {
+        var factory = new AODMapsManifestFactory(
+            () => new Mock<IContentManifestBuilder>().Object,
+            new Mock<IManifestIdService>().Object,
+            new Mock<IProviderDefinitionLoader>().Object,
+            new Mock<IFileHashProvider>().Object,
+            new Mock<ILogger<AODMapsManifestFactory>>().Object);
+
+        var manifest = new ContentManifest
+        {
+            Id = "1.0.aodmaps.map.test",
+            Name = "Test",
+            Publisher = null!,
+        };
+
+        Assert.False(factory.CanHandle(manifest));
+    }
+
+    /// <summary>
+    /// Verifies that CanHandle returns true when publisher type matches case-insensitively.
+    /// </summary>
+    [Fact]
+    public void CanHandle_ShouldReturnTrue_WhenPublisherMatchesCaseInsensitive()
+    {
+        var factory = new AODMapsManifestFactory(
+            () => new Mock<IContentManifestBuilder>().Object,
+            new Mock<IManifestIdService>().Object,
+            new Mock<IProviderDefinitionLoader>().Object,
+            new Mock<IFileHashProvider>().Object,
+            new Mock<ILogger<AODMapsManifestFactory>>().Object);
+
+        var manifest = new ContentManifest
+        {
+            Id = "1.0.aodmaps.map.test",
+            Name = "Test",
+            Publisher = new PublisherInfo { PublisherType = "AODMAPS" },
+        };
+
+        Assert.True(factory.CanHandle(manifest));
+    }
+
+    /// <summary>
     /// Deletes the test staging directory.
     /// </summary>
     public void Dispose()

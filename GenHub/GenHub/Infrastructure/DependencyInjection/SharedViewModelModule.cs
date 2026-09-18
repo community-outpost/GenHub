@@ -60,6 +60,7 @@ public static class SharedViewModelModule
             sp.GetService<IThemeService>(),
             /* Optional dependencies that can be null if GitHub integration is not configured */
             sp.GetService<IGitHubTokenStorage>(),
+            sp.GetService<IUploadHistoryService>(),
             sp.GetService<IGitHubApiClient>(),
             sp.GetRequiredService<IPublisherSubscriptionStore>(),
             sp.GetRequiredService<IPublisherCatalogRefreshService>(),

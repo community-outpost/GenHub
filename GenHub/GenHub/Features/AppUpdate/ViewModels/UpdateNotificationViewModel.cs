@@ -393,6 +393,23 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
         }
     }
 
+    /// <summary>
+    /// Creates the progress reporter shared by every install path. Reports marshal to the UI
+    /// thread and mirror installation state into the dialog bindings.
+    /// </summary>
+    private static Progress<UpdateProgress> CreateInstallationProgress(UpdateNotificationViewModel viewModel)
+    {
+        return new Progress<UpdateProgress>(p =>
+        {
+            Dispatcher.UIThread.InvokeAsync(() =>
+            {
+                viewModel.InstallationProgress = p;
+                viewModel.StatusMessage = p.Status;
+                viewModel.DownloadProgress = p.PercentComplete;
+            });
+        });
+    }
+
     private async Task LoadArtifactsForSubscribedItemAsync()
     {
         await CancelPreviousArtifactLoadAsync();
@@ -1138,15 +1155,7 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
             StatusMessage = AppUpdateConstants.DownloadingUpdateMessage;
             InstallationProgress = new UpdateProgress { Status = AppUpdateConstants.DownloadingUpdateMessage, PercentComplete = 0 };
 
-            var progress = new Progress<UpdateProgress>(p =>
-            {
-                Dispatcher.UIThread.InvokeAsync(() =>
-                {
-                    InstallationProgress = p;
-                    StatusMessage = p.Status;
-                    DownloadProgress = p.PercentComplete;
-                });
-            });
+            var progress = CreateInstallationProgress(this);
 
             await _velopackUpdateManager.DownloadUpdatesAsync(_currentUpdateInfo, progress, _cancellationTokenSource.Token);
 
@@ -1207,15 +1216,7 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
         {
             _logger.LogInformation("Installing PR #{Number} artifact", SubscribedPr.Number);
 
-            var progress = new Progress<UpdateProgress>(p =>
-            {
-                Dispatcher.UIThread.InvokeAsync(() =>
-                {
-                    InstallationProgress = p;
-                    StatusMessage = p.Status;
-                    DownloadProgress = p.PercentComplete;
-                });
-            });
+            var progress = CreateInstallationProgress(this);
 
             ArtifactUpdateInfo? artifactToInstall = SubscribedPr.LatestArtifact;
             if (artifactToInstall == null)
@@ -1284,15 +1285,7 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
         {
             _logger.LogInformation("Installing branch '{Branch}' artifact", SubscribedBranch);
 
-            var progress = new Progress<UpdateProgress>(p =>
-            {
-                Dispatcher.UIThread.InvokeAsync(() =>
-                {
-                    InstallationProgress = p;
-                    StatusMessage = p.Status;
-                    DownloadProgress = p.PercentComplete;
-                });
-            });
+            var progress = CreateInstallationProgress(this);
 
             // clear cache to force fresh check
             _velopackUpdateManager.ClearCache();
@@ -1342,15 +1335,7 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
         {
             _logger.LogInformation("Installing artifact: {Name} ({Version})", artifact.ArtifactName, artifact.Version);
 
-            var progress = new Progress<UpdateProgress>(p =>
-            {
-                Dispatcher.UIThread.InvokeAsync(() =>
-                {
-                    InstallationProgress = p;
-                    StatusMessage = p.Status;
-                    DownloadProgress = p.PercentComplete;
-                });
-            });
+            var progress = CreateInstallationProgress(this);
 
             await _velopackUpdateManager.InstallArtifactAsync(artifact, progress, _cancellationTokenSource.Token);
 

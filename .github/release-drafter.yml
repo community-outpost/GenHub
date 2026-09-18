@@ -1,0 +1,115 @@
+name-template: 'GenHub Alpha v$RESOLVED_VERSION'
+tag-template: 'v$RESOLVED_VERSION'
+
+categories:
+  - title: '🚀 New Features & Enhancements'
+    labels:
+      - 'Enhancement'
+      - 'enhancement'
+      - 'Feature'
+      - 'feature'
+      - 'feat'
+  - title: '🎨 User Interface & Experience'
+    labels:
+      - 'GUI'
+      - 'Design'
+      - 'ui'
+      - 'ux'
+  - title: '🛠️ Tools & Engine Integrations'
+    labels:
+      - 'Tools'
+      - 'tools'
+      - 'Mapping'
+  - title: '📦 Content Pipeline & Distribution'
+    labels:
+      - 'Content-Pipeline'
+  - title: '🐛 Bug Fixes & Stability'
+    labels:
+      - 'Fix'
+      - 'Bug'
+      - 'bug'
+  - title: '⚙️ Core Engine & Services'
+    labels:
+      - 'Core-service'
+      - 'Architecture'
+  - title: '⚡ Performance'
+    labels:
+      - 'Performance'
+      - 'performance'
+  - title: '🧰 Maintenance & Code Quality'
+    labels:
+      - 'Refactor'
+      - 'refactor'
+      - 'refactoring'
+      - 'Chore'
+      - 'chore'
+      - 'Infrastructure'
+      - 'Testing'
+  - title: '📖 Documentation'
+    labels:
+      - 'Documentation'
+      - 'documentation'
+      - 'docs'
+
+change-template: '- $TITLE (@$AUTHOR in #$NUMBER)'
+change-title-escapes: '\<*_&'
+
+version-resolver:
+  major:
+    labels:
+      - 'Major'
+      - 'major'
+      - 'breaking-change'
+  minor:
+    labels:
+      - 'Enhancement'
+      - 'feature'
+  patch:
+    labels:
+      - 'Fix'
+      - 'Bug'
+      - 'Refactor'
+      - 'Chore'
+      - 'Infrastructure'
+  default: patch
+
+autolabeler:
+  - label: 'Enhancement'
+    title:
+      - '/^feat(\(.*\))?:/i'
+    branch:
+      - '/^feat\/.*/i'
+  - label: 'Fix'
+    title:
+      - '/^fix(\(.*\))?:/i'
+    branch:
+      - '/^fix\/.*/i'
+  - label: 'Chore'
+    title:
+      - '/^chore(\(.*\))?:/i'
+    branch:
+      - '/^chore\/.*/i'
+  - label: 'Refactor'
+    title:
+      - '/^refactor(\(.*\))?:/i'
+    branch:
+      - '/^refactor\/.*/i'
+  - label: 'Documentation'
+    title:
+      - '/^docs(\(.*\))?:/i'
+    branch:
+      - '/^docs\/.*/i'
+  - label: 'Testing'
+    title:
+      - '/^test(\(.*\))?:/i'
+
+template: |
+  ## What's Changed in GenHub Alpha v$RESOLVED_VERSION
+
+  $CHANGES
+
+  ### Contributors
+  A huge thank you to everyone who contributed to this release:
+  $CONTRIBUTORS
+
+  **Full Changelog**: https://github.com/$OWNER/$REPOSITORY/compare/$PREVIOUS_TAG...v$RESOLVED_VERSION

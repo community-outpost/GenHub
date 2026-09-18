@@ -1399,7 +1399,9 @@ public sealed class ProfileContentService(
                     cancellationToken);
             }
 
-            var acquireResult = await contentOrchestrator.AcquireContentAsync(match, null, cancellationToken);
+            // Silent by design: dependency auto-acquire is a sub-step of the profile operation,
+            // whose overall outcome already notifies the user. Per-dependency toasts would duplicate it.
+            var acquireResult = await contentOrchestrator.AcquireContentAsync(match, SilentProgress<ContentAcquisitionProgress>.Instance, cancellationToken);
             return acquireResult.Success ? acquireResult.Data : null;
         }
         catch (OperationCanceledException)
@@ -1486,7 +1488,8 @@ public sealed class ProfileContentService(
             metadata.DisplayName,
             downloadUrl);
 
-        var acquireResult = await contentOrchestrator.AcquireContentAsync(searchResult, null, cancellationToken);
+        // Silent by design: see the note on the catalog-match acquisition path above.
+        var acquireResult = await contentOrchestrator.AcquireContentAsync(searchResult, SilentProgress<ContentAcquisitionProgress>.Instance, cancellationToken);
         return acquireResult.Success ? acquireResult.Data : null;
     }
 

@@ -275,6 +275,42 @@
     <value>(قريباً)</value>
     <comment>Label indicating a feature is coming soon, with parentheses</comment>
   </data>
+  <data name="Downloads.Notification.Canceled.Message" xml:space="preserve">
+    <value>تم إلغاء تنزيل {0}.</value>
+    <comment>Cancellation toast message, formatted with the content name</comment>
+  </data>
+  <data name="Downloads.Notification.Canceled.Title" xml:space="preserve">
+    <value>تم إلغاء التنزيل</value>
+    <comment>Cancellation toast title</comment>
+  </data>
+  <data name="Downloads.Notification.Complete.Message" xml:space="preserve">
+    <value>تم تنزيل {0}</value>
+    <comment>Success toast message, formatted with the content name</comment>
+  </data>
+  <data name="Downloads.Notification.Complete.Title" xml:space="preserve">
+    <value>اكتمل التنزيل</value>
+    <comment>Success toast title</comment>
+  </data>
+  <data name="Downloads.Notification.Connecting.Message" xml:space="preserve">
+    <value>جارٍ الاتصال...</value>
+    <comment>Initial pinned download message shown before progress arrives</comment>
+  </data>
+  <data name="Downloads.Notification.Downloading.Title" xml:space="preserve">
+    <value>جارٍ تنزيل {0}</value>
+    <comment>Pinned download title, formatted with the content name</comment>
+  </data>
+  <data name="Downloads.Notification.Failed.Title" xml:space="preserve">
+    <value>فشل التنزيل: {0}</value>
+    <comment>Failure toast title, formatted with the content name</comment>
+  </data>
+  <data name="Downloads.Notification.Progress.Message" xml:space="preserve">
+    <value>{0}% - {1}</value>
+    <comment>Live progress message, formatted with percentage and status</comment>
+  </data>
+  <data name="Downloads.Notification.UnknownError" xml:space="preserve">
+    <value>حدث خطأ غير معروف أثناء التنزيل.</value>
+    <comment>Fallback failure detail when no error message is available</comment>
+  </data>
   <data name="Downloads.Section.AdditionalContent" xml:space="preserve">
     <value>محتوى إضافي</value>
     <comment>Section header for additional content area</comment>
@@ -4066,6 +4102,9 @@
   <data name="Settings.GitHubPat.Status.ValidatedSuccess" xml:space="preserve">
     <value>تم التحقق من PAT بنجاح ✓</value>
   </data>
+  <data name="Settings.GitHubPat.Status.SavedPending" xml:space="preserve">
+    <value>تم حفظ رمز الوصول الشخصي (في انتظار التحقق)</value>
+  </data>
   <data name="Tools.Dialog.PluginFileType" xml:space="preserve">
     <value>تجميعة ملحقات الأدوات</value>
   </data>
@@ -4416,6 +4455,39 @@
   </data>
   <data name="Info.Changelog.ViewOnGitHub" xml:space="preserve">
     <value>عرض على GitHub</value>
+  </data>
+  <data name="Info.Changelog.LatestRelease" xml:space="preserve">
+    <value>أحدث إصدار</value>
+  </data>
+  <data name="Info.Changelog.OfflineCached" xml:space="preserve">
+    <value>عرض سجل التغييرات المخزن مؤقتًا (غير متصل أو تم تجاوز حد الطلبات)</value>
+  </data>
+  <data name="Info.Changelog.Collapse" xml:space="preserve">
+    <value>طي</value>
+  </data>
+  <data name="Info.Changelog.Expand" xml:space="preserve">
+    <value>توسيع</value>
+  </data>
+  <data name="Info.Changelog.ToggleDetails" xml:space="preserve">
+    <value>تبديل تفاصيل الإصدار</value>
+  </data>
+  <data name="Info.Changelog.RateLimited" xml:space="preserve">
+    <value>تم تجاوز حد طلبات GitHub API. يرجى تكوين رمز وصول شخصي في الإعدادات أو المحاولة مرة أخرى لاحقًا.</value>
+  </data>
+  <data name="Info.Changelog.NoReleasesFound" xml:space="preserve">
+    <value>لم يتم العثور على سجلات تغيير للإصدارات.</value>
+  </data>
+  <data name="Info.Changelog.LoadError" xml:space="preserve">
+    <value>حدث خطأ أثناء تحميل سجلات التغيير.</value>
+  </data>
+  <data name="AppUpdate.Action.ViewChangelog" xml:space="preserve">
+    <value>عرض التغييرات</value>
+  </data>
+  <data name="AppUpdate.PostUpdate.Title" xml:space="preserve">
+    <value>تم تحديث GenHub</value>
+  </data>
+  <data name="AppUpdate.PostUpdate.Message" xml:space="preserve">
+    <value>تم تحديث GenHub إلى v{0}. تفقد سجل التغييرات لمعرفة الجديد!</value>
   </data>
   <data name="Info.WorkspaceDemo.RunSimulator" xml:space="preserve">
     <value>تشغيل المحاكي</value>
@@ -8280,6 +8352,246 @@ GenHub هو مشغل ومدير حديث لألعاب **Command &amp; Conquer: G
   <data name="Tools.ReplayManager.ProfileSelection.CreateProfileCardSubtitle" xml:space="preserve">
     <value>اختر عميل لعبة متاح لإنشاء ملف تعريف جديد</value>
   </data>
+  <data name="GameProfiles.Card.Menu.ShareProfile" xml:space="preserve">
+    <value>مشاركة الملف الشخصي...</value>
+  </data>
+  <data name="GameProfiles.Card.Tooltip.ShareProfile" xml:space="preserve">
+    <value>مشاركة الملف الشخصي</value>
+  </data>
+  <data name="GameProfiles.Launcher.Button.Import" xml:space="preserve">
+    <value>استيراد</value>
+  </data>
+  <data name="GameProfiles.Launcher.Tooltip.Import" xml:space="preserve">
+    <value>استيراد حزمة ملف تعريف اللعبة (.ghprofile أو .json أو السحب والإفلات في النافذة)</value>
+  </data>
+  <data name="Settings.CloudStorage.Title" xml:space="preserve">
+    <value>التخزين السحابي والتحميلات</value>
+  </data>
+  <data name="Settings.CloudStorage.PoolTitle" xml:space="preserve">
+    <value>مجمع التخزين السحابي UploadThing</value>
+  </data>
+  <data name="Settings.CloudStorage.PoolDescription" xml:space="preserve">
+    <value>مجمع تخزين مؤقت لمشاركة الخرائط والإعادات وحزم الملفات الشخصية المخصصة.</value>
+  </data>
+  <data name="Settings.CloudStorage.RetentionNotice" xml:space="preserve">
+    <value>تنتهي صلاحية الملفات تلقائياً بعد 14 يوماً. يؤدي حذف السجلات إلى مسح التتبع المحلي دون حذف الملفات المستضافة.</value>
+  </data>
+  <data name="Settings.CloudStorage.ActiveRecordsHeader" xml:space="preserve">
+    <value>سجلات التحميل النشطة</value>
+  </data>
+  <data name="Settings.CloudStorage.Button.Refresh" xml:space="preserve">
+    <value>تحديث</value>
+  </data>
+  <data name="Settings.CloudStorage.Button.ClearAll" xml:space="preserve">
+    <value>مسح الكل</value>
+  </data>
+  <data name="Settings.CloudStorage.EmptyMessage" xml:space="preserve">
+    <value>لا توجد تحميلات سحابية نشطة. عند تحميل إعادات مخصصة أو خرائط أو مشاركة ملفات شخصية بمحتوى محلي، ستظهر هنا.</value>
+  </data>
+  <data name="Settings.CloudStorage.Button.CopyLink" xml:space="preserve">
+    <value>نسخ الرابط</value>
+  </data>
+  <data name="Settings.CloudStorage.Button.Delete" xml:space="preserve">
+    <value>حذف</value>
+  </data>
+  <data name="GameProfiles.ShareDialog.Title" xml:space="preserve">
+    <value>مشاركة ملف تعريف اللعبة</value>
+  </data>
+  <data name="GameProfiles.ShareDialog.Subtitle" xml:space="preserve">
+    <value>شارك ملفك الشخصي وتعديلاتك المخصصة مباشرة مع الأصدقاء</value>
+  </data>
+  <data name="GameProfiles.ShareDialog.Tooltip.Close" xml:space="preserve">
+    <value>إغلاق</value>
+  </data>
+  <data name="GameProfiles.ShareDialog.CloudStorageTitle" xml:space="preserve">
+    <value>مزامنة وحصة التخزين السحابي</value>
+  </data>
+  <data name="GameProfiles.ShareDialog.GenerateLink" xml:space="preserve">
+    <value>إنشاء رابط المشاركة</value>
+  </data>
+  <data name="GameProfiles.ShareDialog.ProtocolShareLink" xml:space="preserve">
+    <value>رابط بروتوكول المشاركة (genhub://):</value>
+  </data>
+  <data name="GameProfiles.ShareDialog.CopyLink" xml:space="preserve">
+    <value>نسخ الرابط</value>
+  </data>
+  <data name="GameProfiles.ShareDialog.RecipientInfo" xml:space="preserve">
+    <value>سيؤدي فتح المستلمين لهذا الرابط أو حزمة .ghprofile إلى تشغيل فاحص الاستيراد في GenHub.</value>
+  </data>
+  <data name="GameProfiles.ShareDialog.StandalonePackage" xml:space="preserve">
+    <value>حزمة ملف شخصي مستقلة (.ghprofile)</value>
+  </data>
+  <data name="GameProfiles.ShareDialog.ExportDescription" xml:space="preserve">
+    <value>تصدير ملف تعريف محمول يمكنك مشاركته مع الأصدقاء مباشرة.</value>
+  </data>
+  <data name="GameProfiles.ShareDialog.ExportFile" xml:space="preserve">
+    <value>تصدير ملف</value>
+  </data>
+  <data name="GameProfiles.ShareDialog.Button.Close" xml:space="preserve">
+    <value>إغلاق</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.Title" xml:space="preserve">
+    <value>استيراد ملف تعريف مشترك</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.Subtitle" xml:space="preserve">
+    <value>راجع بيانات المحتوى المضمنة وإصدار العميل المستهدف والتنزيلات المطلوبة قبل الاستيراد.</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.ProfileName" xml:space="preserve">
+    <value>اسم ملف التعريف:</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.NameAutoRenamed" xml:space="preserve">
+    <value>تمت إعادة تسمية الاسم تلقائياً</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.SecurityGuardrails" xml:space="preserve">
+    <value>إجراءات الأمان والتحقق الوقائية</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.BreakdownHeader" xml:space="preserve">
+    <value>تفصيل بيانات المحتوى والتعديلات</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.Tooltip.SafeDataOnly" xml:space="preserve">
+    <value>آمن: يحتوي المكون على أصول وملفات تكوين فقط.</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.Badge.DataOnly" xml:space="preserve">
+    <value>بيانات فقط</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.Tooltip.WarningExecutables" xml:space="preserve">
+    <value>تحذير: يحتوي المكون على ملفات تنفيذية ثنائية (.exe أو .dll أو .asi). تأكد من ثقتك في المؤلف.</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.Badge.Executables" xml:space="preserve">
+    <value>ملفات تنفيذية</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.Badge.Cached" xml:space="preserve">
+    <value>مخزن مؤقتاً</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.Tooltip.Details" xml:space="preserve">
+    <value>تبديل تفاصيل التنزيل والتحقق والملفات</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.Button.Details" xml:space="preserve">
+    <value>تفاصيل</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.ManifestId" xml:space="preserve">
+    <value>معرف البيان:</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.Sha256Hash" xml:space="preserve">
+    <value>تجزئة SHA-256:</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.Tooltip.CopyHash" xml:space="preserve">
+    <value>نسخ تجزئة SHA-256</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.DownloadUrl" xml:space="preserve">
+    <value>رابط التنزيل:</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.Tooltip.CopyUrl" xml:space="preserve">
+    <value>نسخ رابط التنزيل</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.Badge.Binary" xml:space="preserve">
+    <value>ملف ثنائي</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.TargetOptionsHeader" xml:space="preserve">
+    <value>التثبيت المستهدف وخيارات التشغيل</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.TargetInstallation" xml:space="preserve">
+    <value>تثبيت اللعبة المستهدف:</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.TargetInstallationDescription" xml:space="preserve">
+    <value>حدد تثبيت اللعبة المحلي (مثل Steam أو EA App) الذي يوفر الملف التنفيذي الأساسي وأصول هذا الملف التعريفي.</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.NoCompatibleInstallation" xml:space="preserve">
+    <value>لم يتم العثور على تثبيت متوافق لعميل اللعبة هذا.</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.LaunchArguments" xml:space="preserve">
+    <value>وسائط التشغيل:</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.IncludeGameSettings" xml:space="preserve">
+    <value>تطبيق تجاوزات دقة الفيديو وإعدادات الصوت</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.AllCachedLocally" xml:space="preserve">
+    <value>جميع المحتويات المطلوبة مخزنة محلياً بالفعل.</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.Button.Cancel" xml:space="preserve">
+    <value>إلغاء</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.ImportingProgress" xml:space="preserve">
+    <value>جاري استيراد ملف التعريف والمحتوى...</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.Button.CancelImport" xml:space="preserve">
+    <value>إلغاء الاستيراد</value>
+  </data>
+  <data name="GameProfiles.ShareDialog.Status.LinkGenerated" xml:space="preserve">
+    <value>تم إنشاء رابط المشاركة!</value>
+  </data>
+  <data name="GameProfiles.ShareDialog.Status.LinkGenerationFailed" xml:space="preserve">
+    <value>فشل الإنشاء: {0}</value>
+  </data>
+  <data name="GameProfiles.ShareDialog.Status.PackagingUploading" xml:space="preserve">
+    <value>جاري تجميع ورفع المحتوى المخصص...</value>
+  </data>
+  <data name="GameProfiles.ShareDialog.Status.EncodingPackage" xml:space="preserve">
+    <value>جاري ترميز حزمة ملف التعريف...</value>
+  </data>
+  <data name="GameProfiles.ShareDialog.Status.CopiedToClipboard" xml:space="preserve">
+    <value>تم النسخ إلى الحافظة!</value>
+  </data>
+  <data name="GameProfiles.ShareDialog.Status.ClipboardUnavailable" xml:space="preserve">
+    <value>الحافظة غير متوفرة.</value>
+  </data>
+  <data name="GameProfiles.ShareDialog.Status.FailedToCopy" xml:space="preserve">
+    <value>فشل نسخ الرابط.</value>
+  </data>
+  <data name="GameProfiles.ShareDialog.Status.ExportSuccess" xml:space="preserve">
+    <value>تم تصدير حزمة ملف التعريف بنجاح!</value>
+  </data>
+  <data name="GameProfiles.ShareDialog.Status.ExportFailed" xml:space="preserve">
+    <value>فشل التصدير: {0}</value>
+  </data>
+  <data name="GameProfiles.ShareDialog.Status.FailedToExport" xml:space="preserve">
+    <value>فشل تصدير ملف التعريف.</value>
+  </data>
+  <data name="GameProfiles.ShareDialog.Status.CloudNotice" xml:space="preserve">
+    <value>يحتوي هذا الملف التعريفي على محتوى محلي مخصص يجب رفعه إلى التخزين السحابي المؤقت (صلاحية 14 يوماً) لإنشاء رابط قابل للمشاركة. يمكنك أيضاً تصدير ملف .ghprofile مستقل دون الرفع إلى السحابة.</value>
+  </data>
+  <data name="GameProfiles.ShareDialog.Title.Notification" xml:space="preserve">
+    <value>مشاركة ملف التعريف</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.Button.ImportProfile" xml:space="preserve">
+    <value>استيراد ملف التعريف</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.Button.ImportAndDownload" xml:space="preserve">
+    <value>استيراد وتنزيل</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.Button.ImportAndDownloadSize" xml:space="preserve">
+    <value>استيراد وتنزيل ({0})</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.Error.EmptyName" xml:space="preserve">
+    <value>لا يمكن أن يكون اسم ملف التعريف فارغاً.</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.Error.NameTooLong" xml:space="preserve">
+    <value>لا يمكن أن يتجاوز اسم ملف التعريف {0} حرفاً.</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.Error.SelectInstallation" xml:space="preserve">
+    <value>يرجى تحديد تثبيت لعبة صالح.</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.Status.StartingImport" xml:space="preserve">
+    <value>بدء الاستيراد...</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.Status.ProcessingContent" xml:space="preserve">
+    <value>معالجة المحتوى...</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.Notification.ImportSuccess" xml:space="preserve">
+    <value>تم استيراد '{0}' بنجاح.</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.Notification.ImportSuccessTitle" xml:space="preserve">
+    <value>تم استيراد ملف التعريف</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.Notification.ImportFailedTitle" xml:space="preserve">
+    <value>فشل استيراد ملف التعريف</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.Warning.ExecutablesDetected" xml:space="preserve">
+    <value>تم اكتشاف ملفات تنفيذية ثنائية ({0} ملف(ات) تنتهي بـ {1}). تأكد من ثقتك في المؤلف قبل التشغيل.</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.Warning.MissingSizes" xml:space="preserve">
+    <value>بعض التبعيات المطلوبة لا تحدد حجم تنزيل دقيقاً. سيتم إجراء تنزيلات إضافية أثناء الاستيراد.</value>
+  </data>
   <data name="Profiles.AddLocalContent.StatusCasProgressUpdating" xml:space="preserve">
     <value>جارٍ تحديث {0}: {1:0}% ({2}/{3} ملفات)</value>
   </data>
@@ -8608,6 +8920,74 @@ GameFilesEdited/Data/INI/**/*.ini</value>
   <data name="GameProfiles.Launch.WorkspaceFailedMessage" xml:space="preserve">
     <value>فشلت تهيئة مساحة العمل لـ '{0}'.</value>
   </data>
+  <data name="Settings.CloudStorage.Notification.UploadRemoved.Title" xml:space="preserve">
+    <value>تم حذف الرفع</value>
+  </data>
+  <data name="Settings.CloudStorage.Notification.UploadRemoved.Message" xml:space="preserve">
+    <value>تم حذف {0} من سجل الرفع.</value>
+  </data>
+  <data name="Settings.CloudStorage.Notification.UploadRemoveError" xml:space="preserve">
+    <value>فشل حذف سجل الرفع.</value>
+  </data>
+  <data name="Settings.CloudStorage.Dialog.ClearAll.Title" xml:space="preserve">
+    <value>مسح سجل الرفع</value>
+  </data>
+  <data name="Settings.CloudStorage.Dialog.ClearAll.Message" xml:space="preserve">
+    <value>هل أنت متأكد من رغبتك في مسح كل سجل الرفع وإزالة الملفات المرفوعة من التخزين السحابي؟</value>
+  </data>
+  <data name="Settings.CloudStorage.Dialog.ClearAll.Confirm" xml:space="preserve">
+    <value>مسح الكل</value>
+  </data>
+  <data name="Settings.CloudStorage.Notification.UploadsCleared.Title" xml:space="preserve">
+    <value>تم مسح الرفوعات</value>
+  </data>
+  <data name="Settings.CloudStorage.Notification.UploadsCleared.Message" xml:space="preserve">
+    <value>تم مسح جميع سجلات الرفع النشطة.</value>
+  </data>
+  <data name="Settings.CloudStorage.Notification.ClearUploadsError" xml:space="preserve">
+    <value>فشل مسح الرفوعات.</value>
+  </data>
+  <data name="Settings.CloudStorage.Notification.Copied.Title" xml:space="preserve">
+    <value>تم النسخ</value>
+  </data>
+  <data name="Settings.CloudStorage.Notification.Copied.Message" xml:space="preserve">
+    <value>تم نسخ رابط الرفع إلى الحافظة.</value>
+  </data>
+  <data name="Settings.CloudStorage.Notification.CopyError" xml:space="preserve">
+    <value>فشل نسخ الرابط إلى الحافظة.</value>
+  </data>
+  <data name="GameProfiles.RemoteDownload.Dialog.Title" xml:space="preserve">
+    <value>تنزيل ملف التعريف البعيد؟</value>
+  </data>
+  <data name="GameProfiles.RemoteDownload.Dialog.Message" xml:space="preserve">
+    <value>طلب رابط استيراد ملف تعريف لعبة مشترك من المضيف &#x27;{0}&#x27;.
+
+هل ترغب في تنزيل حزمة ملف التعريف هذه وفحصها؟</value>
+  </data>
+  <data name="GameProfiles.RemoteDownload.Dialog.Confirm" xml:space="preserve">
+    <value>تنزيل وفحص</value>
+  </data>
+  <data name="GameProfiles.Import.FilePicker.Title" xml:space="preserve">
+    <value>حدد حزمة ملف تعريف اللعبة للاستيراد</value>
+  </data>
+  <data name="GameProfiles.ShareDialog.Status.GenerateLinkFailed" xml:space="preserve">
+    <value>فشل إنشاء الرابط.</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.Error.ImportFailedDefault" xml:space="preserve">
+    <value>فشل استيراد ملف التعريف.</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.Error.ImportFailed" xml:space="preserve">
+    <value>فشل الاستيراد: {0}</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.Error.ImportTimeout" xml:space="preserve">
+    <value>انتهت مهلة استيراد ملف التعريف. يرجى التحقق من اتصالك والمحاولة مرة أخرى.</value>
+  </data>
+  <data name="GameProfiles.ShareDialog.Notification.LoadProfileFailed.Title" xml:space="preserve">
+    <value>فشل المشاركة</value>
+  </data>
+  <data name="GameProfiles.ShareDialog.Notification.LoadProfileFailed.Message" xml:space="preserve">
+    <value>فشل تحميل تفاصيل ملف التعريف.</value>
+  </data>
   <data name="GitHub.TokenDialog.Title" xml:space="preserve">
     <value>مصادقة GitHub</value>
     <comment>Title for GitHub PAT dialog</comment>
@@ -8627,5 +9007,73 @@ GameFilesEdited/Data/INI/**/*.ini</value>
   <data name="GenLauncher.Context.Community" xml:space="preserve">
     <value>مجتمع GenLauncher</value>
     </data>
-
+  <data name="GameProfiles.ImportInspection.Provenance.CloudPackage" xml:space="preserve">
+    <value>سحابة GenHub (UploadThing)</value>
+  </data>
+  <data name="GameProfiles.ShareDialog.ExportPickerTitle" xml:space="preserve">
+    <value>تصدير حزمة ملف تعريف اللعبة</value>
+  </data>
+  <data name="GameProfiles.ShareDialog.Quota.Format" xml:space="preserve">
+    <value>الحصة التخزينية: {0:F1} م.ب / {1:F1} م.ب (تم استخدام {2:F0}%)</value>
+  </data>
+  <data name="GameProfiles.ShareDialog.Quota.ExceededWarning" xml:space="preserve">
+    <value>تم الوصول إلى الحد الأقصى للتخزين السحابي ({0:F0} م.ب). يمكن مسح التحميلات القديمة من الإعدادات &gt; التخزين السحابي والتحميلات، أو يمكنك تصدير ملف .ghprofile بدلاً من ذلك.</value>
+  </data>
+  <data name="GameProfiles.ShareDialog.Notification.ShareErrorTitle" xml:space="preserve">
+    <value>خطأ في المشاركة</value>
+  </data>
+  <data name="GameProfiles.ShareDialog.Notification.ShareErrorMessage" xml:space="preserve">
+    <value>حدث خطأ أثناء إعداد المشاركة: {0}</value>
+  </data>
+  <data name="GameProfiles.ShareDialog.Notification.CannotShareTitle" xml:space="preserve">
+    <value>تعذر المشاركة</value>
+  </data>
+  <data name="GameProfiles.ShareDialog.Notification.SaveBeforeShareMsg" xml:space="preserve">
+    <value>يرجى حفظ ملف التعريف أولاً قبل المشاركة.</value>
+  </data>
+  <data name="GameProfiles.Launcher.Notify.ImportFailedTitle" xml:space="preserve">
+    <value>فشل الاستيراد</value>
+  </data>
+  <data name="GameProfiles.Launcher.Notify.SharingServiceUnavailable" xml:space="preserve">
+    <value>خدمة مشاركة الملف التعريفي غير متوفرة.</value>
+  </data>
+  <data name="GameProfiles.Launcher.Notify.ImportInProgressTitle" xml:space="preserve">
+    <value>الاستيراد قيد التقدم</value>
+  </data>
+  <data name="GameProfiles.Launcher.Notify.ImportInProgressMsg" xml:space="preserve">
+    <value>مربع حوار استيراد ملف التعريف مفتوح بالفعل.</value>
+  </data>
+  <data name="GameProfiles.Launcher.Notify.ProfileImportErrorTitle" xml:space="preserve">
+    <value>خطأ في استيراد ملف التعريف</value>
+  </data>
+  <data name="GameProfiles.Launcher.Notify.ProfilePackageInspectFailed" xml:space="preserve">
+    <value>فشل فحص حزمة ملف التعريف.</value>
+  </data>
+  <data name="GameProfiles.Launcher.Notify.ImportErrorTitle" xml:space="preserve">
+    <value>خطأ في الاستيراد</value>
+  </data>
+  <data name="GameProfiles.Launcher.Notify.ImportErrorFormat" xml:space="preserve">
+    <value>حدث خطأ أثناء استيراد ملف التعريف: {0}</value>
+  </data>
+  <data name="GameProfiles.Launcher.Notify.SelectProfileFileFailedFormat" xml:space="preserve">
+    <value>فشل تحديد ملف التعريف: {0}</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.Warning.SanitizedShellCharacters" xml:space="preserve">
+    <value>تمت إزالة أحرف الأوامر الخاصة غير المسموح بها (| &amp; ; &gt; &lt; ` $ ^ ! ( )) من وسيطات التشغيل.</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.Warning.SanitizedQuotesOrPercent" xml:space="preserve">
+    <value>تمت إزالة علامات الاقتباس وعلامة النسبة المئوية من وسيطات التشغيل. تحقق من الوسيطات إذا تم استخدام مسارات تحتوي على مسافات.</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.Warning.SanitizedControlCharacters" xml:space="preserve">
+    <value>تمت إزالة رموز التحكم من وسيطات التشغيل.</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.Warning.MissingDownloadSource" xml:space="preserve">
+    <value>المكون '{0}' غير مخزن محلياً وليس له مصدر تنزيل. لا يمكن الحصول عليه.</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.Warning.MissingDownloadSourceGeneric" xml:space="preserve">
+    <value>واحد أو أكثر من المكونات المطلوبة غير مخزن مؤقتًا محليًا وليس له مصدر تنزيل. لا يمكن الحصول عليها.</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.UnknownComponent" xml:space="preserve">
+    <value>غير معروف</value>
+  </data>
 </root>

@@ -3,6 +3,7 @@ using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 
 namespace GenHub.Core.Helpers;
@@ -56,6 +57,22 @@ public static class ManifestHelper
     /// <returns>A single formatted error string.</returns>
     public static string FormatErrors(IEnumerable<string>? errors) =>
         errors?.Any() == true ? string.Join(", ", errors) : "Unknown error";
+
+    /// <summary>
+    /// Determines whether the specified manifest file is an executable binary or script based on its file extension.
+    /// </summary>
+    /// <param name="file">The manifest file to check.</param>
+    /// <returns><c>true</c> if the file has an executable extension; otherwise, <c>false</c>.</returns>
+    public static bool IsExecutableFile(ManifestFile? file)
+    {
+        if (string.IsNullOrWhiteSpace(file?.RelativePath))
+        {
+            return false;
+        }
+
+        var ext = Path.GetExtension(file.RelativePath);
+        return ProfileSharingConstants.ExecutableFileExtensions.Contains(ext);
+    }
 
     /// <summary>
     /// Resolves the primary content manifest from a collection of candidate manifests based on

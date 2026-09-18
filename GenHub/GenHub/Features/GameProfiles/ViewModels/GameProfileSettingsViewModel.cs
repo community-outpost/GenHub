@@ -52,18 +52,26 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
     private readonly ILocalContentService? _localContentService;
     private readonly IGenLauncherNormalizationService? _genLauncherNormalizationService;
     private readonly IDialogService? _dialogService;
+    private readonly Func<IProfileSharingService>? _profileSharingServiceFactory;
+    private readonly IUploadHistoryService? _uploadHistoryService;
     private readonly ILogger<GameProfileSettingsViewModel>? _logger;
     private readonly ILogger<GameSettingsViewModel>? _gameSettingsLogger;
+    private readonly ILoggerFactory? _loggerFactory;
     private readonly IProfileContentLinker? _profileContentLinker;
     private readonly ILaunchRegistry? _launchRegistry;
     private readonly IArchivePayloadProcessor? _archivePayloadProcessor;
+    private readonly ILocalizationService? _localizationService;
+    private readonly SemaphoreSlim _shareDialogSemaphore = new(1, 1);
 
     private readonly NotificationService _localNotificationService = new(NullLogger<NotificationService>.Instance);
     private readonly List<string> _originalEnabledContentIds = [];
+    private readonly SemaphoreSlim _loadContentSemaphore = new(1, 1);
     private GameProfile? _originalProfile; // skipcq: CS-R1137
     private UpdateProfileRequest? _originalGameSettings; // skipcq: CS-R1137
+    private int _loadContentVersion;
     private bool _isSynchronizingEnabledContent;
     private bool _isContentReloadInProgress; // skipcq: CS-R1137
+    private string? _currentProfileId;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="GameProfileSettingsViewModel"/> class.
@@ -81,9 +89,13 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
     /// <param name="dialogService">The dialog service.</param>
     /// <param name="logger">The logger for this view model.</param>
     /// <param name="gameSettingsLogger">The logger for the game settings view model.</param>
+    /// <param name="profileSharingServiceFactory">The profile sharing service factory.</param>
+    /// <param name="loggerFactory">The logger factory.</param>
+    /// <param name="uploadHistoryService">The upload history service.</param>
     /// <param name="profileContentLinker">The profile content linker service.</param>
     /// <param name="launchRegistry">The launch registry service.</param>
     /// <param name="archivePayloadProcessor">The archive payload processor service.</param>
+    /// <param name="localizationService">The optional localization service.</param>
     public GameProfileSettingsViewModel(
         IGameProfileManager? gameProfileManager,
         IGameSettingsService? gameSettingsService,
@@ -98,9 +110,13 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
         IDialogService? dialogService,
         ILogger<GameProfileSettingsViewModel>? logger,
         ILogger<GameSettingsViewModel>? gameSettingsLogger,
+        Func<IProfileSharingService>? profileSharingServiceFactory = null,
+        ILoggerFactory? loggerFactory = null,
+        IUploadHistoryService? uploadHistoryService = null,
         IProfileContentLinker? profileContentLinker = null,
         ILaunchRegistry? launchRegistry = null,
-        IArchivePayloadProcessor? archivePayloadProcessor = null)
+        IArchivePayloadProcessor? archivePayloadProcessor = null,
+        ILocalizationService? localizationService = null)
     {
         _gameProfileManager = gameProfileManager;
         _configurationProvider = configurationProvider;
@@ -114,9 +130,13 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
         _dialogService = dialogService;
         _logger = logger;
         _gameSettingsLogger = gameSettingsLogger;
+        _profileSharingServiceFactory = profileSharingServiceFactory;
+        _loggerFactory = loggerFactory;
+        _uploadHistoryService = uploadHistoryService;
         _profileContentLinker = profileContentLinker;
         _launchRegistry = launchRegistry;
         _archivePayloadProcessor = archivePayloadProcessor;
+        _localizationService = localizationService;
 
         NotificationManager = new NotificationManagerViewModel(
             _localNotificationService,
@@ -177,11 +197,28 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
     /// </summary>
     public GameSettingsViewModel GameSettingsViewModel { get; }
 
+    /// <summary>
+    /// Gets a value indicating whether the current profile can be shared (i.e. is already saved and has an ID).
+    /// </summary>
+    public bool CanShareProfile => !string.IsNullOrEmpty(CurrentProfileId);
+
     private static bool HasShownFirstLoadNotification { get; set; }
 
     private WorkspaceStrategy? OriginalWorkspaceStrategy { get; set; }
 
-    private string? CurrentProfileId { get; set; }
+    private string? CurrentProfileId
+    {
+        get => _currentProfileId;
+        set
+        {
+            if (SetProperty(ref _currentProfileId, value))
+            {
+                OnPropertyChanged(nameof(CanShareProfile));
+            }
+        }
+    }
+
+    private IProfileSharingService? ProfileSharingService => _profileSharingServiceFactory?.Invoke();
 
     /// <summary>
     /// Event triggered when the view model requests to close.
@@ -214,7 +251,7 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
     /// <inheritdoc/>
     public void Receive(ManifestReplacedMessage message)
     {
-        // Global manifest replacement - update our state surgicaly to avoid losing unsaved toggles
+        // Global manifest replacement - update our state surgically to avoid losing unsaved toggles
         // Dispatch to UI thread to ensure ObservableCollection mutations happen safely
         Dispatcher.UIThread.Post(() => _ = HandleManifestReplacementAsync(message.OldId, message.NewId));
     }
@@ -241,7 +278,7 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
         }
         catch (Exception ex)
         {
-            _logger?.LogWarning(ex, "Error refreshing hotswap mode for profile {ProfileId}", CurrentProfileId);
+            _logger?.LogWarning(ex, "Failed to refresh hotswap state for profile {ProfileId}", CurrentProfileId);
         }
     }
 
@@ -318,7 +355,7 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
     }
 
     /// <summary>
-    /// Refreshes the visible filters and available content based on the current game type filter.
+    /// Refreshes the visible filters and content based on available game clients.
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     protected internal async Task RefreshFiltersAndContentAsync()
@@ -525,17 +562,6 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
         }
     }
 
-    /// <summary>
-    /// Called when the game type filter changes.
-    /// </summary>
-    partial void OnGameTypeFilterChanged(GameType value)
-    {
-        _ = RefreshFiltersAndContentAsync();
-    }
-
-    /// <summary>
-    /// Handles synchronizing the EnabledContent collection with SelectedGameInstallation and deduplicating items.
-    /// </summary>
     private void OnEnabledContentCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
     {
         if (_isSynchronizingEnabledContent)
@@ -626,6 +652,19 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
         {
             ClearInstallationSelection();
         }
+    }
+
+    /// <summary>
+    /// Called when the game type filter changes.
+    /// </summary>
+    partial void OnGameTypeFilterChanged(GameType value)
+    {
+        if (IsInitializing)
+        {
+            return;
+        }
+
+        _ = RefreshFiltersAndContentAsync();
     }
 
     private void SyncInstallationSelection(ContentDisplayItem value)

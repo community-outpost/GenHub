@@ -748,7 +748,8 @@ public class DownloadsBrowserViewModelTests
             .Setup(c => c.DownloadContentAsync(
                 It.IsAny<ContentSearchResult>(),
                 It.IsAny<IProgress<ContentAcquisitionProgress>>(),
-                It.IsAny<CancellationToken>()))
+                It.IsAny<CancellationToken>(),
+                It.IsAny<bool>()))
             .ReturnsAsync(OperationResult<ContentManifest>.CreateSuccess(manifest));
 
         var stateService = new Mock<IContentStateService>();
@@ -787,7 +788,8 @@ public class DownloadsBrowserViewModelTests
             c => c.DownloadContentAsync(
                 item.SearchResult,
                 It.IsAny<IProgress<ContentAcquisitionProgress>>(),
-                It.IsAny<CancellationToken>()),
+                It.IsAny<CancellationToken>(),
+                It.IsAny<bool>()),
             Times.Once);
         orchestrator.Verify(
             o => o.AcquireContentAsync(
@@ -1241,7 +1243,7 @@ public class DownloadsBrowserViewModelTests
         var reconcilerMock = new Mock<IPublisherReconciler>();
         reconcilerMock
             .Setup(r => r.CheckAndReconcileIfNeededAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+            .ReturnsAsync(OperationResult<PublisherReconciliationResult>.CreateSuccess(PublisherReconciliationResult.Success(GenHub.Core.Models.Enums.UpdateStrategy.ReplaceCurrent, null)));
 
         var reconcilerRegistryMock = new Mock<IPublisherReconcilerRegistry>();
         reconcilerRegistryMock
@@ -1358,7 +1360,7 @@ public class DownloadsBrowserViewModelTests
         var reconcilerMock = new Mock<IPublisherReconciler>();
         reconcilerMock
             .Setup(r => r.CheckAndReconcileIfNeededAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(OperationResult<bool>.CreateSuccess(false));
+            .ReturnsAsync(OperationResult<PublisherReconciliationResult>.CreateSuccess(PublisherReconciliationResult.None));
 
         var reconcilerRegistryMock = new Mock<IPublisherReconcilerRegistry>();
         reconcilerRegistryMock

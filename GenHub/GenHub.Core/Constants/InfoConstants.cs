@@ -106,6 +106,11 @@ public static class InfoConstants
     public const string SectionChangelogs = "changelogs";
 
     /// <summary>
+    /// File name for the cached GitHub changelogs.
+    /// </summary>
+    public const string ChangelogsCacheFileName = "changelogs-cache.json";
+
+    /// <summary>
     /// Navigation action ID for Game Detection guide.
     /// </summary>
     public const string ActionNavScanGames = "NAV_INFO_scan-games";

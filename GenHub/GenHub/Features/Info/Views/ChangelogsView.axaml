@@ -3,11 +3,11 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:vm="clr-namespace:GenHub.Features.Info.ViewModels"
-             xmlns:models="clr-namespace:GenHub.Core.Models.GitHub;assembly=GenHub.Core"
              xmlns:material="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
              xmlns:controls="clr-namespace:GenHub.Infrastructure.Controls"
              xmlns:localization="clr-namespace:GenHub.Common.Markup;assembly=GenHub"
-             mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+             mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="600"
+             ScrollViewer.HorizontalScrollBarVisibility="Disabled"
              x:Class="GenHub.Features.Info.Views.ChangelogsView"
              x:DataType="vm:ChangelogsViewModel"
              x:Name="Root">
@@ -34,6 +34,20 @@
                  IsVisible="{Binding IsLoading}"
                  Margin="0,20"/>
 
+    <!-- Cached Offline Banner -->
+    <Border Background="{DynamicResource CardBackground}"
+            BorderBrush="{DynamicResource BorderBrush}"
+            BorderThickness="1"
+            CornerRadius="6"
+            Padding="12,8"
+            IsVisible="{Binding IsUsingCachedData}"
+            Margin="0,0,0,16">
+        <StackPanel Orientation="Horizontal" Spacing="8">
+            <material:MaterialIcon Kind="CloudOffOutline" Foreground="{DynamicResource WarningBrush}" Width="18" Height="18" VerticalAlignment="Center"/>
+            <TextBlock Text="{localization:Localize Info.Changelog.OfflineCached}" VerticalAlignment="Center" FontSize="13" Foreground="{DynamicResource TextSecondary}"/>
+        </StackPanel>
+    </Border>
+
     <!-- Error State -->
     <Border Background="{DynamicResource CardBackground}"
             BorderBrush="{DynamicResource ErrorBrush}"
@@ -49,39 +63,50 @@
     </Border>
 
     <!-- List -->
-    <ItemsControl ItemsSource="{Binding Releases}">
+    <ItemsControl ItemsSource="{Binding Releases}" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
        <ItemsControl.ItemTemplate>
-          <DataTemplate>
+          <DataTemplate x:DataType="vm:ChangelogItemViewModel">
              <Border Background="{DynamicResource CardBackground}" CornerRadius="8" Padding="16" Margin="0,0,0,12"
                      BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1">
                 <StackPanel>
                     <!-- Header -->
                     <Grid ColumnDefinitions="*, Auto">
                         <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
-                            <TextBlock Text="{Binding TagName}" FontSize="16" FontWeight="Bold" Foreground="{StaticResource SystemAccentColorBrush}"/>
-                            <Border Background="{DynamicResource SurfaceElevatedBrush}" CornerRadius="4" Padding="6,2" IsVisible="{Binding IsPrerelease}">
+                            <TextBlock Text="{Binding Release.TagName}" FontSize="16" FontWeight="Bold" Foreground="{StaticResource SystemAccentColorBrush}"/>
+                            <Border Background="{DynamicResource AccentBadgeBackgroundBrush}" CornerRadius="4" Padding="6,2" IsVisible="{Binding IsLatest}">
+                                <TextBlock Text="{localization:Localize Info.Changelog.LatestRelease}" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource PrimaryButtonForeground}"/>
+                            </Border>
+                            <Border Background="{DynamicResource SurfaceElevatedBrush}" CornerRadius="4" Padding="6,2" IsVisible="{Binding Release.IsPrerelease}">
                                 <TextBlock Text="{localization:Localize Info.Changelog.PreRelease}" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource WarningBrush}"/>
                             </Border>
-                             <TextBlock Text="{Binding PublishedAt, StringFormat='{}{0:yyyy-MM-dd}'}"
+                            <TextBlock Text="{Binding Release.PublishedAt, StringFormat='{}{0:yyyy-MM-dd}'}"
                                        FontSize="13" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center"/>
                         </StackPanel>
 
-                        <Button Command="{Binding ((vm:ChangelogsViewModel)DataContext).OpenReleaseUrlCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                CommandParameter="{Binding HtmlUrl}"
-                                Background="Transparent" Padding="4" ToolTip.Tip="{localization:Localize Info.Changelog.ViewOnGitHub}">
-                            <material:MaterialIcon Kind="OpenInNew" Width="16" Height="16" Foreground="{DynamicResource TextSecondary}"/>
-                        </Button>
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
+                            <Button Command="{Binding OpenReleaseUrlCommand}"
+                                    Background="Transparent" Padding="4" ToolTip.Tip="{localization:Localize Info.Changelog.ViewOnGitHub}">
+                                <material:MaterialIcon Kind="OpenInNew" Width="16" Height="16" Foreground="{DynamicResource TextSecondary}"/>
+                            </Button>
+                            <Button Command="{Binding ToggleExpandedCommand}"
+                                    Background="Transparent" Padding="6,4" ToolTip.Tip="{localization:Localize Info.Changelog.ToggleDetails}">
+                                <StackPanel Orientation="Horizontal" Spacing="4">
+                                    <TextBlock Text="{localization:Localize Info.Changelog.Collapse}" IsVisible="{Binding IsExpanded}" FontSize="12" Foreground="{DynamicResource TextSecondary}"/>
+                                    <TextBlock Text="{localization:Localize Info.Changelog.Expand}" IsVisible="{Binding !IsExpanded}" FontSize="12" Foreground="{DynamicResource TextSecondary}"/>
+                                    <material:MaterialIcon Kind="ChevronUp" Width="16" Height="16" Foreground="{DynamicResource TextSecondary}" IsVisible="{Binding IsExpanded}"/>
+                                    <material:MaterialIcon Kind="ChevronDown" Width="16" Height="16" Foreground="{DynamicResource TextSecondary}" IsVisible="{Binding !IsExpanded}"/>
+                                </StackPanel>
+                            </Button>
+                        </StackPanel>
                     </Grid>
 
-                    <TextBlock Text="{Binding Name}" FontSize="14" FontWeight="SemiBold" Margin="0,4,0,12" Foreground="{DynamicResource TextPrimary}" TextWrapping="Wrap"/>
+                    <TextBlock Text="{Binding Release.Name}" FontSize="14" FontWeight="SemiBold" Margin="0,4,0,8" Foreground="{DynamicResource TextPrimary}" TextWrapping="Wrap"/>
 
-                    <!-- Separator -->
-                    <Border Height="1" Background="{DynamicResource BorderBrush}" Margin="0,0,0,12"/>
-
-                    <!-- Body -->
-                    <ScrollViewer Height="300" Margin="0,0,0,12" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-                        <controls:MarkdownTextBlock Markdown="{Binding Body}" />
-                    </ScrollViewer>
+                    <!-- Expandable Release Notes Body (no fixed height scroll trap) -->
+                    <StackPanel IsVisible="{Binding IsExpanded}">
+                        <Border Height="1" Background="{DynamicResource BorderBrush}" Margin="0,4,0,12"/>
+                        <controls:MarkdownTextBlock Markdown="{Binding Release.Body}" />
+                    </StackPanel>
                 </StackPanel>
              </Border>
           </DataTemplate>

@@ -25,6 +25,21 @@ public static class PublisherTypeConstants
     /// <summary>Unknown or unspecified publisher.</summary>
     public const string Unknown = "unknown";
 
+    /// <summary>Wildcard or matching placeholder publisher identifier.</summary>
+    public const string Any = "any";
+
+    /// <summary>Display name for GitHub publisher.</summary>
+    public const string GitHubDisplayName = "GitHub";
+
+    /// <summary>Display name or alias for Community Outpost publisher.</summary>
+    public const string CommunityOutpostDisplayName = "Community Outpost";
+
+    /// <summary>Display name or alias for Generals Online publisher.</summary>
+    public const string GeneralsOnlineDisplayName = "Generals Online";
+
+    /// <summary>Display name for The Super Hackers community publisher.</summary>
+    public const string TheSuperHackersDisplayName = SuperHackersConstants.PublisherDisplayName;
+
     /// <summary>GitHub platform publisher.</summary>
     public const string GitHub = "github";
 
@@ -46,7 +61,12 @@ public static class PublisherTypeConstants
     /// <summary>Retail publisher.</summary>
     public const string Retail = "retail";
 
-    /// <summary>GenHub local custom game installation publisher.</summary>
+    /// <summary>
+    /// GenHub local custom game installation publisher (used for detected and managed game installations).
+    /// </summary>
+    /// <remarks>
+    /// Contrast with <see cref="Local"/>, which represents generic local custom content files.
+    /// </remarks>
     public const string GenHubLocal = "genhublocal";
 
     /// <summary>Generals Online community client publisher.</summary>
@@ -73,8 +93,46 @@ public static class PublisherTypeConstants
     /// <summary>GenLauncher platform publisher.</summary>
     public const string GenLauncher = "genlauncher";
 
+    /// <summary>
+    /// Local custom content publisher for user-supplied mods, maps, and custom content.
+    /// </summary>
+    /// <remarks>
+    /// Contrast with <see cref="GenHubLocal"/>, which is scoped to game installation manifests.
+    /// </remarks>
+    public const string Local = "local";
+
     /// <summary>GenHub internal system content publisher.</summary>
     public const string GenHubInternal = "genhub";
+
+    /// <summary>
+    /// Set of known curated or platform publisher identifiers that must not be registered via untrusted direct package imports.
+    /// </summary>
+    public static readonly IReadOnlySet<string> CuratedPublishers = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+    {
+        GeneralsOnline,
+        CommunityOutpost,
+        TheSuperHackers,
+        LegacySuperHackers,
+        GitHub,
+        ModDB,
+        CncLabs,
+        AODMaps,
+        SteamWorkshop,
+        Ea,
+        EaApp,
+        Steam,
+        Retail,
+        GenHubLocal,
+        GenHubInternal,
+    };
+
+    /// <summary>
+    /// Determines whether the specified publisher is a known curated or platform publisher.
+    /// </summary>
+    /// <param name="publisher">The publisher identifier to check.</param>
+    /// <returns><c>true</c> if the publisher is a curated or platform publisher; otherwise, <c>false</c>.</returns>
+    public static bool IsCuratedPublisher(string? publisher) =>
+        !string.IsNullOrWhiteSpace(publisher) && CuratedPublishers.Contains(publisher);
 
     /// <summary>
     /// Set of publisher identifiers trusted to execute installation steps (e.g. installers).

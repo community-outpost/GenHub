@@ -1,4 +1,7 @@
 using GenHub.Core.Models.Results;
+using GenHub.Core.Models.Results.Content;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace GenHub.Core.Interfaces.Content;
 
@@ -10,17 +13,13 @@ namespace GenHub.Core.Interfaces.Content;
 public interface IGeneralsOnlineProfileReconciler
 {
     /// <summary>
-    /// Checks for GeneralsOnline updates and reconciles all affected profiles if an update is found.
-    /// This method should be called before launching a GeneralsOnline profile.
+    /// Checks for GeneralsOnline updates and reconciles profiles if an update is available.
+    /// Prompts user for strategy (replace vs new profile) if not configured.
     /// </summary>
-    /// <param name="triggeringProfileId">The ID of the profile that triggered the check.</param>
+    /// <param name="triggeringProfileId">The profile that triggered the launch (if any).</param>
     /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>
-    /// - Success with Data=true: Update was found and applied successfully.
-    /// - Success with Data=false: No update was needed.
-    /// - Failure: Update check or reconciliation failed.
-    /// </returns>
-    Task<OperationResult<bool>> CheckAndReconcileIfNeededAsync(
+    /// <returns>Result indicating whether reconciliation was performed, including the target profile ID to launch.</returns>
+    Task<OperationResult<PublisherReconciliationResult>> CheckAndReconcileIfNeededAsync(
         string triggeringProfileId,
         CancellationToken cancellationToken = default);
 }

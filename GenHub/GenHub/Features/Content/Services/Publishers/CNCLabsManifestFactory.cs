@@ -111,7 +111,7 @@ public partial class CNCLabsManifestFactory(
     /// <inheritdoc/>
     public bool CanHandle(ContentManifest manifest)
     {
-        return manifest.Publisher.PublisherType == CNCLabsConstants.PublisherId;
+        return manifest.Publisher?.PublisherType?.Equals(CNCLabsConstants.PublisherId, StringComparison.OrdinalIgnoreCase) == true;
     }
 
     /// <inheritdoc/>

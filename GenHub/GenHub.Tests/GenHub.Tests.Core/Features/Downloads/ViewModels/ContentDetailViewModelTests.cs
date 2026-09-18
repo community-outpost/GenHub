@@ -67,9 +67,10 @@ public sealed class ContentDetailViewModelTests
             .Setup(c => c.DownloadContentAsync(
                 It.IsAny<ContentSearchResult>(),
                 It.IsAny<IProgress<ContentAcquisitionProgress>>(),
-                It.IsAny<CancellationToken>()))
-            .Callback<ContentSearchResult, IProgress<ContentAcquisitionProgress>?, CancellationToken>(
-                (content, _, _) => coordinatorInput = content)
+                It.IsAny<CancellationToken>(),
+                It.IsAny<bool>()))
+            .Callback<ContentSearchResult, IProgress<ContentAcquisitionProgress>?, CancellationToken, bool>(
+                (content, _, _, _) => coordinatorInput = content)
             .ReturnsAsync(OperationResult<ContentManifest>.CreateSuccess(new ContentManifest
             {
                 Id = ManifestId.Create("1.828261.generalsonline.gameclient.60hz"),
@@ -134,9 +135,10 @@ public sealed class ContentDetailViewModelTests
             .Setup(service => service.DownloadContentAsync(
                 It.IsAny<ContentSearchResult>(),
                 It.IsAny<IProgress<ContentAcquisitionProgress>>(),
-                It.IsAny<CancellationToken>()))
-            .Callback<ContentSearchResult, IProgress<ContentAcquisitionProgress>?, CancellationToken>(
-                (content, _, _) => coordinatorInput = content)
+                It.IsAny<CancellationToken>(),
+                It.IsAny<bool>()))
+            .Callback<ContentSearchResult, IProgress<ContentAcquisitionProgress>?, CancellationToken, bool>(
+                (content, _, _, _) => coordinatorInput = content)
             .ReturnsAsync(OperationResult<ContentManifest>.CreateSuccess(manifest));
         var viewModel = CreateViewModel(parent, coordinator.Object);
         var releaseFile = new DownloadableFile(
@@ -457,9 +459,10 @@ public sealed class ContentDetailViewModelTests
             .Setup(c => c.DownloadContentAsync(
                 It.IsAny<ContentSearchResult>(),
                 It.IsAny<IProgress<ContentAcquisitionProgress>>(),
-                It.IsAny<CancellationToken>()))
-            .Callback<ContentSearchResult, IProgress<ContentAcquisitionProgress>?, CancellationToken>(
-                (content, _, _) => downloadedContent = content)
+                It.IsAny<CancellationToken>(),
+                It.IsAny<bool>()))
+            .Callback<ContentSearchResult, IProgress<ContentAcquisitionProgress>?, CancellationToken, bool>(
+                (content, _, _, _) => downloadedContent = content)
             .ReturnsAsync(OperationResult<ContentManifest>.CreateSuccess(manifest));
 
         var viewModel = CreateViewModel(parent, coordinator.Object);
@@ -749,9 +752,10 @@ public sealed class ContentDetailViewModelTests
             .Setup(c => c.DownloadContentAsync(
                 It.IsAny<ContentSearchResult>(),
                 It.IsAny<IProgress<ContentAcquisitionProgress>>(),
-                It.IsAny<CancellationToken>()))
-            .Callback<ContentSearchResult, IProgress<ContentAcquisitionProgress>?, CancellationToken>(
-                (content, _, _) => downloadedResult = content)
+                It.IsAny<CancellationToken>(),
+                It.IsAny<bool>()))
+            .Callback<ContentSearchResult, IProgress<ContentAcquisitionProgress>?, CancellationToken, bool>(
+                (content, _, _, _) => downloadedResult = content)
             .ReturnsAsync(OperationResult<ContentManifest>.CreateSuccess(new ContentManifest
             {
                 Id = ManifestId.Create("1.20260308.moddb.map.lostwarlord"),
@@ -947,7 +951,8 @@ public sealed class ContentDetailViewModelTests
             .Setup(c => c.DownloadContentAsync(
                 It.IsAny<ContentSearchResult>(),
                 It.IsAny<IProgress<ContentAcquisitionProgress>>(),
-                It.IsAny<CancellationToken>()))
+                It.IsAny<CancellationToken>(),
+                It.IsAny<bool>()))
             .ReturnsAsync(() =>
             {
                 isDownloaded = true;
@@ -1006,7 +1011,8 @@ public sealed class ContentDetailViewModelTests
             c => c.DownloadContentAsync(
                 It.IsAny<ContentSearchResult>(),
                 It.IsAny<IProgress<ContentAcquisitionProgress>>(),
-                It.IsAny<CancellationToken>()),
+                It.IsAny<CancellationToken>(),
+                It.IsAny<bool>()),
             Times.Once);
 
         Assert.True(viewModel.AreBundleComponentsReadyForProfile);
@@ -1759,8 +1765,9 @@ public sealed class ContentDetailViewModelTests
             .Setup(c => c.DownloadContentAsync(
                 It.Is<ContentSearchResult>(sr => sr.Id == item.Id),
                 It.IsAny<IProgress<ContentAcquisitionProgress>>(),
-                It.IsAny<CancellationToken>()))
-            .Returns<ContentSearchResult, IProgress<ContentAcquisitionProgress>, CancellationToken>((_, _, ct) =>
+                It.IsAny<CancellationToken>(),
+                It.IsAny<bool>()))
+            .Returns<ContentSearchResult, IProgress<ContentAcquisitionProgress>, CancellationToken, bool>((_, _, ct, _) =>
             {
                 downloadStartedTcs.SetResult(true);
                 ct.Register(() => tcsCompleteDownload.TrySetCanceled(ct));

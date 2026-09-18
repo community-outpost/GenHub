@@ -37,7 +37,7 @@ public partial class AODMapsManifestFactory(
     /// <inheritdoc />
     public bool CanHandle(ContentManifest manifest)
     {
-        return manifest.Publisher?.PublisherType == AODMapsConstants.PublisherType;
+        return manifest.Publisher?.PublisherType?.Equals(AODMapsConstants.PublisherType, StringComparison.OrdinalIgnoreCase) == true;
     }
 
     /// <inheritdoc />
