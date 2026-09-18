@@ -7672,7 +7672,6 @@ GenHub هو مشغل ومدير حديث لألعاب **Command &amp; Conquer: G
   <data name="Profiles.AddLocalContent.StatusCasProgressUpdating" xml:space="preserve">
     <value>جارٍ تحديث {0}: {1:0}% ({2}/{3} ملفات)</value>
   </data>
-  >>>>>>> theirs
   <data name="Downloads.ContentDetail.ModDbVerificationRequired" xml:space="preserve">
     <value>مطلوب التحقق من ModDB</value>
   </data>
@@ -7873,6 +7872,7 @@ GenHub هو مشغل ومدير حديث لألعاب **Command &amp; Conquer: G
   </data>
   <data name="GameProfiles.Launch.WorkspaceFailedMessage" xml:space="preserve">
     <value>فشلت تهيئة مساحة العمل لـ '{0}'.</value>
+  </data>
   <data name="Settings.CloudStorage.Notification.UploadRemoved.Title" xml:space="preserve">
     <value>تم حذف الرفع</value>
   </data>
@@ -7906,6 +7906,9 @@ GenHub هو مشغل ومدير حديث لألعاب **Command &amp; Conquer: G
   <data name="Settings.CloudStorage.Notification.Copied.Message" xml:space="preserve">
     <value>تم نسخ رابط الرفع إلى الحافظة.</value>
   </data>
+  <data name="Settings.CloudStorage.Notification.CopyError" xml:space="preserve">
+    <value>فشل نسخ الرابط إلى الحافظة.</value>
+  </data>
   <data name="GameProfiles.RemoteDownload.Dialog.Title" xml:space="preserve">
     <value>تنزيل ملف التعريف البعيد؟</value>
   </data>
@@ -7928,6 +7931,9 @@ GenHub هو مشغل ومدير حديث لألعاب **Command &amp; Conquer: G
   </data>
   <data name="GameProfiles.ImportInspection.Error.ImportFailed" xml:space="preserve">
     <value>فشل الاستيراد: {0}</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.Error.ImportTimeout" xml:space="preserve">
+    <value>انتهت مهلة استيراد ملف التعريف. يرجى التحقق من اتصالك والمحاولة مرة أخرى.</value>
   </data>
   <data name="GameProfiles.ShareDialog.Notification.LoadProfileFailed.Title" xml:space="preserve">
     <value>فشل المشاركة</value>
@@ -8013,5 +8019,8 @@ GenHub هو مشغل ومدير حديث لألعاب **Command &amp; Conquer: G
   </data>
   <data name="GameProfiles.ImportInspection.Warning.SanitizedControlCharacters" xml:space="preserve">
     <value>تمت إزالة رموز التحكم من وسيطات التشغيل.</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.Warning.MissingDownloadSource" xml:space="preserve">
+    <value>المكون '{0}' غير مخزن محلياً وليس له مصدر تنزيل. لا يمكن الحصول عليه.</value>
   </data>
 </root>

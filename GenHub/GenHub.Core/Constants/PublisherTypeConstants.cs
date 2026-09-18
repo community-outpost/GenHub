@@ -38,7 +38,7 @@ public static class PublisherTypeConstants
     public const string GeneralsOnlineDisplayName = "Generals Online";
 
     /// <summary>Display name for The Super Hackers community publisher.</summary>
-    public const string TheSuperHackersDisplayName = "Super Hackers";
+    public const string TheSuperHackersDisplayName = SuperHackersConstants.PublisherDisplayName;
 
     /// <summary>GitHub platform publisher.</summary>
     public const string GitHub = "github";

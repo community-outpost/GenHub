@@ -123,43 +123,15 @@ public sealed partial class ImportProfileInspectionViewModel(
     [ObservableProperty]
     private string _actionButtonText = DetermineInitialActionButtonText(inspectionResult, localizationService);
 
-    private static string DetermineInitialActionButtonText(SharedProfileInspectionResult? result, ILocalizationService? locService = null)
-    {
-        if ((result?.TotalDownloadBytesRequired ?? 0) > 0)
-        {
-            var formattedBytes = ByteFormatHelper.FormatBytes(result!.TotalDownloadBytesRequired);
-            var format = locService?.GetString("GameProfiles.ImportInspection.Button.ImportAndDownloadSize") ?? "Import & Download ({0})";
-            return string.Format(System.Globalization.CultureInfo.CurrentCulture, format, formattedBytes);
-        }
-
-        if ((result?.MissingManifestCount ?? 0) > 0)
-        {
-            return locService?.GetString("GameProfiles.ImportInspection.Button.ImportAndDownload") ?? "Import & Download";
-        }
-
-        return locService?.GetString("GameProfiles.ImportInspection.Button.ImportProfile") ?? "Import Profile";
-    }
-
-    private static bool ValidateArguments(
-        SharedProfileInspectionResult inspectionResult,
-        IProfileSharingService profileSharingService,
-        ILogger<ImportProfileInspectionViewModel> logger)
-    {
-        ArgumentNullException.ThrowIfNull(inspectionResult);
-        ArgumentNullException.ThrowIfNull(profileSharingService);
-        ArgumentNullException.ThrowIfNull(logger);
-        return true;
-    }
+    /// <summary>
+    /// Gets a value indicating whether there are dependencies that need to be downloaded.
+    /// </summary>
+    public bool HasMissingDownloads => MissingManifestCount > 0;
 
     /// <summary>
     /// Event triggered when the dialog requests to close.
     /// </summary>
     public event EventHandler? CloseRequested;
-
-    /// <summary>
-    /// Gets a value indicating whether there are dependencies that need to be downloaded.
-    /// </summary>
-    public bool HasMissingDownloads => MissingManifestCount > 0;
 
     /// <summary>
     /// Releases unmanaged and managed resources used by the view model.
@@ -208,6 +180,34 @@ public sealed partial class ImportProfileInspectionViewModel(
         }
 
         GC.SuppressFinalize(this);
+    }
+
+    private static string DetermineInitialActionButtonText(SharedProfileInspectionResult? result, ILocalizationService? locService = null)
+    {
+        if ((result?.TotalDownloadBytesRequired ?? 0) > 0)
+        {
+            var formattedBytes = ByteFormatHelper.FormatBytes(result!.TotalDownloadBytesRequired);
+            var format = locService?.GetString("GameProfiles.ImportInspection.Button.ImportAndDownloadSize") ?? "Import & Download ({0})";
+            return string.Format(System.Globalization.CultureInfo.CurrentCulture, format, formattedBytes);
+        }
+
+        if ((result?.MissingManifestCount ?? 0) > 0)
+        {
+            return locService?.GetString("GameProfiles.ImportInspection.Button.ImportAndDownload") ?? "Import & Download";
+        }
+
+        return locService?.GetString("GameProfiles.ImportInspection.Button.ImportProfile") ?? "Import Profile";
+    }
+
+    private static bool ValidateArguments(
+        SharedProfileInspectionResult inspectionResult,
+        IProfileSharingService profileSharingService,
+        ILogger<ImportProfileInspectionViewModel> logger)
+    {
+        ArgumentNullException.ThrowIfNull(inspectionResult);
+        ArgumentNullException.ThrowIfNull(profileSharingService);
+        ArgumentNullException.ThrowIfNull(logger);
+        return true;
     }
 
     private static string? SanitizeArtworkPath(string? path)
@@ -290,9 +290,21 @@ public sealed partial class ImportProfileInspectionViewModel(
         SharedProfileInspectionResult result,
         ILocalizationService? localizationService)
     {
+        var addedMissingDownloadSources = false;
         foreach (var code in codes)
         {
-            var localized = ResolveWarningCodeText(code, result, localizationService);
+            if (code == ProfileSecurityWarningCode.MissingDownloadSource)
+            {
+                if (!addedMissingDownloadSources)
+                {
+                    addedMissingDownloadSources = true;
+                    AddMissingDownloadSourceWarnings(warnings, result, localizationService);
+                }
+
+                continue;
+            }
+
+            var localized = ResolveWarningCodeText(code, localizationService);
             if (!string.IsNullOrWhiteSpace(localized))
             {
                 warnings.Add(localized);
@@ -300,9 +312,38 @@ public sealed partial class ImportProfileInspectionViewModel(
         }
     }
 
+    private static void AddMissingDownloadSourceWarnings(
+        List<string> warnings,
+        SharedProfileInspectionResult result,
+        ILocalizationService? localizationService)
+    {
+        var uncachedSourceless = result.Manifests
+            .Where(m => !m.IsCachedLocally &&
+                        string.IsNullOrWhiteSpace(m.PackageUrl) &&
+                        (m.Files == null || !m.Files.Any(f => !string.IsNullOrWhiteSpace(f.DownloadUrl))))
+            .ToList();
+
+        if (uncachedSourceless.Count > 0)
+        {
+            var format = localizationService?.GetString("GameProfiles.ImportInspection.Warning.MissingDownloadSource")
+                ?? "Component '{0}' is not cached locally and has no download source. It cannot be acquired.";
+            foreach (var manifest in uncachedSourceless)
+            {
+                warnings.Add(string.Format(System.Globalization.CultureInfo.CurrentCulture, format, manifest.DisplayName));
+            }
+        }
+        else
+        {
+            var rawMatches = result.SecurityWarnings.Where(w => w.Contains("download source", StringComparison.OrdinalIgnoreCase));
+            foreach (var raw in rawMatches)
+            {
+                warnings.Add(raw);
+            }
+        }
+    }
+
     private static string? ResolveWarningCodeText(
         ProfileSecurityWarningCode code,
-        SharedProfileInspectionResult result,
         ILocalizationService? localizationService)
     {
         return code switch
@@ -316,9 +357,6 @@ public sealed partial class ImportProfileInspectionViewModel(
             ProfileSecurityWarningCode.SanitizedControlCharacters =>
                 localizationService?.GetString("GameProfiles.ImportInspection.Warning.SanitizedControlCharacters")
                 ?? ProfileSharingCompressionHelper.ControlCharactersWarning,
-            ProfileSecurityWarningCode.MissingDownloadSource =>
-                result.SecurityWarnings.FirstOrDefault(w => w.Contains("download source", StringComparison.OrdinalIgnoreCase))
-                ?? "Component is not cached locally and has no download source.",
             _ => null,
         };
     }
@@ -407,6 +445,7 @@ public sealed partial class ImportProfileInspectionViewModel(
             return;
         }
 
+        CancellationTokenSource? cts = null;
         try
         {
             IsImporting = true;
@@ -416,7 +455,7 @@ public sealed partial class ImportProfileInspectionViewModel(
             ImportProgressPercentage = 0;
 
             _importCts = new CancellationTokenSource();
-            var cts = _importCts;
+            cts = _importCts;
 
             var defaultProcessing = localizationService?.GetString("GameProfiles.ImportInspection.Status.ProcessingContent") ?? "Processing content...";
             var progress = new Progress<ContentAcquisitionProgress>(p =>
@@ -451,6 +490,12 @@ public sealed partial class ImportProfileInspectionViewModel(
                 var fallbackError = localizationService?.GetString("GameProfiles.ImportInspection.Error.ImportFailedDefault") ?? "Failed to import profile.";
                 SetError(result.FirstError ?? fallbackError);
             }
+        }
+        catch (OperationCanceledException ex) when (cts is { IsCancellationRequested: false })
+        {
+            logger.LogError(ex, "Profile import timed out.");
+            var timeoutMsg = localizationService?.GetString("GameProfiles.ImportInspection.Error.ImportTimeout") ?? "Profile import timed out. Please check your connection and try again.";
+            SetError(timeoutMsg);
         }
         catch (OperationCanceledException ex)
         {

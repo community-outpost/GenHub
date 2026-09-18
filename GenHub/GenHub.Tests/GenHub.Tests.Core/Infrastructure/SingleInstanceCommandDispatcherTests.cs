@@ -62,12 +62,16 @@ public class SingleInstanceCommandDispatcherTests
     [InlineData("ACTIVATE", true)]
     [InlineData("launch-profile:12345", true)]
     [InlineData("launch-profile:../malicious", false)]
+    [InlineData("launch-profile:a..b", false)]
     [InlineData("launch-profile:dir/file", false)]
     [InlineData("launch-profile:dir\\file", false)]
     [InlineData("subscribe:https://example.com/manifest.json", true)]
     [InlineData("subscribe:ftp://example.com/manifest.json", false)]
     [InlineData("import-profile:genhub://profile/import/xyz", true)]
     [InlineData("import-profile:genhub://profile/view/xyz", true)]
+    [InlineData("import-profile:test.ghprofile", true)]
+    [InlineData("import-profile:/path/to/test.ghprofile", true)]
+    [InlineData("import-profile:invalid-extension.txt", false)]
     [InlineData("unknown-command", false)]
     public void IsValidIpcCommand_Should_Validate_Correctly(string command, bool expected)
     {

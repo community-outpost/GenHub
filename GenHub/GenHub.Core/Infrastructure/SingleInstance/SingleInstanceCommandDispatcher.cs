@@ -109,8 +109,7 @@ public sealed class SingleInstanceCommandDispatcher : ISingleInstanceCommandRece
                 return true;
             }
 
-            if (target.EndsWith(ProfileSharingConstants.ProfileFileExtension, StringComparison.OrdinalIgnoreCase) &&
-                File.Exists(target))
+            if (target.EndsWith(ProfileSharingConstants.ProfileFileExtension, StringComparison.OrdinalIgnoreCase))
             {
                 return true;
             }

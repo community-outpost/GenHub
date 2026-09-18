@@ -2909,7 +2909,8 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to copy upload URL to clipboard");
-            _notificationService.ShowError(ErrorTitle, "Failed to copy URL to clipboard.");
+            var errorMessage = _localizationService?.GetString("Settings.CloudStorage.Notification.CopyError") ?? "Failed to copy URL to clipboard.";
+            _notificationService.ShowError(ErrorTitle, errorMessage);
         }
     }
 

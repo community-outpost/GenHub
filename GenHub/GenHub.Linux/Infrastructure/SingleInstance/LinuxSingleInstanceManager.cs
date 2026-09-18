@@ -110,6 +110,19 @@ public sealed partial class LinuxSingleInstanceManager : ISingleInstanceCommandR
         try
         {
             var profileShareUri = CommandLineParser.ExtractProfileShareUri(args);
+            if (!string.IsNullOrEmpty(profileShareUri) &&
+                profileShareUri.EndsWith(ProfileSharingConstants.ProfileFileExtension, StringComparison.OrdinalIgnoreCase))
+            {
+                try
+                {
+                    profileShareUri = Path.GetFullPath(profileShareUri);
+                }
+                catch (Exception ex)
+                {
+                    logger.LogDebug(ex, "Failed to resolve absolute path for profile file: {Path}", profileShareUri);
+                }
+            }
+
             var subscriptionUrl = CommandLineParser.ExtractSubscriptionUrl(args);
             var profileId = CommandLineParser.ExtractProfileId(args);
 

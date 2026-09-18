@@ -7766,7 +7766,6 @@ Recovery Engine: Profile '{0}' supports checkpoint saves, replay resumption, and
   <data name="Profiles.AddLocalContent.StatusCasProgressUpdating" xml:space="preserve">
     <value>Updating {0}: {1:0}% ({2}/{3} files)</value>
   </data>
-  >>>>>>> theirs
   <data name="Downloads.ContentDetail.ModDbVerificationRequired" xml:space="preserve">
     <value>ModDB verification required</value>
   </data>
@@ -7967,6 +7966,7 @@ This will:
   </data>
   <data name="GameProfiles.Launch.WorkspaceFailedMessage" xml:space="preserve">
     <value>Workspace initialization failed for '{0}'.</value>
+  </data>
   <data name="Settings.CloudStorage.Notification.UploadRemoved.Title" xml:space="preserve">
     <value>Upload Removed</value>
   </data>
@@ -8000,6 +8000,9 @@ This will:
   <data name="Settings.CloudStorage.Notification.Copied.Message" xml:space="preserve">
     <value>Upload URL copied to clipboard.</value>
   </data>
+  <data name="Settings.CloudStorage.Notification.CopyError" xml:space="preserve">
+    <value>Failed to copy URL to clipboard.</value>
+  </data>
   <data name="GameProfiles.RemoteDownload.Dialog.Title" xml:space="preserve">
     <value>Download Remote Profile?</value>
   </data>
@@ -8022,6 +8025,9 @@ Do you want to download and inspect this profile package?</value>
   </data>
   <data name="GameProfiles.ImportInspection.Error.ImportFailed" xml:space="preserve">
     <value>Import failed: {0}</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.Error.ImportTimeout" xml:space="preserve">
+    <value>Profile import timed out. Please check your connection and try again.</value>
   </data>
   <data name="GameProfiles.ShareDialog.Notification.LoadProfileFailed.Title" xml:space="preserve">
     <value>Share Failed</value>
@@ -8107,5 +8113,8 @@ Do you want to download and inspect this profile package?</value>
   </data>
   <data name="GameProfiles.ImportInspection.Warning.SanitizedControlCharacters" xml:space="preserve">
     <value>Control characters were removed from launch arguments.</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.Warning.MissingDownloadSource" xml:space="preserve">
+    <value>Component '{0}' is not cached locally and has no download source. It cannot be acquired.</value>
   </data>
 </root>

@@ -60,14 +60,14 @@ public static class ProfileSharingConstants
     public const long MaxProfileFileBytes = 5 * 1024 * 1024;
 
     /// <summary>
-    /// Maximum allowed size for a single downloaded manifest dependency file (500 MB).
+    /// Maximum allowed size for a single downloaded manifest dependency file (2 GB).
     /// </summary>
-    public const long MaxDownloadedFileBytes = 500 * 1024 * 1024;
+    public const long MaxDownloadedFileBytes = 2048L * 1024 * 1024;
 
     /// <summary>
-    /// Maximum allowed total uncompressed size for an extracted package archive (1 GB).
+    /// Maximum allowed total uncompressed size for an extracted package archive (4 GB).
     /// </summary>
-    public const long MaxExtractedPackageBytes = 1024L * 1024 * 1024;
+    public const long MaxExtractedPackageBytes = 4096L * 1024 * 1024;
 
     /// <summary>
     /// Category name used when registering uploaded game profile packages in upload history.
@@ -143,6 +143,16 @@ public static class ProfileSharingConstants
     /// Default secondary accent hex color used in profile sharing dialogs.
     /// </summary>
     public const string DefaultShareAccentColor = "#9575CD";
+
+    /// <summary>
+    /// Default timeout for remote profile payload metadata fetches (60 seconds).
+    /// </summary>
+    public static readonly TimeSpan RemotePayloadTimeout = TimeSpan.FromSeconds(60);
+
+    /// <summary>
+    /// Default timeout for downloading large package archives or dependency files (1 hour).
+    /// </summary>
+    public static readonly TimeSpan PackageDownloadTimeout = TimeSpan.FromHours(1);
 
     /// <summary>
     /// File extensions recognized as executable or script binaries in shared profiles.

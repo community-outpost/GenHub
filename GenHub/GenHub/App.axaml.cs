@@ -516,12 +516,12 @@ public partial class App : Application
 
         var trimmed = shareUriOrPath.Trim();
         bool isValid = trimmed.StartsWith(CommandLineConstants.UriScheme, StringComparison.OrdinalIgnoreCase) ||
-                       (trimmed.EndsWith(ProfileSharingConstants.ProfileFileExtension, StringComparison.OrdinalIgnoreCase) && File.Exists(trimmed));
+                       trimmed.EndsWith(ProfileSharingConstants.ProfileFileExtension, StringComparison.OrdinalIgnoreCase);
 
         if (!isValid)
         {
             var logger = _serviceProvider.GetService<ILogger<App>>();
-            logger?.LogWarning("Rejected invalid or non-existent profile import target: {Target}", trimmed);
+            logger?.LogWarning("Rejected invalid profile import target: {Target}", trimmed);
             return;
         }
 

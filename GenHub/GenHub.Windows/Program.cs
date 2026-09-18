@@ -8,6 +8,7 @@ using GenHub.Windows.Infrastructure.SingleInstance;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using System;
+using System.IO;
 using System.Linq;
 using Velopack;
 
@@ -163,6 +164,19 @@ public class Program
     {
         string command;
         var profileShareUri = CommandLineParser.ExtractProfileShareUri(args);
+        if (!string.IsNullOrEmpty(profileShareUri) &&
+            profileShareUri.EndsWith(ProfileSharingConstants.ProfileFileExtension, StringComparison.OrdinalIgnoreCase))
+        {
+            try
+            {
+                profileShareUri = Path.GetFullPath(profileShareUri);
+            }
+            catch (Exception ex)
+            {
+                bootstrapLogger.LogDebug(ex, "Failed to resolve absolute path for profile file: {Path}", profileShareUri);
+            }
+        }
+
         if (!string.IsNullOrEmpty(profileShareUri))
         {
             bootstrapLogger.LogInformation("Forwarding import-profile command to primary instance");

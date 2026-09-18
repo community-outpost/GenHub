@@ -43,6 +43,61 @@ public partial class ShareProfileDialogViewModel(
     private Task? _generateShareLinkTask;
     private Task? _exportFileTask;
 
+    [ObservableProperty]
+    private string _profileName = profile?.Name ?? string.Empty;
+
+    [ObservableProperty]
+    private string _gameVersion = !string.IsNullOrEmpty(profile?.GameClient?.Version)
+        ? $"{profile.GameClient.GameType} {profile.GameClient.Version}"
+        : $"{profile?.Version}".Trim();
+
+    [ObservableProperty]
+    private string _themeColor = !string.IsNullOrEmpty(profile?.ThemeColor)
+        ? profile.ThemeColor
+        : ProfileSharingConstants.DefaultShareAccentColor;
+
+    [ObservableProperty]
+    private string _shareUri = initialShareUri ?? string.Empty;
+
+    [ObservableProperty]
+    private bool _isShareUriGenerated = !string.IsNullOrEmpty(initialShareUri);
+
+    [ObservableProperty]
+    private bool _isGeneratingLink;
+
+    [ObservableProperty]
+    private bool _isExportingFile;
+
+    [ObservableProperty]
+    private string _generatingStatusText = string.Empty;
+
+    [ObservableProperty]
+    private bool _hasCloudUploads = HasLocalCustomContent(profile);
+
+    [ObservableProperty]
+    private string _cloudUploadDetails = HasLocalCustomContent(profile)
+        ? (localizationService?.GetString("GameProfiles.ShareDialog.Status.CloudNotice")
+            ?? "This profile contains custom local content that must be uploaded to temporary cloud storage (14-day retention) to generate a shareable link. You can also export a standalone .ghprofile file without uploading to cloud.")
+        : string.Empty;
+
+    [ObservableProperty]
+    private string _uploadQuotaText = string.Empty;
+
+    [ObservableProperty]
+    private double _uploadQuotaPercentage;
+
+    [ObservableProperty]
+    private bool _isQuotaNearLimit;
+
+    [ObservableProperty]
+    private bool _isQuotaExceeded;
+
+    [ObservableProperty]
+    private bool _hasUploadWarnings;
+
+    [ObservableProperty]
+    private string _uploadWarningMessage = string.Empty;
+
     /// <summary>
     /// Initializes a new instance of the <see cref="ShareProfileDialogViewModel"/> class.
     /// </summary>
@@ -99,61 +154,6 @@ public partial class ShareProfileDialogViewModel(
     {
         InitializeStartupTasks();
     }
-
-    [ObservableProperty]
-    private string _profileName = profile?.Name ?? string.Empty;
-
-    [ObservableProperty]
-    private string _gameVersion = !string.IsNullOrEmpty(profile?.GameClient?.Version)
-        ? $"{profile.GameClient.GameType} {profile.GameClient.Version}"
-        : $"{profile?.Version}".Trim();
-
-    [ObservableProperty]
-    private string _themeColor = !string.IsNullOrEmpty(profile?.ThemeColor)
-        ? profile.ThemeColor
-        : ProfileSharingConstants.DefaultShareAccentColor;
-
-    [ObservableProperty]
-    private string _shareUri = initialShareUri ?? string.Empty;
-
-    [ObservableProperty]
-    private bool _isShareUriGenerated = !string.IsNullOrEmpty(initialShareUri);
-
-    [ObservableProperty]
-    private bool _isGeneratingLink;
-
-    [ObservableProperty]
-    private bool _isExportingFile;
-
-    [ObservableProperty]
-    private string _generatingStatusText = string.Empty;
-
-    [ObservableProperty]
-    private bool _hasCloudUploads = HasLocalCustomContent(profile);
-
-    [ObservableProperty]
-    private string _cloudUploadDetails = HasLocalCustomContent(profile)
-        ? (localizationService?.GetString("GameProfiles.ShareDialog.Status.CloudNotice")
-            ?? "This profile contains custom local content that must be uploaded to temporary cloud storage (14-day retention) to generate a shareable link. You can also export a standalone .ghprofile file without uploading to cloud.")
-        : string.Empty;
-
-    [ObservableProperty]
-    private string _uploadQuotaText = string.Empty;
-
-    [ObservableProperty]
-    private double _uploadQuotaPercentage;
-
-    [ObservableProperty]
-    private bool _isQuotaNearLimit;
-
-    [ObservableProperty]
-    private bool _isQuotaExceeded;
-
-    [ObservableProperty]
-    private bool _hasUploadWarnings;
-
-    [ObservableProperty]
-    private string _uploadWarningMessage = string.Empty;
 
     /// <summary>
     /// Event raised when the dialog should be closed.

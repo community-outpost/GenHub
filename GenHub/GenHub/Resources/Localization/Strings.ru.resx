@@ -7672,7 +7672,6 @@ GenHub передает официальный идентификатор AppID 
   <data name="Profiles.AddLocalContent.StatusCasProgressUpdating" xml:space="preserve">
     <value>Обновление {0}: {1:0}% ({2}/{3} файлов)</value>
   </data>
-  >>>>>>> theirs
   <data name="Downloads.ContentDetail.ModDbVerificationRequired" xml:space="preserve">
     <value>Требуется проверка ModDB</value>
   </data>
@@ -7873,6 +7872,7 @@ GenHub передает официальный идентификатор AppID 
   </data>
   <data name="GameProfiles.Launch.WorkspaceFailedMessage" xml:space="preserve">
     <value>Не удалось инициализировать рабочую область для «{0}».</value>
+  </data>
   <data name="Settings.CloudStorage.Notification.UploadRemoved.Title" xml:space="preserve">
     <value>Загрузка удалена</value>
   </data>
@@ -7906,6 +7906,9 @@ GenHub передает официальный идентификатор AppID 
   <data name="Settings.CloudStorage.Notification.Copied.Message" xml:space="preserve">
     <value>URL загрузки скопирован в буфер обмена.</value>
   </data>
+  <data name="Settings.CloudStorage.Notification.CopyError" xml:space="preserve">
+    <value>Не удалось скопировать URL в буфер обмена.</value>
+  </data>
   <data name="GameProfiles.RemoteDownload.Dialog.Title" xml:space="preserve">
     <value>Загрузить удаленный профиль?</value>
   </data>
@@ -7928,6 +7931,9 @@ GenHub передает официальный идентификатор AppID 
   </data>
   <data name="GameProfiles.ImportInspection.Error.ImportFailed" xml:space="preserve">
     <value>Сбой импорта: {0}</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.Error.ImportTimeout" xml:space="preserve">
+    <value>Время ожидания импорта профиля истекло. Проверьте сетевое подключение и повторите попытку.</value>
   </data>
   <data name="GameProfiles.ShareDialog.Notification.LoadProfileFailed.Title" xml:space="preserve">
     <value>Сбой отправки</value>
@@ -8013,5 +8019,8 @@ GenHub передает официальный идентификатор AppID 
   </data>
   <data name="GameProfiles.ImportInspection.Warning.SanitizedControlCharacters" xml:space="preserve">
     <value>Управляющие символы были удалены из аргументов запуска.</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.Warning.MissingDownloadSource" xml:space="preserve">
+    <value>Компонент «{0}» не кэширован локально и не имеет источника загрузки. Его невозможно получить.</value>
   </data>
 </root>

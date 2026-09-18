@@ -307,6 +307,11 @@ public class ProfileSharingService(
             WeakReferenceMessenger.Default.Send(new ProfileCreatedMessage(saveResult.Data));
             return OperationResult<GameProfile>.CreateSuccess(saveResult.Data);
         }
+        catch (OperationCanceledException ex) when (!cancellationToken.IsCancellationRequested)
+        {
+            logger?.LogError(ex, "Timeout occurred during shared profile import.");
+            return OperationResult<GameProfile>.CreateFailure("Profile import timed out. Please check your network connection and try again.");
+        }
         catch (OperationCanceledException)
         {
             throw;
@@ -349,7 +354,7 @@ public class ProfileSharingService(
 
         var client = new HttpClient(handler)
         {
-            Timeout = TimeSpan.FromSeconds(60),
+            Timeout = Timeout.InfiniteTimeSpan,
         };
 
         client.DefaultRequestHeaders.UserAgent.ParseAdd(ApiConstants.DefaultUserAgent);
@@ -2400,19 +2405,22 @@ public class ProfileSharingService(
 
     private async Task<OperationResult<string>> FetchRemotePayloadWithLimitAsync(Uri profileUri, CancellationToken cancellationToken)
     {
+        using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        linkedCts.CancelAfter(ProfileSharingConstants.RemotePayloadTimeout);
+
         try
         {
-            using var response = await SendWithManualRedirectsAsync(safeHttpClient, profileUri, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+            using var response = await SendWithManualRedirectsAsync(safeHttpClient, profileUri, HttpCompletionOption.ResponseHeadersRead, linkedCts.Token);
             response.EnsureSuccessStatusCode();
 
-            await using var responseStream = await response.Content.ReadAsStreamAsync(cancellationToken);
+            await using var responseStream = await response.Content.ReadAsStreamAsync(linkedCts.Token);
             using var buffered = new MemoryStream();
 
             byte[] buffer = new byte[8192];
             int bytesRead = 0;
             long totalBytes = 0;
 
-            while ((bytesRead = await responseStream.ReadAsync(buffer.AsMemory(0, buffer.Length), cancellationToken)) > 0)
+            while ((bytesRead = await responseStream.ReadAsync(buffer.AsMemory(0, buffer.Length), linkedCts.Token)) > 0)
             {
                 totalBytes += bytesRead;
                 if (totalBytes > ProfileSharingConstants.MaxDecompressedPayloadBytes)
@@ -2421,10 +2429,15 @@ public class ProfileSharingService(
                         $"Remote profile payload exceeds maximum allowed size ({ProfileSharingConstants.MaxDecompressedPayloadBytes} bytes).");
                 }
 
-                await buffered.WriteAsync(buffer.AsMemory(0, bytesRead), cancellationToken);
+                await buffered.WriteAsync(buffer.AsMemory(0, bytesRead), linkedCts.Token);
             }
 
             return OperationResult<string>.CreateSuccess(Encoding.UTF8.GetString(buffered.ToArray()));
+        }
+        catch (OperationCanceledException ex) when (!cancellationToken.IsCancellationRequested)
+        {
+            logger?.LogWarning(ex, "Timeout fetching remote profile payload from {Uri}", profileUri);
+            return OperationResult<string>.CreateFailure($"Request timed out fetching remote profile payload from {profileUri}.");
         }
         catch (HttpRequestException ex)
         {
@@ -2502,6 +2515,11 @@ public class ProfileSharingService(
             }
 
             return await SearchAndAcquireFallbackManifestAsync(dependency, progress, cancellationToken);
+        }
+        catch (OperationCanceledException ex) when (!cancellationToken.IsCancellationRequested)
+        {
+            (logger ?? NullLogger<ProfileSharingService>.Instance).LogError(ex, "Timeout acquiring missing manifest {ManifestId}", dependency.ManifestId);
+            return OperationResult<string>.CreateFailure($"Download timed out while acquiring dependency {dependency.DisplayName}.");
         }
         catch (OperationCanceledException)
         {
@@ -2634,6 +2652,11 @@ public class ProfileSharingService(
 
             return await RegisterExtractedManifestAsync(validatedManifestId, dependency, stagingDir, cancellationToken);
         }
+        catch (OperationCanceledException ex) when (!cancellationToken.IsCancellationRequested)
+        {
+            (logger ?? NullLogger<ProfileSharingService>.Instance).LogError(ex, "Timeout downloading package for {ManifestId}", dependency.ManifestId);
+            return OperationResult<bool>.CreateFailure($"Download timed out for {dependency.DisplayName}.");
+        }
         catch (OperationCanceledException)
         {
             throw;
@@ -2713,35 +2736,51 @@ public class ProfileSharingService(
             return OperationResult<bool>.CreateFailure($"Unsafe package download URL blocked: {packageUrl}");
         }
 
-        using var response = await SendWithManualRedirectsAsync(safeHttpClient, uri, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
-        if (response.StatusCode == HttpStatusCode.NotFound || response.StatusCode == HttpStatusCode.Gone)
+        using var downloadCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        downloadCts.CancelAfter(ProfileSharingConstants.PackageDownloadTimeout);
+
+        try
         {
-            return OperationResult<bool>.CreateFailure(
-                $"The cloud package for '{displayName}' has expired or is no longer available. Please request an updated share link from the author.");
-        }
-
-        response.EnsureSuccessStatusCode();
-
-        await using var responseStream = await response.Content.ReadAsStreamAsync(cancellationToken);
-        await using var fileStream = File.Create(tempZipPath);
-
-        byte[] buffer = new byte[16384];
-        int bytesRead = 0;
-        long totalDownloaded = 0;
-        long maxAllowedBytes = ProfileSharingConstants.MaxDownloadedFileBytes;
-
-        while ((bytesRead = await responseStream.ReadAsync(buffer.AsMemory(0, buffer.Length), cancellationToken)) > 0)
-        {
-            await fileStream.WriteAsync(buffer.AsMemory(0, bytesRead), cancellationToken);
-            totalDownloaded += bytesRead;
-
-            if (totalDownloaded > maxAllowedBytes)
+            using var response = await SendWithManualRedirectsAsync(safeHttpClient, uri, HttpCompletionOption.ResponseHeadersRead, downloadCts.Token);
+            if (response.StatusCode == HttpStatusCode.NotFound || response.StatusCode == HttpStatusCode.Gone)
             {
-                return OperationResult<bool>.CreateFailure($"Package download for {displayName} exceeded maximum size limit ({maxAllowedBytes} bytes).");
+                return OperationResult<bool>.CreateFailure(
+                    $"The cloud package for '{displayName}' has expired or is no longer available. Please request an updated share link from the author.");
             }
-        }
 
-        return OperationResult<bool>.CreateSuccess(true);
+            response.EnsureSuccessStatusCode();
+
+            await using var responseStream = await response.Content.ReadAsStreamAsync(downloadCts.Token);
+            await using var fileStream = File.Create(tempZipPath);
+
+            byte[] buffer = new byte[16384];
+            int bytesRead = 0;
+            long totalDownloaded = 0;
+            long maxAllowedBytes = ProfileSharingConstants.MaxDownloadedFileBytes;
+
+            while ((bytesRead = await responseStream.ReadAsync(buffer.AsMemory(0, buffer.Length), downloadCts.Token)) > 0)
+            {
+                await fileStream.WriteAsync(buffer.AsMemory(0, bytesRead), downloadCts.Token);
+                totalDownloaded += bytesRead;
+
+                if (totalDownloaded > maxAllowedBytes)
+                {
+                    return OperationResult<bool>.CreateFailure($"Package download for {displayName} exceeded maximum size limit ({maxAllowedBytes} bytes).");
+                }
+            }
+
+            return OperationResult<bool>.CreateSuccess(true);
+        }
+        catch (OperationCanceledException ex) when (!cancellationToken.IsCancellationRequested)
+        {
+            logger?.LogWarning(ex, "Download timed out for package {DisplayName} from {Url}", displayName, packageUrl);
+            return OperationResult<bool>.CreateFailure($"Download timed out for package '{displayName}'.");
+        }
+        catch (HttpRequestException ex)
+        {
+            logger?.LogWarning(ex, "Failed to download cloud package for {DisplayName} from {Url}", displayName, packageUrl);
+            return OperationResult<bool>.CreateFailure($"Failed to download cloud package: {ex.Message}");
+        }
     }
 
     private async Task<OperationResult<bool>> RegisterExtractedManifestAsync(
@@ -2980,14 +3019,17 @@ public class ProfileSharingService(
             return OperationResult<bool>.CreateFailure($"Unsafe download URL blocked: {file.DownloadUrl}");
         }
 
+        using var downloadCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        downloadCts.CancelAfter(ProfileSharingConstants.PackageDownloadTimeout);
+
         try
         {
-            using var response = await SendWithManualRedirectsAsync(safeHttpClient, fileDownloadUri, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+            using var response = await SendWithManualRedirectsAsync(safeHttpClient, fileDownloadUri, HttpCompletionOption.ResponseHeadersRead, downloadCts.Token);
             response.EnsureSuccessStatusCode();
 
             using var sha256 = SHA256.Create();
-            using var responseStream = await response.Content.ReadAsStreamAsync(cancellationToken);
-            using var fileStream = File.Create(destination);
+            await using var responseStream = await response.Content.ReadAsStreamAsync(downloadCts.Token);
+            await using var fileStream = File.Create(destination);
 
             byte[] buffer = new byte[16384];
             int bytesRead = 0;
@@ -2996,10 +3038,10 @@ public class ProfileSharingService(
                 ? Math.Min(file.Size + (1024 * 1024), ProfileSharingConstants.MaxDownloadedFileBytes)
                 : ProfileSharingConstants.MaxDownloadedFileBytes;
 
-            while ((bytesRead = await responseStream.ReadAsync(buffer.AsMemory(0, buffer.Length), cancellationToken)) > 0)
+            while ((bytesRead = await responseStream.ReadAsync(buffer.AsMemory(0, buffer.Length), downloadCts.Token)) > 0)
             {
                 sha256.TransformBlock(buffer, 0, bytesRead, null, 0);
-                await fileStream.WriteAsync(buffer.AsMemory(0, bytesRead), cancellationToken);
+                await fileStream.WriteAsync(buffer.AsMemory(0, bytesRead), downloadCts.Token);
                 totalDownloaded += bytesRead;
 
                 if (totalDownloaded > maxAllowedBytes)
@@ -3017,6 +3059,11 @@ public class ProfileSharingService(
             }
 
             return OperationResult<bool>.CreateSuccess(true);
+        }
+        catch (OperationCanceledException ex) when (!cancellationToken.IsCancellationRequested)
+        {
+            logger?.LogWarning(ex, "Download timed out for file {RelativePath} from {Url}", file.RelativePath, file.DownloadUrl);
+            return OperationResult<bool>.CreateFailure($"Download timed out for file '{file.RelativePath}'.");
         }
         catch (HttpRequestException ex)
         {
