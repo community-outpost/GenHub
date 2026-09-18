@@ -7567,4 +7567,16 @@ GenHub передает официальный идентификатор AppID 
   </data>
   <data name="Profiles.AddLocalContent.NormalizationSkipped" xml:space="preserve">
     <value>Нормализовано файлов: {0}; пропущено: {1}. Импорт завершен.</value>  </data>
+  <data name="GameProfiles.Launch.WorkspacePreparingTitle" xml:space="preserve">
+    <value>Подготовка рабочей области</value>
+  </data>
+  <data name="GameProfiles.Launch.WorkspaceInitializingMessage" xml:space="preserve">
+    <value>Инициализация рабочей области для «{0}». Первый запуск может занять некоторое время при подготовке файлов...</value>
+  </data>
+  <data name="GameProfiles.Launch.WorkspaceErrorTitle" xml:space="preserve">
+    <value>Ошибка рабочей области</value>
+  </data>
+  <data name="GameProfiles.Launch.WorkspaceFailedMessage" xml:space="preserve">
+    <value>Не удалось инициализировать рабочую область для «{0}».</value>
+  </data>
 </root>

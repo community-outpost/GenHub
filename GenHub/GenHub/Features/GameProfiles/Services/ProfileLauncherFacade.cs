@@ -18,6 +18,7 @@ using GenHub.Core.Models.GameProfile;
 using GenHub.Core.Models.GameSettings;
 using GenHub.Core.Models.Launching;
 using GenHub.Core.Models.Manifest;
+using GenHub.Core.Models.Notifications;
 using GenHub.Core.Models.Providers;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Workspace;
@@ -30,6 +31,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Security.Principal;
 using System.Threading;
@@ -58,8 +60,14 @@ public class ProfileLauncherFacade(
     IGameProcessManager gameProcessManager,
     ISymlinkCapabilityProvider symlinkCapability,
     ILogger<ProfileLauncherFacade> logger,
-    IInstallationCasPoolService? installationCasPoolService = null) : IProfileLauncherFacade
+    IInstallationCasPoolService? installationCasPoolService = null,
+    ILocalizationService? localizationService = null) : IProfileLauncherFacade
 {
+    private sealed class SynchronousProgress<T>(Action<T> handler) : IProgress<T>
+    {
+        public void Report(T value) => handler(value);
+    }
+
     /// <inheritdoc/>
     public Task<ProfileOperationResult<GameLaunchInfo>> LaunchProfileAsync(
         string profileId,
@@ -798,7 +806,47 @@ public class ProfileLauncherFacade(
             // Launch the game using the profile
             logger.LogDebug("[Launch] Step 6: Delegating to GameLauncher for workspace prep and process start");
 
-            var launchResult = await gameLauncher.LaunchProfileAsync(profile, progress: null, skipUserDataCleanup: skipUserDataCleanup, additionalArguments: additionalArguments, cancellationToken: cancellationToken);
+            var workspaceNotificationHolder = new StrongBox<Guid?>(null);
+            var launchProgress = new SynchronousProgress<LaunchProgress>(p =>
+            {
+                if (p.IsInitializingWorkspace && workspaceNotificationHolder.Value == null)
+                {
+                    var title = localizationService?.GetString(ProfileConstants.WorkspacePreparingTitleKey)
+                        ?? ProfileConstants.WorkspacePreparingDefaultTitle;
+                    var body = localizationService != null
+                        ? localizationService.GetString(ProfileConstants.WorkspaceInitializingMessageKey, profile.Name)
+                        : string.Format(System.Globalization.CultureInfo.InvariantCulture, ProfileConstants.WorkspaceInitializingDefaultFormat, profile.Name);
+
+                    var message = new NotificationMessage(
+                        NotificationType.Info,
+                        title,
+                        body,
+                        autoDismissMilliseconds: null,
+                        isPersistent: true);
+                    workspaceNotificationHolder.Value = message.Id;
+                    notificationService.Show(message);
+                }
+            });
+
+            LaunchOperationResult<GameLaunchInfo> launchResult;
+            try
+            {
+                launchResult = await gameLauncher.LaunchProfileAsync(profile, progress: launchProgress, skipUserDataCleanup: skipUserDataCleanup, additionalArguments: additionalArguments, cancellationToken: cancellationToken);
+            }
+            catch (Exception)
+            {
+                if (workspaceNotificationHolder.Value.HasValue)
+                {
+                    notificationService.Dismiss(workspaceNotificationHolder.Value.Value);
+                }
+
+                throw;
+            }
+
+            if (workspaceNotificationHolder.Value.HasValue)
+            {
+                notificationService.Dismiss(workspaceNotificationHolder.Value.Value);
+            }
 
             if (launchResult.Failed)
             {

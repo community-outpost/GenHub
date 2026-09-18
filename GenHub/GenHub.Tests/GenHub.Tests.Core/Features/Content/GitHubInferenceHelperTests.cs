@@ -32,6 +32,30 @@ public class GitHubInferenceHelperTests
     }
 
     /// <summary>
+    /// GeneralsGameCode releases must be classified as GameClient explicitly (not inferred),
+    /// so that SuperHackersManifestFactory.CanHandle accepts the resolved manifest.
+    /// </summary>
+    [Fact]
+    public void InferContentType_GeneralsGameCode_ReturnsExplicitGameClient()
+    {
+        var (type, isInferred) = GitHubInferenceHelper.InferContentType("GeneralsGameCode", "weekly-2026-07-24");
+        Assert.Equal(ContentType.GameClient, type);
+        Assert.False(isInferred);
+    }
+
+    /// <summary>
+    /// When no known topic is present the topic lookup returns an inferred Addon guess;
+    /// callers must treat IsInferred == true as "run the name-based fallback".
+    /// </summary>
+    [Fact]
+    public void InferContentTypeFromTopics_UnknownTopics_ReturnsInferredAddon()
+    {
+        var (type, isInferred) = GitHubInferenceHelper.InferContentTypeFromTopics(new[] { "some-unrelated-topic" });
+        Assert.Equal(ContentType.Addon, type);
+        Assert.True(isInferred);
+    }
+
+    /// <summary>
     /// Verifies <see cref="GitHubInferenceHelper.InferTargetGame"/> returns the expected game type and marks it as inferred.
     /// </summary>
     /// <param name="repo">Repository name used for inference.</param>

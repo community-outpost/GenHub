@@ -44,6 +44,9 @@ public static class CommunityOutpostCatalogConstants
     /// <summary>Endpoint key for the patch page URL.</summary>
     public const string PatchPageUrlEndpoint = "patchPageUrl";
 
+    /// <summary>Default variant type when unspecified in variant metadata.</summary>
+    public const string DefaultVariantType = "resolution";
+
     /// <summary>Default version for content metadata.</summary>
     public const string DefaultMetadataVersion = "1.0";
 

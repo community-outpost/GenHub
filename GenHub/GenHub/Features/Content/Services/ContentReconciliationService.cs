@@ -614,6 +614,10 @@ public class ContentReconciliationService(
                     failedProfiles.Add(profile.Name);
                 }
             }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
             catch (Exception ex)
             {
                 logger.LogError(ex, "Error reconciling profile '{ProfileName}': {Message}", profile.Name, ex.Message);
@@ -709,6 +713,10 @@ public class ContentReconciliationService(
                     logger.LogWarning("Failed to update profile '{ProfileName}': {Error}", profile.Name, updateResult.FirstError);
                     failedProfiles.Add(profile.Name);
                 }
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
             }
             catch (Exception ex)
             {
