@@ -5,13 +5,14 @@
         xmlns:vm="using:GenHub.Features.Tools.ModBuilder.ViewModels"
         xmlns:models="using:GenHub.Features.Tools.ModBuilder.Models"
         xmlns:localization="clr-namespace:GenHub.Common.Markup"
-        mc:Ignorable="d" d:DesignWidth="650" d:DesignHeight="600"
+        mc:Ignorable="d" d:DesignWidth="900" d:DesignHeight="700"
         x:Class="GenHub.Features.Tools.ModBuilder.Views.ProjectItemPickerDialog"
         x:DataType="vm:ProjectItemPickerViewModel"
         Title="Select Project Files &amp; Directories"
         Icon="/Assets/Icons/generalshub-icon.png"
-        Width="650" Height="600"
-        MinWidth="500" MinHeight="450"
+        Width="920" Height="700"
+        MinWidth="750" MinHeight="550"
+        MaxWidth="1500" MaxHeight="1050"
         WindowStartupLocation="CenterOwner"
         CanResize="True"
         Background="{DynamicResource WindowBackground}">
@@ -26,42 +27,54 @@
   </Window.Resources>
 
   <Grid RowDefinitions="Auto,*,Auto,Auto" Margin="18">
-    <!-- Header -->
-    <StackPanel Grid.Row="0" Spacing="4" Margin="0,0,0,12">
-      <TextBlock Text="{localization:Localize Tools.ModBuilder.ProjectItemPicker.Header}"
-                 FontSize="17" FontWeight="Bold"
-                 Foreground="{DynamicResource TextPrimary}"/>
-      <TextBlock Text="{localization:Localize Tools.ModBuilder.ProjectItemPicker.Subtitle}"
-                 FontSize="12" Foreground="{DynamicResource TextSecondary}"/>
-    </StackPanel>
+    <!-- Header with Search -->
+    <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,12">
+      <StackPanel Grid.Column="0" Spacing="4">
+        <TextBlock Text="{localization:Localize Tools.ModBuilder.ProjectItemPicker.Header}"
+                   FontSize="17" FontWeight="Bold"
+                   Foreground="{DynamicResource TextPrimary}"/>
+        <TextBlock Text="{localization:Localize Tools.ModBuilder.ProjectItemPicker.Subtitle}"
+                   FontSize="12" Foreground="{DynamicResource TextSecondary}"/>
+      </StackPanel>
+      <TextBox Grid.Column="1" Text="{Binding SearchText, Mode=TwoWay}"
+               Watermark="Filter files &amp; folders..."
+               Width="260" VerticalAlignment="Center"/>
+    </Grid>
 
     <!-- Project Tree View -->
     <Border Grid.Row="1" Background="{DynamicResource CardBackground}"
             BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
             CornerRadius="8" Padding="6">
       <TreeView ItemsSource="{Binding Nodes}">
+        <TreeView.Styles>
+          <Style Selector="TreeViewItem" x:DataType="models:FileTreeNode">
+            <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}"/>
+          </Style>
+        </TreeView.Styles>
         <TreeView.ItemTemplate>
           <TreeDataTemplate ItemsSource="{Binding Children}" x:DataType="models:FileTreeNode">
-            <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,2">
-              <CheckBox IsChecked="{Binding IsSelected, Mode=TwoWay}"
-                        VerticalAlignment="Center" Margin="0,0,2,0"/>
+            <Grid ColumnDefinitions="Auto,Auto,*,Auto" Margin="0,2">
+              <CheckBox Grid.Column="0" IsChecked="{Binding IsSelected, Mode=TwoWay}"
+                        VerticalAlignment="Center" Margin="0,0,6,0"/>
               <!-- Icon -->
-              <Path Width="13" Height="13" Stretch="Uniform" VerticalAlignment="Center"
+              <Path Grid.Column="1" Width="14" Height="14" Stretch="Uniform" VerticalAlignment="Center" Margin="0,0,8,0"
                     Fill="{DynamicResource AccentBrush}"
                     Data="{StaticResource IconOpenFolder}"
                     IsVisible="{Binding IsDirectory}"/>
-              <Path Width="13" Height="13" Stretch="Uniform" VerticalAlignment="Center"
+              <Path Grid.Column="1" Width="14" Height="14" Stretch="Uniform" VerticalAlignment="Center" Margin="0,0,8,0"
                     Fill="{DynamicResource TextSecondary}"
                     Data="{StaticResource IconTextFile}"
                     IsVisible="{Binding !IsDirectory}"/>
               <!-- Label -->
-              <TextBlock Text="{Binding Name}" VerticalAlignment="Center"
+              <TextBlock Grid.Column="2" Text="{Binding Name}" VerticalAlignment="Center"
                          FontSize="12.5" Foreground="{DynamicResource TextPrimary}"/>
-              <!-- Relative path hint -->
-              <TextBlock Text="{Binding RelativePath}" VerticalAlignment="Center"
-                         FontSize="10.5" Foreground="{DynamicResource TextTertiary}"
-                         Margin="8,0,0,0"/>
-            </StackPanel>
+              <!-- Relative path hint badge -->
+              <Border Grid.Column="3" Background="{DynamicResource SurfaceElevatedBrush}"
+                      BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                      CornerRadius="4" Padding="6,1" Margin="12,0,4,0" VerticalAlignment="Center">
+                <TextBlock Text="{Binding RelativePath}" FontSize="10.5" Foreground="{DynamicResource TextTertiary}"/>
+              </Border>
+            </Grid>
           </TreeDataTemplate>
         </TreeView.ItemTemplate>
       </TreeView>
@@ -99,8 +112,7 @@
               BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
               Padding="16,8" CornerRadius="8" Margin="0,0,8,0" Cursor="Hand"/>
 
-      <Button Grid.Column="2" Content="{localization:Localize Tools.ModBuilder.ProjectItemPicker.ButtonAdd}" Click="OnConfirmClick"
-              IsEnabled="{Binding HasSelection}"
+      <Button Grid.Column="2" Content="{localization:Localize Tools.ModBuilder.ProjectItemPicker.ButtonApply}" Click="OnConfirmClick"
               Background="{DynamicResource AccentBrush}" Foreground="White"
               FontWeight="SemiBold"
               Padding="16,8" CornerRadius="8" Cursor="Hand"/>

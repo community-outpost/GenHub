@@ -571,46 +571,69 @@ public sealed class BuildEngineService(
             var totalFiles = item.Files.Count;
             var currentFile = 0;
 
+            var uniqueDirs = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             foreach (var file in item.Files)
             {
-                cancellationToken.ThrowIfCancellationRequested();
-                currentFile++;
+                var targetRelPath = GetTargetRelativePath(file);
+                var targetStagedFile = Path.Combine(stagingDir, targetRelPath);
+                var targetStagedDir = Path.GetDirectoryName(targetStagedFile);
+                if (!string.IsNullOrEmpty(targetStagedDir))
+                {
+                    uniqueDirs.Add(targetStagedDir);
+                }
+            }
 
+            foreach (var dir in uniqueDirs)
+            {
+                if (!Directory.Exists(dir))
+                {
+                    Directory.CreateDirectory(dir);
+                }
+            }
+
+            var parallelOptions = new ParallelOptions
+            {
+                MaxDegreeOfParallelism = Math.Clamp(Environment.ProcessorCount, 2, 8),
+                CancellationToken = cancellationToken,
+            };
+
+            await Parallel.ForEachAsync(item.Files, parallelOptions, (file, ct) =>
+            {
+                ct.ThrowIfCancellationRequested();
                 var sourceFile = file.AbsSourceFile;
                 if (!File.Exists(sourceFile))
                 {
                     logger.LogWarning("File not found for BIG bundle: {FilePath}", sourceFile);
                     Interlocked.Increment(ref _filesFailed);
                     _lastErrorMessage = $"File not found for BIG bundle: {sourceFile}";
-                    continue;
+                    return ValueTask.CompletedTask;
                 }
 
                 var targetRelPath = GetTargetRelativePath(file);
                 var targetStagedFile = Path.Combine(stagingDir, targetRelPath);
-
-                var targetStagedDir = Path.GetDirectoryName(targetStagedFile);
-                if (!string.IsNullOrEmpty(targetStagedDir) && !Directory.Exists(targetStagedDir))
-                {
-                    Directory.CreateDirectory(targetStagedDir);
-                }
-
                 File.Copy(sourceFile, targetStagedFile, true);
 
-                var fileProgress = (double)currentFile / totalFiles;
-                var overallProgress = ((currentItem - 1) + fileProgress) / totalBigItems;
-
-                progress?.Report(new BuildProgress
+                var processed = Interlocked.Increment(ref currentFile);
+                if (processed % 25 == 0 || processed == totalFiles)
                 {
-                    CurrentStage = BuildStage.Archiving,
-                    CurrentFile = Path.GetFileName(sourceFile),
-                    CurrentIndex = BuildIndex.BigBundleItem,
-                    CurrentStep = $"Packing {item.Name} ({currentFile}/{totalFiles}): {Path.GetFileName(sourceFile)}",
-                    ProcessedFiles = currentFile,
-                    TotalFiles = totalFiles,
-                    PercentComplete = overallProgress * 100,
-                    Percentage = overallProgress,
-                });
-            }
+                    var fileProgress = (double)processed / totalFiles;
+                    var overallProgress = ((currentItem - 1) + fileProgress) / totalBigItems;
+
+                    progress?.Report(new BuildProgress
+                    {
+                        CurrentStage = BuildStage.Archiving,
+                        CurrentFile = Path.GetFileName(sourceFile),
+                        CurrentIndex = BuildIndex.BigBundleItem,
+                        CurrentStep = $"Packing {item.Name} ({processed}/{totalFiles}): {Path.GetFileName(sourceFile)}",
+                        ProcessedFiles = processed,
+                        TotalFiles = totalFiles,
+                        PercentComplete = overallProgress * 100,
+                        Percentage = overallProgress,
+                    });
+                }
+
+                return ValueTask.CompletedTask;
+            }).ConfigureAwait(false);
 
             var archiveProgress = new Progress<double>(p =>
             {
@@ -946,9 +969,9 @@ public sealed class BuildEngineService(
 
     private void StageBigPackFiles(BundlePack pack, IReadOnlyList<BundleItem> items, string packStagingDir, string buildDir, CancellationToken cancellationToken)
     {
+        var filesToStage = new List<(BundleFile File, string ItemName)>();
         foreach (var itemName in pack.ItemNames)
         {
-            cancellationToken.ThrowIfCancellationRequested();
             var item = items.FirstOrDefault(i => string.Equals(i.Name, itemName, StringComparison.OrdinalIgnoreCase));
             if (item == null)
             {
@@ -957,10 +980,40 @@ public sealed class BuildEngineService(
 
             foreach (var file in item.Files)
             {
-                cancellationToken.ThrowIfCancellationRequested();
-                StageBigPackFile(file, packStagingDir, pack.Name, item.Name, buildDir);
+                filesToStage.Add((file, item.Name));
             }
         }
+
+        var uniqueDirs = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var (file, _) in filesToStage)
+        {
+            var targetRelPath = GetTargetRelativePath(file);
+            var (_, finalTargetRelPath) = ResolveStagedSource(file, targetRelPath, buildDir);
+            var destPath = Path.Combine(packStagingDir, finalTargetRelPath);
+            var dir = Path.GetDirectoryName(destPath);
+            if (!string.IsNullOrEmpty(dir))
+            {
+                uniqueDirs.Add(dir);
+            }
+        }
+
+        foreach (var dir in uniqueDirs)
+        {
+            if (!Directory.Exists(dir))
+            {
+                Directory.CreateDirectory(dir);
+            }
+        }
+
+        Parallel.ForEach(filesToStage, new ParallelOptions
+        {
+            MaxDegreeOfParallelism = Math.Clamp(Environment.ProcessorCount, 2, 8),
+            CancellationToken = cancellationToken,
+        }, pair =>
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            StageBigPackFile(pair.File, packStagingDir, pack.Name, pair.ItemName, buildDir);
+        });
     }
 
     private (string Path, string TargetRelPath)? ProbeConvertedOutput(

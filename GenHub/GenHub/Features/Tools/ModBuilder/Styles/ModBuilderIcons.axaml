@@ -120,7 +120,7 @@
 
   <!-- Remove Icon -->
   <StreamGeometry x:Key="IconRemove">
-    M19,13H5V11H19V13Z
+    M0,0 M24,24 M19,13H5V11H19V13Z
   </StreamGeometry>
 
   <!-- Edit Icon -->

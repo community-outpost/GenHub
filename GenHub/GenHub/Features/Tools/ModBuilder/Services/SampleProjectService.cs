@@ -32,8 +32,21 @@ public class SampleProjectService(
     CompressedImageToTgaConverter imageConverter,
     ILogger<SampleProjectService> logger,
     IStringTableConversionService? stringTableConverter = null,
-    INotificationService? notificationService = null) : ISampleProjectService
+    INotificationService? notificationService = null,
+    ILocalizationService? localizationService = null) : ISampleProjectService
 {
+    private sealed record SecondaryLanguageVariantSpec(
+        string ZipUrl,
+        string ZipPath,
+        string AssetLabel,
+        string LanguageSubDir);
+
+    private sealed record LeikezeVariantSpec(
+        string TargetGameSubDir,
+        string PackSubDir,
+        string LanguageFolder,
+        string BigFileName);
+
     private static readonly string[] SampleProjectNames =
     [
         "GeneralsGamePatch2",
@@ -65,18 +78,6 @@ public class SampleProjectService(
     private const string ArtDirectoryName = ModBuilderConstants.ArtDirectoryName;
     private const string DataDirectoryName = ModBuilderConstants.DataDirectoryName;
     private const string GenToolDirectoryName = ModBuilderConstants.GenToolDirectoryName;
-
-    private sealed record SecondaryLanguageVariantSpec(
-        string ZipUrl,
-        string ZipPath,
-        string AssetLabel,
-        string LanguageSubDir);
-
-    private sealed record LeikezeVariantSpec(
-        string TargetGameSubDir,
-        string PackSubDir,
-        string LanguageFolder,
-        string BigFileName);
 
     /// <inheritdoc />
     public bool IsSampleProject(string projectPath)
@@ -520,13 +521,17 @@ public class SampleProjectService(
             contentId,
             providerName,
             assetLabel));
-        notificationService?.ShowInfo("Download Started", $"Downloading {assetLabel} from {providerName}...");
+
+        using var downloadScope = notificationService != null
+            ? new DownloadNotificationScope(notificationService, assetLabel, localization: localizationService)
+            : null;
 
         var tempPath = $"{cachePath}.tmp_{Guid.NewGuid():N}";
         try
         {
             var downloadProgress = new Progress<DownloadProgress>(dp =>
             {
+                downloadScope?.Report(dp);
                 WeakReferenceMessenger.Default.Send(new ContentDownloadProgressMessage(
                     contentKey,
                     contentId,
@@ -548,7 +553,7 @@ public class SampleProjectService(
                 var error = downloadResult.FirstError ?? UnknownError;
                 WeakReferenceMessenger.Default.Send(new ContentDownloadCompletedMessage(
                     contentKey, contentId, providerName, assetLabel, false, error));
-                notificationService?.ShowError("Download Failed", $"Failed to download {assetLabel}: {error}");
+                downloadScope?.CompleteFailure(error);
                 return OperationResult<bool>.CreateFailure($"Failed to download {assetLabel}: {error}");
             }
 
@@ -557,7 +562,7 @@ public class SampleProjectService(
             {
                 WeakReferenceMessenger.Default.Send(new ContentDownloadCompletedMessage(
                     contentKey, contentId, providerName, assetLabel, false, validationError));
-                notificationService?.ShowError("Download Failed", validationError);
+                downloadScope?.CompleteFailure(validationError);
                 return OperationResult<bool>.CreateFailure(validationError);
             }
 
@@ -565,19 +570,20 @@ public class SampleProjectService(
 
             WeakReferenceMessenger.Default.Send(new ContentDownloadCompletedMessage(
                 contentKey, contentId, providerName, assetLabel, true));
-            notificationService?.ShowSuccess("Download Complete", $"Downloaded {assetLabel}");
+            downloadScope?.CompleteSuccess();
         }
         catch (OperationCanceledException)
         {
+            downloadScope?.CompleteCanceled();
             WeakReferenceMessenger.Default.Send(new ContentDownloadCompletedMessage(
                 contentKey, contentId, providerName, assetLabel, false, "Cancelled"));
             throw;
         }
         catch (Exception ex)
         {
+            downloadScope?.CompleteFailure(ex.Message);
             WeakReferenceMessenger.Default.Send(new ContentDownloadCompletedMessage(
                 contentKey, contentId, providerName, assetLabel, false, ex.Message));
-            notificationService?.ShowError("Download Failed", $"Failed to download {assetLabel}: {ex.Message}");
             throw;
         }
         finally

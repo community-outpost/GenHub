@@ -7448,6 +7448,9 @@ GenHub передает официальный идентификатор AppID 
   <data name="Tools.ModBuilder.ProjectItemPicker.ButtonAdd" xml:space="preserve">
     <value>Добавить в элемент пакета</value>
   </data>
+  <data name="Tools.ModBuilder.ProjectItemPicker.ButtonApply" xml:space="preserve">
+    <value>Применить выбор</value>
+  </data>
   <data name="Tools.ModBuilder.ConfigEditor.TooltipClearPatterns" xml:space="preserve">
     <value>Очистить все шаблоны источников</value>
   </data>

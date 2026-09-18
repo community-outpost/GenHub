@@ -2,6 +2,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using Microsoft.Extensions.FileSystemGlobbing;
 using Microsoft.Extensions.FileSystemGlobbing.Abstractions;
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
@@ -114,6 +115,32 @@ public partial class BundleItemEditorViewModel : ObservableObject
         }
 
         SyncListFromText(value);
+    }
+
+    /// <summary>
+    /// Replaces the configured patterns with a new collection of patterns.
+    /// </summary>
+    /// <param name="patterns">The replacement patterns.</param>
+    /// <param name="projectDir">Optional project directory to recalculate matches.</param>
+    public void SetPatterns(IEnumerable<string> patterns, string? projectDir = null)
+    {
+        SourcePatternsList.Clear();
+        foreach (var pattern in patterns)
+        {
+            if (string.IsNullOrWhiteSpace(pattern))
+            {
+                continue;
+            }
+
+            var normalized = pattern.Trim().Replace("\\", "/");
+            if (!SourcePatternsList.Any(p => p.Pattern.Equals(normalized, StringComparison.OrdinalIgnoreCase)))
+            {
+                SourcePatternsList.Add(new SourcePathItemViewModel(normalized));
+            }
+        }
+
+        SyncTextFromList();
+        RecalculateMatches(projectDir);
     }
 
     /// <summary>

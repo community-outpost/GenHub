@@ -7448,6 +7448,9 @@ GenHub هو مشغل ومدير حديث لألعاب **Command &amp; Conquer: G
   <data name="Tools.ModBuilder.ProjectItemPicker.ButtonAdd" xml:space="preserve">
     <value>إضافة إلى عنصر الحزمة</value>
   </data>
+  <data name="Tools.ModBuilder.ProjectItemPicker.ButtonApply" xml:space="preserve">
+    <value>تطبيق التحديد</value>
+  </data>
   <data name="Tools.ModBuilder.ConfigEditor.TooltipClearPatterns" xml:space="preserve">
     <value>مسح جميع أنماط المصدر</value>
   </data>

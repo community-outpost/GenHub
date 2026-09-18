@@ -409,19 +409,16 @@ public partial class ConfigEditorViewModel(
             return;
         }
 
-        var pickerVm = new ProjectItemPickerViewModel(CurrentProject.ProjectDir);
+        var existingPatterns = SelectedBundleItem.SourcePatternsList.Select(p => p.Pattern).ToList();
+        var pickerVm = new ProjectItemPickerViewModel(CurrentProject.ProjectDir, existingPatterns);
         var dialog = new Views.ProjectItemPickerDialog(pickerVm);
         var parentWindow = owner ?? GetActiveWindow();
 
         var confirmed = parentWindow != null && await dialog.ShowDialog<bool>(parentWindow).ConfigureAwait(false);
 
-        if (confirmed && dialog.ResultPatterns.Count > 0)
+        if (confirmed)
         {
-            foreach (var pattern in dialog.ResultPatterns)
-            {
-                SelectedBundleItem.AddPattern(pattern, CurrentProject.ProjectDir);
-            }
-
+            SelectedBundleItem.SetPatterns(dialog.ResultPatterns, CurrentProject.ProjectDir);
             HasChanges = true;
         }
     }

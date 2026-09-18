@@ -7542,6 +7542,9 @@ GenHub supports four file linking strategies under **Settings -&gt; Game Configu
   <data name="Tools.ModBuilder.ProjectItemPicker.ButtonAdd" xml:space="preserve">
     <value>Add to Bundle Item</value>
   </data>
+  <data name="Tools.ModBuilder.ProjectItemPicker.ButtonApply" xml:space="preserve">
+    <value>Apply Selection</value>
+  </data>
   <data name="Tools.ModBuilder.ConfigEditor.TooltipClearPatterns" xml:space="preserve">
     <value>Clear all source patterns</value>
   </data>

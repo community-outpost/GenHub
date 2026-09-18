@@ -24,6 +24,12 @@ public partial class SourcePathItemViewModel : ObservableObject
     [ObservableProperty]
     private bool _isDirectoryGlob;
 
+    [ObservableProperty]
+    private string _displayFileName = string.Empty;
+
+    [ObservableProperty]
+    private string _displayDirectory = string.Empty;
+
     /// <summary>
     /// Initializes a new instance of the <see cref="SourcePathItemViewModel"/> class.
     /// </summary>
@@ -41,11 +47,47 @@ public partial class SourcePathItemViewModel : ObservableObject
         Pattern = pattern;
         MatchedFilesCount = matchedCount;
         (TypeLabel, IconKey, IsDirectoryGlob) = DetermineTypeAndIcon(pattern);
+        UpdateDisplayNames(pattern);
     }
 
     partial void OnPatternChanged(string value)
     {
         (TypeLabel, IconKey, IsDirectoryGlob) = DetermineTypeAndIcon(value);
+        UpdateDisplayNames(value);
+    }
+
+    private void UpdateDisplayNames(string pattern)
+    {
+        if (string.IsNullOrWhiteSpace(pattern))
+        {
+            DisplayFileName = string.Empty;
+            DisplayDirectory = string.Empty;
+            return;
+        }
+
+        var normalized = pattern.Replace("\\", "/").Trim();
+        if (IsFolderAllFilesGlob(normalized))
+        {
+            var cleanPath = normalized.Replace("/**/*.*", string.Empty)
+                                      .Replace("/**", string.Empty)
+                                      .Replace("/*.*", string.Empty);
+            DisplayFileName = Path.GetFileName(cleanPath) + "/*";
+            DisplayDirectory = Path.GetDirectoryName(cleanPath)?.Replace("\\", "/") ?? string.Empty;
+        }
+        else
+        {
+            var lastSlash = normalized.LastIndexOf('/');
+            if (lastSlash >= 0)
+            {
+                DisplayFileName = normalized[(lastSlash + 1)..];
+                DisplayDirectory = normalized[..lastSlash];
+            }
+            else
+            {
+                DisplayFileName = normalized;
+                DisplayDirectory = string.Empty;
+            }
+        }
     }
 
     private static bool IsFolderAllFilesGlob(string path) =>
