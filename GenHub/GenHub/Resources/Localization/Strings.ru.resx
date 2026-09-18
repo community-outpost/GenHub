@@ -8091,4 +8091,13 @@ GenHub передает официальный идентификатор AppID 
     <value>GenHub не удалось установить управляемую среду Chromium. Проверьте сетевое подключение и повторите попытку.</value>
   </data>
 
+  <data name="GameProfiles.Notification.LaunchChanged.Title" xml:space="preserve">
+    <value>Конфигурация запуска изменена</value>
+  </data>
+  <data name="GameProfiles.Notification.LaunchChanged.Message" xml:space="preserve">
+    <value>Этот запуск отличается от последнего записанного запуска:</value>
+  </data>
+  <data name="GameProfiles.Notification.LaunchChanged.More" xml:space="preserve">
+    <value>...и ещё {0}; полные сведения см. в журнале.</value>
+  </data>
 </root>

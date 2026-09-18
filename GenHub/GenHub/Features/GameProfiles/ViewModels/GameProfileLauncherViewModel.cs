@@ -71,6 +71,8 @@ public partial class GameProfileLauncherViewModel(
     IRecipient<ProfileStoppedMessage>,
     IRecipient<ProfileDeletedMessage>
 {
+    private const int MaxReceiptDriftNoticeLines = 5;
+
     private readonly SemaphoreSlim _launchSemaphore = new(1, 1);
     private readonly SemaphoreSlim _importDialogSemaphore = new(1, 1);
     private readonly SemaphoreSlim _shareDialogSemaphore = new(1, 1);
@@ -611,14 +613,15 @@ public partial class GameProfileLauncherViewModel(
     /// in the logs.
     /// </summary>
     /// <param name="driftWarnings">The drifted fields from the launch result.</param>
+    /// <param name="localization">The localization service.</param>
     /// <returns>The notice text.</returns>
-    private static string BuildReceiptDriftNotice(IReadOnlyList<string> driftWarnings)
+    private static string BuildReceiptDriftNotice(IReadOnlyList<string> driftWarnings, ILocalizationService localization)
     {
-        var lines = new List<string> { "Launch configuration changed since the last run:" };
+        var lines = new List<string> { localization["GameProfiles.Notification.LaunchChanged.Message"] };
         lines.AddRange(driftWarnings.Take(MaxReceiptDriftNoticeLines));
         if (driftWarnings.Count > MaxReceiptDriftNoticeLines)
         {
-            lines.Add($"...and {driftWarnings.Count - MaxReceiptDriftNoticeLines} more; see the logs for full detail.");
+            lines.Add(localization.GetString("GameProfiles.Notification.LaunchChanged.More", driftWarnings.Count - MaxReceiptDriftNoticeLines));
         }
 
         return string.Join(Environment.NewLine, lines);
@@ -1416,6 +1419,16 @@ public partial class GameProfileLauncherViewModel(
 
             StatusMessage = localizationService.GetString("GameProfiles.Status.ProfileLaunchedSuccess", liveProfile.Name, launchResult.Data.ProcessInfo.ProcessId);
             notificationService.ShowSuccess(localizationService["GameProfiles.Notification.GameLaunched.Title"], localizationService.GetString("GameProfiles.Notification.GameLaunched.Message", liveProfile.Name));
+
+            // Advisory by design: receipt drift never blocks or fails a launch, so it is
+            // surfaced as information beside the success, never through the error channel.
+            if (launchResult.Data.ReceiptDriftWarnings.Count > 0)
+            {
+                notificationService.ShowInfo(
+                    localizationService["GameProfiles.Notification.LaunchChanged.Title"],
+                    BuildReceiptDriftNotice(launchResult.Data.ReceiptDriftWarnings, localizationService),
+                    NotificationDurations.VeryLong);
+            }
         }
         else
         {
