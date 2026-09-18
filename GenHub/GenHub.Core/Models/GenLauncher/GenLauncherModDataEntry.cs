@@ -8,6 +8,9 @@ namespace GenHub.Core.Models.GenLauncher;
 /// </summary>
 public class GenLauncherModDataEntry
 {
+    private List<string> _modPatches = [];
+    private List<string> _modAddons = [];
+
     /// <summary>Gets or sets the mod name.</summary>
     [YamlMember(Alias = "ModName")]
     public string ModName { get; set; } = string.Empty;
@@ -15,9 +18,6 @@ public class GenLauncherModDataEntry
     /// <summary>Gets or sets the URL to the mod's version manifest YAML.</summary>
     [YamlMember(Alias = "ModLink")]
     public string ModLink { get; set; } = string.Empty;
-
-    private List<string> _modPatches = [];
-    private List<string> _modAddons = [];
 
     /// <summary>Gets or sets the list of patch manifest URLs.</summary>
     [YamlMember(Alias = "ModPatches")]

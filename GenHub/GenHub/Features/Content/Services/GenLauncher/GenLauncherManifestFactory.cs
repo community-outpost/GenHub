@@ -90,7 +90,7 @@ public class GenLauncherManifestFactory(
             foreach (var file in filesWithEtag)
             {
                 var normalizedPath = file.RelativePath.Replace('\\', '/');
-                var etag = file.ETag ?? file.Hash!;
+                var etag = file.ETag ?? file.Hash ?? string.Empty;
                 if (!expectedEtags.TryAdd(normalizedPath, etag) &&
                     !string.Equals(expectedEtags[normalizedPath], etag, StringComparison.OrdinalIgnoreCase))
                 {
@@ -101,7 +101,7 @@ public class GenLauncherManifestFactory(
             var filenameEtags = filesWithEtag
                 .GroupBy(f => Path.GetFileName(f.RelativePath), StringComparer.OrdinalIgnoreCase)
                 .Where(g => g.Count() == 1)
-                .ToDictionary(g => g.Key, g => g.First().ETag ?? g.First().Hash, StringComparer.OrdinalIgnoreCase);
+                .ToDictionary(g => g.Key, g => g.First().ETag ?? g.First().Hash ?? string.Empty, StringComparer.OrdinalIgnoreCase);
 
             var allFiles = Directory.GetFiles(extractedDirectory, "*", SearchOption.AllDirectories);
             foreach (var filePath in allFiles)

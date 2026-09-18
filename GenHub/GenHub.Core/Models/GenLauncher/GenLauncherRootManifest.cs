@@ -8,6 +8,11 @@ namespace GenHub.Core.Models.GenLauncher;
 /// </summary>
 public class GenLauncherRootManifest
 {
+    private List<GenLauncherModDataEntry> _modDatas = [];
+    private List<string> _originalGamePatches = [];
+    private List<string> _originalGameAddons = [];
+    private List<string> _globalAddonsData = [];
+
     /// <summary>Gets or sets the GenLauncher launcher version.</summary>
     [YamlMember(Alias = "LauncherVersion")]
     public string LauncherVersion { get; set; } = string.Empty;
@@ -15,11 +20,6 @@ public class GenLauncherRootManifest
     /// <summary>Gets or sets the launcher download link.</summary>
     [YamlMember(Alias = "DownloadLink")]
     public string DownloadLink { get; set; } = string.Empty;
-
-    private List<GenLauncherModDataEntry> _modDatas = [];
-    private List<string> _originalGamePatches = [];
-    private List<string> _originalGameAddons = [];
-    private List<string> _globalAddonsData = [];
 
     /// <summary>Gets or sets the list of mods in this catalog.</summary>
     [YamlMember(Alias = "modDatas")]
