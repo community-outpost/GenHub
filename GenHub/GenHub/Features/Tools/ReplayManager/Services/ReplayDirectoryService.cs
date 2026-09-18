@@ -832,7 +832,7 @@ public sealed class ReplayDirectoryService(
                (p.EnabledContentIds is { } contentIds && contentIds.Any(id => id.Contains(ReplayManagerConstants.CommunityPatchHyphenatedKeyword, StringComparison.OrdinalIgnoreCase) || id.Contains(ReplayManagerConstants.CommunityPatchKeyword, StringComparison.OrdinalIgnoreCase)));
     }
 
-    private static bool IsNonRetailCommunityPatchProfile(GameProfile p)
+    internal static bool IsNonRetailCommunityPatchProfile(GameProfile p)
     {
         var client = p.GameClient;
         if (client != null)

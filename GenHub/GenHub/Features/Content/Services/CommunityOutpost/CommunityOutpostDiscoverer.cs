@@ -205,6 +205,15 @@ public partial class CommunityOutpostDiscoverer(
         return false;
     }
 
+    private static bool IsNonRetailBuild(string urlOrFilename)
+    {
+        return urlOrFilename.Contains("nonret", StringComparison.OrdinalIgnoreCase) ||
+               urlOrFilename.Contains("non-ret", StringComparison.OrdinalIgnoreCase) ||
+               urlOrFilename.Contains("nonretail", StringComparison.OrdinalIgnoreCase) ||
+               urlOrFilename.Contains("non-retail", StringComparison.OrdinalIgnoreCase) ||
+               urlOrFilename.Contains("stream", StringComparison.OrdinalIgnoreCase);
+    }
+
     private async Task FetchAndAppendCatalogResultsAsync(
         HttpClient client,
         string catalogUrl,
@@ -362,15 +371,6 @@ public partial class CommunityOutpostDiscoverer(
             query.TargetGame,
             result.ContentType,
             result.TargetGame);
-    }
-
-    private static bool IsNonRetailBuild(string urlOrFilename)
-    {
-        return urlOrFilename.Contains("nonret", StringComparison.OrdinalIgnoreCase) ||
-               urlOrFilename.Contains("non-ret", StringComparison.OrdinalIgnoreCase) ||
-               urlOrFilename.Contains("nonretail", StringComparison.OrdinalIgnoreCase) ||
-               urlOrFilename.Contains("non-retail", StringComparison.OrdinalIgnoreCase) ||
-               urlOrFilename.Contains("stream", StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary>
