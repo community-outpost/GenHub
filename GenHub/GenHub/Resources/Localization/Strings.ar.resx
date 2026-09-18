@@ -7567,4 +7567,16 @@ GenHub هو مشغل ومدير حديث لألعاب **Command &amp; Conquer: G
   </data>
   <data name="Profiles.AddLocalContent.NormalizationSkipped" xml:space="preserve">
     <value>تم ضبط {0} من الملفات؛ تم تخطي {1}. اكتمل الاستيراد.</value>  </data>
+  <data name="GameProfiles.Launch.WorkspacePreparingTitle" xml:space="preserve">
+    <value>إعداد مساحة العمل</value>
+  </data>
+  <data name="GameProfiles.Launch.WorkspaceInitializingMessage" xml:space="preserve">
+    <value>جارٍ تهيئة مساحة العمل لـ '{0}'. قد يستغرق التشغيل الأول لحظات أثناء إعداد الملفات...</value>
+  </data>
+  <data name="GameProfiles.Launch.WorkspaceErrorTitle" xml:space="preserve">
+    <value>خطأ في مساحة العمل</value>
+  </data>
+  <data name="GameProfiles.Launch.WorkspaceFailedMessage" xml:space="preserve">
+    <value>فشلت تهيئة مساحة العمل لـ '{0}'.</value>
+  </data>
 </root>
