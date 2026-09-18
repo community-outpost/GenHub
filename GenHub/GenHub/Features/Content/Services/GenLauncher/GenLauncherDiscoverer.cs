@@ -219,54 +219,18 @@ public class GenLauncherDiscoverer(
         return ImageCacheService.IsSafeRemoteUrl(url, out uri);
     }
 
-    private static async Task<long?> TryCalculateHeadSizeAsync(
+    private static Task<long?> TryCalculateHeadSizeAsync(
         HttpClient client,
         string? downloadUrl,
         CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(downloadUrl))
         {
-            return null;
+            return Task.FromResult<long?>(null);
         }
 
         var directUrl = GenLauncherDownloadLinkParser.ParseDownloadLink(downloadUrl);
-        if (!IsValidHttpUrl(directUrl, out var uri))
-        {
-            return null;
-        }
-
-        try
-        {
-            using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            cts.CancelAfter(GenLauncherConstants.ProbeTimeout);
-
-            using var req = new HttpRequestMessage(HttpMethod.Head, uri);
-            using var resp = await client.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, cts.Token);
-            if (resp.IsSuccessStatusCode && resp.Content.Headers.ContentLength.HasValue && resp.Content.Headers.ContentLength.Value > 0)
-            {
-                var mediaType = resp.Content.Headers.ContentType?.MediaType;
-                if (!string.IsNullOrWhiteSpace(mediaType) &&
-                    (mediaType.StartsWith("text/", StringComparison.OrdinalIgnoreCase) ||
-                     mediaType.Equals("application/xml", StringComparison.OrdinalIgnoreCase) ||
-                     mediaType.Equals("text/xml", StringComparison.OrdinalIgnoreCase) ||
-                     mediaType.Equals("application/json", StringComparison.OrdinalIgnoreCase)))
-                {
-                    return null;
-                }
-
-                return resp.Content.Headers.ContentLength.Value;
-            }
-        }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-        {
-            throw;
-        }
-        catch (Exception)
-        {
-            // Ignore probe failures or probe timeouts
-        }
-
-        return null;
+        return RemoteFileSizeProbe.TryProbeSizeAsync(client, directUrl, GenLauncherConstants.ProbeTimeout, cancellationToken);
     }
 
     private static string BuildResultId(
