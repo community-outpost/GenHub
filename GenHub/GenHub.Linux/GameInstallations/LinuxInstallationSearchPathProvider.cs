@@ -1,3 +1,4 @@
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Models.Enums;
 using System;
@@ -23,18 +24,18 @@ public sealed class LinuxInstallationSearchPathProvider : IInstallationSearchPat
 
         if (installationType == GameInstallationType.Steam)
         {
-            paths.Add(Path.Combine(home, ".steam", "steam", "steamapps", "common"));
-            paths.Add(Path.Combine(home, ".steam", "root", "steamapps", "common"));
-            paths.Add(Path.Combine(home, ".local", "share", "Steam", "steamapps", "common"));
-            paths.Add(Path.Combine(home, ".var", "app", "com.valvesoftware.Steam", ".local", "share", "Steam", "steamapps", "common"));
-            paths.Add(Path.Combine(home, ".var", "app", "com.valvesoftware.Steam", "data", "Steam", "steamapps", "common"));
-            paths.Add(Path.Combine(home, "snap", "steam", "common", ".local", "share", "Steam", "steamapps", "common"));
+            paths.Add(Path.Combine(home, ".steam", "steam", SteamConstants.SteamAppsDirectoryName, SteamConstants.CommonDirectoryName));
+            paths.Add(Path.Combine(home, ".steam", "root", SteamConstants.SteamAppsDirectoryName, SteamConstants.CommonDirectoryName));
+            paths.Add(Path.Combine(home, ".local", "share", SteamConstants.SteamDirectoryName, SteamConstants.SteamAppsDirectoryName, SteamConstants.CommonDirectoryName));
+            paths.Add(Path.Combine(home, ".var", "app", "com.valvesoftware.Steam", ".local", "share", SteamConstants.SteamDirectoryName, SteamConstants.SteamAppsDirectoryName, SteamConstants.CommonDirectoryName));
+            paths.Add(Path.Combine(home, ".var", "app", "com.valvesoftware.Steam", "data", SteamConstants.SteamDirectoryName, SteamConstants.SteamAppsDirectoryName, SteamConstants.CommonDirectoryName));
+            paths.Add(Path.Combine(home, "snap", "steam", SteamConstants.CommonDirectoryName, ".local", "share", SteamConstants.SteamDirectoryName, SteamConstants.SteamAppsDirectoryName, SteamConstants.CommonDirectoryName));
         }
         else
         {
             paths.Add(Path.Combine(home, "Games"));
-            paths.Add(Path.Combine(home, ".wine", "drive_c", "Program Files (x86)", "EA Games"));
-            paths.Add(Path.Combine(home, ".wine", "drive_c", "Program Files", "EA Games"));
+            paths.Add(Path.Combine(home, ".wine", "drive_c", "Program Files (x86)", GameClientConstants.EaGamesParentDirectoryName));
+            paths.Add(Path.Combine(home, ".wine", "drive_c", "Program Files", GameClientConstants.EaGamesParentDirectoryName));
         }
 
         return paths.AsReadOnly();

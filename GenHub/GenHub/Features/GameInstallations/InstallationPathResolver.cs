@@ -30,6 +30,7 @@ public class InstallationPathResolver(
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(installation);
+        cancellationToken.ThrowIfCancellationRequested();
 
         // First, check if current path is valid
         var validationResult = await ValidateInstallationPathAsync(installation, cancellationToken);
@@ -54,45 +55,7 @@ public class InstallationPathResolver(
                 "Successfully resolved installation path to: {ResolvedPath}",
                 resolvedPath);
 
-            // Update installation paths
-            var updatedInstallation = new GameInstallation(
-                resolvedPath,
-                installation.InstallationType,
-                _logger as ILogger<GameInstallation>)
-            {
-                Id = installation.Id,
-                DisplayName = installation.DisplayName,
-            };
-
-            // Set game-specific paths based on original installation
-            string? generalsPath = null;
-            string? zeroHourPath = null;
-
-            if (installation.HasGenerals)
-            {
-                generalsPath = Path.Combine(resolvedPath, "Generals");
-                if (!Directory.Exists(generalsPath))
-                {
-                    generalsPath = resolvedPath;
-                }
-            }
-
-            if (installation.HasZeroHour)
-            {
-                zeroHourPath = Path.Combine(resolvedPath, "Command and Conquer Generals Zero Hour");
-                if (!Directory.Exists(zeroHourPath))
-                {
-                    zeroHourPath = Path.Combine(resolvedPath, "ZeroHour");
-                    if (!Directory.Exists(zeroHourPath))
-                    {
-                        zeroHourPath = resolvedPath;
-                    }
-                }
-            }
-
-            updatedInstallation.SetPaths(generalsPath, zeroHourPath);
-            updatedInstallation.PopulateGameClients(installation.AvailableGameClients);
-
+            var updatedInstallation = CreateResolvedInstallation(installation, resolvedPath);
             return OperationResult<GameInstallation>.CreateSuccess(updatedInstallation);
         }
 
@@ -110,6 +73,7 @@ public class InstallationPathResolver(
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(installation);
+        cancellationToken.ThrowIfCancellationRequested();
 
         if (string.IsNullOrEmpty(installation.InstallationPath))
         {
@@ -164,71 +128,56 @@ public class InstallationPathResolver(
     /// <inheritdoc/>
     public async Task<OperationResult<string>> SearchForInstallationAsync(
         GameInstallation installation,
-        string? searchRootDirectory = null,
+        string? gameDatHash = null,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(installation);
+        cancellationToken.ThrowIfCancellationRequested();
 
         _logger.LogInformation(
             "Searching for {InstallationType} installation...",
             installation.InstallationType);
 
-        var searchPaths = new List<string>();
+        var searchPaths = GetSearchPaths(installation.InstallationType);
 
-        if (!string.IsNullOrEmpty(searchRootDirectory))
-        {
-            searchPaths.Add(searchRootDirectory);
-        }
-        else
-        {
-            // Add default search paths based on installation type and platform
-            searchPaths.AddRange(GetSearchPaths(installation.InstallationType));
-        }
-
-        // Compute hash of existing game.dat if available for verification
-        string? gameDatHash = null;
-        if (!string.IsNullOrEmpty(installation.InstallationPath) &&
-            Directory.Exists(installation.InstallationPath))
-        {
-            var gameDatPath = Path.Combine(installation.InstallationPath, GameClientConstants.SteamGameDatExecutable);
-            if (gameDatPath.TryGetFileCaseInsensitive(out var resolvedGameDatPath))
-            {
-                try
-                {
-                    gameDatHash = await ComputeFileHashAsync(resolvedGameDatPath, cancellationToken);
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogDebug(ex, "Could not compute hash of game.dat at {Path}", resolvedGameDatPath);
-                }
-            }
-        }
+        // Compute hash of existing game.dat if available and not explicitly provided
+        gameDatHash ??= await TryComputeExistingGameDatHashAsync(
+            installation.InstallationPath,
+            cancellationToken);
 
         // Search each path
         foreach (var searchPath in searchPaths)
         {
-            if (cancellationToken.IsCancellationRequested)
+            cancellationToken.ThrowIfCancellationRequested();
+
+            try
             {
-                return OperationResult<string>.CreateFailure("Search cancelled");
+                if (!Directory.Exists(searchPath))
+                {
+                    continue;
+                }
+
+                _logger.LogDebug("Searching in: {SearchPath}", searchPath);
+
+                var foundPath = await SearchDirectoryForInstallationAsync(
+                    searchPath,
+                    installation,
+                    gameDatHash,
+                    cancellationToken);
+
+                if (!string.IsNullOrEmpty(foundPath))
+                {
+                    _logger.LogInformation("Found installation at: {FoundPath}", foundPath);
+                    return OperationResult<string>.CreateSuccess(foundPath);
+                }
             }
-
-            if (!Directory.Exists(searchPath))
+            catch (OperationCanceledException)
             {
-                continue;
+                throw;
             }
-
-            _logger.LogDebug("Searching in: {SearchPath}", searchPath);
-
-            var foundPath = await SearchDirectoryForInstallationAsync(
-                searchPath,
-                installation,
-                gameDatHash,
-                cancellationToken);
-
-            if (!string.IsNullOrEmpty(foundPath))
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
-                _logger.LogInformation("Found installation at: {FoundPath}", foundPath);
-                return OperationResult<string>.CreateSuccess(foundPath);
+                _logger.LogWarning(ex, "Error searching directory: {SearchPath}", searchPath);
             }
         }
 
@@ -238,6 +187,51 @@ public class InstallationPathResolver(
 
         return OperationResult<string>.CreateFailure(
             "Installation not found in common locations");
+    }
+
+    private static GameInstallation CreateResolvedInstallation(
+        GameInstallation originalInstallation,
+        string resolvedPath)
+    {
+        var updatedInstallation = new GameInstallation(
+            resolvedPath,
+            originalInstallation.InstallationType)
+        {
+            Id = originalInstallation.Id,
+            DisplayName = originalInstallation.DisplayName,
+            DetectedAt = originalInstallation.DetectedAt,
+        };
+
+        var generalsPath = originalInstallation.HasGenerals
+            ? ResolveGeneralsSubPath(resolvedPath)
+            : null;
+
+        var zeroHourPath = originalInstallation.HasZeroHour
+            ? ResolveZeroHourSubPath(resolvedPath)
+            : null;
+
+        updatedInstallation.SetPaths(generalsPath, zeroHourPath);
+        updatedInstallation.PopulateGameClients(originalInstallation.AvailableGameClients);
+
+        return updatedInstallation;
+    }
+
+    private static string ResolveGeneralsSubPath(string resolvedPath)
+    {
+        var subPath = Path.Combine(resolvedPath, GameClientConstants.GeneralsSubdirectoryName);
+        return Directory.Exists(subPath) ? subPath : resolvedPath;
+    }
+
+    private static string ResolveZeroHourSubPath(string resolvedPath)
+    {
+        var standardPath = Path.Combine(resolvedPath, GameClientConstants.ZeroHourDirectoryName);
+        if (Directory.Exists(standardPath))
+        {
+            return standardPath;
+        }
+
+        var shortPath = Path.Combine(resolvedPath, GameClientConstants.ZeroHourSubdirectoryName);
+        return Directory.Exists(shortPath) ? shortPath : resolvedPath;
     }
 
     private static async Task<string> ComputeFileHashAsync(string filePath, CancellationToken cancellationToken)
@@ -254,6 +248,36 @@ public class InstallationPathResolver(
         await using var stream = new FileStream(filePath, options);
         var hashBytes = await SHA256.HashDataAsync(stream, cancellationToken);
         return Convert.ToHexString(hashBytes).ToLowerInvariant();
+    }
+
+    private async Task<string?> TryComputeExistingGameDatHashAsync(
+        string? installationPath,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrEmpty(installationPath) || !Directory.Exists(installationPath))
+        {
+            return null;
+        }
+
+        var gameDatPath = Path.Combine(installationPath, GameClientConstants.SteamGameDatExecutable);
+        if (!gameDatPath.TryGetFileCaseInsensitive(out var resolvedGameDatPath))
+        {
+            return null;
+        }
+
+        try
+        {
+            return await ComputeFileHashAsync(resolvedGameDatPath, cancellationToken);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            _logger.LogDebug(ex, "Could not compute hash of game.dat at {Path}", resolvedGameDatPath);
+            return null;
+        }
     }
 
     private List<string> GetSearchPaths(GameInstallationType installationType)
@@ -294,10 +318,7 @@ public class InstallationPathResolver(
 
             foreach (var dir in directories)
             {
-                if (cancellationToken.IsCancellationRequested)
-                {
-                    break;
-                }
+                cancellationToken.ThrowIfCancellationRequested();
 
                 // Check if this directory contains game files
                 if (await IsValidGameInstallationAsync(dir, installation, gameDatHash, cancellationToken))
@@ -306,12 +327,16 @@ public class InstallationPathResolver(
                 }
             }
         }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
         catch (UnauthorizedAccessException)
         {
             // Skip directories we don't have access to
             _logger.LogDebug("Access denied to directory: {SearchPath}", searchPath);
         }
-        catch (Exception ex)
+        catch (IOException ex)
         {
             _logger.LogWarning(ex, "Error searching directory: {SearchPath}", searchPath);
         }
@@ -337,15 +362,13 @@ public class InstallationPathResolver(
             if (!string.IsNullOrEmpty(gameDatHash))
             {
                 var gameDatCandidate = Path.Combine(directory, GameClientConstants.SteamGameDatExecutable);
-                if (gameDatCandidate.TryGetFileCaseInsensitive(out var resolvedGameDatPath))
+                if (!gameDatCandidate.TryGetFileCaseInsensitive(out var resolvedGameDatPath))
                 {
-                    var hash = await ComputeFileHashAsync(resolvedGameDatPath, cancellationToken);
-                    if (!string.Equals(hash, gameDatHash, StringComparison.OrdinalIgnoreCase))
-                    {
-                        return false;
-                    }
+                    return false;
                 }
-                else
+
+                var hash = await ComputeFileHashAsync(resolvedGameDatPath, cancellationToken);
+                if (!string.Equals(hash, gameDatHash, StringComparison.OrdinalIgnoreCase))
                 {
                     return false;
                 }
@@ -355,7 +378,7 @@ public class InstallationPathResolver(
             if (installation.HasZeroHour)
             {
                 // Zero Hour has DbgHelp.dll or Zero Hour signature files
-                var dbgHelpDll = Path.Combine(directory, "DbgHelp.dll");
+                var dbgHelpDll = Path.Combine(directory, GameClientConstants.DbgHelpDll);
                 if (dbgHelpDll.FileExistsCaseInsensitive() ||
                     Path.Combine(directory, GameClientConstants.ZeroHourIniBig).FileExistsCaseInsensitive() ||
                     Path.Combine(directory, GameClientConstants.ZeroHourPatchBig).FileExistsCaseInsensitive())
@@ -372,7 +395,11 @@ public class InstallationPathResolver(
 
             return false;
         }
-        catch (Exception ex)
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             _logger.LogDebug(ex, "Error checking directory: {Directory}", directory);
             return false;

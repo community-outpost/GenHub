@@ -1,3 +1,4 @@
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Models.Enums;
 using System;
@@ -22,49 +23,50 @@ public sealed class WindowsInstallationSearchPathProvider : IInstallationSearchP
         switch (installationType)
         {
             case GameInstallationType.Retail:
-                if (!string.IsNullOrEmpty(programFiles))
-                {
-                    paths.Add(Path.Combine(programFiles, "EA Games"));
-                    paths.Add(Path.Combine(programFiles, "Electronic Arts"));
-                }
-
-                if (!string.IsNullOrEmpty(programFiles64))
-                {
-                    paths.Add(Path.Combine(programFiles64, "EA Games"));
-                    paths.Add(Path.Combine(programFiles64, "Electronic Arts"));
-                }
-
+                AddRetailPaths(paths, programFiles);
+                AddRetailPaths(paths, programFiles64);
                 break;
 
             case GameInstallationType.Steam:
-                if (!string.IsNullOrEmpty(programFiles))
-                {
-                    paths.Add(Path.Combine(programFiles, "Steam", "steamapps", "common"));
-                }
-
-                if (!string.IsNullOrEmpty(programFiles64))
-                {
-                    paths.Add(Path.Combine(programFiles64, "Steam", "steamapps", "common"));
-                }
-
-                paths.Add(Path.Combine("C:\\", "Program Files (x86)", "Steam", "steamapps", "common"));
-                paths.Add(Path.Combine("C:\\", "Program Files", "Steam", "steamapps", "common"));
+                AddSteamPath(paths, programFiles);
+                AddSteamPath(paths, programFiles64);
                 break;
 
             default:
-                if (!string.IsNullOrEmpty(programFiles))
-                {
-                    paths.Add(Path.Combine(programFiles, "EA Games"));
-                }
-
-                if (!string.IsNullOrEmpty(programFiles64))
-                {
-                    paths.Add(Path.Combine(programFiles64, "EA Games"));
-                }
-
+                AddDefaultPaths(paths, programFiles);
+                AddDefaultPaths(paths, programFiles64);
                 break;
         }
 
         return paths.AsReadOnly();
+    }
+
+    private static void AddRetailPaths(List<string> paths, string? basePath)
+    {
+        if (!string.IsNullOrEmpty(basePath))
+        {
+            paths.Add(Path.Combine(basePath, GameClientConstants.EaGamesParentDirectoryName));
+            paths.Add(Path.Combine(basePath, GameClientConstants.ElectronicArtsParentDirectoryName));
+        }
+    }
+
+    private static void AddSteamPath(List<string> paths, string? basePath)
+    {
+        if (!string.IsNullOrEmpty(basePath))
+        {
+            paths.Add(Path.Combine(
+                basePath,
+                SteamConstants.SteamDirectoryName,
+                SteamConstants.SteamAppsDirectoryName,
+                SteamConstants.CommonDirectoryName));
+        }
+    }
+
+    private static void AddDefaultPaths(List<string> paths, string? basePath)
+    {
+        if (!string.IsNullOrEmpty(basePath))
+        {
+            paths.Add(Path.Combine(basePath, GameClientConstants.EaGamesParentDirectoryName));
+        }
     }
 }

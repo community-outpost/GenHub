@@ -1,3 +1,4 @@
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Models.Enums;
 using System;
@@ -20,7 +21,13 @@ public sealed class MacOSInstallationSearchPathProvider : IInstallationSearchPat
         {
             if (installationType == GameInstallationType.Steam)
             {
-                paths.Add(Path.Combine(home, "Library", "Application Support", "Steam", "steamapps", "common"));
+                paths.Add(Path.Combine(
+                    home,
+                    "Library",
+                    "Application Support",
+                    SteamConstants.SteamDirectoryName,
+                    SteamConstants.SteamAppsDirectoryName,
+                    SteamConstants.CommonDirectoryName));
             }
 
             paths.Add(Path.Combine(home, "Applications"));

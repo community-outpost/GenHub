@@ -54,4 +54,13 @@ public static class SteamConstants
     /// The proxy description token used for identifying proxy launchers.
     /// </summary>
     public const string ProxyDescriptionToken = "Proxy";
+
+    /// <summary>Steam directory name.</summary>
+    public const string SteamDirectoryName = "Steam";
+
+    /// <summary>Steam apps directory name.</summary>
+    public const string SteamAppsDirectoryName = "steamapps";
+
+    /// <summary>Steam common directory name.</summary>
+    public const string CommonDirectoryName = "common";
 }

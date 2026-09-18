@@ -1,10 +1,13 @@
 using GenHub.Core.Constants;
+using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameInstallations;
 using GenHub.Features.GameInstallations;
 using Microsoft.Extensions.Logging.Abstractions;
 using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
 
@@ -146,5 +149,110 @@ public sealed class InstallationPathResolverTests : IDisposable
 
         Assert.True(result.Success);
         Assert.Same(installation, result.Data);
+    }
+
+    /// <summary>
+    /// Verifies that ResolveInstallationPathAsync preserves DetectedAt, Id, and DisplayName from the original installation.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ResolveInstallationPathAsync_WhenResolved_PreservesOriginalDetectedAtAndMetadata()
+    {
+        var targetSearchDir = Path.Combine(_tempDirectory, "SearchRoot");
+        var resolvedGameDir = Path.Combine(targetSearchDir, "DiscoveredGame");
+        Directory.CreateDirectory(resolvedGameDir);
+        File.WriteAllText(Path.Combine(resolvedGameDir, GameClientConstants.GeneralsExecutable), "dummy-exe");
+
+        var pathProvider = new TestSearchPathProvider(targetSearchDir);
+        var resolver = new InstallationPathResolver(NullLogger<InstallationPathResolver>.Instance, pathProvider);
+
+        var stalePath = Path.Combine(_tempDirectory, "StalePath");
+        var originalTimestamp = new DateTime(2023, 5, 12, 10, 30, 0, DateTimeKind.Utc);
+        var originalInstallation = new GameInstallation(stalePath, GameInstallationType.Retail)
+        {
+            Id = "test-installation-id",
+            DisplayName = "Test Custom Display Name",
+            DetectedAt = originalTimestamp,
+        };
+
+        var result = await resolver.ResolveInstallationPathAsync(originalInstallation);
+
+        Assert.True(result.Success);
+        Assert.NotNull(result.Data);
+        Assert.Equal(resolvedGameDir, result.Data.InstallationPath);
+        Assert.Equal(originalInstallation.Id, result.Data.Id);
+        Assert.Equal(originalInstallation.DisplayName, result.Data.DisplayName);
+        Assert.Equal(originalTimestamp, result.Data.DetectedAt);
+    }
+
+    /// <summary>
+    /// Verifies that ResolveInstallationPathAsync correctly maps Zero Hour and Generals subdirectories using defined constants.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ResolveInstallationPathAsync_WhenSubdirectoriesExist_ResolvesPathsWithConstants()
+    {
+        var targetSearchDir = Path.Combine(_tempDirectory, "SearchRootSub");
+        var resolvedGameDir = Path.Combine(targetSearchDir, "DiscoveredGameSub");
+        var generalsDir = Path.Combine(resolvedGameDir, GameClientConstants.GeneralsSubdirectoryName);
+        var zhDir = Path.Combine(resolvedGameDir, GameClientConstants.ZeroHourSubdirectoryName);
+        Directory.CreateDirectory(generalsDir);
+        Directory.CreateDirectory(zhDir);
+        File.WriteAllText(Path.Combine(resolvedGameDir, GameClientConstants.GeneralsExecutable), "dummy-exe");
+
+        var pathProvider = new TestSearchPathProvider(targetSearchDir);
+        var resolver = new InstallationPathResolver(NullLogger<InstallationPathResolver>.Instance, pathProvider);
+
+        var stalePath = Path.Combine(_tempDirectory, "StalePathSub");
+        var originalInstallation = new GameInstallation(stalePath, GameInstallationType.Retail);
+        originalInstallation.SetPaths(Path.Combine(stalePath, "Generals"), Path.Combine(stalePath, "ZeroHour"));
+
+        var result = await resolver.ResolveInstallationPathAsync(originalInstallation);
+
+        Assert.True(result.Success);
+        Assert.NotNull(result.Data);
+        Assert.Equal(generalsDir, result.Data.GeneralsPath);
+        Assert.Equal(zhDir, result.Data.ZeroHourPath);
+    }
+
+    /// <summary>
+    /// Verifies that SearchForInstallationAsync propagates OperationCanceledException when cancelled.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task SearchForInstallationAsync_WhenCancelled_ThrowsOperationCanceledException()
+    {
+        using var cts = new CancellationTokenSource();
+        await cts.CancelAsync();
+
+        var installation = new GameInstallation(_tempDirectory, GameInstallationType.Steam);
+
+        await Assert.ThrowsAsync<OperationCanceledException>(() =>
+            _resolver.SearchForInstallationAsync(installation, null, cts.Token));
+    }
+
+    /// <summary>
+    /// Verifies that ResolveInstallationPathAsync propagates OperationCanceledException when cancelled.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ResolveInstallationPathAsync_WhenCancelled_ThrowsOperationCanceledException()
+    {
+        using var cts = new CancellationTokenSource();
+        await cts.CancelAsync();
+
+        var nonExistentPath = Path.Combine(_tempDirectory, "nonexistent");
+        var installation = new GameInstallation(nonExistentPath, GameInstallationType.Steam);
+
+        await Assert.ThrowsAsync<OperationCanceledException>(() =>
+            _resolver.ResolveInstallationPathAsync(installation, cts.Token));
+    }
+
+    private sealed class TestSearchPathProvider(string searchPath) : IInstallationSearchPathProvider
+    {
+        public IReadOnlyList<string> GetSearchPaths(GameInstallationType installationType)
+        {
+            return [searchPath];
+        }
     }
 }

@@ -425,6 +425,9 @@ Constants related to Steam integration and the proxy launcher.
 | `ProxyLauncherName`      | `"GenHub.ProxyLauncher"`  | Product and internal name of the proxy launcher  |
 | `AppNameToken`           | `"GenHub"`                | Application name token used for identifying proxy launchers |
 | `ProxyDescriptionToken`  | `"Proxy"`                 | Proxy description token used for identifying proxy launchers |
+| `SteamDirectoryName`     | `"Steam"`                 | Steam directory name                             |
+| `SteamAppsDirectoryName` | `"steamapps"`             | Steam apps directory name                        |
+| `CommonDirectoryName`    | `"common"`                | Steam common directory name                      |
 
 ---
 
@@ -749,6 +752,13 @@ Constants related to game client detection and management.
 | `ZeroHourDirectoryNameAmpersandHyphen` | `"Command & Conquer Generals - Zero Hour"`  | Zero Hour directory name with ampersand and hyphen (Steam standard) |
 | `ZeroHourDirectoryNameColonVariant`    | `"Command & Conquer: Generals - Zero Hour"` | Zero Hour directory name with colon variant |
 | `ZeroHourDirectoryNameAbbreviated`     | `"C&C Generals Zero Hour"`                  | Zero Hour directory name abbreviated form |
+| `EaGamesParentDirectoryName`        | `"EA Games"`                               | EA Games parent directory name                 |
+| `ElectronicArtsParentDirectoryName` | `"Electronic Arts"`                        | Electronic Arts parent directory name          |
+| `GeneralsSubdirectoryName`          | `"Generals"`                               | Generals subdirectory name                     |
+| `ZeroHourSubdirectoryName`          | `"ZeroHour"`                               | Zero Hour subdirectory name                    |
+| `GeneralsRetailDirectoryName`       | `"Command & Conquer Generals"`             | Standard retail Generals directory name        |
+| `ZeroHourRetailDirectoryName`       | `"Command & Conquer Generals Zero Hour"`   | Standard retail Zero Hour directory name       |
+| `ZhGeneralsDirectory`               | `"ZH_Generals"`                            | Directory marker for Zero Hour's Generals link |
 
 ### Core Game Archives
 

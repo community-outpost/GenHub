@@ -61,6 +61,15 @@ public static class GameClientConstants
     /// <summary>EA Games parent directory name.</summary>
     public const string EaGamesParentDirectoryName = "EA Games";
 
+    /// <summary>Electronic Arts parent directory name.</summary>
+    public const string ElectronicArtsParentDirectoryName = "Electronic Arts";
+
+    /// <summary>Generals subdirectory name.</summary>
+    public const string GeneralsSubdirectoryName = "Generals";
+
+    /// <summary>Zero Hour subdirectory name.</summary>
+    public const string ZeroHourSubdirectoryName = "ZeroHour";
+
     /// <summary>Standard retail Generals directory name.</summary>
     public const string GeneralsRetailDirectoryName = "Command & Conquer Generals";
 
