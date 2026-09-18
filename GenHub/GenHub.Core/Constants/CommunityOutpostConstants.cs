@@ -185,6 +185,8 @@ public static class CommunityOutpostConstants
     /// <summary>
     /// Checks whether an identifier, filename, or display name represents a non-retail (stream) build.
     /// </summary>
+    /// <param name="name">The name, identifier, or filename to check.</param>
+    /// <returns><c>true</c> if non-retail; otherwise, <c>false</c>.</returns>
     public static bool IsNonRetailIdentifier(string? name)
     {
         if (string.IsNullOrWhiteSpace(name))
