@@ -587,7 +587,7 @@ public class GenLauncherDiscoverer(
             rootManifest.OriginalGamePatches,
             game,
             ContentType.Patch,
-            $"{game} Official Patches",
+            "Official Patches",
             semaphore,
             cancellationToken);
         items.AddRange(originalPatches);
@@ -597,7 +597,7 @@ public class GenLauncherDiscoverer(
             rootManifest.OriginalGameAddons,
             game,
             ContentType.Addon,
-            $"{game} Official Addons",
+            "Official Addons",
             semaphore,
             cancellationToken);
         items.AddRange(originalAddons);
@@ -607,7 +607,7 @@ public class GenLauncherDiscoverer(
             rootManifest.GlobalAddonsData,
             game,
             ContentType.Addon,
-            $"{game} Global Addons",
+            "Global Addons",
             semaphore,
             cancellationToken);
         items.AddRange(globalAddons);

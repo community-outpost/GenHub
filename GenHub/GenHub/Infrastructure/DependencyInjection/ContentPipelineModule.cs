@@ -348,8 +348,8 @@ public static class ContentPipelineModule
         services.AddSingleton<ICatalogParser>(sp => sp.GetRequiredService<GenLauncherCatalogParser>());
 
         // Register GenLauncher provider
-        services.AddTransient<GenLauncherProvider>();
-        services.AddTransient<IContentProvider>(sp => sp.GetRequiredService<GenLauncherProvider>());
+        services.AddSingleton<GenLauncherProvider>();
+        services.AddSingleton<IContentProvider>(sp => sp.GetRequiredService<GenLauncherProvider>());
 
         // Register GenLauncher discoverer
         services.AddSingleton<GenLauncherDiscoverer>();

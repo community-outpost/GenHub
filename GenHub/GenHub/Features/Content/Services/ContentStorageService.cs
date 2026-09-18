@@ -203,6 +203,7 @@ public class ContentStorageService : IContentStorageService
             RelativePath = original.RelativePath,
             Size = size ?? original.Size,
             Hash = hash ?? original.Hash,
+            ETag = original.ETag,
             SourceType = ContentSourceType.ContentAddressable,
             InstallTarget = original.InstallTarget,
             IsRequired = original.IsRequired,

@@ -15,6 +15,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -168,11 +169,7 @@ public class GenLauncherResolver(
             ?? discoveredItem.SelectedDownloadUrl
             ?? GetMetadata(discoveredItem.ResolverMetadata, GenLauncherConstants.SimpleDownloadLinkMetadataKey);
 
-        if (!string.IsNullOrWhiteSpace(rawDownloadLink) &&
-            (rawDownloadLink.EndsWith(".yaml", StringComparison.OrdinalIgnoreCase) ||
-             rawDownloadLink.EndsWith(".yml", StringComparison.OrdinalIgnoreCase) ||
-             rawDownloadLink.EndsWith(".txt", StringComparison.OrdinalIgnoreCase) ||
-             rawDownloadLink.EndsWith(".json", StringComparison.OrdinalIgnoreCase)))
+        if (!string.IsNullOrWhiteSpace(rawDownloadLink) && IsDescriptorUrl(rawDownloadLink))
         {
             rawDownloadLink = null;
         }
@@ -180,11 +177,7 @@ public class GenLauncherResolver(
         if (string.IsNullOrWhiteSpace(rawDownloadLink))
         {
             var sourceUrl = discoveredItem.SourceUrl;
-            if (!string.IsNullOrWhiteSpace(sourceUrl) &&
-                !sourceUrl.EndsWith(".yaml", StringComparison.OrdinalIgnoreCase) &&
-                !sourceUrl.EndsWith(".yml", StringComparison.OrdinalIgnoreCase) &&
-                !sourceUrl.EndsWith(".txt", StringComparison.OrdinalIgnoreCase) &&
-                !sourceUrl.EndsWith(".json", StringComparison.OrdinalIgnoreCase))
+            if (!string.IsNullOrWhiteSpace(sourceUrl) && !IsDescriptorUrl(sourceUrl))
             {
                 rawDownloadLink = sourceUrl;
             }
@@ -211,6 +204,41 @@ public class GenLauncherResolver(
             SourceType = ContentSourceType.RemoteDownload,
             IsRequired = true,
         });
+    }
+
+    private static bool IsDescriptorUrl(string? url)
+    {
+        if (string.IsNullOrWhiteSpace(url))
+        {
+            return false;
+        }
+
+        var path = url;
+        if (Uri.TryCreate(url, UriKind.Absolute, out var uri))
+        {
+            path = uri.LocalPath;
+        }
+
+        return path.EndsWith(".yaml", StringComparison.OrdinalIgnoreCase) ||
+               path.EndsWith(".yml", StringComparison.OrdinalIgnoreCase) ||
+               path.EndsWith(".txt", StringComparison.OrdinalIgnoreCase) ||
+               path.EndsWith(".json", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsYamlUrl(string? url)
+    {
+        if (string.IsNullOrWhiteSpace(url))
+        {
+            return false;
+        }
+
+        var path = url;
+        if (Uri.TryCreate(url, UriKind.Absolute, out var uri))
+        {
+            path = uri.LocalPath;
+        }
+
+        return GenLauncherConstants.IsYamlDescriptorPath(path);
     }
 
     private static string GetFileNameFromUrl(string url, string defaultName)
@@ -294,8 +322,7 @@ public class GenLauncherResolver(
         var yamlUrl = GetMetadata(item.ResolverMetadata, GenLauncherConstants.YamlUrlMetadataKey);
         if (string.IsNullOrWhiteSpace(yamlUrl) &&
             !string.IsNullOrWhiteSpace(item.SourceUrl) &&
-            (item.SourceUrl.EndsWith(".yaml", StringComparison.OrdinalIgnoreCase) ||
-             item.SourceUrl.EndsWith(".yml", StringComparison.OrdinalIgnoreCase)))
+            IsYamlUrl(item.SourceUrl))
         {
             yamlUrl = item.SourceUrl;
         }
@@ -307,8 +334,14 @@ public class GenLauncherResolver(
 
         try
         {
-            var yaml = await client.GetStringAsync(yamlUrl, cancellationToken);
-            return catalogParser.ParseVersionManifest(yaml);
+            using var resp = await client.GetAsync(yamlUrl, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+            if (!resp.IsSuccessStatusCode)
+            {
+                return null;
+            }
+
+            var yaml = await ReadResponseStringWithLimitAsync(resp, yamlUrl, cancellationToken);
+            return string.IsNullOrWhiteSpace(yaml) ? null : catalogParser.ParseVersionManifest(yaml);
         }
         catch (OperationCanceledException)
         {
@@ -405,7 +438,7 @@ public class GenLauncherResolver(
             return (null, true);
         }
 
-        var xml = await resp.Content.ReadAsStringAsync(cancellationToken);
+        var xml = await ReadResponseStringWithLimitAsync(resp, queryUrl, cancellationToken);
         return (xml, true);
     }
 
@@ -434,10 +467,10 @@ public class GenLauncherResolver(
         try
         {
             logger.LogInformation("Querying GenLauncher S3 bucket (anonymous) at host={Host}, bucket={Bucket}, prefix={Prefix}", query.Host, query.Bucket, query.Folder);
-            var resp = await client.GetAsync(unsignedUrl, cancellationToken);
+            using var resp = await client.GetAsync(unsignedUrl, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
             if (resp.IsSuccessStatusCode)
             {
-                s3Xml = await resp.Content.ReadAsStringAsync(cancellationToken);
+                s3Xml = await ReadResponseStringWithLimitAsync(resp, unsignedUrl, cancellationToken);
             }
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -456,6 +489,38 @@ public class GenLauncherResolver(
         }
 
         return (s3Xml, false);
+    }
+
+    private async Task<string?> ReadResponseStringWithLimitAsync(
+        HttpResponseMessage response,
+        string url,
+        CancellationToken cancellationToken)
+    {
+        var maxBytes = GenLauncherConstants.MaxCatalogResponseBodyBytes;
+        if (response.Content.Headers.ContentLength.HasValue && response.Content.Headers.ContentLength.Value > maxBytes)
+        {
+            logger.LogWarning("Response body size {Length} from {Url} exceeds limit {Max}", response.Content.Headers.ContentLength.Value, url, maxBytes);
+            return null;
+        }
+
+        using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
+        using var ms = new MemoryStream();
+        var buffer = new byte[GenLauncherConstants.DefaultBufferSize];
+        long totalBytesRead = 0;
+        int read;
+        while ((read = await stream.ReadAsync(buffer.AsMemory(0, buffer.Length), cancellationToken)) > 0)
+        {
+            totalBytesRead += read;
+            if (totalBytesRead > maxBytes)
+            {
+                logger.LogWarning("Response body from {Url} exceeded limit {Max} bytes", url, maxBytes);
+                return null;
+            }
+
+            await ms.WriteAsync(buffer.AsMemory(0, read), cancellationToken);
+        }
+
+        return Encoding.UTF8.GetString(ms.ToArray());
     }
 
     private async Task<bool> TryResolveS3StoragePayloadAsync(

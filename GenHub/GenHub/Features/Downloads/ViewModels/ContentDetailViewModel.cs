@@ -2132,14 +2132,14 @@ public partial class ContentDetailViewModel(
                      value.Name.Contains(r.Name, StringComparison.OrdinalIgnoreCase)));
             if (match != null)
             {
-                var isExactOrVersionMatch =
+                var isExactManifestOrNameMatch =
                     (!string.IsNullOrEmpty(value.ManifestId) && string.Equals(match.DownloadedManifestId, value.ManifestId, StringComparison.OrdinalIgnoreCase)) ||
                     string.Equals(match.Name, value.Name, StringComparison.OrdinalIgnoreCase);
 
                 if (value.CurrentState == ContentState.Downloaded)
                 {
                     match.IsDownloaded = true;
-                    if (isExactOrVersionMatch && !string.IsNullOrEmpty(value.ManifestId) && ManifestIdValidator.IsValid(value.ManifestId, out _))
+                    if (isExactManifestOrNameMatch && !string.IsNullOrEmpty(value.ManifestId) && ManifestIdValidator.IsValid(value.ManifestId, out _))
                     {
                         match.DownloadedManifestId = value.ManifestId;
                     }
@@ -2148,7 +2148,7 @@ public partial class ContentDetailViewModel(
                 {
                     match.IsDownloaded = true;
                     match.IsUpdateAvailable = true;
-                    if (isExactOrVersionMatch && !string.IsNullOrEmpty(value.ManifestId) && ManifestIdValidator.IsValid(value.ManifestId, out _))
+                    if (isExactManifestOrNameMatch && !string.IsNullOrEmpty(value.ManifestId) && ManifestIdValidator.IsValid(value.ManifestId, out _))
                     {
                         match.DownloadedManifestId = value.ManifestId;
                     }

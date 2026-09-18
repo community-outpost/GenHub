@@ -82,15 +82,18 @@ public class GenLauncherManifestFactory(
                 Files = [],
             };
 
-            var expectedEtags = originalManifest.Files
+            var filesWithEtag = originalManifest.Files
                 .Where(f => !string.IsNullOrWhiteSpace(f.ETag ?? f.Hash))
+                .ToList();
+
+            var expectedEtags = filesWithEtag
                 .DistinctBy(f => f.RelativePath.Replace('\\', '/'), StringComparer.OrdinalIgnoreCase)
                 .ToDictionary(f => f.RelativePath.Replace('\\', '/'), f => f.ETag ?? f.Hash, StringComparer.OrdinalIgnoreCase);
 
-            var filenameEtags = originalManifest.Files
-                .Where(f => !string.IsNullOrWhiteSpace(f.ETag ?? f.Hash))
-                .DistinctBy(f => Path.GetFileName(f.RelativePath), StringComparer.OrdinalIgnoreCase)
-                .ToDictionary(f => Path.GetFileName(f.RelativePath), f => f.ETag ?? f.Hash, StringComparer.OrdinalIgnoreCase);
+            var filenameEtags = filesWithEtag
+                .GroupBy(f => Path.GetFileName(f.RelativePath), StringComparer.OrdinalIgnoreCase)
+                .Where(g => g.Count() == 1)
+                .ToDictionary(g => g.Key, g => g.First().ETag ?? g.First().Hash, StringComparer.OrdinalIgnoreCase);
 
             var allFiles = Directory.GetFiles(extractedDirectory, "*", SearchOption.AllDirectories);
             foreach (var filePath in allFiles)
@@ -150,8 +153,13 @@ public class GenLauncherManifestFactory(
         var relativePath = Path.GetRelativePath(extractedDirectory, filePath).Replace('\\', '/');
         var fileName = Path.GetFileName(filePath);
 
-        var hasExpectedEtag = expectedEtags.TryGetValue(relativePath, out var expectedEtag) ||
-                              filenameEtags.TryGetValue(fileName, out expectedEtag);
+        string? expectedEtag = null;
+        var hasExpectedEtag = expectedEtags.TryGetValue(relativePath, out expectedEtag);
+        if (!hasExpectedEtag && filenameEtags.TryGetValue(fileName, out expectedEtag))
+        {
+            hasExpectedEtag = true;
+            logger.LogDebug("Using unique filename-level fallback ETag for extracted file {RelativePath}", relativePath);
+        }
 
         // MD5 validation for engine critical files when ETag is present
         if (hasExpectedEtag &&

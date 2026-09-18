@@ -292,10 +292,10 @@ public sealed partial class ContentStateService(
 
         if (IsGenLauncherPublisher(p1) && IsGenLauncherPublisher(p2))
         {
-            var p1HasZh = p1.Contains("zerohour", StringComparison.OrdinalIgnoreCase);
-            var p2HasZh = p2.Contains("zerohour", StringComparison.OrdinalIgnoreCase);
-            var p1HasGen = p1.Contains("generals", StringComparison.OrdinalIgnoreCase) && !p1HasZh;
-            var p2HasGen = p2.Contains("generals", StringComparison.OrdinalIgnoreCase) && !p2HasZh;
+            var p1HasZh = p1.Contains(GenLauncherConstants.ZeroHourGameToken, StringComparison.OrdinalIgnoreCase);
+            var p2HasZh = p2.Contains(GenLauncherConstants.ZeroHourGameToken, StringComparison.OrdinalIgnoreCase);
+            var p1HasGen = p1.Contains(GenLauncherConstants.GeneralsGameToken, StringComparison.OrdinalIgnoreCase) && !p1HasZh;
+            var p2HasGen = p2.Contains(GenLauncherConstants.GeneralsGameToken, StringComparison.OrdinalIgnoreCase) && !p2HasZh;
 
             if ((p1HasZh && p2HasGen) || (p1HasGen && p2HasZh))
             {
@@ -1490,6 +1490,28 @@ public sealed partial class ContentStateService(
                 {
                     return true;
                 }
+            }
+        }
+
+        // If the stored manifest does not specify release-level metadata (Name and Version are blank),
+        // fallback to matching the parent content source when the row slug matches the manifest publisher segment or parent ID.
+        if (string.IsNullOrWhiteSpace(manifest.Name) && string.IsNullOrWhiteSpace(manifest.Version))
+        {
+            if (manifest.Id.Value.Split('.') is { Length: >= 3 } idSegments)
+            {
+                var publisherOrSlugSegment = NormalizeSegment(idSegments[2]);
+                if (!string.IsNullOrEmpty(itemSlug) &&
+                    string.Equals(publisherOrSlugSegment, itemSlug, StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+            }
+
+            if (!string.IsNullOrEmpty(itemSlug) &&
+                !string.IsNullOrEmpty(manifest.OriginalContentId) &&
+                manifest.OriginalContentId.Contains(itemSlug, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
             }
         }
 
