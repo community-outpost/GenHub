@@ -1241,7 +1241,7 @@ public class DownloadsBrowserViewModelTests
         var reconcilerMock = new Mock<IPublisherReconciler>();
         reconcilerMock
             .Setup(r => r.CheckAndReconcileIfNeededAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+            .ReturnsAsync(OperationResult<PublisherReconciliationResult>.CreateSuccess(PublisherReconciliationResult.Success(GenHub.Core.Models.Enums.UpdateStrategy.ReplaceCurrent, null)));
 
         var reconcilerRegistryMock = new Mock<IPublisherReconcilerRegistry>();
         reconcilerRegistryMock
@@ -1358,7 +1358,7 @@ public class DownloadsBrowserViewModelTests
         var reconcilerMock = new Mock<IPublisherReconciler>();
         reconcilerMock
             .Setup(r => r.CheckAndReconcileIfNeededAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(OperationResult<bool>.CreateSuccess(false));
+            .ReturnsAsync(OperationResult<PublisherReconciliationResult>.CreateSuccess(PublisherReconciliationResult.None));
 
         var reconcilerRegistryMock = new Mock<IPublisherReconcilerRegistry>();
         reconcilerRegistryMock

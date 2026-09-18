@@ -42,7 +42,7 @@ public class SuperHackersProfileReconciler(
     public string PublisherType => PublisherTypeConstants.TheSuperHackers;
 
     /// <inheritdoc/>
-    public async Task<OperationResult<bool>> CheckAndReconcileIfNeededAsync(
+    public async Task<OperationResult<PublisherReconciliationResult>> CheckAndReconcileIfNeededAsync(
         string triggeringProfileId,
         CancellationToken cancellationToken = default)
     {
@@ -60,7 +60,7 @@ public class SuperHackersProfileReconciler(
                 logger.LogWarning(
                     "[SH Reconciler] Update check failed: {Error}",
                     updateResult.FirstError);
-                return OperationResult<bool>.CreateFailure(
+                return OperationResult<PublisherReconciliationResult>.CreateFailure(
                     $"Failed to check for SuperHackers updates: {updateResult.FirstError}");
             }
 
@@ -69,7 +69,7 @@ public class SuperHackersProfileReconciler(
                 logger.LogInformation(
                     "[SH Reconciler] No update available. Current version: {Version}",
                     updateResult.CurrentVersion);
-                return OperationResult<bool>.CreateSuccess(false);
+                return OperationResult<PublisherReconciliationResult>.CreateSuccess(PublisherReconciliationResult.None);
             }
 
             logger.LogInformation(
@@ -82,14 +82,14 @@ public class SuperHackersProfileReconciler(
             if (settings.IsVersionSkipped(PublisherTypeConstants.TheSuperHackers, updateResult.LatestVersion ?? string.Empty))
             {
                 logger.LogInformation("[SH Reconciler] User opted to skip version {Version}. Skipping.", updateResult.LatestVersion);
-                return OperationResult<bool>.CreateSuccess(false);
+                return OperationResult<PublisherReconciliationResult>.CreateSuccess(PublisherReconciliationResult.None);
             }
 
             // Determine strategy
             var promptResult = await PromptUserForUpdateStrategyAsync(settings, updateResult);
             if (!promptResult.ShouldProceed)
             {
-                return OperationResult<bool>.CreateSuccess(false);
+                return OperationResult<PublisherReconciliationResult>.CreateSuccess(PublisherReconciliationResult.None);
             }
 
             var strategy = promptResult.Strategy;
@@ -125,7 +125,7 @@ public class SuperHackersProfileReconciler(
                         $"Failed to download update: {acquireResult.FirstError}",
                         NotificationDurations.Critical);
 
-                    return OperationResult<bool>.CreateFailure(
+                    return OperationResult<PublisherReconciliationResult>.CreateFailure(
                         $"Failed to acquire new SuperHackers version: {acquireResult.FirstError}");
                 }
 
@@ -143,11 +143,12 @@ public class SuperHackersProfileReconciler(
                     newManifests,
                     updateResult.LatestVersion ?? "Unknown",
                     shouldDeleteOldVersions,
+                    triggeringProfileId,
                     cancellationToken);
 
                 if (!updateOutcome.Success)
                 {
-                    return OperationResult<bool>.CreateFailure(updateOutcome.FirstError ?? "Update strategy execution failed");
+                    return OperationResult<PublisherReconciliationResult>.CreateFailure(updateOutcome.FirstError ?? "Update strategy execution failed");
                 }
 
                 var profilesUpdated = updateOutcome.ProfilesUpdated;
@@ -174,7 +175,10 @@ public class SuperHackersProfileReconciler(
                     profilesUpdated,
                     strategy);
 
-                return OperationResult<bool>.CreateSuccess(true);
+                return OperationResult<PublisherReconciliationResult>.CreateSuccess(PublisherReconciliationResult.Success(
+                    strategy,
+                    updateOutcome.TargetProfileId ?? triggeringProfileId,
+                    profilesUpdated));
             }
             finally
             {
@@ -193,7 +197,7 @@ public class SuperHackersProfileReconciler(
                 "SuperHackers Update Error",
                 $"An error occurred during update: {ex.Message}",
                 NotificationDurations.Critical);
-            return OperationResult<bool>.CreateFailure($"Reconciliation failed: {ex.Message}");
+            return OperationResult<PublisherReconciliationResult>.CreateFailure($"Reconciliation failed: {ex.Message}");
         }
     }
 
@@ -391,18 +395,20 @@ public class SuperHackersProfileReconciler(
     /// <summary>
     /// Creates new profiles for the update instead of replacing existing ones.
     /// </summary>
-    private async Task<OperationResult<int>> CreateNewProfilesForUpdateAsync(
+    private async Task<OperationResult<(int CreatedCount, string? TargetProfileId)>> CreateNewProfilesForUpdateAsync(
         IReadOnlyList<ContentManifest> oldManifests,
         IReadOnlyList<ContentManifest> newManifests,
         string newVersion,
+        string? triggeringProfileId,
         CancellationToken cancellationToken)
     {
         var oldIds = oldManifests.Select(m => m.Id.Value).ToHashSet(StringComparer.OrdinalIgnoreCase);
         var manifestMapping = BuildManifestMapping(oldManifests, newManifests);
         int createdCount = 0;
+        string? targetProfileId = null;
 
         var allProfiles = await profileManager.GetAllProfilesAsync(cancellationToken);
-        if (!allProfiles.Success || allProfiles.Data == null) return OperationResult<int>.CreateSuccess(0);
+        if (!allProfiles.Success || allProfiles.Data == null) return OperationResult<(int, string?)>.CreateSuccess((0, null));
 
         foreach (var profile in allProfiles.Data)
         {
@@ -469,6 +475,13 @@ public class SuperHackersProfileReconciler(
                 if (createResult.Success)
                 {
                     createdCount++;
+                    if (!string.IsNullOrEmpty(triggeringProfileId) &&
+                        string.Equals(profile.Id, triggeringProfileId, StringComparison.OrdinalIgnoreCase) &&
+                        createResult.Data != null)
+                    {
+                        targetProfileId = createResult.Data.Id;
+                    }
+
                     logger.LogInformation("[SH Reconciler] Created new profile '{Name}' for update", cloneRequest.Name);
                 }
                 else
@@ -486,7 +499,7 @@ public class SuperHackersProfileReconciler(
             }
         }
 
-        return OperationResult<int>.CreateSuccess(createdCount);
+        return OperationResult<(int, string?)>.CreateSuccess((createdCount, targetProfileId));
     }
 
     private async Task<(bool ShouldProceed, UpdateStrategy Strategy, bool ShouldDeleteOldVersions)> PromptUserForUpdateStrategyAsync(
@@ -552,26 +565,29 @@ public class SuperHackersProfileReconciler(
         return (true, strategy, shouldDeleteOldVersions);
     }
 
-    private async Task<(bool Success, string? FirstError, int ProfilesUpdated, bool AnyFailure, bool ShouldDeleteOldVersions)> ApplyUpdateStrategyAsync(
+    private async Task<(bool Success, string? FirstError, int ProfilesUpdated, bool AnyFailure, bool ShouldDeleteOldVersions, string? TargetProfileId)> ApplyUpdateStrategyAsync(
         UpdateStrategy strategy,
         IReadOnlyList<ContentManifest> oldManifests,
         IReadOnlyList<ContentManifest> newManifests,
         string latestVersion,
         bool shouldDeleteOldVersions,
+        string? triggeringProfileId,
         CancellationToken cancellationToken)
     {
         int profilesUpdated = 0;
         bool anyFailure = false;
+        string? targetProfileId = null;
 
         if (strategy == UpdateStrategy.CreateNewProfile)
         {
             // keep old versions when creating new profiles
             shouldDeleteOldVersions = false;
 
-            var createResult = await CreateNewProfilesForUpdateAsync(oldManifests, newManifests, latestVersion, cancellationToken);
+            var createResult = await CreateNewProfilesForUpdateAsync(oldManifests, newManifests, latestVersion, triggeringProfileId, cancellationToken);
             if (createResult.Success)
             {
-                profilesUpdated = createResult.Data;
+                profilesUpdated = createResult.Data.CreatedCount;
+                targetProfileId = createResult.Data.TargetProfileId;
             }
             else
             {
@@ -579,9 +595,10 @@ public class SuperHackersProfileReconciler(
                 notificationService.ShowWarning("SuperHackers Update Partial", $"Failed to create some new profiles: {createResult.FirstError}");
             }
 
-            return (true, null, profilesUpdated, anyFailure, shouldDeleteOldVersions);
+            return (true, null, profilesUpdated, anyFailure, shouldDeleteOldVersions, targetProfileId);
         }
 
+        targetProfileId = triggeringProfileId;
         var manifestMapping = BuildManifestMapping(oldManifests, newManifests);
         var bulkUpdateResult = await reconciliationService.OrchestrateBulkUpdateAsync(
             manifestMapping,
@@ -597,11 +614,11 @@ public class SuperHackersProfileReconciler(
                 notificationService.ShowWarning("SuperHackers Update Partial", $"{bulkUpdateResult.Data.FailedProfilesCount} profiles could not be updated.", NotificationDurations.VeryLong);
             }
 
-            return (true, null, profilesUpdated, anyFailure, shouldDeleteOldVersions);
+            return (true, null, profilesUpdated, anyFailure, shouldDeleteOldVersions, targetProfileId);
         }
 
         anyFailure = true;
         notificationService.ShowWarning("SuperHackers Update Partial", $"Some profiles could not be updated: {bulkUpdateResult.FirstError}", NotificationDurations.VeryLong);
-        return (false, $"Bulk update failed: {bulkUpdateResult.FirstError}", profilesUpdated, anyFailure, shouldDeleteOldVersions);
+        return (false, $"Bulk update failed: {bulkUpdateResult.FirstError}", profilesUpdated, anyFailure, shouldDeleteOldVersions, null);
     }
 }

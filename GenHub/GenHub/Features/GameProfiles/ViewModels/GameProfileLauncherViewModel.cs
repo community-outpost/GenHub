@@ -1236,14 +1236,25 @@ public partial class GameProfileLauncherViewModel(
 
         if (launchResult.Success && launchResult.Data != null)
         {
-            // Look up the profile in the collection in case it was replaced by an update during launch
-            var liveProfile = Profiles.FirstOrDefault(p => p.ProfileId == profile.ProfileId) ?? profile;
+            var launchedProfileId = !string.IsNullOrWhiteSpace(launchResult.Data.ProfileId)
+                ? launchResult.Data.ProfileId
+                : profile.ProfileId;
+
+            // Look up the profile in the collection in case it was replaced or cloned by an update during launch
+            var liveProfile = Profiles.FirstOrDefault(p => p.ProfileId == launchedProfileId)
+                ?? Profiles.FirstOrDefault(p => p.ProfileId == profile.ProfileId)
+                ?? profile;
 
             liveProfile.IsProcessRunning = true;
             liveProfile.ProcessId = launchResult.Data.ProcessInfo.ProcessId;
 
             // Ensure notifications are sent for binding updates
             liveProfile.NotifyCanLaunchChanged();
+
+            if (liveProfile != profile && Profiles.Contains(liveProfile))
+            {
+                SelectedProfile = liveProfile;
+            }
 
             StatusMessage = localizationService.GetString("GameProfiles.Status.ProfileLaunchedSuccess", liveProfile.Name, launchResult.Data.ProcessInfo.ProcessId);
             notificationService.ShowSuccess(localizationService["GameProfiles.Notification.GameLaunched.Title"], localizationService.GetString("GameProfiles.Notification.GameLaunched.Message", liveProfile.Name));
