@@ -1,8 +1,11 @@
+using System.Diagnostics.CodeAnalysis;
+
 namespace GenHub.Core.Constants;
 
 /// <summary>
 /// Constants related to Steam integration.
 /// </summary>
+[SuppressMessage("Minor Code Smell", "S1075:URIs should not be hardcoded", Justification = "Steam client URI scheme prefix is a fixed external protocol contract.")]
 public static class SteamConstants
 {
     /// <summary>
@@ -14,6 +17,11 @@ public static class SteamConstants
     /// Steam AppID for Command &amp; Conquer: Generals - Zero Hour.
     /// </summary>
     public const string ZeroHourAppId = "2732960";
+
+    /// <summary>
+    /// The URL scheme prefix used to run a game by AppID through Steam.
+    /// </summary>
+    public const string RunGameIdUrlPrefix = "steam://rungameid/";
 
     /// <summary>
     /// The name of the tracking file used for Steam launches.

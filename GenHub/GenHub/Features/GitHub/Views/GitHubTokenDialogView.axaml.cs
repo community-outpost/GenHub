@@ -64,12 +64,7 @@ public partial class GitHubTokenDialogView : Window
 
     private void CancelButton_Click(object? sender, RoutedEventArgs e)
     {
-        if (DataContext is GitHubTokenDialogViewModel { IsValidating: true })
-        {
-            return;
-        }
-
-        Close(false);
+        CloseButton_Click(sender, e);
     }
 
     private void OnTokenPasswordChanged(object? sender, TextChangedEventArgs e)

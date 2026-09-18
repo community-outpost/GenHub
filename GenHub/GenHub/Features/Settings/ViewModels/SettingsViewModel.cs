@@ -354,8 +354,8 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             _theme = ThemeConstants.DefaultTheme.Id;
         }
 
-        if (DownloadTimeoutSeconds == 0) DownloadTimeoutSeconds = 30;
-        if (MaxConcurrentDownloads == 0) MaxConcurrentDownloads = 3;
+        if (DownloadTimeoutSeconds == 0) DownloadTimeoutSeconds = ValidationLimits.MinDownloadTimeoutSeconds;
+        if (MaxConcurrentDownloads == 0) MaxConcurrentDownloads = DownloadDefaults.MaxConcurrentDownloads;
         if (string.IsNullOrEmpty(DownloadUserAgent)) DownloadUserAgent = ApiConstants.DefaultUserAgent;
 
         // Initialize memory update timer (update every 2 seconds when visible)
@@ -1021,7 +1021,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             // Reset CAS settings
             CasRootPath = Path.Combine(_configurationProvider.GetApplicationDataPath(), DirectoryNames.CasPool);
             EnableAutomaticGc = true;
-            MaxCacheSizeGB = 50;
+            MaxCacheSizeGB = CasDefaults.DefaultMaxCacheSizeGB;
             CasMaxConcurrentOperations = CasDefaults.MaxConcurrentOperations;
             CasVerifyIntegrity = true;
             GarbageCollectionGracePeriodDays = CasDefaults.GcGracePeriodDays;

@@ -3417,16 +3417,33 @@ public partial class ContentDetailViewModel(
 
         if (updateAction != null)
         {
-            var task = updateAction(cancellationToken);
             bool success;
-            if (task is Task<bool> boolTask)
+            try
             {
-                success = await boolTask;
+                var task = updateAction(cancellationToken);
+                if (task is Task<bool> boolTask)
+                {
+                    success = await boolTask;
+                }
+                else
+                {
+                    await task;
+                    success = task.IsCompletedSuccessfully;
+                }
             }
-            else
+            catch (OperationCanceledException)
             {
-                await task;
-                success = task.IsCompletedSuccessfully;
+                return;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Failed to execute update action for {Name}", Name);
+                if (!_disposed)
+                {
+                    DownloadStatusMessage = ContentConstants.UpdateCancelledOrFailedStatusMessage;
+                }
+
+                return;
             }
 
             if (_disposed || !success)
@@ -3638,11 +3655,36 @@ public partial class ContentDetailViewModel(
         }
     }
 
+    /// <summary>
+    /// Refreshes state for all bundle components, checking for disposal and handling cancellation.
+    /// </summary>
     private async Task RefreshBundleComponentStatesAsync()
     {
-        foreach (var component in BundleComponents)
+        if (_disposed)
         {
-            await component.RefreshStateAsync(contentStateService, CancellationToken.None);
+            return;
+        }
+
+        try
+        {
+            var cancellationToken = _cts.Token;
+            foreach (var component in BundleComponents)
+            {
+                if (_disposed)
+                {
+                    return;
+                }
+
+                await component.RefreshStateAsync(contentStateService, cancellationToken);
+            }
+        }
+        catch (ObjectDisposedException)
+        {
+            return;
+        }
+        catch (OperationCanceledException)
+        {
+            return;
         }
 
         if (_disposed)
@@ -4244,6 +4286,11 @@ public partial class ContentDetailViewModel(
 
     private void QueueContentTypePersist(ContentType value, string? explicitManifestId = null)
     {
+        if (_disposed)
+        {
+            return;
+        }
+
         lock (_contentTypePersistLock)
         {
             var previousTask = _contentTypePersistTask ?? Task.CompletedTask;
@@ -4344,6 +4391,11 @@ public partial class ContentDetailViewModel(
                     "'{0}' is now classified as {1}.",
                     manifest.Name,
                     newType.GetDisplayName()));
+        }
+        catch (OperationCanceledException)
+        {
+            // Persistence cancelled, typically due to ViewModel disposal
+            return;
         }
         catch (Exception ex)
         {

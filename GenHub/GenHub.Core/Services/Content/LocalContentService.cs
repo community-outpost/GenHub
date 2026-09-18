@@ -189,11 +189,6 @@ public class LocalContentService(
                     var metadata = GenPatcherContentRegistry.GetMetadata(code);
 
                     logger.LogInformation("Detected GenPatcher content code '{Code}' (Category: {Category})", code, metadata.Category);
-
-                    if (metadata.Category == GenPatcherContentCategory.BaseGame)
-                    {
-                        logger.LogInformation("Using GameInstallation linking for legacy files in '{Code}'", code);
-                    }
                 }
             }
 
