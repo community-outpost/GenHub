@@ -48,20 +48,6 @@ public sealed partial class LinuxSingleInstanceManager : ISingleInstanceCommandR
         remove => _commandDispatcher.CommandReceived -= value;
     }
 
-    [StructLayout(LayoutKind.Sequential)]
-    private struct UCred
-    {
-        public int Pid;
-        public uint Uid;
-        public uint Gid;
-    }
-
-    [LibraryImport("libc", EntryPoint = "getsockopt", SetLastError = true)]
-    private static partial int getsockopt(SafePipeHandle sockfd, int level, int optname, out UCred optval, ref int optlen);
-
-    [LibraryImport("libc", EntryPoint = "geteuid")]
-    private static partial uint geteuid();
-
     private LinuxSingleInstanceManager(FileStream lockFile, ILogger<LinuxSingleInstanceManager> logger)
     {
         _lockFile = lockFile;
@@ -207,6 +193,12 @@ public sealed partial class LinuxSingleInstanceManager : ISingleInstanceCommandR
         return $"{CommandLineConstants.SingleInstancePipePrefix}{hash}_{CommandLineConstants.SingleInstancePipeSuffix}";
     }
 
+    [LibraryImport("libc", EntryPoint = "getsockopt", SetLastError = true)]
+    private static partial int getsockopt(SafePipeHandle sockfd, int level, int optname, out UCred optval, ref int optlen);
+
+    [LibraryImport("libc", EntryPoint = "geteuid")]
+    private static partial uint geteuid();
+
     private void StartPipeServer()
     {
         _pipeListenerTask = Task.Run(
@@ -307,5 +299,13 @@ public sealed partial class LinuxSingleInstanceManager : ISingleInstanceCommandR
             _logger.LogWarning(ex, "Failed to verify peer credentials on Linux pipe");
             return false;
         }
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct UCred
+    {
+        public int Pid;
+        public uint Uid;
+        public uint Gid;
     }
 }

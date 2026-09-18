@@ -6,6 +6,11 @@ namespace GenHub.Core.Constants;
 public static class CNCLabsConstants
 {
     /// <summary>
+    /// Host name for CNC Labs.
+    /// </summary>
+    public const string Host = "cnclabs.com";
+
+    /// <summary>
     /// CSS selector for search result containers on CNC Labs.
     /// </summary>
     public const string ResultSelector = "#search-results div.gsc-webResult.gsc-result";

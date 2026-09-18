@@ -698,7 +698,6 @@ public class GameProfileLauncherViewModelTests
         var result = GameProfileLauncherViewModel.TryExtractRemoteImportHost(uriOrPath);
         Assert.Equal(expectedHost, result);
     }
-    }
 
     private static ProfileResourceService CreateProfileResourceService()
     {

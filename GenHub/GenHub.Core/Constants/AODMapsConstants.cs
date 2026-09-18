@@ -9,6 +9,12 @@ namespace GenHub.Core.Constants;
 [SuppressMessage("Minor Code Smell", "S101:Types should be named in PascalCase", Justification = "Domain acronym")]
 public static class AODMapsConstants
 {
+    /// <summary>Gets the host name for AODMaps.</summary>
+    public const string Host = "aodmaps.com";
+
+    /// <summary>Gets the alternative host fragment for AODMaps.</summary>
+    public const string HostFragment = "aod-maps";
+
     /// <summary>Gets the publisher type identifier for AODMaps.</summary>
     public const string PublisherType = "aodmaps";
 

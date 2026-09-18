@@ -1619,19 +1619,19 @@ public class ProfileSharingService(
             return ModDBConstants.DiscovererSourceName;
         }
 
-        if (uri.Host.Contains("github.com", StringComparison.OrdinalIgnoreCase) ||
-            uri.Host.Contains("githubusercontent.com", StringComparison.OrdinalIgnoreCase))
+        if (uri.Host.Contains(GitHubConstants.GitHubHost, StringComparison.OrdinalIgnoreCase) ||
+            uri.Host.Contains(GitHubConstants.GitHubUserContentHost, StringComparison.OrdinalIgnoreCase))
         {
             return ContentSourceNames.GitHubDiscoverer;
         }
 
-        if (uri.Host.Contains("cnclabs.com", StringComparison.OrdinalIgnoreCase))
+        if (uri.Host.Contains(CNCLabsConstants.Host, StringComparison.OrdinalIgnoreCase))
         {
             return CNCLabsConstants.SourceName;
         }
 
-        if (uri.Host.Contains("aodmaps.com", StringComparison.OrdinalIgnoreCase) ||
-            uri.Host.Contains("aod-maps", StringComparison.OrdinalIgnoreCase))
+        if (uri.Host.Contains(AODMapsConstants.Host, StringComparison.OrdinalIgnoreCase) ||
+            uri.Host.Contains(AODMapsConstants.HostFragment, StringComparison.OrdinalIgnoreCase))
         {
             return AODMapsConstants.DiscovererSourceName;
         }
