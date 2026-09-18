@@ -126,4 +126,15 @@ public class ModDBConstantsTests
     {
         ModDBConstants.IsChallengePageTitle(title).Should().Be(expected);
     }
+
+    /// <summary>
+    /// Verifies that Chromium runtime constants have expected values.
+    /// </summary>
+    [Fact]
+    public void ChromiumRuntimeConstants_ShouldHaveExpectedValues()
+    {
+        ModDBConstants.ChromiumExpectedSizeMegabytes.Should().Be(240.0);
+        ModDBConstants.ChromiumExpectedSizeBytes.Should().Be(240.0 * 1024.0 * 1024.0);
+        ModDBConstants.ChromiumProgressStatusFormat.Should().Be("{0:F0} MB / ~{1:F0} MB");
+    }
 }

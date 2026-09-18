@@ -1,4 +1,6 @@
+using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Models.Common;
+using GenHub.Core.Models.Notifications;
 using GenHub.Features.Content.Services.Tools;
 using Microsoft.Extensions.Logging;
 using Microsoft.Playwright;
@@ -6,6 +8,7 @@ using Moq;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
 
@@ -124,8 +127,11 @@ public sealed class ManagedChromiumRuntimeTests : IDisposable
             },
             _ => Task.FromResult(true),
             new Mock<ILogger>().Object,
-            onInstallStarting: () => startingCalled = true,
-            onInstallCompleted: success => completedSuccess = success);
+            callbacks: new ManagedChromiumRuntimeCallbacks
+            {
+                OnInstallStarting = () => startingCalled = true,
+                OnInstallCompleted = success => completedSuccess = success,
+            });
 
         // Act
         await runtime.EnsureInstalledAsync(chromium.Object, default);
@@ -159,8 +165,11 @@ public sealed class ManagedChromiumRuntimeTests : IDisposable
             },
             _ => Task.FromResult(true),
             new Mock<ILogger>().Object,
-            onInstallStarting: () => startingCalled = true,
-            onInstallCompleted: success => completedSuccess = success);
+            callbacks: new ManagedChromiumRuntimeCallbacks
+            {
+                OnInstallStarting = () => startingCalled = true,
+                OnInstallCompleted = success => completedSuccess = success,
+            });
 
         // Act & Assert
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() => runtime.EnsureInstalledAsync(chromium.Object, cts.Token));
@@ -198,6 +207,125 @@ public sealed class ManagedChromiumRuntimeTests : IDisposable
         Assert.Contains("declined", ex.Message, StringComparison.OrdinalIgnoreCase);
         Assert.Equal(0, installerCalls);
         Assert.False(File.Exists(executablePath));
+    }
+
+    /// <summary>
+    /// Verifies that when notification service is provided, EnsureInstalledAsync creates a download
+    /// notification scope, installs successfully, and completes the scope with success notification.
+    /// </summary>
+    /// <returns>A task that represents the asynchronous test.</returns>
+    [Fact]
+    public async Task EnsureInstalledAsync_WithNotificationService_ShowsNotificationsAndCompletesSuccessAsync()
+    {
+        // Arrange
+        var executablePath = Path.Combine(_runtimeDirectory, "chromium.exe");
+        var installerCalls = 0;
+        var startCalls = 0;
+        var completedSuccess = false;
+        var chromium = new Mock<IBrowserType>(MockBehavior.Strict);
+        chromium.SetupGet(browser => browser.ExecutablePath).Returns(executablePath);
+
+        var notificationService = new Mock<INotificationService>();
+
+        var runtime = new ManagedChromiumRuntime(
+            _runtimeDirectory,
+            _ =>
+            {
+                installerCalls++;
+                Directory.CreateDirectory(_runtimeDirectory);
+                File.WriteAllText(executablePath, "browser");
+                return 0;
+            },
+            _ => Task.FromResult(true),
+            new Mock<ILogger>().Object,
+            notificationService: notificationService.Object,
+            callbacks: new ManagedChromiumRuntimeCallbacks
+            {
+                OnInstallStarting = () => startCalls++,
+                OnInstallCompleted = success => completedSuccess = success,
+            });
+
+        // Act
+        await runtime.EnsureInstalledAsync(chromium.Object, default);
+
+        // Assert
+        Assert.Equal(1, installerCalls);
+        Assert.Equal(1, startCalls);
+        Assert.True(completedSuccess);
+        notificationService.Verify(n => n.Show(It.IsAny<NotificationMessage>()), Times.AtLeastOnce);
+        notificationService.Verify(n => n.ShowSuccess(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()), Times.Once);
+    }
+
+    /// <summary>
+    /// Verifies that when installer fails, EnsureInstalledAsync completes failure on the scope,
+    /// triggers onInstallCompleted(false), and throws InvalidOperationException.
+    /// </summary>
+    /// <returns>A task that represents the asynchronous test.</returns>
+    [Fact]
+    public async Task EnsureInstalledAsync_WhenInstallerFails_CompletesFailureOnScopeAndThrowsAsync()
+    {
+        // Arrange
+        var executablePath = Path.Combine(_runtimeDirectory, "chromium.exe");
+        var completedSuccess = true;
+        var chromium = new Mock<IBrowserType>(MockBehavior.Strict);
+        chromium.SetupGet(browser => browser.ExecutablePath).Returns(executablePath);
+
+        var notificationService = new Mock<INotificationService>();
+
+        var runtime = new ManagedChromiumRuntime(
+            _runtimeDirectory,
+            _ => 1,
+            _ => Task.FromResult(true),
+            new Mock<ILogger>().Object,
+            notificationService: notificationService.Object,
+            callbacks: new ManagedChromiumRuntimeCallbacks
+            {
+                OnInstallCompleted = success => completedSuccess = success,
+            });
+
+        // Act & Assert
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => runtime.EnsureInstalledAsync(chromium.Object, default));
+
+        Assert.False(completedSuccess);
+        notificationService.Verify(n => n.ShowError(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()), Times.Once);
+    }
+
+    /// <summary>
+    /// Verifies that when installer is canceled during execution, EnsureInstalledAsync marks the scope canceled
+    /// and invokes onInstallCanceled callback.
+    /// </summary>
+    /// <returns>A task that represents the asynchronous test.</returns>
+    [Fact]
+    public async Task EnsureInstalledAsync_WhenInstallerThrowsCancellation_CompletesCanceledAndInvokesCallbackAsync()
+    {
+        // Arrange
+        var executablePath = Path.Combine(_runtimeDirectory, "chromium.exe");
+        var canceledCalled = false;
+        using var cts = new CancellationTokenSource();
+
+        var chromium = new Mock<IBrowserType>(MockBehavior.Strict);
+        chromium.SetupGet(browser => browser.ExecutablePath).Returns(executablePath);
+
+        var notificationService = new Mock<INotificationService>();
+
+        var runtime = new ManagedChromiumRuntime(
+            _runtimeDirectory,
+            _ => throw new OperationCanceledException(),
+            _ => Task.FromResult(true),
+            new Mock<ILogger>().Object,
+            notificationService: notificationService.Object,
+            callbacks: new ManagedChromiumRuntimeCallbacks
+            {
+                OnInstallCanceled = () => canceledCalled = true,
+            });
+
+        // Act & Assert
+        await Assert.ThrowsAsync<OperationCanceledException>(
+            () => runtime.EnsureInstalledAsync(chromium.Object, cts.Token));
+
+        Assert.True(canceledCalled);
+        notificationService.Verify(n => n.ShowInfo(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()), Times.Once);
     }
 
     /// <summary>
