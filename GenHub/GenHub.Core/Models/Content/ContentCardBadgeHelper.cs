@@ -240,6 +240,44 @@ public static partial class ContentCardBadgeHelper
     }
 
     /// <summary>
+    /// Filters out unusable or expired image URLs (such as Discord CDN attachment links) and returns a clean URL or null.
+    /// </summary>
+    /// <param name="rawUrl">The candidate image URL.</param>
+    /// <returns>The cleaned URL, or null if unusable.</returns>
+    public static string? CleanImageUrl(string? rawUrl)
+    {
+        if (string.IsNullOrWhiteSpace(rawUrl))
+        {
+            return null;
+        }
+
+        var trimmed = rawUrl.Trim();
+        if (trimmed.StartsWith(ContentConstants.DiscordAttachmentCdnPrefix, StringComparison.OrdinalIgnoreCase))
+        {
+            return null;
+        }
+
+        return trimmed;
+    }
+
+    /// <summary>
+    /// Resolves an icon URL by filtering out unusable URLs and falling back to a secondary URL.
+    /// </summary>
+    /// <param name="rawUrl">The primary candidate icon URL.</param>
+    /// <param name="fallbackUrl">The fallback icon URL to use if the primary URL is missing or unusable.</param>
+    /// <returns>A usable icon URL, or null if neither URL is usable.</returns>
+    public static string? ResolveIconUrl(string? rawUrl, string? fallbackUrl = null)
+    {
+        var cleaned = CleanImageUrl(rawUrl);
+        if (!string.IsNullOrEmpty(cleaned))
+        {
+            return cleaned;
+        }
+
+        return CleanImageUrl(fallbackUrl);
+    }
+
+    /// <summary>
     /// Resolves the canonical publisher logo URI for a content search result.
     /// </summary>
     /// <param name="result">The search result.</param>

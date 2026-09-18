@@ -80,7 +80,12 @@ gh api repos/:owner/:repo/commits/$HEAD_SHA/check-runs \
 ---
 
 ### Step 3: Fetch All Review Feedback & Bot Comments
-Query all comments, review threads, and summary reports posted by human maintainers and AI review bots (e.g., CodeRabbit, Kilo Code, Qodo, DeepSource).
+Query all comments, review threads, and summary reports posted by human maintainers and AI review bots (e.g., CodeRabbit, Kilo Code, Qodo / PR-Agent, DeepSource).
+
+> [!CAUTION]
+> **CRITICAL: NEVER SKIP `issues/$PR_NUMBER/comments`**
+> AI review bots (including PR-Agent / Qodo, Kilo Code, CodeRabbit summaries, and DeepSource) and external tools frequently post their reviews, compliance audits, and defect reports as top-level **issue comments** (`repos/:owner/:repo/issues/$PR_NUMBER/comments`), NOT as pull request diff review threads (`pulls/$PR_NUMBER/comments`).
+> Calling only `pulls/$PR_NUMBER/comments` is strictly prohibited and will cause you to miss bot reviews and ticket compliance reports completely. You MUST fetch and inspect BOTH endpoints in every pass.
 
 ```bash
 # 1. Fetch inline review threads

@@ -44,6 +44,10 @@ public sealed class ContentStateServiceCatalogIdentityTests
     [InlineData("github", "github", true)]
     [InlineData("github-authorA", "github-authorB", false)]
     [InlineData("github-modder", "github-team", false)]
+    [InlineData("genlauncher", "genlauncher", true)]
+    [InlineData("genlauncher-zerohour", "genlauncher", true)]
+    [InlineData("genlauncher", "genlauncher-generals", true)]
+    [InlineData("genlauncher", "communityoutpost", false)]
     public void IsCompatiblePublisherAlias_EnforcesExactAndNormalizedOnly(
         string manifestPublisher,
         string expectedPublisher,

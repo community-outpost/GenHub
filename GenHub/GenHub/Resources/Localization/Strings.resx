@@ -7695,4 +7695,20 @@ This will:
     <value>GitHub Authentication</value>
     <comment>Title for GitHub PAT dialog</comment>
   </data>
+  <data name="GenLauncher.Prefix.News" xml:space="preserve">
+    <value>News</value>
+  </data>
+  <data name="GenLauncher.Prefix.Discord" xml:space="preserve">
+    <value>Discord</value>
+  </data>
+  <data name="GenLauncher.Prefix.ModDb" xml:space="preserve">
+    <value>ModDB</value>
+  </data>
+  <data name="GenLauncher.Prefix.Support" xml:space="preserve">
+    <value>Support</value>
+  </data>
+  <data name="GenLauncher.Context.Community" xml:space="preserve">
+    <value>GenLauncher Community</value>
+    </data>
+
 </root>

@@ -327,13 +327,26 @@ public sealed class PlaywrightService(
 
                 var concurrentResults = new System.Collections.Concurrent.ConcurrentDictionary<string, IDocument>(StringComparer.Ordinal);
 
-                // Limit parallel tabs to avoid overwhelming system resources (max 5 parallel tabs)
-                using var tabSemaphore = new SemaphoreSlim(Math.Min(orderedUnique.Count, 5));
+                // For scraping targets (such as ModDB), opening multiple tabs concurrently causes each tab to
+                // independently hit Cloudflare challenges, creating simultaneous verification requests.
+                // Fetch the first URL sequentially first as a canary navigation.
+                // If a challenge is presented, the user solves it ONCE. The clearance cookies are stored in the
+                // shared persistent browser profile context, allowing subsequent parallel tabs to pass through cleanly.
+                if (orderedUnique.Count > 0)
+                {
+                    await FetchSinglePersistentDocumentAsync(profileName, orderedUnique[0], concurrentResults, null, cancellationToken);
+                }
 
-                var tasks = orderedUnique.Select(url =>
-                    FetchSinglePersistentDocumentAsync(profileName, url, concurrentResults, tabSemaphore, cancellationToken));
+                if (orderedUnique.Count > 1)
+                {
+                    // Limit parallel tabs to avoid overwhelming system resources (max 5 parallel tabs)
+                    using var tabSemaphore = new SemaphoreSlim(Math.Min(orderedUnique.Count - 1, 5));
 
-                await Task.WhenAll(tasks);
+                    var tasks = orderedUnique.Skip(1).Select(url =>
+                        FetchSinglePersistentDocumentAsync(profileName, url, concurrentResults, tabSemaphore, cancellationToken));
+
+                    await Task.WhenAll(tasks);
+                }
 
                 foreach (var url in orderedUnique)
                 {
@@ -1677,10 +1690,14 @@ public sealed class PlaywrightService(
         string profileName,
         string url,
         System.Collections.Concurrent.ConcurrentDictionary<string, IDocument> concurrentResults,
-        SemaphoreSlim tabSemaphore,
+        SemaphoreSlim? tabSemaphore,
         CancellationToken cancellationToken)
     {
-        await tabSemaphore.WaitAsync(cancellationToken);
+        if (tabSemaphore != null)
+        {
+            await tabSemaphore.WaitAsync(cancellationToken);
+        }
+
         IPage? page = null;
         try
         {
@@ -1704,7 +1721,7 @@ public sealed class PlaywrightService(
                 await ClosePersistentPageAsync(page);
             }
 
-            tabSemaphore.Release();
+            tabSemaphore?.Release();
         }
     }
 
