@@ -89,7 +89,6 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
 
     private bool _isViewVisible;
     private bool _disposed;
-    private CancellationTokenSource? _signInCts;
 
     // Use private fields for properties that need validation
     private int _maxConcurrentDownloads = DownloadDefaults.MaxConcurrentDownloads;
@@ -437,6 +436,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     /// <summary>
     /// Gets a value indicating whether the GitHub account card shows the signed out state.
     /// </summary>
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Instance property required for Avalonia UI data binding.")]
     public bool IsGitHubSignedOut => !IsGitHubAuthenticated && !IsAuthenticating;
 
     /// <summary>
@@ -607,9 +607,8 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
                     _gitHubAuthService.AuthStateChanged -= OnGitHubAuthStateChanged;
                 }
 
-                _signInCts?.Cancel();
-                _signInCts?.Dispose();
-                _signInCts = null;
+                // Cancel any in-flight device flow sign-in; the async command owns its token.
+                SignInWithGitHubCommand.Cancel();
                 _memoryUpdateTimer?.Dispose();
                 _dangerZoneUpdateTimer?.Dispose();
                 _uploadsLock.Dispose();
@@ -1667,15 +1666,10 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             return;
         }
 
-        _signInCts?.Cancel();
-        _signInCts?.Dispose();
-        _signInCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        var signInToken = _signInCts.Token;
-
         IsAuthenticating = true;
         try
         {
-            var initiate = await _gitHubAuthService.InitiateLoginAsync(signInToken);
+            var initiate = await _gitHubAuthService.InitiateLoginAsync(cancellationToken);
             if (!initiate.Success || initiate.Data == null)
             {
                 var detail = initiate.Errors.FirstOrDefault() ?? "Unknown error.";
@@ -1687,7 +1681,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             GitHubUserCode = initiate.Data.UserCode;
             GitHubVerificationUrl = initiate.Data.VerificationUri;
 
-            var authorized = await _gitHubAuthService.WaitForAuthorizationAsync(initiate.Data, signInToken);
+            var authorized = await _gitHubAuthService.WaitForAuthorizationAsync(initiate.Data, cancellationToken);
             if (!authorized.Success || authorized.Data == null)
             {
                 var detail = authorized.Errors.FirstOrDefault() ?? "Unknown error.";
@@ -1700,9 +1694,9 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             var signedInFormat = _localizationService?.GetString("Settings.GitHubAuth.Toast.SignedIn") ?? "Signed in as {0}.";
             ShowGitHubSuccessToast(string.Format(CultureInfo.InvariantCulture, signedInFormat, $"@{authorized.Data.Login}"));
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException ex)
         {
-            _logger.LogInformation("GitHub sign-in was cancelled");
+            _logger.LogInformation(ex, "GitHub sign-in was cancelled");
         }
         finally
         {
@@ -1719,7 +1713,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private void CancelSignIn()
     {
-        _signInCts?.Cancel();
+        SignInWithGitHubCommand.Cancel();
     }
 
     /// <summary>

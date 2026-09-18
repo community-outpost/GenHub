@@ -143,7 +143,7 @@ public class GitHubAuthService(
                 return OperationResult<GitHubUserProfile>.CreateFailure(tokenError);
             }
 
-            await PersistLoginAsync(token!.AccessToken).ConfigureAwait(false);
+            await PersistLoginAsync(token.AccessToken).ConfigureAwait(false);
 
             var profile = await FetchUserProfileAsync(cancellationToken).ConfigureAwait(false);
             if (profile == null)
@@ -369,6 +369,7 @@ public class GitHubAuthService(
 
     private async Task<GitHubUserProfile?> FetchUserProfileAsync(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         try
         {
             await EnsureClientCredentialsAsync().ConfigureAwait(false);

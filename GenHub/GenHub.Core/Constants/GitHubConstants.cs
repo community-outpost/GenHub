@@ -1,6 +1,9 @@
+using System.Diagnostics.CodeAnalysis;
+
 namespace GenHub.Core.Constants;
 
 /// <summary>GitHub-related constants for API interactions, parsing, and UI.</summary>
+[SuppressMessage("Minor Code Smell", "S1075:URIs should not be hardcoded", Justification = "Centralized GitHub endpoint constants for device flow sign-in.")]
 public static class GitHubConstants
 {
     // Host constants
@@ -74,8 +77,8 @@ public static class GitHubConstants
     /// <summary>Fallback Linux machine identity file used as key material.</summary>
     public const string LinuxMachineIdFallbackPath = "/var/lib/dbus/machine-id";
 
-    /// <summary>macOS command used to read the platform UUID for key material.</summary>
-    public const string MacOsIoRegCommand = "ioreg";
+    /// <summary>Absolute path of the macOS command used to read the platform UUID for key material.</summary>
+    public const string MacOsIoRegCommand = "/usr/sbin/ioreg";
 
     /// <summary>Arguments listing the macOS platform expert device for UUID lookup.</summary>
     public const string MacOsIoRegArguments = "-rd1 -c IOPlatformExpertDevice";
