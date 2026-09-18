@@ -2,6 +2,7 @@ using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Markup.Xaml;
 using Avalonia.Platform.Storage;
+using GenHub.Common.Helpers;
 using GenHub.Features.GameProfiles.ViewModels;
 using System;
 using System.Linq;
@@ -20,6 +21,7 @@ public partial class AddLocalContentWindow : Window
     public AddLocalContentWindow()
     {
         InitializeComponent();
+        WindowChromeHelper.ApplyPlatformDecorations(this);
         AddHandler(DragDrop.DropEvent, OnDrop);
         AddHandler(DragDrop.DragOverEvent, OnDragOver);
     }

@@ -2,6 +2,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
+using GenHub.Common.Helpers;
 using GenHub.Features.Content.ViewModels.Catalog;
 using System;
 using System.Threading;
@@ -21,6 +22,7 @@ public partial class SubscriptionConfirmationDialog : Window
     public SubscriptionConfirmationDialog()
     {
         InitializeComponent();
+        WindowChromeHelper.ApplyPlatformDecorations(this);
         Closed += (_, _) =>
         {
             _dialogCts.Cancel();

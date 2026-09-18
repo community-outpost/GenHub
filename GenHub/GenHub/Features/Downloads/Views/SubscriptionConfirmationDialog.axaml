@@ -7,6 +7,7 @@
         xmlns:infraControls="clr-namespace:GenHub.Infrastructure.Controls"
         xmlns:localization="clr-namespace:GenHub.Common.Markup;assembly=GenHub"
         xmlns:converters="clr-namespace:GenHub.Infrastructure.Converters;assembly=GenHub"
+        xmlns:helpers="clr-namespace:GenHub.Common.Helpers;assembly=GenHub"
         mc:Ignorable="d" d:DesignWidth="780" d:DesignHeight="760"
         x:Class="GenHub.Features.Downloads.Views.SubscriptionConfirmationDialog"
         x:DataType="vm:SubscriptionConfirmationViewModel"
@@ -21,7 +22,8 @@
         ExtendClientAreaToDecorationsHint="True"
         ExtendClientAreaChromeHints="NoChrome"
         ExtendClientAreaTitleBarHeightHint="-1"
-        SystemDecorations="Full">
+        SystemDecorations="Full"
+        helpers:WindowChromeHelper.AdaptForPlatform="True">
 
     <Window.Resources>
         <converters:LocalizedFormatConverter x:Key="LocalizedFormatConverter" />

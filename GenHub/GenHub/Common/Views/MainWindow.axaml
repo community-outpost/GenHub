@@ -8,6 +8,7 @@
         xmlns:enums="clr-namespace:GenHub.Core.Models.Enums;assembly=GenHub.Core"
         xmlns:notifications="clr-namespace:GenHub.Features.Notifications.Views"
         xmlns:localization="clr-namespace:GenHub.Common.Markup"
+        xmlns:helpers="clr-namespace:GenHub.Common.Helpers;assembly=GenHub"
         mc:Ignorable="d" d:DesignWidth="1100" d:DesignHeight="700"
         x:Class="GenHub.Common.Views.MainWindow"
         x:DataType="vm:MainViewModel"
@@ -19,6 +20,7 @@
         ExtendClientAreaToDecorationsHint="True"
         ExtendClientAreaChromeHints="NoChrome"
         ExtendClientAreaTitleBarHeightHint="-1"
+        helpers:WindowChromeHelper.AdaptForPlatform="True"
         Background="#111118">
 
     <Window.Styles>
@@ -262,5 +264,25 @@
                                                     VerticalAlignment="Top"
                                                     Margin="0,45,10,0" />
         </Panel>
+
+        <!-- Linux Window Edge Resize Grips (Active only on Linux when windowed) -->
+        <Grid x:Name="LinuxResizeGrips"
+              IsVisible="False"
+              ColumnDefinitions="6,*,6"
+              RowDefinitions="6,*,6"
+              ZIndex="99999"
+              IsHitTestVisible="True">
+            <!-- Corners -->
+            <Border Grid.Row="0" Grid.Column="0" Tag="NorthWest" />
+            <Border Grid.Row="0" Grid.Column="2" Tag="NorthEast" />
+            <Border Grid.Row="2" Grid.Column="0" Tag="SouthWest" />
+            <Border Grid.Row="2" Grid.Column="2" Tag="SouthEast" />
+
+            <!-- Edges -->
+            <Border Grid.Row="0" Grid.Column="1" Tag="North" />
+            <Border Grid.Row="2" Grid.Column="1" Tag="South" />
+            <Border Grid.Row="1" Grid.Column="0" Tag="West" />
+            <Border Grid.Row="1" Grid.Column="2" Tag="East" />
+        </Grid>
     </Grid>
 </Window>
