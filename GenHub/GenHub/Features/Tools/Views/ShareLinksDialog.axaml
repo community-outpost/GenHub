@@ -32,7 +32,7 @@
                 <ExperimentalAcrylicBorder.Material>
                     <ExperimentalAcrylicMaterial
                         BackgroundSource="Digger"
-                        TintColor="#08080C"
+                        TintColor="{DynamicResource SurfaceBackgroundDark}"
                         TintOpacity="0.94"
                         MaterialOpacity="0.88" />
                 </ExperimentalAcrylicBorder.Material>
@@ -124,14 +124,14 @@
                                         Height="38"
                                         Padding="16,0"
                                         Background="{DynamicResource PrimaryGradientBrush}"
-                                        Foreground="White"
+                                        Foreground="{DynamicResource PrimaryButtonForeground}"
                                         FontWeight="SemiBold"
                                         CornerRadius="0,8,8,0"
                                         Cursor="Hand">
                                     <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
                                         <PathIcon Data="{StaticResource ToolIcon.ContentCopy}"
                                                   Width="13" Height="13"
-                                                  Foreground="White" />
+                                                  Foreground="{DynamicResource PrimaryButtonForeground}" />
                                         <TextBlock Text="{localization:Localize Common.Action.Copy}"
                                                    FontSize="11"
                                                    FontWeight="SemiBold" />
@@ -174,14 +174,14 @@
                                         Height="38"
                                         Padding="16,0"
                                         Background="{DynamicResource PrimaryGradientBrush}"
-                                        Foreground="White"
+                                        Foreground="{DynamicResource PrimaryButtonForeground}"
                                         FontWeight="SemiBold"
                                         CornerRadius="0,8,8,0"
                                         Cursor="Hand">
                                     <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
                                         <PathIcon Data="{StaticResource ToolIcon.ContentCopy}"
                                                   Width="13" Height="13"
-                                                  Foreground="White" />
+                                                  Foreground="{DynamicResource PrimaryButtonForeground}" />
                                         <TextBlock Text="{localization:Localize Common.Action.Copy}"
                                                    FontSize="11"
                                                    FontWeight="SemiBold" />

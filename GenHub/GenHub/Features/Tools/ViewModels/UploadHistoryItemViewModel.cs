@@ -2,6 +2,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Models.Common;
+using GenHub.Core.Models.Enums;
 using GenHub.Infrastructure.Converters;
 using System;
 using System.ComponentModel;
@@ -42,6 +43,11 @@ public sealed partial class UploadHistoryItemViewModel : ObservableObject, IDisp
     /// Gets the URL.
     /// </summary>
     public string Url => _item.Url;
+
+    /// <summary>
+    /// Gets the game selected when the upload began, if recorded.
+    /// </summary>
+    public GameType? Game => _item.Game;
 
     /// <summary>
     /// Gets the formatted timestamp display.

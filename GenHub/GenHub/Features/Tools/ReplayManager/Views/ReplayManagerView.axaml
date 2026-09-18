@@ -385,7 +385,7 @@
 
                                 <Button Grid.Column="2" Classes="Secondary"
                                         Command="{Binding #Root.((vm:ReplayManagerViewModel)DataContext).CopyGenHubLinkCommand}"
-                                        CommandParameter="{Binding Url}"
+                                        CommandParameter="{Binding}"
                                         Padding="6,4" Margin="4,0,0,0" VerticalAlignment="Center"
                                         ToolTip.Tip="{localization:Localize Replays.Tooltip.CopyGenHubLink}">
                                   <PathIcon Data="{StaticResource ToolIcon.ShareOutline}" Width="14" Height="14"/>
@@ -754,52 +754,7 @@
       <Setter Property="Background" Value="{DynamicResource AccentLightBrush}" />
     </Style>
 
-    <!-- Action Bar button height consistency -->
-    <Style Selector="Button.ActionBarBtn, ToggleButton.ActionBarBtn">
-      <Setter Property="Height" Value="32" />
-      <Setter Property="VerticalAlignment" Value="Center" />
-    </Style>
-
-    <!-- Flush split button styles for Upload + Chevron Toggle -->
-    <Style Selector="Button.SplitLeft">
-      <Setter Property="CornerRadius" Value="6,0,0,6" />
-      <Setter Property="BorderThickness" Value="0" />
-      <Setter Property="Margin" Value="0" />
-      <Setter Property="Height" Value="32" />
-      <Setter Property="VerticalAlignment" Value="Center" />
-    </Style>
-    <Style Selector="ToggleButton.SplitRight">
-      <Setter Property="CornerRadius" Value="0,6,6,0" />
-      <Setter Property="BorderThickness" Value="0" />
-      <Setter Property="Padding" Value="7,0" />
-      <Setter Property="Margin" Value="0" />
-      <Setter Property="Height" Value="32" />
-      <Setter Property="VerticalAlignment" Value="Center" />
-      <Setter Property="VerticalContentAlignment" Value="Center" />
-      <Setter Property="HorizontalContentAlignment" Value="Center" />
-    </Style>
-    <Style Selector="ToggleButton.SplitRight:pointerover /template/ ContentPresenter#PART_ContentPresenter">
-      <Setter Property="Background" Value="{DynamicResource AccentLightBrush}" />
-    </Style>
-    <Style Selector="ToggleButton.SplitRight:checked /template/ ContentPresenter#PART_ContentPresenter">
-      <Setter Property="Background" Value="{DynamicResource AccentLightBrush}" />
-    </Style>
-    <Style Selector="ToggleButton.SplitRight:checked:pointerover /template/ ContentPresenter#PART_ContentPresenter">
-      <Setter Property="Background" Value="{DynamicResource AccentLightBrush}" />
-    </Style>
-    <Style Selector="ToggleButton.SplitRight:checked">
-      <Setter Property="Background" Value="{DynamicResource AccentLightBrush}" />
-    </Style>
-    <Style Selector="ToggleButton.SplitRight:checked PathIcon">
-      <Setter Property="RenderTransform" Value="rotate(90deg)" />
-    </Style>
-    <Style Selector="ToggleButton.SplitRight PathIcon">
-      <Setter Property="Transitions">
-        <Transitions>
-          <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.15" />
-        </Transitions>
-      </Setter>
-    </Style>
+    <StyleInclude Source="avares://GenHub/Features/Tools/Views/ToolActionBarStyles.axaml" />
 
     <Style Selector="Button.Secondary">
       <Setter Property="Background" Value="{DynamicResource SurfaceElevatedBrush}" />

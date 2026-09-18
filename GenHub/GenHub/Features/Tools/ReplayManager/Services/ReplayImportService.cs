@@ -1,4 +1,5 @@
 using GenHub.Core.Constants;
+using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Tools.ReplayManager;
 using GenHub.Core.Models.Common;
@@ -27,7 +28,8 @@ public sealed class ReplayImportService(
     IReplayDirectoryService directoryService,
     IUrlParserService urlParserService,
     IZipValidationService zipValidationService,
-    ILogger<ReplayImportService> logger) : IReplayImportService
+    ILogger<ReplayImportService> logger,
+    ILocalizationService? localizationService = null) : IReplayImportService
 {
     private sealed record ZipEntryImportContext(
         string ZipPath,
@@ -46,6 +48,22 @@ public sealed class ReplayImportService(
         CancellationToken ct = default)
     {
         logger.LogInformation("Importing replay from URL: {Url}", url);
+
+        if (ToolShareLink.IsOtherToolShareUri(url, CommandLineConstants.ReplayCommand))
+        {
+            logger.LogWarning("Rejected cross-tool share URI in replay import.");
+            return new ImportResult
+            {
+                Success = false,
+                FilesImported = 0,
+                FilesSkipped = 0,
+                Errors =
+                [
+                    localizationService?.GetString("Tools.Share.Error.CrossToolMapLink")
+                    ?? "This is a Map Manager share link. Paste it in the Map Manager import box instead.",
+                ],
+            };
+        }
 
         try
         {

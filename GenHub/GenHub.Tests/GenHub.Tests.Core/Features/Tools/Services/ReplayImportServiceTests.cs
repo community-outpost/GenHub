@@ -139,6 +139,21 @@ public sealed class ReplayImportServiceTests : IDisposable
         Assert.Equal(2, Directory.GetFiles(_replayDirectory).Length);
     }
 
+    /// <summary>
+    /// Verifies that ImportFromUrlAsync rejects share URIs targeting the map manager.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task ImportFromUrlAsync_WithMapShareUri_ReturnsCrossToolErrorAsync()
+    {
+        var result = await _service.ImportFromUrlAsync(
+            "genhub://map/import?url=https%3A%2F%2Fexample.com%2Fmaps.zip",
+            GameType.ZeroHour);
+
+        Assert.False(result.Success);
+        Assert.Contains(result.Errors, e => e.Contains("Map Manager", StringComparison.OrdinalIgnoreCase));
+    }
+
     private static void CreateZip(string zipPath, params string[] entryNames)
     {
         using var archive = ZipFile.Open(zipPath, ZipArchiveMode.Create);

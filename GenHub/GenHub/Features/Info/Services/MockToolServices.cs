@@ -170,7 +170,7 @@ public class MockUploadHistoryService : IUploadHistoryService
     }
 
     /// <inheritdoc/>
-    public void RecordUpload(long fileSizeBytes, string url, string fileName, string? fileKey = null, string? deleteToken = null, string? fileHash = null, string? category = null)
+    public void RecordUpload(long fileSizeBytes, string url, string fileName, string? fileKey = null, string? deleteToken = null, string? fileHash = null, string? category = null, GameType? game = null)
     {
     }
 

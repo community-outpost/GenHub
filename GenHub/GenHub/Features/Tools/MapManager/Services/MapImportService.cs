@@ -1,5 +1,6 @@
 using GenHub.Core.Constants;
 using GenHub.Core.Helpers;
+using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Tools.MapManager;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Tools.MapManager;
@@ -26,7 +27,8 @@ public sealed class MapImportService(
     IMapDirectoryService directoryService,
     HttpClient httpClient,
     MapNameParser mapNameParser,
-    ILogger<MapImportService> logger) : IMapImportService
+    ILogger<MapImportService> logger,
+    ILocalizationService? localizationService = null) : IMapImportService
 {
     private sealed record SharpCompressExtractionContext(
         string ArchivePath,
@@ -50,7 +52,9 @@ public sealed class MapImportService(
         if (ToolShareLink.IsOtherToolShareUri(url, CommandLineConstants.MapCommand))
         {
             logger.LogWarning("Rejected cross-tool share URI in map import.");
-            result.Errors.Add("This is a Replay Manager share link. Paste it in the Replay Manager import box instead.");
+            result.Errors.Add(
+                localizationService?.GetString("Tools.Share.Error.CrossToolReplayLink")
+                ?? "This is a Replay Manager share link. Paste it in the Replay Manager import box instead.");
             return result;
         }
 

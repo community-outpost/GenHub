@@ -50,6 +50,15 @@ public sealed class ToolShareLinkTests
     }
 
     /// <summary>
+    /// Verifies that BuildShareUri rejects unknown game types instead of serializing them as Zero Hour.
+    /// </summary>
+    [Fact]
+    public void BuildShareUri_WithUnknownGame_ThrowsArgumentException()
+    {
+        Assert.Throws<ArgumentException>(() => ToolShareLink.BuildShareUri(CommandLineConstants.MapCommand, MapDownloadUrl, GameType.Unknown));
+    }
+
+    /// <summary>
     /// Verifies that BuildShareUri rejects download URLs that are not absolute HTTP or HTTPS URLs.
     /// </summary>
     /// <param name="innerUrl">The invalid download URL.</param>
@@ -189,6 +198,26 @@ public sealed class ToolShareLinkTests
         Assert.False(ToolShareLink.IsOtherToolShareUri(mapUri, CommandLineConstants.MapCommand));
         Assert.False(ToolShareLink.IsOtherToolShareUri(MapDownloadUrl, CommandLineConstants.ReplayCommand));
         Assert.False(ToolShareLink.IsOtherToolShareUri(null, CommandLineConstants.ReplayCommand));
+    }
+
+    /// <summary>
+    /// Verifies that HasShareUriScheme detects the GenHub scheme regardless of validity.
+    /// </summary>
+    /// <param name="input">The raw input.</param>
+    /// <param name="expected">Whether the GenHub scheme is expected.</param>
+    [Theory]
+    [InlineData("genhub://replay/import?url=https%3A%2F%2Fexample.com%2Freplay.rep", true)]
+    [InlineData("genhub://map/import", true)]
+    [InlineData("genhub://subscribe?url=https://example.com/catalog.json", true)]
+    [InlineData("  \"genhub://map/import?url=https://example.com/maps.zip\"  ", true)]
+    [InlineData("GENHUB://map/import?url=https://example.com/maps.zip", true)]
+    [InlineData("https://example.com/maps.zip", false)]
+    [InlineData("", false)]
+    [InlineData("   ", false)]
+    [InlineData(null, false)]
+    public void HasShareUriScheme_DetectsGenHubScheme(string? input, bool expected)
+    {
+        Assert.Equal(expected, ToolShareLink.HasShareUriScheme(input));
     }
 
     /// <summary>

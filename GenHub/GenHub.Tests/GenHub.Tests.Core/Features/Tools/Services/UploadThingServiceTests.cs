@@ -106,6 +106,48 @@ public sealed class UploadThingServiceTests : IDisposable
     }
 
     /// <summary>
+    /// Verifies that UploadFileAsync quotes the multipart Content-Disposition parameters.
+    /// The upload gateway only recognizes quoted <c>name</c>/<c>filename</c> values; unquoted
+    /// values make it misclassify the file part and corrupt every byte in 0x80-0x9F.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task UploadFileAsync_QuotesMultipartDispositionParametersAsync()
+    {
+        var testFilePath = Path.Combine(_tempDirectory, "test_replay.zip");
+        await File.WriteAllBytesAsync(testFilePath, [0x50, 0x4B, 0x03, 0x04, 0x00, 0x00]);
+
+        var uploadResponse = new DirectUploadResponse(
+            "https://utfs.io/f/test_key_123",
+            "test_key_123",
+            "test_key_123:1755820800.hmac_sig");
+
+        string? capturedBody = null;
+        var handlerMock = new Mock<HttpMessageHandler>();
+        handlerMock.Protected()
+            .Setup<Task<HttpResponseMessage>>(
+                "SendAsync",
+                ItExpr.IsAny<HttpRequestMessage>(),
+                ItExpr.IsAny<CancellationToken>())
+            .Callback<HttpRequestMessage, CancellationToken>((request, _) =>
+                capturedBody = request.Content!.ReadAsStringAsync().GetAwaiter().GetResult())
+            .ReturnsAsync(new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(JsonSerializer.Serialize(uploadResponse)),
+            });
+
+        var httpClient = new HttpClient(handlerMock.Object);
+        var service = new UploadThingService(httpClient, _loggerMock.Object);
+
+        var result = await service.UploadFileAsync(testFilePath);
+
+        Assert.True(result.Success);
+        Assert.NotNull(capturedBody);
+        Assert.Contains("name=\"file\"", capturedBody, StringComparison.Ordinal);
+        Assert.Contains("filename=\"test_replay.zip\"", capturedBody, StringComparison.Ordinal);
+    }
+
+    /// <summary>
     /// Verifies that UploadFileAsync returns failure when the gateway rejects the request.
     /// </summary>
     /// <returns>A task representing the asynchronous test operation.</returns>

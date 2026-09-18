@@ -1263,7 +1263,7 @@
     <value>المحدد:</value>
   </data>
   <data name="Maps.Label.StorageQuotaNotice" xml:space="preserve">
-    <value>يتم الاحتفاظ بالملفات المرفوعة لمدة 30 يومًا. الحد الأقصى لحجم الملف: 50 ميجابايت. يتم إلغاء تكرار الملفات المتطابقة تلقائيًا.</value>
+    <value>يتم الاحتفاظ بالملفات لمدة تصل إلى 14 يوماً أو حتى امتلاء مساحة التخزين. الحد الأقصى للحصة 10 ميجابايت لكل مستخدم (حد متجدد كل 3 أيام). يتم إلغاء تكرار الملفات المتطابقة تلقائياً.</value>
   </data>
   <data name="Maps.MapPack.Badge.Loaded" xml:space="preserve">
     <value>تم التحميل</value>
@@ -8096,6 +8096,12 @@ GenHub هو مشغل ومدير حديث لألعاب **Command &amp; Conquer: G
   </data>
   <data name="Tools.Share.Status.ShareErrorMessage" xml:space="preserve">
     <value>حدث خطأ أثناء تجهيز المشاركة: {0}</value>
+  </data>
+  <data name="Tools.Share.Error.CrossToolReplayLink" xml:space="preserve">
+    <value>هذا رابط مشاركة من مدير الإعادات. الصقه في مربع الاستيراد في مدير الإعادات بدلاً من ذلك.</value>
+  </data>
+  <data name="Tools.Share.Error.CrossToolMapLink" xml:space="preserve">
+    <value>هذا رابط مشاركة من مدير الخرائط. الصقه في مربع الاستيراد في مدير الخرائط بدلاً من ذلك.</value>
   </data>
   <data name="Tools.Share.Demo.CopyGenHubLinkTitle" xml:space="preserve">
     <value>نسخ رابط GenHub</value>

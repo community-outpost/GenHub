@@ -2,6 +2,7 @@ using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Services;
 using GenHub.Core.Models.Common;
+using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Tools;
 using Microsoft.Extensions.Logging;
 using System;
@@ -68,7 +69,8 @@ public sealed class UploadHistoryService(
         string? fileKey = null,
         string? deleteToken = null,
         string? fileHash = null,
-        string? category = null)
+        string? category = null,
+        GameType? game = null)
     {
         bool recorded = false;
         lock (FileLock)
@@ -88,6 +90,7 @@ public sealed class UploadHistoryService(
                     DeleteToken = deleteToken,
                     FileHash = fileHash,
                     Category = resolvedCategory,
+                    Game = game,
                 });
 
                 SaveHistoryInternal(history);
@@ -188,7 +191,8 @@ public sealed class UploadHistoryService(
             r.SizeBytes,
             r.Url ?? string.Empty,
             r.FileName ?? "Unknown File",
-            r.Category ?? InferCategory(r))).ToList();
+            r.Category ?? InferCategory(r),
+            r.Game)).ToList();
 
         return Task.FromResult<IReadOnlyList<UploadHistoryItem>>(items);
     }

@@ -1,4 +1,5 @@
 using GenHub.Core.Models.Common;
+using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Tools;
 using System;
 using System.Collections.Generic;
@@ -71,7 +72,8 @@ public interface IUploadHistoryService
     /// <param name="deleteToken">Optional cryptographic deletion token.</param>
     /// <param name="fileHash">Optional SHA-256 hash of the uploaded file for deduplication.</param>
     /// <param name="category">Optional tool or content category (e.g. "replays", "maps").</param>
-    void RecordUpload(long fileSizeBytes, string url, string fileName, string? fileKey = null, string? deleteToken = null, string? fileHash = null, string? category = null);
+    /// <param name="game">Optional game selected when the upload began.</param>
+    void RecordUpload(long fileSizeBytes, string url, string fileName, string? fileKey = null, string? deleteToken = null, string? fileHash = null, string? category = null, GameType? game = null);
 
     /// <summary>
     /// Finds an existing active upload record matching the specified file hash.

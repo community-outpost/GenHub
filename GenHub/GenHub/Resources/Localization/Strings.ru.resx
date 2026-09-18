@@ -1263,7 +1263,7 @@
     <value>Выбрано:</value>
   </data>
   <data name="Maps.Label.StorageQuotaNotice" xml:space="preserve">
-    <value>Загруженные файлы хранятся 30 дней. Максимальный размер файла: 50 МБ. Повторяющиеся файлы автоматически дедуплицируются.</value>
+    <value>Файлы хранятся до 14 дней или до заполнения хранилища. Максимальная квота 10 МБ на пользователя (3-дневный скользящий лимит). Дубликаты дедуплицируются автоматически.</value>
   </data>
   <data name="Maps.MapPack.Badge.Loaded" xml:space="preserve">
     <value>ЗАГРУЖЕНО</value>
@@ -8096,6 +8096,12 @@ GenHub передает официальный идентификатор AppID 
   </data>
   <data name="Tools.Share.Status.ShareErrorMessage" xml:space="preserve">
     <value>Произошла ошибка при подготовке публикации: {0}</value>
+  </data>
+  <data name="Tools.Share.Error.CrossToolReplayLink" xml:space="preserve">
+    <value>Это ссылка общего доступа из менеджера повторов. Вставьте её в поле импорта в менеджере повторов.</value>
+  </data>
+  <data name="Tools.Share.Error.CrossToolMapLink" xml:space="preserve">
+    <value>Это ссылка общего доступа из менеджера карт. Вставьте её в поле импорта в менеджере карт.</value>
   </data>
   <data name="Tools.Share.Demo.CopyGenHubLinkTitle" xml:space="preserve">
     <value>Копировать ссылку GenHub</value>

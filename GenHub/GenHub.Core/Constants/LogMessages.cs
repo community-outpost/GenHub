@@ -59,4 +59,9 @@ public static class LogMessages
     /// Log message for failed stream import.
     /// </summary>
     public const string FailedToImportStream = "Failed to import stream for file: {FileName}";
+
+    /// <summary>
+    /// Log message for a received IPC command whose payload is masked for privacy.
+    /// </summary>
+    public const string ReceivedMaskedIpcCommand = "Received IPC command: {Prefix}...";
 }

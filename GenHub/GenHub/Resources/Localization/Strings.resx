@@ -1263,7 +1263,7 @@
     <value>Selected:</value>
   </data>
   <data name="Maps.Label.StorageQuotaNotice" xml:space="preserve">
-    <value>Uploaded files are retained for 30 days. Max file size: 50MB. Duplicate files are automatically deduplicated.</value>
+    <value>Files are maintained for up to 14 days or until storage is full. Maximum 10MB quota per user (3-day rolling limit). Duplicate files are automatically deduplicated.</value>
   </data>
   <data name="Maps.MapPack.Badge.Loaded" xml:space="preserve">
     <value>LOADED</value>
@@ -8190,6 +8190,12 @@ Do you want to download and inspect this profile package?</value>
   </data>
   <data name="Tools.Share.Status.ShareErrorMessage" xml:space="preserve">
     <value>An error occurred while preparing share: {0}</value>
+  </data>
+  <data name="Tools.Share.Error.CrossToolReplayLink" xml:space="preserve">
+    <value>This is a Replay Manager share link. Paste it in the Replay Manager import box instead.</value>
+  </data>
+  <data name="Tools.Share.Error.CrossToolMapLink" xml:space="preserve">
+    <value>This is a Map Manager share link. Paste it in the Map Manager import box instead.</value>
   </data>
   <data name="Tools.Share.Demo.CopyGenHubLinkTitle" xml:space="preserve">
     <value>Copy GenHub Link</value>

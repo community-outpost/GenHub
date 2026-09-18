@@ -196,21 +196,9 @@ public sealed class SingleInstanceCommandDispatcher : ISingleInstanceCommandRece
             return;
         }
 
-        if (command.StartsWith(IpcCommands.ImportProfilePrefix, StringComparison.OrdinalIgnoreCase))
+        if (TryGetMaskedPrefix(command, out var prefix))
         {
-            _logger.LogInformation("Received IPC command: {Prefix}...", IpcCommands.ImportProfilePrefix);
-        }
-        else if (command.StartsWith(IpcCommands.ImportMapPrefix, StringComparison.OrdinalIgnoreCase))
-        {
-            _logger.LogInformation("Received IPC command: {Prefix}...", IpcCommands.ImportMapPrefix);
-        }
-        else if (command.StartsWith(IpcCommands.ImportReplayPrefix, StringComparison.OrdinalIgnoreCase))
-        {
-            _logger.LogInformation("Received IPC command: {Prefix}...", IpcCommands.ImportReplayPrefix);
-        }
-        else if (command.StartsWith(IpcCommands.SubscribePrefix, StringComparison.OrdinalIgnoreCase))
-        {
-            _logger.LogInformation("Received IPC command: {Prefix}...", IpcCommands.SubscribePrefix);
+            _logger.LogInformation(LogMessages.ReceivedMaskedIpcCommand, prefix);
         }
         else if (command.StartsWith(IpcCommands.LaunchProfilePrefix, StringComparison.OrdinalIgnoreCase))
         {
@@ -228,5 +216,35 @@ public sealed class SingleInstanceCommandDispatcher : ISingleInstanceCommandRece
         return ToolShareLink.TryParseShareUri(target, out var parsed) &&
             parsed != null &&
             parsed.ToolCommand.Equals(toolCommand, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool TryGetMaskedPrefix(string command, out string prefix)
+    {
+        if (command.StartsWith(IpcCommands.ImportProfilePrefix, StringComparison.OrdinalIgnoreCase))
+        {
+            prefix = IpcCommands.ImportProfilePrefix;
+            return true;
+        }
+
+        if (command.StartsWith(IpcCommands.ImportMapPrefix, StringComparison.OrdinalIgnoreCase))
+        {
+            prefix = IpcCommands.ImportMapPrefix;
+            return true;
+        }
+
+        if (command.StartsWith(IpcCommands.ImportReplayPrefix, StringComparison.OrdinalIgnoreCase))
+        {
+            prefix = IpcCommands.ImportReplayPrefix;
+            return true;
+        }
+
+        if (command.StartsWith(IpcCommands.SubscribePrefix, StringComparison.OrdinalIgnoreCase))
+        {
+            prefix = IpcCommands.SubscribePrefix;
+            return true;
+        }
+
+        prefix = string.Empty;
+        return false;
     }
 }

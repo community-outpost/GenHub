@@ -200,7 +200,7 @@
             <TextBlock Text="{Binding SelectedMaps.Count}" FontWeight="Bold" Foreground="{DynamicResource AccentBrush}"/>
           </StackPanel>
           <Button Command="{Binding DeleteSelectedCommand}"
-                  Classes="Danger" IsEnabled="{Binding SelectedMaps.Count}"
+                  Classes="Danger ActionBarBtn" IsEnabled="{Binding SelectedMaps.Count}"
                   ToolTip.Tip="{localization:Localize Maps.Tooltip.DeleteSelected}">
             <StackPanel Orientation="Horizontal" Spacing="6">
               <PathIcon Data="{StaticResource ToolIcon.DeleteOutline}" Width="16" Height="16"/>
@@ -215,16 +215,16 @@
 
         <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8">
           <Button Command="{Binding UncompressSelectedCommand}"
-                  Classes="Secondary" IsEnabled="{Binding HasSelectedZips}"
+                  Classes="Secondary ActionBarBtn" IsEnabled="{Binding HasSelectedZips}"
                   ToolTip.Tip="{localization:Localize Maps.Tooltip.UncompressSelected}">
             <StackPanel Orientation="Horizontal" Spacing="6">
               <PathIcon Data="{StaticResource ToolIcon.PackageVariantClosed}" Width="16" Height="16"/>
               <TextBlock Text="{localization:Localize Maps.Button.Uncompress}" VerticalAlignment="Center"/>
             </StackPanel>
           </Button>
-          <TextBox MinWidth="110" MaxWidth="180" Watermark="{localization:Localize Maps.Watermark.ZipName}" Text="{Binding ZipName}" VerticalAlignment="Center" ToolTip.Tip="{localization:Localize Maps.Tooltip.ZipName}"/>
+          <TextBox MinWidth="110" MaxWidth="160" Watermark="{localization:Localize Maps.Watermark.ZipName}" Text="{Binding ZipName}" Height="32" VerticalAlignment="Center" ToolTip.Tip="{localization:Localize Maps.Tooltip.ZipName}"/>
           <Button Command="{Binding ExportToZipCommand}"
-                  Classes="Secondary" IsEnabled="{Binding SelectedMaps.Count}"
+                  Classes="Secondary ActionBarBtn" IsEnabled="{Binding SelectedMaps.Count}"
                   ToolTip.Tip="{localization:Localize Maps.Tooltip.ZipSelected}">
             <StackPanel Orientation="Horizontal" Spacing="6">
               <PathIcon Data="{StaticResource ToolIcon.ZipBoxOutline}" Width="16" Height="16"/>
@@ -233,8 +233,7 @@
           </Button>
           <StackPanel Orientation="Horizontal" Spacing="0">
             <Button Command="{Binding UploadAndShareCommand}"
-                    Classes="Primary"
-                    CornerRadius="6,0,0,6"
+                    Classes="Primary SplitLeft ActionBarBtn"
                     ToolTip.Tip="{localization:Localize Maps.Tooltip.UploadAndShare}">
               <StackPanel Orientation="Horizontal" Spacing="6">
                 <PathIcon Data="{StaticResource ToolIcon.CloudUploadOutline}" Width="16" Height="16"/>
@@ -243,17 +242,15 @@
             </Button>
             <ToggleButton
                     IsChecked="{Binding IsHistoryOpen, Mode=TwoWay}"
-                    Classes="Primary"
-                    CornerRadius="0,6,6,0"
-                    Padding="8,0"
+                    Classes="Primary SplitRight ActionBarBtn"
                     ToolTip.Tip="{localization:Localize Maps.Tooltip.ViewHistory}">
-              <PathIcon Data="{StaticResource ToolIcon.ChevronDown}" Width="14" Height="14" VerticalAlignment="Center"/>
+              <PathIcon Data="{StaticResource ToolIcon.ChevronRight}" Width="14" Height="14" VerticalAlignment="Center"/>
             </ToggleButton>
             <Popup IsOpen="{Binding IsHistoryOpen}"
                    Placement="Bottom" PlacementTarget="{Binding $parent[StackPanel]}"
                    IsLightDismissEnabled="False">
               <Border Background="{DynamicResource DetailsBackground}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="10"
-                      Padding="14" MinWidth="340" MaxHeight="400" BoxShadow="0 10 28 0 #99000000">
+                      Padding="14" MinWidth="340" MaxHeight="400" BoxShadow="{DynamicResource FlyoutBoxShadow}">
                 <Grid RowDefinitions="Auto,*">
                   <Grid Grid.Row="1">
                     <ScrollViewer IsVisible="{Binding UploadHistory.Count}" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
@@ -288,7 +285,7 @@
 
                                 <Button Grid.Column="2" Classes="Secondary"
                                         Command="{Binding #Root.((vm:MapManagerViewModel)DataContext).CopyGenHubLinkCommand}"
-                                        CommandParameter="{Binding Url}"
+                                        CommandParameter="{Binding}"
                                         Padding="6,4" Margin="4,0,0,0" VerticalAlignment="Center"
                                         ToolTip.Tip="{localization:Localize Maps.Tooltip.CopyGenHubLink}">
                                   <PathIcon Data="{StaticResource ToolIcon.ShareOutline}" Width="14" Height="14"/>
@@ -439,6 +436,8 @@
   </Grid>
 
   <UserControl.Styles>
+    <StyleInclude Source="avares://GenHub/Features/Tools/Views/ToolActionBarStyles.axaml" />
+
     <Style Selector="RadioButton.TabButton">
       <Setter Property="Template">
         <ControlTemplate>

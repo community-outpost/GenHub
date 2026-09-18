@@ -1,3 +1,4 @@
+using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Tools.MapManager;
 using GenHub.Core.Models.Enums;
 using GenHub.Features.Tools.MapManager.Services;
@@ -217,6 +218,35 @@ public sealed class MapImportServiceTests : IDisposable
 
         Assert.False(result.Success);
         Assert.Contains(result.Errors, e => e.Contains("Replay Manager", StringComparison.OrdinalIgnoreCase));
+    }
+
+    /// <summary>
+    /// Verifies that ImportFromUrlAsync reports cross-tool share URIs with the localized message.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task ImportFromUrlAsync_WithReplayShareUri_UsesLocalizedErrorAsync()
+    {
+        var localizationService = new Mock<ILocalizationService>();
+        localizationService
+            .Setup(l => l.GetString("Tools.Share.Error.CrossToolReplayLink", It.IsAny<object?[]>()))
+            .Returns("LOCALIZED cross-tool replay error");
+
+        var directoryService = new Mock<IMapDirectoryService>();
+        directoryService.Setup(d => d.GetMapDirectory(It.IsAny<GameType>())).Returns(_mapDirectory);
+        var service = new MapImportService(
+            directoryService.Object,
+            new HttpClient(),
+            new MapNameParser(NullLogger<MapNameParser>.Instance),
+            NullLogger<MapImportService>.Instance,
+            localizationService.Object);
+
+        var result = await service.ImportFromUrlAsync(
+            "genhub://replay/import?url=https%3A%2F%2Fexample.com%2Freplay.rep",
+            GameType.ZeroHour);
+
+        Assert.False(result.Success);
+        Assert.Contains("LOCALIZED cross-tool replay error", result.Errors);
     }
 
     private static void CreateZip(string zipPath, params (string EntryName, string Content)[] entries)

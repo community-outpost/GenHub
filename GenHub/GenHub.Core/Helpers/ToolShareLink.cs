@@ -19,7 +19,7 @@ public static class ToolShareLink
     /// <param name="innerUrl">The absolute HTTP or HTTPS download URL to import.</param>
     /// <param name="game">The optional target game recorded in the share URI.</param>
     /// <returns>The share URI (for example <c>genhub://map/import?url=...</c>).</returns>
-    /// <exception cref="ArgumentException">Thrown when the tool command or download URL is invalid.</exception>
+    /// <exception cref="ArgumentException">Thrown when the tool command, download URL, or game is invalid.</exception>
     public static string BuildShareUri(string toolCommand, string innerUrl, GameType? game = null)
     {
         var prefix = GetUriPrefix(toolCommand);
@@ -154,6 +154,24 @@ public static class ToolShareLink
             !target.ToolCommand.Equals(toolCommand, StringComparison.OrdinalIgnoreCase);
     }
 
+    /// <summary>
+    /// Determines whether the input uses the <c>genhub://</c> scheme, regardless of whether it
+    /// is a well-formed tool share URI. Callers use this to reject malformed protocol links
+    /// before legacy URL classification runs.
+    /// </summary>
+    /// <param name="input">The raw pasted input.</param>
+    /// <returns><see langword="true"/> when the input starts with the GenHub scheme; otherwise, <see langword="false"/>.</returns>
+    public static bool HasShareUriScheme(string? input)
+    {
+        if (string.IsNullOrWhiteSpace(input))
+        {
+            return false;
+        }
+
+        var cleaned = input.Trim().Trim('"', '\'', ' ', '\t');
+        return cleaned.StartsWith(CommandLineConstants.UriScheme, StringComparison.OrdinalIgnoreCase);
+    }
+
     private static string GetUriPrefix(string toolCommand)
     {
         if (toolCommand.Equals(CommandLineConstants.MapCommand, StringComparison.OrdinalIgnoreCase))
@@ -251,9 +269,12 @@ public static class ToolShareLink
 
     private static string ToGameValue(GameType game)
     {
-        return game == GameType.Generals
-            ? CommandLineConstants.GameGeneralsValue
-            : CommandLineConstants.GameZeroHourValue;
+        return game switch
+        {
+            GameType.Generals => CommandLineConstants.GameGeneralsValue,
+            GameType.ZeroHour => CommandLineConstants.GameZeroHourValue,
+            _ => throw new ArgumentException($"Unsupported game type: {game}.", nameof(game)),
+        };
     }
 
     private static bool IsAllowedDownloadUrl(string url)

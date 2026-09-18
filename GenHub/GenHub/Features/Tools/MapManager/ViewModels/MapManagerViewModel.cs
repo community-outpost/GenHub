@@ -400,13 +400,12 @@ public partial class MapManagerViewModel : ObservableObject, IDisposable
     /// <returns>A task representing the asynchronous operation.</returns>
     public async Task ImportSharedUrlAsync(string url, GameType? game = null)
     {
-        if (game.HasValue)
-        {
-            SelectedTab = game.Value;
-        }
-
-        ImportUrl = url;
-        await ImportFromUrlAsync();
+        await ToolShareCommands.ImportSharedUrlAsync(
+            url,
+            game,
+            selected => SelectedTab = selected,
+            importUrl => ImportUrl = importUrl,
+            ImportFromUrlAsync);
     }
 
     /// <inheritdoc />
@@ -705,6 +704,7 @@ public partial class MapManagerViewModel : ObservableObject, IDisposable
             return;
         }
 
+        var uploadGame = SelectedTab;
         long totalSizeBytes = ToolUploadHelper.CalculateMapsSize(SelectedMaps);
         if (!await ValidateUploadLimitsAsync(totalSizeBytes))
         {
@@ -742,7 +742,7 @@ public partial class MapManagerViewModel : ObservableObject, IDisposable
             var uploadResult = await _exportService.UploadToUploadThingAsync([.. SelectedMaps], progressHandler);
             if (uploadResult.Success)
             {
-                await HandleSuccessfulUploadAsync(uploadResult.Data, totalSizeBytes, fileHash);
+                await HandleSuccessfulUploadAsync(uploadResult.Data, totalSizeBytes, fileHash, uploadGame);
             }
             else
             {
@@ -830,7 +830,7 @@ public partial class MapManagerViewModel : ObservableObject, IDisposable
         return (false, fileHash);
     }
 
-    private async Task HandleSuccessfulUploadAsync(UploadResult uploadResult, long totalSizeBytes, string? fileHash)
+    private async Task HandleSuccessfulUploadAsync(UploadResult uploadResult, long totalSizeBytes, string? fileHash, GameType uploadGame)
     {
         var lifetime = Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime;
         var clipboard = lifetime?.MainWindow?.Clipboard;
@@ -840,7 +840,7 @@ public partial class MapManagerViewModel : ObservableObject, IDisposable
         }
 
         var fileName = SelectedMaps.Count == 1 ? SelectedMaps[0].FileName : $"{MapManagerConstants.DefaultZipName}{Path.GetExtension(MapManagerConstants.ZipFilePattern)}";
-        _uploadHistoryService.RecordUpload(totalSizeBytes, uploadResult.PublicUrl, fileName, uploadResult.FileKey, uploadResult.DeleteToken, fileHash, MapManagerConstants.UploadCategory);
+        _uploadHistoryService.RecordUpload(totalSizeBytes, uploadResult.PublicUrl, fileName, uploadResult.FileKey, uploadResult.DeleteToken, fileHash, MapManagerConstants.UploadCategory, uploadGame);
 
         if (IsHistoryOpen)
         {
@@ -853,7 +853,7 @@ public partial class MapManagerViewModel : ObservableObject, IDisposable
         await ToolSharingDialogHelper.OpenShareDialogAsync(
             uploadResult.PublicUrl,
             CommandLineConstants.MapCommand,
-            SelectedTab,
+            uploadGame,
             _notificationService,
             _localizationService,
             _logger);
@@ -1251,35 +1251,16 @@ public partial class MapManagerViewModel : ObservableObject, IDisposable
     }
 
     [RelayCommand]
-    private async Task CopyGenHubLinkAsync(string url)
+    private async Task CopyGenHubLinkAsync(UploadHistoryItemViewModel? item)
     {
-        // Check if current tab is using demo paths
-        var demoPath = _directoryService.GetMapDirectory(SelectedTab);
-        if (IsDemoPath(demoPath))
-        {
-            _notificationService.ShowInfo(
-                _localizationService?.GetString("Tools.Share.Demo.CopyGenHubLinkTitle") ?? "Copy GenHub Link",
-                _localizationService?.GetString("Tools.Share.Demo.CopyGenHubLinkDesc") ?? "Copies a GenHub link that opens GenHub and imports the upload automatically.");
-            return;
-        }
-
-        try
-        {
-            var shareUri = ToolShareLink.BuildShareUri(CommandLineConstants.MapCommand, url, SelectedTab);
-            var lifetime = Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime;
-            var clipboard = lifetime?.MainWindow?.Clipboard;
-            if (clipboard != null)
-            {
-                await clipboard.SetTextAsync(shareUri);
-                _notificationService.ShowSuccess(
-                    _localizationService?.GetString("Tools.Share.Status.CopiedTitle") ?? "Copied",
-                    _localizationService?.GetString("Tools.Share.Status.CopiedToClipboard") ?? "Link copied to clipboard!");
-            }
-        }
-        catch (Exception ex) when ((ex is ArgumentException or IOException or UnauthorizedAccessException) && ex is not OperationCanceledException)
-        {
-            _logger.LogError(ex, "Failed to copy GenHub link");
-        }
+        await ToolShareCommands.CopyHistoryGenHubLinkAsync(
+            CommandLineConstants.MapCommand,
+            item,
+            SelectedTab,
+            () => _directoryService.GetMapDirectory(SelectedTab),
+            _notificationService,
+            _localizationService,
+            _logger);
     }
 
     [RelayCommand]

@@ -49,6 +49,9 @@ public sealed class UrlParserServiceTests
     [InlineData("genhub://replay/import?url=https%3A%2F%2Fexample.com%2Freplay.rep&game=generals", ReplaySource.DirectLink)]
     [InlineData("genhub://map/import?url=https%3A%2F%2Fexample.com%2Fmaps.zip", ReplaySource.Unknown)]
     [InlineData("genhub://replay/import", ReplaySource.Unknown)]
+    [InlineData("genhub://replay/import?x=https://example.com/demo.rep", ReplaySource.Unknown)]
+    [InlineData("genhub://replay/import?url=not-a-url", ReplaySource.Unknown)]
+    [InlineData("genhub://subscribe?url=https://example.com/catalog.json", ReplaySource.Unknown)]
     [InlineData("https://example.com/invalid/page.html", ReplaySource.Unknown)]
     [InlineData("", ReplaySource.Unknown)]
     [InlineData("   ", ReplaySource.Unknown)]
@@ -111,6 +114,19 @@ public sealed class UrlParserServiceTests
     public async Task GetDirectDownloadUrlAsync_WithMapShareUri_ReturnsNullAsync()
     {
         var result = await _service.GetDirectDownloadUrlAsync("genhub://map/import?url=https%3A%2F%2Fexample.com%2Fmaps.zip");
+
+        Assert.Null(result);
+    }
+
+    /// <summary>
+    /// Verifies that GetDirectDownloadUrlAsync returns null for malformed GenHub share URIs
+    /// instead of classifying them as legacy direct links.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task GetDirectDownloadUrlAsync_WithMalformedShareUri_ReturnsNullAsync()
+    {
+        var result = await _service.GetDirectDownloadUrlAsync("genhub://replay/import?x=https://example.com/demo.rep");
 
         Assert.Null(result);
     }

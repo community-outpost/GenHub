@@ -1,6 +1,7 @@
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Services;
+using GenHub.Core.Models.Enums;
 using GenHub.Features.Tools.Services;
 using Microsoft.Extensions.Logging;
 using Moq;
@@ -57,6 +58,23 @@ public sealed class UploadHistoryServiceTests : IDisposable
 
         var reloadedService = CreateService();
         Assert.Empty(await reloadedService.GetUploadHistoryAsync());
+    }
+
+    /// <summary>
+    /// Verifies that the game recorded with an upload survives a history reload.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task RecordUpload_WithGame_PersistsGameInHistoryAsync()
+    {
+        var service = CreateService();
+        service.RecordUpload(1024, "https://utfs.io/f/example", "example.zip", category: "maps", game: GameType.ZeroHour);
+
+        var reloadedService = CreateService();
+        var history = await reloadedService.GetUploadHistoryAsync("maps");
+
+        var item = Assert.Single(history);
+        Assert.Equal(GameType.ZeroHour, item.Game);
     }
 
     /// <summary>

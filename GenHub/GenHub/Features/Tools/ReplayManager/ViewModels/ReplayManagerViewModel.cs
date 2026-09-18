@@ -493,13 +493,12 @@ public partial class ReplayManagerViewModel(
     /// <returns>A task representing the asynchronous operation.</returns>
     public async Task ImportSharedUrlAsync(string url, GameType? game = null)
     {
-        if (game.HasValue)
-        {
-            SelectedTab = game.Value;
-        }
-
-        ImportUrl = url;
-        await ImportFromUrlAsync();
+        await ToolShareCommands.ImportSharedUrlAsync(
+            url,
+            game,
+            selected => SelectedTab = selected,
+            importUrl => ImportUrl = importUrl,
+            ImportFromUrlAsync);
     }
 
     /// <summary>
@@ -678,41 +677,20 @@ public partial class ReplayManagerViewModel(
     }
 
     /// <summary>
-    /// Copies a GenHub protocol link for a URL to the clipboard.
+    /// Copies a GenHub protocol link for an upload history row to the clipboard.
     /// </summary>
-    /// <param name="url">The download URL to wrap in a GenHub protocol link.</param>
+    /// <param name="item">The history row to share, if any.</param>
     [RelayCommand]
-    private async Task CopyGenHubLinkAsync(string url)
+    private async Task CopyGenHubLinkAsync(UploadHistoryItemViewModel? item)
     {
-        if (string.IsNullOrEmpty(url)) return;
-
-        // Check if current tab is using demo paths
-        var demoPath = directoryService.GetReplayDirectory(SelectedTab);
-        if (IsDemoPath(demoPath))
-        {
-            var title = LocalizationService?.GetString("Tools.Share.Demo.CopyGenHubLinkTitle") ?? "Copy GenHub Link";
-            var desc = LocalizationService?.GetString("Tools.Share.Demo.CopyGenHubLinkDesc") ?? "Copies a GenHub link that opens GenHub and imports the upload automatically.";
-            notificationService.ShowInfo(title, desc);
-            return;
-        }
-
-        try
-        {
-            var shareUri = ToolShareLink.BuildShareUri(CommandLineConstants.ReplayCommand, url, SelectedTab);
-            var lifetime = Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime;
-            var clipboard = lifetime?.MainWindow?.Clipboard;
-            if (clipboard != null)
-            {
-                await clipboard.SetTextAsync(shareUri);
-                var copiedTitle = LocalizationService?.GetString("Tools.Share.Status.CopiedTitle") ?? "Copied";
-                var copiedDesc = LocalizationService?.GetString("Tools.Share.Status.CopiedToClipboard") ?? "Link copied to clipboard!";
-                notificationService.ShowSuccess(copiedTitle, copiedDesc);
-            }
-        }
-        catch (Exception ex) when ((ex is ArgumentException or IOException or UnauthorizedAccessException) && ex is not OperationCanceledException)
-        {
-            logger.LogError(ex, "Failed to copy GenHub link");
-        }
+        await ToolShareCommands.CopyHistoryGenHubLinkAsync(
+            CommandLineConstants.ReplayCommand,
+            item,
+            SelectedTab,
+            () => directoryService.GetReplayDirectory(SelectedTab),
+            notificationService,
+            LocalizationService,
+            logger);
     }
 
     /// <summary>
@@ -1090,6 +1068,7 @@ public partial class ReplayManagerViewModel(
             return;
         }
 
+        var uploadGame = SelectedTab;
         long totalSizeBytes = ToolUploadHelper.CalculateReplaysSize(SelectedReplays);
         if (!await ValidateUploadLimitsAsync(totalSizeBytes))
         {
@@ -1127,7 +1106,7 @@ public partial class ReplayManagerViewModel(
             var uploadResult = await exportService.UploadToUploadThingAsync([.. SelectedReplays], progressHandler);
             if (uploadResult.Success)
             {
-                await HandleSuccessfulUploadAsync(uploadResult.Data, totalSizeBytes, fileHash);
+                await HandleSuccessfulUploadAsync(uploadResult.Data, totalSizeBytes, fileHash, uploadGame);
             }
             else
             {
@@ -1223,7 +1202,7 @@ public partial class ReplayManagerViewModel(
         return (false, fileHash);
     }
 
-    private async Task HandleSuccessfulUploadAsync(UploadResult uploadResult, long totalSizeBytes, string? fileHash)
+    private async Task HandleSuccessfulUploadAsync(UploadResult uploadResult, long totalSizeBytes, string? fileHash, GameType uploadGame)
     {
         var lifetime = Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime;
         var clipboard = lifetime?.MainWindow?.Clipboard;
@@ -1233,7 +1212,7 @@ public partial class ReplayManagerViewModel(
         }
 
         var fileName = SelectedReplays.Count == 1 ? SelectedReplays[0].FileName : $"{ReplayManagerConstants.DefaultZipName}{Path.GetExtension(ReplayManagerConstants.ZipFilePattern)}";
-        uploadHistoryService.RecordUpload(totalSizeBytes, uploadResult.PublicUrl, fileName, uploadResult.FileKey, uploadResult.DeleteToken, fileHash, ReplayManagerConstants.UploadCategory);
+        uploadHistoryService.RecordUpload(totalSizeBytes, uploadResult.PublicUrl, fileName, uploadResult.FileKey, uploadResult.DeleteToken, fileHash, ReplayManagerConstants.UploadCategory, uploadGame);
 
         if (IsHistoryOpen)
         {
@@ -1248,7 +1227,7 @@ public partial class ReplayManagerViewModel(
         await ToolSharingDialogHelper.OpenShareDialogAsync(
             uploadResult.PublicUrl,
             CommandLineConstants.ReplayCommand,
-            SelectedTab,
+            uploadGame,
             notificationService,
             LocalizationService,
             logger);

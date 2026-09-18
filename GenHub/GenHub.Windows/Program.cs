@@ -189,32 +189,33 @@ public class Program
         }
         else
         {
-            var subscriptionUrl = CommandLineParser.ExtractSubscriptionUrl(args);
-            if (!string.IsNullOrEmpty(subscriptionUrl))
-            {
-                bootstrapLogger.LogInformation("Forwarding subscribe command to primary instance");
-                command = $"{IpcCommands.SubscribePrefix}{subscriptionUrl}";
-            }
-            else
-            {
-                var profileId = CommandLineParser.ExtractProfileId(args);
-                if (!string.IsNullOrEmpty(profileId))
-                {
-                    bootstrapLogger.LogInformation("Forwarding launch-profile command to primary instance: {ProfileId}", profileId);
-                    command = $"{IpcCommands.LaunchProfilePrefix}{profileId}";
-                }
-                else
-                {
-                    bootstrapLogger.LogInformation("Forwarding activate command to primary instance");
-                    command = IpcCommands.ActivateCommand;
-                }
-            }
+            command = BuildFallbackCommand(args, bootstrapLogger);
         }
 
         if (!SingleInstanceManager.SendCommandToPrimaryInstance(command))
         {
             bootstrapLogger.LogWarning("Failed to forward command to primary instance: {Command}", command);
         }
+    }
+
+    private static string BuildFallbackCommand(string[] args, ILogger bootstrapLogger)
+    {
+        var subscriptionUrl = CommandLineParser.ExtractSubscriptionUrl(args);
+        if (!string.IsNullOrEmpty(subscriptionUrl))
+        {
+            bootstrapLogger.LogInformation("Forwarding subscribe command to primary instance");
+            return $"{IpcCommands.SubscribePrefix}{subscriptionUrl}";
+        }
+
+        var profileId = CommandLineParser.ExtractProfileId(args);
+        if (!string.IsNullOrEmpty(profileId))
+        {
+            bootstrapLogger.LogInformation("Forwarding launch-profile command to primary instance: {ProfileId}", profileId);
+            return $"{IpcCommands.LaunchProfilePrefix}{profileId}";
+        }
+
+        bootstrapLogger.LogInformation("Forwarding activate command to primary instance");
+        return IpcCommands.ActivateCommand;
     }
 
     private static string? BuildToolShareCommand(string[] args)

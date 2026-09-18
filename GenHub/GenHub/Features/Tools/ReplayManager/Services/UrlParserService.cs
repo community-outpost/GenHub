@@ -37,6 +37,10 @@ public sealed partial class UrlParserService(HttpClient httpClient, ILogger<UrlP
 
             url = shareTarget.Url;
         }
+        else if (ToolShareLink.HasShareUriScheme(url))
+        {
+            return ReplaySource.Unknown;
+        }
 
         // Check for raw match ID (e.g., "151553")
         if (long.TryParse(url, out _))
