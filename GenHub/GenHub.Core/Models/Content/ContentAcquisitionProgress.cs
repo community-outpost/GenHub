@@ -6,15 +6,23 @@ namespace GenHub.Core.Models.Content;
 /// </summary>
 public class ContentAcquisitionProgress
 {
+    private double _progressPercentage;
+    private double _stageProgress;
+
     /// <summary>
     /// Gets or sets the current phase of acquisition.
     /// </summary>
     public ContentAcquisitionPhase Phase { get; set; } = ContentAcquisitionPhase.Downloading;
 
     /// <summary>
-    /// Gets or sets the overall progress percentage (0-100) for the current phase.
+    /// Gets or sets the overall progress percentage for the current phase.
+    /// Values are clamped to 0-100 so over-reporting deliverers cannot break progress bars.
     /// </summary>
-    public double ProgressPercentage { get; set; }
+    public double ProgressPercentage
+    {
+        get => _progressPercentage;
+        set => _progressPercentage = ClampPercentage(value);
+    }
 
     /// <summary>
     /// Gets or sets a description of the current operation being performed.
@@ -62,9 +70,14 @@ public class ContentAcquisitionProgress
     public int TotalStages { get; set; } = 0;
 
     /// <summary>
-    /// Gets or sets the progress within the current stage (0-100).
+    /// Gets or sets the progress within the current stage.
+    /// Values are clamped to 0-100 so over-reporting deliverers cannot break progress bars.
     /// </summary>
-    public double StageProgress { get; set; }
+    public double StageProgress
+    {
+        get => _stageProgress;
+        set => _stageProgress = ClampPercentage(value);
+    }
 
     /// <summary>
     /// Gets or sets the description of the current stage.
@@ -104,5 +117,15 @@ public class ContentAcquisitionProgress
             var description = !string.IsNullOrEmpty(StageDescription) ? $" - {StageDescription}" : string.Empty;
             return $"{stagePart}{description}{percentPart}";
         }
+    }
+
+    private static double ClampPercentage(double value)
+    {
+        if (double.IsNaN(value))
+        {
+            return 0;
+        }
+
+        return Math.Clamp(value, 0, 100);
     }
 }

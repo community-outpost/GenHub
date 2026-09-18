@@ -801,12 +801,20 @@ public partial class ReplayManagerViewModel(
         var downloadingStatus = LocalizationService?.GetString("Tools.ReplayManager.Status.DownloadingFromUrl") ?? "Downloading from URL...";
         StatusMessage = downloadingStatus;
 
+        // Pinned progress only; terminal toasts stay here so the import toasts once.
+        using var scope = new DownloadNotificationScope(
+            notificationService,
+            ImportUrl,
+            new DownloadNotificationOptions(StartTitle: downloadingStatus, ShowTerminalToast: false),
+            localization: LocalizationService);
+
         try
         {
             var progressHandler = new Progress<double>(p =>
             {
                 Progress = p;
                 StatusMessage = downloadingStatus;
+                scope.ReportFraction(p, downloadingStatus);
             });
 
             var result = await importService.ImportFromUrlAsync(ImportUrl, SelectedTab, progressHandler);

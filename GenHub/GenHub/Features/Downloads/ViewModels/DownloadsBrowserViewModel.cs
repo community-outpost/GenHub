@@ -17,6 +17,7 @@ using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameProfile;
 using GenHub.Core.Models.Manifest;
+using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Results.Content;
 using GenHub.Features.Content.Services.Catalog;
 using GenHub.Features.Content.Services.ContentDiscoverers;
@@ -2308,9 +2309,11 @@ public sealed partial class DownloadsBrowserViewModel(
                 });
             });
 
+            // Terminal toasts are owned by the coordinator (or the fallback scope below);
+            // the grid only mirrors inline progress so a download never toasts twice.
             var result = _downloadCoordinator != null
                 ? await _downloadCoordinator.DownloadContentAsync(item.SearchResult, progress, effectiveToken)
-                : await contentOrchestrator.AcquireContentAsync(item.SearchResult, progress, effectiveToken);
+                : await AcquireWithNotificationsAsync(item.SearchResult, progress, item.Name, effectiveToken);
 
             if (result.Success && result.Data != null)
             {
@@ -2321,7 +2324,6 @@ public sealed partial class DownloadsBrowserViewModel(
             var errorMsg = result.FirstError ?? "Unknown error";
             logger.LogError("Failed to download {ItemName}: {Error}", item.Name, errorMsg);
             item.DownloadStatus = $"{ContentConstants.ErrorStatusPrefix}{errorMsg}";
-            notificationService.ShowError("Download failed", errorMsg);
             return false;
         }
         catch (OperationCanceledException ex)
@@ -2334,7 +2336,6 @@ public sealed partial class DownloadsBrowserViewModel(
         {
             logger.LogError(ex, "Error downloading content: {Name}", item.Name);
             item.DownloadStatus = $"{ContentConstants.ErrorStatusPrefix}{ex.Message}";
-            notificationService.ShowError("Download failed", ex.Message);
             return false;
         }
         finally
@@ -2391,8 +2392,44 @@ public sealed partial class DownloadsBrowserViewModel(
             {
                 logger.LogWarning(ex, "Failed to send ContentAcquiredMessage");
             }
+        }
+    }
 
-            notificationService.ShowSuccess("Download Complete", $"Downloaded {item.Name}");
+    /// <summary>
+    /// Acquires content directly through the orchestrator with the standard notification
+    /// lifecycle. Used only when no download coordinator is available.
+    /// </summary>
+    private async Task<OperationResult<ContentManifest>> AcquireWithNotificationsAsync(
+        ContentSearchResult searchResult,
+        IProgress<ContentAcquisitionProgress> progress,
+        string contentName,
+        CancellationToken cancellationToken)
+    {
+        var localization = serviceProvider.GetService<ILocalizationService>();
+        using var scope = new DownloadNotificationScope(notificationService, contentName, null, progress, localization);
+        try
+        {
+            var result = await contentOrchestrator.AcquireContentAsync(searchResult, scope, cancellationToken);
+            if (result.Success && result.Data != null)
+            {
+                scope.CompleteSuccess();
+            }
+            else
+            {
+                scope.CompleteFailure(result.FirstError);
+            }
+
+            return result;
+        }
+        catch (OperationCanceledException)
+        {
+            scope.CompleteCanceled();
+            throw;
+        }
+        catch (Exception ex)
+        {
+            scope.CompleteFailure(ex.Message);
+            throw;
         }
     }
 
@@ -2416,51 +2453,65 @@ public sealed partial class DownloadsBrowserViewModel(
             targets.Count,
             item.Name);
 
+        // One aggregated notification covers every member so a bundle never toasts per member.
+        var localization = serviceProvider.GetService<ILocalizationService>();
+        using var scope = new DownloadNotificationScope(notificationService, item.Name, localization: localization);
+
         var completed = 0;
-        foreach (var target in targets)
+        try
         {
-            cancellationToken.ThrowIfCancellationRequested();
-            item.DownloadStatus = $"{ContentConstants.DownloadingStatusPrefix}{target.Name} ({completed + 1}/{targets.Count})...";
-            item.DownloadProgress = (int)(completed * 100.0 / targets.Count);
-
-            var progress = new Progress<ContentAcquisitionProgress>(p =>
+            foreach (var target in targets)
             {
-                Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+                cancellationToken.ThrowIfCancellationRequested();
+                item.DownloadStatus = $"{ContentConstants.DownloadingStatusPrefix}{target.Name} ({completed + 1}/{targets.Count})...";
+                item.DownloadProgress = (int)(completed * 100.0 / targets.Count);
+
+                var progress = new Progress<ContentAcquisitionProgress>(p =>
                 {
-                    if (!item.IsDownloading)
-                    {
-                        return;
-                    }
-
                     var slice = 100.0 / targets.Count;
-                    item.DownloadProgress = (int)((completed * slice) + (p.ProgressPercentage * slice / 100.0));
-                    item.DownloadStatus = $"{target.Name}: {p.FormatProgressStatus()}";
+                    var overall = (completed * slice) + (p.ProgressPercentage * slice / 100.0);
+                    scope.ReportFraction(overall / 100.0, $"{target.Name}: {p.FormatProgressStatus()}");
+                    Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+                    {
+                        if (!item.IsDownloading)
+                        {
+                            return;
+                        }
+
+                        item.DownloadProgress = (int)overall;
+                        item.DownloadStatus = $"{target.Name}: {p.FormatProgressStatus()}";
+                    });
                 });
-            });
 
-            var originalContentId = target.Id ?? string.Empty;
-            var result = _downloadCoordinator != null
-                ? await _downloadCoordinator.DownloadContentAsync(target, progress, cancellationToken)
-                : await contentOrchestrator.AcquireContentAsync(target, progress, cancellationToken);
-            if (!result.Success || result.Data == null)
-            {
-                var errorMsg = result.FirstError ?? "Unknown error";
-                logger.LogError("Failed to download bundle member {ItemName}: {Error}", target.Name, errorMsg);
-                item.DownloadStatus = $"{ContentConstants.ErrorStatusPrefix}{errorMsg}";
-                notificationService.ShowError("Download Failed", $"Failed to download {target.Name}: {errorMsg}");
-                return;
+                var originalContentId = target.Id ?? string.Empty;
+                var result = _downloadCoordinator != null
+                    ? await _downloadCoordinator.DownloadContentAsync(target, progress, cancellationToken, suppressNotifications: true)
+                    : await contentOrchestrator.AcquireContentAsync(target, progress, cancellationToken);
+                if (!result.Success || result.Data == null)
+                {
+                    var errorMsg = result.FirstError ?? "Unknown error";
+                    logger.LogError("Failed to download bundle member {ItemName}: {Error}", target.Name, errorMsg);
+                    item.DownloadStatus = $"{ContentConstants.ErrorStatusPrefix}{errorMsg}";
+                    scope.CompleteFailure(errorMsg);
+                    return;
+                }
+
+                target.UpdateId(result.Data.Id.Value);
+                foreach (var component in item.BundleComponents)
+                {
+                    component.MarkDownloaded(originalContentId, result.Data.Id.Value);
+                }
+
+                var moddbId = target.GetModDbId();
+
+                contentStateService.NotifyStateChanged(originalContentId, ContentState.Downloaded, result.Data.Id.Value, moddbId);
+                completed++;
             }
-
-            target.UpdateId(result.Data.Id.Value);
-            foreach (var component in item.BundleComponents)
-            {
-                component.MarkDownloaded(originalContentId, result.Data.Id.Value);
-            }
-
-            var moddbId = target.GetModDbId();
-
-            contentStateService.NotifyStateChanged(originalContentId, ContentState.Downloaded, result.Data.Id.Value, moddbId);
-            completed++;
+        }
+        catch (OperationCanceledException)
+        {
+            scope.CompleteCanceled();
+            throw;
         }
 
         await item.RefreshBundleComponentStatesAsync();
@@ -2471,7 +2522,7 @@ public sealed partial class DownloadsBrowserViewModel(
 
         if (item.AreBundleComponentsReadyForProfile)
         {
-            notificationService.ShowSuccess("Download Complete", $"Downloaded {item.Name}");
+            scope.CompleteSuccess();
         }
     }
 

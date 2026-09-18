@@ -581,6 +581,80 @@ When launching a profile with symlink strategies without admin rights:
 
 ---
 
+## Download Notification Lifecycle
+
+Every user-visible download follows one standard three-phase lifecycle, owned by
+`DownloadNotificationScope` (`GenHub.Core/Helpers`). The scope guarantees the pinned toast
+is always dismissed and exactly one terminal toast is shown.
+
+### Phase 1: Pinned start toast
+
+The scope constructor shows a pinned info toast immediately, before any network I/O:
+
+```csharp
+using var scope = new DownloadNotificationScope(notificationService, contentName);
+```
+
+### Phase 2: Throttled progress updates
+
+Reports are clamped to 0-100% and forwarded to the pinned toast at most every
+`ManifestConstants.NotificationUpdateThrottleMs` (500ms), plus a final update at 100%.
+Pass a chained sink to mirror the same reports into view bindings:
+
+```csharp
+using var scope = new DownloadNotificationScope(
+    notificationService, contentName, chained: gridProgress, localization: localizationService);
+var result = await contentOrchestrator.AcquireContentAsync(searchResult, scope, cancellationToken);
+```
+
+The scope accepts `ContentAcquisitionProgress`, `DownloadProgress`, `UpdateProgress`
+(app updates), and fractional `double` progress (replay/map URL imports).
+
+### Phase 3: Guaranteed cleanup and single terminal toast
+
+```csharp
+try
+{
+    var result = await contentOrchestrator.AcquireContentAsync(searchResult, scope, cancellationToken);
+    if (result.Success)
+    {
+        scope.CompleteSuccess();
+    }
+    else
+    {
+        scope.CompleteFailure(result.FirstError);
+    }
+}
+catch (OperationCanceledException)
+{
+    scope.CompleteCanceled();
+    throw;
+}
+```
+
+Disposal always dismisses the pinned toast, so it can never be orphaned by an early return.
+
+### Ownership rules (no duplicate toasts)
+
+- `IContentDownloadCoordinator` owns the full lifecycle for every download routed through
+  it. Callers update inline progress only and never show terminal toasts for the same
+  download.
+- Bundle flows pass `suppressNotifications: true` for member downloads and wrap the
+  whole bundle in one aggregated scope, so a bundle toasts once instead of per member.
+- Background sub-steps of a larger notified operation (profile dependency auto-acquire)
+  use `SilentProgress<T>.Instance` explicitly instead of passing null progress.
+- Callers that own localized terminal messaging (replay/map imports) use
+  `ShowTerminalToast: false` so the scope manages the pinned toast only.
+
+### Progress clamping
+
+`ContentAcquisitionProgress.ProgressPercentage`/`StageProgress`,
+`DownloadProgress.Percentage`, and `UpdateProgress.PercentComplete` are clamped to
+0-100 at the model level, so over-reporting deliverers cannot break progress bars on
+any publisher.
+
+---
+
 ## Related
 
 - [Architecture Overview](../architecture.md)

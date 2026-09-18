@@ -216,7 +216,7 @@ public abstract class BaseContentProvider : IContentProvider
                     progress.Report(new ContentAcquisitionProgress
                     {
                         Phase = ContentAcquisitionPhase.ValidatingFiles,
-                        ProgressPercentage = vp.PercentComplete,
+                        ProgressPercentage = Math.Clamp(vp.PercentComplete, 0, 100),
                         CurrentOperation = vp.CurrentFile ?? "Validating files",
                         FilesProcessed = vp.Processed,
                         TotalFiles = vp.Total,

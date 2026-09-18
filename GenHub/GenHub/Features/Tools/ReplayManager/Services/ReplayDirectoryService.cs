@@ -54,7 +54,8 @@ public sealed class ReplayDirectoryService(
         IDependencyResolver? DependencyResolver,
         ReplayFile TargetReplay,
         string InstallationManifestId,
-        string ClientManifestId);
+        string ClientManifestId,
+        IContentDownloadCoordinator? DownloadCoordinator = null);
 
     private sealed record ProfileCandidateMatchContext(
         GameType GameVersion,
@@ -360,6 +361,7 @@ public sealed class ReplayDirectoryService(
 
             var manifestPool = sp.GetRequiredService<IContentManifestPool>();
             var contentOrchestrator = sp.GetService<IContentOrchestrator>();
+            var downloadCoordinator = sp.GetService<IContentDownloadCoordinator>();
             var profileManager = sp.GetRequiredService<IGameProfileManager>();
             var dependencyResolver = sp.GetService<IDependencyResolver>();
             var configService = sp.GetService<IConfigurationProviderService>();
@@ -397,7 +399,7 @@ public sealed class ReplayDirectoryService(
             }
 
             var resolutionContext = new ReplayContentResolutionContext(
-                manifestPool, contentOrchestrator, dependencyResolver, replay, installationManifestId, clientManifestId);
+                manifestPool, contentOrchestrator, dependencyResolver, replay, installationManifestId, clientManifestId, downloadCoordinator);
             var enabledContentIds = await GatherEnabledContentIdsAsync(resolutionContext, logger, ct);
 
             if (!string.IsNullOrWhiteSpace(clientManifestId) && !enabledContentIds.Contains(clientManifestId, StringComparer.OrdinalIgnoreCase))
@@ -1560,7 +1562,7 @@ public sealed class ReplayDirectoryService(
         var rawDataPatchId = context.TargetReplay.MatchedClient.DataPatchManifestId;
 
         await AcquireDataPatchIfMissingAsync(
-            context.ContentOrchestrator, context.ManifestPool, rawDataPatchId, context.TargetReplay.MatchedClient.Publisher, context.TargetReplay.GameVersion, ct);
+            context.ContentOrchestrator, context.ManifestPool, rawDataPatchId, context.TargetReplay.MatchedClient.Publisher, context.TargetReplay.GameVersion, ct, context.DownloadCoordinator);
 
         var resolvedDataPatchId = await ResolveExistingPatchManifestIdAsync(context.ManifestPool, rawDataPatchId, context.TargetReplay.GameVersion, ct);
         if (!string.IsNullOrEmpty(resolvedDataPatchId) && !enabledContentIds.Contains(resolvedDataPatchId, StringComparer.OrdinalIgnoreCase))
@@ -2107,11 +2109,31 @@ public sealed class ReplayDirectoryService(
         }
     }
 
+    private static async Task<OperationResult<ContentManifest>?> AcquireReplayContentAsync(
+        IContentDownloadCoordinator? downloadCoordinator,
+        IContentOrchestrator? contentOrchestrator,
+        ContentSearchResult match,
+        CancellationToken ct)
+    {
+        if (downloadCoordinator != null)
+        {
+            return await downloadCoordinator.DownloadContentAsync(match, null, ct);
+        }
+
+        if (contentOrchestrator == null)
+        {
+            return null;
+        }
+
+        return await contentOrchestrator.AcquireContentAsync(match, SilentProgress<ContentAcquisitionProgress>.Instance, ct);
+    }
+
     private static async Task AcquireGeneralsOnlineMapPacksAsync(
         IContentOrchestrator? contentOrchestrator,
         IContentManifestPool manifestPool,
         GameType targetGame,
-        CancellationToken ct)
+        CancellationToken ct,
+        IContentDownloadCoordinator? downloadCoordinator = null)
     {
         if (contentOrchestrator == null)
         {
@@ -2139,7 +2161,7 @@ public sealed class ReplayDirectoryService(
         {
             foreach (var item in mapPackResult.Data)
             {
-                await contentOrchestrator.AcquireContentAsync(item, null, ct);
+                await AcquireReplayContentAsync(downloadCoordinator, contentOrchestrator, item, ct);
             }
         }
     }
@@ -2150,7 +2172,8 @@ public sealed class ReplayDirectoryService(
         string dataPatchManifestId,
         string? publisher,
         GameType gameVersion,
-        CancellationToken ct)
+        CancellationToken ct,
+        IContentDownloadCoordinator? downloadCoordinator = null)
     {
         if (contentOrchestrator == null || string.IsNullOrEmpty(dataPatchManifestId))
         {
@@ -2183,7 +2206,7 @@ public sealed class ReplayDirectoryService(
 
             if (patchMatch != null)
             {
-                await contentOrchestrator.AcquireContentAsync(patchMatch, null, ct);
+                await AcquireReplayContentAsync(downloadCoordinator, contentOrchestrator, patchMatch, ct);
             }
         }
     }
@@ -2494,12 +2517,17 @@ public sealed class ReplayDirectoryService(
             return;
         }
 
+        // Prefer the coordinator so background client downloads dedupe and follow the
+        // standard notification lifecycle instead of bypassing it silently.
+        using var scope = scopeFactory.CreateScope();
+        var downloadCoordinator = scope.ServiceProvider.GetService<IContentDownloadCoordinator>();
+
         var allManifests = await manifestPool.GetAllManifestsAsync(ct);
         var existingManifests = allManifests.Success && allManifests.Data != null ? allManifests.Data : [];
 
         if (!IsClientAlreadyAcquired(existingManifests, matchedClient, gameVersion))
         {
-            await DownloadThirdPartyClientIfMissingAsync(contentOrchestrator, matchedClient, gameVersion, ct);
+            await DownloadThirdPartyClientIfMissingAsync(contentOrchestrator, matchedClient, gameVersion, ct, downloadCoordinator);
         }
         else
         {
@@ -2509,7 +2537,7 @@ public sealed class ReplayDirectoryService(
         // If GeneralsOnline, also ensure MapPack is acquired if missing
         if (string.Equals(matchedClient.Publisher, GeneralsOnlineConstants.PublisherType, StringComparison.OrdinalIgnoreCase))
         {
-            await AcquireGeneralsOnlineMapPacksAsync(contentOrchestrator, manifestPool, gameVersion, ct);
+            await AcquireGeneralsOnlineMapPacksAsync(contentOrchestrator, manifestPool, gameVersion, ct, downloadCoordinator);
         }
     }
 
@@ -2517,7 +2545,8 @@ public sealed class ReplayDirectoryService(
         IContentOrchestrator contentOrchestrator,
         CrcMappingEntry matchedClient,
         GameType gameVersion,
-        CancellationToken ct)
+        CancellationToken ct,
+        IContentDownloadCoordinator? downloadCoordinator = null)
     {
         logger.LogInformation("Downloading and acquiring client manifest {ManifestId} from {Publisher}...", matchedClient.ManifestId, matchedClient.Publisher);
         ContentSearchResult? match = null;
@@ -2580,7 +2609,7 @@ public sealed class ReplayDirectoryService(
             return;
         }
 
-        var acquireResult = await contentOrchestrator.AcquireContentAsync(match, null, ct);
+        var acquireResult = await AcquireReplayContentAsync(downloadCoordinator, contentOrchestrator, match, ct);
         if (acquireResult != null && !acquireResult.Success)
         {
             logger.LogWarning("Failed to acquire client manifest {ManifestId}: {Error}", matchedClient.ManifestId, acquireResult.FirstError);

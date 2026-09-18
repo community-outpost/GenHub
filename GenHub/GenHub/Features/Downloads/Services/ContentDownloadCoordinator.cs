@@ -1,6 +1,8 @@
 using CommunityToolkit.Mvvm.Messaging;
 using GenHub.Core.Constants;
 using GenHub.Core.Extensions;
+using GenHub.Core.Helpers;
+using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Messages;
@@ -25,7 +27,8 @@ public sealed class ContentDownloadCoordinator(
     IContentOrchestrator contentOrchestrator,
     IContentStateService contentStateService,
     INotificationService notificationService,
-    ILogger<ContentDownloadCoordinator> logger) : IContentDownloadCoordinator
+    ILogger<ContentDownloadCoordinator> logger,
+    ILocalizationService? localizationService = null) : IContentDownloadCoordinator
 {
     private sealed class InFlightDownload : IDisposable
     {
@@ -47,6 +50,8 @@ public sealed class ContentDownloadCoordinator(
         public ContentSearchResult? SearchResult { get; set; }
 
         public string? ParentContentId { get; set; }
+
+        public bool SuppressNotifications { get; set; }
 
         public object Lock { get; } = new();
 
@@ -116,14 +121,15 @@ public sealed class ContentDownloadCoordinator(
     public async Task<OperationResult<ContentManifest>> DownloadContentAsync(
         ContentSearchResult searchResult,
         IProgress<ContentAcquisitionProgress>? progress = null,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        bool suppressNotifications = false)
     {
         ArgumentNullException.ThrowIfNull(searchResult);
 
         var key = GetDownloadKey(searchResult);
         Action<ContentAcquisitionProgress>? callback = progress != null ? progress.Report : null;
 
-        var (inFlight, isInitiator) = await GetOrCreateInFlightDownloadAsync(key, searchResult, cancellationToken);
+        var (inFlight, isInitiator) = await GetOrCreateInFlightDownloadAsync(key, searchResult, suppressNotifications, cancellationToken);
 
         AttachProgressCallback(inFlight, callback);
 
@@ -267,6 +273,7 @@ public sealed class ContentDownloadCoordinator(
     private async Task<(InFlightDownload InFlight, bool IsInitiator)> GetOrCreateInFlightDownloadAsync(
         string key,
         ContentSearchResult searchResult,
+        bool suppressNotifications,
         CancellationToken cancellationToken)
     {
         while (true)
@@ -299,6 +306,7 @@ public sealed class ContentDownloadCoordinator(
                     {
                         SearchResult = searchResult,
                         ParentContentId = parentContentId,
+                        SuppressNotifications = suppressNotifications,
                     };
                     _inFlightDownloads[key] = inFlight;
                     IncrementWaiterCount(inFlight);
@@ -321,17 +329,18 @@ public sealed class ContentDownloadCoordinator(
         return new Progress<ContentAcquisitionProgress>(p =>
         {
             var status = p.FormatProgressStatus();
+            var clampedPercentage = double.IsNaN(p.ProgressPercentage) ? 0 : Math.Clamp(p.ProgressPercentage, 0, 100);
             Action<ContentAcquisitionProgress>? callbacks;
             lock (inFlight.Lock)
             {
-                inFlight.LastProgressPercentage = p.ProgressPercentage;
+                inFlight.LastProgressPercentage = clampedPercentage;
                 inFlight.LastStatusMessage = status;
                 callbacks = inFlight.ProgressCallbacks;
             }
 
             callbacks?.Invoke(p);
 
-            BroadcastDownloadProgress(key, searchResult, p.ProgressPercentage, status);
+            BroadcastDownloadProgress(key, searchResult, clampedPercentage, status);
         });
     }
 
@@ -380,21 +389,40 @@ public sealed class ContentDownloadCoordinator(
         var success = false;
         string? errorMessage = null;
 
+        // The scope owns the pinned start toast, live updates, and the single terminal toast.
+        // Orchestrator reports flow through the scope into the multiplexed progress so view
+        // bindings, messenger broadcasts, and the toast share one clamped stream.
+        using var notificationScope = inFlight.SuppressNotifications
+            ? null
+            : new DownloadNotificationScope(notificationService, searchResult.Name, null, progress, localizationService);
+        var acquisitionProgress = (IProgress<ContentAcquisitionProgress>?)notificationScope ?? progress;
+
         try
         {
-            var result = await ExecuteDownloadAsync(searchResult, progress, inFlight.InternalCts.Token);
+            var result = await ExecuteDownloadAsync(searchResult, acquisitionProgress, inFlight.InternalCts.Token);
             success = result.Success;
             errorMessage = result.FirstError;
+            if (result.Success)
+            {
+                notificationScope?.CompleteSuccess();
+            }
+            else
+            {
+                notificationScope?.CompleteFailure(errorMessage);
+            }
+
             inFlight.Tcs.TrySetResult(result);
         }
         catch (OperationCanceledException oce)
         {
-            errorMessage = "Download cancelled";
+            errorMessage = ContentConstants.DownloadCancelledStatusMessage;
+            notificationScope?.CompleteCanceled();
             inFlight.Tcs.TrySetCanceled(oce.CancellationToken);
         }
         catch (Exception ex)
         {
             errorMessage = ex.Message;
+            notificationScope?.CompleteFailure(ex.Message);
             inFlight.Tcs.TrySetException(ex);
         }
         finally
@@ -477,8 +505,8 @@ public sealed class ContentDownloadCoordinator(
                     logger.LogWarning(ex, "Failed to send ContentAcquiredMessage for {ManifestId}", manifest.Id.Value);
                 }
 
-                notificationService.ShowSuccess("Download Complete", $"Downloaded {searchResult.Name}");
-
+                // Terminal toasts are owned by StartDownloadTaskAsync so success, failure,
+                // and cancellation all share one notification lifecycle.
                 return OperationResult<ContentManifest>.CreateSuccess(manifest);
             }
 

@@ -465,12 +465,20 @@ public partial class MapManagerViewModel : ObservableObject, IDisposable
         Progress = 0;
         StatusMessage = "Downloading from URL...";
 
+        // Pinned progress only; terminal toasts stay here so the import toasts once.
+        using var scope = new DownloadNotificationScope(
+            _notificationService,
+            ImportUrl,
+            new DownloadNotificationOptions(StartTitle: StatusMessage, ShowTerminalToast: false),
+            localization: _localizationService);
+
         try
         {
             var progressHandler = new Progress<double>(p =>
             {
                 Progress = p;
                 StatusMessage = "Downloading from URL...";
+                scope.ReportFraction(p, StatusMessage);
             });
 
             var result = await _importService.ImportFromUrlAsync(ImportUrl, SelectedTab, progressHandler);

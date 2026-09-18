@@ -17,15 +17,20 @@ public interface IContentDownloadCoordinator
 
     /// <summary>
     /// Downloads content, updates state, and shows notifications.
+    /// The coordinator owns the full notification lifecycle for the download: pinned start
+    /// toast, live progress updates, and exactly one terminal toast. Callers must not show
+    /// their own terminal toasts for the same download.
     /// </summary>
     /// <param name="searchResult">The content search result to download.</param>
     /// <param name="progress">Progress reporter.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
+    /// <param name="suppressNotifications">When true, no toasts are shown. Use only when the caller aggregates several member downloads behind a single notification.</param>
     /// <returns>The acquired manifest if successful.</returns>
     Task<OperationResult<ContentManifest>> DownloadContentAsync(
         ContentSearchResult searchResult,
         IProgress<ContentAcquisitionProgress>? progress = null,
-        CancellationToken cancellationToken = default);
+        CancellationToken cancellationToken = default,
+        bool suppressNotifications = false);
 
     /// <summary>
     /// Checks whether content is currently being downloaded.

@@ -275,6 +275,42 @@
     <value>(Coming Soon)</value>
     <comment>Label indicating a feature is coming soon, with parentheses</comment>
   </data>
+  <data name="Downloads.Notification.Canceled.Message" xml:space="preserve">
+    <value>Canceled download for {0}.</value>
+    <comment>Cancellation toast message, formatted with the content name</comment>
+  </data>
+  <data name="Downloads.Notification.Canceled.Title" xml:space="preserve">
+    <value>Download Canceled</value>
+    <comment>Cancellation toast title</comment>
+  </data>
+  <data name="Downloads.Notification.Complete.Message" xml:space="preserve">
+    <value>Downloaded {0}</value>
+    <comment>Success toast message, formatted with the content name</comment>
+  </data>
+  <data name="Downloads.Notification.Complete.Title" xml:space="preserve">
+    <value>Download Complete</value>
+    <comment>Success toast title</comment>
+  </data>
+  <data name="Downloads.Notification.Connecting.Message" xml:space="preserve">
+    <value>Connecting...</value>
+    <comment>Initial pinned download message shown before progress arrives</comment>
+  </data>
+  <data name="Downloads.Notification.Downloading.Title" xml:space="preserve">
+    <value>Downloading {0}</value>
+    <comment>Pinned download title, formatted with the content name</comment>
+  </data>
+  <data name="Downloads.Notification.Failed.Title" xml:space="preserve">
+    <value>Download Failed: {0}</value>
+    <comment>Failure toast title, formatted with the content name</comment>
+  </data>
+  <data name="Downloads.Notification.Progress.Message" xml:space="preserve">
+    <value>{0}% - {1}</value>
+    <comment>Live progress message, formatted with percentage and status</comment>
+  </data>
+  <data name="Downloads.Notification.UnknownError" xml:space="preserve">
+    <value>An unknown error occurred during download.</value>
+    <comment>Fallback failure detail when no error message is available</comment>
+  </data>
   <data name="Downloads.Section.AdditionalContent" xml:space="preserve">
     <value>Additional Content</value>
     <comment>Section header for additional content area</comment>

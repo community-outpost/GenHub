@@ -718,84 +718,48 @@ public class BackgroundUpdateCoordinator(
             return;
         }
 
-        var progressNotificationId = Guid.NewGuid();
+        using var scope = new DownloadNotificationScope(
+            notificationService,
+            AppConstants.AppName,
+            new DownloadNotificationOptions(
+                StartTitle: AppUpdateConstants.UpdatingAppNotificationTitle,
+                StartMessage: AppUpdateConstants.UpdateStartingMessage));
 
         try
         {
-            // show the progress notification immediately
-            notificationService.Show(new NotificationMessage(
-                NotificationType.Info,
-                AppUpdateConstants.UpdatingAppNotificationTitle,
-                AppUpdateConstants.UpdateStartingMessage,
-                autoDismissMilliseconds: null,
-                isPersistent: false,
-                showInBadge: false)
-            {
-                Id = progressNotificationId,
-            });
-
-            var progress = new Progress<UpdateProgress>(p =>
-            {
-                string statusText;
-                if (!string.IsNullOrWhiteSpace(p.Message))
-                {
-                    statusText = p.Message;
-                }
-                else if (!string.IsNullOrWhiteSpace(p.Status))
-                {
-                    statusText = p.Status;
-                }
-                else
-                {
-                    statusText = $"{p.PercentComplete}%";
-                }
-
-                notificationService.Update(
-                    progressNotificationId,
-                    statusText,
-                    AppUpdateConstants.UpdatingAppNotificationTitle);
-            });
+            var progress = new Progress<UpdateProgress>(scope.Report);
 
             if (artifactUpdate != null)
             {
                 logger?.LogInformation("Starting one-click artifact install: {Version}", artifactUpdate.DisplayVersion);
                 await velopackUpdateManager.InstallArtifactAsync(artifactUpdate, progress, lifetimeToken);
                 await ClearStaleSubscriptionAsync(clearedPrNumber, clearedBranch, lifetimeToken);
-                notificationService.Update(
-                    progressNotificationId,
-                    AppUpdateConstants.UpdateCompleteRestartingMessage,
-                    AppUpdateConstants.UpdatingAppNotificationTitle);
+                scope.CompleteWithPinnedMessage(AppUpdateConstants.UpdateCompleteRestartingMessage);
             }
             else if (updateInfo != null)
             {
                 logger?.LogInformation("Starting one-click release update: {Version}", updateInfo.TargetFullRelease.Version);
                 await velopackUpdateManager.DownloadUpdatesAsync(updateInfo, progress, lifetimeToken);
                 await ClearStaleSubscriptionAsync(clearedPrNumber, clearedBranch, lifetimeToken);
-                notificationService.Update(
-                    progressNotificationId,
-                    AppUpdateConstants.UpdateDownloadedRestartingMessage,
-                    AppUpdateConstants.UpdatingAppNotificationTitle);
+                scope.CompleteWithPinnedMessage(AppUpdateConstants.UpdateDownloadedRestartingMessage);
                 velopackUpdateManager.ApplyUpdatesAndRestart(updateInfo);
             }
             else if (!string.IsNullOrWhiteSpace(githubVersion))
             {
                 logger?.LogInformation("Opening update window for GitHub API update: {Version}", githubVersion);
-                notificationService.Dismiss(progressNotificationId);
                 OpenUpdateSettings();
             }
         }
         catch (OperationCanceledException) when (lifetimeToken.IsCancellationRequested)
         {
-            notificationService.Dismiss(progressNotificationId);
+            scope.CompleteCanceled(silent: true);
         }
         catch (Exception ex)
         {
             logger?.LogError(ex, "Failed to install update");
-            notificationService.Dismiss(progressNotificationId);
-            notificationService.ShowError(
-                AppUpdateConstants.UpdateFailedNotificationTitle,
+            scope.CompleteFailure(
                 string.Format(AppUpdateConstants.UpdateFailedNotificationFormat, ex.Message),
-                autoDismissMs: NotificationConstants.DefaultAutoDismissMs);
+                AppUpdateConstants.UpdateFailedNotificationTitle);
         }
     }
 
