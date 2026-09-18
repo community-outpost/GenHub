@@ -83,9 +83,14 @@ public class GenLauncherManifestFactory(
             };
 
             var expectedEtags = originalManifest.Files
-                .Where(f => !string.IsNullOrWhiteSpace(f.Hash))
+                .Where(f => !string.IsNullOrWhiteSpace(f.ETag ?? f.Hash))
                 .DistinctBy(f => f.RelativePath.Replace('\\', '/'), StringComparer.OrdinalIgnoreCase)
-                .ToDictionary(f => f.RelativePath.Replace('\\', '/'), f => f.Hash, StringComparer.OrdinalIgnoreCase);
+                .ToDictionary(f => f.RelativePath.Replace('\\', '/'), f => f.ETag ?? f.Hash, StringComparer.OrdinalIgnoreCase);
+
+            var filenameEtags = originalManifest.Files
+                .Where(f => !string.IsNullOrWhiteSpace(f.ETag ?? f.Hash))
+                .DistinctBy(f => Path.GetFileName(f.RelativePath), StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(f => Path.GetFileName(f.RelativePath), f => f.ETag ?? f.Hash, StringComparer.OrdinalIgnoreCase);
 
             var allFiles = Directory.GetFiles(extractedDirectory, "*", SearchOption.AllDirectories);
             foreach (var filePath in allFiles)
@@ -93,14 +98,20 @@ public class GenLauncherManifestFactory(
                 cancellationToken.ThrowIfCancellationRequested();
 
                 var relativePath = Path.GetRelativePath(extractedDirectory, filePath).Replace('\\', '/');
+                var fileName = Path.GetFileName(filePath);
+
+                var hasExpectedEtag = expectedEtags.TryGetValue(relativePath, out var expectedEtag) ||
+                                      filenameEtags.TryGetValue(fileName, out expectedEtag);
 
                 // MD5 validation for engine critical files when ETag is present
-                if (GenLauncherChecksumValidator.RequiresValidation(relativePath) &&
-                    expectedEtags.TryGetValue(relativePath, out var expectedEtag) &&
-                    !await GenLauncherChecksumValidator.ValidateFileAsync(filePath, expectedEtag, cancellationToken))
+                if (hasExpectedEtag && !string.IsNullOrWhiteSpace(expectedEtag))
                 {
-                    logger.LogError("Checksum mismatch for engine file {File}! Expected ETag: {Expected}", relativePath, expectedEtag);
-                    return OperationResult<List<ContentManifest>>.CreateFailure($"Checksum mismatch for engine file {relativePath}");
+                    if (GenLauncherChecksumValidator.RequiresValidation(relativePath) &&
+                        !await GenLauncherChecksumValidator.ValidateFileAsync(filePath, expectedEtag, cancellationToken))
+                    {
+                        logger.LogError("Checksum mismatch for engine file {File}! Expected ETag: {Expected}", relativePath, expectedEtag);
+                        return OperationResult<List<ContentManifest>>.CreateFailure($"Checksum mismatch for engine file {relativePath}");
+                    }
                 }
 
                 // Compute SHA256 for CAS
@@ -113,6 +124,7 @@ public class GenLauncherManifestFactory(
                 {
                     RelativePath = relativePath,
                     Hash = sha256Hash,
+                    ETag = expectedEtag,
                     Size = fileInfo.Length,
                     SourceType = ContentSourceType.ContentAddressable,
                     IsRequired = true,

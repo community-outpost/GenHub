@@ -123,4 +123,34 @@ public sealed class GenLauncherS3SignerTests
         Assert.Empty(pub);
         Assert.Empty(sec);
     }
+
+    /// <summary>
+    /// Tests host normalization with scheme and path prefixes.
+    /// </summary>
+    [Fact]
+    public void GeneratePresignedGetUrl_WithSchemeAndSubpath_NormalizesCleanly()
+    {
+        var url = GenLauncherS3Signer.GeneratePresignedGetUrl(
+            "http://gen.insave.ovh:9000/storage",
+            "mybucket",
+            "file.big");
+
+        Assert.StartsWith("http://gen.insave.ovh:9000/storage/mybucket/file.big?", url);
+    }
+
+    /// <summary>
+    /// Tests Wasabi region inference from hostname.
+    /// </summary>
+    [Fact]
+    public void GeneratePresignedGetUrl_WithWasabiRegion_InfersRegionInSignature()
+    {
+        var url = GenLauncherS3Signer.GeneratePresignedGetUrl(
+            "s3.eu-central-1.wasabisys.com",
+            "mybucket",
+            "data.big",
+            publicKey: "KEY",
+            secretKey: "SECRET");
+
+        Assert.Contains("eu-central-1", url);
+    }
 }

@@ -24,8 +24,12 @@ public sealed class GenLauncherChecksumValidatorTests
     [InlineData("model.w3d", true)]
     [InlineData("texture.dds", true)]
     [InlineData("text.csf", true)]
+    [InlineData("game.exe", true)]
+    [InlineData("patch.dll", true)]
+    [InlineData("level.map", true)]
+    [InlineData("game.dat", true)]
     [InlineData("readme.txt", false)]
-    [InlineData("installer.exe", false)]
+    [InlineData("installer.msi", false)]
     [InlineData("document.pdf", false)]
     public void RequiresValidation_IdentifiesEngineExtensionsCorrectly(string fileName, bool expected)
     {

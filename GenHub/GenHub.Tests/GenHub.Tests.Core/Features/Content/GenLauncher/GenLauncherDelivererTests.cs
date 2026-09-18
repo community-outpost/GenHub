@@ -93,6 +93,63 @@ public sealed class GenLauncherDelivererTests
     }
 
     /// <summary>
+    /// Tests that DeliverContentAsync blocks SSRF unsafe URLs (e.g. file:, ftp:, localhost).
+    /// </summary>
+    /// <param name="unsafeUrl">The SSRF unsafe download URL to test.</param>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Theory]
+    [InlineData("file:///etc/passwd")]
+    [InlineData("ftp://attacker.com/payload.zip")]
+    [InlineData("http://127.0.0.1/sensitive.zip")]
+    [InlineData("http://localhost:8080/data.zip")]
+    public async Task DeliverContentAsync_WithSsrfUnsafeUrl_RejectsWithoutDownloading(string unsafeUrl)
+    {
+        var deliverer = CreateDeliverer();
+        var targetDir = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+
+        try
+        {
+            var manifest = new ContentManifest
+            {
+                Id = ManifestId.Create("1.1.genlauncher.mod.ssrf"),
+                Name = "SSRF Mod",
+                Version = "1.0",
+                ContentType = ContentType.Mod,
+                Publisher = new PublisherInfo { PublisherType = PublisherTypeConstants.GenLauncher },
+                Files =
+                [
+                    new ManifestFile
+                    {
+                        RelativePath = "test.zip",
+                        DownloadUrl = unsafeUrl,
+                        SourceType = ContentSourceType.RemoteDownload,
+                    },
+                ],
+            };
+
+            var result = await deliverer.DeliverContentAsync(manifest, targetDir, null, CancellationToken.None);
+
+            result.Success.Should().BeFalse();
+            result.FirstError.Should().Contain("Invalid download URL");
+            _downloadServiceMock.Verify(
+                d => d.DownloadFileAsync(
+                    It.IsAny<Uri>(),
+                    It.IsAny<string>(),
+                    It.IsAny<string?>(),
+                    It.IsAny<IProgress<DownloadProgress>?>(),
+                    It.IsAny<CancellationToken>()),
+                Times.Never);
+        }
+        finally
+        {
+            if (Directory.Exists(targetDir))
+            {
+                Directory.Delete(targetDir, recursive: true);
+            }
+        }
+    }
+
+    /// <summary>
     /// Tests that DeliverContentAsync fails when download service fails.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>

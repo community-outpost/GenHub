@@ -102,7 +102,8 @@ public sealed class GenLauncherResolverTests
 
         Assert.Single(manifest.Files);
         Assert.Equal("Shockwave.big", manifest.Files[0].RelativePath);
-        Assert.Equal("0123456789abcdef0123456789abcdef", manifest.Files[0].Hash);
+        Assert.Equal("0123456789abcdef0123456789abcdef", manifest.Files[0].ETag);
+        Assert.Equal(string.Empty, manifest.Files[0].Hash);
 
         // Verify dependencies
         Assert.Contains(manifest.Dependencies, d => d.DependencyType == ContentType.GameInstallation);

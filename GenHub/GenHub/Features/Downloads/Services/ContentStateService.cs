@@ -292,6 +292,16 @@ public sealed partial class ContentStateService(
 
         if (IsGenLauncherPublisher(p1) && IsGenLauncherPublisher(p2))
         {
+            var p1HasZh = p1.Contains("zerohour", StringComparison.OrdinalIgnoreCase);
+            var p2HasZh = p2.Contains("zerohour", StringComparison.OrdinalIgnoreCase);
+            var p1HasGen = p1.Contains("generals", StringComparison.OrdinalIgnoreCase) && !p1HasZh;
+            var p2HasGen = p2.Contains("generals", StringComparison.OrdinalIgnoreCase) && !p2HasZh;
+
+            if ((p1HasZh && p2HasGen) || (p1HasGen && p2HasZh))
+            {
+                return false;
+            }
+
             return true;
         }
 
@@ -448,8 +458,8 @@ public sealed partial class ContentStateService(
         }
 
         if (!string.Equals(segments[3], expectedContentType, StringComparison.OrdinalIgnoreCase) ||
-            (expectedGame is GameType.Generals or GameType.ZeroHour &&
-             manifest.TargetGame is GameType.Generals or GameType.ZeroHour &&
+            (expectedGame != GameType.Unknown &&
+             manifest.TargetGame != GameType.Unknown &&
              manifest.TargetGame != expectedGame))
         {
             return false;
@@ -1483,12 +1493,6 @@ public sealed partial class ContentStateService(
             }
         }
 
-        // Fallback for parent-scoped synthetic file rows where the stored manifest lacks release-level metadata (both Name and Version are blank).
-        if (string.IsNullOrWhiteSpace(manifest.Name) && string.IsNullOrWhiteSpace(manifest.Version))
-        {
-            return true;
-        }
-
         return false;
     }
 
@@ -1539,8 +1543,8 @@ public sealed partial class ContentStateService(
         string contentName,
         GameType targetGame)
     {
-        if (targetGame is GameType.Generals or GameType.ZeroHour &&
-            manifest.TargetGame is GameType.Generals or GameType.ZeroHour &&
+        if (targetGame != GameType.Unknown &&
+            manifest.TargetGame != GameType.Unknown &&
             manifest.TargetGame != targetGame)
         {
             return false;
@@ -1640,7 +1644,12 @@ public sealed partial class ContentStateService(
         }
         else if (IsGenLauncherPublisher(providerName))
         {
-            var gameToken = item.TargetGame == GameType.ZeroHour ? "zerohour" : "generals";
+            var gameToken = item.TargetGame switch
+            {
+                GameType.ZeroHour => GenLauncherConstants.ZeroHourGameToken,
+                GameType.Generals => GenLauncherConstants.GeneralsGameToken,
+                _ => string.Empty,
+            };
             providerName = $"{GenLauncherConstants.PublisherId}{gameToken}";
         }
 

@@ -45,7 +45,8 @@ public class GenLauncherDiscoverer(
 {
     private const int MaxCacheEntries = 200;
     private static readonly TimeSpan CacheTtl = TimeSpan.FromMinutes(15);
-    private readonly ConcurrentDictionary<string, (DateTime CachedAt, string Content)> _cache = new(StringComparer.OrdinalIgnoreCase);
+    private readonly ConcurrentDictionary<string, (DateTime CachedAt, string Content, int ByteCount)> _cache = new(StringComparer.OrdinalIgnoreCase);
+    private long _currentCacheBytes;
 
     private sealed record ModProcessingContext(
         HttpClient Client,
@@ -339,6 +340,27 @@ public class GenLauncherDiscoverer(
         return $"{safeName.Trim()}.zip";
     }
 
+    private static string GetCacheKey(string url)
+    {
+        if (string.IsNullOrEmpty(url) || !url.Contains("X-Amz-Signature", StringComparison.OrdinalIgnoreCase))
+        {
+            return url;
+        }
+
+        if (Uri.TryCreate(url, UriKind.Absolute, out var uri))
+        {
+            var query = uri.Query.TrimStart('?');
+            var keptPairs = query.Split('&', StringSplitOptions.RemoveEmptyEntries)
+                .Where(p => !p.StartsWith("X-Amz-", StringComparison.OrdinalIgnoreCase));
+            var newQuery = string.Join("&", keptPairs);
+            return string.IsNullOrEmpty(newQuery)
+                ? $"{uri.Scheme}://{uri.Authority}{uri.AbsolutePath}"
+                : $"{uri.Scheme}://{uri.Authority}{uri.AbsolutePath}?{newQuery}";
+        }
+
+        return url;
+    }
+
     private string GetLocalizedString(string key, string fallback)
     {
         return localizationService?.GetString(key) ?? fallback;
@@ -630,7 +652,7 @@ public class GenLauncherDiscoverer(
             SourceUrl = ResolveSourceUrl(modEntry.ModLink, parentManifestUrl),
             IconUrl = ResolveIconUrl(parentManifest?.UIImageSourceLink, null),
             RequiresResolution = true,
-            VariantGroupId = context.ModSlug,
+            VariantGroupId = $"{context.Game.ToString().ToLowerInvariant()}-{context.ModSlug}",
             VariantFamilyName = modEntry.ModName,
         };
 
@@ -808,6 +830,15 @@ public class GenLauncherDiscoverer(
 
                 return ((ContentSearchResult?)item, sizeBytes);
             }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Failed to process child manifest from {Url}", url);
+                return ((ContentSearchResult?)null, (long?)null);
+            }
             finally
             {
                 semaphore.Release();
@@ -924,7 +955,7 @@ public class GenLauncherDiscoverer(
             SourceUrl = manifestUrl,
             IconUrl = ResolveIconUrl(versionManifest.UIImageSourceLink, context.ParentIconUrl),
             RequiresResolution = true,
-            VariantGroupId = context.ParentModSlug,
+            VariantGroupId = $"{context.Game.ToString().ToLowerInvariant()}-{context.ParentModSlug}",
             VariantFamilyName = context.ParentModName,
         };
 
@@ -964,6 +995,15 @@ public class GenLauncherDiscoverer(
             try
             {
                 return await ProcessChildManifestAsync(childContext, url, contentType, cancellationToken);
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Failed to process child manifest from {Url}", url);
+                return null;
             }
             finally
             {
@@ -1163,7 +1203,8 @@ public class GenLauncherDiscoverer(
             return null;
         }
 
-        if (_cache.TryGetValue(url, out var cached) && DateTime.UtcNow - cached.CachedAt < CacheTtl)
+        var cacheKey = GetCacheKey(url);
+        if (_cache.TryGetValue(cacheKey, out var cached) && DateTime.UtcNow - cached.CachedAt < CacheTtl)
         {
             return cached.Content;
         }
@@ -1202,7 +1243,7 @@ public class GenLauncherDiscoverer(
             }
 
             var content = Encoding.UTF8.GetString(ms.ToArray());
-            StoreInCache(url, content);
+            StoreInCache(cacheKey, content);
             return content;
         }
         catch (OperationCanceledException)
@@ -1216,34 +1257,52 @@ public class GenLauncherDiscoverer(
         }
     }
 
-    private void StoreInCache(string url, string content)
+    private void StoreInCache(string cacheKey, string content)
     {
-        if (_cache.Count >= MaxCacheEntries)
+        var entryBytes = Encoding.UTF8.GetByteCount(content);
+        var now = DateTime.UtcNow;
+
+        if (_cache.Count >= MaxCacheEntries || _currentCacheBytes + entryBytes > GenLauncherConstants.MaxCacheTotalBytes)
         {
-            var now = DateTime.UtcNow;
             foreach (var key in _cache.Keys)
             {
                 if (_cache.TryGetValue(key, out var entry) && now - entry.CachedAt >= CacheTtl)
                 {
-                    _cache.TryRemove(key, out _);
+                    if (_cache.TryRemove(key, out var removed))
+                    {
+                        Interlocked.Add(ref _currentCacheBytes, -removed.ByteCount);
+                    }
                 }
             }
 
-            if (_cache.Count >= MaxCacheEntries)
+            if (_cache.Count >= MaxCacheEntries || _currentCacheBytes + entryBytes > GenLauncherConstants.MaxCacheTotalBytes)
             {
                 var oldestKeys = _cache
                     .OrderBy(p => p.Value.CachedAt)
-                    .Take(_cache.Count - MaxCacheEntries + 1)
                     .Select(p => p.Key)
                     .ToList();
 
                 foreach (var key in oldestKeys)
                 {
-                    _cache.TryRemove(key, out _);
+                    if (_cache.TryRemove(key, out var removed))
+                    {
+                        Interlocked.Add(ref _currentCacheBytes, -removed.ByteCount);
+                    }
+
+                    if (_cache.Count < MaxCacheEntries && _currentCacheBytes + entryBytes <= GenLauncherConstants.MaxCacheTotalBytes)
+                    {
+                        break;
+                    }
                 }
             }
         }
 
-        _cache[url] = (DateTime.UtcNow, content);
+        if (_cache.TryGetValue(cacheKey, out var oldEntry))
+        {
+            Interlocked.Add(ref _currentCacheBytes, -oldEntry.ByteCount);
+        }
+
+        _cache[cacheKey] = (DateTime.UtcNow, content, entryBytes);
+        Interlocked.Add(ref _currentCacheBytes, entryBytes);
     }
 }

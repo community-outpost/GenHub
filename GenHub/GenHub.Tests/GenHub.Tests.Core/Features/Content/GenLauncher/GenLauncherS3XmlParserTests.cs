@@ -140,4 +140,35 @@ public sealed class GenLauncherS3XmlParserTests
         Assert.False(isTruncated);
         Assert.Null(nextMarker);
     }
+
+    /// <summary>
+    /// Tests that ParseListBucketResult supports NextContinuationToken from S3 v2 listings.
+    /// </summary>
+    [Fact]
+    public void ParseListBucketResult_WithNextContinuationToken_ExtractsContinuationToken()
+    {
+        const string s3v2Xml = @"<?xml version=""1.0"" encoding=""UTF-8""?>
+<ListBucketResult xmlns=""http://s3.amazonaws.com/doc/2006-03-01/"">
+    <Name>zh-mods</Name>
+    <IsTruncated>true</IsTruncated>
+    <NextContinuationToken>token-12345</NextContinuationToken>
+    <Contents>
+        <Key>Contra/file.big</Key>
+        <Size>100</Size>
+        <ETag>&quot;d41d8cd98f00b204e9800998ecf8427e&quot;</ETag>
+    </Contents>
+</ListBucketResult>";
+
+        var entries = GenLauncherS3XmlParser.ParseListBucketResult(
+            s3v2Xml,
+            "Contra",
+            "gen.insave.ovh:9000",
+            "zh-mods",
+            out var isTruncated,
+            out var nextMarker);
+
+        Assert.True(isTruncated);
+        Assert.Equal("token-12345", nextMarker);
+        Assert.Single(entries);
+    }
 }

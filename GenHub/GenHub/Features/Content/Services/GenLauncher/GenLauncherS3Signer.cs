@@ -10,64 +10,119 @@ using System.Text;
 namespace GenHub.Features.Content.Services.GenLauncher;
 
 /// <summary>
-/// Provides AWS Signature Version 4 URL presigning for GenLauncher S3/MinIO repositories.
-/// Enables secure, authenticated direct downloads from S3 storage hosts such as gen.insave.ovh.
+/// Implements AWS Signature Version 4 signing for GenLauncher S3 and MinIO REST endpoints.
+/// Supports both query parameter (presigned URL) and header authentication.
 /// </summary>
 public static class GenLauncherS3Signer
 {
     private const string Algorithm = "AWS4-HMAC-SHA256";
     private const string Service = "s3";
-    private const string UnsignedPayload = "UNSIGNED-PAYLOAD";
     private const string SignedHeaders = "host";
+    private const string UnsignedPayload = "UNSIGNED-PAYLOAD";
 
     /// <summary>
-    /// Resolves credentials for an S3 host link, falling back to GenLauncher's default InSave credentials when applicable.
+    /// Checks whether the specified host is an InSave MinIO host used by GenLauncher.
     /// </summary>
-    /// <param name="s3Host">The S3 host link or endpoint.</param>
-    /// <param name="publicKey">Explicit public key from manifest, if any.</param>
-    /// <param name="secretKey">Explicit secret key from manifest, if any.</param>
-    /// <returns>A tuple indicating whether signing should be applied along with the resolved keys.</returns>
-    public static (bool ShouldSign, string PublicKey, string SecretKey) ResolveCredentials(
-        string s3Host,
-        string? publicKey,
-        string? secretKey)
+    /// <param name="s3Host">The S3 host string.</param>
+    /// <returns>True if the host matches gen.insave.ovh or similar; otherwise false.</returns>
+    public static bool IsInSaveHost(string? s3Host)
     {
-        if (!string.IsNullOrWhiteSpace(publicKey) && !string.IsNullOrWhiteSpace(secretKey))
-        {
-            return (true, publicKey, secretKey);
-        }
-
-        var normalizedHost = NormalizeHostHeader(s3Host);
-        if (IsInsaveHost(normalizedHost))
-        {
-            return (true, GenLauncherConstants.DefaultGenInsavePublicKey, GenLauncherConstants.DefaultGenInsaveSecretKey);
-        }
-
-        return (false, string.Empty, string.Empty);
-    }
-
-    /// <summary>
-    /// Checks whether the normalized host header belongs to the InSave domain.
-    /// Prevents lookalike host bypasses (e.g. insave.ovh.attacker.com).
-    /// </summary>
-    /// <param name="normalizedHost">The normalized host string (with or without port).</param>
-    /// <returns>True if the host matches insave.ovh or a subdomain; otherwise false.</returns>
-    public static bool IsInsaveHost(string normalizedHost)
-    {
-        if (string.IsNullOrWhiteSpace(normalizedHost))
+        if (string.IsNullOrWhiteSpace(s3Host))
         {
             return false;
         }
 
-        var hostOnly = normalizedHost;
-        var colonIdx = hostOnly.IndexOf(':');
-        if (colonIdx >= 0)
+        var (scheme, hostHeader, _) = NormalizeHostAndPath(s3Host);
+        var colonIdx = hostHeader.IndexOf(':');
+        var hostOnly = colonIdx >= 0 ? hostHeader[..colonIdx] : hostHeader;
+
+        return hostOnly.Equals("gen.insave.ovh", StringComparison.OrdinalIgnoreCase) ||
+               hostOnly.EndsWith(".insave.ovh", StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// Normalizes the S3 host string, extracting the HTTP scheme, host header (with port if specified), and any path prefix.
+    /// </summary>
+    /// <param name="rawHost">The raw host string or URL.</param>
+    /// <returns>A tuple of (Scheme, HostHeader, PathPrefix).</returns>
+    public static (string Scheme, string HostHeader, string? PathPrefix) NormalizeHostAndPath(string rawHost)
+    {
+        if (string.IsNullOrWhiteSpace(rawHost))
         {
-            hostOnly = hostOnly[..colonIdx];
+            return ("https", string.Empty, null);
         }
 
-        return string.Equals(hostOnly, "insave.ovh", StringComparison.OrdinalIgnoreCase) ||
-               hostOnly.EndsWith(".insave.ovh", StringComparison.OrdinalIgnoreCase);
+        var cleaned = rawHost.Trim();
+        string scheme;
+        if (cleaned.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+        {
+            scheme = "https";
+            cleaned = cleaned["https://".Length..];
+        }
+        else if (cleaned.StartsWith("http://", StringComparison.OrdinalIgnoreCase))
+        {
+            scheme = "http";
+            cleaned = cleaned["http://".Length..];
+        }
+        else if (cleaned.Contains(":9000", StringComparison.OrdinalIgnoreCase) ||
+                 cleaned.Contains(":8000", StringComparison.OrdinalIgnoreCase) ||
+                 cleaned.Contains("gen.insave.ovh", StringComparison.OrdinalIgnoreCase))
+        {
+            scheme = "http";
+        }
+        else
+        {
+            scheme = "https";
+        }
+
+        cleaned = cleaned.TrimEnd('/');
+        var slashIdx = cleaned.IndexOf('/');
+        string hostHeader;
+        string? pathPrefix = null;
+
+        if (slashIdx >= 0)
+        {
+            hostHeader = cleaned[..slashIdx];
+            var subPath = cleaned[(slashIdx + 1)..].Trim('/');
+            if (!string.IsNullOrEmpty(subPath))
+            {
+                pathPrefix = subPath;
+            }
+        }
+        else
+        {
+            hostHeader = cleaned;
+        }
+
+        return (scheme, hostHeader, pathPrefix);
+    }
+
+    /// <summary>
+    /// Infers the AWS / S3 region from the host header if possible, falling back to defaultRegion.
+    /// </summary>
+    /// <param name="hostHeader">The host header.</param>
+    /// <param name="defaultRegion">The fallback default region.</param>
+    /// <returns>The inferred region string.</returns>
+    public static string InferRegion(string hostHeader, string defaultRegion = GenLauncherConstants.DefaultS3Region)
+    {
+        if (string.IsNullOrWhiteSpace(hostHeader))
+        {
+            return defaultRegion;
+        }
+
+        var colonIdx = hostHeader.IndexOf(':');
+        var host = colonIdx >= 0 ? hostHeader[..colonIdx] : hostHeader;
+
+        if (host.EndsWith(".wasabisys.com", StringComparison.OrdinalIgnoreCase))
+        {
+            var parts = host.Split('.');
+            if (parts.Length >= 4 && parts[0].Equals("s3", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrWhiteSpace(parts[1]))
+            {
+                return parts[1];
+            }
+        }
+
+        return defaultRegion;
     }
 
     /// <summary>
@@ -81,6 +136,7 @@ public static class GenLauncherS3Signer
     /// <param name="secretKey">Explicit AWS secret access key, or null to check default.</param>
     /// <param name="extraQueryParams">Optional additional query parameters such as prefix or marker.</param>
     /// <param name="expiresInSeconds">Presigned URL validity duration in seconds (defaults to 24 hours).</param>
+    /// <param name="forceUnsigned">If true, forces generation of an unsigned URL regardless of credentials.</param>
     /// <param name="region">AWS region string (defaults to us-east-1).</param>
     /// <returns>The presigned (or unsigned) GET URL string.</returns>
     [SuppressMessage("Minor Code Smell", "S1075:URIs should not be hardcoded", Justification = "Handles scheme formatting for S3 endpoints")]
@@ -93,18 +149,31 @@ public static class GenLauncherS3Signer
         string? secretKey = null,
         IDictionary<string, string>? extraQueryParams = null,
         int expiresInSeconds = GenLauncherConstants.DefaultS3PresignedUrlExpirySeconds,
+        bool forceUnsigned = false,
         string region = GenLauncherConstants.DefaultS3Region)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(s3Host);
         ArgumentException.ThrowIfNullOrWhiteSpace(bucket);
 
-        var (shouldSign, resolvedPub, resolvedSec) = ResolveCredentials(s3Host, publicKey, secretKey);
+        var (scheme, hostHeader, pathPrefix) = NormalizeHostAndPath(s3Host);
+        if (string.Equals(region, GenLauncherConstants.DefaultS3Region, StringComparison.OrdinalIgnoreCase))
+        {
+            region = InferRegion(hostHeader, region);
+        }
 
-        var scheme = DetermineScheme(s3Host);
-        var hostHeader = NormalizeHostHeader(s3Host);
+        var (shouldSign, resolvedPub, resolvedSec) = forceUnsigned
+            ? (false, string.Empty, string.Empty)
+            : ResolveCredentials(s3Host, publicKey, secretKey);
 
         // Build canonical URI
-        var pathSegments = new List<string> { Uri.EscapeDataString(bucket) };
+        var pathSegments = new List<string>();
+        if (!string.IsNullOrWhiteSpace(pathPrefix))
+        {
+            pathSegments.AddRange(pathPrefix.Split('/', StringSplitOptions.RemoveEmptyEntries).Select(Uri.EscapeDataString));
+        }
+
+        pathSegments.Add(Uri.EscapeDataString(bucket));
+
         if (!string.IsNullOrWhiteSpace(objectKey))
         {
             var trimmedKey = objectKey.TrimStart('/');
@@ -166,45 +235,29 @@ public static class GenLauncherS3Signer
         return $"{scheme}://{hostHeader}{canonicalUri}?{canonicalQueryString}&X-Amz-Signature={signature}";
     }
 
-    private static string DetermineScheme(string host)
+    /// <summary>
+    /// Resolves credentials for an S3 host link, falling back to GenLauncher's default InSave credentials when applicable.
+    /// </summary>
+    /// <param name="s3Host">The S3 host link or endpoint.</param>
+    /// <param name="publicKey">Explicit public key from manifest, if any.</param>
+    /// <param name="secretKey">Explicit secret key from manifest, if any.</param>
+    /// <returns>A tuple indicating whether signing should be applied along with the resolved keys.</returns>
+    public static (bool ShouldSign, string PublicKey, string SecretKey) ResolveCredentials(
+        string s3Host,
+        string? publicKey,
+        string? secretKey)
     {
-        if (host.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+        if (!string.IsNullOrWhiteSpace(publicKey) && !string.IsNullOrWhiteSpace(secretKey))
         {
-            return "https";
+            return (true, publicKey, secretKey);
         }
 
-        if (host.StartsWith("http://", StringComparison.OrdinalIgnoreCase))
+        if (IsInSaveHost(s3Host))
         {
-            return "http";
+            return (true, GenLauncherConstants.DefaultGenInsavePublicKey, GenLauncherConstants.DefaultGenInsaveSecretKey);
         }
 
-        if (host.Contains(":9000", StringComparison.OrdinalIgnoreCase) || host.Contains(":8000", StringComparison.OrdinalIgnoreCase))
-        {
-            return "http";
-        }
-
-        return "https";
-    }
-
-    private static string NormalizeHostHeader(string host)
-    {
-        var cleaned = host;
-        if (cleaned.StartsWith("http://", StringComparison.OrdinalIgnoreCase))
-        {
-            cleaned = cleaned["http://".Length..];
-        }
-        else if (cleaned.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
-        {
-            cleaned = cleaned["https://".Length..];
-        }
-
-        var slashIdx = cleaned.IndexOf('/');
-        if (slashIdx >= 0)
-        {
-            cleaned = cleaned[..slashIdx];
-        }
-
-        return cleaned;
+        return (false, string.Empty, string.Empty);
     }
 
     private static byte[] DeriveSigningKey(string key, string dateStamp, string regionName, string serviceName)
@@ -224,14 +277,13 @@ public static class GenLauncherS3Signer
 
     private static string ComputeHmacSha256Hex(byte[] key, string data)
     {
-        using var hmac = new HMACSHA256(key);
-        var hash = hmac.ComputeHash(Encoding.UTF8.GetBytes(data));
+        var hash = ComputeHmacSha256Bytes(key, data);
         return Convert.ToHexString(hash).ToLowerInvariant();
     }
 
     private static string ComputeSha256Hex(string text)
     {
-        var hash = SHA256.HashData(Encoding.UTF8.GetBytes(text));
-        return Convert.ToHexString(hash).ToLowerInvariant();
+        var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(text));
+        return Convert.ToHexString(bytes).ToLowerInvariant();
     }
 }

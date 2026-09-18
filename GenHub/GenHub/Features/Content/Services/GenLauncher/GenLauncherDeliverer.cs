@@ -8,6 +8,7 @@ using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
+using GenHub.Infrastructure.Services;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
@@ -186,10 +187,10 @@ public class GenLauncherDeliverer(
                 CurrentOperation = $"Downloading {file.RelativePath} ({i + 1}/{totalFiles})",
             });
 
-            if (!Uri.TryCreate(file.DownloadUrl, UriKind.Absolute, out var downloadUri))
+            if (string.IsNullOrWhiteSpace(file.DownloadUrl) || !ImageCacheService.IsSafeRemoteUrl(file.DownloadUrl, out var downloadUri))
             {
-                logger.LogError("Invalid download URL for file {File}: {Url}", file.RelativePath, file.DownloadUrl);
-                return OperationResult<bool>.CreateFailure($"Invalid download URL for file {file.RelativePath}: {file.DownloadUrl}");
+                logger.LogError("Invalid or unsafe download URL for file {File}", file.RelativePath);
+                return OperationResult<bool>.CreateFailure($"Invalid download URL for file {file.RelativePath}: unsafe or malformed URL");
             }
 
             var fileIndex = i;
@@ -232,6 +233,12 @@ public class GenLauncherDeliverer(
         {
             cancellationToken.ThrowIfCancellationRequested();
 
+            if (attempt > 1)
+            {
+                var delay = TimeSpan.FromMilliseconds(500 * Math.Pow(2, attempt - 2));
+                await Task.Delay(delay, cancellationToken).ConfigureAwait(false);
+            }
+
             var downloadResult = await downloadService.DownloadFileAsync(
                 downloadUri,
                 destinationPath,
@@ -247,11 +254,12 @@ public class GenLauncherDeliverer(
             }
 
             // MD5 checksum validation against S3 ETag for engine extensions
-            if (!string.IsNullOrWhiteSpace(file.Hash) &&
+            var expectedEtag = !string.IsNullOrWhiteSpace(file.ETag) ? file.ETag : file.Hash;
+            if (!string.IsNullOrWhiteSpace(expectedEtag) &&
                 GenLauncherChecksumValidator.RequiresValidation(file.RelativePath) &&
-                !await GenLauncherChecksumValidator.ValidateFileAsync(destinationPath, file.Hash, cancellationToken))
+                !await GenLauncherChecksumValidator.ValidateFileAsync(destinationPath, expectedEtag, cancellationToken))
             {
-                lastError = $"Checksum mismatch for {file.RelativePath}! Expected ETag: {file.Hash}";
+                lastError = $"Checksum mismatch for {file.RelativePath}! Expected ETag: {expectedEtag}";
                 logger.LogWarning("Attempt {Attempt}/{Max}: {Error}", attempt, maxAttempts, lastError);
                 CleanupCorruptedFile(destinationPath);
                 continue;
@@ -260,8 +268,24 @@ public class GenLauncherDeliverer(
             return OperationResult<bool>.CreateSuccess(true);
         }
 
-        logger.LogError("Failed to download {File} from {Url} after {Max} attempts: {Error}", file.RelativePath, file.DownloadUrl, maxAttempts, lastError);
+        var safeLogUrl = RedactUrl(file.DownloadUrl);
+        logger.LogError("Failed to download {File} from {Url} after {Max} attempts: {Error}", file.RelativePath, safeLogUrl, maxAttempts, lastError);
         return OperationResult<bool>.CreateFailure($"Failed to download {file.RelativePath}: {lastError}");
+    }
+
+    private string RedactUrl(string? url)
+    {
+        if (string.IsNullOrWhiteSpace(url))
+        {
+            return string.Empty;
+        }
+
+        if (Uri.TryCreate(url, UriKind.Absolute, out var uri))
+        {
+            return $"{uri.Scheme}://{uri.Authority}{uri.AbsolutePath}";
+        }
+
+        return "[redacted]";
     }
 
     private void CleanupCorruptedFile(string filePath)

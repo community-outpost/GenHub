@@ -13,6 +13,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
+using System.Linq;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
@@ -315,7 +316,8 @@ public class GenLauncherResolver(
                 RelativePath = entry.RelativePath,
                 DownloadUrl = entry.DownloadUrl,
                 Size = entry.Size,
-                Hash = entry.ETag,
+                Hash = string.Empty,
+                ETag = entry.ETag,
                 SourceType = ContentSourceType.RemoteDownload,
                 IsRequired = true,
             });
@@ -361,7 +363,13 @@ public class GenLauncherResolver(
         }
 
         logger.LogInformation("Querying GenLauncher S3 bucket (signed) at host={Host}, bucket={Bucket}, prefix={Prefix}", query.Host, query.Bucket, query.Folder);
-        var xml = await client.GetStringAsync(queryUrl, cancellationToken);
+        using var resp = await client.GetAsync(queryUrl, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+        if (!resp.IsSuccessStatusCode)
+        {
+            return (null, true);
+        }
+
+        var xml = await resp.Content.ReadAsStringAsync(cancellationToken);
         return (xml, true);
     }
 
@@ -406,13 +414,31 @@ public class GenLauncherResolver(
             logger.LogDebug(ex, "Anonymous S3 query failed, will try signed query");
         }
 
-        if (string.IsNullOrWhiteSpace(s3Xml) || s3Xml.Contains("<Error>"))
+        if (string.IsNullOrWhiteSpace(s3Xml) || IsS3ErrorXml(s3Xml))
         {
             // Fallback to signed query using default InSave credentials (for improved-ai, tpotw, cncpowerplay)
             return await FetchSignedS3PageXmlAsync(client, query, currentMarker, cancellationToken);
         }
 
         return (s3Xml, false);
+    }
+
+    private bool IsS3ErrorXml(string? xml)
+    {
+        if (string.IsNullOrWhiteSpace(xml))
+        {
+            return true;
+        }
+
+        try
+        {
+            var doc = System.Xml.Linq.XDocument.Parse(xml);
+            return doc.Root != null && (doc.Root.Name.LocalName == "Error" || doc.Descendants().Any(e => e.Name.LocalName == "Error"));
+        }
+        catch
+        {
+            return true;
+        }
     }
 
     private async Task<bool> TryResolveS3StoragePayloadAsync(
@@ -450,12 +476,15 @@ public class GenLauncherResolver(
                 var (files, isTruncated, marker) = await FetchS3PageFilesAsync(
                     client, query, nextMarker, cancellationToken);
 
-                if (files == null || (files.Count == 0 && s3Files.Count == 0))
+                if (files == null || (files.Count == 0 && !isTruncated && s3Files.Count == 0))
                 {
                     return false;
                 }
 
-                s3Files.AddRange(files);
+                if (files.Count > 0)
+                {
+                    s3Files.AddRange(files);
+                }
 
                 if (!isTruncated)
                 {

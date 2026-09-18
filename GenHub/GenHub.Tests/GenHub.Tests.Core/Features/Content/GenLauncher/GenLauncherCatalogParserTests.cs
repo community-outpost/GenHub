@@ -142,7 +142,7 @@ S3FolderName: Shockwave_1.2/
         Assert.Equal(GenLauncherConstants.PublisherId, first.ResolverId);
         Assert.Equal("https://example.com/shockwave.yaml", first.SourceUrl);
         Assert.True(first.RequiresResolution);
-        Assert.Equal("shockwave", first.VariantGroupId);
+        Assert.Equal("zerohour-shockwave", first.VariantGroupId);
         Assert.Equal("Shockwave", first.VariantFamilyName);
         Assert.Contains("genlauncher", first.Tags);
         Assert.Contains("mod", first.Tags);

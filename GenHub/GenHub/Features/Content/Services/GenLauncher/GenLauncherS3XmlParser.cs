@@ -1,3 +1,4 @@
+using GenHub.Core.Constants;
 using GenHub.Core.Models.GenLauncher;
 using System;
 using System.Collections.Generic;
@@ -126,7 +127,7 @@ public static class GenLauncherS3XmlParser
             isTruncated = truncated;
         }
 
-        var nextMarkerEl = doc.Descendants().FirstOrDefault(e => e.Name.LocalName == "NextMarker")?.Value;
+        var nextMarkerEl = doc.Descendants().FirstOrDefault(e => e.Name.LocalName == "NextMarker" || e.Name.LocalName == "NextContinuationToken")?.Value;
         if (!string.IsNullOrWhiteSpace(nextMarkerEl))
         {
             nextMarker = nextMarkerEl;
@@ -167,36 +168,8 @@ public static class GenLauncherS3XmlParser
     /// <returns>A tuple containing the scheme and cleaned host.</returns>
     public static (string Scheme, string Host) NormalizeHostAndScheme(string? s3Host)
     {
-        var rawHost = (s3Host ?? string.Empty).Trim();
-        string scheme;
-        if (rawHost.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
-        {
-            scheme = "https";
-        }
-        else if (rawHost.StartsWith("http://", StringComparison.OrdinalIgnoreCase))
-        {
-            scheme = "http";
-        }
-        else if (rawHost.Contains(":9000", StringComparison.OrdinalIgnoreCase) || rawHost.Contains(":8000", StringComparison.OrdinalIgnoreCase) || rawHost.Contains("gen.insave.ovh", StringComparison.OrdinalIgnoreCase))
-        {
-            scheme = "http";
-        }
-        else
-        {
-            scheme = "https";
-        }
-
-        var host = rawHost;
-        if (host.StartsWith("http://", StringComparison.OrdinalIgnoreCase))
-        {
-            host = host["http://".Length..];
-        }
-        else if (host.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
-        {
-            host = host["https://".Length..];
-        }
-
-        host = host.TrimEnd('/');
+        var (scheme, hostHeader, pathPrefix) = GenLauncherS3Signer.NormalizeHostAndPath(s3Host ?? string.Empty);
+        var host = !string.IsNullOrEmpty(pathPrefix) ? $"{hostHeader}/{pathPrefix}" : hostHeader;
         return (scheme, host);
     }
 
@@ -210,6 +183,7 @@ public static class GenLauncherS3XmlParser
     /// <param name="publicKey">Explicit S3 public key, or null to check defaults.</param>
     /// <param name="secretKey">Explicit S3 secret key, or null to check defaults.</param>
     /// <param name="useAuth">Whether to sign the request using AWS4.</param>
+    /// <param name="region">AWS region string (defaults to us-east-1).</param>
     /// <returns>The constructed query URL.</returns>
     public static string BuildS3QueryUrl(
         string? s3Host,
@@ -218,7 +192,8 @@ public static class GenLauncherS3XmlParser
         string? marker = null,
         string? publicKey = null,
         string? secretKey = null,
-        bool useAuth = true)
+        bool useAuth = true,
+        string region = GenLauncherConstants.DefaultS3Region)
     {
         if (string.IsNullOrWhiteSpace(s3Host))
         {
@@ -226,9 +201,15 @@ public static class GenLauncherS3XmlParser
         }
 
         var extraParams = new Dictionary<string, string>(StringComparer.Ordinal);
-        if (!string.IsNullOrEmpty(folderPrefix))
+        if (!string.IsNullOrWhiteSpace(folderPrefix))
         {
-            extraParams["prefix"] = folderPrefix;
+            var normalizedPrefix = folderPrefix.Trim();
+            if (!normalizedPrefix.EndsWith('/'))
+            {
+                normalizedPrefix += "/";
+            }
+
+            extraParams["prefix"] = normalizedPrefix;
         }
 
         if (!string.IsNullOrWhiteSpace(marker))
@@ -236,26 +217,15 @@ public static class GenLauncherS3XmlParser
             extraParams["marker"] = marker;
         }
 
-        if (useAuth)
-        {
-            return GenLauncherS3Signer.GeneratePresignedGetUrl(
-                s3Host,
-                bucketName,
-                objectKey: null,
-                publicKey: publicKey,
-                secretKey: secretKey,
-                extraQueryParams: extraParams);
-        }
-
-        var (scheme, host) = NormalizeHostAndScheme(s3Host);
-        var queryParts = new List<string>();
-        foreach (var (k, v) in extraParams)
-        {
-            queryParts.Add($"{Uri.EscapeDataString(k)}={Uri.EscapeDataString(v)}");
-        }
-
-        var qs = queryParts.Count > 0 ? "?" + string.Join("&", queryParts) : string.Empty;
-        return $"{scheme}://{host}/{Uri.EscapeDataString(bucketName)}{qs}";
+        return GenLauncherS3Signer.GeneratePresignedGetUrl(
+            s3Host,
+            bucketName,
+            objectKey: null,
+            publicKey: publicKey,
+            secretKey: secretKey,
+            extraQueryParams: extraParams,
+            forceUnsigned: !useAuth,
+            region: region);
     }
 
     private static GenLauncherS3FileEntry? TryParseContentEntry(
@@ -269,10 +239,7 @@ public static class GenLauncherS3XmlParser
         }
 
         var etag = contents.Elements().FirstOrDefault(e => e.Name.LocalName == "ETag")?.Value;
-        var cleanedEtag = etag?.Trim('\"', ' ', '&', 'q', 'u', 'o', 't', ';') ?? string.Empty;
-
-        // Clean any remaining quotes
-        cleanedEtag = cleanedEtag.Replace("\"", string.Empty).Trim();
+        var cleanedEtag = GenLauncherChecksumValidator.CleanETag(etag);
 
         var sizeStr = contents.Elements().FirstOrDefault(e => e.Name.LocalName == "Size")?.Value;
         long.TryParse(sizeStr, out var size);
@@ -290,34 +257,25 @@ public static class GenLauncherS3XmlParser
             }
         }
 
-        string downloadUrl;
-        if (context.UseAuth)
-        {
-            downloadUrl = GenLauncherS3Signer.GeneratePresignedGetUrl(
-                context.S3Host,
-                context.BucketName,
-                key,
-                context.PublicKey,
-                context.SecretKey);
-        }
-        else
-        {
-            var (scheme, host) = NormalizeHostAndScheme(context.S3Host);
-            var escapedKey = string.Join("/", key.Split('/', StringSplitOptions.None).Select(Uri.EscapeDataString));
-            downloadUrl = $"{scheme}://{host}/{Uri.EscapeDataString(context.BucketName)}/{escapedKey}";
-        }
+        var downloadUrl = GenLauncherS3Signer.GeneratePresignedGetUrl(
+            context.S3Host,
+            context.BucketName,
+            key,
+            context.PublicKey,
+            context.SecretKey,
+            forceUnsigned: !context.UseAuth);
 
         return new GenLauncherS3FileEntry
         {
             Key = key,
             RelativePath = relativePath,
-            ETag = cleanedEtag,
             Size = size,
+            ETag = cleanedEtag,
             DownloadUrl = downloadUrl,
         };
     }
 
-    private readonly record struct S3ParseContext(
+    private sealed record S3ParseContext(
         string? FolderPrefix,
         string NormalizedFolder,
         string S3Host,

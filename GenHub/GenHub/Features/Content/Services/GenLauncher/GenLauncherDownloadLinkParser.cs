@@ -26,14 +26,16 @@ public static partial class GenLauncherDownloadLinkParser
 
         link = link.Trim();
 
-        // 1. Dropbox: ensure ?dl=1
-        if (link.Contains("dropbox.com", StringComparison.OrdinalIgnoreCase))
+        // 1. Dropbox: dl.dropboxusercontent.com is already direct; dropbox.com needs ?dl=1
+        if (link.Contains("dropbox.com", StringComparison.OrdinalIgnoreCase) ||
+            link.Contains("dropboxusercontent.com", StringComparison.OrdinalIgnoreCase))
         {
             return NormalizeDropboxLink(link);
         }
 
         // 2. OneDrive
-        if (link.Contains("onedrive.live.com", StringComparison.OrdinalIgnoreCase) || link.Contains("1drv.ms", StringComparison.OrdinalIgnoreCase))
+        if (link.Contains("onedrive.live.com", StringComparison.OrdinalIgnoreCase) ||
+            link.Contains("1drv.ms", StringComparison.OrdinalIgnoreCase))
         {
             return NormalizeOneDriveLink(link);
         }
@@ -49,6 +51,11 @@ public static partial class GenLauncherDownloadLinkParser
 
     private static string NormalizeDropboxLink(string link)
     {
+        if (link.Contains("dl.dropboxusercontent.com", StringComparison.OrdinalIgnoreCase))
+        {
+            return link;
+        }
+
         if (link.Contains("?dl=0", StringComparison.OrdinalIgnoreCase))
         {
             return link.Replace("?dl=0", "?dl=1", StringComparison.OrdinalIgnoreCase);
@@ -96,10 +103,24 @@ public static partial class GenLauncherDownloadLinkParser
                 };
                 return builder.Uri.ToString();
             }
+
+            if (path.Contains("/view.aspx", StringComparison.OrdinalIgnoreCase))
+            {
+                var newPath = path.Replace("/view.aspx", "/download.aspx", StringComparison.OrdinalIgnoreCase);
+                var builder = new UriBuilder(uri)
+                {
+                    Path = newPath,
+                };
+                return builder.Uri.ToString();
+            }
         }
         else if (link.Contains("/embed", StringComparison.OrdinalIgnoreCase))
         {
             return OneDriveEmbedRegex().Replace(link, "/download");
+        }
+        else if (link.Contains("/view.aspx", StringComparison.OrdinalIgnoreCase))
+        {
+            return link.Replace("/view.aspx", "/download.aspx", StringComparison.OrdinalIgnoreCase);
         }
 
         return link;
@@ -107,6 +128,12 @@ public static partial class GenLauncherDownloadLinkParser
 
     private static string NormalizeGoogleDriveLink(string link)
     {
+        // Don't rewrite folder URLs to uc?export=download as they require different handling
+        if (link.Contains("/folders/", StringComparison.OrdinalIgnoreCase))
+        {
+            return link;
+        }
+
         var match = GoogleDrivePathRegex().Match(link);
         if (match.Success)
         {

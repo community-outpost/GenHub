@@ -334,8 +334,7 @@ public sealed class PlaywrightService(
                 // shared persistent browser profile context, allowing subsequent parallel tabs to pass through cleanly.
                 if (orderedUnique.Count > 0)
                 {
-                    using var firstTabSemaphore = new SemaphoreSlim(1);
-                    await FetchSinglePersistentDocumentAsync(profileName, orderedUnique[0], concurrentResults, firstTabSemaphore, cancellationToken);
+                    await FetchSinglePersistentDocumentAsync(profileName, orderedUnique[0], concurrentResults, null, cancellationToken);
                 }
 
                 if (orderedUnique.Count > 1)
@@ -1691,10 +1690,14 @@ public sealed class PlaywrightService(
         string profileName,
         string url,
         System.Collections.Concurrent.ConcurrentDictionary<string, IDocument> concurrentResults,
-        SemaphoreSlim tabSemaphore,
+        SemaphoreSlim? tabSemaphore,
         CancellationToken cancellationToken)
     {
-        await tabSemaphore.WaitAsync(cancellationToken);
+        if (tabSemaphore != null)
+        {
+            await tabSemaphore.WaitAsync(cancellationToken);
+        }
+
         IPage? page = null;
         try
         {
@@ -1718,7 +1721,7 @@ public sealed class PlaywrightService(
                 await ClosePersistentPageAsync(page);
             }
 
-            tabSemaphore.Release();
+            tabSemaphore?.Release();
         }
     }
 

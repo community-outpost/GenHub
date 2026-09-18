@@ -16,7 +16,6 @@
       "zeroHourCatalogUrl": "https://raw.githubusercontent.com/p0ls3r/GenLauncherModsData/master/ReposModificationDataZH3.yaml"
     }
   },
-  "targetGame": "ZeroHour",
   "defaultTags": ["genlauncher", "mod", "community"],
   "timeouts": {
     "catalogTimeoutSeconds": 30,

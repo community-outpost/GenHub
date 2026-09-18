@@ -81,6 +81,16 @@ public static class GenLauncherConstants
     public const string GeneralsCatalogUrl = "https://raw.githubusercontent.com/p0ls3r/GenLauncherModsData/master/ReposModificationDataGenerals3.yaml";
 
     /// <summary>
+    /// Game token for Zero Hour.
+    /// </summary>
+    public const string ZeroHourGameToken = "zerohour";
+
+    /// <summary>
+    /// Game token for Generals.
+    /// </summary>
+    public const string GeneralsGameToken = "generals";
+
+    /// <summary>
     /// Default fallback version string for GenLauncher items without explicit version.
     /// </summary>
     public const string DefaultVersion = "1.0.0";
@@ -161,6 +171,21 @@ public static class GenLauncherConstants
     public const string ModDbLinkMetadataKey = "modDbLink";
 
     /// <summary>
+    /// Metadata key for mod link.
+    /// </summary>
+    public const string ModLinkMetadataKey = "modLink";
+
+    /// <summary>
+    /// Metadata key for patches count.
+    /// </summary>
+    public const string PatchesCountMetadataKey = "patchesCount";
+
+    /// <summary>
+    /// Metadata key for addons count.
+    /// </summary>
+    public const string AddonsCountMetadataKey = "addonsCount";
+
+    /// <summary>
     /// Metadata key for dependence name.
     /// </summary>
     public const string DependenceNameMetadataKey = "dependenceName";
@@ -189,6 +214,11 @@ public static class GenLauncherConstants
     /// Maximum response body size for catalog and manifest downloads (10 MB).
     /// </summary>
     public const long MaxCatalogResponseBodyBytes = 10 * 1024 * 1024;
+
+    /// <summary>
+    /// Maximum allowed total cache memory in bytes for GenLauncher discoverer responses (50 MB).
+    /// </summary>
+    public const long MaxCacheTotalBytes = 50 * 1024 * 1024;
 
     /// <summary>
     /// Default buffer size for catalog downloads.
@@ -241,6 +271,16 @@ public static class GenLauncherConstants
     public const string ExeExtension = ".exe";
 
     /// <summary>
+    /// DLL dynamic library extension (.dll).
+    /// </summary>
+    public const string DllExtension = ".dll";
+
+    /// <summary>
+    /// DAT file extension (.dat).
+    /// </summary>
+    public const string DatExtension = ".dat";
+
+    /// <summary>
     /// Session key for "do not ask again" preference for normalization dialog.
     /// </summary>
     public const string NormalizationDialogSessionKey = "genlauncher.normalization.skip";
@@ -284,6 +324,10 @@ public static class GenLauncherConstants
         ".wnd",
         ".csf",
         ".str",
+        ".exe",
+        ".dll",
+        ".dat",
+        ".map",
     ];
 
     /// <summary>
