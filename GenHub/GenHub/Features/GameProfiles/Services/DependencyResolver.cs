@@ -451,11 +451,7 @@ public class DependencyResolver(
     }
 
     private static bool IsNonRetailIdentifier(string name) =>
-        name.Contains("nonret", StringComparison.OrdinalIgnoreCase) ||
-        name.Contains("non-ret", StringComparison.OrdinalIgnoreCase) ||
-        name.Contains("nonretail", StringComparison.OrdinalIgnoreCase) ||
-        name.Contains("non-retail", StringComparison.OrdinalIgnoreCase) ||
-        name.Contains("stream", StringComparison.OrdinalIgnoreCase);
+        CommunityOutpostConstants.IsNonRetailIdentifier(name);
 
     private static bool Is60HzIdentifier(string name) =>
         name.Contains(ManifestConstants.SixtyHzKeyword, StringComparison.OrdinalIgnoreCase) ||

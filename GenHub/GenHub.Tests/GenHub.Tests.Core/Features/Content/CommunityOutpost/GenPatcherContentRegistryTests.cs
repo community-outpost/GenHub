@@ -28,7 +28,7 @@ public class GenPatcherContentRegistryTests
     [InlineData("hlei", "Leikeze's Hotkeys", ContentType.Addon, GameType.ZeroHour)]
     [InlineData("crzh", "Camera Mod - Zero Hour", ContentType.Addon, GameType.ZeroHour)]
     [InlineData("community-patch", CommunityOutpostConstants.CommunityPatchRetailDisplayName, ContentType.GameClient, GameType.ZeroHour)]
-    [InlineData("community-patch-retail", CommunityOutpostConstants.CommunityPatchRetailDisplayName, ContentType.GameClient, GameType.ZeroHour)]
+    [InlineData(CommunityOutpostConstants.CommunityPatchRetailCode, CommunityOutpostConstants.CommunityPatchRetailDisplayName, ContentType.GameClient, GameType.ZeroHour)]
     [InlineData("community-patch-nonret", CommunityOutpostConstants.CommunityPatchNonRetDisplayName, ContentType.GameClient, GameType.ZeroHour)]
     public void GetMetadata_ReturnsCorrectMetadataForKnownCodes(
         string contentCode,
@@ -286,7 +286,7 @@ public class GenPatcherContentRegistryTests
     [InlineData("HLEI", "hlei")]
     [InlineData("cbpr-1080p", "cbpr")]
     [InlineData("community-patch", "community-patch")]
-    [InlineData("community-patch-retail", "community-patch-retail")]
+    [InlineData(CommunityOutpostConstants.CommunityPatchRetailCode, CommunityOutpostConstants.CommunityPatchRetailCode)]
     [InlineData("community-patch-nonret", "community-patch-nonret")]
     [InlineData("10zh", "10zh")]
     [InlineData("unknown_test", "unknown_test")]

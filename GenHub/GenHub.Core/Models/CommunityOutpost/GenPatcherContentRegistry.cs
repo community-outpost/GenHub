@@ -77,7 +77,7 @@ public static class GenPatcherContentRegistry
             Category = GenPatcherContentCategory.CommunityPatch,
             InstallTarget = ContentInstallTarget.Workspace,
         },
-        ["community-patch-retail"] = new GenPatcherContentMetadata
+        [CommunityOutpostConstants.CommunityPatchRetailCode] = new GenPatcherContentMetadata
         {
             ContentCode = CommunityOutpostConstants.CommunityPatchTag,
             DisplayName = CommunityOutpostConstants.CommunityPatchRetailDisplayName,

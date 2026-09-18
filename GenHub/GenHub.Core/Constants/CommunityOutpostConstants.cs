@@ -65,6 +65,11 @@ public static class CommunityOutpostConstants
     public const string CommunityPatchTag = "community-patch";
 
     /// <summary>
+    /// Content code alias for the Retail Community Patch build in registry.
+    /// </summary>
+    public const string CommunityPatchRetailCode = "community-patch-retail";
+
+    /// <summary>
     /// Content code and tag for the Non-Retail (stream) Community Patch build.
     /// </summary>
     public const string CommunityPatchNonRetCode = "community-patch-nonret";
@@ -176,6 +181,23 @@ public static class CommunityOutpostConstants
 
     /// <summary>Display name for Maps content type.</summary>
     public const string ContentTypeMaps = "Maps";
+
+    /// <summary>
+    /// Checks whether an identifier, filename, or display name represents a non-retail (stream) build.
+    /// </summary>
+    public static bool IsNonRetailIdentifier(string? name)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            return false;
+        }
+
+        return name.Contains("nonret", System.StringComparison.OrdinalIgnoreCase) ||
+               name.Contains("non-ret", System.StringComparison.OrdinalIgnoreCase) ||
+               name.Contains("nonretail", System.StringComparison.OrdinalIgnoreCase) ||
+               name.Contains("non-retail", System.StringComparison.OrdinalIgnoreCase) ||
+               name.Contains(StreamTag, System.StringComparison.OrdinalIgnoreCase);
+    }
 
     /// <summary>
     /// Tags associated with the patch content.

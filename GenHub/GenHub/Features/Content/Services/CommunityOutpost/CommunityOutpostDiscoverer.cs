@@ -177,12 +177,8 @@ public partial class CommunityOutpostDiscoverer(
     /// <returns><c>true</c> if non-retail; otherwise, <c>false</c>.</returns>
     internal static bool IsNonRetailBuild(string? urlOrFilename, string? linkText = null)
     {
-        var target = $"{urlOrFilename} {linkText}";
-        return target.Contains("nonret", StringComparison.OrdinalIgnoreCase) ||
-               target.Contains("non-ret", StringComparison.OrdinalIgnoreCase) ||
-               target.Contains("nonretail", StringComparison.OrdinalIgnoreCase) ||
-               target.Contains("non-retail", StringComparison.OrdinalIgnoreCase) ||
-               target.Contains("stream", StringComparison.OrdinalIgnoreCase);
+        return CommunityOutpostConstants.IsNonRetailIdentifier(urlOrFilename) ||
+               CommunityOutpostConstants.IsNonRetailIdentifier(linkText);
     }
 
     /// <summary>
@@ -498,20 +494,16 @@ public partial class CommunityOutpostDiscoverer(
                 }
 
                 // Add tags
-                result.Tags.Add(CommunityOutpostConstants.CommunityPatchTag);
-                result.Tags.Add(PublisherTypeConstants.TheSuperHackers);
-                result.Tags.Add("weekly");
-                result.Tags.Add("game-client");
+                var baseTags = isNonRetail
+                    ? CommunityOutpostConstants.CommunityPatchNonRetTags
+                    : CommunityOutpostConstants.CommunityPatchRetailTags;
 
-                if (isNonRetail)
+                foreach (var tag in baseTags)
                 {
-                    result.Tags.Add(CommunityOutpostConstants.CommunityPatchNonRetTag);
-                    result.Tags.Add(CommunityOutpostConstants.NonRetailTag);
-                    result.Tags.Add(CommunityOutpostConstants.StreamTag);
-                }
-                else
-                {
-                    result.Tags.Add(CommunityOutpostConstants.RetailCompatibleTag);
+                    if (!result.Tags.Contains(tag))
+                    {
+                        result.Tags.Add(tag);
+                    }
                 }
 
                 // Add default tags from provider
