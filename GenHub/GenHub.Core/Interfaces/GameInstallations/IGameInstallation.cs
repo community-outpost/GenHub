@@ -1,7 +1,9 @@
+using GenHub.Core.Constants;
 using GenHub.Core.Extensions.GameInstallations;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameClients;
 using System.Collections.Generic;
+using System.IO;
 
 namespace GenHub.Core.Interfaces.GameInstallations;
 
@@ -54,13 +56,18 @@ public interface IGameInstallation
     /// Gets the path to the bundled base Generals assets within Zero Hour (e.g. 'ZH_Generals'),
     /// if present.
     /// </summary>
-    string? BundledGeneralsPath { get; }
+    string? BundledGeneralsPath =>
+        HasZeroHour && !string.IsNullOrWhiteSpace(ZeroHourPath) &&
+        Directory.Exists(Path.Combine(ZeroHourPath, GameClientConstants.ZhGeneralsDirectory))
+            ? Path.Combine(ZeroHourPath, GameClientConstants.ZhGeneralsDirectory)
+            : null;
 
     /// <summary>
     /// Gets the effective path to base Generals retail archives, checking <see cref="GeneralsPath"/> first
     /// and falling back to <see cref="BundledGeneralsPath"/> if present.
     /// </summary>
-    string? EffectiveGeneralsArchivePath { get; }
+    string? EffectiveGeneralsArchivePath =>
+        !string.IsNullOrWhiteSpace(GeneralsPath) ? GeneralsPath : BundledGeneralsPath;
 
     /// <summary>
     /// Gets the available game clients for this installation.

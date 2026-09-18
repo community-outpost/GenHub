@@ -255,24 +255,25 @@ public class RetailArchiveRootValidationTests : IDisposable
     }
 
     /// <summary>
-    /// When Zero Hour has no separate Generals root, no bundled ZH_Generals folder, and no base archives in its directory,
-    /// validation must reject the launch with an informative message.
+    /// When Zero Hour has a bundled ZH_Generals directory that contains no archives,
+    /// validation must reject the launch because it was detected as the Generals archive root.
     /// </summary>
     [Fact]
-    public void Validate_LaunchingZeroHour_WithNoGeneralsRootAndNoBaseArchives_Rejects()
+    public void Validate_LaunchingZeroHour_WithEmptyBundledZhGenerals_Rejects()
     {
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
         {
             return;
         }
 
-        var zeroHour = Directory.CreateDirectory(Path.Combine(_tempDir, "zh-no-base")).FullName;
+        var zeroHour = Directory.CreateDirectory(Path.Combine(_tempDir, "zh-steam-empty-bundled")).FullName;
         File.WriteAllText(Path.Combine(zeroHour, "INIZH.big"), "archive");
+        Directory.CreateDirectory(Path.Combine(zeroHour, GameClientConstants.ZhGeneralsDirectory));
 
         var error = ValidateFor(GameType.ZeroHour, null, zeroHour);
 
         Assert.NotNull(error);
-        Assert.Contains("Zero Hour requires base Command & Conquer Generals retail archives", error);
+        Assert.Contains("contains no .big archives", error);
     }
 
     /// <summary>

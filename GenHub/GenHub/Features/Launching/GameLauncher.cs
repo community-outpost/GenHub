@@ -652,6 +652,25 @@ public class GameLauncher(
             return null;
         }
 
+        var roots = GetArchiveRootsToValidate(environment, installation, gameType);
+
+        foreach (var (variableName, declaredPath) in roots)
+        {
+            var error = ValidateArchiveRoot(environment, variableName, declaredPath);
+            if (error is not null)
+            {
+                return error;
+            }
+        }
+
+        return null;
+    }
+
+    private static List<(string Variable, string? Path)> GetArchiveRootsToValidate(
+        Dictionary<string, string> environment,
+        GameInstallation? installation,
+        GameType gameType)
+    {
         // Validated against the installation's declared paths, not only the variables that
         // survived into the environment. AddArchiveRoot drops a path that does not exist,
         // so validating the environment alone would silently skip the exact case this
@@ -670,73 +689,55 @@ public class GameLauncher(
 
         if (gameType == GameType.ZeroHour)
         {
-            // Zero Hour is an expansion and mounts the base Generals archives as well.
-            // Base content may come from:
-            // 1. An explicit GeneralsPath (or profile environment override).
-            // 2. A bundled 'ZH_Generals' directory within the Zero Hour installation (Steam/EA App).
-            // 3. Directly within the Zero Hour root directory or workspace (monolithic/merged install).
-            roots.Add((RetailArchiveConstants.GeneralsInstallPathVariable, installation?.EffectiveGeneralsArchivePath));
+            var effectiveGenerals = installation?.EffectiveGeneralsArchivePath;
+            if (!string.IsNullOrWhiteSpace(effectiveGenerals) ||
+                environment.ContainsKey(RetailArchiveConstants.GeneralsInstallPathVariable))
+            {
+                roots.Add((RetailArchiveConstants.GeneralsInstallPathVariable, effectiveGenerals));
+            }
         }
 
-        foreach (var (variableName, declaredPath) in roots)
+        return roots;
+    }
+
+    private static string? ValidateArchiveRoot(
+        Dictionary<string, string> environment,
+        string variableName,
+        string? declaredPath)
+    {
+        // A profile override is the root actually used, so it is what gets checked.
+        var root = environment.TryGetValue(variableName, out var configured) && !string.IsNullOrWhiteSpace(configured)
+            ? configured
+            : declaredPath;
+
+        // Nothing configured means that game is simply not installed separately.
+        if (string.IsNullOrWhiteSpace(root))
         {
-            // A profile override is the root actually used, so it is what gets checked.
-            var root = environment.TryGetValue(variableName, out var configured) && !string.IsNullOrWhiteSpace(configured)
-                ? configured
-                : declaredPath;
+            return null;
+        }
 
-            // Nothing configured means that game is simply not installed separately.
-            if (string.IsNullOrWhiteSpace(root))
-            {
-                if (gameType == GameType.ZeroHour &&
-                    variableName == RetailArchiveConstants.GeneralsInstallPathVariable)
-                {
-                    // No Generals root was declared or bundled in ZH_Generals.
-                    // Check whether the Zero Hour directory itself carries base Generals archives (monolithic install).
-                    var zeroHourRoot = environment.TryGetValue(RetailArchiveConstants.ZeroHourInstallPathVariable, out var envZh) && !string.IsNullOrWhiteSpace(envZh)
-                        ? envZh
-                        : installation?.ZeroHourPath;
+        if (!Directory.Exists(root))
+        {
+            return $"The retail archive root for {variableName} does not exist: {root}. " +
+                   "The engine would abort during initialisation with a generic crash naming nothing, so the launch was stopped.";
+        }
 
-                    if (!string.IsNullOrWhiteSpace(zeroHourRoot) && RetailArchiveConstants.HasBaseGeneralsArchives(zeroHourRoot))
-                    {
-                        continue;
-                    }
+        bool hasArchive;
+        try
+        {
+            hasArchive = Directory
+                .EnumerateFiles(root, RetailArchiveConstants.ArchiveSearchPattern, RetailArchiveConstants.ArchiveSearch)
+                .Any();
+        }
+        catch (Exception ex) when (ex is UnauthorizedAccessException or IOException)
+        {
+            return $"The retail archive root for {variableName} could not be read: {root} ({ex.Message}).";
+        }
 
-                    return $"Zero Hour requires base Command & Conquer Generals retail archives (such as Textures.big or W3D.big). " +
-                           $"No Generals archive root was declared, '{GameClientConstants.ZhGeneralsDirectory}' was not found in '{zeroHourRoot}', " +
-                           $"and no base archives were found in the Zero Hour directory. The engine would fail during startup or run with missing assets.";
-                }
-
-                continue;
-            }
-
-            if (!Directory.Exists(root))
-            {
-                return $"The retail archive root for {variableName} does not exist: {root}. " +
-                       "The engine would abort during initialisation with a generic crash naming nothing, so the launch was stopped.";
-            }
-
-            bool hasArchive = false;
-            try
-            {
-                hasArchive = Directory
-                    .EnumerateFiles(root, RetailArchiveConstants.ArchiveSearchPattern, RetailArchiveConstants.ArchiveSearch)
-                    .Any();
-            }
-            catch (UnauthorizedAccessException ex)
-            {
-                return $"The retail archive root for {variableName} could not be read: {root} ({ex.Message}).";
-            }
-            catch (IOException ex)
-            {
-                return $"The retail archive root for {variableName} could not be read: {root} ({ex.Message}).";
-            }
-
-            if (!hasArchive)
-            {
-                return $"The retail archive root for {variableName} contains no .big archives: {root}. " +
-                       "The engine would abort during initialisation with a generic crash naming nothing, so the launch was stopped.";
-            }
+        if (!hasArchive)
+        {
+            return $"The retail archive root for {variableName} contains no .big archives: {root}. " +
+                   "The engine would abort during initialisation with a generic crash naming nothing, so the launch was stopped.";
         }
 
         return null;
