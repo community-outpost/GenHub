@@ -63,22 +63,33 @@ public class GameInstallation(
 
     /// <summary>
     /// Gets the path to the bundled base Generals assets within Zero Hour (e.g. 'ZH_Generals'),
-    /// if the directory exists.
+    /// if present and containing retail archives.
     /// </summary>
     public string? BundledGeneralsPath
     {
         get
         {
-            if (!string.IsNullOrEmpty(ZeroHourPath))
+            if (string.IsNullOrWhiteSpace(ZeroHourPath))
             {
-                var bundled = Path.Combine(ZeroHourPath, GameClientConstants.ZhGeneralsDirectory);
-                if (Directory.Exists(bundled))
-                {
-                    return bundled;
-                }
+                return null;
             }
 
-            return null;
+            var bundled = Path.Combine(ZeroHourPath, GameClientConstants.ZhGeneralsDirectory);
+            if (!Directory.Exists(bundled))
+            {
+                return null;
+            }
+
+            try
+            {
+                return Directory.EnumerateFiles(bundled, RetailArchiveConstants.ArchiveSearchPattern, RetailArchiveConstants.ArchiveSearch).Any()
+                    ? bundled
+                    : null;
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                return null;
+            }
         }
     }
 

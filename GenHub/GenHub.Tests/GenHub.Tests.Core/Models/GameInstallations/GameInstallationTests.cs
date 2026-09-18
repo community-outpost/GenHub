@@ -732,7 +732,7 @@ public class GameInstallationTests
     }
 
     /// <summary>
-    /// Verifies that BundledGeneralsPath returns the ZH_Generals directory path when it exists.
+    /// Verifies that BundledGeneralsPath returns the ZH_Generals directory path when it exists and contains archives.
     /// </summary>
     [Fact]
     public void GameInstallation_BundledGeneralsPath_ReturnsPath_WhenZhGeneralsDirectoryExists()
@@ -742,10 +742,34 @@ public class GameInstallationTests
         Directory.CreateDirectory(zhGeneralsDir);
         try
         {
+            File.WriteAllText(Path.Combine(zhGeneralsDir, "Textures.big"), "archive");
+
             var installation = new GameInstallation(tempDir, GameInstallationType.Steam, NullLogger<GameInstallation>.Instance);
             installation.SetPaths(null, tempDir);
 
             Assert.Equal(zhGeneralsDir, installation.BundledGeneralsPath);
+        }
+        finally
+        {
+            Directory.Delete(tempDir, true);
+        }
+    }
+
+    /// <summary>
+    /// Verifies that BundledGeneralsPath returns null when the ZH_Generals directory exists but contains no archives.
+    /// </summary>
+    [Fact]
+    public void GameInstallation_BundledGeneralsPath_ReturnsNull_WhenZhGeneralsDirectoryEmpty()
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), "GenHubEmptyBundledZhTest_" + Guid.NewGuid().ToString("N"));
+        var zhGeneralsDir = Path.Combine(tempDir, GameClientConstants.ZhGeneralsDirectory);
+        Directory.CreateDirectory(zhGeneralsDir);
+        try
+        {
+            var installation = new GameInstallation(tempDir, GameInstallationType.Steam, NullLogger<GameInstallation>.Instance);
+            installation.SetPaths(null, tempDir);
+
+            Assert.Null(installation.BundledGeneralsPath);
         }
         finally
         {
@@ -810,6 +834,8 @@ public class GameInstallationTests
         Directory.CreateDirectory(zhGeneralsDir);
         try
         {
+            File.WriteAllText(Path.Combine(zhGeneralsDir, "Textures.big"), "archive");
+
             var installation = new GameInstallation(tempDir, GameInstallationType.Steam, NullLogger<GameInstallation>.Instance);
             installation.SetPaths(null, tempDir);
 

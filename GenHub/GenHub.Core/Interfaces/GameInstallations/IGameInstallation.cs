@@ -2,8 +2,10 @@ using GenHub.Core.Constants;
 using GenHub.Core.Extensions.GameInstallations;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameClients;
+using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 
 namespace GenHub.Core.Interfaces.GameInstallations;
 
@@ -54,13 +56,35 @@ public interface IGameInstallation
 
     /// <summary>
     /// Gets the path to the bundled base Generals assets within Zero Hour (e.g. 'ZH_Generals'),
-    /// if present.
+    /// if present and containing retail archives.
     /// </summary>
-    string? BundledGeneralsPath =>
-        HasZeroHour && !string.IsNullOrWhiteSpace(ZeroHourPath) &&
-        Directory.Exists(Path.Combine(ZeroHourPath, GameClientConstants.ZhGeneralsDirectory))
-            ? Path.Combine(ZeroHourPath, GameClientConstants.ZhGeneralsDirectory)
-            : null;
+    string? BundledGeneralsPath
+    {
+        get
+        {
+            if (string.IsNullOrWhiteSpace(ZeroHourPath))
+            {
+                return null;
+            }
+
+            var bundled = Path.Combine(ZeroHourPath, GameClientConstants.ZhGeneralsDirectory);
+            if (!Directory.Exists(bundled))
+            {
+                return null;
+            }
+
+            try
+            {
+                return Directory.EnumerateFiles(bundled, RetailArchiveConstants.ArchiveSearchPattern, RetailArchiveConstants.ArchiveSearch).Any()
+                    ? bundled
+                    : null;
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                return null;
+            }
+        }
+    }
 
     /// <summary>
     /// Gets the effective path to base Generals retail archives, checking <see cref="GeneralsPath"/> first

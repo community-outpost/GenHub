@@ -255,11 +255,12 @@ public class RetailArchiveRootValidationTests : IDisposable
     }
 
     /// <summary>
-    /// When Zero Hour has a bundled ZH_Generals directory that contains no archives,
-    /// validation must reject the launch because it was detected as the Generals archive root.
+    /// When Zero Hour has an empty bundled ZH_Generals directory, it is not treated as a valid
+    /// archive root, and when no other Generals root is declared, validation accepts the launch
+    /// so that base content in the workspace can still be mounted by the engine.
     /// </summary>
     [Fact]
-    public void Validate_LaunchingZeroHour_WithEmptyBundledZhGenerals_Rejects()
+    public void Validate_LaunchingZeroHour_WithEmptyBundledZhGenerals_Accepts()
     {
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
         {
@@ -272,8 +273,28 @@ public class RetailArchiveRootValidationTests : IDisposable
 
         var error = ValidateFor(GameType.ZeroHour, null, zeroHour);
 
-        Assert.NotNull(error);
-        Assert.Contains("contains no .big archives", error);
+        Assert.Null(error);
+    }
+
+    /// <summary>
+    /// AddRetailArchiveRoots does not populate CNC_GENERALS_INSTALLPATH when bundled ZH_Generals contains no archives.
+    /// </summary>
+    [Fact]
+    public void AddRetailArchiveRoots_ForZeroHour_WithEmptyBundledZhGenerals_DoesNotSetGeneralsInstallPath()
+    {
+        var zeroHour = Directory.CreateDirectory(Path.Combine(_tempDir, "zh-steam-empty-env")).FullName;
+        Directory.CreateDirectory(Path.Combine(zeroHour, GameClientConstants.ZhGeneralsDirectory));
+
+        var installation = new GameInstallation(
+            Path.GetTempPath(),
+            GameInstallationType.Steam,
+            new Mock<ILogger<GameInstallation>>().Object);
+        installation.SetPaths(null, zeroHour);
+
+        var env = new Dictionary<string, string>();
+        BuildEnvironment(env, installation);
+
+        Assert.False(env.ContainsKey(RetailArchiveConstants.GeneralsInstallPathVariable));
     }
 
     /// <summary>
