@@ -21,6 +21,7 @@ using GenHub.Core.Models.Tools.ReplayManager;
 using GenHub.Core.Models.Tools.UploadThing;
 using GenHub.Features.Downloads.ViewModels;
 using GenHub.Features.Downloads.Views;
+using GenHub.Features.Tools.Helpers;
 using GenHub.Features.Tools.ReplayManager.Views;
 using GenHub.Features.Tools.ViewModels;
 using Microsoft.Extensions.DependencyInjection;
@@ -485,6 +486,23 @@ public partial class ReplayManagerViewModel(
     }
 
     /// <summary>
+    /// Imports a shared download URL received from a GenHub protocol link.
+    /// </summary>
+    /// <param name="url">The plain download URL to import.</param>
+    /// <param name="game">The optional target game recorded in the share link.</param>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    public async Task ImportSharedUrlAsync(string url, GameType? game = null)
+    {
+        if (game.HasValue)
+        {
+            SelectedTab = game.Value;
+        }
+
+        ImportUrl = url;
+        await ImportFromUrlAsync();
+    }
+
+    /// <summary>
     /// Releases unmanaged and - optionally - managed resources.
     /// </summary>
     /// <param name="disposing"><c>true</c> to release both managed and unmanaged resources; <c>false</c> to release only unmanaged resources.</param>
@@ -656,6 +674,44 @@ public partial class ReplayManagerViewModel(
         catch (Exception ex) when ((ex is IOException or UnauthorizedAccessException) && ex is not OperationCanceledException)
         {
             logger.LogError(ex, "Failed to copy URL");
+        }
+    }
+
+    /// <summary>
+    /// Copies a GenHub protocol link for a URL to the clipboard.
+    /// </summary>
+    /// <param name="url">The download URL to wrap in a GenHub protocol link.</param>
+    [RelayCommand]
+    private async Task CopyGenHubLinkAsync(string url)
+    {
+        if (string.IsNullOrEmpty(url)) return;
+
+        // Check if current tab is using demo paths
+        var demoPath = directoryService.GetReplayDirectory(SelectedTab);
+        if (IsDemoPath(demoPath))
+        {
+            var title = LocalizationService?.GetString("Tools.Share.Demo.CopyGenHubLinkTitle") ?? "Copy GenHub Link";
+            var desc = LocalizationService?.GetString("Tools.Share.Demo.CopyGenHubLinkDesc") ?? "Copies a GenHub link that opens GenHub and imports the upload automatically.";
+            notificationService.ShowInfo(title, desc);
+            return;
+        }
+
+        try
+        {
+            var shareUri = ToolShareLink.BuildShareUri(CommandLineConstants.ReplayCommand, url, SelectedTab);
+            var lifetime = Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime;
+            var clipboard = lifetime?.MainWindow?.Clipboard;
+            if (clipboard != null)
+            {
+                await clipboard.SetTextAsync(shareUri);
+                var copiedTitle = LocalizationService?.GetString("Tools.Share.Status.CopiedTitle") ?? "Copied";
+                var copiedDesc = LocalizationService?.GetString("Tools.Share.Status.CopiedToClipboard") ?? "Link copied to clipboard!";
+                notificationService.ShowSuccess(copiedTitle, copiedDesc);
+            }
+        }
+        catch (Exception ex) when ((ex is ArgumentException or IOException or UnauthorizedAccessException) && ex is not OperationCanceledException)
+        {
+            logger.LogError(ex, "Failed to copy GenHub link");
         }
     }
 
@@ -1188,6 +1244,14 @@ public partial class ReplayManagerViewModel(
         var uploadCompleteTitle = LocalizationService?.GetString("Tools.ReplayManager.Notify.UploadCompleteTitle") ?? "Upload Complete";
         var linkCopiedDesc = LocalizationService?.GetString("Tools.ReplayManager.Notify.LinkCopiedDesc") ?? "Link copied to clipboard!";
         notificationService.ShowSuccess(uploadCompleteTitle, linkCopiedDesc);
+
+        await ToolSharingDialogHelper.OpenShareDialogAsync(
+            uploadResult.PublicUrl,
+            CommandLineConstants.ReplayCommand,
+            SelectedTab,
+            notificationService,
+            LocalizationService,
+            logger);
     }
 
     [RelayCommand]

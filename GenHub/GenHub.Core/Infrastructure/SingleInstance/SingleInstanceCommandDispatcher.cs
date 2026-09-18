@@ -117,6 +117,18 @@ public sealed class SingleInstanceCommandDispatcher : ISingleInstanceCommandRece
             return false;
         }
 
+        if (command.StartsWith(IpcCommands.ImportMapPrefix, StringComparison.OrdinalIgnoreCase))
+        {
+            var target = command[IpcCommands.ImportMapPrefix.Length..].Trim();
+            return IsToolShareCommand(target, CommandLineConstants.MapCommand);
+        }
+
+        if (command.StartsWith(IpcCommands.ImportReplayPrefix, StringComparison.OrdinalIgnoreCase))
+        {
+            var target = command[IpcCommands.ImportReplayPrefix.Length..].Trim();
+            return IsToolShareCommand(target, CommandLineConstants.ReplayCommand);
+        }
+
         return false;
     }
 
@@ -188,6 +200,14 @@ public sealed class SingleInstanceCommandDispatcher : ISingleInstanceCommandRece
         {
             _logger.LogInformation("Received IPC command: {Prefix}...", IpcCommands.ImportProfilePrefix);
         }
+        else if (command.StartsWith(IpcCommands.ImportMapPrefix, StringComparison.OrdinalIgnoreCase))
+        {
+            _logger.LogInformation("Received IPC command: {Prefix}...", IpcCommands.ImportMapPrefix);
+        }
+        else if (command.StartsWith(IpcCommands.ImportReplayPrefix, StringComparison.OrdinalIgnoreCase))
+        {
+            _logger.LogInformation("Received IPC command: {Prefix}...", IpcCommands.ImportReplayPrefix);
+        }
         else if (command.StartsWith(IpcCommands.SubscribePrefix, StringComparison.OrdinalIgnoreCase))
         {
             _logger.LogInformation("Received IPC command: {Prefix}...", IpcCommands.SubscribePrefix);
@@ -201,5 +221,12 @@ public sealed class SingleInstanceCommandDispatcher : ISingleInstanceCommandRece
         {
             _logger.LogInformation("Received IPC command: {Command}", command);
         }
+    }
+
+    private static bool IsToolShareCommand(string target, string toolCommand)
+    {
+        return ToolShareLink.TryParseShareUri(target, out var parsed) &&
+            parsed != null &&
+            parsed.ToolCommand.Equals(toolCommand, StringComparison.OrdinalIgnoreCase);
     }
 }

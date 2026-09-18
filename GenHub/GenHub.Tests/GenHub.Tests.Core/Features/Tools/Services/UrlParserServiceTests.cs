@@ -45,6 +45,10 @@ public sealed class UrlParserServiceTests
     [InlineData("https://gentool.net/data/zh/replay.rep", ReplaySource.GenTool)]
     [InlineData("https://example.com/downloads/my_match.rep", ReplaySource.DirectLink)]
     [InlineData("https://example.com/downloads/replays_pack.zip", ReplaySource.DirectLink)]
+    [InlineData("genhub://replay/import?url=https%3A%2F%2Fufs.sh%2Ff%2Fkey123", ReplaySource.UploadThing)]
+    [InlineData("genhub://replay/import?url=https%3A%2F%2Fexample.com%2Freplay.rep&game=generals", ReplaySource.DirectLink)]
+    [InlineData("genhub://map/import?url=https%3A%2F%2Fexample.com%2Fmaps.zip", ReplaySource.Unknown)]
+    [InlineData("genhub://replay/import", ReplaySource.Unknown)]
     [InlineData("https://example.com/invalid/page.html", ReplaySource.Unknown)]
     [InlineData("", ReplaySource.Unknown)]
     [InlineData("   ", ReplaySource.Unknown)]
@@ -64,6 +68,8 @@ public sealed class UrlParserServiceTests
     [InlineData("https://utfs.io/f/key123", true)]
     [InlineData("https://strata.gamereplays.org/zh/match/3489856", true)]
     [InlineData("https://example.com/replay.rep", true)]
+    [InlineData("genhub://replay/import?url=https%3A%2F%2Fexample.com%2Freplay.rep", true)]
+    [InlineData("genhub://map/import?url=https%3A%2F%2Fexample.com%2Fmaps.zip", false)]
     [InlineData("https://example.com/page.html", false)]
     public void IsValidReplayUrl_ReturnsExpectedValidity(string url, bool expectedValid)
     {
@@ -83,6 +89,30 @@ public sealed class UrlParserServiceTests
     {
         var result = await _service.GetDirectDownloadUrlAsync(url);
         Assert.Equal(url, result);
+    }
+
+    /// <summary>
+    /// Verifies that GetDirectDownloadUrlAsync unwraps GenHub share URIs to their inner download URL.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task GetDirectDownloadUrlAsync_WithGenHubShareUri_ReturnsInnerUrlAsync()
+    {
+        var result = await _service.GetDirectDownloadUrlAsync("genhub://replay/import?url=https%3A%2F%2Fexample.com%2Freplay.rep&game=generals");
+
+        Assert.Equal("https://example.com/replay.rep", result);
+    }
+
+    /// <summary>
+    /// Verifies that GetDirectDownloadUrlAsync returns null for other tools share URIs.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task GetDirectDownloadUrlAsync_WithMapShareUri_ReturnsNullAsync()
+    {
+        var result = await _service.GetDirectDownloadUrlAsync("genhub://map/import?url=https%3A%2F%2Fexample.com%2Fmaps.zip");
+
+        Assert.Null(result);
     }
 
     /// <summary>

@@ -120,6 +120,26 @@ public static class CommandLineParser
     }
 
     /// <summary>
+    /// Extracts a map or replay share URI (<c>genhub://map/import?url=...</c> or
+    /// <c>genhub://replay/import?url=...</c>) from command line arguments.
+    /// </summary>
+    /// <param name="args">The command line arguments.</param>
+    /// <returns>The sanitized share URI if present and well-formed; otherwise, <c>null</c>.</returns>
+    public static string? ExtractToolShareUri(string[] args)
+    {
+        foreach (string rawArg in args)
+        {
+            string arg = Unquote(SanitizePayload(rawArg.Trim()).Trim());
+            if (ToolShareLink.TryParseShareUri(arg, out _))
+            {
+                return arg;
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>
     /// Strips C0 control characters (including CRLF and nulls) and the DEL character from command line and IPC payloads.
     /// </summary>
     /// <param name="input">The input string to sanitize.</param>

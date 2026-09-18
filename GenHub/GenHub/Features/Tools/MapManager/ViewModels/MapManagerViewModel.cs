@@ -16,6 +16,7 @@ using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Tools.MapManager;
 using GenHub.Core.Models.Tools.UploadThing;
+using GenHub.Features.Tools.Helpers;
 using GenHub.Features.Tools.ViewModels;
 using GenHub.Infrastructure.Imaging;
 using Microsoft.Extensions.Logging;
@@ -389,6 +390,23 @@ public partial class MapManagerViewModel : ObservableObject, IDisposable
         {
             IsBusy = false;
         }
+    }
+
+    /// <summary>
+    /// Imports a shared download URL received from a GenHub protocol link.
+    /// </summary>
+    /// <param name="url">The plain download URL to import.</param>
+    /// <param name="game">The optional target game recorded in the share link.</param>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    public async Task ImportSharedUrlAsync(string url, GameType? game = null)
+    {
+        if (game.HasValue)
+        {
+            SelectedTab = game.Value;
+        }
+
+        ImportUrl = url;
+        await ImportFromUrlAsync();
     }
 
     /// <inheritdoc />
@@ -831,6 +849,14 @@ public partial class MapManagerViewModel : ObservableObject, IDisposable
 
         StatusMessage = "Uploaded! Link copied to clipboard.";
         _notificationService.ShowSuccess("Upload Complete", "Link copied to clipboard!");
+
+        await ToolSharingDialogHelper.OpenShareDialogAsync(
+            uploadResult.PublicUrl,
+            CommandLineConstants.MapCommand,
+            SelectedTab,
+            _notificationService,
+            _localizationService,
+            _logger);
     }
 
     [RelayCommand]
@@ -1221,6 +1247,38 @@ public partial class MapManagerViewModel : ObservableObject, IDisposable
         catch (Exception ex) when ((ex is IOException or UnauthorizedAccessException) && ex is not OperationCanceledException)
         {
             _logger.LogError(ex, "Failed to copy URL");
+        }
+    }
+
+    [RelayCommand]
+    private async Task CopyGenHubLinkAsync(string url)
+    {
+        // Check if current tab is using demo paths
+        var demoPath = _directoryService.GetMapDirectory(SelectedTab);
+        if (IsDemoPath(demoPath))
+        {
+            _notificationService.ShowInfo(
+                _localizationService?.GetString("Tools.Share.Demo.CopyGenHubLinkTitle") ?? "Copy GenHub Link",
+                _localizationService?.GetString("Tools.Share.Demo.CopyGenHubLinkDesc") ?? "Copies a GenHub link that opens GenHub and imports the upload automatically.");
+            return;
+        }
+
+        try
+        {
+            var shareUri = ToolShareLink.BuildShareUri(CommandLineConstants.MapCommand, url, SelectedTab);
+            var lifetime = Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime;
+            var clipboard = lifetime?.MainWindow?.Clipboard;
+            if (clipboard != null)
+            {
+                await clipboard.SetTextAsync(shareUri);
+                _notificationService.ShowSuccess(
+                    _localizationService?.GetString("Tools.Share.Status.CopiedTitle") ?? "Copied",
+                    _localizationService?.GetString("Tools.Share.Status.CopiedToClipboard") ?? "Link copied to clipboard!");
+            }
+        }
+        catch (Exception ex) when ((ex is ArgumentException or IOException or UnauthorizedAccessException) && ex is not OperationCanceledException)
+        {
+            _logger.LogError(ex, "Failed to copy GenHub link");
         }
     }
 

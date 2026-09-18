@@ -257,4 +257,58 @@ public sealed class CommandLineParserTests
 
         Assert.Null(result);
     }
+
+    /// <summary>
+    /// Verifies that ExtractToolShareUri extracts a map share URI.
+    /// </summary>
+    [Fact]
+    public void ExtractToolShareUri_WithMapUri_ReturnsUri()
+    {
+        var shareUri = "genhub://map/import?url=https%3A%2F%2Fexample.com%2Fmaps.zip&game=zerohour";
+        var args = new[] { "--verbose", shareUri };
+
+        var result = CommandLineParser.ExtractToolShareUri(args);
+
+        Assert.Equal(shareUri, result);
+    }
+
+    /// <summary>
+    /// Verifies that ExtractToolShareUri extracts a replay share URI.
+    /// </summary>
+    [Fact]
+    public void ExtractToolShareUri_WithReplayUri_ReturnsUri()
+    {
+        var shareUri = "genhub://replay/import?url=https%3A%2F%2Fexample.com%2Freplay.rep";
+        var args = new[] { shareUri };
+
+        var result = CommandLineParser.ExtractToolShareUri(args);
+
+        Assert.Equal(shareUri, result);
+    }
+
+    /// <summary>
+    /// Verifies that ExtractToolShareUri returns null for malformed share URIs.
+    /// </summary>
+    [Fact]
+    public void ExtractToolShareUri_WithMalformedUri_ReturnsNull()
+    {
+        var missingUrlArgs = new[] { "genhub://map/import?game=generals" };
+        var badSchemeArgs = new[] { "genhub://replay/import?url=ftp://example.com/replay.rep" };
+
+        Assert.Null(CommandLineParser.ExtractToolShareUri(missingUrlArgs));
+        Assert.Null(CommandLineParser.ExtractToolShareUri(badSchemeArgs));
+    }
+
+    /// <summary>
+    /// Verifies that ExtractToolShareUri returns null when no share URI is present.
+    /// </summary>
+    [Fact]
+    public void ExtractToolShareUri_WhenMissing_ReturnsNull()
+    {
+        var args = new[] { "--verbose", "genhub://subscribe?url=https://example.com/catalog.json" };
+
+        var result = CommandLineParser.ExtractToolShareUri(args);
+
+        Assert.Null(result);
+    }
 }

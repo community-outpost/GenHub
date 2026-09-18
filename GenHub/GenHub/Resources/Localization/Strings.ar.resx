@@ -1722,7 +1722,8 @@
 • رابط جنرالز أونلاين أو معرف المباراة (مثل 151553)
 • رابط إعادة GenTool
 • رابط GenHub / UploadThing
-• رابط تحميل مباشر (.rep/.zip)</value>
+• رابط تحميل مباشر (.rep/.zip)
+• رابط بروتوكول GenHub (genhub://...)</value>
   </data>
   <data name="Replays.Tooltip.OpenFolder" xml:space="preserve">
     <value>فتح المجلد</value>
@@ -8059,5 +8060,53 @@ GenHub هو مشغل ومدير حديث لألعاب **Command &amp; Conquer: G
   </data>
   <data name="Info.Demo.AppUpdates.AuthSampleCode" xml:space="preserve">
     <value>WDAS-5678</value>
+  </data>
+  <data name="Tools.Share.Title" xml:space="preserve">
+    <value>مشاركة الرفع</value>
+  </data>
+  <data name="Tools.Share.Subtitle" xml:space="preserve">
+    <value>شارك هذا الرفع مع الآخرين باستخدام أي من الرابطين.</value>
+  </data>
+  <data name="Tools.Share.NormalLink.Label" xml:space="preserve">
+    <value>رابط التنزيل</value>
+  </data>
+  <data name="Tools.Share.NormalLink.Hint" xml:space="preserve">
+    <value>يعمل في كل مكان. يلصق المستلمون الرابط في مربع الاستيراد.</value>
+  </data>
+  <data name="Tools.Share.GenHubLink.Label" xml:space="preserve">
+    <value>رابط GenHub</value>
+  </data>
+  <data name="Tools.Share.GenHubLink.Hint" xml:space="preserve">
+    <value>يفتح GenHub ويبدأ الاستيراد تلقائيًا.</value>
+  </data>
+  <data name="Tools.Share.Status.CopiedTitle" xml:space="preserve">
+    <value>تم النسخ</value>
+  </data>
+  <data name="Tools.Share.Status.CopiedToClipboard" xml:space="preserve">
+    <value>تم نسخ الرابط إلى الحافظة!</value>
+  </data>
+  <data name="Tools.Share.Status.ClipboardUnavailable" xml:space="preserve">
+    <value>الحافظة غير متاحة.</value>
+  </data>
+  <data name="Tools.Share.Status.FailedToCopy" xml:space="preserve">
+    <value>فشل نسخ الرابط.</value>
+  </data>
+  <data name="Tools.Share.Status.ShareErrorTitle" xml:space="preserve">
+    <value>خطأ في المشاركة</value>
+  </data>
+  <data name="Tools.Share.Status.ShareErrorMessage" xml:space="preserve">
+    <value>حدث خطأ أثناء تجهيز المشاركة: {0}</value>
+  </data>
+  <data name="Tools.Share.Demo.CopyGenHubLinkTitle" xml:space="preserve">
+    <value>نسخ رابط GenHub</value>
+  </data>
+  <data name="Tools.Share.Demo.CopyGenHubLinkDesc" xml:space="preserve">
+    <value>ينسخ رابط GenHub الذي يفتح GenHub ويستورد الرفع تلقائيًا.</value>
+  </data>
+  <data name="Maps.Tooltip.CopyGenHubLink" xml:space="preserve">
+    <value>نسخ رابط GenHub (يفتح GenHub ويستورد تلقائيًا).</value>
+  </data>
+  <data name="Replays.Tooltip.CopyGenHubLink" xml:space="preserve">
+    <value>نسخ رابط GenHub (يفتح GenHub ويستورد تلقائيًا).</value>
   </data>
 </root>

@@ -23,6 +23,18 @@ public static class IpcCommands
     public const string ImportProfilePrefix = "import-profile:";
 
     /// <summary>
+    /// Command prefix used to forward a map share URI to the primary instance
+    /// (<c>import-map:&lt;genhub-uri&gt;</c>).
+    /// </summary>
+    public const string ImportMapPrefix = "import-map:";
+
+    /// <summary>
+    /// Command prefix used to forward a replay share URI to the primary instance
+    /// (<c>import-replay:&lt;genhub-uri&gt;</c>).
+    /// </summary>
+    public const string ImportReplayPrefix = "import-replay:";
+
+    /// <summary>
     /// Command used to activate and focus the running primary instance window.
     /// </summary>
     public const string ActivateCommand = "activate";

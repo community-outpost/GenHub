@@ -182,6 +182,11 @@ public class Program
             bootstrapLogger.LogInformation("Forwarding import-profile command to primary instance");
             command = $"{IpcCommands.ImportProfilePrefix}{profileShareUri}";
         }
+        else if (BuildToolShareCommand(args) is string toolCommand)
+        {
+            bootstrapLogger.LogInformation("Forwarding tool import command to primary instance");
+            command = toolCommand;
+        }
         else
         {
             var subscriptionUrl = CommandLineParser.ExtractSubscriptionUrl(args);
@@ -210,5 +215,11 @@ public class Program
         {
             bootstrapLogger.LogWarning("Failed to forward command to primary instance: {Command}", command);
         }
+    }
+
+    private static string? BuildToolShareCommand(string[] args)
+    {
+        var toolShareUri = CommandLineParser.ExtractToolShareUri(args);
+        return ToolShareLink.BuildIpcCommand(toolShareUri);
     }
 }

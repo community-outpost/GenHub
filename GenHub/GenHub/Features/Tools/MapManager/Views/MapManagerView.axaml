@@ -261,7 +261,7 @@
                         <ItemsControl.ItemTemplate>
                           <DataTemplate x:DataType="vm_tools:UploadHistoryItemViewModel">
                             <Border BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1" Padding="0,8">
-                              <Grid ColumnDefinitions="*,Auto,Auto">
+                              <Grid ColumnDefinitions="*,Auto,Auto,Auto">
                                 <StackPanel Grid.Column="0" Spacing="2">
                                   <TextBlock Text="{Binding FileName}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" Foreground="{DynamicResource TextPrimary}"/>
                                   <StackPanel Orientation="Horizontal" Spacing="8">
@@ -286,7 +286,15 @@
                                   <PathIcon Data="{StaticResource ToolIcon.ContentCopy}" Width="14" Height="14"/>
                                 </Button>
 
-                                <Button Grid.Column="2" Classes="Danger"
+                                <Button Grid.Column="2" Classes="Secondary"
+                                        Command="{Binding #Root.((vm:MapManagerViewModel)DataContext).CopyGenHubLinkCommand}"
+                                        CommandParameter="{Binding Url}"
+                                        Padding="6,4" Margin="4,0,0,0" VerticalAlignment="Center"
+                                        ToolTip.Tip="{localization:Localize Maps.Tooltip.CopyGenHubLink}">
+                                  <PathIcon Data="{StaticResource ToolIcon.ShareOutline}" Width="14" Height="14"/>
+                                </Button>
+
+                                <Button Grid.Column="3" Classes="Danger"
                                         Command="{Binding #Root.((vm:MapManagerViewModel)DataContext).RemoveHistoryItemCommand}"
                                         CommandParameter="{Binding}"
                                         Padding="6,4" Margin="4,0,0,0" VerticalAlignment="Center"

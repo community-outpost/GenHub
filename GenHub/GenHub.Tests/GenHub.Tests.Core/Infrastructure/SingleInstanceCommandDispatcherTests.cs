@@ -72,6 +72,14 @@ public class SingleInstanceCommandDispatcherTests
     [InlineData("import-profile:test.ghprofile", true)]
     [InlineData("import-profile:/path/to/test.ghprofile", true)]
     [InlineData("import-profile:invalid-extension.txt", false)]
+    [InlineData("import-map:genhub://map/import?url=https%3A%2F%2Fexample.com%2Fmaps.zip", true)]
+    [InlineData("import-map:genhub://map/import?url=https%3A%2F%2Fexample.com%2Fmaps.zip&game=zerohour", true)]
+    [InlineData("import-map:genhub://replay/import?url=https%3A%2F%2Fexample.com%2Fx.zip", false)]
+    [InlineData("import-map:genhub://map/import", false)]
+    [InlineData("import-map:not-a-uri", false)]
+    [InlineData("import-replay:genhub://replay/import?url=https%3A%2F%2Fexample.com%2Fx.rep", true)]
+    [InlineData("import-replay:genhub://map/import?url=https%3A%2F%2Fexample.com%2Fx.zip", false)]
+    [InlineData("import-replay:genhub://replay/import?url=ftp://example.com/x.rep", false)]
     [InlineData("unknown-command", false)]
     public void IsValidIpcCommand_Should_Validate_Correctly(string command, bool expected)
     {

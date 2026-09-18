@@ -1,4 +1,5 @@
 using GenHub.Core.Constants;
+using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Tools.ReplayManager;
 using GenHub.Core.Models.Tools.ReplayManager;
 using Microsoft.Extensions.Logging;
@@ -23,6 +24,18 @@ public sealed partial class UrlParserService(HttpClient httpClient, ILogger<UrlP
         if (string.IsNullOrWhiteSpace(url))
         {
             return ReplaySource.Unknown;
+        }
+
+        // Unwrap GenHub share URIs so pasted protocol links classify by their inner download URL.
+        // Share URIs for other tools are not valid replay sources.
+        if (ToolShareLink.TryParseShareUri(url, out var shareTarget))
+        {
+            if (shareTarget == null || !shareTarget.ToolCommand.Equals(CommandLineConstants.ReplayCommand, StringComparison.OrdinalIgnoreCase))
+            {
+                return ReplaySource.Unknown;
+            }
+
+            url = shareTarget.Url;
         }
 
         // Check for raw match ID (e.g., "151553")
@@ -79,18 +92,19 @@ public sealed partial class UrlParserService(HttpClient httpClient, ILogger<UrlP
     /// <inheritdoc />
     public async Task<IReadOnlyList<string>> GetDirectDownloadUrlsAsync(string url, CancellationToken ct = default)
     {
-        var source = IdentifySource(url);
+        var normalizedUrl = ToolShareLink.NormalizeImportUrl(url, CommandLineConstants.ReplayCommand);
+        var source = IdentifySource(normalizedUrl);
         logger.LogInformation(LogMessages.IdentifyingUrlSource, url, source);
 
         try
         {
             return source switch
             {
-                ReplaySource.UploadThing => [url],
-                ReplaySource.DirectLink => [url],
-                ReplaySource.GeneralsOnline => await ExtractGeneralsOnlineUrlsAsync(url, ct),
-                ReplaySource.GenTool => await ExtractGenToolUrlsAsync(url, ct),
-                ReplaySource.Strata => await ExtractStrataUrlsAsync(url, ct),
+                ReplaySource.UploadThing => [normalizedUrl],
+                ReplaySource.DirectLink => [normalizedUrl],
+                ReplaySource.GeneralsOnline => await ExtractGeneralsOnlineUrlsAsync(normalizedUrl, ct),
+                ReplaySource.GenTool => await ExtractGenToolUrlsAsync(normalizedUrl, ct),
+                ReplaySource.Strata => await ExtractStrataUrlsAsync(normalizedUrl, ct),
                 _ => [],
             };
         }

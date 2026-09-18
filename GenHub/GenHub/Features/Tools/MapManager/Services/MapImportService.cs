@@ -1,4 +1,5 @@
 using GenHub.Core.Constants;
+using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Tools.MapManager;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Tools.MapManager;
@@ -45,6 +46,15 @@ public sealed class MapImportService(
         CancellationToken ct = default)
     {
         var result = new ImportResult();
+
+        if (ToolShareLink.IsOtherToolShareUri(url, CommandLineConstants.MapCommand))
+        {
+            logger.LogWarning("Rejected cross-tool share URI in map import.");
+            result.Errors.Add("This is a Replay Manager share link. Paste it in the Replay Manager import box instead.");
+            return result;
+        }
+
+        url = ToolShareLink.NormalizeImportUrl(url, CommandLineConstants.MapCommand);
         var tempDir = Path.Combine(Path.GetTempPath(), "GenHub", "MapImports", Guid.NewGuid().ToString("N"));
 
         try

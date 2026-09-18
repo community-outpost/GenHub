@@ -3,9 +3,13 @@ using GenHub.Core.Models.Enums;
 using GenHub.Features.Tools.MapManager.Services;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
+using Moq.Protected;
 using System.IO.Compression;
+using System.Net;
 using System.Net.Http;
 using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace GenHub.Tests.Core.Features.Tools.Services;
 
@@ -159,6 +163,60 @@ public sealed class MapImportServiceTests : IDisposable
         Assert.Equal("Second", imported.DirectoryName);
         Assert.NotEmpty(result.Errors);
         Assert.False(Directory.Exists(Path.Combine(_mapDirectory, "Blocked")));
+    }
+
+    /// <summary>
+    /// Verifies that ImportFromUrlAsync unwraps a map share URI and downloads the inner URL.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task ImportFromUrlAsync_WithMapShareUri_DownloadsInnerUrlAsync()
+    {
+        const string innerUrl = "https://example.com/cool.map";
+        Uri? requestedUri = null;
+        var mockHandler = new Mock<HttpMessageHandler>();
+        mockHandler.Protected()
+            .Setup<Task<HttpResponseMessage>>(
+                "SendAsync",
+                ItExpr.IsAny<HttpRequestMessage>(),
+                ItExpr.IsAny<CancellationToken>())
+            .Callback<HttpRequestMessage, CancellationToken>((request, _) => requestedUri = request.RequestUri)
+            .ReturnsAsync(new HttpResponseMessage
+            {
+                StatusCode = HttpStatusCode.OK,
+                Content = new StringContent("fake-map-bytes"),
+            });
+
+        var directoryService = new Mock<IMapDirectoryService>();
+        directoryService.Setup(d => d.GetMapDirectory(It.IsAny<GameType>())).Returns(_mapDirectory);
+        var service = new MapImportService(
+            directoryService.Object,
+            new HttpClient(mockHandler.Object),
+            new MapNameParser(NullLogger<MapNameParser>.Instance),
+            NullLogger<MapImportService>.Instance);
+
+        var result = await service.ImportFromUrlAsync(
+            $"genhub://map/import?url={Uri.EscapeDataString(innerUrl)}&game=zerohour",
+            GameType.ZeroHour);
+
+        Assert.True(result.Success, string.Join(" ", result.Errors));
+        Assert.Equal(innerUrl, requestedUri?.ToString());
+        Assert.Equal(1, result.FilesImported);
+    }
+
+    /// <summary>
+    /// Verifies that ImportFromUrlAsync rejects share URIs targeting the replay manager.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task ImportFromUrlAsync_WithReplayShareUri_ReturnsCrossToolErrorAsync()
+    {
+        var result = await _service.ImportFromUrlAsync(
+            "genhub://replay/import?url=https%3A%2F%2Fexample.com%2Freplay.rep",
+            GameType.ZeroHour);
+
+        Assert.False(result.Success);
+        Assert.Contains(result.Errors, e => e.Contains("Replay Manager", StringComparison.OrdinalIgnoreCase));
     }
 
     private static void CreateZip(string zipPath, params (string EntryName, string Content)[] entries)
