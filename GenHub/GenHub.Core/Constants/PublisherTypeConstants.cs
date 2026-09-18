@@ -70,6 +70,9 @@ public static class PublisherTypeConstants
     /// <summary>Art of Defense Maps community site.</summary>
     public const string AODMaps = "aodmaps";
 
+    /// <summary>GenLauncher platform publisher.</summary>
+    public const string GenLauncher = "genlauncher";
+
     /// <summary>GenHub internal system content publisher.</summary>
     public const string GenHubInternal = "genhub";
 

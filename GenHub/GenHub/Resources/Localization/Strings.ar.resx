@@ -7601,4 +7601,20 @@ GenHub هو مشغل ومدير حديث لألعاب **Command &amp; Conquer: G
     <value>مصادقة GitHub</value>
     <comment>Title for GitHub PAT dialog</comment>
   </data>
+  <data name="GenLauncher.Prefix.News" xml:space="preserve">
+    <value>الأخبار</value>
+  </data>
+  <data name="GenLauncher.Prefix.Discord" xml:space="preserve">
+    <value>ديسكورد</value>
+  </data>
+  <data name="GenLauncher.Prefix.ModDb" xml:space="preserve">
+    <value>ModDB</value>
+  </data>
+  <data name="GenLauncher.Prefix.Support" xml:space="preserve">
+    <value>الدعم</value>
+  </data>
+  <data name="GenLauncher.Context.Community" xml:space="preserve">
+    <value>مجتمع GenLauncher</value>
+    </data>
+
 </root>

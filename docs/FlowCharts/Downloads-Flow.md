@@ -43,7 +43,7 @@ This flowchart details the complete user journey from browsing publishers to dow
 flowchart TD
     subgraph User["👤 User Actions"]
         A["Open Downloads Tab"]
-        B["Select Publisher<br/>(Generals Online, SuperHackers, Outpost, GitHub, Subscriptions)"]
+        B["Select Publisher<br/>(Generals Online, SuperHackers, Outpost, GitHub, GenLauncher, Subscriptions)"]
         C["Browse / Filter / Search"]
         D["Click Content Card"]
         E["View Details Overlay"]
@@ -146,7 +146,7 @@ Example: 1.20240315.superhackers.patch.generals
 
 **Detection Logic**:
 
-1. **Exact Match**: Generates prospective manifest ID using `ManifestIdGenerator.GeneratePublisherContentId(publisher, contentType, name, releaseDate)` and checks `IContentManifestPool.IsManifestAcquiredAsync(id)`.
+1. **Exact Match**: Generates prospective manifest ID using `ManifestIdGenerator.GeneratePublisherContentId(publisher, contentType, name, releaseDate)` (or publisher-specific conventions such as `1.0.genlauncher{gameToken}.{contentType}.{slug}`) and checks `IContentManifestPool.IsManifestAcquiredAsync(id)`. For multi-release packages and synthetic file rows (`file:...`), verifies URL, version, and slug metadata against persisted manifests (`FileRowMatchesManifest`) to ensure exact release recovery after application restarts.
 2. **Update Detection**: Searches for local manifests with matching publisher, contentType, and contentName but older `userVersion`.
 3. **State Evaluation**:
    - `Downloaded`: Exact match found in manifest pool.
@@ -233,7 +233,8 @@ flowchart LR
         P2["⚡ TheSuperHackers (Static)"]
         P3["🔧 Community Outpost (Static)"]
         P4["🐙 GitHub Topics (Dynamic)"]
-        P5["📦 Subscribed Creator Catalogs"]
+        P5["🚀 GenLauncher (Static)"]
+        P6["📦 Subscribed Creator Catalogs"]
     end
 
     subgraph Filter["Filter Panel / Search"]
@@ -247,7 +248,7 @@ flowchart LR
         G3["ContentCardView n..."]
     end
 
-    P1 & P2 & P3 & P4 & P5 --> Filter
+    P1 & P2 & P3 & P4 & P5 & P6 --> Filter
     Filter --> Grid
 ```
 

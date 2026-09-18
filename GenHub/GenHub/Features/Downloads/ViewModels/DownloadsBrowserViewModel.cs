@@ -224,7 +224,8 @@ public sealed partial class DownloadsBrowserViewModel(
         CommunityOutpostConstants.PublisherType and not
         PublisherTypeConstants.TheSuperHackers and not
         AODMapsConstants.PublisherType and not
-        CNCLabsConstants.PublisherType;
+        CNCLabsConstants.PublisherType and not
+        PublisherTypeConstants.GenLauncher;
 
     /// <summary>
     /// Gets a value indicating whether search or filter UI controls are available for the current publisher.
@@ -854,6 +855,11 @@ public sealed partial class DownloadsBrowserViewModel(
                 PublisherInfoConstants.CommunityOutpost.LogoSource,
                 ContentConstants.CategoryStatic),
             new PublisherItemViewModel(
+                PublisherTypeConstants.GenLauncher,
+                PublisherInfoConstants.GenLauncher.Name,
+                PublisherInfoConstants.GenLauncher.LogoSource,
+                ContentConstants.CategoryStatic),
+            new PublisherItemViewModel(
                 GitHubTopicsConstants.PublisherType,
                 PublisherInfoConstants.GitHub.Name,
                 PublisherInfoConstants.GitHub.LogoSource,
@@ -894,6 +900,38 @@ public sealed partial class DownloadsBrowserViewModel(
         {
             return inFlight.ResolvedItems.ToList();
         }
+    }
+
+    private static string GetVariantVersion(ContentGridItemViewModel vm, InstallableVariant v)
+    {
+        if (!string.IsNullOrEmpty(v.ManifestId) &&
+            vm.VariantSearchResults.TryGetValue(v.ManifestId, out var sr) &&
+            !string.IsNullOrEmpty(sr.Version))
+        {
+            return sr.Version;
+        }
+
+        return string.Empty;
+    }
+
+    private static int CompareVariantVersions(string? v1, string? v2)
+    {
+        if (string.IsNullOrEmpty(v1) && string.IsNullOrEmpty(v2))
+        {
+            return 0;
+        }
+
+        if (string.IsNullOrEmpty(v1))
+        {
+            return -1;
+        }
+
+        if (string.IsNullOrEmpty(v2))
+        {
+            return 1;
+        }
+
+        return ContentStateService.CompareVersions(v1, v2);
     }
 
     private void HandleSelectedPublisherChanged(PublisherItemViewModel? value)
@@ -1706,14 +1744,46 @@ public sealed partial class DownloadsBrowserViewModel(
             SelectDefaultVariant(variantVm, groupItems, primaryItem, defaultVariant);
 
             await variantVm.RefreshVariantStatesAsync();
-            variantVm.CurrentState = await contentStateService.GetStateAsync(defaultVariant, ct);
-            variantVm.IsDownloaded = variantVm.CurrentState is ContentState.Downloaded or ContentState.UpdateAvailable;
-            if (variantVm.IsDownloaded && (string.IsNullOrEmpty(defaultVariant.Id) || !ManifestIdValidator.IsValid(defaultVariant.Id, out _)))
+            var targetState = variantVm.SelectedVariant?.CurrentState ?? await contentStateService.GetStateAsync(defaultVariant, ct);
+            if (targetState == ContentState.NotDownloaded && variantVm.Variants.Any(v => v.CurrentState is ContentState.Downloaded or ContentState.UpdateAvailable))
             {
-                var manifestId = await contentStateService.GetLocalManifestIdAsync(defaultVariant, ct);
+                var downloadedVariants = variantVm.Variants
+                    .Where(v => v.CurrentState is ContentState.Downloaded or ContentState.UpdateAvailable)
+                    .ToList();
+
+                var downloadedVariant = downloadedVariants.Count > 1
+                    ? downloadedVariants
+                        .OrderByDescending(
+                            v => GetVariantVersion(variantVm, v),
+                            Comparer<string>.Create(CompareVariantVersions))
+                        .FirstOrDefault() ?? downloadedVariants[0]
+                    : downloadedVariants.FirstOrDefault();
+
+                if (downloadedVariant != null)
+                {
+                    variantVm.SelectedVariant = downloadedVariant;
+                    targetState = downloadedVariant.CurrentState;
+                }
+            }
+
+            variantVm.CurrentState = targetState;
+            variantVm.IsDownloaded = targetState is ContentState.Downloaded or ContentState.UpdateAvailable ||
+                                     variantVm.Variants.Any(v => v.CurrentState is ContentState.Downloaded or ContentState.UpdateAvailable);
+
+            var targetItem = defaultVariant;
+            if (variantVm.SelectedVariant != null &&
+                !string.IsNullOrEmpty(variantVm.SelectedVariant.ManifestId) &&
+                variantVm.VariantSearchResults.TryGetValue(variantVm.SelectedVariant.ManifestId, out var variantSr))
+            {
+                targetItem = variantSr;
+            }
+
+            if (variantVm.IsDownloaded && (string.IsNullOrEmpty(targetItem.Id) || !ManifestIdValidator.IsValid(targetItem.Id, out _)))
+            {
+                var manifestId = await contentStateService.GetLocalManifestIdAsync(targetItem, ct);
                 if (!string.IsNullOrEmpty(manifestId))
                 {
-                    defaultVariant.UpdateId(manifestId);
+                    targetItem.UpdateId(manifestId);
                 }
             }
 
@@ -1901,6 +1971,7 @@ public sealed partial class DownloadsBrowserViewModel(
             PublisherTypeConstants.GeneralsOnline => contentDiscoverers.OfType<GeneralsOnlineDiscoverer>().FirstOrDefault(),
             PublisherTypeConstants.TheSuperHackers => contentDiscoverers.OfType<GenHub.Features.Content.Services.GitHub.GitHubReleasesDiscoverer>().FirstOrDefault(),
             CommunityOutpostConstants.PublisherType => contentDiscoverers.OfType<GenHub.Features.Content.Services.CommunityOutpost.CommunityOutpostDiscoverer>().FirstOrDefault(),
+            PublisherTypeConstants.GenLauncher => contentDiscoverers.OfType<GenHub.Features.Content.Services.GenLauncher.GenLauncherDiscoverer>().FirstOrDefault(),
             GitHubTopicsConstants.PublisherType => contentDiscoverers.OfType<GenHub.Features.Content.Services.ContentDiscoverers.GitHubTopicsDiscoverer>().FirstOrDefault(),
             CNCLabsConstants.PublisherType => contentDiscoverers.OfType<CNCLabsMapDiscoverer>().FirstOrDefault(),
             AODMapsConstants.PublisherType => contentDiscoverers.OfType<AODMapsDiscoverer>().FirstOrDefault(),
@@ -2191,6 +2262,7 @@ public sealed partial class DownloadsBrowserViewModel(
         _filterViewModels[CNCLabsConstants.PublisherType] = new CNCLabsFilterViewModel();
         _filterViewModels[AODMapsConstants.PublisherType] = new AODMapsFilterViewModel();
         _filterViewModels[ModDBConstants.PublisherType] = new ModDBFilterViewModel();
+        _filterViewModels[PublisherTypeConstants.GenLauncher] = new StaticPublisherFilterViewModel(PublisherTypeConstants.GenLauncher);
     }
 
     [RelayCommand]

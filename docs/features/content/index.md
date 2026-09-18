@@ -27,7 +27,7 @@ The GenHub content system provides a flexible, extensible architecture for disco
 The content system follows a layered architecture with clear separation of concerns:
 
 1. **Content Orchestrator**: Coordinates all content operations
-2. **Content Providers**: Publisher-specific facades (GitHub, CNCLabs, AODMaps, ModDB, Community Outpost)
+2. **Content Providers**: Publisher-specific facades (GitHub, CNCLabs, AODMaps, ModDB, Community Outpost, GenLauncher)
 3. **Pipeline Components**:
    - **Discoverers**: Find available content
    - **Resolvers**: Transform lightweight results into full manifests
@@ -44,6 +44,7 @@ The content system follows a layered architecture with clear separation of conce
 - AODMaps (Art of Defense Maps)
 - Community Outpost (GenPatcher)
 - ModDB (mods, addons, patches, maps, skins, videos, modding tools)
+- GenLauncher (S3 repository mods, patches, and addons)
 - Local file system
 - Future: Steam Workshop
 

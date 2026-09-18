@@ -301,6 +301,7 @@ public class ProfileContentLinkerService(
             InstallTarget = ContentInstallTarget.UserMapsDirectory,
             Size = file.Size,
             Hash = file.Hash,
+            ETag = file.ETag,
             Permissions = file.Permissions,
             IsExecutable = file.IsExecutable,
             DownloadUrl = file.DownloadUrl,
