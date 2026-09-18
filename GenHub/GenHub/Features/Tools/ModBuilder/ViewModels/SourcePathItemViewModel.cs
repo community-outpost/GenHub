@@ -40,12 +40,12 @@ public partial class SourcePathItemViewModel : ObservableObject
     {
         Pattern = pattern;
         MatchedFilesCount = matchedCount;
-        ApplyTypeAndIcon();
+        (TypeLabel, IconKey, IsDirectoryGlob) = DetermineTypeAndIcon(pattern);
     }
 
     partial void OnPatternChanged(string value)
     {
-        ApplyTypeAndIcon();
+        (TypeLabel, IconKey, IsDirectoryGlob) = DetermineTypeAndIcon(value);
     }
 
     private static bool IsFolderAllFilesGlob(string path) =>
@@ -104,13 +104,5 @@ public partial class SourcePathItemViewModel : ObservableObject
 
         var (typeLabel, iconKey) = GetFileProperties(normalized);
         return (typeLabel, iconKey, false);
-    }
-
-    private void ApplyTypeAndIcon()
-    {
-        var (typeLabel, iconKey, isDirectoryGlob) = DetermineTypeAndIcon(Pattern);
-        TypeLabel = typeLabel;
-        IconKey = iconKey;
-        IsDirectoryGlob = isDirectoryGlob;
     }
 }

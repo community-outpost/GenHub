@@ -155,7 +155,7 @@ public partial class ModBuilderViewModel(
             Name = "Generals Community Patch 2.0",
             Publisher = "TheSuperHackers",
             Description = "Comprehensive balance and bugfix INI rules for C&C Generals Zero Hour. Demonstrates multi-directory INI rules and balance tuning.",
-            TargetGame = "Zero Hour",
+            TargetGame = ModBuilderConstants.ZeroHourDisplayName,
             OutputFileName = "500_900_CommunityPatch_CoreINI.big",
             Tag = "Balance & Bugfix",
             VariantSummary = "Core INI + Multiplayer Maps",
@@ -168,7 +168,7 @@ public partial class ModBuilderViewModel(
             Name = "Improved Menus Widescreen",
             Publisher = "ElTioRata",
             Description = "16:9 widescreen UI overhaul with 3 language bundle packs (English, Russian, Spanish) combining common menu windows and localized textures.",
-            TargetGame = "Zero Hour",
+            TargetGame = ModBuilderConstants.ZeroHourDisplayName,
             OutputFileName = "0_ImprovedMenusEnglish.big",
             Tag = "Widescreen UI",
             VariantSummary = "3 Language Variants (EN, RU, ES)",
@@ -181,7 +181,7 @@ public partial class ModBuilderViewModel(
             Name = "Lemon Control Bar",
             Publisher = "L3-M (Lemon)",
             Description = "Widescreen command & control bar overhaul with common art bundle items and 4 resolution bundle packs (720p, 1080p, 1440p, 4K).",
-            TargetGame = "Zero Hour",
+            TargetGame = ModBuilderConstants.ZeroHourDisplayName,
             OutputFileName = "340_ControlBarProLemonEdition1080ZH.big",
             Tag = "Control Bar",
             VariantSummary = "4 Resolution Packs (720p to 4K)",
@@ -194,7 +194,7 @@ public partial class ModBuilderViewModel(
             Name = "Leikeze Competitive Hotkeys",
             Publisher = "Leikeze",
             Description = "Tournament-standard competitive CSF string tables demonstrating 3 game and language variant bundle packs (ZH English, Generals English, ZH German).",
-            TargetGame = "Zero Hour",
+            TargetGame = ModBuilderConstants.ZeroHourDisplayName,
             OutputFileName = "!HotkeysLeikezeENZH.big",
             Tag = "Competitive Hotkeys",
             VariantSummary = "3 Layout Variants (ZH EN, Gen EN, ZH DE)",
@@ -1388,22 +1388,25 @@ public partial class ModBuilderViewModel(
         }
         else if (File.Exists(userProjFile) && sampleId.Equals(ModBuilderConstants.GeneralsGamePatch2SampleName, StringComparison.OrdinalIgnoreCase))
         {
-            try
+            await MigrateLegacyProjFileAsync(sampleId, userProjFile, cancellationToken).ConfigureAwait(false);
+        }
+    }
+
+    private async Task MigrateLegacyProjFileAsync(string sampleId, string projFile, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var content = await File.ReadAllTextAsync(projFile, cancellationToken).ConfigureAwait(false);
+            if (content.Contains("\"targetGame\": \"Generals\"", StringComparison.OrdinalIgnoreCase))
             {
-                var content = await File.ReadAllTextAsync(userProjFile, cancellationToken).ConfigureAwait(false);
-                if (content.Contains("\"targetGame\": \"Generals\"", StringComparison.OrdinalIgnoreCase))
-                {
-                    content = content.Replace("\"targetGame\": \"Generals\"", "\"targetGame\": \"ZeroHour\"", StringComparison.OrdinalIgnoreCase);
-                    await File.WriteAllTextAsync(userProjFile, content, cancellationToken).ConfigureAwait(false);
-                }
-            }
-            catch (Exception ex)
-            {
-                logger.LogWarning(ex, "Failed to migrate targetGame for {SampleId}", sampleId);
+                content = content.Replace("\"targetGame\": \"Generals\"", "\"targetGame\": \"ZeroHour\"", StringComparison.OrdinalIgnoreCase);
+                await File.WriteAllTextAsync(projFile, content, cancellationToken).ConfigureAwait(false);
             }
         }
-
-        await Task.CompletedTask.ConfigureAwait(false);
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Failed to migrate targetGame for {SampleId}", sampleId);
+        }
     }
 
     private async Task ProvisionSampleTemplateAsync(string sampleId, string projectDir, CancellationToken cancellationToken)
