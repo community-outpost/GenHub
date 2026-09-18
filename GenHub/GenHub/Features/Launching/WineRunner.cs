@@ -1,4 +1,5 @@
 using GenHub.Core.Constants;
+using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Launching;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Launching;
@@ -36,8 +37,9 @@ public class WineRunner(
     {
         ArgumentNullException.ThrowIfNull(configuration);
 
-        if (!IsWindowsExecutable(configuration.ExecutablePath))
+        if (!CommandLineHelper.IsWindowsExecutable(configuration.ExecutablePath))
         {
+            logger.LogDebug("Target {ExecutablePath} is not a Windows executable; passing through directly", configuration.ExecutablePath);
             return OperationResult<RunnerCommand>.CreateSuccess(
                 new RunnerCommand(configuration.ExecutablePath, string.Empty, new Dictionary<string, string>()));
         }
@@ -59,22 +61,7 @@ public class WineRunner(
         };
 
         return OperationResult<RunnerCommand>.CreateSuccess(
-            new RunnerCommand(wineBinary, QuoteArgument(configuration.ExecutablePath), environment));
-    }
-
-    private static bool IsWindowsExecutable(string executablePath)
-    {
-        return WineConstants.WindowsExecutableExtension.Equals(Path.GetExtension(executablePath), StringComparison.OrdinalIgnoreCase);
-    }
-
-    private static string QuoteArgument(string value)
-    {
-        if (value.Contains(' ') || value.Contains('\t') || value.Contains('"'))
-        {
-            return $"\"{value.Replace("\"", "\\\"")}\"";
-        }
-
-        return value;
+            new RunnerCommand(wineBinary, CommandLineHelper.QuoteArgument(configuration.ExecutablePath), environment));
     }
 
     private static string SanitizeUserName(string userName)

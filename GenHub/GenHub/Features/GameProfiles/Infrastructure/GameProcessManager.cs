@@ -560,7 +560,7 @@ public class GameProcessManager(
     private static bool HasExecutePermission(string path)
     {
         if (OperatingSystem.IsWindows() ||
-            WineConstants.WindowsExecutableExtension.Equals(Path.GetExtension(path), StringComparison.OrdinalIgnoreCase))
+            CommandLineHelper.IsWindowsExecutable(path))
         {
             return true;
         }
@@ -753,16 +753,6 @@ public class GameProcessManager(
             : ProfileValidationConstants.MissingCompatibilityRunner;
     }
 
-    private string QuoteArgumentValue(string value)
-    {
-        if (value.Contains(' ') || value.Contains('\t') || value.Contains('"'))
-        {
-            return $"\"{value.Replace("\"", "\\\"")}\"";
-        }
-
-        return value;
-    }
-
     private void AppendFormattedArgument(List<string> argList, KeyValuePair<string, string> arg)
     {
         if (arg.Key.StartsWith('-'))
@@ -770,20 +760,20 @@ public class GameProcessManager(
             argList.Add(arg.Key);
             if (!string.IsNullOrEmpty(arg.Value))
             {
-                argList.Add(QuoteArgumentValue(arg.Value));
+                argList.Add(CommandLineHelper.QuoteArgument(arg.Value));
             }
 
             logger.LogDebug("Added flag argument: {Key} {Value}", arg.Key, arg.Value);
         }
         else if (arg.Key.StartsWith("_pos", StringComparison.Ordinal) || string.IsNullOrEmpty(arg.Key))
         {
-            var quotedValue = QuoteArgumentValue(arg.Value);
+            var quotedValue = CommandLineHelper.QuoteArgument(arg.Value);
             argList.Add(quotedValue);
             logger.LogDebug("Added positional argument: {Value}", quotedValue);
         }
         else
         {
-            var quotedValue = QuoteArgumentValue(arg.Value);
+            var quotedValue = CommandLineHelper.QuoteArgument(arg.Value);
             argList.Add($"{arg.Key}={quotedValue}");
             logger.LogDebug("Added key-value argument: {Key}={Value}", arg.Key, quotedValue);
         }

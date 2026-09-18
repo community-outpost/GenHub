@@ -208,6 +208,73 @@ public sealed class ProfileLauncherFacadeRunnerValidationTests
         Assert.Equal(installationError, result.FirstError);
     }
 
+    /// <summary>
+    /// Verifies that when a launch runner cannot launch Windows executables, but the profile
+    /// specifies a native / non-Windows executable target, launch validation passes.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task ValidateLaunchAsync_WhenRunnerMissingAndTargetIsNonWindowsExecutable_PassesValidationAsync()
+    {
+        // Arrange
+        ArrangePassingProfile(useSteamLaunch: false, executablePath: "/usr/local/bin/generalszh");
+        _launchRunnerMock
+            .Setup(r => r.CanLaunchWindowsExecutables())
+            .Returns(false);
+        var facade = CreateFacade(localizationService: null);
+
+        // Act
+        var result = await facade.ValidateLaunchAsync(ProfileId);
+
+        // Assert
+        Assert.True(result.Success, string.Join("; ", result.Errors));
+    }
+
+    /// <summary>
+    /// Verifies that when a launch runner cannot launch Windows executables, but the game client manifest
+    /// resolves to a native non-Windows executable entry point, launch validation passes.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task ValidateLaunchAsync_WhenRunnerMissingAndClientManifestResolvesNonWindowsExecutable_PassesValidationAsync()
+    {
+        // Arrange
+        ArrangePassingProfile(useSteamLaunch: false, clientEntryPoint: "generalszh");
+        _launchRunnerMock
+            .Setup(r => r.CanLaunchWindowsExecutables())
+            .Returns(false);
+        var facade = CreateFacade(localizationService: null);
+
+        // Act
+        var result = await facade.ValidateLaunchAsync(ProfileId);
+
+        // Assert
+        Assert.True(result.Success, string.Join("; ", result.Errors));
+    }
+
+    /// <summary>
+    /// Verifies that when a launch runner cannot launch Windows executables and the profile targets
+    /// a Windows executable, launch validation fails with the runner missing message.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task ValidateLaunchAsync_WhenRunnerMissingAndTargetIsWindowsExecutable_FailsValidationAsync()
+    {
+        // Arrange
+        ArrangePassingProfile(useSteamLaunch: false, executablePath: "generals.exe");
+        _launchRunnerMock
+            .Setup(r => r.CanLaunchWindowsExecutables())
+            .Returns(false);
+        var facade = CreateFacade(localizationService: null);
+
+        // Act
+        var result = await facade.ValidateLaunchAsync(ProfileId);
+
+        // Assert
+        Assert.False(result.Success);
+        Assert.Contains(ProfileValidationConstants.MissingCompatibilityRunner, result.FirstError);
+    }
+
     private ProfileLauncherFacade CreateFacade(ILocalizationService? localizationService)
     {
         return new ProfileLauncherFacade(
@@ -231,7 +298,10 @@ public sealed class ProfileLauncherFacadeRunnerValidationTests
             localizationService: localizationService);
     }
 
-    private void ArrangePassingProfile(bool useSteamLaunch)
+    private void ArrangePassingProfile(
+        bool useSteamLaunch,
+        string? executablePath = null,
+        string? clientEntryPoint = null)
     {
         var installationManifest = new ContentManifest
         {
@@ -247,6 +317,10 @@ public sealed class ProfileLauncherFacadeRunnerValidationTests
             Name = "Steam Zero Hour Client",
             ContentType = ContentType.GameClient,
             TargetGame = GameType.ZeroHour,
+            EntryPoint = clientEntryPoint,
+            Files = !string.IsNullOrWhiteSpace(clientEntryPoint)
+                ? [new ManifestFile { RelativePath = clientEntryPoint, Size = 100, IsExecutable = true }]
+                : [],
         };
 
         var profile = new GameProfile
@@ -255,6 +329,7 @@ public sealed class ProfileLauncherFacadeRunnerValidationTests
             Name = "Runner Test Profile",
             GameInstallationId = InstallationId,
             UseSteamLaunch = useSteamLaunch,
+            ExecutablePath = executablePath ?? string.Empty,
             GameClient = new GameClient
             {
                 Id = ClientManifestId,
@@ -265,6 +340,7 @@ public sealed class ProfileLauncherFacadeRunnerValidationTests
             EnabledContentIds =
             [
                 InstallationManifestId,
+                ClientManifestId,
             ],
         };
 

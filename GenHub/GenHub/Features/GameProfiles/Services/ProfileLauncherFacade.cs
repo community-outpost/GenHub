@@ -1212,7 +1212,7 @@ public class ProfileLauncherFacade(
             return ProfileOperationResult<bool>.CreateFailure("CAS system is not available");
         }
 
-        var runnerError = await CheckCompatibilityRunnerAsync(profile, cancellationToken);
+        var runnerError = await CheckCompatibilityRunnerAsync(profile, manifests, cancellationToken);
         if (runnerError is not null)
         {
             logger.LogWarning("Profile {ProfileId} launch validation failed: {Error}", profile.Id, runnerError);
@@ -1223,9 +1223,18 @@ public class ProfileLauncherFacade(
         return ProfileOperationResult<bool>.CreateSuccess(true);
     }
 
-    private async Task<string?> CheckCompatibilityRunnerAsync(GameProfile profile, CancellationToken cancellationToken)
+    private async Task<string?> CheckCompatibilityRunnerAsync(
+        GameProfile profile,
+        IReadOnlyList<ContentManifest>? manifests,
+        CancellationToken cancellationToken)
     {
         if (launchRunner.CanLaunchWindowsExecutables())
+        {
+            return null;
+        }
+
+        var targetExecutable = TryResolveTargetExecutable(profile, manifests);
+        if (!string.IsNullOrWhiteSpace(targetExecutable) && !CommandLineHelper.IsWindowsExecutable(targetExecutable))
         {
             return null;
         }
@@ -1247,6 +1256,53 @@ public class ProfileLauncherFacade(
         return localizationService?.TryGetString(ProfileValidationConstants.MissingCompatibilityRunnerKey, out var localized) == true
             ? localized
             : ProfileValidationConstants.MissingCompatibilityRunner;
+    }
+
+    private string? TryResolveTargetExecutable(GameProfile profile, IReadOnlyList<ContentManifest>? manifests)
+    {
+        if (!string.IsNullOrWhiteSpace(profile.ExecutablePath))
+        {
+            logger.LogDebug("[Launch] Target executable resolved from profile: {ExecutablePath}", profile.ExecutablePath);
+            return profile.ExecutablePath;
+        }
+
+        if (!string.IsNullOrWhiteSpace(profile.GameClient?.ExecutablePath))
+        {
+            logger.LogDebug("[Launch] Target executable resolved from game client: {ExecutablePath}", profile.GameClient.ExecutablePath);
+            return profile.GameClient.ExecutablePath;
+        }
+
+        if (manifests != null)
+        {
+            var targetManifest = manifests.FirstOrDefault(m => m.ContentType == ContentType.GameClient)
+                ?? manifests.FirstOrDefault(m => m.ContentType == ContentType.Executable || !string.IsNullOrWhiteSpace(m.EntryPoint));
+
+            if (targetManifest != null)
+            {
+                var resolution = ManifestVariantResolver.ResolveEntryPoint(targetManifest);
+                if (resolution.Success && !string.IsNullOrWhiteSpace(resolution.RelativePath))
+                {
+                    logger.LogDebug("[Launch] Target executable resolved from manifest {ManifestId}: {RelativePath}", targetManifest.Id, resolution.RelativePath);
+                    return resolution.RelativePath;
+                }
+
+                var variant = ManifestVariantResolver.ResolveVariant(targetManifest);
+                if (!string.IsNullOrWhiteSpace(variant?.EntryPoint))
+                {
+                    logger.LogDebug("[Launch] Target executable resolved from variant entry point {ManifestId}: {EntryPoint}", targetManifest.Id, variant.EntryPoint);
+                    return variant.EntryPoint;
+                }
+
+                if (!string.IsNullOrWhiteSpace(targetManifest.EntryPoint))
+                {
+                    logger.LogDebug("[Launch] Target executable resolved from manifest declared entry point {ManifestId}: {EntryPoint}", targetManifest.Id, targetManifest.EntryPoint);
+                    return targetManifest.EntryPoint;
+                }
+            }
+        }
+
+        logger.LogDebug("[Launch] Could not resolve explicit target executable for profile {ProfileId}", profile.Id);
+        return null;
     }
 
     private async Task<ContentManifest?> TryRetrieveManifestAsync(
