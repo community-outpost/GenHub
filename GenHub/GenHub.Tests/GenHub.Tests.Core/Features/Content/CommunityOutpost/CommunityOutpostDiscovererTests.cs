@@ -276,20 +276,20 @@ public class CommunityOutpostDiscovererTests
 
         // Assert
         Assert.True(result.Success, $"Discovery failed: {result.FirstError}");
-        Assert.Equal(2, result.Data.Items.Count);
+        Assert.Equal(2, result.Data.Items.Count());
 
-        var nonRetItem = result.Data.Items.FirstOrDefault(i => i.Id.EndsWith(CommunityOutpostConstants.CommunityPatchNonRetCode));
+        var nonRetItem = result.Data.Items.FirstOrDefault(i => i.Id.EndsWith(CommunityOutpostConstants.CommunityPatchNonRetCode, StringComparison.Ordinal));
         Assert.NotNull(nonRetItem);
         Assert.Equal(CommunityOutpostConstants.CommunityPatchNonRetDisplayName, nonRetItem.Name);
-        Assert.Contains(CommunityOutpostConstants.NonRetailTag, nonRetItem.Metadata.Tags);
-        Assert.Contains(CommunityOutpostConstants.StreamTag, nonRetItem.Metadata.Tags);
+        Assert.Contains(CommunityOutpostConstants.NonRetailTag, nonRetItem.Tags);
+        Assert.Contains(CommunityOutpostConstants.StreamTag, nonRetItem.Tags);
         Assert.Equal("11092026", nonRetItem.Id.Split('.')[1]);
 
-        var retailItem = result.Data.Items.FirstOrDefault(i => i.Id.EndsWith(CommunityOutpostConstants.CommunityPatchCode));
+        var retailItem = result.Data.Items.FirstOrDefault(i => i.Id.EndsWith(CommunityOutpostConstants.CommunityPatchTag, StringComparison.Ordinal));
         Assert.NotNull(retailItem);
         Assert.Equal(CommunityOutpostConstants.CommunityPatchRetailDisplayName, retailItem.Name);
-        Assert.Contains(CommunityOutpostConstants.RetailCompatibleTag, retailItem.Metadata.Tags);
-        Assert.DoesNotContain(CommunityOutpostConstants.NonRetailTag, retailItem.Metadata.Tags);
+        Assert.Contains(CommunityOutpostConstants.RetailCompatibleTag, retailItem.Tags);
+        Assert.DoesNotContain(CommunityOutpostConstants.NonRetailTag, retailItem.Tags);
         Assert.Equal("23072026", retailItem.Id.Split('.')[1]);
     }
 
