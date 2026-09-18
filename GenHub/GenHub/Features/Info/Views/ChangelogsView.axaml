@@ -74,7 +74,7 @@
                         <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
                             <TextBlock Text="{Binding Release.TagName}" FontSize="16" FontWeight="Bold" Foreground="{StaticResource SystemAccentColorBrush}"/>
                             <Border Background="{DynamicResource AccentBadgeBackgroundBrush}" CornerRadius="4" Padding="6,2" IsVisible="{Binding IsLatest}">
-                                <TextBlock Text="{localization:Localize Info.Changelog.LatestRelease}" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource AccentBadgeForegroundBrush}"/>
+                                <TextBlock Text="{localization:Localize Info.Changelog.LatestRelease}" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource PrimaryButtonForeground}"/>
                             </Border>
                             <Border Background="{DynamicResource SurfaceElevatedBrush}" CornerRadius="4" Padding="6,2" IsVisible="{Binding Release.IsPrerelease}">
                                 <TextBlock Text="{localization:Localize Info.Changelog.PreRelease}" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource WarningBrush}"/>

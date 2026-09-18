@@ -98,6 +98,10 @@ public partial class ChangelogsViewModel(
                 ? (localizationService?.GetString("Info.Changelog.RateLimited") ?? "GitHub API rate limit exceeded. Please configure a GitHub Personal Access Token in Settings or try again later.")
                 : (localizationService?.GetString("Info.Changelog.NoReleasesFound") ?? "No release changelogs found.");
         }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
         catch (Exception ex)
         {
             logger.LogError(ex, "Error loading changelogs from GitHub API, falling back to cache");
@@ -169,13 +173,39 @@ public partial class ChangelogsViewModel(
             return;
         }
 
+        var tempPath = Path.Combine(Path.GetDirectoryName(cachePath)!, $"{Guid.NewGuid():N}.tmp");
         try
         {
-            using var fileStream = File.Create(cachePath);
-            await JsonSerializer.SerializeAsync(fileStream, releases, cancellationToken: cancellationToken);
+            using (var fileStream = File.Create(tempPath))
+            {
+                await JsonSerializer.SerializeAsync(fileStream, releases, cancellationToken: cancellationToken);
+            }
+
+            File.Move(tempPath, cachePath, overwrite: true);
+        }
+        catch (OperationCanceledException)
+        {
+            if (File.Exists(tempPath))
+            {
+                File.Delete(tempPath);
+            }
+
+            throw;
         }
         catch (Exception ex)
         {
+            if (File.Exists(tempPath))
+            {
+                try
+                {
+                    File.Delete(tempPath);
+                }
+                catch
+                {
+                    // Ignore cleanup error
+                }
+            }
+
             logger.LogDebug(ex, "Failed to write changelogs cache to {Path}", cachePath);
         }
     }
