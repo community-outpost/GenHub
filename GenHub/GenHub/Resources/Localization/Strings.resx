@@ -7661,4 +7661,16 @@ This will:
   </data>
   <data name="Profiles.AddLocalContent.NormalizationSkipped" xml:space="preserve">
     <value>Normalized {0} file(s); {1} skipped. Import completed.</value>  </data>
+  <data name="GameProfiles.Launch.WorkspacePreparingTitle" xml:space="preserve">
+    <value>Preparing Workspace</value>
+  </data>
+  <data name="GameProfiles.Launch.WorkspaceInitializingMessage" xml:space="preserve">
+    <value>Initializing workspace for '{0}'. First launch may take a moment while files are set up...</value>
+  </data>
+  <data name="GameProfiles.Launch.WorkspaceErrorTitle" xml:space="preserve">
+    <value>Workspace Error</value>
+  </data>
+  <data name="GameProfiles.Launch.WorkspaceFailedMessage" xml:space="preserve">
+    <value>Workspace initialization failed for '{0}'.</value>
+  </data>
 </root>

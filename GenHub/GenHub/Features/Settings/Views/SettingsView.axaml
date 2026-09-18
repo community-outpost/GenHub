@@ -897,7 +897,6 @@
           </StackPanel>
         </Border>
       </Expander>
-
       <!-- Subscriptions Settings -->
       <Expander x:Name="Expander_Subscriptions" IsExpanded="False" HorizontalAlignment="Stretch">
         <Expander.Header>
