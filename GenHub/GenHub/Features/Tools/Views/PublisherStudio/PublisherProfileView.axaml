@@ -11,36 +11,36 @@
 
     <UserControl.Styles>
         <Style Selector="TextBox">
-            <Setter Property="Background" Value="#12FFFFFF"/>
-            <Setter Property="BorderBrush" Value="#22FFFFFF"/>
-            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Background" Value="{DynamicResource GlassFillSubtleBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource GlassStrongBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
             <Setter Property="CornerRadius" Value="8"/>
             <Setter Property="Padding" Value="12,8"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="SelectionBrush" Value="{DynamicResource AccentColorBrush}"/>
-            <Setter Property="SelectionForegroundBrush" Value="White"/>
-            <Setter Property="CaretBrush" Value="White"/>
+            <Setter Property="SelectionForegroundBrush" Value="{DynamicResource TextPrimary}"/>
+            <Setter Property="CaretBrush" Value="{DynamicResource TextPrimary}"/>
         </Style>
         <Style Selector="TextBox:focus">
-            <Setter Property="Background" Value="#18FFFFFF"/>
+            <Setter Property="Background" Value="{DynamicResource GlassFillBrush}"/>
             <Setter Property="BorderBrush" Value="{DynamicResource AccentColorBrush}"/>
         </Style>
         <Style Selector="TextBox:pointerover">
-            <Setter Property="Background" Value="#1AFFFFFF"/>
-            <Setter Property="BorderBrush" Value="#35FFFFFF"/>
+            <Setter Property="Background" Value="{DynamicResource GlassBorderSubtleBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource GlassBorderStrongBrush}"/>
         </Style>
 
         <Style Selector="TextBlock.field-label">
             <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="Foreground" Value="#D1D5DB"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextSecondary}"/>
             <Setter Property="FontSize" Value="12"/>
         </Style>
         <Style Selector="TextBlock.field-hint">
             <Setter Property="FontSize" Value="11"/>
-            <Setter Property="Foreground" Value="#6B7280"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextMuted}"/>
         </Style>
         <Style Selector="TextBlock.required">
-            <Setter Property="Foreground" Value="#EF4444"/>
+            <Setter Property="Foreground" Value="{DynamicResource ErrorBrush}"/>
             <Setter Property="FontSize" Value="12"/>
         </Style>
 
@@ -54,7 +54,7 @@
         <Style Selector="Button.primary-btn">
             <Setter Property="Background" Value="{DynamicResource PrimaryGradientBrush}"/>
             <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
             <Setter Property="CornerRadius" Value="8"/>
             <Setter Property="Padding" Value="24,10"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
@@ -79,15 +79,15 @@
                                 VerticalAlignment="Center">
                             <PathIcon Data="{StaticResource PersonIcon}"
                                       Width="18" Height="18"
-                                      Foreground="White"
+                                      Foreground="{DynamicResource TextPrimary}"
                                       HorizontalAlignment="Center"
                                       VerticalAlignment="Center"/>
                         </Border>
                         <StackPanel Spacing="2" VerticalAlignment="Center">
                             <TextBlock Text="{localization:Localize Tools.PublisherStudio.Profile.Title}"
-                                       FontSize="16" FontWeight="Bold" Foreground="White"/>
+                                       FontSize="16" FontWeight="Bold" Foreground="{DynamicResource TextPrimary}"/>
                             <TextBlock Text="{localization:Localize Tools.PublisherStudio.Profile.Subtitle}"
-                                       FontSize="11" Foreground="#9CA3AF"/>
+                                       FontSize="11" Foreground="{DynamicResource TextSecondary}"/>
                         </StackPanel>
                     </StackPanel>
 
@@ -97,26 +97,13 @@
                             Command="{Binding SaveProfileCommand}"
                             VerticalAlignment="Center">
                         <StackPanel Orientation="Horizontal" Spacing="8">
-                            <PathIcon Data="{StaticResource SaveIcon}" Width="14" Height="14" Foreground="White"/>
+                            <PathIcon Data="{StaticResource SaveIcon}" Width="14" Height="14" Foreground="{DynamicResource TextPrimary}"/>
                             <TextBlock Text="{localization:Localize Tools.PublisherStudio.Profile.Save}" FontWeight="SemiBold" FontSize="13"/>
                         </StackPanel>
                     </Button>
                 </Grid>
 
-                <!-- Status Feedback Banner (if any) -->
-                <Border Background="#1522C55E"
-                        BorderBrush="#3022C55E"
-                        BorderThickness="1"
-                        CornerRadius="6"
-                        Padding="12,6"
-                        IsVisible="{Binding IsSavedSuccessfully}">
-                    <StackPanel Orientation="Horizontal" Spacing="8">
-                        <PathIcon Data="{StaticResource CheckmarkIcon}" Width="14" Height="14" Foreground="#22C55E"/>
-                        <TextBlock Text="{Binding StatusMessage}" FontSize="12" Foreground="#22C55E" FontWeight="SemiBold" VerticalAlignment="Center"/>
-                    </StackPanel>
-                </Border>
-
-                <Rectangle Height="1" Fill="#15FFFFFF"/>
+                <Rectangle Height="1" Fill="{DynamicResource GlassFillBrush}"/>
 
                 <!-- 2-Column Fields Grid -->
                 <Grid ColumnDefinitions="*,16,*" RowDefinitions="Auto,12,Auto,12,Auto">
@@ -171,8 +158,8 @@
                                     Margin="8,0,0,0"
                                     Width="34" Height="34"
                                     CornerRadius="17"
-                                    Background="#15FFFFFF"
-                                    BorderBrush="#25FFFFFF"
+                                    Background="{DynamicResource GlassFillBrush}"
+                                    BorderBrush="{DynamicResource GlassBorderBrush}"
                                     BorderThickness="1"
                                     ClipToBounds="True">
                                 <Image Source="{Binding AvatarUrl, Converter={StaticResource StringToImageConverter}}"
@@ -182,7 +169,7 @@
                     </StackPanel>
                 </Grid>
 
-                <Rectangle Height="1" Fill="#15FFFFFF"/>
+                <Rectangle Height="1" Fill="{DynamicResource GlassFillBrush}"/>
 
                 <!-- Tags & Description -->
                 <StackPanel Spacing="4">

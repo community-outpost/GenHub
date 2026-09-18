@@ -19,7 +19,7 @@
         <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,20">
             <TextBlock Text="{localization:Localize Tools.PublisherStudio.Referral.AddTitle}"
                        FontSize="20" FontWeight="Bold"
-                       Foreground="White"/>
+                       Foreground="{DynamicResource TextPrimary}"/>
             <Button Grid.Column="1"
                     Command="{Binding CloseCommand}"
                     Background="Transparent"
@@ -29,13 +29,13 @@
                     VerticalAlignment="Top">
                 <PathIcon Data="{StaticResource CloseIcon}"
                           Width="12" Height="12"
-                          Foreground="#888888"/>
+                          Foreground="{DynamicResource TextSecondary}"/>
                 <Button.Styles>
                     <Style Selector="Button:pointerover /template/ ContentPresenter">
-                        <Setter Property="Background" Value="#15FFFFFF"/>
+                        <Setter Property="Background" Value="{DynamicResource GlassFillBrush}"/>
                     </Style>
                     <Style Selector="Button:pointerover PathIcon">
-                        <Setter Property="Foreground" Value="White"/>
+                        <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
                     </Style>
                 </Button.Styles>
             </Button>
@@ -46,19 +46,19 @@
             <StackPanel Spacing="16">
                 <!-- Quick Select from Subscribed Publishers -->
                 <Border IsVisible="{Binding AvailablePublishers.Count}"
-                        Background="#15FFFFFF"
+                        Background="{DynamicResource GlassFillBrush}"
                         CornerRadius="8"
                         Padding="16"
                         BorderThickness="1"
-                        BorderBrush="#20FFFFFF">
+                        BorderBrush="{DynamicResource GlassStrongBrush}">
                     <StackPanel Spacing="12">
                         <TextBlock Text="{localization:Localize Tools.PublisherStudio.Referral.QuickSelect}"
                                    FontWeight="SemiBold"
-                                   Foreground="White"
+                                   Foreground="{DynamicResource TextPrimary}"
                                    FontSize="14"/>
                         <TextBlock Text="{localization:Localize Tools.PublisherStudio.Referral.QuickSelectPrompt}"
                                    FontSize="12"
-                                   Foreground="#AAAAAA"/>
+                                   Foreground="{DynamicResource TextSecondary}"/>
                         <ItemsControl ItemsSource="{Binding AvailablePublishers}">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
@@ -70,7 +70,7 @@
                                             HorizontalContentAlignment="Stretch">
                                         <Button.Styles>
                                             <Style Selector="Button:pointerover">
-                                                <Setter Property="Background" Value="#20FFFFFF"/>
+                                                <Setter Property="Background" Value="{DynamicResource GlassStrongBrush}"/>
                                             </Style>
                                         </Button.Styles>
                                         <Grid ColumnDefinitions="Auto,*,Auto">
@@ -80,23 +80,23 @@
                                                     Margin="0,0,12,0">
                                                 <PathIcon Data="{StaticResource PackageIcon}"
                                                           Width="16" Height="16"
-                                                          Foreground="White"
+                                                          Foreground="{DynamicResource TextPrimary}"
                                                           HorizontalAlignment="Center"
                                                           VerticalAlignment="Center"/>
                                             </Border>
                                             <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2">
                                                 <TextBlock Text="{Binding PublisherName}"
                                                            FontWeight="SemiBold"
-                                                           Foreground="White"
+                                                           Foreground="{DynamicResource TextPrimary}"
                                                            FontSize="13"/>
                                                 <TextBlock Text="{Binding PublisherId}"
                                                            FontSize="11"
-                                                           Foreground="#AAAAAA"/>
+                                                           Foreground="{DynamicResource TextSecondary}"/>
                                             </StackPanel>
                                             <PathIcon Grid.Column="2"
                                                       Data="{StaticResource CheckmarkIcon}"
                                                       Width="18" Height="18"
-                                                      Foreground="#40FF40">
+                                                      Foreground="{DynamicResource SuccessBrush}">
                                                 <PathIcon.IsVisible>
                                                     <MultiBinding Converter="{StaticResource StringEqualityMultiConverter}">
                                                         <Binding Path="#RootView.((vm:AddReferralDialogViewModel)DataContext).SelectedPublisher.PublisherId"/>
@@ -112,17 +112,17 @@
                     </StackPanel>
                 </Border>
 
-                <Separator Background="#20FFFFFF" Height="1"/>
+                <Separator Background="{DynamicResource GlassStrongBrush}" Height="1"/>
 
                 <!-- Manual Entry -->
                 <StackPanel Spacing="12">
                     <TextBlock Text="{localization:Localize Tools.PublisherStudio.Referral.OrEnterManually}"
                                FontWeight="SemiBold"
-                               Foreground="White"
+                               Foreground="{DynamicResource TextPrimary}"
                                FontSize="14"/>
 
                     <StackPanel Spacing="6">
-                        <TextBlock Text="{localization:Localize Tools.PublisherStudio.Referral.CatalogUrl}" FontWeight="SemiBold" Foreground="#D0D0E0" FontSize="13"/>
+                        <TextBlock Text="{localization:Localize Tools.PublisherStudio.Referral.CatalogUrl}" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondary}" FontSize="13"/>
                         <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto">
                             <TextBox Grid.Column="0" Grid.Row="0"
                                      Text="{Binding CatalogUrl}"
@@ -143,44 +143,44 @@
                         </Grid>
                         <TextBlock Text="{localization:Localize Tools.PublisherStudio.Referral.DiscoverHint}"
                                    FontSize="11"
-                                   Foreground="#888888"/>
+                                   Foreground="{DynamicResource TextSecondary}"/>
                     </StackPanel>
 
                     <!-- Discovered Publisher Info -->
                     <Border IsVisible="{Binding DiscoveredPublisher, Converter={x:Static ObjectConverters.IsNotNull}}"
-                            Background="#2040FF40"
+                            Background="{DynamicResource StatusSuccessBadgeBackgroundBrush}"
                             CornerRadius="8"
                             Padding="12"
                             BorderThickness="1"
-                            BorderBrush="#4040FF40">
+                            BorderBrush="{DynamicResource SuccessBrush}">
                         <Grid ColumnDefinitions="Auto,*">
                             <PathIcon Data="{StaticResource CheckmarkIcon}"
                                       Width="20" Height="20"
-                                      Foreground="#40FF40"
+                                      Foreground="{DynamicResource SuccessBrush}"
                                       Margin="0,0,12,0"/>
                             <StackPanel Grid.Column="1" Spacing="4">
                                 <TextBlock Text="{localization:Localize Tools.PublisherStudio.Referral.PublisherFound}"
                                            FontWeight="Bold"
-                                           Foreground="White"
+                                           Foreground="{DynamicResource TextPrimary}"
                                            FontSize="13"/>
                                 <TextBlock Text="{Binding DiscoveredPublisher.Name}"
-                                           Foreground="#DDDDDD"/>
+                                           Foreground="{DynamicResource TextPrimary}"/>
                                 <TextBlock Text="{Binding DiscoveredPublisher.Id}"
                                            FontSize="12"
-                                           Foreground="#AAAAAA"/>
+                                           Foreground="{DynamicResource TextSecondary}"/>
                             </StackPanel>
                         </Grid>
                     </Border>
 
                     <StackPanel Spacing="6">
-                        <TextBlock Text="{localization:Localize Tools.PublisherStudio.Referral.PublisherId}" FontWeight="SemiBold" Foreground="#D0D0E0" FontSize="13"/>
+                        <TextBlock Text="{localization:Localize Tools.PublisherStudio.Referral.PublisherId}" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondary}" FontSize="13"/>
                         <TextBox Text="{Binding PublisherId}"
                                  Watermark="{localization:Localize Tools.PublisherStudio.Referral.PublisherIdPlaceholder}"
                                  IsReadOnly="{Binding DiscoveredPublisher, Converter={x:Static ObjectConverters.IsNotNull}}"/>
                     </StackPanel>
 
                     <StackPanel Spacing="6">
-                        <TextBlock Text="{localization:Localize Tools.PublisherStudio.Referral.Note}" FontWeight="SemiBold" Foreground="#D0D0E0" FontSize="13"/>
+                        <TextBlock Text="{localization:Localize Tools.PublisherStudio.Referral.Note}" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondary}" FontSize="13"/>
                         <TextBox Text="{Binding Note}"
                                  Watermark="{localization:Localize Tools.PublisherStudio.Referral.NotePlaceholder}"
                                  AcceptsReturn="True"
@@ -188,7 +188,7 @@
                     </StackPanel>
 
                     <TextBlock Text="{Binding ValidationError}"
-                               Foreground="#FF5555" FontSize="12"
+                               Foreground="{DynamicResource ErrorBrush}" FontSize="12"
                                IsVisible="{Binding !IsValid}"
                                TextWrapping="Wrap"/>
                 </StackPanel>
@@ -198,7 +198,7 @@
         <!-- Footer -->
         <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="12" HorizontalAlignment="Right" Margin="0,16,0,0">
              <TextBlock Text="{Binding ValidationError}"
-                        Foreground="#FF5555"
+                        Foreground="{DynamicResource ErrorBrush}"
                         VerticalAlignment="Center"
                         TextWrapping="Wrap"
                         MaxWidth="300"
@@ -211,7 +211,7 @@
              <Button Content="{localization:Localize Tools.PublisherStudio.Referral.AddButton}"
                      Command="{Binding CreateReferralCommand}"
                      Background="{DynamicResource PrimaryGradientBrush}"
-                     Foreground="White"
+                     Foreground="{DynamicResource TextPrimary}"
                      CornerRadius="8"
                      Padding="32,12"
                      FontWeight="Bold"

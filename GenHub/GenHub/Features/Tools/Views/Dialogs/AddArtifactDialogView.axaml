@@ -10,43 +10,43 @@
 
     <UserControl.Styles>
         <Style Selector="TextBox">
-            <Setter Property="Background" Value="#15FFFFFF"/>
-            <Setter Property="BorderBrush" Value="#25FFFFFF"/>
-            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Background" Value="{DynamicResource GlassFillBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource GlassBorderBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
             <Setter Property="CornerRadius" Value="6"/>
             <Setter Property="Padding" Value="12,10"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="SelectionBrush" Value="{DynamicResource AccentColorBrush}"/>
-            <Setter Property="SelectionForegroundBrush" Value="White"/>
-            <Setter Property="CaretBrush" Value="White"/>
+            <Setter Property="SelectionForegroundBrush" Value="{DynamicResource TextPrimary}"/>
+            <Setter Property="CaretBrush" Value="{DynamicResource TextPrimary}"/>
         </Style>
         <Style Selector="TextBox:focus">
-            <Setter Property="Background" Value="#18FFFFFF"/>
+            <Setter Property="Background" Value="{DynamicResource GlassFillBrush}"/>
             <Setter Property="BorderBrush" Value="{DynamicResource AccentColorBrush}"/>
         </Style>
         <Style Selector="CheckBox">
-            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
         </Style>
         <Style Selector="Button.small-glass-btn">
-            <Setter Property="Background" Value="#15FFFFFF"/>
-            <Setter Property="BorderBrush" Value="#25FFFFFF"/>
+            <Setter Property="Background" Value="{DynamicResource GlassFillBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource GlassBorderBrush}"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="CornerRadius" Value="4"/>
-            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
             <Setter Property="Padding" Value="12,6"/>
             <Setter Property="FontSize" Value="12"/>
         </Style>
         <Style Selector="Button.small-glass-btn:pointerover">
-            <Setter Property="Background" Value="#25FFFFFF"/>
-            <Setter Property="BorderBrush" Value="#40FFFFFF"/>
+            <Setter Property="Background" Value="{DynamicResource GlassBorderBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource GlassBorderStrongBrush}"/>
         </Style>
         <Style Selector="TextBlock.label">
             <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="Foreground" Value="#D0D0E0"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextSecondary}"/>
             <Setter Property="FontSize" Value="13"/>
         </Style>
         <Style Selector="TextBlock.hint">
-            <Setter Property="Foreground" Value="#888888"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextSecondary}"/>
             <Setter Property="FontSize" Value="11"/>
         </Style>
     </UserControl.Styles>
@@ -56,7 +56,7 @@
         <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,24">
             <TextBlock Text="{localization:Localize Tools.PublisherStudio.Artifact.AddTitle}"
                        FontSize="22" FontWeight="Bold"
-                       Foreground="White"/>
+                       Foreground="{DynamicResource TextPrimary}"/>
             <Button Grid.Column="1"
                     Command="{Binding CloseCommand}"
                     Background="Transparent"
@@ -66,13 +66,13 @@
                     VerticalAlignment="Top">
                 <PathIcon Data="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z"
                           Width="12" Height="12"
-                          Foreground="#888888"/>
+                          Foreground="{DynamicResource TextSecondary}"/>
                 <Button.Styles>
                     <Style Selector="Button:pointerover /template/ ContentPresenter">
-                        <Setter Property="Background" Value="#15FFFFFF"/>
+                        <Setter Property="Background" Value="{DynamicResource GlassFillBrush}"/>
                     </Style>
                     <Style Selector="Button:pointerover PathIcon">
-                        <Setter Property="Foreground" Value="White"/>
+                        <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
                     </Style>
                 </Button.Styles>
             </Button>
@@ -88,11 +88,11 @@
                     <!-- Upload Local File Option -->
                     <RadioButton GroupName="ArtifactSource"
                                  IsChecked="{Binding UseLocalFile}"
-                                 Foreground="White">
+                                 Foreground="{DynamicResource TextPrimary}">
                         <StackPanel Spacing="4">
                             <TextBlock Text="{localization:Localize Tools.PublisherStudio.Artifact.UploadLocalFile}" FontWeight="SemiBold"/>
                             <TextBlock Text="{localization:Localize Tools.PublisherStudio.Artifact.UploadLocalFileHint}"
-                                       FontSize="11" Foreground="#888888" TextWrapping="Wrap" MaxWidth="420"/>
+                                       FontSize="11" Foreground="{DynamicResource TextSecondary}" TextWrapping="Wrap" MaxWidth="420"/>
                         </StackPanel>
                     </RadioButton>
 
@@ -117,12 +117,12 @@
                     <!-- Enter Existing URL Option -->
                     <RadioButton GroupName="ArtifactSource"
                                  IsChecked="{Binding UseExistingUrl}"
-                                 Foreground="White"
+                                 Foreground="{DynamicResource TextPrimary}"
                                  Margin="0,8,0,0">
                         <StackPanel Spacing="4">
                             <TextBlock Text="{localization:Localize Tools.PublisherStudio.Artifact.ExternalCdn}" FontWeight="SemiBold"/>
                             <TextBlock Text="{localization:Localize Tools.PublisherStudio.Artifact.ExternalCdnHint}"
-                                       FontSize="11" Foreground="#888888" TextWrapping="Wrap" MaxWidth="420"/>
+                                       FontSize="11" Foreground="{DynamicResource TextSecondary}" TextWrapping="Wrap" MaxWidth="420"/>
                         </StackPanel>
                     </RadioButton>
 
@@ -131,17 +131,17 @@
                         <StackPanel Spacing="4">
                             <TextBlock Text="{localization:Localize Tools.PublisherStudio.Artifact.DirectDownloadUrl}" Classes="label"/>
                             <TextBox Text="{Binding DownloadUrl}"
-                                     AutomationProperties.Name="Direct Download URL"
+                                     AutomationProperties.Name="{localization:Localize Tools.PublisherStudio.Artifact.DirectDownloadUrl}"
                                      Watermark="https://cdn.example.com/downloads/gameclient-v1.0.zip"/>
                         </StackPanel>
 
                         <StackPanel Spacing="4">
                             <TextBlock Text="{localization:Localize Tools.PublisherStudio.Artifact.FileSize}" Classes="label"/>
                             <TextBox Text="{Binding FileSizeInput}"
-                                     AutomationProperties.Name="File Size"
+                                     AutomationProperties.Name="{localization:Localize Tools.PublisherStudio.Artifact.FileSize}"
                                      Watermark="{localization:Localize Tools.PublisherStudio.Artifact.FileSizePlaceholder}"/>
-                            <TextBlock Text="{Binding FileSizeDisplay, StringFormat='Parsed: {0}'}" Classes="hint"
-                                       IsVisible="{Binding FileSizeDisplay, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                            <TextBlock Text="{Binding ParsedSizeDisplay}" Classes="hint"
+                                       IsVisible="{Binding ParsedSizeDisplay, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
                         </StackPanel>
                     </StackPanel>
                 </StackPanel>
@@ -155,7 +155,7 @@
                 </Border>
 
                 <!-- Divider -->
-                <Rectangle Height="1" Fill="#20FFFFFF" Margin="0,4"/>
+                <Rectangle Height="1" Fill="{DynamicResource GlassStrongBrush}" Margin="0,4"/>
 
                 <!-- Artifact Details -->
                 <TextBlock Text="{localization:Localize Tools.PublisherStudio.Artifact.MetadataHeader}" Classes="label"/>
@@ -163,7 +163,7 @@
                 <!-- Computing hash indicator -->
                 <StackPanel IsVisible="{Binding IsComputingHash}" Orientation="Horizontal" Spacing="8">
                     <ProgressBar IsIndeterminate="True" Width="120" Height="4" Foreground="{DynamicResource AccentColorBrush}"/>
-                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Artifact.ComputingHash}" FontSize="12" Foreground="#888888"/>
+                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Artifact.ComputingHash}" FontSize="12" Foreground="{DynamicResource TextSecondary}"/>
                 </StackPanel>
 
                 <!-- Filename -->
@@ -215,7 +215,7 @@
              <Button Content="{localization:Localize Tools.PublisherStudio.Artifact.AddTitle}"
                      Command="{Binding CreateArtifactCommand}"
                      Background="{DynamicResource PrimaryGradientBrush}"
-                     Foreground="White"
+                     Foreground="{DynamicResource TextPrimary}"
                      CornerRadius="8"
                      Padding="40,14"
                      FontWeight="Bold"

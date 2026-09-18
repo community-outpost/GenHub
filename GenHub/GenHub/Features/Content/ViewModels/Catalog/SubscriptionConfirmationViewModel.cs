@@ -18,6 +18,7 @@ using System.Diagnostics;
 using System.Linq;
 using System.Net.Http;
 using System.Net.Mail;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -52,10 +53,31 @@ public partial class SubscriptionConfirmationViewModel(
     private const string DefaultCategoryKey = "All";
     private const string DefaultPublisherName = "Loading...";
     private const string FallbackPublisherInitial = "P";
+
+    private static readonly JsonSerializerOptions DefinitionJsonOptions = new()
+    {
+        PropertyNameCaseInsensitive = true,
+    };
+
     private PublisherCatalog? _parsedCatalog;
 
     private string? _resolvedDefinitionUrl;
     private string? _resolvedCatalogUrl;
+
+    private static bool HasCatalogReference(PublisherDefinition? definition) =>
+        (definition?.Catalogs?.Count > 0) || !string.IsNullOrWhiteSpace(definition?.CatalogUrl);
+
+    private static string? ResolveTargetCatalogUrl(PublisherDefinition? definition)
+    {
+        if (definition == null)
+        {
+            return null;
+        }
+
+        return !string.IsNullOrWhiteSpace(definition.CatalogUrl)
+            ? definition.CatalogUrl
+            : definition.Catalogs?.FirstOrDefault()?.Url;
+    }
 
     private string GetLocalizedString(string key, string fallback) =>
         localizationService?.GetString(key) ?? fallback;
@@ -293,17 +315,6 @@ public partial class SubscriptionConfirmationViewModel(
         ErrorMessage = null;
     }
 
-    private static string FormatContentTypeLabel(ContentType contentType) => contentType switch
-    {
-        ContentType.Mod => "Mods",
-        ContentType.Map => "Maps",
-        ContentType.Mission => "Missions",
-        ContentType.ModdingTool => "Tools",
-        ContentType.Patch => "Patches",
-        ContentType.Addon => "Addons",
-        _ => contentType.ToString(),
-    };
-
     [RelayCommand]
     private async Task ConfirmAsync(CancellationToken cancellationToken = default)
     {
@@ -403,6 +414,15 @@ public partial class SubscriptionConfirmationViewModel(
         return (null, null, null);
     }
 
+    private string ResolveContentTypeDisplay(ContentType contentType)
+    {
+        var typeKey = $"ContentType.{contentType}";
+        var localizedType = localizationService?.GetString(typeKey);
+        return !string.IsNullOrEmpty(localizedType) && !string.Equals(localizedType, typeKey, StringComparison.Ordinal)
+            ? localizedType
+            : contentType.GetDisplayName();
+    }
+
     private async Task<(PublisherCatalog? Catalog, string? DefinitionUrl, string? CatalogUrl)> TryFetchFromDefinitionServiceAsync(
         CancellationToken cancellationToken)
     {
@@ -418,8 +438,7 @@ public partial class SubscriptionConfirmationViewModel(
         }
 
         var definition = defResult.Data;
-        var hasCatalogs = (definition.Catalogs?.Count > 0) || !string.IsNullOrWhiteSpace(definition.CatalogUrl);
-        if (!hasCatalogs)
+        if (!HasCatalogReference(definition))
         {
             return (null, null, null);
         }
@@ -427,9 +446,7 @@ public partial class SubscriptionConfirmationViewModel(
         var catResult = await definitionService.FetchCatalogFromDefinitionAsync(definition, cancellationToken);
         if (catResult.Success && catResult.Data != null)
         {
-            var targetCatalogUrl = !string.IsNullOrWhiteSpace(definition.CatalogUrl)
-                ? definition.CatalogUrl
-                : definition.Catalogs?.FirstOrDefault()?.Url;
+            var targetCatalogUrl = ResolveTargetCatalogUrl(definition);
 
             if (string.IsNullOrWhiteSpace(targetCatalogUrl))
             {
@@ -458,22 +475,18 @@ public partial class SubscriptionConfirmationViewModel(
     {
         try
         {
-            var options = new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true };
-            var definition = System.Text.Json.JsonSerializer.Deserialize<PublisherDefinition>(response, options);
+            var definition = JsonSerializer.Deserialize<PublisherDefinition>(response, DefinitionJsonOptions);
             if (definition == null)
             {
                 return (null, null, null);
             }
 
-            var hasCatalogs = (definition.Catalogs?.Count > 0) || !string.IsNullOrWhiteSpace(definition.CatalogUrl);
-            if (!hasCatalogs)
+            if (!HasCatalogReference(definition))
             {
                 return (null, null, null);
             }
 
-            var targetCatalogUrl = !string.IsNullOrWhiteSpace(definition.CatalogUrl)
-                ? definition.CatalogUrl
-                : definition.Catalogs?.FirstOrDefault()?.Url;
+            var targetCatalogUrl = ResolveTargetCatalogUrl(definition);
 
             if (string.IsNullOrWhiteSpace(targetCatalogUrl))
             {
@@ -492,16 +505,17 @@ public partial class SubscriptionConfirmationViewModel(
         {
             throw;
         }
-        catch (HttpRequestException)
+        catch (HttpRequestException httpEx)
         {
-            throw;
+            logger.LogWarning(httpEx, "Transient error resolving catalog from embedded definition at {Url}; falling back to direct catalog parse", catalogUrl);
+            return (null, null, null);
         }
         catch (OperationCanceledException timeoutEx)
         {
             logger.LogWarning(timeoutEx, "Timeout fetching target catalog from definition at {Url}", catalogUrl);
             return (null, null, null);
         }
-        catch (System.Text.Json.JsonException jsonEx)
+        catch (JsonException jsonEx)
         {
             logger.LogDebug(jsonEx, "Payload is not a valid publisher definition; falling back to direct catalog parse");
         }
@@ -536,15 +550,7 @@ public partial class SubscriptionConfirmationViewModel(
 
             var typeGroups = _parsedCatalog.Content
                 .GroupBy(item => item.ContentType)
-                .Select(group =>
-                {
-                    var typeKey = $"ContentType.{group.Key}";
-                    var localizedType = localizationService?.GetString(typeKey);
-                    var typeDisplay = (!string.IsNullOrEmpty(localizedType) && !string.Equals(localizedType, typeKey, StringComparison.Ordinal))
-                        ? localizedType
-                        : group.Key.GetDisplayName();
-                    return $"{group.Count()} {typeDisplay}";
-                });
+                .Select(group => $"{group.Count()} {ResolveContentTypeDisplay(group.Key)}");
             ContentSummary = string.Join(" • ", typeGroups);
 
             BuildCategoryFilters(DefaultCategoryKey);
@@ -585,11 +591,7 @@ public partial class SubscriptionConfirmationViewModel(
         foreach (var group in groups)
         {
             var key = group.Key.ToString();
-            var typeKey = $"ContentType.{group.Key}";
-            var localizedType = localizationService?.GetString(typeKey);
-            var typeDisplay = (!string.IsNullOrEmpty(localizedType) && !string.Equals(localizedType, typeKey, StringComparison.Ordinal))
-                ? localizedType
-                : group.Key.GetDisplayName();
+            var typeDisplay = ResolveContentTypeDisplay(group.Key);
             var isSelected = string.Equals(activeKey, key, StringComparison.OrdinalIgnoreCase);
             filters.Add(new CatalogCategoryFilter(key, typeDisplay, group.Count(), isSelected));
         }

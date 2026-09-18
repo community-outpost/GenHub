@@ -11,7 +11,10 @@ namespace GenHub.Features.Tools.ViewModels.Dialogs;
 /// ViewModel for renaming a catalog.
 /// </summary>
 [SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "ViewModel properties and methods bound to MVVM UI.")]
-public partial class RenameCatalogDialogViewModel(string currentName, Action<string?> onComplete) : ObservableValidator
+public partial class RenameCatalogDialogViewModel(
+    string currentName,
+    Action<string?> onComplete,
+    GenHub.Core.Interfaces.Common.ILocalizationService? localizationService = null) : ObservableValidator
 {
     [ObservableProperty]
     [NotifyDataErrorInfo]
@@ -35,8 +38,27 @@ public partial class RenameCatalogDialogViewModel(string currentName, Action<str
         ValidateAllProperties();
         IsValid = !HasErrors;
         ValidationError = HasErrors
-            ? string.Join(Environment.NewLine, GetErrors().Select(e => e.ErrorMessage))
+            ? string.Join(Environment.NewLine, GetErrors().Select(e => LocalizeValidationMessage(e.ErrorMessage)))
             : null;
+    }
+
+    private string LocalizeValidationMessage(string? message)
+    {
+        return message switch
+        {
+            "Catalog name is required" => GetLocalizedString(
+                "Tools.PublisherStudio.Catalog.NameRequired",
+                message),
+            "Catalog name cannot be empty" => GetLocalizedString(
+                "Tools.PublisherStudio.Catalog.NameNotEmpty",
+                message),
+            _ => message ?? string.Empty,
+        };
+    }
+
+    private string GetLocalizedString(string key, string fallback)
+    {
+        return localizationService?.GetString(key) ?? fallback;
     }
 
     [RelayCommand]

@@ -20,7 +20,8 @@ namespace GenHub.Features.Tools.ViewModels.Dialogs;
 [SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "ViewModel properties and methods bound to MVVM UI.")]
 public partial class AddReferralDialogViewModel(
     Action<PublisherReferral> onReferralCreated,
-    IEnumerable<PublisherReferralOption>? existingSubscriptions = null) : ObservableValidator, IDisposable
+    IEnumerable<PublisherReferralOption>? existingSubscriptions = null,
+    GenHub.Core.Interfaces.Common.ILocalizationService? localizationService = null) : ObservableValidator, IDisposable
 {
     private static readonly HttpClient SharedHttpClient = new(
         ImageCacheService.CreateSsrfSafeSocketsHttpHandler())
@@ -139,14 +140,18 @@ public partial class AddReferralDialogViewModel(
     {
         if (string.IsNullOrWhiteSpace(CatalogUrl) || !Uri.TryCreate(CatalogUrl, UriKind.Absolute, out var uri))
         {
-            ValidationError = "Please enter a valid URL first";
+            ValidationError = GetLocalizedString(
+                "Tools.PublisherStudio.Referral.ValidUrlRequired",
+                "Please enter a valid URL first");
             return;
         }
 
-        if (_discoveryCts != null)
+        var previousCts = _discoveryCts;
+        _discoveryCts = null;
+        if (previousCts != null)
         {
-            await _discoveryCts.CancelAsync().ConfigureAwait(false);
-            _discoveryCts.Dispose();
+            await previousCts.CancelAsync();
+            previousCts.Dispose();
         }
 
         _discoveryCts = new CancellationTokenSource();
@@ -160,7 +165,11 @@ public partial class AddReferralDialogViewModel(
             var response = await SharedHttpClient.GetAsync(uri, ct);
             if (!response.IsSuccessStatusCode)
             {
-                SetDiscoveryErrorIfCurrentToken(ct, $"Could not fetch catalog: HTTP {(int)response.StatusCode}");
+                var statusCode = (int)response.StatusCode;
+                var fetchError = localizationService?.GetString(
+                    "Tools.PublisherStudio.Referral.FetchFailed",
+                    statusCode) ?? $"Could not fetch catalog: HTTP {statusCode}";
+                SetDiscoveryErrorIfCurrentToken(ct, fetchError);
                 return;
             }
 
@@ -189,15 +198,27 @@ public partial class AddReferralDialogViewModel(
                 return;
             }
 
-            SetDiscoveryErrorIfCurrentToken(ct, error ?? "Could not find publisher details in the response");
+            var detailsError = error ?? GetLocalizedString(
+                "Tools.PublisherStudio.Referral.NoPublisherDetails",
+                "Could not find publisher details in the response");
+            SetDiscoveryErrorIfCurrentToken(ct, detailsError);
         }
         catch (OperationCanceledException)
         {
-            // Request was canceled, do nothing
+            if (!ct.IsCancellationRequested)
+            {
+                var timeoutError = GetLocalizedString(
+                    "Tools.PublisherStudio.Referral.DiscoveryTimeout",
+                    "Discovery request timed out. Please try again.");
+                SetDiscoveryErrorIfCurrentToken(ct, timeoutError);
+            }
         }
         catch (Exception ex)
         {
-            SetDiscoveryErrorIfCurrentToken(ct, $"Discovery error: {ex.Message}");
+            var discoveryError = localizationService?.GetString(
+                "Tools.PublisherStudio.Referral.DiscoveryError",
+                ex.Message) ?? $"Discovery error: {ex.Message}";
+            SetDiscoveryErrorIfCurrentToken(ct, discoveryError);
         }
         finally
         {
@@ -265,12 +286,16 @@ public partial class AddReferralDialogViewModel(
                 return true;
             }
 
-            error = "No valid publisher information found at URL";
+            error = GetLocalizedString(
+                "Tools.PublisherStudio.Referral.NoPublisherInfo",
+                "No valid publisher information found at URL");
             return false;
         }
         catch (Exception ex)
         {
-            error = $"Failed to parse catalog: {ex.Message}";
+            error = localizationService?.GetString(
+                "Tools.PublisherStudio.Referral.ParseFailed",
+                ex.Message) ?? $"Failed to parse catalog: {ex.Message}";
             return false;
         }
     }
@@ -296,14 +321,31 @@ public partial class AddReferralDialogViewModel(
         }
 
         if (string.IsNullOrWhiteSpace(PublisherId))
-            errors.Add("Publisher ID is required");
+        {
+            errors.Add(GetLocalizedString(
+                "Tools.PublisherStudio.Referral.PublisherIdRequired",
+                "Publisher ID is required"));
+        }
 
         if (string.IsNullOrWhiteSpace(CatalogUrl))
-            errors.Add("Catalog URL is required");
+        {
+            errors.Add(GetLocalizedString(
+                "Tools.PublisherStudio.Referral.CatalogUrlRequired",
+                "Catalog URL is required"));
+        }
         else if (!Uri.TryCreate(CatalogUrl, UriKind.Absolute, out _))
-            errors.Add("Invalid Catalog URL");
+        {
+            errors.Add(GetLocalizedString(
+                "Tools.PublisherStudio.Referral.InvalidCatalogUrl",
+                "Invalid Catalog URL"));
+        }
 
         IsValid = errors.Count == 0;
         ValidationError = errors.Count > 0 ? string.Join(Environment.NewLine, errors) : null;
+    }
+
+    private string GetLocalizedString(string key, string fallback)
+    {
+        return localizationService?.GetString(key) ?? fallback;
     }
 }

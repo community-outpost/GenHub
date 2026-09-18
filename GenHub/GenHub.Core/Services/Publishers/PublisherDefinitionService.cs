@@ -48,6 +48,13 @@ public class PublisherDefinitionService(
                 return OperationResult<PublisherDefinition>.CreateFailure("Invalid definition URL");
             }
 
+            var (definitionUrlSafe, definitionUrlFailure) = await NetworkSecurityHelper.IsSafeUrlAsync(normalizedUrl, ct);
+            if (!definitionUrlSafe)
+            {
+                logger.LogWarning("Blocked unsafe definition URL {Url}: {Reason}", definitionUrl, definitionUrlFailure);
+                return OperationResult<PublisherDefinition>.CreateFailure(definitionUrlFailure ?? "Definition URL is not allowed.");
+            }
+
             using var client = httpClientFactory.CreateClient(CatalogConstants.CatalogHttpClientName);
             using var response = await client.GetAsync(uri, HttpCompletionOption.ResponseHeadersRead, ct);
 
@@ -78,19 +85,8 @@ public class PublisherDefinitionService(
                 definition.DefinitionUrl = normalizedUrl;
             }
 
-            // V1 to V2 migration: if CatalogUrl is set but Catalogs is empty, populate Catalogs
-            if (definition.SchemaVersion <= 1 && definition.Catalogs.Count == 0 && !string.IsNullOrEmpty(definition.CatalogUrl))
-            {
-                definition.Catalogs.Add(new CatalogEntry
-                {
-                    Id = "default",
-                    Name = "Content",
-                    Url = definition.CatalogUrl,
-                    Mirrors = definition.CatalogMirrors ?? new List<string>(),
-                });
-                logger.LogInformation("Migrated V1 definition to V2 format for publisher {PublisherId}", definition.Publisher?.Id);
-            }
-
+            // V1 compatibility is owned by the PublisherDefinition.CatalogUrl/CatalogMirrors setters,
+            // which materialize Catalogs[0] on deserialization, so no migration is needed here.
             return OperationResult<PublisherDefinition>.CreateSuccess(definition);
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
@@ -215,56 +211,6 @@ public class PublisherDefinitionService(
         }
     }
 
-    /// <inheritdoc />
-    public async Task<OperationResult<Dictionary<string, PublisherCatalog>>> FetchAllCatalogsAsync(
-        PublisherDefinition definition,
-        CancellationToken ct = default)
-    {
-        try
-        {
-            // Handle V1 definitions (single catalog via CatalogUrl)
-            if ((definition.Catalogs == null || definition.Catalogs.Count == 0) && !string.IsNullOrEmpty(definition.CatalogUrl))
-            {
-                return await FetchV1CatalogAsync(definition, ct);
-            }
-
-            // Handle V2 definitions (multiple catalogs)
-            var (results, errors) = await FetchV2CatalogsAsync(definition.Catalogs, ct);
-
-            if (results.Count == 0)
-            {
-                if (errors.Count == 0)
-                {
-                    errors.Add("No catalogs found or loaded from publisher definition.");
-                }
-
-                return OperationResult<Dictionary<string, PublisherCatalog>>.CreateFailure(errors);
-            }
-
-            if (errors.Count > 0)
-            {
-                logger.LogWarning(
-                    "Partially loaded {SuccessCount}/{TotalCount} catalogs with errors: {Errors}",
-                    results.Count,
-                    definition.Catalogs?.Count ?? 0,
-                    string.Join("; ", errors));
-
-                return OperationResult<Dictionary<string, PublisherCatalog>>.CreateFailure(errors, results, TimeSpan.Zero);
-            }
-
-            return OperationResult<Dictionary<string, PublisherCatalog>>.CreateSuccess(results);
-        }
-        catch (OperationCanceledException) when (ct.IsCancellationRequested)
-        {
-            throw;
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Critical error in FetchAllCatalogsAsync");
-            return OperationResult<Dictionary<string, PublisherCatalog>>.CreateFailure($"Critical error: {ex.Message}");
-        }
-    }
-
     private static async Task<OperationResult<MemoryStream>> ReadBoundedStreamAsync(
         HttpResponseMessage response,
         long maxSizeBytes,
@@ -312,50 +258,6 @@ public class PublisherDefinitionService(
         }
     }
 
-    private async Task<OperationResult<Dictionary<string, PublisherCatalog>>> FetchV1CatalogAsync(
-        PublisherDefinition definition,
-        CancellationToken ct)
-    {
-        var catalogResult = await FetchCatalogFromDefinitionAsync(definition, ct);
-        if (catalogResult.Success && catalogResult.Data != null)
-        {
-            var results = new Dictionary<string, PublisherCatalog>
-            {
-                ["default"] = catalogResult.Data,
-            };
-            return OperationResult<Dictionary<string, PublisherCatalog>>.CreateSuccess(results);
-        }
-
-        return OperationResult<Dictionary<string, PublisherCatalog>>.CreateFailure(catalogResult);
-    }
-
-    private async Task<(Dictionary<string, PublisherCatalog> Results, List<string> Errors)> FetchV2CatalogsAsync(
-        IReadOnlyList<CatalogEntry>? catalogs,
-        CancellationToken ct)
-    {
-        using var client = httpClientFactory.CreateClient(CatalogConstants.CatalogHttpClientName);
-        var results = new Dictionary<string, PublisherCatalog>();
-        var errors = new List<string>();
-
-        if (catalogs != null)
-        {
-            foreach (var catalogEntry in catalogs)
-            {
-                var (id, catalog, error) = await TryFetchCatalogEntryAsync(client, catalogEntry, ct);
-                if (catalog != null && id != null)
-                {
-                    results[id] = catalog;
-                }
-                else if (!string.IsNullOrEmpty(error))
-                {
-                    errors.Add(error);
-                }
-            }
-        }
-
-        return (results, errors);
-    }
-
     private async Task<PublisherCatalog?> TryFetchAndParseCatalogUrlAsync(
         HttpClient client,
         string rawUrl,
@@ -368,7 +270,8 @@ public class PublisherDefinitionService(
             return null;
         }
 
-        if (!NetworkSecurityHelper.IsSafeUrl(normalizedUrl, out var ssrfReason))
+        var (catalogUrlSafe, ssrfReason) = await NetworkSecurityHelper.IsSafeUrlAsync(normalizedUrl, ct);
+        if (!catalogUrlSafe)
         {
             if (!string.IsNullOrEmpty(ssrfReason))
             {
@@ -413,38 +316,5 @@ public class PublisherDefinitionService(
             logger.LogWarning(ex, "Error trying {Context} mirror {Url}", logContext, rawUrl);
             return null;
         }
-    }
-
-    private async Task<(string? Id, PublisherCatalog? Catalog, string? Error)> TryFetchCatalogEntryAsync(
-        HttpClient client,
-        CatalogEntry catalogEntry,
-        CancellationToken ct)
-    {
-        var urlsToTry = new List<string>();
-        if (!string.IsNullOrWhiteSpace(catalogEntry.Url))
-        {
-            urlsToTry.Add(catalogEntry.Url);
-        }
-
-        if (catalogEntry.Mirrors != null)
-        {
-            urlsToTry.AddRange(catalogEntry.Mirrors.Where(m => !string.IsNullOrWhiteSpace(m)));
-        }
-
-        if (urlsToTry.Count == 0)
-        {
-            return (null, null, $"Catalog '{catalogEntry.Name}' ({catalogEntry.Id}) has no valid URLs configured");
-        }
-
-        foreach (var rawUrl in urlsToTry)
-        {
-            var catalog = await TryFetchAndParseCatalogUrlAsync(client, rawUrl, $"Catalog {catalogEntry.Id}", ct);
-            if (catalog != null)
-            {
-                return (catalogEntry.Id, catalog, null);
-            }
-        }
-
-        return (null, null, $"Failed to fetch catalog '{catalogEntry.Name}' ({catalogEntry.Id}) from all URLs");
     }
 }

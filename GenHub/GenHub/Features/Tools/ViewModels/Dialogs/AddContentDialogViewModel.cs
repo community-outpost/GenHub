@@ -380,20 +380,13 @@ public partial class AddContentDialogViewModel(
     partial void OnDownloadUrlChanged(string? value)
     {
         if (string.IsNullOrWhiteSpace(value)) return;
-        try
+        if (Uri.TryCreate(value.Trim(), UriKind.Absolute, out var uri))
         {
-            if (Uri.TryCreate(value.Trim(), UriKind.Absolute, out var uri))
+            var name = Path.GetFileName(uri.LocalPath);
+            if (!string.IsNullOrWhiteSpace(name) && string.IsNullOrWhiteSpace(PackageFilename))
             {
-                var name = Path.GetFileName(uri.LocalPath);
-                if (!string.IsNullOrWhiteSpace(name) && string.IsNullOrWhiteSpace(PackageFilename))
-                {
-                    PackageFilename = name;
-                }
+                PackageFilename = name;
             }
-        }
-        catch
-        {
-            // Ignore malformed URI while typing
         }
     }
 
@@ -441,7 +434,8 @@ public partial class AddContentDialogViewModel(
     {
         if (dialogService == null) return;
 
-        var filePath = await dialogService.ShowFilePickerAsync("Select Content Archive File");
+        var filePath = await dialogService.ShowFilePickerAsync(
+            GetLocalizedString("Tools.PublisherStudio.Content.SelectArchiveTitle", "Select Content Archive File"));
         if (!string.IsNullOrEmpty(filePath) && File.Exists(filePath))
         {
             PopulateFromPath(filePath);
@@ -456,7 +450,8 @@ public partial class AddContentDialogViewModel(
     {
         if (dialogService == null) return;
 
-        var folderPath = await dialogService.ShowFolderPickerAsync("Select Content Folder");
+        var folderPath = await dialogService.ShowFolderPickerAsync(
+            GetLocalizedString("Tools.PublisherStudio.Content.SelectFolderTitle", "Select Content Folder"));
         if (!string.IsNullOrEmpty(folderPath) && Directory.Exists(folderPath))
         {
             PopulateFromPath(folderPath);

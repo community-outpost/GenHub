@@ -6,6 +6,7 @@ using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
+using System.Globalization;
 using System.IO;
 using System.Net.Http;
 using System.Net.Http.Headers;
@@ -108,13 +109,10 @@ public class DropboxHostingProvider(ILogger<DropboxHostingProvider> logger, IHtt
         try
         {
             _accessToken = accessToken.Trim();
-            _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", _accessToken);
 
             // Test connection by getting current account info
-            var response = await _httpClient.PostAsync(
-                $"{DropboxApiUrl}/users/get_current_account",
-                null,
-                cancellationToken);
+            using var accountRequest = CreateAuthorizedRequest(HttpMethod.Post, $"{DropboxApiUrl}/users/get_current_account", _accessToken);
+            var response = await _httpClient.SendAsync(accountRequest, cancellationToken);
 
             if (response.IsSuccessStatusCode)
             {
@@ -124,10 +122,8 @@ public class DropboxHostingProvider(ILogger<DropboxHostingProvider> logger, IHtt
 
                 // Test sharing permissions (required for publishing and sharing links)
                 var sharingCheckBody = new { direct_only = true };
-                using var sharingRequest = new HttpRequestMessage(HttpMethod.Post, $"{DropboxApiUrl}/sharing/list_shared_links")
-                {
-                    Content = new StringContent(JsonSerializer.Serialize(sharingCheckBody), Encoding.UTF8, HostingConstants.JsonContentType),
-                };
+                using var sharingRequest = CreateAuthorizedRequest(HttpMethod.Post, $"{DropboxApiUrl}/sharing/list_shared_links", _accessToken);
+                sharingRequest.Content = new StringContent(JsonSerializer.Serialize(sharingCheckBody), Encoding.UTF8, HostingConstants.JsonContentType);
 
                 using var sharingResponse = await _httpClient.SendAsync(sharingRequest, cancellationToken).ConfigureAwait(false);
                 if (!sharingResponse.IsSuccessStatusCode)
@@ -136,7 +132,6 @@ public class DropboxHostingProvider(ILogger<DropboxHostingProvider> logger, IHtt
                     logger.LogWarning("Dropbox permissions check failed: {StatusCode} {Error}", sharingResponse.StatusCode, sharingError);
 
                     _accessToken = null;
-                    _httpClient.DefaultRequestHeaders.Authorization = null;
 
                     if (sharingError.Contains("sharing.read", StringComparison.OrdinalIgnoreCase) ||
                         sharingError.Contains(MissingScopeTag, StringComparison.OrdinalIgnoreCase) ||
@@ -157,7 +152,6 @@ public class DropboxHostingProvider(ILogger<DropboxHostingProvider> logger, IHtt
             var error = await response.Content.ReadAsStringAsync(cancellationToken);
             logger.LogWarning("Dropbox authentication failed: {StatusCode} {Error}", response.StatusCode, error);
             _accessToken = null;
-            _httpClient.DefaultRequestHeaders.Authorization = null;
 
             if (error.Contains(MissingScopeTag, StringComparison.OrdinalIgnoreCase))
             {
@@ -175,7 +169,6 @@ public class DropboxHostingProvider(ILogger<DropboxHostingProvider> logger, IHtt
         {
             logger.LogError(ex, "Failed to authenticate with Dropbox");
             _accessToken = null;
-            _httpClient.DefaultRequestHeaders.Authorization = null;
             return OperationResult<bool>.CreateFailure($"Dropbox connection error: {ex.Message}");
         }
     }
@@ -184,7 +177,6 @@ public class DropboxHostingProvider(ILogger<DropboxHostingProvider> logger, IHtt
     public Task SignOutAsync()
     {
         _accessToken = null;
-        _httpClient.DefaultRequestHeaders.Authorization = null;
         return Task.CompletedTask;
     }
 
@@ -210,9 +202,15 @@ public class DropboxHostingProvider(ILogger<DropboxHostingProvider> logger, IHtt
             }
 
             folderPath ??= PublisherFolderPath;
-            var targetPath = $"{folderPath}/{fileName}".Replace("//", "/");
+            var safeFileName = SanitizeFileName(fileName);
+            if (safeFileName == null)
+            {
+                return OperationResult<HostingUploadResult>.CreateFailure($"Invalid file name '{fileName}'. File names must not contain path separators.");
+            }
 
-            logger.LogInformation("Uploading {FileName} to Dropbox at {Path}", fileName, targetPath);
+            var targetPath = $"{folderPath}/{safeFileName}".Replace("//", "/");
+
+            logger.LogInformation("Uploading {FileName} to Dropbox at {Path}", safeFileName, targetPath);
             progress?.Report(10);
 
             // Upload via Dropbox content API
@@ -225,7 +223,7 @@ public class DropboxHostingProvider(ILogger<DropboxHostingProvider> logger, IHtt
                 strict_conflict = false,
             };
 
-            using var request = new HttpRequestMessage(HttpMethod.Post, $"{DropboxContentUrl}/files/upload");
+            using var request = CreateAuthorizedRequest(HttpMethod.Post, $"{DropboxContentUrl}/files/upload", _accessToken);
             request.Headers.Add("Dropbox-API-Arg", JsonSerializer.Serialize(uploadArgs));
             request.Content = new StreamContent(fileStream, HostingConstants.StreamCopyBufferSize);
             request.Content.Headers.ContentType = new MediaTypeHeaderValue(HostingConstants.BinaryContentType);
@@ -238,13 +236,13 @@ public class DropboxHostingProvider(ILogger<DropboxHostingProvider> logger, IHtt
             if (!response.IsSuccessStatusCode)
             {
                 var errorContent = await response.Content.ReadAsStringAsync(cancellationToken);
-                logger.LogError("Dropbox upload failed for {File}: {Status} {Error}", fileName, response.StatusCode, errorContent);
+                logger.LogError("Dropbox upload failed for {File}: {Status} {Error}", safeFileName, response.StatusCode, errorContent);
                 return OperationResult<HostingUploadResult>.CreateFailure($"Upload failed ({response.StatusCode}): {errorContent}");
             }
 
             var responseJson = await response.Content.ReadAsStringAsync(cancellationToken);
             using var doc = JsonDocument.Parse(responseJson);
-            var fileId = doc.RootElement.GetProperty("id").GetString() ?? fileName;
+            var fileId = doc.RootElement.GetProperty("id").GetString() ?? safeFileName;
             var fileSize = doc.RootElement.GetProperty("size").GetInt64();
 
             progress?.Report(80);
@@ -332,13 +330,11 @@ public class DropboxHostingProvider(ILogger<DropboxHostingProvider> logger, IHtt
                 include_deleted = false,
             };
 
-            using var request = new HttpRequestMessage(HttpMethod.Post, $"{DropboxApiUrl}/files/list_folder")
-            {
-                Content = new StringContent(
-                    JsonSerializer.Serialize(listArgs),
-                    Encoding.UTF8,
-                    HostingConstants.JsonContentType),
-            };
+            using var request = CreateAuthorizedRequest(HttpMethod.Post, $"{DropboxApiUrl}/files/list_folder", _accessToken);
+            request.Content = new StringContent(
+                JsonSerializer.Serialize(listArgs),
+                Encoding.UTF8,
+                HostingConstants.JsonContentType);
 
             var response = await _httpClient.SendAsync(request, cancellationToken);
             if (!response.IsSuccessStatusCode)
@@ -411,8 +407,13 @@ public class DropboxHostingProvider(ILogger<DropboxHostingProvider> logger, IHtt
             return false;
         }
 
-        return url.Contains("dropbox.com", StringComparison.OrdinalIgnoreCase) ||
-               url.Contains("dropboxusercontent.com", StringComparison.OrdinalIgnoreCase);
+        if (!Uri.TryCreate(url, UriKind.Absolute, out var uri))
+        {
+            return false;
+        }
+
+        return HostingConstants.IsCloudProviderHost(uri.Host) &&
+            (IsDropboxHost(uri.Host, "dropbox.com") || IsDropboxHost(uri.Host, "dropboxusercontent.com"));
     }
 
     /// <inheritdoc/>
@@ -450,6 +451,75 @@ public class DropboxHostingProvider(ILogger<DropboxHostingProvider> logger, IHtt
         }
     }
 
+    private static HttpRequestMessage CreateAuthorizedRequest(HttpMethod method, string requestUri, string? accessToken)
+    {
+        var request = new HttpRequestMessage(method, requestUri);
+        if (!string.IsNullOrEmpty(accessToken))
+        {
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+        }
+
+        return request;
+    }
+
+    private static string? SanitizeFileName(string fileName)
+    {
+        if (string.IsNullOrWhiteSpace(fileName))
+        {
+            return null;
+        }
+
+        var leaf = fileName.Replace('\\', '/');
+        var separatorIndex = leaf.LastIndexOf('/');
+        if (separatorIndex >= 0)
+        {
+            leaf = leaf[(separatorIndex + 1)..];
+        }
+
+        if (string.IsNullOrWhiteSpace(leaf) || leaf == "." || leaf == "..")
+        {
+            return null;
+        }
+
+        return leaf;
+    }
+
+    private static bool IsDropboxHost(string host, string domain)
+    {
+        return host.Equals(domain, StringComparison.OrdinalIgnoreCase) ||
+            host.EndsWith("." + domain, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static DateTime GetEntryTimestamp(JsonElement entry)
+    {
+        if (entry.TryGetProperty("server_modified", out var serverModified) &&
+            TryParseDropboxTimestamp(serverModified.GetString(), out var serverTime))
+        {
+            return serverTime;
+        }
+
+        if (entry.TryGetProperty("client_modified", out var clientModified) &&
+            TryParseDropboxTimestamp(clientModified.GetString(), out var clientTime))
+        {
+            return clientTime;
+        }
+
+        return DateTime.UtcNow;
+    }
+
+    private static bool TryParseDropboxTimestamp(string? value, out DateTime result)
+    {
+        if (!string.IsNullOrWhiteSpace(value) &&
+            DateTimeOffset.TryParse(value, CultureInfo.InvariantCulture, DateTimeStyles.AdjustToUniversal, out var parsed))
+        {
+            result = parsed.UtcDateTime;
+            return true;
+        }
+
+        result = DateTime.UtcNow;
+        return false;
+    }
+
     private static string ConvertToDirectDownloadUrl(string? shareUrl)
     {
         if (string.IsNullOrEmpty(shareUrl))
@@ -460,7 +530,7 @@ public class DropboxHostingProvider(ILogger<DropboxHostingProvider> logger, IHtt
         // Convert Dropbox share URL to direct download URL
         // From: https://www.dropbox.com/s/xxxxx/filename?dl=0
         // To: https://dl.dropboxusercontent.com/s/xxxxx/filename
-        if (shareUrl.Contains("dropbox.com"))
+        if (shareUrl.Contains("dropbox.com", StringComparison.OrdinalIgnoreCase))
         {
             return shareUrl
                 .Replace("www.dropbox.com", "dl.dropboxusercontent.com")
@@ -532,13 +602,11 @@ public class DropboxHostingProvider(ILogger<DropboxHostingProvider> logger, IHtt
     private async Task<string?> ProcessRemainingPageAsync(string cursor, HostingState state, CancellationToken cancellationToken)
     {
         var continueArgs = new { cursor };
-        using var continueRequest = new HttpRequestMessage(HttpMethod.Post, $"{DropboxApiUrl}/files/list_folder/continue")
-        {
-            Content = new StringContent(
-                JsonSerializer.Serialize(continueArgs),
-                Encoding.UTF8,
-                HostingConstants.JsonContentType),
-        };
+        using var continueRequest = CreateAuthorizedRequest(HttpMethod.Post, $"{DropboxApiUrl}/files/list_folder/continue", _accessToken);
+        continueRequest.Content = new StringContent(
+            JsonSerializer.Serialize(continueArgs),
+            Encoding.UTF8,
+            HostingConstants.JsonContentType);
 
         using var continueResponse = await _httpClient.SendAsync(continueRequest, cancellationToken).ConfigureAwait(false);
         if (!continueResponse.IsSuccessStatusCode)
@@ -584,6 +652,7 @@ public class DropboxHostingProvider(ILogger<DropboxHostingProvider> logger, IHtt
         var fileName = entry.TryGetProperty("name", out var nameProp) ? nameProp.GetString() ?? string.Empty : string.Empty;
         var fileId = entry.TryGetProperty("id", out var idProp) ? idProp.GetString() ?? string.Empty : string.Empty;
         var fileSize = entry.TryGetProperty("size", out var sizeProp) && sizeProp.TryGetInt64(out var size) ? size : 0L;
+        var lastUpdated = GetEntryTimestamp(entry);
         var pathLower = entry.TryGetProperty("path_lower", out var pathLowerProp)
             ? pathLowerProp.GetString() ?? $"{PublisherFolderPath}/{fileName}".ToLowerInvariant()
             : $"{PublisherFolderPath}/{fileName}".ToLowerInvariant();
@@ -605,7 +674,7 @@ public class DropboxHostingProvider(ILogger<DropboxHostingProvider> logger, IHtt
                 FileId = fileId,
                 Url = directUrl,
                 FileSize = fileSize,
-                LastUpdated = DateTime.UtcNow,
+                LastUpdated = lastUpdated,
             };
             logger.LogInformation("Discovered publisher definition in Dropbox: {Url}", directUrl);
         }
@@ -620,7 +689,7 @@ public class DropboxHostingProvider(ILogger<DropboxHostingProvider> logger, IHtt
                 CatalogName = catId,
                 Url = directUrl,
                 FileSize = fileSize,
-                LastUpdated = DateTime.UtcNow,
+                LastUpdated = lastUpdated,
             });
             logger.LogInformation("Discovered catalog '{CatalogId}' in Dropbox: {Url}", catId, directUrl);
         }
@@ -632,7 +701,7 @@ public class DropboxHostingProvider(ILogger<DropboxHostingProvider> logger, IHtt
                 FileName = fileName,
                 Url = directUrl,
                 FileSize = fileSize,
-                LastUpdated = DateTime.UtcNow,
+                LastUpdated = lastUpdated,
             });
             logger.LogInformation("Discovered artifact '{File}' in Dropbox: {Url}", fileName, directUrl);
         }
@@ -715,11 +784,9 @@ public class DropboxHostingProvider(ILogger<DropboxHostingProvider> logger, IHtt
 
         for (var attempt = 0; attempt < 3; attempt++)
         {
-            using var requestContent = new StringContent(JsonSerializer.Serialize(listRequest), Encoding.UTF8, HostingConstants.JsonContentType);
-            listResponse = await _httpClient.PostAsync(
-                $"{DropboxApiUrl}/sharing/list_shared_links",
-                requestContent,
-                cancellationToken).ConfigureAwait(false);
+            using var listSharedLinksRequest = CreateAuthorizedRequest(HttpMethod.Post, $"{DropboxApiUrl}/sharing/list_shared_links", _accessToken);
+            listSharedLinksRequest.Content = new StringContent(JsonSerializer.Serialize(listRequest), Encoding.UTF8, HostingConstants.JsonContentType);
+            listResponse = await _httpClient.SendAsync(listSharedLinksRequest, cancellationToken).ConfigureAwait(false);
 
             if ((int)listResponse.StatusCode == 429 && attempt < 2)
             {
@@ -740,10 +807,9 @@ public class DropboxHostingProvider(ILogger<DropboxHostingProvider> logger, IHtt
     private async Task<OperationResult<string>> RequestNewSharedLinkAsync(string path, CancellationToken cancellationToken)
     {
         var createRequest = new { path };
-        var response = await _httpClient.PostAsync(
-            $"{DropboxApiUrl}/sharing/create_shared_link_with_settings",
-            new StringContent(JsonSerializer.Serialize(createRequest), Encoding.UTF8, HostingConstants.JsonContentType),
-            cancellationToken).ConfigureAwait(false);
+        using var createLinkRequest = CreateAuthorizedRequest(HttpMethod.Post, $"{DropboxApiUrl}/sharing/create_shared_link_with_settings", _accessToken);
+        createLinkRequest.Content = new StringContent(JsonSerializer.Serialize(createRequest), Encoding.UTF8, HostingConstants.JsonContentType);
+        var response = await _httpClient.SendAsync(createLinkRequest, cancellationToken).ConfigureAwait(false);
 
         var responseContent = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
 

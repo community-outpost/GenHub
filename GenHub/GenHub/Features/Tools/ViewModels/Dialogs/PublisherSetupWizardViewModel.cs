@@ -12,13 +12,14 @@ namespace GenHub.Features.Tools.ViewModels.Dialogs;
 /// </summary>
 public partial class PublisherSetupWizardViewModel(
     PublisherStudioProject project,
-    Action<bool> closeAction) : ObservableValidator
+    Action<bool> closeAction,
+    GenHub.Core.Interfaces.Common.ILocalizationService? localizationService = null) : ObservableValidator
 {
     [ObservableProperty]
     private int _currentStep;
 
     [ObservableProperty]
-    private string _stepTitle = "Publisher Identity";
+    private string _stepTitle = localizationService?.GetString("Tools.PublisherStudio.SetupWizard.StepIdentity") ?? "Publisher Identity";
 
     [ObservableProperty]
     [NotifyDataErrorInfo]
@@ -38,6 +39,9 @@ public partial class PublisherSetupWizardViewModel(
     [ObservableProperty]
     private string _contactEmail = string.Empty;
 
+    [ObservableProperty]
+    private string? _validationError;
+
     /// <summary>
     /// Gets a value indicating whether the current step is the publisher identity step.
     /// </summary>
@@ -55,6 +59,19 @@ public partial class PublisherSetupWizardViewModel(
     /// </summary>
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Major Code Smell", "S2325:Make member static", Justification = "ViewModel property bound to XAML view")]
     public bool IsStep2 => CurrentStep == 2;
+
+    private static bool IsValidEmail(string email)
+    {
+        try
+        {
+            _ = new System.Net.Mail.MailAddress(email);
+            return true;
+        }
+        catch (FormatException)
+        {
+            return false;
+        }
+    }
 
     [RelayCommand]
     private void NextStep()
@@ -78,10 +95,10 @@ public partial class PublisherSetupWizardViewModel(
             // Validate Contact info if entered (already validated by attributes on change, but check here)
             // Attributes are optional so empty is valid unless [Required]
             if (HasErrors) return;
+            if (!ValidateContactInfo()) return;
 
             CurrentStep++;
             UpdateStepTitle();
-            Finish();
         }
     }
 
@@ -98,17 +115,26 @@ public partial class PublisherSetupWizardViewModel(
     [RelayCommand]
     private void Finish()
     {
+        if (!ValidateContactInfo())
+        {
+            return;
+        }
+
         // Save to project
         if (project?.Catalog?.Publisher != null)
         {
             project.Catalog.Publisher.Id = PublisherId;
             project.Catalog.Publisher.Name = PublisherName;
-            project.Catalog.Publisher.WebsiteUrl = string.IsNullOrWhiteSpace(WebsiteUrl) ? null : WebsiteUrl;
-            project.Catalog.Publisher.ContactEmail = string.IsNullOrWhiteSpace(ContactEmail) ? null : ContactEmail;
+            project.Catalog.Publisher.WebsiteUrl = string.IsNullOrWhiteSpace(WebsiteUrl) ? null : WebsiteUrl.Trim();
+            project.Catalog.Publisher.ContactEmail = string.IsNullOrWhiteSpace(ContactEmail) ? null : ContactEmail.Trim();
+
+            ArgumentNullException.ThrowIfNull(closeAction);
+            closeAction(true);
+            return;
         }
 
         ArgumentNullException.ThrowIfNull(closeAction);
-        closeAction(true);
+        closeAction(false);
     }
 
     [RelayCommand]
@@ -122,14 +148,43 @@ public partial class PublisherSetupWizardViewModel(
     {
         StepTitle = CurrentStep switch
         {
-            0 => "Publisher Identity",
-            1 => "Contact Information",
-            2 => "Setup Complete",
+            0 => GetLocalizedString("Tools.PublisherStudio.SetupWizard.StepIdentity", "Publisher Identity"),
+            1 => GetLocalizedString("Tools.PublisherStudio.SetupWizard.StepContact", "Contact Information"),
+            2 => GetLocalizedString("Tools.PublisherStudio.SetupWizard.StepComplete", "Setup Complete"),
             _ => string.Empty,
         };
 
         OnPropertyChanged(nameof(IsStep0));
         OnPropertyChanged(nameof(IsStep1));
         OnPropertyChanged(nameof(IsStep2));
+    }
+
+    private bool ValidateContactInfo()
+    {
+        if (!string.IsNullOrWhiteSpace(WebsiteUrl) &&
+            (!Uri.TryCreate(WebsiteUrl.Trim(), UriKind.Absolute, out var uri) ||
+             (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps)))
+        {
+            ValidationError = GetLocalizedString(
+                "Tools.PublisherStudio.SetupWizard.InvalidWebsiteUrl",
+                "Please enter a valid HTTP or HTTPS website URL.");
+            return false;
+        }
+
+        if (!string.IsNullOrWhiteSpace(ContactEmail) && !IsValidEmail(ContactEmail.Trim()))
+        {
+            ValidationError = GetLocalizedString(
+                "Tools.PublisherStudio.SetupWizard.InvalidContactEmail",
+                "Please enter a valid email address.");
+            return false;
+        }
+
+        ValidationError = null;
+        return true;
+    }
+
+    private string GetLocalizedString(string key, string fallback)
+    {
+        return localizationService?.GetString(key) ?? fallback;
     }
 }

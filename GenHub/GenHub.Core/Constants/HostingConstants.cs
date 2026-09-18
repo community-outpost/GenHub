@@ -152,6 +152,12 @@ public static class HostingConstants
     public const string GoogleDriveDownloadUrlTemplate = "https://drive.google.com/uc?export=download&id={0}";
 
     /// <summary>
+    /// URL template for a Google Drive folder web link.
+    /// </summary>
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Minor Code Smell", "S1075:URIs should not be hardcoded", Justification = "URL template constant")]
+    public const string GoogleDriveFolderUrlTemplate = "https://drive.google.com/drive/folders/{0}";
+
+    /// <summary>
     /// Name of the directory for storing Google Drive OAuth tokens.
     /// </summary>
     public const string GoogleDriveTokenDirectoryName = "google-drive-tokens";

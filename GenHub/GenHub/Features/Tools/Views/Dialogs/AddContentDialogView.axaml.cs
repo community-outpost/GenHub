@@ -37,6 +37,7 @@ public partial class AddContentDialogView : UserControl
             if (first?.Path?.LocalPath is { } path)
             {
                 vm.PopulateFromPath(path);
+                e.Handled = true;
             }
         }
     }

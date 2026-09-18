@@ -28,7 +28,7 @@ The Publisher Studio is a comprehensive tool within GenHub that enables content 
 - **Manage Content Library**: Add mods, maps, addons, and other content with rich metadata
 - **Version Management**: Track multiple releases with semantic versioning
 - **Dependency Management**: Define cross-publisher dependencies with version constraints
-- **Artifact Hosting**: Upload files directly to Google Drive (recommended), GitHub Releases, or provide custom URLs
+- **Artifact Hosting**: Upload files directly to Google Drive (recommended), Dropbox, or provide custom URLs
 - **Catalog Publishing**: Validate, export, and publish your catalog with stable URLs
 - **Share & Distribute**: Generate subscription links for users to discover your content
 
@@ -193,7 +193,7 @@ Each stage is represented by a tab in the Publisher Studio interface.
 1. Go to "Publish & Share" tab
 2. Click "Validate Catalog"
    - Ensure you see: ✓ Valid catalog.json
-3. Select hosting provider: "GitHub Releases"
+3. Select hosting provider: "GitHub Gists" (catalogs) and host artifacts on Google Drive, Dropbox, or manual URLs
 4. Click "Authenticate" (if using GitHub)
    - Enter your Personal Access Token
 5. Click "Upload Catalog"
@@ -403,33 +403,35 @@ Publisher Studio supports multiple hosting options:
 https://drive.google.com/uc?export=download&id={FILE_ID}
 ```
 
-##### 2. GitHub Releases
+##### 2. GitHub Gists (Catalog Only)
 
 **Pros:**
 
-- Free for public repositories
+- Free, no repository needed
 - Built-in versioning
 - High availability and CDN
-- 2GB per release asset
-- Integrated authentication
+
+**Cons:**
+
+- Cannot host release artifacts (catalogs only)
+- Host artifacts on Google Drive, Dropbox, or your own server
 
 **Setup:**
 
-1. Create a GitHub repository (e.g., `yourusername/enhanced-mods-catalog`)
-2. Generate Personal Access Token:
+1. Generate Personal Access Token:
    - Go to GitHub Settings → Developer settings → Personal access tokens
    - Click "Generate new token (classic)"
-   - Scopes: `repo` (full control), `gist` (create gists)
+   - Scope: `gist` (create gists)
    - Copy the token
-3. In Publisher Studio:
-   - Select "GitHub Releases"
+2. In Publisher Studio:
+   - Select "GitHub Gists"
    - Click "Authenticate"
    - Paste your token
    - Click "Sign In"
 
 **Publishing:**
 
-- Artifacts → Uploaded to GitHub Releases as release assets
+- Artifacts → Host on Google Drive, Dropbox, or manual URLs (the GitHub provider does not upload release assets)
 - Catalog → Uploaded to GitHub Gist (public, versioned)
 
 ##### 3. Manual Hosting
@@ -476,7 +478,7 @@ https://drive.google.com/uc?export=download&id={FILE_ID}
   https://dl.dropboxusercontent.com/s/ID/catalog.json
   ```
 
-##### 4. GitHub Gists (Catalog Only)
+##### 4. GitHub Gists (Manual Setup)
 
 **Pros:**
 
@@ -888,8 +890,8 @@ A: GitHub Gists (recommended) - free, reliable, versioned. Alternatively: GitHub
 **Q: Can I host artifacts for free?**
 A: Yes:
 
-- GitHub Releases: Free, up to 2GB per file
-- GitHub Gist: Free, up to 100MB total
+- Google Drive: Free, 15GB storage
+- Dropbox: Free, 2GB storage
 - Personal hosting: Your own server/cloud storage
 
 **Q: How do I update a published catalog?**
@@ -1223,17 +1225,13 @@ string GetDirectDownloadUrl(string shareUrl);
 
 **Features**:
 
-- Artifacts → GitHub Releases
-- Catalogs → GitHub Gists
+- Catalogs → GitHub Gists (catalog-only provider, no artifact uploads)
 - Personal Access Token authentication
 - Progress reporting
-- Automatic release creation
 
 **Configuration**:
 
-- Requires GitHub PAT with `repo` and `gist` scopes
-- Repository format: `owner/repo`
-- Release tag format: `v{version}`
+- Requires GitHub PAT with `gist` scope
 
 ###### ManualHostingProvider
 
@@ -1247,7 +1245,7 @@ string GetDirectDownloadUrl(string shareUrl);
 **Use Cases**:
 
 - Publishers with existing hosting infrastructure
-- Services not yet integrated (Google Drive, Dropbox)
+- Services without a dedicated provider (custom CDNs, static hosts)
 - Custom CDN solutions
 
 ### Data Models
@@ -1546,7 +1544,7 @@ All errors return `OperationResult<T>` with descriptive messages.
 - GitHub PAT stored securely (encrypted)
 - Google OAuth tokens stored securely
 - No passwords stored in plain text
-- OAuth2 for cloud providers (Google Drive implemented, Dropbox planned)
+- OAuth2 for cloud providers (Google Drive and Dropbox implemented)
 
 #### Validation
 
@@ -1565,12 +1563,7 @@ All errors return `OperationResult<T>` with descriptive messages.
 
 #### Planned Features
 
-1. **Dropbox Integration** (Next)
-   - OAuth2 authentication
-   - Direct upload to Dropbox
-   - Public link generation
-
-3. **Catalog Signing**
+1. **Catalog Signing**
    - Digital signatures for catalog integrity
    - Publisher verification
    - Tamper detection

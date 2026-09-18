@@ -68,7 +68,8 @@ public sealed partial class DownloadsBrowserViewModel(
     ILoggerFactory loggerFactory,
     IPublisherSubscriptionStore subscriptionStore,
     IContentDownloadCoordinator? downloadCoordinator = null,
-    IPublisherReconcilerRegistry? reconcilerRegistry = null) : ObservableObject, IDisposable
+    IPublisherReconcilerRegistry? reconcilerRegistry = null,
+    ILocalizationService? localizationService = null) : ObservableObject, IDisposable
 {
     /// <summary>
     /// Tracks an in-flight background default browse operation so switching away
@@ -2948,7 +2949,10 @@ public sealed partial class DownloadsBrowserViewModel(
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to open manifests directory");
-            notificationService.ShowError("Error", $"Failed to open manifests directory: {ex.Message}", 5000);
+            notificationService.ShowError(
+                localizationService?.GetString("Downloads.ImportSubscription.ManifestsErrorTitle") ?? "Error",
+                localizationService?.GetString("Downloads.ImportSubscription.ManifestsErrorBody", ex.Message) ?? $"Failed to open manifests directory: {ex.Message}",
+                5000);
         }
     }
 
@@ -2979,7 +2983,9 @@ public sealed partial class DownloadsBrowserViewModel(
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to show Import Subscription dialog");
-            notificationService.ShowError("Import Error", $"Failed to open import dialog: {ex.Message}");
+            notificationService.ShowError(
+                localizationService?.GetString("Downloads.ImportSubscription.ImportErrorTitle") ?? "Import Error",
+                localizationService?.GetString("Downloads.ImportSubscription.ImportErrorBody", ex.Message) ?? $"Failed to open import dialog: {ex.Message}");
         }
     }
 }

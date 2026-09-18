@@ -11,6 +11,8 @@ using GenHub.Features.Tools.Services.Hosting;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.ObjectModel;
+using System.Collections.Specialized;
+using System.ComponentModel;
 using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
@@ -55,6 +57,8 @@ public partial class PublisherStudioViewModel(
         configurationProvider?.GetApplicationDataPath() ?? Path.GetTempPath(),
         "GenHub",
         "publisher_studio_settings.json");
+
+    private bool _statusLocalizationHooked;
 
     [ObservableProperty]
     private PublisherStudioProject? _currentProject;
@@ -108,6 +112,19 @@ public partial class PublisherStudioViewModel(
     /// Gets a value indicating whether the setup overlay should be shown.
     /// </summary>
     public bool ShouldShowSetupOverlay => !IsSetupComplete && SelectedTabIndex != 0;
+
+    /// <summary>
+    /// Gets localized status-bar text for the current project.
+    /// </summary>
+    public string ProjectStatusText =>
+        CurrentProject?.ProjectName
+        ?? GetStatusString("Tools.PublisherStudio.Studio.NoProjectLoaded", "No project loaded");
+
+    /// <summary>
+    /// Gets localized status-bar summary of the catalog count.
+    /// </summary>
+    public string CatalogSummaryText =>
+        GetStatusString("Tools.PublisherStudio.Studio.CatalogCountFormat", "{0} catalogs", Catalogs.Count);
 
     private string StudioNotificationTitle =>
         localizationService?.GetString("Tools.PublisherStudio.Title")
@@ -270,6 +287,12 @@ public partial class PublisherStudioViewModel(
     {
         if (disposing)
         {
+            Catalogs.CollectionChanged -= OnStatusCatalogsChanged;
+            if (localizationService != null)
+            {
+                localizationService.PropertyChanged -= OnStatusCultureChanged;
+            }
+
             PublishShareViewModel?.Dispose();
             PublishShareViewModel = null;
         }
@@ -284,6 +307,44 @@ public partial class PublisherStudioViewModel(
         slug = Regex.Replace(slug, @"-+", "-", RegexOptions.None, TimeSpan.FromSeconds(1));
         slug = slug.Trim('-');
         return string.IsNullOrEmpty(slug) ? "catalog" : slug;
+    }
+
+    private string GetStatusString(string key, string fallback, params object?[] args)
+    {
+        var template = localizationService?.GetString(key);
+        if (string.IsNullOrEmpty(template) || template == key)
+        {
+            template = fallback;
+        }
+
+        return args.Length == 0 ? template : string.Format(template, args);
+    }
+
+    private void EnsureStatusLocalizationHooked()
+    {
+        if (_statusLocalizationHooked)
+        {
+            return;
+        }
+
+        _statusLocalizationHooked = true;
+        Catalogs.CollectionChanged += OnStatusCatalogsChanged;
+        if (localizationService != null)
+        {
+            localizationService.PropertyChanged += OnStatusCultureChanged;
+        }
+    }
+
+    private void OnStatusCatalogsChanged(object? sender, NotifyCollectionChangedEventArgs e) =>
+        OnPropertyChanged(nameof(CatalogSummaryText));
+
+    private void OnStatusCultureChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (string.IsNullOrEmpty(e.PropertyName) || e.PropertyName == nameof(ILocalizationService.CurrentCulture))
+        {
+            OnPropertyChanged(nameof(ProjectStatusText));
+            OnPropertyChanged(nameof(CatalogSummaryText));
+        }
     }
 
     partial void OnSelectedTabIndexChanged(int value)
@@ -307,6 +368,12 @@ public partial class PublisherStudioViewModel(
         {
             ContentLibraryViewModel = new GenHub.Features.Tools.ViewModels.ContentLibraryViewModel(CurrentProject, value, this, logger, dialogService);
         }
+    }
+
+    partial void OnCurrentProjectChanged(PublisherStudioProject? value)
+    {
+        _ = value;
+        OnPropertyChanged(nameof(ProjectStatusText));
     }
 
     /// <summary>
@@ -717,18 +784,21 @@ public partial class PublisherStudioViewModel(
 
         SelectedCatalog = selectedCatalog;
 
-        PublisherProfileViewModel = new GenHub.Features.Tools.ViewModels.PublisherProfileViewModel(CurrentProject, this, logger);
+        PublisherProfileViewModel = new GenHub.Features.Tools.ViewModels.PublisherProfileViewModel(CurrentProject, this, logger, notificationService, localizationService);
         ContentLibraryViewModel = new GenHub.Features.Tools.ViewModels.ContentLibraryViewModel(CurrentProject, selectedCatalog, this, logger, dialogService, notificationService, localizationService);
         PublishShareViewModel?.Dispose();
         PublishShareViewModel = new GenHub.Features.Tools.ViewModels.PublishShareViewModel(CurrentProject, publisherStudioService, logger, hostingProviderFactory, hostingStateManager, notificationService, localizationService, credentialStore);
-        await PublishShareViewModel.InitializeAsync().ConfigureAwait(false);
-        ReferralsViewModel = new GenHub.Features.Tools.ViewModels.ReferralsViewModel(CurrentProject, this, logger, dialogService);
+        await PublishShareViewModel.InitializeAsync();
+        ReferralsViewModel = new GenHub.Features.Tools.ViewModels.ReferralsViewModel(CurrentProject, this, logger, dialogService, notificationService, localizationService);
 
         // Check for hosting state recovery
         CheckHostingStateRecovery();
 
         OnPropertyChanged(nameof(IsSetupComplete));
         OnPropertyChanged(nameof(ShouldShowSetupOverlay));
+        EnsureStatusLocalizationHooked();
+        OnPropertyChanged(nameof(ProjectStatusText));
+        OnPropertyChanged(nameof(CatalogSummaryText));
 
         await Task.CompletedTask;
     }

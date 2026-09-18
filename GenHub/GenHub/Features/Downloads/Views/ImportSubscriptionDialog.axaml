@@ -7,7 +7,7 @@
         mc:Ignorable="d" d:DesignWidth="560" d:DesignHeight="360"
         x:Class="GenHub.Features.Downloads.Views.ImportSubscriptionDialog"
         x:DataType="vm:ImportSubscriptionViewModel"
-        Title="Import Catalog or Provider"
+        Title="{localization:Localize Downloads.ImportSubscription.Title}"
         Width="560"
         Height="360"
         WindowStartupLocation="CenterOwner"
@@ -27,25 +27,25 @@
             <Setter Property="Cursor" Value="Hand"/>
         </Style>
         <Style Selector="Button.secondary-btn">
-            <Setter Property="Background" Value="#15FFFFFF"/>
+            <Setter Property="Background" Value="{DynamicResource GlassFillBrush}"/>
             <Setter Property="Foreground" Value="{DynamicResource TextSecondary}"/>
-            <Setter Property="BorderBrush" Value="#25FFFFFF"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource GlassBorderBrush}"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="CornerRadius" Value="8"/>
             <Setter Property="Padding" Value="18,10"/>
             <Setter Property="Cursor" Value="Hand"/>
         </Style>
         <Style Selector="TextBox">
-            <Setter Property="Background" Value="#14FFFFFF"/>
+            <Setter Property="Background" Value="{DynamicResource GlassFillSubtleBrush}"/>
             <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
-            <Setter Property="BorderBrush" Value="#25FFFFFF"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource GlassBorderBrush}"/>
             <Setter Property="CornerRadius" Value="8"/>
             <Setter Property="Padding" Value="12,10"/>
         </Style>
     </Window.Styles>
 
-    <Border Background="#161626"
-            BorderBrush="#33FFFFFF"
+    <Border Background="{DynamicResource SurfaceElevatedBrush}"
+            BorderBrush="{DynamicResource GlassBorderStrongBrush}"
             BorderThickness="1"
             CornerRadius="16"
             BoxShadow="0 16 48 0 #80000000"
@@ -96,8 +96,8 @@
                          FontFamily="Consolas, Courier New, monospace"/>
 
                 <!-- Error Message Banner -->
-                <Border Background="#20FF5555"
-                        BorderBrush="#40FF5555"
+                <Border Background="{DynamicResource StatusErrorBadgeBackgroundBrush}"
+                        BorderBrush="{DynamicResource ErrorBrush}"
                         BorderThickness="1"
                         CornerRadius="8"
                         Padding="12,8"

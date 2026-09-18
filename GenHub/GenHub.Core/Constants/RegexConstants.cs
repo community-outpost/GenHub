@@ -19,4 +19,14 @@ public static class RegexConstants
     /// Regex pattern for Strata / GameReplays replay links.
     /// </summary>
     public const string StrataReplayPattern = @"(?:href=[""'](?<url>[^""']+\.(?:rep|zip))[""']|(?<url>https?://[^""'\s<>]+\.(?:rep|zip)))";
+
+    /// <summary>
+    /// Publisher ID grammar: lowercase letters, digits, and hyphens.
+    /// </summary>
+    public const string PublisherIdPattern = "^[a-z0-9-]+$";
+
+    /// <summary>
+    /// Content ID grammar: an optional publisher prefix followed by a content slug.
+    /// </summary>
+    public const string ExtendsContentIdPattern = "^([a-z0-9-]+/)?[a-z0-9-]+$";
 }

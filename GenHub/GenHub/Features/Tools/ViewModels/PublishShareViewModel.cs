@@ -113,6 +113,7 @@ public partial class PublishShareViewModel(
     private System.Threading.CancellationTokenSource? _authCts;
     private CancellationTokenSource? _uploadCts;
     private CancellationTokenSource? _scanCts;
+    private CancellationTokenSource? _silentScanCts;
 
     [ObservableProperty]
     private string _totalStorageUsedFormatted = "0 B";
@@ -172,7 +173,7 @@ public partial class PublishShareViewModel(
     /// <summary>
     /// Gets the collection of catalog publish statuses.
     /// </summary>
-    public ObservableCollection<CatalogPublishStatus> CatalogStatuses { get; } = project?.Catalogs != null ? new ObservableCollection<CatalogPublishStatus>(project.Catalogs.Select(c => new CatalogPublishStatus(c))) : [];
+    public ObservableCollection<CatalogPublishStatus> CatalogStatuses { get; } = project?.Catalogs != null ? new ObservableCollection<CatalogPublishStatus>(project.Catalogs.Select(c => new CatalogPublishStatus(c, localizationService))) : [];
 
     /// <summary>
     /// Gets the available catalogs in the project.
@@ -495,6 +496,13 @@ public partial class PublishShareViewModel(
             _scanCts?.Cancel();
             _scanCts?.Dispose();
             _scanCts = null;
+            _silentScanCts?.Cancel();
+            _silentScanCts?.Dispose();
+            _silentScanCts = null;
+            foreach (var status in CatalogStatuses)
+            {
+                status.Dispose();
+            }
         }
     }
 
@@ -508,6 +516,26 @@ public partial class PublishShareViewModel(
         if (!string.IsNullOrEmpty(subscriptionUrl))
             sb.AppendLine($"Subscription URL: {subscriptionUrl}");
         return sb.ToString();
+    }
+
+    private static bool IsSameArtifact(ArtifactHostingInfo entry, string fileName, string contentId, string version)
+    {
+        if (entry.FileName != fileName)
+        {
+            return false;
+        }
+
+        if (!string.IsNullOrEmpty(entry.ContentId) && !string.IsNullOrEmpty(contentId) && entry.ContentId != contentId)
+        {
+            return false;
+        }
+
+        if (!string.IsNullOrEmpty(entry.Version) && !string.IsNullOrEmpty(version) && entry.Version != version)
+        {
+            return false;
+        }
+
+        return true;
     }
 
     private static void CleanupTempZipFile(string? tempZipPath)
@@ -736,9 +764,16 @@ public partial class PublishShareViewModel(
         OnPropertyChanged(nameof(HasIncompatibleArtifactsForActiveCatalog));
     }
 
+    /// <summary>
+    /// Gets the localized display name of the selected hosting provider.
+    /// </summary>
+    public string ProviderDisplayName => SelectedHostingProvider?.DisplayName
+        ?? GetLocalizedString("Tools.PublisherStudio.Hosting.NotConnected", "Not Connected");
+
     partial void OnSelectedHostingProviderChanged(IHostingProvider? value)
     {
         // Notify computed properties that depend on selected provider
+        OnPropertyChanged(nameof(ProviderDisplayName));
         OnPropertyChanged(nameof(RequiresAuthentication));
         OnPropertyChanged(nameof(IsProviderAuthenticated));
         OnPropertyChanged(nameof(NeedsAuthentication));
@@ -1234,12 +1269,20 @@ public partial class PublishShareViewModel(
             }
             else
             {
+                CatalogJson = string.Empty;
                 logger.LogError("Failed to export catalog '{CatalogName}': {Error}", ActiveCatalog.Name, result.FirstError);
+                notificationService?.ShowError(
+                    GetLocalizedString("Tools.PublisherStudio.Publish.ExportFailedTitle", "Export Failed"),
+                    result.FirstError ?? "Failed to export catalog JSON.");
             }
         }
         catch (Exception ex)
         {
+            CatalogJson = string.Empty;
             logger.LogError(ex, "Error exporting catalog");
+            notificationService?.ShowError(
+                GetLocalizedString("Tools.PublisherStudio.Publish.ExportFailedTitle", "Export Failed"),
+                ex.Message);
         }
     }
 
@@ -1303,6 +1346,12 @@ public partial class PublishShareViewModel(
         if (preconditionResult != null || SelectedHostingProvider == null)
         {
             return preconditionResult ?? OperationResult<HostingUploadResult>.CreateFailure(PleaseSelectHostingProviderMessage);
+        }
+
+        if (IsScanningStorage)
+        {
+            UploadStatusMessage = GetLocalizedString("Tools.PublisherStudio.Publish.ScanInProgress", "Storage scan in progress. Please try again shortly.");
+            return OperationResult<HostingUploadResult>.CreateFailure(UploadStatusMessage);
         }
 
         try
@@ -1454,7 +1503,7 @@ public partial class PublishShareViewModel(
         // 4. Generate and upload provider definition
         CurrentPublishStep = 4;
         UploadStatusMessage = "Generating provider definition...";
-        await GenerateProviderDefinitionAsync();
+        var definitionGenerated = await GenerateProviderDefinitionAsync();
 
         var defResult = await UploadProviderDefinitionIfAvailableAsync(cancellationToken);
 
@@ -1467,6 +1516,10 @@ public partial class PublishShareViewModel(
         if (defResult != null && !defResult.Success)
         {
             UploadStatusMessage = $"Catalog published, but provider definition upload failed: {defResult.FirstError}";
+            notificationService?.ShowWarning(GetLocalizedString("Tools.PublisherStudio.Publish.PublishWarning", "Publish Warning"), UploadStatusMessage);
+        }
+        else if (!definitionGenerated)
+        {
             notificationService?.ShowWarning(GetLocalizedString("Tools.PublisherStudio.Publish.PublishWarning", "Publish Warning"), UploadStatusMessage);
         }
         else
@@ -1576,6 +1629,7 @@ public partial class PublishShareViewModel(
                     Version = release.Version,
                     Artifact = artifact,
                     Status = UploadStatus.Pending,
+                    LocalizationService = localizationService,
                 });
             }
         }
@@ -1602,18 +1656,30 @@ public partial class PublishShareViewModel(
             }
 
             var tempZipToCleanup = Path.Combine(tempDir, $"{Guid.NewGuid():N}_{archiveName}");
-            await Task.Run(() => ZipFile.CreateFromDirectory(task.Artifact.LocalFilePath, tempZipToCleanup), cancellationToken);
-
-            using (var hashStream = File.OpenRead(tempZipToCleanup))
-            using (var sha256 = SHA256.Create())
+            var completed = false;
+            try
             {
-                var hashBytes = await sha256.ComputeHashAsync(hashStream, cancellationToken);
-                task.Artifact.Sha256 = Convert.ToHexString(hashBytes).ToLowerInvariant();
-            }
+                await Task.Run(() => ZipFile.CreateFromDirectory(task.Artifact.LocalFilePath, tempZipToCleanup), cancellationToken);
 
-            var stream = File.OpenRead(tempZipToCleanup);
-            task.Artifact.Size = stream.Length;
-            return (stream, tempZipToCleanup, true);
+                using (var hashStream = File.OpenRead(tempZipToCleanup))
+                using (var sha256 = SHA256.Create())
+                {
+                    var hashBytes = await sha256.ComputeHashAsync(hashStream, cancellationToken);
+                    task.Artifact.Sha256 = Convert.ToHexString(hashBytes).ToLowerInvariant();
+                }
+
+                var stream = File.OpenRead(tempZipToCleanup);
+                task.Artifact.Size = stream.Length;
+                completed = true;
+                return (stream, tempZipToCleanup, true);
+            }
+            finally
+            {
+                if (!completed)
+                {
+                    CleanupTempZipFile(tempZipToCleanup);
+                }
+            }
         }
 
         if (File.Exists(task.Artifact.LocalFilePath))
@@ -1649,7 +1715,7 @@ public partial class PublishShareViewModel(
             return;
         }
 
-        var existingArt = _currentHostingState.Artifacts.FirstOrDefault(a => a.FileName == task.Artifact.Filename);
+        var existingArt = _currentHostingState.Artifacts.FirstOrDefault(a => IsSameArtifact(a, task.Artifact.Filename, task.ContentId, task.Version));
         if (existingArt != null)
         {
             existingArt.FileId = uploadData.FileId;
@@ -1701,7 +1767,7 @@ public partial class PublishShareViewModel(
                 var progress = new Progress<int>(p =>
                 {
                     task.Progress = p;
-                    UploadProgress = (int)(((double)(current - 1) / total * 80) + (p / total * 80.0 / 100.0));
+                    UploadProgress = (int)(((double)(current - 1) / total * 80) + ((double)p / total * 80.0 / 100.0));
                 });
 
                 var uploadFileName = task.Artifact.Filename;
@@ -1915,13 +1981,14 @@ public partial class PublishShareViewModel(
     /// <summary>
     /// Generates the provider definition JSON.
     /// </summary>
+    /// <returns><c>true</c> when fresh definition JSON was generated; otherwise <c>false</c>.</returns>
     [RelayCommand]
-    private async Task GenerateProviderDefinitionAsync()
+    private async Task<bool> GenerateProviderDefinitionAsync()
     {
         if (_currentHostingState == null || _currentHostingState.Catalogs.Count == 0)
         {
             UploadStatusMessage = "No catalogs have been published yet";
-            return;
+            return false;
         }
 
         try
@@ -1935,7 +2002,7 @@ public partial class PublishShareViewModel(
             if (catalogHostingInfo.Count == 0)
             {
                 UploadStatusMessage = "No catalog URLs available for definition";
-                return;
+                return false;
             }
 
             var result = await publisherStudioService.ExportProviderDefinitionAsync(
@@ -1948,17 +2015,20 @@ public partial class PublishShareViewModel(
             {
                 ProviderDefinitionJson = result.Data;
                 logger.LogInformation("Generated provider definition JSON with {CatalogCount} catalogs", catalogHostingInfo.Count);
+                return true;
             }
             else
             {
                 logger.LogError("Failed to generate provider definition: {Error}", result.FirstError);
                 UploadStatusMessage = $"Failed to generate definition: {result.FirstError}";
+                return false;
             }
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Error generating provider definition");
             UploadStatusMessage = $"Error: {ex.Message}";
+            return false;
         }
     }
 
@@ -2015,7 +2085,7 @@ public partial class PublishShareViewModel(
         logger.LogInformation("Uploaded provider definition to {Url}", ProviderDefinitionUrl);
         notificationService?.ShowSuccess(
             GetLocalizedString("Tools.PublisherStudio.Publish.SuccessTitle", SuccessLiteral),
-            "Provider definition uploaded successfully.",
+            GetLocalizedString("Tools.PublisherStudio.Publish.ProviderDefinitionUploadedMessage", "Provider definition uploaded successfully."),
             autoDismissMs: 4000);
     }
 
@@ -2045,6 +2115,12 @@ public partial class PublishShareViewModel(
         if (preconditionResult != null || SelectedHostingProvider == null)
         {
             return preconditionResult ?? OperationResult<HostingUploadResult>.CreateFailure(PleaseSelectHostingProviderMessage);
+        }
+
+        if (IsScanningStorage)
+        {
+            UploadStatusMessage = GetLocalizedString("Tools.PublisherStudio.Publish.ScanInProgress", "Storage scan in progress. Please try again shortly.");
+            return OperationResult<HostingUploadResult>.CreateFailure(UploadStatusMessage);
         }
 
         try
@@ -2125,7 +2201,7 @@ public partial class PublishShareViewModel(
         else
         {
             // No definition URL available - this should not happen in normal flow
-            SubscriptionUrl = "Please publish to generate subscription URL";
+            SubscriptionUrl = GetLocalizedString("Tools.PublisherStudio.Publish.NoSubscriptionUrlPlaceholder", "Please publish to generate subscription URL");
             logger.LogWarning("Cannot generate subscription URL: definition URL not available");
         }
     }
@@ -2165,8 +2241,7 @@ public partial class PublishShareViewModel(
     [RelayCommand]
     private async Task CopySubscriptionUrlAsync()
     {
-        if (string.IsNullOrWhiteSpace(SubscriptionUrl) ||
-            SubscriptionUrl.Equals("Please publish to generate subscription URL", StringComparison.OrdinalIgnoreCase))
+        if (string.IsNullOrWhiteSpace(SubscriptionUrl) || string.IsNullOrWhiteSpace(ProviderDefinitionUrl))
         {
             notificationService?.ShowWarning(
                 GetLocalizedString("Tools.PublisherStudio.Publish.NoSubscriptionUrlTitle", "Subscription Link Unavailable"),
@@ -2203,7 +2278,7 @@ public partial class PublishShareViewModel(
         await CopyToClipboardAsync(
             CatalogJson,
             GetLocalizedString(CommonNotificationSuccessKey, SuccessLiteral),
-            "Catalog JSON copied to clipboard!").ConfigureAwait(false);
+            GetLocalizedString("Tools.PublisherStudio.Publish.CatalogJsonCopiedMessage", "Catalog JSON copied to clipboard!")).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -2229,7 +2304,7 @@ public partial class PublishShareViewModel(
         await CopyToClipboardAsync(
             ProviderDefinitionJson,
             GetLocalizedString(CommonNotificationSuccessKey, SuccessLiteral),
-            "Provider definition JSON copied to clipboard!").ConfigureAwait(false);
+            GetLocalizedString("Tools.PublisherStudio.Publish.ProviderDefinitionJsonCopiedMessage", "Provider definition JSON copied to clipboard!")).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -2283,7 +2358,7 @@ public partial class PublishShareViewModel(
         {
             if (!existingStatuses.TryGetValue(catalog.Id, out var status))
             {
-                status = new CatalogPublishStatus(catalog);
+                status = new CatalogPublishStatus(catalog, localizationService);
                 CatalogStatuses.Add(status);
             }
 
@@ -2304,6 +2379,7 @@ public partial class PublishShareViewModel(
         {
             if (!projectCatalogIds.Contains(CatalogStatuses[i].Catalog.Id))
             {
+                CatalogStatuses[i].Dispose();
                 CatalogStatuses.RemoveAt(i);
             }
         }
@@ -2522,7 +2598,8 @@ public partial class PublishShareViewModel(
     private async Task FinalizePublishAllSuccessAsync(int succeededCount, int totalCatalogs, CancellationToken cancellationToken)
     {
         // Generate provider definition with all catalogs
-        await GenerateProviderDefinitionAsync();
+        var definitionGenerated = await GenerateProviderDefinitionAsync();
+        var definitionProblem = !definitionGenerated;
 
         // Upload definition
         if (!string.IsNullOrWhiteSpace(ProviderDefinitionJson))
@@ -2530,6 +2607,7 @@ public partial class PublishShareViewModel(
             var defResult = await UploadProviderDefinitionCoreAsync(cancellationToken, manageUploadingState: false).ConfigureAwait(false);
             if (defResult != null && !defResult.Success)
             {
+                definitionProblem = true;
                 UploadStatusMessage = succeededCount == totalCatalogs
                     ? $"Successfully published all {totalCatalogs} catalog(s), but provider definition upload failed: {defResult.FirstError}"
                     : $"Published {succeededCount} of {totalCatalogs} catalog(s), but provider definition upload failed: {defResult.FirstError}";
@@ -2537,11 +2615,16 @@ public partial class PublishShareViewModel(
             }
         }
 
+        if (definitionProblem && string.IsNullOrWhiteSpace(ProviderDefinitionJson))
+        {
+            notificationService?.ShowWarning(GetLocalizedString("Tools.PublisherStudio.Publish.PublishWarning", "Publish Warning"), UploadStatusMessage);
+        }
+
         GenerateSubscriptionUrl();
         RefreshUploadHierarchy();
         RefreshHostedAssets();
         PublishCompleted = true;
-        if (!UploadStatusMessage.StartsWith("Successfully", StringComparison.OrdinalIgnoreCase))
+        if (!definitionProblem)
         {
             UploadStatusMessage = succeededCount == totalCatalogs
                 ? $"Successfully published all {totalCatalogs} catalogs!"
@@ -2746,6 +2829,12 @@ public partial class PublishShareViewModel(
                 StorageScanStatusMessage = result.FirstError ?? "No hosted files discovered in cloud storage folder.";
             }
         }
+        catch (OperationCanceledException ex)
+        {
+            logger.LogWarning(ex, "Cloud storage scan timed out or was canceled");
+            StorageScanStatusMessage = GetLocalizedString("Tools.PublisherStudio.Publish.ScanTimedOut", "Scan timed out or was canceled. Please try again.");
+            notificationService?.ShowWarning(GetLocalizedString("Tools.PublisherStudio.Publish.ScanError", "Scan Error"), StorageScanStatusMessage);
+        }
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to scan cloud storage");
@@ -2760,20 +2849,24 @@ public partial class PublishShareViewModel(
 
     private async Task ScanCloudStorageSilentlyAsync()
     {
+        if (IsScanningStorage || IsUploading || SelectedHostingProvider == null || !IsProviderAuthenticated || _silentScanCts != null)
+        {
+            return;
+        }
+
+        _silentScanCts = new CancellationTokenSource();
+        var silentCt = _silentScanCts.Token;
+        IsScanningStorage = true;
+
         try
         {
-            if (IsScanningStorage || IsUploading || SelectedHostingProvider == null || !IsProviderAuthenticated)
-            {
-                return;
-            }
-
-            var result = await SelectedHostingProvider.RecoverHostingStateAsync(CancellationToken.None);
+            var result = await SelectedHostingProvider.RecoverHostingStateAsync(silentCt);
             if (result.Success && result.Data != null)
             {
                 MergeCloudHostingState(result.Data);
                 if (!string.IsNullOrEmpty(project.ProjectPath) && _currentHostingState != null && hostingStateManager != null)
                 {
-                    await hostingStateManager.SaveStateAsync(project.ProjectPath, _currentHostingState, CancellationToken.None).ConfigureAwait(false);
+                    await hostingStateManager.SaveStateAsync(project.ProjectPath, _currentHostingState, silentCt).ConfigureAwait(false);
                 }
 
                 InitializeCatalogStatuses();
@@ -2782,9 +2875,19 @@ public partial class PublishShareViewModel(
                 GenerateSubscriptionUrl();
             }
         }
+        catch (OperationCanceledException ex)
+        {
+            logger.LogInformation(ex, "Silent cloud state recovery was canceled");
+        }
         catch (Exception ex)
         {
             logger.LogWarning(ex, "Silent cloud state recovery encountered an issue");
+        }
+        finally
+        {
+            IsScanningStorage = false;
+            _silentScanCts?.Dispose();
+            _silentScanCts = null;
         }
     }
 
@@ -2824,6 +2927,11 @@ public partial class PublishShareViewModel(
         var existing = _currentHostingState.Catalogs.FirstOrDefault(c => c.CatalogId == cloudCat.CatalogId || (!string.IsNullOrEmpty(cloudCat.FileName) && c.FileName == cloudCat.FileName));
         if (existing != null)
         {
+            if (cloudCat.LastUpdated < existing.LastUpdated)
+            {
+                return;
+            }
+
             if (!string.IsNullOrEmpty(cloudCat.Url))
             {
                 existing.Url = cloudCat.Url;
@@ -2849,9 +2957,14 @@ public partial class PublishShareViewModel(
             return;
         }
 
-        var existing = _currentHostingState.Artifacts.FirstOrDefault(a => a.FileName == cloudArt.FileName);
+        var existing = _currentHostingState.Artifacts.FirstOrDefault(a => IsSameArtifact(a, cloudArt.FileName, cloudArt.ContentId, cloudArt.Version));
         if (existing != null)
         {
+            if (cloudArt.LastUpdated < existing.LastUpdated)
+            {
+                return;
+            }
+
             if (!string.IsNullOrEmpty(cloudArt.Url))
             {
                 existing.Url = cloudArt.Url;

@@ -2,6 +2,7 @@ using GenHub.Core.Models.Publishers;
 using GenHub.Core.Models.Results;
 using Microsoft.Extensions.Logging;
 using System;
+using System.Collections.Concurrent;
 using System.IO;
 using System.Text.Json;
 using System.Threading;
@@ -21,6 +22,8 @@ public class HostingStateManager(ILogger<HostingStateManager> logger) : IHosting
         WriteIndented = true,
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
     };
+
+    private static readonly ConcurrentDictionary<string, SemaphoreSlim> StateLocks = new(StringComparer.OrdinalIgnoreCase);
 
     /// <inheritdoc />
     public string GetStateFilePath(string projectPath)
@@ -49,17 +52,19 @@ public class HostingStateManager(ILogger<HostingStateManager> logger) : IHosting
     /// <inheritdoc />
     public async Task<OperationResult<HostingState?>> LoadStateAsync(string projectPath, CancellationToken cancellationToken = default)
     {
+        var stateFilePath = GetStateFilePath(projectPath);
+        var stateLock = GetStateLock(stateFilePath);
+        await stateLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+
         try
         {
-            var stateFilePath = GetStateFilePath(projectPath);
-
             if (!File.Exists(stateFilePath))
             {
                 logger.LogDebug("No hosting state file found at {Path}", stateFilePath);
                 return OperationResult<HostingState?>.CreateSuccess(null);
             }
 
-            var json = await File.ReadAllTextAsync(stateFilePath, cancellationToken);
+            var json = await File.ReadAllTextAsync(stateFilePath, cancellationToken).ConfigureAwait(false);
             var state = JsonSerializer.Deserialize<HostingState>(json, JsonOptions);
 
             if (state == null)
@@ -76,22 +81,43 @@ public class HostingStateManager(ILogger<HostingStateManager> logger) : IHosting
 
             return OperationResult<HostingState?>.CreateSuccess(state);
         }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to load hosting state from {ProjectPath}", projectPath);
             return OperationResult<HostingState?>.CreateFailure($"Failed to load hosting state: {ex.Message}");
+        }
+        finally
+        {
+            stateLock.Release();
         }
     }
 
     /// <inheritdoc />
     public async Task<OperationResult<bool>> SaveStateAsync(string projectPath, HostingState state, CancellationToken cancellationToken = default)
     {
+        var stateFilePath = GetStateFilePath(projectPath);
+        var stateLock = GetStateLock(stateFilePath);
+        await stateLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+
         try
         {
-            var stateFilePath = GetStateFilePath(projectPath);
-
             var json = JsonSerializer.Serialize(state, JsonOptions);
-            await File.WriteAllTextAsync(stateFilePath, json, cancellationToken);
+            var tempPath = $"{stateFilePath}.tmp";
+
+            try
+            {
+                await File.WriteAllTextAsync(tempPath, json, cancellationToken).ConfigureAwait(false);
+                File.Move(tempPath, stateFilePath, overwrite: true);
+            }
+            catch
+            {
+                DeleteTempFile(tempPath);
+                throw;
+            }
 
             logger.LogInformation(
                 "Saved hosting state to {Path}: Provider={Provider}, Catalogs={CatalogCount}",
@@ -101,10 +127,42 @@ public class HostingStateManager(ILogger<HostingStateManager> logger) : IHosting
 
             return OperationResult<bool>.CreateSuccess(true);
         }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to save hosting state to {ProjectPath}", projectPath);
             return OperationResult<bool>.CreateFailure($"Failed to save hosting state: {ex.Message}");
+        }
+        finally
+        {
+            stateLock.Release();
+        }
+    }
+
+    private static SemaphoreSlim GetStateLock(string stateFilePath)
+    {
+        return StateLocks.GetOrAdd(stateFilePath, _ => new SemaphoreSlim(1, 1));
+    }
+
+    private void DeleteTempFile(string tempPath)
+    {
+        try
+        {
+            if (File.Exists(tempPath))
+            {
+                File.Delete(tempPath);
+            }
+        }
+        catch (IOException ex)
+        {
+            logger.LogDebug(ex, "Failed to clean up temporary hosting state file {TempPath}", tempPath);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            logger.LogDebug(ex, "Failed to clean up temporary hosting state file {TempPath}", tempPath);
         }
     }
 }

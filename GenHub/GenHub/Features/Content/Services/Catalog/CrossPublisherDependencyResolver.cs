@@ -14,10 +14,9 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Net;
 using System.Net.Http;
-using System.Net.Sockets;
 using System.Text;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -35,7 +34,7 @@ public class CrossPublisherDependencyResolver(
     IHttpClientFactory httpClientFactory) : ICrossPublisherDependencyResolver
 {
     /// <inheritdoc />
-    public async Task<OperationResult<IEnumerable<MissingDependency>>> CheckMissingDependenciesAsync(
+    public async Task<OperationResult<IReadOnlyList<MissingDependency>>> CheckMissingDependenciesAsync(
         ContentManifest manifest,
         CancellationToken cancellationToken = default)
     {
@@ -57,7 +56,7 @@ public class CrossPublisherDependencyResolver(
                 missingDependencies.Count,
                 manifest.Dependencies.Count);
 
-            return OperationResult<IEnumerable<MissingDependency>>.CreateSuccess(missingDependencies);
+            return OperationResult<IReadOnlyList<MissingDependency>>.CreateSuccess(missingDependencies);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -66,7 +65,7 @@ public class CrossPublisherDependencyResolver(
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to check missing dependencies");
-            return OperationResult<IEnumerable<MissingDependency>>.CreateFailure(
+            return OperationResult<IReadOnlyList<MissingDependency>>.CreateFailure(
                 $"Failed to check dependencies: {ex.Message}");
         }
     }
@@ -78,11 +77,13 @@ public class CrossPublisherDependencyResolver(
     {
         try
         {
-            var urlValidation = ValidateCatalogUrl(catalogUrl, out var normalizedUrl);
-            if (!urlValidation.Success)
+            var urlValidation = await ValidateCatalogUrlAsync(catalogUrl, cancellationToken);
+            if (!urlValidation.Success || urlValidation.Data == null)
             {
                 return OperationResult<PublisherCatalog>.CreateFailure(urlValidation.FirstError ?? "Invalid catalog URL.");
             }
+
+            var normalizedUrl = urlValidation.Data;
 
             var httpClient = httpClientFactory.CreateClient(CatalogConstants.CatalogHttpClientName);
             using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
@@ -92,7 +93,12 @@ public class CrossPublisherDependencyResolver(
             logger.LogDebug("Fetching external catalog from: {CatalogUrl}", catalogUrl);
 
             var response = await httpClient.GetAsync(normalizedUrl, ct);
-            response.EnsureSuccessStatusCode();
+            if (!response.IsSuccessStatusCode)
+            {
+                logger.LogWarning("Failed to fetch external catalog from {CatalogUrl}: {StatusCode}", catalogUrl, response.StatusCode);
+                return OperationResult<PublisherCatalog>.CreateFailure(
+                    $"Failed to fetch external catalog: {response.StatusCode}");
+            }
 
             var readResult = await ReadBoundedCatalogStringAsync(response, ct);
             if (!readResult.Success || readResult.Data == null)
@@ -102,7 +108,7 @@ public class CrossPublisherDependencyResolver(
 
             logger.LogDebug("Parsing fetched external catalog ({SizeBytes} bytes)", readResult.Data.Length);
 
-            var parseResult = await catalogParser.ParseCatalogAsync(readResult.Data, cancellationToken);
+            var parseResult = await catalogParser.ParseCatalogAsync(readResult.Data, ct);
             if (!parseResult.Success || parseResult.Data == null)
             {
                 return OperationResult<PublisherCatalog>.CreateFailure(
@@ -218,9 +224,10 @@ public class CrossPublisherDependencyResolver(
             };
 
             // Add resolver metadata
-            searchResult.ResolverMetadata["catalogItemJson"] = System.Text.Json.JsonSerializer.Serialize(matchingContent);
-            searchResult.ResolverMetadata["releaseJson"] = System.Text.Json.JsonSerializer.Serialize(latestRelease);
-            searchResult.ResolverMetadata["publisherProfileJson"] = System.Text.Json.JsonSerializer.Serialize(catalog.Publisher);
+            searchResult.ResolverMetadata[CatalogConstants.CatalogItemJsonMetadataKey] = JsonSerializer.Serialize(matchingContent);
+            searchResult.ResolverMetadata[CatalogConstants.ReleaseJsonMetadataKey] = JsonSerializer.Serialize(latestRelease);
+            searchResult.ResolverMetadata[CatalogConstants.PublisherProfileJsonMetadataKey] = JsonSerializer.Serialize(catalog.Publisher);
+            searchResult.ResolverMetadata[CatalogConstants.CatalogContentIdMetadataKey] = matchingContent.Id;
 
             logger.LogInformation(
                 "Found dependency content: {ContentName} v{Version}",
@@ -240,15 +247,18 @@ public class CrossPublisherDependencyResolver(
         }
     }
 
-    private static OperationResult<bool> ValidateCatalogUrl(string catalogUrl, out string normalizedUrl)
+    private static async Task<OperationResult<string>> ValidateCatalogUrlAsync(
+        string catalogUrl,
+        CancellationToken cancellationToken)
     {
-        normalizedUrl = CloudUrlHelper.NormalizeDirectDownloadUrl(catalogUrl);
-        if (!NetworkSecurityHelper.IsSafeUrl(normalizedUrl, out var failureReason))
+        var normalizedUrl = CloudUrlHelper.NormalizeDirectDownloadUrl(catalogUrl);
+        var (isSafe, failureReason) = await NetworkSecurityHelper.IsSafeUrlAsync(normalizedUrl, cancellationToken);
+        if (!isSafe)
         {
-            return OperationResult<bool>.CreateFailure(failureReason ?? "Catalog URL must be a valid absolute HTTP or HTTPS URL.");
+            return OperationResult<string>.CreateFailure(failureReason ?? "Catalog URL must be a valid absolute HTTP or HTTPS URL.");
         }
 
-        return OperationResult<bool>.CreateSuccess(true);
+        return OperationResult<string>.CreateSuccess(normalizedUrl);
     }
 
     private static async Task<OperationResult<string>> ReadBoundedCatalogStringAsync(HttpResponseMessage response, CancellationToken ct)
@@ -350,8 +360,6 @@ public class CrossPublisherDependencyResolver(
         var installedConstraint = CreateVersionConstraint(dependency);
         return installedConstraint == null || installedConstraint.IsSatisfiedBy(installedVersion);
     }
-
-    private static bool IsSafeIpAddress(IPAddress address) => NetworkSecurityHelper.IsSafeIpAddress(address);
 
     private async Task<MissingDependency?> CheckDependencyAsync(
         ContentDependency dependency,

@@ -72,7 +72,7 @@ public class PublisherStudioConfirmationAndAuthTests
                 "Delete Catalog",
                 It.Is<string>(s => s.Contains("Catalog 2")),
                 "Delete",
-                "Cancel",
+                null, // Localized cancel default is resolved by the dialog service.
                 "DeleteCatalogConfirmation"),
             Times.Once);
     }
@@ -145,7 +145,7 @@ public class PublisherStudioConfirmationAndAuthTests
 
         // Act - switch to Dropbox then GitHub
         vm.SelectedHostingProvider = dropboxMock.Object;
-        Assert.NotNull(vm.SelectedHostingProvider);
+        Assert.Same(dropboxMock.Object, vm.SelectedHostingProvider);
         vm.SelectedHostingProvider = githubMock.Object;
 
         // Assert - tokens remain intact and are not cleared on switch

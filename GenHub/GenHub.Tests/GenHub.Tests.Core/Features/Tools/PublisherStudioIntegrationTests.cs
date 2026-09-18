@@ -37,10 +37,6 @@ public class PublisherStudioIntegrationTests : IDisposable
         var loggerMock = new Mock<ILogger<PublisherStudioService>>();
         var catalogParserMock = new Mock<IPublisherCatalogParser>();
 
-        // Setup catalog parser mock to return success for any parsing (since we trust export serialization logic for now)
-        catalogParserMock.Setup(x => x.ParseCatalogAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(GenHub.Core.Models.Results.OperationResult<PublisherCatalog>.CreateSuccess(new PublisherCatalog()));
-
         _publisherService = new PublisherStudioService(loggerMock.Object, catalogParserMock.Object);
 
         // Setup Subscription Store dependencies

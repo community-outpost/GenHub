@@ -65,6 +65,13 @@ public partial class ContentLibraryViewModel(
     public string ActiveCatalogName => activeCatalog?.Name ?? string.Empty;
 
     /// <summary>
+    /// Gets the localized catalog item count summary for the footer.
+    /// </summary>
+    public string CatalogSummaryText => string.Format(
+        localizationService?.GetString("Tools.PublisherStudio.Library.ItemsInCatalog") ?? "{0} items in catalog",
+        ContentItems.Count);
+
+    /// <summary>
     /// Gets filtered content items based on the search query.
     /// </summary>
     public ObservableCollection<CatalogContentItem> FilteredContent
@@ -389,6 +396,9 @@ public partial class ContentLibraryViewModel(
             release.Artifacts = edited.Artifacts;
             release.Dependencies = edited.Dependencies;
 
+            // Artifact instances were replaced, so refresh the Publish tab statuses built from the old objects
+            parentViewModel?.PublishShareViewModel?.RefreshUploadHierarchy();
+
             OnPropertyChanged(nameof(SelectedContent));
 
             parentViewModel?.MarkDirty();
@@ -525,6 +535,12 @@ public partial class ContentLibraryViewModel(
         }
 
         OnPropertyChanged(nameof(FilteredContent));
+        OnPropertyChanged(nameof(CatalogSummaryText));
+    }
+
+    partial void OnContentItemsChanged(ObservableCollection<CatalogContentItem> value)
+    {
+        OnPropertyChanged(nameof(CatalogSummaryText));
     }
 
     private string GetLocalizedString(string key, string fallback)

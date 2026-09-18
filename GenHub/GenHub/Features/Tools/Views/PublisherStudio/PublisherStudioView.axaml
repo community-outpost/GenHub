@@ -46,8 +46,8 @@
         </Style>
 
         <Style Selector="Button.nav-pill.active">
-            <Setter Property="Background" Value="{DynamicResource AccentBadgeBackgroundColor}"/>
-            <Setter Property="Foreground" Value="{DynamicResource AccentLightColor}"/>
+            <Setter Property="Background" Value="{DynamicResource AccentBadgeBackgroundBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource AccentLightBrush}"/>
             <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
         </Style>
 
@@ -139,10 +139,10 @@
                         <StackPanel VerticalAlignment="Center">
                             <StackPanel Orientation="Horizontal" Spacing="6">
                                 <TextBlock Text="{localization:Localize Tools.PublisherStudio.Studio.Title}" FontWeight="Bold" FontSize="15" Foreground="White"/>
-                                <Border Background="{DynamicResource AccentBadgeBackgroundColor}"
+                                <Border Background="{DynamicResource AccentBadgeBackgroundBrush}"
                                         CornerRadius="4" Padding="5,1">
                                     <TextBlock Text="{localization:Localize Tools.PublisherStudio.Studio.BadgeCreator}" FontSize="9" FontWeight="Bold"
-                                               Foreground="{DynamicResource AccentLightColor}"/>
+                                               Foreground="{DynamicResource AccentLightBrush}"/>
                                 </Border>
                             </StackPanel>
                             <TextBlock Text="{localization:Localize Tools.PublisherStudio.Studio.Subtitle}" FontSize="11" Foreground="#6B7280"/>
@@ -368,16 +368,15 @@
                             <!-- Green dot: shown when saved -->
                             <Border Width="8" Height="8"
                                     CornerRadius="4"
-                                    Background="#22C55E"
+                                    Background="{DynamicResource StatusSuccessBrush}"
                                     IsVisible="{Binding !HasUnsavedChanges}"/>
-                            <!-- Yellow dot with pulse: shown when unsaved -->
+                            <!-- Yellow dot: shown when unsaved -->
                             <Border Width="8" Height="8"
                                     CornerRadius="4"
-                                    Background="#F59E0B"
-                                    Classes.unsaved-pulse="{Binding HasUnsavedChanges}"
+                                    Background="{DynamicResource WarningHighlightBrush}"
                                     IsVisible="{Binding HasUnsavedChanges}"/>
                         </Panel>
-                        <TextBlock Text="{Binding CurrentProject.ProjectName, FallbackValue='No project loaded'}"
+                        <TextBlock Text="{Binding ProjectStatusText}"
                                    FontSize="11"
                                    FontWeight="Medium"
                                    Foreground="#D1D5DB"/>
@@ -389,7 +388,7 @@
                             <PathIcon Data="{StaticResource ContentIcon}"
                                       Width="12" Height="12"
                                       Foreground="#6B7280"/>
-                            <TextBlock Text="{Binding Catalogs.Count, StringFormat='{}{0} catalogs'}"
+                            <TextBlock Text="{Binding CatalogSummaryText}"
                                        FontSize="11"
                                        Foreground="#9CA3AF"/>
                         </StackPanel>

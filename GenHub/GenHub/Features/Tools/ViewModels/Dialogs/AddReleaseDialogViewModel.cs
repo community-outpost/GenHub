@@ -91,13 +91,13 @@ public partial class AddReleaseDialogViewModel(
         Artifacts.Clear();
         foreach (var artifact in existing.Artifacts)
         {
-            Artifacts.Add(artifact);
+            Artifacts.Add(CloneArtifact(artifact));
         }
 
         Dependencies.Clear();
         foreach (var dep in existing.Dependencies)
         {
-            Dependencies.Add(dep);
+            Dependencies.Add(CloneDependency(dep));
         }
     }
 
@@ -178,6 +178,43 @@ public partial class AddReleaseDialogViewModel(
         }
 
         return null;
+    }
+
+    private static ReleaseArtifact CloneArtifact(ReleaseArtifact source)
+    {
+        ArgumentNullException.ThrowIfNull(source);
+
+        return new ReleaseArtifact
+        {
+            Filename = source.Filename,
+            DownloadUrl = source.DownloadUrl,
+            Size = source.Size,
+            Sha256 = source.Sha256,
+            ContentType = source.ContentType,
+            IsPrimary = source.IsPrimary,
+            VariantAxis = source.VariantAxis,
+            Variant = source.Variant,
+            IsDefaultVariant = source.IsDefaultVariant,
+            LocalFilePath = source.LocalFilePath,
+        };
+    }
+
+    private static CatalogDependency CloneDependency(CatalogDependency source)
+    {
+        ArgumentNullException.ThrowIfNull(source);
+
+        return new CatalogDependency
+        {
+            PublisherId = source.PublisherId,
+            ContentId = source.ContentId,
+            VersionConstraint = source.VersionConstraint,
+            IsOptional = source.IsOptional,
+            ContentType = source.ContentType,
+            CatalogUrl = source.CatalogUrl,
+            DependencyType = source.DependencyType,
+            DefinitionUrl = source.DefinitionUrl,
+            ConflictsWith = [.. source.ConflictsWith],
+        };
     }
 
     partial void OnVersionChanged(string value) => Validate();
@@ -300,7 +337,9 @@ public partial class AddReleaseDialogViewModel(
         // Check for artifacts
         if (Artifacts.Count == 0)
         {
-            ValidationError = "At least one artifact is required";
+            ValidationError = GetLocalizedString(
+                "Tools.PublisherStudio.Release.ArtifactRequired",
+                "At least one artifact is required");
             IsValid = false;
             return;
         }
@@ -317,7 +356,9 @@ public partial class AddReleaseDialogViewModel(
         var isOriginalVersion = IsEditMode && _originalVersion != null && _originalVersion.Equals(Version, StringComparison.OrdinalIgnoreCase);
         if (isDuplicateVersion && !isOriginalVersion)
         {
-            ValidationError = $"Version {Version} already exists for this content";
+            ValidationError = localizationService?.GetString(
+                "Tools.PublisherStudio.Release.DuplicateVersion",
+                Version) ?? $"Version {Version} already exists for this content";
             IsValid = false;
             return;
         }
@@ -351,7 +392,9 @@ public partial class AddReleaseDialogViewModel(
 
         if (Artifacts.Count == 0)
         {
-            errors.Add("At least one artifact is required");
+            errors.Add(GetLocalizedString(
+                "Tools.PublisherStudio.Release.ArtifactRequired",
+                "At least one artifact is required"));
         }
 
         IsValid = errors.Count == 0;

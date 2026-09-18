@@ -43,7 +43,7 @@ The **Entry Point**. This file contains the publisher's identity, branding, and 
 
 ```json
 {
-  "$schemaVersion": 1,
+  "$schemaVersion": 2,
   "publisher": {
     "id": "my-awesome-mods",
     "name": "My Awesome Mods",
@@ -81,7 +81,7 @@ The **Entry Point**. This file contains the publisher's identity, branding, and 
 
 | Field | Purpose |
 |-------|---------|
-| `$schemaVersion` | Schema version (1 for multi-catalog support) |
+| `$schemaVersion` | Schema version (2 is current, as written by Publisher Studio export) |
 | `publisher` | Publisher identity and branding |
 | `catalogs` | Array of catalog entries (id, name, url, mirrors) |
 | `definitionUrl` | Self-reference for migration support |

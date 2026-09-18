@@ -42,7 +42,6 @@ public class PublisherStudioMixedCdnAndCredentialTests
             HasLocalFile = false,
             IsExternalCdn = true,
         };
-        Assert.True(cdnNode.IsExternalCdn);
         Assert.False(cdnNode.IsCloudHosted);
         Assert.False(cdnNode.IsPendingUpload);
         Assert.Equal("External CDN", cdnNode.StorageBadgeText);
@@ -56,7 +55,6 @@ public class PublisherStudioMixedCdnAndCredentialTests
             HasLocalFile = false,
             IsExternalCdn = false,
         };
-        Assert.False(cloudNode.IsExternalCdn);
         Assert.True(cloudNode.IsCloudHosted);
         Assert.False(cloudNode.IsPendingUpload);
         Assert.Equal("Cloud Hosted", cloudNode.StorageBadgeText);
@@ -71,7 +69,6 @@ public class PublisherStudioMixedCdnAndCredentialTests
             LocalFilePath = "/path/to/large-archive.zip",
             IsExternalCdn = false,
         };
-        Assert.False(pendingNode.IsExternalCdn);
         Assert.False(pendingNode.IsCloudHosted);
         Assert.True(pendingNode.IsPendingUpload);
         Assert.Equal("Pending Upload", pendingNode.StorageBadgeText);

@@ -1,9 +1,12 @@
 namespace GenHub.Core.Helpers;
 
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Net;
 using System.Net.Sockets;
+using System.Threading;
+using System.Threading.Tasks;
 
 /// <summary>
 /// Provides network and IP validation helpers to prevent SSRF (Server-Side Request Forgery) attacks.
@@ -18,50 +21,87 @@ public static class NetworkSecurityHelper
     /// <returns><c>true</c> if safe; otherwise, <c>false</c>.</returns>
     public static bool IsSafeUrl(string? url, out string? failureReason)
     {
-        failureReason = null;
-        if (string.IsNullOrWhiteSpace(url) ||
-            !Uri.TryCreate(url, UriKind.Absolute, out var uri) ||
-            (uri.Scheme != Uri.UriSchemeHttps && uri.Scheme != Uri.UriSchemeHttp))
+        if (!TryGetCandidateUri(url, out var uri, out failureReason))
         {
-            failureReason = "URL must be a valid absolute HTTP or HTTPS URL.";
             return false;
         }
 
-        if (uri.IsLoopback ||
-            uri.Host.Equals("localhost", StringComparison.OrdinalIgnoreCase) ||
-            uri.Host.EndsWith(".local", StringComparison.OrdinalIgnoreCase) ||
-            uri.Host.EndsWith(".internal", StringComparison.OrdinalIgnoreCase))
+        if (IsBlockedHostName(uri))
         {
             failureReason = "Loopback and local addresses are not allowed.";
             return false;
         }
 
-        if (IPAddress.TryParse(uri.DnsSafeHost, out var ip) || IPAddress.TryParse(uri.Host, out ip))
+        if (TryGetLiteralAddress(uri, out var literal))
         {
-            if (!IsSafeIpAddress(ip))
+            if (!IsSafeIpAddress(literal))
+            {
+                failureReason = "Loopback, private, and local addresses are not allowed.";
+                return false;
+            }
+
+            return true;
+        }
+
+        try
+        {
+            var addresses = Dns.GetHostAddresses(uri.DnsSafeHost);
+            if (addresses.Length > 0 && !addresses.All(IsSafeIpAddress))
             {
                 failureReason = "Loopback, private, and local addresses are not allowed.";
                 return false;
             }
         }
-        else
+        catch (SocketException)
         {
-            try
-            {
-                var addresses = Dns.GetHostAddresses(uri.DnsSafeHost);
-                if (addresses.Length > 0 && !addresses.All(IsSafeIpAddress))
-                {
-                    failureReason = "Loopback, private, and local addresses are not allowed.";
-                    return false;
-                }
-            }
-            catch (SocketException)
-            {
-                // In offline or mocked environments, connection-time SocketsHttpHandler enforces SSRF safety.
-            }
+            // In offline or mocked environments, connection-time SocketsHttpHandler enforces SSRF safety.
         }
 
         return true;
+    }
+
+    /// <summary>
+    /// Asynchronously validates whether a URL is a safe external HTTP or HTTPS URL.
+    /// Unlike <see cref="IsSafeUrl"/>, host name resolution does not block the calling thread.
+    /// </summary>
+    /// <param name="url">The URL string to validate.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>A tuple indicating whether the URL is safe and the error message when it is not.</returns>
+    public static async Task<(bool IsSafe, string? FailureReason)> IsSafeUrlAsync(
+        string? url,
+        CancellationToken cancellationToken = default)
+    {
+        if (!TryGetCandidateUri(url, out var uri, out var failureReason))
+        {
+            return (false, failureReason);
+        }
+
+        if (IsBlockedHostName(uri))
+        {
+            return (false, "Loopback and local addresses are not allowed.");
+        }
+
+        if (TryGetLiteralAddress(uri, out var literal))
+        {
+            return IsSafeIpAddress(literal)
+                ? (true, null)
+                : (false, "Loopback, private, and local addresses are not allowed.");
+        }
+
+        try
+        {
+            var addresses = await Dns.GetHostAddressesAsync(uri.DnsSafeHost, cancellationToken);
+            if (addresses.Length > 0 && !addresses.All(IsSafeIpAddress))
+            {
+                return (false, "Loopback, private, and local addresses are not allowed.");
+            }
+        }
+        catch (SocketException)
+        {
+            // In offline or mocked environments, connection-time SocketsHttpHandler enforces SSRF safety.
+        }
+
+        return (true, null);
     }
 
     /// <summary>
@@ -132,6 +172,39 @@ public static class NetworkSecurityHelper
         }
 
         return IsEmbeddedIpv4Safe(b);
+    }
+
+    private static bool TryGetCandidateUri(string? url, [NotNullWhen(true)] out Uri? uri, out string? failureReason)
+    {
+        uri = null;
+        failureReason = null;
+        if (string.IsNullOrWhiteSpace(url) ||
+            !Uri.TryCreate(url, UriKind.Absolute, out uri) ||
+            (uri.Scheme != Uri.UriSchemeHttps && uri.Scheme != Uri.UriSchemeHttp))
+        {
+            uri = null;
+            failureReason = "URL must be a valid absolute HTTP or HTTPS URL.";
+            return false;
+        }
+
+        return true;
+    }
+
+    private static bool IsBlockedHostName(Uri uri) =>
+        uri.IsLoopback ||
+        uri.Host.Equals("localhost", StringComparison.OrdinalIgnoreCase) ||
+        uri.Host.EndsWith(".local", StringComparison.OrdinalIgnoreCase) ||
+        uri.Host.EndsWith(".internal", StringComparison.OrdinalIgnoreCase);
+
+    private static bool TryGetLiteralAddress(Uri uri, [NotNullWhen(true)] out IPAddress? address)
+    {
+        if (IPAddress.TryParse(uri.DnsSafeHost, out address) || IPAddress.TryParse(uri.Host, out address))
+        {
+            return address != null;
+        }
+
+        address = null;
+        return false;
     }
 
     private static bool IsLoopbackOrUnspecified(ReadOnlySpan<byte> b)

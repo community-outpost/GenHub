@@ -68,7 +68,9 @@ public static class CloudUrlHelper
 
             if (!DropboxDl1Regex.IsMatch(trimmed))
             {
-                return trimmed + (trimmed.Contains('?') ? "&dl=1" : "?dl=1");
+                var separator = trimmed.Contains('?') ? "&dl=1" : "?dl=1";
+                var fragmentIndex = trimmed.IndexOf('#');
+                return fragmentIndex == -1 ? trimmed + separator : trimmed.Insert(fragmentIndex, separator);
             }
         }
 

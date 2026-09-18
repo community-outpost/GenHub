@@ -1,5 +1,8 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using GenHub.Core.Constants;
+using GenHub.Core.Interfaces.Common;
+using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Models.Providers;
 using GenHub.Core.Models.Publishers;
 using GenHub.Features.Tools.Interfaces;
@@ -19,7 +22,9 @@ public partial class ReferralsViewModel(
     PublisherStudioProject project,
     PublisherStudioViewModel parentViewModel,
     ILogger logger,
-    IPublisherStudioDialogService dialogService) : ObservableObject
+    IPublisherStudioDialogService dialogService,
+    INotificationService? notificationService = null,
+    ILocalizationService? localizationService = null) : ObservableObject
 {
     [ObservableProperty]
     private ObservableCollection<PublisherReferral> _referrals = project?.Catalog?.Referrals != null
@@ -74,6 +79,10 @@ public partial class ReferralsViewModel(
         if (string.IsNullOrWhiteSpace(EditPublisherId))
         {
             logger.LogWarning("Cannot save referral with empty publisher ID");
+            notificationService?.ShowWarning(
+                localizationService?.GetString("Tools.PublisherStudio.Referrals.ValidationTitle") ?? "Invalid Referral",
+                localizationService?.GetString("Tools.PublisherStudio.Referrals.PublisherIdRequired") ?? "Publisher ID is required.",
+                NotificationDurations.Medium);
             return;
         }
 
@@ -83,6 +92,10 @@ public partial class ReferralsViewModel(
             (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
         {
             logger.LogWarning("Cannot save referral with invalid catalog URL: {Url}", EditCatalogUrl);
+            notificationService?.ShowWarning(
+                localizationService?.GetString("Tools.PublisherStudio.Referrals.ValidationTitle") ?? "Invalid Referral",
+                localizationService?.GetString("Tools.PublisherStudio.Referrals.CatalogUrlInvalid") ?? "Catalog URL must be a valid http or https URL.",
+                NotificationDurations.Medium);
             return;
         }
 

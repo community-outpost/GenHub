@@ -162,7 +162,7 @@ public class GitHubHostingProvider(ILogger<GitHubHostingProvider> logger) : IHos
             if (string.IsNullOrEmpty(folderPath))
             {
                 progress?.Report(20);
-                using var streamReader = new StreamReader(fileStream);
+                using var streamReader = new StreamReader(fileStream, Encoding.UTF8, detectEncodingFromByteOrderMarks: true, bufferSize: 1024, leaveOpen: true);
                 var jsonContent = await streamReader.ReadToEndAsync(cancellationToken);
 
                 var newGist = new NewGist
@@ -352,7 +352,7 @@ public class GitHubHostingProvider(ILogger<GitHubHostingProvider> logger) : IHos
         try
         {
             progress?.Report(20);
-            using var streamReader = new StreamReader(fileStream);
+            using var streamReader = new StreamReader(fileStream, Encoding.UTF8, detectEncodingFromByteOrderMarks: true, bufferSize: 1024, leaveOpen: true);
             var content = await streamReader.ReadToEndAsync(cancellationToken);
             if (string.IsNullOrWhiteSpace(content))
             {
@@ -373,8 +373,11 @@ public class GitHubHostingProvider(ILogger<GitHubHostingProvider> logger) : IHos
             }
             else if (fileName.Equals(HostingConstants.DefaultCatalogFileName, StringComparison.OrdinalIgnoreCase))
             {
-                // Fallback: look for any existing .json file if we're writing a catalog
-                targetKey = currentGist.Files.Keys.FirstOrDefault(k => k.EndsWith(".json", StringComparison.OrdinalIgnoreCase));
+                // Fallback: only match files following the catalog naming pattern so an
+                // unrelated .json file in a multi-file gist is never overwritten.
+                targetKey = currentGist.Files.Keys.FirstOrDefault(k =>
+                    k.StartsWith("catalog-", StringComparison.OrdinalIgnoreCase) &&
+                    k.EndsWith(".json", StringComparison.OrdinalIgnoreCase));
             }
 
             if (targetKey != null)
@@ -472,10 +475,13 @@ public class GitHubHostingProvider(ILogger<GitHubHostingProvider> logger) : IHos
             return false;
         }
 
-        return url.Contains("github.com", StringComparison.OrdinalIgnoreCase) ||
-               url.Contains("raw.githubusercontent.com", StringComparison.OrdinalIgnoreCase) ||
-               url.Contains("gist.github.com", StringComparison.OrdinalIgnoreCase) ||
-               url.Contains("gist.githubusercontent.com", StringComparison.OrdinalIgnoreCase);
+        if (!Uri.TryCreate(url, UriKind.Absolute, out var uri))
+        {
+            return false;
+        }
+
+        return HostingConstants.IsCloudProviderHost(uri.Host) &&
+            (IsGitHubHost(uri.Host, "github.com") || IsGitHubHost(uri.Host, "githubusercontent.com"));
     }
 
     /// <inheritdoc/>
@@ -485,5 +491,11 @@ public class GitHubHostingProvider(ILogger<GitHubHostingProvider> logger) : IHos
         // GitHub release assets already have direct download URLs
         // Gist raw URLs are also direct, but ensure they point to HEAD
         return NormalizeGistRawUrl(shareUrl);
+    }
+
+    private static bool IsGitHubHost(string host, string domain)
+    {
+        return host.Equals(domain, StringComparison.OrdinalIgnoreCase) ||
+            host.EndsWith("." + domain, StringComparison.OrdinalIgnoreCase);
     }
 }
