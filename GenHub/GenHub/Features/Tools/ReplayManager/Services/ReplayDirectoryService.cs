@@ -832,6 +832,11 @@ public sealed class ReplayDirectoryService(
                (p.EnabledContentIds is { } contentIds && contentIds.Any(id => id.Contains(ReplayManagerConstants.CommunityPatchHyphenatedKeyword, StringComparison.OrdinalIgnoreCase) || id.Contains(ReplayManagerConstants.CommunityPatchKeyword, StringComparison.OrdinalIgnoreCase)));
     }
 
+    /// <summary>
+    /// Determines whether the specified profile represents a non-retail Community Patch game client or build.
+    /// </summary>
+    /// <param name="p">The game profile to inspect.</param>
+    /// <returns><c>true</c> if the profile corresponds to a non-retail Community Patch; otherwise, <c>false</c>.</returns>
     internal static bool IsNonRetailCommunityPatchProfile(GameProfile p)
     {
         var client = p.GameClient;
