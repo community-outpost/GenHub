@@ -46,6 +46,7 @@ public static class WindowsServicesModule
         services.AddSingleton<IGitHubTokenStorage, WindowsGitHubTokenStorage>();
         services.AddSingleton<IShortcutService, WindowsShortcutService>();
         services.Replace(ServiceDescriptor.Singleton<IInstallationLocationTracker, WindowsInstallationTracker>());
+        services.Replace(ServiceDescriptor.Singleton<IInstallationSearchPathProvider, WindowsInstallationSearchPathProvider>());
 
         // Register WindowsFileOperationsService with factory to avoid circular dependency
         services.AddScoped<IFileOperationsService>(serviceProvider =>

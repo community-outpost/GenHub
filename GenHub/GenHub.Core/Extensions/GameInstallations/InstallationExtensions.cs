@@ -16,27 +16,15 @@ namespace GenHub.Core.Extensions.GameInstallations;
 /// </summary>
 public static class InstallationExtensions
 {
-    /// <summary>
-    /// Candidate executable file names for Generals and Zero Hour installations across all platforms and editions.
-    /// </summary>
-    public static readonly string[] ValidGameExecutableNames =
-    [
-        GameClientConstants.GeneralsExecutable,
-        GameClientConstants.ZeroHourExecutable,
-        GameClientConstants.SteamGameDatExecutable,
-        GameClientConstants.SuperHackersZeroHourExecutable,
-        GameClientConstants.SuperHackersGeneralsExecutable,
-        GameClientConstants.GameExecutable,
-        GameClientConstants.GeneralsOnlineDefaultExecutable,
-        GameClientConstants.GeneralsOnline60HzExecutable,
-        GameClientConstants.GeneralsOnlineEacLauncherExecutable,
-        GameClientConstants.ContraExecutable,
-    ];
-
     private static readonly HashSet<string> InstallationIdentifierSet = new(
         Enum.GetValues<GameInstallationType>().Select(t => t.ToIdentifierString())
             .Concat(new[] { PublisherInfoConstants.Retail.Name }),
         StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Gets candidate executable file names for Generals and Zero Hour installations across all platforms and editions.
+    /// </summary>
+    public static IReadOnlyList<string> ValidGameExecutableNames => GameClientConstants.ValidGameExecutableNames;
 
     /// <summary>
     /// Checks whether the directory contains a valid game executable in a case-insensitive manner.
@@ -54,14 +42,14 @@ public static class InstallationExtensions
     }
 
     /// <summary>
-    /// Checks if a file exists in a case-insensitive manner, compatible across platforms.
-    /// On Windows (NTFS), this leverages filesystem case-insensitivity.
-    /// On Linux/macOS (case-sensitive filesystems), performs explicit case-insensitive search.
+    /// Attempts to find a file in a case-insensitive manner, returning the exact on-disk path if found.
     /// </summary>
     /// <param name="filePath">The full file path to check.</param>
-    /// <returns>True if the file exists (case-insensitive match).</returns>
-    public static bool FileExistsCaseInsensitive(this string filePath)
+    /// <param name="matchedPath">The actual on-disk path if found; otherwise null.</param>
+    /// <returns>True if the file was found; otherwise false.</returns>
+    public static bool TryGetFileCaseInsensitive(this string filePath, [NotNullWhen(true)] out string? matchedPath)
     {
+        matchedPath = null;
         if (string.IsNullOrEmpty(filePath))
         {
             return false;
@@ -70,6 +58,7 @@ public static class InstallationExtensions
         // First try direct filesystem check (efficient on Windows NTFS)
         if (File.Exists(filePath))
         {
+            matchedPath = filePath;
             return true;
         }
 
@@ -90,24 +79,31 @@ public static class InstallationExtensions
                 return false;
             }
 
-            var files = directoryInfo.GetFiles();
-            return files.Any(f => string.Equals(f.Name, fileName, StringComparison.OrdinalIgnoreCase));
+            var matchingFile = directoryInfo.GetFiles().FirstOrDefault(f => string.Equals(f.Name, fileName, StringComparison.OrdinalIgnoreCase));
+            if (matchingFile is not null)
+            {
+                matchedPath = matchingFile.FullName;
+                return true;
+            }
         }
-        catch (IOException)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
         {
-            // If directory enumeration fails, fall back to false
             return false;
         }
-        catch (UnauthorizedAccessException)
-        {
-            // If directory enumeration fails due to permissions, fall back to false
-            return false;
-        }
-        catch (ArgumentException)
-        {
-            // If path contains invalid characters, fall back to false
-            return false;
-        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Checks if a file exists in a case-insensitive manner, compatible across platforms.
+    /// On Windows (NTFS), this leverages filesystem case-insensitivity.
+    /// On Linux/macOS (case-sensitive filesystems), performs explicit case-insensitive search.
+    /// </summary>
+    /// <param name="filePath">The full file path to check.</param>
+    /// <returns>True if the file exists (case-insensitive match).</returns>
+    public static bool FileExistsCaseInsensitive(this string filePath)
+    {
+        return TryGetFileCaseInsensitive(filePath, out _);
     }
 
     /// <summary>

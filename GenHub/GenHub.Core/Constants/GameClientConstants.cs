@@ -269,6 +269,22 @@ public static class GameClientConstants
     ];
 
     /// <summary>
+    /// List of valid game executable filenames for installation verification.
+    /// </summary>
+    public static readonly IReadOnlyList<string> ValidGameExecutableNames =
+    [
+        GeneralsExecutable,
+        SteamGameDatExecutable,
+        SuperHackersZeroHourExecutable,
+        SuperHackersGeneralsExecutable,
+        GameExecutable,
+        GeneralsOnlineDefaultExecutable,
+        GeneralsOnline60HzExecutable,
+        GeneralsOnlineEacLauncherExecutable,
+        ContraExecutable,
+    ];
+
+    /// <summary>
     /// Action types used in the Setup Wizard.
     /// </summary>
     public static class WizardActionTypes
