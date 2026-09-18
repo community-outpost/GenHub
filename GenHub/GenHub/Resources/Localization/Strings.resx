@@ -7479,6 +7479,9 @@ GenHub supports four file linking strategies under **Settings -&gt; Game Configu
   <data name="Tools.ModBuilder.ProjectItemPicker.Subtitle" xml:space="preserve">
     <value>Select folders to generate recursive wildcards or pick specific files to link.</value>
   </data>
+  <data name="Tools.ModBuilder.ProjectItemPicker.SearchWatermark" xml:space="preserve">
+    <value>Filter files &amp; folders...</value>
+  </data>
   <data name="Tools.ModBuilder.ProjectItemPicker.LabelFolderGlobPattern" xml:space="preserve">
     <value>Folder Glob Pattern:</value>
   </data>

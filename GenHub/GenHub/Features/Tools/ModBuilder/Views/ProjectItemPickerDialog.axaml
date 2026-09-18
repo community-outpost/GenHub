@@ -37,7 +37,7 @@
                    FontSize="12" Foreground="{DynamicResource TextSecondary}"/>
       </StackPanel>
       <TextBox Grid.Column="1" Text="{Binding SearchText, Mode=TwoWay}"
-               Watermark="Filter files &amp; folders..."
+               Watermark="{localization:Localize Tools.ModBuilder.ProjectItemPicker.SearchWatermark}"
                Width="260" VerticalAlignment="Center"/>
     </Grid>
 
