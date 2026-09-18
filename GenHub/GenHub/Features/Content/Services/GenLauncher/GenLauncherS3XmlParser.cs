@@ -1,9 +1,11 @@
 using GenHub.Core.Constants;
 using GenHub.Core.Models.GenLauncher;
+using GenHub.Core.Models.Results;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
+using System.Xml;
 using System.Xml.Linq;
 
 namespace GenHub.Features.Content.Services.GenLauncher;
@@ -14,6 +16,15 @@ namespace GenHub.Features.Content.Services.GenLauncher;
 /// </summary>
 public static class GenLauncherS3XmlParser
 {
+    private sealed record S3ParseContext(
+        string? FolderPrefix,
+        string NormalizedFolder,
+        string S3Host,
+        string BucketName,
+        string? PublicKey,
+        string? SecretKey,
+        bool UseAuth);
+
     /// <summary>
     /// Parses an S3 ListBucketResult XML document.
     /// </summary>
@@ -21,8 +32,8 @@ public static class GenLauncherS3XmlParser
     /// <param name="folderPrefix">The folder prefix within the bucket.</param>
     /// <param name="s3Host">The S3 host (e.g. gen.insave.ovh:9000 or wasabi host).</param>
     /// <param name="bucketName">The bucket name.</param>
-    /// <returns>A list of parsed file entries.</returns>
-    public static List<GenLauncherS3FileEntry> ParseListBucketResult(
+    /// <returns>An operation result containing a list of parsed file entries.</returns>
+    public static OperationResult<List<GenLauncherS3FileEntry>> ParseListBucketResult(
         string xmlContent,
         string folderPrefix,
         string s3Host,
@@ -40,8 +51,8 @@ public static class GenLauncherS3XmlParser
     /// <param name="bucketName">The bucket name.</param>
     /// <param name="isTruncated">Outputs whether more pages exist.</param>
     /// <param name="nextMarker">Outputs the next marker or continuation token if truncated.</param>
-    /// <returns>A list of parsed file entries.</returns>
-    public static List<GenLauncherS3FileEntry> ParseListBucketResult(
+    /// <returns>An operation result containing a list of parsed file entries.</returns>
+    public static OperationResult<List<GenLauncherS3FileEntry>> ParseListBucketResult(
         string xmlContent,
         string folderPrefix,
         string s3Host,
@@ -62,8 +73,8 @@ public static class GenLauncherS3XmlParser
     /// <param name="isTruncated">Outputs whether more pages exist.</param>
     /// <param name="nextMarker">Outputs the next marker or continuation token if truncated.</param>
     /// <param name="useAuth">Whether to sign file download URLs.</param>
-    /// <returns>A list of parsed file entries.</returns>
-    public static List<GenLauncherS3FileEntry> ParseListBucketResult(
+    /// <returns>An operation result containing a list of parsed file entries.</returns>
+    public static OperationResult<List<GenLauncherS3FileEntry>> ParseListBucketResult(
         string xmlContent,
         string folderPrefix,
         string s3Host,
@@ -87,9 +98,9 @@ public static class GenLauncherS3XmlParser
     /// <param name="publicKey">Explicit S3 public key, or null to check defaults.</param>
     /// <param name="secretKey">Explicit S3 secret key, or null to check defaults.</param>
     /// <param name="useAuth">Whether to sign file download URLs.</param>
-    /// <returns>A list of parsed file entries.</returns>
+    /// <returns>An operation result containing a list of parsed file entries.</returns>
     [SuppressMessage("Major Code Smell", "S107:Methods should not have too many parameters", Justification = "Overload with paging out parameters and explicit credentials")]
-    public static List<GenLauncherS3FileEntry> ParseListBucketResult(
+    public static OperationResult<List<GenLauncherS3FileEntry>> ParseListBucketResult(
         string xmlContent,
         string folderPrefix,
         string s3Host,
@@ -105,10 +116,18 @@ public static class GenLauncherS3XmlParser
         var entries = new List<GenLauncherS3FileEntry>();
         if (string.IsNullOrWhiteSpace(xmlContent))
         {
-            return entries;
+            return OperationResult<List<GenLauncherS3FileEntry>>.CreateSuccess(entries);
         }
 
-        var doc = XDocument.Parse(xmlContent);
+        XDocument doc;
+        try
+        {
+            doc = XDocument.Parse(xmlContent);
+        }
+        catch (XmlException ex)
+        {
+            return OperationResult<List<GenLauncherS3FileEntry>>.CreateFailure($"Invalid S3 XML response: {ex.Message}");
+        }
 
         var errorEl = doc.Root != null && doc.Root.Name.LocalName == "Error"
             ? doc.Root
@@ -118,7 +137,7 @@ public static class GenLauncherS3XmlParser
         {
             var code = errorEl.Descendants().FirstOrDefault(e => e.Name.LocalName == "Code")?.Value ?? "Unknown";
             var message = errorEl.Descendants().FirstOrDefault(e => e.Name.LocalName == "Message")?.Value ?? "S3 returned an error";
-            throw new InvalidOperationException($"S3 Error: {code} - {message}");
+            return OperationResult<List<GenLauncherS3FileEntry>>.CreateFailure($"S3 Error: {code} - {message}");
         }
 
         var isTruncatedEl = doc.Descendants().FirstOrDefault(e => e.Name.LocalName == "IsTruncated")?.Value;
@@ -158,7 +177,7 @@ public static class GenLauncherS3XmlParser
             nextMarker = entries[^1].Key;
         }
 
-        return entries;
+        return OperationResult<List<GenLauncherS3FileEntry>>.CreateSuccess(entries);
     }
 
     /// <summary>
@@ -272,13 +291,4 @@ public static class GenLauncherS3XmlParser
             DownloadUrl = downloadUrl,
         };
     }
-
-    private sealed record S3ParseContext(
-        string? FolderPrefix,
-        string NormalizedFolder,
-        string S3Host,
-        string BucketName,
-        string? PublicKey,
-        string? SecretKey,
-        bool UseAuth);
 }

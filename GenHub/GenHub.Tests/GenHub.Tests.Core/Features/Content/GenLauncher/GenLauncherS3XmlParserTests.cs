@@ -47,12 +47,14 @@ public sealed class GenLauncherS3XmlParserTests
     [Fact]
     public void ParseListBucketResult_WithNamespace_ExtractsValidFiles()
     {
-        var entries = GenLauncherS3XmlParser.ParseListBucketResult(
+        var result = GenLauncherS3XmlParser.ParseListBucketResult(
             SampleS3XmlWithNamespace,
             "Shockwave_1.2/",
             "gen.insave.ovh:9000",
             "generals-mods");
 
+        Assert.True(result.Success);
+        var entries = result.Data;
         Assert.Equal(2, entries.Count);
 
         var first = entries[0];
@@ -75,12 +77,14 @@ public sealed class GenLauncherS3XmlParserTests
     [Fact]
     public void ParseListBucketResult_WithoutNamespace_ExtractsValidFiles()
     {
-        var entries = GenLauncherS3XmlParser.ParseListBucketResult(
+        var result = GenLauncherS3XmlParser.ParseListBucketResult(
             SampleS3XmlWithoutNamespace,
             "Contra009",
             "s3.wasabisys.com",
             "zh-mods");
 
+        Assert.True(result.Success);
+        var entries = result.Data;
         Assert.Single(entries);
         Assert.Equal("Contra.big", entries[0].RelativePath);
         Assert.Equal(52428800, entries[0].Size);
@@ -94,15 +98,16 @@ public sealed class GenLauncherS3XmlParserTests
     [Fact]
     public void ParseListBucketResult_EmptyXml_ReturnsEmptyList()
     {
-        var entries = GenLauncherS3XmlParser.ParseListBucketResult(string.Empty, "folder", "host", "bucket");
-        Assert.Empty(entries);
+        var result = GenLauncherS3XmlParser.ParseListBucketResult(string.Empty, "folder", "host", "bucket");
+        Assert.True(result.Success);
+        Assert.Empty(result.Data);
     }
 
     /// <summary>
-    /// Tests that ParseListBucketResult throws InvalidOperationException when S3 returns an Error XML document.
+    /// Tests that ParseListBucketResult returns a failure result when S3 returns an Error XML document.
     /// </summary>
     [Fact]
-    public void ParseListBucketResult_ErrorXml_ThrowsInvalidOperationException()
+    public void ParseListBucketResult_ErrorXml_ReturnsFailureResult()
     {
         const string errorXml = @"<?xml version=""1.0"" encoding=""UTF-8""?>
 <Error>
@@ -111,11 +116,11 @@ public sealed class GenLauncherS3XmlParserTests
     <BucketName>invalid-bucket</BucketName>
 </Error>";
 
-        var ex = Assert.Throws<InvalidOperationException>(() =>
-            GenLauncherS3XmlParser.ParseListBucketResult(errorXml, "folder", "host", "bucket"));
+        var result = GenLauncherS3XmlParser.ParseListBucketResult(errorXml, "folder", "host", "bucket");
 
-        Assert.Contains("NoSuchBucket", ex.Message);
-        Assert.Contains("The specified bucket does not exist", ex.Message);
+        Assert.False(result.Success);
+        Assert.Contains("NoSuchBucket", result.FirstError);
+        Assert.Contains("The specified bucket does not exist", result.FirstError);
     }
 
     /// <summary>
@@ -124,7 +129,7 @@ public sealed class GenLauncherS3XmlParserTests
     [Fact]
     public void ParseListBucketResult_Anonymous_ExtractsUnsignedDownloadUrl()
     {
-        var entries = GenLauncherS3XmlParser.ParseListBucketResult(
+        var result = GenLauncherS3XmlParser.ParseListBucketResult(
             SampleS3XmlWithNamespace,
             "Shockwave_1.2/",
             "gen.insave.ovh:9000",
@@ -133,6 +138,8 @@ public sealed class GenLauncherS3XmlParserTests
             out var nextMarker,
             useAuth: false);
 
+        Assert.True(result.Success);
+        var entries = result.Data;
         Assert.Equal(2, entries.Count);
         var first = entries[0];
         Assert.Equal("http://gen.insave.ovh:9000/generals-mods/Shockwave_1.2/Shockwave.big", first.DownloadUrl);
@@ -159,7 +166,7 @@ public sealed class GenLauncherS3XmlParserTests
     </Contents>
 </ListBucketResult>";
 
-        var entries = GenLauncherS3XmlParser.ParseListBucketResult(
+        var result = GenLauncherS3XmlParser.ParseListBucketResult(
             s3v2Xml,
             "Contra",
             "gen.insave.ovh:9000",
@@ -167,8 +174,9 @@ public sealed class GenLauncherS3XmlParserTests
             out var isTruncated,
             out var nextMarker);
 
+        Assert.True(result.Success);
         Assert.True(isTruncated);
         Assert.Equal("token-12345", nextMarker);
-        Assert.Single(entries);
+        Assert.Single(result.Data);
     }
 }

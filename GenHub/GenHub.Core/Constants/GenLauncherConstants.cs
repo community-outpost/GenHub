@@ -76,9 +76,19 @@ public static class GenLauncherConstants
     public const string ZeroHourCatalogUrl = "https://raw.githubusercontent.com/p0ls3r/GenLauncherModsData/master/ReposModificationDataZH3.yaml";
 
     /// <summary>
+    /// Environment variable name for overriding the Zero Hour catalog URL.
+    /// </summary>
+    public const string ZeroHourCatalogUrlEnvVar = "GENLAUNCHER_ZH_CATALOG_URL";
+
+    /// <summary>
     /// Default Generals repository URL.
     /// </summary>
     public const string GeneralsCatalogUrl = "https://raw.githubusercontent.com/p0ls3r/GenLauncherModsData/master/ReposModificationDataGenerals3.yaml";
+
+    /// <summary>
+    /// Environment variable name for overriding the Generals catalog URL.
+    /// </summary>
+    public const string GeneralsCatalogUrlEnvVar = "GENLAUNCHER_GENERALS_CATALOG_URL";
 
     /// <summary>
     /// Game token for Zero Hour.
@@ -349,6 +359,24 @@ public static class GenLauncherConstants
         CtrExtension,
         SkwExtension,
     ];
+
+    /// <summary>
+    /// Gets the configured or default Zero Hour catalog URL.
+    /// May be overridden via the GENLAUNCHER_ZH_CATALOG_URL environment variable.
+    /// </summary>
+    public static string EffectiveZeroHourCatalogUrl =>
+        Environment.GetEnvironmentVariable(ZeroHourCatalogUrlEnvVar) is { Length: > 0 } envUrl
+            ? envUrl
+            : ZeroHourCatalogUrl;
+
+    /// <summary>
+    /// Gets the configured or default Generals catalog URL.
+    /// May be overridden via the GENLAUNCHER_GENERALS_CATALOG_URL environment variable.
+    /// </summary>
+    public static string EffectiveGeneralsCatalogUrl =>
+        Environment.GetEnvironmentVariable(GeneralsCatalogUrlEnvVar) is { Length: > 0 } envUrl
+            ? envUrl
+            : GeneralsCatalogUrl;
 
     /// <summary>
     /// Determines whether the specified filename or path corresponds to a GenLauncher catalog or version YAML descriptor.

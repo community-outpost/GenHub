@@ -35,6 +35,13 @@ public class GenLauncherResolver(
     ILogger<GenLauncherResolver> logger)
     : IContentResolver
 {
+    private sealed record S3BucketQuery(
+        string Host,
+        string Bucket,
+        string Folder,
+        string? PublicKey,
+        string? SecretKey);
+
     /// <inheritdoc/>
     public string ResolverId => GenLauncherConstants.PublisherId;
 
@@ -381,7 +388,7 @@ public class GenLauncherResolver(
             return (null, false, null);
         }
 
-        var fileEntries = GenLauncherS3XmlParser.ParseListBucketResult(
+        var parseResult = GenLauncherS3XmlParser.ParseListBucketResult(
             s3Xml,
             query.Folder,
             query.Host,
@@ -392,8 +399,14 @@ public class GenLauncherResolver(
             query.SecretKey,
             useAuth: usedAuth);
 
+        if (!parseResult.Success)
+        {
+            logger.LogWarning("S3 listing failed for {Bucket}/{Folder}: {Error}", query.Bucket, query.Folder, parseResult.FirstError);
+            return (null, false, null);
+        }
+
         var files = new List<ManifestFile>();
-        foreach (var entry in fileEntries)
+        foreach (var entry in parseResult.Data)
         {
             files.Add(new ManifestFile
             {
@@ -625,11 +638,4 @@ public class GenLauncherResolver(
 
         return s3Files;
     }
-
-    private sealed record S3BucketQuery(
-        string Host,
-        string Bucket,
-        string Folder,
-        string? PublicKey,
-        string? SecretKey);
 }

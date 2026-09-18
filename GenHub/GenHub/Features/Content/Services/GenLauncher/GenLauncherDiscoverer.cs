@@ -43,11 +43,6 @@ public class GenLauncherDiscoverer(
     ILocalizationService? localizationService = null)
     : IContentDiscoverer
 {
-    private const int MaxCacheEntries = 200;
-    private static readonly TimeSpan CacheTtl = TimeSpan.FromMinutes(15);
-    private readonly ConcurrentDictionary<string, (DateTime CachedAt, string Content, int ByteCount)> _cache = new(StringComparer.OrdinalIgnoreCase);
-    private long _currentCacheBytes;
-
     private sealed record ModProcessingContext(
         HttpClient Client,
         GameType Game,
@@ -64,6 +59,11 @@ public class GenLauncherDiscoverer(
         string ParentModName,
         string ParentModSlug,
         string? ParentIconUrl);
+
+    private const int MaxCacheEntries = 200;
+    private static readonly TimeSpan CacheTtl = TimeSpan.FromMinutes(15);
+    private readonly ConcurrentDictionary<string, (DateTime CachedAt, string Content, int ByteCount)> _cache = new(StringComparer.OrdinalIgnoreCase);
+    private long _currentCacheBytes;
 
     /// <summary>
     /// Gets the unique discoverer identifier.
@@ -525,13 +525,15 @@ public class GenLauncherDiscoverer(
         CancellationToken cancellationToken)
     {
         var items = new List<ContentSearchResult>();
-        var catalogUrl = game == GameType.Generals
-            ? provider?.Endpoints.Custom.GetValueOrDefault("generalsCatalogUrl", GenLauncherConstants.GeneralsCatalogUrl)
-            : provider?.Endpoints.Custom.GetValueOrDefault("zeroHourCatalogUrl", GenLauncherConstants.ZeroHourCatalogUrl);
+        var defaultCatalogUrl = game == GameType.Generals
+            ? GenLauncherConstants.EffectiveGeneralsCatalogUrl
+            : GenLauncherConstants.EffectiveZeroHourCatalogUrl;
 
-        catalogUrl ??= game == GameType.Generals
-            ? GenLauncherConstants.GeneralsCatalogUrl
-            : GenLauncherConstants.ZeroHourCatalogUrl;
+        var catalogUrl = game == GameType.Generals
+            ? provider?.Endpoints.Custom.GetValueOrDefault("generalsCatalogUrl", defaultCatalogUrl)
+            : provider?.Endpoints.Custom.GetValueOrDefault("zeroHourCatalogUrl", defaultCatalogUrl);
+
+        catalogUrl ??= defaultCatalogUrl;
 
         var rootYaml = await FetchStringWithCacheAsync(client, catalogUrl, cancellationToken);
         if (string.IsNullOrWhiteSpace(rootYaml))
@@ -1122,27 +1124,30 @@ public class GenLauncherDiscoverer(
             return null;
         }
 
-        try
-        {
-            var entries = GenLauncherS3XmlParser.ParseListBucketResult(
-                xml,
-                manifest.S3FolderName!,
-                manifest.S3HostLink!,
-                manifest.S3BucketName!,
-                out var isTruncated,
-                out var nextMarker,
-                manifest.S3HostPublicKey,
-                manifest.S3HostSecretKey,
-                useAuth: usedAuth);
+        var parseResult = GenLauncherS3XmlParser.ParseListBucketResult(
+            xml,
+            manifest.S3FolderName!,
+            manifest.S3HostLink!,
+            manifest.S3BucketName!,
+            out var isTruncated,
+            out var nextMarker,
+            manifest.S3HostPublicKey,
+            manifest.S3HostSecretKey,
+            useAuth: usedAuth);
 
-            var pageSize = entries.Sum(e => e.Size);
-            return (pageSize, isTruncated, nextMarker);
-        }
-        catch (Exception ex)
+        if (!parseResult.Success)
         {
-            logger.LogWarning(ex, "Failed to parse S3 page size XML for host={Host}, bucket={Bucket}, prefix={Prefix}", manifest.S3HostLink, manifest.S3BucketName, manifest.S3FolderName);
+            logger.LogDebug(
+                "S3 page size XML indicated failure for host={Host}, bucket={Bucket}, prefix={Prefix}: {Error}",
+                manifest.S3HostLink,
+                manifest.S3BucketName,
+                manifest.S3FolderName,
+                parseResult.FirstError);
             return null;
         }
+
+        var pageSize = parseResult.Data.Sum(e => e.Size);
+        return (pageSize, isTruncated, nextMarker);
     }
 
     private async Task<long?> TryCalculateS3SizeAsync(
