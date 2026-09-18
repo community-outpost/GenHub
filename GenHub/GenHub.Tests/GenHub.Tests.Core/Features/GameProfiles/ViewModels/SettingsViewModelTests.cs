@@ -1299,6 +1299,27 @@ public class SettingsViewModelTests
     }
 
     /// <summary>
+    /// Verifies that rate limit updates dynamically update GitHubRateLimitText when authenticated.
+    /// </summary>
+    [Fact]
+    public void RateLimitUpdated_WhenAuthenticated_UpdatesRateLimitText()
+    {
+        // Arrange
+        var mockAuthService = new Mock<IGitHubAuthService>();
+        mockAuthService.SetupGet(x => x.IsAuthenticated).Returns(true);
+        var tracker = new GitHubRateLimitTracker(Microsoft.Extensions.Logging.Abstractions.NullLogger<GitHubRateLimitTracker>.Instance);
+        var viewModel = CreateViewModel(
+            gitHubAuthService: mockAuthService.Object,
+            rateLimitTracker: tracker);
+
+        // Act
+        tracker.UpdateFromHeaders(2500, 5000, DateTime.UtcNow.AddHours(1));
+
+        // Assert
+        Assert.Contains("2500 of 5000", viewModel.GitHubRateLimitText);
+    }
+
+    /// <summary>
     /// Verifies that RefreshUploadsCommand populates active upload items and computes quota percentage.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>

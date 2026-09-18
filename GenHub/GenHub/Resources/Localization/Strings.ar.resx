@@ -4419,21 +4419,6 @@
   <data name="Info.WorkspaceDemo.Description" xml:space="preserve">
     <value>تنشئ هذه العملية تثبيت لعبة 'افتراضي' بالكامل في أجزاء من الثانية باستخدام مساحة قرص شبه معدومة.</value>
   </data>
-  <data name="GitHub.TokenDialog.TokenLabel" xml:space="preserve">
-    <value>رمز الوصول الشخصي:</value>
-  </data>
-  <data name="GitHub.TokenDialog.NoTokenPrompt" xml:space="preserve">
-    <value>ليس لديك رمز وصول شخصي؟</value>
-  </data>
-  <data name="GitHub.TokenDialog.CreatePatLink" xml:space="preserve">
-    <value>إنشاء رمز وصول شخصي على GitHub ←</value>
-  </data>
-  <data name="GitHub.TokenDialog.CreatePatTooltip" xml:space="preserve">
-    <value>انقر لفتح صفحة إنشاء رمز PAT على GitHub</value>
-  </data>
-  <data name="GitHub.TokenDialog.ValidatingToken" xml:space="preserve">
-    <value>جارٍ التحقق من الرمز...</value>
-  </data>
   <data name="Downloads.Browser.Publishers" xml:space="preserve">
     <value>الناشرون</value>
   </data>
@@ -7894,10 +7879,6 @@ GenHub هو مشغل ومدير حديث لألعاب **Command &amp; Conquer: G
   </data>
   <data name="GameProfiles.ShareDialog.Notification.LoadProfileFailed.Message" xml:space="preserve">
     <value>فشل تحميل تفاصيل ملف التعريف.</value>
-  </data>
-  <data name="GitHub.TokenDialog.Title" xml:space="preserve">
-    <value>مصادقة GitHub</value>
-    <comment>Title for GitHub PAT dialog</comment>
   </data>
   <data name="GenLauncher.Prefix.News" xml:space="preserve">
     <value>الأخبار</value>

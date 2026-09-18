@@ -4419,21 +4419,6 @@ This will modify game files and configuration settings at:
   <data name="Info.WorkspaceDemo.Description" xml:space="preserve">
     <value>This process creates a full 'virtual' game installation in milliseconds using almost zero disk space.</value>
   </data>
-  <data name="GitHub.TokenDialog.TokenLabel" xml:space="preserve">
-    <value>Personal Access Token:</value>
-  </data>
-  <data name="GitHub.TokenDialog.NoTokenPrompt" xml:space="preserve">
-    <value>Don't have a Personal Access Token?</value>
-  </data>
-  <data name="GitHub.TokenDialog.CreatePatLink" xml:space="preserve">
-    <value>Create a GitHub Personal Access Token →</value>
-  </data>
-  <data name="GitHub.TokenDialog.CreatePatTooltip" xml:space="preserve">
-    <value>Click to open GitHub PAT creation page</value>
-  </data>
-  <data name="GitHub.TokenDialog.ValidatingToken" xml:space="preserve">
-    <value>Validating token...</value>
-  </data>
   <data name="Downloads.Browser.Publishers" xml:space="preserve">
     <value>Publishers</value>
   </data>
@@ -7988,10 +7973,6 @@ Do you want to download and inspect this profile package?</value>
   </data>
   <data name="GameProfiles.ShareDialog.Notification.LoadProfileFailed.Message" xml:space="preserve">
     <value>Failed to load profile details.</value>
-  </data>
-  <data name="GitHub.TokenDialog.Title" xml:space="preserve">
-    <value>GitHub Authentication</value>
-    <comment>Title for GitHub PAT dialog</comment>
   </data>
   <data name="GenLauncher.Prefix.News" xml:space="preserve">
     <value>News</value>

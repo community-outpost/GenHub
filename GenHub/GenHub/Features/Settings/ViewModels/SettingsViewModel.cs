@@ -388,6 +388,11 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             _gitHubAuthService.AuthStateChanged += OnGitHubAuthStateChanged;
         }
 
+        if (_rateLimitTracker != null)
+        {
+            _rateLimitTracker.RateLimitUpdated += OnRateLimitUpdated;
+        }
+
         _ = LoadGitHubAuthStateAsync();
 
         // Initialize with default if needed
@@ -605,6 +610,11 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
                 if (_gitHubAuthService != null)
                 {
                     _gitHubAuthService.AuthStateChanged -= OnGitHubAuthStateChanged;
+                }
+
+                if (_rateLimitTracker != null)
+                {
+                    _rateLimitTracker.RateLimitUpdated -= OnRateLimitUpdated;
                 }
 
                 // Cancel any in-flight device flow sign-in; the async command owns its token.
@@ -1502,6 +1512,11 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     private void OnGitHubAuthStateChanged(object? sender, GitHubAuthStateChangedEventArgs e)
     {
         RunOnUiSafe(RefreshGitHubAuthState);
+    }
+
+    private void OnRateLimitUpdated(object? sender, EventArgs e)
+    {
+        RunOnUiSafe(UpdateGitHubRateLimitText);
     }
 
     private void RefreshGitHubAuthState()

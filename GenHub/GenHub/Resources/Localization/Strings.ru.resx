@@ -4419,21 +4419,6 @@
   <data name="Info.WorkspaceDemo.Description" xml:space="preserve">
     <value>Этот процесс создает полную «виртуальную» установку игры за миллисекунды, используя минимум дискового пространства.</value>
   </data>
-  <data name="GitHub.TokenDialog.TokenLabel" xml:space="preserve">
-    <value>Персональный токен доступа:</value>
-  </data>
-  <data name="GitHub.TokenDialog.NoTokenPrompt" xml:space="preserve">
-    <value>Нет персонального токена доступа?</value>
-  </data>
-  <data name="GitHub.TokenDialog.CreatePatLink" xml:space="preserve">
-    <value>Создать персональный токен доступа GitHub →</value>
-  </data>
-  <data name="GitHub.TokenDialog.CreatePatTooltip" xml:space="preserve">
-    <value>Нажмите, чтобы открыть страницу создания PAT на GitHub</value>
-  </data>
-  <data name="GitHub.TokenDialog.ValidatingToken" xml:space="preserve">
-    <value>Проверка токена...</value>
-  </data>
   <data name="Downloads.Browser.Publishers" xml:space="preserve">
     <value>Издатели</value>
   </data>
@@ -7894,10 +7879,6 @@ GenHub передает официальный идентификатор AppID 
   </data>
   <data name="GameProfiles.ShareDialog.Notification.LoadProfileFailed.Message" xml:space="preserve">
     <value>Не удалось загрузить сведения о профиле.</value>
-  </data>
-  <data name="GitHub.TokenDialog.Title" xml:space="preserve">
-    <value>Аутентификация GitHub</value>
-    <comment>Title for GitHub PAT dialog</comment>
   </data>
   <data name="GenLauncher.Prefix.News" xml:space="preserve">
     <value>Новости</value>
