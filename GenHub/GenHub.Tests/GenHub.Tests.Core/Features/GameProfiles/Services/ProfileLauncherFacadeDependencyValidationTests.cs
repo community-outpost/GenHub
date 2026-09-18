@@ -371,6 +371,112 @@ public sealed class ProfileLauncherFacadeDependencyValidationTests
         Assert.True(result.Success);
     }
 
+    /// <summary>
+    /// Verifies that when an installed dependency candidate matches by identity but fails version constraints, launch validation fails with a version mismatch error.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task ValidateLaunchAsync_WhenDependencyVersionIncompatible_FailsValidationAsync()
+    {
+        // Arrange
+        const string profileId = "profile-version-incompatible";
+        const string installationManifestId = "1.104.steam.gameinstallation.zerohour";
+        const string clientManifestId = "1.104.steam.gameclient.zerohour";
+        const string modManifestId = "1.0.ea.mod.samplemod";
+        const string depManifestId = "1.0.ea.addon.sampleaddon";
+
+        var installationManifest = new ContentManifest
+        {
+            Id = ManifestId.Create(installationManifestId),
+            Name = "Steam Zero Hour",
+            ContentType = ContentType.GameInstallation,
+            TargetGame = GameType.ZeroHour,
+        };
+
+        var clientManifest = new ContentManifest
+        {
+            Id = ManifestId.Create(clientManifestId),
+            Name = "Steam Zero Hour Client",
+            ContentType = ContentType.GameClient,
+            TargetGame = GameType.ZeroHour,
+        };
+
+        var modManifest = new ContentManifest
+        {
+            Id = ManifestId.Create(modManifestId),
+            Name = "Sample Mod",
+            ContentType = ContentType.Mod,
+            TargetGame = GameType.ZeroHour,
+            Dependencies =
+            [
+                new ContentDependency
+                {
+                    Id = ManifestId.Create("1.0.ea.addon.sampleaddon"),
+                    Name = "Sample Addon",
+                    DependencyType = ContentType.Addon,
+                    MinVersion = "2.0.0",
+                    IsOptional = false,
+                },
+            ],
+        };
+
+        var depManifest = new ContentManifest
+        {
+            Id = ManifestId.Create(depManifestId),
+            Name = "Sample Addon",
+            ContentType = ContentType.Addon,
+            TargetGame = GameType.ZeroHour,
+            Version = "1.0.0",
+        };
+
+        var profile = new GameProfile
+        {
+            Id = profileId,
+            Name = "Version Incompatible Profile",
+            GameInstallationId = "steam-zh-install-id",
+            GameClient = new GameClient
+            {
+                Id = clientManifestId,
+                Name = clientManifest.Name,
+                GameType = GameType.ZeroHour,
+                InstallationId = "steam-zh-install-id",
+            },
+            EnabledContentIds =
+            [
+                installationManifestId,
+                clientManifestId,
+                modManifestId,
+                depManifestId,
+            ],
+        };
+
+        _profileManagerMock
+            .Setup(p => p.GetProfileAsync(profileId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(profile));
+
+        _manifestPoolMock
+            .Setup(m => m.GetManifestAsync(ManifestId.Create(installationManifestId), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentManifest?>.CreateSuccess(installationManifest));
+        _manifestPoolMock
+            .Setup(m => m.GetManifestAsync(ManifestId.Create(clientManifestId), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentManifest?>.CreateSuccess(clientManifest));
+        _manifestPoolMock
+            .Setup(m => m.GetManifestAsync(ManifestId.Create(modManifestId), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentManifest?>.CreateSuccess(modManifest));
+        _manifestPoolMock
+            .Setup(m => m.GetManifestAsync(ManifestId.Create(depManifestId), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentManifest?>.CreateSuccess(depManifest));
+
+        var facade = CreateFacade();
+
+        // Act
+        var result = await facade.ValidateLaunchAsync(profileId);
+
+        // Assert: Validation must fail because installed version 1.0.0 is less than min version 2.0.0
+        Assert.False(result.Success);
+        Assert.Contains(result.Errors, err => err.Contains("Sample Addon") && err.Contains("min version 2.0.0") && err.Contains("1.0.0"));
+    }
+
     private ProfileLauncherFacade CreateFacade()
     {
         return new ProfileLauncherFacade(
