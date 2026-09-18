@@ -316,4 +316,20 @@ public class CommunityOutpostDiscovererTests
 
         // Assert
         var expected = category switch
-        {\n            GenPatcherContentCategory.CommunityPatch => CommunityOutpostConstants.CommunityPatchTags,\n            GenPatcherContentCategory.OfficialPatch => CommunityOutpostConstants.OfficialPatchTags,\n            GenPatcherContentCategory.BaseGame => CommunityOutpostConstants.BaseGameTags,\n            GenPatcherContentCategory.ControlBar => CommunityOutpostConstants.ControlBarTags,\n            GenPatcherContentCategory.Hotkeys => CommunityOutpostConstants.HotkeysTags,\n            GenPatcherContentCategory.Camera => CommunityOutpostConstants.CameraTags,\n            GenPatcherContentCategory.Tools => CommunityOutpostConstants.ToolsTags,\n            GenPatcherContentCategory.Maps => CommunityOutpostConstants.MapsTags,\n            GenPatcherContentCategory.Visuals => CommunityOutpostConstants.VisualsTags,\n            GenPatcherContentCategory.Prerequisites => CommunityOutpostConstants.PrerequisitesTags,\n            _ => CommunityOutpostConstants.AddonTags,\n        };\n\n        Assert.Same(expected, tags);\n    }\n}\n
+        {
+            GenPatcherContentCategory.CommunityPatch => CommunityOutpostConstants.CommunityPatchTags,
+            GenPatcherContentCategory.OfficialPatch => CommunityOutpostConstants.OfficialPatchTags,
+            GenPatcherContentCategory.BaseGame => CommunityOutpostConstants.BaseGameTags,
+            GenPatcherContentCategory.ControlBar => CommunityOutpostConstants.ControlBarTags,
+            GenPatcherContentCategory.Hotkeys => CommunityOutpostConstants.HotkeysTags,
+            GenPatcherContentCategory.Camera => CommunityOutpostConstants.CameraTags,
+            GenPatcherContentCategory.Tools => CommunityOutpostConstants.ToolsTags,
+            GenPatcherContentCategory.Maps => CommunityOutpostConstants.MapsTags,
+            GenPatcherContentCategory.Visuals => CommunityOutpostConstants.VisualsTags,
+            GenPatcherContentCategory.Prerequisites => CommunityOutpostConstants.PrerequisitesTags,
+            _ => CommunityOutpostConstants.AddonTags,
+        };
+
+        Assert.Same(expected, tags);
+    }
+}
