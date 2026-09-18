@@ -236,11 +236,11 @@
                     <Grid ColumnDefinitions="*,Auto" Margin="20,16,20,8">
                         <StackPanel Grid.Column="0" Orientation="Vertical" VerticalAlignment="Center">
                             <TextBlock Text="{localization:Localize GameProfiles.Title.GameProfiles}" FontSize="20" FontWeight="SemiBold"
-                                Foreground="White" Margin="0 0 0 4" />
+                                Foreground="{DynamicResource TextPrimary}" Margin="0 0 0 4" />
                             <TextBlock Text="{localization:Localize GameProfiles.Subtitle.GameProfiles}"
-                               Foreground="#AAAAAA" FontSize="13" />
+                               Foreground="{DynamicResource TextSecondary}" FontSize="13" />
                             <TextBlock Text="{Binding StatusMessage}"
-                                       Foreground="#BF40BF" FontSize="12"
+                                       Foreground="{DynamicResource AccentBrush}" FontSize="12"
                                        IsVisible="{Binding StatusMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
                                        Margin="0,4,0,0" />
                         </StackPanel>

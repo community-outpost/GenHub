@@ -64,6 +64,36 @@ public static class ApiConstants
     /// </summary>
     public const string GitHubApiRunArtifactsFormat = "https://api.github.com/repos/{0}/{1}/actions/runs/{2}/artifacts";
 
+    /// <summary>
+    /// Format string for GitHub API Branches endpoint (owner, repo).
+    /// </summary>
+    public const string GitHubApiBranchesFormat = "https://api.github.com/repos/{0}/{1}/branches?per_page=100";
+
+    /// <summary>
+    /// Format string for GitHub API Releases endpoint (owner, repo).
+    /// </summary>
+    public const string GitHubApiReleasesFormat = "https://api.github.com/repos/{0}/{1}/releases";
+
+    /// <summary>
+    /// GitHub API user endpoint for token validation.
+    /// </summary>
+    public const string GitHubApiUserEndpoint = "https://api.github.com/user";
+
+    /// <summary>
+    /// Format string for legacy community content dependency archives (content code).
+    /// </summary>
+    public const string LegacyContentDependencyFormat = "https://legi.cc/gp2/f/{0}.dat";
+
+    /// <summary>
+    /// Format string for legacy community patch dependency archives (content code).
+    /// </summary>
+    public const string LegacyPatchDependencyFormat = "https://legi.cc/patch/{0}.dat";
+
+    /// <summary>
+    /// OneDrive direct download endpoint for cloud mirror links.
+    /// </summary>
+    public const string OneDriveDownloadEndpoint = "https://onedrive.live.com/download";
+
     // Upload Gateway & Cloud Storage
 
     /// <summary>

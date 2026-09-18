@@ -1,4 +1,5 @@
 using GenHub.Core.Constants;
+using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.Manifest;
@@ -309,7 +310,7 @@ public class GeneralsOnlineDeliverer(
         });
 
         logger.LogDebug("Extracting ZIP to {Path}", extractPath);
-        ZipFile.ExtractToDirectory(zipPath, extractPath, overwriteFiles: true);
+        ZipArchiveGuard.ExtractToDirectory(zipPath, extractPath);
 
         return OperationResult<(string, string)>.CreateSuccess((zipPath, extractPath));
     }

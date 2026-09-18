@@ -121,7 +121,7 @@ public class SuperHackersUpdateService(
         try
         {
             // Construct GitHub API URL
-            var url = $"https://api.github.com/repos/{SuperHackersConstants.GeneralsGameCodeOwner}/{SuperHackersConstants.GeneralsGameCodeRepo}/releases/latest";
+            var url = string.Format(ApiConstants.GitHubApiReleasesFormat, SuperHackersConstants.GeneralsGameCodeOwner, SuperHackersConstants.GeneralsGameCodeRepo) + "/latest";
 
             using var httpClient = httpClientFactory.CreateClient(PublisherTypeConstants.TheSuperHackers);
 

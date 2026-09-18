@@ -172,7 +172,7 @@ public class OctokitGitHubApiClient(
                 }
             }
 
-            var artifactUrl = $"https://api.github.com/repos/{owner}/{repo}/actions/artifacts/{artifact.Id}/zip";
+            var artifactUrl = string.Format(ApiConstants.GitHubApiArtifactDownloadFormat, owner, repo, artifact.Id);
             logger.LogInformation("Requesting artifact from URL: {Url}", artifactUrl);
 
             var httpClient = httpClientFactory.CreateClient("GitHubApi");

@@ -97,6 +97,33 @@ public class ContentStorageService : IContentStorageService
         return Convert.ToHexString(hashBytes);
     }
 
+    private static bool TryLinkOrCopy(string sourcePath, string targetPath)
+    {
+        try
+        {
+            if (File.Exists(targetPath))
+            {
+                File.Delete(targetPath);
+            }
+
+            if (PathHelper.TryCreateHardLink(sourcePath, targetPath))
+            {
+                return true;
+            }
+
+            File.Copy(sourcePath, targetPath, overwrite: true);
+            return true;
+        }
+        catch (IOException)
+        {
+            return false;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return false;
+        }
+    }
+
     /// <summary>
     /// Determines whether a path is located within a system temporary directory.
     /// </summary>
@@ -420,13 +447,23 @@ public class ContentStorageService : IContentStorageService
                 }
 
                 var targetPath = Path.Combine(targetDirectory, file.RelativePath);
+                if (!PathHelper.IsPathWithinDirectory(targetDirectory, targetPath))
+                {
+                    return OperationResult<string>.CreateFailure(
+                        $"Manifest entry escapes target directory: {file.RelativePath}");
+                }
+
                 var targetDir = Path.GetDirectoryName(targetPath);
                 if (!string.IsNullOrEmpty(targetDir))
                 {
                     Directory.CreateDirectory(targetDir);
                 }
 
-                File.Copy(casPathResult.Data, targetPath, overwrite: true);
+                if (!TryLinkOrCopy(casPathResult.Data, targetPath))
+                {
+                    return OperationResult<string>.CreateFailure(
+                        $"Failed to materialize file {file.RelativePath} from CAS.");
+                }
             }
 
             _logger.LogDebug("Retrieved content for manifest {ManifestId} to {TargetDirectory}", manifestId, targetDirectory);

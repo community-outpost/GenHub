@@ -1,4 +1,5 @@
 using GenHub.Core.Constants;
+using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
@@ -49,16 +50,26 @@ public class LocalManifestResolver(ILogger<LocalManifestResolver> logger) : ICon
         try
         {
             var manifestJson = await File.ReadAllTextAsync(manifestPath, cancellationToken);
-            var manifest = JsonSerializer.Deserialize<ContentManifest>(manifestJson);
+            var manifest = JsonSerializer.Deserialize<ContentManifest>(manifestJson, ManifestJsonOptions.Default);
 
-            if (manifest == null)
+            if (manifest == null || string.IsNullOrWhiteSpace(manifest.Id.Value) || manifest.Files == null)
             {
-                return OperationResult<ContentManifest>.CreateFailure("Failed to deserialize manifest.");
+                return OperationResult<ContentManifest>.CreateFailure("Manifest is missing required fields.");
             }
 
             return OperationResult<ContentManifest>.CreateSuccess(manifest);
         }
-        catch (Exception ex)
+        catch (JsonException ex)
+        {
+            logger.LogError(ex, "Failed to resolve manifest from local file: {Path}", manifestPath);
+            return OperationResult<ContentManifest>.CreateFailure($"Failed to read or parse local manifest: {ex.Message}");
+        }
+        catch (IOException ex)
+        {
+            logger.LogError(ex, "Failed to resolve manifest from local file: {Path}", manifestPath);
+            return OperationResult<ContentManifest>.CreateFailure($"Failed to read or parse local manifest: {ex.Message}");
+        }
+        catch (UnauthorizedAccessException ex)
         {
             logger.LogError(ex, "Failed to resolve manifest from local file: {Path}", manifestPath);
             return OperationResult<ContentManifest>.CreateFailure($"Failed to read or parse local manifest: {ex.Message}");

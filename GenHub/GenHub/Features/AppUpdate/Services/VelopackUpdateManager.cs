@@ -1,4 +1,5 @@
 using GenHub.Core.Constants;
+using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GitHub;
 using GenHub.Core.Models.AppUpdate;
@@ -334,8 +335,8 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
             // If we reach here, restart might have failed
             _logger.LogWarning("ApplyUpdatesAndRestart returned without exiting - this is unexpected");
 
-            // Wait a bit for exit to happen
-            Task.Delay(AppUpdateConstants.PostUpdateExitDelay).Wait();
+            // Wait a bit for exit to happen (sync context: blocking sleep avoids thread-pool sync-over-async)
+            Thread.Sleep(AppUpdateConstants.PostUpdateExitDelay);
         }
         catch (Exception ex)
         {
@@ -634,7 +635,7 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
             using var client = CreateConfiguredHttpClientWithToken(token);
             var owner = AppConstants.GitHubRepositoryOwner;
             var repo = AppConstants.GitHubRepositoryName;
-            var branchesUrl = $"https://api.github.com/repos/{owner}/{repo}/branches?per_page=100";
+            var branchesUrl = string.Format(ApiConstants.GitHubApiBranchesFormat, owner, repo);
 
             var response = await client.GetAsync(branchesUrl, cancellationToken);
             if (!response.IsSuccessStatusCode)
@@ -711,7 +712,7 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
             var artifactId = artifactInfo.ArtifactId;
 
             // Download artifact
-            var downloadUrl = $"https://api.github.com/repos/{owner}/{repo}/actions/artifacts/{artifactId}/zip";
+            var downloadUrl = string.Format(ApiConstants.GitHubApiArtifactDownloadFormat, owner, repo, artifactId);
             _logger.LogInformation("Downloading {Label} artifact from {Url}", label, downloadUrl);
 
             // Create temp directory
@@ -753,8 +754,8 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
 
             progress?.Report(new UpdateProgress { Status = "Extracting artifact...", PercentComplete = 30 });
 
-            // Extract the ZIP
-            ZipFile.ExtractToDirectory(zipPath, tempDir);
+            // Extract the ZIP with per-entry containment validation (zip-slip hardening)
+            ZipArchiveGuard.ExtractToDirectory(zipPath, tempDir);
 
             // Find .nupkg file
             var nupkgFiles = Directory.GetFiles(tempDir, "*.nupkg", SearchOption.AllDirectories);
@@ -1250,7 +1251,7 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
 
     private async Task<string?> FetchGitHubReleasesJsonAsync(string owner, string repo, CancellationToken cancellationToken)
     {
-        var apiUrl = $"https://api.github.com/repos/{owner}/{repo}/releases";
+        var apiUrl = string.Format(ApiConstants.GitHubApiReleasesFormat, owner, repo);
         HttpClient client;
         if (_gitHubTokenStorage != null && await _gitHubTokenStorage.LoadTokenAsync() is { } token)
         {

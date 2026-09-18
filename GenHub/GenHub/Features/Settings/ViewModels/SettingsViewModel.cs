@@ -1468,7 +1468,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             HasGitHubPat = _gitHubTokenStorage?.HasToken() == true;
             if (HasGitHubPat)
             {
-                PatStatusMessage = _localizationService?.GetString("Settings.GitHubPat.Status.Configured") ?? "GitHub PAT configured ✓";
+                PatStatusMessage = _localizationService?.GetString("Settings.GitHubPat.Status.Configured") ?? "GitHub PAT configured";
                 IsPatValid = true;
             }
             else
@@ -1662,7 +1662,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             await _gitHubTokenStorage.SaveTokenAsync(secureString);
 
             PatStatusMessage = validated
-                ? _localizationService?.GetString("Settings.GitHubPat.Status.ValidatedSuccess") ?? "PAT validated successfully ✓"
+                ? _localizationService?.GetString("Settings.GitHubPat.Status.ValidatedSuccess") ?? "PAT validated successfully"
                 : _localizationService?.GetString("Settings.GitHubPat.Status.SavedPending") ?? "PAT saved (validation pending)";
             IsPatValid = validated;
             HasGitHubPat = true;

@@ -24,22 +24,7 @@ public class LocalizedToolDescriptionConverter : IValueConverter
     {
         try
         {
-            var localizationService = LocalizationConverterHelper.ResolveLocalizationService();
-
-            if (value is IToolPlugin plugin)
-            {
-                return GetLocalizedDescription(localizationService, plugin.Metadata.Id, plugin.Metadata.Description ?? string.Empty);
-            }
-
-            if (value is ToolMetadata metadata)
-            {
-                return GetLocalizedDescription(localizationService, metadata.Id, metadata.Description ?? string.Empty);
-            }
-
-            if (value is string text && !string.IsNullOrWhiteSpace(text))
-            {
-                return GetLocalizedDescription(localizationService, text, text);
-            }
+            return LocalizationConverterHelper.ConvertToolText(value, ToolDescriptionKeyFormat, static metadata => metadata.Description);
         }
         catch
         {
@@ -52,7 +37,4 @@ public class LocalizedToolDescriptionConverter : IValueConverter
     /// <inheritdoc/>
     public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture) =>
         throw new NotSupportedException();
-
-    private static string GetLocalizedDescription(ILocalizationService? localizationService, string id, string fallback) =>
-        LocalizationConverterHelper.ResolveToolMetadataText(localizationService, ToolDescriptionKeyFormat, id, fallback);
 }

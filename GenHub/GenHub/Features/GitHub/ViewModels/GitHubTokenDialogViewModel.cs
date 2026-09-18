@@ -123,7 +123,7 @@ public partial class GitHubTokenDialogViewModel(
             client.DefaultRequestHeaders.UserAgent.Add(new ProductInfoHeaderValue("GenHub", AppConstants.AppVersion));
             client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", GetPlainToken());
 
-            var response = await client.GetAsync("https://api.github.com/user");
+            var response = await client.GetAsync(ApiConstants.GitHubApiUserEndpoint);
 
             if (response.IsSuccessStatusCode)
             {

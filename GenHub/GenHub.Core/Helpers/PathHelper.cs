@@ -197,6 +197,59 @@ public static class PathHelper
     }
 
     /// <summary>
+    /// Attempts to create a hard link at the destination pointing at the source file.
+    /// </summary>
+    /// <param name="sourcePath">The existing file.</param>
+    /// <param name="destinationPath">The link path to create.</param>
+    /// <returns>True when the link was created; otherwise, false.</returns>
+    public static bool TryCreateHardLink(string sourcePath, string destinationPath)
+    {
+        try
+        {
+            if (OperatingSystem.IsWindows())
+            {
+                return CreateHardLinkWindows(destinationPath, sourcePath, IntPtr.Zero);
+            }
+
+            return LinkUnix(sourcePath, destinationPath) == 0;
+        }
+        catch (IOException)
+        {
+            return false;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return false;
+        }
+        catch (NotSupportedException)
+        {
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Sanitizes a file name by replacing invalid characters with underscores.
+    /// </summary>
+    /// <param name="fileName">The file name to sanitize.</param>
+    /// <param name="replaceSpaces">When true, spaces are also replaced (desktop-entry rule).</param>
+    /// <returns>A sanitized file name.</returns>
+    public static string SanitizeFileName(string fileName, bool replaceSpaces = false)
+    {
+        var sanitized = new System.Text.StringBuilder(fileName);
+        foreach (var invalidCharacter in Path.GetInvalidFileNameChars())
+        {
+            sanitized.Replace(invalidCharacter, '_');
+        }
+
+        if (replaceSpaces)
+        {
+            sanitized.Replace(' ', '_');
+        }
+
+        return sanitized.ToString().Trim();
+    }
+
+    /// <summary>
     /// Gets the parent directory of a path, with fallback to the path itself if at drive root.
     /// </summary>
     /// <param name="path">The path to get the parent directory from.</param>
@@ -496,6 +549,12 @@ public static class PathHelper
             return fullPath;
         }
     }
+
+    [System.Runtime.InteropServices.DllImport("kernel32", SetLastError = true, CharSet = System.Runtime.InteropServices.CharSet.Unicode)]
+    private static extern bool CreateHardLinkWindows(string lpFileName, string lpExistingFileName, IntPtr lpSecurityAttributes);
+
+    [System.Runtime.InteropServices.DllImport("libc", SetLastError = true)]
+    private static extern int LinkUnix(string oldpath, string newpath);
 
     private static bool TryGetFullPathAndVolumeRoot(
         string path,

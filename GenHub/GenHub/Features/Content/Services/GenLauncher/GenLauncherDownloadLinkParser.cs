@@ -1,3 +1,4 @@
+using GenHub.Core.Constants;
 using System;
 using System.Collections.Generic;
 using System.Text.RegularExpressions;
@@ -10,7 +11,6 @@ namespace GenHub.Features.Content.Services.GenLauncher;
 /// </summary>
 public static partial class GenLauncherDownloadLinkParser
 {
-    private const string OneDriveDownloadEndpoint = "https://onedrive.live.com/download";
     private const string OneDriveViewAspx = "/view.aspx";
     private const string OneDriveDownloadAspx = "/download.aspx";
     private const string OneDriveEmbed = "/embed";
@@ -89,7 +89,7 @@ public static partial class GenLauncherDownloadLinkParser
 
             if (!string.IsNullOrEmpty(cid) && !string.IsNullOrEmpty(resid))
             {
-                var builder = new UriBuilder(OneDriveDownloadEndpoint)
+                var builder = new UriBuilder(ApiConstants.OneDriveDownloadEndpoint)
                 {
                     Query = $"cid={Uri.EscapeDataString(cid)}&resid={Uri.EscapeDataString(resid)}" +
                             (!string.IsNullOrEmpty(authkey) ? $"&authkey={Uri.EscapeDataString(authkey)}" : string.Empty),

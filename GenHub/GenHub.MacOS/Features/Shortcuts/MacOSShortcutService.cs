@@ -1,4 +1,5 @@
 using GenHub.Core.Constants;
+using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Shortcuts;
 using GenHub.Core.Models.GameProfile;
 using GenHub.Core.Models.Results;
@@ -105,14 +106,6 @@ public sealed class MacOSShortcutService(ILogger<MacOSShortcutService> logger) :
         return Task.FromResult(OperationResult<bool>.CreateSuccess(false));
     }
 
-    private static string SanitizeFileName(string fileName)
-    {
-        var sanitized = new StringBuilder(fileName);
-        foreach (var invalidCharacter in Path.GetInvalidFileNameChars())
-        {
-            sanitized.Replace(invalidCharacter, '_');
-        }
-
-        return sanitized.ToString().Trim();
-    }
+    private static string SanitizeFileName(string fileName) =>
+        PathHelper.SanitizeFileName(fileName);
 }
