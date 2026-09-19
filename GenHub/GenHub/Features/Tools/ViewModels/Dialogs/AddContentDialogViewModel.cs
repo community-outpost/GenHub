@@ -723,11 +723,11 @@ public partial class AddContentDialogViewModel(
         contentItem.Releases.Add(release);
     }
 
-    private bool CopyFromExistingItem(CatalogContentItem contentItem)
+    private void CopyFromExistingItem(CatalogContentItem contentItem)
     {
         if (_existingItem == null)
         {
-            return false;
+            return;
         }
 
         // Preserve existing releases & dependencies as deep copies so the edited
@@ -741,8 +741,6 @@ public partial class AddContentDialogViewModel(
         {
             contentItem.BundledItems.Add(CloneDependency(dependency));
         }
-
-        return true;
     }
 
     partial void OnContentIdChanged(string value) => Validate();

@@ -14,6 +14,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
@@ -2729,7 +2730,7 @@ public partial class PublishShareViewModel(
     [RelayCommand]
     private void OpenGitHubTokenConsole()
     {
-        OpenExternalBrowserUrl(GitHubConstants.PatCreationUrl);
+        OpenExternalBrowserUrl(HostingConstants.GitHubPersonalAccessTokensUrl);
     }
 
     /// <summary>
@@ -2815,28 +2816,69 @@ public partial class PublishShareViewModel(
         }
     }
 
+    [MemberNotNullWhen(true, nameof(SelectedHostingProvider))]
+    private bool ValidateCanScanCloudStorage()
+    {
+        if (SelectedHostingProvider == null)
+        {
+            return false;
+        }
+
+        if (!IsProviderAuthenticated)
+        {
+            StorageScanStatusMessage = "Please connect to your hosting provider first.";
+            notificationService?.ShowWarning(
+                GetLocalizedString("Tools.PublisherStudio.Publish.ProviderNotConnected", "Provider Not Connected"),
+                GetLocalizedString("Tools.PublisherStudio.Publish.ConnectBeforeScan", "Connect to your hosting provider before scanning storage."));
+            return false;
+        }
+
+        if (IsUploading || _silentScanCts != null)
+        {
+            StorageScanStatusMessage = GetLocalizedString(
+                "Tools.PublisherStudio.Publish.ScanBlockedByOperation",
+                "Please wait for the current upload or sync to finish before scanning.");
+            notificationService?.ShowWarning(
+                GetLocalizedString("Tools.PublisherStudio.Publish.ScanError", "Scan Error"),
+                StorageScanStatusMessage);
+            return false;
+        }
+
+        return true;
+    }
+
+    private async Task ApplyRecoveredHostingStateAsync(HostingState recoveredState, CancellationToken ct)
+    {
+        MergeCloudHostingState(recoveredState);
+
+        if (!string.IsNullOrEmpty(project.ProjectPath) && _currentHostingState != null && hostingStateManager != null)
+        {
+            await hostingStateManager.SaveStateAsync(project.ProjectPath, _currentHostingState, ct);
+        }
+
+        InitializeCatalogStatuses();
+        RefreshUploadHierarchy();
+        RefreshHostedAssets();
+        GenerateSubscriptionUrl();
+
+        var foundCount = (_currentHostingState?.Catalogs.Count ?? 0) +
+                         (_currentHostingState?.Artifacts.Count ?? 0) +
+                         (_currentHostingState?.Definition != null ? 1 : 0);
+        StorageScanStatusMessage = $"Sync complete! Discovered {foundCount} file(s) in {SelectedHostingProvider?.DisplayName}.";
+        notificationService?.ShowSuccess(
+            GetLocalizedString("Tools.PublisherStudio.Publish.StorageSynced", "Storage Synced"),
+            StorageScanStatusMessage,
+            autoDismissMs: 4000);
+    }
+
     /// <summary>
     /// Scans the connected hosting provider for uploaded files and syncs hosting state.
     /// </summary>
     [RelayCommand]
     private async Task ScanCloudStorageAsync()
     {
-        if (SelectedHostingProvider == null)
+        if (!ValidateCanScanCloudStorage())
         {
-            return;
-        }
-
-        if (!IsProviderAuthenticated)
-        {
-            StorageScanStatusMessage = "Please connect to your hosting provider first.";
-            notificationService?.ShowWarning(GetLocalizedString("Tools.PublisherStudio.Publish.ProviderNotConnected", "Provider Not Connected"), GetLocalizedString("Tools.PublisherStudio.Publish.ConnectBeforeScan", "Connect to your hosting provider before scanning storage."));
-            return;
-        }
-
-        if (IsUploading || _silentScanCts != null)
-        {
-            StorageScanStatusMessage = GetLocalizedString("Tools.PublisherStudio.Publish.ScanBlockedByOperation", "Please wait for the current upload or sync to finish before scanning.");
-            notificationService?.ShowWarning(GetLocalizedString("Tools.PublisherStudio.Publish.ScanError", "Scan Error"), StorageScanStatusMessage);
             return;
         }
 
@@ -2857,21 +2899,7 @@ public partial class PublishShareViewModel(
             var result = await SelectedHostingProvider.RecoverHostingStateAsync(ct);
             if (result.Success && result.Data != null)
             {
-                MergeCloudHostingState(result.Data);
-
-                if (!string.IsNullOrEmpty(project.ProjectPath) && _currentHostingState != null && hostingStateManager != null)
-                {
-                    await hostingStateManager.SaveStateAsync(project.ProjectPath, _currentHostingState, ct);
-                }
-
-                InitializeCatalogStatuses();
-                RefreshUploadHierarchy();
-                RefreshHostedAssets();
-                GenerateSubscriptionUrl();
-
-                var foundCount = (_currentHostingState?.Catalogs.Count ?? 0) + (_currentHostingState?.Artifacts.Count ?? 0) + (_currentHostingState?.Definition != null ? 1 : 0);
-                StorageScanStatusMessage = $"Sync complete! Discovered {foundCount} file(s) in {SelectedHostingProvider.DisplayName}.";
-                notificationService?.ShowSuccess(GetLocalizedString("Tools.PublisherStudio.Publish.StorageSynced", "Storage Synced"), StorageScanStatusMessage, autoDismissMs: 4000);
+                await ApplyRecoveredHostingStateAsync(result.Data, ct);
             }
             else
             {
