@@ -9024,6 +9024,12 @@ GenHub передает официальный идентификатор AppID 
     <value>{0:F0} МБ / ~{1:F0} МБ</value>
   </data>
 
+  <data name="Tools.ModBuilder.Notification.CleanSkipped.Message" xml:space="preserve">
+    <value>Пропуск очистки для небезопасного или внешнего каталога сборки: {0}</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.CleanSkipped.Title" xml:space="preserve">
+    <value>Очистка пропущена</value>
+  </data>
   <data name="Updates.Status.InstallationFailed" xml:space="preserve">
     <value>Установка не удалась</value>
   </data>

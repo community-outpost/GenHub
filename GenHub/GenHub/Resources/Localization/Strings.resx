@@ -9133,6 +9133,12 @@ Install location:
     <value>Assigned {0}.</value>
   </data>
 
+  <data name="Tools.ModBuilder.Notification.CleanSkipped.Message" xml:space="preserve">
+    <value>Skipping clean for unsafe or external build directory: {0}</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.CleanSkipped.Title" xml:space="preserve">
+    <value>Clean Skipped</value>
+  </data>
   <data name="Settings.GitHubAuth.Label" xml:space="preserve">
     <value>GitHub Account</value>
   </data>

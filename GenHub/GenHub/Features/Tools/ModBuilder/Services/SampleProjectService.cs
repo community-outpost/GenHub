@@ -1381,7 +1381,8 @@ public class SampleProjectService(
             hlegCachePath,
             10_000,
             "Hotkeys hleg",
-            cancellationToken).ConfigureAwait(false);
+            cancellationToken,
+            ModBuilderConstants.SampleProjects.HotkeysHlegSha256).ConfigureAwait(false);
 
         if (!hlegResult.Success)
         {
@@ -1394,7 +1395,8 @@ public class SampleProjectService(
             hlenCachePath,
             1_000_000,
             "Hotkeys hlen",
-            cancellationToken).ConfigureAwait(false);
+            cancellationToken,
+            ModBuilderConstants.SampleProjects.HotkeysHlenSha256).ConfigureAwait(false);
 
         if (!hlenResult.Success)
         {
