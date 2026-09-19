@@ -607,18 +607,10 @@ public class ContentStorageService : IContentStorageService
         string sourceDirectory,
         CancellationToken cancellationToken)
     {
-        if (RequiresPhysicalStorage(manifest))
+        var gateResult = await CheckRequiredCasFilesAsync(manifest, sourceDirectory, "is on an invalid or removable drive", cancellationToken).ConfigureAwait(false);
+        if (!gateResult.Success)
         {
-            var missingCasFiles = await GetMissingRequiredCasFilesAsync(manifest, cancellationToken).ConfigureAwait(false);
-            if (missingCasFiles.Count > 0)
-            {
-                _logger.LogError(
-                    "Cannot store manifest {ManifestId} metadata only: source directory is on an invalid or removable drive and required files are missing from CAS: {MissingFiles}",
-                    manifest.Id,
-                    string.Join(", ", missingCasFiles));
-                return OperationResult<ContentManifest>.CreateFailure(
-                    $"Source directory '{sourceDirectory}' is on an invalid or removable drive and required content is missing from CAS: {string.Join(", ", missingCasFiles)}");
-            }
+            return gateResult;
         }
 
         _logger.LogWarning("Source directory {SourceDirectory} is on an invalid or removable drive, storing metadata only", sourceDirectory);
@@ -1188,22 +1180,48 @@ public class ContentStorageService : IContentStorageService
         string sourceDirectory,
         CancellationToken cancellationToken)
     {
-        if (RequiresPhysicalStorage(manifest))
+        var gateResult = await CheckRequiredCasFilesAsync(manifest, sourceDirectory, "does not exist", cancellationToken).ConfigureAwait(false);
+        if (!gateResult.Success)
         {
-            var missingCasFiles = await GetMissingRequiredCasFilesAsync(manifest, cancellationToken).ConfigureAwait(false);
-            if (missingCasFiles.Count > 0)
-            {
-                _logger.LogError(
-                    "Cannot store manifest {ManifestId} metadata only: source directory does not exist and required files are missing from CAS: {MissingFiles}",
-                    manifest.Id,
-                    string.Join(", ", missingCasFiles));
-                return OperationResult<ContentManifest>.CreateFailure(
-                    $"Source directory '{sourceDirectory}' does not exist and required content is missing from CAS: {string.Join(", ", missingCasFiles)}");
-            }
+            return gateResult;
         }
 
         _logger.LogWarning("Source directory is null, empty, or does not exist: {SourceDirectory}. Storing metadata only.", sourceDirectory);
         return await StoreManifestOnlyAsync(manifest, sourceDirectory, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Fails when the manifest requires physical storage but required CAS objects are missing.
+    /// </summary>
+    /// <param name="manifest">The content manifest.</param>
+    /// <param name="sourceDirectory">Source directory containing content files.</param>
+    /// <param name="sourceProblem">Description of the source directory problem for log and error messages.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The manifest when metadata-only storage may proceed, or a failure describing the missing CAS objects.</returns>
+    private async Task<OperationResult<ContentManifest>> CheckRequiredCasFilesAsync(
+        ContentManifest manifest,
+        string sourceDirectory,
+        string sourceProblem,
+        CancellationToken cancellationToken)
+    {
+        if (!RequiresPhysicalStorage(manifest))
+        {
+            return OperationResult<ContentManifest>.CreateSuccess(manifest);
+        }
+
+        var missingCasFiles = await GetMissingRequiredCasFilesAsync(manifest, cancellationToken).ConfigureAwait(false);
+        if (missingCasFiles.Count == 0)
+        {
+            return OperationResult<ContentManifest>.CreateSuccess(manifest);
+        }
+
+        _logger.LogError(
+            "Cannot store manifest {ManifestId} metadata only: source directory {SourceProblem} and required files are missing from CAS: {MissingFiles}",
+            manifest.Id,
+            sourceProblem,
+            string.Join(", ", missingCasFiles));
+        return OperationResult<ContentManifest>.CreateFailure(
+            $"Source directory '{sourceDirectory}' {sourceProblem} and required content is missing from CAS: {string.Join(", ", missingCasFiles)}");
     }
 
     private async Task<bool> VerifyAllRequiredCasFilesExistAsync(ContentManifest manifest, CancellationToken cancellationToken)
