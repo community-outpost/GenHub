@@ -56,6 +56,9 @@ public partial class PublishShareViewModel(
     private const string CopiedToClipboardKey = "Tools.PublisherStudio.Publish.CopiedToClipboard";
     private const string PublishWarningKey = "Tools.PublisherStudio.Publish.PublishWarning";
     private const string PublishWarningDefaultMessage = "Publish Warning";
+    private const string PublishSuccessTitleKey = "Tools.PublisherStudio.Publish.SuccessTitle";
+    private const string PublishFailedTitleKey = "Tools.PublisherStudio.Publish.FailedTitle";
+    private const string UploadFailedDefaultMessage = "Upload Failed";
 
     private HostingState? _currentHostingState;
 
@@ -618,6 +621,60 @@ public partial class PublishShareViewModel(
         }
     }
 
+    private static (ReleaseArtifact? Artifact, string? ContentId, string? Version) FindArtifactInCatalog(NamedCatalog catalog, HostedAssetItemViewModel asset)
+    {
+        foreach (var content in catalog.Catalog.Content)
+        {
+            if (!ContentMatchesFilter(content, asset.ContentId))
+            {
+                continue;
+            }
+
+            var found = FindArtifactInContent(content, asset);
+            if (found.Artifact != null)
+            {
+                return found;
+            }
+        }
+
+        return (null, null, null);
+    }
+
+    private static (ReleaseArtifact? Artifact, string? ContentId, string? Version) FindArtifactInContent(CatalogContentItem content, HostedAssetItemViewModel asset)
+    {
+        foreach (var release in content.Releases)
+        {
+            if (!ReleaseMatchesFilter(release, asset.ReleaseVersion))
+            {
+                continue;
+            }
+
+            var match = FindArtifactByFileName(release, asset.Name);
+            if (match != null)
+            {
+                return (match, content.Id, release.Version);
+            }
+        }
+
+        return (null, null, null);
+    }
+
+    private static bool ContentMatchesFilter(CatalogContentItem content, string? contentId)
+    {
+        return contentId == null || string.Equals(content.Id, contentId, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool ReleaseMatchesFilter(ContentRelease release, string? version)
+    {
+        return version == null || string.Equals(release.Version, version, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static ReleaseArtifact? FindArtifactByFileName(ContentRelease release, string? fileName)
+    {
+        return release.Artifacts.FirstOrDefault(a =>
+            string.Equals(a.Filename, fileName, StringComparison.OrdinalIgnoreCase));
+    }
+
     private string GetLocalizedString(string key, string defaultValue) =>
         localizationService?.GetString(key) ?? defaultValue;
 
@@ -660,7 +717,7 @@ public partial class PublishShareViewModel(
         HostedAssets.Add(new HostedAssetItemViewModel
         {
             AssetKind = HostedAssetKind.Definition,
-            CanUpload = !isDefHosted && SelectedHostingProvider?.SupportsCatalogHosting == true,
+            CanUpload = !isDefHosted && SelectedHostingProvider?.SupportsCatalogHosting is true,
             Name = project.ProviderDefinitionFileName ?? HostingConstants.DefaultDefinitionFileName,
             Category = GetLocalizedString("Tools.PublisherStudio.Hosting.AssetCategoryDefinition", "Publisher Definition"),
             Location = isDefHosted ? $"{providerName} ({HostingConstants.DropboxDefaultPublisherFolder})" : GetLocalizedString("Tools.PublisherStudio.Hosting.AssetLocationLocalOnly", "Local only"),
@@ -695,7 +752,7 @@ public partial class PublishShareViewModel(
             {
                 AssetKind = HostedAssetKind.Catalog,
                 CatalogId = catalog.Id,
-                CanUpload = !isCatHosted && SelectedHostingProvider?.SupportsCatalogHosting == true,
+                CanUpload = !isCatHosted && SelectedHostingProvider?.SupportsCatalogHosting is true,
                 Name = catalog.FileName,
                 Category = FormatLocalizedString("Tools.PublisherStudio.Hosting.AssetCategoryCatalogFormat", "Catalog Manifest ({0})", catalog.Name),
                 Location = isCatHosted ? $"{providerName} ({HostingConstants.DropboxDefaultPublisherFolder})" : GetLocalizedString("Tools.PublisherStudio.Hosting.AssetLocationLocalOnly", "Local only"),
@@ -761,7 +818,7 @@ public partial class PublishShareViewModel(
         }
 
         var hasLocalSource = !string.IsNullOrEmpty(artifact.LocalFilePath);
-        var canUploadArtifact = hasLocalSource && !isCloud && SelectedHostingProvider?.SupportsArtifactHosting == true;
+        var canUploadArtifact = hasLocalSource && !isCloud && SelectedHostingProvider?.SupportsArtifactHosting is true;
 
         HostedAssets.Add(new HostedAssetItemViewModel
         {
@@ -2068,10 +2125,7 @@ public partial class PublishShareViewModel(
             return;
         }
 
-        if (SelectedHostingProvider != provider)
-        {
-            SelectedHostingProvider = provider;
-        }
+        SelectedHostingProvider = provider;
 
         var token = await RetrieveOrMigrateTokenAsync(provider);
         if (string.IsNullOrEmpty(token))
@@ -2273,7 +2327,7 @@ public partial class PublishShareViewModel(
         UploadStatusMessage = GetLocalizedString("Tools.PublisherStudio.Publish.ProviderDefinitionUploaded", "Provider definition uploaded successfully.");
         logger.LogInformation("Uploaded provider definition to {Url}", ProviderDefinitionUrl);
         notificationService?.ShowSuccess(
-            GetLocalizedString("Tools.PublisherStudio.Publish.SuccessTitle", SuccessLiteral),
+            GetLocalizedString(PublishSuccessTitleKey, SuccessLiteral),
             GetLocalizedString("Tools.PublisherStudio.Publish.ProviderDefinitionUploadedMessage", "Provider definition uploaded successfully."),
             autoDismissMs: 4000);
     }
@@ -2338,7 +2392,7 @@ public partial class PublishShareViewModel(
 
             UploadStatusMessage = FormatLocalizedString("Tools.PublisherStudio.Publish.UploadFailedFormat", "Upload failed: {0}", result.FirstError);
             notificationService?.ShowError(
-                GetLocalizedString("Tools.PublisherStudio.Publish.FailedTitle", "Upload Failed"),
+                GetLocalizedString(PublishFailedTitleKey, UploadFailedDefaultMessage),
                 result.FirstError ?? GetLocalizedString("Tools.PublisherStudio.Publish.UploadDefinitionFailedMessage", "Failed to upload provider definition."));
             return result;
         }
@@ -2347,7 +2401,7 @@ public partial class PublishShareViewModel(
             UploadStatusMessage = FormatLocalizedString("Tools.PublisherStudio.Publish.ErrorUploadingDefinitionFormat", "Error uploading definition: {0}", ex.Message);
             logger.LogError(ex, "Error uploading provider definition");
             notificationService?.ShowError(
-                GetLocalizedString("Tools.PublisherStudio.Publish.FailedTitle", "Upload Failed"),
+                GetLocalizedString(PublishFailedTitleKey, UploadFailedDefaultMessage),
                 ex.Message);
             return OperationResult<HostingUploadResult>.CreateFailure($"Error uploading definition: {ex.Message}");
         }
@@ -2617,14 +2671,14 @@ public partial class PublishShareViewModel(
                 }
 
                 notificationService?.ShowSuccess(
-                    GetLocalizedString("Tools.PublisherStudio.Publish.SuccessTitle", "Published"),
+                    GetLocalizedString(PublishSuccessTitleKey, "Published"),
                     $"Catalog '{catalog.Name}' published successfully.",
                     autoDismissMs: 4000);
             }
             else
             {
                 notificationService?.ShowError(
-                    GetLocalizedString("Tools.PublisherStudio.Publish.FailedTitle", "Publish Failed"),
+                    GetLocalizedString(PublishFailedTitleKey, "Publish Failed"),
                     uploadResult.FirstError ?? "Failed to publish catalog.");
             }
         }
@@ -2821,7 +2875,7 @@ public partial class PublishShareViewModel(
         }
 
         notificationService?.ShowSuccess(
-            GetLocalizedString("Tools.PublisherStudio.Publish.SuccessTitle", "Publish Success"),
+            GetLocalizedString(PublishSuccessTitleKey, "Publish Success"),
             UploadStatusMessage,
             autoDismissMs: 4000);
     }
@@ -3308,7 +3362,7 @@ public partial class PublishShareViewModel(
                 "Local file not found: {0}",
                 artifact.LocalFilePath);
             notificationService?.ShowError(
-                GetLocalizedString("Tools.PublisherStudio.Publish.FailedTitle", "Upload Failed"),
+                GetLocalizedString(PublishFailedTitleKey, UploadFailedDefaultMessage),
                 UploadStatusMessage);
             return;
         }
@@ -3335,7 +3389,7 @@ public partial class PublishShareViewModel(
                 RefreshArtifactStatuses();
                 await PersistProjectAfterPublishAsync();
                 notificationService?.ShowSuccess(
-                    GetLocalizedString("Tools.PublisherStudio.Publish.SuccessTitle", "Published"),
+                    GetLocalizedString(PublishSuccessTitleKey, "Published"),
                     FormatLocalizedString(
                         "Tools.PublisherStudio.Hosting.SingleUploadSuccessFormat",
                         "{0} uploaded successfully.",
@@ -3345,7 +3399,7 @@ public partial class PublishShareViewModel(
             else
             {
                 notificationService?.ShowError(
-                    GetLocalizedString("Tools.PublisherStudio.Publish.FailedTitle", "Upload Failed"),
+                    GetLocalizedString(PublishFailedTitleKey, UploadFailedDefaultMessage),
                     FormatLocalizedString(
                         "Tools.PublisherStudio.Hosting.SingleUploadFailedFormat",
                         "Failed to upload {0}: {1}",
@@ -3369,29 +3423,10 @@ public partial class PublishShareViewModel(
     {
         foreach (var catalog in project.Catalogs)
         {
-            foreach (var content in catalog.Catalog.Content)
+            var found = FindArtifactInCatalog(catalog, asset);
+            if (found.Artifact != null)
             {
-                if (asset.ContentId != null &&
-                    !string.Equals(content.Id, asset.ContentId, StringComparison.OrdinalIgnoreCase))
-                {
-                    continue;
-                }
-
-                foreach (var release in content.Releases)
-                {
-                    if (asset.ReleaseVersion != null &&
-                        !string.Equals(release.Version, asset.ReleaseVersion, StringComparison.OrdinalIgnoreCase))
-                    {
-                        continue;
-                    }
-
-                    var match = release.Artifacts.FirstOrDefault(a =>
-                        string.Equals(a.Filename, asset.Name, StringComparison.OrdinalIgnoreCase));
-                    if (match != null)
-                    {
-                        return (match, content.Id, release.Version);
-                    }
-                }
+                return found;
             }
         }
 
