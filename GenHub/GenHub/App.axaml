@@ -3,7 +3,8 @@
              xmlns:local="clr-namespace:GenHub.Infrastructure.Converters"
              xmlns:material="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
              x:Class="GenHub.App"
-             Name="GenHub">
+             Name="GenHub"
+             RequestedThemeVariant="Dark">
     <Application.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
