@@ -9,6 +9,7 @@ using System.IO;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using System.Text;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
@@ -57,7 +58,7 @@ public sealed class UploadThingService(
             // and corrupt binary uploads, so quote both explicitly like curl does. The override
             // is ASCII-only: serializing raw Unicode through Parse degrades to Latin-1 and
             // mangles non-ASCII filenames, while the runtime default MIME-encodes them losslessly.
-            if (IsAscii(fileName))
+            if (Ascii.IsValid(fileName))
             {
                 fileContent.Headers.ContentDisposition = ContentDispositionHeaderValue.Parse(
                     $"form-data; name=\"{ApiConstants.UploadMultipartFileFieldName}\"; filename=\"{ToHeaderSafeFileName(fileName)}\"");
@@ -136,18 +137,5 @@ public sealed class UploadThingService(
     private static string ToHeaderSafeFileName(string fileName)
     {
         return fileName.Replace("\"", string.Empty).Replace("\r", string.Empty).Replace("\n", string.Empty);
-    }
-
-    private static bool IsAscii(string value)
-    {
-        foreach (var c in value)
-        {
-            if (c > 127)
-            {
-                return false;
-            }
-        }
-
-        return true;
     }
 }

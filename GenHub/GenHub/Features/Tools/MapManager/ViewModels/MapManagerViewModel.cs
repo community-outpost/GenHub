@@ -398,6 +398,7 @@ public partial class MapManagerViewModel : ObservableObject, IDisposable
     /// <param name="url">The plain download URL to import.</param>
     /// <param name="game">The optional target game recorded in the share link.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
+    [SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Mutates CommunityToolkit-generated observable properties and executes instance commands on this ViewModel.")]
     public async Task ImportSharedUrlAsync(string url, GameType? game = null)
     {
         await ToolShareCommands.ImportSharedUrlAsync(

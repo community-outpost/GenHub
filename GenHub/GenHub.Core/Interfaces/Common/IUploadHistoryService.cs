@@ -3,6 +3,7 @@ using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Tools;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -73,6 +74,7 @@ public interface IUploadHistoryService
     /// <param name="fileHash">Optional SHA-256 hash of the uploaded file for deduplication.</param>
     /// <param name="category">Optional tool or content category (e.g. "replays", "maps").</param>
     /// <param name="game">Optional game selected when the upload began.</param>
+    [SuppressMessage("Major Code Smell", "S107:Methods should not have too many parameters", Justification = "Upload history records optional tool metadata including game association while preserving existing parameter order.")]
     void RecordUpload(long fileSizeBytes, string url, string fileName, string? fileKey = null, string? deleteToken = null, string? fileHash = null, string? category = null, GameType? game = null);
 
     /// <summary>
