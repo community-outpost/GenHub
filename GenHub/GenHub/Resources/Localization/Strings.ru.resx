@@ -8566,6 +8566,15 @@ GenHub передает официальный идентификатор AppID 
     <value>Этот запуск отличается от последнего записанного запуска:</value>
   </data>
   <data name="GameProfiles.Notification.LaunchChanged.More" xml:space="preserve">
-    <value>...и ещё {0}; полные сведения см. в журнале.</value>
+    <value>...и другие изменения ({0}); полные сведения см. в журнале.</value>
+  </data>
+  <data name="GameProfiles.Notification.LaunchChanged.RevalidationFailed" xml:space="preserve">
+    <value>Не удалось проверить сведения о предыдущем запуске. Подробности см. в журнале.</value>
+  </data>
+  <data name="GameProfiles.Notification.LaunchChanged.VariantsAdded" xml:space="preserve">
+    <value>Клиент игры теперь поддерживает варианты для разных платформ.</value>
+  </data>
+  <data name="GameProfiles.Notification.LaunchChanged.VariantsRemoved" xml:space="preserve">
+    <value>Клиент игры больше не определяет варианты для разных платформ.</value>
   </data>
 </root>

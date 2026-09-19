@@ -1027,11 +1027,11 @@ public class GameLauncher(
     /// Resolves the variant and entry-point identity for the receipt by re-running the
     /// same <see cref="ManifestVariantResolver"/> resolution workspace preparation applies
     /// to the game client manifest — same manifest, same host runtime, same outcome. Null
-    /// when no game client manifest is part of the launch: that is the legacy fallback,
-    /// which resolves the executable by filename search with no variant machinery involved.
+    /// when no game client manifest is part of the launch. Other executable manifests may
+    /// still use variant resolution, but their identity is not recorded by this helper.
     /// </summary>
     /// <param name="manifests">The manifests resolved for the launch.</param>
-    /// <returns>The identity, or null when nothing variant-shaped participated.</returns>
+    /// <returns>The game client identity, or null when no game client manifest participated.</returns>
     private static LaunchReceiptVariant? ResolveVariantIdentity(IReadOnlyList<ContentManifest> manifests)
     {
         var gameClientManifest = manifests.FirstOrDefault(m => m.ContentType == ContentType.GameClient);
@@ -2087,7 +2087,7 @@ public class GameLauncher(
         catch (Exception ex)
         {
             logger.LogWarning(ex, "[GameLauncher] Receipt revalidation failed for profile {ProfileId}", profileId);
-            driftWarnings.Add("Previous launch receipt could not be revalidated");
+            driftWarnings.Add(LaunchReceiptConstants.RevalidationWarningKey);
             return null;
         }
     }

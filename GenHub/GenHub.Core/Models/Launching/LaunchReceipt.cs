@@ -40,7 +40,8 @@ public class LaunchReceipt
 
     /// <summary>
     /// Gets or sets the retail archive roots the engine was pointed at, keyed by the
-    /// environment variable that carried each root.
+    /// corresponding CNC environment-variable name. Windows records installation-derived
+    /// roots under the same keys; unused environment overrides are not effective roots.
     /// </summary>
     public Dictionary<string, LaunchReceiptArchiveRoot> ArchiveRoots { get; set; } = [];
 
@@ -53,10 +54,8 @@ public class LaunchReceipt
 
     /// <summary>
     /// Gets or sets the resolved variant and entry-point identity that determined what was
-    /// launched. Null when the profile carried no game client manifest: the legacy fallback
-    /// resolves the executable by filename search and no variant machinery participates, so
-    /// there is no variant identity to record. Populated whenever a game client manifest is
-    /// part of the launch, which is what workspace preparation resolves the entry point from.
+    /// launched from a game client manifest. Null when the profile carried no game client
+    /// manifest; variant resolution by other executable manifests is not recorded here.
     /// </summary>
     public LaunchReceiptVariant? Variant { get; set; }
 

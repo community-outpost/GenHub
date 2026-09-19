@@ -8661,4 +8661,13 @@ Install location:
   <data name="GameProfiles.Notification.LaunchChanged.More" xml:space="preserve">
     <value>...and {0} more; see the logs for full detail.</value>
   </data>
+  <data name="GameProfiles.Notification.LaunchChanged.RevalidationFailed" xml:space="preserve">
+    <value>The previous launch receipt could not be checked. See the logs for details.</value>
+  </data>
+  <data name="GameProfiles.Notification.LaunchChanged.VariantsAdded" xml:space="preserve">
+    <value>The game client now supports platform variants.</value>
+  </data>
+  <data name="GameProfiles.Notification.LaunchChanged.VariantsRemoved" xml:space="preserve">
+    <value>The game client no longer declares platform variants.</value>
+  </data>
 </root>
