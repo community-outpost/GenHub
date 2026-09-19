@@ -409,4 +409,51 @@ public class CommunityOutpostManifestFactoryTests : IDisposable
         Assert.Equal(exePath, manifest.Files[0].SourcePath);
         Assert.Equal(ContentSourceType.ExtractedPackage, manifest.Files[0].SourceType);
     }
+
+    /// <summary>
+    /// Verifies that non-variant content inside a language subdirectory (e.g. EZH) also
+    /// preserves files from sibling subdirectories and the extraction root.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task CreateManifestsFromExtractedContentAsync_WithLanguageSubdirectoryAndSiblingContent_IncludesSiblingFilesAsync()
+    {
+        // Arrange: EZH/Generals.exe plus a sibling Data/extra.big and a root readme.txt
+        var ezhDir = Path.Combine(_tempDir, "EZH");
+        var dataDir = Path.Combine(_tempDir, "Data");
+        Directory.CreateDirectory(ezhDir);
+        Directory.CreateDirectory(dataDir);
+        var exePath = Path.Combine(ezhDir, "Generals.exe");
+        var siblingPath = Path.Combine(dataDir, "extra.big");
+        var rootPath = Path.Combine(_tempDir, "readme.txt");
+        await File.WriteAllTextAsync(exePath, "mock exe content");
+        await File.WriteAllTextAsync(siblingPath, "mock sibling content");
+        await File.WriteAllTextAsync(rootPath, "mock readme");
+
+        var originalManifest = new ContentManifest
+        {
+            Id = ManifestId.Create("1.0.communityoutpost.addon.crzh"),
+            Name = "Camera Mod - Zero Hour",
+            ContentType = GenHub.Core.Models.Enums.ContentType.Addon,
+            TargetGame = GameType.ZeroHour,
+            Publisher = new PublisherInfo { PublisherType = "communityoutpost" },
+            Metadata = new ContentMetadata
+            {
+                Tags = ["contentCode:crzh"],
+            },
+        };
+
+        // Act
+        var result = await _factory.CreateManifestsFromExtractedContentAsync(originalManifest, _tempDir);
+
+        // Assert
+        Assert.True(result.Success);
+        var manifests = result.Data!;
+        Assert.Single(manifests);
+        var manifest = manifests[0];
+        Assert.Equal(3, manifest.Files.Count);
+        Assert.Contains(manifest.Files, f => f.RelativePath == "Generals.exe" && f.SourcePath == exePath);
+        Assert.Contains(manifest.Files, f => f.RelativePath == "extra.big" && f.SourcePath == siblingPath);
+        Assert.Contains(manifest.Files, f => f.RelativePath == "readme.txt" && f.SourcePath == rootPath);
+    }
 }

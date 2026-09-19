@@ -1,4 +1,5 @@
 using GenHub.Core.Constants;
+using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Models.CommunityOutpost;
@@ -28,10 +29,6 @@ public class CommunityOutpostManifestFactory(
     IControlBarPackageProcessor controlBarProcessor) : IPublisherManifestFactory
 {
     private static readonly ConcurrentDictionary<string, Regex> RegexCache = new();
-
-    private static readonly string[] GeneralsPrefixes = ["CCG", "ECG", "GCG", "FCG"];
-
-    private static readonly string[] ZeroHourPrefixes = ["ZH", "EZH", "GZH", "FZH"];
 
     /// <inheritdoc />
     public string PublisherId => CommunityOutpostConstants.PublisherId;
@@ -143,8 +140,8 @@ public class CommunityOutpostManifestFactory(
     {
         var prefixes = targetGame switch
         {
-            GameType.Generals => GeneralsPrefixes,
-            GameType.ZeroHour => ZeroHourPrefixes,
+            GameType.Generals => CommunityOutpostConstants.GeneralsLanguageSubdirectories,
+            GameType.ZeroHour => CommunityOutpostConstants.ZeroHourLanguageSubdirectories,
             _ => null,
         };
 
@@ -180,12 +177,12 @@ public class CommunityOutpostManifestFactory(
 
         var singleSubdir = subdirs[0];
         var dirName = Path.GetFileName(singleSubdir);
-        if (targetGame == GameType.ZeroHour && dirName.EndsWith("ZH", StringComparison.OrdinalIgnoreCase))
+        if (targetGame == GameType.ZeroHour && dirName.EndsWith(CommunityOutpostConstants.ZeroHourDirectorySuffix, StringComparison.OrdinalIgnoreCase))
         {
             return singleSubdir;
         }
 
-        if (targetGame == GameType.Generals && dirName.EndsWith("CG", StringComparison.OrdinalIgnoreCase))
+        if (targetGame == GameType.Generals && dirName.EndsWith(CommunityOutpostConstants.GeneralsDirectorySuffix, StringComparison.OrdinalIgnoreCase))
         {
             return singleSubdir;
         }
@@ -395,25 +392,13 @@ public class CommunityOutpostManifestFactory(
 
         try
         {
-            var manifestDirectory = variant == null
-                ? GetManifestDirectory(originalManifest, extractedDirectory)
-                : extractedDirectory;
-
-            var fileList = new List<string>(Directory.GetFiles(manifestDirectory, "*.*", SearchOption.AllDirectories));
-            if (variant == null && !string.Equals(manifestDirectory, extractedDirectory, StringComparison.OrdinalIgnoreCase) && Directory.Exists(extractedDirectory))
+            var discovery = DiscoverManifestFiles(originalManifest, extractedDirectory, variant);
+            if (discovery == null)
             {
-                fileList.AddRange(Directory.GetFiles(extractedDirectory, "*.*", SearchOption.TopDirectoryOnly));
-            }
-
-            var allFiles = fileList.ToArray();
-
-            if (allFiles.Length == 0)
-            {
-                logger.LogWarning("No files found in directory: {Directory}", manifestDirectory);
                 return null;
             }
 
-            logger.LogDebug("Found {FileCount} files in directory: {Directory}", allFiles.Length, manifestDirectory);
+            var (manifestDirectory, discoveredFiles) = discovery.Value;
 
             var targetGame = (variant != null && variant.TargetGame.HasValue)
                 ? variant.TargetGame.Value
@@ -426,28 +411,21 @@ public class CommunityOutpostManifestFactory(
                 alwaysIncludeFiles.Add("340_ControlBarProZH.big");
             }
 
-            HashSet<string> controlBarRepackedOutputs;
-            if (isControlBarVariant)
-            {
-                var (shouldSkip, outputs) = await ProcessControlBarVariantAsync(
-                    extractedDirectory,
-                    originalManifest,
-                    variant,
-                    allControlBarOutputs,
-                    cancellationToken);
+            var controlBarContext = await ProcessControlBarOutputsAsync(
+                isControlBarVariant,
+                extractedDirectory,
+                originalManifest,
+                variant,
+                allControlBarOutputs,
+                discoveredFiles,
+                cancellationToken);
 
-                if (shouldSkip)
-                {
-                    return null;
-                }
-
-                controlBarRepackedOutputs = outputs;
-                allFiles = Directory.GetFiles(extractedDirectory, "*.*", SearchOption.AllDirectories);
-            }
-            else
+            if (controlBarContext == null)
             {
-                controlBarRepackedOutputs = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                return null;
             }
+
+            var (controlBarRepackedOutputs, allFiles) = controlBarContext.Value;
 
             var hasVariantBigFiles = variant != null && HasVariantBigFiles(
                 allFiles,
@@ -484,6 +462,82 @@ public class CommunityOutpostManifestFactory(
 
             return null;
         }
+    }
+
+    /// <summary>
+    /// Discovers the files to include in a manifest, resolving the manifest directory and
+    /// preserving content outside of it (such as sibling subdirectories next to a language folder).
+    /// </summary>
+    /// <param name="originalManifest">The original manifest.</param>
+    /// <param name="extractedDirectory">The extraction root directory.</param>
+    /// <param name="variant">The content variant, or null for single-manifest content.</param>
+    /// <returns>The manifest directory and discovered files, or null when no files were found.</returns>
+    private (string ManifestDirectory, string[] AllFiles)? DiscoverManifestFiles(
+        ContentManifest originalManifest,
+        string extractedDirectory,
+        ContentVariant? variant)
+    {
+        var manifestDirectory = variant == null
+            ? GetManifestDirectory(originalManifest, extractedDirectory)
+            : extractedDirectory;
+
+        var fileList = new List<string>(Directory.GetFiles(manifestDirectory, "*.*", SearchOption.AllDirectories));
+        if (variant == null && !string.Equals(manifestDirectory, extractedDirectory, StringComparison.OrdinalIgnoreCase) && Directory.Exists(extractedDirectory))
+        {
+            var siblingFiles = Directory.GetFiles(extractedDirectory, "*.*", SearchOption.AllDirectories)
+                .Where(f => !PathHelper.IsPathWithinDirectory(manifestDirectory, f));
+            fileList.AddRange(siblingFiles);
+        }
+
+        var allFiles = fileList.ToArray();
+        if (allFiles.Length == 0)
+        {
+            logger.LogWarning("No files found in directory: {Directory}", manifestDirectory);
+            return null;
+        }
+
+        logger.LogDebug("Found {FileCount} files in directory: {Directory}", allFiles.Length, manifestDirectory);
+        return (manifestDirectory, allFiles);
+    }
+
+    /// <summary>
+    /// Processes Control Bar variant repacking and resolves the effective file list.
+    /// </summary>
+    /// <param name="isControlBarVariant">Whether this is a Control Bar variant build.</param>
+    /// <param name="extractedDirectory">The extraction root directory.</param>
+    /// <param name="originalManifest">The original manifest.</param>
+    /// <param name="variant">The content variant.</param>
+    /// <param name="allControlBarOutputs">Accumulator for Control Bar outputs across variants.</param>
+    /// <param name="discoveredFiles">The files discovered before Control Bar processing.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The repacked outputs and effective files, or null when the variant should be skipped.</returns>
+    private async Task<(HashSet<string> RepackedOutputs, string[] AllFiles)?> ProcessControlBarOutputsAsync(
+        bool isControlBarVariant,
+        string extractedDirectory,
+        ContentManifest originalManifest,
+        ContentVariant? variant,
+        HashSet<string>? allControlBarOutputs,
+        string[] discoveredFiles,
+        CancellationToken cancellationToken)
+    {
+        if (!isControlBarVariant)
+        {
+            return (new HashSet<string>(StringComparer.OrdinalIgnoreCase), discoveredFiles);
+        }
+
+        var (shouldSkip, outputs) = await ProcessControlBarVariantAsync(
+            extractedDirectory,
+            originalManifest,
+            variant,
+            allControlBarOutputs,
+            cancellationToken);
+
+        if (shouldSkip)
+        {
+            return null;
+        }
+
+        return (outputs, Directory.GetFiles(extractedDirectory, "*.*", SearchOption.AllDirectories));
     }
 
     private async Task<(bool ShouldSkip, HashSet<string> Outputs)> ProcessControlBarVariantAsync(
