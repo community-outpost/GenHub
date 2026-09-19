@@ -1204,6 +1204,13 @@ public class ProfileLauncherFacade(
         {
             var casStats = await casService.GetStatsAsync(cancellationToken);
             logger.LogDebug("CAS preflight check passed for profile {ProfileId}: {TotalObjects} objects, {TotalSize} bytes", profile.Id, casStats.ObjectCount, casStats.TotalSize);
+
+            var casAvailability = await VerifyCasContentAvailabilityAsync(manifests, cancellationToken);
+            if (!casAvailability.Success)
+            {
+                logger.LogWarning("Profile {ProfileId} launch validation failed: {Error}", profile.Id, casAvailability.FirstError);
+                return ProfileOperationResult<bool>.CreateFailure(casAvailability.FirstError ?? "Missing required CAS objects");
+            }
         }
         catch (Exception ex)
         {
@@ -1874,6 +1881,40 @@ public class ProfileLauncherFacade(
         }
     }
 
+    private async Task<bool> IsCasObjectPresentAsync(string hash, ContentType contentType, CancellationToken cancellationToken)
+    {
+        var existsResult = await casService.ExistsAsync(hash, contentType, cancellationToken).ConfigureAwait(false);
+        if (existsResult.Success && existsResult.Data)
+        {
+            return true;
+        }
+
+        var fallbackResult = await casService.ExistsAsync(hash, cancellationToken).ConfigureAwait(false);
+        return fallbackResult.Success && fallbackResult.Data;
+    }
+
+    private async Task CheckManifestCasFilesAsync(ContentManifest manifest, List<string> missingFiles, CancellationToken cancellationToken)
+    {
+        if (manifest.Files == null)
+        {
+            return;
+        }
+
+        foreach (var file in manifest.Files.Where(f => f.SourceType == ContentSourceType.ContentAddressable && !string.IsNullOrEmpty(f.Hash) && f.IsRequired))
+        {
+            var present = await IsCasObjectPresentAsync(file.Hash, manifest.ContentType, cancellationToken).ConfigureAwait(false);
+            if (!present)
+            {
+                missingFiles.Add($"{manifest.Name ?? manifest.Id.Value} ({file.RelativePath})");
+                logger.LogWarning(
+                    "[CAS Preflight] Missing CAS object {Hash} required by file {RelativePath} in manifest {ManifestId}",
+                    file.Hash,
+                    file.RelativePath,
+                    manifest.Id);
+            }
+        }
+    }
+
     /// <summary>
     /// Verifies that all CAS content required by the manifests is available.
     /// </summary>
@@ -1882,33 +1923,18 @@ public class ProfileLauncherFacade(
     /// <returns>Success if all CAS content is available, failure with missing hash list otherwise.</returns>
     private async Task<OperationResult<bool>> VerifyCasContentAvailabilityAsync(IEnumerable<ContentManifest> manifests, CancellationToken cancellationToken)
     {
-        List<string> missingHashes = [];
+        List<string> missingFiles = [];
 
         foreach (var manifest in manifests)
         {
-            if (manifest.Files != null)
-            {
-                foreach (var file in manifest.Files.Where(f => f.SourceType == ContentSourceType.ContentAddressable && !string.IsNullOrEmpty(f.Hash)))
-                {
-                    var existsResult = await casService.ExistsAsync(file.Hash, manifest.ContentType, cancellationToken);
-                    if (!existsResult.Success || !existsResult.Data)
-                    {
-                        missingHashes.Add(file.Hash);
-                        logger.LogWarning(
-                            "[CAS Preflight] Missing CAS object {Hash} required by file {RelativePath} in manifest {ManifestId}",
-                            file.Hash,
-                            file.RelativePath,
-                            manifest.Id);
-                    }
-                }
-            }
+            await CheckManifestCasFilesAsync(manifest, missingFiles, cancellationToken).ConfigureAwait(false);
         }
 
-        if (missingHashes.Count > 0)
+        if (missingFiles.Count > 0)
         {
-            var distinctMissing = missingHashes.Distinct().ToList();
-            logger.LogError("[CAS Preflight] Found {Count} missing CAS objects: {Hashes}", distinctMissing.Count, string.Join(", ", distinctMissing.Take(10)));
-            return OperationResult<bool>.CreateFailure($"Missing {distinctMissing.Count} required CAS objects. Content must be downloaded before launching.");
+            var distinctMissing = missingFiles.Distinct().ToList();
+            logger.LogError("[CAS Preflight] Found {Count} missing CAS objects: {Files}", distinctMissing.Count, string.Join(", ", distinctMissing.Take(10)));
+            return OperationResult<bool>.CreateFailure($"Missing {distinctMissing.Count} required CAS objects ({string.Join(", ", distinctMissing.Take(5))}). Content must be downloaded before launching.");
         }
 
         return OperationResult<bool>.CreateSuccess(true);

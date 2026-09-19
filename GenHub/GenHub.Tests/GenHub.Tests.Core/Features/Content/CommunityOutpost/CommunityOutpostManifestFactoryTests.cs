@@ -368,4 +368,45 @@ public class CommunityOutpostManifestFactoryTests : IDisposable
         Assert.DoesNotContain(manifests, m => m.Id.Value.Contains("hleizerohourru-zerohour"));
         Assert.DoesNotContain(manifests, m => m.Name.Contains("Leikeze's Hotkeys (RU) - Leikeze's Hotkeys"));
     }
+
+    /// <summary>
+    /// Verifies that non-variant content located inside a language subdirectory (e.g. EZH)
+    /// maps files to the game root relative path and sets the SourcePath correctly.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task CreateManifestsFromExtractedContentAsync_WithLanguageSubdirectoryEZH_MapsToGameRootRelativePathAsync()
+    {
+        // Arrange: crzh archive structure has EZH/Generals.exe
+        var ezhDir = Path.Combine(_tempDir, "EZH");
+        Directory.CreateDirectory(ezhDir);
+        var exePath = Path.Combine(ezhDir, "Generals.exe");
+        await File.WriteAllTextAsync(exePath, "mock exe content");
+
+        var originalManifest = new ContentManifest
+        {
+            Id = ManifestId.Create("1.0.communityoutpost.addon.crzh"),
+            Name = "Camera Mod - Zero Hour",
+            ContentType = GenHub.Core.Models.Enums.ContentType.Addon,
+            TargetGame = GameType.ZeroHour,
+            Publisher = new PublisherInfo { PublisherType = "communityoutpost" },
+            Metadata = new ContentMetadata
+            {
+                Tags = ["contentCode:crzh"],
+            },
+        };
+
+        // Act
+        var result = await _factory.CreateManifestsFromExtractedContentAsync(originalManifest, _tempDir);
+
+        // Assert
+        Assert.True(result.Success);
+        var manifests = result.Data!;
+        Assert.Single(manifests);
+        var manifest = manifests[0];
+        Assert.Single(manifest.Files);
+        Assert.Equal("Generals.exe", manifest.Files[0].RelativePath);
+        Assert.Equal(exePath, manifest.Files[0].SourcePath);
+        Assert.Equal(ContentSourceType.ExtractedPackage, manifest.Files[0].SourceType);
+    }
 }
