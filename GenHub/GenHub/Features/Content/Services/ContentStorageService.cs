@@ -464,8 +464,6 @@ public class ContentStorageService : IContentStorageService
     }
 
     /// <inheritdoc/>
-
-    /// <inheritdoc/>
     public async Task<OperationResult<bool>> IsContentStoredAsync(ManifestId manifestId, CancellationToken cancellationToken = default)
     {
         var manifestPath = GetManifestStoragePath(manifestId);
