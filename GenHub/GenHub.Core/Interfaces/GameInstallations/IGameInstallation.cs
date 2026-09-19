@@ -50,6 +50,19 @@ public interface IGameInstallation
     string ZeroHourPath { get; }
 
     /// <summary>
+    /// Gets the path to the bundled base Generals assets within Zero Hour (e.g. 'ZH_Generals'),
+    /// if present and containing retail archives. A present-but-unreadable directory is also
+    /// returned so launch validation reports it rather than treating it as absent.
+    /// </summary>
+    string? BundledGeneralsPath => InstallationExtensions.GetBundledGeneralsPath(ZeroHourPath);
+
+    /// <summary>
+    /// Gets the effective path to base Generals retail archives, checking <see cref="GeneralsPath"/> first
+    /// and falling back to <see cref="BundledGeneralsPath"/> if present.
+    /// </summary>
+    string? EffectiveGeneralsArchivePath => InstallationExtensions.GetEffectiveGeneralsArchivePath(GeneralsPath, BundledGeneralsPath);
+
+    /// <summary>
     /// Gets the available game clients for this installation.
     /// </summary>
     List<GameClient> AvailableGameClients { get; }

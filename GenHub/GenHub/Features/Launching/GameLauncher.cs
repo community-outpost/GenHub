@@ -652,6 +652,28 @@ public class GameLauncher(
             return null;
         }
 
+        var roots = GetArchiveRootsToValidate(environment, installation, gameType);
+
+        foreach (var (variableName, declaredPath) in roots)
+        {
+            var error = ValidateArchiveRoot(environment, variableName, declaredPath);
+            if (error is not null)
+            {
+                return error;
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Collects the archive roots that matter for the launching game.
+    /// </summary>
+    private static List<(string Variable, string? Path)> GetArchiveRootsToValidate(
+        Dictionary<string, string> environment,
+        GameInstallation? installation,
+        GameType gameType)
+    {
         // Validated against the installation's declared paths, not only the variables that
         // survived into the environment. AddArchiveRoot drops a path that does not exist,
         // so validating the environment alone would silently skip the exact case this
@@ -670,62 +692,73 @@ public class GameLauncher(
 
         if (gameType == GameType.ZeroHour)
         {
-            // Checked only when declared, because an absent Generals root is not by itself
-            // wrong: the engine mounts archives from the working directory as well, so base
-            // content may legitimately sit in the workspace instead of a retail root. That
-            // is the arrangement this whole mechanism replaces, but it remains valid.
+            // Checked only when declared or discovered via bundled ZH_Generals, because an absent
+            // Generals root is not by itself wrong: the engine mounts archives from the working
+            // directory as well, so base content may legitimately sit in the workspace instead of
+            // a retail root. That is the arrangement this whole mechanism replaces, but it remains valid.
             //
-            // KNOWN GAP: when no Generals root is declared and the workspace does not carry
-            // base content either, Zero Hour still starts with nothing to mount and this
-            // check cannot tell. Archive filenames are arbitrary — a real install holds mod,
-            // hotkey and control-bar archives alongside the retail ones — so presence of
-            // "*.big" anywhere proves nothing about base content specifically. Detecting it
-            // needs the engine to report a failed mount; see the engine-side work tracked
-            // for GeneralsGameCode. A workspace "*.big" check was considered and rejected:
+            // KNOWN GAP: when no Generals root is declared, no bundled ZH_Generals directory exists,
+            // and the workspace does not carry base content either, Zero Hour still starts with
+            // nothing to mount and this check cannot tell. Archive filenames are arbitrary — a real
+            // install holds mod, hotkey and control-bar archives alongside the retail ones — so
+            // presence of *.big anywhere proves nothing about base content specifically. Detecting
+            // it needs the engine to report a failed mount; see the engine-side work tracked
+            // for GeneralsGameCode (#333). A workspace *.big check was considered and rejected:
             // a Zero Hour workspace always contains archives, so it would always pass.
-            roots.Add((RetailArchiveConstants.GeneralsInstallPathVariable, installation?.GeneralsPath));
+            var effectiveGenerals = installation?.EffectiveGeneralsArchivePath;
+            if (!string.IsNullOrWhiteSpace(effectiveGenerals) ||
+                environment.ContainsKey(RetailArchiveConstants.GeneralsInstallPathVariable))
+            {
+                roots.Add((RetailArchiveConstants.GeneralsInstallPathVariable, effectiveGenerals));
+            }
         }
 
-        foreach (var (variableName, declaredPath) in roots)
+        return roots;
+    }
+
+    /// <summary>
+    /// Checks one archive root for presence, readability and archive content.
+    /// </summary>
+    private static string? ValidateArchiveRoot(
+        Dictionary<string, string> environment,
+        string variableName,
+        string? declaredPath)
+    {
+        // A profile override is the root actually used, so it is what gets checked.
+        var root = environment.TryGetValue(variableName, out var configured) && !string.IsNullOrWhiteSpace(configured)
+            ? configured
+            : declaredPath;
+
+        // Nothing configured means that game is simply not installed separately.
+        if (string.IsNullOrWhiteSpace(root))
         {
-            // A profile override is the root actually used, so it is what gets checked.
-            var root = environment.TryGetValue(variableName, out var configured) && !string.IsNullOrWhiteSpace(configured)
-                ? configured
-                : declaredPath;
+            return null;
+        }
 
-            // Nothing configured means that game is simply not installed separately.
-            if (string.IsNullOrWhiteSpace(root))
-            {
-                continue;
-            }
+        // The probe is the enumeration itself: Directory.Exists returns false for an
+        // unreadable root as well as a missing one, which would report a permission
+        // problem as missing content. Only DirectoryNotFoundException means absence.
+        bool hasArchive;
+        try
+        {
+            hasArchive = Directory
+                .EnumerateFiles(root, RetailArchiveConstants.ArchiveSearchPattern, RetailArchiveConstants.ArchiveSearch)
+                .Any();
+        }
+        catch (DirectoryNotFoundException)
+        {
+            return $"The retail archive root for {variableName} does not exist: {root}. " +
+                   "The engine would abort during initialisation with a generic crash naming nothing, so the launch was stopped.";
+        }
+        catch (Exception ex) when (ex is UnauthorizedAccessException or IOException)
+        {
+            return $"The retail archive root for {variableName} could not be read: {root} ({ex.Message}).";
+        }
 
-            if (!Directory.Exists(root))
-            {
-                return $"The retail archive root for {variableName} does not exist: {root}. " +
-                       "The engine would abort during initialisation with a generic crash naming nothing, so the launch was stopped.";
-            }
-
-            bool hasArchive = false;
-            try
-            {
-                hasArchive = Directory
-                    .EnumerateFiles(root, RetailArchiveConstants.ArchiveSearchPattern, RetailArchiveConstants.ArchiveSearch)
-                    .Any();
-            }
-            catch (UnauthorizedAccessException ex)
-            {
-                return $"The retail archive root for {variableName} could not be read: {root} ({ex.Message}).";
-            }
-            catch (IOException ex)
-            {
-                return $"The retail archive root for {variableName} could not be read: {root} ({ex.Message}).";
-            }
-
-            if (!hasArchive)
-            {
-                return $"The retail archive root for {variableName} contains no .big archives: {root}. " +
-                       "The engine would abort during initialisation with a generic crash naming nothing, so the launch was stopped.";
-            }
+        if (!hasArchive)
+        {
+            return $"The retail archive root for {variableName} contains no .big archives: {root}. " +
+                   "The engine would abort during initialisation with a generic crash naming nothing, so the launch was stopped.";
         }
 
         return null;
@@ -767,7 +800,7 @@ public class GameLauncher(
         }
 
         AddArchiveRoot(environment, RetailArchiveConstants.ZeroHourInstallPathVariable, installation.ZeroHourPath);
-        AddArchiveRoot(environment, RetailArchiveConstants.GeneralsInstallPathVariable, installation.GeneralsPath);
+        AddArchiveRoot(environment, RetailArchiveConstants.GeneralsInstallPathVariable, installation.EffectiveGeneralsArchivePath);
     }
 
     /// <summary>
