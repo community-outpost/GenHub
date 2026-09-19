@@ -28,6 +28,14 @@ namespace GenHub.Features.Content.Services;
 /// </summary>
 public class ContentStorageService : IContentStorageService
 {
+    /// <summary>
+    /// Outcome of processing a single manifest file for CAS storage.
+    /// </summary>
+    /// <param name="Success">Whether processing succeeded (stored or legitimately skipped).</param>
+    /// <param name="StoredFile">The stored file entry, or null when the file was skipped or failed.</param>
+    /// <param name="Error">The failure message when a required file could not be stored.</param>
+    private sealed record FileProcessResult(bool Success, ManifestFile? StoredFile, string? Error);
+
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         WriteIndented = true,
@@ -249,6 +257,42 @@ public class ContentStorageService : IContentStorageService
     }
 
     /// <summary>
+    /// Resolves the source path for a manifest file, preferring its explicit source path when available.
+    /// </summary>
+    /// <param name="manifestFile">The manifest file entry.</param>
+    /// <param name="sourceDirectory">Source directory containing content files.</param>
+    /// <returns>The resolved source file path.</returns>
+    private static string ResolveManifestFileSourcePath(ManifestFile manifestFile, string sourceDirectory)
+    {
+        // Use SourcePath if provided (e.g., for files where RelativePath differs from original location)
+        // Otherwise, compute from sourceDirectory + RelativePath
+        return !string.IsNullOrEmpty(manifestFile.SourcePath) && File.Exists(manifestFile.SourcePath)
+            ? manifestFile.SourcePath
+            : Path.Combine(sourceDirectory, manifestFile.RelativePath);
+    }
+
+    /// <summary>
+    /// Reports content storage progress.
+    /// </summary>
+    /// <param name="progress">Optional progress reporter.</param>
+    /// <param name="processedCount">The number of files processed so far.</param>
+    /// <param name="totalFiles">The total number of files.</param>
+    /// <param name="currentFileName">The current file name.</param>
+    private static void ReportStorageProgress(
+        IProgress<ContentStorageProgress>? progress,
+        int processedCount,
+        int totalFiles,
+        string currentFileName)
+    {
+        progress?.Report(new ContentStorageProgress
+        {
+            ProcessedCount = processedCount,
+            TotalCount = totalFiles,
+            CurrentFileName = currentFileName,
+        });
+    }
+
+    /// <summary>
     /// Initializes a new instance of the <see cref="ContentStorageService"/> class.
     /// </summary>
     /// <param name="storageRoot">The root directory for content storage.</param>
@@ -325,8 +369,7 @@ public class ContentStorageService : IContentStorageService
 
         if (isInvalidDrive && !forceStorage)
         {
-            _logger.LogWarning("Source directory {SourceDirectory} is on an invalid or removable drive, storing metadata only", sourceDirectory);
-            return await StoreManifestOnlyAsync(manifest, sourceDirectory, cancellationToken);
+            return await HandleInvalidDriveAsync(manifest, sourceDirectory, cancellationToken).ConfigureAwait(false);
         }
 
         // Determine if this manifest requires physical file storage in CAS
@@ -354,40 +397,7 @@ public class ContentStorageService : IContentStorageService
 
             var updatedManifest = storeFilesResult.Data;
 
-            // Track CAS references to ensure files are not prematurely garbage collected
-            var trackResult = await _referenceTracker.TrackManifestReferencesAsync(updatedManifest.Id, updatedManifest, cancellationToken);
-            if (!trackResult.Success)
-            {
-                _logger.LogError("Failed to track CAS references for manifest {ManifestId}: {Error}", updatedManifest.Id, trackResult.FirstError);
-                return OperationResult<ContentManifest>.CreateFailure($"Failed to track CAS references: {trackResult.FirstError}");
-            }
-
-            // Ensure Manifests directory exists before writing manifest file
-            var manifestDirectory = Path.GetDirectoryName(manifestPath);
-            if (!string.IsNullOrEmpty(manifestDirectory))
-            {
-                Directory.CreateDirectory(manifestDirectory);
-            }
-
-            var manifestJson = JsonSerializer.Serialize(updatedManifest, JsonOptions);
-            await File.WriteAllTextAsync(manifestPath, manifestJson, cancellationToken);
-
-            // Create source.path marker for CAS-stored content
-            // This prevents "Could not resolve source path" warnings when GetContentDirectoryAsync is called
-            try
-            {
-                var contentDir = Path.Combine(_storageRoot, DirectoryNames.Data, updatedManifest.Id.Value);
-                Directory.CreateDirectory(contentDir);
-                var sourcePathFile = Path.Combine(contentDir, FileTypes.SourcePathFileName);
-                await File.WriteAllTextAsync(sourcePathFile, FileTypes.CasOnlySourceMarker, cancellationToken);
-            }
-            catch (Exception markerEx)
-            {
-                _logger.LogWarning(markerEx, "Stored manifest {ManifestId} but failed to write CAS source-path marker", updatedManifest.Id);
-            }
-
-            _logger.LogInformation("Successfully stored content for manifest {ManifestId}", manifest.Id);
-            return OperationResult<ContentManifest>.CreateSuccess(updatedManifest);
+            return await FinalizeStoredContentAsync(updatedManifest, manifestPath, cancellationToken);
         }
         catch (Exception ex)
         {
@@ -572,6 +582,85 @@ public class ContentStorageService : IContentStorageService
             _logger.LogWarning(ex, "Failed to calculate storage stats");
             return OperationResult<StorageStats>.CreateFailure($"Failed to calculate storage stats: {ex.Message}");
         }
+    }
+
+    /// <summary>
+    /// Handles storage when the source directory sits on an invalid or removable drive,
+    /// refusing metadata-only storage when required CAS objects are missing.
+    /// </summary>
+    /// <param name="manifest">The content manifest.</param>
+    /// <param name="sourceDirectory">Source directory containing content files.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The stored manifest, or a failure when required CAS objects are missing.</returns>
+    internal async Task<OperationResult<ContentManifest>> HandleInvalidDriveAsync(
+        ContentManifest manifest,
+        string sourceDirectory,
+        CancellationToken cancellationToken)
+    {
+        if (RequiresPhysicalStorage(manifest))
+        {
+            var missingCasFiles = await GetMissingRequiredCasFilesAsync(manifest, cancellationToken).ConfigureAwait(false);
+            if (missingCasFiles.Count > 0)
+            {
+                _logger.LogError(
+                    "Cannot store manifest {ManifestId} metadata only: source directory is on an invalid or removable drive and required files are missing from CAS: {MissingFiles}",
+                    manifest.Id,
+                    string.Join(", ", missingCasFiles));
+                return OperationResult<ContentManifest>.CreateFailure(
+                    $"Source directory '{sourceDirectory}' is on an invalid or removable drive and required content is missing from CAS: {string.Join(", ", missingCasFiles)}");
+            }
+        }
+
+        _logger.LogWarning("Source directory {SourceDirectory} is on an invalid or removable drive, storing metadata only", sourceDirectory);
+        return await StoreManifestOnlyAsync(manifest, sourceDirectory, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Tracks CAS references and persists the manifest file after content files were stored.
+    /// </summary>
+    /// <param name="updatedManifest">The manifest with CAS-backed file entries.</param>
+    /// <param name="manifestPath">The manifest storage path.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The stored manifest, or a failure when references cannot be tracked.</returns>
+    private async Task<OperationResult<ContentManifest>> FinalizeStoredContentAsync(
+        ContentManifest updatedManifest,
+        string manifestPath,
+        CancellationToken cancellationToken)
+    {
+        // Track CAS references to ensure files are not prematurely garbage collected
+        var trackResult = await _referenceTracker.TrackManifestReferencesAsync(updatedManifest.Id, updatedManifest, cancellationToken);
+        if (!trackResult.Success)
+        {
+            _logger.LogError("Failed to track CAS references for manifest {ManifestId}: {Error}", updatedManifest.Id, trackResult.FirstError);
+            return OperationResult<ContentManifest>.CreateFailure($"Failed to track CAS references: {trackResult.FirstError}");
+        }
+
+        // Ensure Manifests directory exists before writing manifest file
+        var manifestDirectory = Path.GetDirectoryName(manifestPath);
+        if (!string.IsNullOrEmpty(manifestDirectory))
+        {
+            Directory.CreateDirectory(manifestDirectory);
+        }
+
+        var manifestJson = JsonSerializer.Serialize(updatedManifest, JsonOptions);
+        await File.WriteAllTextAsync(manifestPath, manifestJson, cancellationToken);
+
+        // Create source.path marker for CAS-stored content
+        // This prevents "Could not resolve source path" warnings when GetContentDirectoryAsync is called
+        try
+        {
+            var contentDir = Path.Combine(_storageRoot, DirectoryNames.Data, updatedManifest.Id.Value);
+            Directory.CreateDirectory(contentDir);
+            var sourcePathFile = Path.Combine(contentDir, FileTypes.SourcePathFileName);
+            await File.WriteAllTextAsync(sourcePathFile, FileTypes.CasOnlySourceMarker, cancellationToken);
+        }
+        catch (Exception markerEx)
+        {
+            _logger.LogWarning(markerEx, "Stored manifest {ManifestId} but failed to write CAS source-path marker", updatedManifest.Id);
+        }
+
+        _logger.LogInformation("Successfully stored content for manifest {ManifestId}", updatedManifest.Id);
+        return OperationResult<ContentManifest>.CreateSuccess(updatedManifest);
     }
 
     private async Task<OperationResult<ContentManifest>> StoreManifestOnlyAsync(
@@ -790,12 +879,7 @@ public class ContentStorageService : IContentStorageService
         int totalFiles = manifest.Files.Count;
 
         // Initialize progress report
-        progress?.Report(new ContentStorageProgress
-        {
-            ProcessedCount = 0,
-            TotalCount = totalFiles,
-            CurrentFileName = "Initializing...",
-        });
+        ReportStorageProgress(progress, 0, totalFiles, "Initializing...");
 
         // Show notification for large file operations (>100 files) to inform user
         if (totalFiles > 100)
@@ -805,187 +889,33 @@ public class ContentStorageService : IContentStorageService
 
         foreach (var manifestFile in manifest.Files)
         {
-            try
+            var outcome = await ProcessManifestFileAsync(
+                manifestFile,
+                manifest,
+                sourceDirectory,
+                progress,
+                processedCount,
+                cancellationToken);
+
+            if (!outcome.Success)
             {
-                // Use SourcePath if provided (e.g., for files where RelativePath differs from original location)
-                // Otherwise, compute from sourceDirectory + RelativePath
-                var sourcePath = !string.IsNullOrEmpty(manifestFile.SourcePath) && File.Exists(manifestFile.SourcePath)
-                    ? manifestFile.SourcePath
-                    : Path.Combine(sourceDirectory, manifestFile.RelativePath);
-
-                // Special handling for content already in CAS (e.g. pre-downloaded)
-                if (manifestFile.SourceType == ContentSourceType.ContentAddressable && !string.IsNullOrEmpty(manifestFile.Hash))
-                {
-                    // Verify if it actually exists in CAS. Try the typed pool first, then fall back
-                    // to a pool-agnostic lookup: publisher factories may store under a content-type
-                    // pool that differs from the manifest's (e.g. a CNC Labs map stored under the Map
-                    // pool while the manifest type is still being inferred).
-                    var casPathResult = await _casService.GetContentPathAsync(manifestFile.Hash, manifest.ContentType, cancellationToken).ConfigureAwait(false);
-                    if (!casPathResult.Success || string.IsNullOrEmpty(casPathResult.Data))
-                    {
-                        casPathResult = await _casService.GetContentPathAsync(manifestFile.Hash, cancellationToken).ConfigureAwait(false);
-                    }
-
-                    if (casPathResult.Success && !string.IsNullOrEmpty(casPathResult.Data))
-                    {
-                        _logger.LogDebug(
-                            "File {RelativePath} already exists in CAS (hash: {Hash}), skipping physical storage",
-                            manifestFile.RelativePath,
-                            manifestFile.Hash);
-
-                        // Add to updated files with SourcePath = null to ensure Hash resolution
-                        updatedFiles.Add(CloneManifestFileForCas(manifestFile));
-                        processedCount++;
-                        progress?.Report(new ContentStorageProgress
-                        {
-                            ProcessedCount = processedCount,
-                            TotalCount = totalFiles,
-                            CurrentFileName = manifestFile.RelativePath,
-                        });
-                        continue;
-                    }
-                }
-
-                if (!File.Exists(sourcePath))
-                {
-                    _logger.LogWarning(
-                        "File {RelativePath} not found at source path {SourcePath} or computed path",
-                        manifestFile.RelativePath,
-                        sourcePath);
-
-                    if (manifestFile.IsRequired)
-                    {
-                        return OperationResult<ContentManifest>.CreateFailure(
-                            $"Required file '{manifestFile.RelativePath}' not found at source path '{sourcePath}'");
-                    }
-
-                    processedCount++;
-                    progress?.Report(new ContentStorageProgress
-                    {
-                        ProcessedCount = processedCount,
-                        TotalCount = totalFiles,
-                        CurrentFileName = manifestFile.RelativePath,
-                    });
-                    continue;
-                }
-
-                // Update progress before starting heavy CAS operation
-                progress?.Report(new ContentStorageProgress
-                {
-                    ProcessedCount = processedCount,
-                    TotalCount = totalFiles,
-                    CurrentFileName = manifestFile.RelativePath,
-                });
-
-                // Store file based on its SourceType
-                string hash = string.Empty;
-                long fileSize = 0;
-
-                if (manifestFile.SourceType == ContentSourceType.ContentAddressable)
-                {
-                    // For ContentAddressable files, store in CAS by hash with pool awareness
-                    var casResult = await _casService.StoreContentAsync(sourcePath, manifest.ContentType, null, cancellationToken);
-                    if (!casResult.Success || string.IsNullOrEmpty(casResult.Data))
-                    {
-                        _logger.LogWarning(
-                            "Failed to store {RelativePath} in CAS: {Error}",
-                            manifestFile.RelativePath,
-                            casResult.FirstError);
-
-                        if (manifestFile.IsRequired)
-                        {
-                            return OperationResult<ContentManifest>.CreateFailure(
-                                $"Failed to store required file '{manifestFile.RelativePath}' in CAS: {casResult.FirstError}");
-                        }
-
-                        continue;
-                    }
-
-                    hash = casResult.Data;
-                    fileSize = new FileInfo(sourcePath).Length;
-
-                    _logger.LogDebug(
-                        "Stored {RelativePath} in CAS with hash {Hash}",
-                        manifestFile.RelativePath,
-                        hash);
-                }
-                else
-                {
-                    // For other source types (ExtractedPackage, LocalFile, etc.), also store in CAS
-                    // This ensures all files end up in CAS for proper validation and workspace resolution
-                    var casResult = await _casService.StoreContentAsync(sourcePath, manifest.ContentType, null, cancellationToken);
-                    if (!casResult.Success || string.IsNullOrEmpty(casResult.Data))
-                    {
-                        _logger.LogWarning(
-                            "Failed to store {RelativePath} in CAS: {Error}",
-                            manifestFile.RelativePath,
-                            casResult.FirstError);
-
-                        if (manifestFile.IsRequired)
-                        {
-                            return OperationResult<ContentManifest>.CreateFailure(
-                                $"Failed to store required file '{manifestFile.RelativePath}' in CAS: {casResult.FirstError}");
-                        }
-
-                        continue;
-                    }
-
-                    hash = casResult.Data;
-                    fileSize = new FileInfo(sourcePath).Length;
-
-                    _logger.LogDebug(
-                        "Stored {RelativePath} (from {SourceType}) in CAS with hash {Hash}",
-                        manifestFile.RelativePath,
-                        manifestFile.SourceType,
-                        hash);
-                }
-
-                // After storing, all files become ContentAddressable since they're now in CAS
-                // Clear SourcePath for CAS-stored content so workspace preparation uses Hash instead
-                updatedFiles.Add(CloneManifestFileForCas(manifestFile, hash, fileSize));
-                processedCount++;
-
-                // Update progress after completion
-                progress?.Report(new ContentStorageProgress
-                {
-                    ProcessedCount = processedCount,
-                    TotalCount = totalFiles,
-                    CurrentFileName = manifestFile.RelativePath,
-                });
+                return OperationResult<ContentManifest>.CreateFailure(
+                    outcome.Error ?? $"Failed to store file '{manifestFile.RelativePath}' for manifest {manifest.Id}");
             }
-            catch (Exception ex) when (ex is not OperationCanceledException)
+
+            if (outcome.StoredFile != null)
             {
-                _logger.LogWarning(
-                    ex,
-                    "Failed to store file {RelativePath} for manifest {ManifestId}",
-                    manifestFile.RelativePath,
-                    manifest.Id);
-
-                if (manifestFile.IsRequired)
-                {
-                    return OperationResult<ContentManifest>.CreateFailure(
-                        $"Failed to store required file '{manifestFile.RelativePath}' for manifest {manifest.Id}: {ex.Message}");
-                }
-
-                processedCount++;
-                progress?.Report(new ContentStorageProgress
-                {
-                    ProcessedCount = processedCount,
-                    TotalCount = totalFiles,
-                    CurrentFileName = manifestFile.RelativePath,
-                });
+                updatedFiles.Add(outcome.StoredFile);
             }
+
+            processedCount++;
+            ReportStorageProgress(progress, processedCount, totalFiles, manifestFile.RelativePath);
         }
 
-        var missingRequiredFiles = manifest.Files
-            .Where(f => f.IsRequired && !updatedFiles.Any(u => string.Equals(u.RelativePath, f.RelativePath, StringComparison.OrdinalIgnoreCase)))
-            .ToList();
-
-        if (missingRequiredFiles.Count > 0)
+        var validationError = ValidateAllRequiredFilesStored(manifest, updatedFiles);
+        if (validationError != null)
         {
-            var missingList = string.Join(", ", missingRequiredFiles.Select(f => f.RelativePath));
-            _logger.LogError("Failed to store all required files for manifest {ManifestId}. Missing: {MissingFiles}", manifest.Id, missingList);
-            return OperationResult<ContentManifest>.CreateFailure($"Failed to store required files for manifest {manifest.Id}: {missingList}");
+            return OperationResult<ContentManifest>.CreateFailure(validationError);
         }
 
         manifest.Files = updatedFiles;
@@ -997,6 +927,188 @@ public class ContentStorageService : IContentStorageService
             manifest.Id);
 
         return OperationResult<ContentManifest>.CreateSuccess(manifest);
+    }
+
+    /// <summary>
+    /// Processes a single manifest file for CAS storage, reusing existing CAS content when available.
+    /// </summary>
+    /// <param name="manifestFile">The manifest file entry.</param>
+    /// <param name="manifest">The content manifest.</param>
+    /// <param name="sourceDirectory">Source directory containing content files.</param>
+    /// <param name="progress">Optional progress reporter.</param>
+    /// <param name="processedCount">The number of files processed so far.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The processing outcome: stored file, skip, or required-file failure.</returns>
+    private async Task<FileProcessResult> ProcessManifestFileAsync(
+        ManifestFile manifestFile,
+        ContentManifest manifest,
+        string sourceDirectory,
+        IProgress<ContentStorageProgress>? progress,
+        int processedCount,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var sourcePath = ResolveManifestFileSourcePath(manifestFile, sourceDirectory);
+
+            // Special handling for content already in CAS (e.g. pre-downloaded)
+            var reusedFile = await TryReuseExistingCasContentAsync(manifestFile, manifest.ContentType, cancellationToken);
+            if (reusedFile != null)
+            {
+                return new FileProcessResult(true, reusedFile, null);
+            }
+
+            if (!File.Exists(sourcePath))
+            {
+                _logger.LogWarning(
+                    "File {RelativePath} not found at source path {SourcePath} or computed path",
+                    manifestFile.RelativePath,
+                    sourcePath);
+
+                if (manifestFile.IsRequired)
+                {
+                    return new FileProcessResult(false, null, $"Required file '{manifestFile.RelativePath}' not found at source path '{sourcePath}'");
+                }
+
+                return new FileProcessResult(true, null, null);
+            }
+
+            // Update progress before starting heavy CAS operation
+            ReportStorageProgress(progress, processedCount, manifest.Files.Count, manifestFile.RelativePath);
+
+            var storeResult = await StoreFileInCasAsync(manifestFile, manifest.ContentType, sourcePath, cancellationToken);
+            if (!storeResult.Success)
+            {
+                if (manifestFile.IsRequired)
+                {
+                    return new FileProcessResult(false, null, $"Failed to store required file '{manifestFile.RelativePath}' in CAS: {storeResult.FirstError}");
+                }
+
+                return new FileProcessResult(true, null, null);
+            }
+
+            return new FileProcessResult(true, storeResult.Data, null);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _logger.LogWarning(
+                ex,
+                "Failed to store file {RelativePath} for manifest {ManifestId}",
+                manifestFile.RelativePath,
+                manifest.Id);
+
+            if (manifestFile.IsRequired)
+            {
+                return new FileProcessResult(false, null, $"Failed to store required file '{manifestFile.RelativePath}' for manifest {manifest.Id}: {ex.Message}");
+            }
+
+            return new FileProcessResult(true, null, null);
+        }
+    }
+
+    /// <summary>
+    /// Returns the CAS-backed file entry when the content already exists in CAS, or null otherwise.
+    /// </summary>
+    /// <param name="manifestFile">The manifest file entry.</param>
+    /// <param name="contentType">The content type for pool routing.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The reused file entry, or null when content must be stored from disk.</returns>
+    private async Task<ManifestFile?> TryReuseExistingCasContentAsync(
+        ManifestFile manifestFile,
+        ContentType contentType,
+        CancellationToken cancellationToken)
+    {
+        if (manifestFile.SourceType != ContentSourceType.ContentAddressable || string.IsNullOrEmpty(manifestFile.Hash))
+        {
+            return null;
+        }
+
+        // Verify if it actually exists in CAS. Try the typed pool first, then fall back
+        // to a pool-agnostic lookup: publisher factories may store under a content-type
+        // pool that differs from the manifest's (e.g. a CNC Labs map stored under the Map
+        // pool while the manifest type is still being inferred).
+        var casPathResult = await _casService.GetContentPathAsync(manifestFile.Hash, contentType, cancellationToken).ConfigureAwait(false);
+        if (!casPathResult.Success || string.IsNullOrEmpty(casPathResult.Data))
+        {
+            casPathResult = await _casService.GetContentPathAsync(manifestFile.Hash, cancellationToken).ConfigureAwait(false);
+        }
+
+        if (!casPathResult.Success || string.IsNullOrEmpty(casPathResult.Data))
+        {
+            return null;
+        }
+
+        _logger.LogDebug(
+            "File {RelativePath} already exists in CAS (hash: {Hash}), skipping physical storage",
+            manifestFile.RelativePath,
+            manifestFile.Hash);
+
+        // Add to updated files with SourcePath = null to ensure Hash resolution
+        return CloneManifestFileForCas(manifestFile);
+    }
+
+    /// <summary>
+    /// Stores a single file in CAS and returns the CAS-backed file entry.
+    /// </summary>
+    /// <param name="manifestFile">The manifest file entry.</param>
+    /// <param name="contentType">The content type for pool routing.</param>
+    /// <param name="sourcePath">The source file path.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The stored file entry, or a failure when CAS storage fails.</returns>
+    private async Task<OperationResult<ManifestFile>> StoreFileInCasAsync(
+        ManifestFile manifestFile,
+        ContentType contentType,
+        string sourcePath,
+        CancellationToken cancellationToken)
+    {
+        // All source types (ContentAddressable, ExtractedPackage, LocalFile, etc.) are stored
+        // in CAS by hash with pool awareness. This ensures all files end up in CAS for proper
+        // validation and workspace resolution.
+        var casResult = await _casService.StoreContentAsync(sourcePath, contentType, null, cancellationToken).ConfigureAwait(false);
+        if (!casResult.Success || string.IsNullOrEmpty(casResult.Data))
+        {
+            _logger.LogWarning(
+                "Failed to store {RelativePath} in CAS: {Error}",
+                manifestFile.RelativePath,
+                casResult.FirstError);
+            return OperationResult<ManifestFile>.CreateFailure(
+                casResult.FirstError ?? $"CAS storage failed for '{manifestFile.RelativePath}'");
+        }
+
+        var hash = casResult.Data;
+        var fileSize = new FileInfo(sourcePath).Length;
+
+        _logger.LogDebug(
+            "Stored {RelativePath} (from {SourceType}) in CAS with hash {Hash}",
+            manifestFile.RelativePath,
+            manifestFile.SourceType,
+            hash);
+
+        // After storing, all files become ContentAddressable since they're now in CAS.
+        // Clear SourcePath for CAS-stored content so workspace preparation uses Hash instead.
+        return OperationResult<ManifestFile>.CreateSuccess(CloneManifestFileForCas(manifestFile, hash, fileSize));
+    }
+
+    /// <summary>
+    /// Validates that every required manifest file was stored.
+    /// </summary>
+    /// <param name="manifest">The content manifest.</param>
+    /// <param name="updatedFiles">The stored file entries.</param>
+    /// <returns>An error message when required files are missing; otherwise, null.</returns>
+    private string? ValidateAllRequiredFilesStored(ContentManifest manifest, List<ManifestFile> updatedFiles)
+    {
+        var missingRequiredFiles = manifest.Files
+            .Where(f => f.IsRequired && !updatedFiles.Any(u => string.Equals(u.RelativePath, f.RelativePath, StringComparison.OrdinalIgnoreCase)))
+            .ToList();
+
+        if (missingRequiredFiles.Count == 0)
+        {
+            return null;
+        }
+
+        var missingList = string.Join(", ", missingRequiredFiles.Select(f => f.RelativePath));
+        _logger.LogError("Failed to store all required files for manifest {ManifestId}. Missing: {MissingFiles}", manifest.Id, missingList);
+        return $"Failed to store required files for manifest {manifest.Id}: {missingList}";
     }
 
     private async Task<OperationResult<string>> MaterializeManifestFileAsync(

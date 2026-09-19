@@ -431,6 +431,85 @@ public class ContentStorageServiceTests : IDisposable
     }
 
     /// <summary>
+    /// Tests that invalid-drive storage fails when physical storage is required and required CAS objects are missing.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task HandleInvalidDriveAsync_WhenCasMissing_FailsAsync()
+    {
+        // Arrange
+        var sourceDir = Path.Combine(_tempRoot, "InvalidDriveSource");
+        Directory.CreateDirectory(sourceDir);
+        var manifest = new ContentManifest
+        {
+            Id = ManifestId.Create("1.0.local.addon.invalid-drive-missing-cas"),
+            ContentType = ContentType.Addon,
+            Files =
+            [
+                new()
+                {
+                    RelativePath = "addon.big",
+                    Hash = "invalid_drive_missing_hash",
+                    SourceType = ContentSourceType.ContentAddressable,
+                    IsRequired = true,
+                },
+            ],
+        };
+
+        _casServiceMock
+            .Setup(c => c.ExistsAsync("invalid_drive_missing_hash", ContentType.Addon, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(false));
+        _casServiceMock
+            .Setup(c => c.ExistsAsync("invalid_drive_missing_hash", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(false));
+
+        // Act
+        var result = await _service.HandleInvalidDriveAsync(manifest, sourceDir, CancellationToken.None);
+
+        // Assert
+        Assert.False(result.Success);
+        Assert.Contains("missing from CAS", result.FirstError);
+    }
+
+    /// <summary>
+    /// Tests that invalid-drive storage succeeds metadata-only when all required CAS objects exist.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task HandleInvalidDriveAsync_WhenCasPresent_StoresMetadataOnlyAsync()
+    {
+        // Arrange
+        var sourceDir = Path.Combine(_tempRoot, "InvalidDrivePresentSource");
+        Directory.CreateDirectory(sourceDir);
+        var manifest = new ContentManifest
+        {
+            Id = ManifestId.Create("1.0.local.addon.invalid-drive-cas-present"),
+            ContentType = ContentType.Addon,
+            Files =
+            [
+                new()
+                {
+                    RelativePath = "addon.big",
+                    Hash = "invalid_drive_present_hash",
+                    SourceType = ContentSourceType.ContentAddressable,
+                    IsRequired = true,
+                },
+            ],
+        };
+
+        _casServiceMock
+            .Setup(c => c.ExistsAsync("invalid_drive_present_hash", ContentType.Addon, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+
+        // Act
+        var result = await _service.HandleInvalidDriveAsync(manifest, sourceDir, CancellationToken.None);
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.True(File.Exists(_service.GetManifestStoragePath(manifest.Id)));
+    }
+
+    /// <summary>
     /// Tests that IsContentStoredAsync returns false when a required CAS file has no hash.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
