@@ -60,16 +60,16 @@ public partial class ModBuilderViewModel(
     IDialogService? dialogService = null,
     ISampleProjectService? sampleProjectService = null) : ObservableObject, IDisposable
 {
-    private const string UnknownErrorKey = UnknownErrorKey;
-    private const string OperationInProgressTitleKey = OperationInProgressTitleKey;
-    private const string BusyImportFilesKey = BusyImportFilesKey;
-    private const string NoProjectTitleKey = NoProjectTitleKey;
-    private const string NoProjectMessageKey = NoProjectMessageKey;
-    private const string ProjectFileTypeNameKey = ProjectFileTypeNameKey;
-    private const string LoadFailedTitleKey = LoadFailedTitleKey;
-    private const string OpenFailedTitleKey = OpenFailedTitleKey;
-    private const string FolderRestrictedTitleKey = FolderRestrictedTitleKey;
-    private const string ImportFailedTitleKey = ImportFailedTitleKey;
+    private const string UnknownErrorKey = "Common.UnknownError";
+    private const string OperationInProgressTitleKey = "Tools.ModBuilder.Notification.OperationInProgress.Title";
+    private const string BusyImportFilesKey = "Tools.ModBuilder.Notification.Busy.ImportFiles";
+    private const string NoProjectTitleKey = "Tools.ModBuilder.Notification.NoProject.Title";
+    private const string NoProjectMessageKey = "Tools.ModBuilder.Notification.NoProject.Message";
+    private const string ProjectFileTypeNameKey = "Tools.ModBuilder.Project.FileTypeName";
+    private const string LoadFailedTitleKey = "Tools.ModBuilder.Notification.LoadFailed.Title";
+    private const string OpenFailedTitleKey = "Tools.ModBuilder.Notification.OpenFailed.Title";
+    private const string FolderRestrictedTitleKey = "Tools.ModBuilder.Notification.FolderRestricted.Title";
+    private const string ImportFailedTitleKey = "Tools.ModBuilder.Notification.ImportFailed.Title";
 
     private readonly Stopwatch _buildStopwatch = new();
     private readonly Dictionary<string, (bool? Big, string? OutputFile)> _originalPackStates = new(StringComparer.OrdinalIgnoreCase);
