@@ -1291,13 +1291,24 @@ public partial class ModBuilderViewModel(
             return;
         }
 
-        await InvokeOnUIThreadAsync(() => IsBuildRunning = true);
-        if (_importCancellationTokenSource != null)
+        var canStart = await InvokeOnUIThreadAsync(() =>
         {
-            await _importCancellationTokenSource.CancelAsync().ConfigureAwait(false);
-            _importCancellationTokenSource.Dispose();
-            _importCancellationTokenSource = null;
+            if (IsBuildRunning)
+            {
+                return false;
+            }
+
+            IsBuildRunning = true;
+            return true;
+        }).ConfigureAwait(false);
+
+        if (!canStart)
+        {
+            notificationService.ShowWarning(localizationService.GetString(OperationInProgressTitleKey), localizationService.GetString("Tools.ModBuilder.Notification.Busy.OpenSample"));
+            return;
         }
+
+        await CancelStaleImportTokenSourceAsync().ConfigureAwait(false);
 
         var cts = new CancellationTokenSource();
         _importCancellationTokenSource = cts;
@@ -1311,8 +1322,6 @@ public partial class ModBuilderViewModel(
                 var projectDir = Path.GetDirectoryName(projectFile)!;
                 if (sampleProjectService != null && !sampleProjectService.HasSampleAssets(projectDir))
                 {
-                    await InvokeOnUIThreadAsync(() => IsBuildRunning = true);
-
                     AppendBuildLog($"Downloading and extracting sample assets for {item.Name}...");
                     var progress = new Progress<string>(AppendBuildLog);
 
@@ -1524,27 +1533,30 @@ public partial class ModBuilderViewModel(
         }
 
         logger.LogInformation("LoadSampleProjectAsync requested");
-        if (_importCancellationTokenSource is { } oldImportCts)
+
+        var canStart = await InvokeOnUIThreadAsync(() =>
         {
-            try
+            if (IsBuildRunning)
             {
-                await oldImportCts.CancelAsync().ConfigureAwait(false);
+                return false;
             }
-            catch (ObjectDisposedException)
-            {
-                // Already disposed
-            }
+
+            IsBuildRunning = true;
+            return true;
+        }).ConfigureAwait(false);
+
+        if (!canStart)
+        {
+            logger.LogWarning("LoadSampleProjectAsync ignored because build or import is already running");
+            return;
         }
+
+        await CancelStaleImportTokenSourceAsync().ConfigureAwait(false);
 
         var cts = new CancellationTokenSource();
         _importCancellationTokenSource = cts;
         try
         {
-            await InvokeOnUIThreadAsync(() =>
-            {
-                IsBuildRunning = true;
-            });
-
             var samplePath = await ResolveSampleProjectPathAsync().ConfigureAwait(false);
 
             if (string.IsNullOrEmpty(samplePath))
@@ -3441,6 +3453,41 @@ public partial class ModBuilderViewModel(
         else
         {
             Dispatcher.UIThread.Post(action);
+        }
+    }
+
+    /// <summary>
+    /// Cancels and disposes a stale import token source left behind by a previous operation.
+    /// Must only be called after the <see cref="IsBuildRunning"/> guard has been claimed,
+    /// so no other guarded operation can be using the token source concurrently.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    private async Task CancelStaleImportTokenSourceAsync()
+    {
+        if (_importCancellationTokenSource is not { } staleCts)
+        {
+            return;
+        }
+
+        _importCancellationTokenSource = null;
+        try
+        {
+            await staleCts.CancelAsync().ConfigureAwait(false);
+        }
+        catch (ObjectDisposedException)
+        {
+            // Already disposed by the owning operation.
+        }
+        finally
+        {
+            try
+            {
+                staleCts.Dispose();
+            }
+            catch (ObjectDisposedException)
+            {
+                // Already disposed by the owning operation.
+            }
         }
     }
 

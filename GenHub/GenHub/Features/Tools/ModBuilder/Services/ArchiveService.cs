@@ -12,6 +12,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -62,7 +63,14 @@ public sealed class ArchiveService(
 
             try
             {
-                var manifest = await ResolveManifestAsync(sourceDirectory, targetBigPath, manifestFilePath, cancellationToken).ConfigureAwait(false);
+                var manifestResult = await ResolveManifestAsync(sourceDirectory, targetBigPath, manifestFilePath, cancellationToken).ConfigureAwait(false);
+                if (!manifestResult.Success)
+                {
+                    logger.LogError("Failed to resolve BIG archive manifest for {Target}: {Error}", targetBigPath, manifestResult.FirstError);
+                    return OperationResult<bool>.CreateFailure(manifestResult.Errors);
+                }
+
+                var manifest = manifestResult.Data;
 
                 var duplicateCount = await BigFilePacker.PackAsync(sourceDirectory, tempBigPath, targetBigPath, manifest, progress, cancellationToken).ConfigureAwait(false);
                 if (duplicateCount > 0)
@@ -98,7 +106,7 @@ public sealed class ArchiveService(
         }
     }
 
-    private async Task<BigArchiveManifest?> ResolveManifestAsync(
+    private async Task<OperationResult<BigArchiveManifest?>> ResolveManifestAsync(
         string sourceDirectory,
         string targetBigPath,
         string? manifestFilePath,
@@ -109,10 +117,11 @@ public sealed class ArchiveService(
             return await LoadExplicitManifestAsync(sourceDirectory, targetBigPath, manifestFilePath, cancellationToken).ConfigureAwait(false);
         }
 
-        return await DiscoverManifestAsync(sourceDirectory, targetBigPath, cancellationToken).ConfigureAwait(false);
+        var discovered = await DiscoverManifestAsync(sourceDirectory, targetBigPath, cancellationToken).ConfigureAwait(false);
+        return OperationResult<BigArchiveManifest?>.CreateSuccess(discovered);
     }
 
-    private async Task<BigArchiveManifest?> LoadExplicitManifestAsync(
+    private async Task<OperationResult<BigArchiveManifest?>> LoadExplicitManifestAsync(
         string sourceDirectory,
         string targetBigPath,
         string manifestFilePath,
@@ -121,17 +130,31 @@ public sealed class ArchiveService(
         if (!File.Exists(manifestFilePath))
         {
             logger.LogWarning("Configured manifest file does not exist: {Path}. Falling back to manifest discovery.", manifestFilePath);
-            return await DiscoverManifestAsync(sourceDirectory, targetBigPath, cancellationToken).ConfigureAwait(false);
+            var discovered = await DiscoverManifestAsync(sourceDirectory, targetBigPath, cancellationToken).ConfigureAwait(false);
+            return OperationResult<BigArchiveManifest?>.CreateSuccess(discovered);
         }
 
-        var manifest = await BigFilePacker.LoadManifestAsync(manifestFilePath, cancellationToken).ConfigureAwait(false);
-        if (manifest != null)
+        try
         {
-            logger.LogInformation("Using explicit BIG archive manifest from {Path}", manifestFilePath);
-            return manifest;
-        }
+            var manifest = await BigFilePacker.LoadManifestAsync(manifestFilePath, cancellationToken).ConfigureAwait(false);
+            if (manifest != null)
+            {
+                logger.LogInformation("Using explicit BIG archive manifest from {Path}", manifestFilePath);
+                return OperationResult<BigArchiveManifest?>.CreateSuccess(manifest);
+            }
 
-        throw new InvalidOperationException($"Explicitly configured manifest at '{manifestFilePath}' could not be loaded.");
+            logger.LogError("Explicitly configured manifest at '{Path}' could not be loaded because its content is empty or invalid.", manifestFilePath);
+            return OperationResult<BigArchiveManifest?>.CreateFailure($"Explicitly configured manifest at '{manifestFilePath}' could not be loaded because its content is empty or invalid.");
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex) when (ex is JsonException or IOException or UnauthorizedAccessException)
+        {
+            logger.LogError(ex, "Explicitly configured manifest at '{Path}' could not be parsed.", manifestFilePath);
+            return OperationResult<BigArchiveManifest?>.CreateFailure($"Explicitly configured manifest at '{manifestFilePath}' could not be parsed: {ex.Message}");
+        }
     }
 
     private async Task<BigArchiveManifest?> DiscoverManifestAsync(

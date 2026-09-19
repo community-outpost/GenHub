@@ -9029,6 +9029,42 @@ GameFilesEdited/Data/INI/**/*.ini</value>
   <data name="Tools.ModBuilder.Project.FileTypeName" xml:space="preserve">
     <value>مشروع ModBuilder</value>
   </data>
+  <data name="Tools.ModBuilder.Project.Error.PathEmpty" xml:space="preserve">
+    <value>لا يمكن أن يكون مسار المشروع فارغًا</value>
+  </data>
+  <data name="Tools.ModBuilder.Project.Error.NameEmpty" xml:space="preserve">
+    <value>لا يمكن أن يكون اسم المشروع فارغًا</value>
+  </data>
+  <data name="Tools.ModBuilder.Project.Error.AlreadyExists" xml:space="preserve">
+    <value>ملف المشروع موجود بالفعل في: {0}</value>
+  </data>
+  <data name="Tools.ModBuilder.Project.Error.InvalidPath" xml:space="preserve">
+    <value>مسار المشروع غير صالح</value>
+  </data>
+  <data name="Tools.ModBuilder.Project.Error.ProjectNull" xml:space="preserve">
+    <value>لا يمكن أن يكون المشروع فارغًا</value>
+  </data>
+  <data name="Tools.ModBuilder.Project.Error.FileNotFound" xml:space="preserve">
+    <value>لم يتم العثور على ملف المشروع في: {0}</value>
+  </data>
+  <data name="Tools.ModBuilder.Project.Error.DeserializeFailed" xml:space="preserve">
+    <value>فشل في قراءة ملف المشروع</value>
+  </data>
+  <data name="Tools.ModBuilder.Project.Error.DirectoryNotFound" xml:space="preserve">
+    <value>مجلد المشروع غير موجود: {0}</value>
+  </data>
+  <data name="Tools.ModBuilder.Project.Error.RequiredDirectoryMissing" xml:space="preserve">
+    <value>المجلد المطلوب غير موجود: {0}</value>
+  </data>
+  <data name="Tools.ModBuilder.Project.Error.NoBigFiles" xml:space="preserve">
+    <value>لم يتم تحديد ملفات BIG صالحة للاستيراد</value>
+  </data>
+  <data name="Tools.ModBuilder.Project.Error.BigFileNotFound" xml:space="preserve">
+    <value>لم يتم العثور على ملف BIG: {0}</value>
+  </data>
+  <data name="Tools.ModBuilder.Project.Error.NoBigFilesForProject" xml:space="preserve">
+    <value>لم يتم تحديد ملفات BIG لإنشاء المشروع منها</value>
+  </data>
   <data name="Tools.ModBuilder.Import.BigsPickerTitle" xml:space="preserve">
     <value>استيراد أرشيفات .BIG إلى المشروع</value>
   </data>

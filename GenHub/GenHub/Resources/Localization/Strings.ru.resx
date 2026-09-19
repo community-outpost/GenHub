@@ -9029,6 +9029,42 @@ GameFilesEdited/Data/INI/**/*.ini</value>
   <data name="Tools.ModBuilder.Project.FileTypeName" xml:space="preserve">
     <value>Проект ModBuilder</value>
   </data>
+  <data name="Tools.ModBuilder.Project.Error.PathEmpty" xml:space="preserve">
+    <value>Путь к проекту не может быть пустым</value>
+  </data>
+  <data name="Tools.ModBuilder.Project.Error.NameEmpty" xml:space="preserve">
+    <value>Имя проекта не может быть пустым</value>
+  </data>
+  <data name="Tools.ModBuilder.Project.Error.AlreadyExists" xml:space="preserve">
+    <value>Файл проекта уже существует: {0}</value>
+  </data>
+  <data name="Tools.ModBuilder.Project.Error.InvalidPath" xml:space="preserve">
+    <value>Недопустимый путь к проекту</value>
+  </data>
+  <data name="Tools.ModBuilder.Project.Error.ProjectNull" xml:space="preserve">
+    <value>Проект не может быть null</value>
+  </data>
+  <data name="Tools.ModBuilder.Project.Error.FileNotFound" xml:space="preserve">
+    <value>Файл проекта не найден: {0}</value>
+  </data>
+  <data name="Tools.ModBuilder.Project.Error.DeserializeFailed" xml:space="preserve">
+    <value>Не удалось прочитать файл проекта</value>
+  </data>
+  <data name="Tools.ModBuilder.Project.Error.DirectoryNotFound" xml:space="preserve">
+    <value>Каталог проекта не существует: {0}</value>
+  </data>
+  <data name="Tools.ModBuilder.Project.Error.RequiredDirectoryMissing" xml:space="preserve">
+    <value>Требуемый каталог не существует: {0}</value>
+  </data>
+  <data name="Tools.ModBuilder.Project.Error.NoBigFiles" xml:space="preserve">
+    <value>Не указаны допустимые BIG-файлы для импорта</value>
+  </data>
+  <data name="Tools.ModBuilder.Project.Error.BigFileNotFound" xml:space="preserve">
+    <value>BIG-файл не найден: {0}</value>
+  </data>
+  <data name="Tools.ModBuilder.Project.Error.NoBigFilesForProject" xml:space="preserve">
+    <value>Не указаны BIG-файлы для создания проекта</value>
+  </data>
   <data name="Tools.ModBuilder.Import.BigsPickerTitle" xml:space="preserve">
     <value>Импортировать архивы .BIG в проект</value>
   </data>

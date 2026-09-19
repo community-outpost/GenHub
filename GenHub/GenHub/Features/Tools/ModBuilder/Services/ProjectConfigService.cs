@@ -10,6 +10,7 @@ using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text.Json;
@@ -24,20 +25,24 @@ namespace GenHub.Features.Tools.ModBuilder.Services;
 /// </summary>
 /// <param name="logger">The logger.</param>
 /// <param name="configurationProvider">The configuration provider service.</param>
+/// <param name="localizationService">The optional localization service for user-facing error messages.</param>
 public sealed class ProjectConfigService(
     ILogger<ProjectConfigService> logger,
-    IConfigurationProviderService? configurationProvider = null) : IProjectConfigService
+    IConfigurationProviderService? configurationProvider = null,
+    ILocalizationService? localizationService = null) : IProjectConfigService
 {
-    private const string LemonControlBarSampleName = "LemonControlBar";
-    private const string LemonControlBarArtItemName = "LemonControlBarArt";
-    private const string LemonControlBarDataItemName = "LemonControlBarData";
-    private const string LemonControlBarWindows720pItemName = "LemonControlBarWindows_720p";
-    private const string LemonControlBarWindows1080pItemName = "LemonControlBarWindows_1080p";
-    private const string LemonControlBarWindows1440pItemName = "LemonControlBarWindows_1440p";
-    private const string LemonControlBarWindows4KItemName = "LemonControlBarWindows_4K";
-    private const string WindowTargetDir = "Window";
-    private const string MenuWindowsItemName = "MenuWindows";
-    private const string MenuMappedImagesItemName = "MenuMappedImages";
+    private const string ProjectPathEmptyErrorKey = "Tools.ModBuilder.Project.Error.PathEmpty";
+    private const string ProjectNameEmptyErrorKey = "Tools.ModBuilder.Project.Error.NameEmpty";
+    private const string ProjectAlreadyExistsErrorKey = "Tools.ModBuilder.Project.Error.AlreadyExists";
+    private const string InvalidProjectPathErrorKey = "Tools.ModBuilder.Project.Error.InvalidPath";
+    private const string ProjectNullErrorKey = "Tools.ModBuilder.Project.Error.ProjectNull";
+    private const string ProjectFileNotFoundErrorKey = "Tools.ModBuilder.Project.Error.FileNotFound";
+    private const string ProjectDeserializeFailedErrorKey = "Tools.ModBuilder.Project.Error.DeserializeFailed";
+    private const string ProjectDirectoryNotFoundErrorKey = "Tools.ModBuilder.Project.Error.DirectoryNotFound";
+    private const string RequiredDirectoryMissingErrorKey = "Tools.ModBuilder.Project.Error.RequiredDirectoryMissing";
+    private const string NoBigFilesErrorKey = "Tools.ModBuilder.Project.Error.NoBigFiles";
+    private const string BigFileNotFoundErrorKey = "Tools.ModBuilder.Project.Error.BigFileNotFound";
+    private const string NoBigFilesForProjectErrorKey = "Tools.ModBuilder.Project.Error.NoBigFilesForProject";
 
     private readonly string _recentProjectsPath = Path.Combine(
         configurationProvider?.GetApplicationDataPath()
@@ -71,14 +76,14 @@ public sealed class ProjectConfigService(
             if (string.IsNullOrWhiteSpace(projectPath))
             {
                 return ProjectOperationResult<ModBuilderProject>.CreateFailure(
-                    ModBuilderConstants.ProjectPathEmptyError,
+                    GetProjectError(ProjectPathEmptyErrorKey, ModBuilderConstants.ProjectPathEmptyError),
                     sw.Elapsed);
             }
 
             if (string.IsNullOrWhiteSpace(projectName))
             {
                 return ProjectOperationResult<ModBuilderProject>.CreateFailure(
-                    "Project name cannot be empty",
+                    GetProjectError(ProjectNameEmptyErrorKey, "Project name cannot be empty"),
                     sw.Elapsed);
             }
 
@@ -92,7 +97,7 @@ public sealed class ProjectConfigService(
             if (File.Exists(projectPath))
             {
                 return ProjectOperationResult<ModBuilderProject>.CreateFailure(
-                    $"Project file already exists at: {projectPath}",
+                    GetProjectError(ProjectAlreadyExistsErrorKey, "Project file already exists at: {0}", projectPath),
                     sw.Elapsed);
             }
 
@@ -117,7 +122,7 @@ public sealed class ProjectConfigService(
             if (string.IsNullOrEmpty(projectDir))
             {
                 return ProjectOperationResult<ModBuilderProject>.CreateFailure(
-                    "Invalid project path",
+                    GetProjectError(InvalidProjectPathErrorKey, "Invalid project path"),
                     sw.Elapsed);
             }
 
@@ -189,14 +194,14 @@ public sealed class ProjectConfigService(
             if (string.IsNullOrWhiteSpace(projectPath))
             {
                 return ProjectOperationResult<ModBuilderProject>.CreateFailure(
-                    ModBuilderConstants.ProjectPathEmptyError,
+                    GetProjectError(ProjectPathEmptyErrorKey, ModBuilderConstants.ProjectPathEmptyError),
                     sw.Elapsed);
             }
 
             if (!File.Exists(projectPath))
             {
                 return ProjectOperationResult<ModBuilderProject>.CreateFailure(
-                    $"Project file not found at: {projectPath}",
+                    GetProjectError(ProjectFileNotFoundErrorKey, "Project file not found at: {0}", projectPath),
                     sw.Elapsed);
             }
 
@@ -218,7 +223,7 @@ public sealed class ProjectConfigService(
             if (project == null)
             {
                 return ProjectOperationResult<ModBuilderProject>.CreateFailure(
-                    "Failed to deserialize project file",
+                    GetProjectError(ProjectDeserializeFailedErrorKey, "Failed to deserialize project file"),
                     sw.Elapsed);
             }
 
@@ -275,14 +280,14 @@ public sealed class ProjectConfigService(
             if (string.IsNullOrWhiteSpace(projectPath))
             {
                 return ProjectOperationResult<ModBuilderProject>.CreateFailure(
-                    ModBuilderConstants.ProjectPathEmptyError,
+                    GetProjectError(ProjectPathEmptyErrorKey, ModBuilderConstants.ProjectPathEmptyError),
                     sw.Elapsed);
             }
 
             if (project == null)
             {
                 return ProjectOperationResult<ModBuilderProject>.CreateFailure(
-                    "Project cannot be null",
+                    GetProjectError(ProjectNullErrorKey, "Project cannot be null"),
                     sw.Elapsed);
             }
 
@@ -335,7 +340,7 @@ public sealed class ProjectConfigService(
             if (project == null)
             {
                 return ProjectOperationResult<bool>.CreateFailure(
-                    "Project cannot be null",
+                    GetProjectError(ProjectNullErrorKey, "Project cannot be null"),
                     sw.Elapsed);
             }
 
@@ -364,13 +369,13 @@ public sealed class ProjectConfigService(
     {
         if (string.IsNullOrWhiteSpace(project.Name))
         {
-            errors.Add("Project name cannot be empty");
+            errors.Add(GetProjectError(ProjectNameEmptyErrorKey, "Project name cannot be empty"));
         }
 
         var projectDir = Path.GetDirectoryName(projectPath);
         if (string.IsNullOrEmpty(projectDir) || !Directory.Exists(projectDir))
         {
-            errors.Add($"Project directory does not exist: {projectDir}");
+            errors.Add(GetProjectError(ProjectDirectoryNotFoundErrorKey, "Project directory does not exist: {0}", projectDir));
             return;
         }
 
@@ -450,7 +455,7 @@ public sealed class ProjectConfigService(
         return Path.Combine(projectDir, configFolder);
     }
 
-    private static string ResolveAndValidateConfigsDir(string projectDir, string configuredConfigs, List<string> errors)
+    private string ResolveAndValidateConfigsDir(string projectDir, string configuredConfigs, List<string> errors)
     {
         var effectiveConfigs = ResolveConfigsDir(projectDir, configuredConfigs);
         var configsDir = Path.Combine(projectDir, effectiveConfigs);
@@ -459,16 +464,16 @@ public sealed class ProjectConfigService(
             return effectiveConfigs;
         }
 
-        errors.Add($"Required directory does not exist: {configsDir}");
+        errors.Add(GetProjectError(RequiredDirectoryMissingErrorKey, "Required directory does not exist: {0}", configsDir));
         return effectiveConfigs;
     }
 
-    private static void ValidateGameFilesEditedDir(string projectDir, string gameFilesDir, List<string> errors)
+    private void ValidateGameFilesEditedDir(string projectDir, string gameFilesDir, List<string> errors)
     {
         var gameFilesEditedDir = Path.Combine(projectDir, gameFilesDir);
         if (!Directory.Exists(gameFilesEditedDir))
         {
-            errors.Add($"Required directory does not exist: {gameFilesEditedDir}");
+            errors.Add(GetProjectError(RequiredDirectoryMissingErrorKey, "Required directory does not exist: {0}", gameFilesEditedDir));
         }
     }
 
@@ -512,7 +517,7 @@ public sealed class ProjectConfigService(
             if (string.IsNullOrWhiteSpace(projectPath))
             {
                 return ProjectOperationResult<bool>.CreateFailure(
-                    ModBuilderConstants.ProjectPathEmptyError,
+                    GetProjectError(ProjectPathEmptyErrorKey, ModBuilderConstants.ProjectPathEmptyError),
                     sw.Elapsed);
             }
 
@@ -568,7 +573,7 @@ public sealed class ProjectConfigService(
             if (string.IsNullOrWhiteSpace(projectPath))
             {
                 return ProjectOperationResult<bool>.CreateFailure(
-                    ModBuilderConstants.ProjectPathEmptyError,
+                    GetProjectError(ProjectPathEmptyErrorKey, ModBuilderConstants.ProjectPathEmptyError),
                     sw.Elapsed);
             }
 
@@ -745,7 +750,7 @@ public sealed class ProjectConfigService(
             if (project == null)
             {
                 return ProjectOperationResult<List<string>>.CreateFailure(
-                    "Project cannot be null",
+                    GetProjectError(ProjectNullErrorKey, "Project cannot be null"),
                     sw.Elapsed);
             }
 
@@ -753,7 +758,7 @@ public sealed class ProjectConfigService(
             if (string.IsNullOrEmpty(projectDir))
             {
                 return ProjectOperationResult<List<string>>.CreateFailure(
-                    "Invalid project path",
+                    GetProjectError(InvalidProjectPathErrorKey, "Invalid project path"),
                     sw.Elapsed);
             }
 
@@ -830,25 +835,25 @@ public sealed class ProjectConfigService(
         {
             if (string.IsNullOrWhiteSpace(projectPath))
             {
-                return ProjectOperationResult<int>.CreateFailure(ModBuilderConstants.ProjectPathEmptyError, sw.Elapsed);
+                return ProjectOperationResult<int>.CreateFailure(GetProjectError(ProjectPathEmptyErrorKey, ModBuilderConstants.ProjectPathEmptyError), sw.Elapsed);
             }
 
             var projectDir = Path.GetDirectoryName(projectPath);
             if (string.IsNullOrEmpty(projectDir) || !Directory.Exists(projectDir))
             {
-                return ProjectOperationResult<int>.CreateFailure($"Project directory not found: {projectDir}", sw.Elapsed);
+                return ProjectOperationResult<int>.CreateFailure(GetProjectError(ProjectDirectoryNotFoundErrorKey, "Project directory does not exist: {0}", projectDir), sw.Elapsed);
             }
 
             var bigList = bigFilePaths.Where(p => !string.IsNullOrWhiteSpace(p)).ToList();
             if (bigList.Count == 0)
             {
-                return ProjectOperationResult<int>.CreateFailure("No valid BIG files specified for import", sw.Elapsed);
+                return ProjectOperationResult<int>.CreateFailure(GetProjectError(NoBigFilesErrorKey, "No valid BIG files specified for import"), sw.Elapsed);
             }
 
             var missingBig = bigList.FirstOrDefault(p => !File.Exists(p));
             if (missingBig != null)
             {
-                return ProjectOperationResult<int>.CreateFailure($"BIG file not found: {missingBig}", sw.Elapsed);
+                return ProjectOperationResult<int>.CreateFailure(GetProjectError(BigFileNotFoundErrorKey, "BIG file not found: {0}", missingBig), sw.Elapsed);
             }
 
             var projectLoadResult = await LoadProjectAsync(projectPath, false, cancellationToken).ConfigureAwait(false);
@@ -926,13 +931,13 @@ public sealed class ProjectConfigService(
         {
             if (string.IsNullOrWhiteSpace(projectPath))
             {
-                return ProjectOperationResult<ModBuilderProject>.CreateFailure(ModBuilderConstants.ProjectPathEmptyError, sw.Elapsed);
+                return ProjectOperationResult<ModBuilderProject>.CreateFailure(GetProjectError(ProjectPathEmptyErrorKey, ModBuilderConstants.ProjectPathEmptyError), sw.Elapsed);
             }
 
             var bigList = bigFilePaths.Where(p => !string.IsNullOrWhiteSpace(p)).ToList();
             if (bigList.Count == 0)
             {
-                return ProjectOperationResult<ModBuilderProject>.CreateFailure("No BIG files specified to create project from", sw.Elapsed);
+                return ProjectOperationResult<ModBuilderProject>.CreateFailure(GetProjectError(NoBigFilesForProjectErrorKey, "No BIG files specified to create project from"), sw.Elapsed);
             }
 
             // 1. Create base project with ImportedBig template
@@ -1481,9 +1486,9 @@ public sealed class ProjectConfigService(
             return ModBuilderConstants.LeikezeHotkeysSampleName;
         }
 
-        if (name == ProjectTemplate.LemonControlBar.Name || name == LemonControlBarSampleName || name == ModBuilderConstants.ControlBarAlias)
+        if (name == ProjectTemplate.LemonControlBar.Name || name == ModBuilderConstants.LemonControlBarSampleName || name == ModBuilderConstants.ControlBarAlias)
         {
-            return LemonControlBarSampleName;
+            return ModBuilderConstants.LemonControlBarSampleName;
         }
 
         return null;
@@ -1502,7 +1507,7 @@ public sealed class ProjectConfigService(
             ModBuilderConstants.ImprovedMenusSampleName => CreateImprovedMenusSampleFilesAsync(projectDir, directories, configsDir, cancellationToken),
             ModBuilderConstants.GeneralsGamePatch2SampleName => CreateGeneralsGamePatch2SampleFilesAsync(directories, configsDir, cancellationToken),
             ModBuilderConstants.LeikezeHotkeysSampleName => CreateLeikezeHotkeysSampleFilesAsync(directories, configsDir, cancellationToken),
-            LemonControlBarSampleName => CreateLemonControlBarSampleFilesAsync(directories, configsDir, cancellationToken),
+            ModBuilderConstants.LemonControlBarSampleName => CreateLemonControlBarSampleFilesAsync(directories, configsDir, cancellationToken),
             _ => CreateBasicModSampleFilesAsync(projectDir, directories, configsDir, cancellationToken),
         };
     }
@@ -1893,7 +1898,7 @@ public sealed class ProjectConfigService(
         CancellationToken cancellationToken)
     {
         var baseTemplateDirs = ModBuilderConstants.GetSampleBaseDirectories()
-            .Select(dir => Path.Combine(dir, LemonControlBarSampleName));
+            .Select(dir => Path.Combine(dir, ModBuilderConstants.LemonControlBarSampleName));
 
         var foundTemplateDir = baseTemplateDirs.FirstOrDefault(Directory.Exists);
         if (!string.IsNullOrEmpty(foundTemplateDir))
@@ -1920,7 +1925,7 @@ public sealed class ProjectConfigService(
                 {
                     new
                     {
-                        Name = LemonControlBarArtItemName,
+                        Name = ModBuilderConstants.LemonControlBarArtItemName,
                         SourceFiles = new[]
                         {
                             $"{directories.GameFilesEdited}/Art/**/*.dds",
@@ -1931,7 +1936,7 @@ public sealed class ProjectConfigService(
                     },
                     new
                     {
-                        Name = LemonControlBarDataItemName,
+                        Name = ModBuilderConstants.LemonControlBarDataItemName,
                         SourceFiles = new[]
                         {
                             $"{directories.GameFilesEdited}/Data/**/*.ini",
@@ -1943,37 +1948,37 @@ public sealed class ProjectConfigService(
                     },
                     new
                     {
-                        Name = LemonControlBarWindows720pItemName,
+                        Name = ModBuilderConstants.LemonControlBarWindows720pItemName,
                         SourceFiles = new[] { $"{directories.GameFilesEdited}/Window/720p/**/*.wnd" },
                         BaseDir = $"{directories.GameFilesEdited}/Window/720p",
-                        TargetDir = WindowTargetDir,
+                        TargetDir = ModBuilderConstants.WindowDirectoryName,
                         OutputFormat = "BIG",
                         Description = "1280x720 window layouts and control bar UI",
                     },
                     new
                     {
-                        Name = LemonControlBarWindows1080pItemName,
+                        Name = ModBuilderConstants.LemonControlBarWindows1080pItemName,
                         SourceFiles = new[] { $"{directories.GameFilesEdited}/Window/1080p/**/*.wnd" },
                         BaseDir = $"{directories.GameFilesEdited}/Window/1080p",
-                        TargetDir = WindowTargetDir,
+                        TargetDir = ModBuilderConstants.WindowDirectoryName,
                         OutputFormat = "BIG",
                         Description = "1920x1080 window layouts and control bar UI",
                     },
                     new
                     {
-                        Name = LemonControlBarWindows1440pItemName,
+                        Name = ModBuilderConstants.LemonControlBarWindows1440pItemName,
                         SourceFiles = new[] { $"{directories.GameFilesEdited}/Window/1440p/**/*.wnd" },
                         BaseDir = $"{directories.GameFilesEdited}/Window/1440p",
-                        TargetDir = WindowTargetDir,
+                        TargetDir = ModBuilderConstants.WindowDirectoryName,
                         OutputFormat = "BIG",
                         Description = "2560x1440 window layouts and control bar UI",
                     },
                     new
                     {
-                        Name = LemonControlBarWindows4KItemName,
+                        Name = ModBuilderConstants.LemonControlBarWindows4KItemName,
                         SourceFiles = new[] { $"{directories.GameFilesEdited}/Window/4K/**/*.wnd" },
                         BaseDir = $"{directories.GameFilesEdited}/Window/4K",
-                        TargetDir = WindowTargetDir,
+                        TargetDir = ModBuilderConstants.WindowDirectoryName,
                         OutputFormat = "BIG",
                         Description = "3840x2160 (4K) window layouts and control bar UI",
                     },
@@ -1994,8 +1999,8 @@ public sealed class ProjectConfigService(
                     new
                     {
                         Name = "LemonControlBar_720p",
-                        Items = new[] { LemonControlBarArtItemName, LemonControlBarDataItemName, LemonControlBarWindows720pItemName },
-                        ItemNames = new[] { LemonControlBarArtItemName, LemonControlBarDataItemName, LemonControlBarWindows720pItemName },
+                        Items = new[] { ModBuilderConstants.LemonControlBarArtItemName, ModBuilderConstants.LemonControlBarDataItemName, ModBuilderConstants.LemonControlBarWindows720pItemName },
+                        ItemNames = new[] { ModBuilderConstants.LemonControlBarArtItemName, ModBuilderConstants.LemonControlBarDataItemName, ModBuilderConstants.LemonControlBarWindows720pItemName },
                         AllowBuild = true,
                         AllowInstall = true,
                         OutputFile = $"{directories.Release}/340_ControlBarProLemonEdition720ZH.big",
@@ -2004,8 +2009,8 @@ public sealed class ProjectConfigService(
                     new
                     {
                         Name = "LemonControlBar_1080p",
-                        Items = new[] { LemonControlBarArtItemName, LemonControlBarDataItemName, LemonControlBarWindows1080pItemName },
-                        ItemNames = new[] { LemonControlBarArtItemName, LemonControlBarDataItemName, LemonControlBarWindows1080pItemName },
+                        Items = new[] { ModBuilderConstants.LemonControlBarArtItemName, ModBuilderConstants.LemonControlBarDataItemName, ModBuilderConstants.LemonControlBarWindows1080pItemName },
+                        ItemNames = new[] { ModBuilderConstants.LemonControlBarArtItemName, ModBuilderConstants.LemonControlBarDataItemName, ModBuilderConstants.LemonControlBarWindows1080pItemName },
                         AllowBuild = true,
                         AllowInstall = true,
                         OutputFile = $"{directories.Release}/340_ControlBarProLemonEdition1080ZH.big",
@@ -2014,8 +2019,8 @@ public sealed class ProjectConfigService(
                     new
                     {
                         Name = "LemonControlBar_1440p",
-                        Items = new[] { LemonControlBarArtItemName, LemonControlBarDataItemName, LemonControlBarWindows1440pItemName },
-                        ItemNames = new[] { LemonControlBarArtItemName, LemonControlBarDataItemName, LemonControlBarWindows1440pItemName },
+                        Items = new[] { ModBuilderConstants.LemonControlBarArtItemName, ModBuilderConstants.LemonControlBarDataItemName, ModBuilderConstants.LemonControlBarWindows1440pItemName },
+                        ItemNames = new[] { ModBuilderConstants.LemonControlBarArtItemName, ModBuilderConstants.LemonControlBarDataItemName, ModBuilderConstants.LemonControlBarWindows1440pItemName },
                         AllowBuild = true,
                         AllowInstall = true,
                         OutputFile = $"{directories.Release}/340_ControlBarProLemonEdition1440ZH.big",
@@ -2024,8 +2029,8 @@ public sealed class ProjectConfigService(
                     new
                     {
                         Name = "LemonControlBar_4K",
-                        Items = new[] { LemonControlBarArtItemName, LemonControlBarDataItemName, LemonControlBarWindows4KItemName },
-                        ItemNames = new[] { LemonControlBarArtItemName, LemonControlBarDataItemName, LemonControlBarWindows4KItemName },
+                        Items = new[] { ModBuilderConstants.LemonControlBarArtItemName, ModBuilderConstants.LemonControlBarDataItemName, ModBuilderConstants.LemonControlBarWindows4KItemName },
+                        ItemNames = new[] { ModBuilderConstants.LemonControlBarArtItemName, ModBuilderConstants.LemonControlBarDataItemName, ModBuilderConstants.LemonControlBarWindows4KItemName },
                         AllowBuild = true,
                         AllowInstall = true,
                         OutputFile = $"{directories.Release}/340_ControlBarProLemonEdition2160ZH.big",
@@ -2054,21 +2059,21 @@ public sealed class ProjectConfigService(
                 {
                     new
                     {
-                        Name = MenuWindowsItemName,
+                        Name = ModBuilderConstants.MenuWindowsItemName,
                         SourceFiles = new[] { $"{directories.GameFilesEdited}/window/Menus/**/*.wnd" },
                         OutputFormat = "WINDOW",
                         Description = "Widescreen adapted .wnd menu layout definitions (Common)",
                     },
                     new
                     {
-                        Name = MenuMappedImagesItemName,
+                        Name = ModBuilderConstants.MenuMappedImagesItemName,
                         SourceFiles = new[] { $"{directories.GameFilesEdited}/Data/INI/MappedImages/**/*.ini" },
                         OutputFormat = "INI",
                         Description = "MappedImage coordinate definitions for widescreen menu textures (Common)",
                     },
                     new
                     {
-                        Name = "MenuTexturesEnglish",
+                        Name = ModBuilderConstants.MenuTexturesEnglishItemName,
                         SourceFiles = new[] { $"{directories.GameFilesEdited}/Data/English/Art/Textures/**/*.tga" },
                         OutputFormat = "RAW",
                         NoConvert = true,
@@ -2076,7 +2081,7 @@ public sealed class ProjectConfigService(
                     },
                     new
                     {
-                        Name = "MenuTexturesRussian",
+                        Name = ModBuilderConstants.MenuTexturesRussianItemName,
                         SourceFiles = new[] { $"{directories.GameFilesEdited}/Data/Russian/Art/Textures/**/*.tga" },
                         OutputFormat = "RAW",
                         NoConvert = true,
@@ -2084,7 +2089,7 @@ public sealed class ProjectConfigService(
                     },
                     new
                     {
-                        Name = "MenuTexturesSpanish",
+                        Name = ModBuilderConstants.MenuTexturesSpanishItemName,
                         SourceFiles = new[] { $"{directories.GameFilesEdited}/Data/Spanish/Art/Textures/**/*.tga" },
                         OutputFormat = "RAW",
                         NoConvert = true,
@@ -2107,7 +2112,7 @@ public sealed class ProjectConfigService(
                     new
                     {
                         Name = "ImprovedMenus_English",
-                        Items = new[] { MenuWindowsItemName, MenuMappedImagesItemName, "MenuTexturesEnglish" },
+                        Items = new[] { ModBuilderConstants.MenuWindowsItemName, ModBuilderConstants.MenuMappedImagesItemName, ModBuilderConstants.MenuTexturesEnglishItemName },
                         OutputFile = $"{directories.Release}/0_ImprovedMenusEnglish.big",
                         ManifestFile = "config/0_ImprovedMenusEnglish.big.manifest.json",
                         Big = true,
@@ -2118,7 +2123,7 @@ public sealed class ProjectConfigService(
                     new
                     {
                         Name = "ImprovedMenus_Russian",
-                        Items = new[] { MenuWindowsItemName, MenuMappedImagesItemName, "MenuTexturesRussian" },
+                        Items = new[] { ModBuilderConstants.MenuWindowsItemName, ModBuilderConstants.MenuMappedImagesItemName, ModBuilderConstants.MenuTexturesRussianItemName },
                         OutputFile = $"{directories.Release}/0_ImprovedMenusRussian.big",
                         ManifestFile = "config/0_ImprovedMenusRussian.big.manifest.json",
                         Big = true,
@@ -2129,7 +2134,7 @@ public sealed class ProjectConfigService(
                     new
                     {
                         Name = "ImprovedMenus_Spanish",
-                        Items = new[] { MenuWindowsItemName, MenuMappedImagesItemName, "MenuTexturesSpanish" },
+                        Items = new[] { ModBuilderConstants.MenuWindowsItemName, ModBuilderConstants.MenuMappedImagesItemName, ModBuilderConstants.MenuTexturesSpanishItemName },
                         OutputFile = $"{directories.Release}/0_ImprovedMenusSpanish.big",
                         ManifestFile = "config/0_ImprovedMenusSpanish.big.manifest.json",
                         Big = true,
@@ -2163,7 +2168,60 @@ public sealed class ProjectConfigService(
     }
 
     /// <summary>
+    /// Gets a localized user-facing project error message, falling back to the
+    /// English text when no localization service is available (tests, headless hosts).
+    /// </summary>
+    /// <param name="key">The resource key to resolve.</param>
+    /// <param name="fallback">The English fallback text, optionally with format placeholders.</param>
+    /// <param name="args">Optional format arguments.</param>
+    /// <returns>The localized or fallback error message.</returns>
+    private string GetProjectError(string key, string fallback, params object?[] args)
+    {
+        if (localizationService != null && localizationService.TryGetString(key, out var localized, args) && !string.IsNullOrEmpty(localized))
+        {
+            return localized;
+        }
+
+        return args.Length > 0 ? string.Format(CultureInfo.InvariantCulture, fallback, args) : fallback;
+    }
+
+    /// <summary>
+    /// Retains a recent project entry when its file or directory exists, or when its
+    /// storage root is unreachable (temporarily unavailable share or drive).
+    /// </summary>
+    /// <param name="path">The recent project path.</param>
+    /// <returns>True when the entry should be kept; otherwise, false.</returns>
+    private static bool ShouldRetainRecentProjectPath(string? path)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return false;
+        }
+
+        if (File.Exists(path) || Directory.Exists(path))
+        {
+            return true;
+        }
+
+        try
+        {
+            var root = Path.GetPathRoot(path);
+            if (!string.IsNullOrEmpty(root) && !Directory.Exists(root))
+            {
+                return true;
+            }
+        }
+        catch (ArgumentException)
+        {
+            return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>
     /// Reads the recent projects file and prunes entries that no longer exist on disk.
+    /// Directory-based entries and entries on unreachable storage roots are retained.
     /// Callers must hold <see cref="_recentProjectsLock"/> to serialize read-modify-write cycles.
     /// </summary>
     /// <param name="maxCount">The maximum number of projects to return.</param>
@@ -2201,9 +2259,11 @@ public sealed class ProjectConfigService(
 
             recentProjects ??= new List<string>();
 
-            // Filter out projects that no longer exist
+            // Filter out projects that no longer exist. Directory-based entries are
+            // retained, and entries on temporarily unavailable storage are kept so a
+            // disconnected share or drive does not irreversibly delete them.
             var validProjects = recentProjects
-                .Where(File.Exists)
+                .Where(ShouldRetainRecentProjectPath)
                 .ToList();
 
             // If some projects were filtered out because they no longer exist on disk, update the file
