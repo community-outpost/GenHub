@@ -17,6 +17,7 @@ using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -27,7 +28,13 @@ namespace GenHub.Features.Content.Services;
 /// </summary>
 public class ContentStorageService : IContentStorageService
 {
-    private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true, };
+    private static readonly JsonSerializerOptions JsonOptions = new()
+    {
+        WriteIndented = true,
+        PropertyNameCaseInsensitive = true,
+        Converters = { new JsonStringEnumConverter(), new ManifestIdJsonConverter() },
+    };
+
     private readonly string _storageRoot;
     private readonly ILogger<ContentStorageService> _logger;
     private readonly ICasService _casService;
@@ -300,8 +307,7 @@ public class ContentStorageService : IContentStorageService
     {
         if (string.IsNullOrEmpty(sourceDirectory) || !Directory.Exists(sourceDirectory))
         {
-            _logger.LogWarning("Source directory is null, empty, or does not exist: {SourceDirectory}. Storing metadata only.", sourceDirectory);
-            return await StoreManifestOnlyAsync(manifest, sourceDirectory, cancellationToken);
+            return await HandleMissingSourceDirectoryAsync(manifest, sourceDirectory, cancellationToken).ConfigureAwait(false);
         }
 
         // Validate manifest for security issues
@@ -458,13 +464,34 @@ public class ContentStorageService : IContentStorageService
     }
 
     /// <inheritdoc/>
+
+    /// <inheritdoc/>
     public async Task<OperationResult<bool>> IsContentStoredAsync(ManifestId manifestId, CancellationToken cancellationToken = default)
     {
         var manifestPath = GetManifestStoragePath(manifestId);
 
-        // Content is stored when manifest file exists - files are in CAS and validated separately
-        bool exists = File.Exists(manifestPath);
-        return await Task.FromResult(OperationResult<bool>.CreateSuccess(exists));
+        if (!File.Exists(manifestPath))
+        {
+            return OperationResult<bool>.CreateSuccess(false);
+        }
+
+        try
+        {
+            var manifestJson = await File.ReadAllTextAsync(manifestPath, cancellationToken).ConfigureAwait(false);
+            var manifest = JsonSerializer.Deserialize<ContentManifest>(manifestJson, JsonOptions);
+            if (manifest == null)
+            {
+                return OperationResult<bool>.CreateSuccess(false);
+            }
+
+            var allExist = await VerifyAllRequiredCasFilesExistAsync(manifest, cancellationToken).ConfigureAwait(false);
+            return OperationResult<bool>.CreateSuccess(allExist);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to verify stored content for manifest {ManifestId}", manifestId);
+            return OperationResult<bool>.CreateSuccess(false);
+        }
     }
 
     /// <inheritdoc/>
@@ -606,6 +633,20 @@ public class ContentStorageService : IContentStorageService
             {
                 _logger.LogError("Failed to track CAS references for metadata-only manifest {ManifestId}: {Error}", manifest.Id, trackResult.FirstError);
                 return OperationResult<ContentManifest>.CreateFailure($"Failed to track CAS references: {trackResult.FirstError}");
+            }
+
+            // Sanitize file entries: CAS files must never retain transient staging source paths
+            if (manifest.Files != null)
+            {
+                manifest.Files = manifest.Files.Select(f =>
+                {
+                    if (f.SourceType == ContentSourceType.ContentAddressable && !string.IsNullOrEmpty(f.SourcePath))
+                    {
+                        return CloneManifestFileForCas(f);
+                    }
+
+                    return f;
+                }).ToList();
             }
 
             // Store manifest metadata only
@@ -808,6 +849,14 @@ public class ContentStorageService : IContentStorageService
                         "File {RelativePath} not found at source path {SourcePath} or computed path",
                         manifestFile.RelativePath,
                         sourcePath);
+
+                    if (manifestFile.IsRequired)
+                    {
+                        throw new FileNotFoundException(
+                            $"Required file '{manifestFile.RelativePath}' not found at source path '{sourcePath}'",
+                            sourcePath);
+                    }
+
                     processedCount++;
                     progress?.Report(new ContentStorageProgress
                     {
@@ -840,6 +889,13 @@ public class ContentStorageService : IContentStorageService
                             "Failed to store {RelativePath} in CAS: {Error}",
                             manifestFile.RelativePath,
                             casResult.FirstError);
+
+                        if (manifestFile.IsRequired)
+                        {
+                            throw new InvalidOperationException(
+                                $"Failed to store required file '{manifestFile.RelativePath}' in CAS: {casResult.FirstError}");
+                        }
+
                         continue;
                     }
 
@@ -862,6 +918,13 @@ public class ContentStorageService : IContentStorageService
                             "Failed to store {RelativePath} in CAS: {Error}",
                             manifestFile.RelativePath,
                             casResult.FirstError);
+
+                        if (manifestFile.IsRequired)
+                        {
+                            throw new InvalidOperationException(
+                                $"Failed to store required file '{manifestFile.RelativePath}' in CAS: {casResult.FirstError}");
+                        }
+
                         continue;
                     }
 
@@ -896,6 +959,11 @@ public class ContentStorageService : IContentStorageService
                     manifestFile.RelativePath,
                     manifest.Id);
 
+                if (manifestFile.IsRequired)
+                {
+                    throw;
+                }
+
                 processedCount++;
                 progress?.Report(new ContentStorageProgress
                 {
@@ -904,6 +972,17 @@ public class ContentStorageService : IContentStorageService
                     CurrentFileName = manifestFile.RelativePath,
                 });
             }
+        }
+
+        var missingRequiredFiles = manifest.Files
+            .Where(f => f.IsRequired && !updatedFiles.Any(u => string.Equals(u.RelativePath, f.RelativePath, StringComparison.OrdinalIgnoreCase)))
+            .ToList();
+
+        if (missingRequiredFiles.Count > 0)
+        {
+            var missingList = string.Join(", ", missingRequiredFiles.Select(f => f.RelativePath));
+            _logger.LogError("Failed to store all required files for manifest {ManifestId}. Missing: {MissingFiles}", manifest.Id, missingList);
+            throw new InvalidOperationException($"Failed to store required files for manifest {manifest.Id}: {missingList}");
         }
 
         manifest.Files = updatedFiles;
@@ -956,5 +1035,84 @@ public class ContentStorageService : IContentStorageService
         }
 
         return OperationResult<string>.CreateSuccess(targetPath);
+    }
+
+    private async Task<bool> CheckCasFileExistsAsync(string hash, ContentType contentType, CancellationToken cancellationToken)
+    {
+        var existsResult = await _casService.ExistsAsync(hash, contentType, cancellationToken).ConfigureAwait(false);
+        if (existsResult.Success && existsResult.Data)
+        {
+            return true;
+        }
+
+        var fallbackResult = await _casService.ExistsAsync(hash, cancellationToken).ConfigureAwait(false);
+        return fallbackResult.Success && fallbackResult.Data;
+    }
+
+    private async Task<List<string>> GetMissingRequiredCasFilesAsync(ContentManifest manifest, CancellationToken cancellationToken)
+    {
+        var missingCasFiles = new List<string>();
+        if (manifest.Files == null)
+        {
+            return missingCasFiles;
+        }
+
+        foreach (var file in manifest.Files.Where(f => f.SourceType == ContentSourceType.ContentAddressable && !string.IsNullOrEmpty(f.Hash) && f.IsRequired))
+        {
+            var exists = await CheckCasFileExistsAsync(file.Hash, manifest.ContentType, cancellationToken).ConfigureAwait(false);
+            if (!exists)
+            {
+                missingCasFiles.Add(file.RelativePath);
+            }
+        }
+
+        return missingCasFiles;
+    }
+
+    private async Task<OperationResult<ContentManifest>> HandleMissingSourceDirectoryAsync(
+        ContentManifest manifest,
+        string sourceDirectory,
+        CancellationToken cancellationToken)
+    {
+        if (RequiresPhysicalStorage(manifest))
+        {
+            var missingCasFiles = await GetMissingRequiredCasFilesAsync(manifest, cancellationToken).ConfigureAwait(false);
+            if (missingCasFiles.Count > 0)
+            {
+                _logger.LogError(
+                    "Cannot store manifest {ManifestId} metadata only: source directory does not exist and required files are missing from CAS: {MissingFiles}",
+                    manifest.Id,
+                    string.Join(", ", missingCasFiles));
+                return OperationResult<ContentManifest>.CreateFailure(
+                    $"Source directory '{sourceDirectory}' does not exist and required content is missing from CAS: {string.Join(", ", missingCasFiles)}");
+            }
+        }
+
+        _logger.LogWarning("Source directory is null, empty, or does not exist: {SourceDirectory}. Storing metadata only.", sourceDirectory);
+        return await StoreManifestOnlyAsync(manifest, sourceDirectory, cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task<bool> VerifyAllRequiredCasFilesExistAsync(ContentManifest manifest, CancellationToken cancellationToken)
+    {
+        if (manifest.Files == null)
+        {
+            return true;
+        }
+
+        foreach (var file in manifest.Files.Where(f => f.SourceType == ContentSourceType.ContentAddressable && f.IsRequired && !string.IsNullOrEmpty(f.Hash)))
+        {
+            var exists = await CheckCasFileExistsAsync(file.Hash, manifest.ContentType, cancellationToken).ConfigureAwait(false);
+            if (!exists)
+            {
+                _logger.LogWarning(
+                    "Content {ManifestId} is missing required CAS object {Hash} for file {RelativePath}",
+                    manifest.Id,
+                    file.Hash,
+                    file.RelativePath);
+                return false;
+            }
+        }
+
+        return true;
     }
 }

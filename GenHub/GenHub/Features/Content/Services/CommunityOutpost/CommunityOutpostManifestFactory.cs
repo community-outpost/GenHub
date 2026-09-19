@@ -141,35 +141,86 @@ public class CommunityOutpostManifestFactory(
         return OperationResult<List<ContentManifest>>.CreateSuccess([manifest]);
     }
 
+    private static readonly string[] GeneralsPrefixes = ["CCG", "ECG", "GCG", "FCG"];
+    private static readonly string[] ZeroHourPrefixes = ["ZH", "EZH", "GZH", "FZH"];
+
     /// <inheritdoc />
     public string GetManifestDirectory(ContentManifest manifest, string extractedDirectory)
     {
-        // Get the content code to determine the correct subdirectory
         var contentCode = GetContentCodeFromManifest(manifest);
-
-        // Check if there's a subdirectory matching the content code
         var contentSubdir = Path.Combine(extractedDirectory, contentCode);
         if (Directory.Exists(contentSubdir))
         {
             return contentSubdir;
         }
 
-        // Check for common subdirectory patterns (CCG for Generals, ZH for Zero Hour)
-        var ccgSubdir = Path.Combine(extractedDirectory, "CCG");
-        var zhSubdir = Path.Combine(extractedDirectory, "ZH");
-
-        if (manifest.TargetGame == GameType.Generals && Directory.Exists(ccgSubdir))
+        var gameSubdir = FindGameSubdirectory(extractedDirectory, manifest.TargetGame);
+        if (gameSubdir != null)
         {
-            return ccgSubdir;
+            return gameSubdir;
         }
 
-        if (manifest.TargetGame == GameType.ZeroHour && Directory.Exists(zhSubdir))
+        var singleSubdir = FindSingleMatchingSubdirectory(extractedDirectory, manifest.TargetGame);
+        if (singleSubdir != null)
         {
-            return zhSubdir;
+            return singleSubdir;
         }
 
-        // Default to extracted directory
         return extractedDirectory;
+    }
+
+    private static string? FindGameSubdirectory(string extractedDirectory, GameType targetGame)
+    {
+        var prefixes = targetGame switch
+        {
+            GameType.Generals => GeneralsPrefixes,
+            GameType.ZeroHour => ZeroHourPrefixes,
+            _ => null,
+        };
+
+        if (prefixes == null)
+        {
+            return null;
+        }
+
+        foreach (var prefix in prefixes)
+        {
+            var path = Path.Combine(extractedDirectory, prefix);
+            if (Directory.Exists(path))
+            {
+                return path;
+            }
+        }
+
+        return null;
+    }
+
+    private static string? FindSingleMatchingSubdirectory(string extractedDirectory, GameType targetGame)
+    {
+        if (!Directory.Exists(extractedDirectory))
+        {
+            return null;
+        }
+
+        var subdirs = Directory.GetDirectories(extractedDirectory);
+        if (subdirs.Length != 1)
+        {
+            return null;
+        }
+
+        var singleSubdir = subdirs[0];
+        var dirName = Path.GetFileName(singleSubdir);
+        if (targetGame == GameType.ZeroHour && dirName.EndsWith("ZH", StringComparison.OrdinalIgnoreCase))
+        {
+            return singleSubdir;
+        }
+
+        if (targetGame == GameType.Generals && (dirName.EndsWith("CG", StringComparison.OrdinalIgnoreCase) || dirName.EndsWith("CCG", StringComparison.OrdinalIgnoreCase)))
+        {
+            return singleSubdir;
+        }
+
+        return null;
     }
 
     private static Regex GetCachedRegex(string pattern)
@@ -330,15 +381,25 @@ public class CommunityOutpostManifestFactory(
 
         try
         {
-            var allFiles = Directory.GetFiles(extractedDirectory, "*.*", SearchOption.AllDirectories);
+            var manifestDirectory = variant == null
+                ? GetManifestDirectory(originalManifest, extractedDirectory)
+                : extractedDirectory;
+
+            var fileList = new List<string>(Directory.GetFiles(manifestDirectory, "*.*", SearchOption.AllDirectories));
+            if (variant == null && !string.Equals(manifestDirectory, extractedDirectory, StringComparison.OrdinalIgnoreCase) && Directory.Exists(extractedDirectory))
+            {
+                fileList.AddRange(Directory.GetFiles(extractedDirectory, "*.*", SearchOption.TopDirectoryOnly));
+            }
+
+            var allFiles = fileList.ToArray();
 
             if (allFiles.Length == 0)
             {
-                logger.LogWarning("No files found in extracted directory: {Directory}", extractedDirectory);
+                logger.LogWarning("No files found in directory: {Directory}", manifestDirectory);
                 return null;
             }
 
-            logger.LogDebug("Found {FileCount} files in extracted directory", allFiles.Length);
+            logger.LogDebug("Found {FileCount} files in directory: {Directory}", allFiles.Length, manifestDirectory);
 
             var targetGame = (variant != null && variant.TargetGame.HasValue)
                 ? variant.TargetGame.Value
@@ -391,7 +452,7 @@ public class CommunityOutpostManifestFactory(
 
             var fileEntries = await CollectManifestFilesAsync(
                 allFiles,
-                extractedDirectory,
+                manifestDirectory,
                 contentMetadata,
                 inclusionContext,
                 cancellationToken);
@@ -449,7 +510,7 @@ public class CommunityOutpostManifestFactory(
 
     private async Task<List<ManifestFile>> CollectManifestFilesAsync(
         string[] allFiles,
-        string extractedDirectory,
+        string baseDirectory,
         GenPatcherContentMetadata contentMetadata,
         ManifestInclusionContext inclusionContext,
         CancellationToken cancellationToken)
@@ -459,7 +520,9 @@ public class CommunityOutpostManifestFactory(
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            var relativePath = Path.GetRelativePath(extractedDirectory, fullPath);
+            var relativePath = fullPath.StartsWith(baseDirectory, StringComparison.OrdinalIgnoreCase)
+                ? Path.GetRelativePath(baseDirectory, fullPath)
+                : Path.GetFileName(fullPath);
             if (!ShouldIncludeFile(relativePath, inclusionContext))
             {
                 continue;

@@ -478,6 +478,104 @@ public sealed class ProfileLauncherFacadeDependencyValidationTests
         Assert.Contains(result.Errors, err => err.Contains("Sample Addon") && err.Contains("(version >= 2.0.0)") && err.Contains("1.0.0"));
     }
 
+    /// <summary>
+    /// Verifies that when a profile contains content with missing required CAS objects, launch validation fails.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task ValidateLaunchAsync_WhenRequiredCasObjectMissing_FailsValidationAsync()
+    {
+        // Arrange
+        const string profileId = "profile-missing-cas-object";
+        const string installationManifestId = "1.104.steam.gameinstallation.zerohour";
+        const string clientManifestId = "1.104.steam.gameclient.zerohour";
+        const string modManifestId = "1.0.communityoutpost.addon.crzh";
+
+        var installationManifest = new ContentManifest
+        {
+            Id = ManifestId.Create(installationManifestId),
+            Name = "Steam Zero Hour",
+            ContentType = ContentType.GameInstallation,
+            TargetGame = GameType.ZeroHour,
+        };
+
+        var clientManifest = new ContentManifest
+        {
+            Id = ManifestId.Create(clientManifestId),
+            Name = "Steam Zero Hour Client",
+            ContentType = ContentType.GameClient,
+            TargetGame = GameType.ZeroHour,
+        };
+
+        var modManifest = new ContentManifest
+        {
+            Id = ManifestId.Create(modManifestId),
+            Name = "Camera Mod - Zero Hour",
+            ContentType = ContentType.Addon,
+            TargetGame = GameType.ZeroHour,
+            Files =
+            [
+                new()
+                {
+                    RelativePath = "Generals.exe",
+                    Hash = "missing_exe_hash_999",
+                    SourceType = ContentSourceType.ContentAddressable,
+                    IsRequired = true,
+                },
+            ],
+        };
+
+        var profile = new GameProfile
+        {
+            Id = profileId,
+            Name = "Missing CAS Profile",
+            GameInstallationId = "steam-zh-install-id",
+            GameClient = new GameClient
+            {
+                Id = clientManifestId,
+                Name = clientManifest.Name,
+                GameType = GameType.ZeroHour,
+                InstallationId = "steam-zh-install-id",
+            },
+            EnabledContentIds =
+            [
+                installationManifestId,
+                clientManifestId,
+                modManifestId,
+            ],
+        };
+
+        _profileManagerMock
+            .Setup(p => p.GetProfileAsync(profileId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(profile));
+
+        _manifestPoolMock
+            .Setup(m => m.GetManifestAsync(ManifestId.Create(installationManifestId), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentManifest?>.CreateSuccess(installationManifest));
+        _manifestPoolMock
+            .Setup(m => m.GetManifestAsync(ManifestId.Create(clientManifestId), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentManifest?>.CreateSuccess(clientManifest));
+        _manifestPoolMock
+            .Setup(m => m.GetManifestAsync(ManifestId.Create(modManifestId), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentManifest?>.CreateSuccess(modManifest));
+
+        _casServiceMock
+            .Setup(c => c.ExistsAsync("missing_exe_hash_999", ContentType.Addon, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(false));
+        _casServiceMock
+            .Setup(c => c.ExistsAsync("missing_exe_hash_999", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(false));
+
+        var facade = CreateFacade();
+
+        // Act
+        var result = await facade.ValidateLaunchAsync(profileId);
+
+        // Assert
+        Assert.False(result.Success);
+        Assert.Contains(result.Errors, err => err.Contains("Missing") && err.Contains("CAS objects"));
+    }
+
     private ProfileLauncherFacade CreateFacade()
     {
         return new ProfileLauncherFacade(

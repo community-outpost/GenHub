@@ -1824,6 +1824,41 @@ public class GameLauncher(
         }
     }
 
+    private async Task<bool> IsCasObjectPresentAsync(string hash, ContentType contentType, CancellationToken cancellationToken)
+    {
+        var existsResult = await casService.ExistsAsync(hash, contentType, cancellationToken).ConfigureAwait(false);
+        if (existsResult is { Success: true, Data: true })
+        {
+            return true;
+        }
+
+        var fallbackResult = await casService.ExistsAsync(hash, cancellationToken).ConfigureAwait(false);
+        return fallbackResult is { Success: true, Data: true };
+    }
+
+    private async Task CheckManifestCasFilesAsync(ContentManifest manifest, List<string> missingFiles, CancellationToken cancellationToken)
+    {
+        if (manifest.Files == null)
+        {
+            return;
+        }
+
+        foreach (var file in manifest.Files.Where(f => f.SourceType == ContentSourceType.ContentAddressable && !string.IsNullOrEmpty(f.Hash) && f.IsRequired))
+        {
+            var present = await IsCasObjectPresentAsync(file.Hash, manifest.ContentType, cancellationToken).ConfigureAwait(false);
+            if (!present)
+            {
+                logger.LogWarning(
+                    "[Preflight CAS] Missing CAS object {Hash} for file {RelativePath} in manifest {ManifestId} ({ManifestName})",
+                    file.Hash,
+                    file.RelativePath,
+                    manifest.Id,
+                    manifest.Name);
+                missingFiles.Add($"{manifest.Name ?? manifest.Id.Value} ({file.RelativePath})");
+            }
+        }
+    }
+
     /// <summary>
     /// Performs a preflight check to ensure all CAS content required by the manifests is available.
     /// </summary>
@@ -1832,25 +1867,15 @@ public class GameLauncher(
     /// <returns>A result indicating success or failure.</returns>
     private async Task<OperationResult<bool>> PreflightCasCheckAsync(IEnumerable<ContentManifest> manifests, CancellationToken cancellationToken)
     {
-        var missingHashes = new List<string>();
+        var missingFiles = new List<string>();
         foreach (var manifest in manifests)
         {
-            if (manifest.Files != null)
-            {
-                foreach (var file in manifest.Files.Where(f => f.SourceType == ContentSourceType.ContentAddressable && !string.IsNullOrEmpty(f.Hash)))
-                {
-                    var existsResult = await casService.ExistsAsync(file.Hash, manifest.ContentType, cancellationToken);
-                    if (existsResult is not { Success: true, Data: true })
-                    {
-                        missingHashes.Add(file.Hash);
-                    }
-                }
-            }
+            await CheckManifestCasFilesAsync(manifest, missingFiles, cancellationToken).ConfigureAwait(false);
         }
 
-        if (missingHashes.Count > 0)
+        if (missingFiles.Count > 0)
         {
-            return OperationResult<bool>.CreateFailure($"Missing CAS objects: {string.Join(", ", missingHashes.Distinct())}");
+            return OperationResult<bool>.CreateFailure($"Missing CAS objects: {string.Join(", ", missingFiles.Distinct())}");
         }
 
         return OperationResult<bool>.CreateSuccess(true);
