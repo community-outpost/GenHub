@@ -54,9 +54,14 @@ public sealed class UploadThingService(
 
             // The gateway only recognizes quoted disposition values. .NET emits name and
             // filename unquoted by default, which makes the gateway misclassify the file part
-            // and corrupt binary uploads, so quote both explicitly like curl does.
-            fileContent.Headers.ContentDisposition = ContentDispositionHeaderValue.Parse(
-                $"form-data; name=\"{ApiConstants.UploadMultipartFileFieldName}\"; filename=\"{ToHeaderSafeFileName(fileName)}\"");
+            // and corrupt binary uploads, so quote both explicitly like curl does. The override
+            // is ASCII-only: serializing raw Unicode through Parse degrades to Latin-1 and
+            // mangles non-ASCII filenames, while the runtime default MIME-encodes them losslessly.
+            if (IsAscii(fileName))
+            {
+                fileContent.Headers.ContentDisposition = ContentDispositionHeaderValue.Parse(
+                    $"form-data; name=\"{ApiConstants.UploadMultipartFileFieldName}\"; filename=\"{ToHeaderSafeFileName(fileName)}\"");
+            }
 
             progress?.Report(0.88);
             using var response = await httpClient.PostAsync(ApiConstants.DefaultUploadUrl, formContent, ct);
@@ -131,5 +136,18 @@ public sealed class UploadThingService(
     private static string ToHeaderSafeFileName(string fileName)
     {
         return fileName.Replace("\"", string.Empty).Replace("\r", string.Empty).Replace("\n", string.Empty);
+    }
+
+    private static bool IsAscii(string value)
+    {
+        foreach (var c in value)
+        {
+            if (c > 127)
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 }

@@ -97,7 +97,7 @@ public static class ToolShareCommands
                     localizationService?.GetString("Tools.Share.Status.CopiedToClipboard") ?? "Link copied to clipboard!");
             }
         }
-        catch (Exception ex) when ((ex is ArgumentException or IOException or UnauthorizedAccessException) && ex is not OperationCanceledException)
+        catch (Exception ex) when (ex is ArgumentException or IOException or UnauthorizedAccessException)
         {
             logger.LogError(ex, "Failed to copy GenHub link");
             notificationService.ShowError(

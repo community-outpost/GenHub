@@ -148,6 +148,48 @@ public sealed class UploadThingServiceTests : IDisposable
     }
 
     /// <summary>
+    /// Verifies that UploadFileAsync preserves non-ASCII filenames with the runtime MIME encoding.
+    /// Forcing raw Unicode through a parsed Content-Disposition header degrades to Latin-1 on the
+    /// wire, so non-ASCII names keep the default encoding with its lossless filename star parameter.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task UploadFileAsync_WithNonAsciiFileName_PreservesLosslessEncodingAsync()
+    {
+        var testFilePath = Path.Combine(_tempDirectory, "карта-тест.zip");
+        await File.WriteAllBytesAsync(testFilePath, [0x50, 0x4B, 0x03, 0x04, 0x00, 0x00]);
+
+        var uploadResponse = new DirectUploadResponse(
+            "https://utfs.io/f/test_key_123",
+            "test_key_123",
+            "test_key_123:1755820800.hmac_sig");
+
+        string? capturedBody = null;
+        var handlerMock = new Mock<HttpMessageHandler>();
+        handlerMock.Protected()
+            .Setup<Task<HttpResponseMessage>>(
+                "SendAsync",
+                ItExpr.IsAny<HttpRequestMessage>(),
+                ItExpr.IsAny<CancellationToken>())
+            .Callback<HttpRequestMessage, CancellationToken>((request, _) =>
+                capturedBody = request.Content!.ReadAsStringAsync().GetAwaiter().GetResult())
+            .ReturnsAsync(new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(JsonSerializer.Serialize(uploadResponse)),
+            });
+
+        var httpClient = new HttpClient(handlerMock.Object);
+        var service = new UploadThingService(httpClient, _loggerMock.Object);
+
+        var result = await service.UploadFileAsync(testFilePath);
+
+        Assert.True(result.Success);
+        Assert.NotNull(capturedBody);
+        Assert.Contains("filename*=", capturedBody, StringComparison.Ordinal);
+        Assert.DoesNotContain("????", capturedBody, StringComparison.Ordinal);
+    }
+
+    /// <summary>
     /// Verifies that UploadFileAsync returns failure when the gateway rejects the request.
     /// </summary>
     /// <returns>A task representing the asynchronous test operation.</returns>

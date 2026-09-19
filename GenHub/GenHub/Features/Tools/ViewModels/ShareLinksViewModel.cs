@@ -68,7 +68,7 @@ public partial class ShareLinksViewModel(
                 ShowNotification(GetString("Tools.Share.Status.ClipboardUnavailable", "Clipboard unavailable."), isError: true);
             }
         }
-        catch (Exception ex) when ((ex is IOException or UnauthorizedAccessException) && ex is not OperationCanceledException)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             logger?.LogError(ex, "Failed to copy share link to clipboard.");
             ShowNotification(GetString("Tools.Share.Status.FailedToCopy", "Failed to copy link."), isError: true);
