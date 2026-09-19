@@ -33,6 +33,8 @@ namespace GenHub.Tests.Core.Features.GameProfiles.ViewModels;
 /// </summary>
 public class GameProfileLauncherViewModelTests
 {
+    private delegate bool TryGetLocalizedString(string key, out string? value, object?[] arguments);
+
     /// <summary>
     /// Verifies that the constructor initializes properties correctly.
     /// </summary>
@@ -593,6 +595,7 @@ public class GameProfileLauncherViewModelTests
     [InlineData("Executable size changed from 1 to 2 bytes: generalszh", "Executable size changed from 1 to 2 bytes")]
     [InlineData(LaunchReceiptConstants.VariantsAddedWarningKey, "The game client now supports platform variants.")]
     [InlineData(LaunchReceiptConstants.VariantsRemovedWarningKey, "The game client no longer declares platform variants.")]
+    [InlineData("GameProfiles.Notification.LaunchChanged.Title", "Launch Configuration Changed")]
     [InlineData(LaunchReceiptConstants.RevalidationWarningKey, "The previous launch receipt could not be checked.")]
     public async Task LaunchProfileCommand_WithReceiptDrift_ShowsInformationalNoticeAsync(string warning, string expected)
     {
@@ -938,6 +941,12 @@ public class GameProfileLauncherViewModelTests
             });
         mock.Setup(m => m[It.IsAny<string>()])
             .Returns<string>(key => resourceManager.GetString(key, System.Globalization.CultureInfo.InvariantCulture) ?? key);
+        mock.Setup(m => m.TryGetString(It.IsAny<string>(), out It.Ref<string?>.IsAny, It.IsAny<object?[]>()))
+            .Returns(new TryGetLocalizedString((string key, out string? value, object?[] arguments) =>
+            {
+                value = resourceManager.GetString(key, System.Globalization.CultureInfo.InvariantCulture);
+                return value != null;
+            }));
         return mock.Object;
     }
 

@@ -1,6 +1,6 @@
 namespace GenHub.Core.Constants;
 
-/// <summary>Launch receipt serialization constants.</summary>
+/// <summary>Launch receipt serialization and diagnostic resource constants.</summary>
 public static class LaunchReceiptConstants
 {
     /// <summary>Localization key for a receipt that could not be revalidated.</summary>
