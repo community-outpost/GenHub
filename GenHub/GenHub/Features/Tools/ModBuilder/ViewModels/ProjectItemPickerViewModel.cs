@@ -103,28 +103,7 @@ public partial class ProjectItemPickerViewModel : ObservableObject
         _projectDir = projectDir;
         if (existingPatterns != null)
         {
-            foreach (var raw in existingPatterns.Where(p => !string.IsNullOrWhiteSpace(p)))
-            {
-                var trimmed = raw.Trim().Replace('\\', '/');
-                if (Path.IsPathRooted(trimmed) || (trimmed.Length > 2 && trimmed[1] == ':'))
-                {
-                    try
-                    {
-                        var rel = Path.GetRelativePath(projectDir, trimmed).Replace('\\', '/');
-                        if (!rel.StartsWith("..", StringComparison.Ordinal))
-                        {
-                            _initialPatterns.Add(rel);
-                            continue;
-                        }
-                    }
-                    catch
-                    {
-                        // Fall back
-                    }
-                }
-
-                _initialPatterns.Add(trimmed.TrimStart('/'));
-            }
+            _initialPatterns.AddRange(NormalizeInitialPatterns(existingPatterns, projectDir));
         }
 
         if (Directory.Exists(projectDir))
@@ -136,6 +115,49 @@ public partial class ProjectItemPickerViewModel : ObservableObject
         }
 
         BuildTree();
+    }
+
+    private static List<string> NormalizeInitialPatterns(IEnumerable<string> existingPatterns, string projectDir)
+    {
+        var normalized = new List<string>();
+        foreach (var raw in existingPatterns.Where(p => !string.IsNullOrWhiteSpace(p)))
+        {
+            var trimmed = raw.Trim().Replace('\\', '/');
+            if (TryRelativizePattern(trimmed, projectDir, out var relative))
+            {
+                normalized.Add(relative);
+                continue;
+            }
+
+            normalized.Add(trimmed.TrimStart('/'));
+        }
+
+        return normalized;
+    }
+
+    private static bool TryRelativizePattern(string trimmed, string projectDir, out string relative)
+    {
+        relative = string.Empty;
+        if (!Path.IsPathRooted(trimmed) && (trimmed.Length <= 2 || trimmed[1] != ':'))
+        {
+            return false;
+        }
+
+        try
+        {
+            var candidate = Path.GetRelativePath(projectDir, trimmed).Replace('\\', '/');
+            if (candidate.StartsWith("..", StringComparison.Ordinal))
+            {
+                return false;
+            }
+
+            relative = candidate;
+            return true;
+        }
+        catch (ArgumentException)
+        {
+            return false;
+        }
     }
 
     private void CollectInitialMatches()

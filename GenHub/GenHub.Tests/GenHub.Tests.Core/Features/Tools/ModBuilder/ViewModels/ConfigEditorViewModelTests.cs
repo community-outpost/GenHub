@@ -5,7 +5,11 @@
 namespace GenHub.Tests.Core.Features.Tools.ModBuilder.ViewModels;
 
 using System.Collections.Generic;
+using System.Globalization;
+using System.Resources;
 using System.Threading.Tasks;
+using GenHub.Core.Constants;
+using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Interfaces.Tools.ModBuilder;
 using GenHub.Core.Models.Tools.ModBuilder;
@@ -33,7 +37,21 @@ public class ConfigEditorViewModelTests
     private ConfigEditorViewModel CreateViewModel() => new(
         _mockConfigLoader.Object,
         _mockNotificationService.Object,
+        CreateLocalizationService(),
         _mockLogger.Object);
+
+    private static ILocalizationService CreateLocalizationService()
+    {
+        var resourceManager = new ResourceManager(LocalizationConstants.StringResourceBaseName, typeof(GenHub.Common.Services.LocalizationService).Assembly);
+        var mock = new Mock<ILocalizationService>();
+        mock.Setup(m => m.GetString(It.IsAny<string>(), It.IsAny<object?[]>()))
+            .Returns<string, object?[]>((key, args) =>
+            {
+                var val = resourceManager.GetString(key, CultureInfo.InvariantCulture) ?? key;
+                return args != null && args.Length > 0 ? string.Format(CultureInfo.InvariantCulture, val, args) : val;
+            });
+        return mock.Object;
+    }
 
     [Fact]
     public async Task InitializeAsync_PopulatesBundleItemsAndPacksFromProjectAsync()

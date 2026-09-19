@@ -13,6 +13,7 @@ using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using GenHub.Core.Constants;
+using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Interfaces.Tools.ModBuilder;
 using GenHub.Core.Models.Tools.ModBuilder;
@@ -27,6 +28,7 @@ namespace GenHub.Features.Tools.ModBuilder.ViewModels;
 public partial class ConfigEditorViewModel(
     IConfigurationLoaderService configurationLoaderService,
     INotificationService notificationService,
+    ILocalizationService localizationService,
     ILogger<ConfigEditorViewModel> logger) : ObservableObject
 {
     /// <summary>
@@ -233,6 +235,50 @@ public partial class ConfigEditorViewModel(
         }
     }
 
+    private static List<BundleItemEditorViewModel> PrecalculateBundleItems(
+        IEnumerable<BundleItem>? items,
+        string? projectDir,
+        ProjectFileSnapshot? snapshot)
+    {
+        var viewModels = new List<BundleItemEditorViewModel>();
+        if (items == null)
+        {
+            return viewModels;
+        }
+
+        foreach (var item in items)
+        {
+            viewModels.Add(CreateBundleItemEditorViewModel(item, projectDir, snapshot));
+        }
+
+        return viewModels;
+    }
+
+    private static BundleItemEditorViewModel CreateBundleItemEditorViewModel(
+        BundleItem item,
+        string? projectDir,
+        ProjectFileSnapshot? snapshot)
+    {
+        var pattern = item.Files.Count > 0
+            ? string.Join("; ", item.Files.Select(f => f.AbsSourceFile))
+            : ModBuilderConstants.GameFilesEditedAllFilesGlob;
+
+        var itemVm = new BundleItemEditorViewModel
+        {
+            Name = item.Name,
+            NamePrefix = item.NamePrefix,
+            NameSuffix = item.NameSuffix,
+            IsBig = item.IsBig,
+            BigSuffix = item.BigSuffix,
+            SetGameLanguageOnInstall = item.SetGameLanguageOnInstall,
+            FileCount = item.Files.Count,
+            SourcePattern = pattern,
+        };
+
+        itemVm.RecalculateMatches(projectDir, snapshot);
+        return itemVm;
+    }
+
     /// <summary>
     /// Loads the configuration into the editor.
     /// </summary>
@@ -243,6 +289,8 @@ public partial class ConfigEditorViewModel(
             return;
         }
 
+        var configuration = Configuration;
+
         // Enumerate project files once on a background thread so large projects
         // do not freeze the UI, then share the snapshot across all match queries.
         var projectDir = CurrentProject?.ProjectDir;
@@ -250,36 +298,8 @@ public partial class ConfigEditorViewModel(
             ? null
             : await Task.Run(() => ProjectFileSnapshot.Create(projectDir)).ConfigureAwait(false);
 
-        var precalculatedItems = await Task.Run(() =>
-        {
-            var items = new List<BundleItemEditorViewModel>();
-            if (Configuration?.Items != null)
-            {
-                foreach (var item in Configuration.Items)
-                {
-                    var pattern = item.Files.Count > 0
-                        ? string.Join("; ", item.Files.Select(f => f.AbsSourceFile))
-                        : "GameFilesEdited/**/*.*";
-
-                    var itemVm = new BundleItemEditorViewModel
-                    {
-                        Name = item.Name,
-                        NamePrefix = item.NamePrefix,
-                        NameSuffix = item.NameSuffix,
-                        IsBig = item.IsBig,
-                        BigSuffix = item.BigSuffix,
-                        SetGameLanguageOnInstall = item.SetGameLanguageOnInstall,
-                        FileCount = item.Files.Count,
-                        SourcePattern = pattern,
-                    };
-
-                    itemVm.RecalculateMatches(projectDir, _fileSnapshot);
-                    items.Add(itemVm);
-                }
-            }
-
-            return items;
-        }).ConfigureAwait(false);
+        var precalculatedItems = await Task.Run(
+            () => PrecalculateBundleItems(configuration.Items, projectDir, _fileSnapshot)).ConfigureAwait(false);
 
         void LoadData()
         {
@@ -291,7 +311,7 @@ public partial class ConfigEditorViewModel(
                 BundleItems.Add(itemVm);
             }
 
-            PopulateBundlePacks(Configuration);
+            PopulateBundlePacks(configuration);
 
             SelectedBundleItem = BundleItems.FirstOrDefault();
             SelectedBundlePack = BundlePacks.FirstOrDefault();
@@ -315,24 +335,7 @@ public partial class ConfigEditorViewModel(
     {
         foreach (var item in configuration.Items)
         {
-            var pattern = item.Files.Count > 0
-                ? string.Join("; ", item.Files.Select(f => f.AbsSourceFile))
-                : "GameFilesEdited/**/*.*";
-
-            var itemVm = new BundleItemEditorViewModel
-            {
-                Name = item.Name,
-                NamePrefix = item.NamePrefix,
-                NameSuffix = item.NameSuffix,
-                IsBig = item.IsBig,
-                BigSuffix = item.BigSuffix,
-                SetGameLanguageOnInstall = item.SetGameLanguageOnInstall,
-                FileCount = item.Files.Count,
-                SourcePattern = pattern,
-            };
-
-            itemVm.RecalculateMatches(CurrentProject?.ProjectDir, _fileSnapshot);
-            BundleItems.Add(itemVm);
+            BundleItems.Add(CreateBundleItemEditorViewModel(item, CurrentProject?.ProjectDir, _fileSnapshot));
         }
     }
 
@@ -397,7 +400,7 @@ public partial class ConfigEditorViewModel(
         var startFolder = await ResolveStartFolderAsync(topLevel, projectDir).ConfigureAwait(false);
         var files = await topLevel.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
         {
-            Title = "Select files to add to bundle item",
+            Title = localizationService.GetString("Tools.ModBuilder.ConfigEditor.AddFilesPickerTitle"),
             AllowMultiple = true,
             SuggestedStartLocation = startFolder,
         }).ConfigureAwait(false);
@@ -443,7 +446,7 @@ public partial class ConfigEditorViewModel(
         var startFolder = await ResolveStartFolderAsync(topLevel, projectDir).ConfigureAwait(false);
         var folders = await topLevel.StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
         {
-            Title = "Select directory to add to bundle item",
+            Title = localizationService.GetString("Tools.ModBuilder.ConfigEditor.AddFolderPickerTitle"),
             AllowMultiple = false,
             SuggestedStartLocation = startFolder,
         }).ConfigureAwait(false);
@@ -587,7 +590,7 @@ public partial class ConfigEditorViewModel(
             BigSuffix = string.Empty,
             SetGameLanguageOnInstall = string.Empty,
             FileCount = 0,
-            SourcePattern = "GameFilesEdited/**/*.*",
+            SourcePattern = ModBuilderConstants.GameFilesEditedAllFilesGlob,
         };
 
         newItem.RecalculateMatches(CurrentProject?.ProjectDir, _fileSnapshot);
@@ -723,7 +726,9 @@ public partial class ConfigEditorViewModel(
             await PersistConfigurationToDiskAsync(CurrentProject.ProjectDir, cancellationToken).ConfigureAwait(false);
 
             HasChanges = false;
-            notificationService.ShowSuccess("Configuration Saved", "Configuration changes saved successfully");
+            notificationService.ShowSuccess(
+                localizationService.GetString("Tools.ModBuilder.ConfigEditor.Notifications.Saved.Title"),
+                localizationService.GetString("Tools.ModBuilder.ConfigEditor.Notifications.Saved.Message"));
             logger.LogInformation("Configuration saved successfully");
 
             if (Application.Current == null || Dispatcher.UIThread.CheckAccess())
@@ -742,7 +747,9 @@ public partial class ConfigEditorViewModel(
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to save configuration");
-            notificationService.ShowError("Save Failed", $"Could not save configuration: {ex.Message}");
+            notificationService.ShowError(
+                localizationService.GetString("Tools.ModBuilder.ConfigEditor.Notifications.SaveFailed.Title"),
+                localizationService.GetString("Tools.ModBuilder.ConfigEditor.Notifications.SaveFailed.Message", ex.Message));
         }
     }
 
@@ -769,7 +776,7 @@ public partial class ConfigEditorViewModel(
         }
         else
         {
-            files.Add(new BundleFile { AbsSourceFile = "GameFilesEdited/**/*.*" });
+            files.Add(new BundleFile { AbsSourceFile = ModBuilderConstants.GameFilesEditedAllFilesGlob });
         }
 
         return files;

@@ -1,4 +1,5 @@
 using CommunityToolkit.Mvvm.ComponentModel;
+using GenHub.Core.Constants;
 using GenHub.Features.Tools.ModBuilder.Services;
 using System;
 using System.Collections.Generic;
@@ -160,7 +161,7 @@ public partial class BundleItemEditorViewModel : ObservableObject
 
         // If the list only contains the generic default wildcard, replace it with specific pattern
         if (SourcePatternsList.Count == 1 &&
-            (SourcePatternsList[0].Pattern.Equals("GameFilesEdited/**/*.*", StringComparison.OrdinalIgnoreCase) ||
+            (SourcePatternsList[0].Pattern.Equals(ModBuilderConstants.GameFilesEditedAllFilesGlob, StringComparison.OrdinalIgnoreCase) ||
              SourcePatternsList[0].Pattern.Equals("**/*.*", StringComparison.OrdinalIgnoreCase)))
         {
             SourcePatternsList.Clear();

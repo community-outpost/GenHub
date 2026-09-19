@@ -7752,6 +7752,9 @@ GenHub supports four file linking strategies under **Settings -&gt; Game Configu
   <data name="Tools.ModBuilder.View.LabelFile" xml:space="preserve">
     <value>File:</value>
   </data>
+  <data name="Tools.ModBuilder.View.LabelStep" xml:space="preserve">
+    <value>Step:</value>
+  </data>
   <data name="Tools.ModBuilder.View.LabelProgress" xml:space="preserve">
     <value>Progress:</value>
   </data>

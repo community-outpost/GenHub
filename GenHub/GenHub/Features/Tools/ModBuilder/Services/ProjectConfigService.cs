@@ -121,6 +121,8 @@ public sealed class ProjectConfigService(
                     sw.Elapsed);
             }
 
+            project.ProjectDir = projectDir;
+
             var createDirResult = await CreateProjectDirectoryStructureAsync(
                 projectDir,
                 project.Directories,

@@ -216,6 +216,11 @@ public static class ModBuilderConstants
     public const string GameFilesEditedPrefix = "GameFilesEdited/";
 
     /// <summary>
+    /// Default glob pattern matching every file under the edited game sources.
+    /// </summary>
+    public const string GameFilesEditedAllFilesGlob = "GameFilesEdited/**/*.*";
+
+    /// <summary>
     /// Directory name for project configuration files.
     /// </summary>
     public const string ConfigDir = "Configs";

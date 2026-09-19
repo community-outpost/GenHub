@@ -7658,6 +7658,9 @@ GenHub передает официальный идентификатор AppID 
   <data name="Tools.ModBuilder.View.LabelFile" xml:space="preserve">
     <value>Файл:</value>
   </data>
+  <data name="Tools.ModBuilder.View.LabelStep" xml:space="preserve">
+    <value>Шаг:</value>
+  </data>
   <data name="Tools.ModBuilder.View.LabelProgress" xml:space="preserve">
     <value>Прогресс:</value>
   </data>
