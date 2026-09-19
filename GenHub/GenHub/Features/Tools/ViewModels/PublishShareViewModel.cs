@@ -717,7 +717,7 @@ public partial class PublishShareViewModel(
         HostedAssets.Add(new HostedAssetItemViewModel
         {
             AssetKind = HostedAssetKind.Definition,
-            CanUpload = !isDefHosted && SelectedHostingProvider?.SupportsCatalogHosting is true,
+            CanUpload = !isDefHosted && SelectedHostingProvider != null && SelectedHostingProvider.SupportsCatalogHosting,
             Name = project.ProviderDefinitionFileName ?? HostingConstants.DefaultDefinitionFileName,
             Category = GetLocalizedString("Tools.PublisherStudio.Hosting.AssetCategoryDefinition", "Publisher Definition"),
             Location = isDefHosted ? $"{providerName} ({HostingConstants.DropboxDefaultPublisherFolder})" : GetLocalizedString("Tools.PublisherStudio.Hosting.AssetLocationLocalOnly", "Local only"),
@@ -752,7 +752,7 @@ public partial class PublishShareViewModel(
             {
                 AssetKind = HostedAssetKind.Catalog,
                 CatalogId = catalog.Id,
-                CanUpload = !isCatHosted && SelectedHostingProvider?.SupportsCatalogHosting is true,
+                CanUpload = !isCatHosted && SelectedHostingProvider != null && SelectedHostingProvider.SupportsCatalogHosting,
                 Name = catalog.FileName,
                 Category = FormatLocalizedString("Tools.PublisherStudio.Hosting.AssetCategoryCatalogFormat", "Catalog Manifest ({0})", catalog.Name),
                 Location = isCatHosted ? $"{providerName} ({HostingConstants.DropboxDefaultPublisherFolder})" : GetLocalizedString("Tools.PublisherStudio.Hosting.AssetLocationLocalOnly", "Local only"),
@@ -818,7 +818,7 @@ public partial class PublishShareViewModel(
         }
 
         var hasLocalSource = !string.IsNullOrEmpty(artifact.LocalFilePath);
-        var canUploadArtifact = hasLocalSource && !isCloud && SelectedHostingProvider?.SupportsArtifactHosting is true;
+        var canUploadArtifact = hasLocalSource && !isCloud && SelectedHostingProvider != null && SelectedHostingProvider.SupportsArtifactHosting;
 
         HostedAssets.Add(new HostedAssetItemViewModel
         {
