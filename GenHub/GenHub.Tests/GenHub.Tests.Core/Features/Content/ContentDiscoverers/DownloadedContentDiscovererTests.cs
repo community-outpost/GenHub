@@ -136,6 +136,26 @@ public sealed class DownloadedContentDiscovererTests
     }
 
     /// <summary>
+    /// Verifies that launcher-managed installation manifests are excluded from the library.
+    /// </summary>
+    /// <returns>A task that represents the asynchronous test.</returns>
+    [Fact]
+    public async Task DiscoverAsync_ExcludesGameInstallationManifestsAsync()
+    {
+        var discoverer = CreateDiscoverer(
+        [
+            CreateManifest("1.20260101.steam.gameinstallation.zerohour", "Steam Zero Hour", ContentType.GameInstallation, GameType.ZeroHour),
+            CreateManifest("1.20260102.test.mod.bravo", "Bravo Mod", ContentType.Mod, GameType.ZeroHour),
+        ]);
+
+        var result = await discoverer.DiscoverAsync(new ContentSearchQuery { Take = 10 });
+
+        Assert.True(result.Success);
+        var item = Assert.Single(result.Data!.Items);
+        Assert.Equal("Bravo Mod", item.Name);
+    }
+
+    /// <summary>
     /// Verifies that a manifest-pool failure surfaces as a failed discovery result.
     /// </summary>
     /// <returns>A task that represents the asynchronous test.</returns>

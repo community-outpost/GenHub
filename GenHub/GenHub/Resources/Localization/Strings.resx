@@ -4484,6 +4484,9 @@ This will modify game files and configuration settings at:
   <data name="Downloads.Browser.Search" xml:space="preserve">
     <value>Search</value>
   </data>
+  <data name="Downloads.Browser.MyDownloads" xml:space="preserve">
+    <value>My Downloads</value>
+  </data>
   <data name="Downloads.Card.Includes" xml:space="preserve">
     <value>Includes</value>
   </data>
@@ -7847,6 +7850,15 @@ Recovery Engine: Profile '{0}' supports checkpoint saves, replay resumption, and
   </data>
   <data name="Downloads.ContentDetail.DeletedMessage" xml:space="preserve">
     <value>Deleted '{0}' and freed unused storage.</value>
+  </data>
+  <data name="Downloads.ContentDetail.DeleteConfirmDependentsNote" xml:space="preserve">
+    <value>Other downloaded content may also need this: {0}.</value>
+  </data>
+  <data name="Downloads.ContentDetail.DeleteNotAllowedMessage" xml:space="preserve">
+    <value>'{0}' is managed automatically by GenHub and cannot be deleted.</value>
+  </data>
+  <data name="Downloads.ContentDetail.DeleteNotAllowedTitle" xml:space="preserve">
+    <value>Cannot Delete</value>
   </data>
   <data name="Profiles.AddLocalContent.StatusCasProgressImporting" xml:space="preserve">
     <value>Importing {0}: {1:0}% ({2}/{3} files)</value>

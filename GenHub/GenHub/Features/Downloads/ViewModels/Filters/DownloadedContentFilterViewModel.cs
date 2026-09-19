@@ -1,11 +1,15 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using GenHub.Core.Constants;
+using GenHub.Core.Extensions;
+using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.ComponentModel;
+using System.Linq;
 
 namespace GenHub.Features.Downloads.ViewModels.Filters;
 
@@ -13,8 +17,11 @@ namespace GenHub.Features.Downloads.ViewModels.Filters;
 /// Filter view model for the offline downloaded-content library ("My Downloads").
 /// Provides content-type and target-game filtering over locally stored manifests.
 /// </summary>
-public partial class DownloadedContentFilterViewModel : FilterPanelViewModelBase
+public partial class DownloadedContentFilterViewModel : FilterPanelViewModelBase, IDisposable
 {
+    private readonly ILocalizationService? _localizationService;
+    private bool _disposed;
+
     [ObservableProperty]
     private ContentType? _selectedContentType;
 
@@ -27,9 +34,15 @@ public partial class DownloadedContentFilterViewModel : FilterPanelViewModelBase
     /// <summary>
     /// Initializes a new instance of the <see cref="DownloadedContentFilterViewModel"/> class.
     /// </summary>
-    public DownloadedContentFilterViewModel()
+    /// <param name="localizationService">Optional localization service for filter labels.</param>
+    public DownloadedContentFilterViewModel(ILocalizationService? localizationService = null)
     {
-        ContentTypeFilters = CreateDefaultContentTypeFilters();
+        _localizationService = localizationService;
+        ContentTypeFilters = CreateContentTypeFilters();
+        if (_localizationService != null)
+        {
+            _localizationService.PropertyChanged += OnLocalizationChanged;
+        }
     }
 
     /// <inheritdoc />
@@ -91,30 +104,113 @@ public partial class DownloadedContentFilterViewModel : FilterPanelViewModelBase
     {
         if (SelectedContentType.HasValue)
         {
-            yield return $"Type: {SelectedContentType.Value}";
+            yield return $"{ResolveLabel("Downloads.Filter.ContentType", "Content Type")}: {ResolveContentTypeName(SelectedContentType.Value)}";
         }
 
         if (SelectedGame.HasValue)
         {
-            yield return $"Game: {SelectedGame.Value}";
+            yield return $"{ResolveLabel("Downloads.Filter.Game", "Game")}: {ResolveGameName(SelectedGame.Value)}";
         }
     }
 
-    private static ObservableCollection<ContentTypeFilterItem> CreateDefaultContentTypeFilters()
+    /// <inheritdoc />
+    public void Dispose()
+    {
+        if (_disposed)
+        {
+            return;
+        }
+
+        _disposed = true;
+        if (_localizationService != null)
+        {
+            _localizationService.PropertyChanged -= OnLocalizationChanged;
+        }
+
+        GC.SuppressFinalize(this);
+    }
+
+    private ObservableCollection<ContentTypeFilterItem> CreateContentTypeFilters()
     {
         return
         [
-            new ContentTypeFilterItem(ContentType.GameClient, "Game clients"),
-            new ContentTypeFilterItem(ContentType.Mod, "Mods"),
-            new ContentTypeFilterItem(ContentType.Map, "Maps"),
-            new ContentTypeFilterItem(ContentType.MapPack, "Map packs"),
-            new ContentTypeFilterItem(ContentType.Mission, "Missions"),
-            new ContentTypeFilterItem(ContentType.Patch, "Patches"),
-            new ContentTypeFilterItem(ContentType.Addon, "Add-ons"),
-            new ContentTypeFilterItem(ContentType.LanguagePack, "Language packs"),
-            new ContentTypeFilterItem(ContentType.ModdingTool, "Modding tools"),
-            new ContentTypeFilterItem(ContentType.Skin, "Skins"),
+            new ContentTypeFilterItem(ContentType.GameClient, ResolveContentTypeName(ContentType.GameClient)),
+            new ContentTypeFilterItem(ContentType.Mod, ResolveContentTypeName(ContentType.Mod)),
+            new ContentTypeFilterItem(ContentType.Map, ResolveContentTypeName(ContentType.Map)),
+            new ContentTypeFilterItem(ContentType.MapPack, ResolveContentTypeName(ContentType.MapPack)),
+            new ContentTypeFilterItem(ContentType.Mission, ResolveContentTypeName(ContentType.Mission)),
+            new ContentTypeFilterItem(ContentType.Patch, ResolveContentTypeName(ContentType.Patch)),
+            new ContentTypeFilterItem(ContentType.Addon, ResolveContentTypeName(ContentType.Addon)),
+            new ContentTypeFilterItem(ContentType.LanguagePack, ResolveContentTypeName(ContentType.LanguagePack)),
+            new ContentTypeFilterItem(ContentType.ModdingTool, ResolveContentTypeName(ContentType.ModdingTool)),
+            new ContentTypeFilterItem(ContentType.Skin, ResolveContentTypeName(ContentType.Skin)),
         ];
+    }
+
+    private string ResolveContentTypeName(ContentType contentType)
+    {
+        if (_localizationService != null && _localizationService.TryGetString($"ContentType.{contentType}", out var localized))
+        {
+            return localized;
+        }
+
+        return contentType.GetDisplayName();
+    }
+
+    private string ResolveGameName(GameType game)
+    {
+        var key = game switch
+        {
+            GameType.ZeroHour => "Common.Game.ZeroHour",
+            GameType.Generals => "Common.Game.Generals",
+            _ => null,
+        };
+
+        if (key != null && _localizationService != null && _localizationService.TryGetString(key, out var localized))
+        {
+            return localized;
+        }
+
+        return game.ToString();
+    }
+
+    private string ResolveLabel(string key, string fallback)
+    {
+        if (_localizationService != null && _localizationService.TryGetString(key, out var localized))
+        {
+            return localized;
+        }
+
+        return fallback;
+    }
+
+    private void OnLocalizationChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (_disposed)
+        {
+            return;
+        }
+
+        if (e.PropertyName == nameof(ILocalizationService.CurrentCulture) || e.PropertyName == LocalizationConstants.IndexerPropertyName)
+        {
+            RefreshLabels();
+        }
+    }
+
+    private void RefreshLabels()
+    {
+        var selected = SelectedContentType;
+        ContentTypeFilters = CreateContentTypeFilters();
+        if (selected.HasValue)
+        {
+            var match = ContentTypeFilters.FirstOrDefault(item => item.ContentType == selected.Value);
+            if (match != null)
+            {
+                match.IsSelected = true;
+            }
+        }
+
+        NotifyFiltersChanged();
     }
 
     [RelayCommand]

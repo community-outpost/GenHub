@@ -27,14 +27,15 @@ public partial class PublisherItemViewModel(
     private bool _isLoading;
 
     /// <summary>
+    /// Gets or sets the display name.
+    /// </summary>
+    [ObservableProperty]
+    private string _displayName = displayName;
+
+    /// <summary>
     /// Gets the publisher ID.
     /// </summary>
     public string PublisherId { get; } = publisherId;
-
-    /// <summary>
-    /// Gets the display name.
-    /// </summary>
-    public string DisplayName { get; } = displayName;
 
     /// <summary>
     /// Gets the logo source path or URL.

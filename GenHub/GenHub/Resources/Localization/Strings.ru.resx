@@ -4484,6 +4484,9 @@
   <data name="Downloads.Browser.Search" xml:space="preserve">
     <value>Поиск</value>
   </data>
+  <data name="Downloads.Browser.MyDownloads" xml:space="preserve">
+    <value>Мои загрузки</value>
+  </data>
   <data name="Downloads.Card.Includes" xml:space="preserve">
     <value>Включает</value>
   </data>
@@ -7753,6 +7756,15 @@ GenHub передает официальный идентификатор AppID 
   </data>
   <data name="Downloads.ContentDetail.DeletedMessage" xml:space="preserve">
     <value>«{0}» удалено, неиспользуемое место в хранилище освобождено.</value>
+  </data>
+  <data name="Downloads.ContentDetail.DeleteConfirmDependentsNote" xml:space="preserve">
+    <value>Другой загруженный контент также может нуждаться в этом: {0}.</value>
+  </data>
+  <data name="Downloads.ContentDetail.DeleteNotAllowedMessage" xml:space="preserve">
+    <value>«{0}» управляется GenHub автоматически и не может быть удалён.</value>
+  </data>
+  <data name="Downloads.ContentDetail.DeleteNotAllowedTitle" xml:space="preserve">
+    <value>Удаление невозможно</value>
   </data>
   <data name="Profiles.AddLocalContent.StatusCasProgressImporting" xml:space="preserve">
     <value>Импорт {0}: {1:0}% ({2}/{3} файлов)</value>

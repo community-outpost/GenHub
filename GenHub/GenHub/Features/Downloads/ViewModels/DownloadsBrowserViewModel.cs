@@ -30,6 +30,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
@@ -145,6 +146,7 @@ public sealed partial class DownloadsBrowserViewModel(
     private bool _suppressPublisherChangedRefresh;
     private bool _disposed;
     private bool _builtInPublishersInitialized;
+    private ILocalizationService? _localizationService;
 
     [ObservableProperty]
     private string _searchTerm = string.Empty;
@@ -255,7 +257,13 @@ public sealed partial class DownloadsBrowserViewModel(
     {
         if (!_builtInPublishersInitialized)
         {
-            Publishers = CreateBuiltInPublishers();
+            _localizationService = serviceProvider.GetService<ILocalizationService>();
+            if (_localizationService != null)
+            {
+                _localizationService.PropertyChanged += OnLocalizationChanged;
+            }
+
+            Publishers = CreateBuiltInPublishers(ResolveDownloadedContentLabel());
             InitializeFilterViewModels();
             contentStateService.ContentStateChanged += OnContentStateChanged;
             _builtInPublishersInitialized = true;
@@ -300,6 +308,15 @@ public sealed partial class DownloadsBrowserViewModel(
             if (_builtInPublishersInitialized)
             {
                 contentStateService.ContentStateChanged -= OnContentStateChanged;
+                if (_localizationService != null)
+                {
+                    _localizationService.PropertyChanged -= OnLocalizationChanged;
+                }
+
+                foreach (var filterViewModel in _filterViewModels.Values.OfType<IDisposable>())
+                {
+                    filterViewModel.Dispose();
+                }
             }
 
             if (CurrentFilterViewModel != null)
@@ -819,13 +836,13 @@ public sealed partial class DownloadsBrowserViewModel(
     /// <summary>
     /// Seeds the sidebar with shipped/built-in providers (not user subscriptions).
     /// </summary>
-    private static ObservableCollection<PublisherItemViewModel> CreateBuiltInPublishers()
+    private static ObservableCollection<PublisherItemViewModel> CreateBuiltInPublishers(string? downloadedContentLabel = null)
     {
         return
         [
             new PublisherItemViewModel(
                 PublisherTypeConstants.Downloaded,
-                PublisherInfoConstants.DownloadedContent.Name,
+                downloadedContentLabel ?? PublisherInfoConstants.DownloadedContent.Name,
                 PublisherInfoConstants.DownloadedContent.LogoSource,
                 ContentConstants.CategoryStatic),
             new PublisherItemViewModel(
@@ -1224,6 +1241,37 @@ public sealed partial class DownloadsBrowserViewModel(
         {
             logger.LogDebug(ex, "Failed to refresh downloaded content count");
         }
+    }
+
+    private void OnLocalizationChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (_disposed)
+        {
+            return;
+        }
+
+        if (e.PropertyName == nameof(ILocalizationService.CurrentCulture) || e.PropertyName == LocalizationConstants.IndexerPropertyName)
+        {
+            var entry = Publishers.FirstOrDefault(p =>
+                string.Equals(p.PublisherId, PublisherTypeConstants.Downloaded, StringComparison.OrdinalIgnoreCase));
+            if (entry != null)
+            {
+                entry.DisplayName = ResolveDownloadedContentLabel();
+            }
+        }
+    }
+
+    /// <summary>
+    /// Resolves the offline-library sidebar label for the active culture.
+    /// </summary>
+    private string ResolveDownloadedContentLabel()
+    {
+        if (_localizationService != null && _localizationService.TryGetString("Downloads.Browser.MyDownloads", out var localized))
+        {
+            return localized;
+        }
+
+        return PublisherInfoConstants.DownloadedContent.Name;
     }
 
     [RelayCommand]
@@ -2365,7 +2413,7 @@ public sealed partial class DownloadsBrowserViewModel(
     private void InitializeFilterViewModels()
     {
         // Offline downloaded-content library filters (content type + game)
-        _filterViewModels[PublisherTypeConstants.Downloaded] = new DownloadedContentFilterViewModel();
+        _filterViewModels[PublisherTypeConstants.Downloaded] = new DownloadedContentFilterViewModel(_localizationService);
 
         // Dynamic publisher filters
         _filterViewModels[GitHubTopicsConstants.PublisherType] = new GitHubFilterViewModel();

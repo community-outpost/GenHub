@@ -4484,6 +4484,9 @@
   <data name="Downloads.Browser.Search" xml:space="preserve">
     <value>بحث</value>
   </data>
+  <data name="Downloads.Browser.MyDownloads" xml:space="preserve">
+    <value>تنزيلاتي</value>
+  </data>
   <data name="Downloads.Card.Includes" xml:space="preserve">
     <value>يتضمن</value>
   </data>
@@ -7753,6 +7756,15 @@ GenHub هو مشغل ومدير حديث لألعاب **Command &amp; Conquer: G
   </data>
   <data name="Downloads.ContentDetail.DeletedMessage" xml:space="preserve">
     <value>تم حذف '{0}' وتحرير مساحة التخزين غير المستخدمة.</value>
+  </data>
+  <data name="Downloads.ContentDetail.DeleteConfirmDependentsNote" xml:space="preserve">
+    <value>قد يحتاج محتوى آخر تم تنزيله إلى هذا أيضًا: {0}.</value>
+  </data>
+  <data name="Downloads.ContentDetail.DeleteNotAllowedMessage" xml:space="preserve">
+    <value>'{0}' تتم إدارته تلقائيًا بواسطة GenHub ولا يمكن حذفه.</value>
+  </data>
+  <data name="Downloads.ContentDetail.DeleteNotAllowedTitle" xml:space="preserve">
+    <value>تعذّر الحذف</value>
   </data>
   <data name="Profiles.AddLocalContent.StatusCasProgressImporting" xml:space="preserve">
     <value>جارٍ استيراد {0}: {1:0}% ({2}/{3} ملفات)</value>

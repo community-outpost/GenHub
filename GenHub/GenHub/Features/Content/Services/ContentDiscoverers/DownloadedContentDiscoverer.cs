@@ -95,6 +95,13 @@ public sealed class DownloadedContentDiscoverer(
             return false;
         }
 
+        // Installation bookkeeping is launcher-managed (metadata-only, deterministically
+        // regenerated), never a user download, so it stays out of the library.
+        if (manifest.ContentType == ContentType.GameInstallation)
+        {
+            return false;
+        }
+
         if (!string.IsNullOrWhiteSpace(query.SearchTerm) &&
             !manifest.Name.Contains(query.SearchTerm, StringComparison.OrdinalIgnoreCase) &&
             !manifest.Id.Value.Contains(query.SearchTerm, StringComparison.OrdinalIgnoreCase))

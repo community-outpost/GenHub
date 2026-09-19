@@ -728,9 +728,16 @@ public partial class ContentDetailViewModel(
                 return AreBundleComponentsReadyForProfile;
             }
 
-            return SelectedDownloadableItem != null
-                ? SelectedDownloadableItem.IsDownloaded
-                : IsDownloaded;
+            if (SelectedDownloadableItem != null)
+            {
+                return SelectedDownloadableItem.IsDownloaded
+                    && SelectedDownloadableItem.ContentType != ContentType.GameInstallation;
+            }
+
+            // The search-result type is intentionally not consulted here: GameInstallation
+            // is the ContentType zero value, so an unset type would wrongly hide the button.
+            // The delete command rechecks the stored manifest authoritatively.
+            return IsDownloaded;
         }
     }
 
@@ -4858,6 +4865,11 @@ public partial class ContentDetailViewModel(
     [RelayCommand]
     private async Task DeleteDownloadAsync()
     {
+        if (_disposed)
+        {
+            return;
+        }
+
         var manifestId = SelectedDownloadableItem?.DownloadedManifestId;
         if (string.IsNullOrWhiteSpace(manifestId))
         {
@@ -4874,8 +4886,43 @@ public partial class ContentDetailViewModel(
             return;
         }
 
-        var usingProfiles = await FindProfilesUsingManifestAsync(manifestId);
-        if (!await ConfirmDeleteAsync(usingProfiles))
+        IReadOnlyList<string> usingProfiles;
+        IReadOnlyList<string> typeDependents;
+        try
+        {
+            var manifest = await GetDownloadedManifestAsync(manifestId);
+            if (manifest?.ContentType == ContentType.GameInstallation)
+            {
+                logger.LogWarning("Cannot delete {ManifestId}: installation manifests are launcher-managed", manifestId);
+                notificationService.ShowWarning(
+                    GetLocalizedString("Downloads.ContentDetail.DeleteNotAllowedTitle", "Cannot Delete"),
+                    FormatLocalizedString(
+                        "Downloads.ContentDetail.DeleteNotAllowedMessage",
+                        "'{0}' is managed automatically by GenHub and cannot be deleted.",
+                        Name),
+                    NotificationDurations.Short);
+                return;
+            }
+
+            usingProfiles = await FindProfilesUsingManifestAsync(manifestId);
+            typeDependents = await FindTypeDependentsAsync(manifest);
+        }
+        catch (OperationCanceledException ex)
+        {
+            logger.LogInformation(ex, "Delete cancelled while checking usage for {ManifestId}", manifestId);
+            return;
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Cannot delete {ManifestId}: unable to check content usage", manifestId);
+            notificationService.ShowError(
+                GetLocalizedString("Downloads.ContentDetail.DeleteFailedTitle", "Delete Failed"),
+                FormatLocalizedString("Downloads.ContentDetail.DeleteFailedMessage", "Could not delete '{0}': {1}", Name, ex.Message),
+                NotificationDurations.Long);
+            return;
+        }
+
+        if (!await ConfirmDeleteAsync(usingProfiles, typeDependents))
         {
             return;
         }
@@ -4883,39 +4930,71 @@ public partial class ContentDetailViewModel(
         await ExecuteDeleteAsync(manifestId);
     }
 
-    private async Task<IReadOnlyList<string>> FindProfilesUsingManifestAsync(string manifestId)
+    private async Task<ContentManifest?> GetDownloadedManifestAsync(string manifestId)
     {
-        try
+        var manifestResult = await manifestPool.GetManifestAsync(ManifestId.Create(manifestId), _cts.Token);
+        if (!manifestResult.Success)
         {
-            var profilesResult = await profileManager.GetAllProfilesAsync(_cts.Token);
-            if (!profilesResult.Success || profilesResult.Data is null)
-            {
-                return [];
-            }
+            throw new InvalidOperationException(manifestResult.FirstError ?? "Unable to read the stored manifest.");
+        }
 
-            return profilesResult.Data
-                .Where(profile => profile.EnabledContentIds?.Any(id =>
-                    string.Equals(id, manifestId, StringComparison.OrdinalIgnoreCase)) == true)
-                .Select(profile => profile.Name)
-                .Where(name => !string.IsNullOrWhiteSpace(name))
-                .ToList();
-        }
-        catch (OperationCanceledException)
-        {
-            throw;
-        }
-        catch (Exception ex)
-        {
-            logger.LogDebug(ex, "Failed to check profile usage for {ManifestId}", manifestId);
-            return [];
-        }
+        return manifestResult.Data;
     }
 
-    private async Task<bool> ConfirmDeleteAsync(IReadOnlyList<string> usingProfiles)
+    private async Task<IReadOnlyList<string>> FindProfilesUsingManifestAsync(string manifestId)
+    {
+        var profilesResult = await profileManager.GetAllProfilesAsync(_cts.Token);
+        if (!profilesResult.Success || profilesResult.Data is null)
+        {
+            throw new InvalidOperationException(profilesResult.FirstError ?? "Unable to enumerate game profiles.");
+        }
+
+        return profilesResult.Data
+            .Where(profile => profile.EnabledContentIds?.Any(id =>
+                string.Equals(id, manifestId, StringComparison.OrdinalIgnoreCase)) == true)
+            .Select(profile => profile.Name)
+            .Where(name => !string.IsNullOrWhiteSpace(name))
+            .ToList();
+    }
+
+    private async Task<IReadOnlyList<string>> FindTypeDependentsAsync(ContentManifest? manifest)
+    {
+        if (manifest == null)
+        {
+            return [];
+        }
+
+        var allResult = await manifestPool.GetAllManifestsAsync(_cts.Token);
+        if (!allResult.Success || allResult.Data is null)
+        {
+            throw new InvalidOperationException(allResult.FirstError ?? "Unable to enumerate stored content.");
+        }
+
+        return allResult.Data
+            .Where(candidate => !string.Equals(candidate.Id.Value, manifest.Id.Value, StringComparison.OrdinalIgnoreCase)
+                && DependsOnContentType(candidate, manifest))
+            .Select(candidate => candidate.Name)
+            .Where(name => !string.IsNullOrWhiteSpace(name))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
+
+    private bool DependsOnContentType(ContentManifest candidate, ContentManifest target)
+    {
+        return candidate.Dependencies != null && candidate.Dependencies.Any(dep =>
+            !dep.IsOptional &&
+            (dep.InstallBehavior == DependencyInstallBehavior.RequireExisting || dep.InstallBehavior == DependencyInstallBehavior.AutoInstall) &&
+            dep.Id.ToString() == ManifestConstants.DefaultContentDependencyId &&
+            dep.DependencyType == target.ContentType &&
+            (dep.CompatibleGameTypes.Count == 0 || target.TargetGame == GameType.Unknown || dep.CompatibleGameTypes.Contains(target.TargetGame)));
+    }
+
+    private async Task<bool> ConfirmDeleteAsync(IReadOnlyList<string> usingProfiles, IReadOnlyList<string> typeDependents)
     {
         if (dialogService == null)
         {
-            return true;
+            logger.LogWarning("Cannot delete {Name}: confirmation dialog service is unavailable", Name);
+            return false;
         }
 
         var title = GetLocalizedString("Downloads.ContentDetail.DeleteConfirmTitle", "Delete Download");
@@ -4930,6 +5009,14 @@ public partial class ContentDetailViewModel(
                 "Downloads.ContentDetail.DeleteConfirmMessage",
                 "Are you sure you want to delete '{0}'? This removes its files from storage and cannot be undone.",
                 Name);
+
+        if (typeDependents.Count > 0)
+        {
+            message += " " + FormatLocalizedString(
+                "Downloads.ContentDetail.DeleteConfirmDependentsNote",
+                "Other downloaded content may also need this: {0}.",
+                string.Join(", ", typeDependents));
+        }
 
         return await dialogService.ShowConfirmationAsync(
             title,

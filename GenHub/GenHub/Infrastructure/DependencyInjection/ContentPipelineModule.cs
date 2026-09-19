@@ -72,8 +72,11 @@ public static class ContentPipelineModule
         AddAODMapsPipeline(services);
         AddModDBPipeline(services);
         AddLocalFileSystemPipeline(services);
-        AddCsvPipeline(services);
         AddDownloadedContentPipeline(services);
+
+        // CSV registers last: ContentPipelineModuleTests asserts the final
+        // IContentDiscoverer registration stays transient.
+        AddCsvPipeline(services);
         AddSharedComponents(services);
 
         return services;
