@@ -1,6 +1,7 @@
 using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
 using GenHub.Core.Constants;
+using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Interfaces.Manifest;
@@ -9,6 +10,7 @@ using GenHub.Core.Interfaces.Parsers;
 using GenHub.Core.Messages;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.GameProfile;
 using GenHub.Core.Models.GeneralsOnline;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Parsers;
@@ -1585,6 +1587,209 @@ public sealed class ContentDetailViewModelTests
         Assert.False(viewModel.ShowDownloadButton);
     }
 
+    /// <summary>
+    /// Verifies the delete button is visible only for downloaded content.
+    /// </summary>
+    [Fact]
+    public void ShowDeleteButton_ReflectsDownloadedState()
+    {
+        // Arrange
+        var coordinator = new Mock<IContentDownloadCoordinator>();
+        var item = new ContentSearchResult { Id = "test-item", Name = "Test Item" };
+        var viewModel = CreateViewModel(item, coordinator.Object);
+
+        viewModel.IsDownloaded = false;
+        Assert.False(viewModel.ShowDeleteButton);
+
+        // Act
+        viewModel.IsDownloaded = true;
+
+        // Assert
+        Assert.True(viewModel.ShowDeleteButton);
+    }
+
+    /// <summary>
+    /// Verifies that confirming the delete dialog removes the manifest, notifies success,
+    /// and invokes the deleted callback with the removed manifest ID.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task DeleteDownloadCommand_WhenConfirmed_RemovesManifestAndNotifiesAsync()
+    {
+        // Arrange
+        const string manifestId = "1.20260901.custom.mod.test";
+        var searchResult = new ContentSearchResult
+        {
+            Id = manifestId,
+            Name = "Custom Mod",
+            ProviderName = "custom",
+            ContentType = ContentType.Mod,
+            TargetGame = GameType.ZeroHour,
+        };
+
+        var manifestPool = new Mock<IContentManifestPool>();
+        ManifestId? removedId = null;
+        manifestPool
+            .Setup(pool => pool.RemoveManifestAsync(It.IsAny<ManifestId>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
+            .Callback<ManifestId, bool, CancellationToken>((id, _, _) => removedId = id)
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+
+        var profileManager = new Mock<IGameProfileManager>();
+        profileManager
+            .Setup(manager => manager.GetAllProfilesAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<IReadOnlyList<GameProfile>>.CreateSuccess([]));
+
+        var dialogService = new Mock<IDialogService>();
+        dialogService
+            .Setup(dialog => dialog.ShowConfirmationAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string?>()))
+            .ReturnsAsync(true);
+
+        var notifications = new Mock<INotificationService>();
+        string? deletedId = null;
+        var viewModel = CreateViewModel(
+            searchResult,
+            new Mock<IContentDownloadCoordinator>().Object,
+            manifestPool: manifestPool.Object,
+            notificationService: notifications.Object,
+            profileManager: profileManager.Object,
+            dialogService: dialogService.Object,
+            deletedAction: id =>
+            {
+                deletedId = id;
+                return Task.CompletedTask;
+            });
+        viewModel.IsDownloaded = true;
+
+        // Act
+        await viewModel.DeleteDownloadCommand.ExecuteAsync(null);
+
+        // Assert
+        Assert.NotNull(removedId);
+        Assert.Equal(manifestId, removedId.Value.Value);
+        Assert.Equal(manifestId, deletedId);
+        notifications.Verify(
+            n => n.ShowSuccess(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
+            Times.Once);
+    }
+
+    /// <summary>
+    /// Verifies that dismissing the delete dialog leaves the stored manifest untouched.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task DeleteDownloadCommand_WhenCancelled_DoesNotRemoveManifestAsync()
+    {
+        // Arrange
+        const string manifestId = "1.20260901.custom.mod.test";
+        var searchResult = new ContentSearchResult
+        {
+            Id = manifestId,
+            Name = "Custom Mod",
+            ProviderName = "custom",
+            ContentType = ContentType.Mod,
+            TargetGame = GameType.ZeroHour,
+        };
+
+        var manifestPool = new Mock<IContentManifestPool>();
+        var profileManager = new Mock<IGameProfileManager>();
+        profileManager
+            .Setup(manager => manager.GetAllProfilesAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<IReadOnlyList<GameProfile>>.CreateSuccess([]));
+
+        var dialogService = new Mock<IDialogService>();
+        dialogService
+            .Setup(dialog => dialog.ShowConfirmationAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string?>()))
+            .ReturnsAsync(false);
+
+        var deleted = false;
+        var viewModel = CreateViewModel(
+            searchResult,
+            new Mock<IContentDownloadCoordinator>().Object,
+            manifestPool: manifestPool.Object,
+            profileManager: profileManager.Object,
+            dialogService: dialogService.Object,
+            deletedAction: _ =>
+            {
+                deleted = true;
+                return Task.CompletedTask;
+            });
+        viewModel.IsDownloaded = true;
+
+        // Act
+        await viewModel.DeleteDownloadCommand.ExecuteAsync(null);
+
+        // Assert
+        manifestPool.Verify(
+            pool => pool.RemoveManifestAsync(It.IsAny<ManifestId>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+        Assert.False(deleted);
+    }
+
+    /// <summary>
+    /// Verifies the delete confirmation names the profiles currently using the content.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task DeleteDownloadCommand_WhenUsedByProfiles_NamesProfilesInConfirmationAsync()
+    {
+        // Arrange
+        const string manifestId = "1.20260901.custom.mod.test";
+        var searchResult = new ContentSearchResult
+        {
+            Id = manifestId,
+            Name = "Custom Mod",
+            ProviderName = "custom",
+            ContentType = ContentType.Mod,
+            TargetGame = GameType.ZeroHour,
+        };
+
+        var profileManager = new Mock<IGameProfileManager>();
+        profileManager
+            .Setup(manager => manager.GetAllProfilesAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<IReadOnlyList<GameProfile>>.CreateSuccess(
+            [
+                new GameProfile { Id = "main", Name = "Main Profile", EnabledContentIds = [manifestId] },
+                new GameProfile { Id = "other", Name = "Other Profile", EnabledContentIds = ["1.00000000.other.mod.else"] },
+            ]));
+
+        string? confirmationMessage = null;
+        var dialogService = new Mock<IDialogService>();
+        dialogService
+            .Setup(dialog => dialog.ShowConfirmationAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string?>()))
+            .Callback<string, string, string, string, string?>((_, message, _, _, _) => confirmationMessage = message)
+            .ReturnsAsync(false);
+
+        var viewModel = CreateViewModel(
+            searchResult,
+            new Mock<IContentDownloadCoordinator>().Object,
+            profileManager: profileManager.Object,
+            dialogService: dialogService.Object);
+        viewModel.IsDownloaded = true;
+
+        // Act
+        await viewModel.DeleteDownloadCommand.ExecuteAsync(null);
+
+        // Assert
+        Assert.NotNull(confirmationMessage);
+        Assert.Contains("Main Profile", confirmationMessage, StringComparison.Ordinal);
+        Assert.DoesNotContain("Other Profile", confirmationMessage, StringComparison.Ordinal);
+    }
+
     private static CapturingContentDetailViewModel CreateViewModel(
         ContentSearchResult searchResult,
         IContentDownloadCoordinator downloadCoordinator,
@@ -1596,7 +1801,10 @@ public sealed class ContentDetailViewModelTests
         ContentSearchResult? updateTargetSearchResult = null,
         Func<CancellationToken, Task>? updateAction = null,
         bool? isUpdateAvailable = null,
-        string? initialVariantManifestId = null)
+        string? initialVariantManifestId = null,
+        IGameProfileManager? profileManager = null,
+        IDialogService? dialogService = null,
+        Func<string, Task>? deletedAction = null)
     {
         if (contentStateService == null)
         {
@@ -1614,7 +1822,7 @@ public sealed class ContentDetailViewModelTests
             searchResult,
             parsers ?? [],
             new Mock<IProfileContentService>().Object,
-            new Mock<IGameProfileManager>().Object,
+            profileManager ?? new Mock<IGameProfileManager>().Object,
             notificationService ?? new Mock<INotificationService>().Object,
             new Mock<ITabProviderRegistry>().Object,
             contentStateService,
@@ -1626,7 +1834,9 @@ public sealed class ContentDetailViewModelTests
             updateTargetSearchResult: updateTargetSearchResult,
             updateAction: updateAction,
             isUpdateAvailable: isUpdateAvailable,
-            initialVariantManifestId: initialVariantManifestId);
+            initialVariantManifestId: initialVariantManifestId,
+            dialogService: dialogService,
+            deletedAction: deletedAction);
     }
 
     private sealed class CapturingContentDetailViewModel(
@@ -1645,7 +1855,9 @@ public sealed class ContentDetailViewModelTests
         ContentSearchResult? updateTargetSearchResult = null,
         Func<CancellationToken, Task>? updateAction = null,
         bool? isUpdateAvailable = null,
-        string? initialVariantManifestId = null)
+        string? initialVariantManifestId = null,
+        IDialogService? dialogService = null,
+        Func<string, Task>? deletedAction = null)
         : ContentDetailViewModel(
             searchResult,
             parsers,
@@ -1662,7 +1874,9 @@ public sealed class ContentDetailViewModelTests
             updateTargetSearchResult: updateTargetSearchResult,
             updateAction: updateAction,
             isUpdateAvailable: isUpdateAvailable,
-            initialVariantManifestId: initialVariantManifestId)
+            initialVariantManifestId: initialVariantManifestId,
+            dialogService: dialogService,
+            deletedAction: deletedAction)
     {
         /// <summary>
         /// Gets the manifest ID sent to the profile selection flow.

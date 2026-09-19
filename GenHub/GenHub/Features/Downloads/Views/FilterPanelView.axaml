@@ -321,6 +321,56 @@
                 </StackPanel>
             </DataTemplate>
 
+            <!-- Downloaded Content Filter (ContentType + Game toggles) + Action Buttons -->
+            <DataTemplate DataType="filters:DownloadedContentFilterViewModel">
+                <StackPanel Spacing="12">
+                    <StackPanel Orientation="Horizontal" Spacing="16">
+                        <StackPanel>
+                            <TextBlock Classes="filter-label" Text="{localization:Localize Downloads.Filter.ContentType}" Margin="0,0,0,4" />
+                            <ItemsControl ItemsSource="{Binding ContentTypeFilters}">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <WrapPanel Orientation="Horizontal" />
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <ToggleButton Classes="filter-toggle"
+                                                      Content="{Binding DisplayName}"
+                                                      IsChecked="{Binding IsSelected}"
+                                                      Command="{Binding $parent[ItemsControl].((filters:DownloadedContentFilterViewModel)DataContext).ToggleContentTypeCommand}"
+                                                      CommandParameter="{Binding}" />
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+
+                        <StackPanel>
+                            <TextBlock Classes="filter-label" Text="{localization:Localize Downloads.Filter.Game}" Margin="0,0,0,4" />
+                            <StackPanel Orientation="Horizontal" Spacing="4">
+                                <ToggleButton Classes="filter-toggle"
+                                              Content="{localization:Localize Common.Game.ZeroHour}"
+                                              IsChecked="{Binding IsZeroHourSelected}" />
+                                <ToggleButton Classes="filter-toggle"
+                                              Content="{localization:Localize Common.Game.Generals}"
+                                              IsChecked="{Binding IsGeneralsSelected}" />
+                            </StackPanel>
+                        </StackPanel>
+                    </StackPanel>
+
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <Button Content="{localization:Localize Downloads.Filter.ApplyFilters}"
+                                Command="{Binding ApplyFiltersActionCommand}"
+                                MinWidth="120"
+                                Classes="primary" />
+                        <Button Content="{localization:Localize Downloads.Filter.ClearFilters}"
+                                Command="{Binding ClearFiltersActionCommand}"
+                                MinWidth="120"
+                                Classes="secondary" />
+                    </StackPanel>
+                </StackPanel>
+            </DataTemplate>
+
             <!-- ModDB Filter (Sections + Categories/License/Timeframe/Sort) -->
             <DataTemplate DataType="filters:ModDBFilterViewModel">
                 <StackPanel Spacing="12">

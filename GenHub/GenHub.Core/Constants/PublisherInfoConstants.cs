@@ -332,6 +332,18 @@ public static class PublisherInfoConstants
     }
 
     /// <summary>
+    /// Publisher information for the offline downloaded-content library.
+    /// </summary>
+    public static class DownloadedContent
+    {
+        /// <summary>Display name for the downloaded-content library.</summary>
+        public const string Name = "My Downloads";
+
+        /// <summary>Logo source for the downloaded-content library.</summary>
+        public const string LogoSource = DefaultGenHubIconSource;
+    }
+
+    /// <summary>
     /// Publisher information for All Publishers view.
     /// </summary>
     public static class AllPublishers

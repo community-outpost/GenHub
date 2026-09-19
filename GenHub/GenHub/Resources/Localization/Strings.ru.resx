@@ -7721,6 +7721,39 @@ GenHub передает официальный идентификатор AppID 
   <data name="Downloads.ContentDetail.ImagePreview" xml:space="preserve">
     <value>Предварительный просмотр изображения</value>
   </data>
+  <data name="Downloads.ContentDetail.DeleteDownload" xml:space="preserve">
+    <value>Удалить загрузку</value>
+  </data>
+  <data name="Downloads.ContentDetail.DeleteDownloadTooltip" xml:space="preserve">
+    <value>Удалить этот контент из локального хранилища</value>
+  </data>
+  <data name="Downloads.ContentDetail.DeleteNotDownloadedTitle" xml:space="preserve">
+    <value>Нечего удалять</value>
+  </data>
+  <data name="Downloads.ContentDetail.DeleteNotDownloadedMessage" xml:space="preserve">
+    <value>Этот контент не хранится локально, поэтому удалять нечего.</value>
+  </data>
+  <data name="Downloads.ContentDetail.DeleteConfirmTitle" xml:space="preserve">
+    <value>Удалить загрузку</value>
+  </data>
+  <data name="Downloads.ContentDetail.DeleteConfirmMessage" xml:space="preserve">
+    <value>Вы уверены, что хотите удалить «{0}»? Это удалит его файлы из хранилища, и действие нельзя будет отменить.</value>
+  </data>
+  <data name="Downloads.ContentDetail.DeleteConfirmMessageWithProfiles" xml:space="preserve">
+    <value>Вы уверены, что хотите удалить «{0}»? Он сейчас используется в профилях ({1}): {2}. Удаление сотрёт его файлы из хранилища.</value>
+  </data>
+  <data name="Downloads.ContentDetail.DeleteFailedTitle" xml:space="preserve">
+    <value>Не удалось удалить</value>
+  </data>
+  <data name="Downloads.ContentDetail.DeleteFailedMessage" xml:space="preserve">
+    <value>Не удалось удалить «{0}»: {1}</value>
+  </data>
+  <data name="Downloads.ContentDetail.DeletedTitle" xml:space="preserve">
+    <value>Загрузка удалена</value>
+  </data>
+  <data name="Downloads.ContentDetail.DeletedMessage" xml:space="preserve">
+    <value>«{0}» удалено, неиспользуемое место в хранилище освобождено.</value>
+  </data>
   <data name="Profiles.AddLocalContent.StatusCasProgressImporting" xml:space="preserve">
     <value>Импорт {0}: {1:0}% ({2}/{3} файлов)</value>
   </data>

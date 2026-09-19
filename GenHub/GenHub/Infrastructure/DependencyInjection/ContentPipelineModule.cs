@@ -73,6 +73,7 @@ public static class ContentPipelineModule
         AddModDBPipeline(services);
         AddLocalFileSystemPipeline(services);
         AddCsvPipeline(services);
+        AddDownloadedContentPipeline(services);
         AddSharedComponents(services);
 
         return services;
@@ -500,6 +501,17 @@ public static class ContentPipelineModule
         // Register CSV resolver (concrete and interface)
         services.AddTransient<CsvResolver>();
         services.AddTransient<IContentResolver, CsvResolver>();
+    }
+
+    /// <summary>
+    /// Registers the offline downloaded-content library (manifest pool browser).
+    /// </summary>
+    private static void AddDownloadedContentPipeline(IServiceCollection services)
+    {
+        // Register downloaded content discoverer (concrete and interface).
+        // Reads the manifest pool only, so the "My Downloads" view works offline.
+        services.AddSingleton<DownloadedContentDiscoverer>();
+        services.AddSingleton<IContentDiscoverer>(sp => sp.GetRequiredService<DownloadedContentDiscoverer>());
     }
 
     /// <summary>

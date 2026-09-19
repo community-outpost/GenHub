@@ -61,6 +61,8 @@ namespace GenHub.Features.Downloads.ViewModels;
 /// <param name="isUpdateAvailable">Optional flag indicating if an update is available on open.</param>
 /// <param name="initialVariantManifestId">Optional manifest ID or identifier of the variant to select on initialization.</param>
 /// <param name="localizationService">Optional localization service for dynamic string localization.</param>
+/// <param name="dialogService">Optional dialog service for delete confirmations.</param>
+/// <param name="deletedAction">Optional callback invoked with the deleted manifest ID after a successful delete.</param>
 [SuppressMessage("Major Code Smell", "S107:Methods should not have too many parameters", Justification = "ContentDetailViewModel coordinates rich media, downloads, profile binding, and custom tabs.")]
 [SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Properties and methods access CommunityToolkit MVVM generated instance properties.")]
 [SuppressMessage("Critical Code Smell", "S3776:Cognitive Complexity of methods should not be too high", Justification = "Content detail ViewModel coordinates complex UI state, downloads, and multiple catalog sources.")]
@@ -82,7 +84,9 @@ public partial class ContentDetailViewModel(
     Func<CancellationToken, Task>? updateAction = null,
     bool? isUpdateAvailable = null,
     string? initialVariantManifestId = null,
-    ILocalizationService? localizationService = null) : ObservableObject, IDisposable
+    ILocalizationService? localizationService = null,
+    IDialogService? dialogService = null,
+    Func<string, Task>? deletedAction = null) : ObservableObject, IDisposable
 {
     // ===== Constants =====
     private const string UnknownValue = "Unknown";
@@ -154,10 +158,15 @@ public partial class ContentDetailViewModel(
     [NotifyPropertyChangedFor(nameof(ShowDownloadButton))]
     [NotifyPropertyChangedFor(nameof(ShowUpdateButton))]
     [NotifyPropertyChangedFor(nameof(ShowAddToProfileButton))]
+    [NotifyPropertyChangedFor(nameof(ShowDeleteButton))]
     [NotifyPropertyChangedFor(nameof(CanDownload))]
     [NotifyPropertyChangedFor(nameof(CanUpdate))]
     [NotifyPropertyChangedFor(nameof(CanChangeContentType))]
     private bool _isDownloading;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowDeleteButton))]
+    private bool _isDeleting;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(CanDownload))]
@@ -167,6 +176,7 @@ public partial class ContentDetailViewModel(
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ShowDownloadButton))]
     [NotifyPropertyChangedFor(nameof(ShowAddToProfileButton))]
+    [NotifyPropertyChangedFor(nameof(ShowDeleteButton))]
     [NotifyPropertyChangedFor(nameof(CanChangeContentType))]
     private bool _isDownloaded;
 
@@ -212,6 +222,7 @@ public partial class ContentDetailViewModel(
     [NotifyPropertyChangedFor(nameof(ShowDownloadButton))]
     [NotifyPropertyChangedFor(nameof(ShowAddToProfileButton))]
     [NotifyPropertyChangedFor(nameof(ShowUpdateButton))]
+    [NotifyPropertyChangedFor(nameof(ShowDeleteButton))]
     [NotifyPropertyChangedFor(nameof(HasSelectedDownloadableItem))]
     [NotifyPropertyChangedFor(nameof(ShowSelectedTargetBanner))]
     private DownloadableItemViewModel? _selectedDownloadableItem;
@@ -689,6 +700,29 @@ public partial class ContentDetailViewModel(
     {
         get
         {
+            if (HasBundleComponents)
+            {
+                return AreBundleComponentsReadyForProfile;
+            }
+
+            return SelectedDownloadableItem != null
+                ? SelectedDownloadableItem.IsDownloaded
+                : IsDownloaded;
+        }
+    }
+
+    /// <summary>
+    /// Gets a value indicating whether the Delete button should be shown.
+    /// </summary>
+    public bool ShowDeleteButton
+    {
+        get
+        {
+            if (IsDownloading || IsDeleting)
+            {
+                return false;
+            }
+
             if (HasBundleComponents)
             {
                 return AreBundleComponentsReadyForProfile;
@@ -4814,6 +4848,143 @@ public partial class ContentDetailViewModel(
         // A detail page can contain multiple releases/addons. Always send the manifest created
         // for this exact row to the profile dialog instead of resolving the parent content again.
         await ShowProfileSelectionDialogAsync(manifestId, file.Name, searchResult.TargetGame);
+    }
+
+    /// <summary>
+    /// Command to delete the downloaded content from local storage after confirmation.
+    /// Removes the manifest from the pool; the pool untracks CAS references so storage is
+    /// reclaimed when no remaining manifest references the content.
+    /// </summary>
+    [RelayCommand]
+    private async Task DeleteDownloadAsync()
+    {
+        var manifestId = SelectedDownloadableItem?.DownloadedManifestId;
+        if (string.IsNullOrWhiteSpace(manifestId))
+        {
+            manifestId = await ResolveDownloadedManifestIdAsync();
+        }
+
+        if (string.IsNullOrWhiteSpace(manifestId) || !ManifestIdValidator.IsValid(manifestId, out _))
+        {
+            logger.LogWarning("Cannot delete content: no stored manifest found for {Name}", Name);
+            notificationService.ShowWarning(
+                GetLocalizedString("Downloads.ContentDetail.DeleteNotDownloadedTitle", "Nothing To Delete"),
+                GetLocalizedString("Downloads.ContentDetail.DeleteNotDownloadedMessage", "This content is not stored locally, so there is nothing to delete."),
+                NotificationDurations.Short);
+            return;
+        }
+
+        var usingProfiles = await FindProfilesUsingManifestAsync(manifestId);
+        if (!await ConfirmDeleteAsync(usingProfiles))
+        {
+            return;
+        }
+
+        await ExecuteDeleteAsync(manifestId);
+    }
+
+    private async Task<IReadOnlyList<string>> FindProfilesUsingManifestAsync(string manifestId)
+    {
+        try
+        {
+            var profilesResult = await profileManager.GetAllProfilesAsync(_cts.Token);
+            if (!profilesResult.Success || profilesResult.Data is null)
+            {
+                return [];
+            }
+
+            return profilesResult.Data
+                .Where(profile => profile.EnabledContentIds?.Any(id =>
+                    string.Equals(id, manifestId, StringComparison.OrdinalIgnoreCase)) == true)
+                .Select(profile => profile.Name)
+                .Where(name => !string.IsNullOrWhiteSpace(name))
+                .ToList();
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            logger.LogDebug(ex, "Failed to check profile usage for {ManifestId}", manifestId);
+            return [];
+        }
+    }
+
+    private async Task<bool> ConfirmDeleteAsync(IReadOnlyList<string> usingProfiles)
+    {
+        if (dialogService == null)
+        {
+            return true;
+        }
+
+        var title = GetLocalizedString("Downloads.ContentDetail.DeleteConfirmTitle", "Delete Download");
+        var message = usingProfiles.Count > 0
+            ? FormatLocalizedString(
+                "Downloads.ContentDetail.DeleteConfirmMessageWithProfiles",
+                "Are you sure you want to delete '{0}'? It is currently used by {1} profile(s): {2}. Deleting it removes its files from storage.",
+                Name,
+                usingProfiles.Count,
+                string.Join(", ", usingProfiles))
+            : FormatLocalizedString(
+                "Downloads.ContentDetail.DeleteConfirmMessage",
+                "Are you sure you want to delete '{0}'? This removes its files from storage and cannot be undone.",
+                Name);
+
+        return await dialogService.ShowConfirmationAsync(
+            title,
+            message,
+            GetLocalizedString("Common.Button.Delete", "Delete"),
+            GetLocalizedString("Common.Button.Cancel", "Cancel"));
+    }
+
+    private async Task ExecuteDeleteAsync(string manifestId)
+    {
+        IsDeleting = true;
+        try
+        {
+            var removeResult = await manifestPool.RemoveManifestAsync(ManifestId.Create(manifestId), cancellationToken: _cts.Token);
+            if (!removeResult.Success)
+            {
+                logger.LogWarning("Failed to delete downloaded content {ManifestId}: {Error}", manifestId, removeResult.FirstError);
+                notificationService.ShowError(
+                    GetLocalizedString("Downloads.ContentDetail.DeleteFailedTitle", "Delete Failed"),
+                    FormatLocalizedString("Downloads.ContentDetail.DeleteFailedMessage", "Could not delete '{0}': {1}", Name, removeResult.FirstError ?? string.Empty),
+                    NotificationDurations.Long);
+                return;
+            }
+
+            logger.LogInformation("Deleted downloaded content {ManifestId}", manifestId);
+            notificationService.ShowSuccess(
+                GetLocalizedString("Downloads.ContentDetail.DeletedTitle", "Download Deleted"),
+                FormatLocalizedString("Downloads.ContentDetail.DeletedMessage", "Deleted '{0}' and freed unused storage.", Name),
+                NotificationDurations.Medium);
+
+            contentStateService.NotifyStateChanged(searchResult.Id, ContentState.NotDownloaded, manifestId);
+
+            if (deletedAction != null)
+            {
+                await deletedAction(manifestId);
+            }
+
+            closeAction?.Invoke();
+        }
+        catch (OperationCanceledException ex)
+        {
+            logger.LogInformation(ex, "Delete cancelled for {ManifestId}", manifestId);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to delete downloaded content {ManifestId}", manifestId);
+            notificationService.ShowError(
+                GetLocalizedString("Downloads.ContentDetail.DeleteFailedTitle", "Delete Failed"),
+                FormatLocalizedString("Downloads.ContentDetail.DeleteFailedMessage", "Could not delete '{0}': {1}", Name, ex.Message),
+                NotificationDurations.Long);
+        }
+        finally
+        {
+            IsDeleting = false;
+        }
     }
 
     /// <summary>

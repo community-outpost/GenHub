@@ -262,6 +262,7 @@ public sealed partial class DownloadsBrowserViewModel(
         }
 
         await RefreshSubscribedPublishersAsync();
+        _ = RefreshDownloadedContentCountAsync();
     }
 
     /// <summary>
@@ -823,6 +824,11 @@ public sealed partial class DownloadsBrowserViewModel(
         return
         [
             new PublisherItemViewModel(
+                PublisherTypeConstants.Downloaded,
+                PublisherInfoConstants.DownloadedContent.Name,
+                PublisherInfoConstants.DownloadedContent.LogoSource,
+                ContentConstants.CategoryStatic),
+            new PublisherItemViewModel(
                 PublisherTypeConstants.GeneralsOnline,
                 PublisherInfoConstants.GeneralsOnline.Name,
                 PublisherInfoConstants.GeneralsOnline.LogoSource,
@@ -1103,7 +1109,121 @@ public sealed partial class DownloadsBrowserViewModel(
 
     private void OnContentStateChanged(object? sender, ContentStateChangedEventArgs e)
     {
+        InvalidateDownloadedLibraryCache();
+        _ = RefreshDownloadedContentCountAsync();
         RunOnUi(() => ReconcileReleaseUpdateStates(ContentItems));
+    }
+
+    /// <summary>
+    /// Drops the cached offline-library browse state so the next visit re-reads the
+    /// manifest pool. Skipped while the library is open: deletions purge their cards
+    /// synchronously via <see cref="OnContentDeletedAsync"/>, and acquisitions appear
+    /// on the next refresh, matching catalog tab freshness behavior.
+    /// </summary>
+    private void InvalidateDownloadedLibraryCache()
+    {
+        lock (_cacheLock)
+        {
+            if (string.Equals(SelectedPublisher?.PublisherId, PublisherTypeConstants.Downloaded, StringComparison.OrdinalIgnoreCase))
+            {
+                return;
+            }
+
+            if (_browseCache.TryGetValue(PublisherTypeConstants.Downloaded, out var state))
+            {
+                foreach (var item in state.Items)
+                {
+                    item.Dispose();
+                }
+
+                _browseCache.Remove(PublisherTypeConstants.Downloaded);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Removes cards for a deleted manifest from the offline library and updates its count.
+    /// Catalog cards are left in place; they flip back to the download state through the
+    /// content-state notification the detail view sends after a successful delete.
+    /// </summary>
+    /// <param name="manifestId">The deleted manifest ID.</param>
+    private Task OnContentDeletedAsync(string manifestId)
+    {
+        if (string.IsNullOrWhiteSpace(manifestId))
+        {
+            return Task.CompletedTask;
+        }
+
+        RunOnUi(() =>
+        {
+            lock (_cacheLock)
+            {
+                if (_browseCache.TryGetValue(PublisherTypeConstants.Downloaded, out var state))
+                {
+                    var cached = state.Items
+                        .Where(item => string.Equals(item.SearchResult?.Id, manifestId, StringComparison.OrdinalIgnoreCase))
+                        .ToList();
+                    foreach (var item in cached)
+                    {
+                        state.Items.Remove(item);
+                        if (!ContentItems.Contains(item))
+                        {
+                            item.Dispose();
+                        }
+                    }
+                }
+            }
+
+            if (string.Equals(SelectedPublisher?.PublisherId, PublisherTypeConstants.Downloaded, StringComparison.OrdinalIgnoreCase))
+            {
+                var visible = ContentItems
+                    .Where(item => string.Equals(item.SearchResult?.Id, manifestId, StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+                foreach (var item in visible)
+                {
+                    ContentItems.Remove(item);
+                    item.Dispose();
+                }
+            }
+        });
+
+        _ = RefreshDownloadedContentCountAsync();
+        return Task.CompletedTask;
+    }
+
+    /// <summary>
+    /// Refreshes the offline-library sidebar badge from the manifest pool.
+    /// </summary>
+    private async Task RefreshDownloadedContentCountAsync()
+    {
+        try
+        {
+            var manifestPool = serviceProvider.GetService(typeof(IContentManifestPool)) as IContentManifestPool;
+            if (manifestPool == null)
+            {
+                return;
+            }
+
+            var result = await manifestPool.GetAllManifestsAsync(_vmCts.Token);
+            var count = result.Success && result.Data != null ? result.Data.Count() : 0;
+            RunOnUi(() =>
+            {
+                var entry = Publishers.FirstOrDefault(p =>
+                    string.Equals(p.PublisherId, PublisherTypeConstants.Downloaded, StringComparison.OrdinalIgnoreCase));
+                if (entry != null)
+                {
+                    entry.ContentCount = count;
+                }
+            });
+        }
+        catch (OperationCanceledException)
+        {
+            // View model is shutting down; badge update is irrelevant.
+        }
+        catch (Exception ex)
+        {
+            logger.LogDebug(ex, "Failed to refresh downloaded content count");
+        }
     }
 
     [RelayCommand]
@@ -1951,6 +2071,7 @@ public sealed partial class DownloadsBrowserViewModel(
     {
         return publisherId switch
         {
+            PublisherTypeConstants.Downloaded => contentDiscoverers.OfType<DownloadedContentDiscoverer>().FirstOrDefault(),
             PublisherTypeConstants.GeneralsOnline => contentDiscoverers.OfType<GeneralsOnlineDiscoverer>().FirstOrDefault(),
             PublisherTypeConstants.TheSuperHackers => contentDiscoverers.OfType<GenHub.Features.Content.Services.GitHub.GitHubReleasesDiscoverer>().FirstOrDefault(),
             CommunityOutpostConstants.PublisherType => contentDiscoverers.OfType<GenHub.Features.Content.Services.CommunityOutpost.CommunityOutpostDiscoverer>().FirstOrDefault(),
@@ -1978,6 +2099,7 @@ public sealed partial class DownloadsBrowserViewModel(
                 ?? throw new InvalidOperationException("ITabProviderRegistry not registered");
             var coordinator = _downloadCoordinator ?? serviceProvider.GetRequiredService<IContentDownloadCoordinator>();
             var manifestPool = serviceProvider.GetRequiredService<IContentManifestPool>();
+            var dialogService = serviceProvider.GetService(typeof(IDialogService)) as IDialogService;
 
             var selectedVariantId = item.SelectedVariant?.ManifestId ?? item.SelectedVariant?.Name;
 
@@ -1999,7 +2121,9 @@ public sealed partial class DownloadsBrowserViewModel(
                 updateAction: ct => UpdateContentAsync(item, ct),
                 isUpdateAvailable: item.CurrentState == ContentState.UpdateAvailable,
                 initialVariantManifestId: selectedVariantId,
-                localizationService: serviceProvider.GetService(typeof(ILocalizationService)) as ILocalizationService);
+                localizationService: serviceProvider.GetService(typeof(ILocalizationService)) as ILocalizationService,
+                dialogService: dialogService,
+                deletedAction: OnContentDeletedAsync);
 
             if (item.HasBundleComponents)
             {
@@ -2240,6 +2364,9 @@ public sealed partial class DownloadsBrowserViewModel(
 
     private void InitializeFilterViewModels()
     {
+        // Offline downloaded-content library filters (content type + game)
+        _filterViewModels[PublisherTypeConstants.Downloaded] = new DownloadedContentFilterViewModel();
+
         // Dynamic publisher filters
         _filterViewModels[GitHubTopicsConstants.PublisherType] = new GitHubFilterViewModel();
         _filterViewModels[CNCLabsConstants.PublisherType] = new CNCLabsFilterViewModel();
