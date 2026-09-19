@@ -9,6 +9,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Security;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -596,7 +597,7 @@ public class CasService(
         }
     }
 
-    private static long GetObjectSize(ICasStorage poolStorage, string hash)
+    private long GetObjectSize(ICasStorage poolStorage, string hash)
     {
         try
         {
@@ -606,9 +607,21 @@ public class CasService(
                 return new FileInfo(objectPath).Length;
             }
         }
-        catch
+        catch (IOException ex)
         {
-            // Skip files that can't be accessed
+            logger.LogDebug(ex, "Failed to get size of CAS object {Hash}", hash);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            logger.LogDebug(ex, "Failed to get size of CAS object {Hash}", hash);
+        }
+        catch (NotSupportedException ex)
+        {
+            logger.LogDebug(ex, "Failed to get size of CAS object {Hash}", hash);
+        }
+        catch (SecurityException ex)
+        {
+            logger.LogDebug(ex, "Failed to get size of CAS object {Hash}", hash);
         }
 
         return 0;

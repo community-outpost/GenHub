@@ -1825,20 +1825,14 @@ public class GameLauncher(
         }
     }
 
-    private async Task CheckManifestCasFilesAsync(ContentManifest manifest, List<string> missingFiles, CancellationToken cancellationToken)
+    private void LogMissingCasFile(ContentManifest manifest, ManifestFile file)
     {
-        var manifestDisplayName = !string.IsNullOrWhiteSpace(manifest.Name) ? manifest.Name : manifest.Id.Value;
-        var missingCasFiles = await casService.GetMissingRequiredCasFilesAsync(manifest, cancellationToken).ConfigureAwait(false);
-        foreach (var file in missingCasFiles)
-        {
-            logger.LogWarning(
-                "[Preflight CAS] Missing CAS object {Hash} for file {RelativePath} in manifest {ManifestId} ({ManifestName})",
-                file.Hash,
-                file.RelativePath,
-                manifest.Id,
-                manifest.Name);
-            missingFiles.Add($"{manifestDisplayName} ({file.RelativePath})");
-        }
+        logger.LogWarning(
+            "[Preflight CAS] Missing CAS object {Hash} for file {RelativePath} in manifest {ManifestId} ({ManifestName})",
+            file.Hash,
+            file.RelativePath,
+            manifest.Id,
+            manifest.Name);
     }
 
     /// <summary>
@@ -1849,18 +1843,6 @@ public class GameLauncher(
     /// <returns>A result indicating success or failure.</returns>
     private async Task<OperationResult<bool>> PreflightCasCheckAsync(IEnumerable<ContentManifest> manifests, CancellationToken cancellationToken)
     {
-        var missingFiles = new List<string>();
-        foreach (var manifest in manifests)
-        {
-            await CheckManifestCasFilesAsync(manifest, missingFiles, cancellationToken).ConfigureAwait(false);
-        }
-
-        if (missingFiles.Count > 0)
-        {
-            var distinctMissing = missingFiles.Distinct().ToList();
-            return OperationResult<bool>.CreateFailure($"Missing {distinctMissing.Count} required CAS objects ({string.Join(", ", distinctMissing.Take(5))}). Content must be downloaded before launching.");
-        }
-
-        return OperationResult<bool>.CreateSuccess(true);
+        return await casService.VerifyRequiredCasContentAvailableAsync(manifests, LogMissingCasFile, cancellationToken).ConfigureAwait(false);
     }
 }

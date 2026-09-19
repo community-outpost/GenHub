@@ -2064,7 +2064,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     }
 
     [RelayCommand]
-    private async Task DeleteManifests()
+    private async Task DeleteManifests(CancellationToken cancellationToken = default)
     {
         try
         {
@@ -2079,7 +2079,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
                 return;
             }
 
-            await DeleteManifestsInternalAsync(showToast: true, updateDangerZone: true);
+            await DeleteManifestsInternalAsync(showToast: true, updateDangerZone: true, cancellationToken);
         }
         finally
         {
@@ -2087,12 +2087,12 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         }
     }
 
-    private async Task DeleteManifestsInternalAsync(bool showToast, bool updateDangerZone)
+    private async Task DeleteManifestsInternalAsync(bool showToast, bool updateDangerZone, CancellationToken cancellationToken = default)
     {
         try
         {
             _logger.LogWarning("Deleting all manifests");
-            var manifestsResult = await _manifestPool.GetAllManifestsAsync();
+            var manifestsResult = await _manifestPool.GetAllManifestsAsync(cancellationToken);
             if (manifestsResult.Success && manifestsResult.Data != null)
             {
                 var count = manifestsResult.Data.Count();
@@ -2100,10 +2100,11 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
 
                 foreach (var manifest in manifestsResult.Data)
                 {
-                    await _manifestPool.RemoveManifestAsync(manifest.Id);
+                    cancellationToken.ThrowIfCancellationRequested();
+                    await _manifestPool.RemoveManifestAsync(manifest.Id, cancellationToken: cancellationToken);
                 }
 
-                await ScrubDeletedManifestIdsFromProfilesAsync(deletedIds, showToast);
+                await ScrubDeletedManifestIdsFromProfilesAsync(deletedIds, showToast, cancellationToken);
 
                 if (showToast)
                 {
@@ -2116,6 +2117,10 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
                 await UpdateDangerZoneDataAsync();
             }
         }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to delete manifests");
@@ -2126,9 +2131,9 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         }
     }
 
-    private async Task ScrubDeletedManifestIdsFromProfilesAsync(HashSet<string> deletedIds, bool showToast)
+    private async Task ScrubDeletedManifestIdsFromProfilesAsync(HashSet<string> deletedIds, bool showToast, CancellationToken cancellationToken = default)
     {
-        var profilesResult = await _profileManager.GetAllProfilesAsync();
+        var profilesResult = await _profileManager.GetAllProfilesAsync(cancellationToken);
         if (!profilesResult.Success || profilesResult.Data == null)
         {
             _logger.LogWarning(
@@ -2149,7 +2154,8 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         var failedProfileNames = new List<string>();
         foreach (var profile in profilesResult.Data)
         {
-            var scrubbed = await ScrubDeletedManifestIdsFromProfileAsync(profile, deletedIds);
+            cancellationToken.ThrowIfCancellationRequested();
+            var scrubbed = await ScrubDeletedManifestIdsFromProfileAsync(profile, deletedIds, cancellationToken);
             if (!scrubbed)
             {
                 failedProfileNames.Add(profile.Name);
@@ -2171,7 +2177,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         return _localizationService?.GetString("Settings.Manifests.ScrubFailed.Title") ?? "Profile Update Incomplete";
     }
 
-    private async Task<bool> ScrubDeletedManifestIdsFromProfileAsync(GameProfile profile, HashSet<string> deletedIds)
+    private async Task<bool> ScrubDeletedManifestIdsFromProfileAsync(GameProfile profile, HashSet<string> deletedIds, CancellationToken cancellationToken = default)
     {
         if (profile.EnabledContentIds == null || !profile.EnabledContentIds.Any(id => deletedIds.Contains(id)))
         {
@@ -2186,7 +2192,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         {
             EnabledContentIds = updatedContentIds,
         };
-        var updateResult = await _profileManager.UpdateProfileAsync(profile.Id, updateRequest);
+        var updateResult = await _profileManager.UpdateProfileAsync(profile.Id, updateRequest, cancellationToken);
         if (!updateResult.Success)
         {
             _logger.LogWarning(
