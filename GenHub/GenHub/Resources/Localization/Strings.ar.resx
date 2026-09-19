@@ -9280,6 +9280,12 @@ GameFilesEdited/Data/INI/**/*.ini</value>
   <data name="Tools.ModBuilder.Notification.CleanFailed.Title" xml:space="preserve">
     <value>فشل التنظيف</value>
   </data>
+  <data name="Tools.ModBuilder.Notification.CleanSkipped.Title" xml:space="preserve">
+    <value>تم تخطي التنظيف</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.CleanSkipped.Message" xml:space="preserve">
+    <value>تم تخطي التنظيف لدليل بناء خارجي أو غير آمن: {0}</value>
+  </data>
   <data name="Tools.ModBuilder.Notification.OpenFailed.Title" xml:space="preserve">
     <value>فشل الفتح</value>
   </data>

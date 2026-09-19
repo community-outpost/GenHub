@@ -9280,6 +9280,12 @@ GameFilesEdited/Data/INI/**/*.ini</value>
   <data name="Tools.ModBuilder.Notification.CleanFailed.Title" xml:space="preserve">
     <value>Не удалось очистить</value>
   </data>
+  <data name="Tools.ModBuilder.Notification.CleanSkipped.Title" xml:space="preserve">
+    <value>Очистка пропущена</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.CleanSkipped.Message" xml:space="preserve">
+    <value>Пропуск очистки для небезопасного или внешнего каталога сборки: {0}</value>
+  </data>
   <data name="Tools.ModBuilder.Notification.OpenFailed.Title" xml:space="preserve">
     <value>Не удалось открыть</value>
   </data>

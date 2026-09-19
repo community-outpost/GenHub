@@ -384,7 +384,7 @@ public sealed class BuildEngineService(
         }
     }
 
-    private static bool IsSafeToCleanDirectory(string? projectDir, string targetDir)
+    internal static bool IsSafeToCleanDirectory(string? projectDir, string targetDir)
     {
         if (string.IsNullOrWhiteSpace(targetDir) || PathHelper.IsPathInsideAppDirectory(targetDir))
         {

@@ -9389,6 +9389,12 @@ Steps:
   <data name="Tools.ModBuilder.Notification.CleanFailed.Title" xml:space="preserve">
     <value>Clean Failed</value>
   </data>
+  <data name="Tools.ModBuilder.Notification.CleanSkipped.Title" xml:space="preserve">
+    <value>Clean Skipped</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.CleanSkipped.Message" xml:space="preserve">
+    <value>Skipping clean for unsafe or external build directory: {0}</value>
+  </data>
   <data name="Tools.ModBuilder.Notification.OpenFailed.Title" xml:space="preserve">
     <value>Open Failed</value>
   </data>

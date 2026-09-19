@@ -13,6 +13,7 @@ using GenHub.Core.Interfaces.Tools.ModBuilder;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Tools.ModBuilder;
 using GenHub.Features.Tools.ModBuilder.Models;
+using GenHub.Features.Tools.ModBuilder.Services;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
@@ -65,6 +66,8 @@ public partial class ModBuilderViewModel(
     private const string BusyImportFilesKey = "Tools.ModBuilder.Notification.Busy.ImportFiles";
     private const string NoProjectTitleKey = "Tools.ModBuilder.Notification.NoProject.Title";
     private const string NoProjectMessageKey = "Tools.ModBuilder.Notification.NoProject.Message";
+    private const string NoProjectOpenTitleKey = "Tools.ModBuilder.Notification.NoProjectOpen.Title";
+    private const string NoProjectOpenMessageKey = "Tools.ModBuilder.Notification.NoProjectOpen.Message";
     private const string ProjectFileTypeNameKey = "Tools.ModBuilder.Project.FileTypeName";
     private const string LoadFailedTitleKey = "Tools.ModBuilder.Notification.LoadFailed.Title";
     private const string OpenFailedTitleKey = "Tools.ModBuilder.Notification.OpenFailed.Title";
@@ -821,8 +824,8 @@ public partial class ModBuilderViewModel(
         if (CurrentProject == null || string.IsNullOrWhiteSpace(ProjectPath))
         {
             notificationService.ShowWarning(
-                "No Project Open",
-                "Please open or create a project first before importing .BIG files.");
+                localizationService.GetString(NoProjectOpenTitleKey),
+                localizationService.GetString(NoProjectOpenMessageKey));
             return;
         }
 
@@ -2819,6 +2822,15 @@ public partial class ModBuilderViewModel(
 
             if (!string.IsNullOrEmpty(buildPath) && Directory.Exists(buildPath))
             {
+                if (!BuildEngineService.IsSafeToCleanDirectory(projectDir, buildPath))
+                {
+                    logger.LogWarning("Skipping clean for unsafe or external build directory: {BuildDir}", buildPath);
+                    notificationService.ShowWarning(
+                        localizationService.GetString("Tools.ModBuilder.Notification.CleanSkipped.Title"),
+                        localizationService.GetString("Tools.ModBuilder.Notification.CleanSkipped.Message", buildPath));
+                    return;
+                }
+
                 await Task.Run(() => Directory.Delete(buildPath, recursive: true), CancellationToken.None).ConfigureAwait(false);
                 AppendBuildLog($"Cleaned build directory: {buildPath}");
                 notificationService.ShowSuccess(localizationService.GetString("Tools.ModBuilder.Notification.CleanComplete.Title"), localizationService.GetString("Tools.ModBuilder.Notification.CleanComplete.Message"));

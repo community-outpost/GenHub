@@ -746,9 +746,14 @@ public static class ModBuilderConstants
     public static class SampleProjects
     {
         /// <summary>
-        /// Download URL for Generals Community Patch 2.0 core INI sample assets.
+        /// Environment variable name for overriding the GeneralsGamePatch2 download URL.
         /// </summary>
-        public const string GeneralsGamePatch2Url = "https://github.com/TheSuperHackers/GeneralsGamePatch2/releases/download/1.0.1/500_900_CommunityPatch_CoreINI.zip";
+        public const string GeneralsGamePatch2UrlEnvVar = "GENHUB_MODBUILDER_GENERALSGAMEPATCH2_URL";
+
+        /// <summary>
+        /// Default download URL for Generals Community Patch 2.0 core INI sample assets.
+        /// </summary>
+        public const string DefaultGeneralsGamePatch2Url = "https://github.com/TheSuperHackers/GeneralsGamePatch2/releases/download/1.0.1/500_900_CommunityPatch_CoreINI.zip";
 
         /// <summary>
         /// Expected SHA256 hash for Generals Community Patch 2.0 core INI BIG archive.
@@ -756,24 +761,34 @@ public static class ModBuilderConstants
         public const string GeneralsGamePatch2Sha256 = "6a02aca9aebe6602b3e4bb76bf6e2cf35086a33fec7c6f000d8e7a4048629775";
 
         /// <summary>
-        /// Download URLs for Improved Menus widescreen sample assets (English, Russian, Spanish).
+        /// Environment variable name for overriding the Improved Menus English download URL.
         /// </summary>
-        public const string ImprovedMenusEnglishUrl = "https://github.com/ElTioRata/ImprovedMenus/releases/download/v1.3/0_ImprovedMenusEnglish.zip";
+        public const string ImprovedMenusEnglishUrlEnvVar = "GENHUB_MODBUILDER_IMPROVEDMENUS_ENGLISH_URL";
 
         /// <summary>
-        /// Download URL for Improved Menus widescreen sample assets (canonical default).
+        /// Default download URL for Improved Menus widescreen English sample assets.
         /// </summary>
-        public const string ImprovedMenusUrl = ImprovedMenusEnglishUrl;
+        public const string DefaultImprovedMenusEnglishUrl = "https://github.com/ElTioRata/ImprovedMenus/releases/download/v1.3/0_ImprovedMenusEnglish.zip";
 
         /// <summary>
-        /// Download URL for Improved Menus Russian assets.
+        /// Environment variable name for overriding the Improved Menus Russian download URL.
         /// </summary>
-        public const string ImprovedMenusRussianUrl = "https://github.com/ElTioRata/ImprovedMenus/releases/download/v1.3/0_ImprovedMenusRussian.zip";
+        public const string ImprovedMenusRussianUrlEnvVar = "GENHUB_MODBUILDER_IMPROVEDMENUS_RUSSIAN_URL";
 
         /// <summary>
-        /// Download URL for Improved Menus Spanish assets.
+        /// Default download URL for Improved Menus Russian assets.
         /// </summary>
-        public const string ImprovedMenusSpanishUrl = "https://github.com/ElTioRata/ImprovedMenus/releases/download/v1.3/0_ImprovedMenusSpanish.zip";
+        public const string DefaultImprovedMenusRussianUrl = "https://github.com/ElTioRata/ImprovedMenus/releases/download/v1.3/0_ImprovedMenusRussian.zip";
+
+        /// <summary>
+        /// Environment variable name for overriding the Improved Menus Spanish download URL.
+        /// </summary>
+        public const string ImprovedMenusSpanishUrlEnvVar = "GENHUB_MODBUILDER_IMPROVEDMENUS_SPANISH_URL";
+
+        /// <summary>
+        /// Default download URL for Improved Menus Spanish assets.
+        /// </summary>
+        public const string DefaultImprovedMenusSpanishUrl = "https://github.com/ElTioRata/ImprovedMenus/releases/download/v1.3/0_ImprovedMenusSpanish.zip";
 
         /// <summary>
         /// Expected SHA256 hash for Improved Menus widescreen BIG archive.
@@ -781,29 +796,44 @@ public static class ModBuilderConstants
         public const string ImprovedMenusSha256 = "3280056a2d7cf9bc5cbe8d4ac18fb082846e6db11ad7bb5c60f7c4619353f0a4";
 
         /// <summary>
-        /// Download URLs for Lemon Control Bar sample assets (720p, 1080p, 1440p, 4K).
+        /// Environment variable name for overriding the Lemon Control Bar 720p download URL.
         /// </summary>
-        public const string LemonControlBar1080pUrl = "https://github.com/L3-M/GeneralsControlBar/releases/download/v1.3/ControlBarProLemonEditionZH_v1.3_1920x1080.zip";
+        public const string LemonControlBar720pUrlEnvVar = "GENHUB_MODBUILDER_LEMONCONTROLBAR_720P_URL";
 
         /// <summary>
-        /// Download URL for Lemon Control Bar sample assets (canonical default).
+        /// Default download URL for Lemon Control Bar 720p assets.
         /// </summary>
-        public const string LemonControlBarUrl = LemonControlBar1080pUrl;
+        public const string DefaultLemonControlBar720pUrl = "https://github.com/L3-M/GeneralsControlBar/releases/download/v1.3/ControlBarProLemonEditionZH_v1.3_1280x720.zip";
 
         /// <summary>
-        /// Download URL for Lemon Control Bar 720p assets.
+        /// Environment variable name for overriding the Lemon Control Bar 1080p download URL.
         /// </summary>
-        public const string LemonControlBar720pUrl = "https://github.com/L3-M/GeneralsControlBar/releases/download/v1.3/ControlBarProLemonEditionZH_v1.3_1280x720.zip";
+        public const string LemonControlBar1080pUrlEnvVar = "GENHUB_MODBUILDER_LEMONCONTROLBAR_1080P_URL";
 
         /// <summary>
-        /// Download URL for Lemon Control Bar 1440p assets.
+        /// Default download URL for Lemon Control Bar 1080p sample assets.
         /// </summary>
-        public const string LemonControlBar1440pUrl = "https://github.com/L3-M/GeneralsControlBar/releases/download/v1.3/ControlBarProLemonEditionZH_v1.3_2560x1440.zip";
+        public const string DefaultLemonControlBar1080pUrl = "https://github.com/L3-M/GeneralsControlBar/releases/download/v1.3/ControlBarProLemonEditionZH_v1.3_1920x1080.zip";
 
         /// <summary>
-        /// Download URL for Lemon Control Bar 4K assets.
+        /// Environment variable name for overriding the Lemon Control Bar 1440p download URL.
         /// </summary>
-        public const string LemonControlBar4KUrl = "https://github.com/L3-M/GeneralsControlBar/releases/download/v1.3/ControlBarProLemonEditionZH_v1.3_3840x2160.zip";
+        public const string LemonControlBar1440pUrlEnvVar = "GENHUB_MODBUILDER_LEMONCONTROLBAR_1440P_URL";
+
+        /// <summary>
+        /// Default download URL for Lemon Control Bar 1440p assets.
+        /// </summary>
+        public const string DefaultLemonControlBar1440pUrl = "https://github.com/L3-M/GeneralsControlBar/releases/download/v1.3/ControlBarProLemonEditionZH_v1.3_2560x1440.zip";
+
+        /// <summary>
+        /// Environment variable name for overriding the Lemon Control Bar 4K download URL.
+        /// </summary>
+        public const string LemonControlBar4KUrlEnvVar = "GENHUB_MODBUILDER_LEMONCONTROLBAR_4K_URL";
+
+        /// <summary>
+        /// Default download URL for Lemon Control Bar 4K assets.
+        /// </summary>
+        public const string DefaultLemonControlBar4KUrl = "https://github.com/L3-M/GeneralsControlBar/releases/download/v1.3/ControlBarProLemonEditionZH_v1.3_3840x2160.zip";
 
         /// <summary>
         /// Expected SHA256 hash for Lemon Control Bar (1080p) BIG archive.
@@ -811,9 +841,14 @@ public static class ModBuilderConstants
         public const string LemonControlBarSha256 = "ce169f207867aeb7594e799e1cc67abd8561a1d1b5c6cb2e59af88f4caeca828";
 
         /// <summary>
-        /// Download URL for Leikeze Hotkeys sample assets.
+        /// Environment variable name for overriding the Leikeze Hotkeys download URL.
         /// </summary>
-        public const string LeikezeHotkeysUrl = "https://legi.cc/gp2/f/hlei.dat";
+        public const string LeikezeHotkeysUrlEnvVar = "GENHUB_MODBUILDER_LEIKEZEHOTKEYS_URL";
+
+        /// <summary>
+        /// Default download URL for Leikeze Hotkeys sample assets.
+        /// </summary>
+        public const string DefaultLeikezeHotkeysUrl = "https://legi.cc/gp2/f/hlei.dat";
 
         /// <summary>
         /// Expected SHA256 hash for Leikeze Hotkeys BIG archive.
@@ -821,13 +856,131 @@ public static class ModBuilderConstants
         public const string LeikezeHotkeysSha256 = "b06677d18c83c108aaa482d571c99a5aad3365c8a492067ef6eaf09364d3ab88";
 
         /// <summary>
-        /// Download URL for Hotkeys hleg asset.
+        /// Environment variable name for overriding the Hotkeys hleg download URL.
         /// </summary>
-        public const string HotkeysHlegUrl = "https://legi.cc/gp2/f/hleg.dat";
+        public const string HotkeysHlegUrlEnvVar = "GENHUB_MODBUILDER_HOTKEYS_HLEG_URL";
 
         /// <summary>
-        /// Download URL for Hotkeys hlen asset.
+        /// Default download URL for Hotkeys hleg asset.
         /// </summary>
-        public const string HotkeysHlenUrl = "https://legi.cc/gp2/f/hlen.dat";
+        public const string DefaultHotkeysHlegUrl = "https://legi.cc/gp2/f/hleg.dat";
+
+        /// <summary>
+        /// Expected SHA256 hash for Hotkeys hleg asset.
+        /// </summary>
+        public const string HotkeysHlegSha256 = "69693e098b309bbdb67968926234f725580bb7401cf350cce325542e361b4530";
+
+        /// <summary>
+        /// Environment variable name for overriding the Hotkeys hlen download URL.
+        /// </summary>
+        public const string HotkeysHlenUrlEnvVar = "GENHUB_MODBUILDER_HOTKEYS_HLEN_URL";
+
+        /// <summary>
+        /// Default download URL for Hotkeys hlen asset.
+        /// </summary>
+        public const string DefaultHotkeysHlenUrl = "https://legi.cc/gp2/f/hlen.dat";
+
+        /// <summary>
+        /// Expected SHA256 hash for Hotkeys hlen asset.
+        /// </summary>
+        public const string HotkeysHlenSha256 = "60647478fc0494cac46934fad1a830e522f90475b21feca5bf896c3902a02033";
+
+        /// <summary>
+        /// Gets the download URL for Generals Community Patch 2.0 core INI sample assets.
+        /// </summary>
+        public static string GeneralsGamePatch2Url =>
+            Environment.GetEnvironmentVariable(GeneralsGamePatch2UrlEnvVar) is { Length: > 0 } customUrl
+                ? customUrl.Trim()
+                : DefaultGeneralsGamePatch2Url;
+
+        /// <summary>
+        /// Gets the download URL for Improved Menus widescreen English sample assets.
+        /// </summary>
+        public static string ImprovedMenusEnglishUrl =>
+            Environment.GetEnvironmentVariable(ImprovedMenusEnglishUrlEnvVar) is { Length: > 0 } customUrl
+                ? customUrl.Trim()
+                : DefaultImprovedMenusEnglishUrl;
+
+        /// <summary>
+        /// Gets the download URL for Improved Menus widescreen sample assets (canonical default).
+        /// </summary>
+        public static string ImprovedMenusUrl => ImprovedMenusEnglishUrl;
+
+        /// <summary>
+        /// Gets the download URL for Improved Menus Russian assets.
+        /// </summary>
+        public static string ImprovedMenusRussianUrl =>
+            Environment.GetEnvironmentVariable(ImprovedMenusRussianUrlEnvVar) is { Length: > 0 } customUrl
+                ? customUrl.Trim()
+                : DefaultImprovedMenusRussianUrl;
+
+        /// <summary>
+        /// Gets the download URL for Improved Menus Spanish assets.
+        /// </summary>
+        public static string ImprovedMenusSpanishUrl =>
+            Environment.GetEnvironmentVariable(ImprovedMenusSpanishUrlEnvVar) is { Length: > 0 } customUrl
+                ? customUrl.Trim()
+                : DefaultImprovedMenusSpanishUrl;
+
+        /// <summary>
+        /// Gets the download URL for Lemon Control Bar 720p assets.
+        /// </summary>
+        public static string LemonControlBar720pUrl =>
+            Environment.GetEnvironmentVariable(LemonControlBar720pUrlEnvVar) is { Length: > 0 } customUrl
+                ? customUrl.Trim()
+                : DefaultLemonControlBar720pUrl;
+
+        /// <summary>
+        /// Gets the download URL for Lemon Control Bar sample assets (canonical default).
+        /// </summary>
+        public static string LemonControlBarUrl => LemonControlBar1080pUrl;
+
+        /// <summary>
+        /// Gets the download URL for Lemon Control Bar 1080p assets.
+        /// </summary>
+        public static string LemonControlBar1080pUrl =>
+            Environment.GetEnvironmentVariable(LemonControlBar1080pUrlEnvVar) is { Length: > 0 } customUrl
+                ? customUrl.Trim()
+                : DefaultLemonControlBar1080pUrl;
+
+        /// <summary>
+        /// Gets the download URL for Lemon Control Bar 1440p assets.
+        /// </summary>
+        public static string LemonControlBar1440pUrl =>
+            Environment.GetEnvironmentVariable(LemonControlBar1440pUrlEnvVar) is { Length: > 0 } customUrl
+                ? customUrl.Trim()
+                : DefaultLemonControlBar1440pUrl;
+
+        /// <summary>
+        /// Gets the download URL for Lemon Control Bar 4K assets.
+        /// </summary>
+        public static string LemonControlBar4KUrl =>
+            Environment.GetEnvironmentVariable(LemonControlBar4KUrlEnvVar) is { Length: > 0 } customUrl
+                ? customUrl.Trim()
+                : DefaultLemonControlBar4KUrl;
+
+        /// <summary>
+        /// Gets the download URL for Leikeze Hotkeys sample assets.
+        /// </summary>
+        public static string LeikezeHotkeysUrl =>
+            Environment.GetEnvironmentVariable(LeikezeHotkeysUrlEnvVar) is { Length: > 0 } customUrl
+                ? customUrl.Trim()
+                : DefaultLeikezeHotkeysUrl;
+
+        /// <summary>
+        /// Gets the download URL for Hotkeys hleg asset.
+        /// </summary>
+        public static string HotkeysHlegUrl =>
+            Environment.GetEnvironmentVariable(HotkeysHlegUrlEnvVar) is { Length: > 0 } customUrl
+                ? customUrl.Trim()
+                : DefaultHotkeysHlegUrl;
+
+        /// <summary>
+        /// Gets the download URL for Hotkeys hlen asset.
+        /// </summary>
+        public static string HotkeysHlenUrl =>
+            Environment.GetEnvironmentVariable(HotkeysHlenUrlEnvVar) is { Length: > 0 } customUrl
+                ? customUrl.Trim()
+                : DefaultHotkeysHlenUrl;
     }
 }
