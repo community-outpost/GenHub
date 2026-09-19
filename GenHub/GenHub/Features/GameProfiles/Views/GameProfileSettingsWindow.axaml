@@ -42,6 +42,21 @@
     </Window.Resources>
 
     <Window.Styles>
+        <!-- Settings card style -->
+        <Style Selector="Border.settings-card">
+            <Setter Property="Background" Value="#10FFFFFF" />
+            <Setter Property="BorderBrush" Value="#20FFFFFF" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="12" />
+            <Setter Property="Padding" Value="24" />
+            <Setter Property="Margin" Value="24,0,24,24" />
+            <Setter Property="HorizontalAlignment" Value="Stretch" />
+            <Setter Property="MinWidth" Value="0" />
+            <Setter Property="TextElement.Foreground" Value="White" />
+        </Style>
+        <Style Selector="Border.settings-card:pointerover">
+            <Setter Property="BorderBrush" Value="#40FFFFFF" />
+        </Style>
 
 
         <!-- Form field -->
@@ -213,18 +228,15 @@
             <Setter Property="BorderBrush" Value="#60FFFFFF" />
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="CornerRadius" Value="16" />
-            <Setter Property="Padding" Value="6" />
+            <Setter Property="Padding" Value="0" />
             <Setter Property="Cursor" Value="Hand" />
-            <Setter Property="Foreground" Value="White" />
             <Setter Property="Transitions">
                 <Transitions>
-                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.1" />
                     <BrushTransition Property="Background" Duration="0:0:0.1" />
+                    <BrushTransition Property="BorderBrush" Duration="0:0:0.1" />
+                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.1" />
                 </Transitions>
             </Setter>
-        </Style>
-        <Style Selector="Button.header-action-btn PathIcon">
-             <Setter Property="Foreground" Value="White" />
         </Style>
         <Style Selector="Button.header-action-btn:pointerover">
             <Setter Property="Background" Value="#30FFFFFF" />
@@ -246,9 +258,10 @@
             <Setter Property="BorderBrush" Value="#15FFFFFF" />
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="CornerRadius" Value="8" />
-            <Setter Property="Padding" Value="12" />
+            <Setter Property="Padding" Value="12,10" />
             <Setter Property="Margin" Value="4" />
-            <Setter Property="MaxWidth" Value="240" />
+            <Setter Property="Width" Value="180" />
+            <Setter Property="MaxWidth" Value="180" />
             <Setter Property="HorizontalContentAlignment" Value="Stretch" />
             <Setter Property="VerticalContentAlignment" Value="Stretch" />
             <Setter Property="Cursor" Value="Hand" />

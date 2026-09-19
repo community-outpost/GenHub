@@ -23,6 +23,24 @@
         <conv:EqualityConverter x:Key="EqualityConverter" />
     </UserControl.Resources>
 
+    <UserControl.Styles>
+        <!-- Settings card style -->
+        <Style Selector="Border.settings-card">
+            <Setter Property="Background" Value="#10FFFFFF" />
+            <Setter Property="BorderBrush" Value="#20FFFFFF" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="12" />
+            <Setter Property="Padding" Value="24" />
+            <Setter Property="Margin" Value="24,0,24,24" />
+            <Setter Property="HorizontalAlignment" Value="Stretch" />
+            <Setter Property="MinWidth" Value="0" />
+            <Setter Property="TextElement.Foreground" Value="White" />
+        </Style>
+        <Style Selector="Border.settings-card:pointerover">
+            <Setter Property="BorderBrush" Value="#40FFFFFF" />
+        </Style>
+    </UserControl.Styles>
+
     <Grid>
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="190" MinWidth="68" MaxWidth="300" />
@@ -91,15 +109,6 @@
         <!-- Content Area -->
         <ScrollViewer x:Name="GeneralSettingsScrollViewer" Grid.Column="2" Padding="0,24,0,80" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" BringIntoViewOnFocusChange="False">
             <StackPanel Spacing="0">
-                <!-- Status Message -->
-                <Border Background="{Binding ColorValue, Converter={StaticResource ThemeBackgroundConverter}, Mode=OneWay}"
-                        BorderBrush="{Binding ColorValue, Converter={StaticResource ThemeBorderConverter}, Mode=OneWay}"
-                        BorderThickness="1"
-                        CornerRadius="8" Padding="12" Margin="24,0,24,24"
-                        IsVisible="{Binding StatusMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
-                    <TextBlock Text="{Binding StatusMessage}" TextWrapping="Wrap" FontSize="13" FontWeight="Medium" />
-                </Border>
-
                 <!-- Identity Section -->
                 <Control x:Name="IdentitySection" Height="1" Margin="0,-1,0,0" />
                 <Border Classes="settings-card">

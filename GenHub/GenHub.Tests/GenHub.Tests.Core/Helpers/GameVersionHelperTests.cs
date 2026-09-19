@@ -175,4 +175,63 @@ public class GameVersionHelperTests
         Assert.Equal(expectedSuccess, success);
         Assert.Equal(expectedNumeric, result);
     }
+
+    /// <summary>
+    /// Verifies that IsDefaultVersion correctly classifies default and non-default versions.
+    /// </summary>
+    /// <param name="version">The version string.</param>
+    /// <param name="expected">Whether the version is considered a default version.</param>
+    [Theory]
+    [InlineData(null, true)]
+    [InlineData("", true)]
+    [InlineData("   ", true)]
+    [InlineData("0", true)]
+    [InlineData("0.0", true)]
+    [InlineData("0.00", true)]
+    [InlineData("0.000", true)]
+    [InlineData("0.0.0", true)]
+    [InlineData("0.0.0.0", true)]
+    [InlineData("1", true)]
+    [InlineData("1.0", true)]
+    [InlineData("1.00", true)]
+    [InlineData("1.000", true)]
+    [InlineData("1.0.0", true)]
+    [InlineData("v1.0", true)]
+    [InlineData("V1.00", true)]
+    [InlineData("1.04", false)]
+    [InlineData("1.06", false)]
+    [InlineData("v2.0", false)]
+    [InlineData("20260821", false)]
+    public void IsDefaultVersion_CorrectlyIdentifiesDefaultVersions(string? version, bool expected)
+    {
+        Assert.Equal(expected, GameVersionHelper.IsDefaultVersion(version));
+    }
+
+    /// <summary>
+    /// Verifies that FormatDisplayVersion correctly suppresses empty, default, and unknown versions,
+    /// and formats non-trivial versions with a leading 'v' where appropriate.
+    /// </summary>
+    /// <param name="version">The raw version string.</param>
+    /// <param name="expected">The expected formatted display version.</param>
+    [Theory]
+    [InlineData(null, null)]
+    [InlineData("", null)]
+    [InlineData("   ", null)]
+    [InlineData("0", null)]
+    [InlineData("1.0", null)]
+    [InlineData("v1.0", null)]
+    [InlineData("1.00", null)]
+    [InlineData("Unknown", null)]
+    [InlineData("unknown", null)]
+    [InlineData("Auto-Updated", null)]
+    [InlineData("1.04", "v1.04")]
+    [InlineData("1.06", "v1.06")]
+    [InlineData("v2.5", "v2.5")]
+    [InlineData("V3.0", "V3.0")]
+    [InlineData("20260821", "v20260821")]
+    [InlineData("beta-1", "beta-1")]
+    public void FormatDisplayVersion_ReturnsExpectedResults(string? version, string? expected)
+    {
+        Assert.Equal(expected, GameVersionHelper.FormatDisplayVersion(version));
+    }
 }

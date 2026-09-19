@@ -5,6 +5,7 @@ using GenHub.Core.Constants;
 using GenHub.Core.Extensions;
 using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.GameSettings;
+using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameSettings;
 using GenHub.Core.Models.Results;
@@ -24,7 +25,10 @@ namespace GenHub.Features.GameProfiles.ViewModels;
 /// ViewModel for the Game Settings tab in Profile Settings.
 /// Manages Options.ini for Generals and Zero Hour.
 /// </summary>
-public partial class GameSettingsViewModel(IGameSettingsService gameSettingsService, ILogger<GameSettingsViewModel> logger) : ViewModelBase
+public partial class GameSettingsViewModel(
+    IGameSettingsService gameSettingsService,
+    ILogger<GameSettingsViewModel> logger,
+    INotificationService? notificationService = null) : ViewModelBase
 {
     /// <summary>
     /// Gets the available texture quality levels.
@@ -50,6 +54,7 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
 
     private readonly IGameSettingsService? _gameSettingsService = gameSettingsService;
     private readonly ILogger<GameSettingsViewModel> _logger = logger;
+    private readonly INotificationService? _notificationService = notificationService;
 
     private static bool ParseBool(string value) =>
         value.Equals("yes", StringComparison.OrdinalIgnoreCase) ||
@@ -741,6 +746,7 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
             _currentOptions = null;
             StatusMessage = $"Failed to load settings: {string.Join(", ", errors)}";
             _logger.LogWarning("Failed to load Options.ini for {GameType}: {Errors}", gameType, string.Join(", ", errors));
+            _notificationService?.ShowWarning("Settings Warning", $"Failed to load settings: {string.Join(", ", errors)}");
             return false;
         }
         catch (Exception ex)
@@ -753,6 +759,7 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
             _currentOptions = null;
             _logger.LogError(ex, "Error loading Options.ini for {GameType}", gameType);
             StatusMessage = $"Error loading settings: {ex.Message}";
+            _notificationService?.ShowError("Error Loading Settings", ex.Message);
             return false;
         }
     }
@@ -821,6 +828,7 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
         {
             _logger.LogError(ex, "Error loading settings for {GameType}", SelectedGameType);
             StatusMessage = $"Error loading settings: {ex.Message}";
+            _notificationService?.ShowError("Error Loading Settings", ex.Message);
         }
         finally
         {
@@ -881,10 +889,7 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
         var currentRes = $"{ResolutionWidth}x{ResolutionHeight}";
         SelectedResolutionPreset = ResolutionPresets.Contains(currentRes) ? currentRes : null;
 
-        var gameType = profile.GameClient?.GameType;
-        StatusMessage = gameType != null
-            ? $"Loaded profile settings for {gameType}"
-            : "Loaded profile settings (no game client configured)";
+        StatusMessage = string.Empty;
         _logger.LogInformation(
             "Loaded profile settings - Windowed={Windowed}, Resolution={Width}x{Height}",
             Windowed,
@@ -1033,6 +1038,7 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
         {
             StatusMessage = "Cannot save settings: Options.ini could not be loaded and saving would overwrite existing unmanaged settings.";
             _logger.LogWarning("Aborting SaveSettings for {GameType} because Options.ini exists but _currentOptions is null", SelectedGameType);
+            _notificationService?.ShowWarning("Cannot Save Settings", "Options.ini could not be loaded and saving would overwrite existing unmanaged settings.");
             return;
         }
 
@@ -1121,12 +1127,14 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
                 var errors = string.Join(", ", optionsErrors.Concat(generalsOnlineErrors));
                 StatusMessage = $"Failed to save settings: {errors}";
                 _logger.LogWarning("Failed to save settings: {Errors}", errors);
+                _notificationService?.ShowError("Error Saving Settings", errors);
             }
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error saving settings for {GameType}", SelectedGameType);
             StatusMessage = $"Error saving settings: {ex.Message}";
+            _notificationService?.ShowError("Error Saving Settings", ex.Message);
         }
         finally
         {
@@ -1193,12 +1201,14 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
             else
             {
                 StatusMessage = "Options file directory not found";
+                _notificationService?.ShowWarning("Directory Not Found", "Options file directory not found");
             }
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error opening file location");
             StatusMessage = $"Error opening location: {ex.Message}";
+            _notificationService?.ShowError("Error Opening Location", ex.Message);
         }
     }
 
@@ -1248,6 +1258,7 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
             {
                 _logger.LogError(ex, "Failed to load settings for {GameType}", value);
                 StatusMessage = $"Error loading settings: {ex.Message}";
+                _notificationService?.ShowError("Error Loading Settings", ex.Message);
             }
         });
     }

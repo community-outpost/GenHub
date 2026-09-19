@@ -130,7 +130,7 @@ public static partial class GameVersionHelper
 
     /// <summary>
     /// Checks if a version string is a "default" version that shouldn't be displayed.
-    /// Matches "0", "0.0", "0.0.0", "1.0", "1.0.0", etc.
+    /// Matches "0", "0.0", "0.00", "0.0.0", "1", "1.0", "1.00", "1.0.0", etc.
     /// </summary>
     /// <param name="version">The version string to check.</param>
     /// <returns>True if it is a default version, false otherwise.</returns>
@@ -150,9 +150,39 @@ public static partial class GameVersionHelper
         }
 
         // Common default versions
-        string[] defaultVersions = { "0", "0.0", "0.0.0", "0.0.0.0", "1.0", "1.0.0", "1.0.0.0", "1" };
+        string[] defaultVersions = { "0", "0.0", "0.00", "0.000", "0.0.0", "0.0.0.0", "1", "1.0", "1.00", "1.000", "1.0.0", "1.0.0.0" };
 
         return defaultVersions.Contains(normalized);
+    }
+
+    /// <summary>
+    /// Formats a version string for display in UI badges, or returns null if it shouldn't be displayed.
+    /// Suppresses empty, whitespace, default (e.g. 0, 1.0, 1.00), and unknown sentinel versions.
+    /// Prefixes with 'v' if the version starts with a digit.
+    /// </summary>
+    /// <param name="version">The raw version string.</param>
+    /// <returns>The formatted version string, or null.</returns>
+    public static string? FormatDisplayVersion(string? version)
+    {
+        if (string.IsNullOrWhiteSpace(version) ||
+            IsDefaultVersion(version) ||
+            IsUnknownVersion(version))
+        {
+            return null;
+        }
+
+        var trimmed = version.Trim();
+        if (trimmed.StartsWith("v", StringComparison.OrdinalIgnoreCase) && trimmed.Length > 1 && char.IsDigit(trimmed[1]))
+        {
+            return trimmed;
+        }
+
+        if (char.IsDigit(trimmed[0]))
+        {
+            return $"v{trimmed}";
+        }
+
+        return trimmed;
     }
 
     /// <summary>

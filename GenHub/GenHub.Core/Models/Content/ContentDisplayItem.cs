@@ -44,6 +44,16 @@ public class ContentDisplayItem
     }
 
     /// <summary>
+    /// Gets the formatted version for display in badges, or null if it shouldn't be displayed.
+    /// </summary>
+    public string? DisplayVersion => GameVersionHelper.FormatDisplayVersion(Version);
+
+    /// <summary>
+    /// Gets a value indicating whether this item has a displayable version badge.
+    /// </summary>
+    public bool HasDisplayVersion => !string.IsNullOrEmpty(DisplayVersion);
+
+    /// <summary>
     /// Gets or sets the content type (Mod, Patch, Addon, etc.).
     /// </summary>
     public ContentType ContentType { get; set; }

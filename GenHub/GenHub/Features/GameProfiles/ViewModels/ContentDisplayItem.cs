@@ -1,7 +1,9 @@
 using CommunityToolkit.Mvvm.ComponentModel;
+using GenHub.Core.Helpers;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameClients;
 using GenHub.Core.Models.Manifest;
+using System;
 
 namespace GenHub.Features.GameProfiles.ViewModels;
 
@@ -12,6 +14,7 @@ namespace GenHub.Features.GameProfiles.ViewModels;
 public partial class ContentDisplayItem : ObservableObject
 {
     private string _displayName = string.Empty;
+    private string? _version;
 
     /// <summary>
     /// Gets or sets a value indicating whether this content is enabled.
@@ -90,7 +93,28 @@ public partial class ContentDisplayItem : ObservableObject
     /// <summary>
     /// Gets or sets the version string for this content.
     /// </summary>
-    public string? Version { get; set; }
+    public string? Version
+    {
+        get => _version;
+        set
+        {
+            if (SetProperty(ref _version, value))
+            {
+                OnPropertyChanged(nameof(DisplayVersion));
+                OnPropertyChanged(nameof(HasDisplayVersion));
+            }
+        }
+    }
+
+    /// <summary>
+    /// Gets the formatted version for display in badges, or null if it shouldn't be displayed.
+    /// </summary>
+    public string? DisplayVersion => GameVersionHelper.FormatDisplayVersion(Version);
+
+    /// <summary>
+    /// Gets a value indicating whether this item has a displayable version badge.
+    /// </summary>
+    public bool HasDisplayVersion => !string.IsNullOrEmpty(DisplayVersion);
 
     /// <summary>
     /// Gets or sets the source ID (GUID) of the actual installation.

@@ -72,13 +72,14 @@ public partial class GameProfileSettingsViewModel
 
             await GameSettingsViewModel.InitializeForProfileAsync(null, null, SelectedGameInstallation?.GameType);
 
-            StatusMessage = $"Found {AvailableGameInstallations.Count} installations and {AvailableContent.Count} content items";
+            StatusMessage = string.Empty;
         }
         catch (Exception ex)
         {
             _logger?.LogError(ex, "Error initializing new profile");
             StatusMessage = "Error loading content";
             LoadingError = true;
+            _notificationService?.ShowError("Error loading content", ex.Message);
         }
         finally
         {
@@ -151,13 +152,14 @@ public partial class GameProfileSettingsViewModel
 
             SelectInitialGameInstallation(profile);
 
-            StatusMessage = $"Profile loaded with {EnabledContent.Count} enabled content items";
+            StatusMessage = string.Empty;
         }
         catch (Exception ex)
         {
             _logger?.LogError(ex, "Error initializing profile {ProfileId}", profileId);
             StatusMessage = "Error loading profile";
             LoadingError = true;
+            _notificationService?.ShowError("Error loading profile", ex.Message);
         }
         finally
         {
