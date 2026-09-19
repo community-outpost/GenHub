@@ -22,6 +22,7 @@ using GenHub.Core.Models.Storage;
 using GenHub.Core.Models.Theming;
 using GenHub.Core.Models.Workspace;
 using GenHub.Features.AppUpdate.Interfaces;
+using GenHub.Features.GitHub.Services;
 using GenHub.Features.Settings.ViewModels;
 using GenHub.Infrastructure.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -1199,96 +1200,123 @@ public class SettingsViewModelTests
     }
 
     /// <summary>
-    /// Verifies that TestPatAsync saves the token when validation succeeds.
+    /// Verifies that SignInWithGitHubAsync sets the authenticated state when authorization succeeds.
     /// </summary>
     /// <returns>A task representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task TestPatAsync_WhenPatIsValid_SavesTokenAndSetsSuccessStateAsync()
+    public async Task SignInWithGitHubAsync_WhenAuthorized_SetsAuthenticatedStateAsync()
     {
         // Arrange
-        var mockTokenStorage = new Mock<IGitHubTokenStorage>();
-        var mockApiClient = new Mock<IGitHubApiClient>();
-        mockApiClient
-            .Setup(x => x.GetAuthenticatedUserAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new GitHubUser { Login = "testuser" });
+        var deviceCode = new GitHubDeviceCodeResponse("device-code", "WDAS-5678", "https://github.com/login/device", 900, 5);
+        var profile = new GitHubUserProfile("octocat", 1, "Octocat", "https://avatars.example/octocat", "https://github.com/octocat");
+        var mockAuthService = new Mock<IGitHubAuthService>();
+        mockAuthService
+            .Setup(x => x.InitiateLoginAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<GitHubDeviceCodeResponse>.CreateSuccess(deviceCode));
+        mockAuthService
+            .Setup(x => x.WaitForAuthorizationAsync(deviceCode, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<GitHubUserProfile>.CreateSuccess(profile));
+        mockAuthService.SetupGet(x => x.IsAuthenticated).Returns(true);
+        mockAuthService.SetupGet(x => x.CurrentUser).Returns(profile);
 
-        var viewModel = CreateViewModel(gitHubTokenStorage: mockTokenStorage.Object, gitHubApiClient: mockApiClient.Object);
-        viewModel.GitHubPatInput = "ghp_validToken12345";
+        var viewModel = CreateViewModel(gitHubAuthService: mockAuthService.Object);
 
         // Act
-        await viewModel.TestPatCommand.ExecuteAsync(null);
+        await viewModel.SignInWithGitHubCommand.ExecuteAsync(null);
 
         // Assert
-        Assert.True(viewModel.IsPatValid);
-        Assert.True(viewModel.HasGitHubPat);
-        Assert.Empty(viewModel.GitHubPatInput);
-        Assert.Contains("PAT validated successfully", viewModel.PatStatusMessage);
-        mockTokenStorage.Verify(x => x.SaveTokenAsync(It.IsAny<System.Security.SecureString>()), Times.Once);
-        mockApiClient.Verify(x => x.SetAuthenticationToken(It.IsAny<System.Security.SecureString>()), Times.Once);
+        Assert.True(viewModel.IsGitHubAuthenticated);
+        Assert.False(viewModel.IsAuthenticating);
+        Assert.False(viewModel.IsGitHubSignedOut);
+        Assert.Equal("@octocat", viewModel.GitHubUserName);
+        Assert.Equal("https://avatars.example/octocat", viewModel.GitHubAvatarUrl);
+        Assert.Empty(viewModel.GitHubUserCode);
+        mockAuthService.Verify(x => x.WaitForAuthorizationAsync(deviceCode, It.IsAny<CancellationToken>()), Times.Once);
+        _mockNotificationService.Verify(
+            x => x.ShowSuccess(It.IsAny<string>(), It.Is<string>(m => m.Contains("@octocat")), It.IsAny<int?>(), It.IsAny<bool>()),
+            Times.Once);
     }
 
     /// <summary>
-    /// Verifies that TestPatAsync restores existing token when API validation fails.
+    /// Verifies that SignInWithGitHubAsync shows an error toast when initiation fails.
     /// </summary>
     /// <returns>A task representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task TestPatAsync_WhenValidationFails_RestoresExistingTokenAndSetsErrorStateAsync()
+    public async Task SignInWithGitHubAsync_WhenInitiationFails_ShowsErrorToastAsync()
     {
         // Arrange
-        var mockTokenStorage = new Mock<IGitHubTokenStorage>();
-        var mockApiClient = new Mock<IGitHubApiClient>();
-        using var existingToken = new System.Security.SecureString();
-        existingToken.AppendChar('x');
-        mockTokenStorage.Setup(x => x.LoadTokenAsync()).ReturnsAsync(existingToken);
+        var mockAuthService = new Mock<IGitHubAuthService>();
+        mockAuthService
+            .Setup(x => x.InitiateLoginAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<GitHubDeviceCodeResponse>.CreateFailure("No network"));
 
-        mockApiClient
-            .Setup(x => x.GetAuthenticatedUserAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync((GitHubUser?)null);
-
-        var viewModel = CreateViewModel(gitHubTokenStorage: mockTokenStorage.Object, gitHubApiClient: mockApiClient.Object);
-        viewModel.GitHubPatInput = "ghp_invalidToken12345";
+        var viewModel = CreateViewModel(gitHubAuthService: mockAuthService.Object);
 
         // Act
-        await viewModel.TestPatCommand.ExecuteAsync(null);
+        await viewModel.SignInWithGitHubCommand.ExecuteAsync(null);
 
         // Assert
-        Assert.False(viewModel.IsPatValid);
-        Assert.Contains("GitHub authentication failed", viewModel.PatStatusMessage);
-        mockTokenStorage.Verify(x => x.SaveTokenAsync(It.IsAny<System.Security.SecureString>()), Times.Never);
-        mockApiClient.Verify(x => x.SetAuthenticationToken(existingToken), Times.Once);
+        Assert.False(viewModel.IsGitHubAuthenticated);
+        Assert.False(viewModel.IsAuthenticating);
+        Assert.True(viewModel.IsGitHubSignedOut);
+        mockAuthService.Verify(
+            x => x.WaitForAuthorizationAsync(It.IsAny<GitHubDeviceCodeResponse>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+        _mockNotificationService.Verify(
+            x => x.ShowError(It.IsAny<string>(), It.Is<string>(m => m.Contains("No network")), It.IsAny<int?>(), It.IsAny<bool>()),
+            Times.Once);
     }
 
     /// <summary>
-    /// Verifies that TestPatAsync restores existing token when token storage SaveTokenAsync throws.
+    /// Verifies that SignInWithGitHubAsync shows an error toast when authorization is denied.
     /// </summary>
     /// <returns>A task representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task TestPatAsync_WhenSaveTokenThrows_RestoresExistingTokenAndSetsErrorStateAsync()
+    public async Task SignInWithGitHubAsync_WhenAuthorizationDenied_ShowsErrorToastAsync()
     {
         // Arrange
-        var mockTokenStorage = new Mock<IGitHubTokenStorage>();
-        var mockApiClient = new Mock<IGitHubApiClient>();
-        using var existingToken = new System.Security.SecureString();
-        existingToken.AppendChar('x');
-        mockTokenStorage.Setup(x => x.LoadTokenAsync()).ReturnsAsync(existingToken);
-        mockTokenStorage
-            .Setup(x => x.SaveTokenAsync(It.IsAny<System.Security.SecureString>()))
-            .ThrowsAsync(new System.IO.IOException("Storage persistence failed"));
+        var deviceCode = new GitHubDeviceCodeResponse("device-code", "WDAS-5678", "https://github.com/login/device", 900, 5);
+        var mockAuthService = new Mock<IGitHubAuthService>();
+        mockAuthService
+            .Setup(x => x.InitiateLoginAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<GitHubDeviceCodeResponse>.CreateSuccess(deviceCode));
+        mockAuthService
+            .Setup(x => x.WaitForAuthorizationAsync(deviceCode, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<GitHubUserProfile>.CreateFailure("access denied"));
 
-        mockApiClient
-            .Setup(x => x.GetAuthenticatedUserAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new GitHubUser { Login = "testuser" });
-
-        var viewModel = CreateViewModel(gitHubTokenStorage: mockTokenStorage.Object, gitHubApiClient: mockApiClient.Object);
-        viewModel.GitHubPatInput = "ghp_validToken12345";
+        var viewModel = CreateViewModel(gitHubAuthService: mockAuthService.Object);
 
         // Act
-        await viewModel.TestPatCommand.ExecuteAsync(null);
+        await viewModel.SignInWithGitHubCommand.ExecuteAsync(null);
 
         // Assert
-        Assert.False(viewModel.IsPatValid);
-        Assert.Contains("Storage persistence failed", viewModel.PatStatusMessage);
-        mockApiClient.Verify(x => x.SetAuthenticationToken(existingToken), Times.Once);
+        Assert.False(viewModel.IsGitHubAuthenticated);
+        Assert.False(viewModel.IsAuthenticating);
+        Assert.Empty(viewModel.GitHubUserCode);
+        _mockNotificationService.Verify(
+            x => x.ShowError(It.IsAny<string>(), It.Is<string>(m => m.Contains("access denied")), It.IsAny<int?>(), It.IsAny<bool>()),
+            Times.Once);
+    }
+
+    /// <summary>
+    /// Verifies that rate limit updates dynamically update GitHubRateLimitText when authenticated.
+    /// </summary>
+    [Fact]
+    public void RateLimitUpdated_WhenAuthenticated_UpdatesRateLimitText()
+    {
+        // Arrange
+        var mockAuthService = new Mock<IGitHubAuthService>();
+        mockAuthService.SetupGet(x => x.IsAuthenticated).Returns(true);
+        var tracker = new GitHubRateLimitTracker(Microsoft.Extensions.Logging.Abstractions.NullLogger<GitHubRateLimitTracker>.Instance);
+        var viewModel = CreateViewModel(
+            gitHubAuthService: mockAuthService.Object,
+            rateLimitTracker: tracker);
+
+        // Act
+        tracker.UpdateFromHeaders(2500, 5000, DateTime.UtcNow.AddHours(1));
+
+        // Assert
+        Assert.Contains("2500 of 5000", viewModel.GitHubRateLimitText);
     }
 
     /// <summary>
@@ -1382,82 +1410,101 @@ public class SettingsViewModelTests
     }
 
     /// <summary>
-    /// Verifies that TestPatAsync saves token and reports pending validation when no validation provider ran.
+    /// Verifies that CancelSignIn cancels a pending authorization poll.
     /// </summary>
     /// <returns>A task representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task TestPatAsync_WhenNoValidationProviderAvailable_SavesTokenAndReportsPendingValidationAsync()
+    public async Task CancelSignIn_WhenAuthorizationPending_CancelsPollingAsync()
     {
         // Arrange
-        var mockTokenStorage = new Mock<IGitHubTokenStorage>();
-        var viewModel = CreateViewModel(
-            gitHubTokenStorage: mockTokenStorage.Object,
-            gitHubApiClient: null,
-            includeUpdateManager: false);
-        viewModel.GitHubPatInput = "ghp_unvalidatedToken12345";
+        var deviceCode = new GitHubDeviceCodeResponse("device-code", "WDAS-5678", "https://github.com/login/device", 900, 5);
+        var mockAuthService = new Mock<IGitHubAuthService>();
+        mockAuthService
+            .Setup(x => x.InitiateLoginAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<GitHubDeviceCodeResponse>.CreateSuccess(deviceCode));
+        mockAuthService
+            .Setup(x => x.WaitForAuthorizationAsync(It.IsAny<GitHubDeviceCodeResponse>(), It.IsAny<CancellationToken>()))
+            .Returns<GitHubDeviceCodeResponse, CancellationToken>(async (_, cancellationToken) =>
+            {
+                var completion = new TaskCompletionSource();
+                using (cancellationToken.Register(static state => ((TaskCompletionSource)state!).SetResult(), completion))
+                {
+                    await completion.Task;
+                }
+
+                cancellationToken.ThrowIfCancellationRequested();
+                return OperationResult<GitHubUserProfile>.CreateFailure("unreachable");
+            });
+
+        var viewModel = CreateViewModel(gitHubAuthService: mockAuthService.Object);
 
         // Act
-        await viewModel.TestPatCommand.ExecuteAsync(null);
+        var signInTask = viewModel.SignInWithGitHubCommand.ExecuteAsync(null);
+        for (var i = 0; i < 100 && !viewModel.IsAuthenticating; i++)
+        {
+            await Task.Delay(10);
+        }
+
+        Assert.True(viewModel.IsAuthenticating);
+        viewModel.CancelSignInCommand.Execute(null);
+        await signInTask;
 
         // Assert
-        Assert.False(viewModel.IsPatValid);
-        Assert.True(viewModel.HasGitHubPat);
-        Assert.Empty(viewModel.GitHubPatInput);
-        Assert.Contains("PAT saved (validation pending)", viewModel.PatStatusMessage);
-        mockTokenStorage.Verify(x => x.SaveTokenAsync(It.IsAny<System.Security.SecureString>()), Times.Once);
+        Assert.False(viewModel.IsAuthenticating);
+        Assert.False(viewModel.IsGitHubAuthenticated);
+        Assert.True(viewModel.IsGitHubSignedOut);
+        _mockNotificationService.Verify(
+            x => x.ShowError(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
+            Times.Never);
     }
 
     /// <summary>
-    /// Verifies that TestPatAsync does not treat update manager check as PAT validation when API client is absent.
+    /// Verifies that SignOutFromGitHubAsync clears the authenticated state.
     /// </summary>
     /// <returns>A task representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task TestPatAsync_WhenUpdateManagerProvidedWithoutApiClient_SavesTokenAndReportsPendingValidationAsync()
+    public async Task SignOutFromGitHubAsync_ClearsAuthenticatedStateAsync()
     {
         // Arrange
-        var mockTokenStorage = new Mock<IGitHubTokenStorage>();
-        var viewModel = CreateViewModel(
-            gitHubTokenStorage: mockTokenStorage.Object,
-            gitHubApiClient: null,
-            includeUpdateManager: true);
-        viewModel.GitHubPatInput = "ghp_unvalidatedToken12345";
+        var mockAuthService = new Mock<IGitHubAuthService>();
+        mockAuthService.SetupGet(x => x.IsAuthenticated).Returns(false);
+        mockAuthService.SetupGet(x => x.CurrentUser).Returns((GitHubUserProfile?)null);
+
+        var viewModel = CreateViewModel(gitHubAuthService: mockAuthService.Object);
 
         // Act
-        await viewModel.TestPatCommand.ExecuteAsync(null);
+        await viewModel.SignOutFromGitHubCommand.ExecuteAsync(null);
 
         // Assert
-        Assert.False(viewModel.IsPatValid);
-        Assert.True(viewModel.HasGitHubPat);
-        Assert.Empty(viewModel.GitHubPatInput);
-        Assert.Contains("PAT saved (validation pending)", viewModel.PatStatusMessage);
-        mockTokenStorage.Verify(x => x.SaveTokenAsync(It.IsAny<System.Security.SecureString>()), Times.Once);
+        Assert.False(viewModel.IsGitHubAuthenticated);
+        Assert.True(viewModel.IsGitHubSignedOut);
+        Assert.Empty(viewModel.GitHubUserName);
+        Assert.Empty(viewModel.GitHubAvatarUrl);
+        mockAuthService.Verify(x => x.SignOutAsync(It.IsAny<CancellationToken>()), Times.Once);
+        _mockNotificationService.Verify(
+            x => x.ShowSuccess(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
+            Times.Once);
     }
 
     /// <summary>
-    /// Verifies that TestPatAsync clears authentication token and marks PAT invalid when rollback fails.
+    /// Verifies that the view model follows AuthStateChanged events from the auth service.
     /// </summary>
-    /// <returns>A task representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task TestPatAsync_WhenValidationFailsAndRestoreThrows_ClearsTokenAndSetsInvalidAsync()
+    public void AuthStateChanged_WhenSignOutEventFires_ClearsAuthenticatedState()
     {
         // Arrange
-        var mockTokenStorage = new Mock<IGitHubTokenStorage>();
-        var mockApiClient = new Mock<IGitHubApiClient>();
-        mockTokenStorage.Setup(x => x.LoadTokenAsync()).ThrowsAsync(new System.IO.IOException("Disk error"));
+        var mockAuthService = new Mock<IGitHubAuthService>();
+        mockAuthService.SetupGet(x => x.IsAuthenticated).Returns(false);
+        mockAuthService.SetupGet(x => x.CurrentUser).Returns((GitHubUserProfile?)null);
 
-        mockApiClient
-            .Setup(x => x.GetAuthenticatedUserAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync((GitHubUser?)null);
-
-        var viewModel = CreateViewModel(gitHubTokenStorage: mockTokenStorage.Object, gitHubApiClient: mockApiClient.Object);
-        viewModel.GitHubPatInput = "ghp_invalidToken12345";
+        var viewModel = CreateViewModel(gitHubAuthService: mockAuthService.Object);
 
         // Act
-        await viewModel.TestPatCommand.ExecuteAsync(null);
+        mockAuthService.Raise(x => x.AuthStateChanged += null, new GitHubAuthStateChangedEventArgs(false, null));
 
         // Assert
-        Assert.False(viewModel.IsPatValid);
-        mockApiClient.Verify(x => x.ClearAuthenticationToken(), Times.Once);
+        Assert.False(viewModel.IsGitHubAuthenticated);
+        Assert.True(viewModel.IsGitHubSignedOut);
     }
 
     /// <summary>
@@ -1704,8 +1751,8 @@ public class SettingsViewModelTests
 
     private SettingsViewModel CreateViewModel(
         IThemeService? themeService = null,
-        IGitHubTokenStorage? gitHubTokenStorage = null,
-        IGitHubApiClient? gitHubApiClient = null,
+        IGitHubAuthService? gitHubAuthService = null,
+        GitHubRateLimitTracker? rateLimitTracker = null,
         IUploadHistoryService? uploadHistoryService = null,
         IPublisherSubscriptionStore? subscriptionStore = null,
         IPublisherCatalogRefreshService? catalogRefreshService = null,
@@ -1726,9 +1773,9 @@ public class SettingsViewModelTests
         _mockDialogService.Object,
         _mockStorageMigrationService.Object,
         themeService,
-        gitHubTokenStorage,
+        gitHubAuthService,
+        rateLimitTracker,
         uploadHistoryService,
-        gitHubApiClient,
         subscriptionStore: subscriptionStore,
         catalogRefreshService: catalogRefreshService,
         localizationService: localizationService);

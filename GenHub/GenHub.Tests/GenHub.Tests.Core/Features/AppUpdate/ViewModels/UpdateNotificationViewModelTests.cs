@@ -613,14 +613,14 @@ public class UpdateNotificationViewModelTests
         mockVelopack.Setup(x => x.GetOpenPullRequestsAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(Array.Empty<PullRequestInfo>());
 
-        var mockTokenStorage = new Mock<IGitHubTokenStorage>();
-        mockTokenStorage.Setup(x => x.HasToken()).Returns(true);
+        var mockAuthService = new Mock<IGitHubAuthService>();
+        mockAuthService.SetupGet(x => x.IsAuthenticated).Returns(true);
 
         using var vm = new UpdateNotificationViewModel(
             mockVelopack.Object,
             Mock.Of<ILogger<UpdateNotificationViewModel>>(),
             mockUserSettings.Object,
-            mockTokenStorage.Object);
+            mockAuthService.Object);
 
         await ((CommunityToolkit.Mvvm.Input.IAsyncRelayCommand)vm.CheckForUpdatesCommand).ExecuteAsync(null);
 
@@ -630,11 +630,11 @@ public class UpdateNotificationViewModelTests
     }
 
     /// <summary>
-    /// Verifies that when a subscribed custom branch has no artifacts and PAT is configured, CheckForUpdates sets stale branch status message.
+    /// Verifies that when a subscribed custom branch has no artifacts and authenticated, CheckForUpdates sets stale branch status message.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     [Fact]
-    public async Task CheckForUpdatesCommand_WhenCustomBranchHasNoArtifactsAndPatPresent_SetsStaleStatusAsync()
+    public async Task CheckForUpdatesCommand_WhenCustomBranchHasNoArtifactsAndAuthenticated_SetsStaleStatusAsync()
     {
         var mockUserSettings = new Mock<IUserSettingsService>();
         mockUserSettings.Setup(x => x.Get()).Returns(new UserSettings { SubscribedBranch = "feat/deleted-branch" });
@@ -648,14 +648,14 @@ public class UpdateNotificationViewModelTests
         mockVelopack.Setup(x => x.GetOpenPullRequestsAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(Array.Empty<PullRequestInfo>());
 
-        var mockTokenStorage = new Mock<IGitHubTokenStorage>();
-        mockTokenStorage.Setup(x => x.HasToken()).Returns(true);
+        var mockAuthService = new Mock<IGitHubAuthService>();
+        mockAuthService.SetupGet(x => x.IsAuthenticated).Returns(true);
 
         using var vm = new UpdateNotificationViewModel(
             mockVelopack.Object,
             Mock.Of<ILogger<UpdateNotificationViewModel>>(),
             mockUserSettings.Object,
-            mockTokenStorage.Object);
+            mockAuthService.Object);
 
         await ((CommunityToolkit.Mvvm.Input.IAsyncRelayCommand)vm.CheckForUpdatesCommand).ExecuteAsync(null);
 
@@ -664,11 +664,11 @@ public class UpdateNotificationViewModelTests
     }
 
     /// <summary>
-    /// Verifies that when subscribed to a branch but no PAT is configured, CheckForUpdates sets PAT required status message.
+    /// Verifies that when subscribed to a branch but not authenticated, CheckForUpdates sets auth required status message.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     [Fact]
-    public async Task CheckForUpdatesCommand_WhenSubscribedBranchAndNoPat_SetsPatRequiredStatusAsync()
+    public async Task CheckForUpdatesCommand_WhenSubscribedBranchAndNotAuthenticated_SetsAuthRequiredStatusAsync()
     {
         var mockUserSettings = new Mock<IUserSettingsService>();
         mockUserSettings.Setup(x => x.Get()).Returns(new UserSettings { SubscribedBranch = "feat/some-branch" });
@@ -680,20 +680,20 @@ public class UpdateNotificationViewModelTests
             mockVelopack.Object,
             Mock.Of<ILogger<UpdateNotificationViewModel>>(),
             mockUserSettings.Object,
-            gitHubTokenStorage: null);
+            gitHubAuthService: null);
 
         await ((CommunityToolkit.Mvvm.Input.IAsyncRelayCommand)vm.CheckForUpdatesCommand).ExecuteAsync(null);
 
-        Assert.Equal(AppUpdateConstants.PatRequiredForArtifactsMessage, vm.StatusMessage);
+        Assert.Equal(AppUpdateConstants.AuthRequiredForArtifactsMessage, vm.StatusMessage);
         Assert.False(vm.IsUpdateAvailable);
     }
 
     /// <summary>
-    /// Verifies that when subscribed to a PR but no PAT is configured, CheckForUpdates sets PAT required status message.
+    /// Verifies that when subscribed to a PR but not authenticated, CheckForUpdates sets auth required status message.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     [Fact]
-    public async Task CheckForUpdatesCommand_WhenSubscribedPrAndNoPat_SetsPatRequiredStatusAsync()
+    public async Task CheckForUpdatesCommand_WhenSubscribedPrAndNotAuthenticated_SetsAuthRequiredStatusAsync()
     {
         var mockUserSettings = new Mock<IUserSettingsService>();
         mockUserSettings.Setup(x => x.Get()).Returns(new UserSettings { SubscribedPrNumber = 42 });
@@ -705,11 +705,11 @@ public class UpdateNotificationViewModelTests
             mockVelopack.Object,
             Mock.Of<ILogger<UpdateNotificationViewModel>>(),
             mockUserSettings.Object,
-            gitHubTokenStorage: null);
+            gitHubAuthService: null);
 
         await ((CommunityToolkit.Mvvm.Input.IAsyncRelayCommand)vm.CheckForUpdatesCommand).ExecuteAsync(null);
 
-        Assert.Equal(AppUpdateConstants.PatRequiredForArtifactsMessage, vm.StatusMessage);
+        Assert.Equal(AppUpdateConstants.AuthRequiredForArtifactsMessage, vm.StatusMessage);
         Assert.False(vm.IsUpdateAvailable);
     }
 

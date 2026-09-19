@@ -1,11 +1,13 @@
 using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Interfaces.GameSettings;
+using GenHub.Core.Interfaces.GitHub;
 using GenHub.Core.Interfaces.Shortcuts;
 using GenHub.Core.Interfaces.Storage;
 using GenHub.Core.Interfaces.Workspace;
 using GenHub.Features.GameSettings;
 using GenHub.Features.Workspace;
 using GenHub.Infrastructure.DependencyInjection;
+using GenHub.Linux.Features.GitHub.Services;
 using GenHub.Linux.Features.Shortcuts;
 using GenHub.Linux.Features.Storage;
 using GenHub.Linux.GameInstallations;
@@ -31,6 +33,7 @@ public static class LinuxServicesModule
     public static IServiceCollection AddLinuxServices(this IServiceCollection services)
     {
         services.AddSingleton<IGameInstallationDetector, LinuxInstallationDetector>();
+        services.AddSingleton<IGitHubTokenStorage, LinuxGitHubTokenStorage>();
         services.AddSingleton<IGamePathProvider, LinuxGamePathProvider>();
         services.AddSingleton<ISymlinkCapabilityProvider, UnixSymlinkCapabilityProvider>();
         services.AddSingleton<IShortcutService, LinuxShortcutService>();

@@ -291,8 +291,8 @@ public class BackgroundUpdateCoordinatorTests
             .ReturnsAsync(stableUpdate);
         mockVelopack.SetupGet(x => x.HasUpdateAvailableFromGitHub).Returns(false);
 
-        var mockTokenStorage = new Mock<IGitHubTokenStorage>();
-        mockTokenStorage.Setup(x => x.HasToken()).Returns(true);
+        var mockAuthService = new Mock<IGitHubAuthService>();
+        mockAuthService.SetupGet(x => x.IsAuthenticated).Returns(true);
         var mockNotificationService = CreateNotificationServiceMock();
         mockNotificationService.Setup(x => x.Show(It.IsAny<NotificationMessage>()))
             .Callback<NotificationMessage>(message => notificationShown.TrySetResult(message));
@@ -302,7 +302,7 @@ public class BackgroundUpdateCoordinatorTests
             mockUserSettings.Object,
             mockNotificationService.Object,
             new Mock<ILogger<BackgroundUpdateCoordinator>>().Object,
-            mockTokenStorage.Object);
+            mockAuthService.Object);
 
         await coordinator.CheckForUpdatesAsync();
         var notification = await notificationShown.Task.WaitAsync(TimeSpan.FromSeconds(5));

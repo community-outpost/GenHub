@@ -44,7 +44,7 @@ public class SettingsViewModelMigrationTests
     private readonly Mock<IStorageMigrationService> _mockStorageMigrationService;
     private readonly Mock<IPublisherSubscriptionStore> _mockSubscriptionStore;
     private readonly Mock<IPublisherCatalogRefreshService> _mockCatalogRefreshService;
-    private readonly Mock<IGitHubApiClient> _mockGitHubApiClient;
+    private readonly Mock<IGitHubAuthService> _mockGitHubAuthService;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="SettingsViewModelMigrationTests"/> class.
@@ -68,7 +68,7 @@ public class SettingsViewModelMigrationTests
         _mockSubscriptionStore.Setup(x => x.GetSubscriptionsAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult<IReadOnlyList<PublisherSubscription>>.CreateSuccess([]));
         _mockCatalogRefreshService = new Mock<IPublisherCatalogRefreshService>();
-        _mockGitHubApiClient = new Mock<IGitHubApiClient>();
+        _mockGitHubAuthService = new Mock<IGitHubAuthService>();
 
         _mockConfigService.Setup(x => x.Get()).Returns(new UserSettings());
     }
@@ -229,7 +229,7 @@ public class SettingsViewModelMigrationTests
         _mockUserDataTracker.Object,
         _mockDialogService.Object,
         _mockStorageMigrationService.Object,
-        gitHubApiClient: _mockGitHubApiClient.Object,
+        gitHubAuthService: _mockGitHubAuthService.Object,
         subscriptionStore: _mockSubscriptionStore.Object,
         catalogRefreshService: _mockCatalogRefreshService.Object);
 }

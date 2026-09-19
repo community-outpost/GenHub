@@ -188,11 +188,6 @@ public partial class GenHubInfoSectionViewModel(
     public GameProfileSettingsViewModel? DemoGameSettings_SettingsTab { get; private set; } = DemoViewModelFactory.CreateDemoProfileSettingsViewModel_SettingsTab();
 
     /// <summary>
-    /// Gets the demo game settings view model for the standalone Settings view.
-    /// </summary>
-    public GameSettingsViewModel? DemoGameSettingsVM { get; private set; } = new GameSettingsViewModel(new MockGameSettingsService(), new Microsoft.Extensions.Logging.Abstractions.NullLogger<GameSettingsViewModel>());
-
-    /// <summary>
     /// Gets the demo replay manager for interactive demonstrations.
     /// </summary>
     public ReplayManagerViewModel? DemoReplayManager { get; private set; }
@@ -453,12 +448,6 @@ public partial class GenHubInfoSectionViewModel(
         {
             DemoGameSettings_SettingsTab = DemoViewModelFactory.CreateDemoProfileSettingsViewModel_SettingsTab();
             OnPropertyChanged(nameof(DemoGameSettings_SettingsTab));
-        }
-
-        if (DemoGameSettingsVM == null)
-        {
-            DemoGameSettingsVM = DemoViewModelFactory.CreateDemoGameSettingsViewModel();
-            OnPropertyChanged(nameof(DemoGameSettingsVM));
         }
 
         if (DemoReplayManager == null)

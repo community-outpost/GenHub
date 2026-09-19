@@ -151,7 +151,7 @@ Constants related to application updates and Velopack.
 | `BranchStaleReleaseNotificationFormat`        | Format string               | Branch stale release fallback notification format string                          |
 | `PrMergedStatusMessageFormat`                 | Format string               | PR merged/closed status message format string                                     |
 | `BranchStaleStatusMessageFormat`              | Format string               | Branch stale status message format string                                         |
-| `PatRequiredForArtifactsMessage`              | Message string              | Message displayed when checking branch/PR artifacts without GitHub PAT            |
+| `AuthRequiredForArtifactsMessage`             | Message string              | Fallback English text when branch/PR builds require GitHub sign-in (localizable copy in `Updates.Status.AuthRequiredForArtifacts`) |
 | `PrDedupePrefix`                              | `"pr:"`                     | Deduplication key prefix for PR update notifications                              |
 | `PrFallbackDedupePrefix`                      | `"pr-fallback:"`            | Deduplication key prefix for PR fallback update notifications                     |
 | `BranchDedupePrefix`                          | `"branch:"`                 | Deduplication key prefix for branch update notifications                          |
