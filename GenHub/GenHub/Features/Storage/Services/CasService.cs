@@ -278,7 +278,6 @@ public class CasService(
         }
         catch (OperationCanceledException)
         {
-            logger.LogInformation("CAS integrity validation cancelled");
             throw;
         }
         catch (Exception ex)
