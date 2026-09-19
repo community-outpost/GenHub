@@ -187,9 +187,9 @@ public class WorkspaceReconciler(ILogger<WorkspaceReconciler> logger, IFileOpera
 
         // Supplemental archives are workspace content that no manifest names: without this exclusion
         // every launch would report them as orphans and force a full workspace recreation.
-        if (!WorkspaceCompatibilityHelper.TryGetSupplementalArchiveNames(
+        if (!WorkspaceCompatibilityHelper.TryGetSupplementalArchives(
             configuration.SupplementalArchiveRoot,
-            out var supplementalNames))
+            out var supplementalArchives))
         {
             logger.LogWarning(
                 "Supplemental archive root could not be read: {Root}. Already-linked supplemental archives will be treated as orphans for this run, forcing one workspace recreation.",
@@ -215,7 +215,7 @@ public class WorkspaceReconciler(ILogger<WorkspaceReconciler> logger, IFileOpera
                     continue;
                 }
 
-                if (IsSupplementalArchiveFile(workspacePath, relativePath, configuration.SupplementalArchiveRoot, supplementalNames))
+                if (await IsSupplementalArchiveFileAsync(workspacePath, relativePath, configuration.SupplementalArchiveRoot, supplementalArchives, cancellationToken))
                 {
                     continue;
                 }
@@ -261,13 +261,14 @@ public class WorkspaceReconciler(ILogger<WorkspaceReconciler> logger, IFileOpera
                string.Equals(fileName, WorkspaceConstants.ReleaseCrashInfoFile, StringComparison.OrdinalIgnoreCase);
     }
 
-    private static bool IsSupplementalArchiveFile(
+    private async Task<bool> IsSupplementalArchiveFileAsync(
         string workspacePath,
         string relativePath,
         string? supplementalRoot,
-        IReadOnlySet<string> supplementalNames)
+        IReadOnlyDictionary<string, string> supplementalArchives,
+        CancellationToken cancellationToken)
     {
-        if (supplementalNames.Count == 0 || string.IsNullOrWhiteSpace(supplementalRoot))
+        if (supplementalArchives.Count == 0 || string.IsNullOrWhiteSpace(supplementalRoot))
         {
             return false;
         }
@@ -277,16 +278,55 @@ public class WorkspaceReconciler(ILogger<WorkspaceReconciler> logger, IFileOpera
             return false;
         }
 
-        if (!supplementalNames.Contains(relativePath))
+        if (!supplementalArchives.TryGetValue(relativePath, out var sourcePath))
         {
             return false;
         }
 
-        // A link pointing outside the current root is either foreign content or a leftover from a
-        // previous root: it must not be mistaken for this root's archive, so it stays a removal
-        // candidate and a recreation cleans it up. Regular files (copy fallback) are accepted.
-        var linkTarget = new FileInfo(Path.Combine(workspacePath, relativePath)).LinkTarget;
-        return linkTarget is null || WorkspaceCompatibilityHelper.IsLinkTargetUnderRoot(linkTarget, supplementalRoot);
+        var workspaceFile = Path.Combine(workspacePath, relativePath);
+        var linkTarget = new FileInfo(workspaceFile).LinkTarget;
+        if (linkTarget is not null)
+        {
+            // A link pointing outside the current root is either foreign content or a leftover
+            // from a previous root: it must not be mistaken for this root's archive, so it stays
+            // a removal candidate and a recreation cleans it up.
+            return WorkspaceCompatibilityHelper.IsLinkTargetUnderRoot(linkTarget, supplementalRoot);
+        }
+
+        // A regular file or hardlink carrying a supplemental name is only expected when it still
+        // matches its source: anything else is a stale orphan (e.g. a disabled mod's override)
+        // that must be removed rather than shadow the base archive indefinitely.
+        return await SupplementalCopyMatchesAsync(workspaceFile, sourcePath, cancellationToken);
+    }
+
+    private async Task<bool> SupplementalCopyMatchesAsync(string workspaceFile, string sourcePath, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var workspaceInfo = new FileInfo(workspaceFile);
+            var sourceInfo = new FileInfo(sourcePath);
+            if (!sourceInfo.Exists || workspaceInfo.Length != sourceInfo.Length)
+            {
+                return false;
+            }
+
+            // Mirror FileNeedsUpdateAsync: hashing every reconciliation is too expensive for
+            // multi-hundred-megabyte archives, so size-matching large files are trusted while
+            // small ones are compared byte for byte.
+            if (workspaceInfo.Length >= SmallFileThreshold)
+            {
+                return true;
+            }
+
+            var workspaceBytes = await File.ReadAllBytesAsync(workspaceFile, cancellationToken);
+            var sourceBytes = await File.ReadAllBytesAsync(sourcePath, cancellationToken);
+            return workspaceBytes.SequenceEqual(sourceBytes);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            logger.LogDebug(ex, "Failed to compare supplemental file {WorkspaceFile} with {Source}", workspaceFile, sourcePath);
+            return false;
+        }
     }
 
     /// <summary>

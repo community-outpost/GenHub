@@ -85,7 +85,7 @@ public class GameLauncher(
     /// <param name="gameType">The game being launched.</param>
     /// <param name="effectiveGeneralsArchivePath">The effective base Generals archive root, if any.</param>
     /// <param name="profileEnvironment">The profile's environment variables, if any.</param>
-    /// <returns>The supplemental archive root, or <c>null</c> when the launch needs none.</returns>
+    /// <returns>The supplemental archive root as an absolute path, or <c>null</c> when the launch needs none.</returns>
     internal static string? ResolveSupplementalArchiveRoot(
         GameType gameType,
         string? effectiveGeneralsArchivePath,
@@ -96,13 +96,33 @@ public class GameLauncher(
             return null;
         }
 
+        string? root = null;
         if (profileEnvironment?.TryGetValue(RetailArchiveConstants.GeneralsInstallPathVariable, out var configured) == true &&
             !string.IsNullOrWhiteSpace(configured))
         {
-            return configured;
+            root = configured;
+        }
+        else if (!string.IsNullOrWhiteSpace(effectiveGeneralsArchivePath))
+        {
+            root = effectiveGeneralsArchivePath;
         }
 
-        return string.IsNullOrWhiteSpace(effectiveGeneralsArchivePath) ? null : effectiveGeneralsArchivePath;
+        if (root is null)
+        {
+            return null;
+        }
+
+        // Pin the root to an absolute path: link targets are stored verbatim, and a relative
+        // target would be classified as foreign on every subsequent run. Unusable values
+        // resolve to null so launch validation reports them instead of failing here.
+        try
+        {
+            return Path.GetFullPath(root);
+        }
+        catch (Exception ex) when (ex is ArgumentException or NotSupportedException or IOException)
+        {
+            return null;
+        }
     }
 
     private async Task<IDisposable> AcquireSteamInstallationLockAsync(

@@ -382,8 +382,90 @@ public class WorkspaceCompatibilityHelperTests : IDisposable
     }
 
     /// <summary>
+    /// Verifies that an existing workspace entry wins over a supplemental archive even when
+    /// their casing differs, instead of gaining a second entry on case-sensitive filesystems.
+    /// </summary>
+    [Fact]
+    public void EnsureDrmAndAssetCompatibility_WithSupplementalRoot_SkipsCaseVariantEntries()
+    {
+        // Arrange
+        var supplementalRoot = Path.Combine(_tempDir, "generals");
+        Directory.CreateDirectory(supplementalRoot);
+        File.WriteAllText(Path.Combine(supplementalRoot, "Textures.big"), "generals textures");
+        File.WriteAllText(Path.Combine(_workspaceDir, "textures.big"), "zero hour textures");
+
+        var workspaceInfo = new WorkspaceInfo
+        {
+            Id = "test-workspace",
+            WorkspacePath = _workspaceDir,
+            ExecutablePath = Path.Combine(_workspaceDir, "generals.exe"),
+            FileCount = 1,
+        };
+
+        var config = new WorkspaceConfiguration
+        {
+            Id = "test-workspace",
+            BaseInstallationPath = _gameInstallDir,
+            Manifests = [],
+            SupplementalArchiveRoot = supplementalRoot,
+        };
+
+        // Act
+        WorkspaceCompatibilityHelper.EnsureDrmAndAssetCompatibility(workspaceInfo, config, NullLogger.Instance);
+
+        // Assert
+        File.ReadAllText(Path.Combine(_workspaceDir, "textures.big")).Should().Be("zero hour textures");
+        Directory.GetFiles(_workspaceDir).Should().HaveCount(1);
+        workspaceInfo.FileCount.Should().Be(1);
+    }
+
+    /// <summary>
+    /// Verifies that a supplemental link whose workspace casing differs from its source is
+    /// repaired to the canonical source path rather than a casing-reconstructed one.
+    /// </summary>
+    [Fact]
+    public void EnsureDrmAndAssetCompatibility_WithSupplementalRoot_RelinksCaseVariantOwnLinksToCanonicalSource()
+    {
+        // Arrange
+        var supplementalRoot = Path.Combine(_tempDir, "generals");
+        Directory.CreateDirectory(supplementalRoot);
+        File.WriteAllText(Path.Combine(supplementalRoot, "Textures.big"), "generals textures");
+        File.WriteAllText(Path.Combine(supplementalRoot, "B.big"), "archive b");
+
+        var workspaceLink = Path.Combine(_workspaceDir, "textures.big");
+        if (!SymlinkTestHelper.TryCreateFileSymlink(workspaceLink, Path.Combine(supplementalRoot, "B.big")))
+        {
+            return;
+        }
+
+        var workspaceInfo = new WorkspaceInfo
+        {
+            Id = "test-workspace",
+            WorkspacePath = _workspaceDir,
+            ExecutablePath = Path.Combine(_workspaceDir, "generals.exe"),
+        };
+
+        var config = new WorkspaceConfiguration
+        {
+            Id = "test-workspace",
+            BaseInstallationPath = _gameInstallDir,
+            Manifests = [],
+            SupplementalArchiveRoot = supplementalRoot,
+        };
+
+        // Act
+        WorkspaceCompatibilityHelper.EnsureDrmAndAssetCompatibility(workspaceInfo, config, NullLogger.Instance);
+
+        // Assert
+        new FileInfo(workspaceLink).LinkTarget.Should().Be(Path.Combine(supplementalRoot, "Textures.big"));
+        File.ReadAllText(workspaceLink).Should().Be("generals textures");
+    }
+
+    /// <summary>
     /// Verifies that no supplemental content is materialized when the resolved workspace
     /// executable is a native binary, which resolves its archive roots from the environment.
+    /// The configured client deliberately declares a Windows executable so the test pins that
+    /// the workspace-resolved path takes precedence over the client fallback.
     /// </summary>
     [Fact]
     public void EnsureDrmAndAssetCompatibility_WithSupplementalRootAndNativeExecutable_SkipsLinking()
@@ -406,6 +488,7 @@ public class WorkspaceCompatibilityHelperTests : IDisposable
             Id = "test-workspace",
             BaseInstallationPath = _gameInstallDir,
             Manifests = [],
+            GameClient = new GameClient { ExecutablePath = "generals.exe" },
             SupplementalArchiveRoot = supplementalRoot,
         };
 
@@ -611,38 +694,38 @@ public class WorkspaceCompatibilityHelperTests : IDisposable
     /// Verifies that a missing supplemental root enumerates as an empty set rather than an error.
     /// </summary>
     [Fact]
-    public void TryGetSupplementalArchiveNames_WithMissingDirectory_ReturnsTrueAndEmpty()
+    public void TryGetSupplementalArchives_WithMissingDirectory_ReturnsTrueAndEmpty()
     {
         // Act
-        var result = WorkspaceCompatibilityHelper.TryGetSupplementalArchiveNames(
+        var result = WorkspaceCompatibilityHelper.TryGetSupplementalArchives(
             Path.Combine(_tempDir, "does-not-exist"),
-            out var names);
+            out var archives);
 
         // Assert
         result.Should().BeTrue();
-        names.Should().BeEmpty();
+        archives.Should().BeEmpty();
     }
 
     /// <summary>
     /// Verifies that a null supplemental root enumerates as an empty set.
     /// </summary>
     [Fact]
-    public void TryGetSupplementalArchiveNames_WithNullRoot_ReturnsTrueAndEmpty()
+    public void TryGetSupplementalArchives_WithNullRoot_ReturnsTrueAndEmpty()
     {
         // Act
-        var result = WorkspaceCompatibilityHelper.TryGetSupplementalArchiveNames(null, out var names);
+        var result = WorkspaceCompatibilityHelper.TryGetSupplementalArchives(null, out var archives);
 
         // Assert
         result.Should().BeTrue();
-        names.Should().BeEmpty();
+        archives.Should().BeEmpty();
     }
 
     /// <summary>
-    /// Verifies that archive names enumerate with their on-disk spelling while comparing
-    /// case-insensitively.
+    /// Verifies that archives enumerate with their on-disk spelling mapped to canonical source
+    /// paths while comparing case-insensitively.
     /// </summary>
     [Fact]
-    public void TryGetSupplementalArchiveNames_WithArchives_ReturnsCaseInsensitiveNames()
+    public void TryGetSupplementalArchives_WithArchives_ReturnsCaseInsensitiveSources()
     {
         // Arrange
         var supplementalRoot = Path.Combine(_tempDir, "generals");
@@ -653,12 +736,13 @@ public class WorkspaceCompatibilityHelperTests : IDisposable
         File.WriteAllText(Path.Combine(supplementalRoot, "Data", "Nested.big"), "nested archive");
 
         // Act
-        var result = WorkspaceCompatibilityHelper.TryGetSupplementalArchiveNames(supplementalRoot, out var names);
+        var result = WorkspaceCompatibilityHelper.TryGetSupplementalArchives(supplementalRoot, out var archives);
 
         // Assert
         result.Should().BeTrue();
-        names.Should().BeEquivalentTo("Textures.big", "Models.BIG");
-        names.Contains("textures.BIG").Should().BeTrue();
+        archives.Keys.Should().BeEquivalentTo("Textures.big", "Models.BIG");
+        archives.ContainsKey("textures.BIG").Should().BeTrue();
+        archives["textures.big"].Should().Be(Path.Combine(supplementalRoot, "Textures.big"));
     }
 
     /// <summary>
@@ -699,7 +783,7 @@ public class WorkspaceCompatibilityHelperTests : IDisposable
     /// instead of silently launching without the archives.
     /// </summary>
     [Fact]
-    public void TryGetSupplementalArchiveNames_WithUnreadableRoot_ReturnsFalse()
+    public void TryGetSupplementalArchives_WithUnreadableRoot_ReturnsFalse()
     {
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows) || Environment.UserName == "root")
         {
@@ -715,11 +799,11 @@ public class WorkspaceCompatibilityHelperTests : IDisposable
         try
         {
             // Act
-            var result = WorkspaceCompatibilityHelper.TryGetSupplementalArchiveNames(root, out var names);
+            var result = WorkspaceCompatibilityHelper.TryGetSupplementalArchives(root, out var archives);
 
             // Assert
             result.Should().BeFalse();
-            names.Should().BeEmpty();
+            archives.Should().BeEmpty();
         }
         finally
         {

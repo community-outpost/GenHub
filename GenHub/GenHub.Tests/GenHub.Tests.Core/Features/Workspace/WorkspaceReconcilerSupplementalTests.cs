@@ -164,6 +164,93 @@ public class WorkspaceReconcilerSupplementalTests : IDisposable
     }
 
     /// <summary>
+    /// Verifies that a regular file carrying a supplemental name but stale content (e.g. a
+    /// disabled mod's override) is still flagged for removal instead of shadowing the base
+    /// archive indefinitely.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task AnalyzeWorkspaceDelta_StaleRegularFileWithSupplementalName_StillRemovedAsync()
+    {
+        // Arrange
+        var supplementalRoot = Path.Combine(_testDirectory, "generals");
+        Directory.CreateDirectory(supplementalRoot);
+        File.WriteAllText(Path.Combine(supplementalRoot, "Textures.big"), "generals textures");
+
+        var workspacePath = Path.Combine(_testDirectory, "ws6");
+        Directory.CreateDirectory(workspacePath);
+        File.WriteAllText(Path.Combine(workspacePath, "game.dat"), "game binary");
+        File.WriteAllText(Path.Combine(workspacePath, "Textures.big"), "stale mod content with a different size");
+
+        var (workspaceInfo, config) = CreateWorkspace("ws6", workspacePath, supplementalRoot);
+
+        // Act
+        var result = await _reconciler.AnalyzeWorkspaceDeltaAsync(workspaceInfo, config);
+
+        // Assert
+        var removeDeltas = result.FindAll(d => d.Operation == WorkspaceDeltaOperation.Remove);
+        Assert.Contains(removeDeltas, d => string.Equals(Path.GetFileName(d.WorkspacePath), "Textures.big", StringComparison.OrdinalIgnoreCase));
+    }
+
+    /// <summary>
+    /// Verifies that a same-size small file with different content is still flagged for
+    /// removal: small files are compared byte for byte.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task AnalyzeWorkspaceDelta_SameSizeSmallFileWithDifferentContent_StillRemovedAsync()
+    {
+        // Arrange
+        var supplementalRoot = Path.Combine(_testDirectory, "generals");
+        Directory.CreateDirectory(supplementalRoot);
+        File.WriteAllText(Path.Combine(supplementalRoot, "Textures.big"), "aaaaaaaaaa");
+
+        var workspacePath = Path.Combine(_testDirectory, "ws7");
+        Directory.CreateDirectory(workspacePath);
+        File.WriteAllText(Path.Combine(workspacePath, "game.dat"), "game binary");
+        File.WriteAllText(Path.Combine(workspacePath, "Textures.big"), "bbbbbbbbbb");
+
+        var (workspaceInfo, config) = CreateWorkspace("ws7", workspacePath, supplementalRoot);
+
+        // Act
+        var result = await _reconciler.AnalyzeWorkspaceDeltaAsync(workspaceInfo, config);
+
+        // Assert
+        var removeDeltas = result.FindAll(d => d.Operation == WorkspaceDeltaOperation.Remove);
+        Assert.Contains(removeDeltas, d => string.Equals(Path.GetFileName(d.WorkspacePath), "Textures.big", StringComparison.OrdinalIgnoreCase));
+    }
+
+    /// <summary>
+    /// Verifies that a size-matching large file is trusted without a byte comparison, mirroring
+    /// the manifest staleness standard that skips hashing multi-megabyte files every run.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task AnalyzeWorkspaceDelta_LargeSameSizeFile_TrustedWithoutComparisonAsync()
+    {
+        // Arrange
+        var supplementalRoot = Path.Combine(_testDirectory, "generals");
+        Directory.CreateDirectory(supplementalRoot);
+        await File.WriteAllBytesAsync(Path.Combine(supplementalRoot, "Textures.big"), new byte[6 * 1024 * 1024]);
+
+        var workspacePath = Path.Combine(_testDirectory, "ws8");
+        Directory.CreateDirectory(workspacePath);
+        File.WriteAllText(Path.Combine(workspacePath, "game.dat"), "game binary");
+        var workspaceBytes = new byte[6 * 1024 * 1024];
+        workspaceBytes[0] = 1;
+        await File.WriteAllBytesAsync(Path.Combine(workspacePath, "Textures.big"), workspaceBytes);
+
+        var (workspaceInfo, config) = CreateWorkspace("ws8", workspacePath, supplementalRoot);
+
+        // Act
+        var result = await _reconciler.AnalyzeWorkspaceDeltaAsync(workspaceInfo, config);
+
+        // Assert
+        var removeDeltas = result.FindAll(d => d.Operation == WorkspaceDeltaOperation.Remove);
+        Assert.Empty(removeDeltas);
+    }
+
+    /// <summary>
     /// Verifies that the supplemental exclusion applies only at the workspace root: an archive
     /// name inside a subdirectory is still an orphan.
     /// </summary>

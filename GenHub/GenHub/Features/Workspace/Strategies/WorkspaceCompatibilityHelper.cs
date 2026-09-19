@@ -104,19 +104,21 @@ public static class WorkspaceCompatibilityHelper
     /// </summary>
     /// <remarks>
     /// This is the single enumeration both the workspace linker and the delta reconciler consume,
-    /// so the set of files treated as supplemental content is identical in both places. A missing
-    /// root is reported as an empty set rather than an error; only an unreadable one fails, so the
-    /// caller can warn instead of silently launching without the archives.
+    /// so the files treated as supplemental content are identical in both places. Names map to
+    /// their canonical on-disk source paths so callers never reconstruct a source from workspace
+    /// casing, which may differ on case-sensitive filesystems. A missing root is reported as an
+    /// empty map rather than an error; only an unreadable one fails, so the caller can warn
+    /// instead of silently launching without the archives.
     /// </remarks>
     /// <param name="supplementalRoot">The supplemental archive root, or null when none is configured.</param>
-    /// <param name="archiveNames">The on-disk archive filenames, compared case-insensitively.</param>
+    /// <param name="archives">The on-disk archive filenames mapped to their full source paths, compared case-insensitively.</param>
     /// <returns><c>true</c> when the root was enumerated or is absent; <c>false</c> when it exists but could not be read.</returns>
-    public static bool TryGetSupplementalArchiveNames(string? supplementalRoot, out IReadOnlySet<string> archiveNames)
+    public static bool TryGetSupplementalArchives(string? supplementalRoot, out IReadOnlyDictionary<string, string> archives)
     {
-        var names = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var names = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         if (string.IsNullOrWhiteSpace(supplementalRoot))
         {
-            archiveNames = names;
+            archives = names;
             return true;
         }
 
@@ -124,21 +126,21 @@ public static class WorkspaceCompatibilityHelper
         {
             foreach (var path in Directory.EnumerateFiles(supplementalRoot, RetailArchiveConstants.ArchiveSearchPattern, RetailArchiveConstants.ArchiveSearch))
             {
-                names.Add(Path.GetFileName(path));
+                names.TryAdd(Path.GetFileName(path), path);
             }
 
-            archiveNames = names;
+            archives = names;
             return true;
         }
         catch (DirectoryNotFoundException)
         {
-            // A missing root yields nothing, so the set is already empty.
-            archiveNames = names;
+            // A missing root yields nothing, so the map is already empty.
+            archives = names;
             return true;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            archiveNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            archives = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             return false;
         }
     }
@@ -199,10 +201,14 @@ public static class WorkspaceCompatibilityHelper
             : configuration.GameClient?.ExecutablePath;
         if (!CommandLineHelper.IsWindowsExecutable(launchExecutable))
         {
+            logger.LogDebug(
+                "Skipping supplemental archives for non-Windows executable {Executable} in workspace {Workspace}",
+                launchExecutable,
+                workspaceInfo.WorkspacePath);
             return;
         }
 
-        if (!TryGetSupplementalArchiveNames(supplementalRoot, out var desiredNames))
+        if (!TryGetSupplementalArchives(supplementalRoot, out var desiredArchives))
         {
             logger.LogWarning("Supplemental archive root could not be read: {Root}", supplementalRoot);
             workspaceInfo.ValidationIssues.Add(new ValidationIssue(
@@ -211,36 +217,53 @@ public static class WorkspaceCompatibilityHelper
             return;
         }
 
-        var created = LinkMissingSupplementalArchives(workspaceInfo.WorkspacePath, supplementalRoot, desiredNames, workspaceInfo, logger);
-        ReconcileStaleSupplementalLinks(workspaceInfo.WorkspacePath, supplementalRoot, desiredNames, logger);
+        var created = LinkMissingSupplementalArchives(workspaceInfo.WorkspacePath, desiredArchives, workspaceInfo, logger);
+        ReconcileStaleSupplementalLinks(workspaceInfo.WorkspacePath, supplementalRoot, desiredArchives, logger);
         workspaceInfo.FileCount += created;
     }
 
     /// <summary>
     /// Creates workspace-root links for every desired archive that has no entry yet.
     /// </summary>
+    /// <remarks>
+    /// Existing entries are matched case-insensitively: on a case-sensitive filesystem a
+    /// workspace-owned <c>textures.big</c> must still win over a supplemental
+    /// <c>Textures.big</c> instead of gaining a second entry.
+    /// </remarks>
     /// <returns>The number of links created.</returns>
     private static int LinkMissingSupplementalArchives(
         string workspacePath,
-        string supplementalRoot,
-        IReadOnlySet<string> desiredNames,
+        IReadOnlyDictionary<string, string> desiredArchives,
         WorkspaceInfo workspaceInfo,
         ILogger logger)
     {
-        var created = 0;
-        foreach (var name in desiredNames)
+        HashSet<string> existingNames;
+        try
         {
+            existingNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var entry in Directory.EnumerateFileSystemEntries(workspacePath, "*", SearchOption.TopDirectoryOnly))
+            {
+                existingNames.Add(Path.GetFileName(entry));
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            logger.LogDebug(ex, "Failed to enumerate workspace root for supplemental linking: {Workspace}", workspacePath);
+            return 0;
+        }
+
+        var created = 0;
+        foreach (var (name, sourcePath) in desiredArchives)
+        {
+            if (existingNames.Contains(name))
+            {
+                continue;
+            }
+
             var targetPath = Path.Combine(workspacePath, name);
             try
             {
-                if (new FileInfo(targetPath).LinkTarget is not null ||
-                    File.Exists(targetPath) ||
-                    Directory.Exists(targetPath))
-                {
-                    continue;
-                }
-
-                LinkFileOrCopy(Path.Combine(supplementalRoot, name), targetPath, name, logger);
+                LinkFileOrCopy(sourcePath, targetPath, name, logger);
                 created++;
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
@@ -266,7 +289,7 @@ public static class WorkspaceCompatibilityHelper
     private static void ReconcileStaleSupplementalLinks(
         string workspacePath,
         string supplementalRoot,
-        IReadOnlySet<string> desiredNames,
+        IReadOnlyDictionary<string, string> desiredArchives,
         ILogger logger)
     {
         string[] entries;
@@ -284,7 +307,7 @@ public static class WorkspaceCompatibilityHelper
         {
             try
             {
-                ReconcileSupplementalEntry(entry, supplementalRoot, desiredNames, logger);
+                ReconcileSupplementalEntry(entry, supplementalRoot, desiredArchives, logger);
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
@@ -293,7 +316,11 @@ public static class WorkspaceCompatibilityHelper
         }
     }
 
-    private static void ReconcileSupplementalEntry(string entry, string supplementalRoot, IReadOnlySet<string> desiredNames, ILogger logger)
+    private static void ReconcileSupplementalEntry(
+        string entry,
+        string supplementalRoot,
+        IReadOnlyDictionary<string, string> desiredArchives,
+        ILogger logger)
     {
         var linkTarget = new FileInfo(entry).LinkTarget;
         if (linkTarget is null || !IsLinkTargetUnderRoot(linkTarget, supplementalRoot))
@@ -302,22 +329,21 @@ public static class WorkspaceCompatibilityHelper
         }
 
         var name = Path.GetFileName(entry);
-        if (desiredNames.Contains(name))
+        if (!desiredArchives.TryGetValue(name, out var expectedSource))
         {
-            var expectedSource = Path.Combine(supplementalRoot, name);
-            if (string.Equals(NormalizeLinkPath(linkTarget), NormalizeLinkPath(expectedSource), PathHelper.PathComparison) &&
-                File.Exists(entry))
-            {
-                return;
-            }
-
             File.Delete(entry);
-            LinkFileOrCopy(expectedSource, entry, name, logger);
+            logger.LogDebug("Removed stale supplemental link {Entry} targeting {Target}", entry, linkTarget);
+            return;
+        }
+
+        if (string.Equals(NormalizeLinkPath(linkTarget), NormalizeLinkPath(expectedSource), PathHelper.PathComparison) &&
+            File.Exists(entry))
+        {
             return;
         }
 
         File.Delete(entry);
-        logger.LogDebug("Removed stale supplemental link {Entry} targeting {Target}", entry, linkTarget);
+        LinkFileOrCopy(expectedSource, entry, name, logger);
     }
 
     private static string NormalizeLinkPath(string? path) =>

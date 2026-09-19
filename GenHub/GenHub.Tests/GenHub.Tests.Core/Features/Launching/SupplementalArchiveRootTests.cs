@@ -2,6 +2,7 @@ using GenHub.Core.Constants;
 using GenHub.Core.Models.Enums;
 using GenHub.Features.Launching;
 using System.Collections.Generic;
+using System.IO;
 using Xunit;
 
 namespace GenHub.Tests.Core.Features.Launching;
@@ -23,7 +24,7 @@ public class SupplementalArchiveRootTests
             "/retail/generals",
             null);
 
-        Assert.Equal("/retail/generals", root);
+        Assert.Equal(Path.GetFullPath("/retail/generals"), root);
     }
 
     /// <summary>
@@ -43,7 +44,7 @@ public class SupplementalArchiveRootTests
             "/retail/generals",
             environment);
 
-        Assert.Equal("/profile/generals", root);
+        Assert.Equal(Path.GetFullPath("/profile/generals"), root);
     }
 
     /// <summary>
@@ -63,7 +64,48 @@ public class SupplementalArchiveRootTests
             null,
             environment);
 
-        Assert.Equal("/profile/generals", root);
+        Assert.Equal(Path.GetFullPath("/profile/generals"), root);
+    }
+
+    /// <summary>
+    /// A relative override is pinned to the absolute path the linker enumerates, so stored
+    /// link targets are never classified as foreign on subsequent runs.
+    /// </summary>
+    [Fact]
+    public void ResolveSupplementalArchiveRoot_RelativeProfileOverride_ReturnsAbsolutePath()
+    {
+        var environment = new Dictionary<string, string>
+        {
+            [RetailArchiveConstants.GeneralsInstallPathVariable] = Path.Combine("relative", "generals"),
+        };
+
+        var root = GameLauncher.ResolveSupplementalArchiveRoot(
+            GameType.ZeroHour,
+            null,
+            environment);
+
+        Assert.Equal(Path.GetFullPath(Path.Combine("relative", "generals")), root);
+        Assert.True(Path.IsPathRooted(root));
+    }
+
+    /// <summary>
+    /// An unusable override resolves to null so launch validation reports it instead of the
+    /// workspace preparation failing on it.
+    /// </summary>
+    [Fact]
+    public void ResolveSupplementalArchiveRoot_UnusableProfileOverride_ReturnsNull()
+    {
+        var environment = new Dictionary<string, string>
+        {
+            [RetailArchiveConstants.GeneralsInstallPathVariable] = "invalid\0path",
+        };
+
+        var root = GameLauncher.ResolveSupplementalArchiveRoot(
+            GameType.ZeroHour,
+            "/retail/generals",
+            environment);
+
+        Assert.Null(root);
     }
 
     /// <summary>
@@ -76,6 +118,25 @@ public class SupplementalArchiveRootTests
             GameType.Generals,
             "/retail/generals",
             null);
+
+        Assert.Null(root);
+    }
+
+    /// <summary>
+    /// A profile override never leaks supplemental archives into Generals launches.
+    /// </summary>
+    [Fact]
+    public void ResolveSupplementalArchiveRoot_GeneralsWithProfileOverride_ReturnsNull()
+    {
+        var environment = new Dictionary<string, string>
+        {
+            [RetailArchiveConstants.GeneralsInstallPathVariable] = "/profile/generals",
+        };
+
+        var root = GameLauncher.ResolveSupplementalArchiveRoot(
+            GameType.Generals,
+            "/retail/generals",
+            environment);
 
         Assert.Null(root);
     }
@@ -117,6 +178,6 @@ public class SupplementalArchiveRootTests
             "/retail/generals",
             environment);
 
-        Assert.Equal("/retail/generals", root);
+        Assert.Equal(Path.GetFullPath("/retail/generals"), root);
     }
 }
