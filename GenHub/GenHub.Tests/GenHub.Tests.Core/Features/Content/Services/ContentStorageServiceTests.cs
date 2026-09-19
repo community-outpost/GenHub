@@ -250,6 +250,399 @@ public class ContentStorageServiceTests : IDisposable
     }
 
     /// <summary>
+    /// Tests that IsContentStoredAsync returns false when a required CAS object does not exist in CAS.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task IsContentStoredAsync_WhenCasObjectMissing_ReturnsFalseAsync()
+    {
+        // Arrange
+        var manifestId = ManifestId.Create("1.0.local.addon.missing-cas");
+        var manifestPath = _service.GetManifestStoragePath(manifestId);
+        var manifestDir = Path.GetDirectoryName(manifestPath)!;
+        Directory.CreateDirectory(manifestDir);
+
+        var manifest = new ContentManifest
+        {
+            Id = manifestId,
+            ContentType = ContentType.Addon,
+            Files =
+            [
+                new()
+                {
+                    RelativePath = "Generals.exe",
+                    Hash = "missing_hash_123",
+                    SourceType = ContentSourceType.ContentAddressable,
+                    IsRequired = true,
+                },
+            ],
+        };
+
+        await File.WriteAllTextAsync(manifestPath, System.Text.Json.JsonSerializer.Serialize(manifest));
+
+        _casServiceMock
+            .Setup(c => c.ExistsAsync("missing_hash_123", ContentType.Addon, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(false));
+        _casServiceMock
+            .Setup(c => c.ExistsAsync("missing_hash_123", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(false));
+
+        // Act
+        var result = await _service.IsContentStoredAsync(manifestId);
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.False(result.Data);
+    }
+
+    /// <summary>
+    /// Tests that IsContentStoredAsync returns true when all required CAS objects exist in CAS.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task IsContentStoredAsync_WhenCasObjectExists_ReturnsTrueAsync()
+    {
+        // Arrange
+        var manifestId = ManifestId.Create("1.0.local.addon.present-cas");
+        var manifestPath = _service.GetManifestStoragePath(manifestId);
+        var manifestDir = Path.GetDirectoryName(manifestPath)!;
+        Directory.CreateDirectory(manifestDir);
+
+        var manifest = new ContentManifest
+        {
+            Id = manifestId,
+            ContentType = ContentType.Addon,
+            Files =
+            [
+                new()
+                {
+                    RelativePath = "Generals.exe",
+                    Hash = "present_hash_456",
+                    SourceType = ContentSourceType.ContentAddressable,
+                    IsRequired = true,
+                },
+            ],
+        };
+
+        await File.WriteAllTextAsync(manifestPath, System.Text.Json.JsonSerializer.Serialize(manifest));
+
+        _casServiceMock
+            .Setup(c => c.ExistsAsync("present_hash_456", ContentType.Addon, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+        _casServiceMock
+            .Setup(c => c.ExistsAsync("present_hash_456", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+
+        // Act
+        var result = await _service.IsContentStoredAsync(manifestId);
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.True(result.Data);
+        _casServiceMock.Verify(c => c.ExistsAsync("present_hash_456", ContentType.Addon, It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    /// <summary>
+    /// Tests that IsContentStoredAsync correctly reads manifests serialized with string enums (e.g. from ContentManifestPool).
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task IsContentStoredAsync_WhenManifestSerializedWithStringEnums_ReadsSuccessfullyAndChecksCasAsync()
+    {
+        // Arrange
+        var manifestId = ManifestId.Create("1.0.local.addon.string-enums");
+        var manifestPath = _service.GetManifestStoragePath(manifestId);
+        var manifestDir = Path.GetDirectoryName(manifestPath)!;
+        Directory.CreateDirectory(manifestDir);
+
+        var manifest = new ContentManifest
+        {
+            Id = manifestId,
+            ContentType = ContentType.Addon,
+            TargetGame = GameType.ZeroHour,
+            Files =
+            [
+                new()
+                {
+                    RelativePath = "Generals.exe",
+                    Hash = "string_enum_hash_999",
+                    SourceType = ContentSourceType.ContentAddressable,
+                    IsRequired = true,
+                },
+            ],
+        };
+
+        var poolSerializerOptions = new System.Text.Json.JsonSerializerOptions
+        {
+            PropertyNameCaseInsensitive = true,
+            Converters = { new System.Text.Json.Serialization.JsonStringEnumConverter() },
+        };
+        var serializedWithStrings = System.Text.Json.JsonSerializer.Serialize(manifest, poolSerializerOptions);
+        Assert.Contains("\"ContentType\":\"Addon\"", serializedWithStrings);
+
+        await File.WriteAllTextAsync(manifestPath, serializedWithStrings);
+
+        _casServiceMock
+            .Setup(c => c.ExistsAsync("string_enum_hash_999", ContentType.Addon, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+        _casServiceMock
+            .Setup(c => c.ExistsAsync("string_enum_hash_999", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+
+        // Act
+        var result = await _service.IsContentStoredAsync(manifestId);
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.True(result.Data);
+        _casServiceMock.Verify(c => c.ExistsAsync("string_enum_hash_999", ContentType.Addon, It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    /// <summary>
+    /// Tests that StoreContentAsync fails when source directory does not exist and required CAS objects are missing.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task StoreContentAsync_WhenSourceDoesNotExistAndCasMissing_FailsAsync()
+    {
+        // Arrange
+        var nonExistentDir = Path.Combine(_tempRoot, "NonExistent_" + Guid.NewGuid().ToString("N"));
+        var manifest = new ContentManifest
+        {
+            Id = ManifestId.Create("1.0.local.addon.missing-source-and-cas"),
+            ContentType = ContentType.Addon,
+            Files =
+            [
+                new()
+                {
+                    RelativePath = "addon.big",
+                    Hash = "missing_hash_789",
+                    SourceType = ContentSourceType.ContentAddressable,
+                    IsRequired = true,
+                },
+            ],
+        };
+
+        _casServiceMock
+            .Setup(c => c.ExistsAsync("missing_hash_789", ContentType.Addon, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(false));
+        _casServiceMock
+            .Setup(c => c.ExistsAsync("missing_hash_789", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(false));
+
+        // Act
+        var result = await _service.StoreContentAsync(manifest, nonExistentDir);
+
+        // Assert
+        Assert.False(result.Success);
+        Assert.Contains("missing from CAS", result.FirstError);
+    }
+
+    /// <summary>
+    /// Tests that invalid-drive storage fails when physical storage is required and required CAS objects are missing.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task HandleInvalidDriveAsync_WhenCasMissing_FailsAsync()
+    {
+        // Arrange
+        var sourceDir = Path.Combine(_tempRoot, "InvalidDriveSource");
+        Directory.CreateDirectory(sourceDir);
+        var manifest = new ContentManifest
+        {
+            Id = ManifestId.Create("1.0.local.addon.invalid-drive-missing-cas"),
+            ContentType = ContentType.Addon,
+            Files =
+            [
+                new()
+                {
+                    RelativePath = "addon.big",
+                    Hash = "invalid_drive_missing_hash",
+                    SourceType = ContentSourceType.ContentAddressable,
+                    IsRequired = true,
+                },
+            ],
+        };
+
+        _casServiceMock
+            .Setup(c => c.ExistsAsync("invalid_drive_missing_hash", ContentType.Addon, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(false));
+        _casServiceMock
+            .Setup(c => c.ExistsAsync("invalid_drive_missing_hash", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(false));
+
+        // Act
+        var result = await _service.HandleInvalidDriveAsync(manifest, sourceDir, CancellationToken.None);
+
+        // Assert
+        Assert.False(result.Success);
+        Assert.Contains("missing from CAS", result.FirstError);
+    }
+
+    /// <summary>
+    /// Tests that invalid-drive storage succeeds metadata-only when all required CAS objects exist.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task HandleInvalidDriveAsync_WhenCasPresent_StoresMetadataOnlyAsync()
+    {
+        // Arrange
+        var sourceDir = Path.Combine(_tempRoot, "InvalidDrivePresentSource");
+        Directory.CreateDirectory(sourceDir);
+        var manifest = new ContentManifest
+        {
+            Id = ManifestId.Create("1.0.local.addon.invalid-drive-cas-present"),
+            ContentType = ContentType.Addon,
+            Files =
+            [
+                new()
+                {
+                    RelativePath = "addon.big",
+                    Hash = "invalid_drive_present_hash",
+                    SourceType = ContentSourceType.ContentAddressable,
+                    IsRequired = true,
+                },
+            ],
+        };
+
+        _casServiceMock
+            .Setup(c => c.ExistsAsync("invalid_drive_present_hash", ContentType.Addon, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+        _casServiceMock
+            .Setup(c => c.ExistsAsync("invalid_drive_present_hash", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+
+        // Act
+        var result = await _service.HandleInvalidDriveAsync(manifest, sourceDir, CancellationToken.None);
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.True(File.Exists(_service.GetManifestStoragePath(manifest.Id)));
+        _casServiceMock.Verify(c => c.ExistsAsync("invalid_drive_present_hash", ContentType.Addon, It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    /// <summary>
+    /// Tests that IsContentStoredAsync returns false when a required CAS file has no hash.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task IsContentStoredAsync_WhenRequiredCasFileHasEmptyHash_ReturnsFalseAsync()
+    {
+        // Arrange
+        var manifestId = ManifestId.Create("1.0.local.addon.empty-hash");
+        var manifestPath = _service.GetManifestStoragePath(manifestId);
+        var manifestDir = Path.GetDirectoryName(manifestPath)!;
+        Directory.CreateDirectory(manifestDir);
+
+        var manifest = new ContentManifest
+        {
+            Id = manifestId,
+            ContentType = ContentType.Addon,
+            Files =
+            [
+                new()
+                {
+                    RelativePath = "Generals.exe",
+                    Hash = string.Empty,
+                    SourceType = ContentSourceType.ContentAddressable,
+                    IsRequired = true,
+                },
+            ],
+        };
+
+        await File.WriteAllTextAsync(manifestPath, System.Text.Json.JsonSerializer.Serialize(manifest));
+
+        // Act
+        var result = await _service.IsContentStoredAsync(manifestId);
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.False(result.Data);
+    }
+
+    /// <summary>
+    /// Tests that StoreContentAsync fails when a required file is missing from an existing source directory.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task StoreContentAsync_WhenRequiredFileMissingFromSource_FailsAsync()
+    {
+        // Arrange
+        var sourceDir = Path.Combine(_tempRoot, "MissingFileSource");
+        Directory.CreateDirectory(sourceDir);
+        var manifest = new ContentManifest
+        {
+            Id = ManifestId.Create("1.0.local.addon.missing-required-file"),
+            ContentType = ContentType.Addon,
+            Files =
+            [
+                new()
+                {
+                    RelativePath = "missing.big",
+                    Hash = string.Empty,
+                    SourceType = ContentSourceType.ExtractedPackage,
+                    IsRequired = true,
+                },
+            ],
+        };
+
+        // Act
+        var result = await _service.StoreContentAsync(manifest, sourceDir);
+
+        // Assert
+        Assert.False(result.Success);
+        Assert.Contains("missing.big", result.FirstError);
+    }
+
+    /// <summary>
+    /// Tests that StoreContentAsync preserves cooperative cancellation instead of converting it into a storage failure.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task StoreContentAsync_WhenCancelled_ThrowsOperationCanceledExceptionAsync()
+    {
+        // Arrange
+        var sourceDir = Path.Combine(_tempRoot, "CancelledSource");
+        Directory.CreateDirectory(sourceDir);
+        await File.WriteAllTextAsync(Path.Combine(sourceDir, "addon.big"), "mock content");
+
+        var manifest = new ContentManifest
+        {
+            Id = ManifestId.Create("1.0.local.addon.cancelled-store"),
+            ContentType = ContentType.Addon,
+            Files =
+            [
+                new()
+                {
+                    RelativePath = "addon.big",
+                    Hash = string.Empty,
+                    SourceType = ContentSourceType.ExtractedPackage,
+                    IsRequired = true,
+                },
+            ],
+        };
+
+        _casServiceMock
+            .Setup(c => c.StoreContentAsync(It.IsAny<string>(), ContentType.Addon, null, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<string>.CreateSuccess("cancelled_store_hash"));
+        _casServiceMock
+            .Setup(c => c.GetContentPathAsync(It.IsAny<string>(), ContentType.Addon, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<string>.CreateFailure("not in CAS"));
+        _casServiceMock
+            .Setup(c => c.GetContentPathAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<string>.CreateFailure("not in CAS"));
+
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+
+        // Act
+        var exception = await Assert.ThrowsAnyAsync<OperationCanceledException>(() => _service.StoreContentAsync(manifest, sourceDir, null, cts.Token));
+
+        // Assert
+        Assert.IsAssignableFrom<OperationCanceledException>(exception);
+    }
+
+    /// <summary>
     /// Disposes resources.
     /// </summary>
     /// <param name="disposing">Whether managed resources should be disposed.</param>

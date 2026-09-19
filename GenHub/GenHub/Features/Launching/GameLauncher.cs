@@ -1,5 +1,6 @@
 using GenHub.Core.Constants;
 using GenHub.Core.Extensions;
+using GenHub.Core.Extensions.Storage;
 using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GameInstallations;
@@ -1824,6 +1825,22 @@ public class GameLauncher(
         }
     }
 
+    private async Task CheckManifestCasFilesAsync(ContentManifest manifest, List<string> missingFiles, CancellationToken cancellationToken)
+    {
+        var manifestDisplayName = !string.IsNullOrWhiteSpace(manifest.Name) ? manifest.Name : manifest.Id.Value;
+        var missingCasFiles = await casService.GetMissingRequiredCasFilesAsync(manifest, cancellationToken).ConfigureAwait(false);
+        foreach (var file in missingCasFiles)
+        {
+            logger.LogWarning(
+                "[Preflight CAS] Missing CAS object {Hash} for file {RelativePath} in manifest {ManifestId} ({ManifestName})",
+                file.Hash,
+                file.RelativePath,
+                manifest.Id,
+                manifest.Name);
+            missingFiles.Add($"{manifestDisplayName} ({file.RelativePath})");
+        }
+    }
+
     /// <summary>
     /// Performs a preflight check to ensure all CAS content required by the manifests is available.
     /// </summary>
@@ -1832,25 +1849,16 @@ public class GameLauncher(
     /// <returns>A result indicating success or failure.</returns>
     private async Task<OperationResult<bool>> PreflightCasCheckAsync(IEnumerable<ContentManifest> manifests, CancellationToken cancellationToken)
     {
-        var missingHashes = new List<string>();
+        var missingFiles = new List<string>();
         foreach (var manifest in manifests)
         {
-            if (manifest.Files != null)
-            {
-                foreach (var file in manifest.Files.Where(f => f.SourceType == ContentSourceType.ContentAddressable && !string.IsNullOrEmpty(f.Hash)))
-                {
-                    var existsResult = await casService.ExistsAsync(file.Hash, manifest.ContentType, cancellationToken);
-                    if (existsResult is not { Success: true, Data: true })
-                    {
-                        missingHashes.Add(file.Hash);
-                    }
-                }
-            }
+            await CheckManifestCasFilesAsync(manifest, missingFiles, cancellationToken).ConfigureAwait(false);
         }
 
-        if (missingHashes.Count > 0)
+        if (missingFiles.Count > 0)
         {
-            return OperationResult<bool>.CreateFailure($"Missing CAS objects: {string.Join(", ", missingHashes.Distinct())}");
+            var distinctMissing = missingFiles.Distinct().ToList();
+            return OperationResult<bool>.CreateFailure($"Missing {distinctMissing.Count} required CAS objects ({string.Join(", ", distinctMissing.Take(5))}). Content must be downloaded before launching.");
         }
 
         return OperationResult<bool>.CreateSuccess(true);

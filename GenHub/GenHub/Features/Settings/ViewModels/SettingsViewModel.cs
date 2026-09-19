@@ -21,6 +21,7 @@ using GenHub.Core.Models.AppUpdate;
 using GenHub.Core.Models.Common;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameInstallations;
+using GenHub.Core.Models.GameProfile;
 using GenHub.Core.Models.GitHub;
 using GenHub.Core.Models.Providers;
 using GenHub.Core.Models.Results.CAS;
@@ -2096,10 +2097,14 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             if (manifestsResult.Success && manifestsResult.Data != null)
             {
                 var count = manifestsResult.Data.Count();
+                var deletedIds = manifestsResult.Data.Select(m => m.Id.Value).ToHashSet(StringComparer.OrdinalIgnoreCase);
+
                 foreach (var manifest in manifestsResult.Data)
                 {
                     await _manifestPool.RemoveManifestAsync(manifest.Id);
                 }
+
+                await ScrubDeletedManifestIdsFromProfilesAsync(deletedIds);
 
                 if (showToast)
                 {
@@ -2120,6 +2125,63 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
                 _notificationService.ShowError("Deletion Failed", $"Failed to delete manifests: {ex.Message}", 5000);
             }
         }
+    }
+
+    private async Task ScrubDeletedManifestIdsFromProfilesAsync(HashSet<string> deletedIds)
+    {
+        var profilesResult = await _profileManager.GetAllProfilesAsync();
+        if (!profilesResult.Success || profilesResult.Data == null)
+        {
+            return;
+        }
+
+        var failedProfileNames = new List<string>();
+        foreach (var profile in profilesResult.Data)
+        {
+            var scrubbed = await ScrubDeletedManifestIdsFromProfileAsync(profile, deletedIds);
+            if (!scrubbed)
+            {
+                failedProfileNames.Add(profile.Name);
+            }
+        }
+
+        if (failedProfileNames.Count > 0)
+        {
+            _notificationService.ShowWarning(
+                "Profile Update Incomplete",
+                $"Deleted manifests could not be removed from {failedProfileNames.Count} profile(s): {string.Join(", ", failedProfileNames)}. Those profiles may fail to launch until updated.",
+                (int)TimeIntervals.NotificationHideDelay.TotalMilliseconds);
+        }
+    }
+
+    private async Task<bool> ScrubDeletedManifestIdsFromProfileAsync(GameProfile profile, HashSet<string> deletedIds)
+    {
+        if (profile.EnabledContentIds == null || !profile.EnabledContentIds.Any(id => deletedIds.Contains(id)))
+        {
+            return true;
+        }
+
+        var updatedContentIds = profile.EnabledContentIds
+            .Where(id => !deletedIds.Contains(id))
+            .ToList();
+
+        var updateRequest = new UpdateProfileRequest
+        {
+            EnabledContentIds = updatedContentIds,
+        };
+        var updateResult = await _profileManager.UpdateProfileAsync(profile.Id, updateRequest);
+        if (!updateResult.Success)
+        {
+            _logger.LogWarning(
+                "Failed to scrub deleted manifest IDs from profile {ProfileName} ({ProfileId}): {Error}",
+                profile.Name,
+                profile.Id,
+                updateResult.FirstError);
+            return false;
+        }
+
+        _logger.LogInformation("Scrubbed deleted manifest IDs from profile {ProfileName} ({ProfileId})", profile.Name, profile.Id);
+        return true;
     }
 
     [RelayCommand]

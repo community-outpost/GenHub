@@ -272,6 +272,16 @@ public static class CommunityOutpostConstants
     public static readonly IReadOnlyList<string> AddonTags = [AddonTag, "community", "genpatcher"];
 
     /// <summary>
+    /// Language subdirectory names used by Generals game client packages.
+    /// </summary>
+    public static readonly IReadOnlyList<string> GeneralsLanguageSubdirectories = ["CCG", "ECG", "GCG", "FCG"];
+
+    /// <summary>
+    /// Language subdirectory names used by Zero Hour game client packages.
+    /// </summary>
+    public static readonly IReadOnlyList<string> ZeroHourLanguageSubdirectories = ["ZH", "EZH", "GZH", "FZH"];
+
+    /// <summary>
     /// Checks whether an identifier, filename, or display name represents a non-retail (stream) build.
     /// </summary>
     /// <param name="name">The name, identifier, or filename to check.</param>

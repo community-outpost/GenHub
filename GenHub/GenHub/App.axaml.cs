@@ -686,6 +686,10 @@ public partial class App : Application
                 var errors = string.Join(", ", launchResult.Errors);
                 logger?.LogError("Failed to launch profile {ProfileId}: {Errors}", profileId, errors);
                 UpdateViewModelWithError(mainWindow, errors);
+                var notificationService = _serviceProvider.GetService<INotificationService>();
+                notificationService?.ShowError(
+                    _localizationService["GameProfiles.Notification.LaunchFailed.Title"],
+                    _localizationService.GetString("GameProfiles.Notification.LaunchFailed.Message", profileId, errors));
             }
         }
         catch (Exception ex)

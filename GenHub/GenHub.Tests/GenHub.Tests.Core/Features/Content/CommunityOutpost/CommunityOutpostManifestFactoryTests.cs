@@ -368,4 +368,215 @@ public class CommunityOutpostManifestFactoryTests : IDisposable
         Assert.DoesNotContain(manifests, m => m.Id.Value.Contains("hleizerohourru-zerohour"));
         Assert.DoesNotContain(manifests, m => m.Name.Contains("Leikeze's Hotkeys (RU) - Leikeze's Hotkeys"));
     }
+
+    /// <summary>
+    /// Verifies that non-variant content located inside a language subdirectory (e.g. EZH)
+    /// maps files to the game root relative path and sets the SourcePath correctly.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task CreateManifestsFromExtractedContentAsync_WithLanguageSubdirectoryEZH_MapsToGameRootRelativePathAsync()
+    {
+        // Arrange: crzh archive structure has EZH/Generals.exe
+        var ezhDir = Path.Combine(_tempDir, "EZH");
+        Directory.CreateDirectory(ezhDir);
+        var exePath = Path.Combine(ezhDir, "Generals.exe");
+        await File.WriteAllTextAsync(exePath, "mock exe content");
+
+        var originalManifest = new ContentManifest
+        {
+            Id = ManifestId.Create("1.0.communityoutpost.addon.crzh"),
+            Name = "Camera Mod - Zero Hour",
+            ContentType = GenHub.Core.Models.Enums.ContentType.Addon,
+            TargetGame = GameType.ZeroHour,
+            Publisher = new PublisherInfo { PublisherType = "communityoutpost" },
+            Metadata = new ContentMetadata
+            {
+                Tags = ["contentCode:crzh"],
+            },
+        };
+
+        // Act
+        var result = await _factory.CreateManifestsFromExtractedContentAsync(originalManifest, _tempDir);
+
+        // Assert
+        Assert.True(result.Success);
+        var manifests = result.Data!;
+        Assert.Single(manifests);
+        var manifest = manifests[0];
+        Assert.Single(manifest.Files);
+        Assert.Equal("Generals.exe", manifest.Files[0].RelativePath);
+        Assert.Equal(exePath, manifest.Files[0].SourcePath);
+        Assert.Equal(ContentSourceType.ExtractedPackage, manifest.Files[0].SourceType);
+    }
+
+    /// <summary>
+    /// Verifies that a file inside the manifest directory whose name starts with dots
+    /// (e.g. ..notes.txt) is still mapped relative to the manifest directory instead
+    /// of being misclassified as outside-base content.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task CreateManifestsFromExtractedContentAsync_WithDotPrefixedFileInManifestDirectory_MapsRelativeToManifestDirectoryAsync()
+    {
+        // Arrange: EZH/..notes.txt must map to "..notes.txt", not "EZH/..notes.txt"
+        var ezhDir = Path.Combine(_tempDir, "EZH");
+        Directory.CreateDirectory(ezhDir);
+        var dotFilePath = Path.Combine(ezhDir, "..notes.txt");
+        await File.WriteAllTextAsync(dotFilePath, "mock notes content");
+
+        var originalManifest = new ContentManifest
+        {
+            Id = ManifestId.Create("1.0.communityoutpost.addon.crzh"),
+            Name = "Camera Mod - Zero Hour",
+            ContentType = GenHub.Core.Models.Enums.ContentType.Addon,
+            TargetGame = GameType.ZeroHour,
+            Publisher = new PublisherInfo { PublisherType = "communityoutpost" },
+            Metadata = new ContentMetadata
+            {
+                Tags = ["contentCode:crzh"],
+            },
+        };
+
+        // Act
+        var result = await _factory.CreateManifestsFromExtractedContentAsync(originalManifest, _tempDir);
+
+        // Assert
+        Assert.True(result.Success);
+        var manifests = result.Data!;
+        Assert.Single(manifests);
+        var manifest = manifests[0];
+        Assert.Single(manifest.Files);
+        Assert.Equal("..notes.txt", manifest.Files[0].RelativePath);
+        Assert.Equal(dotFilePath, manifest.Files[0].SourcePath);
+    }
+
+    /// <summary>
+    /// Verifies that non-variant content inside a language subdirectory (e.g. EZH) also
+    /// preserves files from sibling subdirectories and the extraction root, keeping the
+    /// sibling subpath relative to the extraction root so content installs in place.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task CreateManifestsFromExtractedContentAsync_WithLanguageSubdirectoryAndSiblingContent_IncludesSiblingFilesAsync()
+    {
+        // Arrange: EZH/Generals.exe plus a sibling Data/extra.big and a root readme.txt
+        var ezhDir = Path.Combine(_tempDir, "EZH");
+        var dataDir = Path.Combine(_tempDir, "Data");
+        Directory.CreateDirectory(ezhDir);
+        Directory.CreateDirectory(dataDir);
+        var exePath = Path.Combine(ezhDir, "Generals.exe");
+        var siblingPath = Path.Combine(dataDir, "extra.big");
+        var rootPath = Path.Combine(_tempDir, "readme.txt");
+        await File.WriteAllTextAsync(exePath, "mock exe content");
+        await File.WriteAllTextAsync(siblingPath, "mock sibling content");
+        await File.WriteAllTextAsync(rootPath, "mock readme");
+
+        var originalManifest = new ContentManifest
+        {
+            Id = ManifestId.Create("1.0.communityoutpost.addon.crzh"),
+            Name = "Camera Mod - Zero Hour",
+            ContentType = GenHub.Core.Models.Enums.ContentType.Addon,
+            TargetGame = GameType.ZeroHour,
+            Publisher = new PublisherInfo { PublisherType = "communityoutpost" },
+            Metadata = new ContentMetadata
+            {
+                Tags = ["contentCode:crzh"],
+            },
+        };
+
+        // Act
+        var result = await _factory.CreateManifestsFromExtractedContentAsync(originalManifest, _tempDir);
+
+        // Assert
+        Assert.True(result.Success);
+        var manifests = result.Data!;
+        Assert.Single(manifests);
+        var manifest = manifests[0];
+        Assert.Equal(3, manifest.Files.Count);
+        Assert.Contains(manifest.Files, f => f.RelativePath == "Generals.exe" && f.SourcePath == exePath);
+        Assert.Contains(manifest.Files, f => f.RelativePath == Path.Combine("Data", "extra.big") && f.SourcePath == siblingPath);
+        Assert.Contains(manifest.Files, f => f.RelativePath == "readme.txt" && f.SourcePath == rootPath);
+        Assert.Equal(3, manifest.Files.Select(f => f.RelativePath).Distinct(StringComparer.OrdinalIgnoreCase).Count());
+    }
+
+    /// <summary>
+    /// Verifies that a single unrelated subdirectory merely ending in a language suffix
+    /// (e.g. MeshesZH) is not promoted to the manifest directory.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task CreateManifestsFromExtractedContentAsync_WithUnrelatedSuffixSubdirectory_KeepsSubpathAsync()
+    {
+        // Arrange: MeshesZH/patch.big must keep its subpath, not map to root patch.big
+        var meshesDir = Path.Combine(_tempDir, "MeshesZH");
+        Directory.CreateDirectory(meshesDir);
+        var patchPath = Path.Combine(meshesDir, "patch.big");
+        await File.WriteAllTextAsync(patchPath, "mock patch content");
+
+        var originalManifest = new ContentManifest
+        {
+            Id = ManifestId.Create("1.0.communityoutpost.addon.crzh"),
+            Name = "Camera Mod - Zero Hour",
+            ContentType = GenHub.Core.Models.Enums.ContentType.Addon,
+            TargetGame = GameType.ZeroHour,
+            Publisher = new PublisherInfo { PublisherType = "communityoutpost" },
+            Metadata = new ContentMetadata
+            {
+                Tags = ["contentCode:crzh"],
+            },
+        };
+
+        // Act
+        var result = await _factory.CreateManifestsFromExtractedContentAsync(originalManifest, _tempDir);
+
+        // Assert
+        Assert.True(result.Success);
+        var manifests = result.Data!;
+        Assert.Single(manifests);
+        var manifest = manifests[0];
+        Assert.Single(manifest.Files);
+        Assert.Equal(Path.Combine("MeshesZH", "patch.big"), manifest.Files[0].RelativePath);
+        Assert.Equal(patchPath, manifest.Files[0].SourcePath);
+    }
+
+    /// <summary>
+    /// Verifies that a single language subdirectory with non-standard casing (e.g. ezh)
+    /// is still recognized as the manifest directory.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task CreateManifestsFromExtractedContentAsync_WithLowercaseLanguageSubdirectory_MapsToGameRootRelativePathAsync()
+    {
+        // Arrange: ezh/Generals.exe must map to root Generals.exe
+        var ezhDir = Path.Combine(_tempDir, "ezh");
+        Directory.CreateDirectory(ezhDir);
+        var exePath = Path.Combine(ezhDir, "Generals.exe");
+        await File.WriteAllTextAsync(exePath, "mock exe content");
+
+        var originalManifest = new ContentManifest
+        {
+            Id = ManifestId.Create("1.0.communityoutpost.addon.crzh"),
+            Name = "Camera Mod - Zero Hour",
+            ContentType = GenHub.Core.Models.Enums.ContentType.Addon,
+            TargetGame = GameType.ZeroHour,
+            Publisher = new PublisherInfo { PublisherType = "communityoutpost" },
+            Metadata = new ContentMetadata
+            {
+                Tags = ["contentCode:crzh"],
+            },
+        };
+
+        // Act
+        var result = await _factory.CreateManifestsFromExtractedContentAsync(originalManifest, _tempDir);
+
+        // Assert
+        Assert.True(result.Success);
+        var manifests = result.Data!;
+        Assert.Single(manifests);
+        var manifest = manifests[0];
+        Assert.Single(manifest.Files);
+        Assert.Equal("Generals.exe", manifest.Files[0].RelativePath);
+        Assert.Equal(exePath, manifest.Files[0].SourcePath);
+    }
 }
