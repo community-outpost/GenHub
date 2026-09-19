@@ -17,7 +17,6 @@ using GenHub.Core.Models.GitHub;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Providers;
 using GenHub.Core.Models.Results;
-using GenHub.Core.Models.Results.CAS;
 using GenHub.Core.Models.Storage;
 using GenHub.Core.Models.Theming;
 using GenHub.Core.Models.Workspace;
@@ -39,6 +38,7 @@ public class SettingsViewModelTests
     private readonly Mock<IUserSettingsService> _mockConfigService;
     private readonly Mock<ILogger<SettingsViewModel>> _mockLogger;
     private readonly Mock<ICasService> _mockCasService;
+    private readonly Mock<ICasLifecycleManager> _mockCasLifecycleManager;
     private readonly Mock<IGameProfileManager> _mockProfileManager;
     private readonly Mock<IWorkspaceManager> _mockWorkspaceManager;
     private readonly Mock<IContentManifestPool> _mockManifestPool;
@@ -60,6 +60,10 @@ public class SettingsViewModelTests
         _mockConfigService = new Mock<IUserSettingsService>();
         _mockLogger = new Mock<ILogger<SettingsViewModel>>();
         _mockCasService = new Mock<ICasService>();
+        _mockCasLifecycleManager = new Mock<ICasLifecycleManager>();
+        _mockCasLifecycleManager
+            .Setup(x => x.RunGarbageCollectionAsync(It.IsAny<bool>(), It.IsAny<TimeSpan?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<GarbageCollectionStats>.CreateSuccess(new GarbageCollectionStats()));
         _mockProfileManager = new Mock<IGameProfileManager>();
         _mockWorkspaceManager = new Mock<IWorkspaceManager>();
         _mockManifestPool = new Mock<IContentManifestPool>();
@@ -304,11 +308,11 @@ public class SettingsViewModelTests
     }
 
     /// <summary>
-    /// Verifies that DeleteCasStorageCommand calls the service.
+    /// Verifies that DeleteCasStorageCommand calls the lifecycle manager.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
     [Fact]
-    public async Task DeleteCasStorageCommand_ReportsGarbageCollectionIsDisabledAsync()
+    public async Task DeleteCasStorageCommand_WhenConfirmed_RunsGarbageCollectionAsync()
     {
         // Arrange
         // Setup stats to return valid data so update method works
@@ -320,9 +324,13 @@ public class SettingsViewModelTests
             .ReturnsAsync(OperationResult<IEnumerable<WorkspaceInfo>>.CreateSuccess([]));
         _mockProfileManager.Setup(x => x.GetAllProfilesAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(ProfileOperationResult<IReadOnlyList<GameProfile>>.CreateSuccess([]));
-        _mockCasService
-            .Setup(x => x.RunGarbageCollectionAsync(It.IsAny<bool>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(CasGarbageCollectionResult.CreateDisabled());
+        _mockCasLifecycleManager
+            .Setup(x => x.RunGarbageCollectionAsync(true, null, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<GarbageCollectionStats>.CreateSuccess(new GarbageCollectionStats
+            {
+                ObjectsDeleted = 3,
+                BytesFreed = 1024 * 1024,
+            }));
         _mockDialogService
             .Setup(x => x.ShowConfirmationAsync(
                 AppConstants.DeleteCasStorageConfirmationTitle,
@@ -338,21 +346,14 @@ public class SettingsViewModelTests
         await viewModel.DeleteCasStorageCommand.ExecuteAsync(null);
 
         // Assert
-        _mockCasService.Verify(x => x.RunGarbageCollectionAsync(It.IsAny<bool>(), It.IsAny<CancellationToken>()), Times.Once);
-        _mockNotificationService.Verify(
-            service => service.ShowInfo(
-                "CAS Cleanup Disabled",
-                CasDefaults.GarbageCollectionDisabledMessage,
-                (int)TimeIntervals.NotificationHideDelay.TotalMilliseconds,
-                It.IsAny<bool>()),
-            Times.Once);
+        _mockCasLifecycleManager.Verify(x => x.RunGarbageCollectionAsync(true, null, It.IsAny<CancellationToken>()), Times.Once);
         _mockNotificationService.Verify(
             service => service.ShowSuccess(
+                "CAS Cleared",
                 It.IsAny<string>(),
-                It.IsAny<string>(),
-                It.IsAny<int?>(),
+                5000,
                 It.IsAny<bool>()),
-            Times.Never);
+            Times.Once);
     }
 
     /// <summary>
@@ -429,7 +430,7 @@ public class SettingsViewModelTests
         await viewModel.DeleteCasStorageCommand.ExecuteAsync(null);
 
         // Assert
-        _mockCasService.Verify(x => x.RunGarbageCollectionAsync(It.IsAny<bool>(), It.IsAny<CancellationToken>()), Times.Never);
+        _mockCasLifecycleManager.Verify(x => x.RunGarbageCollectionAsync(It.IsAny<bool>(), It.IsAny<TimeSpan?>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     /// <summary>
@@ -649,7 +650,7 @@ public class SettingsViewModelTests
 
         // Assert
         _mockUserDataTracker.Verify(x => x.DeleteAllUserDataAsync(It.IsAny<CancellationToken>()), Times.Never);
-        _mockCasService.Verify(x => x.RunGarbageCollectionAsync(It.IsAny<bool>(), It.IsAny<CancellationToken>()), Times.Never);
+        _mockCasLifecycleManager.Verify(x => x.RunGarbageCollectionAsync(It.IsAny<bool>(), It.IsAny<TimeSpan?>(), It.IsAny<CancellationToken>()), Times.Never);
         _mockInstallationService.Verify(x => x.InvalidateCache(), Times.Never);
         _mockProfileManager.Verify(x => x.DeleteProfileAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
         _mockWorkspaceManager.Verify(x => x.CleanupWorkspaceAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
@@ -716,7 +717,7 @@ public class SettingsViewModelTests
 
         // Assert
         _mockUserDataTracker.Verify(x => x.DeleteAllUserDataAsync(It.IsAny<CancellationToken>()), Times.Once);
-        _mockCasService.Verify(x => x.RunGarbageCollectionAsync(true, It.IsAny<CancellationToken>()), Times.Once);
+        _mockCasLifecycleManager.Verify(x => x.RunGarbageCollectionAsync(true, null, It.IsAny<CancellationToken>()), Times.Once);
         _mockInstallationService.Verify(x => x.InvalidateCache(), Times.Once);
         _mockProfileManager.Verify(x => x.DeleteProfileAsync("profile-to-delete", It.IsAny<CancellationToken>()), Times.Once);
         _mockWorkspaceManager.Verify(x => x.CleanupWorkspaceAsync("workspace-to-delete", It.IsAny<CancellationToken>()), Times.Once);
@@ -763,12 +764,11 @@ public class SettingsViewModelTests
     }
 
     /// <summary>
-    /// Verifies that when CAS garbage collection is disabled, DeleteAllData reports that CAS cleanup
-    /// was skipped rather than claiming CAS cleanup failed.
+    /// Verifies that when CAS garbage collection fails, DeleteAllData reports that CAS cleanup failed.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
     [Fact]
-    public async Task DeleteAllDataCommand_WhenCasCleanupDisabled_ReportsSkippedWordingAsync()
+    public async Task DeleteAllDataCommand_WhenCasCleanupFails_ReportsFailedWordingAsync()
     {
         // Arrange
         SetupDeletableData();
@@ -783,9 +783,9 @@ public class SettingsViewModelTests
         _mockUserDataTracker
             .Setup(x => x.DeleteAllUserDataAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
-        _mockCasService
-            .Setup(x => x.RunGarbageCollectionAsync(true, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(CasGarbageCollectionResult.CreateDisabled());
+        _mockCasLifecycleManager
+            .Setup(x => x.RunGarbageCollectionAsync(true, null, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<GarbageCollectionStats>.CreateFailure("CAS collection failed"));
 
         string? capturedWarningMessage = null;
         _mockNotificationService
@@ -803,8 +803,7 @@ public class SettingsViewModelTests
 
         // Assert
         Assert.NotNull(capturedWarningMessage);
-        Assert.Contains("CAS cleanup was skipped (disabled)", capturedWarningMessage);
-        Assert.DoesNotContain("CAS cleanup failed", capturedWarningMessage);
+        Assert.Contains("CAS cleanup failed", capturedWarningMessage);
     }
 
     /// <summary>
@@ -1761,6 +1760,7 @@ public class SettingsViewModelTests
         _mockConfigService.Object,
         _mockLogger.Object,
         _mockCasService.Object,
+        _mockCasLifecycleManager.Object,
         _mockProfileManager.Object,
         _mockWorkspaceManager.Object,
         _mockManifestPool.Object,

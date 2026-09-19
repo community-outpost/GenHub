@@ -306,6 +306,7 @@ public class MainViewModelTests
         mockUserSettings.Setup(x => x.Get()).Returns(new UserSettings());
         var mockLogger = new Mock<ILogger<SettingsViewModel>>();
         var mockCasService = new Mock<ICasService>();
+        var mockCasLifecycleManager = new Mock<ICasLifecycleManager>();
         var mockProfileManager = new Mock<IGameProfileManager>();
         var mockWorkspaceManager = new Mock<IWorkspaceManager>();
         var mockManifestPool = new Mock<IContentManifestPool>();
@@ -323,6 +324,7 @@ public class MainViewModelTests
             mockUserSettings.Object,
             mockLogger.Object,
             mockCasService.Object,
+            mockCasLifecycleManager.Object,
             mockProfileManager.Object,
             mockWorkspaceManager.Object,
             mockManifestPool.Object,

@@ -210,9 +210,9 @@ GitHubUrlParseResult CreateFailure(params string[] errors)
 
 ### CAS Results
 
-#### CasGarbageCollectionResult
+#### GarbageCollectionStats
 
-Result of CAS garbage collection.
+Result stats for CAS garbage collection wrapped in `OperationResult<GarbageCollectionStats>`.
 
 **Properties:**
 
@@ -221,11 +221,9 @@ Result of CAS garbage collection.
 - `ObjectsScanned`: Total objects scanned
 - `ObjectsReferenced`: Objects kept (referenced)
 - `PercentageFreed`: Percentage of objects freed relative to scanned objects
-
-**Factory Methods:**
-
-- `CreateSuccess(int deleted, long bytes, int scanned, int referenced, TimeSpan elapsed)`
-- `CreateFailure(string error, TimeSpan elapsed)` or `CreateFailure(IEnumerable<string> errors, TimeSpan elapsed)`
+- `Duration`: Elapsed time
+- `Skipped`: True if collection was skipped (e.g. concurrent run)
+- `InProgress`: True if collection was skipped due to lock contention
 
 #### CasValidationResult
 

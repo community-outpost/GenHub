@@ -1,4 +1,3 @@
-using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Interfaces.Storage;
@@ -13,17 +12,19 @@ using Moq;
 namespace GenHub.Tests.Core.Features.Reconciliation;
 
 /// <summary>
-/// Verifies that reconciliation reports disabled garbage collection without failing
+/// Verifies that reconciliation reports garbage collection warnings without failing
 /// otherwise-successful manifest operations.
 /// </summary>
 public class ContentReconciliationOrchestratorGarbageCollectionTests
 {
+    private const string GcFailureMessage = "GC failed: lock timeout";
+
     /// <summary>
-    /// Verifies that replacement results expose the disabled-GC warning.
+    /// Verifies that replacement results expose the GC warning when collection fails.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous test.</returns>
     [Fact]
-    public async Task ExecuteContentReplacementAsync_WhenGcDisabled_ReturnsWarningAsync()
+    public async Task ExecuteContentReplacementAsync_WhenGcFails_ReturnsWarningAsync()
     {
         var reconciliationService = new Mock<IContentReconciliationService>();
         reconciliationService
@@ -37,7 +38,7 @@ public class ContentReconciliationOrchestratorGarbageCollectionTests
         var auditEntries = new List<ReconciliationAuditEntry>();
         var orchestrator = CreateOrchestrator(
             reconciliationService,
-            CreateDisabledLifecycleManager(),
+            CreateFailingLifecycleManager(GcFailureMessage),
             auditEntries);
         var request = new ContentReplacementRequest
         {
@@ -52,23 +53,23 @@ public class ContentReconciliationOrchestratorGarbageCollectionTests
 
         Assert.True(result.Success);
         Assert.NotNull(result.Data);
-        Assert.Contains(CasDefaults.GarbageCollectionDisabledMessage, result.Data.Warnings);
+        Assert.Contains(GcFailureMessage, result.Data.Warnings);
         Assert.Equal(0, result.Data.CasObjectsCollected);
         Assert.Equal(0, result.Data.BytesFreed);
         var auditEntry = Assert.Single(auditEntries);
         Assert.NotNull(auditEntry.Metadata);
-        Assert.Contains(CasDefaults.GarbageCollectionDisabledMessage, auditEntry.Metadata["warnings"]);
+        Assert.Contains(GcFailureMessage, auditEntry.Metadata["warnings"]);
     }
 
     /// <summary>
-    /// Verifies that removal results expose the disabled-GC warning.
+    /// Verifies that removal results expose the GC warning when collection fails.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous test.</returns>
     [Fact]
-    public async Task ExecuteContentRemovalAsync_WhenGcDisabled_ReturnsWarningAsync()
+    public async Task ExecuteContentRemovalAsync_WhenGcFails_ReturnsWarningAsync()
     {
         var reconciliationService = new Mock<IContentReconciliationService>();
-        var lifecycleManager = CreateDisabledLifecycleManager();
+        var lifecycleManager = CreateFailingLifecycleManager(GcFailureMessage);
         lifecycleManager
             .Setup(manager => manager.UntrackManifestsAsync(
                 It.IsAny<IEnumerable<string>>(),
@@ -83,12 +84,47 @@ public class ContentReconciliationOrchestratorGarbageCollectionTests
 
         Assert.True(result.Success);
         Assert.NotNull(result.Data);
-        Assert.Contains(CasDefaults.GarbageCollectionDisabledMessage, result.Data.Warnings);
+        Assert.Contains(GcFailureMessage, result.Data.Warnings);
         Assert.Equal(0, result.Data.CasObjectsCollected);
         Assert.Equal(0, result.Data.BytesFreed);
         var auditEntry = Assert.Single(auditEntries);
         Assert.NotNull(auditEntry.Metadata);
-        Assert.Contains(CasDefaults.GarbageCollectionDisabledMessage, auditEntry.Metadata["warnings"]);
+        Assert.Contains(GcFailureMessage, auditEntry.Metadata["warnings"]);
+    }
+
+    /// <summary>
+    /// Verifies that removal results expose collected objects when garbage collection succeeds.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test.</returns>
+    [Fact]
+    public async Task ExecuteContentRemovalAsync_WhenGcSucceeds_ReportsCollectedObjectsAsync()
+    {
+        var reconciliationService = new Mock<IContentReconciliationService>();
+        var lifecycleManager = new Mock<ICasLifecycleManager>();
+        lifecycleManager
+            .Setup(manager => manager.UntrackManifestsAsync(
+                It.IsAny<IEnumerable<string>>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<BulkUntrackResult>.CreateSuccess(
+                new BulkUntrackResult(1, 2, [])));
+        lifecycleManager
+            .Setup(manager => manager.RunGarbageCollectionAsync(
+                false,
+                null,
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<GarbageCollectionStats>.CreateSuccess(
+                new GarbageCollectionStats { ObjectsDeleted = 2, BytesFreed = 4096 }));
+
+        var auditEntries = new List<ReconciliationAuditEntry>();
+        var orchestrator = CreateOrchestrator(reconciliationService, lifecycleManager, auditEntries);
+
+        var result = await orchestrator.ExecuteContentRemovalAsync([]);
+
+        Assert.True(result.Success);
+        Assert.NotNull(result.Data);
+        Assert.Empty(result.Data.Warnings);
+        Assert.Equal(2, result.Data.CasObjectsCollected);
+        Assert.Equal(4096, result.Data.BytesFreed);
     }
 
     /// <summary>
@@ -170,7 +206,7 @@ public class ContentReconciliationOrchestratorGarbageCollectionTests
             Times.Never);
     }
 
-    private static Mock<ICasLifecycleManager> CreateDisabledLifecycleManager()
+    private static Mock<ICasLifecycleManager> CreateFailingLifecycleManager(string failureMessage)
     {
         var lifecycleManager = new Mock<ICasLifecycleManager>();
         lifecycleManager
@@ -179,8 +215,8 @@ public class ContentReconciliationOrchestratorGarbageCollectionTests
                 It.IsAny<TimeSpan?>(),
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult<GarbageCollectionStats>.CreateFailure(
-                CasDefaults.GarbageCollectionDisabledMessage,
-                GarbageCollectionStats.DisabledResult,
+                failureMessage,
+                new GarbageCollectionStats(),
                 TimeSpan.Zero));
         return lifecycleManager;
     }

@@ -258,11 +258,11 @@ public class ContentReconciliationServiceTests
     }
 
     /// <summary>
-    /// Verifies that scheduled garbage collection reports the fail-closed disabled result.
+    /// Verifies that scheduled garbage collection surfaces a collection failure.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous test.</returns>
     [Fact]
-    public async Task ScheduleGarbageCollectionAsync_WhenDisabled_ReturnsFailureAsync()
+    public async Task ScheduleGarbageCollectionAsync_WhenCollectionFails_ReturnsFailureAsync()
     {
         _casServiceMock
             .Setup(service => service.RunGarbageCollectionAsync(
@@ -270,15 +270,14 @@ public class ContentReconciliationServiceTests
                 It.IsAny<TimeSpan?>(),
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult<GarbageCollectionStats>.CreateFailure(
-                GenHub.Core.Constants.CasDefaults.GarbageCollectionDisabledMessage,
-                GarbageCollectionStats.DisabledResult,
+                "GC failed",
+                new GarbageCollectionStats(),
                 TimeSpan.Zero));
 
         var result = await _service.ScheduleGarbageCollectionAsync(force: true);
 
         result.Success.Should().BeFalse();
-        result.FirstError.Should().Be(
-            GenHub.Core.Constants.CasDefaults.GarbageCollectionDisabledMessage);
+        result.FirstError.Should().Be("GC failed");
     }
 
     private static bool MatchesGameClientId(UpdateProfileRequest request, string expectedId) =>

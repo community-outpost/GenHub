@@ -47,6 +47,7 @@ public static class SharedViewModelModule
             sp.GetRequiredService<IUserSettingsService>(),
             sp.GetRequiredService<ILogger<SettingsViewModel>>(),
             sp.GetRequiredService<ICasService>(),
+            sp.GetRequiredService<ICasLifecycleManager>(),
             sp.GetRequiredService<IGameProfileManager>(),
             sp.GetRequiredService<IWorkspaceManager>(),
             sp.GetRequiredService<IContentManifestPool>(),

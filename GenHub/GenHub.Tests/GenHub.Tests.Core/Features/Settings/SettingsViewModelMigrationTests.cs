@@ -31,6 +31,7 @@ public class SettingsViewModelMigrationTests
 {
     private readonly Mock<IUserSettingsService> _mockConfigService;
     private readonly Mock<ICasService> _mockCasService;
+    private readonly Mock<ICasLifecycleManager> _mockCasLifecycleManager;
     private readonly Mock<IGameProfileManager> _mockProfileManager;
     private readonly Mock<IWorkspaceManager> _mockWorkspaceManager;
     private readonly Mock<IContentManifestPool> _mockManifestPool;
@@ -53,6 +54,7 @@ public class SettingsViewModelMigrationTests
     {
         _mockConfigService = new Mock<IUserSettingsService>();
         _mockCasService = new Mock<ICasService>();
+        _mockCasLifecycleManager = new Mock<ICasLifecycleManager>();
         _mockProfileManager = new Mock<IGameProfileManager>();
         _mockWorkspaceManager = new Mock<IWorkspaceManager>();
         _mockManifestPool = new Mock<IContentManifestPool>();
@@ -218,6 +220,7 @@ public class SettingsViewModelMigrationTests
         _mockConfigService.Object,
         NullLogger<SettingsViewModel>.Instance,
         _mockCasService.Object,
+        _mockCasLifecycleManager.Object,
         _mockProfileManager.Object,
         _mockWorkspaceManager.Object,
         _mockManifestPool.Object,

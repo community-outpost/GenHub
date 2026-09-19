@@ -69,22 +69,17 @@ public class CasMaintenanceService(
     private async Task RunMaintenanceTasksAsync(CancellationToken cancellationToken)
     {
         using var scope = serviceProvider.CreateScope();
+        var lifecycleManager = scope.ServiceProvider.GetRequiredService<ICasLifecycleManager>();
         var casService = scope.ServiceProvider.GetRequiredService<ICasService>();
 
         logger.LogDebug("Starting CAS maintenance tasks");
 
         // Run garbage collection
-        var gcResult = await casService.RunGarbageCollectionAsync(cancellationToken: cancellationToken);
+        var gcResult = await lifecycleManager.RunGarbageCollectionAsync(cancellationToken: cancellationToken);
 
-        if (gcResult.Disabled)
+        if (gcResult.Success && gcResult.Data != null)
         {
-            logger.LogWarning(
-                "CAS garbage collection did not run: {Reason}",
-                gcResult.FirstError);
-        }
-        else if (gcResult.Success)
-        {
-            logger.LogInformation("CAS garbage collection completed: {ObjectsDeleted} objects deleted, {BytesFreed:N0} bytes freed in {Elapsed}", gcResult.ObjectsDeleted, gcResult.BytesFreed, gcResult.Elapsed);
+            logger.LogInformation("CAS garbage collection completed: {ObjectsDeleted} objects deleted, {BytesFreed:N0} bytes freed in {Elapsed}", gcResult.Data.ObjectsDeleted, gcResult.Data.BytesFreed, gcResult.Data.Duration);
         }
         else
         {

@@ -235,7 +235,7 @@ public class CasStorage(
                 return null;
             }
 
-            return await Task.Run(() => File.GetCreationTime(objectPath), cancellationToken);
+            return await Task.Run(() => File.GetCreationTimeUtc(objectPath), cancellationToken);
         }
         catch (Exception ex)
         {

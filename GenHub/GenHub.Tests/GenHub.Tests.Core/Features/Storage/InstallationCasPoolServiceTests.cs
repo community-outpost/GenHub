@@ -380,9 +380,7 @@ public sealed class InstallationCasPoolServiceTests : IDisposable
             NullLogger<CasPoolManager>.Instance);
         var service = new CasService(
             manager.GetStorage(CasPoolType.Primary),
-            new Mock<ICasReferenceTracker>().Object,
             NullLogger<CasService>.Instance,
-            Options.Create(configuration),
             fileHashProvider.Object,
             new Mock<IStreamHashProvider>().Object,
             manager);

@@ -23,7 +23,6 @@ using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameInstallations;
 using GenHub.Core.Models.GitHub;
 using GenHub.Core.Models.Providers;
-using GenHub.Core.Models.Results.CAS;
 using GenHub.Core.Models.Storage;
 using GenHub.Core.Models.Theming;
 using GenHub.Features.AppUpdate.Interfaces;
@@ -52,7 +51,6 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     private enum CasCleanupOutcome
     {
         Success,
-        Disabled,
         Failed,
     }
 
@@ -63,6 +61,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
 
     private readonly IUserSettingsService _userSettingsService;
     private readonly ICasService _casService;
+    private readonly ICasLifecycleManager _casLifecycleManager;
     private readonly IGameProfileManager _profileManager;
     private readonly IWorkspaceManager _workspaceManager;
     private readonly IContentManifestPool _manifestPool;
@@ -293,6 +292,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     /// <param name="userSettingsService">The user settings service.</param>
     /// <param name="logger">The logger.</param>
     /// <param name="casService">The CAS service.</param>
+    /// <param name="casLifecycleManager">The CAS lifecycle manager for garbage collection.</param>
     /// <param name="profileManager">The game profile manager.</param>
     /// <param name="workspaceManager">The workspace manager.</param>
     /// <param name="manifestPool">The content manifest pool.</param>
@@ -315,6 +315,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         IUserSettingsService userSettingsService,
         ILogger<SettingsViewModel> logger,
         ICasService casService,
+        ICasLifecycleManager casLifecycleManager,
         IGameProfileManager profileManager,
         IWorkspaceManager workspaceManager,
         IContentManifestPool manifestPool,
@@ -337,6 +338,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         _userSettingsService = userSettingsService ?? throw new ArgumentNullException(nameof(userSettingsService));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _casService = casService ?? throw new ArgumentNullException(nameof(casService));
+        _casLifecycleManager = casLifecycleManager ?? throw new ArgumentNullException(nameof(casLifecycleManager));
         _profileManager = profileManager ?? throw new ArgumentNullException(nameof(profileManager));
         _workspaceManager = workspaceManager ?? throw new ArgumentNullException(nameof(workspaceManager));
         _manifestPool = manifestPool ?? throw new ArgumentNullException(nameof(manifestPool));
@@ -1887,17 +1889,12 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             {
                 _notificationService.ShowSuccess(
                     "Data Deleted",
-                    $"Profiles, workspaces, manifests, and user data were deleted. {CasDefaults.GarbageCollectionDisabledMessage}",
+                    "Profiles, workspaces, manifests, user data, and unreferenced CAS objects were deleted.",
                     5000);
             }
             else
             {
-                var casDetail = casOutcome switch
-                {
-                    CasCleanupOutcome.Disabled => "CAS cleanup was skipped (disabled)",
-                    CasCleanupOutcome.Failed => "CAS cleanup failed",
-                    _ => null,
-                };
+                var casDetail = casOutcome == CasCleanupOutcome.Failed ? "CAS cleanup failed" : null;
 
                 var partialDetails = (!userDataDeleted, casDetail) switch
                 {
@@ -1908,7 +1905,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
 
                 _notificationService.ShowWarning(
                     "Data Partially Deleted",
-                    $"Profiles, workspaces, and manifests were deleted, but {partialDetails}. {CasDefaults.GarbageCollectionDisabledMessage}",
+                    $"Profiles, workspaces, and manifests were deleted, but {partialDetails}.",
                     5000);
             }
         }
@@ -1985,21 +1982,8 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         try
         {
             _logger.LogWarning("Deleting CAS storage (forced)");
-            var result = await _casService.RunGarbageCollectionAsync(force: true, CancellationToken.None);
-            if (result.Disabled)
-            {
-                if (showToast)
-                {
-                    _notificationService.ShowInfo(
-                        "CAS Cleanup Disabled",
-                        result.FirstError ?? CasDefaults.GarbageCollectionDisabledMessage,
-                        (int)TimeIntervals.NotificationHideDelay.TotalMilliseconds);
-                }
-
-                return CasCleanupOutcome.Disabled;
-            }
-
-            if (!result.Success)
+            var result = await _casLifecycleManager.RunGarbageCollectionAsync(force: true, lockTimeout: null, CancellationToken.None);
+            if (!result.Success || result.Data == null)
             {
                 _logger.LogWarning("Failed to collect CAS storage: {Error}", result.FirstError);
                 if (showToast)
@@ -2012,7 +1996,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
 
             if (showToast)
             {
-                ShowCasStorageResultToast(result);
+                ShowCasStorageResultToast(result.Data);
             }
 
             if (updateDangerZone)
@@ -2034,7 +2018,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         }
     }
 
-    private void ShowCasStorageResultToast(CasGarbageCollectionResult result)
+    private void ShowCasStorageResultToast(GarbageCollectionStats result)
     {
         if (result.ObjectsDeleted > 0)
         {
