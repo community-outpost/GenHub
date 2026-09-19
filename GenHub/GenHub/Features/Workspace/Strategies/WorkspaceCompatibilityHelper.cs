@@ -145,8 +145,8 @@ public static class WorkspaceCompatibilityHelper
 
     /// <summary>
     /// Determines whether a symbolic link target resides directly inside the given root directory.
-    /// Relative targets can never match: links created by workspace preparation always store
-    /// absolute paths, so a relative target proves foreign ownership.
+    /// Relative targets can never match: supplemental links are always created with absolute
+    /// targets, so a relative target proves foreign ownership.
     /// </summary>
     /// <param name="linkTarget">The link target as stored in the link.</param>
     /// <param name="root">The root directory to test against.</param>
@@ -173,6 +173,12 @@ public static class WorkspaceCompatibilityHelper
     /// occupies its name, and reconciliation only touches links pointing into the supplemental
     /// root — never regular files and never foreign links — so manifest content, mods, and user
     /// files cannot be removed or shadowed by this step.
+    /// <para>
+    /// Linking applies only when the resolved workspace executable is a Windows binary: the native
+    /// engine resolves its archive roots from the environment instead. The check runs against the
+    /// workspace-resolved path — the exact string the runner will wrap — because workspace aliasing
+    /// may rewrite the client's declared entry point (e.g. <c>game.dat</c> to <c>generals.exe</c>).
+    /// </para>
     /// </remarks>
     /// <param name="workspaceInfo">The workspace info.</param>
     /// <param name="configuration">The workspace configuration.</param>
@@ -184,6 +190,14 @@ public static class WorkspaceCompatibilityHelper
     {
         var supplementalRoot = configuration.SupplementalArchiveRoot;
         if (string.IsNullOrWhiteSpace(supplementalRoot))
+        {
+            return;
+        }
+
+        var launchExecutable = !string.IsNullOrWhiteSpace(workspaceInfo.ExecutablePath)
+            ? workspaceInfo.ExecutablePath
+            : configuration.GameClient?.ExecutablePath;
+        if (!CommandLineHelper.IsWindowsExecutable(launchExecutable))
         {
             return;
         }

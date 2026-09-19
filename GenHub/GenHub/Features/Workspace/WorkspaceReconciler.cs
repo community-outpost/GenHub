@@ -187,9 +187,14 @@ public class WorkspaceReconciler(ILogger<WorkspaceReconciler> logger, IFileOpera
 
         // Supplemental archives are workspace content that no manifest names: without this exclusion
         // every launch would report them as orphans and force a full workspace recreation.
-        WorkspaceCompatibilityHelper.TryGetSupplementalArchiveNames(
+        if (!WorkspaceCompatibilityHelper.TryGetSupplementalArchiveNames(
             configuration.SupplementalArchiveRoot,
-            out var supplementalNames);
+            out var supplementalNames))
+        {
+            logger.LogWarning(
+                "Supplemental archive root could not be read: {Root}. Already-linked supplemental archives will be treated as orphans for this run, forcing one workspace recreation.",
+                configuration.SupplementalArchiveRoot);
+        }
 
         // Determine files to remove (exist in workspace but not in manifests)
         foreach (var relativePath in existingFiles)

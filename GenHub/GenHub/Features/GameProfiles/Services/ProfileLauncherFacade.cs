@@ -321,6 +321,9 @@ public class ProfileLauncherFacade(
                 ForceRecreate = false,
                 ValidateAfterPreparation = true,
                 ManifestSourcePaths = manifestSourcePaths,
+                SupplementalArchiveRoot = OperatingSystem.IsWindows()
+                    ? null
+                    : GameLauncher.ResolveSupplementalArchiveRoot(profile.GameClient.GameType, resolvedInstallation.EffectiveGeneralsArchivePath, profile.EnvironmentVariables),
             };
 
             // Use resolved installation path and workspace root

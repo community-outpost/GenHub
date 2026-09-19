@@ -1,5 +1,6 @@
 using FluentAssertions;
 using GenHub.Core.Constants;
+using GenHub.Core.Models.GameClients;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Workspace;
 using GenHub.Features.Workspace.Strategies;
@@ -314,6 +315,7 @@ public class WorkspaceCompatibilityHelperTests : IDisposable
         {
             Id = "test-workspace",
             WorkspacePath = _workspaceDir,
+            ExecutablePath = Path.Combine(_workspaceDir, "generals.exe"),
             FileCount = 5,
         };
 
@@ -359,6 +361,7 @@ public class WorkspaceCompatibilityHelperTests : IDisposable
         {
             Id = "test-workspace",
             WorkspacePath = _workspaceDir,
+            ExecutablePath = Path.Combine(_workspaceDir, "generals.exe"),
             FileCount = 1,
         };
 
@@ -376,6 +379,76 @@ public class WorkspaceCompatibilityHelperTests : IDisposable
         // Assert
         File.ReadAllText(Path.Combine(_workspaceDir, "Textures.big")).Should().Be("zero hour textures");
         workspaceInfo.FileCount.Should().Be(1);
+    }
+
+    /// <summary>
+    /// Verifies that no supplemental content is materialized when the resolved workspace
+    /// executable is a native binary, which resolves its archive roots from the environment.
+    /// </summary>
+    [Fact]
+    public void EnsureDrmAndAssetCompatibility_WithSupplementalRootAndNativeExecutable_SkipsLinking()
+    {
+        // Arrange
+        var supplementalRoot = Path.Combine(_tempDir, "generals");
+        Directory.CreateDirectory(supplementalRoot);
+        File.WriteAllText(Path.Combine(supplementalRoot, "Textures.big"), "generals textures");
+
+        var workspaceInfo = new WorkspaceInfo
+        {
+            Id = "test-workspace",
+            WorkspacePath = _workspaceDir,
+            ExecutablePath = Path.Combine(_workspaceDir, "generalszh"),
+            FileCount = 3,
+        };
+
+        var config = new WorkspaceConfiguration
+        {
+            Id = "test-workspace",
+            BaseInstallationPath = _gameInstallDir,
+            Manifests = [],
+            SupplementalArchiveRoot = supplementalRoot,
+        };
+
+        // Act
+        WorkspaceCompatibilityHelper.EnsureDrmAndAssetCompatibility(workspaceInfo, config, NullLogger.Instance);
+
+        // Assert
+        Directory.GetFiles(_workspaceDir).Should().BeEmpty();
+        workspaceInfo.FileCount.Should().Be(3);
+    }
+
+    /// <summary>
+    /// Verifies that an empty workspace executable falls back to the configured game client's
+    /// executable when deciding whether supplemental archives apply.
+    /// </summary>
+    [Fact]
+    public void EnsureDrmAndAssetCompatibility_WithEmptyWorkspaceExecutable_FallsBackToClientExecutable()
+    {
+        // Arrange
+        var supplementalRoot = Path.Combine(_tempDir, "generals");
+        Directory.CreateDirectory(supplementalRoot);
+        File.WriteAllText(Path.Combine(supplementalRoot, "Textures.big"), "generals textures");
+
+        var workspaceInfo = new WorkspaceInfo
+        {
+            Id = "test-workspace",
+            WorkspacePath = _workspaceDir,
+        };
+
+        var config = new WorkspaceConfiguration
+        {
+            Id = "test-workspace",
+            BaseInstallationPath = _gameInstallDir,
+            Manifests = [],
+            GameClient = new GameClient { ExecutablePath = "generals.exe" },
+            SupplementalArchiveRoot = supplementalRoot,
+        };
+
+        // Act
+        WorkspaceCompatibilityHelper.EnsureDrmAndAssetCompatibility(workspaceInfo, config, NullLogger.Instance);
+
+        // Assert
+        File.ReadAllText(Path.Combine(_workspaceDir, "Textures.big")).Should().Be("generals textures");
     }
 
     /// <summary>
@@ -428,6 +501,7 @@ public class WorkspaceCompatibilityHelperTests : IDisposable
         {
             Id = "test-workspace",
             WorkspacePath = _workspaceDir,
+            ExecutablePath = Path.Combine(_workspaceDir, "generals.exe"),
         };
 
         var config = new WorkspaceConfiguration
@@ -472,6 +546,7 @@ public class WorkspaceCompatibilityHelperTests : IDisposable
         {
             Id = "test-workspace",
             WorkspacePath = _workspaceDir,
+            ExecutablePath = Path.Combine(_workspaceDir, "generals.exe"),
         };
 
         var config = new WorkspaceConfiguration
@@ -513,6 +588,7 @@ public class WorkspaceCompatibilityHelperTests : IDisposable
         {
             Id = "test-workspace",
             WorkspacePath = _workspaceDir,
+            ExecutablePath = Path.Combine(_workspaceDir, "generals.exe"),
         };
 
         var config = new WorkspaceConfiguration

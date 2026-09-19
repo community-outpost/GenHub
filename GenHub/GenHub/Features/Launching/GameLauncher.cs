@@ -73,30 +73,33 @@ public class GameLauncher(
     /// Resolves the supplemental archive root whose top-level archives are linked into the workspace.
     /// </summary>
     /// <remarks>
-    /// Only Zero Hour needs this: it mounts the base Generals archives in addition to its own, and
-    /// only a Windows retail binary running under Wine or Proton cannot resolve that second root
-    /// out of band. The executable check deliberately mirrors <see cref="WineRunner"/>: supplemental
-    /// archives are provided exactly when the runner will wrap the binary in Wine. Native engine
-    /// binaries keep the environment-variable mechanism untouched. The caller applies the
-    /// <see cref="OperatingSystem.IsWindows"/> gate; on Windows the registry resolves both roots.
+    /// Only Zero Hour needs this: it mounts the base Generals archives in addition to its own.
+    /// A profile-level <c>CNC_GENERALS_INSTALLPATH</c> override wins over the installation root,
+    /// mirroring <c>AddArchiveRoot</c>: it names the root actually used. Whether the archives get
+    /// linked is decided separately at link time against the resolved workspace executable, which
+    /// is the exact path <see cref="WineRunner"/> will wrap; the client's declared path cannot be
+    /// used here because workspace aliasing may rewrite it (e.g. <c>game.dat</c> to
+    /// <c>generals.exe</c>). The caller applies the <see cref="OperatingSystem.IsWindows"/> gate;
+    /// on Windows the registry resolves both roots.
     /// </remarks>
     /// <param name="gameType">The game being launched.</param>
-    /// <param name="executablePath">The game client's executable path.</param>
     /// <param name="effectiveGeneralsArchivePath">The effective base Generals archive root, if any.</param>
+    /// <param name="profileEnvironment">The profile's environment variables, if any.</param>
     /// <returns>The supplemental archive root, or <c>null</c> when the launch needs none.</returns>
     internal static string? ResolveSupplementalArchiveRoot(
         GameType gameType,
-        string? executablePath,
-        string? effectiveGeneralsArchivePath)
+        string? effectiveGeneralsArchivePath,
+        IReadOnlyDictionary<string, string>? profileEnvironment)
     {
         if (gameType != GameType.ZeroHour)
         {
             return null;
         }
 
-        if (!CommandLineHelper.IsWindowsExecutable(executablePath))
+        if (profileEnvironment?.TryGetValue(RetailArchiveConstants.GeneralsInstallPathVariable, out var configured) == true &&
+            !string.IsNullOrWhiteSpace(configured))
         {
-            return null;
+            return configured;
         }
 
         return string.IsNullOrWhiteSpace(effectiveGeneralsArchivePath) ? null : effectiveGeneralsArchivePath;
@@ -1203,7 +1206,7 @@ public class GameLauncher(
             ManifestSourcePaths = manifestSourcePaths,
             SupplementalArchiveRoot = OperatingSystem.IsWindows()
                 ? null
-                : ResolveSupplementalArchiveRoot(gameClient.GameType, gameClient.ExecutablePath, installation.EffectiveGeneralsArchivePath),
+                : ResolveSupplementalArchiveRoot(gameClient.GameType, installation.EffectiveGeneralsArchivePath, profile.EnvironmentVariables),
         };
         logger.LogDebug("[GameLauncher] BaseInstallationPath set to: {Path}", workspaceConfig.BaseInstallationPath);
 

@@ -1,5 +1,7 @@
+using GenHub.Core.Constants;
 using GenHub.Core.Models.Enums;
 using GenHub.Features.Launching;
+using System.Collections.Generic;
 using Xunit;
 
 namespace GenHub.Tests.Core.Features.Launching;
@@ -11,32 +13,57 @@ namespace GenHub.Tests.Core.Features.Launching;
 public class SupplementalArchiveRootTests
 {
     /// <summary>
-    /// Zero Hour launched as a Windows binary needs its base Generals archives linked into the
-    /// workspace, since the binary reads neither the Wine registry nor the environment.
+    /// Zero Hour resolves its installation's effective Generals root as supplemental content.
     /// </summary>
     [Fact]
-    public void ResolveSupplementalArchiveRoot_ZeroHourWindowsBinary_ReturnsGeneralsRoot()
+    public void ResolveSupplementalArchiveRoot_ZeroHourWithGeneralsRoot_ReturnsRoot()
     {
         var root = GameLauncher.ResolveSupplementalArchiveRoot(
             GameType.ZeroHour,
-            "generalszh.exe",
-            "/retail/generals");
+            "/retail/generals",
+            null);
 
         Assert.Equal("/retail/generals", root);
     }
 
     /// <summary>
-    /// The executable check is case-insensitive, matching retail naming variants.
+    /// A profile-level Generals install-path override wins over the installation root, mirroring
+    /// archive-root environment assembly: it names the root actually used.
     /// </summary>
     [Fact]
-    public void ResolveSupplementalArchiveRoot_ZeroHourUppercaseExecutable_ReturnsGeneralsRoot()
+    public void ResolveSupplementalArchiveRoot_ZeroHourWithProfileOverride_PrefersOverride()
     {
+        var environment = new Dictionary<string, string>
+        {
+            [RetailArchiveConstants.GeneralsInstallPathVariable] = "/profile/generals",
+        };
+
         var root = GameLauncher.ResolveSupplementalArchiveRoot(
             GameType.ZeroHour,
-            "GENERALSZH.EXE",
-            "/retail/generals");
+            "/retail/generals",
+            environment);
 
-        Assert.Equal("/retail/generals", root);
+        Assert.Equal("/profile/generals", root);
+    }
+
+    /// <summary>
+    /// A profile override supplies the root even when the installation declares none, so the
+    /// launch validation passes against the same root the workspace links.
+    /// </summary>
+    [Fact]
+    public void ResolveSupplementalArchiveRoot_ZeroHourWithoutGeneralsRoot_UsesProfileOverride()
+    {
+        var environment = new Dictionary<string, string>
+        {
+            [RetailArchiveConstants.GeneralsInstallPathVariable] = "/profile/generals",
+        };
+
+        var root = GameLauncher.ResolveSupplementalArchiveRoot(
+            GameType.ZeroHour,
+            null,
+            environment);
+
+        Assert.Equal("/profile/generals", root);
     }
 
     /// <summary>
@@ -47,48 +74,49 @@ public class SupplementalArchiveRootTests
     {
         var root = GameLauncher.ResolveSupplementalArchiveRoot(
             GameType.Generals,
-            "generals.exe",
-            "/retail/generals");
+            "/retail/generals",
+            null);
 
         Assert.Null(root);
     }
 
     /// <summary>
-    /// The native engine resolves its archive roots from the environment, so it needs nothing
-    /// linked into the workspace.
-    /// </summary>
-    /// <param name="executablePath">The game client's executable path.</param>
-    [Theory]
-    [InlineData("generalszh")]
-    [InlineData("game.dat")]
-    [InlineData("generals.ctr")]
-    [InlineData("")]
-    [InlineData(null)]
-    public void ResolveSupplementalArchiveRoot_ZeroHourNonWindowsBinary_ReturnsNull(string? executablePath)
-    {
-        var root = GameLauncher.ResolveSupplementalArchiveRoot(
-            GameType.ZeroHour,
-            executablePath,
-            "/retail/generals");
-
-        Assert.Null(root);
-    }
-
-    /// <summary>
-    /// Without a Generals root there is nothing to link, regardless of game and binary.
+    /// Without a Generals root there is nothing to link, regardless of game.
     /// </summary>
     /// <param name="generalsRoot">The effective Generals archive root.</param>
     [Theory]
     [InlineData(null)]
     [InlineData("")]
     [InlineData("   ")]
-    public void ResolveSupplementalArchiveRoot_ZeroHourWindowsBinaryWithoutGeneralsRoot_ReturnsNull(string? generalsRoot)
+    public void ResolveSupplementalArchiveRoot_ZeroHourWithoutAnyRoot_ReturnsNull(string? generalsRoot)
     {
         var root = GameLauncher.ResolveSupplementalArchiveRoot(
             GameType.ZeroHour,
-            "generalszh.exe",
-            generalsRoot);
+            generalsRoot,
+            new Dictionary<string, string>());
 
         Assert.Null(root);
+    }
+
+    /// <summary>
+    /// A blank profile override is not a root: resolution falls through to the installation root.
+    /// </summary>
+    /// <param name="overrideValue">The profile override value.</param>
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void ResolveSupplementalArchiveRoot_BlankProfileOverride_FallsThroughToInstallationRoot(string overrideValue)
+    {
+        var environment = new Dictionary<string, string>
+        {
+            [RetailArchiveConstants.GeneralsInstallPathVariable] = overrideValue,
+        };
+
+        var root = GameLauncher.ResolveSupplementalArchiveRoot(
+            GameType.ZeroHour,
+            "/retail/generals",
+            environment);
+
+        Assert.Equal("/retail/generals", root);
     }
 }
