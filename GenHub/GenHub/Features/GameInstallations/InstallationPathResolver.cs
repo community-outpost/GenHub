@@ -89,8 +89,9 @@ public class InstallationPathResolver(
         try
         {
             hasValidFiles =
-                (installation.HasGenerals && RetailArchiveClassifier.ClassifyArchives(installation.GeneralsPath).HasGeneralsArchives) ||
-                (installation.HasZeroHour && RetailArchiveClassifier.ClassifyArchives(installation.ZeroHourPath).HasZeroHourArchives);
+                (installation.HasGenerals || installation.HasZeroHour) &&
+                (!installation.HasGenerals || RetailArchiveClassifier.ClassifyArchives(installation.GeneralsPath).HasGeneralsArchives) &&
+                (!installation.HasZeroHour || RetailArchiveClassifier.ClassifyArchives(installation.ZeroHourPath).HasZeroHourArchives);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {

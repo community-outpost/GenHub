@@ -46,10 +46,13 @@ public class WindowsInstallationDetectorTests
 
     /// <summary>A partial higher-priority detection cannot hide the other game in a combined root.</summary>
     /// <param name="generalsClaimed">Whether the earlier detection claimed Generals rather than Zero Hour.</param>
+    /// <param name="trailingSeparator">Whether the combined source includes a trailing separator.</param>
     [Theory]
-    [InlineData(true)]
-    [InlineData(false)]
-    public void DeduplicateInstallations_PartiallyClaimedCombinedRoot_IsRetained(bool generalsClaimed)
+    [InlineData(true, false)]
+    [InlineData(false, false)]
+    [InlineData(true, true)]
+    [InlineData(false, true)]
+    public void DeduplicateInstallations_PartiallyClaimedCombinedRoot_IsRetained(bool generalsClaimed, bool trailingSeparator)
     {
         var directory = Path.GetFullPath("combined-installation");
         var partial = new GameInstallation(directory, GameInstallationType.Steam)
@@ -60,7 +63,8 @@ public class WindowsInstallationDetectorTests
         };
         var combined = new GameInstallation(directory, GameInstallationType.Retail)
         {
-            HasGenerals = true, HasZeroHour = true, GeneralsPath = directory, ZeroHourPath = directory,
+            HasGenerals = true, HasZeroHour = true, GeneralsPath = trailingSeparator ? directory + Path.DirectorySeparatorChar : directory,
+            ZeroHourPath = directory,
         };
         var detector = new WindowsInstallationDetector(NullLogger<WindowsInstallationDetector>.Instance);
         var method = typeof(WindowsInstallationDetector).GetMethod("DeduplicateInstallations", BindingFlags.Instance | BindingFlags.NonPublic)!;

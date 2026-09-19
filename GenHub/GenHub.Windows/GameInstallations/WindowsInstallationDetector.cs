@@ -126,7 +126,7 @@ public class WindowsInstallationDetector(ILogger<WindowsInstallationDetector> lo
     private static void CompletePartialDetections(List<GameInstallation> installations)
     {
         var combinedPaths = installations.Where(i => i.IsCombinedDirectory)
-            .Select(i => Path.GetFullPath(i.GeneralsPath)).ToHashSet(StringComparer.OrdinalIgnoreCase);
+            .Select(i => Path.TrimEndingDirectorySeparator(Path.GetFullPath(i.GeneralsPath))).ToHashSet(StringComparer.OrdinalIgnoreCase);
         foreach (var installation in installations)
         {
             if (installation.HasGenerals == installation.HasZeroHour)
@@ -135,7 +135,7 @@ public class WindowsInstallationDetector(ILogger<WindowsInstallationDetector> lo
             }
 
             var path = installation.HasGenerals ? installation.GeneralsPath : installation.ZeroHourPath;
-            if (!string.IsNullOrEmpty(path) && combinedPaths.Contains(Path.GetFullPath(path)))
+            if (!string.IsNullOrEmpty(path) && combinedPaths.Contains(Path.TrimEndingDirectorySeparator(Path.GetFullPath(path))))
             {
                 installation.GeneralsPath = path;
                 installation.ZeroHourPath = path;
@@ -236,7 +236,7 @@ public class WindowsInstallationDetector(ILogger<WindowsInstallationDetector> lo
             // and scanned twice for clients, so it is kept whole or dropped whole.
             if (installation.IsCombinedDirectory)
             {
-                var combinedPath = Path.GetFullPath(installation.GeneralsPath);
+                var combinedPath = Path.TrimEndingDirectorySeparator(Path.GetFullPath(installation.GeneralsPath));
                 if (seenGeneralsPaths.Contains(combinedPath) && seenZeroHourPaths.Contains(combinedPath))
                 {
                     logger.LogWarning(
@@ -258,7 +258,7 @@ public class WindowsInstallationDetector(ILogger<WindowsInstallationDetector> lo
             // Check if Generals path is unique
             if (installation.HasGenerals && !string.IsNullOrEmpty(installation.GeneralsPath))
             {
-                var normalizedGeneralsPath = Path.GetFullPath(installation.GeneralsPath);
+                var normalizedGeneralsPath = Path.TrimEndingDirectorySeparator(Path.GetFullPath(installation.GeneralsPath));
                 if (seenGeneralsPaths.Add(normalizedGeneralsPath))
                 {
                     hasUniqueGenerals = true;
@@ -275,7 +275,7 @@ public class WindowsInstallationDetector(ILogger<WindowsInstallationDetector> lo
             // Check if Zero Hour path is unique
             if (installation.HasZeroHour && !string.IsNullOrEmpty(installation.ZeroHourPath))
             {
-                var normalizedZeroHourPath = Path.GetFullPath(installation.ZeroHourPath);
+                var normalizedZeroHourPath = Path.TrimEndingDirectorySeparator(Path.GetFullPath(installation.ZeroHourPath));
                 if (seenZeroHourPaths.Add(normalizedZeroHourPath))
                 {
                     hasUniqueZeroHour = true;
