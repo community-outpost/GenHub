@@ -25,6 +25,49 @@ public class LaunchRegistryTests
         _registry = new LaunchRegistry(loggerMock.Object);
     }
 
+    /// <summary>Polling asks the manager to publish retained exit diagnostics before PID lookup.</summary>
+    /// <param name="allLaunches">Whether polling requests all active launches.</param>
+    /// <returns>The async task.</returns>
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Polling_PreservesManagerExitDiagnosticsAsync(bool allLaunches)
+    {
+        var manager = new Mock<IGameProcessManager>();
+        using var registry = new LaunchRegistry(Mock.Of<ILogger<LaunchRegistry>>(), manager.Object);
+        var identity = Guid.NewGuid();
+        var launch = new GameLaunchInfo
+        {
+            LaunchId = "polling-exit",
+            ProfileId = "profile",
+            WorkspaceId = string.Empty,
+            ProcessInfo = new GameProcessInfo { ProcessId = 987654, ProcessInstanceId = identity },
+        };
+        await registry.RegisterLaunchAsync(launch);
+        void ReportExit() => manager.Raise(m => m.ProcessExited += null, new GameProcessExitedEventArgs
+        {
+            ProcessId = 987654,
+            ProcessInstanceId = identity,
+            ExitCode = 1,
+            StandardErrorTail = "retained diagnostics",
+        });
+        manager.Setup(m => m.GetProcessInfoAsync(987654, It.IsAny<CancellationToken>()))
+            .Callback(ReportExit);
+        manager.Setup(m => m.GetActiveProcessesAsync(It.IsAny<CancellationToken>()))
+            .Callback(ReportExit);
+        if (allLaunches)
+        {
+            Assert.Empty(await registry.GetAllActiveLaunchesAsync());
+        }
+        else
+        {
+            Assert.Same(launch, await registry.GetLaunchInfoAsync(launch.LaunchId));
+        }
+
+        Assert.Equal(1, launch.ExitCode);
+        Assert.Contains("retained diagnostics", launch.FailureReason);
+    }
+
     /// <summary>Only two verified, different start times prove that a PID was reused.</summary>
     /// <param name="verified">Whether the recorded start time came from the OS.</param>
     /// <param name="observed">Whether the current process start time is available.</param>
@@ -141,7 +184,7 @@ public class LaunchRegistryTests
             .Callback(new InvocationAction(_ =>
             {
                 exitRecording.Set();
-                Assert.True(releaseExit.Wait(TimeSpan.FromSeconds(5)));
+                Assert.True(releaseExit.Wait(TimeSpan.FromSeconds(30)));
             }));
         var manager = new Mock<IGameProcessManager>();
         var registry = new LaunchRegistry(logger.Object, manager.Object);

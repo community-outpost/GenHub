@@ -231,14 +231,15 @@ public partial class GameProfileLauncherViewModel(
                             .GroupBy(l => l.ProfileId, StringComparer.OrdinalIgnoreCase)
                             .ToDictionary(
                                 g => g.Key,
-                                g => g.OrderByDescending(l => l.LaunchedAt).First().ProcessInfo.ProcessId,
+                                g => g.OrderByDescending(l => l.LaunchedAt).First().ProcessInfo,
                                 StringComparer.OrdinalIgnoreCase);
                         foreach (var item in Profiles.OfType<GameProfileItemViewModel>())
                         {
-                            if (activeLaunchDict.TryGetValue(item.ProfileId, out var pid))
+                            if (activeLaunchDict.TryGetValue(item.ProfileId, out var processInfo))
                             {
                                 item.IsProcessRunning = true;
-                                item.ProcessId = pid;
+                                item.ProcessId = processInfo.ProcessId;
+                                item.ProcessInstanceId = processInfo.ProcessInstanceId;
                                 item.NotifyCanLaunchChanged();
                             }
                         }
@@ -369,6 +370,7 @@ public partial class GameProfileLauncherViewModel(
                 {
                     profile.IsProcessRunning = true;
                     profile.ProcessId = message.ProcessId;
+                    profile.ProcessInstanceId = message.ProcessInstanceId;
                     profile.NotifyCanLaunchChanged();
                 }
             }
@@ -396,7 +398,9 @@ public partial class GameProfileLauncherViewModel(
                     (message.ProcessId > 0 && p.ProcessId == message.ProcessId));
                 if (profile != null)
                 {
-                    if (message.ProcessId > 0 && profile.ProcessId > 0 && message.ProcessId != profile.ProcessId)
+                    if ((message.ProcessId > 0 && profile.ProcessId > 0 && message.ProcessId != profile.ProcessId)
+                        || (message.ProcessInstanceId != Guid.Empty && profile.ProcessInstanceId != Guid.Empty
+                            && message.ProcessInstanceId != profile.ProcessInstanceId))
                     {
                         logger.LogDebug(
                             "Ignoring stale stop message for {ProfileId} (Msg PID: {MsgPid}, Current PID: {CurrentPid})",
@@ -1431,6 +1435,7 @@ public partial class GameProfileLauncherViewModel(
 
             liveProfile.IsProcessRunning = true;
             liveProfile.ProcessId = launchResult.Data.ProcessInfo.ProcessId;
+            liveProfile.ProcessInstanceId = launchResult.Data.ProcessInfo.ProcessInstanceId;
 
             // Ensure notifications are sent for binding updates
             liveProfile.NotifyCanLaunchChanged();
@@ -1937,18 +1942,24 @@ public partial class GameProfileLauncherViewModel(
                 logger.LogInformation("Game process {ProcessId} exited with code {ExitCode}", e.ProcessId, e.ExitCode);
 
                 // Find the profile that was running this process
-                var profile = Profiles.OfType<GameProfileItemViewModel>().FirstOrDefault(p => p.ProcessId == e.ProcessId);
+                var profile = Profiles.OfType<GameProfileItemViewModel>().FirstOrDefault(p => p.ProcessId == e.ProcessId
+                    && (p.ProcessInstanceId == Guid.Empty || e.ProcessInstanceId == Guid.Empty
+                        || p.ProcessInstanceId == e.ProcessInstanceId));
                 if (profile != null)
                 {
                     profile.IsProcessRunning = false;
                     profile.ProcessId = 0;
                     logger.LogInformation("Updated profile {ProfileName} - process no longer running", profile.Name);
+                }
 
-                    var failureReason = e.DescribeFailure();
-                    if (failureReason != null)
-                    {
-                        notificationService.ShowError(localizationService["GameProfiles.Notification.UnexpectedExit.Title"], $"{profile.Name}: {failureReason}");
-                    }
+                if (e.DescribeFailure() != null)
+                {
+                    var message = e.UnmountableArchives.Count > 0
+                        ? localizationService.GetString("GameProfiles.Notification.UnexpectedExit.Archives", string.Join(", ", e.UnmountableArchives), e.ExitCode!)
+                        : localizationService.GetString("GameProfiles.Notification.UnexpectedExit.Message", e.ExitCode!);
+                    notificationService.ShowError(
+                        localizationService["GameProfiles.Notification.UnexpectedExit.Title"],
+                        profile == null ? message : $"{profile.Name}: {message}");
                 }
             }
             catch (Exception ex)

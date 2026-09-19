@@ -7,7 +7,6 @@ using GenHub.Features.Launching;
 using Microsoft.Extensions.Logging.Abstractions;
 using System;
 using System.IO;
-using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using Xunit;
 
@@ -30,7 +29,7 @@ public class PostSpawnFailureDetectionTests : IDisposable
     /// When the late-exit scripts exit, in seconds: past the detection window, matching
     /// the measured cold-start abort that motivates the late-failure channel.
     /// </summary>
-    private const int PostWindowExitSeconds = 4;
+    private const int PostWindowExitSeconds = 8;
 
     private readonly string _tempDir = Path.Combine(
         Path.GetTempPath(),
@@ -43,21 +42,14 @@ public class PostSpawnFailureDetectionTests : IDisposable
     /// </summary>
     public PostSpawnFailureDetectionTests() => Directory.CreateDirectory(_tempDir);
 
-    private static bool OnUnix => !RuntimeInformation.IsOSPlatform(OSPlatform.Windows);
-
     /// <summary>
     /// An abort after 700 ms — outside the old fixed window — that names its archives via
     /// the sentinels must fail the launch with the archives named, not the raw tail.
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
-    [Fact]
+    [UnixFact]
     public async Task DelayedAbortWithMountSentinels_FailsNamingTheArchivesAsync()
     {
-        if (!OnUnix)
-        {
-            return;
-        }
-
         var binary = await WriteScriptAsync(
             "#!/bin/sh\n"
             + "sleep 0.7\n"
@@ -85,14 +77,9 @@ public class PostSpawnFailureDetectionTests : IDisposable
     /// build except the fork, which never emits a sentinel at all.
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
-    [Fact]
+    [UnixFact]
     public async Task DelayedAbortWithoutSentinel_FailsWithTheStderrTailAsync()
     {
-        if (!OnUnix)
-        {
-            return;
-        }
-
         var binary = await WriteScriptAsync(
             "#!/bin/sh\n"
             + "sleep 0.7\n"
@@ -117,14 +104,9 @@ public class PostSpawnFailureDetectionTests : IDisposable
     /// exit code and the stderr tail.
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
-    [Fact]
+    [UnixFact]
     public async Task FastAbortWithoutSentinel_FailsWithTheStderrTailAsync()
     {
-        if (!OnUnix)
-        {
-            return;
-        }
-
         var binary = await WriteScriptAsync(
             "#!/bin/sh\n"
             + "echo \"missing data directory\" >&2\n"
@@ -149,14 +131,9 @@ public class PostSpawnFailureDetectionTests : IDisposable
     /// advisory in both directions.
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
-    [Fact]
+    [UnixFact]
     public async Task SentinelFromASurvivingProcess_DoesNotFailTheLaunchAsync()
     {
-        if (!OnUnix)
-        {
-            return;
-        }
-
         var binary = await WriteScriptAsync(
             "#!/bin/sh\n"
             + $"echo \"{RetailArchiveConstants.ArchiveMountFailedStderrPrefix}W3DZH.big\" >&2\n"
@@ -189,14 +166,9 @@ public class PostSpawnFailureDetectionTests : IDisposable
     /// never read as a crash.
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
-    [Fact]
+    [UnixFact]
     public async Task ProcessOutlivingTheWindow_LaunchesAndTerminatesWithoutFailureClassificationAsync()
     {
-        if (!OnUnix)
-        {
-            return;
-        }
-
         var binary = await WriteScriptAsync("#!/bin/sh\nsleep 30\n");
 
         var exited = new TaskCompletionSource<GameProcessExitedEventArgs>(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -211,18 +183,25 @@ public class PostSpawnFailureDetectionTests : IDisposable
         Assert.True(result.Success, $"Launch failed: {string.Join(" ", result.Errors)}");
         Assert.NotNull(result.Data);
 
-        var info = await _processManager.GetProcessInfoAsync(result.Data!.ProcessId);
-        Assert.True(info.Success);
+        try
+        {
+            var info = await _processManager.GetProcessInfoAsync(result.Data!.ProcessId);
+            Assert.True(info.Success);
 
-        var terminated = await _processManager.TerminateProcessAsync(result.Data!.ProcessId);
-        Assert.True(terminated.Success);
+            var terminated = await _processManager.TerminateProcessAsync(result.Data!.ProcessId);
+            Assert.True(terminated.Success);
 
-        var completed = await Task.WhenAny(exited.Task, Task.Delay(TimeSpan.FromSeconds(30)));
-        Assert.True(completed == exited.Task, "The exit event for the terminated process never arrived.");
+            var completed = await Task.WhenAny(exited.Task, Task.Delay(TimeSpan.FromSeconds(30)));
+            Assert.True(completed == exited.Task, "The exit event for the terminated process never arrived.");
 
-        var exitEvent = await exited.Task;
-        Assert.True(exitEvent.TerminationRequested);
-        Assert.Null(exitEvent.DescribeFailure());
+            var exitEvent = await exited.Task;
+            Assert.True(exitEvent.TerminationRequested);
+            Assert.Null(exitEvent.DescribeFailure());
+        }
+        finally
+        {
+            await _processManager.TerminateProcessAsync(result.Data.ProcessId);
+        }
     }
 
     /// <summary>
@@ -231,14 +210,9 @@ public class PostSpawnFailureDetectionTests : IDisposable
     /// entry ends up failed, with the sentinel-named archives and the exit code.
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
-    [Fact]
+    [UnixFact]
     public async Task AbortAfterTheWindow_MarksTheRegisteredLaunchFailedNamingTheArchiveAsync()
     {
-        if (!OnUnix)
-        {
-            return;
-        }
-
         var binary = await WriteScriptAsync(
             "#!/bin/sh\n"
             + $"sleep {PostWindowExitSeconds}\n"
@@ -260,14 +234,9 @@ public class PostSpawnFailureDetectionTests : IDisposable
     /// tail as the reason.
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
-    [Fact]
+    [UnixFact]
     public async Task AbortAfterTheWindowWithoutSentinel_MarksTheLaunchFailedWithTheTailAsync()
     {
-        if (!OnUnix)
-        {
-            return;
-        }
-
         var binary = await WriteScriptAsync(
             "#!/bin/sh\n"
             + $"sleep {PostWindowExitSeconds}\n"
@@ -286,14 +255,9 @@ public class PostSpawnFailureDetectionTests : IDisposable
     /// entry terminates without a failure reason.
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
-    [Fact]
+    [UnixFact]
     public async Task CleanExitAfterTheWindow_IsNotMarkedAsAFailureAsync()
     {
-        if (!OnUnix)
-        {
-            return;
-        }
-
         var binary = await WriteScriptAsync(
             "#!/bin/sh\n"
             + $"sleep {PostWindowExitSeconds}\n"
@@ -312,6 +276,7 @@ public class PostSpawnFailureDetectionTests : IDisposable
     /// </summary>
     public void Dispose()
     {
+        _processManager.Dispose();
         GC.SuppressFinalize(this);
         try
         {
@@ -336,7 +301,7 @@ public class PostSpawnFailureDetectionTests : IDisposable
     {
         // Wired exactly as in production: the registry subscribes to the manager's exit
         // event in its constructor, before this test's own completion probe.
-        var registry = new LaunchRegistry(NullLogger<LaunchRegistry>.Instance, _processManager);
+        using var registry = new LaunchRegistry(NullLogger<LaunchRegistry>.Instance, _processManager);
 
         var exited = new TaskCompletionSource<GameProcessExitedEventArgs>(TaskCreationOptions.RunContinuationsAsynchronously);
         _processManager.ProcessExited += (_, e) => exited.TrySetResult(e);

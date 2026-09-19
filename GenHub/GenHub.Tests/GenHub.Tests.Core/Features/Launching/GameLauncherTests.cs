@@ -225,6 +225,61 @@ public class GameLauncherTests : IDisposable
     }
 
     /// <summary>
+    /// An exit applied during registration must fail the launch before success is reported.
+    /// </summary>
+    /// <returns>The async task.</returns>
+    [Fact]
+    public async Task LaunchProfileAsync_ExitedDuringRegistration_DoesNotReportSuccessAsync()
+    {
+        // Arrange
+        var profile = CreateTestProfile();
+        var workspaceInfo = new WorkspaceInfo
+        {
+            Id = profile.Id,
+            WorkspacePath = @"C:\workspace",
+            ExecutablePath = @"C:\workspace\generals.exe",
+        };
+        var processInfo = new GameProcessInfo { ProcessId = 123, ProcessName = "generals.exe" };
+        var manifest = new ContentManifest { Id = "1.0.genhub.mod.test", Name = "Test Content" };
+
+        _profileManagerMock.Setup(x => x.GetProfileAsync(profile.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(profile));
+
+        _manifestPoolMock.Setup(x => x.GetManifestAsync("1.0.genhub.mod.test", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentManifest?>.CreateSuccess(manifest));
+
+        _dependencyResolverMock.Setup(x => x.ResolveDependenciesWithManifestsAsync(
+                It.Is<IEnumerable<string>>(ids => ids.SequenceEqual(TestContentIds)),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(DependencyResolutionResult.CreateSuccess(
+                TestContentIds,
+                [manifest],
+                []));
+
+        _workspaceManagerMock.Setup(x => x.PrepareWorkspaceAsync(It.IsAny<WorkspaceConfiguration>(), It.IsAny<IProgress<WorkspacePreparationProgress>>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<WorkspaceInfo>.CreateSuccess(workspaceInfo));
+
+        _processManagerMock.Setup(x => x.StartProcessAsync(It.IsAny<GameLaunchConfiguration>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<GameProcessInfo>.CreateSuccess(processInfo));
+
+        _launchRegistryMock.Setup(x => x.RegisterLaunchAsync(It.IsAny<GameLaunchInfo>()))
+            .Callback<GameLaunchInfo>(launch =>
+            {
+                if (launch.ProcessInfo.ProcessId > 0)
+                {
+                    launch.TerminatedAt = DateTime.UtcNow;
+                    launch.ExitCode = 1;
+                    launch.FailureReason = "Buffered process failure";
+                }
+            })
+            .Returns(Task.CompletedTask);
+
+        var result = await _gameLauncher.LaunchProfileAsync(profile.Id);
+        Assert.False(result.Success);
+        Assert.Contains("Buffered process failure", result.FirstError);
+    }
+
+    /// <summary>
     /// Launches a profile with resolution settings and asserts -xres and -yres arguments are forwarded.
     /// </summary>
     /// <returns>The async task.</returns>

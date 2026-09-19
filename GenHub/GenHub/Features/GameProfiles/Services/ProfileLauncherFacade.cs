@@ -546,9 +546,9 @@ public class ProfileLauncherFacade(
                 $"Successfully launched '{profile.Name}'",
                 NotificationDurations.Medium);
 
-            if (toolLaunchInfo.ProcessInfo.ProcessId > 0)
+            if (toolLaunchInfo.ProcessInfo.ProcessId > 0 && !toolLaunchInfo.TerminatedAt.HasValue && !toolLaunchInfo.HasFailed)
             {
-                WeakReferenceMessenger.Default.Send(new ProfileLaunchedMessage(profileId, toolLaunchInfo.ProcessInfo.ProcessId));
+                WeakReferenceMessenger.Default.Send(new ProfileLaunchedMessage(profileId, toolLaunchInfo.ProcessInfo.ProcessId) { ProcessInstanceId = toolLaunchInfo.ProcessInfo.ProcessInstanceId });
             }
 
             return ProfileOperationResult<GameLaunchInfo>.CreateSuccess(toolLaunchInfo);
@@ -969,9 +969,15 @@ public class ProfileLauncherFacade(
                 }
             }
 
+            if (launchInfo.TerminatedAt.HasValue || launchInfo.HasFailed)
+            {
+                return ProfileOperationResult<GameLaunchInfo>.CreateFailure(
+                    launchInfo.FailureReason ?? "The game exited before launch completed.");
+            }
+
             if (launchInfo.ProcessInfo.ProcessId > 0)
             {
-                WeakReferenceMessenger.Default.Send(new ProfileLaunchedMessage(profileId, launchInfo.ProcessInfo.ProcessId));
+                WeakReferenceMessenger.Default.Send(new ProfileLaunchedMessage(profileId, launchInfo.ProcessInfo.ProcessId) { ProcessInstanceId = launchInfo.ProcessInfo.ProcessInstanceId });
             }
 
             return ProfileOperationResult<GameLaunchInfo>.CreateSuccess(launchInfo);

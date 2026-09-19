@@ -59,8 +59,8 @@ public class GameProcessExitedEventArgs : EventArgs
     /// Describes why this exit is a failure, or returns null for a clean, unknown, or deliberately requested exit.
     /// </summary>
     /// <remarks>
-    /// The single source of the late-failure wording: the launch registry records it and
-    /// the UI surfaces it, so composing it here keeps the two from drifting apart. The
+    /// Technical diagnostics recorded by the launch registry. UI consumers localize their
+    /// messages independently, using the same failure classification. The
     /// advisory mount sentinels, when present, name the archive; otherwise the stderr
     /// tail stands in. Only the non-zero exit code decides that the exit counts as a
     /// failure — quitting the game cleanly is not one.

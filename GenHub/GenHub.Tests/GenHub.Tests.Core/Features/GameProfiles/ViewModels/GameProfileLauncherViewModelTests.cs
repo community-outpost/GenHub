@@ -726,6 +726,33 @@ public class GameProfileLauncherViewModelTests
     }
 
     /// <summary>
+    /// Verifies that receiving ProfileStoppedMessage with reused PID is ignored as stale.
+    /// </summary>
+    [AvaloniaFact]
+    public void Receive_ProfileStoppedMessage_WithMismatchedIdentity_IgnoresStaleStop()
+    {
+        var vm = CreateViewModelWithMockDependencies();
+        var profile = new GameProfile
+        {
+            Id = "test-profile-123",
+            Name = "Test Profile",
+        };
+        var item = new GameProfileItemViewModel("test-profile-123", profile, string.Empty, string.Empty)
+        {
+            IsProcessRunning = true,
+            ProcessId = 45678,
+            ProcessInstanceId = Guid.NewGuid(),
+        };
+        vm.Profiles.Add(item);
+
+        // A message arrives with a different, stale PID (e.g. from an earlier instance that exited late)
+        vm.Receive(new ProfileStoppedMessage("test-profile-123", 45678) { ProcessInstanceId = Guid.NewGuid() });
+
+        Assert.True(item.IsProcessRunning);
+        Assert.Equal(45678, item.ProcessId);
+    }
+
+    /// <summary>
     /// Verifies that when LaunchProfileAsync launches a new profile ID (e.g. from reconciler clone),
     /// the launcher ViewModel switches SelectedProfile to the new profile item.
     /// </summary>
@@ -1098,5 +1125,56 @@ public class GameProfileLauncherViewModelTests
         notificationService.Verify(
             n => n.ShowError(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
             Times.Never);
+    }
+
+    /// <summary>
+    /// A process that dies after the launch was announced as running must not vanish
+    /// silently: the late failure surfaces through the notification channel as a failed launch, naming the archive when known.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    /// <param name="includeProfile">Whether the profile row is still present when the process exits.</param>
+    [AvaloniaTheory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task ProcessExitedWithFailure_SurfacesTheFailureToTheUserAsync(bool includeProfile)
+    {
+        var gameProcessManager = new Mock<IGameProcessManager>();
+        var notificationService = new Mock<INotificationService>();
+        var vm = CreateViewModelWithMockDependencies(gameProcessManager, notificationService);
+
+        // InitializeAsync is where the view model subscribes to ProcessExited.
+        await vm.InitializeAsync();
+
+        var profile = CreateProfileItem("Failing Profile");
+        profile.PropertyChanged += (_, _) => Assert.True(Dispatcher.UIThread.CheckAccess());
+        profile.ProcessId = 4242;
+        profile.IsProcessRunning = true;
+        if (includeProfile)
+        {
+            vm.Profiles.Add(profile);
+        }
+
+        var statusBeforeExit = vm.StatusMessage;
+        var errorBeforeExit = vm.ErrorMessage;
+        await Task.Run(() => gameProcessManager.Raise(m => m.ProcessExited += null, new GameProcessExitedEventArgs
+        {
+            ProcessId = 4242,
+            ExitCode = 1,
+            StandardErrorTail = "init abort",
+            UnmountableArchives = ["TexturesZH.big"],
+        }));
+        await Dispatcher.UIThread.InvokeAsync(() => { });
+
+        Assert.Equal(!includeProfile, profile.IsProcessRunning);
+        Assert.Equal(includeProfile ? 0 : 4242, profile.ProcessId);
+        Assert.Equal(statusBeforeExit, vm.StatusMessage);
+        Assert.Equal(errorBeforeExit, vm.ErrorMessage);
+        notificationService.Verify(
+            n => n.ShowError(
+                "Game Exited Unexpectedly",
+                It.Is<string>(s => s.Contains("TexturesZH.big") && (!includeProfile || s.Contains("Failing Profile"))),
+                It.IsAny<int?>(),
+                It.IsAny<bool>()),
+            Times.Once);
     }
 }
