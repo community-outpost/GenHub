@@ -5,6 +5,7 @@ using Avalonia.Platform.Storage;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using GenHub.Common.Validation;
+using GenHub.Core.Helpers;
 using GenHub.Core.Models.Providers;
 using System;
 using System.Diagnostics.CodeAnalysis;
@@ -154,6 +155,35 @@ public partial class AddArtifactDialogViewModel(Action<ReleaseArtifact> onArtifa
 
         bytes = (long)(number * multiplier);
         return true;
+    }
+
+    /// <summary>
+    /// Populates artifact fields from a dropped or browsed file system path.
+    /// Accepts single files (filename, size, and SHA256 are filled in) and folders
+    /// (named as a ZIP archive with the packed size estimated from the folder contents).
+    /// </summary>
+    /// <param name="path">Path to the dropped file or folder.</param>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    public async Task PopulateFromDroppedPathAsync(string path)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return;
+        }
+
+        path = path.Trim('"', '\'', ' ');
+        UseLocalFile = true;
+
+        if (Directory.Exists(path))
+        {
+            await PopulateFromLocalFolderAsync(path);
+            return;
+        }
+
+        if (File.Exists(path))
+        {
+            await PopulateFromLocalFileAsync(path);
+        }
     }
 
     /// <inheritdoc />
@@ -398,6 +428,7 @@ public partial class AddArtifactDialogViewModel(Action<ReleaseArtifact> onArtifa
                 FileTypeFilter = new[]
                 {
                     new FilePickerFileType("Archives") { Patterns = new[] { "*.zip", "*.rar", "*.7z" } },
+                    new FilePickerFileType("Executables") { Patterns = new[] { "*.exe", "*.msi" } },
                     new FilePickerFileType("All Files") { Patterns = new[] { "*" } },
                 },
             });
@@ -407,6 +438,7 @@ public partial class AddArtifactDialogViewModel(Action<ReleaseArtifact> onArtifa
 
     private async Task PopulateFromLocalFileAsync(string path)
     {
+        UseLocalFile = true;
         LocalFilePath = path;
         Filename = Path.GetFileName(path);
 
@@ -424,6 +456,51 @@ public partial class AddArtifactDialogViewModel(Action<ReleaseArtifact> onArtifa
         }
 
         await ComputeHashForLocalFileAsync(path);
+    }
+
+    private async Task PopulateFromLocalFolderAsync(string path)
+    {
+        CancelPendingHash();
+        LocalFilePath = path;
+        var folderName = new DirectoryInfo(path).Name;
+        Filename = folderName.EndsWith(".zip", StringComparison.OrdinalIgnoreCase)
+            ? folderName
+            : folderName + ".zip";
+        Sha256Hash = string.Empty;
+        FileSizeDisplay = GetLocalizedString(
+            "Tools.PublisherStudio.Artifact.CalculatingFolderSize",
+            "Folder (calculating size...)");
+
+        try
+        {
+            var totalBytes = await Task.Run(ComputeFolderSize, CancellationToken.None);
+            if (string.Equals(LocalFilePath, path, StringComparison.OrdinalIgnoreCase))
+            {
+                FileSize = totalBytes;
+                FileSizeDisplay = FormatFileSize(totalBytes);
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            if (string.Equals(LocalFilePath, path, StringComparison.OrdinalIgnoreCase))
+            {
+                FileSize = 0;
+                FileSizeDisplay = GetLocalizedString(
+                    "Tools.PublisherStudio.Artifact.FolderSizeUnavailable",
+                    "Folder (size unavailable)");
+            }
+        }
+
+        long ComputeFolderSize()
+        {
+            long total = 0;
+            foreach (var file in new DirectoryInfo(path).EnumerateFiles("*", SearchOption.AllDirectories))
+            {
+                total += file.Length;
+            }
+
+            return total;
+        }
     }
 
     private async Task ComputeHashForLocalFileAsync(string path)
@@ -455,26 +532,56 @@ public partial class AddArtifactDialogViewModel(Action<ReleaseArtifact> onArtifa
     }
 
     /// <summary>
-    /// Sets the local file and extracts filename and size.
+    /// Opens a folder picker dialog and populates artifact fields from the selected folder.
+    /// The folder is uploaded as a ZIP archive during publish.
     /// </summary>
-    /// <param name="filePath">Path to the local file.</param>
     [RelayCommand]
-    private async Task SelectLocalFileAsync(string? filePath)
+    private async Task BrowseLocalFolderAsync()
     {
-        if (string.IsNullOrWhiteSpace(filePath) || !File.Exists(filePath))
+        try
         {
-            return;
+            var path = await PickLocalFolderPathAsync();
+            if (!string.IsNullOrEmpty(path))
+            {
+                await PopulateFromDroppedPathAsync(path);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // Selection or dialog was canceled
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            ArtifactStatus = localizationService?.GetString(
+                "Tools.PublisherStudio.Artifact.BrowseError",
+                ex.Message) ?? $"Error: {ex.Message}";
+        }
+    }
+
+    private async Task<string?> PickLocalFolderPathAsync()
+    {
+        var lifetime = Application.Current?.ApplicationLifetime
+            as IClassicDesktopStyleApplicationLifetime;
+        var mainWindow = lifetime?.MainWindow;
+        if (mainWindow == null)
+        {
+            return null;
         }
 
-        LocalFilePath = filePath;
-        Filename = Path.GetFileName(filePath);
+        var topLevel = TopLevel.GetTopLevel(mainWindow);
+        if (topLevel == null)
+        {
+            return null;
+        }
 
-        var fileInfo = new FileInfo(filePath);
-        FileSize = fileInfo.Length;
-        FileSizeDisplay = FormatFileSize(FileSize);
+        var folders = await topLevel.StorageProvider.OpenFolderPickerAsync(
+            new FolderPickerOpenOptions
+            {
+                Title = "Select Artifact Folder",
+                AllowMultiple = false,
+            });
 
-        // Auto-compute hash
-        await ComputeHashAsync();
+        return folders.Count > 0 ? folders[0].TryGetLocalPath() : null;
     }
 
     /// <summary>
@@ -558,8 +665,9 @@ public partial class AddArtifactDialogViewModel(Action<ReleaseArtifact> onArtifa
         // Validate based on selection mode
         if (UseLocalFile)
         {
-            // Local file mode - require local file path
-            if (string.IsNullOrWhiteSpace(LocalFilePath) || !File.Exists(LocalFilePath))
+            // Local file mode - require a local file or folder path
+            if (string.IsNullOrWhiteSpace(LocalFilePath) ||
+                (!File.Exists(LocalFilePath) && !Directory.Exists(LocalFilePath)))
             {
                 ValidationError = GetLocalizedString(
                     "Tools.PublisherStudio.Artifact.LocalFileRequired",
@@ -589,6 +697,7 @@ public partial class AddArtifactDialogViewModel(Action<ReleaseArtifact> onArtifa
             DownloadUrl = UseLocalFile ? string.Empty : DownloadUrl.Trim(),
             Size = FileSize,
             Sha256 = string.IsNullOrWhiteSpace(Sha256Hash) ? string.Empty : Sha256Hash.Trim(),
+            ContentType = MimeTypeHelper.FromFileName(Filename.Trim()),
             IsPrimary = IsPrimary,
             LocalFilePath = UseLocalFile ? LocalFilePath : null,
         };

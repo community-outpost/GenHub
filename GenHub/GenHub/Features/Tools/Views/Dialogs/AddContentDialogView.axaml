@@ -171,15 +171,6 @@
                                 </StackPanel>
                             </Grid>
 
-                            <!-- GameClient CDN Recommendation Banner -->
-                            <Border Background="{DynamicResource StatusInfoBadgeBackgroundBrush}" BorderBrush="{DynamicResource StatusInfoBrush}" BorderThickness="1" CornerRadius="6" Padding="10,8" IsVisible="{Binding IsGameClientType}">
-                                <Grid ColumnDefinitions="Auto,*">
-                                    <PathIcon Data="{StaticResource GamepadIcon}" Width="14" Height="14" Foreground="{DynamicResource StatusInfoBrush}" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                                    <TextBlock Grid.Column="1" Text="{localization:Localize Tools.PublisherStudio.Content.CdnExplanation}"
-                                               FontSize="11" Foreground="{DynamicResource TextPrimary}" TextWrapping="Wrap"/>
-                                </Grid>
-                            </Border>
-
                             <!-- Hosting Mode Radio Buttons -->
                             <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.DownloadSource}" Classes="label" Margin="0,4,0,0"/>
                             <StackPanel Orientation="Horizontal" Spacing="24">

@@ -403,7 +403,7 @@ public class GoogleDriveHostingProvider(
         }
         catch (Google.GoogleApiException ex) when (ex.HttpStatusCode == HttpStatusCode.NotFound)
         {
-            logger.LogInformation("Google Drive file {FileId} was already deleted.", fileId);
+            logger.LogInformation(ex, "Google Drive file {FileId} was already deleted.", fileId);
             return OperationResult<bool>.CreateSuccess(true);
         }
         catch (Exception ex)

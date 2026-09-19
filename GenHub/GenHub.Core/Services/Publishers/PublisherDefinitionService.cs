@@ -88,14 +88,14 @@ public class PublisherDefinitionService(
                 return OperationResult<PublisherDefinition>.CreateFailure("Failed to deserialize publisher definition");
             }
 
-            if (definition.SchemaVersion != CatalogConstants.DefinitionSchemaVersion)
+            if (definition.SchemaVersion < 1 || definition.SchemaVersion > CatalogConstants.DefinitionSchemaVersion)
             {
                 logger.LogWarning(
                     "Unsupported publisher definition schema version {Version} from {Url}",
                     definition.SchemaVersion,
                     definitionUrl);
                 return OperationResult<PublisherDefinition>.CreateFailure(
-                    $"Unsupported publisher definition schema version {definition.SchemaVersion}; expected {CatalogConstants.DefinitionSchemaVersion}.");
+                    $"Unsupported publisher definition schema version {definition.SchemaVersion}; expected 1 to {CatalogConstants.DefinitionSchemaVersion}.");
             }
 
             // Ensure the definition URL is set correctly on the object if not specified by the publisher JSON

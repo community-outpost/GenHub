@@ -320,7 +320,7 @@ public class PublisherStudioService(
 
             var definition = new PublisherDefinition
             {
-                SchemaVersion = 2,
+                SchemaVersion = CatalogConstants.DefinitionSchemaVersion,
                 Publisher = new PublisherProfile
                 {
                     Id = project.Catalog.Publisher.Id,

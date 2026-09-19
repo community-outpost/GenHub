@@ -1,11 +1,15 @@
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Providers;
 using GenHub.Core.Models.Providers;
+using GenHub.Core.Models.Publishers;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Services.Publishers;
+using GenHub.Features.Tools.Services;
 using Microsoft.Extensions.Logging;
 using Moq;
 using Moq.Protected;
 using System;
+using System.Collections.Generic;
 using System.Net;
 using System.Net.Http;
 using System.Threading;
@@ -273,6 +277,55 @@ public class PublisherDefinitionServiceTests
 
         Assert.False(result.Success);
         Assert.Contains("schema version", result.FirstError);
+    }
+
+    /// <summary>
+    /// Tests that a provider definition exported by PublisherStudio can be fetched and parsed by PublisherDefinitionService in a round-trip.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ExportAndFetchDefinition_RoundTrip_SucceedsAsync()
+    {
+        var studioLoggerMock = new Mock<ILogger<PublisherStudioService>>();
+        var studioService = new PublisherStudioService(studioLoggerMock.Object, _catalogParserMock.Object);
+
+        var project = new PublisherStudioProject();
+        project.Catalog.Publisher = new PublisherProfile
+        {
+            Id = "roundtrip-publisher",
+            Name = "Roundtrip Publisher",
+            Description = "Roundtrip Description",
+            WebsiteUrl = "https://example.com/pub",
+        };
+        project.Catalogs.Add(new NamedCatalog
+        {
+            Id = "main",
+            Name = "Main Catalog",
+            Catalog = new PublisherCatalog(),
+        });
+        var publishedUrls = new Dictionary<string, string>
+        {
+            ["main"] = "https://example.com/catalogs/catalog.json",
+        };
+
+        var exportResult = await studioService.ExportProviderDefinitionAsync(
+            project,
+            publishedUrls,
+            "https://example.com/provider.json");
+
+        Assert.True(exportResult.Success);
+        Assert.NotNull(exportResult.Data);
+
+        SetupHttpResponse(HttpStatusCode.OK, exportResult.Data);
+        var fetchResult = await _service.FetchDefinitionAsync("https://example.com/provider.json");
+
+        Assert.True(fetchResult.Success);
+        Assert.NotNull(fetchResult.Data);
+        Assert.Equal(CatalogConstants.DefinitionSchemaVersion, fetchResult.Data.SchemaVersion);
+        Assert.Equal("roundtrip-publisher", fetchResult.Data.Publisher.Id);
+        Assert.Equal("Roundtrip Publisher", fetchResult.Data.Publisher.Name);
+        Assert.Single(fetchResult.Data.Catalogs);
+        Assert.Equal("https://example.com/catalogs/catalog.json", fetchResult.Data.Catalogs[0].Url);
     }
 
     /// <summary>

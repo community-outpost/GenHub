@@ -7,7 +7,8 @@
              mc:Ignorable="d" d:DesignWidth="700" d:DesignHeight="600"
              x:Class="GenHub.Features.Tools.Views.Dialogs.AddReleaseDialogView"
              x:DataType="vm:AddReleaseDialogViewModel"
-             x:Name="Root">
+             x:Name="Root"
+             DragDrop.AllowDrop="True">
 
 
     <UserControl.Styles>
@@ -129,9 +130,12 @@
                 <!-- Artifacts Section -->
                 <StackPanel Spacing="8">
                     <Grid ColumnDefinitions="*,Auto">
-                        <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
-                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Release.ArtifactsFiles}" Classes="label"/>
-                            <TextBlock Text="*" Foreground="{DynamicResource StatusErrorBrush}"/>
+                        <StackPanel Spacing="2" VerticalAlignment="Center">
+                            <StackPanel Orientation="Horizontal" Spacing="4">
+                                <TextBlock Text="{localization:Localize Tools.PublisherStudio.Release.ArtifactsFiles}" Classes="label"/>
+                                <TextBlock Text="*" Foreground="{DynamicResource StatusErrorBrush}"/>
+                            </StackPanel>
+                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Release.DragDropHint}" FontSize="11" Foreground="{DynamicResource TextSecondary}"/>
                         </StackPanel>
                         <Button Grid.Column="1"
                                 Command="{Binding AddArtifactCommand}"

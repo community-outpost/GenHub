@@ -146,6 +146,51 @@ public static class HostingConstants
     public const string BinaryContentType = "application/octet-stream";
 
     /// <summary>
+    /// MIME content type for ZIP archives.
+    /// </summary>
+    public const string ZipContentType = "application/zip";
+
+    /// <summary>
+    /// MIME content type for RAR archives.
+    /// </summary>
+    public const string RarContentType = "application/vnd.rar";
+
+    /// <summary>
+    /// MIME content type for 7-Zip archives.
+    /// </summary>
+    public const string SevenZipContentType = "application/x-7z-compressed";
+
+    /// <summary>
+    /// MIME content type for TAR archives.
+    /// </summary>
+    public const string TarContentType = "application/x-tar";
+
+    /// <summary>
+    /// MIME content type for GZIP archives.
+    /// </summary>
+    public const string GzipContentType = "application/gzip";
+
+    /// <summary>
+    /// MIME content type for Windows executables and installers.
+    /// </summary>
+    public const string ExecutableContentType = "application/x-msdownload";
+
+    /// <summary>
+    /// MIME content type for Windows installer packages.
+    /// </summary>
+    public const string MsiContentType = "application/x-msi";
+
+    /// <summary>
+    /// MIME content type for plain text files.
+    /// </summary>
+    public const string TextContentType = "text/plain";
+
+    /// <summary>
+    /// MIME content type for Markdown files.
+    /// </summary>
+    public const string MarkdownContentType = "text/markdown";
+
+    /// <summary>
     /// URL template for Google Drive direct file download.
     /// </summary>
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Minor Code Smell", "S1075:URIs should not be hardcoded", Justification = "URL template constant")]

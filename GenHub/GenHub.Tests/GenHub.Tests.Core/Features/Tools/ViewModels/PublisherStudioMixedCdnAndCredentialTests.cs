@@ -149,21 +149,22 @@ public class PublisherStudioMixedCdnAndCredentialTests
     }
 
     /// <summary>
-    /// Tests that setting ContentType to GameClient automatically selects Direct URL distribution mode.
+    /// Tests that setting ContentType to GameClient preserves the local file selection instead of forcing Direct URL mode.
     /// </summary>
     [Fact]
-    public void AddContentDialogViewModel_WhenContentTypeIsGameClient_SetsIsGameClientTypeAndDirectUrl()
+    public void AddContentDialogViewModel_WhenContentTypeIsGameClient_PreservesLocalFileSelection()
     {
         // Act
         var vm = new AddContentDialogViewModel(_ => { })
         {
             UseDirectUrl = false,
+            LocalFilePath = "/path/to/gameclient.exe",
             SelectedContentType = GenHub.Core.Models.Enums.ContentType.GameClient,
         };
 
         // Assert
-        Assert.True(vm.IsGameClientType);
-        Assert.True(vm.UseDirectUrl);
+        Assert.False(vm.UseDirectUrl);
+        Assert.Equal("/path/to/gameclient.exe", vm.LocalFilePath);
     }
 
     /// <summary>
@@ -173,16 +174,17 @@ public class PublisherStudioMixedCdnAndCredentialTests
     public void PublishShareViewModel_CredentialConsoleCommands_CanBeInvoked()
     {
         var project = new PublisherStudioProject();
+        var openedUrls = new List<string>();
         var vm = new PublishShareViewModel(
             project,
             _mockStudioService.Object,
             _mockPublishLogger.Object,
             null,
             _mockHostingStateManager.Object,
-            _mockNotificationService.Object);
+            _mockNotificationService.Object,
+            browserLauncher: openedUrls.Add);
 
-        // Execute commands; on headless linux without a default browser launcher configured,
-        // they should catch and log warning without crashing.
+        // Execute commands and verify they invoke the injected browser launcher with expected URIs
         var googleAuthEx = Record.Exception(() => vm.OpenGoogleAuthPlatformConsoleCommand.Execute(null));
         Assert.Null(googleAuthEx);
 
@@ -194,6 +196,11 @@ public class PublisherStudioMixedCdnAndCredentialTests
 
         var dropboxEx = Record.Exception(() => vm.OpenDropboxAppConsoleCommand.Execute(null));
         Assert.Null(dropboxEx);
+
+        Assert.Contains(HostingConstants.GoogleAuthPlatformUrl, openedUrls);
+        Assert.Contains(HostingConstants.GoogleCloudConsoleCredentialsUrl, openedUrls);
+        Assert.Contains(HostingConstants.GitHubPersonalAccessTokensUrl, openedUrls);
+        Assert.Contains(HostingConstants.DropboxAppConsoleUrl, openedUrls);
     }
 
     /// <summary>
@@ -409,5 +416,124 @@ public class PublisherStudioMixedCdnAndCredentialTests
         var ex = Record.Exception(() => vm.CancelUploadCommand.Execute(null));
         Assert.Null(ex);
         Assert.False(vm.IsUploading);
+    }
+
+    /// <summary>
+    /// Tests that reopening a project backed by a non-default provider (e.g., Dropbox) restores
+    /// the persisted provider selection and its stored credentials instead of defaulting to Google Drive.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task PublishShareViewModel_ReopenNonDefaultProviderProject_RestoresPersistedProviderAndCredentialAsync()
+    {
+        var project = new PublisherStudioProject { ProjectPath = "/test/path/project.json" };
+        var hostingState = new HostingState
+        {
+            ProviderId = HostingConstants.Dropbox,
+        };
+
+        _mockHostingStateManager.Setup(m => m.LoadStateAsync("/test/path/project.json", It.IsAny<System.Threading.CancellationToken>()))
+            .ReturnsAsync(OperationResult<HostingState?>.CreateSuccess(hostingState));
+
+        var googleMock = new Mock<IHostingProvider>();
+        googleMock.Setup(p => p.ProviderId).Returns(HostingConstants.GoogleDrive);
+        googleMock.Setup(p => p.DisplayName).Returns("Google Drive");
+
+        var dropboxMock = new Mock<IHostingProvider>();
+        dropboxMock.Setup(p => p.ProviderId).Returns(HostingConstants.Dropbox);
+        dropboxMock.Setup(p => p.DisplayName).Returns("Dropbox");
+
+        var mockFactory = new Mock<IHostingProviderFactory>();
+
+        // Google Drive is first (default), Dropbox is second
+        mockFactory.Setup(f => f.GetCatalogHostingProviders())
+            .Returns([googleMock.Object, dropboxMock.Object]);
+
+        var mockCredentialStore = new Mock<IHostingCredentialStore>();
+        mockCredentialStore.Setup(s => s.GetCredentialAsync(HostingConstants.Dropbox, It.IsAny<System.Threading.CancellationToken>()))
+            .ReturnsAsync("dropbox-stored-token");
+
+        var vm = new PublishShareViewModel(
+            project,
+            _mockStudioService.Object,
+            _mockPublishLogger.Object,
+            mockFactory.Object,
+            _mockHostingStateManager.Object,
+            _mockNotificationService.Object,
+            credentialStore: mockCredentialStore.Object);
+
+        await vm.InitializeAsync();
+
+        // Must restore Dropbox as the selected provider, not Google Drive
+        Assert.NotNull(vm.SelectedHostingProvider);
+        Assert.Equal(HostingConstants.Dropbox, vm.SelectedHostingProvider.ProviderId);
+        Assert.Equal("dropbox-stored-token", vm.DropboxAccessToken);
+        mockCredentialStore.Verify(s => s.GetCredentialAsync(HostingConstants.Dropbox, It.IsAny<System.Threading.CancellationToken>()), Times.Once);
+        mockCredentialStore.Verify(s => s.GetCredentialAsync(HostingConstants.GoogleDrive, It.IsAny<System.Threading.CancellationToken>()), Times.Never);
+    }
+
+    /// <summary>
+    /// Tests that switching hosting providers clears provider-scoped remote file IDs and does not reuse or delete old provider file IDs.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task PublishShareViewModel_SwitchProvider_ResetsProviderScopedRemoteFileIdsAsync()
+    {
+        var project = new PublisherStudioProject { ProjectPath = "/test/path/project.json" };
+        var hostingState = new HostingState
+        {
+            ProviderId = HostingConstants.Dropbox,
+            Definition = new HostedFileInfo { FileId = "dropbox-def-123" },
+            Catalogs =
+            [
+                new CatalogHostingInfo
+                {
+                    CatalogId = "cat-1",
+                    FileId = "dropbox-cat-123",
+                    Url = "https://dropbox.com/cat-123",
+                },
+            ],
+        };
+
+        _mockHostingStateManager.Setup(m => m.LoadStateAsync("/test/path/project.json", It.IsAny<System.Threading.CancellationToken>()))
+            .ReturnsAsync(OperationResult<HostingState?>.CreateSuccess(hostingState));
+
+        var googleMock = new Mock<IHostingProvider>();
+        googleMock.Setup(p => p.ProviderId).Returns(HostingConstants.GoogleDrive);
+        googleMock.Setup(p => p.DisplayName).Returns("Google Drive");
+        googleMock.Setup(p => p.SupportsCatalogHosting).Returns(true);
+        googleMock.Setup(p => p.SupportsUpdate).Returns(true);
+
+        var dropboxMock = new Mock<IHostingProvider>();
+        dropboxMock.Setup(p => p.ProviderId).Returns(HostingConstants.Dropbox);
+        dropboxMock.Setup(p => p.DisplayName).Returns("Dropbox");
+        dropboxMock.Setup(p => p.SupportsCatalogHosting).Returns(true);
+
+        var mockFactory = new Mock<IHostingProviderFactory>();
+        mockFactory.Setup(f => f.GetCatalogHostingProviders())
+            .Returns([dropboxMock.Object, googleMock.Object]);
+
+        var vm = new PublishShareViewModel(
+            project,
+            _mockStudioService.Object,
+            _mockPublishLogger.Object,
+            mockFactory.Object,
+            _mockHostingStateManager.Object,
+            _mockNotificationService.Object);
+
+        await vm.InitializeAsync();
+        Assert.Equal(HostingConstants.Dropbox, vm.SelectedHostingProvider?.ProviderId);
+
+        // Switch provider to Google Drive
+        vm.SelectedHostingProvider = googleMock.Object;
+
+        // ProviderId in state must be migrated and old remote file IDs cleared
+        Assert.Equal(HostingConstants.GoogleDrive, vm.CurrentHostingState?.ProviderId);
+        Assert.Null(vm.CurrentHostingState?.Definition);
+        Assert.NotNull(vm.CurrentHostingState?.Catalogs);
+        Assert.Empty(vm.CurrentHostingState!.Catalogs);
+
+        // Verify Google Drive DeleteFileAsync is never called with the old Dropbox file IDs
+        googleMock.Verify(p => p.DeleteFileAsync(It.Is<string>(id => id.Contains("dropbox")), It.IsAny<System.Threading.CancellationToken>()), Times.Never);
     }
 }

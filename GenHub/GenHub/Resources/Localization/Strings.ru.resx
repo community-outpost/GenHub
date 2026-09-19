@@ -9330,6 +9330,18 @@ GenHub передает официальный идентификатор AppID 
   <data name="Tools.PublisherStudio.Artifact.Browse" xml:space="preserve">
     <value>Обзор...</value>
   </data>
+  <data name="Tools.PublisherStudio.Artifact.BrowseFolder" xml:space="preserve">
+    <value>Обзор папки</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.CalculatingFolderSize" xml:space="preserve">
+    <value>Папка (вычисление размера...)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.DragDropHint" xml:space="preserve">
+    <value>Совет: перетащите файл или папку в любое место этого окна, чтобы заполнить данные.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.FolderSizeUnavailable" xml:space="preserve">
+    <value>Папка (размер недоступен)</value>
+  </data>
   <data name="Tools.PublisherStudio.Artifact.ComputeHash" xml:space="preserve">
     <value>Вычислить</value>
   </data>
@@ -9431,9 +9443,6 @@ GenHub передает официальный идентификатор AppID 
   </data>
   <data name="Tools.PublisherStudio.Content.BrowseFolder" xml:space="preserve">
     <value>Обзор папки...</value>
-  </data>
-  <data name="Tools.PublisherStudio.Content.CdnExplanation" xml:space="preserve">
-    <value>Игровые клиенты и автономные базовые пакеты обычно имеют большой размер и распространяются через внешние CDN или быстрые зеркала. Используйте прямую ссылку на скачивание, чтобы направлять игроков к вашей CDN без повторной загрузки.</value>
   </data>
   <data name="Tools.PublisherStudio.Content.Changelog" xml:space="preserve">
     <value>Список изменений</value>
@@ -10041,6 +10050,30 @@ GenHub передает официальный идентификатор AppID 
   <data name="Tools.PublisherStudio.Hosting.OpenUrlTip" xml:space="preserve">
     <value>Открыть URL для скачивания в браузере</value>
   </data>
+  <data name="Tools.PublisherStudio.Hosting.NotConnectedHint" xml:space="preserve">
+    <value>Хостинг-провайдер не подключён — файлы остаются только локальными, пока вы не подключитесь ниже. После этого каталоги, определения и файлы релизов можно будет загружать прямо из списка.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.Upload" xml:space="preserve">
+    <value>Загрузить</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.UploadTip" xml:space="preserve">
+    <value>Загрузить этот файл к подключённому хостинг-провайдеру</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.UploadInProgress" xml:space="preserve">
+    <value>Другая загрузка уже выполняется.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.ConnectBeforeUpload" xml:space="preserve">
+    <value>Подключите хостинг-провайдера перед загрузкой файлов.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.LocalFileMissingFormat" xml:space="preserve">
+    <value>Локальный файл не найден: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.SingleUploadSuccessFormat" xml:space="preserve">
+    <value>{0} успешно загружен.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.SingleUploadFailedFormat" xml:space="preserve">
+    <value>Не удалось загрузить {0}: {1}</value>
+  </data>
   <data name="Tools.PublisherStudio.Hosting.Provider" xml:space="preserve">
     <value>Провайдер хостинга</value>
   </data>
@@ -10196,6 +10229,24 @@ GenHub передает официальный идентификатор AppID 
   </data>
   <data name="Tools.PublisherStudio.Library.DeleteReleaseTooltip" xml:space="preserve">
     <value>Удалить релиз</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.DeleteReleaseTitle" xml:space="preserve">
+    <value>Удалить релиз</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.DeleteReleaseMessageFormat" xml:space="preserve">
+    <value>Вы уверены, что хотите удалить релиз v{0}? Это также удалит его файлы, действие нельзя отменить.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.ReleaseDeletedTitle" xml:space="preserve">
+    <value>Релиз удалён</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.ReleaseDeletedMessageFormat" xml:space="preserve">
+    <value>Релиз v{0} удалён.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.HostingHintMessage" xml:space="preserve">
+    <value>{0} файл(ов) ожидают загрузки. Подключите хостинг-провайдера, чтобы опубликовать их в облаке.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.GoToHosting" xml:space="preserve">
+    <value>Открыть хостинг</value>
   </data>
   <data name="Tools.PublisherStudio.Library.Dependencies" xml:space="preserve">
     <value>Зависимости</value>
@@ -10628,6 +10679,9 @@ GenHub передает официальный идентификатор AppID 
   </data>
   <data name="Tools.PublisherStudio.Release.AddArtifact" xml:space="preserve">
     <value>Добавить файл</value>
+  </data>
+  <data name="Tools.PublisherStudio.Release.DragDropHint" xml:space="preserve">
+    <value>Совет: перетащите файлы или папки сюда, чтобы добавить артефакты.</value>
   </data>
   <data name="Tools.PublisherStudio.Release.AddDependency" xml:space="preserve">
     <value>Добавить зависимость</value>
@@ -12444,6 +12498,9 @@ GameFilesEdited/Data/INI/**/*.ini</value>
   </data>
   <data name="Tools.PublisherStudio.Publish.UploadFailedShort" xml:space="preserve">
     <value>Загрузка не удалась</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.UploadInProgressTitle" xml:space="preserve">
+    <value>Идёт загрузка</value>
   </data>
   <data name="Tools.PublisherStudio.Publish.ArtifactUploadFailedFormat" xml:space="preserve">
     <value>Не удалось загрузить {0}: {1}</value>

@@ -171,7 +171,30 @@ public partial class PublisherStudioViewModel(
         await _saveLock.WaitAsync();
         try
         {
-            await SaveProjectCoreAsync(CurrentProject);
+            await SaveProjectCoreAsync(CurrentProject, silent: false);
+        }
+        finally
+        {
+            _saveLock.Release();
+        }
+    }
+
+    /// <summary>
+    /// Saves the current project without a success toast.
+    /// Used by operations that already report their own outcome to the user.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    public async Task SaveProjectSilentAsync()
+    {
+        if (CurrentProject == null)
+        {
+            return;
+        }
+
+        await _saveLock.WaitAsync();
+        try
+        {
+            await SaveProjectCoreAsync(CurrentProject, silent: true);
         }
         finally
         {
@@ -278,7 +301,7 @@ public partial class PublisherStudioViewModel(
         return string.IsNullOrEmpty(slug) ? "catalog" : slug;
     }
 
-    private async Task SaveProjectCoreAsync(PublisherStudioProject project)
+    private async Task SaveProjectCoreAsync(PublisherStudioProject project, bool silent)
     {
         try
         {
@@ -301,12 +324,15 @@ public partial class PublisherStudioViewModel(
                     await SaveLastProjectPathAsync(project.ProjectPath);
                 }
 
-                var savedTitle = localizationService?.GetString("Tools.PublisherStudio.Notification.ProjectSavedTitle") ?? "Project Saved";
-                var savedMsgTemplate = localizationService?.GetString("Tools.PublisherStudio.Notification.ProjectSavedMessage") ?? "Your publisher project '{0}' has been saved successfully.";
-                notificationService?.ShowSuccess(
-                    savedTitle,
-                    string.Format(savedMsgTemplate, project.ProjectName),
-                    autoDismissMs: 4000);
+                if (!silent)
+                {
+                    var savedTitle = localizationService?.GetString("Tools.PublisherStudio.Notification.ProjectSavedTitle") ?? "Project Saved";
+                    var savedMsgTemplate = localizationService?.GetString("Tools.PublisherStudio.Notification.ProjectSavedMessage") ?? "Your publisher project '{0}' has been saved successfully.";
+                    notificationService?.ShowSuccess(
+                        savedTitle,
+                        string.Format(savedMsgTemplate, project.ProjectName),
+                        autoDismissMs: 4000);
+                }
 
                 // Force a dirty state update to refresh UI
                 OnPropertyChanged(nameof(HasUnsavedChanges));
@@ -339,6 +365,12 @@ public partial class PublisherStudioViewModel(
             // the setup state even when persistence fails to keep tab bindings accurate.
             RefreshSetupState();
         }
+    }
+
+    private async Task SaveProjectAfterPublishAsync()
+    {
+        MarkDirty();
+        await SaveProjectSilentAsync();
     }
 
     private string GetStatusString(string key, string fallback, params object?[] args)
@@ -383,6 +415,11 @@ public partial class PublisherStudioViewModel(
     partial void OnSelectedTabIndexChanged(int value)
     {
         OnPropertyChanged(nameof(ShouldShowSetupOverlay));
+        if (value == TabCatalogs)
+        {
+            ContentLibraryViewModel?.RefreshHostingHint();
+        }
+
         if (value is TabHostingStorage or TabPublishShare && PublishShareViewModel != null)
         {
             if (PublishShareViewModel.HostingProviders.Count == 0)
@@ -823,6 +860,7 @@ public partial class PublisherStudioViewModel(
         ContentLibraryViewModel = new GenHub.Features.Tools.ViewModels.ContentLibraryViewModel(CurrentProject, selectedCatalog, this, logger, dialogService, notificationService, localizationService);
         PublishShareViewModel?.Dispose();
         PublishShareViewModel = new GenHub.Features.Tools.ViewModels.PublishShareViewModel(CurrentProject, publisherStudioService, logger, hostingProviderFactory, hostingStateManager, notificationService, localizationService, credentialStore);
+        PublishShareViewModel.SaveProjectCallback = SaveProjectAfterPublishAsync;
         await PublishShareViewModel.InitializeAsync();
         ReferralsViewModel = new GenHub.Features.Tools.ViewModels.ReferralsViewModel(CurrentProject, this, logger, dialogService, notificationService, localizationService);
 

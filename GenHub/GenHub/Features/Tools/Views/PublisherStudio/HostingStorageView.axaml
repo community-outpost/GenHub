@@ -167,6 +167,16 @@
                 </Grid>
             </Border>
 
+            <!-- Not Connected Hint Banner -->
+            <Border IsVisible="{Binding !IsProviderAuthenticated}"
+                    Background="{DynamicResource StatusWarningBadgeBackgroundBrush}" BorderBrush="{DynamicResource WarningHighlightBrush}" BorderThickness="1" CornerRadius="8"
+                    Padding="14,10" Margin="0,0,0,20">
+                <Grid ColumnDefinitions="Auto,*">
+                    <PathIcon Grid.Column="0" Data="{StaticResource CloudStorageIcon}" Width="14" Height="14" Foreground="{DynamicResource WarningHighlightBrush}" Margin="0,0,10,0" VerticalAlignment="Center"/>
+                    <TextBlock Grid.Column="1" Text="{localization:Localize Tools.PublisherStudio.Hosting.NotConnectedHint}" FontSize="12" Foreground="{DynamicResource TextPrimary}" VerticalAlignment="Center" TextWrapping="Wrap"/>
+                </Grid>
+            </Border>
+
             <!-- Section 2: Storage Quota & Metrics Overview (4 Metric Boxes) -->
             <Grid ColumnDefinitions="*,*,*,*" Margin="0,0,0,24">
                 <!-- Card 1: Cloud Storage Used -->
@@ -488,8 +498,21 @@
                                         <!-- Column 5: Action Buttons -->
                                         <StackPanel Grid.Column="5" Orientation="Horizontal" Spacing="6" HorizontalAlignment="Right" VerticalAlignment="Center" Width="140">
                                             <Button Classes="small-glass-btn"
+                                                    Command="{Binding ((vm:PublishShareViewModel)DataContext).UploadHostedAssetCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                    CommandParameter="{Binding}"
+                                                    IsVisible="{Binding CanUpload}"
+                                                    AutomationProperties.Name="{localization:Localize Tools.PublisherStudio.Hosting.UploadTip}"
+                                                    ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Hosting.UploadTip}">
+                                                <StackPanel Orientation="Horizontal" Spacing="4">
+                                                    <PathIcon Data="{StaticResource ToolIcon.CloudUploadOutline}" Width="10" Height="10" Foreground="{DynamicResource AccentColorBrush}"/>
+                                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.Upload}" FontSize="10" Foreground="{DynamicResource TextPrimary}"/>
+                                                </StackPanel>
+                                            </Button>
+
+                                            <Button Classes="small-glass-btn"
                                                     Command="{Binding ((vm:PublishShareViewModel)DataContext).CopyAssetUrlCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                                     CommandParameter="{Binding Url}"
+                                                    IsVisible="{Binding !CanUpload}"
                                                     IsEnabled="{Binding Url, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
                                                     AutomationProperties.Name="{localization:Localize Tools.PublisherStudio.Hosting.CopyDownloadLinkTip}"
                                                     ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Hosting.CopyDownloadLinkTip}">
@@ -502,6 +525,7 @@
                                             <Button Classes="small-glass-btn"
                                                     Command="{Binding ((vm:PublishShareViewModel)DataContext).OpenUrlInBrowserCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                                     CommandParameter="{Binding Url}"
+                                                    IsVisible="{Binding !CanUpload}"
                                                     IsEnabled="{Binding Url, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
                                                     AutomationProperties.Name="{localization:Localize Tools.PublisherStudio.Hosting.OpenUrlTip}"
                                                     ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Hosting.OpenUrlTip}">

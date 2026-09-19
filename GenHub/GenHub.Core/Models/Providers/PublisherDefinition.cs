@@ -1,3 +1,4 @@
+using GenHub.Core.Constants;
 using System;
 using System.Collections.Generic;
 using System.Text.Json.Serialization;
@@ -20,7 +21,7 @@ public class PublisherDefinition
     /// Gets or sets the schema version for definition format compatibility.
     /// </summary>
     [JsonPropertyName("$schemaVersion")]
-    public int SchemaVersion { get; set; } = 1;
+    public int SchemaVersion { get; set; } = CatalogConstants.DefinitionSchemaVersion;
 
     /// <summary>
     /// Gets or sets the publisher identity and branding information.

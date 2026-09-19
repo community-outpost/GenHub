@@ -133,7 +133,6 @@
                             <!-- Remove Catalog -->
                             <Button Command="{Binding RemoveCatalogCommand}"
                                     CommandParameter="{Binding SelectedCatalog}"
-                                    IsEnabled="{Binding CanRemoveCatalog}"
                                     ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Library.DeleteCatalogTooltip}"
                                     Background="{DynamicResource GlassFillBrush}"
                                     BorderBrush="{DynamicResource GlassBorderBrush}"
@@ -481,6 +480,27 @@
                                     Padding="24"
                                     Margin="0,8,0,0">
                                 <StackPanel Spacing="16">
+                                    <!-- Hosting hint: pending uploads without a connected provider -->
+                                    <Border Background="{DynamicResource StatusWarningBadgeBackgroundBrush}"
+                                            BorderBrush="{DynamicResource WarningHighlightBrush}"
+                                            BorderThickness="1"
+                                            CornerRadius="8"
+                                            Padding="12,10"
+                                            IsVisible="{Binding #RootView.((vm:ContentLibraryViewModel)DataContext).ShowHostingHint}">
+                                        <Grid ColumnDefinitions="Auto,*,Auto">
+                                            <PathIcon Data="{StaticResource CloudStorageIcon}" Width="14" Height="14" Foreground="{DynamicResource WarningHighlightBrush}" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                                            <TextBlock Grid.Column="1"
+                                                       Text="{Binding #RootView.((vm:ContentLibraryViewModel)DataContext).HostingHintMessage}"
+                                                       FontSize="12" Foreground="{DynamicResource TextPrimary}" TextWrapping="Wrap" VerticalAlignment="Center"/>
+                                            <Button Grid.Column="2"
+                                                    Command="{Binding #RootView.((vm:ContentLibraryViewModel)DataContext).GoToHostingCommand}"
+                                                    Content="{localization:Localize Tools.PublisherStudio.Library.GoToHosting}"
+                                                    Classes="accent-glass-btn"
+                                                    Margin="12,0,0,0"
+                                                    Padding="12,6"
+                                                    FontSize="11"/>
+                                        </Grid>
+                                    </Border>
                                     <Grid ColumnDefinitions="*,Auto">
                                         <TextBlock Text="{localization:Localize Tools.PublisherStudio.Library.ReleasesAndArtifacts}"
                                                    FontSize="18"
