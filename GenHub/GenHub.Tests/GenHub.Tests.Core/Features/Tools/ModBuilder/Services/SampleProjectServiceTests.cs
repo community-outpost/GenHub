@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Security.Cryptography;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentAssertions;
@@ -357,5 +359,56 @@ public sealed class SampleProjectServiceTests : IDisposable
         result.Success.Should().BeFalse();
         File.Exists(customUserFile).Should().BeTrue("pre-existing user files must not be deleted on download failure");
         File.ReadAllText(customUserFile).Should().Be("User's valuable mod data");
+    }
+
+    [Fact]
+    public async Task SelectVerifiedBigFilesAsync_WithMixedBigs_ReturnsOnlyVerifiedAndDeletesCachedPackage()
+    {
+        // Arrange: one pristine archive and one repacked archive with a different hash
+        var pristinePath = Path.Combine(_tempDirectory, "a_pristine.big");
+        var tamperedPath = Path.Combine(_tempDirectory, "b_tampered.big");
+        await File.WriteAllTextAsync(pristinePath, "PRISTINE_BIG_CONTENTS");
+        await File.WriteAllTextAsync(tamperedPath, "TAMPERED_BIG_CONTENTS");
+
+        var expectedSha256 = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes("PRISTINE_BIG_CONTENTS"))).ToLowerInvariant();
+
+        var cachedZipPath = Path.Combine(_tempDirectory, "variant.zip");
+        await File.WriteAllTextAsync(cachedZipPath, "CACHED_PACKAGE");
+
+        // Act
+        var result = await _service.SelectVerifiedBigFilesAsync(
+            new[] { pristinePath, tamperedPath },
+            expectedSha256,
+            "Test Variant",
+            cachedZipPath,
+            CancellationToken.None);
+
+        // Assert
+        result.Should().ContainSingle().Which.Should().Be(pristinePath);
+        File.Exists(cachedZipPath).Should().BeFalse("a package containing unverified archives must be re-downloaded");
+    }
+
+    [Fact]
+    public async Task SelectVerifiedBigFilesAsync_WhenAllBigsVerified_ReturnsAllAndKeepsCachedPackage()
+    {
+        // Arrange
+        var bigPath = Path.Combine(_tempDirectory, "only.big");
+        await File.WriteAllTextAsync(bigPath, "VERIFIED_CONTENTS");
+        var expectedSha256 = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes("VERIFIED_CONTENTS"))).ToLowerInvariant();
+
+        var cachedZipPath = Path.Combine(_tempDirectory, "clean.zip");
+        await File.WriteAllTextAsync(cachedZipPath, "CACHED_PACKAGE");
+
+        // Act
+        var result = await _service.SelectVerifiedBigFilesAsync(
+            new[] { bigPath },
+            expectedSha256,
+            "Test Variant",
+            cachedZipPath,
+            CancellationToken.None);
+
+        // Assert
+        result.Should().ContainSingle().Which.Should().Be(bigPath);
+        File.Exists(cachedZipPath).Should().BeTrue();
     }
 }

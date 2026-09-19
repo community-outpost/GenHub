@@ -64,6 +64,8 @@ public partial class ModBuilderViewModel(
     private const string UnknownErrorKey = "Common.UnknownError";
     private const string OperationInProgressTitleKey = "Tools.ModBuilder.Notification.OperationInProgress.Title";
     private const string BusyImportFilesKey = "Tools.ModBuilder.Notification.Busy.ImportFiles";
+    private const string BusyOpenProjectKey = "Tools.ModBuilder.Notification.Busy.OpenProject";
+    private const string BusyDeleteProjectKey = "Tools.ModBuilder.Notification.Busy.DeleteProject";
     private const string NoProjectTitleKey = "Tools.ModBuilder.Notification.NoProject.Title";
     private const string NoProjectMessageKey = "Tools.ModBuilder.Notification.NoProject.Message";
     private const string NoProjectOpenTitleKey = "Tools.ModBuilder.Notification.NoProjectOpen.Title";
@@ -1190,6 +1192,14 @@ public partial class ModBuilderViewModel(
             return;
         }
 
+        if (IsBuildRunning)
+        {
+            notificationService.ShowWarning(
+                localizationService.GetString(OperationInProgressTitleKey),
+                localizationService.GetString(BusyDeleteProjectKey));
+            return;
+        }
+
         if (dialogService == null)
         {
             logger.LogWarning("Cannot confirm project deletion: dialog service unavailable");
@@ -1308,7 +1318,7 @@ public partial class ModBuilderViewModel(
                     return;
                 }
 
-                await LoadProjectFromPathAsync(projectFile).ConfigureAwait(false);
+                await LoadProjectFromPathCoreAsync(projectFile).ConfigureAwait(false);
             }
             else
             {
@@ -1597,7 +1607,7 @@ public partial class ModBuilderViewModel(
             }
 
             logger.LogInformation("Found sample project at: {SamplePath}", samplePath);
-            await LoadProjectFromPathAsync(samplePath).ConfigureAwait(false);
+            await LoadProjectFromPathCoreAsync(samplePath).ConfigureAwait(false);
         }
         catch (OperationCanceledException ex)
         {
@@ -2119,9 +2129,34 @@ public partial class ModBuilderViewModel(
     }
 
     /// <summary>
-    /// Loads a project from a specific path.
+    /// Loads a project from a specific path while holding the exclusive build/import slot.
+    /// The slot keeps Build/Import commands disabled while sample assets download and extract.
     /// </summary>
     private async Task LoadProjectFromPathAsync(string projectPath)
+    {
+        if (!await TryClaimBuildSlotAsync().ConfigureAwait(false))
+        {
+            notificationService.ShowWarning(
+                localizationService.GetString(OperationInProgressTitleKey),
+                localizationService.GetString(BusyOpenProjectKey));
+            return;
+        }
+
+        try
+        {
+            await LoadProjectFromPathCoreAsync(projectPath).ConfigureAwait(false);
+        }
+        finally
+        {
+            await InvokeOnUIThreadAsync(() => IsBuildRunning = false);
+        }
+    }
+
+    /// <summary>
+    /// Loads a project from a specific path.
+    /// Callers must already hold the exclusive build/import slot (see <see cref="TryClaimBuildSlotAsync"/>).
+    /// </summary>
+    private async Task LoadProjectFromPathCoreAsync(string projectPath)
     {
         try
         {

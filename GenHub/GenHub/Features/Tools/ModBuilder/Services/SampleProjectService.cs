@@ -796,6 +796,46 @@ public class SampleProjectService(
         }
     }
 
+    /// <summary>
+    /// Verifies every BIG archive against the expected SHA-256 digest and returns only the
+    /// archives that pass, so unverified repacked or corrupted archives are never unpacked.
+    /// </summary>
+    /// <param name="bigFiles">The candidate BIG archives extracted from the downloaded package.</param>
+    /// <param name="expectedSha256">The expected SHA-256 digest for the variant archive.</param>
+    /// <param name="assetLabel">The human readable asset label used in log output.</param>
+    /// <param name="zipPath">The cached package path, deleted when any archive fails verification.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The subset of <paramref name="bigFiles"/> that passed verification.</returns>
+    internal async Task<IReadOnlyList<string>> SelectVerifiedBigFilesAsync(
+        IReadOnlyList<string> bigFiles,
+        string expectedSha256,
+        string assetLabel,
+        string zipPath,
+        CancellationToken cancellationToken)
+    {
+        var verified = new List<string>(bigFiles.Count);
+        var anyFailed = false;
+        foreach (var big in bigFiles)
+        {
+            if (await VerifyFileSha256Async(big, expectedSha256, cancellationToken).ConfigureAwait(false))
+            {
+                verified.Add(big);
+            }
+            else
+            {
+                anyFailed = true;
+                logger.LogWarning("{Label} BIG file failed SHA-256 integrity verification and will be skipped: {File}", assetLabel, big);
+            }
+        }
+
+        if (anyFailed)
+        {
+            DeleteCachedFileQuietly(zipPath);
+        }
+
+        return verified;
+    }
+
     private async Task AcquireSecondaryLanguageVariantAsync(
         SecondaryLanguageVariantSpec spec,
         string gameFilesDir,
@@ -836,14 +876,14 @@ public class SampleProjectService(
                     return;
                 }
 
-                if (!await VerifyFileSha256Async(bigFiles[0], spec.ExpectedSha256, cancellationToken).ConfigureAwait(false))
+                var verifiedBigs = await SelectVerifiedBigFilesAsync(bigFiles, spec.ExpectedSha256, spec.AssetLabel, spec.ZipPath, cancellationToken).ConfigureAwait(false);
+                if (verifiedBigs.Count == 0)
                 {
-                    logger.LogWarning("{Label} BIG file failed SHA-256 integrity verification: {File}", spec.AssetLabel, bigFiles[0]);
-                    DeleteCachedFileQuietly(spec.ZipPath);
+                    logger.LogWarning("No verified BIG archives found in {Label} package, skipping variant", spec.AssetLabel);
                     return;
                 }
 
-                foreach (var big in bigFiles)
+                foreach (var big in verifiedBigs)
                 {
                     var unpackDir = Path.Combine(staging, $"unpack_{Path.GetFileNameWithoutExtension(big)}");
                     Directory.CreateDirectory(unpackDir);

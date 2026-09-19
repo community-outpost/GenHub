@@ -162,7 +162,7 @@ public class ModBuilderViewModelTests : IDisposable
         Assert.Equal(string.Empty, viewModel.BuildOutput);
     }
 
-    private ModBuilderViewModel CreateViewModel()
+    private ModBuilderViewModel CreateViewModel(IDialogService? dialogService = null)
     {
         return new ModBuilderViewModel(
             _mockBuildEngine.Object,
@@ -173,7 +173,8 @@ public class ModBuilderViewModelTests : IDisposable
             CreateLocalizationService(),
             _fileManager,
             _mockLoggerFactory.Object,
-            _mockLogger.Object);
+            _mockLogger.Object,
+            dialogService);
     }
 
     private static ILocalizationService CreateLocalizationService()
@@ -339,5 +340,96 @@ public class ModBuilderViewModelTests : IDisposable
         viewModel.SelectedContentType = ContentType.Addon;
 
         Assert.Equal(ContentType.Addon, project.ContentType);
+    }
+
+    /// <summary>
+    /// Verifies that opening a recent project while a build is running is refused
+    /// without touching the project on disk.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task OpenRecentProject_WhenBuildRunning_DoesNotLoadProject()
+    {
+        var projectPath = Path.Combine(_tempDir, "Guarded.mbproj");
+        await File.WriteAllTextAsync(projectPath, "{}");
+
+        var viewModel = CreateViewModel();
+        viewModel.IsBuildRunning = true;
+
+        await viewModel.OpenRecentProjectCommand.ExecuteAsync(projectPath);
+
+        Assert.False(viewModel.IsProjectLoaded);
+        Assert.Null(viewModel.CurrentProject);
+        _mockProjectConfigService.Verify(
+            m => m.LoadProjectAsync(It.IsAny<string>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    /// <summary>
+    /// Verifies that opening a recent project while idle loads the project
+    /// and releases the exclusive build slot afterwards.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task OpenRecentProject_WhenIdle_LoadsProjectAndReleasesBuildSlot()
+    {
+        var projectDir = Path.Combine(_tempDir, "SlotProject");
+        Directory.CreateDirectory(projectDir);
+        var projectPath = Path.Combine(projectDir, "SlotProject.mbproj");
+        await File.WriteAllTextAsync(projectPath, "{}");
+
+        var project = new ModBuilderProject
+        {
+            Name = "SlotProject",
+            ProjectDir = projectDir,
+        };
+
+        _mockProjectConfigService
+            .Setup(m => m.LoadProjectAsync(projectPath, true, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProjectOperationResult<ModBuilderProject>.CreateSuccess(project));
+        _mockProjectConfigService
+            .Setup(m => m.AddToRecentProjectsAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProjectOperationResult<bool>.CreateSuccess(true));
+        _mockConfigLoader
+            .Setup(m => m.LoadProjectConfigurationAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new BuildConfiguration());
+
+        var viewModel = CreateViewModel();
+
+        await viewModel.OpenRecentProjectCommand.ExecuteAsync(projectPath);
+
+        Assert.True(viewModel.IsProjectLoaded);
+        Assert.Same(project, viewModel.CurrentProject);
+        Assert.False(viewModel.IsBuildRunning);
+    }
+
+    /// <summary>
+    /// Verifies that deleting a project while a build is running is refused
+    /// without prompting for confirmation or deleting files.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task DeleteRecentProject_WhenBuildRunning_DoesNotDeleteProject()
+    {
+        var projectDir = Path.Combine(_tempDir, "BusyProject");
+        Directory.CreateDirectory(projectDir);
+        var projectPath = Path.Combine(projectDir, "BusyProject.mbproj");
+        await File.WriteAllTextAsync(projectPath, "{}");
+
+        var mockDialogService = new Mock<IDialogService>();
+        var viewModel = CreateViewModel(mockDialogService.Object);
+        viewModel.IsBuildRunning = true;
+
+        await viewModel.DeleteRecentProjectCommand.ExecuteAsync(projectPath);
+
+        Assert.True(File.Exists(projectPath));
+        mockDialogService.Verify(
+            d => d.ShowConfirmationAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>()),
+            Times.Never);
     }
 }

@@ -926,6 +926,8 @@ public sealed class ProjectConfigService(
         CancellationToken cancellationToken = default)
     {
         var sw = Stopwatch.StartNew();
+        var projectCreated = false;
+        ProjectDirectories? createdDirectories = null;
 
         try
         {
@@ -955,6 +957,9 @@ public sealed class ProjectConfigService(
                 return createResult;
             }
 
+            projectCreated = true;
+            createdDirectories = createResult.Data.Directories;
+
             // 2. Import the BIG files and auto-configure bundle packs
             var importResult = await ImportBigFilesAsync(
                 projectPath,
@@ -965,6 +970,7 @@ public sealed class ProjectConfigService(
 
             if (!importResult.Success)
             {
+                await RollbackCreatedProjectAsync(projectPath, createdDirectories).ConfigureAwait(false);
                 sw.Stop();
                 return ProjectOperationResult<ModBuilderProject>.CreateFailure(importResult.Errors, sw.Elapsed);
             }
@@ -976,13 +982,100 @@ public sealed class ProjectConfigService(
         }
         catch (OperationCanceledException)
         {
+            if (projectCreated)
+            {
+                await RollbackCreatedProjectAsync(projectPath, createdDirectories).ConfigureAwait(false);
+            }
+
             throw;
         }
         catch (Exception ex)
         {
+            if (projectCreated)
+            {
+                await RollbackCreatedProjectAsync(projectPath, createdDirectories).ConfigureAwait(false);
+            }
+
             logger.LogError(ex, "Failed to create project from BIG files: {ProjectPath}", projectPath);
             sw.Stop();
             return ProjectOperationResult<ModBuilderProject>.CreateFailure($"Failed to create project from BIG files: {ex.Message}", sw.Elapsed);
+        }
+    }
+
+    /// <summary>
+    /// Best-effort rollback of a project shell created by <see cref="CreateProjectFromBigFilesAsync"/>
+    /// when the subsequent BIG import stage fails. Removes the project file and recent-projects
+    /// entry plus any created directories that are still empty, so retrying with the same path
+    /// is not blocked by "Project file already exists".
+    /// </summary>
+    /// <param name="projectPath">The project path passed to the creation call.</param>
+    /// <param name="directories">The directory layout recorded when the project was created.</param>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    private async Task RollbackCreatedProjectAsync(string projectPath, ProjectDirectories? directories)
+    {
+        var normalizedPath = projectPath.EndsWith(ModBuilderConstants.ProjectFileExtension, StringComparison.OrdinalIgnoreCase)
+            ? projectPath
+            : Path.ChangeExtension(projectPath, ModBuilderConstants.ProjectFileExtension);
+
+        logger.LogInformation("Rolling back partially created project at {ProjectPath} after failed BIG import", normalizedPath);
+
+        await RemoveFromRecentProjectsAsync(normalizedPath, CancellationToken.None).ConfigureAwait(false);
+        if (!string.Equals(normalizedPath, projectPath, StringComparison.OrdinalIgnoreCase))
+        {
+            await RemoveFromRecentProjectsAsync(projectPath, CancellationToken.None).ConfigureAwait(false);
+        }
+
+        DeleteFileQuietly(normalizedPath);
+
+        var projectDir = Path.GetDirectoryName(normalizedPath);
+        if (string.IsNullOrEmpty(projectDir) || !Directory.Exists(projectDir))
+        {
+            return;
+        }
+
+        var dirs = directories ?? new ProjectDirectories();
+        DeleteDirectoryIfEmptyQuietly(Path.Combine(projectDir, dirs.Configs));
+        DeleteDirectoryIfEmptyQuietly(Path.Combine(projectDir, dirs.GameFilesEdited));
+        DeleteDirectoryIfEmptyQuietly(Path.Combine(projectDir, dirs.Build));
+        DeleteDirectoryIfEmptyQuietly(Path.Combine(projectDir, dirs.Release));
+        DeleteDirectoryIfEmptyQuietly(projectDir);
+    }
+
+    private static void DeleteFileQuietly(string filePath)
+    {
+        try
+        {
+            if (File.Exists(filePath))
+            {
+                File.Delete(filePath);
+            }
+        }
+        catch (IOException)
+        {
+            // Best-effort rollback; ignore locked or inaccessible files
+        }
+        catch (UnauthorizedAccessException)
+        {
+            // Best-effort rollback; ignore locked or inaccessible files
+        }
+    }
+
+    private static void DeleteDirectoryIfEmptyQuietly(string directoryPath)
+    {
+        try
+        {
+            if (Directory.Exists(directoryPath) && !Directory.EnumerateFileSystemEntries(directoryPath).Any())
+            {
+                Directory.Delete(directoryPath, recursive: false);
+            }
+        }
+        catch (IOException)
+        {
+            // Best-effort rollback; ignore locked or inaccessible directories
+        }
+        catch (UnauthorizedAccessException)
+        {
+            // Best-effort rollback; ignore locked or inaccessible directories
         }
     }
 

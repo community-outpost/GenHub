@@ -438,6 +438,51 @@ public sealed class ProjectConfigServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task CreateProjectFromBigFilesAsync_WhenImportFails_RollsBackPartialProjectAndAllowsRetry()
+    {
+        // Arrange: a corrupt BIG archive that fails header validation during import
+        var corruptBigPath = Path.Combine(_tempDirectory, "Corrupt.big");
+        await File.WriteAllTextAsync(corruptBigPath, "NOT_A_VALID_BIG_ARCHIVE");
+
+        var projectDir = Path.Combine(_tempDirectory, "FailedImportProject");
+        Directory.CreateDirectory(projectDir);
+        var projectPath = Path.Combine(projectDir, "FailedImportProject.mbproj");
+
+        // Act: first attempt fails during the BIG import stage
+        var failedResult = await _service.CreateProjectFromBigFilesAsync(
+            projectPath,
+            "FailedImportProject",
+            new[] { corruptBigPath });
+
+        // Assert: no half-created project is left behind
+        failedResult.Success.Should().BeFalse();
+        File.Exists(projectPath).Should().BeFalse();
+
+        // Arrange: a valid BIG archive for the retry at the same path
+        var archiveLogger = new Mock<ILogger<ArchiveService>>();
+        var archiveService = new ArchiveService(archiveLogger.Object);
+
+        var bigSourceDir = Path.Combine(_tempDirectory, "retry_source");
+        Directory.CreateDirectory(Path.Combine(bigSourceDir, "Data"));
+        await File.WriteAllTextAsync(Path.Combine(bigSourceDir, "Data", "Retry.ini"), "RetryContent");
+
+        var validBigPath = Path.Combine(_tempDirectory, "Retry.big");
+        var packResult = await archiveService.CreateBigArchiveAsync(bigSourceDir, validBigPath);
+        packResult.Success.Should().BeTrue();
+
+        // Act: retry must not be trapped by "Project file already exists"
+        var retryResult = await _service.CreateProjectFromBigFilesAsync(
+            projectPath,
+            "FailedImportProject",
+            new[] { validBigPath });
+
+        // Assert
+        retryResult.Success.Should().BeTrue();
+        retryResult.Data.Should().NotBeNull();
+        File.Exists(projectPath).Should().BeTrue();
+    }
+
+    [Fact]
     public async Task ValidateProjectAsync_WhenBuildAndReleaseDirectoriesMissing_AutoCreatesAndReturnsSuccess()
     {
         // Arrange

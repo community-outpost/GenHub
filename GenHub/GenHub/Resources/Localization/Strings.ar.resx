@@ -9071,6 +9071,12 @@ GenHub هو مشغل ومدير حديث لألعاب **Command &amp; Conquer: G
   <data name="Tools.ModBuilder.Project.Error.RequiredDirectoryMissing" xml:space="preserve">
     <value>المجلد المطلوب غير موجود: {0}</value>
   </data>
+  <data name="Tools.ModBuilder.Notification.Busy.DeleteProject" xml:space="preserve">
+    <value>لا يمكن حذف المشروع أثناء تشغيل عملية أخرى.</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.Busy.OpenProject" xml:space="preserve">
+    <value>لا يمكن فتح المشروع أثناء تشغيل عملية أخرى.</value>
+  </data>
   </data>
   <data name="Tools.ModBuilder.Notification.CleanSkipped.Title" xml:space="preserve">
     <value>تم تخطي التنظيف</value>

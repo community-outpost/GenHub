@@ -9180,6 +9180,12 @@ Install location:
   <data name="Tools.ModBuilder.Project.Error.RequiredDirectoryMissing" xml:space="preserve">
     <value>Required directory does not exist: {0}</value>
   </data>
+  <data name="Tools.ModBuilder.Notification.Busy.DeleteProject" xml:space="preserve">
+    <value>Cannot delete project while another operation is running.</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.Busy.OpenProject" xml:space="preserve">
+    <value>Cannot open project while another operation is running.</value>
+  </data>
   </data>
   <data name="Tools.ModBuilder.Notification.CleanSkipped.Title" xml:space="preserve">
     <value>Clean Skipped</value>
