@@ -826,6 +826,75 @@ public class SettingsViewModelTests
     }
 
     /// <summary>
+    /// Verifies that a failed profile scrub uses localized strings when a localization service is available.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task DeleteManifestsCommand_WhenScrubFailsAndLocalized_UsesLocalizedStringsAsync()
+    {
+        // Arrange
+        const string manifestId = "1.0.test.mod.mymod";
+        var manifest = new ContentManifest
+        {
+            Id = ManifestId.Create(manifestId),
+            Name = "Test Mod",
+        };
+
+        var profile = new GameProfile
+        {
+            Id = "profile-1",
+            Name = "Test Profile",
+            EnabledContentIds = [manifestId],
+        };
+
+        var mockLocService = new Mock<ILocalizationService>();
+        var englishCulture = new CultureInfo("en-US");
+        mockLocService.Setup(x => x.AvailableCultures).Returns([englishCulture]);
+        mockLocService.Setup(x => x.CurrentCulture).Returns(englishCulture);
+        mockLocService
+            .Setup(x => x.GetString("Settings.Manifests.ScrubFailed.Title", It.IsAny<object?[]>()))
+            .Returns("Localized Scrub Title");
+        mockLocService
+            .Setup(x => x.GetString("Settings.Manifests.ScrubFailed.Message", It.IsAny<object?[]>()))
+            .Returns("Localized {0} profiles: {1}.");
+
+        _mockManifestPool
+            .Setup(x => x.GetAllManifestsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IEnumerable<ContentManifest>>.CreateSuccess([manifest]));
+
+        _mockProfileManager
+            .Setup(x => x.GetAllProfilesAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<IReadOnlyList<GameProfile>>.CreateSuccess([profile]));
+
+        _mockProfileManager
+            .Setup(x => x.UpdateProfileAsync(It.IsAny<string>(), It.IsAny<UpdateProfileRequest>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateFailure("Profile is currently running"));
+
+        _mockDialogService
+            .Setup(x => x.ShowConfirmationAsync(
+                AppConstants.DeleteManifestsConfirmationTitle,
+                AppConstants.DeleteManifestsConfirmationMessage,
+                AppConstants.DeleteManifestsConfirmText,
+                It.IsAny<string>(),
+                It.IsAny<string?>()))
+            .ReturnsAsync(true);
+
+        var viewModel = CreateViewModel(localizationService: mockLocService.Object);
+
+        // Act
+        await viewModel.DeleteManifestsCommand.ExecuteAsync(null);
+
+        // Assert
+        _mockNotificationService.Verify(
+            x => x.ShowWarning(
+                "Localized Scrub Title",
+                "Localized 1 profiles: Test Profile.",
+                It.IsAny<int?>(),
+                It.IsAny<bool>()),
+            Times.Once);
+    }
+
+    /// <summary>
     /// Verifies that declining the manifest deletion confirmation does not remove manifests.
     /// </summary>
     /// <returns>A task representing the asynchronous unit test.</returns>

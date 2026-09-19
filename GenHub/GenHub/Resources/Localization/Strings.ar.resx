@@ -8254,4 +8254,10 @@ GenHub هو مشغل ومدير حديث لألعاب **Command &amp; Conquer: G
   <data name="GameProfiles.Settings.Notification.SettingsSavedTitle" xml:space="preserve">
     <value>تم حفظ الإعدادات</value>
   </data>
+  <data name="Settings.Manifests.ScrubFailed.Title" xml:space="preserve">
+    <value>لم يكتمل تحديث الملف الشخصي</value>
+  </data>
+  <data name="Settings.Manifests.ScrubFailed.Message" xml:space="preserve">
+    <value>تعذر إزالة البيانات المحذوفة من {0} من الملفات الشخصية: {1}. قد تفشل هذه الملفات في التشغيل حتى يتم تحديثها.</value>
+  </data>
 </root>

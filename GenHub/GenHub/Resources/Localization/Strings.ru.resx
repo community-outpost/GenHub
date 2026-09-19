@@ -8254,4 +8254,10 @@ GenHub передает официальный идентификатор AppID 
   <data name="GameProfiles.Settings.Notification.SettingsSavedTitle" xml:space="preserve">
     <value>Настройки сохранены</value>
   </data>
+  <data name="Settings.Manifests.ScrubFailed.Title" xml:space="preserve">
+    <value>Обновление профиля не завершено</value>
+  </data>
+  <data name="Settings.Manifests.ScrubFailed.Message" xml:space="preserve">
+    <value>Удалённые манифесты не удалось убрать из профилей ({0}): {1}. Эти профили могут не запускаться до обновления.</value>
+  </data>
 </root>

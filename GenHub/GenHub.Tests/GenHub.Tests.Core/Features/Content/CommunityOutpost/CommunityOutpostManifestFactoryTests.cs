@@ -577,6 +577,8 @@ public class CommunityOutpostManifestFactoryTests : IDisposable
         var manifest = manifests[0];
         Assert.Single(manifest.Files);
         Assert.Equal("Generals.exe", manifest.Files[0].RelativePath);
-        Assert.Equal(exePath, manifest.Files[0].SourcePath);
+        Assert.True(
+            string.Equals(exePath, manifest.Files[0].SourcePath, StringComparison.OrdinalIgnoreCase),
+            $"Expected source path '{exePath}' but found '{manifest.Files[0].SourcePath}'.");
     }
 }

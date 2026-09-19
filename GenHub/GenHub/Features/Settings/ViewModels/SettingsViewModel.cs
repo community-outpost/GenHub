@@ -2146,9 +2146,11 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
 
         if (failedProfileNames.Count > 0)
         {
+            var scrubFailedTitle = _localizationService?.GetString("Settings.Manifests.ScrubFailed.Title") ?? "Profile Update Incomplete";
+            var scrubFailedFormat = _localizationService?.GetString("Settings.Manifests.ScrubFailed.Message") ?? "Deleted manifests could not be removed from {0} profile(s): {1}. Those profiles may fail to launch until updated.";
             _notificationService.ShowWarning(
-                "Profile Update Incomplete",
-                $"Deleted manifests could not be removed from {failedProfileNames.Count} profile(s): {string.Join(", ", failedProfileNames)}. Those profiles may fail to launch until updated.",
+                scrubFailedTitle,
+                string.Format(CultureInfo.InvariantCulture, scrubFailedFormat, failedProfileNames.Count, string.Join(", ", failedProfileNames)),
                 (int)TimeIntervals.NotificationHideDelay.TotalMilliseconds);
         }
     }
