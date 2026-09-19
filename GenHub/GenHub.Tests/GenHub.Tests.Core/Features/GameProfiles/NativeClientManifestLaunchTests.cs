@@ -1,8 +1,11 @@
+using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Models.Launching;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Utilities;
 using GenHub.Features.GameProfiles.Infrastructure;
+using GenHub.Features.Launching;
 using Microsoft.Extensions.Logging.Abstractions;
+using Moq;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -29,7 +32,10 @@ namespace GenHub.Tests.Core.Features.GameProfiles;
 [Collection(NativeClientLaunchCollection.Name)]
 public class NativeClientManifestLaunchTests
 {
-    private readonly GameProcessManager _processManager = new(NullLogger<GameProcessManager>.Instance);
+    private readonly GameProcessManager _processManager = new(
+        NullLogger<GameProcessManager>.Instance,
+        new DirectRunner(NullLogger<DirectRunner>.Instance),
+        Mock.Of<ILocalizationService>());
 
     /// <summary>
     /// Builds a manifest describing a real install and launches the entry point the

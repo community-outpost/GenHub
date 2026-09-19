@@ -5,6 +5,7 @@ using GenHub.Core.Models.Results;
 using GenHub.Features.Launching;
 using Microsoft.Extensions.Logging;
 using Moq;
+using System.Text.Json;
 
 namespace GenHub.Tests.Core.Features.Launching;
 
@@ -404,6 +405,97 @@ public sealed class SteamLauncherTests : IDisposable
         }
 
         GC.SuppressFinalize(this);
+    }
+
+    /// <summary>
+    /// Verifies preparation swaps the actual on-disk executable when its casing differs
+    /// (for example <c>Generals.exe</c> on case-sensitive filesystems) instead of
+    /// deploying a duplicate alongside it.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task PrepareForProfileAsync_WithCapitalizedOriginalExecutable_SwapsActualOnDiskFileAsync()
+    {
+        // Arrange
+        var capitalizedPath = Path.Combine(_gameInstallPath, "Genhub-Test-Game.EXE");
+        File.Move(_originalExecutablePath, capitalizedPath);
+
+        // Act
+        var result = await PrepareAsync(CreateLauncher());
+
+        // Assert
+        Assert.True(result.Success, result.AllErrors);
+        var deployedExes = Directory.GetFiles(_gameInstallPath)
+            .Where(f => f.EndsWith(".exe", StringComparison.OrdinalIgnoreCase))
+            .ToArray();
+        var deployedExe = Assert.Single(deployedExes);
+
+        // Enforce exact casing preservation on case-sensitive platforms (Linux/macOS), while allowing case-insensitive matching on Windows NTFS.
+        Assert.Equal("Genhub-Test-Game.EXE", Path.GetFileName(deployedExe), ignoreCase: OperatingSystem.IsWindows());
+        Assert.Equal("proxy executable", File.ReadAllText(deployedExe));
+        Assert.Equal("original executable", File.ReadAllText(deployedExe + SteamConstants.BackupExtension));
+        Assert.Empty(GetRollbackArtifacts());
+    }
+
+    /// <summary>
+    /// Verifies required dependency copies resolve case-insensitively and preserve names.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task PrepareForProfileAsync_WithCapitalizedDependency_CopiesPreservingSourceNameAsync()
+    {
+        // Arrange
+        File.WriteAllText(Path.Combine(_gameInstallPath, "BINKW32.DLL"), "installation dependency");
+
+        // Act
+        var result = await PrepareAsync(CreateLauncher());
+
+        // Assert
+        Assert.True(result.Success, result.AllErrors);
+        var copied = Directory.GetFiles(_workspacePath)
+            .Where(f => f.EndsWith(".dll", StringComparison.OrdinalIgnoreCase))
+            .ToArray();
+        var dll = Assert.Single(copied);
+
+        // Enforce exact casing preservation on case-sensitive platforms (Linux/macOS), while allowing case-insensitive matching on Windows NTFS.
+        Assert.Equal("BINKW32.DLL", Path.GetFileName(dll), ignoreCase: OperatingSystem.IsWindows());
+        Assert.Equal("installation dependency", File.ReadAllText(dll));
+    }
+
+    /// <summary>
+    /// Verifies Unix host paths map through the Wine host-root drive.
+    /// </summary>
+    /// <param name="input">The host path.</param>
+    /// <param name="expected">The expected proxy-facing path.</param>
+    [Theory]
+    [InlineData("/home/mooncore/game/generals.exe", @"Z:\home\mooncore\game\generals.exe")]
+    [InlineData("/", @"Z:\")]
+    [InlineData(@"C:\Games\generals.exe", @"C:\Games\generals.exe")]
+    [InlineData("relative/path.exe", "relative/path.exe")]
+    [InlineData("", "")]
+    public void ToProtonPath_ConvertsUnixPathsToHostRootDrive(string input, string expected)
+    {
+        Assert.Equal(expected, SteamLauncher.ToProtonPath(input));
+    }
+
+    /// <summary>
+    /// Verifies the written proxy config carries platform-appropriate paths.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task PrepareForProfileAsync_WritesProxyConfigWithPlatformAppropriatePathsAsync()
+    {
+        // Act
+        var result = await PrepareAsync(CreateLauncher());
+
+        // Assert
+        Assert.True(result.Success, result.AllErrors);
+        var configJson = File.ReadAllText(Path.Combine(_gameInstallPath, "proxy_config.json"));
+        using var config = JsonDocument.Parse(configJson);
+        var expectedTarget = OperatingSystem.IsWindows()
+            ? _workspaceExecutablePath
+            : SteamLauncher.ToProtonPath(_workspaceExecutablePath);
+        Assert.Equal(expectedTarget, config.RootElement.GetProperty("TargetExecutable").GetString());
     }
 
     private SteamLauncher CreateLauncher(

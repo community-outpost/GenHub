@@ -1,11 +1,16 @@
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Interfaces.GameSettings;
+using GenHub.Core.Interfaces.Launching;
+using GenHub.Core.Models.Launching;
 using GenHub.Features.GameProfiles.Infrastructure;
 using GenHub.Features.GameProfiles.Services;
 using GenHub.Features.GameSettings;
+using GenHub.Features.Launching;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
 using System;
 using System.IO;
@@ -33,6 +38,11 @@ public static class GameProfileModule
         });
         services.AddScoped<IGameProfileManager, GameProfileManager>();
         services.AddSingleton<IGameProcessManager, GameProcessManager>();
+
+        // Default launch runner: direct on Windows, Wine elsewhere. Platform hosts
+        // replace this with their explicit runner.
+        services.TryAddSingleton<IGameLaunchRunner>(CreateDefaultRunner);
+
         services.AddScoped<IProfileLauncherFacade, ProfileLauncherFacade>();
         services.AddScoped<IProfileEditorFacade, ProfileEditorFacade>();
         services.AddScoped<IDependencyResolver, DependencyResolver>();
@@ -68,6 +78,25 @@ public static class GameProfileModule
         services.AddTransient<Func<IProfileSharingService>>(sp => sp.GetRequiredService<IProfileSharingService>);
 
         return services;
+    }
+
+    private static IGameLaunchRunner CreateDefaultRunner(IServiceProvider provider)
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            return new DirectRunner(provider.GetRequiredService<ILogger<DirectRunner>>());
+        }
+
+        var appDataRoot = provider.GetRequiredService<IConfigurationProviderService>().GetRootAppDataPath();
+        if (string.IsNullOrWhiteSpace(appDataRoot))
+        {
+            appDataRoot = Path.Combine(Path.GetTempPath(), AppConstants.AppName);
+        }
+
+        var options = OperatingSystem.IsMacOS()
+            ? WineRunnerOptions.MacOS(appDataRoot)
+            : WineRunnerOptions.Linux(appDataRoot);
+        return new WineRunner(options, provider.GetRequiredService<ILogger<WineRunner>>());
     }
 
     private static string GetProfilesDirectory(IConfigurationProviderService configProvider)

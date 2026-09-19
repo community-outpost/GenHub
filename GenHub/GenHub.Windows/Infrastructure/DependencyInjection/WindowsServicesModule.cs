@@ -2,11 +2,13 @@ using GenHub.Core.Features.ActionSets;
 using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Interfaces.GameSettings;
 using GenHub.Core.Interfaces.GitHub;
+using GenHub.Core.Interfaces.Launching;
 using GenHub.Core.Interfaces.Shortcuts;
 using GenHub.Core.Interfaces.Storage;
 using GenHub.Core.Interfaces.Tools;
 using GenHub.Core.Interfaces.Workspace;
 using GenHub.Features.GameSettings;
+using GenHub.Features.Launching;
 using GenHub.Features.Workspace;
 using GenHub.Windows.Features.ActionSets;
 using GenHub.Windows.Features.ActionSets.Fixes;
@@ -47,6 +49,7 @@ public static class WindowsServicesModule
         services.AddSingleton<IShortcutService, WindowsShortcutService>();
         services.Replace(ServiceDescriptor.Singleton<IInstallationLocationTracker, WindowsInstallationTracker>());
         services.Replace(ServiceDescriptor.Singleton<IInstallationSearchPathProvider, WindowsInstallationSearchPathProvider>());
+        services.Replace(ServiceDescriptor.Singleton<IGameLaunchRunner, DirectRunner>());
 
         // Register WindowsFileOperationsService with factory to avoid circular dependency
         services.AddScoped<IFileOperationsService>(serviceProvider =>

@@ -2,6 +2,7 @@ using GenHub.Common.ViewModels;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Interfaces.GameSettings;
+using GenHub.Core.Interfaces.Launching;
 using GenHub.Core.Interfaces.Shortcuts;
 using GenHub.Core.Interfaces.Storage;
 using GenHub.Core.Interfaces.Workspace;
@@ -47,6 +48,7 @@ public static class CompositionRootAssertions
         typeof(IBackgroundUpdateCoordinator),
         typeof(IConfigurationProviderService),
         typeof(IFileOperationsService),
+        typeof(IGameLaunchRunner),
         typeof(IGamePathProvider),
         typeof(IInstallationConflictService),
         typeof(IInstallationLocationTracker),

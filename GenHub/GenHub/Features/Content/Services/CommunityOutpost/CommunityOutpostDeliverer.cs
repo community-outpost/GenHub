@@ -5,6 +5,7 @@ using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Interfaces.Storage;
+using GenHub.Core.Models.Common;
 using GenHub.Core.Models.CommunityOutpost;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
@@ -341,15 +342,33 @@ public class CommunityOutpostDeliverer(
             progress?.Report(new ContentAcquisitionProgress
             {
                 Phase = ContentAcquisitionPhase.Downloading,
-                ProgressPercentage = 10,
+                ProgressPercentage = 0,
                 CurrentOperation = "Downloading Community Outpost package",
                 CurrentFile = archiveFile.RelativePath,
             });
+
+            var downloadProgress = progress != null
+                ? new Progress<DownloadProgress>(dp =>
+                {
+                    var percentage = Math.Clamp(dp.Percentage * 0.5, 0, 50);
+                    var status = $"Downloading Community Outpost: {dp.FormattedProgress} ({dp.FormattedSpeed})";
+                    progress.Report(new ContentAcquisitionProgress
+                    {
+                        Phase = ContentAcquisitionPhase.Downloading,
+                        ProgressPercentage = percentage,
+                        CurrentOperation = status,
+                        CurrentFile = archiveFile.RelativePath,
+                        BytesProcessed = dp.BytesReceived,
+                        TotalBytes = dp.TotalBytes,
+                    });
+                })
+                : null;
 
             // Try downloading with mirror fallback
             var downloadResult = await DownloadWithMirrorFallbackAsync(
                 archiveFile.DownloadUrl!,
                 archivePath,
+                downloadProgress,
                 cancellationToken);
 
             if (!downloadResult.Success)
@@ -365,7 +384,7 @@ public class CommunityOutpostDeliverer(
             progress?.Report(new ContentAcquisitionProgress
             {
                 Phase = ContentAcquisitionPhase.Extracting,
-                ProgressPercentage = 40,
+                ProgressPercentage = 60,
                 CurrentOperation = isSevenZip
                     ? "Extracting 7z archive"
                     : "Extracting ZIP archive",
@@ -405,7 +424,7 @@ public class CommunityOutpostDeliverer(
             progress?.Report(new ContentAcquisitionProgress
             {
                 Phase = ContentAcquisitionPhase.Copying,
-                ProgressPercentage = 50,
+                ProgressPercentage = 80,
                 CurrentOperation = "Creating manifests from extracted content",
             });
 
@@ -432,7 +451,7 @@ public class CommunityOutpostDeliverer(
             progress?.Report(new ContentAcquisitionProgress
             {
                 Phase = ContentAcquisitionPhase.Copying,
-                ProgressPercentage = 70,
+                ProgressPercentage = 95,
                 CurrentOperation = "Registering manifests to content library",
             });
 
@@ -565,9 +584,19 @@ public class CommunityOutpostDeliverer(
     /// <summary>
     /// Downloads a file with mirror fallback support.
     /// </summary>
+    private Task<OperationResult<bool>> DownloadWithMirrorFallbackAsync(
+        string primaryUrl,
+        string targetPath,
+        CancellationToken cancellationToken) =>
+        DownloadWithMirrorFallbackAsync(primaryUrl, targetPath, null, cancellationToken);
+
+    /// <summary>
+    /// Downloads a file with mirror fallback support and progress reporting.
+    /// </summary>
     private async Task<OperationResult<bool>> DownloadWithMirrorFallbackAsync(
         string primaryUrl,
         string targetPath,
+        IProgress<DownloadProgress>? progress,
         CancellationToken cancellationToken)
     {
         // Try primary URL first
@@ -576,7 +605,7 @@ public class CommunityOutpostDeliverer(
             new Uri(primaryUrl),
             targetPath,
             expectedHash: null,
-            progress: null,
+            progress: progress,
             cancellationToken);
 
         if (result.Success)

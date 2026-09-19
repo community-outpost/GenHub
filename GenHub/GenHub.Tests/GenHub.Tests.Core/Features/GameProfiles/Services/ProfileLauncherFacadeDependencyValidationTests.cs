@@ -16,6 +16,7 @@ using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Storage;
 using GenHub.Features.GameProfiles.Services;
+using GenHub.Features.Launching;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using System;
@@ -495,6 +496,7 @@ public sealed class ProfileLauncherFacadeDependencyValidationTests
             _configurationProviderMock.Object,
             _gameProcessManagerMock.Object,
             _symlinkCapabilityMock.Object,
-            NullLogger<ProfileLauncherFacade>.Instance);
+            NullLogger<ProfileLauncherFacade>.Instance,
+            new DirectRunner(NullLogger<DirectRunner>.Instance));
     }
 }

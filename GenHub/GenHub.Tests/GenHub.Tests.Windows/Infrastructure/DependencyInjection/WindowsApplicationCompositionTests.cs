@@ -2,8 +2,10 @@ using GenHub.Common.ViewModels;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Interfaces.GitHub;
+using GenHub.Core.Interfaces.Launching;
 using GenHub.Core.Interfaces.Shortcuts;
 using GenHub.Features.GameProfiles.ViewModels;
+using GenHub.Features.Launching;
 using GenHub.Features.Settings.ViewModels;
 using GenHub.Infrastructure.DependencyInjection;
 using GenHub.Tests.Shared;
@@ -59,6 +61,8 @@ public class WindowsApplicationCompositionTests
             serviceProvider.GetRequiredService<IGameInstallationDetector>());
         Assert.IsType<WindowsInstallationSearchPathProvider>(
             serviceProvider.GetRequiredService<IInstallationSearchPathProvider>());
+        Assert.IsType<DirectRunner>(
+            serviceProvider.GetRequiredService<IGameLaunchRunner>());
         Assert.NotNull(serviceProvider.GetRequiredService<IShortcutService>());
         Assert.IsType<WindowsGitHubTokenStorage>(serviceProvider.GetRequiredService<IGitHubTokenStorage>());
 

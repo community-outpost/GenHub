@@ -1,8 +1,12 @@
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
+using GenHub.Core.Interfaces.Launching;
 using GenHub.Core.Models.Launching;
+using GenHub.Core.Models.Results;
 using GenHub.Features.GameProfiles.Infrastructure;
+using GenHub.Features.Launching;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 
 namespace GenHub.Tests.Core.Features.GameProfiles;
@@ -13,6 +17,7 @@ namespace GenHub.Tests.Core.Features.GameProfiles;
 public class GameProcessManagerTests
 {
     private readonly Mock<ILogger<GameProcessManager>> _loggerMock = new();
+    private readonly Mock<ILocalizationService> _localizationServiceMock = new();
     private readonly GameProcessManager _processManager;
 
     /// <summary>
@@ -20,7 +25,10 @@ public class GameProcessManagerTests
     /// </summary>
     public GameProcessManagerTests()
     {
-        _processManager = new GameProcessManager(_loggerMock.Object);
+        _processManager = new GameProcessManager(
+            _loggerMock.Object,
+            new DirectRunner(NullLogger<DirectRunner>.Instance),
+            _localizationServiceMock.Object);
     }
 
     /// <summary>
@@ -766,6 +774,88 @@ public class GameProcessManagerTests
                     // Best effort.
                 }
             }
+        }
+    }
+
+    /// <summary>
+    /// Verifies a runner resolution failure surfaces the localized missing-runner message.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task StartProcessAsync_WhenRunnerFails_ReturnsLocalizedMessageAsync()
+    {
+        // Arrange
+        var runnerMock = new Mock<IGameLaunchRunner>();
+        runnerMock
+            .Setup(x => x.ResolveCommand(It.IsAny<GameLaunchConfiguration>()))
+            .Returns(OperationResult<RunnerCommand>.CreateFailure("no wine"));
+        var localized = "localized-runner-missing";
+        _localizationServiceMock
+            .Setup(x => x.TryGetString(It.IsAny<string>(), out localized))
+            .Returns(true);
+        var manager = new GameProcessManager(
+            _loggerMock.Object,
+            runnerMock.Object,
+            _localizationServiceMock.Object);
+        var executablePath = Path.Combine(Path.GetTempPath(), $"genhub-runner-test-{Guid.NewGuid():N}.exe");
+        File.WriteAllText(executablePath, "dummy");
+
+        try
+        {
+            // Act
+            var result = await manager.StartProcessAsync(new GameLaunchConfiguration
+            {
+                ExecutablePath = executablePath,
+            });
+
+            // Assert
+            Assert.False(result.Success);
+            Assert.Contains(localized, result.FirstError);
+        }
+        finally
+        {
+            File.Delete(executablePath);
+        }
+
+        runnerMock.Verify(
+            x => x.ResolveCommand(It.IsAny<GameLaunchConfiguration>()),
+            Times.Once);
+    }
+
+    /// <summary>
+    /// Verifies a runner resolution failure falls back to English when localization misses.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task StartProcessAsync_WhenRunnerFailsAndLocalizationMisses_ReturnsFallbackMessageAsync()
+    {
+        // Arrange
+        var runnerMock = new Mock<IGameLaunchRunner>();
+        runnerMock
+            .Setup(x => x.ResolveCommand(It.IsAny<GameLaunchConfiguration>()))
+            .Returns(OperationResult<RunnerCommand>.CreateFailure("no wine"));
+        var manager = new GameProcessManager(
+            _loggerMock.Object,
+            runnerMock.Object,
+            new Mock<ILocalizationService>().Object);
+        var executablePath = Path.Combine(Path.GetTempPath(), $"genhub-runner-test-{Guid.NewGuid():N}.exe");
+        File.WriteAllText(executablePath, "dummy");
+
+        try
+        {
+            // Act
+            var result = await manager.StartProcessAsync(new GameLaunchConfiguration
+            {
+                ExecutablePath = executablePath,
+            });
+
+            // Assert
+            Assert.False(result.Success);
+            Assert.Contains(ProfileValidationConstants.MissingCompatibilityRunner, result.FirstError);
+        }
+        finally
+        {
+            File.Delete(executablePath);
         }
     }
 }

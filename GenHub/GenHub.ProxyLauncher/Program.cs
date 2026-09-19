@@ -409,7 +409,7 @@ internal class Program
     private static async Task<int> TryLaunchBackupAsync(string baseDir, string[] args)
     {
         var exeName = Path.GetFileName(Environment.ProcessPath);
-        var backupPath = Path.Combine(baseDir, exeName + global::GenHub.Core.Constants.SteamConstants.BackupExtension);
+        var backupPath = Path.Combine(baseDir, exeName + ProxyConstants.BackupExtension);
 
         if (File.Exists(backupPath))
         {
