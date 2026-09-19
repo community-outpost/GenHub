@@ -1,4 +1,5 @@
 using GenHub.Core.Constants;
+using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
@@ -123,13 +124,10 @@ public class GenLauncherManifestFactory(
                 manifest.Files.Add(fileResult.Data);
             }
 
-            if (string.IsNullOrWhiteSpace(manifest.EntryPoint))
+            var entryResult = ManifestEntryPointHelper.BakeEntryPoint(manifest, extractedDirectory);
+            if (!entryResult.Success)
             {
-                var entryPointResolution = ManifestVariantResolver.ResolveEntryPoint(manifest);
-                if (entryPointResolution.Success)
-                {
-                    manifest.EntryPoint = entryPointResolution.RelativePath;
-                }
+                return OperationResult<List<ContentManifest>>.CreateFailure(entryResult.FirstError ?? "Unable to determine the launch entry.");
             }
 
             return OperationResult<List<ContentManifest>>.CreateSuccess([manifest]);

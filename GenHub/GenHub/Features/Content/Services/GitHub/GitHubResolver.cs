@@ -7,6 +7,7 @@ using GenHub.Core.Models.GitHub;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Results.Content;
+using GenHub.Core.Utilities;
 using GenHub.Features.Content.Services.ContentDiscoverers;
 using GenHub.Features.Content.Services.Helpers;
 using Microsoft.Extensions.DependencyInjection;
@@ -359,14 +360,27 @@ public partial class GitHubResolver(
             return OperationResult<ContentManifest>.CreateSuccess(manifest.Build());
         }
 
+        var (usableAssets, rejections) = ContentFormatPolicy.PartitionUsableAssets(
+            release.Assets.Select(a => a.Name));
+        foreach (var rejection in rejections)
+        {
+            logger.LogWarning("Skipping uninstallable asset for {Owner}/{Repo}:{Tag}: {Rejection}", owner, repo, release.TagName, rejection);
+        }
+
+        if (usableAssets.Count == 0)
+        {
+            return OperationResult<ContentManifest>.CreateFailure(
+                $"Release {owner}/{repo}:{release.TagName} has no installable assets. {string.Join(" ", rejections)}");
+        }
+
         logger.LogInformation(
             "Adding {AssetCount} assets from release {Owner}/{Repo}:{Tag}",
-            release.Assets.Count,
+            usableAssets.Count,
             owner,
             repo,
             release.TagName);
 
-        foreach (var asset in release.Assets)
+        foreach (var asset in release.Assets.Where(a => usableAssets.Contains(a.Name)))
         {
             cancellationToken.ThrowIfCancellationRequested();
 
@@ -418,6 +432,14 @@ public partial class GitHubResolver(
         CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
+
+        var rejection = ContentFormatPolicy.GetRejectionMessage(asset.Name);
+        if (rejection is not null)
+        {
+            logger.LogWarning("Refusing uninstallable asset {AssetName} from {Owner}/{Repo}:{Tag}", asset.Name, owner, repo, tag);
+            return OperationResult<ContentManifest>.CreateFailure(rejection);
+        }
+
         try
         {
             // Extract variant from asset name (e.g., "English" from "0_ImprovedMenusEnglish.big")

@@ -30,6 +30,21 @@ public static class GameClientConstants
     /// <summary>Contra modded client executable filename.</summary>
     public const string ContraExecutable = "generals.ctr";
 
+    /// <summary>Okladnoj macOS client executable filename (extensionless Mach-O binary).</summary>
+    public const string OkladnojMacExecutable = "GeneralsOnlineZH";
+
+    /// <summary>GeneralsX Windows client executable filename.</summary>
+    public const string GeneralsXWindowsExecutable = "GeneralsXZH.exe";
+
+    /// <summary>GeneralsX macOS launcher script, declared by its bundle plist.</summary>
+    public const string GeneralsXMacEntryScript = "run.sh";
+
+    /// <summary>Display name for the Okladnoj macOS client.</summary>
+    public const string OkladnojZeroHourDisplayName = "Okladnoj Zero Hour (macOS)";
+
+    /// <summary>Display name for the GeneralsX client.</summary>
+    public const string GeneralsXZeroHourDisplayName = "GeneralsX Zero Hour";
+
     // ===== SuperHackers Client Detection =====
 
     /// <summary>SuperHackers Generals executable filename.</summary>
@@ -306,6 +321,8 @@ public static class GameClientConstants
         GeneralsOnline60HzExecutable,
         GeneralsOnlineEacLauncherExecutable,
         ContraExecutable,
+        OkladnojMacExecutable,
+        GeneralsXWindowsExecutable,
     ];
 
     /// <summary>
@@ -324,6 +341,8 @@ public static class GameClientConstants
         GeneralsOnline60HzExecutable,
         GeneralsOnlineEacLauncherExecutable,
         ContraExecutable,
+        OkladnojMacExecutable,
+        GeneralsXWindowsExecutable,
     ];
 
     /// <summary>

@@ -54,6 +54,15 @@ public sealed class EntryPointResolution
         new(null, reason, candidates.Select(f => f.RelativePath).ToList());
 
     /// <summary>
+    /// Creates a failed resolution from relative path candidates.
+    /// </summary>
+    /// <param name="reason">Why resolution failed.</param>
+    /// <param name="candidatePaths">The relative paths that were considered.</param>
+    /// <returns>A failed resolution.</returns>
+    public static EntryPointResolution Failed(string reason, IEnumerable<string> candidatePaths) =>
+        new(null, reason, candidatePaths.ToList());
+
+    /// <summary>
     /// Builds a log-ready description including the candidates considered.
     /// </summary>
     /// <returns>A diagnostic string.</returns>
