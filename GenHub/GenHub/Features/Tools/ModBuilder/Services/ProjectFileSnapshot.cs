@@ -9,54 +9,54 @@ using System.Linq;
 namespace GenHub.Features.Tools.ModBuilder.Services;
 
 /// <summary>
-/// An immutable in-memory snapshot of a project's files for fast glob matching.
-/// Enumerates the project directory once, then answers match queries from memory
-/// instead of walking the disk on every bundle item or selection change.
-/// Create one snapshot per editing session and share it across all match calls.
+/// Immutable snapshot of all project files and their directory structure.
+/// Allows fast in-memory glob matching without repeated disk access.
 /// </summary>
 public sealed class ProjectFileSnapshot
 {
-    private readonly InMemoryDirectory _root;
     private readonly HashSet<string> _allFiles;
+    private readonly InMemoryDirectory _root;
 
-    private ProjectFileSnapshot(string rootPath, IReadOnlyList<string> relativeFilePaths, InMemoryDirectory root)
+    private ProjectFileSnapshot(string rootPath, IEnumerable<string> relativePaths, InMemoryDirectory root)
     {
-        RootPath = rootPath;
-        RelativeFilePaths = relativeFilePaths;
+        RootPath = Path.GetFullPath(rootPath);
+        _allFiles = new HashSet<string>(relativePaths, StringComparer.OrdinalIgnoreCase);
         _root = root;
-        _allFiles = new HashSet<string>(relativeFilePaths, StringComparer.OrdinalIgnoreCase);
     }
 
     /// <summary>
-    /// Gets the absolute project root this snapshot was taken from.
+    /// Gets the root directory path of the project.
     /// </summary>
     public string RootPath { get; }
 
     /// <summary>
-    /// Gets all file paths relative to <see cref="RootPath"/>, using forward slashes.
+    /// Gets all relative file paths in the snapshot (forward-slash normalized).
     /// </summary>
-    public IReadOnlyList<string> RelativeFilePaths { get; }
+    public IReadOnlyCollection<string> AllFiles => _allFiles;
 
     /// <summary>
-    /// Creates a snapshot with a single recursive directory walk.
-    /// Inaccessible directories are skipped; a missing root yields an empty snapshot.
+    /// Gets all relative file paths in the snapshot (forward-slash normalized).
     /// </summary>
-    /// <param name="projectDir">The project root directory.</param>
-    /// <returns>The file snapshot.</returns>
+    public IReadOnlyCollection<string> RelativeFilePaths => _allFiles;
+
+    /// <summary>
+    /// Gets the total number of files in the project.
+    /// </summary>
+    public int TotalFiles => _allFiles.Count;
+
+    /// <summary>
+    /// Creates a snapshot by crawling the project directory once.
+    /// </summary>
+    /// <param name="projectDir">The root project directory.</param>
+    /// <returns>A new <see cref="ProjectFileSnapshot"/> instance.</returns>
     public static ProjectFileSnapshot Create(string projectDir)
     {
-        var rootPath = projectDir;
-        try
-        {
-            rootPath = Path.GetFullPath(projectDir);
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
-        {
-            // Fall back to projectDir when full path resolution fails.
-        }
+        ArgumentException.ThrowIfNullOrWhiteSpace(projectDir);
 
-        var root = new InMemoryDirectory(GetDirectoryName(rootPath), rootPath, null);
+        var rootPath = Path.GetFullPath(projectDir);
+        var root = new InMemoryDirectory(Path.GetFileName(rootPath));
         var relativePaths = new List<string>();
+
         if (Directory.Exists(projectDir))
         {
             CollectFiles(new DirectoryInfo(projectDir), rootPath, root, relativePaths);
@@ -122,7 +122,7 @@ public sealed class ProjectFileSnapshot
         }
     }
 
-    private static Matcher CreateMatcher(IEnumerable<string> patterns)
+    private Matcher CreateMatcher(IEnumerable<string> patterns)
     {
         var matcher = new Matcher(StringComparison.OrdinalIgnoreCase);
         foreach (var rawPattern in patterns)
@@ -132,7 +132,24 @@ public sealed class ProjectFileSnapshot
                 continue;
             }
 
-            var pattern = rawPattern.TrimStart('/', '\\').Replace('\\', '/');
+            var pattern = rawPattern.Trim();
+            if (Path.IsPathRooted(pattern) || (pattern.Length > 2 && pattern[1] == ':'))
+            {
+                try
+                {
+                    var rel = Path.GetRelativePath(RootPath, pattern).Replace('\\', '/');
+                    if (!rel.StartsWith("..", StringComparison.Ordinal))
+                    {
+                        pattern = rel;
+                    }
+                }
+                catch
+                {
+                    // Fall back to original pattern
+                }
+            }
+
+            pattern = pattern.TrimStart('/', '\\').Replace('\\', '/');
             matcher.AddInclude(pattern);
 
             // If pattern does not start with GameFilesEdited/, also match within GameFilesEdited
@@ -159,124 +176,76 @@ public sealed class ProjectFileSnapshot
             return;
         }
 
-        foreach (var file in files.OrderBy(f => f.Name, StringComparer.OrdinalIgnoreCase))
+        foreach (var file in files)
         {
-            var rel = NormalizeRelativePath(Path.GetRelativePath(rootPath, file.FullName));
+            var rel = Path.GetRelativePath(rootPath, file.FullName).Replace('\\', '/');
             relativePaths.Add(rel);
-            node.AddFile(file.Name, file.FullName);
+            node.AddFile(file.Name);
         }
 
-        foreach (var subDir in subDirs.OrderBy(d => d.Name, StringComparer.OrdinalIgnoreCase))
+        foreach (var subDir in subDirs)
         {
-            var child = node.AddDirectory(subDir.Name, subDir.FullName);
-            CollectFiles(subDir, rootPath, child, relativePaths);
+            var childNode = node.GetOrCreateDirectory(subDir.Name);
+            CollectFiles(subDir, rootPath, childNode, relativePaths);
         }
     }
 
     private static string NormalizeRelativePath(string path) =>
-        path.Replace('\\', '/').TrimStart('/');
+        path.Trim('/').Replace('\\', '/');
 
-    private static string GetDirectoryName(string path)
+    private sealed class InMemoryDirectory(string name, InMemoryDirectory? parent = null) : DirectoryInfoBase
     {
-        try
+        private readonly Dictionary<string, InMemoryDirectory> _directories = new(StringComparer.OrdinalIgnoreCase);
+        private readonly Dictionary<string, InMemoryFile> _files = new(StringComparer.OrdinalIgnoreCase);
+
+        public override string Name { get; } = name;
+
+        public override string FullName => ParentDirectory == null ? Name : $"{ParentDirectory.FullName}/{Name}";
+
+        public override DirectoryInfoBase? ParentDirectory { get; } = parent;
+
+        public InMemoryDirectory GetOrCreateDirectory(string name)
         {
-            return Path.GetFileName(path.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
+            if (!_directories.TryGetValue(name, out var dir))
+            {
+                dir = new InMemoryDirectory(name, this);
+                _directories[name] = dir;
+            }
+
+            return dir;
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
+
+        public void AddFile(string name)
         {
-            return string.Empty;
+            _files[name] = new InMemoryFile(name, this);
         }
+
+        public override IEnumerable<FileSystemInfoBase> EnumerateFileSystemInfos()
+        {
+            foreach (var dir in _directories.Values)
+            {
+                yield return dir;
+            }
+
+            foreach (var file in _files.Values)
+            {
+                yield return file;
+            }
+        }
+
+        public override DirectoryInfoBase? GetDirectory(string name) =>
+            _directories.GetValueOrDefault(name);
+
+        public override FileInfoBase? GetFile(string name) =>
+            _files.GetValueOrDefault(name);
     }
 
-    private sealed class InMemoryFile : FileInfoBase
+    private sealed class InMemoryFile(string name, InMemoryDirectory parent) : FileInfoBase
     {
-        public InMemoryFile(string name, string fullName, DirectoryInfoBase parent)
-        {
-            Name = name;
-            FullName = fullName;
-            ParentDirectory = parent;
-        }
+        public override string Name { get; } = name;
 
-        public override string Name { get; }
+        public override string FullName => $"{ParentDirectory?.FullName}/{Name}";
 
-        public override string FullName { get; }
-
-        public override DirectoryInfoBase ParentDirectory { get; }
-    }
-
-    private sealed class InMemoryDirectory : DirectoryInfoBase
-    {
-        private readonly Dictionary<string, FileSystemInfoBase> _children = new(StringComparer.OrdinalIgnoreCase);
-
-        public InMemoryDirectory(string name, string fullName, DirectoryInfoBase? parent)
-        {
-            Name = name;
-            FullName = fullName;
-            ParentDirectory = parent;
-        }
-
-        public override string Name { get; }
-
-        public override string FullName { get; }
-
-        public override DirectoryInfoBase? ParentDirectory { get; }
-
-        public void AddFile(string name, string fullName)
-        {
-            _children[name] = new InMemoryFile(name, fullName, this);
-        }
-
-        public InMemoryDirectory AddDirectory(string name, string fullName)
-        {
-            var child = new InMemoryDirectory(name, fullName, this);
-            _children[name] = child;
-            return child;
-        }
-
-        public override IEnumerable<FileSystemInfoBase> EnumerateFileSystemInfos() => _children.Values;
-
-        public override DirectoryInfoBase? GetDirectory(string path)
-        {
-            var segments = path.Split(['/', '\\'], StringSplitOptions.RemoveEmptyEntries);
-            if (segments.Length == 0)
-            {
-                return null;
-            }
-
-            InMemoryDirectory current = this;
-            for (var i = 0; i < segments.Length; i++)
-            {
-                if (!current._children.TryGetValue(segments[i], out var child) || child is not InMemoryDirectory dir)
-                {
-                    return null;
-                }
-
-                current = dir;
-            }
-
-            return current;
-        }
-
-        public override FileInfoBase? GetFile(string path)
-        {
-            var segments = path.Split(['/', '\\'], StringSplitOptions.RemoveEmptyEntries);
-            if (segments.Length == 0)
-            {
-                return null;
-            }
-
-            InMemoryDirectory current = this;
-            for (var i = 0; i < segments.Length - 1; i++)
-            {
-                if (!current._children.TryGetValue(segments[i], out var child) || child is not InMemoryDirectory dir)
-                {
-                    return null;
-                }
-
-                current = dir;
-            }
-
-            return current._children.TryGetValue(segments[^1], out var file) ? file as FileInfoBase : null;
-        }
+        public override DirectoryInfoBase? ParentDirectory { get; } = parent;
     }
 }

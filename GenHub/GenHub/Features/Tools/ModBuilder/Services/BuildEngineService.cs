@@ -500,6 +500,7 @@ public sealed class BuildEngineService(
                 await ExecuteReleaseBundlePackStageAsync(setup, progress, cancellationToken).ConfigureAwait(false);
                 break;
             case BuildIndex.RawBundleItem:
+            default:
                 var tracker = new StageProgressTracker(filesToProcess.Count);
                 await Parallel.ForEachAsync(
                     filesToProcess,
@@ -510,15 +511,6 @@ public sealed class BuildEngineService(
                     },
                     async (filePath, ct) =>
                         await ProcessSingleFileAsync(filePath, stage, setup, progress, tracker, ct).ConfigureAwait(false)).ConfigureAwait(false);
-                break;
-            default:
-                var sequentialTracker = new StageProgressTracker(filesToProcess.Count);
-                foreach (var filePath in filesToProcess)
-                {
-                    cancellationToken.ThrowIfCancellationRequested();
-                    await ProcessSingleFileAsync(filePath, stage, setup, progress, sequentialTracker, cancellationToken).ConfigureAwait(false);
-                }
-
                 break;
         }
     }
@@ -863,7 +855,7 @@ public sealed class BuildEngineService(
 
                 if (pack.IsBigPack && File.Exists(packFilePath))
                 {
-                    await VerifyBuiltArchiveHashAsync(packFilePath, manifestPath, pack.ManifestFile, cancellationToken).ConfigureAwait(false);
+                    await VerifyBuiltArchiveHashAsync(packFilePath, manifestPath, pack.ManifestFile, progress, cancellationToken).ConfigureAwait(false);
                 }
             }
         }
@@ -924,6 +916,7 @@ public sealed class BuildEngineService(
         string packFilePath,
         string? manifestPath,
         string? configuredManifest,
+        IProgress<BuildProgress>? progress,
         CancellationToken cancellationToken)
     {
         try
@@ -938,16 +931,28 @@ public sealed class BuildEngineService(
                 return;
             }
 
-            using var sha = System.Security.Cryptography.SHA256.Create();
-            using var stream = File.OpenRead(packFilePath);
-            var hashBytes = await sha.ComputeHashAsync(stream, cancellationToken).ConfigureAwait(false);
-            var builtSha256 = Convert.ToHexString(hashBytes).ToLowerInvariant();
-
             var manifest = await BigFilePacker.LoadManifestAsync(manifestPath, cancellationToken).ConfigureAwait(false);
             if (string.IsNullOrEmpty(manifest?.Sha256))
             {
                 return;
             }
+
+            var packFileName = Path.GetFileName(packFilePath);
+            progress?.Report(new BuildProgress
+            {
+                CurrentStage = BuildStage.Archiving,
+                CurrentFile = packFileName,
+                CurrentIndex = BuildIndex.ReleaseBundlePack,
+                CurrentStep = $"Verifying SHA256 integrity for {packFileName}...",
+                ProcessedFiles = Volatile.Read(ref _filesProcessed),
+                PercentComplete = 99.0,
+                Percentage = 0.99,
+            });
+
+            using var sha = System.Security.Cryptography.SHA256.Create();
+            using var stream = File.OpenRead(packFilePath);
+            var hashBytes = await sha.ComputeHashAsync(stream, cancellationToken).ConfigureAwait(false);
+            var builtSha256 = Convert.ToHexString(hashBytes).ToLowerInvariant();
 
             if (string.Equals(builtSha256, manifest.Sha256, StringComparison.OrdinalIgnoreCase))
             {
@@ -1391,12 +1396,13 @@ public sealed class BuildEngineService(
         var stageType = fileExt is ModBuilderConstants.FileExtensions.Tga or ModBuilderConstants.FileExtensions.Png or ModBuilderConstants.FileExtensions.Bmp or ModBuilderConstants.FileExtensions.Dds
             ? BuildStage.Converting
             : BuildStage.Processing;
+        var stepDescription = $"{stageType}: {Path.GetFileName(filePath)} ({done}/{total})";
         progress.Report(new BuildProgress
         {
             CurrentStage = stageType,
             CurrentFile = Path.GetFileName(filePath),
             CurrentIndex = stage,
-            CurrentStep = step,
+            CurrentStep = stepDescription,
             ProcessedFiles = done,
             TotalFiles = total,
             PercentComplete = percent,
