@@ -321,9 +321,6 @@ public class ProfileLauncherFacade(
                 ForceRecreate = false,
                 ValidateAfterPreparation = true,
                 ManifestSourcePaths = manifestSourcePaths,
-                SupplementalArchiveRoot = OperatingSystem.IsWindows()
-                    ? null
-                    : GameLauncher.ResolveSupplementalArchiveRoot(profile.GameClient.GameType, resolvedInstallation.EffectiveGeneralsArchivePath, profile.EnvironmentVariables),
             };
 
             // Use resolved installation path and workspace root
@@ -331,6 +328,11 @@ public class ProfileLauncherFacade(
             {
                 return ProfileOperationResult<WorkspaceInfo>.CreateFailure("Resolved installation has no valid installation path");
             }
+
+            // Resolved after the guard so the installation dereference is textually protected.
+            workspaceConfig.SupplementalArchiveRoot = OperatingSystem.IsWindows()
+                ? null
+                : GameLauncher.ResolveSupplementalArchiveRoot(profile.GameClient.GameType, resolvedInstallation.EffectiveGeneralsArchivePath, profile.EnvironmentVariables);
 
             var installationPath = resolvedInstallation.InstallationPath;
             workspaceConfig.BaseInstallationPath = installationPath;
