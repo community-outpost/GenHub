@@ -1,6 +1,7 @@
 using CommunityToolkit.Mvvm.Messaging;
 using GenHub.Core.Constants;
 using GenHub.Core.Extensions;
+using GenHub.Core.Extensions.Storage;
 using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
@@ -1121,18 +1122,8 @@ public class ProfileLauncherFacade(
             var errorMessage = $"HardLink strategy failed because your workspace is on a different drive than the game on {gameDrive} drive. " +
                 "You can manually change to FullCopy strategy (uses more disk space) or move your workspace to the same drive as your game.";
 
-            notificationService.ShowError(
-                "Launch Failed - Cross-Drive Issue",
-                errorMessage,
-                NotificationDurations.Critical);
-
             return ProfileOperationResult<GameLaunchInfo>.CreateFailure(errorMessage);
         }
-
-        notificationService.ShowError(
-            "Launch Failed",
-            $"Cannot launch '{profile.Name}': {launchResult.FirstError ?? "Unknown error"}",
-            NotificationDurations.VeryLong);
 
         return ProfileOperationResult<GameLaunchInfo>.CreateFailure(string.Join(", ", launchResult.Errors));
     }
@@ -1174,8 +1165,13 @@ public class ProfileLauncherFacade(
             return ProfileOperationResult<bool>.CreateFailure(string.Join(", ", errors));
         }
 
-        var (manifests, hasGameInstallationManifest, hasGameClientManifest) =
+        var (manifests, hasGameInstallationManifest, hasGameClientManifest, missingContentIds) =
             await CollectAndValidateManifestsAsync(profile, cancellationToken);
+
+        if (missingContentIds.Count > 0)
+        {
+            errors.Add($"Missing or invalid content IDs: {string.Join(", ", missingContentIds)}");
+        }
 
         if (!hasGameInstallationManifest)
         {
@@ -1205,6 +1201,13 @@ public class ProfileLauncherFacade(
         {
             var casStats = await casService.GetStatsAsync(cancellationToken);
             logger.LogDebug("CAS preflight check passed for profile {ProfileId}: {TotalObjects} objects, {TotalSize} bytes", profile.Id, casStats.ObjectCount, casStats.TotalSize);
+
+            var casAvailability = await VerifyCasContentAvailabilityAsync(manifests, cancellationToken);
+            if (!casAvailability.Success)
+            {
+                logger.LogWarning("Profile {ProfileId} launch validation failed: {Error}", profile.Id, casAvailability.FirstError);
+                return ProfileOperationResult<bool>.CreateFailure(casAvailability.FirstError ?? "Missing required CAS objects");
+            }
         }
         catch (Exception ex)
         {
@@ -1345,13 +1348,14 @@ public class ProfileLauncherFacade(
         return null;
     }
 
-    private async Task<(List<ContentManifest> Manifests, bool HasInstallation, bool HasClient)> CollectAndValidateManifestsAsync(
+    private async Task<(List<ContentManifest> Manifests, bool HasInstallation, bool HasClient, List<string> MissingContentIds)> CollectAndValidateManifestsAsync(
         GameProfile profile,
         CancellationToken cancellationToken)
     {
         var hasGameInstallationManifest = false;
         var hasGameClientManifest = false;
         var manifests = new List<ContentManifest>();
+        var missingContentIds = new List<string>();
 
         if (profile.EnabledContentIds != null)
         {
@@ -1360,6 +1364,7 @@ public class ProfileLauncherFacade(
                 var manifest = await TryRetrieveManifestAsync(contentId, cancellationToken);
                 if (manifest == null)
                 {
+                    missingContentIds.Add(contentId);
                     continue;
                 }
 
@@ -1382,10 +1387,11 @@ public class ProfileLauncherFacade(
             {
                 manifests.Add(clientManifest);
                 hasGameClientManifest = true;
+                missingContentIds.Remove(profile.GameClient.Id);
             }
         }
 
-        return (manifests, hasGameInstallationManifest, hasGameClientManifest);
+        return (manifests, hasGameInstallationManifest, hasGameClientManifest, missingContentIds);
     }
 
     /// <summary>
@@ -1978,6 +1984,21 @@ public class ProfileLauncherFacade(
         }
     }
 
+    private async Task CheckManifestCasFilesAsync(ContentManifest manifest, List<string> missingFiles, CancellationToken cancellationToken)
+    {
+        var manifestDisplayName = !string.IsNullOrWhiteSpace(manifest.Name) ? manifest.Name : manifest.Id.Value;
+        var missingCasFiles = await casService.GetMissingRequiredCasFilesAsync(manifest, cancellationToken).ConfigureAwait(false);
+        foreach (var file in missingCasFiles)
+        {
+            missingFiles.Add($"{manifestDisplayName} ({file.RelativePath})");
+            logger.LogWarning(
+                "[CAS Preflight] Missing CAS object {Hash} required by file {RelativePath} in manifest {ManifestId}",
+                file.Hash,
+                file.RelativePath,
+                manifest.Id);
+        }
+    }
+
     /// <summary>
     /// Verifies that all CAS content required by the manifests is available.
     /// </summary>
@@ -1986,33 +2007,18 @@ public class ProfileLauncherFacade(
     /// <returns>Success if all CAS content is available, failure with missing hash list otherwise.</returns>
     private async Task<OperationResult<bool>> VerifyCasContentAvailabilityAsync(IEnumerable<ContentManifest> manifests, CancellationToken cancellationToken)
     {
-        List<string> missingHashes = [];
+        List<string> missingFiles = [];
 
         foreach (var manifest in manifests)
         {
-            if (manifest.Files != null)
-            {
-                foreach (var file in manifest.Files.Where(f => f.SourceType == ContentSourceType.ContentAddressable && !string.IsNullOrEmpty(f.Hash)))
-                {
-                    var existsResult = await casService.ExistsAsync(file.Hash, manifest.ContentType, cancellationToken);
-                    if (!existsResult.Success || !existsResult.Data)
-                    {
-                        missingHashes.Add(file.Hash);
-                        logger.LogWarning(
-                            "[CAS Preflight] Missing CAS object {Hash} required by file {RelativePath} in manifest {ManifestId}",
-                            file.Hash,
-                            file.RelativePath,
-                            manifest.Id);
-                    }
-                }
-            }
+            await CheckManifestCasFilesAsync(manifest, missingFiles, cancellationToken).ConfigureAwait(false);
         }
 
-        if (missingHashes.Count > 0)
+        if (missingFiles.Count > 0)
         {
-            var distinctMissing = missingHashes.Distinct().ToList();
-            logger.LogError("[CAS Preflight] Found {Count} missing CAS objects: {Hashes}", distinctMissing.Count, string.Join(", ", distinctMissing.Take(10)));
-            return OperationResult<bool>.CreateFailure($"Missing {distinctMissing.Count} required CAS objects. Content must be downloaded before launching.");
+            var distinctMissing = missingFiles.Distinct().ToList();
+            logger.LogError("[CAS Preflight] Found {Count} missing CAS objects: {Files}", distinctMissing.Count, string.Join(", ", distinctMissing.Take(10)));
+            return OperationResult<bool>.CreateFailure($"Missing {distinctMissing.Count} required CAS objects ({string.Join(", ", distinctMissing.Take(5))}). Content must be downloaded before launching.");
         }
 
         return OperationResult<bool>.CreateSuccess(true);

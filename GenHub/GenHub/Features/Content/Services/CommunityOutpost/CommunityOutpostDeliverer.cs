@@ -497,11 +497,11 @@ public class CommunityOutpostDeliverer(
 
                 registeredManifestIds.Add(manifest.Id);
 
-                // After successful storage, update SourceType to ContentAddressable
-                // since the files are now in CAS
+                // Ensure registered manifest entries reflect clean CAS state
                 foreach (var file in manifest.Files)
                 {
                     file.SourceType = ContentSourceType.ContentAddressable;
+                    file.SourcePath = null;
                 }
 
                 logger.LogInformation(

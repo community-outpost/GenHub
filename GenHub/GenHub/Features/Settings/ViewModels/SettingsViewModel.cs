@@ -21,6 +21,7 @@ using GenHub.Core.Models.AppUpdate;
 using GenHub.Core.Models.Common;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameInstallations;
+using GenHub.Core.Models.GameProfile;
 using GenHub.Core.Models.GitHub;
 using GenHub.Core.Models.Providers;
 using GenHub.Core.Models.Storage;
@@ -2095,10 +2096,14 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             if (manifestsResult.Success && manifestsResult.Data != null)
             {
                 var count = manifestsResult.Data.Count();
+                var deletedIds = manifestsResult.Data.Select(m => m.Id.Value).ToHashSet(StringComparer.OrdinalIgnoreCase);
+
                 foreach (var manifest in manifestsResult.Data)
                 {
                     await _manifestPool.RemoveManifestAsync(manifest.Id);
                 }
+
+                await ScrubDeletedManifestIdsFromProfilesAsync(deletedIds, showToast);
 
                 if (showToast)
                 {
@@ -2119,6 +2124,81 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
                 _notificationService.ShowError("Deletion Failed", $"Failed to delete manifests: {ex.Message}", 5000);
             }
         }
+    }
+
+    private async Task ScrubDeletedManifestIdsFromProfilesAsync(HashSet<string> deletedIds, bool showToast)
+    {
+        var profilesResult = await _profileManager.GetAllProfilesAsync();
+        if (!profilesResult.Success || profilesResult.Data == null)
+        {
+            _logger.LogWarning(
+                "Failed to enumerate profiles while scrubbing deleted manifest IDs: {Error}",
+                profilesResult.FirstError);
+            if (showToast)
+            {
+                var enumerationFormat = _localizationService?.GetString("Settings.Manifests.ScrubFailed.EnumerationMessage") ?? "The profile list could not be loaded, so deleted manifests may still be referenced by profiles. Those profiles may fail to launch until updated.";
+                _notificationService.ShowWarning(
+                    GetScrubFailedTitle(),
+                    enumerationFormat,
+                    (int)TimeIntervals.NotificationHideDelay.TotalMilliseconds);
+            }
+
+            return;
+        }
+
+        var failedProfileNames = new List<string>();
+        foreach (var profile in profilesResult.Data)
+        {
+            var scrubbed = await ScrubDeletedManifestIdsFromProfileAsync(profile, deletedIds);
+            if (!scrubbed)
+            {
+                failedProfileNames.Add(profile.Name);
+            }
+        }
+
+        if (showToast && failedProfileNames.Count > 0)
+        {
+            var scrubFailedFormat = _localizationService?.GetString("Settings.Manifests.ScrubFailed.Message") ?? "Deleted manifests could not be removed from {0} profile(s): {1}. Those profiles may fail to launch until updated.";
+            _notificationService.ShowWarning(
+                GetScrubFailedTitle(),
+                string.Format(CultureInfo.InvariantCulture, scrubFailedFormat, failedProfileNames.Count, string.Join(", ", failedProfileNames)),
+                (int)TimeIntervals.NotificationHideDelay.TotalMilliseconds);
+        }
+    }
+
+    private string GetScrubFailedTitle()
+    {
+        return _localizationService?.GetString("Settings.Manifests.ScrubFailed.Title") ?? "Profile Update Incomplete";
+    }
+
+    private async Task<bool> ScrubDeletedManifestIdsFromProfileAsync(GameProfile profile, HashSet<string> deletedIds)
+    {
+        if (profile.EnabledContentIds == null || !profile.EnabledContentIds.Any(id => deletedIds.Contains(id)))
+        {
+            return true;
+        }
+
+        var updatedContentIds = profile.EnabledContentIds
+            .Where(id => !deletedIds.Contains(id))
+            .ToList();
+
+        var updateRequest = new UpdateProfileRequest
+        {
+            EnabledContentIds = updatedContentIds,
+        };
+        var updateResult = await _profileManager.UpdateProfileAsync(profile.Id, updateRequest);
+        if (!updateResult.Success)
+        {
+            _logger.LogWarning(
+                "Failed to scrub deleted manifest IDs from profile {ProfileName} ({ProfileId}): {Error}",
+                profile.Name,
+                profile.Id,
+                updateResult.FirstError);
+            return false;
+        }
+
+        _logger.LogInformation("Scrubbed deleted manifest IDs from profile {ProfileName} ({ProfileId})", profile.Name, profile.Id);
+        return true;
     }
 
     [RelayCommand]
