@@ -185,4 +185,16 @@ public interface IGitHubApiClient
         string owner,
         string repo,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Gets the repository README decoded as markdown.
+    /// </summary>
+    /// <param name="owner">The repository owner.</param>
+    /// <param name="repo">The repository name.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The README markdown, or null when the repository has no README.</returns>
+    Task<string?> GetReadmeAsync(
+        string owner,
+        string repo,
+        CancellationToken cancellationToken = default);
 }

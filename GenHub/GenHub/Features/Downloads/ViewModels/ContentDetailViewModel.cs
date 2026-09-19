@@ -8,6 +8,7 @@ using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.GameProfiles;
+using GenHub.Core.Interfaces.GitHub;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Interfaces.Parsers;
@@ -28,6 +29,7 @@ using GenHub.Features.Downloads.Views;
 using GenHub.Infrastructure.Services;
 using Microsoft.Extensions.Logging;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics.CodeAnalysis;
@@ -66,6 +68,7 @@ namespace GenHub.Features.Downloads.ViewModels;
 /// <param name="dialogService">Optional dialog service for delete confirmations.</param>
 /// <param name="deletedAction">Optional callback invoked with the deleted manifest ID after a successful delete.</param>
 /// <param name="artworkService">Optional artwork service for purging persisted icons and covers on delete.</param>
+/// <param name="gitHubApiClient">Optional GitHub API client for README and release-notes hydration.</param>
 [SuppressMessage("Major Code Smell", "S107:Methods should not have too many parameters", Justification = "ContentDetailViewModel coordinates rich media, downloads, profile binding, and custom tabs.")]
 [SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Properties and methods access CommunityToolkit MVVM generated instance properties.")]
 [SuppressMessage("Critical Code Smell", "S3776:Cognitive Complexity of methods should not be too high", Justification = "Content detail ViewModel coordinates complex UI state, downloads, and multiple catalog sources.")]
@@ -90,7 +93,8 @@ public partial class ContentDetailViewModel(
     ILocalizationService? localizationService = null,
     IDialogService? dialogService = null,
     Func<string, Task>? deletedAction = null,
-    IContentArtworkService? artworkService = null) : ObservableObject, IDisposable
+    IContentArtworkService? artworkService = null,
+    IGitHubApiClient? gitHubApiClient = null) : ObservableObject, IDisposable
 {
     // ===== Constants =====
     private const string UnknownValue = "Unknown";
@@ -111,6 +115,9 @@ public partial class ContentDetailViewModel(
     private readonly object _contentTypePersistLock = new();
     private readonly CancellationTokenSource _cts = new();
     private readonly List<Task> _pendingRowStateTasks = [];
+    private readonly object _gitHubNotesLock = new();
+    private readonly List<(ReleaseItemViewModel Row, string Owner, string Repo, string Tag)> _pendingGitHubNotes = [];
+    private readonly ConcurrentDictionary<string, string?> _gitHubNotesCache = new(StringComparer.OrdinalIgnoreCase);
     private ContentSearchResult? _updateTargetSearchResult = updateTargetSearchResult;
     private bool _initialIsUpdateAvailable = isUpdateAvailable ?? (updateTargetSearchResult != null);
     private string? _pendingSelectedVariantManifestId = initialVariantManifestId;
@@ -141,6 +148,9 @@ public partial class ContentDetailViewModel(
     private Task? _iconTask;
     private Task? _customTabsTask;
     private Task? _variantsTask;
+    private Task? _gitHubReadmeTask;
+    private Task? _gitHubHydrationTask;
+    private bool _gitHubHydrationRunning;
 
     // ===== Observable Backing Fields =====
     [ObservableProperty]
@@ -198,6 +208,11 @@ public partial class ContentDetailViewModel(
 
     [ObservableProperty]
     private string? _downloadStatusMessage;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasReadme))]
+    [NotifyPropertyChangedFor(nameof(FormattedReadme))]
+    private string? _readmeMarkdown;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasRequiredDependencies))]
@@ -532,6 +547,17 @@ public partial class ContentDetailViewModel(
         string.IsNullOrWhiteSpace(Description)
             ? BuildDetailsFallback()
             : MarkdownLinkFormatter.FormatLinks(Description, searchResult.SourceUrl);
+
+    /// <summary>
+    /// Gets a value indicating whether repository README markdown was loaded.
+    /// </summary>
+    public bool HasReadme => !string.IsNullOrWhiteSpace(ReadmeMarkdown);
+
+    /// <summary>
+    /// Gets the README markdown with repository-relative links resolved.
+    /// </summary>
+    public string FormattedReadme =>
+        MarkdownLinkFormatter.FormatLinks(ReadmeMarkdown, ResolveGitHubRepositoryUrl() ?? searchResult.SourceUrl);
 
     /// <summary>
     /// Gets the author name - prefers parsed page context developer.
@@ -933,6 +959,7 @@ public partial class ContentDetailViewModel(
         _ = LoadBasicParsedDataAsync();
         _customTabsTask = LoadCustomTabsAsync();
         _variantsTask = InitializeVariantsAsync();
+        _gitHubReadmeTask = LoadGitHubReadmeAsync();
     }
 
     /// <summary>
@@ -1062,7 +1089,27 @@ public partial class ContentDetailViewModel(
         }
 
         await Task.WhenAll(tasks);
+        await WaitForGitHubHydrationAsync();
         await WaitForRowStateResolutionsAsync();
+    }
+
+    /// <summary>
+    /// Waits for pending GitHub README and release-notes hydration (for tests to await).
+    /// </summary>
+    /// <returns>A task representing the wait operation.</returns>
+    public async Task WaitForGitHubHydrationAsync()
+    {
+        var readmeTask = _gitHubReadmeTask;
+        if (readmeTask != null)
+        {
+            await readmeTask;
+        }
+
+        var hydrationTask = _gitHubHydrationTask;
+        if (hydrationTask != null)
+        {
+            await hydrationTask;
+        }
     }
 
     /// <summary>
@@ -1342,6 +1389,11 @@ public partial class ContentDetailViewModel(
         {
             Files = [CreateGitHubArtifactFile(result, artifact)];
             PopulateReleases(Files);
+            foreach (var row in Releases)
+            {
+                EnqueueGitHubNotesRequest(row, result);
+            }
+
             return true;
         }
 
@@ -1736,6 +1788,47 @@ public partial class ContentDetailViewModel(
     {
         var body = sibling?.GetData<GitHubRelease>()?.Body;
         return string.IsNullOrWhiteSpace(body) ? null : body;
+    }
+
+    private static bool TryGetGitHubRepository(ContentSearchResult source, out string owner, out string repo)
+    {
+        owner = string.Empty;
+        repo = string.Empty;
+
+        if (!source.ResolverMetadata.TryGetValue(GitHubConstants.OwnerMetadataKey, out var ownerValue) ||
+            string.IsNullOrWhiteSpace(ownerValue))
+        {
+            return false;
+        }
+
+        if (!source.ResolverMetadata.TryGetValue(GitHubConstants.RepoMetadataKey, out var repoValue) ||
+            string.IsNullOrWhiteSpace(repoValue))
+        {
+            return false;
+        }
+
+        owner = ownerValue;
+        repo = repoValue;
+        return true;
+    }
+
+    private static bool TryGetGitHubRelease(ContentSearchResult source, out string owner, out string repo, out string tag)
+    {
+        tag = string.Empty;
+
+        if (!TryGetGitHubRepository(source, out owner, out repo))
+        {
+            return false;
+        }
+
+        if (!source.ResolverMetadata.TryGetValue(GitHubConstants.TagMetadataKey, out var tagValue) ||
+            string.IsNullOrWhiteSpace(tagValue))
+        {
+            return false;
+        }
+
+        tag = tagValue;
+        return true;
     }
 
     private static ContentVariantInfo MatchVariantInfo(ContentSearchResult sibling, string key, IList<ContentVariantInfo>? primaryVariants = null)
@@ -2984,31 +3077,29 @@ public partial class ContentDetailViewModel(
             {
                 PopulateFromCatalogMetadata(catalogItemJson);
             }
-            else if (!hasVariants)
+            else if (!hasVariants
+                && !PopulateGitHubReleases(searchResult)
+                && Releases.Count == 0 && Variants.Count == 0 && !string.IsNullOrEmpty(searchResult.SourceUrl) && searchResult.RequiresResolution)
             {
-                // Prefer attached GitHub release data so the Releases tab lists real assets with
-                // changelogs; the About tab keeps showing the card description either way.
-                if (!PopulateGitHubReleases(searchResult)
-                    && Releases.Count == 0 && Variants.Count == 0 && !string.IsNullOrEmpty(searchResult.SourceUrl) && searchResult.RequiresResolution)
-                {
-                    var portableUrl = searchResult.GetData<GeneralsOnlineRelease>()?.PortableUrl;
-                    var downloadUrl = !string.IsNullOrWhiteSpace(portableUrl) ? portableUrl : searchResult.SourceUrl;
-                    var fileName = GetFileNameFromUrl(downloadUrl) ?? $"{searchResult.Name}.zip";
-                    var file = new DownloadableFile(
-                        Name: searchResult.Name,
-                        DownloadUrl: downloadUrl,
-                        SizeBytes: searchResult.DownloadSize > 0 ? searchResult.DownloadSize : null,
-                        UploadDate: searchResult.LastUpdated,
-                        ReleaseDate: searchResult.LastUpdated,
-                        Version: searchResult.Version,
-                        Category: searchResult.ContentType.GetDisplayName(),
-                        Uploader: searchResult.AuthorName,
-                        Filename: fileName,
-                        Description: searchResult.Description,
-                        FileSectionType: FileSectionType.Downloads);
-                    Files = [file];
-                    PopulateReleases(Files);
-                }
+                // The attached GitHub release (when present) already populated real assets with
+                // changelogs above; this fallback only covers cards with no usable release data.
+                var portableUrl = searchResult.GetData<GeneralsOnlineRelease>()?.PortableUrl;
+                var downloadUrl = !string.IsNullOrWhiteSpace(portableUrl) ? portableUrl : searchResult.SourceUrl;
+                var fileName = GetFileNameFromUrl(downloadUrl) ?? $"{searchResult.Name}.zip";
+                var file = new DownloadableFile(
+                    Name: searchResult.Name,
+                    DownloadUrl: downloadUrl,
+                    SizeBytes: searchResult.DownloadSize > 0 ? searchResult.DownloadSize : null,
+                    UploadDate: searchResult.LastUpdated,
+                    ReleaseDate: searchResult.LastUpdated,
+                    Version: searchResult.Version,
+                    Category: searchResult.ContentType.GetDisplayName(),
+                    Uploader: searchResult.AuthorName,
+                    Filename: fileName,
+                    Description: searchResult.Description,
+                    FileSectionType: FileSectionType.Downloads);
+                Files = [file];
+                PopulateReleases(Files);
             }
 
             return;
@@ -3300,6 +3391,190 @@ public partial class ContentDetailViewModel(
         Images = imageList.ToObservableCollection();
     }
 
+    private async Task LoadGitHubReadmeAsync()
+    {
+        if (gitHubApiClient == null || _disposed)
+        {
+            return;
+        }
+
+        if (!TryGetGitHubRepository(searchResult, out var owner, out var repo))
+        {
+            return;
+        }
+
+        try
+        {
+            var readme = await gitHubApiClient.GetReadmeAsync(owner, repo, _cts.Token);
+            if (string.IsNullOrWhiteSpace(readme) || _disposed)
+            {
+                return;
+            }
+
+            await RunOnUiThreadAsync(() =>
+            {
+                if (!_disposed)
+                {
+                    ReadmeMarkdown = readme;
+                }
+            });
+        }
+        catch (OperationCanceledException)
+        {
+            // Disposed during fetch
+        }
+        catch (ObjectDisposedException)
+        {
+            // Disposed during fetch
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Failed to load README for {Owner}/{Repo}", owner, repo);
+        }
+    }
+
+    private void EnqueueGitHubNotesRequest(ReleaseItemViewModel row, ContentSearchResult source)
+    {
+        if (gitHubApiClient == null || !string.IsNullOrWhiteSpace(row.FullDescription))
+        {
+            return;
+        }
+
+        if (!TryGetGitHubRelease(source, out var owner, out var repo, out var tag))
+        {
+            return;
+        }
+
+        bool startHydration;
+        lock (_gitHubNotesLock)
+        {
+            _pendingGitHubNotes.Add((row, owner, repo, tag));
+            startHydration = !_gitHubHydrationRunning;
+            if (startHydration)
+            {
+                _gitHubHydrationRunning = true;
+            }
+        }
+
+        if (startHydration)
+        {
+            _gitHubHydrationTask = HydratePendingGitHubNotesAsync();
+        }
+    }
+
+    private async Task HydratePendingGitHubNotesAsync()
+    {
+        try
+        {
+            while (true)
+            {
+                List<(ReleaseItemViewModel Row, string Owner, string Repo, string Tag)> pending;
+                lock (_gitHubNotesLock)
+                {
+                    if (_disposed || gitHubApiClient == null || _pendingGitHubNotes.Count == 0)
+                    {
+                        if (_disposed)
+                        {
+                            _pendingGitHubNotes.Clear();
+                        }
+
+                        _gitHubHydrationRunning = false;
+                        return;
+                    }
+
+                    pending = _pendingGitHubNotes.ToList();
+                    _pendingGitHubNotes.Clear();
+                }
+
+                var updates = new List<(ReleaseItemViewModel Row, string Body)>();
+                foreach (var group in pending.GroupBy(item => $"{item.Owner}/{item.Repo}@{item.Tag}"))
+                {
+                    _cts.Token.ThrowIfCancellationRequested();
+                    var first = group.First();
+                    var body = await GetGitHubReleaseNotesAsync(gitHubApiClient, first.Owner, first.Repo, first.Tag);
+                    if (string.IsNullOrWhiteSpace(body) || _disposed)
+                    {
+                        continue;
+                    }
+
+                    foreach (var item in group)
+                    {
+                        if (string.IsNullOrWhiteSpace(item.Row.FullDescription))
+                        {
+                            updates.Add((item.Row, body));
+                        }
+                    }
+                }
+
+                if (updates.Count > 0 && !_disposed)
+                {
+                    await RunOnUiThreadAsync(() =>
+                    {
+                        foreach (var (row, body) in updates)
+                        {
+                            if (_disposed)
+                            {
+                                break;
+                            }
+
+                            row.FullDescription = body;
+                            if (row.File != null)
+                            {
+                                row.File = row.File with { Description = body };
+                            }
+                        }
+                    });
+                }
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            ResetGitHubHydrationState();
+        }
+        catch (ObjectDisposedException)
+        {
+            ResetGitHubHydrationState();
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Failed to hydrate GitHub release notes");
+            ResetGitHubHydrationState();
+        }
+    }
+
+    private void ResetGitHubHydrationState()
+    {
+        lock (_gitHubNotesLock)
+        {
+            _pendingGitHubNotes.Clear();
+            _gitHubHydrationRunning = false;
+        }
+    }
+
+    private async Task<string?> GetGitHubReleaseNotesAsync(IGitHubApiClient client, string owner, string repo, string tag)
+    {
+        var cacheKey = $"{owner}/{repo}@{tag}";
+        if (_gitHubNotesCache.TryGetValue(cacheKey, out var cached))
+        {
+            return cached;
+        }
+
+        var release = await client.GetReleaseByTagAsync(owner, repo, tag, _cts.Token);
+        var body = string.IsNullOrWhiteSpace(release?.Body) ? null : release.Body;
+        _gitHubNotesCache[cacheKey] = body;
+        return body;
+    }
+
+    private string? ResolveGitHubRepositoryUrl()
+    {
+        if (!TryGetGitHubRepository(searchResult, out var owner, out var repo))
+        {
+            return null;
+        }
+
+        return $"https://{GitHubConstants.GitHubHost}/{owner}/{repo}";
+    }
+
     private bool PopulateFromGitHubRelease(ContentSearchResult result, GitHubRelease release)
     {
         var assets = SelectGitHubReleaseAssets(result, release);
@@ -3312,6 +3587,11 @@ public partial class ContentDetailViewModel(
             .Select(asset => CreateGitHubAssetFile(result, release, asset))
             .ToObservableCollection();
         PopulateReleases(Files);
+        foreach (var row in Releases)
+        {
+            EnqueueGitHubNotesRequest(row, result);
+        }
+
         return true;
     }
 
@@ -4424,7 +4704,37 @@ public partial class ContentDetailViewModel(
             }
         }
 
+        StampGitHubAssetPin(rowSearchResult, file);
+
         return rowSearchResult;
+    }
+
+    /// <summary>
+    /// Pins a GitHub release row to its own asset so acquisition downloads only the clicked
+    /// file instead of the full release. Cards that already pin an asset keep their pin.
+    /// </summary>
+    /// <param name="rowSearchResult">The per-row search result being built.</param>
+    /// <param name="file">The row file carrying the release asset filename.</param>
+    private void StampGitHubAssetPin(ContentSearchResult rowSearchResult, DownloadableFile file)
+    {
+        if (string.IsNullOrWhiteSpace(file.Filename) || searchResult.GetData<GitHubRelease>() == null)
+        {
+            return;
+        }
+
+        if (!searchResult.ResolverMetadata.TryGetValue(GitHubConstants.TagMetadataKey, out var tag) ||
+            string.IsNullOrWhiteSpace(tag))
+        {
+            return;
+        }
+
+        if (rowSearchResult.ResolverMetadata.TryGetValue(GitHubConstants.AssetNameMetadataKey, out var existingPin) &&
+            !string.IsNullOrWhiteSpace(existingPin))
+        {
+            return;
+        }
+
+        rowSearchResult.ResolverMetadata[GitHubConstants.AssetNameMetadataKey] = file.Filename;
     }
 
     private bool IsUpdateTarget(DownloadableFile file, ReleaseItemViewModel? releaseItem = null)

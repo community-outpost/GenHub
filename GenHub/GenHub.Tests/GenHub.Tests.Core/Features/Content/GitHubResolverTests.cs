@@ -164,6 +164,62 @@ public class GitHubResolverTests : IDisposable
     }
 
     /// <summary>
+    /// Verifies that a pinned asset reuses the discovery-attached release when its tag
+    /// matches, avoiding an extra GitHub API call.
+    /// </summary>
+    /// <returns>A task representing the test.</returns>
+    [Fact]
+    public async Task ResolveAsync_PinnedAssetWithMatchingAttachedRelease_ReusesItWithoutApiCallAsync()
+    {
+        var discoveredItem = CreateItem("v1.0");
+        discoveredItem.ResolverMetadata[GitHubConstants.AssetNameMetadataKey] = "test.zip";
+        var release = CreateRelease("v1.0");
+        discoveredItem.SetData(release);
+        SetupBuilder(release);
+
+        var result = await _resolver.ResolveAsync(discoveredItem);
+
+        Assert.True(result.Success);
+        _apiClientMock.Verify(
+            client => client.GetReleaseByTagAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+        _manifestBuilderMock.Verify(
+            builder => builder.AddRemoteFileAsync(
+                "test.zip",
+                "https://test.com",
+                ContentSourceType.RemoteDownload,
+                It.IsAny<bool>(),
+                It.IsAny<FilePermissions?>()),
+            Times.Once);
+    }
+
+    /// <summary>
+    /// Verifies that a pinned asset refetches the release when the attached payload
+    /// belongs to a different tag.
+    /// </summary>
+    /// <returns>A task representing the test.</returns>
+    [Fact]
+    public async Task ResolveAsync_PinnedAssetWithStaleAttachedRelease_RefetchesByTagAsync()
+    {
+        var discoveredItem = CreateItem("v1.0");
+        discoveredItem.ResolverMetadata[GitHubConstants.AssetNameMetadataKey] = "test.zip";
+        discoveredItem.SetData(CreateRelease("v0.9"));
+        var freshRelease = CreateRelease("v1.0");
+        _apiClientMock
+            .Setup(client => client.GetReleaseByTagAsync("owner", "repo", "v1.0", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(freshRelease);
+        SetupBuilder(freshRelease);
+
+        var result = await _resolver.ResolveAsync(discoveredItem);
+
+        Assert.True(result.Success);
+        Assert.Equal("v1.0", result.Data!.Version);
+        _apiClientMock.Verify(
+            client => client.GetReleaseByTagAsync("owner", "repo", "v1.0", It.IsAny<CancellationToken>()),
+            Times.Once);
+    }
+
+    /// <summary>
     /// Disposes of the test resources.
     /// </summary>
     public void Dispose()

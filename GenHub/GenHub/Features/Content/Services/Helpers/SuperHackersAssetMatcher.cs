@@ -1,3 +1,4 @@
+using GenHub.Core.Constants;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GitHub;
 using System;
@@ -51,15 +52,15 @@ public static class SuperHackersAssetMatcher
 
     private static bool IsZeroHourAsset(GitHubReleaseAsset asset)
     {
-        return asset.Name.Contains("generalszh", StringComparison.OrdinalIgnoreCase)
-            || asset.Name.Contains("zero-hour", StringComparison.OrdinalIgnoreCase)
-            || asset.Name.Contains("zerohour", StringComparison.OrdinalIgnoreCase)
-            || asset.Name.Contains("_zh", StringComparison.OrdinalIgnoreCase);
+        return asset.Name.Contains(SuperHackersConstants.GeneralsZhAssetMarker, StringComparison.OrdinalIgnoreCase)
+            || asset.Name.Contains(SuperHackersConstants.ZeroHourHyphenAssetMarker, StringComparison.OrdinalIgnoreCase)
+            || asset.Name.Contains(SuperHackersConstants.ZeroHourAssetMarker, StringComparison.OrdinalIgnoreCase)
+            || asset.Name.Contains(SuperHackersConstants.ZeroHourShortAssetMarker, StringComparison.OrdinalIgnoreCase);
     }
 
     private static bool IsGeneralsAsset(GitHubReleaseAsset asset)
     {
-        return asset.Name.Contains("generals", StringComparison.OrdinalIgnoreCase)
+        return asset.Name.Contains(SuperHackersConstants.GeneralsAssetMarker, StringComparison.OrdinalIgnoreCase)
             && !IsZeroHourAsset(asset);
     }
 }

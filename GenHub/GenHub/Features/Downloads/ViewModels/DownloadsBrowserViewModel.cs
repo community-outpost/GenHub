@@ -7,6 +7,7 @@ using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.GameProfiles;
+using GenHub.Core.Interfaces.GitHub;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Interfaces.Parsers;
@@ -2175,7 +2176,8 @@ public sealed partial class DownloadsBrowserViewModel(
                 localizationService: serviceProvider.GetService(typeof(ILocalizationService)) as ILocalizationService,
                 dialogService: dialogService,
                 deletedAction: OnContentDeletedAsync,
-                artworkService: serviceProvider.GetService<IContentArtworkService>());
+                artworkService: serviceProvider.GetService<IContentArtworkService>(),
+                gitHubApiClient: serviceProvider.GetService(typeof(IGitHubApiClient)) as IGitHubApiClient);
 
             if (item.HasBundleComponents)
             {

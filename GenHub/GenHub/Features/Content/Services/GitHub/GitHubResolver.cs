@@ -221,7 +221,13 @@ public partial class GitHubResolver(
             return await ResolveSingleAssetAsync(discoveredItem, owner, repo, tag, assetData, cancellationToken);
         }
 
-        var selectedRelease = await gitHubApiClient.GetReleaseByTagAsync(
+        var attachedRelease = discoveredItem.GetData<GitHubRelease>();
+        if (attachedRelease != null && !string.Equals(attachedRelease.TagName, tag, StringComparison.OrdinalIgnoreCase))
+        {
+            attachedRelease = null;
+        }
+
+        var selectedRelease = attachedRelease ?? await gitHubApiClient.GetReleaseByTagAsync(
             owner,
             repo,
             tag,

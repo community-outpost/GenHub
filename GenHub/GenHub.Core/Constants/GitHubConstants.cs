@@ -424,4 +424,7 @@ public static class GitHubConstants
 
     /// <summary>Metadata key pinning resolution to a single release asset filename.</summary>
     public const string AssetNameMetadataKey = "asset-name";
+
+    /// <summary>URL path marker identifying direct GitHub release asset download links.</summary>
+    public const string ReleaseAssetUrlMarker = "/releases/download/";
 }
