@@ -357,6 +357,49 @@ public class SettingsViewModelTests
     }
 
     /// <summary>
+    /// Verifies that DeleteCasStorageCommand reports an in-progress toast when collection is skipped.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task DeleteCasStorageCommand_WhenGarbageCollectionSkipped_ShowsInProgressToastAsync()
+    {
+        // Arrange
+        _mockCasService.Setup(x => x.GetStatsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new CasStats { ObjectCount = 0, TotalSize = 0 });
+        _mockManifestPool.Setup(x => x.GetAllManifestsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IEnumerable<ContentManifest>>.CreateSuccess([]));
+        _mockWorkspaceManager.Setup(x => x.GetAllWorkspacesAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IEnumerable<WorkspaceInfo>>.CreateSuccess([]));
+        _mockProfileManager.Setup(x => x.GetAllProfilesAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<IReadOnlyList<GameProfile>>.CreateSuccess([]));
+        _mockCasLifecycleManager
+            .Setup(x => x.RunGarbageCollectionAsync(true, null, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<GarbageCollectionStats>.CreateSuccess(GarbageCollectionStats.InProgressResult));
+        _mockDialogService
+            .Setup(x => x.ShowConfirmationAsync(
+                AppConstants.DeleteCasStorageConfirmationTitle,
+                AppConstants.DeleteCasStorageConfirmationMessage,
+                AppConstants.DeleteCasStorageConfirmText,
+                It.IsAny<string>(),
+                It.IsAny<string?>()))
+            .ReturnsAsync(true);
+
+        var viewModel = CreateViewModel();
+
+        // Act
+        await viewModel.DeleteCasStorageCommand.ExecuteAsync(null);
+
+        // Assert
+        _mockNotificationService.Verify(
+            service => service.ShowInfo(
+                It.Is<string>(title => title.Contains("Progress")),
+                It.IsAny<string>(),
+                It.IsAny<int?>(),
+                It.IsAny<bool>()),
+            Times.Once);
+    }
+
+    /// <summary>
     /// Verifies that UninstallGenHubCommand calls the service.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>

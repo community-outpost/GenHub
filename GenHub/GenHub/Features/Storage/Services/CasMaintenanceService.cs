@@ -79,7 +79,14 @@ public class CasMaintenanceService(
 
         if (gcResult.Success && gcResult.Data != null)
         {
-            logger.LogInformation("CAS garbage collection completed: {ObjectsDeleted} objects deleted, {BytesFreed:N0} bytes freed in {Elapsed}", gcResult.Data.ObjectsDeleted, gcResult.Data.BytesFreed, gcResult.Data.Duration);
+            if (gcResult.Data.Skipped)
+            {
+                logger.LogInformation("CAS garbage collection skipped: another collection is already in progress");
+            }
+            else
+            {
+                logger.LogInformation("CAS garbage collection completed: {ObjectsDeleted} objects deleted, {BytesFreed:N0} bytes freed in {Elapsed}", gcResult.Data.ObjectsDeleted, gcResult.Data.BytesFreed, gcResult.Data.Duration);
+            }
         }
         else
         {

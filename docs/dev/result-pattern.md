@@ -219,8 +219,7 @@ Result stats for CAS garbage collection wrapped in `OperationResult<GarbageColle
 - `ObjectsDeleted`: Number of objects deleted
 - `BytesFreed`: Bytes freed
 - `ObjectsScanned`: Total objects scanned
-- `ObjectsReferenced`: Objects kept (referenced)
-- `PercentageFreed`: Percentage of objects freed relative to scanned objects
+- `ObjectsReferenced`: Objects kept (referenced, within the grace period, or retained after a failed deletion)
 - `Duration`: Elapsed time
 - `Skipped`: True if collection was skipped (e.g. concurrent run)
 - `InProgress`: True if collection was skipped due to lock contention

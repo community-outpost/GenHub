@@ -7,6 +7,7 @@ using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
+using GenHub.Core.Models.Storage;
 using GenHub.Features.Storage.Services;
 using GenHub.Features.Workspace;
 using Microsoft.Extensions.Logging;
@@ -31,6 +32,7 @@ public class ContentStorageService : IContentStorageService
     private readonly ILogger<ContentStorageService> _logger;
     private readonly ICasService _casService;
     private readonly ICasReferenceTracker _referenceTracker;
+    private readonly CasWriteFence _writeFence;
 
     private static OperationResult<bool> ValidateManifestSecurity(ContentManifest manifest, string baseDirectory)
     {
@@ -247,11 +249,13 @@ public class ContentStorageService : IContentStorageService
     /// <param name="logger">The logger instance.</param>
     /// <param name="casService">The CAS service for content-addressable storage.</param>
     /// <param name="referenceTracker">The CAS reference tracker.</param>
+    /// <param name="writeFence">The fence marking in-flight CAS imports for garbage collection.</param>
     public ContentStorageService(
         string storageRoot,
         ILogger<ContentStorageService> logger,
         ICasService casService,
-        ICasReferenceTracker referenceTracker)
+        ICasReferenceTracker referenceTracker,
+        CasWriteFence writeFence)
     {
         if (string.IsNullOrWhiteSpace(storageRoot))
         {
@@ -262,6 +266,7 @@ public class ContentStorageService : IContentStorageService
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _casService = casService ?? throw new ArgumentNullException(nameof(casService));
         _referenceTracker = referenceTracker ?? throw new ArgumentNullException(nameof(referenceTracker));
+        _writeFence = writeFence ?? throw new ArgumentNullException(nameof(writeFence));
 
         // Ensure storage directory structure exists using FileOperationsService for future configurability.
         var requiredDirs = new[]
@@ -336,6 +341,11 @@ public class ContentStorageService : IContentStorageService
         try
         {
             _logger.LogInformation("Storing content for manifest {ManifestId} from {SourceDirectory}", manifest.Id, sourceDirectory);
+
+            // Hold the write fence until references are tracked and the manifest is
+            // persisted so forced garbage collection cannot delete these blobs while
+            // they are still invisible to the GC live set.
+            using var writeLease = _writeFence.TrackWrite();
 
             // Store content files in CAS with integrity verification
             var updatedManifest = await StoreContentFilesAsync(manifest, sourceDirectory, progress, cancellationToken);

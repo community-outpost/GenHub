@@ -151,12 +151,9 @@ public static class ManifestHelper
             return;
         }
 
-        foreach (var file in files)
+        foreach (var file in files.Where(file => file != null && !string.IsNullOrWhiteSpace(file.Hash)))
         {
-            if (file != null && !string.IsNullOrWhiteSpace(file.Hash))
-            {
-                hashes.Add(file.Hash);
-            }
+            hashes.Add(file.Hash);
         }
     }
 

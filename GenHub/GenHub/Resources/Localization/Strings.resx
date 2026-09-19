@@ -1928,8 +1928,28 @@
   <data name="Settings.DangerZone.DeleteAllData" xml:space="preserve">
     <value>DELETE ALL APPLICATION DATA</value>
   </data>
+  <data name="Settings.DangerZone.DeleteAllData.CasCleanupFailed" xml:space="preserve">
+    <value>CAS cleanup failed</value>
+    <comment>Delete-all-data partial failure detail when CAS cleanup failed.</comment>
+  </data>
+  <data name="Settings.DangerZone.DeleteAllData.CasCleanupSkipped" xml:space="preserve">
+    <value>CAS cleanup was skipped (already in progress)</value>
+    <comment>Delete-all-data partial failure detail when CAS cleanup was skipped.</comment>
+  </data>
+  <data name="Settings.DangerZone.DeleteAllData.SuccessMessage" xml:space="preserve">
+    <value>Profiles, workspaces, manifests, user data, and unreferenced CAS objects were deleted.</value>
+    <comment>Delete-all-data success toast message.</comment>
+  </data>
   <data name="Settings.DangerZone.DeleteCasStorage" xml:space="preserve">
     <value>Delete CAS Storage</value>
+  </data>
+  <data name="Settings.DangerZone.DeleteCasStorage.SkippedMessage" xml:space="preserve">
+    <value>CAS cleanup is already in progress. Try again when it finishes.</value>
+    <comment>Toast message when CAS cleanup was skipped because another run is in progress.</comment>
+  </data>
+  <data name="Settings.DangerZone.DeleteCasStorage.SkippedTitle" xml:space="preserve">
+    <value>CAS Cleanup In Progress</value>
+    <comment>Toast title when CAS cleanup was skipped because another run is in progress.</comment>
   </data>
   <data name="Settings.DangerZone.DeleteCasStorage.ToolTip" xml:space="preserve">
     <value>Deletes all cached game files</value>

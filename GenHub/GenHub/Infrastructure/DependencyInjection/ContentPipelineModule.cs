@@ -8,6 +8,7 @@ using GenHub.Core.Interfaces.Parsers;
 using GenHub.Core.Interfaces.Providers;
 using GenHub.Core.Interfaces.Storage;
 using GenHub.Core.Interfaces.Tools;
+using GenHub.Core.Models.Storage;
 using GenHub.Core.Services.Content;
 using GenHub.Core.Services.Providers;
 using GenHub.Core.Services.Providers.VersionSchemes;
@@ -118,8 +119,9 @@ public static class ContentPipelineModule
             // Get application data path where manifests metadata is stored
             var storageRoot = configService.GetApplicationDataPath();
             var referenceTracker = sp.GetRequiredService<CasReferenceTracker>();
+            var writeFence = sp.GetRequiredService<CasWriteFence>();
 
-            return new ContentStorageService(storageRoot, logger, casService, referenceTracker);
+            return new ContentStorageService(storageRoot, logger, casService, referenceTracker, writeFence);
         });
         services.AddSingleton<IContentManifestPool, ContentManifestPool>();
 
@@ -198,6 +200,7 @@ public static class ContentPipelineModule
         // Reconciliation infrastructure
         services.AddScoped<IContentReconciliationOrchestrator, ContentReconciliationOrchestrator>();
         services.AddScoped<IPublisherReconcilerRegistry, PublisherReconcilerRegistry>();
+        services.AddSingleton<CasWriteFence>();
         services.AddSingleton<ICasLifecycleManager, CasLifecycleManager>();
 
         // Audit log - needs application data path

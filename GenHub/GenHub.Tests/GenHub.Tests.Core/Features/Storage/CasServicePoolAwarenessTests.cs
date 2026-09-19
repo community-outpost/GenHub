@@ -1,5 +1,6 @@
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Storage;
+using GenHub.Core.Models.Storage;
 using GenHub.Features.Storage.Services;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
@@ -124,6 +125,42 @@ public class CasServicePoolAwarenessTests : IDisposable
         Assert.Equal(2, result.ObjectsValidated);
         Assert.Single(result.Issues);
         Assert.Equal(hashB, result.Issues[0].ExpectedHash);
+    }
+
+    /// <summary>
+    /// Verifies that a pool enumeration failure aborts validation with an unsuccessful result.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test.</returns>
+    [Fact]
+    public async Task ValidateIntegrityAsync_WhenPoolEnumerationThrows_ReturnsFailureAsync()
+    {
+        var storage = new Mock<ICasStorage>();
+        storage.Setup(pool => pool.GetAllObjectHashesAsync(It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new InvalidOperationException("Pool not initialized"));
+        var service = CreateService(storage.Object, storage.Object);
+
+        var result = await service.ValidateIntegrityAsync();
+
+        Assert.False(result.Success);
+        Assert.Single(result.Issues);
+        Assert.Equal(CasValidationIssueType.Critical, result.Issues[0].IssueType);
+    }
+
+    /// <summary>
+    /// Verifies that cancellation propagates instead of being converted into validation issues.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test.</returns>
+    [Fact]
+    public async Task ValidateIntegrityAsync_WhenCancelled_ThrowsOperationCanceledExceptionAsync()
+    {
+        var storage = new Mock<ICasStorage>();
+        storage.Setup(pool => pool.GetAllObjectHashesAsync(It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new OperationCanceledException());
+        var service = CreateService(storage.Object, storage.Object);
+        using var cancelled = new CancellationTokenSource();
+        await cancelled.CancelAsync();
+
+        await Assert.ThrowsAsync<OperationCanceledException>(() => service.ValidateIntegrityAsync(cancelled.Token));
     }
 
     /// <inheritdoc/>

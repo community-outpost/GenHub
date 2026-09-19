@@ -276,12 +276,17 @@ public class CasService(
 
             logger.LogInformation("CAS integrity validation completed: {ObjectsValidated} objects validated, {Issues} issues found", objectsValidated, issues.Count);
         }
+        catch (OperationCanceledException)
+        {
+            logger.LogInformation("CAS integrity validation cancelled");
+            throw;
+        }
         catch (Exception ex)
         {
             logger.LogError(ex, "CAS integrity validation failed");
             issues.Add(new CasValidationIssue
             {
-                IssueType = CasValidationIssueType.Warning,
+                IssueType = CasValidationIssueType.Critical,
                 Details = $"Validation process failed: {ex.Message}",
             });
         }
@@ -312,6 +317,10 @@ public class CasService(
                 ObjectCount = uniqueHashes.Count,
                 TotalSize = totalSize,
             };
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
         }
         catch (Exception ex)
         {
@@ -641,6 +650,10 @@ public class CasService(
                     Details = "Computed hash does not match expected hash",
                 });
             }
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
         }
         catch (Exception ex)
         {

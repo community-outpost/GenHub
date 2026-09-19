@@ -20,6 +20,7 @@ public class CasGarbageCollectionTests
     private readonly Mock<IContentManifestPool> _manifestPoolMock;
     private readonly Mock<ICasStorage> _primaryStorageMock;
     private readonly IOptions<CasConfiguration> _config;
+    private readonly CasWriteFence _writeFence;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="CasGarbageCollectionTests"/> class.
@@ -29,6 +30,7 @@ public class CasGarbageCollectionTests
         _referenceTrackerMock = new Mock<ICasReferenceTracker>();
         _manifestPoolMock = new Mock<IContentManifestPool>();
         _primaryStorageMock = new Mock<ICasStorage>();
+        _writeFence = new CasWriteFence();
         _config = Options.Create(new CasConfiguration
         {
             GcGracePeriod = TimeSpan.FromDays(1),
@@ -354,6 +356,7 @@ public class CasGarbageCollectionTests
             _primaryStorageMock.Object,
             _config,
             NullLogger<CasLifecycleManager>.Instance,
+            _writeFence,
             poolManagerMock.Object);
 
         // Act
@@ -369,6 +372,47 @@ public class CasGarbageCollectionTests
     }
 
     /// <summary>
+    /// Verifies that forced garbage collection refuses to run while a content import holds the write fence.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test.</returns>
+    [Fact]
+    public async Task RunGarbageCollectionAsync_WhenForcedDuringActiveImport_ReturnsFailure()
+    {
+        // Arrange
+        using var manager = CreateLifecycleManager();
+        using var lease = _writeFence.TrackWrite();
+
+        // Act
+        var result = await manager.RunGarbageCollectionAsync(force: true);
+
+        // Assert
+        Assert.False(result.Success);
+        Assert.Contains("import", result.FirstError, StringComparison.OrdinalIgnoreCase);
+        _primaryStorageMock.Verify(s => s.GetAllObjectHashesAsync(It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    /// <summary>
+    /// Verifies that non-forced garbage collection still runs while a content import holds the write fence.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test.</returns>
+    [Fact]
+    public async Task RunGarbageCollectionAsync_WhenNotForcedDuringActiveImport_StillRuns()
+    {
+        // Arrange
+        using var manager = CreateLifecycleManager();
+        using var lease = _writeFence.TrackWrite();
+        _primaryStorageMock
+            .Setup(s => s.GetAllObjectHashesAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync([]);
+
+        // Act
+        var result = await manager.RunGarbageCollectionAsync(force: false);
+
+        // Assert
+        Assert.True(result.Success);
+    }
+
+    /// <summary>
     /// Verifies that when garbage collection is already in progress, concurrent invocations return a skipped result.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous test.</returns>
@@ -379,18 +423,20 @@ public class CasGarbageCollectionTests
         using var manager = CreateLifecycleManager();
 
         var releaseSignal = new TaskCompletionSource<bool>();
+        var enteredSignal = new TaskCompletionSource<bool>();
         _referenceTrackerMock
             .Setup(t => t.GetAllReferencedHashesAsync(It.IsAny<CancellationToken>()))
             .Returns(async () =>
             {
+                enteredSignal.TrySetResult(true);
                 await releaseSignal.Task;
                 return new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             });
 
         var firstGcTask = Task.Run(() => manager.RunGarbageCollectionAsync(force: false));
 
-        // Wait a short moment to ensure the first GC acquired the lock
-        await Task.Delay(50);
+        // Wait until the first GC entered the reference tracker, proving it holds the lock
+        await enteredSignal.Task;
 
         // Act - run second GC with 1ms timeout
         var secondResult = await manager.RunGarbageCollectionAsync(force: false, lockTimeout: TimeSpan.FromMilliseconds(1));
@@ -414,6 +460,7 @@ public class CasGarbageCollectionTests
             _primaryStorageMock.Object,
             _config,
             NullLogger<CasLifecycleManager>.Instance,
+            _writeFence,
             poolManager);
     }
 }

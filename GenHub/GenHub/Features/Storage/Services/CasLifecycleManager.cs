@@ -27,6 +27,7 @@ public class CasLifecycleManager(
     ICasStorage casStorage,
     IOptions<CasConfiguration> config,
     ILogger<CasLifecycleManager> logger,
+    CasWriteFence writeFence,
     ICasPoolManager? poolManager = null) : ICasLifecycleManager, IDisposable
 {
     private readonly SemaphoreSlim _gcLock = new(1, 1);
@@ -159,6 +160,16 @@ public class CasLifecycleManager(
         TimeSpan? lockTimeout = null,
         CancellationToken cancellationToken = default)
     {
+        // Forced collection bypasses the grace period, so refuse while an import holds
+        // the write fence. Its blobs are not yet tracked or persisted and would look
+        // unreferenced to the live-set snapshot.
+        if (force && writeFence.HasActiveWrites)
+        {
+            logger.LogWarning("Forced garbage collection refused: content is being imported into CAS");
+            return OperationResult<GarbageCollectionStats>.CreateFailure(
+                "Cannot clean CAS storage while content is being imported. Try again when the import finishes.");
+        }
+
         // Ensure only one GC runs at a time
         var timeout = lockTimeout ?? config.Value.GcLockTimeout;
         if (!await _gcLock.WaitAsync(timeout, cancellationToken))
@@ -373,6 +384,10 @@ public class CasLifecycleManager(
             await poolStorage.DeleteObjectAsync(hash, cancellationToken);
             logger.LogDebug("GC deleted unreferenced object {Hash} ({Size} bytes)", hash, size);
             return (true, size);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
         }
         catch (Exception ex)
         {

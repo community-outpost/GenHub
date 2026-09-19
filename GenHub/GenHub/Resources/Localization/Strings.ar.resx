@@ -1928,8 +1928,28 @@
   <data name="Settings.DangerZone.DeleteAllData" xml:space="preserve">
     <value>حذف جميع بيانات التطبيق</value>
   </data>
+  <data name="Settings.DangerZone.DeleteAllData.CasCleanupFailed" xml:space="preserve">
+    <value>فشل تنظيف CAS</value>
+    <comment>Delete-all-data partial failure detail when CAS cleanup failed.</comment>
+  </data>
+  <data name="Settings.DangerZone.DeleteAllData.CasCleanupSkipped" xml:space="preserve">
+    <value>تم تخطي تنظيف CAS (جارٍ بالفعل)</value>
+    <comment>Delete-all-data partial failure detail when CAS cleanup was skipped.</comment>
+  </data>
+  <data name="Settings.DangerZone.DeleteAllData.SuccessMessage" xml:space="preserve">
+    <value>تم حذف الملفات الشخصية ومساحات العمل والبيانات الوصفية وبيانات المستخدم وكائنات CAS غير المرجعية.</value>
+    <comment>Delete-all-data success toast message.</comment>
+  </data>
   <data name="Settings.DangerZone.DeleteCasStorage" xml:space="preserve">
     <value>حذف مساحة تخزين CAS</value>
+  </data>
+  <data name="Settings.DangerZone.DeleteCasStorage.SkippedMessage" xml:space="preserve">
+    <value>تنظيف CAS جارٍ بالفعل. حاول مرة أخرى عند انتهائه.</value>
+    <comment>Toast message when CAS cleanup was skipped because another run is in progress.</comment>
+  </data>
+  <data name="Settings.DangerZone.DeleteCasStorage.SkippedTitle" xml:space="preserve">
+    <value>تنظيف CAS جارٍ بالفعل</value>
+    <comment>Toast title when CAS cleanup was skipped because another run is in progress.</comment>
   </data>
   <data name="Settings.DangerZone.DeleteCasStorage.ToolTip" xml:space="preserve">
     <value>يحذف جميع ملفات اللعبة المخزنة مؤقتًا</value>

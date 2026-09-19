@@ -211,6 +211,10 @@ public class CasStorage(
 
             return hashes;
         }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to enumerate CAS objects");

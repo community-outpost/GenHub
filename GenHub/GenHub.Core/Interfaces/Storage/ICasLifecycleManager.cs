@@ -41,7 +41,7 @@ public interface ICasLifecycleManager
     /// Blobs linked by a manifest in the pool are never deleted, with or without force.
     /// </summary>
     /// <param name="force">Whether to force collection regardless of grace period.</param>
-    /// <param name="lockTimeout">Optional timeout to wait for the GC lock. Defaults to 5 seconds if not specified.</param>
+    /// <param name="lockTimeout">Optional timeout to wait for the GC lock. Uses the configured CasConfiguration.GcLockTimeout value (30 seconds by default) when not specified.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>Collection statistics.</returns>
     Task<OperationResult<GarbageCollectionStats>> RunGarbageCollectionAsync(

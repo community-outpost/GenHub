@@ -51,6 +51,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     private enum CasCleanupOutcome
     {
         Success,
+        Skipped,
         Failed,
     }
 
@@ -1889,12 +1890,17 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             {
                 _notificationService.ShowSuccess(
                     "Data Deleted",
-                    "Profiles, workspaces, manifests, user data, and unreferenced CAS objects were deleted.",
+                    _localizationService?.GetString("Settings.DangerZone.DeleteAllData.SuccessMessage") ?? "Profiles, workspaces, manifests, user data, and unreferenced CAS objects were deleted.",
                     5000);
             }
             else
             {
-                var casDetail = casOutcome == CasCleanupOutcome.Failed ? "CAS cleanup failed" : null;
+                var casDetail = casOutcome switch
+                {
+                    CasCleanupOutcome.Failed => _localizationService?.GetString("Settings.DangerZone.DeleteAllData.CasCleanupFailed") ?? "CAS cleanup failed",
+                    CasCleanupOutcome.Skipped => _localizationService?.GetString("Settings.DangerZone.DeleteAllData.CasCleanupSkipped") ?? "CAS cleanup was skipped (already in progress)",
+                    _ => null,
+                };
 
                 var partialDetails = (!userDataDeleted, casDetail) switch
                 {
@@ -2004,7 +2010,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
                 await UpdateDangerZoneDataAsync();
             }
 
-            return CasCleanupOutcome.Success;
+            return result.Data.Skipped ? CasCleanupOutcome.Skipped : CasCleanupOutcome.Success;
         }
         catch (Exception ex)
         {
@@ -2020,6 +2026,15 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
 
     private void ShowCasStorageResultToast(GarbageCollectionStats result)
     {
+        if (result.Skipped)
+        {
+            _notificationService.ShowInfo(
+                _localizationService?.GetString("Settings.DangerZone.DeleteCasStorage.SkippedTitle") ?? "CAS Cleanup In Progress",
+                _localizationService?.GetString("Settings.DangerZone.DeleteCasStorage.SkippedMessage") ?? "CAS cleanup is already in progress. Try again when it finishes.",
+                (int)TimeIntervals.NotificationHideDelay.TotalMilliseconds);
+            return;
+        }
+
         if (result.ObjectsDeleted > 0)
         {
             _notificationService.ShowSuccess(
