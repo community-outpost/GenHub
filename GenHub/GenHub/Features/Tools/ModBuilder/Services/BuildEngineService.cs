@@ -505,9 +505,14 @@ public sealed class BuildEngineService(
                 await ExecuteReleaseBundlePackStageAsync(setup, progress, cancellationToken).ConfigureAwait(false);
                 break;
             default:
-                var tracker = new StageProgressTracker(filesToProcess.Count);
-                await Parallel.ForEachAsync(
+                var dedupedFiles = DeduplicateByTarget(
                     filesToProcess,
+                    filePath => GetTargetPathForFile(filePath, stage, setup),
+                    filePath => filePath,
+                    stage.ToString());
+                var tracker = new StageProgressTracker(dedupedFiles.Count);
+                await Parallel.ForEachAsync(
+                    dedupedFiles,
                     new ParallelOptions
                     {
                         MaxDegreeOfParallelism = Environment.ProcessorCount,
@@ -516,6 +521,54 @@ public sealed class BuildEngineService(
                     async (filePath, ct) =>
                         await ProcessSingleFileAsync(filePath, stage, setup, progress, tracker, ct).ConfigureAwait(false)).ConfigureAwait(false);
                 break;
+        }
+    }
+
+    private List<T> DeduplicateByTarget<T>(
+        IReadOnlyList<T> entries,
+        Func<T, string> targetSelector,
+        Func<T, string> sourceSelector,
+        string context)
+    {
+        if (entries.Count < 2)
+        {
+            return entries.ToList();
+        }
+
+        // Parallel writers racing on one target corrupt output and fail with
+        // sharing violations. Keep the ordinal-first source so the surviving
+        // copy is deterministic across machines and filesystems.
+        var winnerByTarget = new Dictionary<string, T>(StringComparer.OrdinalIgnoreCase);
+        foreach (var entry in entries.OrderBy(sourceSelector, StringComparer.Ordinal))
+        {
+            var targetKey = NormalizeTargetKey(targetSelector(entry));
+            if (winnerByTarget.TryAdd(targetKey, entry))
+            {
+                continue;
+            }
+
+            logger.LogWarning(
+                "Skipping {Source} for {Context}: target {Target} is already produced by {Winner}; keeping a single deterministic copy",
+                sourceSelector(entry),
+                context,
+                targetKey,
+                sourceSelector(winnerByTarget[targetKey]));
+            Interlocked.Increment(ref _filesSkipped);
+        }
+
+        return winnerByTarget.Values.OrderBy(sourceSelector, StringComparer.Ordinal).ToList();
+    }
+
+    private static string NormalizeTargetKey(string targetPath)
+    {
+        var unified = targetPath.Replace(Path.AltDirectorySeparatorChar, Path.DirectorySeparatorChar);
+        try
+        {
+            return Path.GetFullPath(unified);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException or ArgumentException or System.Security.SecurityException)
+        {
+            return unified;
         }
     }
 
@@ -580,10 +633,11 @@ public sealed class BuildEngineService(
 
         try
         {
-            var totalFiles = item.Files.Count;
+            var stagingFiles = DeduplicateByTarget(item.Files, GetTargetRelativePath, file => file.AbsSourceFile, item.Name);
+            var totalFiles = stagingFiles.Count;
             var currentFile = 0;
 
-            CreateStagingDirectories(item.Files, stagingDir);
+            CreateStagingDirectories(stagingFiles, stagingDir);
 
             var parallelOptions = new ParallelOptions
             {
@@ -591,7 +645,7 @@ public sealed class BuildEngineService(
                 CancellationToken = cancellationToken,
             };
 
-            await Parallel.ForEachAsync(item.Files, parallelOptions, (file, ct) =>
+            await Parallel.ForEachAsync(stagingFiles, parallelOptions, (file, ct) =>
             {
                 ct.ThrowIfCancellationRequested();
                 var sourceFile = file.AbsSourceFile;
@@ -605,6 +659,12 @@ public sealed class BuildEngineService(
 
                 var targetRelPath = GetTargetRelativePath(file);
                 var targetStagedFile = Path.Combine(stagingDir, targetRelPath);
+                if (PathHelper.AreSamePath(sourceFile, targetStagedFile))
+                {
+                    logger.LogDebug("Skipping staging where source and target are the same file: {Path}", sourceFile);
+                    return ValueTask.CompletedTask;
+                }
+
                 File.Copy(sourceFile, targetStagedFile, true);
 
                 var processed = Interlocked.Increment(ref currentFile);
@@ -714,15 +774,16 @@ public sealed class BuildEngineService(
 
     private static string GetTargetRelativePath(BundleFile file)
     {
-        if (!string.IsNullOrEmpty(file.RelTargetFile))
+        var configuredTarget = ToRelativeTargetPath(file.RelTargetFile);
+        if (!string.IsNullOrEmpty(configuredTarget))
         {
-            var normalized = file.RelTargetFile.Replace('\\', '/');
+            var normalized = configuredTarget.Replace('\\', '/');
             if (normalized.EndsWith('/') || string.IsNullOrEmpty(Path.GetExtension(normalized)))
             {
                 return $"{normalized.TrimEnd('/')}/{Path.GetFileName(file.AbsSourceFile)}";
             }
 
-            return file.RelTargetFile;
+            return configuredTarget;
         }
 
         if (!string.IsNullOrEmpty(file.AbsSourceParent))
@@ -739,6 +800,24 @@ public sealed class BuildEngineService(
         }
 
         return Path.GetFileName(file.AbsSourceFile);
+    }
+
+    internal static string ToRelativeTargetPath(string? relTargetFile)
+    {
+        if (string.IsNullOrEmpty(relTargetFile) || !Path.IsPathRooted(relTargetFile))
+        {
+            return relTargetFile ?? string.Empty;
+        }
+
+        // Absolute targets reset Path.Combine and collapse copies onto their own
+        // source (sharing violation). Strip the root so staging stays relative.
+        var root = Path.GetPathRoot(relTargetFile);
+        if (!string.IsNullOrEmpty(root) && relTargetFile.Length > root.Length)
+        {
+            return relTargetFile.Substring(root.Length).TrimStart('/', '\\');
+        }
+
+        return Path.GetFileName(relTargetFile);
     }
 
     private async Task ExecuteReleaseBundlePackStageAsync(BuildSetup setup, IProgress<BuildProgress>? progress, CancellationToken cancellationToken)
@@ -1098,8 +1177,14 @@ public sealed class BuildEngineService(
             }
         }
 
+        var dedupedPairs = DeduplicateByTarget(
+            filesToStage,
+            pair => GetTargetRelativePath(pair.File),
+            pair => pair.File.AbsSourceFile,
+            pack.Name);
+
         var uniqueDirs = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var (file, _) in filesToStage)
+        foreach (var (file, _) in dedupedPairs)
         {
             var targetRelPath = GetTargetRelativePath(file);
             var (_, finalTargetRelPath) = ResolveStagedSource(file, targetRelPath, buildDir);
@@ -1116,7 +1201,7 @@ public sealed class BuildEngineService(
             Directory.CreateDirectory(dir);
         }
 
-        var totalFiles = filesToStage.Count;
+        var totalFiles = dedupedPairs.Count;
         var stagedCount = 0;
         progress?.Report(new BuildProgress
         {
@@ -1129,7 +1214,7 @@ public sealed class BuildEngineService(
             Percentage = 0,
         });
 
-        Parallel.ForEach(filesToStage, new ParallelOptions
+        Parallel.ForEach(dedupedPairs, new ParallelOptions
         {
             MaxDegreeOfParallelism = Math.Clamp(Environment.ProcessorCount, 2, 8),
             CancellationToken = cancellationToken,
@@ -1261,6 +1346,12 @@ public sealed class BuildEngineService(
         var (actualSource, finalTargetRelPath) = ResolveStagedSource(file, targetRelPath, buildDir);
 
         var destPath = Path.Combine(packStagingDir, finalTargetRelPath);
+        if (PathHelper.AreSamePath(actualSource, destPath))
+        {
+            logger.LogDebug("Skipping staging where source and target are the same file: {Path}", actualSource);
+            return;
+        }
+
         EnsureDestinationDirectory(destPath);
         File.Copy(actualSource, destPath, true);
         logger.LogDebug("Staged file {RelPath} for BIG pack {PackName}", finalTargetRelPath, packName);
@@ -1364,6 +1455,12 @@ public sealed class BuildEngineService(
             var (actualSource, finalRelPath) = ResolveStagedSource(file, relPath, buildDir);
 
             var destPath = Path.Combine(packStagingDir, finalRelPath);
+            if (PathHelper.AreSamePath(actualSource, destPath))
+            {
+                logger.LogDebug("Skipping staging where source and target are the same file: {Path}", actualSource);
+                continue;
+            }
+
             EnsureDestinationDirectory(destPath);
             File.Copy(actualSource, destPath, true);
             logger.LogDebug("Staged loose file {RelPath} for pack {PackName}", finalRelPath, packName);
@@ -1573,6 +1670,12 @@ public sealed class BuildEngineService(
 
     private async Task<bool> CopyFileDirectlyAsync(string sourcePath, string targetPath, CancellationToken cancellationToken)
     {
+        if (PathHelper.AreSamePath(sourcePath, targetPath))
+        {
+            logger.LogDebug("Skipping copy where source and target are the same file: {Path}", sourcePath);
+            return true;
+        }
+
         try
         {
             var targetDir = Path.GetDirectoryName(targetPath);

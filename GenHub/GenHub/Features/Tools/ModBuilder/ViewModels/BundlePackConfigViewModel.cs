@@ -63,6 +63,18 @@ public partial class BundlePackConfigViewModel : ObservableObject
     private string _setGameLanguageOnInstall = string.Empty;
 
     /// <summary>
+    /// Gets or sets the manifest file path for byte-for-byte reproducible BIG packing.
+    /// </summary>
+    [ObservableProperty]
+    private string? _manifestFile;
+
+    /// <summary>
+    /// Gets or sets the bundle pack description.
+    /// </summary>
+    [ObservableProperty]
+    private string? _description;
+
+    /// <summary>
     /// Gets the list of bundle item names included in this pack.
     /// </summary>
     public ObservableCollection<string> ItemNames { get; } = [];

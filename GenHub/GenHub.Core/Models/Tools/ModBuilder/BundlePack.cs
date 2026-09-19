@@ -80,6 +80,12 @@ public class BundlePack
     public string? ManifestFile { get; set; }
 
     /// <summary>
+    /// Gets or sets the optional description of this bundle pack.
+    /// </summary>
+    [JsonPropertyName("description")]
+    public string? Description { get; set; }
+
+    /// <summary>
     /// Gets a value indicating whether this bundle pack should be packaged into a .big archive.
     /// </summary>
     [JsonIgnore]

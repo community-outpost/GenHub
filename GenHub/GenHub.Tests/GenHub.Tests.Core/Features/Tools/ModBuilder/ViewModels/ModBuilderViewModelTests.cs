@@ -432,4 +432,65 @@ public class ModBuilderViewModelTests : IDisposable
                 It.IsAny<string>()),
             Times.Never);
     }
+
+    [Fact]
+    public void ContainsAbsoluteSourcePaths_DetectsWindowsAndPosixAbsolutes()
+    {
+        Assert.True(ModBuilderViewModel.ContainsAbsoluteSourcePaths("{ \"SourceFiles\": [ \"C:\\\\Users\\\\a\\\\f.ini\" ] }"));
+        Assert.True(ModBuilderViewModel.ContainsAbsoluteSourcePaths("{ \"SourceFiles\": [ \"C:/Users/a/f.ini\" ] }"));
+        Assert.True(ModBuilderViewModel.ContainsAbsoluteSourcePaths("{ \"SourceFiles\": [ \"/home/a/f.ini\" ] }"));
+        Assert.False(ModBuilderViewModel.ContainsAbsoluteSourcePaths("{ \"SourceFiles\": [ \"GameFilesEdited/Data/*.ini\" ] }"));
+    }
+
+    [Fact]
+    public async Task ShouldUpdateSampleConfigFile_WithCorruptedItemsFile_ReturnsTrueAsync()
+    {
+        var configDir = Path.Combine(_tempDir, "CorruptSample", "config");
+        Directory.CreateDirectory(configDir);
+        var itemsFile = Path.Combine(configDir, "ModBundleItems.json");
+        await File.WriteAllTextAsync(itemsFile, "{ \"BundleItems\": [ { \"Name\": \"PatchINI\", \"SourceFiles\": [ \"C:\\\\Samples\\\\GeneralsGamePatch2\\\\f.ini\" ] } ] }");
+
+        Assert.True(ModBuilderViewModel.ShouldUpdateSampleConfigFile("GeneralsGamePatch2", itemsFile));
+    }
+
+    [Fact]
+    public async Task ShouldUpdateSampleConfigFile_WithCurrentItemsFile_ReturnsFalseAsync()
+    {
+        var configDir = Path.Combine(_tempDir, "CurrentSample", "config");
+        Directory.CreateDirectory(configDir);
+        var itemsFile = Path.Combine(configDir, "ModBundleItems.json");
+        await File.WriteAllTextAsync(itemsFile, "{ \"BundleItems\": [ { \"Name\": \"PatchINI\", \"SourceFiles\": [ \"GameFilesEdited/Data/INI/**/*.ini\" ] } ] }");
+
+        Assert.False(ModBuilderViewModel.ShouldUpdateSampleConfigFile("GeneralsGamePatch2", itemsFile));
+    }
+
+    [Fact]
+    public async Task ShouldUpdateSampleConfigFile_WithLegacyLemonItemsFile_ReturnsTrueAsync()
+    {
+        var configDir = Path.Combine(_tempDir, "LegacyLemon", "config");
+        Directory.CreateDirectory(configDir);
+        var itemsFile = Path.Combine(configDir, "ModBundleItems.json");
+        await File.WriteAllTextAsync(itemsFile, "{ \"BundleItems\": [ { \"Name\": \"LemonControlBarWindows_720p\", \"TargetDir\": \"Window\", \"SourceFiles\": [ \"GameFilesEdited/Window/720p/**/*.wnd\" ] } ] }");
+
+        Assert.True(ModBuilderViewModel.ShouldUpdateSampleConfigFile("LemonControlBar", itemsFile));
+    }
+
+    [Fact]
+    public async Task ShouldUpdateSampleConfigFile_WithCurrentLemonItemsFile_ReturnsFalseAsync()
+    {
+        var configDir = Path.Combine(_tempDir, "CurrentLemon", "config");
+        Directory.CreateDirectory(configDir);
+        var itemsFile = Path.Combine(configDir, "ModBundleItems.json");
+        await File.WriteAllTextAsync(itemsFile, "{ \"BundleItems\": [ { \"Name\": \"LemonControlBarArt1080\", \"SourceFiles\": [ \"GameFilesEdited/Gen1080/Art/**/*.dds\" ] } ] }");
+
+        Assert.False(ModBuilderViewModel.ShouldUpdateSampleConfigFile("LemonControlBar", itemsFile));
+    }
+
+    [Fact]
+    public void ShouldUpdateSampleConfigFile_WithMissingFile_ReturnsTrue()
+    {
+        var missing = Path.Combine(_tempDir, "Missing", "config", "ModBundleItems.json");
+
+        Assert.True(ModBuilderViewModel.ShouldUpdateSampleConfigFile("LemonControlBar", missing));
+    }
 }

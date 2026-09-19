@@ -7,7 +7,6 @@
         "GameFilesEdited/**/Art/Textures/**/*.tga"
       ],
       "OutputFormat": "TGA",
-      "ManifestFile": "config/!HotkeysLegionnaireZH.big.manifest.json",
       "Description": "Control bar indicator overlay textures for QWERTY hotkeys"
     },
     {
@@ -17,7 +16,6 @@
         "GameFilesEdited/Data/INI/**/*.ini"
       ],
       "OutputFormat": "INI",
-      "ManifestFile": "config/!HotkeysLegionnaireZH.big.manifest.json",
       "Description": "Command button assignments and mapped image coordinates"
     },
     {
@@ -27,7 +25,6 @@
         "GameFilesEdited/Data/English/**/*.csf"
       ],
       "OutputFormat": "CSF",
-      "ManifestFile": "config/!HotkeysLegionnaireZH.big.manifest.json",
       "Description": "String table with hotkey annotations (&Key)"
     }
   ]

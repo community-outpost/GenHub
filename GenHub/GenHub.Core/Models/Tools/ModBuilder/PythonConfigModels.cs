@@ -497,6 +497,34 @@ public sealed class SimplifiedBundleItem
     [JsonPropertyName("Description")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? Description { get; set; }
+
+    /// <summary>
+    /// Gets or sets the prefix added to the bundle item name.
+    /// </summary>
+    [JsonPropertyName("NamePrefix")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? NamePrefix { get; set; }
+
+    /// <summary>
+    /// Gets or sets the suffix added to the bundle item name.
+    /// </summary>
+    [JsonPropertyName("NameSuffix")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? NameSuffix { get; set; }
+
+    /// <summary>
+    /// Gets or sets the game language to set on installation.
+    /// </summary>
+    [JsonPropertyName("SetGameLanguageOnInstall")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? SetGameLanguageOnInstall { get; set; }
+
+    /// <summary>
+    /// Gets or sets the suffix added to the .big archive name.
+    /// </summary>
+    [JsonPropertyName("BigSuffix")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? BigSuffix { get; set; }
 }
 
 /// <summary>
@@ -566,4 +594,18 @@ public sealed class SimplifiedBundlePack
     [JsonPropertyName("Description")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? Description { get; set; }
+
+    /// <summary>
+    /// Gets or sets the prefix added to the bundle pack name.
+    /// </summary>
+    [JsonPropertyName("NamePrefix")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? NamePrefix { get; set; }
+
+    /// <summary>
+    /// Gets or sets the suffix added to the bundle pack name.
+    /// </summary>
+    [JsonPropertyName("NameSuffix")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? NameSuffix { get; set; }
 }

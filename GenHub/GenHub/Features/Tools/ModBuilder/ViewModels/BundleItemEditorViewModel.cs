@@ -69,6 +69,43 @@ public partial class BundleItemEditorViewModel : ObservableObject
     private string _sourcePattern = string.Empty;
 
     /// <summary>
+    /// Gets or sets the output conversion format (e.g. RAW, INI, TGA).
+    /// Round-tripped so saves preserve byte-for-byte passthrough behavior.
+    /// </summary>
+    [ObservableProperty]
+    private string? _outputFormat;
+
+    /// <summary>
+    /// Gets or sets a value indicating whether file conversion is skipped.
+    /// </summary>
+    [ObservableProperty]
+    private bool _noConvert;
+
+    /// <summary>
+    /// Gets or sets the manifest file path for byte-for-byte reproducible BIG packing.
+    /// </summary>
+    [ObservableProperty]
+    private string? _manifestFile;
+
+    /// <summary>
+    /// Gets or sets the bundle item description.
+    /// </summary>
+    [ObservableProperty]
+    private string? _description;
+
+    /// <summary>
+    /// Gets or sets the target directory template applied to resolved files.
+    /// </summary>
+    [ObservableProperty]
+    private string _targetDir = string.Empty;
+
+    /// <summary>
+    /// Gets or sets the base source directory for resolving relative patterns.
+    /// </summary>
+    [ObservableProperty]
+    private string _baseDir = string.Empty;
+
+    /// <summary>
     /// Gets the list of bundle pack links.
     /// </summary>
     public ObservableCollection<BundlePackLinkItemViewModel> PackLinks { get; } = [];

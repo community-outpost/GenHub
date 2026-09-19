@@ -407,6 +407,14 @@ public class ConfigurationLoaderService(ILogger<ConfigurationLoaderService> logg
     private async Task<int> ResolveItemFilesAsync(BundleItem item, string projectDir, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
+
+        // Snapshot the configured patterns on first resolution so editors keep
+        // showing (and saving) the original globs instead of resolved entries.
+        if (item.SourcePatterns.Count == 0 && item.Files.Count > 0)
+        {
+            item.SourcePatterns = item.Files.Select(f => f.AbsSourceFile).ToList();
+        }
+
         var resolvedFiles = new List<BundleFile>();
         int filesResolved = 0;
 
@@ -866,7 +874,7 @@ public class ConfigurationLoaderService(ILogger<ConfigurationLoaderService> logg
         }
     }
 
-    private static bool ContainsWildcard(string path)
+    internal static bool ContainsWildcard(string path)
     {
         return path.Contains('*') || path.Contains('?');
     }
@@ -958,7 +966,7 @@ public class ConfigurationLoaderService(ILogger<ConfigurationLoaderService> logg
         return ResolveTargetExtension(sourceFile, normalizedRel, targetNormalized);
     }
 
-    private static string StripGameFilesEditedPrefix(string path)
+    internal static string StripGameFilesEditedPrefix(string path)
     {
         if (path.StartsWith($"{ModBuilderConstants.GameFilesEditedDir}/", StringComparison.OrdinalIgnoreCase))
         {
@@ -1225,6 +1233,13 @@ public class ConfigurationLoaderService(ILogger<ConfigurationLoaderService> logg
             IsBig = simpItem.Big ?? true,
             ManifestFile = simpItem.ManifestFile,
             Description = !string.IsNullOrWhiteSpace(simpItem.Description) ? simpItem.Description : null,
+            NamePrefix = simpItem.NamePrefix ?? string.Empty,
+            NameSuffix = simpItem.NameSuffix ?? string.Empty,
+            SetGameLanguageOnInstall = simpItem.SetGameLanguageOnInstall ?? string.Empty,
+            TargetDir = simpItem.TargetDir ?? string.Empty,
+            BaseDir = simpItem.BaseDir ?? string.Empty,
+            BigSuffix = simpItem.BigSuffix ?? string.Empty,
+            SourcePatterns = simpItem.SourceFiles?.ToList() ?? new List<string>(),
         };
 
         var fileParams = BuildSimplifiedFileParameters(simpItem);
@@ -1233,16 +1248,19 @@ public class ConfigurationLoaderService(ILogger<ConfigurationLoaderService> logg
     }
 
     private static Dictionary<string, object>? BuildSimplifiedFileParameters(SimplifiedBundleItem simpItem)
+        => BuildFileParameters(simpItem.OutputFormat, simpItem.NoConvert);
+
+    internal static Dictionary<string, object>? BuildFileParameters(string? outputFormat, bool noConvert)
     {
         var fileParams = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-        if (simpItem.NoConvert || string.Equals(simpItem.OutputFormat, "RAW", StringComparison.OrdinalIgnoreCase))
+        if (noConvert || string.Equals(outputFormat, ModBuilderConstants.BundleParams.RawValue, StringComparison.OrdinalIgnoreCase))
         {
-            fileParams["noconvert"] = "true";
+            fileParams[ModBuilderConstants.BundleParams.NoConvert] = "true";
         }
 
-        if (!string.IsNullOrEmpty(simpItem.OutputFormat))
+        if (!string.IsNullOrEmpty(outputFormat))
         {
-            fileParams["outputformat"] = simpItem.OutputFormat;
+            fileParams[ModBuilderConstants.BundleParams.OutputFormat] = outputFormat;
         }
 
         return fileParams.Count > 0 ? fileParams.ToDictionary(k => k.Key, v => (object)v.Value) : null;
@@ -1262,7 +1280,7 @@ public class ConfigurationLoaderService(ILogger<ConfigurationLoaderService> logg
         var configuredTarget = !string.IsNullOrWhiteSpace(simpItem.TargetDir) ? simpItem.TargetDir : string.Empty;
         foreach (var pattern in simpItem.SourceFiles)
         {
-            var relTarget = ResolveSimplifiedTarget(pattern, configuredTarget);
+            var relTarget = ResolveSimplifiedTarget(pattern, configuredTarget, projectDir);
             item.Files.Add(new BundleFile
             {
                 AbsSourceParent = projectDir,
@@ -1273,16 +1291,48 @@ public class ConfigurationLoaderService(ILogger<ConfigurationLoaderService> logg
         }
     }
 
-    private static string ResolveSimplifiedTarget(string pattern, string configuredTarget)
+    private static string ResolveSimplifiedTarget(string pattern, string configuredTarget, string projectDir)
     {
         if (string.IsNullOrEmpty(configuredTarget) && !ContainsWildcard(pattern))
         {
             // Explicit entries bypass DetermineTargetPath, so mirror its
             // GameFilesEdited handling here for consistent staging targets.
-            return StripGameFilesEditedPrefix(pattern.Replace('\\', '/'));
+            // Absolute entries (written by older editor saves) are relativized
+            // first so the target stays a relative path.
+            var relativized = RelativizeToProject(pattern, projectDir);
+            return StripGameFilesEditedPrefix(relativized.Replace('\\', '/'));
         }
 
         return configuredTarget;
+    }
+
+    internal static string RelativizeToProject(string pattern, string projectDir)
+    {
+        if (string.IsNullOrEmpty(pattern) || !Path.IsPathRooted(pattern) || string.IsNullOrEmpty(projectDir))
+        {
+            return pattern;
+        }
+
+        try
+        {
+            var relative = Path.GetRelativePath(projectDir, pattern);
+            if (!relative.StartsWith("..", StringComparison.Ordinal) && !Path.IsPathRooted(relative))
+            {
+                return relative;
+            }
+        }
+        catch (ArgumentException)
+        {
+            // Fall through to root stripping below.
+        }
+
+        var root = Path.GetPathRoot(pattern);
+        if (!string.IsNullOrEmpty(root) && pattern.Length > root.Length)
+        {
+            return pattern.Substring(root.Length).TrimStart('/', '\\');
+        }
+
+        return Path.GetFileName(pattern);
     }
 
     private static IEnumerable<BundlePack> ConvertSimplifiedBundlePacks(IEnumerable<SimplifiedBundlePack> simpPacks)
@@ -1298,6 +1348,10 @@ public class ConfigurationLoaderService(ILogger<ConfigurationLoaderService> logg
                 Big = simpPack.Big ?? (simpPack.OutputFile?.EndsWith(".big", StringComparison.OrdinalIgnoreCase) ?? false),
                 OutputFile = simpPack.OutputFile,
                 ManifestFile = simpPack.ManifestFile,
+                Description = simpPack.Description,
+                SetGameLanguageOnInstall = simpPack.SetGameLanguageOnInstall ?? string.Empty,
+                NamePrefix = simpPack.NamePrefix ?? string.Empty,
+                NameSuffix = simpPack.NameSuffix ?? string.Empty,
             };
         }
     }

@@ -284,9 +284,13 @@ public partial class ConfigEditorViewModel(
         string? projectDir,
         ProjectFileSnapshot? snapshot)
     {
-        var pattern = item.Files.Count > 0
-            ? string.Join("; ", item.Files.Select(f => f.AbsSourceFile))
-            : ModBuilderConstants.GameFilesEditedAllFilesGlob;
+        // Prefer the original configured patterns: after wildcard resolution
+        // AbsSourceFile holds resolved absolute paths that must never be saved back.
+        var pattern = item.SourcePatterns.Count > 0
+            ? string.Join("; ", item.SourcePatterns)
+            : item.Files.Count > 0
+                ? string.Join("; ", item.Files.Select(f => f.AbsSourceFile))
+                : ModBuilderConstants.GameFilesEditedAllFilesGlob;
 
         var itemVm = new BundleItemEditorViewModel
         {
@@ -298,10 +302,37 @@ public partial class ConfigEditorViewModel(
             SetGameLanguageOnInstall = item.SetGameLanguageOnInstall,
             FileCount = item.Files.Count,
             SourcePattern = pattern,
+            OutputFormat = ReadOutputFormat(item),
+            NoConvert = ReadNoConvert(item),
+            ManifestFile = item.ManifestFile,
+            Description = item.Description,
+            TargetDir = item.TargetDir,
+            BaseDir = item.BaseDir,
         };
 
         itemVm.RecalculateMatches(projectDir, snapshot);
         return itemVm;
+    }
+
+    private static string? ReadOutputFormat(BundleItem item)
+    {
+        var raw = item.Files.FirstOrDefault()?.Params?
+            .FirstOrDefault(kvp => string.Equals(kvp.Key, ModBuilderConstants.BundleParams.OutputFormat, StringComparison.OrdinalIgnoreCase)).Value?
+            .ToString();
+        return string.IsNullOrWhiteSpace(raw) ? null : raw;
+    }
+
+    private static bool ReadNoConvert(BundleItem item)
+    {
+        var fileParams = item.Files.FirstOrDefault()?.Params;
+        if (fileParams == null)
+        {
+            return false;
+        }
+
+        return fileParams.Any(kvp => string.Equals(kvp.Key, ModBuilderConstants.BundleParams.NoConvert, StringComparison.OrdinalIgnoreCase)) ||
+            fileParams.Any(kvp => string.Equals(kvp.Key, ModBuilderConstants.BundleParams.Raw, StringComparison.OrdinalIgnoreCase)) ||
+            string.Equals(ReadOutputFormat(item), ModBuilderConstants.BundleParams.RawValue, StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary>
@@ -378,6 +409,8 @@ public partial class ConfigEditorViewModel(
                 Big = pack.IsBigPack,
                 OutputFile = pack.OutputFile,
                 SetGameLanguageOnInstall = pack.SetGameLanguageOnInstall,
+                ManifestFile = pack.ManifestFile,
+                Description = pack.Description,
             };
             foreach (var itemName in pack.ItemNames)
             {
@@ -729,6 +762,7 @@ public partial class ConfigEditorViewModel(
 
         try
         {
+            var projectDir = CurrentProject.ProjectDir;
             var existingItems = Configuration.Items
                 .Where(i => !string.IsNullOrEmpty(i.Name))
                 .GroupBy(i => i.Name, StringComparer.OrdinalIgnoreCase)
@@ -738,6 +772,7 @@ public partial class ConfigEditorViewModel(
             foreach (var itemVm in BundleItems)
             {
                 existingItems.TryGetValue(itemVm.Name, out var existingItem);
+                var parsedFiles = ParseItemFiles(itemVm, existingItem, projectDir);
                 Configuration.Items.Add(new BundleItem
                 {
                     Name = itemVm.Name,
@@ -746,7 +781,12 @@ public partial class ConfigEditorViewModel(
                     IsBig = itemVm.IsBig,
                     BigSuffix = itemVm.BigSuffix,
                     SetGameLanguageOnInstall = itemVm.SetGameLanguageOnInstall,
-                    Files = ParseItemFiles(itemVm, existingItem),
+                    ManifestFile = itemVm.ManifestFile,
+                    Description = itemVm.Description,
+                    TargetDir = itemVm.TargetDir,
+                    BaseDir = itemVm.BaseDir,
+                    SourcePatterns = parsedFiles.Select(f => f.AbsSourceFile).ToList(),
+                    Files = parsedFiles,
                     Events = existingItem?.Events != null ? new Dictionary<BundleEventType, BundleEvent>(existingItem.Events) : [],
                 });
             }
@@ -764,6 +804,8 @@ public partial class ConfigEditorViewModel(
                     Big = packVm.Big,
                     OutputFile = packVm.OutputFile,
                     SetGameLanguageOnInstall = packVm.SetGameLanguageOnInstall,
+                    ManifestFile = packVm.ManifestFile,
+                    Description = packVm.Description,
                     ItemNames = packVm.ItemNames.ToList(),
                 });
             }
@@ -798,33 +840,51 @@ public partial class ConfigEditorViewModel(
         }
     }
 
-    private static List<BundleFile> ParseItemFiles(BundleItemEditorViewModel itemVm, BundleItem? existingItem)
+    private static List<BundleFile> ParseItemFiles(BundleItemEditorViewModel itemVm, BundleItem? existingItem, string projectDir)
     {
-        var files = new List<BundleFile>();
-        if (!string.IsNullOrWhiteSpace(itemVm.SourcePattern))
+        // Always store unresolved patterns: persisting resolved absolute paths
+        // corrupts the configuration (targets collapse onto sources on reload).
+        var patterns = ResolveSavePatterns(itemVm, existingItem);
+        if (patterns.Length == 0)
         {
-            var patterns = itemVm.SourcePattern.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-            foreach (var pattern in patterns)
+            patterns = [ModBuilderConstants.GameFilesEditedAllFilesGlob];
+        }
+
+        var fileParams = ConfigurationLoaderService.BuildFileParameters(itemVm.OutputFormat, itemVm.NoConvert);
+        var configuredTarget = !string.IsNullOrWhiteSpace(itemVm.TargetDir) ? itemVm.TargetDir : string.Empty;
+        var files = new List<BundleFile>(patterns.Length);
+        foreach (var rawPattern in patterns)
+        {
+            // Relativize so entries corrupted by older saves heal back to portable patterns.
+            var pattern = ConfigurationLoaderService.RelativizeToProject(rawPattern.Trim(), projectDir);
+            var relTarget = ConfigurationLoaderService.ContainsWildcard(pattern)
+                ? configuredTarget
+                : ConfigurationLoaderService.StripGameFilesEditedPrefix(pattern.Replace('\\', '/'));
+            files.Add(new BundleFile
             {
-                var matchedFile = existingItem?.Files.FirstOrDefault(f => string.Equals(f.AbsSourceFile, pattern, StringComparison.OrdinalIgnoreCase));
-                files.Add(new BundleFile
-                {
-                    AbsSourceFile = pattern,
-                    RelTargetFile = matchedFile?.RelTargetFile ?? string.Empty,
-                    AbsSourceParent = matchedFile?.AbsSourceParent ?? string.Empty,
-                });
-            }
-        }
-        else if (existingItem?.Files != null && existingItem.Files.Count > 0)
-        {
-            files.AddRange(existingItem.Files);
-        }
-        else
-        {
-            files.Add(new BundleFile { AbsSourceFile = ModBuilderConstants.GameFilesEditedAllFilesGlob });
+                AbsSourceParent = projectDir,
+                AbsSourceFile = pattern,
+                RelTargetFile = relTarget,
+                Params = fileParams,
+            });
         }
 
         return files;
+    }
+
+    private static string[] ResolveSavePatterns(BundleItemEditorViewModel itemVm, BundleItem? existingItem)
+    {
+        if (!string.IsNullOrWhiteSpace(itemVm.SourcePattern))
+        {
+            return itemVm.SourcePattern.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        }
+
+        if (existingItem?.SourcePatterns.Count > 0)
+        {
+            return existingItem.SourcePatterns.ToArray();
+        }
+
+        return existingItem?.Files.Select(f => f.AbsSourceFile).ToArray() ?? [];
     }
 
     private static string? NullIfEmpty(string? value) => string.IsNullOrEmpty(value) ? null : value;
@@ -839,10 +899,18 @@ public partial class ConfigEditorViewModel(
                 item.Name,
                 NamePrefix = NullIfEmpty(item.NamePrefix),
                 NameSuffix = NullIfEmpty(item.NameSuffix),
-                IsBig = NullableTrue(item.IsBig),
+                Big = item.IsBig ? null : (bool?)false,
                 BigSuffix = NullIfEmpty(item.BigSuffix),
                 SetGameLanguageOnInstall = NullIfEmpty(item.SetGameLanguageOnInstall),
-                SourceFiles = item.Files.Select(f => f.AbsSourceFile).ToArray(),
+                SourceFiles = item.SourcePatterns.Count > 0
+                    ? item.SourcePatterns.ToArray()
+                    : item.Files.Select(f => f.AbsSourceFile).ToArray(),
+                BaseDir = NullIfEmpty(item.BaseDir),
+                TargetDir = NullIfEmpty(item.TargetDir),
+                OutputFormat = ReadOutputFormat(item),
+                NoConvert = NullableTrue(ReadNoConvert(item)),
+                ManifestFile = NullIfEmpty(item.ManifestFile),
+                Description = NullIfEmpty(item.Description),
             }).ToArray(),
         };
 
@@ -854,11 +922,13 @@ public partial class ConfigEditorViewModel(
                 pack.Name,
                 NamePrefix = NullIfEmpty(pack.NamePrefix),
                 NameSuffix = NullIfEmpty(pack.NameSuffix),
-                Big = NullableTrue(pack.Big),
+                Big = pack.Big,
                 OutputFile = NullIfEmpty(pack.OutputFile),
                 SetGameLanguageOnInstall = NullIfEmpty(pack.SetGameLanguageOnInstall),
-                AllowBuild = NullableTrue(pack.AllowBuild),
-                AllowInstall = NullableTrue(pack.AllowInstall),
+                AllowBuild = pack.AllowBuild ? null : (bool?)false,
+                AllowInstall = pack.AllowInstall ? null : (bool?)false,
+                ManifestFile = NullIfEmpty(pack.ManifestFile),
+                Description = NullIfEmpty(pack.Description),
                 Items = pack.ItemNames.ToArray(),
             }).ToArray(),
         };

@@ -1549,4 +1549,122 @@ public sealed class BuildEngineServiceTests : IDisposable
                 It.IsAny<CancellationToken>()),
             Times.Once);
     }
+
+    [Fact]
+    public void ToRelativeTargetPath_WithRelativePath_ReturnsUnchanged()
+    {
+        BuildEngineService.ToRelativeTargetPath("Data/INI/GameData.ini").Should().Be("Data/INI/GameData.ini");
+        BuildEngineService.ToRelativeTargetPath(string.Empty).Should().BeEmpty();
+    }
+
+    [Fact]
+    public void ToRelativeTargetPath_WithAbsolutePath_StripsRoot()
+    {
+        // Arrange
+        var absolute = Path.Combine(_tempDirectory, "GameFilesEdited", "Data", "a.ini");
+
+        // Act
+        var result = BuildEngineService.ToRelativeTargetPath(absolute);
+
+        // Assert
+        Path.IsPathRooted(result).Should().BeFalse();
+        result.Should().NotBeNullOrEmpty();
+    }
+
+    [Fact]
+    public async Task ExecuteBuildAsync_WithCollidingTargets_ProducesSingleDeterministicCopyAsync()
+    {
+        // Arrange: two sources mapping to one target (legacy flattened configs).
+        var winnerSource = Path.Combine(_tempDirectory, "a-first.txt");
+        var loserSource = Path.Combine(_tempDirectory, "b-second.txt");
+        await File.WriteAllTextAsync(winnerSource, "winner");
+        await File.WriteAllTextAsync(loserSource, "loser");
+
+        var project = new ModBuilderProject
+        {
+            Name = "TestProject",
+            Directories = new ProjectDirectories
+            {
+                GameFilesEdited = _tempDirectory,
+                Build = Path.Combine(_tempDirectory, "output"),
+            },
+            BundleConfigs = new List<string>(),
+        };
+
+        var configuration = new BuildConfiguration
+        {
+            Items = new List<BundleItem>
+            {
+                new()
+                {
+                    Name = "TestItem",
+                    IsBig = false,
+                    Files = new List<BundleFile>
+                    {
+                        new() { AbsSourceParent = _tempDirectory, AbsSourceFile = winnerSource, RelTargetFile = "shared.txt" },
+                        new() { AbsSourceParent = _tempDirectory, AbsSourceFile = loserSource, RelTargetFile = "shared.txt" },
+                    },
+                },
+            },
+            Packs = new List<BundlePack>(),
+        };
+
+        _mockCacheService.Setup(x => x.DetermineFileStatus(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<Dictionary<string, object>>()))
+            .Returns(BuildFileStatus.Added);
+
+        // Act
+        var result = await _service.ExecuteBuildAsync(project, configuration, new List<string>(), BuildStep.Build);
+
+        // Assert
+        result.Success.Should().BeTrue(result.FirstError);
+        result.FilesFailed.Should().Be(0);
+        var target = Path.Combine(_tempDirectory, "output", ModBuilderConstants.RawBundleItemsSubdir, "shared.txt");
+        (await File.ReadAllTextAsync(target)).Should().Be("winner");
+    }
+
+    [Fact]
+    public async Task ExecuteBuildAsync_WithAbsoluteSelfTarget_SucceedsWithoutFailureAsync()
+    {
+        // Arrange: corrupted configs resolve targets onto their own source path.
+        var sourceFile = Path.Combine(_tempDirectory, "self.txt");
+        await File.WriteAllTextAsync(sourceFile, "content");
+
+        var project = new ModBuilderProject
+        {
+            Name = "TestProject",
+            Directories = new ProjectDirectories
+            {
+                GameFilesEdited = _tempDirectory,
+                Build = Path.Combine(_tempDirectory, "output"),
+            },
+            BundleConfigs = new List<string>(),
+        };
+
+        var configuration = new BuildConfiguration
+        {
+            Items = new List<BundleItem>
+            {
+                new()
+                {
+                    Name = "TestItem",
+                    IsBig = false,
+                    Files = new List<BundleFile>
+                    {
+                        new() { AbsSourceParent = _tempDirectory, AbsSourceFile = sourceFile, RelTargetFile = sourceFile },
+                    },
+                },
+            },
+            Packs = new List<BundlePack>(),
+        };
+
+        _mockCacheService.Setup(x => x.DetermineFileStatus(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<Dictionary<string, object>>()))
+            .Returns(BuildFileStatus.Added);
+
+        // Act
+        var result = await _service.ExecuteBuildAsync(project, configuration, new List<string>(), BuildStep.Build);
+
+        // Assert
+        result.Success.Should().BeTrue(result.FirstError);
+        result.FilesFailed.Should().Be(0);
+    }
 }

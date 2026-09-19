@@ -26,6 +26,26 @@ public class BundleItem
     public List<BundleFile> Files { get; set; } = new();
 
     /// <summary>
+    /// Gets or sets the original source patterns as configured, before wildcard resolution
+    /// replaces <see cref="Files"/> with resolved entries. Editors and serializers use these
+    /// so saving never persists resolved absolute paths back into the configuration.
+    /// </summary>
+    [JsonPropertyName("sourcePatterns")]
+    public List<string> SourcePatterns { get; set; } = new();
+
+    /// <summary>
+    /// Gets or sets the target directory template applied to resolved files.
+    /// </summary>
+    [JsonPropertyName("targetDir")]
+    public string TargetDir { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Gets or sets the base source directory for resolving relative patterns.
+    /// </summary>
+    [JsonPropertyName("baseDir")]
+    public string BaseDir { get; set; } = string.Empty;
+
+    /// <summary>
     /// Gets or sets the prefix to add to the bundle item name.
     /// </summary>
     [JsonPropertyName("namePrefix")]

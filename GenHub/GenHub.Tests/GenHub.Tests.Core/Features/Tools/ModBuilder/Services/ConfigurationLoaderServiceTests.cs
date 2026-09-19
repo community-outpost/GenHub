@@ -657,4 +657,163 @@ public sealed class ConfigurationLoaderServiceTests : IDisposable
         result.Items.Should().HaveCount(1);
         result.Items[0].ManifestFile.Should().Be("config/500_900_CommunityPatch_CoreINI.big.manifest.json");
     }
+
+    [Fact]
+    public async Task LoadConfigurationResultAsync_WithSimplifiedMetadata_MapsAllFields()
+    {
+        // Arrange
+        var configDir = Path.Combine(_tempDirectory, "config");
+        Directory.CreateDirectory(configDir);
+        var configPath = Path.Combine(configDir, "ModBundleItems.json");
+        var json = """
+        {
+            "BundleItems": [
+                {
+                    "Name": "PatchINI",
+                    "NamePrefix": "Pre_",
+                    "NameSuffix": "_Suf",
+                    "SetGameLanguageOnInstall": "English",
+                    "TargetDir": "Data",
+                    "BaseDir": "GameFilesEdited",
+                    "BigSuffix": ".v2",
+                    "SourceFiles": [ "GameFilesEdited/Data/INI/**/*.ini" ],
+                    "OutputFormat": "INI",
+                    "Description": "Patch INI files"
+                }
+            ],
+            "BundlePacks": [
+                {
+                    "Name": "Patch",
+                    "NamePrefix": "PackPre_",
+                    "NameSuffix": "_PackSuf",
+                    "SetGameLanguageOnInstall": "English",
+                    "Items": [ "PatchINI" ],
+                    "OutputFile": ".Release/patch.big",
+                    "ManifestFile": "config/patch.big.manifest.json",
+                    "Description": "Patch release"
+                }
+            ]
+        }
+        """;
+        await File.WriteAllTextAsync(configPath, json);
+
+        // Act
+        var result = (await _service.LoadConfigurationResultAsync(configPath)).Data!;
+
+        // Assert
+        var item = result.Items.Should().ContainSingle().Subject;
+        item.NamePrefix.Should().Be("Pre_");
+        item.NameSuffix.Should().Be("_Suf");
+        item.SetGameLanguageOnInstall.Should().Be("English");
+        item.TargetDir.Should().Be("Data");
+        item.BaseDir.Should().Be("GameFilesEdited");
+        item.BigSuffix.Should().Be(".v2");
+        item.SourcePatterns.Should().ContainSingle().Which.Should().Be("GameFilesEdited/Data/INI/**/*.ini");
+
+        var pack = result.Packs.Should().ContainSingle().Subject;
+        pack.NamePrefix.Should().Be("PackPre_");
+        pack.NameSuffix.Should().Be("_PackSuf");
+        pack.SetGameLanguageOnInstall.Should().Be("English");
+        pack.ManifestFile.Should().Be("config/patch.big.manifest.json");
+        pack.Description.Should().Be("Patch release");
+    }
+
+    [Fact]
+    public async Task ResolveWildcardsAsync_SnapshotsSourcePatternsBeforeResolution()
+    {
+        // Arrange
+        var gameFilesDir = Path.Combine(_tempDirectory, "GameFilesEdited", "Data");
+        Directory.CreateDirectory(gameFilesDir);
+        await File.WriteAllTextAsync(Path.Combine(gameFilesDir, "a.ini"), "a");
+        await File.WriteAllTextAsync(Path.Combine(gameFilesDir, "b.ini"), "b");
+
+        var configuration = new BuildConfiguration
+        {
+            Items = new List<BundleItem>
+            {
+                new()
+                {
+                    Name = "PatchINI",
+                    Files = new List<BundleFile>
+                    {
+                        new() { AbsSourceParent = _tempDirectory, AbsSourceFile = "GameFilesEdited/Data/*.ini", RelTargetFile = string.Empty },
+                    },
+                },
+            },
+        };
+
+        // Act
+        var result = await _service.ResolveWildcardsAsync(configuration);
+
+        // Assert
+        var item = result.Items.Should().ContainSingle().Subject;
+        item.Files.Should().HaveCount(2);
+        item.SourcePatterns.Should().ContainSingle().Which.Should().Be("GameFilesEdited/Data/*.ini");
+    }
+
+    [Fact]
+    public async Task LoadConfigurationResultAsync_WithAbsoluteExplicitEntry_RelativizesTarget()
+    {
+        // Arrange: entries corrupted by older editor saves persist resolved
+        // absolute paths; targets must still resolve to relative paths.
+        var iniDir = Path.Combine(_tempDirectory, "GameFilesEdited", "Data", "INI");
+        Directory.CreateDirectory(iniDir);
+        var absoluteSource = Path.Combine(iniDir, "GameData.ini");
+        await File.WriteAllTextAsync(absoluteSource, "data");
+        var escapedSource = absoluteSource.Replace("\\", "\\\\");
+
+        var configDir = Path.Combine(_tempDirectory, "config");
+        Directory.CreateDirectory(configDir);
+        var configPath = Path.Combine(configDir, "ModBundleItems.json");
+        var json = "{ \"BundleItems\": [ { \"Name\": \"PatchINI\", \"SourceFiles\": [ \"" + escapedSource + "\" ] } ] }";
+        await File.WriteAllTextAsync(configPath, json);
+
+        // Act
+        var result = (await _service.LoadConfigurationResultAsync(configPath)).Data!;
+
+        // Assert
+        var file = result.Items.Should().ContainSingle().Subject.Files.Should().ContainSingle().Subject;
+        Path.IsPathRooted(file.RelTargetFile).Should().BeFalse();
+        file.RelTargetFile.Replace('\\', '/').Should().Be("Data/INI/GameData.ini");
+    }
+
+    [Fact]
+    public void RelativizeToProject_WithAbsoluteInsideProject_ReturnsRelative()
+    {
+        // Arrange
+        var projectDir = Path.Combine(_tempDirectory, "Proj");
+        var absolute = Path.Combine(projectDir, "GameFilesEdited", "a.ini");
+
+        // Act
+        var result = ConfigurationLoaderService.RelativizeToProject(absolute, projectDir);
+
+        // Assert
+        Path.IsPathRooted(result).Should().BeFalse();
+        result.Should().Be(Path.Combine("GameFilesEdited", "a.ini"));
+    }
+
+    [Fact]
+    public void RelativizeToProject_WithAbsoluteOutsideProject_StripsRoot()
+    {
+        // Arrange
+        var projectDir = Path.Combine(_tempDirectory, "Proj");
+        var outside = Path.Combine(Path.GetPathRoot(_tempDirectory)!, "elsewhere", "a.ini");
+
+        // Act
+        var result = ConfigurationLoaderService.RelativizeToProject(outside, projectDir);
+
+        // Assert
+        Path.IsPathRooted(result).Should().BeFalse();
+        result.Should().NotBeNullOrEmpty();
+    }
+
+    [Fact]
+    public void RelativizeToProject_WithRelativePattern_ReturnsUnchanged()
+    {
+        // Act
+        var result = ConfigurationLoaderService.RelativizeToProject("GameFilesEdited/Data/*.ini", _tempDirectory);
+
+        // Assert
+        result.Should().Be("GameFilesEdited/Data/*.ini");
+    }
 }

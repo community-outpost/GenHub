@@ -1430,33 +1430,53 @@ public partial class ModBuilderViewModel(
         return await FindDiscoveredSampleProjectAsync(sampleId).ConfigureAwait(false);
     }
 
-    private static bool ShouldUpdateSampleConfigFile(string sampleId, string targetFile)
+    internal static bool ShouldUpdateSampleConfigFile(string sampleId, string targetFile)
     {
         if (!File.Exists(targetFile))
         {
             return true;
         }
 
+        var fileName = Path.GetFileName(targetFile);
+        var isItemsFile = fileName.Equals(ModBuilderConstants.BundleItemsConfigFileName, StringComparison.OrdinalIgnoreCase);
+        var isPacksFile = fileName.Equals(ModBuilderConstants.BundlePacksConfigFileName, StringComparison.OrdinalIgnoreCase);
+        if (!isItemsFile && !isPacksFile)
+        {
+            return false;
+        }
+
         try
         {
             var content = File.ReadAllText(targetFile);
 
-            if (sampleId.Equals(ModBuilderConstants.ImprovedMenusSampleName, StringComparison.OrdinalIgnoreCase) &&
-                (!content.Contains("ImprovedMenus_English", StringComparison.OrdinalIgnoreCase) ||
-                 !content.Contains("ImprovedMenus_Russian", StringComparison.OrdinalIgnoreCase)))
+            // Configs corrupted by older editor saves persist resolved absolute
+            // paths; refresh them from the template so builds heal on next open.
+            if (isItemsFile && ContainsAbsoluteSourcePaths(content))
             {
                 return true;
             }
 
-            if (sampleId.Equals(ModBuilderConstants.LeikezeHotkeysSampleName, StringComparison.OrdinalIgnoreCase) &&
-                !content.Contains("LeikezeHotkeys_ZH_EN", StringComparison.OrdinalIgnoreCase))
+            if (IsImprovedMenusConfigStale(sampleId, content, isItemsFile, isPacksFile))
             {
                 return true;
             }
 
-            if (sampleId.Equals(ModBuilderConstants.GeneralsGamePatch2SampleName, StringComparison.OrdinalIgnoreCase) &&
-                (!content.Contains("GeneralsGamePatch2", StringComparison.OrdinalIgnoreCase) ||
-                 content.Contains("ModifiedINI", StringComparison.OrdinalIgnoreCase)))
+            if (IsLeikezeHotkeysConfigStale(sampleId, content, isItemsFile, isPacksFile))
+            {
+                return true;
+            }
+
+            if (IsGeneralsGamePatch2ConfigStale(sampleId, content, isItemsFile, isPacksFile))
+            {
+                return true;
+            }
+
+            if (IsLemonControlBarConfigStale(sampleId, content, isItemsFile, isPacksFile))
+            {
+                return true;
+            }
+
+            if (IsHotkeysConfigStale(sampleId, content, isItemsFile, isPacksFile))
             {
                 return true;
             }
@@ -1471,6 +1491,94 @@ public partial class ModBuilderViewModel(
         }
 
         return false;
+    }
+
+    internal static bool ContainsAbsoluteSourcePaths(string content)
+    {
+        return content.Contains(":\\\\", StringComparison.Ordinal) ||
+            content.Contains(":/", StringComparison.Ordinal) ||
+            content.Contains("\"/", StringComparison.Ordinal);
+    }
+
+    private static bool IsImprovedMenusConfigStale(string sampleId, string content, bool isItemsFile, bool isPacksFile)
+    {
+        if (!sampleId.Equals(ModBuilderConstants.ImprovedMenusSampleName, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        if (isPacksFile && (!content.Contains("ImprovedMenus_English", StringComparison.OrdinalIgnoreCase) ||
+            !content.Contains("ImprovedMenus_Russian", StringComparison.OrdinalIgnoreCase)))
+        {
+            return true;
+        }
+
+        return isItemsFile && !content.Contains("MenuTexturesEnglish", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsLeikezeHotkeysConfigStale(string sampleId, string content, bool isItemsFile, bool isPacksFile)
+    {
+        if (!sampleId.Equals(ModBuilderConstants.LeikezeHotkeysSampleName, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        if (isPacksFile && !content.Contains("LeikezeHotkeys_ZH_EN", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        return isItemsFile && !content.Contains("Hotkeys_ZH_English", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsGeneralsGamePatch2ConfigStale(string sampleId, string content, bool isItemsFile, bool isPacksFile)
+    {
+        if (!sampleId.Equals(ModBuilderConstants.GeneralsGamePatch2SampleName, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        if (isPacksFile && (!content.Contains("GeneralsGamePatch2", StringComparison.OrdinalIgnoreCase) ||
+            content.Contains("ModifiedINI", StringComparison.OrdinalIgnoreCase)))
+        {
+            return true;
+        }
+
+        return isItemsFile && (!content.Contains("PatchINI", StringComparison.OrdinalIgnoreCase) ||
+            content.Contains("ModifiedINI", StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static bool IsLemonControlBarConfigStale(string sampleId, string content, bool isItemsFile, bool isPacksFile)
+    {
+        if (!sampleId.Equals(ModBuilderConstants.LemonControlBarSampleName, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        // Pre-generation layouts used TargetDir flattening with per-resolution
+        // Window sources; the current layout keeps Gen/Res prefixes instead.
+        if (isItemsFile && (!content.Contains("Gen1080", StringComparison.OrdinalIgnoreCase) ||
+            content.Contains("\"TargetDir\"", StringComparison.OrdinalIgnoreCase)))
+        {
+            return true;
+        }
+
+        return isPacksFile && !content.Contains("LemonControlBar_Art1080", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsHotkeysConfigStale(string sampleId, string content, bool isItemsFile, bool isPacksFile)
+    {
+        if (!sampleId.Equals(ModBuilderConstants.HotkeysSampleName, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        if (isPacksFile && !content.Contains("!HotkeysLegionnaireZH", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        return isItemsFile && !content.Contains("HotkeyIndicators", StringComparison.OrdinalIgnoreCase);
     }
 
     private async Task SyncSampleTemplateConfigsAsync(string sampleId, string projectDir, CancellationToken cancellationToken)

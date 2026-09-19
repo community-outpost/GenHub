@@ -8,7 +8,6 @@
         "HotkeyStrings"
       ],
       "OutputFile": ".Release/!HotkeysLegionnaireZH.big",
-      "ManifestFile": "config/!HotkeysLegionnaireZH.big.manifest.json",
       "Big": true,
       "AllowBuild": true,
       "AllowInstall": true,
