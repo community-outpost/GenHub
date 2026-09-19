@@ -78,19 +78,23 @@ public interface IUploadHistoryService
     void RecordUpload(long fileSizeBytes, string url, string fileName, string? fileKey = null, string? deleteToken = null, string? fileHash = null, string? category = null, GameType? game = null);
 
     /// <summary>
-    /// Finds an existing active upload record matching the specified file hash.
+    /// Finds an existing active upload record matching the specified file hash, category, and game.
     /// </summary>
     /// <param name="fileHash">The SHA-256 hex string of the file.</param>
+    /// <param name="category">Optional category the existing record must belong to. Null matches any category.</param>
+    /// <param name="game">Optional game the existing record must belong to. Null matches any game.</param>
     /// <returns>A task representing the asynchronous operation, returning the matching <see cref="UploadRecord"/> if found.</returns>
-    Task<UploadRecord?> FindExistingUploadAsync(string fileHash);
+    Task<UploadRecord?> FindExistingUploadAsync(string fileHash, string? category = null, GameType? game = null);
 
     /// <summary>
-    /// Finds an existing active upload record matching the specified file hash.
+    /// Finds an existing active upload record matching the specified file hash, category, and game.
     /// </summary>
     /// <param name="fileHash">The SHA-256 hex string of the file.</param>
+    /// <param name="category">Optional category the existing record must belong to. Null matches any category.</param>
+    /// <param name="game">Optional game the existing record must belong to. Null matches any game.</param>
     /// <param name="cancellationToken">Token to monitor for cancellation requests.</param>
     /// <returns>A task representing the asynchronous operation, returning the matching <see cref="UploadRecord"/> if found.</returns>
-    Task<UploadRecord?> FindExistingUploadAsync(string fileHash, CancellationToken cancellationToken);
+    Task<UploadRecord?> FindExistingUploadAsync(string fileHash, string? category, GameType? game, CancellationToken cancellationToken);
 
     /// <summary>
     /// Gets the upload history, optionally filtered by category.

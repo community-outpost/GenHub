@@ -1,5 +1,7 @@
+using GenHub.Common.Services;
 using GenHub.Core.Constants;
 using GenHub.Core.Helpers;
+using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Tools.ReplayManager;
 using GenHub.Core.Models.Tools.ReplayManager;
 using Microsoft.Extensions.Logging;
@@ -16,7 +18,10 @@ namespace GenHub.Features.Tools.ReplayManager.Services;
 /// <summary>
 /// Service for parsing replay URLs and extracting direct download links.
 /// </summary>
-public sealed partial class UrlParserService(HttpClient httpClient, ILogger<UrlParserService> logger) : IUrlParserService
+public sealed partial class UrlParserService(
+    HttpClient httpClient,
+    ILogger<UrlParserService> logger,
+    IDownloadUrlValidator? urlValidator = null) : IUrlParserService
 {
     /// <inheritdoc />
     public ReplaySource IdentifySource(string url)
@@ -128,6 +133,13 @@ public sealed partial class UrlParserService(HttpClient httpClient, ILogger<UrlP
     [GeneratedRegex(RegexConstants.StrataReplayPattern, RegexOptions.IgnoreCase)]
     private static partial Regex StrataRegex();
 
+    private static HttpRequestMessage CreateBrowserRequest(Uri uri)
+    {
+        var request = new HttpRequestMessage(HttpMethod.Get, uri);
+        request.Headers.UserAgent.ParseAdd(ApiConstants.BrowserUserAgent);
+        return request;
+    }
+
     private async Task<IReadOnlyList<string>> ExtractGeneralsOnlineUrlsAsync(string url, CancellationToken ct)
     {
         if (long.TryParse(url, out long matchId))
@@ -135,7 +147,7 @@ public sealed partial class UrlParserService(HttpClient httpClient, ILogger<UrlP
             url = $"{GeneralsOnlineConstants.WebsiteUrl}/viewmatch?match={matchId}";
         }
 
-        var html = await httpClient.GetStringAsync(url, ct);
+        var html = await GetPageHtmlAsync(url, static uri => new HttpRequestMessage(HttpMethod.Get, uri), ct);
         var matches = GeneralsOnlineRegex().Matches(html);
         var results = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
@@ -157,7 +169,7 @@ public sealed partial class UrlParserService(HttpClient httpClient, ILogger<UrlP
 
     private async Task<IReadOnlyList<string>> ExtractGenToolUrlsAsync(string url, CancellationToken ct)
     {
-        var html = await httpClient.GetStringAsync(url, ct);
+        var html = await GetPageHtmlAsync(url, static uri => new HttpRequestMessage(HttpMethod.Get, uri), ct);
         var matches = GenToolRegex().Matches(html);
         var results = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var baseUri = new Uri(url);
@@ -190,11 +202,7 @@ public sealed partial class UrlParserService(HttpClient httpClient, ILogger<UrlP
 
     private async Task<IReadOnlyList<string>> ExtractStrataUrlsAsync(string url, CancellationToken ct)
     {
-        var request = new HttpRequestMessage(HttpMethod.Get, url);
-        request.Headers.UserAgent.ParseAdd(ApiConstants.BrowserUserAgent);
-        using var response = await httpClient.SendAsync(request, ct);
-        response.EnsureSuccessStatusCode();
-        var html = await response.Content.ReadAsStringAsync(ct);
+        var html = await GetPageHtmlAsync(url, CreateBrowserRequest, ct);
 
         var matches = StrataRegex().Matches(html);
         var results = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -220,5 +228,20 @@ public sealed partial class UrlParserService(HttpClient httpClient, ILogger<UrlP
 
         logger.LogInformation("Extracted {Count} replay URLs from Strata match: {Url}", results.Count, url);
         return results.ToList();
+    }
+
+    private async Task<string> GetPageHtmlAsync(string url, Func<Uri, HttpRequestMessage> requestFactory, CancellationToken ct)
+    {
+        var validator = urlValidator ?? new DownloadUrlValidator();
+        var validated = await SsrfSafeHttpHelper.SendWithValidatedRedirectsAsync(
+            httpClient,
+            requestFactory,
+            new Uri(url),
+            DownloadDefaults.MaxRedirects,
+            validator,
+            ct);
+        using var response = validated.Response;
+        response.EnsureSuccessStatusCode();
+        return await response.Content.ReadAsStringAsync(ct);
     }
 }

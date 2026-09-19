@@ -119,11 +119,11 @@ public sealed class UploadHistoryService(
     }
 
     /// <inheritdoc />
-    public Task<UploadRecord?> FindExistingUploadAsync(string fileHash) =>
-        FindExistingUploadAsync(fileHash, CancellationToken.None);
+    public Task<UploadRecord?> FindExistingUploadAsync(string fileHash, string? category = null, GameType? game = null) =>
+        FindExistingUploadAsync(fileHash, category, game, CancellationToken.None);
 
     /// <inheritdoc />
-    public Task<UploadRecord?> FindExistingUploadAsync(string fileHash, CancellationToken cancellationToken)
+    public Task<UploadRecord?> FindExistingUploadAsync(string fileHash, string? category, GameType? game, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
         if (string.IsNullOrWhiteSpace(fileHash))
@@ -132,10 +132,7 @@ public sealed class UploadHistoryService(
         }
 
         var history = LoadHistoryInternal();
-        var existing = history.FirstOrDefault(r =>
-            !string.IsNullOrEmpty(r.FileHash) &&
-            string.Equals(r.FileHash, fileHash, StringComparison.OrdinalIgnoreCase) &&
-            !string.IsNullOrEmpty(r.Url));
+        var existing = history.FirstOrDefault(r => IsReusableUpload(r, fileHash, category, game));
 
         return Task.FromResult(existing);
     }
@@ -361,6 +358,15 @@ public sealed class UploadHistoryService(
 
         var inferred = InferCategory(record);
         return string.Equals(inferred, category, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsReusableUpload(UploadRecord record, string fileHash, string? category, GameType? game)
+    {
+        return !string.IsNullOrEmpty(record.FileHash) &&
+            string.Equals(record.FileHash, fileHash, StringComparison.OrdinalIgnoreCase) &&
+            !string.IsNullOrEmpty(record.Url) &&
+            (category == null || MatchesCategory(record, category)) &&
+            (!game.HasValue || record.Game == game);
     }
 
     private async Task<(HashSet<UploadRecord> Succeeded, HashSet<UploadRecord> Failed)> DeleteRecordsFromCloudAsync(IEnumerable<UploadRecord> records, CancellationToken cancellationToken = default)

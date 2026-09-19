@@ -1,3 +1,4 @@
+using GenHub.Common.Services;
 using GenHub.Core.Constants;
 using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
@@ -29,7 +30,8 @@ public sealed class ReplayImportService(
     IUrlParserService urlParserService,
     IZipValidationService zipValidationService,
     ILogger<ReplayImportService> logger,
-    ILocalizationService? localizationService = null) : IReplayImportService
+    ILocalizationService? localizationService = null,
+    IDownloadUrlValidator? downloadUrlValidator = null) : IReplayImportService
 {
     private sealed record ZipEntryImportContext(
         string ZipPath,
@@ -461,13 +463,25 @@ public sealed class ReplayImportService(
     {
         var tempPath = Path.Combine(Path.GetTempPath(), $"{ReplayManagerConstants.TempImportFilePrefix}{Guid.NewGuid()}{FileTypes.ReplayFileExtension}");
 
+        var urlValidator = downloadUrlValidator ?? new DownloadUrlValidator();
+        if (!Uri.TryCreate(directUrl, UriKind.Absolute, out var downloadUri) ||
+            !await urlValidator.IsSafeAsync(downloadUri, ct))
+        {
+            logger.LogWarning("Blocked replay import from unsafe download target.");
+            errors.Add(
+                localizationService?.GetString("Tools.Share.Error.BlockedDownloadUrl")
+                ?? "The download URL was blocked because it does not point to a public internet address.");
+            return 1;
+        }
+
         try
         {
             var downloadConfig = new DownloadConfiguration
             {
-                Url = new Uri(directUrl),
+                Url = downloadUri,
                 DestinationPath = tempPath,
                 UserAgent = userAgent,
+                ValidateRedirectsManually = true,
             };
 
             var result = await downloadService.DownloadFileAsync(downloadConfig, progress: downloadProgress, cancellationToken: ct);

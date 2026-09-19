@@ -8197,6 +8197,12 @@ Do you want to download and inspect this profile package?</value>
   <data name="Tools.Share.Error.CrossToolMapLink" xml:space="preserve">
     <value>This is a Map Manager share link. Paste it in the Map Manager import box instead.</value>
   </data>
+  <data name="Tools.Share.Error.InvalidShareLink" xml:space="preserve">
+    <value>This GenHub link is incomplete or malformed. Check the link and try again.</value>
+  </data>
+  <data name="Tools.Share.Error.BlockedDownloadUrl" xml:space="preserve">
+    <value>The download URL was blocked because it does not point to a public internet address.</value>
+  </data>
   <data name="Tools.Share.Demo.CopyGenHubLinkTitle" xml:space="preserve">
     <value>Copy GenHub Link</value>
   </data>

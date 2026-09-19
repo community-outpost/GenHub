@@ -9,6 +9,7 @@ using GenHub.Features.Tools.ViewModels;
 using Microsoft.Extensions.Logging;
 using System;
 using System.IO;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace GenHub.Features.Tools.Helpers;
@@ -26,13 +27,15 @@ public static class ToolShareCommands
     /// <param name="selectGame">Selects the target game tab.</param>
     /// <param name="setImportUrl">Sets the import text box value.</param>
     /// <param name="importFromUrlAsync">Runs the import for the configured URL and game.</param>
+    /// <param name="cancellationToken">Token to monitor for cancellation requests.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
     public static async Task ImportSharedUrlAsync(
         string url,
         GameType? game,
         Action<GameType> selectGame,
         Action<string> setImportUrl,
-        Func<Task> importFromUrlAsync)
+        Func<CancellationToken, Task> importFromUrlAsync,
+        CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(selectGame);
         ArgumentNullException.ThrowIfNull(setImportUrl);
@@ -44,7 +47,7 @@ public static class ToolShareCommands
         }
 
         setImportUrl(url);
-        await importFromUrlAsync();
+        await importFromUrlAsync(cancellationToken);
     }
 
     /// <summary>

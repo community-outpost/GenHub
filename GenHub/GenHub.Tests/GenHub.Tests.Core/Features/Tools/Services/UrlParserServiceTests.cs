@@ -1,4 +1,5 @@
 using GenHub.Core.Constants;
+using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Models.Tools.ReplayManager;
 using GenHub.Features.Tools.ReplayManager.Services;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -161,12 +162,49 @@ public sealed class UrlParserServiceTests
             });
 
         var client = new HttpClient(mockHandler.Object);
-        var service = new UrlParserService(client, NullLogger<UrlParserService>.Instance);
+        var service = new UrlParserService(client, NullLogger<UrlParserService>.Instance, CreateValidator(true).Object);
 
         var result = await service.GetDirectDownloadUrlsAsync("https://strata.gamereplays.org/zh/match/3489856");
 
         Assert.Equal(2, result.Count);
         Assert.Contains("https://matchdata.playgenerals.online/replays/2026/8/23/match_3489856/user_1/match_3489856_user_1_replay.rep", result);
         Assert.Contains("https://matchdata.playgenerals.online/replays/2026/8/23/match_3489856/user_2/match_3489856_user_2_replay.rep", result);
+    }
+
+    /// <summary>
+    /// Verifies that blocked page fetches fail cleanly with no download URLs.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task GetDirectDownloadUrlsAsync_WithBlockedTarget_ReturnsEmptyAsync()
+    {
+        bool requested = false;
+        var mockHandler = new Mock<HttpMessageHandler>();
+        mockHandler.Protected()
+            .Setup<Task<HttpResponseMessage>>(
+                "SendAsync",
+                ItExpr.IsAny<HttpRequestMessage>(),
+                ItExpr.IsAny<CancellationToken>())
+            .Callback<HttpRequestMessage, CancellationToken>((_, _) => requested = true)
+            .ReturnsAsync(new HttpResponseMessage
+            {
+                StatusCode = HttpStatusCode.OK,
+                Content = new StringContent("<html></html>"),
+            });
+
+        var client = new HttpClient(mockHandler.Object);
+        var service = new UrlParserService(client, NullLogger<UrlParserService>.Instance, CreateValidator(false).Object);
+
+        var result = await service.GetDirectDownloadUrlsAsync("https://strata.gamereplays.org/zh/match/3489856");
+
+        Assert.Empty(result);
+        Assert.False(requested);
+    }
+
+    private static Mock<IDownloadUrlValidator> CreateValidator(bool result)
+    {
+        var validator = new Mock<IDownloadUrlValidator>();
+        validator.Setup(v => v.IsSafeAsync(It.IsAny<Uri>(), It.IsAny<CancellationToken>())).ReturnsAsync(result);
+        return validator;
     }
 }

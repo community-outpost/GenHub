@@ -327,6 +327,67 @@ public sealed class UploadHistoryServiceTests : IDisposable
     }
 
     /// <summary>
+    /// Verifies that FindExistingUploadAsync returns the record when hash, category, and game all match.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task FindExistingUploadAsync_WhenHashCategoryAndGameMatch_ReturnsExistingRecordAsync()
+    {
+        var service = CreateService();
+        service.RecordUpload(1024, "https://utfs.io/f/existing", "map.zip", "key_1", "token_1", "hash_scoped", MapManagerConstants.UploadCategory, GameType.ZeroHour);
+
+        var record = await service.FindExistingUploadAsync("hash_scoped", MapManagerConstants.UploadCategory, GameType.ZeroHour);
+
+        Assert.NotNull(record);
+        Assert.Equal("https://utfs.io/f/existing", record.Url);
+    }
+
+    /// <summary>
+    /// Verifies that FindExistingUploadAsync ignores records from another category.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task FindExistingUploadAsync_WhenCategoryDiffers_ReturnsNullAsync()
+    {
+        var service = CreateService();
+        service.RecordUpload(1024, "https://utfs.io/f/existing", "map.zip", "key_1", "token_1", "hash_scoped", MapManagerConstants.UploadCategory, GameType.ZeroHour);
+
+        var record = await service.FindExistingUploadAsync("hash_scoped", ReplayManagerConstants.UploadCategory, GameType.ZeroHour);
+
+        Assert.Null(record);
+    }
+
+    /// <summary>
+    /// Verifies that FindExistingUploadAsync ignores records from another game.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task FindExistingUploadAsync_WhenGameDiffers_ReturnsNullAsync()
+    {
+        var service = CreateService();
+        service.RecordUpload(1024, "https://utfs.io/f/existing", "map.zip", "key_1", "token_1", "hash_scoped", MapManagerConstants.UploadCategory, GameType.ZeroHour);
+
+        var record = await service.FindExistingUploadAsync("hash_scoped", MapManagerConstants.UploadCategory, GameType.Generals);
+
+        Assert.Null(record);
+    }
+
+    /// <summary>
+    /// Verifies that records written before game tracking are not reused by game-scoped lookups.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task FindExistingUploadAsync_WhenRecordPredatesGameTracking_DoesNotMatchGameScopedLookupAsync()
+    {
+        var service = CreateService();
+        service.RecordUpload(1024, "https://utfs.io/f/existing", "map.zip", "key_1", "token_1", "hash_legacy", MapManagerConstants.UploadCategory);
+
+        var record = await service.FindExistingUploadAsync("hash_legacy", MapManagerConstants.UploadCategory, GameType.ZeroHour);
+
+        Assert.Null(record);
+    }
+
+    /// <summary>
     /// Verifies that GetUploadHistoryAsync with category filter returns only matching items.
     /// </summary>
     /// <returns>A task representing the asynchronous test operation.</returns>

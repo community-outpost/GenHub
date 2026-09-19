@@ -29,6 +29,7 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace GenHub;
@@ -606,7 +607,7 @@ public partial class App : Application
         }
     }
 
-    private async Task HandleToolImportUriAsync(string shareUri, MainWindow mainWindow)
+    private async Task HandleToolImportUriAsync(string shareUri, MainWindow mainWindow, CancellationToken cancellationToken = default)
     {
         var logger = _serviceProvider.GetService<ILogger<App>>();
         if (!ToolShareLink.TryParseShareUri(shareUri, out var target) || target == null)
@@ -635,11 +636,11 @@ public partial class App : Application
 
         if (isMap && dataContext is MapManagerViewModel mapViewModel)
         {
-            await mapViewModel.ImportSharedUrlAsync(target.Url, target.Game);
+            await mapViewModel.ImportSharedUrlAsync(target.Url, target.Game, cancellationToken);
         }
         else if (!isMap && dataContext is ReplayManagerViewModel replayViewModel)
         {
-            await replayViewModel.ImportSharedUrlAsync(target.Url, target.Game);
+            await replayViewModel.ImportSharedUrlAsync(target.Url, target.Game, cancellationToken);
         }
         else
         {

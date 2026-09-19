@@ -8103,6 +8103,12 @@ GenHub передает официальный идентификатор AppID 
   <data name="Tools.Share.Error.CrossToolMapLink" xml:space="preserve">
     <value>Это ссылка общего доступа из менеджера карт. Вставьте её в поле импорта в менеджере карт.</value>
   </data>
+  <data name="Tools.Share.Error.InvalidShareLink" xml:space="preserve">
+    <value>Эта ссылка GenHub неполная или повреждена. Проверьте ссылку и попробуйте снова.</value>
+  </data>
+  <data name="Tools.Share.Error.BlockedDownloadUrl" xml:space="preserve">
+    <value>URL-адрес загрузки заблокирован, так как он не ведёт на общедоступный адрес в интернете.</value>
+  </data>
   <data name="Tools.Share.Demo.CopyGenHubLinkTitle" xml:space="preserve">
     <value>Копировать ссылку GenHub</value>
   </data>

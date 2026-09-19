@@ -490,16 +490,18 @@ public partial class ReplayManagerViewModel(
     /// </summary>
     /// <param name="url">The plain download URL to import.</param>
     /// <param name="game">The optional target game recorded in the share link.</param>
+    /// <param name="cancellationToken">Token to monitor for cancellation requests.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
     [SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Mutates CommunityToolkit-generated observable properties and executes instance commands on this ViewModel.")]
-    public async Task ImportSharedUrlAsync(string url, GameType? game = null)
+    public async Task ImportSharedUrlAsync(string url, GameType? game = null, CancellationToken cancellationToken = default)
     {
         await ToolShareCommands.ImportSharedUrlAsync(
             url,
             game,
             selected => SelectedTab = selected,
             importUrl => ImportUrl = importUrl,
-            ImportFromUrlAsync);
+            ImportFromUrlAsync,
+            cancellationToken);
     }
 
     /// <summary>
@@ -812,7 +814,7 @@ public partial class ReplayManagerViewModel(
     }
 
     [RelayCommand]
-    private async Task ImportFromUrlAsync()
+    private async Task ImportFromUrlAsync(CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(ImportUrl))
         {
@@ -852,7 +854,7 @@ public partial class ReplayManagerViewModel(
                 scope.ReportFraction(p, downloadingStatus);
             });
 
-            var result = await importService.ImportFromUrlAsync(ImportUrl, SelectedTab, progressHandler);
+            var result = await importService.ImportFromUrlAsync(ImportUrl, SelectedTab, progressHandler, cancellationToken);
             if (result.Success)
             {
                 scope.CompleteSuccess();
@@ -1079,7 +1081,7 @@ public partial class ReplayManagerViewModel(
         string? fileHash = null;
         if (SelectedReplays.Count == 1 && File.Exists(SelectedReplays[0].FullPath))
         {
-            var (reused, computedHash) = await TryReuseExistingUploadAsync(SelectedReplays[0].FullPath);
+            var (reused, computedHash) = await TryReuseExistingUploadAsync(SelectedReplays[0].FullPath, uploadGame);
             if (reused)
             {
                 return;
@@ -1175,7 +1177,7 @@ public partial class ReplayManagerViewModel(
         return true;
     }
 
-    private async Task<(bool Reused, string? FileHash)> TryReuseExistingUploadAsync(string filePath)
+    private async Task<(bool Reused, string? FileHash)> TryReuseExistingUploadAsync(string filePath, GameType uploadGame)
     {
         var fileHash = await ToolUploadHelper.ComputeFileSha256Async(filePath);
         if (string.IsNullOrEmpty(fileHash))
@@ -1183,7 +1185,7 @@ public partial class ReplayManagerViewModel(
             return (false, null);
         }
 
-        var existingUpload = await uploadHistoryService.FindExistingUploadAsync(fileHash);
+        var existingUpload = await uploadHistoryService.FindExistingUploadAsync(fileHash, ReplayManagerConstants.UploadCategory, uploadGame);
         if (existingUpload?.Url != null && await ToolUploadHelper.VerifyShareUrlAliveAsync(existingUpload.Url))
         {
             var lifetime = Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime;

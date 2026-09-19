@@ -1,3 +1,4 @@
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Models.Common;
 using GenHub.Core.Models.Results;
@@ -17,7 +18,8 @@ namespace GenHub.Common.Services;
 public class DownloadService(
     ILogger<DownloadService> logger,
     HttpClient httpClient,
-    IFileHashProvider hashProvider) : IDownloadService
+    IFileHashProvider hashProvider,
+    IDownloadUrlValidator? urlValidator = null) : IDownloadService
 {
     /// <inheritdoc/>
     public async Task<DownloadResult> DownloadFileAsync(
@@ -60,9 +62,9 @@ public class DownloadService(
         return await hashProvider.ComputeFileHashAsync(filePath, cancellationToken);
     }
 
-    private static HttpRequestMessage CreateRequest(DownloadConfiguration configuration)
+    private static HttpRequestMessage CreateRequest(DownloadConfiguration configuration, Uri url)
     {
-        var request = new HttpRequestMessage(HttpMethod.Get, configuration.Url);
+        var request = new HttpRequestMessage(HttpMethod.Get, url);
         request.Headers.Add("User-Agent", configuration.UserAgent);
         foreach (var header in configuration.Headers)
         {
@@ -70,6 +72,27 @@ public class DownloadService(
         }
 
         return request;
+    }
+
+    private async Task<HttpResponseMessage> SendRequestAsync(
+        DownloadConfiguration configuration,
+        IDownloadUrlValidator validator,
+        CancellationToken cancellationToken)
+    {
+        if (!configuration.ValidateRedirectsManually)
+        {
+            using var request = CreateRequest(configuration, configuration.Url);
+            return await httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+        }
+
+        var validated = await SsrfSafeHttpHelper.SendWithValidatedRedirectsAsync(
+            httpClient,
+            uri => CreateRequest(configuration, uri),
+            configuration.Url,
+            DownloadDefaults.MaxRedirects,
+            validator,
+            cancellationToken);
+        return validated.Response;
     }
 
     private async Task<DownloadResult> DownloadWithRetryAsync(
@@ -122,10 +145,10 @@ public class DownloadService(
         var stopwatch = Stopwatch.StartNew();
         var lastProgressReport = DateTime.UtcNow;
 
-        using var request = CreateRequest(configuration);
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         cts.CancelAfter(configuration.Timeout);
-        using var response = await httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cts.Token);
+        var validator = urlValidator ?? new DownloadUrlValidator();
+        using var response = await SendRequestAsync(configuration, validator, cts.Token);
         response.EnsureSuccessStatusCode();
 
         var totalBytes = response.Content.Headers.ContentLength ?? 0;

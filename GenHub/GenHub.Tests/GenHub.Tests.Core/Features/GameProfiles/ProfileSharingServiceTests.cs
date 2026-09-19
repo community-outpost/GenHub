@@ -1498,8 +1498,8 @@ public class ProfileSharingServiceTests
         var uploadHistoryMock = new Mock<IUploadHistoryService>();
         uploadHistoryMock.Setup(h => h.CanUploadAsync(It.IsAny<long>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
-        uploadHistoryMock.Setup(h => h.FindExistingUploadAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync((string hash, CancellationToken _) => savedHash != null && savedHash == hash
+        uploadHistoryMock.Setup(h => h.FindExistingUploadAsync(It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<GameType?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((string hash, string? _, GameType? _, CancellationToken _) => savedHash != null && savedHash == hash
                 ? new UploadRecord { FileHash = hash, Url = "https://utfs.io/f/defcon51.zip" }
                 : null);
 

@@ -194,7 +194,8 @@ public sealed class MapImportServiceTests : IDisposable
             directoryService.Object,
             new HttpClient(mockHandler.Object),
             new MapNameParser(NullLogger<MapNameParser>.Instance),
-            NullLogger<MapImportService>.Instance);
+            NullLogger<MapImportService>.Instance,
+            downloadUrlValidator: CreateValidator(true).Object);
 
         var result = await service.ImportFromUrlAsync(
             $"genhub://map/import?url={Uri.EscapeDataString(innerUrl)}&game=zerohour",
@@ -247,6 +248,98 @@ public sealed class MapImportServiceTests : IDisposable
 
         Assert.False(result.Success);
         Assert.Contains("LOCALIZED cross-tool replay error", result.Errors);
+    }
+
+    /// <summary>
+    /// Verifies that ImportFromUrlAsync rejects malformed GenHub links with a clean error instead
+    /// of attempting a download.
+    /// </summary>
+    /// <param name="url">The malformed share URI to import.</param>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Theory]
+    [InlineData("genhub://map/import")]
+    [InlineData("genhub://map/import?url=not-a-url")]
+    [InlineData("genhub://subscribe?url=https%3A%2F%2Fexample.com%2Fcatalog.json")]
+    public async Task ImportFromUrlAsync_WithMalformedShareUri_ReturnsInvalidLinkErrorAsync(string url)
+    {
+        Uri? requestedUri = null;
+        var mockHandler = new Mock<HttpMessageHandler>();
+        mockHandler.Protected()
+            .Setup<Task<HttpResponseMessage>>(
+                "SendAsync",
+                ItExpr.IsAny<HttpRequestMessage>(),
+                ItExpr.IsAny<CancellationToken>())
+            .Callback<HttpRequestMessage, CancellationToken>((request, _) => requestedUri = request.RequestUri)
+            .ReturnsAsync(new HttpResponseMessage
+            {
+                StatusCode = HttpStatusCode.OK,
+                Content = new StringContent("fake-map-bytes"),
+            });
+
+        var localizationService = new Mock<ILocalizationService>();
+        localizationService
+            .Setup(l => l.GetString("Tools.Share.Error.InvalidShareLink", It.IsAny<object?[]>()))
+            .Returns("LOCALIZED invalid share link");
+
+        var directoryService = new Mock<IMapDirectoryService>();
+        directoryService.Setup(d => d.GetMapDirectory(It.IsAny<GameType>())).Returns(_mapDirectory);
+        var service = new MapImportService(
+            directoryService.Object,
+            new HttpClient(mockHandler.Object),
+            new MapNameParser(NullLogger<MapNameParser>.Instance),
+            NullLogger<MapImportService>.Instance,
+            localizationService.Object,
+            CreateValidator(true).Object);
+
+        var result = await service.ImportFromUrlAsync(url, GameType.ZeroHour);
+
+        Assert.False(result.Success);
+        Assert.Contains("LOCALIZED invalid share link", result.Errors);
+        Assert.Null(requestedUri);
+    }
+
+    /// <summary>
+    /// Verifies that ImportFromUrlAsync blocks non-public download targets before connecting.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task ImportFromUrlAsync_WithBlockedDownloadUrl_ReturnsBlockedErrorAsync()
+    {
+        Uri? requestedUri = null;
+        var mockHandler = new Mock<HttpMessageHandler>();
+        mockHandler.Protected()
+            .Setup<Task<HttpResponseMessage>>(
+                "SendAsync",
+                ItExpr.IsAny<HttpRequestMessage>(),
+                ItExpr.IsAny<CancellationToken>())
+            .Callback<HttpRequestMessage, CancellationToken>((request, _) => requestedUri = request.RequestUri)
+            .ReturnsAsync(new HttpResponseMessage
+            {
+                StatusCode = HttpStatusCode.OK,
+                Content = new StringContent("fake-map-bytes"),
+            });
+
+        var directoryService = new Mock<IMapDirectoryService>();
+        directoryService.Setup(d => d.GetMapDirectory(It.IsAny<GameType>())).Returns(_mapDirectory);
+        var service = new MapImportService(
+            directoryService.Object,
+            new HttpClient(mockHandler.Object),
+            new MapNameParser(NullLogger<MapNameParser>.Instance),
+            NullLogger<MapImportService>.Instance,
+            downloadUrlValidator: CreateValidator(false).Object);
+
+        var result = await service.ImportFromUrlAsync("http://192.168.1.9/cool.map", GameType.ZeroHour);
+
+        Assert.False(result.Success);
+        Assert.Contains(result.Errors, e => e.Contains("public internet", StringComparison.OrdinalIgnoreCase));
+        Assert.Null(requestedUri);
+    }
+
+    private static Mock<IDownloadUrlValidator> CreateValidator(bool result)
+    {
+        var validator = new Mock<IDownloadUrlValidator>();
+        validator.Setup(v => v.IsSafeAsync(It.IsAny<Uri>(), It.IsAny<CancellationToken>())).ReturnsAsync(result);
+        return validator;
     }
 
     private static void CreateZip(string zipPath, params (string EntryName, string Content)[] entries)

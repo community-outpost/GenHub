@@ -76,6 +76,116 @@ public class DownloadServiceTests
     }
 
     /// <summary>
+    /// Verifies that validated redirects follow each hop and download the final target.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task DownloadFileAsync_WithValidatedRedirects_FollowsRedirectChainAsync()
+    {
+        // Arrange
+        var fileContent = new byte[] { 1, 2, 3, 4, 5 };
+        var redirect = new HttpResponseMessage(HttpStatusCode.Found);
+        redirect.Headers.Location = new Uri("http://test/final.bin");
+        var responses = new Queue<HttpResponseMessage>(
+        [
+            redirect,
+            new HttpResponseMessage(HttpStatusCode.OK) { Content = new ByteArrayContent(fileContent) },
+        ]);
+        int requestsSent = 0;
+        var handler = new Mock<HttpMessageHandler>();
+        handler.Protected()
+            .Setup<Task<HttpResponseMessage>>(
+                "SendAsync",
+                ItExpr.IsAny<HttpRequestMessage>(),
+                ItExpr.IsAny<CancellationToken>())
+            .Callback(() => requestsSent++)
+            .ReturnsAsync((HttpRequestMessage _, CancellationToken __) => responses.Dequeue());
+        var validator = new Mock<IDownloadUrlValidator>();
+        validator.Setup(v => v.IsSafeAsync(It.IsAny<Uri>(), It.IsAny<CancellationToken>())).ReturnsAsync(true);
+        var service = new DownloadService(
+            Mock.Of<ILogger<DownloadService>>(),
+            new HttpClient(handler.Object),
+            new Sha256HashProvider(),
+            validator.Object);
+        var tempFile = Path.GetTempFileName();
+        try
+        {
+            var config = new DownloadConfiguration
+            {
+                Url = new Uri("http://test/file.bin"),
+                DestinationPath = tempFile,
+                ValidateRedirectsManually = true,
+            };
+
+            // Act
+            var result = await service.DownloadFileAsync(config);
+
+            // Assert
+            Assert.True(result.Success);
+            Assert.Equal(fileContent, File.ReadAllBytes(tempFile));
+            Assert.Equal(2, requestsSent);
+        }
+        finally
+        {
+            if (File.Exists(tempFile))
+            {
+                File.Delete(tempFile);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Verifies that validated redirects block unsafe targets without sending any request.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task DownloadFileAsync_WithBlockedTarget_ReturnsFailureAsync()
+    {
+        // Arrange
+        int requestsSent = 0;
+        var handler = new Mock<HttpMessageHandler>();
+        handler.Protected()
+            .Setup<Task<HttpResponseMessage>>(
+                "SendAsync",
+                ItExpr.IsAny<HttpRequestMessage>(),
+                ItExpr.IsAny<CancellationToken>())
+            .Callback(() => requestsSent++)
+            .ReturnsAsync((HttpRequestMessage _, CancellationToken __) => new HttpResponseMessage(HttpStatusCode.OK));
+        var validator = new Mock<IDownloadUrlValidator>();
+        validator.Setup(v => v.IsSafeAsync(It.IsAny<Uri>(), It.IsAny<CancellationToken>())).ReturnsAsync(false);
+        var service = new DownloadService(
+            Mock.Of<ILogger<DownloadService>>(),
+            new HttpClient(handler.Object),
+            new Sha256HashProvider(),
+            validator.Object);
+        var tempFile = Path.GetTempFileName();
+        try
+        {
+            var config = new DownloadConfiguration
+            {
+                Url = new Uri("http://192.168.1.9/file.bin"),
+                DestinationPath = tempFile,
+                ValidateRedirectsManually = true,
+                RetryDelay = TimeSpan.Zero,
+            };
+
+            // Act
+            var result = await service.DownloadFileAsync(config);
+
+            // Assert
+            Assert.False(result.Success);
+            Assert.Equal(0, requestsSent);
+        }
+        finally
+        {
+            if (File.Exists(tempFile))
+            {
+                File.Delete(tempFile);
+            }
+        }
+    }
+
+    /// <summary>
     /// Verifies that hash verification fails and deletes the file if the hash does not match.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>

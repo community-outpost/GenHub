@@ -8103,6 +8103,12 @@ GenHub هو مشغل ومدير حديث لألعاب **Command &amp; Conquer: G
   <data name="Tools.Share.Error.CrossToolMapLink" xml:space="preserve">
     <value>هذا رابط مشاركة من مدير الخرائط. الصقه في مربع الاستيراد في مدير الخرائط بدلاً من ذلك.</value>
   </data>
+  <data name="Tools.Share.Error.InvalidShareLink" xml:space="preserve">
+    <value>رابط GenHub هذا غير مكتمل أو تالف. تحقق من الرابط وحاول مجددًا.</value>
+  </data>
+  <data name="Tools.Share.Error.BlockedDownloadUrl" xml:space="preserve">
+    <value>تم حظر رابط التنزيل لأنه لا يشير إلى عنوان إنترنت عام.</value>
+  </data>
   <data name="Tools.Share.Demo.CopyGenHubLinkTitle" xml:space="preserve">
     <value>نسخ رابط GenHub</value>
   </data>
