@@ -209,6 +209,170 @@ public sealed class PublisherProfileOrchestratorTests
             Times.Once);
     }
 
+    /// <summary>
+    /// Verifies that when a non-retail Community Patch client is passed,
+    /// the orchestrator selects and acquires the non-retail search result.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task CreateProfilesForPublisherClientAsync_WhenNonRetailCommunityPatch_AcquiresNonRetailCandidateAsync()
+    {
+        // Arrange
+        var installation = CreateInstallation();
+        var client = new GameClient
+        {
+            Id = GameClientConstants.SyntheticClientIds.CommunityPatchNonRet,
+            Name = "Community Patch (Non-Retail)",
+            PublisherType = CommunityOutpostConstants.PublisherType,
+        };
+
+        var retailItem = new ContentSearchResult
+        {
+            Id = "generalszh_23-07-2026.zip",
+            Name = "Community Patch 23-07-2026",
+            Version = "23-07-2026",
+            ContentType = ContentType.GameClient,
+            ProviderName = CommunityOutpostConstants.PublisherType,
+        };
+
+        var nonRetItem = new ContentSearchResult
+        {
+            Id = "generalszh_11-09-2026_NonRet.zip",
+            Name = "Community Patch 11-09-2026 (Non-Retail)",
+            Version = "11-09-2026",
+            Tags = { "nonretail" },
+            ContentType = ContentType.GameClient,
+            ProviderName = CommunityOutpostConstants.PublisherType,
+        };
+
+        var nonRetManifest = new ContentManifest
+        {
+            Id = ManifestId.Create("1.0.communityoutpost.gameclient.cp-nonret"),
+            Name = "Community Patch (Non-Retail)",
+            Version = "11-09-2026",
+            Metadata = new ContentMetadata { Tags = ["nonretail"] },
+            ContentType = ContentType.GameClient,
+            Publisher = new PublisherInfo { PublisherType = CommunityOutpostConstants.PublisherType },
+            Files = [new ManifestFile { RelativePath = "generals.exe", Hash = "hash" }],
+        };
+
+        var invocationCount = 0;
+        _manifestPoolMock
+            .Setup(p => p.GetAllManifestsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(() =>
+            {
+                invocationCount++;
+                return OperationResult<IEnumerable<ContentManifest>>.CreateSuccess(
+                    invocationCount == 1 ? [] : [nonRetManifest]);
+            });
+
+        _contentOrchestratorMock
+            .Setup(o => o.SearchAsync(It.IsAny<ContentSearchQuery>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IEnumerable<ContentSearchResult>>.CreateSuccess([nonRetItem, retailItem]));
+
+        _contentOrchestratorMock
+            .Setup(o => o.AcquireContentAsync(It.IsAny<ContentSearchResult>(), It.IsAny<IProgress<ContentAcquisitionProgress>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentManifest>.CreateSuccess(nonRetManifest));
+
+        _gameClientProfileServiceMock
+            .Setup(s => s.CreateProfileFromManifestAsync(nonRetManifest, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(new GameProfile { Id = "p-nonret", Name = "CP Non-Ret Profile" }));
+
+        // Act
+        var result = await _orchestrator.CreateProfilesForPublisherClientAsync(installation, client);
+
+        // Assert: Orchestrator selected the nonRetItem for acquisition, not retailItem
+        Assert.True(result.Success);
+        _contentOrchestratorMock.Verify(
+            o => o.AcquireContentAsync(
+                nonRetItem,
+                It.IsAny<IProgress<ContentAcquisitionProgress>>(),
+                It.IsAny<CancellationToken>()),
+            Times.Once);
+    }
+
+    /// <summary>
+    /// Verifies that when a retail Community Patch client is passed,
+    /// the orchestrator selects and acquires the retail search result even if non-retail appears first.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task CreateProfilesForPublisherClientAsync_WhenRetailCommunityPatch_AcquiresRetailCandidateAsync()
+    {
+        // Arrange
+        var installation = CreateInstallation();
+        var client = new GameClient
+        {
+            Id = GameClientConstants.SyntheticClientIds.CommunityPatch,
+            Name = "Community Patch",
+            PublisherType = CommunityOutpostConstants.PublisherType,
+        };
+
+        var nonRetItem = new ContentSearchResult
+        {
+            Id = "generalszh_11-09-2026_NonRet.zip",
+            Name = "Community Patch 11-09-2026 (Non-Retail)",
+            Version = "11-09-2026",
+            Tags = { "nonretail" },
+            ContentType = ContentType.GameClient,
+            ProviderName = CommunityOutpostConstants.PublisherType,
+        };
+
+        var retailItem = new ContentSearchResult
+        {
+            Id = "generalszh_23-07-2026.zip",
+            Name = "Community Patch 23-07-2026",
+            Version = "23-07-2026",
+            ContentType = ContentType.GameClient,
+            ProviderName = CommunityOutpostConstants.PublisherType,
+        };
+
+        var retailManifest = new ContentManifest
+        {
+            Id = ManifestId.Create("1.0.communityoutpost.gameclient.cp-retail"),
+            Name = "Community Patch",
+            Version = "23-07-2026",
+            ContentType = ContentType.GameClient,
+            Publisher = new PublisherInfo { PublisherType = CommunityOutpostConstants.PublisherType },
+            Files = [new ManifestFile { RelativePath = "generals.exe", Hash = "hash" }],
+        };
+
+        var invocationCount = 0;
+        _manifestPoolMock
+            .Setup(p => p.GetAllManifestsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(() =>
+            {
+                invocationCount++;
+                return OperationResult<IEnumerable<ContentManifest>>.CreateSuccess(
+                    invocationCount == 1 ? [] : [retailManifest]);
+            });
+
+        // Even though nonRetItem appears first in search results:
+        _contentOrchestratorMock
+            .Setup(o => o.SearchAsync(It.IsAny<ContentSearchQuery>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IEnumerable<ContentSearchResult>>.CreateSuccess([nonRetItem, retailItem]));
+
+        _contentOrchestratorMock
+            .Setup(o => o.AcquireContentAsync(It.IsAny<ContentSearchResult>(), It.IsAny<IProgress<ContentAcquisitionProgress>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentManifest>.CreateSuccess(retailManifest));
+
+        _gameClientProfileServiceMock
+            .Setup(s => s.CreateProfileFromManifestAsync(retailManifest, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(new GameProfile { Id = "p-retail", Name = "CP Retail Profile" }));
+
+        // Act
+        var result = await _orchestrator.CreateProfilesForPublisherClientAsync(installation, client);
+
+        // Assert: Orchestrator selected the retailItem for acquisition
+        Assert.True(result.Success);
+        _contentOrchestratorMock.Verify(
+            o => o.AcquireContentAsync(
+                retailItem,
+                It.IsAny<IProgress<ContentAcquisitionProgress>>(),
+                It.IsAny<CancellationToken>()),
+            Times.Once);
+    }
+
     private static GameInstallation CreateInstallation() => new("C:\\Games\\ZeroHour", GameInstallationType.Steam, null);
 
     private static GameClient CreateGameClient() => new()
