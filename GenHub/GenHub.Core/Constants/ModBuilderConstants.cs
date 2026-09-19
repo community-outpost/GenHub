@@ -166,6 +166,11 @@ public static class ModBuilderConstants
     public const string StagingManifestPrefix = ".staging_manifest";
 
     /// <summary>
+    /// Number of staged files between build progress reports during staging loops.
+    /// </summary>
+    public const int StagingProgressReportInterval = 25;
+
+    /// <summary>
     /// File extension for JSON files.
     /// </summary>
     public const string JsonExtension = ".json";

@@ -64,7 +64,7 @@ public sealed class ArchiveService(
             {
                 var manifest = await ResolveManifestAsync(sourceDirectory, targetBigPath, manifestFilePath, cancellationToken).ConfigureAwait(false);
 
-                var duplicateCount = await BigFilePacker.PackAsync(sourceDirectory, tempBigPath, targetBigPath, manifest, cancellationToken).ConfigureAwait(false);
+                var duplicateCount = await BigFilePacker.PackAsync(sourceDirectory, tempBigPath, targetBigPath, manifest, progress, cancellationToken).ConfigureAwait(false);
                 if (duplicateCount > 0)
                 {
                     logger.LogWarning("BIG archive creation dropped {Count} duplicate/colliding entry paths in {Source}", duplicateCount, sourceDirectory);

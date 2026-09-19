@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentAssertions;
@@ -11,6 +12,7 @@ using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.Formats.Bmp;
 using SixLabors.ImageSharp.Formats.Tga;
 using SixLabors.ImageSharp.PixelFormats;
+using SixLabors.ImageSharp.Processing;
 
 namespace GenHub.Tests.Core.Features.Tools.ModBuilder.Services;
 
@@ -344,5 +346,55 @@ public sealed class ImageConversionServiceTests : IDisposable
 
         // Assert
         await act.Should().ThrowAsync<OperationCanceledException>();
+    }
+
+    [Fact]
+    public async Task ConvertImageAsync_TgaToDdsWithoutAlpha_ProducesDxt1()
+    {
+        // Arrange
+        var sourcePath = Path.Combine(_tempDirectory, "opaque.tga");
+        var targetPath = Path.Combine(_tempDirectory, "opaque.dds");
+
+        using (var image = new Image<Rgba32>(8, 8))
+        {
+            image.Mutate(ctx => ctx.BackgroundColor(new Rgba32(255, 0, 0, 255)));
+            image.Save(sourcePath, new TgaEncoder());
+        }
+
+        // Act
+        var result = await _service.ConvertImageAsync(sourcePath, targetPath);
+
+        // Assert
+        result.Should().BeTrue();
+        ReadDdsFourCC(targetPath).Should().Be("DXT1");
+    }
+
+    [Fact]
+    public async Task ConvertImageAsync_TgaToDdsWithAlpha_ProducesDxt5()
+    {
+        // Arrange
+        var sourcePath = Path.Combine(_tempDirectory, "transparent.tga");
+        var targetPath = Path.Combine(_tempDirectory, "transparent.dds");
+
+        using (var image = new Image<Rgba32>(8, 8))
+        {
+            image.Mutate(ctx => ctx.BackgroundColor(new Rgba32(255, 0, 0, 255)));
+            image[0, 0] = new Rgba32(255, 0, 0, 0);
+            image.Save(sourcePath, new TgaEncoder { BitsPerPixel = TgaBitsPerPixel.Pixel32 });
+        }
+
+        // Act
+        var result = await _service.ConvertImageAsync(sourcePath, targetPath);
+
+        // Assert
+        result.Should().BeTrue();
+        ReadDdsFourCC(targetPath).Should().Be("DXT5");
+    }
+
+    private static string ReadDdsFourCC(string ddsPath)
+    {
+        var bytes = File.ReadAllBytes(ddsPath);
+        bytes.Length.Should().BeGreaterThan(128);
+        return Encoding.ASCII.GetString(bytes, 84, 4);
     }
 }

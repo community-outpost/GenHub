@@ -1148,4 +1148,210 @@ public sealed class BuildEngineServiceTests : IDisposable
         Directory.Exists(outsideDir).Should().BeTrue();
         File.Exists(testFile).Should().BeTrue();
     }
+
+    [Fact]
+    public async Task ExecuteBuildAsync_WithBundleItems_ReportsFileTotalsAndPercent()
+    {
+        // Arrange
+        var sourceFile = Path.Combine(_tempDirectory, "source.txt");
+        await File.WriteAllTextAsync(sourceFile, "content");
+
+        var project = new ModBuilderProject
+        {
+            Name = "TestProject",
+            Directories = new ProjectDirectories
+            {
+                GameFilesEdited = _tempDirectory,
+                Build = Path.Combine(_tempDirectory, "output")
+            },
+            BundleConfigs = new List<string>()
+        };
+
+        var configuration = new BuildConfiguration
+        {
+            Items = new List<BundleItem>
+            {
+                new()
+                {
+                    Name = "TestItem",
+                    Files = new List<BundleFile>
+                    {
+                        new()
+                        {
+                            AbsSourceParent = _tempDirectory,
+                            AbsSourceFile = sourceFile,
+                            RelTargetFile = "output.txt"
+                        }
+                    }
+                }
+            },
+            Packs = new List<BundlePack>
+            {
+                new() { Name = "TestPack", ItemNames = new List<string> { "TestItem" } }
+            }
+        };
+
+        _mockCacheService.Setup(x => x.DetermineFileStatus(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<Dictionary<string, object>>()))
+            .Returns(BuildFileStatus.Added);
+
+        var reportedProgress = new List<BuildProgress>();
+        var progressLock = new object();
+        var progressMock = new Mock<IProgress<BuildProgress>>();
+        progressMock.Setup(p => p.Report(It.IsAny<BuildProgress>()))
+            .Callback<BuildProgress>(p =>
+            {
+                lock (progressLock)
+                {
+                    reportedProgress.Add(p);
+                }
+            });
+
+        // Act
+        var result = await _service.ExecuteBuildAsync(project, configuration, new List<string> { "TestPack" }, BuildStep.Build, progressMock.Object);
+
+        // Assert
+        result.Success.Should().BeTrue(result.FirstError);
+        var fileReports = reportedProgress.Where(p => p.TotalFiles > 0).ToList();
+        fileReports.Should().NotBeEmpty("per-file reports must carry totals");
+        fileReports.Should().OnlyContain(p => p.PercentComplete >= 0 && p.PercentComplete <= 100);
+        fileReports.Max(p => p.PercentComplete).Should().Be(100);
+    }
+
+    [Fact]
+    public async Task ExecuteBuildAsync_WithBigBundlePack_ReportsStagingAndPackingProgress()
+    {
+        // Arrange
+        var patchProjectDir = Path.Combine(_tempDirectory, "StagingProgress");
+        var editedDir = Path.Combine(patchProjectDir, "GameFilesEdited");
+        var buildDir = Path.Combine(patchProjectDir, ".Build");
+        var releaseDir = Path.Combine(patchProjectDir, ".Release");
+
+        Directory.CreateDirectory(Path.Combine(editedDir, "Data"));
+        var dataFile = Path.Combine(editedDir, "Data", "GameData.ini");
+        await File.WriteAllTextAsync(dataFile, "GameData content");
+
+        var project = new ModBuilderProject
+        {
+            Name = "StagingProgress",
+            ProjectDir = patchProjectDir,
+            Directories = new ProjectDirectories
+            {
+                GameFilesEdited = editedDir,
+                Build = buildDir,
+                Release = releaseDir,
+            },
+            BundleConfigs = new List<string>(),
+        };
+
+        var configuration = new BuildConfiguration
+        {
+            Folders = new FolderConfiguration
+            {
+                AbsBuildDir = buildDir,
+                AbsReleaseDir = releaseDir,
+            },
+            Items = new List<BundleItem>
+            {
+                new()
+                {
+                    Name = "PatchINI",
+                    IsBig = true,
+                    Files = new List<BundleFile>
+                    {
+                        new() { AbsSourceParent = patchProjectDir, AbsSourceFile = dataFile, RelTargetFile = "Data/GameData.ini" },
+                    },
+                },
+            },
+            Packs = new List<BundlePack>
+            {
+                new()
+                {
+                    Name = "CommunityPatch",
+                    Big = true,
+                    AllowBuild = true,
+                    AllowInstall = true,
+                    ItemNames = new List<string> { "PatchINI" },
+                },
+            },
+        };
+
+        _mockCacheService.Setup(x => x.DetermineFileStatus(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<Dictionary<string, object>>()))
+            .Returns(BuildFileStatus.Added);
+
+        _mockFileConversionService.Setup(x => x.ConvertFileAsync(
+            It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<IProgress<double>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ConversionOperationResult.CreateSuccess());
+
+        _mockArchiveService.Setup(x => x.CreateBigArchiveAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<IProgress<double>?>(), It.IsAny<CancellationToken>()))
+            .Callback<string, string, IProgress<double>?, CancellationToken>((_, target, progress, _) =>
+            {
+                progress?.Report(0.0);
+                progress?.Report(0.5);
+                progress?.Report(1.0);
+                var dir = Path.GetDirectoryName(target);
+                if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
+                {
+                    Directory.CreateDirectory(dir);
+                }
+
+                if (!File.Exists(target))
+                {
+                    File.WriteAllText(target, "dummy big content");
+                }
+            })
+            .ReturnsAsync(GenHub.Core.Models.Results.OperationResult<bool>.CreateSuccess(true));
+
+        var reportedProgress = new List<BuildProgress>();
+        var progressLock = new object();
+        var progressMock = new Mock<IProgress<BuildProgress>>();
+        progressMock.Setup(p => p.Report(It.IsAny<BuildProgress>()))
+            .Callback<BuildProgress>(p =>
+            {
+                lock (progressLock)
+                {
+                    reportedProgress.Add(p);
+                }
+            });
+
+        // Act
+        var result = await _service.ExecuteBuildAsync(
+            project,
+            configuration,
+            new List<string> { "CommunityPatch" },
+            BuildStep.Build | BuildStep.Release,
+            progressMock.Object);
+
+        // Assert
+        result.Success.Should().BeTrue(result.FirstError);
+
+        // Archive progress is mapped through Progress<T>, which delivers asynchronously.
+        var packingReports = new List<BuildProgress>();
+        var deadline = DateTime.UtcNow.AddSeconds(10);
+        while (DateTime.UtcNow < deadline)
+        {
+            lock (progressLock)
+            {
+                packingReports = reportedProgress
+                    .Where(p => p.CurrentStep.StartsWith("Packing CommunityPatch.big", StringComparison.Ordinal))
+                    .ToList();
+            }
+
+            if (packingReports.Count > 0)
+            {
+                break;
+            }
+
+            await Task.Delay(50);
+        }
+
+        List<string> reportedSteps;
+        lock (progressLock)
+        {
+            reportedSteps = reportedProgress.Select(p => p.CurrentStep).ToList();
+        }
+
+        reportedSteps.Should().Contain(s => s.StartsWith("Staging release CommunityPatch", StringComparison.Ordinal));
+        packingReports.Should().NotBeEmpty("release packing progress must be reported");
+        packingReports.Should().Contain(p => p.PercentComplete == 100);
+    }
 }

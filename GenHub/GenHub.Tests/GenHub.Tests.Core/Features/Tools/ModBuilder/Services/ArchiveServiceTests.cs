@@ -1,6 +1,8 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
+using System.Linq;
 using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
@@ -477,5 +479,34 @@ public sealed class ArchiveServiceTests : IDisposable
         // Assert
         result.Success.Should().BeFalse();
         result.Errors.Should().Contain(e => e.Contains("not found"));
+    }
+
+    [Fact]
+    public async Task CreateBigArchiveAsync_WithProgress_ReportsGranularProgress()
+    {
+        // Arrange
+        var sourceDir = Path.Combine(_tempDirectory, "source");
+        Directory.CreateDirectory(sourceDir);
+        for (var i = 0; i < 40; i++)
+        {
+            await File.WriteAllTextAsync(Path.Combine(sourceDir, $"file{i:000}.txt"), new string('x', 1024));
+        }
+
+        var targetBig = Path.Combine(_tempDirectory, "output.big");
+        var reported = new List<double>();
+        var progressMock = new Mock<IProgress<double>>();
+        progressMock.Setup(p => p.Report(It.IsAny<double>()))
+            .Callback<double>(reported.Add);
+
+        // Act
+        var result = await _service.CreateBigArchiveAsync(sourceDir, targetBig, progress: progressMock.Object);
+
+        // Assert
+        result.Success.Should().BeTrue();
+        reported.Should().HaveCountGreaterThan(2, "packing must report intermediate progress, not just completion");
+        reported.First().Should().Be(0.0);
+        reported.Last().Should().Be(1.0);
+        reported.Should().OnlyContain(p => p >= 0.0 && p <= 1.0);
+        reported.Should().BeInAscendingOrder();
     }
 }

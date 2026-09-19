@@ -238,26 +238,7 @@ public class ImageConversionService(ILogger<ImageConversionService> logger) : II
             var targetExt = Path.GetExtension(targetPath).ToLowerInvariant();
             if (targetExt == ".dds")
             {
-                var tempPath = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
-                try
-                {
-                    await ImageProcessingHelper.SaveImageToTargetAsync(resizedImage, tempPath, ".tga", cancellationToken).ConfigureAwait(false);
-                    return await ConvertDdsAsync(tempPath, targetPath, parameters, cancellationToken).ConfigureAwait(false);
-                }
-                finally
-                {
-                    try
-                    {
-                        if (File.Exists(tempPath))
-                        {
-                            File.Delete(tempPath);
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        logger.LogDebug(ex, "Failed to delete temporary TGA file at {Path}", tempPath);
-                    }
-                }
+                return await EncodeImageToDdsAsync(resizedImage, targetPath, sourcePath, cancellationToken).ConfigureAwait(false);
             }
 
             await ImageProcessingHelper.SaveImageToTargetAsync(resizedImage, targetPath, targetExt, cancellationToken).ConfigureAwait(false);
@@ -309,27 +290,7 @@ public class ImageConversionService(ILogger<ImageConversionService> logger) : II
                 ? LoadDdsPixels(sourcePath)
                 : await LoadStandardPixelsAsync(sourcePath, parameters, cancellationToken).ConfigureAwait(false);
 
-            var encoder = new BcEncoder();
-            encoder.OutputOptions.GenerateMipMaps = true;
-            encoder.OutputOptions.Quality = CompressionQuality.Balanced;
-
-            // Auto-detect format based on alpha
-            encoder.OutputOptions.Format = hasAlpha
-                ? CompressionFormat.Bc3 // DXT5 with alpha
-                : CompressionFormat.Bc1; // DXT1 no alpha
-
-            await using var output = File.Create(targetPath);
-
-            await encoder.EncodeToStreamAsync(
-                rawData,
-                width,
-                height,
-                BCnEncoder.Encoder.PixelFormat.Rgba32,
-                output,
-                cancellationToken).ConfigureAwait(false);
-
-            logger.LogInformation("Converted {Source} to DDS format {Format}", sourcePath, encoder.OutputOptions.Format);
-            return true;
+            return await WriteDdsDataAsync(rawData, width, height, hasAlpha, targetPath, sourcePath, cancellationToken).ConfigureAwait(false);
         }
         catch (OperationCanceledException)
         {
@@ -340,6 +301,76 @@ public class ImageConversionService(ILogger<ImageConversionService> logger) : II
             logger.LogError(ex, "Failed to convert to DDS: {SourcePath}", sourcePath);
             return false;
         }
+    }
+
+    private async Task<bool> EncodeImageToDdsAsync(
+        Image image,
+        string targetPath,
+        string sourcePath,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            // Clone only when the loaded pixel format differs; the caller owns the input image.
+            using var ownedClone = image is Image<Rgba32> ? null : image.CloneAs<Rgba32>();
+            var rgbaImage = ownedClone ?? (Image<Rgba32>)image;
+            var width = rgbaImage.Width;
+            var height = rgbaImage.Height;
+            var hasAlpha = ImageProcessingHelper.DetectAlpha(rgbaImage);
+
+            var rawData = new byte[width * height * 4];
+            rgbaImage.CopyPixelDataTo(rawData);
+
+            return await WriteDdsDataAsync(rawData, width, height, hasAlpha, targetPath, sourcePath, cancellationToken).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to encode DDS from image: {SourcePath}", sourcePath);
+            return false;
+        }
+    }
+
+    private async Task<bool> WriteDdsDataAsync(
+        byte[] rawData,
+        int width,
+        int height,
+        bool hasAlpha,
+        string targetPath,
+        string sourcePath,
+        CancellationToken cancellationToken)
+    {
+        var encoder = new BcEncoder();
+        encoder.OutputOptions.GenerateMipMaps = true;
+        encoder.OutputOptions.Quality = CompressionQuality.Balanced;
+        encoder.OutputOptions.FileFormat = OutputFileFormat.Dds;
+
+        // The build engine already converts files in parallel; keep each encode
+        // single-threaded so parallel encodes do not oversubscribe the CPU.
+        encoder.Options.IsParallel = false;
+
+        // Auto-detect format based on alpha
+        encoder.OutputOptions.Format = hasAlpha
+            ? CompressionFormat.Bc3 // DXT5 with alpha
+            : CompressionFormat.Bc1; // DXT1 no alpha
+
+        await using var output = File.Create(targetPath);
+
+        await encoder.EncodeToStreamAsync(
+            rawData,
+            width,
+            height,
+            BCnEncoder.Encoder.PixelFormat.Rgba32,
+            output,
+            cancellationToken).ConfigureAwait(false);
+
+        logger.LogInformation("Converted {Source} to DDS format {Format}", sourcePath, encoder.OutputOptions.Format);
+        return true;
     }
 
     private static (byte[] RawData, int Width, int Height, bool HasAlpha) LoadDdsPixels(string sourcePath)
@@ -363,7 +394,7 @@ public class ImageConversionService(ILogger<ImageConversionService> logger) : II
         using var rgbaImage = resizedImage is Image<Rgba32> exact ? exact : resizedImage.CloneAs<Rgba32>();
         var width = rgbaImage.Width;
         var height = rgbaImage.Height;
-        var hasAlpha = await HasAlphaChannelAsync(sourcePath, cancellationToken).ConfigureAwait(false);
+        var hasAlpha = ImageProcessingHelper.DetectAlpha(rgbaImage);
 
         var rawData = new byte[width * height * 4];
         rgbaImage.CopyPixelDataTo(rawData);

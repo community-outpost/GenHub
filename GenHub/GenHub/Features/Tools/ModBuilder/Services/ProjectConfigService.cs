@@ -53,6 +53,8 @@ public sealed class ProjectConfigService(
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
     };
 
+    private readonly SemaphoreSlim _recentProjectsLock = new(1, 1);
+
     /// <inheritdoc />
     public async Task<ProjectOperationResult<ModBuilderProject>> CreateProjectAsync(
         string projectPath,
@@ -485,68 +487,14 @@ public sealed class ProjectConfigService(
         int maxCount = 10,
         CancellationToken cancellationToken = default)
     {
-        var sw = Stopwatch.StartNew();
-
+        await _recentProjectsLock.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            if (!File.Exists(_recentProjectsPath))
-            {
-                sw.Stop();
-                return ProjectOperationResult<List<string>>.CreateSuccess(new List<string>(), sw.Elapsed);
-            }
-
-            List<string>? recentProjects;
-            await using (var stream = new FileStream(
-                _recentProjectsPath,
-                FileMode.Open,
-                FileAccess.Read,
-                FileShare.ReadWrite | FileShare.Delete,
-                IoConstants.DefaultFileBufferSize,
-                FileOptions.Asynchronous | FileOptions.SequentialScan))
-            {
-                recentProjects = await JsonSerializer.DeserializeAsync<List<string>>(
-                    stream,
-                    _jsonOptions,
-                    cancellationToken)
-                    .ConfigureAwait(false);
-            }
-
-            recentProjects ??= new List<string>();
-
-            // Filter out projects that no longer exist
-            var validProjects = recentProjects
-                .Where(File.Exists)
-                .ToList();
-
-            // If some projects were filtered out because they no longer exist on disk, update the file
-            if (validProjects.Count != recentProjects.Count)
-            {
-                try
-                {
-                    await SaveRecentProjectsAsync(validProjects, cancellationToken).ConfigureAwait(false);
-                }
-                catch (Exception ex)
-                {
-                    logger.LogWarning(ex, "Failed to update recent projects cache after filtering non-existent projects");
-                }
-            }
-
-            var resultProjects = validProjects.Take(maxCount).ToList();
-
-            sw.Stop();
-            return ProjectOperationResult<List<string>>.CreateSuccess(resultProjects, sw.Elapsed);
+            return await GetRecentProjectsCoreAsync(maxCount, cancellationToken).ConfigureAwait(false);
         }
-        catch (OperationCanceledException)
+        finally
         {
-            throw;
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Failed to get recent projects from {Path}", _recentProjectsPath);
-            sw.Stop();
-            return ProjectOperationResult<List<string>>.CreateFailure(
-                $"Failed to get recent projects: {ex.Message}",
-                sw.Elapsed);
+            _recentProjectsLock.Release();
         }
     }
 
@@ -566,24 +514,32 @@ public sealed class ProjectConfigService(
                     sw.Elapsed);
             }
 
-            var recentProjectsResult = await GetRecentProjectsAsync(100, cancellationToken).ConfigureAwait(false);
-            var recentProjects = recentProjectsResult.Success && recentProjectsResult.Data != null
-                ? recentProjectsResult.Data
-                : new List<string>();
-
-            // Remove if already exists (to move to front)
-            recentProjects.Remove(projectPath);
-
-            // Add to front
-            recentProjects.Insert(0, projectPath);
-
-            // Keep only top 20
-            if (recentProjects.Count > 20)
+            await _recentProjectsLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
             {
-                recentProjects = recentProjects.Take(20).ToList();
-            }
+                var recentProjectsResult = await GetRecentProjectsCoreAsync(100, cancellationToken).ConfigureAwait(false);
+                var recentProjects = recentProjectsResult.Success && recentProjectsResult.Data != null
+                    ? recentProjectsResult.Data
+                    : new List<string>();
 
-            await SaveRecentProjectsAsync(recentProjects, cancellationToken).ConfigureAwait(false);
+                // Remove if already exists (to move to front)
+                recentProjects.Remove(projectPath);
+
+                // Add to front
+                recentProjects.Insert(0, projectPath);
+
+                // Keep only top 20
+                if (recentProjects.Count > 20)
+                {
+                    recentProjects = recentProjects.Take(20).ToList();
+                }
+
+                await SaveRecentProjectsAsync(recentProjects, cancellationToken).ConfigureAwait(false);
+            }
+            finally
+            {
+                _recentProjectsLock.Release();
+            }
 
             sw.Stop();
             return ProjectOperationResult<bool>.CreateSuccess(true, sw.Elapsed);
@@ -614,17 +570,25 @@ public sealed class ProjectConfigService(
                     sw.Elapsed);
             }
 
-            var recentProjectsResult = await GetRecentProjectsAsync(100, cancellationToken).ConfigureAwait(false);
-            if (!recentProjectsResult.Success || recentProjectsResult.Data == null)
+            await _recentProjectsLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
             {
-                sw.Stop();
-                return ProjectOperationResult<bool>.CreateSuccess(true, sw.Elapsed);
+                var recentProjectsResult = await GetRecentProjectsCoreAsync(100, cancellationToken).ConfigureAwait(false);
+                if (!recentProjectsResult.Success || recentProjectsResult.Data == null)
+                {
+                    sw.Stop();
+                    return ProjectOperationResult<bool>.CreateSuccess(true, sw.Elapsed);
+                }
+
+                var recentProjects = recentProjectsResult.Data;
+                recentProjects.Remove(projectPath);
+
+                await SaveRecentProjectsAsync(recentProjects, cancellationToken).ConfigureAwait(false);
             }
-
-            var recentProjects = recentProjectsResult.Data;
-            recentProjects.Remove(projectPath);
-
-            await SaveRecentProjectsAsync(recentProjects, cancellationToken).ConfigureAwait(false);
+            finally
+            {
+                _recentProjectsLock.Release();
+            }
 
             sw.Stop();
             return ProjectOperationResult<bool>.CreateSuccess(true, sw.Elapsed);
@@ -2193,6 +2157,82 @@ public sealed class ProjectConfigService(
         if (!File.Exists(artReadme))
         {
             await File.WriteAllTextAsync(artReadme, "Place your 16:9 widescreen menu textures here (.tga).\n", cancellationToken).ConfigureAwait(false);
+        }
+    }
+
+    /// <summary>
+    /// Reads the recent projects file and prunes entries that no longer exist on disk.
+    /// Callers must hold <see cref="_recentProjectsLock"/> to serialize read-modify-write cycles.
+    /// </summary>
+    /// <param name="maxCount">The maximum number of projects to return.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The recent project paths.</returns>
+    private async Task<ProjectOperationResult<List<string>>> GetRecentProjectsCoreAsync(
+        int maxCount,
+        CancellationToken cancellationToken)
+    {
+        var sw = Stopwatch.StartNew();
+
+        try
+        {
+            if (!File.Exists(_recentProjectsPath))
+            {
+                sw.Stop();
+                return ProjectOperationResult<List<string>>.CreateSuccess(new List<string>(), sw.Elapsed);
+            }
+
+            List<string>? recentProjects;
+            await using (var stream = new FileStream(
+                _recentProjectsPath,
+                FileMode.Open,
+                FileAccess.Read,
+                FileShare.ReadWrite | FileShare.Delete,
+                IoConstants.DefaultFileBufferSize,
+                FileOptions.Asynchronous | FileOptions.SequentialScan))
+            {
+                recentProjects = await JsonSerializer.DeserializeAsync<List<string>>(
+                    stream,
+                    _jsonOptions,
+                    cancellationToken)
+                    .ConfigureAwait(false);
+            }
+
+            recentProjects ??= new List<string>();
+
+            // Filter out projects that no longer exist
+            var validProjects = recentProjects
+                .Where(File.Exists)
+                .ToList();
+
+            // If some projects were filtered out because they no longer exist on disk, update the file
+            if (validProjects.Count != recentProjects.Count)
+            {
+                try
+                {
+                    await SaveRecentProjectsAsync(validProjects, cancellationToken).ConfigureAwait(false);
+                }
+                catch (IOException ex)
+                {
+                    logger.LogWarning(ex, "Failed to update recent projects cache after filtering non-existent projects");
+                }
+            }
+
+            var resultProjects = validProjects.Take(maxCount).ToList();
+
+            sw.Stop();
+            return ProjectOperationResult<List<string>>.CreateSuccess(resultProjects, sw.Elapsed);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to get recent projects from {Path}", _recentProjectsPath);
+            sw.Stop();
+            return ProjectOperationResult<List<string>>.CreateFailure(
+                $"Failed to get recent projects: {ex.Message}",
+                sw.Elapsed);
         }
     }
 

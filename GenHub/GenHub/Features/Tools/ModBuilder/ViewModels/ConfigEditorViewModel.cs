@@ -16,6 +16,7 @@ using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Interfaces.Tools.ModBuilder;
 using GenHub.Core.Models.Tools.ModBuilder;
+using GenHub.Features.Tools.ModBuilder.Services;
 using Microsoft.Extensions.Logging;
 
 namespace GenHub.Features.Tools.ModBuilder.ViewModels;
@@ -79,6 +80,8 @@ public partial class ConfigEditorViewModel(
     [ObservableProperty]
     private bool _hasChanges;
 
+    private ProjectFileSnapshot? _fileSnapshot;
+
     /// <summary>
     /// Initializes the editor with a project.
     /// </summary>
@@ -113,7 +116,7 @@ public partial class ConfigEditorViewModel(
     partial void OnSelectedBundleItemChanged(BundleItemEditorViewModel? value)
     {
         UpdateBundleItemPackLinks();
-        value?.RecalculateMatches(CurrentProject?.ProjectDir);
+        value?.RecalculateMatches(CurrentProject?.ProjectDir, _fileSnapshot);
         RemoveBundleItemCommand.NotifyCanExecuteChanged();
     }
 
@@ -217,6 +220,13 @@ public partial class ConfigEditorViewModel(
             return;
         }
 
+        // Enumerate project files once on a background thread so large projects
+        // do not freeze the UI, then share the snapshot across all match queries.
+        var projectDir = CurrentProject?.ProjectDir;
+        _fileSnapshot = string.IsNullOrWhiteSpace(projectDir)
+            ? null
+            : await Task.Run(() => ProjectFileSnapshot.Create(projectDir)).ConfigureAwait(false);
+
         void LoadData()
         {
             BundleItems.Clear();
@@ -263,7 +273,7 @@ public partial class ConfigEditorViewModel(
                 SourcePattern = pattern,
             };
 
-            itemVm.RecalculateMatches(CurrentProject?.ProjectDir);
+            itemVm.RecalculateMatches(CurrentProject?.ProjectDir, _fileSnapshot);
             BundleItems.Add(itemVm);
         }
     }
@@ -302,7 +312,7 @@ public partial class ConfigEditorViewModel(
         if (SelectedBundleItem != null && !string.IsNullOrEmpty(pattern))
         {
             SelectedBundleItem.ClearPatterns();
-            SelectedBundleItem.AddPattern(pattern, CurrentProject?.ProjectDir);
+            SelectedBundleItem.AddPattern(pattern, CurrentProject?.ProjectDir, _fileSnapshot);
             HasChanges = true;
         }
     }
@@ -347,7 +357,7 @@ public partial class ConfigEditorViewModel(
             }
 
             var rel = Path.GetRelativePath(projectDir, localPath).Replace('\\', '/');
-            SelectedBundleItem.AddPattern(rel, projectDir);
+            SelectedBundleItem.AddPattern(rel, projectDir, _fileSnapshot);
         }
 
         HasChanges = true;
@@ -393,7 +403,7 @@ public partial class ConfigEditorViewModel(
 
         var rel = Path.GetRelativePath(projectDir, localPath).Trim('/').Replace('\\', '/');
         var glob = $"{rel}/**/*.*";
-        SelectedBundleItem.AddPattern(glob, projectDir);
+        SelectedBundleItem.AddPattern(glob, projectDir, _fileSnapshot);
         HasChanges = true;
     }
 
@@ -418,7 +428,7 @@ public partial class ConfigEditorViewModel(
 
         if (confirmed)
         {
-            SelectedBundleItem.SetPatterns(dialog.ResultPatterns, CurrentProject.ProjectDir);
+            SelectedBundleItem.SetPatterns(dialog.ResultPatterns, CurrentProject.ProjectDir, _fileSnapshot);
             HasChanges = true;
         }
     }
@@ -434,7 +444,7 @@ public partial class ConfigEditorViewModel(
             return;
         }
 
-        SelectedBundleItem.AddPattern(SelectedBundleItem.CustomPatternInput, CurrentProject?.ProjectDir);
+        SelectedBundleItem.AddPattern(SelectedBundleItem.CustomPatternInput, CurrentProject?.ProjectDir, _fileSnapshot);
         SelectedBundleItem.CustomPatternInput = string.Empty;
         HasChanges = true;
     }
@@ -451,7 +461,7 @@ public partial class ConfigEditorViewModel(
             return;
         }
 
-        SelectedBundleItem.RemovePattern(item, CurrentProject?.ProjectDir);
+        SelectedBundleItem.RemovePattern(item, CurrentProject?.ProjectDir, _fileSnapshot);
         HasChanges = true;
     }
 
@@ -466,7 +476,7 @@ public partial class ConfigEditorViewModel(
             return;
         }
 
-        SelectedBundleItem.ClearPatterns(CurrentProject?.ProjectDir);
+        SelectedBundleItem.ClearPatterns(CurrentProject?.ProjectDir, _fileSnapshot);
         HasChanges = true;
     }
 
@@ -522,7 +532,7 @@ public partial class ConfigEditorViewModel(
             SourcePattern = "GameFilesEdited/**/*.*",
         };
 
-        newItem.RecalculateMatches(CurrentProject?.ProjectDir);
+        newItem.RecalculateMatches(CurrentProject?.ProjectDir, _fileSnapshot);
         BundleItems.Add(newItem);
         SelectedBundleItem = newItem;
         HasChanges = true;

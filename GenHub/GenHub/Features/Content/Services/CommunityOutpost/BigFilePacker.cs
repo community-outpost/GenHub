@@ -38,10 +38,11 @@ public static class BigFilePacker
     /// </summary>
     /// <param name="sourceDirectory">The directory containing files to pack.</param>
     /// <param name="destinationPath">The output .big file path.</param>
-    /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <param name="progress">Optional progress reporter (0.0 to 1.0).</param>
     /// <returns>The number of duplicate or colliding entries dropped during packing.</returns>
-    public static Task<int> PackAsync(string sourceDirectory, string destinationPath, CancellationToken cancellationToken = default)
-        => PackAsync(sourceDirectory, destinationPath, null, manifest: null, cancellationToken);
+    public static Task<int> PackAsync(string sourceDirectory, string destinationPath, CancellationToken cancellationToken = default, IProgress<double>? progress = null)
+        => PackAsync(sourceDirectory, destinationPath, null, manifest: null, progress, cancellationToken);
 
     /// <summary>
     /// Packs the contents of a directory into a .big file, excluding temporary and target archive files.
@@ -49,10 +50,11 @@ public static class BigFilePacker
     /// <param name="sourceDirectory">The directory containing files to pack.</param>
     /// <param name="destinationPath">The output .big file path.</param>
     /// <param name="targetArchivePath">Optional target archive path to exclude if packing in-place.</param>
-    /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <param name="progress">Optional progress reporter (0.0 to 1.0).</param>
     /// <returns>The number of duplicate or colliding entries dropped during packing.</returns>
-    public static Task<int> PackAsync(string sourceDirectory, string destinationPath, string? targetArchivePath, CancellationToken cancellationToken = default)
-        => PackAsync(sourceDirectory, destinationPath, targetArchivePath, manifest: null, cancellationToken);
+    public static Task<int> PackAsync(string sourceDirectory, string destinationPath, string? targetArchivePath, CancellationToken cancellationToken = default, IProgress<double>? progress = null)
+        => PackAsync(sourceDirectory, destinationPath, targetArchivePath, manifest: null, progress, cancellationToken);
 
     /// <summary>
     /// Packs the contents of a directory into a .big file with optional manifest-guided ordering and header metadata for byte-for-byte reproducibility.
@@ -61,6 +63,7 @@ public static class BigFilePacker
     /// <param name="destinationPath">The output .big file path.</param>
     /// <param name="targetArchivePath">Optional target archive path to exclude if packing in-place.</param>
     /// <param name="manifest">Optional archive manifest specifying entry ordering, trailer bytes, and header overrides.</param>
+    /// <param name="progress">Optional progress reporter (0.0 to 1.0).</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>The number of duplicate or colliding entries dropped during packing.</returns>
     public static async Task<int> PackAsync(
@@ -68,6 +71,7 @@ public static class BigFilePacker
         string destinationPath,
         string? targetArchivePath,
         BigArchiveManifest? manifest,
+        IProgress<double>? progress = null,
         CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
@@ -89,7 +93,7 @@ public static class BigFilePacker
         {
             await using (var fs = new FileStream(tempPath, FileMode.Create, FileAccess.Write, FileShare.None))
             {
-                await WriteBigArchiveAsync(fs, entries, headerSize, totalSize, trailerBytes, cancellationToken).ConfigureAwait(false);
+                await WriteBigArchiveAsync(fs, entries, headerSize, totalSize, trailerBytes, progress, cancellationToken).ConfigureAwait(false);
             }
 
             File.Move(tempPath, destinationPath, overwrite: true);
@@ -790,6 +794,7 @@ public static class BigFilePacker
         long headerSize,
         long totalSize,
         byte[] trailerBytes,
+        IProgress<double>? progress,
         CancellationToken cancellationToken)
     {
         using var writer = new BinaryWriter(stream, Encoding.ASCII, leaveOpen: true);
@@ -830,7 +835,10 @@ public static class BigFilePacker
         writer.Write(trailerBytes);
 
         // File contents
+        progress?.Report(0.0);
         var buffer = new byte[64 * 1024];
+        var bytesWritten = 0L;
+        var lastReportedPercent = -1;
         foreach (var entry in entries)
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -846,9 +854,21 @@ public static class BigFilePacker
             {
                 await stream.WriteAsync(buffer.AsMemory(0, bytesRead), cancellationToken).ConfigureAwait(false);
             }
+
+            bytesWritten += entry.Size;
+            if (progress != null && totalSize > 0)
+            {
+                var percent = (int)((double)bytesWritten * 100 / totalSize);
+                if (percent != lastReportedPercent)
+                {
+                    lastReportedPercent = percent;
+                    progress.Report(Math.Min(percent / 100.0, 1.0));
+                }
+            }
         }
 
         await stream.FlushAsync(cancellationToken).ConfigureAwait(false);
+        progress?.Report(1.0);
     }
 
     private static void WriteUInt32BigEndian(BinaryWriter writer, uint value)
