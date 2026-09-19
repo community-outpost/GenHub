@@ -534,9 +534,12 @@ public class CommunityOutpostManifestFactory(
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            var relativePath = fullPath.StartsWith(baseDirectory, StringComparison.OrdinalIgnoreCase)
-                ? Path.GetRelativePath(baseDirectory, fullPath)
-                : Path.GetFileName(fullPath);
+            var relativePath = Path.GetRelativePath(baseDirectory, fullPath);
+            if (relativePath.StartsWith("..", StringComparison.Ordinal))
+            {
+                relativePath = Path.GetFileName(fullPath);
+            }
+
             if (!ShouldIncludeFile(relativePath, inclusionContext))
             {
                 continue;

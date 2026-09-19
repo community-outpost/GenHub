@@ -374,7 +374,7 @@ public class ContentStorageServiceTests : IDisposable
             Converters = { new System.Text.Json.Serialization.JsonStringEnumConverter() },
         };
         var serializedWithStrings = System.Text.Json.JsonSerializer.Serialize(manifest, poolSerializerOptions);
-        Assert.Contains("\"ContentType\": \"Addon\"", serializedWithStrings);
+        Assert.Contains("\"ContentType\":\"Addon\"", serializedWithStrings);
 
         await File.WriteAllTextAsync(manifestPath, serializedWithStrings);
 
