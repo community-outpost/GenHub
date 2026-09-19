@@ -397,7 +397,7 @@ public class WindowsShortcutService(ILogger<WindowsShortcutService> logger) : IS
     /// <param name="fileName">The file name to sanitize.</param>
     /// <returns>A sanitized file name.</returns>
     private static string SanitizeFileName(string fileName) =>
-        PathHelper.SanitizeFileName(fileName);
+        PathHelper.SanitizeFileName(fileName, replaceSpaces: false);
 
     /// <summary>
     /// Resolves the stable Velopack root launcher executable if running from a versioned directory.

@@ -225,6 +225,14 @@ public static class PathHelper
         {
             return false;
         }
+        catch (DllNotFoundException)
+        {
+            return false;
+        }
+        catch (EntryPointNotFoundException)
+        {
+            return false;
+        }
     }
 
     /// <summary>
@@ -550,10 +558,10 @@ public static class PathHelper
         }
     }
 
-    [System.Runtime.InteropServices.DllImport("kernel32", SetLastError = true, CharSet = System.Runtime.InteropServices.CharSet.Unicode)]
+    [System.Runtime.InteropServices.DllImport("kernel32", SetLastError = true, CharSet = System.Runtime.InteropServices.CharSet.Unicode, EntryPoint = "CreateHardLinkW")]
     private static extern bool CreateHardLinkWindows(string lpFileName, string lpExistingFileName, IntPtr lpSecurityAttributes);
 
-    [System.Runtime.InteropServices.DllImport("libc", SetLastError = true)]
+    [System.Runtime.InteropServices.DllImport("libc", SetLastError = true, EntryPoint = "link")]
     private static extern int LinkUnix(string oldpath, string newpath);
 
     private static bool TryGetFullPathAndVolumeRoot(

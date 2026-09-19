@@ -97,7 +97,7 @@ public class ContentStorageService : IContentStorageService
         return Convert.ToHexString(hashBytes);
     }
 
-    private static bool TryLinkOrCopy(string sourcePath, string targetPath)
+    private static bool TryCopy(string sourcePath, string targetPath)
     {
         try
         {
@@ -106,12 +106,9 @@ public class ContentStorageService : IContentStorageService
                 File.Delete(targetPath);
             }
 
-            if (PathHelper.TryCreateHardLink(sourcePath, targetPath))
-            {
-                return true;
-            }
-
-            File.Copy(sourcePath, targetPath, overwrite: true);
+            // Copy semantics keep CAS objects immutable. Staging supports in-place
+            // overwrites, so a hard link here would let edits mutate shared CAS content.
+            File.Copy(sourcePath, targetPath, overwrite: false);
             return true;
         }
         catch (IOException)
@@ -459,7 +456,7 @@ public class ContentStorageService : IContentStorageService
                     Directory.CreateDirectory(targetDir);
                 }
 
-                if (!TryLinkOrCopy(casPathResult.Data, targetPath))
+                if (!TryCopy(casPathResult.Data, targetPath))
                 {
                     return OperationResult<string>.CreateFailure(
                         $"Failed to materialize file {file.RelativePath} from CAS.");

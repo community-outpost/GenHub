@@ -107,5 +107,5 @@ public sealed class MacOSShortcutService(ILogger<MacOSShortcutService> logger) :
     }
 
     private static string SanitizeFileName(string fileName) =>
-        PathHelper.SanitizeFileName(fileName);
+        PathHelper.SanitizeFileName(fileName, replaceSpaces: false);
 }
