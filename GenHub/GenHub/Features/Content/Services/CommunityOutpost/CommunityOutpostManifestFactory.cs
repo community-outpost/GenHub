@@ -136,23 +136,27 @@ public class CommunityOutpostManifestFactory(
         return extractedDirectory;
     }
 
-    private static string? FindGameSubdirectory(string extractedDirectory, GameType targetGame)
+    private static IReadOnlyList<string>? GetLanguageSubdirectories(GameType targetGame)
     {
-        var prefixes = targetGame switch
+        return targetGame switch
         {
             GameType.Generals => CommunityOutpostConstants.GeneralsLanguageSubdirectories,
             GameType.ZeroHour => CommunityOutpostConstants.ZeroHourLanguageSubdirectories,
             _ => null,
         };
+    }
 
-        if (prefixes == null)
+    private static string? FindGameSubdirectory(string extractedDirectory, GameType targetGame)
+    {
+        var languageSubdirectories = GetLanguageSubdirectories(targetGame);
+        if (languageSubdirectories == null)
         {
             return null;
         }
 
-        foreach (var prefix in prefixes)
+        foreach (var languageSubdirectory in languageSubdirectories)
         {
-            var path = Path.Combine(extractedDirectory, prefix);
+            var path = Path.Combine(extractedDirectory, languageSubdirectory);
             if (Directory.Exists(path))
             {
                 return path;
@@ -178,21 +182,15 @@ public class CommunityOutpostManifestFactory(
         // Only accept exact language directory names (case-insensitively, so case variants
         // like "ezh" still match on case-sensitive filesystems). A loose suffix check would
         // promote unrelated folders such as "MeshesZH" and shift every install path.
-        var prefixes = targetGame switch
-        {
-            GameType.Generals => CommunityOutpostConstants.GeneralsLanguageSubdirectories,
-            GameType.ZeroHour => CommunityOutpostConstants.ZeroHourLanguageSubdirectories,
-            _ => null,
-        };
-
-        if (prefixes == null)
+        var languageSubdirectories = GetLanguageSubdirectories(targetGame);
+        if (languageSubdirectories == null)
         {
             return null;
         }
 
         var singleSubdir = subdirs[0];
         var dirName = Path.GetFileName(singleSubdir);
-        if (prefixes.Contains(dirName, StringComparer.OrdinalIgnoreCase))
+        if (languageSubdirectories.Contains(dirName, StringComparer.OrdinalIgnoreCase))
         {
             return singleSubdir;
         }

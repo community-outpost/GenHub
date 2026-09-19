@@ -8260,4 +8260,7 @@ GenHub هو مشغل ومدير حديث لألعاب **Command &amp; Conquer: G
   <data name="Settings.Manifests.ScrubFailed.Message" xml:space="preserve">
     <value>تعذر إزالة البيانات المحذوفة من {0} من الملفات الشخصية: {1}. قد تفشل هذه الملفات في التشغيل حتى يتم تحديثها.</value>
   </data>
+  <data name="Settings.Manifests.ScrubFailed.EnumerationMessage" xml:space="preserve">
+    <value>تعذر تحميل قائمة الملفات الشخصية، لذلك قد تظل البيانات المحذوفة مشارًا إليها من الملفات الشخصية. قد تفشل هذه الملفات في التشغيل حتى يتم تحديثها.</value>
+  </data>
 </root>

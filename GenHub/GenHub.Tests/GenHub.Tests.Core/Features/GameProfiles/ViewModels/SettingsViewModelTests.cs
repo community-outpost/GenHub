@@ -711,6 +711,53 @@ public class SettingsViewModelTests
     }
 
     /// <summary>
+    /// Verifies that a profile enumeration failure during manifest deletion surfaces a warning notification.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task DeleteManifestsCommand_WhenProfileEnumerationFails_ShowsWarningNotificationAsync()
+    {
+        // Arrange
+        const string manifestId = "1.0.test.mod.mymod";
+        var manifest = new ContentManifest
+        {
+            Id = ManifestId.Create(manifestId),
+            Name = "Test Mod",
+        };
+
+        _mockManifestPool
+            .Setup(x => x.GetAllManifestsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IEnumerable<ContentManifest>>.CreateSuccess([manifest]));
+
+        _mockProfileManager
+            .Setup(x => x.GetAllProfilesAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<IReadOnlyList<GameProfile>>.CreateFailure("Profile store unavailable"));
+
+        _mockDialogService
+            .Setup(x => x.ShowConfirmationAsync(
+                AppConstants.DeleteManifestsConfirmationTitle,
+                AppConstants.DeleteManifestsConfirmationMessage,
+                AppConstants.DeleteManifestsConfirmText,
+                It.IsAny<string>(),
+                It.IsAny<string?>()))
+            .ReturnsAsync(true);
+
+        var viewModel = CreateViewModel();
+
+        // Act
+        await viewModel.DeleteManifestsCommand.ExecuteAsync(null);
+
+        // Assert
+        _mockNotificationService.Verify(
+            x => x.ShowWarning(
+                "Profile Update Incomplete",
+                It.Is<string>(message => message.Contains("profile list could not be loaded")),
+                It.IsAny<int?>(),
+                It.IsAny<bool>()),
+            Times.Once);
+    }
+
+    /// <summary>
     /// Verifies that deleting manifests scrubs case-variant content IDs from profiles.
     /// </summary>
     /// <returns>A task representing the asynchronous unit test.</returns>
@@ -1101,6 +1148,66 @@ public class SettingsViewModelTests
         _mockProfileManager.Verify(x => x.DeleteProfileAsync("profile-to-delete", It.IsAny<CancellationToken>()), Times.Once);
         _mockWorkspaceManager.Verify(x => x.CleanupWorkspaceAsync("workspace-to-delete", It.IsAny<CancellationToken>()), Times.Once);
         _mockManifestPool.Verify(x => x.RemoveManifestAsync(It.IsAny<ManifestId>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    /// <summary>
+    /// Verifies that the Delete All Data flow suppresses the scrub-failure warning toast.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task DeleteAllDataCommand_WhenProfileScrubFails_SuppressesScrubWarningAsync()
+    {
+        // Arrange
+        const string manifestId = "1.0.test.mod.mymod";
+        var manifest = new ContentManifest
+        {
+            Id = ManifestId.Create(manifestId),
+            Name = "Test Mod",
+        };
+
+        var profile = new GameProfile
+        {
+            Id = "profile-1",
+            Name = "Test Profile",
+            EnabledContentIds = [manifestId],
+        };
+
+        _mockManifestPool
+            .Setup(x => x.GetAllManifestsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IEnumerable<ContentManifest>>.CreateSuccess([manifest]));
+
+        _mockProfileManager
+            .Setup(x => x.GetAllProfilesAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<IReadOnlyList<GameProfile>>.CreateSuccess([profile]));
+
+        _mockProfileManager
+            .Setup(x => x.UpdateProfileAsync(It.IsAny<string>(), It.IsAny<UpdateProfileRequest>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateFailure("Profile is currently running"));
+
+        _mockDialogService
+            .Setup(x => x.ShowConfirmationAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string?>()))
+            .ReturnsAsync(true);
+
+        var viewModel = CreateViewModel();
+
+        // Act
+        await viewModel.DeleteAllDataCommand.ExecuteAsync(null);
+
+        // Assert
+        _mockProfileManager.Verify(
+            x => x.UpdateProfileAsync("profile-1", It.IsAny<UpdateProfileRequest>(), It.IsAny<CancellationToken>()),
+            Times.Once);
+        _mockNotificationService.Verify(
+            x => x.ShowWarning("Profile Update Incomplete", It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
+            Times.Never);
+        _mockNotificationService.Verify(
+            x => x.ShowSuccess("Data Deleted", It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
+            Times.Once);
     }
 
     /// <summary>

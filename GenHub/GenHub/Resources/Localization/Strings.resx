@@ -8353,4 +8353,7 @@ Do you want to download and inspect this profile package?</value>
   <data name="Settings.Manifests.ScrubFailed.Message" xml:space="preserve">
     <value>Deleted manifests could not be removed from {0} profile(s): {1}. Those profiles may fail to launch until updated.</value>
   </data>
+  <data name="Settings.Manifests.ScrubFailed.EnumerationMessage" xml:space="preserve">
+    <value>The profile list could not be loaded, so deleted manifests may still be referenced by profiles. Those profiles may fail to launch until updated.</value>
+  </data>
 </root>

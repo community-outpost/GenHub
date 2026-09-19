@@ -8260,4 +8260,7 @@ GenHub передает официальный идентификатор AppID 
   <data name="Settings.Manifests.ScrubFailed.Message" xml:space="preserve">
     <value>Удалённые манифесты не удалось убрать из профилей ({0}): {1}. Эти профили могут не запускаться до обновления.</value>
   </data>
+  <data name="Settings.Manifests.ScrubFailed.EnumerationMessage" xml:space="preserve">
+    <value>Не удалось загрузить список профилей, поэтому удалённые манифесты могут оставаться связанными с профилями. Эти профили могут не запускаться до обновления.</value>
+  </data>
 </root>
