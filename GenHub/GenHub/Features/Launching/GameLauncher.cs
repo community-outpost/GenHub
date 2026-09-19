@@ -1854,7 +1854,8 @@ public class GameLauncher(
                     file.RelativePath,
                     manifest.Id,
                     manifest.Name);
-                missingFiles.Add($"{manifest.Name ?? manifest.Id.Value} ({file.RelativePath})");
+                var manifestDisplayName = !string.IsNullOrWhiteSpace(manifest.Name) ? manifest.Name : manifest.Id.Value;
+                missingFiles.Add($"{manifestDisplayName} ({file.RelativePath})");
             }
         }
     }

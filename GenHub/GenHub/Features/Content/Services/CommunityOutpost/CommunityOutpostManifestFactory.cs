@@ -29,6 +29,10 @@ public class CommunityOutpostManifestFactory(
 {
     private static readonly ConcurrentDictionary<string, Regex> RegexCache = new();
 
+    private static readonly string[] GeneralsPrefixes = ["CCG", "ECG", "GCG", "FCG"];
+
+    private static readonly string[] ZeroHourPrefixes = ["ZH", "EZH", "GZH", "FZH"];
+
     /// <inheritdoc />
     public string PublisherId => CommunityOutpostConstants.PublisherId;
 
@@ -78,44 +82,13 @@ public class CommunityOutpostManifestFactory(
             contentMetadata.SupportsVariants);
 
         // If content supports variants (e.g., resolution options), create separate manifests for each variant
-        if (contentMetadata.SupportsVariants && contentMetadata.Variants != null && contentMetadata.Variants.Count > 0)
+        if (contentMetadata.SupportsVariants && contentMetadata.Variants is { Count: > 0 })
         {
-            logger.LogInformation(
-                "Creating {VariantCount} variant manifests for {Name}",
-                contentMetadata.Variants.Count,
-                originalManifest.Name);
-
-            var variantManifests = new List<ContentManifest>();
-            var isControlBarContent = contentMetadata.Category == GenPatcherContentCategory.ControlBar;
-            var allControlBarOutputs = isControlBarContent ? new HashSet<string>(StringComparer.OrdinalIgnoreCase) : null;
-
-            foreach (var variant in contentMetadata.Variants)
-            {
-                var variantManifest = await BuildManifestWithFilesAsync(
-                    originalManifest,
-                    extractedDirectory,
-                    contentMetadata,
-                    variant,
-                    allControlBarOutputs,
-                    cancellationToken);
-
-                if (variantManifest != null)
-                {
-                    variantManifests.Add(variantManifest);
-                    logger.LogInformation(
-                        "Created variant manifest {ManifestId} for {VariantName} with {FileCount} files",
-                        variantManifest.Id,
-                        variant.Name,
-                        variantManifest.Files.Count);
-                }
-            }
-
-            if (allControlBarOutputs is { Count: > 0 })
-            {
-                controlBarProcessor.CleanupSourceDirectories(extractedDirectory, allControlBarOutputs);
-            }
-
-            return OperationResult<List<ContentManifest>>.CreateSuccess(variantManifests);
+            return await CreateVariantManifestsAsync(
+                originalManifest,
+                extractedDirectory,
+                contentMetadata,
+                cancellationToken);
         }
 
         // Build the manifest with file entries (single manifest, no variants)
@@ -140,9 +113,6 @@ public class CommunityOutpostManifestFactory(
 
         return OperationResult<List<ContentManifest>>.CreateSuccess([manifest]);
     }
-
-    private static readonly string[] GeneralsPrefixes = ["CCG", "ECG", "GCG", "FCG"];
-    private static readonly string[] ZeroHourPrefixes = ["ZH", "EZH", "GZH", "FZH"];
 
     /// <inheritdoc />
     public string GetManifestDirectory(ContentManifest manifest, string extractedDirectory)
@@ -215,7 +185,7 @@ public class CommunityOutpostManifestFactory(
             return singleSubdir;
         }
 
-        if (targetGame == GameType.Generals && (dirName.EndsWith("CG", StringComparison.OrdinalIgnoreCase) || dirName.EndsWith("CCG", StringComparison.OrdinalIgnoreCase)))
+        if (targetGame == GameType.Generals && dirName.EndsWith("CG", StringComparison.OrdinalIgnoreCase))
         {
             return singleSubdir;
         }
@@ -361,6 +331,50 @@ public class CommunityOutpostManifestFactory(
         }
 
         return false;
+    }
+
+    private async Task<OperationResult<List<ContentManifest>>> CreateVariantManifestsAsync(
+        ContentManifest originalManifest,
+        string extractedDirectory,
+        GenPatcherContentMetadata contentMetadata,
+        CancellationToken cancellationToken)
+    {
+        logger.LogInformation(
+            "Creating {VariantCount} variant manifests for {Name}",
+            contentMetadata.Variants!.Count,
+            originalManifest.Name);
+
+        var variantManifests = new List<ContentManifest>();
+        var isControlBarContent = contentMetadata.Category == GenPatcherContentCategory.ControlBar;
+        var allControlBarOutputs = isControlBarContent ? new HashSet<string>(StringComparer.OrdinalIgnoreCase) : null;
+
+        foreach (var variant in contentMetadata.Variants)
+        {
+            var variantManifest = await BuildManifestWithFilesAsync(
+                originalManifest,
+                extractedDirectory,
+                contentMetadata,
+                variant,
+                allControlBarOutputs,
+                cancellationToken);
+
+            if (variantManifest != null)
+            {
+                variantManifests.Add(variantManifest);
+                logger.LogInformation(
+                    "Created variant manifest {ManifestId} for {VariantName} with {FileCount} files",
+                    variantManifest.Id,
+                    variant.Name,
+                    variantManifest.Files.Count);
+            }
+        }
+
+        if (allControlBarOutputs is { Count: > 0 })
+        {
+            controlBarProcessor.CleanupSourceDirectories(extractedDirectory, allControlBarOutputs);
+        }
+
+        return OperationResult<List<ContentManifest>>.CreateSuccess(variantManifests);
     }
 
     /// <summary>

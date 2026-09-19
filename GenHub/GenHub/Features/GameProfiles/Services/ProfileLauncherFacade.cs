@@ -2009,7 +2009,8 @@ public class ProfileLauncherFacade(
             var present = await IsCasObjectPresentAsync(file.Hash, manifest.ContentType, cancellationToken).ConfigureAwait(false);
             if (!present)
             {
-                missingFiles.Add($"{manifest.Name ?? manifest.Id.Value} ({file.RelativePath})");
+                var manifestDisplayName = !string.IsNullOrWhiteSpace(manifest.Name) ? manifest.Name : manifest.Id.Value;
+                missingFiles.Add($"{manifestDisplayName} ({file.RelativePath})");
                 logger.LogWarning(
                     "[CAS Preflight] Missing CAS object {Hash} required by file {RelativePath} in manifest {ManifestId}",
                     file.Hash,
