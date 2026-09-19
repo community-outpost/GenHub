@@ -1807,26 +1807,17 @@ public class GameLauncher(
 
     private async Task CheckManifestCasFilesAsync(ContentManifest manifest, List<string> missingFiles, CancellationToken cancellationToken)
     {
-        if (manifest.Files == null)
+        var manifestDisplayName = !string.IsNullOrWhiteSpace(manifest.Name) ? manifest.Name : manifest.Id.Value;
+        var missingCasFiles = await casService.GetMissingRequiredCasFilesAsync(manifest, cancellationToken).ConfigureAwait(false);
+        foreach (var file in missingCasFiles)
         {
-            return;
-        }
-
-        foreach (var file in manifest.Files.Where(f => f.SourceType == ContentSourceType.ContentAddressable && f.IsRequired))
-        {
-            var present = !string.IsNullOrEmpty(file.Hash) &&
-                await casService.ExistsInAnyPoolAsync(file.Hash, manifest.ContentType, cancellationToken).ConfigureAwait(false);
-            if (!present)
-            {
-                logger.LogWarning(
-                    "[Preflight CAS] Missing CAS object {Hash} for file {RelativePath} in manifest {ManifestId} ({ManifestName})",
-                    file.Hash,
-                    file.RelativePath,
-                    manifest.Id,
-                    manifest.Name);
-                var manifestDisplayName = !string.IsNullOrWhiteSpace(manifest.Name) ? manifest.Name : manifest.Id.Value;
-                missingFiles.Add($"{manifestDisplayName} ({file.RelativePath})");
-            }
+            logger.LogWarning(
+                "[Preflight CAS] Missing CAS object {Hash} for file {RelativePath} in manifest {ManifestId} ({ManifestName})",
+                file.Hash,
+                file.RelativePath,
+                manifest.Id,
+                manifest.Name);
+            missingFiles.Add($"{manifestDisplayName} ({file.RelativePath})");
         }
     }
 
@@ -1846,7 +1837,8 @@ public class GameLauncher(
 
         if (missingFiles.Count > 0)
         {
-            return OperationResult<bool>.CreateFailure($"Missing CAS objects: {string.Join(", ", missingFiles.Distinct())}");
+            var distinctMissing = missingFiles.Distinct().ToList();
+            return OperationResult<bool>.CreateFailure($"Missing {distinctMissing.Count} required CAS objects ({string.Join(", ", distinctMissing.Take(5))}). Content must be downloaded before launching.");
         }
 
         return OperationResult<bool>.CreateSuccess(true);

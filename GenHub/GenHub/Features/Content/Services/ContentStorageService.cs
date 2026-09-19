@@ -399,6 +399,12 @@ public class ContentStorageService : IContentStorageService
 
             return await FinalizeStoredContentAsync(updatedManifest, manifestPath, cancellationToken);
         }
+        catch (OperationCanceledException)
+        {
+            // Preserve standard .NET cancellation semantics instead of converting
+            // cooperative cancellation into an ordinary storage failure.
+            throw;
+        }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to store content for manifest {ManifestId}", manifest.Id);
@@ -502,6 +508,14 @@ public class ContentStorageService : IContentStorageService
             return LogVerificationFailure(manifestId, ex);
         }
         catch (JsonException ex)
+        {
+            return LogVerificationFailure(manifestId, ex);
+        }
+        catch (NotSupportedException ex)
+        {
+            return LogVerificationFailure(manifestId, ex);
+        }
+        catch (System.Security.SecurityException ex)
         {
             return LogVerificationFailure(manifestId, ex);
         }
@@ -847,20 +861,9 @@ public class ContentStorageService : IContentStorageService
         IProgress<ContentStorageProgress>? progress,
         CancellationToken cancellationToken)
     {
-        if (!Directory.Exists(sourceDirectory))
-        {
-            _logger.LogWarning("Source directory does not exist: {SourceDirectory}", sourceDirectory);
-            manifest.Files.Clear();
-            return OperationResult<ContentManifest>.CreateSuccess(manifest);
-        }
-
-        if (IsInvalidOrRemovableDrive(sourceDirectory) && !ShouldForceStorage(manifest, sourceDirectory))
-        {
-            _logger.LogWarning("Source directory {SourceDirectory} is on an invalid or removable drive", sourceDirectory);
-            manifest.Files.Clear();
-            return OperationResult<ContentManifest>.CreateSuccess(manifest);
-        }
-
+        // No early return when the source directory vanishes or the drive turns invalid mid-store:
+        // the per-file loop below already fails on missing required files and still reuses
+        // CAS-resident content, so a metadata-only success with silently dropped files is impossible.
         _logger.LogInformation(
             "Storing {FileCount} files from manifest to CAS for {ManifestId}",
             manifest.Files.Count,
@@ -1090,7 +1093,7 @@ public class ContentStorageService : IContentStorageService
     private string? ValidateAllRequiredFilesStored(ContentManifest manifest, List<ManifestFile> updatedFiles)
     {
         var missingRequiredFiles = manifest.Files
-            .Where(f => f.IsRequired && !updatedFiles.Any(u => string.Equals(u.RelativePath, f.RelativePath, StringComparison.OrdinalIgnoreCase)))
+            .Where(f => f.IsRequired && !updatedFiles.Any(u => string.Equals(u.RelativePath, f.RelativePath, StringComparison.Ordinal)))
             .ToList();
 
         if (missingRequiredFiles.Count == 0)
@@ -1144,27 +1147,14 @@ public class ContentStorageService : IContentStorageService
         return OperationResult<string>.CreateSuccess(targetPath);
     }
 
-    private async Task<List<string>> GetMissingRequiredCasFilesAsync(ContentManifest manifest, CancellationToken cancellationToken)
-    {
-        var missingCasFiles = new List<string>();
-        if (manifest.Files == null)
-        {
-            return missingCasFiles;
-        }
-
-        foreach (var file in manifest.Files.Where(f => f.SourceType == ContentSourceType.ContentAddressable && f.IsRequired))
-        {
-            var exists = !string.IsNullOrEmpty(file.Hash) &&
-                await _casService.ExistsInAnyPoolAsync(file.Hash, manifest.ContentType, cancellationToken).ConfigureAwait(false);
-            if (!exists)
-            {
-                missingCasFiles.Add(file.RelativePath);
-            }
-        }
-
-        return missingCasFiles;
-    }
-
+    /// <summary>
+    /// Stores the manifest metadata only when the source directory is missing, failing when
+    /// the manifest requires physical storage but required CAS objects are missing.
+    /// </summary>
+    /// <param name="manifest">The content manifest.</param>
+    /// <param name="sourceDirectory">The missing source directory.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The stored manifest, or a failure describing the missing CAS objects.</returns>
     private async Task<OperationResult<ContentManifest>> HandleMissingSourceDirectoryAsync(
         ContentManifest manifest,
         string sourceDirectory,
@@ -1199,46 +1189,51 @@ public class ContentStorageService : IContentStorageService
             return OperationResult<ContentManifest>.CreateSuccess(manifest);
         }
 
-        var missingCasFiles = await GetMissingRequiredCasFilesAsync(manifest, cancellationToken).ConfigureAwait(false);
+        var missingCasFiles = await _casService.GetMissingRequiredCasFilesAsync(manifest, cancellationToken).ConfigureAwait(false);
         if (missingCasFiles.Count == 0)
         {
             return OperationResult<ContentManifest>.CreateSuccess(manifest);
         }
 
+        var missingRelativePaths = missingCasFiles.Select(f => f.RelativePath).ToList();
         _logger.LogError(
             "Cannot store manifest {ManifestId} metadata only: source directory {SourceProblem} and required files are missing from CAS: {MissingFiles}",
             manifest.Id,
             sourceProblem,
-            string.Join(", ", missingCasFiles));
+            string.Join(", ", missingRelativePaths));
         return OperationResult<ContentManifest>.CreateFailure(
-            $"Source directory '{sourceDirectory}' {sourceProblem} and required content is missing from CAS: {string.Join(", ", missingCasFiles)}");
+            $"Source directory '{sourceDirectory}' {sourceProblem} and required content is missing from CAS: {string.Join(", ", missingRelativePaths)}");
     }
 
+    /// <summary>
+    /// Verifies that every required content-addressable file of the manifest exists in CAS.
+    /// </summary>
+    /// <param name="manifest">The content manifest.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>True when all required CAS objects exist; otherwise, false.</returns>
     private async Task<bool> VerifyAllRequiredCasFilesExistAsync(ContentManifest manifest, CancellationToken cancellationToken)
     {
-        if (manifest.Files == null)
+        var missingCasFiles = await _casService.GetMissingRequiredCasFilesAsync(manifest, cancellationToken).ConfigureAwait(false);
+        if (missingCasFiles.Count == 0)
         {
             return true;
         }
 
-        foreach (var file in manifest.Files.Where(f => f.SourceType == ContentSourceType.ContentAddressable && f.IsRequired))
-        {
-            var exists = !string.IsNullOrEmpty(file.Hash) &&
-                await _casService.ExistsInAnyPoolAsync(file.Hash, manifest.ContentType, cancellationToken).ConfigureAwait(false);
-            if (!exists)
-            {
-                _logger.LogWarning(
-                    "Content {ManifestId} is missing required CAS object {Hash} for file {RelativePath}",
-                    manifest.Id,
-                    file.Hash,
-                    file.RelativePath);
-                return false;
-            }
-        }
-
-        return true;
+        var firstMissing = missingCasFiles[0];
+        _logger.LogWarning(
+            "Content {ManifestId} is missing required CAS object {Hash} for file {RelativePath}",
+            manifest.Id,
+            firstMissing.Hash,
+            firstMissing.RelativePath);
+        return false;
     }
 
+    /// <summary>
+    /// Logs a stored-content verification failure and reports the content as not stored.
+    /// </summary>
+    /// <param name="manifestId">The manifest identifier.</param>
+    /// <param name="ex">The exception that interrupted verification.</param>
+    /// <returns>A successful result with value false.</returns>
     private OperationResult<bool> LogVerificationFailure(ManifestId manifestId, Exception ex)
     {
         _logger.LogWarning(ex, "Failed to verify stored content for manifest {ManifestId}", manifestId);

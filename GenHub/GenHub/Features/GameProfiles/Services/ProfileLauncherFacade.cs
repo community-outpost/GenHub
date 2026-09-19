@@ -1882,25 +1882,16 @@ public class ProfileLauncherFacade(
 
     private async Task CheckManifestCasFilesAsync(ContentManifest manifest, List<string> missingFiles, CancellationToken cancellationToken)
     {
-        if (manifest.Files == null)
+        var manifestDisplayName = !string.IsNullOrWhiteSpace(manifest.Name) ? manifest.Name : manifest.Id.Value;
+        var missingCasFiles = await casService.GetMissingRequiredCasFilesAsync(manifest, cancellationToken).ConfigureAwait(false);
+        foreach (var file in missingCasFiles)
         {
-            return;
-        }
-
-        foreach (var file in manifest.Files.Where(f => f.SourceType == ContentSourceType.ContentAddressable && f.IsRequired))
-        {
-            var present = !string.IsNullOrEmpty(file.Hash) &&
-                await casService.ExistsInAnyPoolAsync(file.Hash, manifest.ContentType, cancellationToken).ConfigureAwait(false);
-            if (!present)
-            {
-                var manifestDisplayName = !string.IsNullOrWhiteSpace(manifest.Name) ? manifest.Name : manifest.Id.Value;
-                missingFiles.Add($"{manifestDisplayName} ({file.RelativePath})");
-                logger.LogWarning(
-                    "[CAS Preflight] Missing CAS object {Hash} required by file {RelativePath} in manifest {ManifestId}",
-                    file.Hash,
-                    file.RelativePath,
-                    manifest.Id);
-            }
+            missingFiles.Add($"{manifestDisplayName} ({file.RelativePath})");
+            logger.LogWarning(
+                "[CAS Preflight] Missing CAS object {Hash} required by file {RelativePath} in manifest {ManifestId}",
+                file.Hash,
+                file.RelativePath,
+                manifest.Id);
         }
     }
 

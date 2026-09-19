@@ -175,14 +175,24 @@ public class CommunityOutpostManifestFactory(
             return null;
         }
 
-        var singleSubdir = subdirs[0];
-        var dirName = Path.GetFileName(singleSubdir);
-        if (targetGame == GameType.ZeroHour && dirName.EndsWith(CommunityOutpostConstants.ZeroHourDirectorySuffix, StringComparison.OrdinalIgnoreCase))
+        // Only accept exact language directory names (case-insensitively, so case variants
+        // like "ezh" still match on case-sensitive filesystems). A loose suffix check would
+        // promote unrelated folders such as "MeshesZH" and shift every install path.
+        var prefixes = targetGame switch
         {
-            return singleSubdir;
+            GameType.Generals => CommunityOutpostConstants.GeneralsLanguageSubdirectories,
+            GameType.ZeroHour => CommunityOutpostConstants.ZeroHourLanguageSubdirectories,
+            _ => null,
+        };
+
+        if (prefixes == null)
+        {
+            return null;
         }
 
-        if (targetGame == GameType.Generals && dirName.EndsWith(CommunityOutpostConstants.GeneralsDirectorySuffix, StringComparison.OrdinalIgnoreCase))
+        var singleSubdir = subdirs[0];
+        var dirName = Path.GetFileName(singleSubdir);
+        if (prefixes.Contains(dirName, StringComparer.OrdinalIgnoreCase))
         {
             return singleSubdir;
         }
@@ -502,14 +512,17 @@ public class CommunityOutpostManifestFactory(
         string extractedDirectory,
         ContentVariant? variant)
     {
+        // Variants bypass language-subdirectory resolution by design: variants only exist for
+        // repacked addon content (Control Bar, Hotkeys) whose layouts never use language folders,
+        // and repacking requires the full extraction tree. Game clients never carry variants.
         var manifestDirectory = variant == null
             ? GetManifestDirectory(originalManifest, extractedDirectory)
             : extractedDirectory;
 
-        var fileList = new List<string>(Directory.GetFiles(manifestDirectory, "*.*", SearchOption.AllDirectories));
-        if (variant == null && !string.Equals(manifestDirectory, extractedDirectory, StringComparison.OrdinalIgnoreCase) && Directory.Exists(extractedDirectory))
+        var fileList = new List<string>(Directory.GetFiles(manifestDirectory, "*", SearchOption.AllDirectories));
+        if (variant == null && !string.Equals(manifestDirectory, extractedDirectory, PathHelper.PathComparison) && Directory.Exists(extractedDirectory))
         {
-            var siblingFiles = Directory.GetFiles(extractedDirectory, "*.*", SearchOption.AllDirectories)
+            var siblingFiles = Directory.GetFiles(extractedDirectory, "*", SearchOption.AllDirectories)
                 .Where(f => !PathHelper.IsPathWithinDirectory(manifestDirectory, f));
             fileList.AddRange(siblingFiles);
         }
@@ -562,7 +575,7 @@ public class CommunityOutpostManifestFactory(
             return null;
         }
 
-        return (outputs, Directory.GetFiles(extractedDirectory, "*.*", SearchOption.AllDirectories));
+        return (outputs, Directory.GetFiles(extractedDirectory, "*", SearchOption.AllDirectories));
     }
 
     private async Task<(bool ShouldSkip, HashSet<string> Outputs)> ProcessControlBarVariantAsync(

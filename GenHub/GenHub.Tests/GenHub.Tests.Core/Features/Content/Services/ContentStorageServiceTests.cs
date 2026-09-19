@@ -329,6 +329,9 @@ public class ContentStorageServiceTests : IDisposable
         _casServiceMock
             .Setup(c => c.ExistsAsync("present_hash_456", ContentType.Addon, It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+        _casServiceMock
+            .Setup(c => c.ExistsAsync("present_hash_456", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
 
         // Act
         var result = await _service.IsContentStoredAsync(manifestId);
@@ -336,6 +339,7 @@ public class ContentStorageServiceTests : IDisposable
         // Assert
         Assert.True(result.Success);
         Assert.True(result.Data);
+        _casServiceMock.Verify(c => c.ExistsAsync("present_hash_456", ContentType.Addon, It.IsAny<CancellationToken>()), Times.Once);
     }
 
     /// <summary>
@@ -381,6 +385,9 @@ public class ContentStorageServiceTests : IDisposable
         _casServiceMock
             .Setup(c => c.ExistsAsync("string_enum_hash_999", ContentType.Addon, It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+        _casServiceMock
+            .Setup(c => c.ExistsAsync("string_enum_hash_999", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
 
         // Act
         var result = await _service.IsContentStoredAsync(manifestId);
@@ -388,6 +395,7 @@ public class ContentStorageServiceTests : IDisposable
         // Assert
         Assert.True(result.Success);
         Assert.True(result.Data);
+        _casServiceMock.Verify(c => c.ExistsAsync("string_enum_hash_999", ContentType.Addon, It.IsAny<CancellationToken>()), Times.Once);
     }
 
     /// <summary>
@@ -500,6 +508,9 @@ public class ContentStorageServiceTests : IDisposable
         _casServiceMock
             .Setup(c => c.ExistsAsync("invalid_drive_present_hash", ContentType.Addon, It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+        _casServiceMock
+            .Setup(c => c.ExistsAsync("invalid_drive_present_hash", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
 
         // Act
         var result = await _service.HandleInvalidDriveAsync(manifest, sourceDir, CancellationToken.None);
@@ -507,6 +518,7 @@ public class ContentStorageServiceTests : IDisposable
         // Assert
         Assert.True(result.Success);
         Assert.True(File.Exists(_service.GetManifestStoragePath(manifest.Id)));
+        _casServiceMock.Verify(c => c.ExistsAsync("invalid_drive_present_hash", ContentType.Addon, It.IsAny<CancellationToken>()), Times.Once);
     }
 
     /// <summary>
@@ -546,6 +558,88 @@ public class ContentStorageServiceTests : IDisposable
         // Assert
         Assert.True(result.Success);
         Assert.False(result.Data);
+    }
+
+    /// <summary>
+    /// Tests that StoreContentAsync fails when a required file is missing from an existing source directory.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task StoreContentAsync_WhenRequiredFileMissingFromSource_FailsAsync()
+    {
+        // Arrange
+        var sourceDir = Path.Combine(_tempRoot, "MissingFileSource");
+        Directory.CreateDirectory(sourceDir);
+        var manifest = new ContentManifest
+        {
+            Id = ManifestId.Create("1.0.local.addon.missing-required-file"),
+            ContentType = ContentType.Addon,
+            Files =
+            [
+                new()
+                {
+                    RelativePath = "missing.big",
+                    Hash = string.Empty,
+                    SourceType = ContentSourceType.ExtractedPackage,
+                    IsRequired = true,
+                },
+            ],
+        };
+
+        // Act
+        var result = await _service.StoreContentAsync(manifest, sourceDir);
+
+        // Assert
+        Assert.False(result.Success);
+        Assert.Contains("missing.big", result.FirstError);
+    }
+
+    /// <summary>
+    /// Tests that StoreContentAsync preserves cooperative cancellation instead of converting it into a storage failure.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task StoreContentAsync_WhenCancelled_ThrowsOperationCanceledExceptionAsync()
+    {
+        // Arrange
+        var sourceDir = Path.Combine(_tempRoot, "CancelledSource");
+        Directory.CreateDirectory(sourceDir);
+        await File.WriteAllTextAsync(Path.Combine(sourceDir, "addon.big"), "mock content");
+
+        var manifest = new ContentManifest
+        {
+            Id = ManifestId.Create("1.0.local.addon.cancelled-store"),
+            ContentType = ContentType.Addon,
+            Files =
+            [
+                new()
+                {
+                    RelativePath = "addon.big",
+                    Hash = string.Empty,
+                    SourceType = ContentSourceType.ExtractedPackage,
+                    IsRequired = true,
+                },
+            ],
+        };
+
+        _casServiceMock
+            .Setup(c => c.StoreContentAsync(It.IsAny<string>(), ContentType.Addon, null, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<string>.CreateSuccess("cancelled_store_hash"));
+        _casServiceMock
+            .Setup(c => c.GetContentPathAsync(It.IsAny<string>(), ContentType.Addon, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<string>.CreateFailure("not in CAS"));
+        _casServiceMock
+            .Setup(c => c.GetContentPathAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<string>.CreateFailure("not in CAS"));
+
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+
+        // Act
+        var exception = await Assert.ThrowsAnyAsync<OperationCanceledException>(() => _service.StoreContentAsync(manifest, sourceDir, null, cts.Token));
+
+        // Assert
+        Assert.IsAssignableFrom<OperationCanceledException>(exception);
     }
 
     /// <summary>
