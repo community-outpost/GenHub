@@ -1,8 +1,10 @@
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.GameClients;
 using GenHub.Core.Models.GameInstallations;
 using Microsoft.Extensions.Logging.Abstractions;
+using System.Runtime.InteropServices;
 
 namespace GenHub.Tests.Core.Models.GameInstallations;
 
@@ -800,6 +802,43 @@ public class GameInstallationTests
     }
 
     /// <summary>
+    /// Verifies that BundledGeneralsPath returns the ZH_Generals directory path when it exists but
+    /// cannot be read, so launch validation reports the permission problem instead of treating the
+    /// bundled archives as absent and starting Zero Hour without its base content.
+    /// </summary>
+    [Fact]
+    public void GameInstallation_BundledGeneralsPath_ReturnsPath_WhenZhGeneralsDirectoryUnreadable()
+    {
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        {
+            return;
+        }
+
+        var tempDir = Path.Combine(Path.GetTempPath(), "GenHubUnreadableBundledZhTest_" + Guid.NewGuid().ToString("N"));
+        var zhGeneralsDir = Path.Combine(tempDir, GameClientConstants.ZhGeneralsDirectory);
+        Directory.CreateDirectory(zhGeneralsDir);
+        File.WriteAllText(Path.Combine(zhGeneralsDir, "Textures.big"), "archive");
+
+        // Revoking traversal on the parent makes the child unstatable as well as unreadable,
+        // which is exactly the case Directory.Exists misreports as missing.
+        File.SetUnixFileMode(tempDir, UnixFileMode.UserWrite);
+        try
+        {
+            var installation = new GameInstallation(tempDir, GameInstallationType.Steam, NullLogger<GameInstallation>.Instance);
+            installation.SetPaths(null, tempDir);
+
+            Assert.Equal(zhGeneralsDir, installation.BundledGeneralsPath);
+        }
+        finally
+        {
+            File.SetUnixFileMode(
+                tempDir,
+                UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+            Directory.Delete(tempDir, true);
+        }
+    }
+
+    /// <summary>
     /// Verifies that EffectiveGeneralsArchivePath prefers GeneralsPath over BundledGeneralsPath when both exist.
     /// </summary>
     [Fact]
@@ -851,10 +890,13 @@ public class GameInstallationTests
     }
 
     /// <summary>
-    /// Verifies that IGameInstallation default implementations match GameInstallation behavior.
+    /// Verifies that the IGameInstallation default implementations resolve the bundled and
+    /// effective Generals paths through the shared helpers. A bare implementer is used on
+    /// purpose: casting a GameInstallation would dispatch to its own overrides and never
+    /// exercise the defaults.
     /// </summary>
     [Fact]
-    public void IGameInstallation_InterfaceProperties_MatchGameInstallation()
+    public void IGameInstallation_DefaultImplementations_ResolvePathsThroughSharedHelpers()
     {
         var tempDir = Path.Combine(Path.GetTempPath(), "GenHubInterfaceParityTest_" + Guid.NewGuid().ToString("N"));
         var zhGeneralsDir = Path.Combine(tempDir, GameClientConstants.ZhGeneralsDirectory);
@@ -863,17 +905,60 @@ public class GameInstallationTests
         {
             File.WriteAllText(Path.Combine(zhGeneralsDir, "Textures.big"), "archive");
 
-            var installation = new GameInstallation(tempDir, GameInstallationType.Steam, NullLogger<GameInstallation>.Instance);
-            installation.SetPaths(null, tempDir);
-            IGameInstallation iface = installation;
+            IGameInstallation installation = new BareInstallation(tempDir);
+            var concrete = new GameInstallation(tempDir, GameInstallationType.Steam, NullLogger<GameInstallation>.Instance);
+            concrete.SetPaths(null, tempDir);
 
-            Assert.NotNull(installation.BundledGeneralsPath);
-            Assert.Equal(installation.BundledGeneralsPath, iface.BundledGeneralsPath);
-            Assert.Equal(installation.EffectiveGeneralsArchivePath, iface.EffectiveGeneralsArchivePath);
+            Assert.Equal(zhGeneralsDir, installation.BundledGeneralsPath);
+            Assert.Equal(zhGeneralsDir, installation.EffectiveGeneralsArchivePath);
+            Assert.Equal(concrete.BundledGeneralsPath, installation.BundledGeneralsPath);
+            Assert.Equal(concrete.EffectiveGeneralsArchivePath, installation.EffectiveGeneralsArchivePath);
         }
         finally
         {
             Directory.Delete(tempDir, true);
+        }
+    }
+
+    private sealed class BareInstallation(string zeroHourPath) : IGameInstallation
+    {
+        /// <inheritdoc />
+        public string Id => "bare";
+
+        /// <inheritdoc />
+        public GameInstallationType InstallationType => GameInstallationType.Steam;
+
+        /// <inheritdoc />
+        public string InstallationPath => string.Empty;
+
+        /// <inheritdoc />
+        public bool HasGenerals => false;
+
+        /// <inheritdoc />
+        public string GeneralsPath => string.Empty;
+
+        /// <inheritdoc />
+        public bool HasZeroHour => true;
+
+        /// <inheritdoc />
+        public string ZeroHourPath => zeroHourPath;
+
+        /// <inheritdoc />
+        public List<GameClient> AvailableGameClients => [];
+
+        /// <inheritdoc />
+        public void Fetch()
+        {
+        }
+
+        /// <inheritdoc />
+        public void SetPaths(string? generalsPath, string? zeroHourPath)
+        {
+        }
+
+        /// <inheritdoc />
+        public void PopulateGameClients(IEnumerable<GameClient> clients)
+        {
         }
     }
 }

@@ -666,6 +666,9 @@ public class GameLauncher(
         return null;
     }
 
+    /// <summary>
+    /// Collects the archive roots that matter for the launching game.
+    /// </summary>
     private static List<(string Variable, string? Path)> GetArchiveRootsToValidate(
         Dictionary<string, string> environment,
         GameInstallation? installation,
@@ -713,6 +716,9 @@ public class GameLauncher(
         return roots;
     }
 
+    /// <summary>
+    /// Checks one archive root for presence, readability and archive content.
+    /// </summary>
     private static string? ValidateArchiveRoot(
         Dictionary<string, string> environment,
         string variableName,
@@ -729,18 +735,20 @@ public class GameLauncher(
             return null;
         }
 
-        if (!Directory.Exists(root))
-        {
-            return $"The retail archive root for {variableName} does not exist: {root}. " +
-                   "The engine would abort during initialisation with a generic crash naming nothing, so the launch was stopped.";
-        }
-
-        bool hasArchive = false;
+        // The probe is the enumeration itself: Directory.Exists returns false for an
+        // unreadable root as well as a missing one, which would report a permission
+        // problem as missing content. Only DirectoryNotFoundException means absence.
+        bool hasArchive;
         try
         {
             hasArchive = Directory
                 .EnumerateFiles(root, RetailArchiveConstants.ArchiveSearchPattern, RetailArchiveConstants.ArchiveSearch)
                 .Any();
+        }
+        catch (DirectoryNotFoundException)
+        {
+            return $"The retail archive root for {variableName} does not exist: {root}. " +
+                   "The engine would abort during initialisation with a generic crash naming nothing, so the launch was stopped.";
         }
         catch (Exception ex) when (ex is UnauthorizedAccessException or IOException)
         {

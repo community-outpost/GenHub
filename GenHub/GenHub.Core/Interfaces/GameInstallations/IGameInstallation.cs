@@ -1,11 +1,6 @@
-using GenHub.Core.Constants;
 using GenHub.Core.Extensions.GameInstallations;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameClients;
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
 
 namespace GenHub.Core.Interfaces.GameInstallations;
 
@@ -56,7 +51,8 @@ public interface IGameInstallation
 
     /// <summary>
     /// Gets the path to the bundled base Generals assets within Zero Hour (e.g. 'ZH_Generals'),
-    /// if present and containing retail archives.
+    /// if present and containing retail archives. A present-but-unreadable directory is also
+    /// returned so launch validation reports it rather than treating it as absent.
     /// </summary>
     string? BundledGeneralsPath => InstallationExtensions.GetBundledGeneralsPath(ZeroHourPath);
 

@@ -358,8 +358,13 @@ public static class InstallationExtensions
     /// Probes for the bundled base Generals assets within a Zero Hour directory (e.g. 'ZH_Generals'),
     /// returning the path if present and containing at least one retail archive (*.big).
     /// </summary>
+    /// <remarks>
+    /// A directory that exists but cannot be read is returned rather than treated as absent,
+    /// so launch validation reports it as unreadable and refuses to spawn instead of silently
+    /// starting Zero Hour without its base archives.
+    /// </remarks>
     /// <param name="zeroHourPath">The Zero Hour installation path.</param>
-    /// <returns>The path to the bundled base Generals directory if valid and populated; otherwise <c>null</c>.</returns>
+    /// <returns>The path to the bundled base Generals directory if present and populated, or present but unreadable; otherwise <c>null</c>.</returns>
     public static string? GetBundledGeneralsPath(string? zeroHourPath)
     {
         if (string.IsNullOrWhiteSpace(zeroHourPath))
@@ -367,21 +372,23 @@ public static class InstallationExtensions
             return null;
         }
 
+        // The probe is the enumeration itself: Directory.Exists returns false for an
+        // unreadable directory as well as a missing one, which would report a permission
+        // problem as absent content. Only DirectoryNotFoundException means absence.
         var bundled = Path.Combine(zeroHourPath, GameClientConstants.ZhGeneralsDirectory);
-        if (!Directory.Exists(bundled))
-        {
-            return null;
-        }
-
         try
         {
             return Directory.EnumerateFiles(bundled, RetailArchiveConstants.ArchiveSearchPattern, RetailArchiveConstants.ArchiveSearch).Any()
                 ? bundled
                 : null;
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        catch (DirectoryNotFoundException)
         {
             return null;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return bundled;
         }
     }
 

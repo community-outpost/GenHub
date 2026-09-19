@@ -63,7 +63,8 @@ public class GameInstallation(
 
     /// <summary>
     /// Gets the path to the bundled base Generals assets within Zero Hour (e.g. 'ZH_Generals'),
-    /// if present and containing retail archives.
+    /// if present and containing retail archives. A present-but-unreadable directory is also
+    /// returned so launch validation reports it rather than treating it as absent.
     /// </summary>
     public string? BundledGeneralsPath => InstallationExtensions.GetBundledGeneralsPath(ZeroHourPath);
 

@@ -62,6 +62,7 @@ public class RetailArchiveRootValidationTests : IDisposable
         var error = Validate(InstallationWithZeroHour(missing));
 
         Assert.NotNull(error);
+        Assert.Contains("does not exist", error);
         Assert.Contains(missing, error);
     }
 
@@ -118,6 +119,39 @@ public class RetailArchiveRootValidationTests : IDisposable
     }
 
     /// <summary>
+    /// A root that cannot even be stated because its parent denies traversal is present but
+    /// unreadable, not missing: the message must point at the permission rather than claiming
+    /// the directory does not exist.
+    /// </summary>
+    [Fact]
+    public void Validate_WithUnreachableRoot_ReportsTheReadFailure()
+    {
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows) || Environment.UserName == "root")
+        {
+            return;
+        }
+
+        var parent = Directory.CreateDirectory(Path.Combine(_tempDir, "locked")).FullName;
+        var root = CreateRoot(Path.Combine("locked", "zh"), withArchive: true);
+        File.SetUnixFileMode(parent, UnixFileMode.UserWrite);
+
+        try
+        {
+            var error = Validate(InstallationWithZeroHour(root));
+
+            Assert.NotNull(error);
+            Assert.Contains("could not be read", error);
+            Assert.Contains(root, error);
+        }
+        finally
+        {
+            File.SetUnixFileMode(
+                parent,
+                UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+        }
+    }
+
+    /// <summary>
     /// A game that is simply not installed declares no path and is not an error.
     /// </summary>
     [Fact]
@@ -148,7 +182,6 @@ public class RetailArchiveRootValidationTests : IDisposable
 
         var root = Directory.CreateDirectory(Path.Combine(_tempDir, "uppercased")).FullName;
         File.WriteAllText(Path.Combine(root, "INIZH.BIG"), "archive");
-        File.WriteAllText(Path.Combine(root, "TEXTURES.BIG"), "archive");
 
         Assert.Null(Validate(InstallationWithZeroHour(root)));
     }
@@ -422,7 +455,6 @@ public class RetailArchiveRootValidationTests : IDisposable
         if (withArchive)
         {
             File.WriteAllText(Path.Combine(root, "INIZH.big"), "archive");
-            File.WriteAllText(Path.Combine(root, "Textures.big"), "archive");
         }
 
         return root;
