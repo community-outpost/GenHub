@@ -14,6 +14,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Globalization;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -107,13 +108,15 @@ public partial class GameProfileSettingsViewModel
                 AvailableContent.Add(item);
             }
 
-            StatusMessage = $"Loaded {AvailableContent.Count} {SelectedContentType} items";
+            StatusMessage = string.Empty;
             _logger?.LogInformation("Loaded {Count} content items for content type {ContentType}", AvailableContent.Count, SelectedContentType);
         }
         catch (Exception ex)
         {
             _logger?.LogError(ex, "Error loading available content");
-            StatusMessage = "Error loading content";
+            StatusMessage = DefaultErrorLoadingContent;
+            var title = GetErrorLoadingContentTitle();
+            _notificationService?.ShowError(title, ex.Message);
         }
         finally
         {
@@ -280,9 +283,9 @@ public partial class GameProfileSettingsViewModel
 
         if (contentItem.IsLocked)
         {
-            StatusMessage = "This content item is locked and cannot be modified";
+            StatusMessage = ContentLockedMessage;
             _logger?.LogWarning("DisableContent: Cannot disable locked item {DisplayName}", contentItem.DisplayName);
-            _localNotificationService.ShowWarning("Content Locked", $"'{contentItem.DisplayName}' is locked and cannot be modified while the game is running.");
+            _localNotificationService.ShowWarning(ContentLockedTitle, $"'{contentItem.DisplayName}' is locked and cannot be modified while the game is running.");
             return;
         }
 
@@ -377,7 +380,7 @@ public partial class GameProfileSettingsViewModel
 
         if (contentItem.IsLocked)
         {
-            StatusMessage = "This content item is locked and cannot be modified";
+            StatusMessage = ContentLockedMessage;
             _logger?.LogWarning("DeleteContent: Cannot delete locked item {DisplayName}", contentItem.DisplayName);
             return;
         }
@@ -694,7 +697,7 @@ public partial class GameProfileSettingsViewModel
             _logger?.LogError("Cannot roll back profile {ProfileId} after live sync failure: original profile snapshot or required manager is null", CurrentProfileId);
             StatusMessage = "Live synchronization failed and profile snapshot was missing for rollback";
             _localNotificationService.ShowError(
-                "Live Sync Failed",
+                LiveSyncFailedTitle,
                 "A game session was started during save, and live synchronization failed. Profile snapshot was missing so rollback could not be performed.");
             return;
         }
@@ -762,14 +765,14 @@ public partial class GameProfileSettingsViewModel
         {
             StatusMessage = "Live synchronization failed; profile changes were rolled back";
             _localNotificationService.ShowWarning(
-                "Live Sync Failed",
+                LiveSyncFailedTitle,
                 "A game session was started during save, but live synchronization failed. Profile changes were rolled back to match the running game.");
         }
         else
         {
             StatusMessage = "Live synchronization failed; profile was rolled back but live user data could not be restored";
             _localNotificationService.ShowWarning(
-                "Live Sync Failed",
+                LiveSyncFailedTitle,
                 "A game session was started during save, and live synchronization failed. Profile changes were rolled back, but live user data could not be fully restored to match the running game.");
         }
     }
@@ -936,8 +939,12 @@ public partial class GameProfileSettingsViewModel
     {
         if (!isProfileRunning || _profileContentLinker == null || _manifestPool == null || string.IsNullOrEmpty(CurrentProfileId))
         {
-            StatusMessage = $"Failed to update profile: {string.Join(", ", result.Errors)}";
-            _logger?.LogWarning("Failed to update profile {ProfileId}: {Errors}", CurrentProfileId, string.Join(", ", result.Errors));
+            var errors = string.Join(", ", result.Errors);
+            StatusMessage = $"Failed to update profile: {errors}";
+            _logger?.LogWarning("Failed to update profile {ProfileId}: {Errors}", CurrentProfileId, errors);
+            var title = GetErrorLoadingProfileTitle();
+            var msgFormat = _localizationService?.GetString("GameProfiles.Notification.ProfileUpdateFailedMessage") ?? "Failed to update profile: {0}";
+            _notificationService?.ShowError(title, string.Format(CultureInfo.CurrentCulture, msgFormat, errors));
             return;
         }
 
@@ -1284,7 +1291,7 @@ public partial class GameProfileSettingsViewModel
 
         if (contentItem.IsLocked)
         {
-            StatusMessage = "This content item is locked and cannot be modified";
+            StatusMessage = ContentLockedMessage;
             _logger?.LogWarning("EditContent: Cannot edit locked item {DisplayName}", contentItem.DisplayName);
             return;
         }

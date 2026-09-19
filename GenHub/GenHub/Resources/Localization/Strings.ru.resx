@@ -8181,4 +8181,77 @@ GenHub передает официальный идентификатор AppID 
   <data name="Replays.Tooltip.CopyGenHubLink" xml:space="preserve">
     <value>Копировать ссылку GenHub (открывает GenHub и импортирует автоматически).</value>
   </data>
+  <data name="GameProfiles.Notification.ErrorLoadingContent.Title" xml:space="preserve">
+    <value>Ошибка загрузки контента</value>
+  </data>
+  <data name="GameProfiles.Notification.ErrorLoadingProfile.Title" xml:space="preserve">
+    <value>Ошибка загрузки профиля</value>
+  </data>
+  <data name="GameProfiles.Notification.ProfileUpdateFailedMessage" xml:space="preserve">
+    <value>Не удалось обновить профиль: {0}</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.CannotSaveOptionsMissingMessage" xml:space="preserve">
+    <value>Не удалось загрузить Options.ini, сохранение перезапишет существующие неуправляемые настройки.</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.CannotSaveSettingsTitle" xml:space="preserve">
+    <value>Невозможно сохранить настройки</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.DirectoryNotFoundMessage" xml:space="preserve">
+    <value>Папка файла настроек не найдена</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.DirectoryNotFoundTitle" xml:space="preserve">
+    <value>Папка не найдена</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.ErrorLoadingSettingsTitle" xml:space="preserve">
+    <value>Ошибка загрузки настроек</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.ErrorOpeningLocationTitle" xml:space="preserve">
+    <value>Ошибка открытия расположения</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.ErrorOpeningLocationMessage" xml:space="preserve">
+    <value>Не удалось открыть расположение файла</value>
+    <comment>Message for notification when opening file location fails</comment>
+  </data>
+  <data name="GameProfiles.Settings.Notification.ErrorSavingSettingsTitle" xml:space="preserve">
+    <value>Ошибка сохранения настроек</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.LoadFailedMessage" xml:space="preserve">
+    <value>Не удалось загрузить настройки: {0}</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.PartialSaveGeneralsOnlineOnlyMessage" xml:space="preserve">
+    <value>Настройки GeneralsOnline сохранены; файл Options.ini не сохранен: {0}</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.PartialSaveOptionsOnlyMessage" xml:space="preserve">
+    <value>Файл Options.ini сохранен; настройки GeneralsOnline не записаны: {0}</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.ServiceUnavailableMessage" xml:space="preserve">
+    <value>Служба настроек игры недоступна</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.UnknownGameTypeMessage" xml:space="preserve">
+    <value>Невозможно загрузить настройки для неизвестного типа игры</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.WarningTitle" xml:space="preserve">
+    <value>Предупреждение о настройках</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.DefaultSettingsLoadedMessage" xml:space="preserve">
+    <value>Загружены настройки по умолчанию из Options.ini. Сохраните профиль, чтобы применить эти настройки.</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.DefaultSettingsLoadedTitle" xml:space="preserve">
+    <value>Загружены настройки по умолчанию</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.InvalidResolutionPresetMessage" xml:space="preserve">
+    <value>Недопустимый пресет разрешения: {0}</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.ResolutionSetMessage" xml:space="preserve">
+    <value>Разрешение установлено на {0}x{1}</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.ResolutionSetTitle" xml:space="preserve">
+    <value>Разрешение обновлено</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.SettingsSavedMessage" xml:space="preserve">
+    <value>Настройки {0} успешно сохранены</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.SettingsSavedTitle" xml:space="preserve">
+    <value>Настройки сохранены</value>
+  </data>
 </root>

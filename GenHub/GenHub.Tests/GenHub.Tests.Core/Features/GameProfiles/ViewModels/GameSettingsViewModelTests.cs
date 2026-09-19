@@ -1,6 +1,8 @@
 using GenHub.Core.Constants;
 using GenHub.Core.Extensions;
+using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GameSettings;
+using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameClients;
 using GenHub.Core.Models.GameProfile;
@@ -152,7 +154,7 @@ public class GameSettingsViewModelTests
         Assert.Equal(80, _viewModel.Gamma);
         Assert.Equal(75, _viewModel.SoundVolume);
         Assert.False(_viewModel.AudioEnabled);
-        Assert.Contains("Loaded profile settings", _viewModel.StatusMessage);
+        Assert.True(string.IsNullOrEmpty(_viewModel.StatusMessage));
     }
 
     /// <summary>
@@ -1168,6 +1170,187 @@ public class GameSettingsViewModelTests
         Assert.True(savedOptions.AdditionalSections.TryGetValue(GameSettingsTheSuperHackersConstants.SectionName, out var tsh));
         Assert.True(tsh.TryGetValue("GameTimeFontSize", out var syncedFontSize));
         Assert.Equal("18", syncedFontSize);
+    }
+
+    /// <summary>
+    /// Should show warning notification using localized strings when initializing with unknown game type.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task InitializeForProfileAsync_Should_ShowWarningNotification_WhenGameTypeIsUnknownAsync()
+    {
+        // Arrange
+        var notificationMock = new Mock<INotificationService>();
+        var localizationMock = new Mock<ILocalizationService>();
+        localizationMock.Setup(l => l.GetString("GameProfiles.Settings.Notification.WarningTitle")).Returns("Settings Warning");
+        localizationMock.Setup(l => l.GetString("GameProfiles.Settings.Notification.UnknownGameTypeMessage")).Returns("Cannot load settings for unknown game type");
+
+        var vm = new GameSettingsViewModel(_gameSettingsServiceMock.Object, _loggerMock.Object, notificationMock.Object, localizationMock.Object);
+        var profile = new GameProfile
+        {
+            Id = "unknown-profile",
+            Name = "Unknown Profile",
+            GameClient = new GameClient { GameType = GameType.Unknown },
+        };
+
+        // Act
+        await vm.InitializeForProfileAsync("unknown-profile", profile);
+
+        // Assert
+        notificationMock.Verify(n => n.ShowWarning("Settings Warning", "Cannot load settings for unknown game type", It.IsAny<int?>(), It.IsAny<bool>()), Times.Once);
+    }
+
+    /// <summary>
+    /// Should show warning notification using localized strings when loading settings fails.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task LoadSettings_Should_ShowWarningNotification_WhenLoadFailsAsync()
+    {
+        // Arrange
+        var notificationMock = new Mock<INotificationService>();
+        var localizationMock = new Mock<ILocalizationService>();
+        localizationMock.Setup(l => l.GetString("GameProfiles.Settings.Notification.WarningTitle")).Returns("Settings Warning");
+        localizationMock.Setup(l => l.GetString("GameProfiles.Settings.Notification.LoadFailedMessage")).Returns("Failed to load settings: {0}");
+
+        _gameSettingsServiceMock.Setup(x => x.LoadOptionsAsync(GameType.Generals))
+            .ReturnsAsync(OperationResult<IniOptions>.CreateFailure("File corrupt"));
+
+        var vm = new GameSettingsViewModel(_gameSettingsServiceMock.Object, _loggerMock.Object, notificationMock.Object, localizationMock.Object);
+        vm.SelectedGameType = GameType.Generals;
+
+        // Act
+        await vm.LoadSettingsCommand.ExecuteAsync(null);
+
+        // Assert
+        notificationMock.Verify(n => n.ShowWarning("Settings Warning", "Failed to load settings: File corrupt", It.IsAny<int?>(), It.IsAny<bool>()), Times.Once);
+    }
+
+    /// <summary>
+    /// Should show error notification using localized strings when saving settings fails.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task SaveSettings_Should_ShowErrorNotification_WhenSaveFailsAsync()
+    {
+        // Arrange
+        var notificationMock = new Mock<INotificationService>();
+        var localizationMock = new Mock<ILocalizationService>();
+        localizationMock.Setup(l => l.GetString("GameProfiles.Settings.Notification.ErrorSavingSettingsTitle")).Returns("Error Saving Settings");
+
+        _gameSettingsServiceMock.Setup(x => x.SaveOptionsAsync(GameType.Generals, It.IsAny<IniOptions>()))
+            .ReturnsAsync(OperationResult<bool>.CreateFailure("Disk full"));
+
+        var vm = new GameSettingsViewModel(_gameSettingsServiceMock.Object, _loggerMock.Object, notificationMock.Object, localizationMock.Object);
+        vm.SelectedGameType = GameType.Generals;
+
+        // Act
+        await vm.SaveSettingsCommand.ExecuteAsync(null);
+
+        // Assert
+        notificationMock.Verify(n => n.ShowError("Error Saving Settings", "Disk full", It.IsAny<int?>(), It.IsAny<bool>()), Times.Once);
+    }
+
+    /// <summary>
+    /// Should show success notification using localized strings when saving settings succeeds.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task SaveSettings_Should_ShowSuccessNotification_WhenSaveSucceedsAsync()
+    {
+        // Arrange
+        var notificationMock = new Mock<INotificationService>();
+        var localizationMock = new Mock<ILocalizationService>();
+        localizationMock.Setup(l => l.GetString("GameProfiles.Settings.Notification.SettingsSavedTitle")).Returns("Settings Saved");
+        localizationMock.Setup(l => l.GetString("GameProfiles.Settings.Notification.SettingsSavedMessage")).Returns("{0} settings saved successfully");
+
+        _gameSettingsServiceMock.Setup(x => x.SaveOptionsAsync(GameType.Generals, It.IsAny<IniOptions>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+
+        var vm = new GameSettingsViewModel(_gameSettingsServiceMock.Object, _loggerMock.Object, notificationMock.Object, localizationMock.Object);
+        vm.SelectedGameType = GameType.Generals;
+
+        // Act
+        await vm.SaveSettingsCommand.ExecuteAsync(null);
+
+        // Assert
+        notificationMock.Verify(n => n.ShowSuccess("Settings Saved", "Generals settings saved successfully", It.IsAny<int?>(), It.IsAny<bool>()), Times.Once);
+    }
+
+    /// <summary>
+    /// Should show informational notification when default settings are seeded from Options.ini.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task InitializeForProfileAsync_Should_ShowInfoNotification_WhenSeedingDefaultsAsync()
+    {
+        // Arrange
+        var notificationMock = new Mock<INotificationService>();
+        var localizationMock = new Mock<ILocalizationService>();
+        localizationMock.Setup(l => l.GetString("GameProfiles.Settings.Notification.DefaultSettingsLoadedTitle")).Returns("Default Settings Loaded");
+        localizationMock.Setup(l => l.GetString("GameProfiles.Settings.Notification.DefaultSettingsLoadedMessage"))
+            .Returns("Loaded default settings from Options.ini. Save the profile to persist these settings.");
+
+        _gameSettingsServiceMock.Setup(x => x.LoadOptionsAsync(GameType.ZeroHour))
+            .ReturnsAsync(OperationResult<IniOptions>.CreateSuccess(new IniOptions()));
+
+        var vm = new GameSettingsViewModel(_gameSettingsServiceMock.Object, _loggerMock.Object, notificationMock.Object, localizationMock.Object);
+        var profile = new GameProfile
+        {
+            Id = "p1",
+            Name = "Profile 1",
+            GameClient = new GameClient { GameType = GameType.ZeroHour },
+        };
+
+        // Act
+        await vm.InitializeForProfileAsync("p1", profile);
+
+        // Assert
+        notificationMock.Verify(n => n.ShowInfo("Default Settings Loaded", "Loaded default settings from Options.ini. Save the profile to persist these settings.", It.IsAny<int?>(), It.IsAny<bool>()), Times.Once);
+    }
+
+    /// <summary>
+    /// Should show informational notification when a valid resolution preset is applied.
+    /// </summary>
+    [Fact]
+    public void ApplyResolutionPreset_Should_ShowInfoNotification_WhenPresetIsValid()
+    {
+        // Arrange
+        var notificationMock = new Mock<INotificationService>();
+        var localizationMock = new Mock<ILocalizationService>();
+        localizationMock.Setup(l => l.GetString("GameProfiles.Settings.Notification.ResolutionSetTitle")).Returns("Resolution Updated");
+        localizationMock.Setup(l => l.GetString("GameProfiles.Settings.Notification.ResolutionSetMessage")).Returns("Resolution set to {0}x{1}");
+
+        var vm = new GameSettingsViewModel(_gameSettingsServiceMock.Object, _loggerMock.Object, notificationMock.Object, localizationMock.Object);
+
+        // Act
+        vm.ApplyResolutionPreset("1920x1080");
+
+        // Assert
+        Assert.Equal(1920, vm.ResolutionWidth);
+        Assert.Equal(1080, vm.ResolutionHeight);
+        notificationMock.Verify(n => n.ShowInfo("Resolution Updated", "Resolution set to 1920x1080", It.IsAny<int?>(), It.IsAny<bool>()), Times.Once);
+    }
+
+    /// <summary>
+    /// Should show warning notification when an invalid resolution preset is applied.
+    /// </summary>
+    [Fact]
+    public void ApplyResolutionPreset_Should_ShowWarningNotification_WhenPresetIsInvalid()
+    {
+        // Arrange
+        var notificationMock = new Mock<INotificationService>();
+        var localizationMock = new Mock<ILocalizationService>();
+        localizationMock.Setup(l => l.GetString("GameProfiles.Settings.Notification.WarningTitle")).Returns("Settings Warning");
+        localizationMock.Setup(l => l.GetString("GameProfiles.Settings.Notification.InvalidResolutionPresetMessage")).Returns("Invalid resolution preset: {0}");
+
+        var vm = new GameSettingsViewModel(_gameSettingsServiceMock.Object, _loggerMock.Object, notificationMock.Object, localizationMock.Object);
+
+        // Act
+        vm.ApplyResolutionPreset("invalid");
+
+        // Assert
+        notificationMock.Verify(n => n.ShowWarning("Settings Warning", "Invalid resolution preset: invalid", It.IsAny<int?>(), It.IsAny<bool>()), Times.Once);
     }
 
     private static GameProfile CreateGeneralsOnlineProfile()

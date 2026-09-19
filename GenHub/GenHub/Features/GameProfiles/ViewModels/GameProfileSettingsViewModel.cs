@@ -42,6 +42,16 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
     /// </summary>
     public record FilterTypeInfo(ContentType ContentType, string DisplayName, string IconData);
 
+    private const string ErrorLoadingProfileTitleKey = "GameProfiles.Notification.ErrorLoadingProfile.Title";
+    private const string DefaultErrorLoadingProfile = "Error loading profile";
+    private const string ErrorLoadingContentTitleKey = "GameProfiles.Notification.ErrorLoadingContent.Title";
+    private const string DefaultErrorLoadingContent = "Error loading content";
+    private const string ProfileManagerUnavailableMessageKey = "Errors.Operations.ServiceNotAvailable.GameProfileManager";
+    private const string DefaultProfileManagerUnavailableMessage = "Profile manager not available";
+    private const string ContentLockedMessage = "This content item is locked and cannot be modified";
+    private const string ContentLockedTitle = "Content Locked";
+    private const string LiveSyncFailedTitle = "Live Sync Failed";
+
     private readonly IGameProfileManager? _gameProfileManager;
     private readonly IConfigurationProviderService? _configurationProvider;
     private readonly IProfileContentLoader? _profileContentLoader;
@@ -142,7 +152,7 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
             NullLogger<NotificationManagerViewModel>.Instance,
             NullLogger<NotificationItemViewModel>.Instance);
 
-        GameSettingsViewModel = new GameSettingsViewModel(gameSettingsService!, gameSettingsLogger!);
+        GameSettingsViewModel = new GameSettingsViewModel(gameSettingsService!, gameSettingsLogger!, notificationService, localizationService);
 
         WeakReferenceMessenger.Default.Register<Core.Models.Content.ContentAcquiredMessage>(this);
         WeakReferenceMessenger.Default.Register<ManifestReplacedMessage>(this);
@@ -773,9 +783,9 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
 
         if (contentItem.IsLocked)
         {
-            StatusMessage = "This content item is locked and cannot be modified";
+            StatusMessage = ContentLockedMessage;
             _logger?.LogWarning("EnableContent: Cannot enable locked item {DisplayName}", contentItem.DisplayName);
-            _localNotificationService.ShowWarning("Content Locked", $"'{contentItem.DisplayName}' is locked and cannot be modified while the game is running.");
+            _localNotificationService.ShowWarning(ContentLockedTitle, $"'{contentItem.DisplayName}' is locked and cannot be modified while the game is running.");
             return false;
         }
 
@@ -1188,7 +1198,7 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
             _logger?.LogWarning("Auto-resolve skipped: Installation {DisplayName} is locked or cannot toggle", compatibleInstallation.DisplayName);
             if (compatibleInstallation.IsLocked && warnedLockedNames.Add(compatibleInstallation.DisplayName))
             {
-                _localNotificationService.ShowWarning("Content Locked", $"Required dependency '{compatibleInstallation.DisplayName}' is locked and cannot be automatically enabled while the game is running.");
+                _localNotificationService.ShowWarning(ContentLockedTitle, $"Required dependency '{compatibleInstallation.DisplayName}' is locked and cannot be automatically enabled while the game is running.");
             }
         }
     }
@@ -1267,7 +1277,7 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
             _logger?.LogWarning("Auto-resolve skipped: Content {DisplayName} is locked or cannot toggle", viewModelItem.DisplayName);
             if (viewModelItem.IsLocked && warnedLockedNames.Add(viewModelItem.DisplayName))
             {
-                _localNotificationService.ShowWarning("Content Locked", $"Required dependency '{viewModelItem.DisplayName}' is locked and cannot be automatically enabled while the game is running.");
+                _localNotificationService.ShowWarning(ContentLockedTitle, $"Required dependency '{viewModelItem.DisplayName}' is locked and cannot be automatically enabled while the game is running.");
             }
         }
     }
@@ -1479,4 +1489,13 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
 
     private WorkspaceStrategy GetDefaultWorkspaceStrategy() =>
         _configurationProvider?.GetDefaultWorkspaceStrategy() ?? WorkspaceConstants.DefaultWorkspaceStrategy;
+
+    private string GetErrorLoadingProfileTitle() =>
+        _localizationService?.GetString(ErrorLoadingProfileTitleKey) ?? DefaultErrorLoadingProfile;
+
+    private string GetErrorLoadingContentTitle() =>
+        _localizationService?.GetString(ErrorLoadingContentTitleKey) ?? DefaultErrorLoadingContent;
+
+    private string GetProfileManagerUnavailableMessage() =>
+        _localizationService?.GetString(ProfileManagerUnavailableMessageKey) ?? DefaultProfileManagerUnavailableMessage;
 }
