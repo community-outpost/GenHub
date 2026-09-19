@@ -451,4 +451,36 @@ public class DependencyResolverTests
         var result = DependencyResolver.HasCompatibleCatalogIdentity(declaredId, acquiredId);
         Assert.Equal(expected, result);
     }
+
+    /// <summary>
+    /// Verifies that publisher fallback does not resolve a non-retail Community Patch manifest for a retail Community Patch request.
+    /// </summary>
+    /// <returns>A task representing the test operation.</returns>
+    [Fact]
+    public async Task ResolveDependenciesWithManifestsAsync_RetailCommunityPatch_DoesNotFallbackToNonRetailManifestAsync()
+    {
+        var requestedRetailClient = "1.20260723.communityoutpost.gameclient.community-patch";
+
+        var nonRetClientManifest = new ContentManifest
+        {
+            Id = ManifestId.Create("1.20260911.communityoutpost.gameclient.community-patch-nonret"),
+            Name = "Community Patch (TheSuperHackers Non-Retail Stream Build)",
+            ContentType = ContentType.GameClient,
+            TargetGame = GameType.ZeroHour,
+            Publisher = new PublisherInfo { PublisherType = "communityoutpost" },
+        };
+
+        _manifestPoolMock
+            .Setup(p => p.GetManifestAsync(It.IsAny<ManifestId>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentManifest?>.CreateFailure("Not found"));
+
+        _manifestPoolMock
+            .Setup(p => p.GetAllManifestsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IEnumerable<ContentManifest>>.CreateSuccess([nonRetClientManifest]));
+
+        var result = await _resolver.ResolveDependenciesWithManifestsAsync([requestedRetailClient]);
+
+        Assert.False(result.Success);
+        Assert.Empty(result.ResolvedManifests);
+    }
 }

@@ -263,4 +263,17 @@ public sealed class DependencyResolverCatalogIdentityTests
 
         Assert.Equal("1.10.communityoutpost.addon.hlenenglish", result);
     }
+
+    /// <summary>
+    /// Tests that retail and non-retail community patch game clients are treated as mutually incompatible.
+    /// </summary>
+    [Fact]
+    public void HasCompatibleCatalogIdentity_RetailAndNonRetailCommunityPatch_ReturnsFalse()
+    {
+        var retail = "1.23072026.communityoutpost.gameclient.community-patch".Split('.');
+        var nonret = "1.11092026.communityoutpost.gameclient.community-patch-nonret".Split('.');
+
+        Assert.False(DependencyResolver.HasCompatibleCatalogIdentity(retail, nonret));
+        Assert.False(DependencyResolver.HasCompatibleCatalogIdentity(nonret, retail));
+    }
 }

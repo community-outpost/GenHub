@@ -49,7 +49,7 @@ public class DependencyResolver(
     }
 
     /// <summary>
-    /// Matches a declared 5-segment catalog ID (<c>schemaVersion.userVersion.publisher.contentType.contentName</c>)
+    /// Matches a declared 5-segment catalog ID (<c>schemaVersion.userVersion.publisher.contentType.contentName</c>
     /// to an acquired manifest ID. Requires <c>schemaVersion</c> (segment 0), <c>publisher</c> (segment 2, or wildcard <c>any</c>),
     /// and <c>contentType</c> (segment 3) to match, while allowing <c>userVersion</c> (segment 1) and trailing variant labels
     /// (e.g. <c>-720p</c> on <c>contentName</c> segment 4) to differ.
@@ -433,6 +433,14 @@ public class DependencyResolver(
             return false;
         }
 
+        // Non-retail variants (stream builds) are incompatible with standard retail game clients
+        var isDeclaredNonRet = IsNonRetailIdentifier(declaredName);
+        var isAcquiredNonRet = IsNonRetailIdentifier(acquiredName);
+        if (isDeclaredNonRet != isAcquiredNonRet)
+        {
+            return false;
+        }
+
         if (acquiredName.StartsWith(declaredName + ManifestConstants.VariantSeparator, StringComparison.OrdinalIgnoreCase) ||
             declaredName.StartsWith(acquiredName + ManifestConstants.VariantSeparator, StringComparison.OrdinalIgnoreCase))
         {
@@ -441,6 +449,9 @@ public class DependencyResolver(
 
         return (isDeclaredZeroHour && isAcquiredZeroHour) || (isDeclaredGenerals && isAcquiredGenerals);
     }
+
+    private static bool IsNonRetailIdentifier(string name) =>
+        CommunityOutpostConstants.IsNonRetailIdentifier(name);
 
     private static bool Is60HzIdentifier(string name) =>
         name.Contains(ManifestConstants.SixtyHzKeyword, StringComparison.OrdinalIgnoreCase) ||
@@ -571,7 +582,10 @@ public class DependencyResolver(
             return null;
         }
 
-        var matched = publisherManifests.FirstOrDefault(m => MatchesContentKeyword(contentId, m));
+        var isDeclaredNonRet = IsNonRetailIdentifier(contentId);
+        var matched = publisherManifests.FirstOrDefault(m =>
+            MatchesContentKeyword(contentId, m) &&
+            isDeclaredNonRet == (IsNonRetailIdentifier(m.Id.Value) || IsNonRetailIdentifier(m.Name)));
         if (matched != null)
         {
             logger.LogInformation(

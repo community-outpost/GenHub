@@ -403,6 +403,9 @@ public static class GameClientConstants
         /// <summary>Synthetic ID for Community Patch.</summary>
         public const string CommunityPatch = "cp.synth";
 
+        /// <summary>Synthetic ID for Community Patch (Non-Retail).</summary>
+        public const string CommunityPatchNonRet = "community-patch-nonret.synth";
+
         /// <summary>Synthetic ID for Generals Online.</summary>
         public const string GeneralsOnline = "go.synth";
 

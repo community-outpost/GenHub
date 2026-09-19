@@ -845,11 +845,13 @@ public partial class GameProfileLauncherViewModel(
         }
 
         var cpDecision = wizardResult.CommunityPatchAction;
+        var cpNonRetDecision = wizardResult.CommunityPatchNonRetAction;
         var goDecision = wizardResult.GeneralsOnlineAction;
         var shDecision = wizardResult.SuperHackersAction;
 
         bool anyPatchSelectedGlobally =
             (cpDecision != GameClientConstants.WizardActionTypes.Decline && cpDecision != GameClientConstants.WizardActionTypes.None) ||
+            (cpNonRetDecision != GameClientConstants.WizardActionTypes.Decline && cpNonRetDecision != GameClientConstants.WizardActionTypes.None) ||
             (goDecision != GameClientConstants.WizardActionTypes.Decline && goDecision != GameClientConstants.WizardActionTypes.None) ||
             (shDecision != GameClientConstants.WizardActionTypes.Decline && shDecision != GameClientConstants.WizardActionTypes.None);
 
@@ -864,6 +866,7 @@ public partial class GameProfileLauncherViewModel(
             profilesCreated += await ProcessInstallationDecisionsAsync(
                 installation,
                 cpDecision,
+                cpNonRetDecision,
                 goDecision,
                 shDecision,
                 anyPatchSelectedGlobally);
@@ -875,6 +878,7 @@ public partial class GameProfileLauncherViewModel(
     private async Task<int> ProcessInstallationDecisionsAsync(
         GameInstallation installation,
         string cpDecision,
+        string cpNonRetDecision,
         string goDecision,
         string shDecision,
         bool anyPatchSelectedGlobally)
@@ -887,8 +891,18 @@ public partial class GameProfileLauncherViewModel(
             cpDecision,
             CommunityOutpostConstants.PublisherType,
             GameClientConstants.SyntheticClientIds.CommunityPatch,
-            "Community Patch");
+            "Community Patch (Retail)",
+            isNonRetail: false);
         profilesCreated += cpProfiles;
+
+        var (cpNonRetHandled, cpNonRetProfiles) = await TryProcessPublisherDecisionAsync(
+            installation,
+            cpNonRetDecision,
+            CommunityOutpostConstants.PublisherType,
+            GameClientConstants.SyntheticClientIds.CommunityPatchNonRet,
+            "Community Patch (Non-Retail)",
+            isNonRetail: true);
+        profilesCreated += cpNonRetProfiles;
 
         var (goHandled, goProfiles) = await TryProcessPublisherDecisionAsync(
             installation,
@@ -906,7 +920,7 @@ public partial class GameProfileLauncherViewModel(
             "SuperHackers");
         profilesCreated += shProfiles;
 
-        bool anyPatchHandled = cpHandled || goHandled || shHandled;
+        bool anyPatchHandled = cpHandled || cpNonRetHandled || goHandled || shHandled;
 
         if ((!anyPatchHandled && !anyPatchSelectedGlobally) || (anyPatchHandled && profilesCreated == 0))
         {
@@ -928,14 +942,22 @@ public partial class GameProfileLauncherViewModel(
         string decision,
         string publisherType,
         string syntheticClientId,
-        string clientName)
+        string clientName,
+        bool isNonRetail = false)
     {
         if (decision == GameClientConstants.WizardActionTypes.Decline || decision == GameClientConstants.WizardActionTypes.None)
         {
             return (false, 0);
         }
 
-        var client = installation.AvailableGameClients?.FirstOrDefault(c => string.Equals(c.PublisherType, publisherType, StringComparison.OrdinalIgnoreCase));
+        var isCommunityOutpost = string.Equals(publisherType, CommunityOutpostConstants.PublisherType, StringComparison.OrdinalIgnoreCase);
+
+        var client = installation.AvailableGameClients?.FirstOrDefault(c =>
+            string.Equals(c.PublisherType, publisherType, StringComparison.OrdinalIgnoreCase) &&
+            (!isCommunityOutpost || (isNonRetail
+                ? (CommunityOutpostConstants.IsNonRetailIdentifier(c.Id) || CommunityOutpostConstants.IsNonRetailIdentifier(c.Name))
+                : (!CommunityOutpostConstants.IsNonRetailIdentifier(c.Id) && !CommunityOutpostConstants.IsNonRetailIdentifier(c.Name)))));
+
         if (client == null &&
             decision != GameClientConstants.WizardActionTypes.Install &&
             decision != GameClientConstants.WizardActionTypes.CreateProfile)

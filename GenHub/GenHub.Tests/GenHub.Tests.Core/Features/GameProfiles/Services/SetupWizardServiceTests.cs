@@ -232,6 +232,146 @@ public class SetupWizardServiceTests
         Assert.Equal(GameClientConstants.WizardActionTypes.CreateProfile, result.GeneralsOnlineAction);
     }
 
+    /// <summary>
+    /// Verifies that when Community Patch offers both Retail and Non-Retail builds,
+    /// the setup wizard displays both options, defaults Retail to selected and Non-Retail to unselected,
+    /// and includes the incompatibility warning on Non-Retail.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task RunSetupWizardAsync_WhenCommunityPatchesDiscovered_PresentsRetailAndNonRetailOptionsWithWarningAsync()
+    {
+        // Arrange
+        const string retailVersion = "23-07-2026";
+        const string nonRetVersion = "11-09-2026";
+
+        _cpDiscovererMock
+            .Setup(d => d.DiscoverAsync(It.IsAny<ContentSearchQuery>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentDiscoveryResult>.CreateSuccess(new ContentDiscoveryResult
+            {
+                Items =
+                [
+                    new ContentSearchResult
+                    {
+                        Id = "generalszh_11-09-2026_NonRet.zip",
+                        Name = "Community Patch 11-09-2026 (Non-Retail)",
+                        Version = nonRetVersion,
+                        Tags = { "nonretail" },
+                    },
+                    new ContentSearchResult
+                    {
+                        Id = "generalszh_23-07-2026.zip",
+                        Name = "Community Patch 23-07-2026",
+                        Version = retailVersion,
+                    },
+                ],
+            }));
+
+        _goDiscovererMock
+            .Setup(d => d.DiscoverAsync(It.IsAny<ContentSearchQuery>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentDiscoveryResult>.CreateSuccess(new ContentDiscoveryResult { Items = [] }));
+
+        _manifestPoolMock
+            .Setup(p => p.GetAllManifestsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IEnumerable<ContentManifest>>.CreateSuccess([]));
+
+        var service = CreateService();
+
+        SetupWizardViewModel? capturedVm = null;
+        service.DialogShower = vm =>
+        {
+            capturedVm = vm;
+            vm.ConfirmCommand.Execute(null);
+            return Task.FromResult(true);
+        };
+
+        // Act
+        var result = await service.RunSetupWizardAsync([], CancellationToken.None);
+
+        // Assert
+        Assert.NotNull(capturedVm);
+        var retailItem = capturedVm.Items.FirstOrDefault(i => i.Title == "Community Patch (Retail)");
+        var nonRetItem = capturedVm.Items.FirstOrDefault(i => i.Title == "Community Patch (Non-Retail)");
+
+        Assert.NotNull(retailItem);
+        Assert.NotNull(nonRetItem);
+
+        // Retail item defaults to selected
+        Assert.True(retailItem.IsSelected);
+        Assert.Equal(retailVersion, retailItem.Version);
+        Assert.Equal(GameClientConstants.WizardActionTypes.Install, result.CommunityPatchAction);
+
+        // Non-retail item defaults to unchecked and contains compatibility warning
+        Assert.False(nonRetItem.IsSelected);
+        Assert.Equal(nonRetVersion, nonRetItem.Version);
+        Assert.Contains("Not compatible with retail 1.04 zero hour", nonRetItem.Description);
+        Assert.Equal(GameClientConstants.WizardActionTypes.Decline, result.CommunityPatchNonRetAction);
+    }
+
+    /// <summary>
+    /// Verifies that when a user manually checks both Retail and Non-Retail in the wizard,
+    /// both actions are returned as confirmed Install actions.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task RunSetupWizardAsync_WhenUserSelectsBothRetailAndNonRetail_ReturnsBothActionsAsync()
+    {
+        // Arrange
+        const string retailVersion = "23-07-2026";
+        const string nonRetVersion = "11-09-2026";
+
+        _cpDiscovererMock
+            .Setup(d => d.DiscoverAsync(It.IsAny<ContentSearchQuery>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentDiscoveryResult>.CreateSuccess(new ContentDiscoveryResult
+            {
+                Items =
+                [
+                    new ContentSearchResult
+                    {
+                        Id = "generalszh_11-09-2026_NonRet.zip",
+                        Name = "Community Patch 11-09-2026 (Non-Retail)",
+                        Version = nonRetVersion,
+                        Tags = { "nonretail" },
+                    },
+                    new ContentSearchResult
+                    {
+                        Id = "generalszh_23-07-2026.zip",
+                        Name = "Community Patch 23-07-2026",
+                        Version = retailVersion,
+                    },
+                ],
+            }));
+
+        _goDiscovererMock
+            .Setup(d => d.DiscoverAsync(It.IsAny<ContentSearchQuery>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentDiscoveryResult>.CreateSuccess(new ContentDiscoveryResult { Items = [] }));
+
+        _manifestPoolMock
+            .Setup(p => p.GetAllManifestsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IEnumerable<ContentManifest>>.CreateSuccess([]));
+
+        var service = CreateService();
+
+        service.DialogShower = vm =>
+        {
+            var nonRetItem = vm.Items.FirstOrDefault(i => i.Title == "Community Patch (Non-Retail)");
+            if (nonRetItem != null)
+            {
+                nonRetItem.IsSelected = true; // User opts into Non-Retail as well
+            }
+
+            vm.ConfirmCommand.Execute(null);
+            return Task.FromResult(true);
+        };
+
+        // Act
+        var result = await service.RunSetupWizardAsync([], CancellationToken.None);
+
+        // Assert: Both actions are confirmed for installation
+        Assert.Equal(GameClientConstants.WizardActionTypes.Install, result.CommunityPatchAction);
+        Assert.Equal(GameClientConstants.WizardActionTypes.Install, result.CommunityPatchNonRetAction);
+    }
+
     private SetupWizardService CreateService()
     {
         return new SetupWizardService(

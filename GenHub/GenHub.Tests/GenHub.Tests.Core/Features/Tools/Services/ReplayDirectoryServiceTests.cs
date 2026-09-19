@@ -3709,6 +3709,53 @@ public sealed class ReplayDirectoryServiceTests
     }
 
     /// <summary>
+    /// Verifies that IsClientManifestInstalled returns false for retail Zero Hour when only non-retail Community Patch is installed.
+    /// </summary>
+    [Fact]
+    public void IsClientManifestInstalled_WhenOnlyNonRetailCommunityPatchInstalled_ReturnsFalseForRetail()
+    {
+        var match = new CrcMappingEntry
+        {
+            Publisher = "retail",
+            ManifestId = "1.104.retail.gameclient.zerohour",
+            Version = "1.04",
+        };
+
+        var acquiredIds = new HashSet<string>
+        {
+            "1.11092026.communityoutpost.gameclient.community-patch-nonret",
+        };
+
+        var isInstalled = ReplayDirectoryService.IsClientManifestInstalled(
+            match,
+            GameType.ZeroHour,
+            acquiredIds);
+
+        Assert.False(isInstalled);
+    }
+
+    /// <summary>
+    /// Verifies that IsCommunityPatchProfile returns false for non-retail Community Patch profile.
+    /// </summary>
+    [Fact]
+    public void IsCommunityPatchProfile_NonRetailProfile_ReturnsFalse()
+    {
+        var profile = new GameProfile
+        {
+            Id = "profile-cp-nonret",
+            Name = "CP NonRet Profile",
+            GameClient = new GameClient
+            {
+                Id = "1.11092026.communityoutpost.gameclient.community-patch-nonret",
+                Name = CommunityOutpostConstants.CommunityPatchNonRetDisplayName,
+                GameType = GameType.ZeroHour,
+            },
+        };
+
+        Assert.False(ReplayDirectoryService.IsCommunityPatchProfile(profile));
+    }
+
+    /// <summary>
     /// Verifies that CreateProfileForReplayAsync throws OperationCanceledException when cancellation is requested.
     /// </summary>
     /// <returns>A task representing the asynchronous unit test.</returns>

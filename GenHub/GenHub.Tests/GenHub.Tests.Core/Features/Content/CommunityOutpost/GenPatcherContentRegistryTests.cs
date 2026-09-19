@@ -27,6 +27,9 @@ public class GenPatcherContentRegistryTests
     [InlineData("cbbs", "Control Bar HD (Base)", ContentType.Addon, GameType.ZeroHour)]
     [InlineData("hlei", "Leikeze's Hotkeys", ContentType.Addon, GameType.ZeroHour)]
     [InlineData("crzh", "Camera Mod - Zero Hour", ContentType.Addon, GameType.ZeroHour)]
+    [InlineData("community-patch", CommunityOutpostConstants.CommunityPatchRetailDisplayName, ContentType.GameClient, GameType.ZeroHour)]
+    [InlineData(CommunityOutpostConstants.CommunityPatchRetailCode, CommunityOutpostConstants.CommunityPatchRetailDisplayName, ContentType.GameClient, GameType.ZeroHour)]
+    [InlineData("community-patch-nonret", CommunityOutpostConstants.CommunityPatchNonRetDisplayName, ContentType.GameClient, GameType.ZeroHour)]
     public void GetMetadata_ReturnsCorrectMetadataForKnownCodes(
         string contentCode,
         string expectedName,
@@ -133,6 +136,8 @@ public class GenPatcherContentRegistryTests
     [InlineData("gena")]
     [InlineData("cbbs")]
     [InlineData("10zh")]
+    [InlineData("community-patch")]
+    [InlineData("community-patch-nonret")]
     public void IsKnownCode_ReturnsTrueForKnownCodes(string contentCode)
     {
         // Act
@@ -173,6 +178,8 @@ public class GenPatcherContentRegistryTests
         Assert.Contains("gent", codes);
         Assert.Contains("gena", codes);
         Assert.Contains("10zh", codes);
+        Assert.Contains("community-patch", codes);
+        Assert.Contains("community-patch-nonret", codes);
     }
 
     /// <summary>
@@ -190,6 +197,8 @@ public class GenPatcherContentRegistryTests
     [InlineData("maod", GenPatcherContentCategory.Maps)]
     [InlineData("icon", GenPatcherContentCategory.Visuals)]
     [InlineData("vc05", GenPatcherContentCategory.Prerequisites)]
+    [InlineData("community-patch", GenPatcherContentCategory.CommunityPatch)]
+    [InlineData("community-patch-nonret", GenPatcherContentCategory.CommunityPatch)]
     public void GetMetadata_AssignsCorrectCategory(
         string contentCode,
         GenPatcherContentCategory expectedCategory)
@@ -277,6 +286,8 @@ public class GenPatcherContentRegistryTests
     [InlineData("HLEI", "hlei")]
     [InlineData("cbpr-1080p", "cbpr")]
     [InlineData("community-patch", "community-patch")]
+    [InlineData(CommunityOutpostConstants.CommunityPatchRetailCode, CommunityOutpostConstants.CommunityPatchRetailCode)]
+    [InlineData("community-patch-nonret", "community-patch-nonret")]
     [InlineData("10zh", "10zh")]
     [InlineData("unknown_test", "unknown_test")]
     [InlineData(null, "")]

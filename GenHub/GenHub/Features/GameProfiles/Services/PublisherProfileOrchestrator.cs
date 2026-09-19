@@ -12,6 +12,7 @@ using GenHub.Core.Models.GameClients;
 using GenHub.Core.Models.GameInstallations;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
+using GenHub.Core.Models.Results.Content;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
@@ -51,21 +52,32 @@ public class PublisherProfileOrchestrator(
                 return OperationResult<int>.CreateFailure("Publisher type unknown");
             }
 
+            var isCommunityOutpost = string.Equals(publisherType, CommunityOutpostConstants.PublisherType, StringComparison.OrdinalIgnoreCase);
+            var isNonRet = isCommunityOutpost && IsNonRetail(gameClient);
+
             logger.LogInformation(
-                "Handling publisher client {ClientName} ({PublisherType}) for installation {InstallationType}",
+                "Handling publisher client {ClientName} ({PublisherType}, IsNonRet: {IsNonRet}) for installation {InstallationType}",
                 gameClient.Name,
                 publisherType,
+                isNonRet,
                 installation.InstallationType);
 
             // Check if manifests already exist in the pool for this publisher
             var existingManifests = await GetPublisherManifestsFromPoolAsync(publisherType, cancellationToken);
+            if (isCommunityOutpost)
+            {
+                existingManifests = existingManifests
+                    .Where(m => isNonRet ? IsNonRetail(m) : !IsNonRetail(m))
+                    .ToList();
+            }
 
             bool shouldAcquire = false;
             if (skipAcquisition && existingManifests.Count > 0)
             {
                 logger.LogInformation(
-                    "Skip acquisition requested for {PublisherType}, creating profiles from {Count} existing manifests",
+                    "Skip acquisition requested for {PublisherType} (IsNonRet: {IsNonRet}), creating profiles from {Count} existing manifests",
                     publisherType,
+                    isNonRet,
                     existingManifests.Count);
             }
             else if (existingManifests.Count == 0)
@@ -73,49 +85,60 @@ public class PublisherProfileOrchestrator(
                 // No manifests in pool - need to acquire
                 shouldAcquire = true;
                 logger.LogInformation(
-                    "No existing {PublisherType} manifests found, will acquire content",
-                    publisherType);
+                    "No existing {PublisherType} (IsNonRet: {IsNonRet}) manifests found, will acquire content",
+                    publisherType,
+                    isNonRet);
             }
             else if (forceReacquireContent)
             {
                 // Force reacquire requested - always acquire
                 shouldAcquire = true;
                 logger.LogInformation(
-                    "Force reacquire requested for {PublisherType}",
-                    publisherType);
+                    "Force reacquire requested for {PublisherType} (IsNonRet: {IsNonRet})",
+                    publisherType,
+                    isNonRet);
             }
             else
             {
                 // Check if a newer version is available
-                var hasNewerVersion = await CheckForNewerVersionAsync(publisherType, existingManifests, cancellationToken);
+                var hasNewerVersion = await CheckForNewerVersionAsync(publisherType, existingManifests, isCommunityOutpost, isNonRet, cancellationToken);
                 if (hasNewerVersion)
                 {
                     shouldAcquire = true;
                     logger.LogInformation(
-                        "Newer version available for {PublisherType}, will acquire content",
-                        publisherType);
+                        "Newer version available for {PublisherType} (IsNonRet: {IsNonRet}), will acquire content",
+                        publisherType,
+                        isNonRet);
                 }
                 else
                 {
                     logger.LogInformation(
-                        "Found {Count} existing {PublisherType} manifests in pool with latest version, skipping acquisition",
+                        "Found {Count} existing {PublisherType} (IsNonRet: {IsNonRet}) manifests in pool with latest version, skipping acquisition",
                         existingManifests.Count,
-                        publisherType);
+                        publisherType,
+                        isNonRet);
                 }
             }
 
             if (shouldAcquire)
             {
                 logger.LogInformation(
-                    "Acquisition triggered for {PublisherType}",
-                    publisherType);
-                await AcquirePublisherClientContentAsync(gameClient, cancellationToken);
+                    "Acquisition triggered for {PublisherType} (IsNonRet: {IsNonRet})",
+                    publisherType,
+                    isNonRet);
+                await AcquirePublisherClientContentAsync(gameClient, isCommunityOutpost, isNonRet, cancellationToken);
 
                 // Re-check after acquisition
                 existingManifests = await GetPublisherManifestsFromPoolAsync(publisherType, cancellationToken);
+                if (isCommunityOutpost)
+                {
+                    existingManifests = existingManifests
+                        .Where(m => isNonRet ? IsNonRetail(m) : !IsNonRetail(m))
+                        .ToList();
+                }
             }
 
-            // Create profiles for ALL GameClient manifests from this publisher
+            // Create profiles for GameClient manifests from this publisher (matching variant)
             var profilesCreated = 0;
             foreach (var manifest in existingManifests)
             {
@@ -142,15 +165,18 @@ public class PublisherProfileOrchestrator(
             // Show single notification for all profiles created
             if (profilesCreated > 0)
             {
+                var displayName = GetPublisherDisplayName(publisherType, isNonRet);
+
                 notificationService.ShowSuccess(
-                    $"{publisherType} Profiles Created",
-                    $"Created {profilesCreated} profile(s) for {publisherType} variants.");
+                    $"{displayName} Profiles Created",
+                    $"Created {profilesCreated} profile(s) for {displayName}.");
             }
 
             logger.LogInformation(
-                "Created {Count} profiles for {PublisherType} from {TotalManifests} GameClient manifests",
+                "Created {ProfilesCreated} profiles for {PublisherType} (IsNonRet: {IsNonRet}) from {TotalManifests} GameClient manifests",
                 profilesCreated,
                 publisherType,
+                isNonRet,
                 existingManifests.Count);
 
             return OperationResult<int>.CreateSuccess(profilesCreated);
@@ -161,6 +187,42 @@ public class PublisherProfileOrchestrator(
             return OperationResult<int>.CreateFailure($"Internal error: {ex.Message}");
         }
     }
+
+    private static string GetPublisherDisplayName(string publisherType, bool isNonRet)
+    {
+        if (publisherType.Equals(PublisherTypeConstants.TheSuperHackers, StringComparison.OrdinalIgnoreCase))
+        {
+            return SuperHackersConstants.PublisherName;
+        }
+
+        if (publisherType.Equals(PublisherTypeConstants.GeneralsOnline, StringComparison.OrdinalIgnoreCase))
+        {
+            return "Generals Online";
+        }
+
+        if (publisherType.Equals(CommunityOutpostConstants.PublisherType, StringComparison.OrdinalIgnoreCase))
+        {
+            return isNonRet
+                ? "Community Patch (Non-Retail)"
+                : CommunityOutpostConstants.PublisherName;
+        }
+
+        return publisherType;
+    }
+
+    private static bool IsNonRetail(GameClient client) =>
+        CommunityOutpostConstants.IsNonRetailIdentifier(client.Id) ||
+        CommunityOutpostConstants.IsNonRetailIdentifier(client.Name);
+
+    private static bool IsNonRetail(ContentManifest manifest) =>
+        CommunityOutpostConstants.IsNonRetailIdentifier(manifest.Id.Value) ||
+        CommunityOutpostConstants.IsNonRetailIdentifier(manifest.Name) ||
+        (manifest.Metadata?.Tags != null && manifest.Metadata.Tags.Any(CommunityOutpostConstants.IsNonRetailIdentifier));
+
+    private static bool IsNonRetail(ContentSearchResult result) =>
+        CommunityOutpostConstants.IsNonRetailIdentifier(result.Id) ||
+        CommunityOutpostConstants.IsNonRetailIdentifier(result.Name) ||
+        (result.Tags != null && result.Tags.Any(CommunityOutpostConstants.IsNonRetailIdentifier));
 
     private async Task<List<ContentManifest>> GetPublisherManifestsFromPoolAsync(string publisherType, CancellationToken cancellationToken)
     {
@@ -204,7 +266,34 @@ public class PublisherProfileOrchestrator(
         }
     }
 
-    private async Task AcquirePublisherClientContentAsync(GameClient gameClient, CancellationToken cancellationToken)
+    private ContentSearchResult? FindCandidate(
+        IEnumerable<ContentSearchResult> results,
+        bool isCommunityOutpost,
+        bool isNonRet,
+        string publisherType)
+    {
+        var candidates = isCommunityOutpost
+            ? results.Where(r => isNonRet ? IsNonRetail(r) : !IsNonRetail(r))
+            : results;
+
+        var selected = candidates.FirstOrDefault();
+        if (selected == null)
+        {
+            var variant = isNonRet ? "non-retail" : "retail";
+            logger.LogDebug(
+                "No matching {Variant} content discovered from {PublisherType}",
+                variant,
+                publisherType);
+        }
+
+        return selected;
+    }
+
+    private async Task AcquirePublisherClientContentAsync(
+        GameClient gameClient,
+        bool isCommunityOutpost,
+        bool isNonRet,
+        CancellationToken cancellationToken)
     {
         try
         {
@@ -212,27 +301,12 @@ public class PublisherProfileOrchestrator(
 
             // TODO: Localization - Move these strings to localization system when implemented
             logger.LogInformation(
-                "Acquiring content from provider for publisher client: {ClientName} (PublisherType: '{PublisherType}')",
+                "Acquiring content from provider for publisher client: {ClientName} (PublisherType: '{PublisherType}', IsNonRet: {IsNonRet})",
                 gameClient.Name,
-                publisherType);
+                publisherType,
+                isNonRet);
 
-            string publisherDisplayName;
-            if (publisherType.Equals(PublisherTypeConstants.TheSuperHackers, StringComparison.OrdinalIgnoreCase))
-            {
-                publisherDisplayName = SuperHackersConstants.PublisherName;
-            }
-            else if (publisherType.Equals(PublisherTypeConstants.GeneralsOnline, StringComparison.OrdinalIgnoreCase))
-            {
-                publisherDisplayName = "Generals Online";
-            }
-            else if (publisherType.Equals(CommunityOutpostConstants.PublisherType, StringComparison.OrdinalIgnoreCase))
-            {
-                publisherDisplayName = CommunityOutpostConstants.PublisherName;
-            }
-            else
-            {
-                publisherDisplayName = publisherType;
-            }
+            var publisherDisplayName = GetPublisherDisplayName(publisherType, isNonRet);
 
             var searchQuery = new ContentSearchQuery
             {
@@ -250,7 +324,16 @@ public class PublisherProfileOrchestrator(
                 return;
             }
 
-            var contentToAcquire = searchResult.Data.First();
+            var contentToAcquire = FindCandidate(searchResult.Data, isCommunityOutpost, isNonRet, publisherType);
+            if (contentToAcquire == null)
+            {
+                var variant = isNonRet ? "non-retail" : "retail";
+                logger.LogWarning(
+                    "No matching {Variant} content discovered from {PublisherType} for acquisition",
+                    variant,
+                    publisherType);
+                return;
+            }
 
             logger.LogInformation(
                 "Found {PublisherType} content to acquire: {Name} v{Version}",
@@ -306,11 +389,15 @@ public class PublisherProfileOrchestrator(
     /// </summary>
     /// <param name="publisherType">The publisher type to check.</param>
     /// <param name="existingManifests">The currently installed manifests.</param>
+    /// <param name="isCommunityOutpost">Whether this is Community Outpost publisher.</param>
+    /// <param name="isNonRet">Whether non-retail build is targeted.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>True if a newer version is available, false otherwise.</returns>
     private async Task<bool> CheckForNewerVersionAsync(
         string publisherType,
         List<ContentManifest> existingManifests,
+        bool isCommunityOutpost,
+        bool isNonRet,
         CancellationToken cancellationToken)
     {
         try
@@ -329,8 +416,9 @@ public class PublisherProfileOrchestrator(
             }
 
             logger.LogDebug(
-                "Highest installed version for {PublisherType}: {Version}",
+                "Highest installed version for {PublisherType} (IsNonRet: {IsNonRet}): {Version}",
                 publisherType,
+                isNonRet,
                 highestInstalledVersion);
 
             // Discover the latest available version from the provider
@@ -347,7 +435,12 @@ public class PublisherProfileOrchestrator(
                 return false; // If we can't discover new content, don't trigger acquisition
             }
 
-            var latestAvailable = searchResult.Data.First();
+            var latestAvailable = FindCandidate(searchResult.Data, isCommunityOutpost, isNonRet, publisherType);
+            if (latestAvailable == null)
+            {
+                return false;
+            }
+
             var latestAvailableVersion = latestAvailable.Version;
 
             if (string.IsNullOrWhiteSpace(latestAvailableVersion))
@@ -357,8 +450,9 @@ public class PublisherProfileOrchestrator(
             }
 
             logger.LogDebug(
-                "Latest available version for {PublisherType}: {Version}",
+                "Latest available version for {PublisherType} (IsNonRet: {IsNonRet}): {Version}",
                 publisherType,
+                isNonRet,
                 latestAvailableVersion);
 
             // Compare versions
@@ -370,16 +464,18 @@ public class PublisherProfileOrchestrator(
             if (comparison > 0)
             {
                 logger.LogInformation(
-                    "Newer version available for {PublisherType}: {LatestVersion} > {InstalledVersion}",
+                    "Newer version available for {PublisherType} (IsNonRet: {IsNonRet}): {LatestVersion} > {InstalledVersion}",
                     publisherType,
+                    isNonRet,
                     latestAvailableVersion,
                     highestInstalledVersion);
                 return true;
             }
 
             logger.LogDebug(
-                "Installed version is up to date for {PublisherType}: {InstalledVersion} >= {LatestVersion}",
+                "Installed version is up to date for {PublisherType} (IsNonRet: {IsNonRet}): {InstalledVersion} >= {LatestVersion}",
                 publisherType,
+                isNonRet,
                 highestInstalledVersion,
                 latestAvailableVersion);
             return false;

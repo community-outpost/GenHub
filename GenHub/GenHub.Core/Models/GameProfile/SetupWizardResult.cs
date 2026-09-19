@@ -13,9 +13,14 @@ public class SetupWizardResult
     public bool Confirmed { get; set; }
 
     /// <summary>
-    /// Gets or sets the action to take for Community Patch.
+    /// Gets or sets the action to take for Community Patch (Retail).
     /// </summary>
     public string CommunityPatchAction { get; set; } = GameClientConstants.WizardActionTypes.None;
+
+    /// <summary>
+    /// Gets or sets the action to take for Community Patch (Non-Retail).
+    /// </summary>
+    public string CommunityPatchNonRetAction { get; set; } = GameClientConstants.WizardActionTypes.None;
 
     /// <summary>
     /// Gets or sets the action to take for Generals Online.

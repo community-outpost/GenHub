@@ -330,6 +330,22 @@ public sealed partial class GameClientSelectionViewModel(
         return installationType is GameInstallationType.Retail or GameInstallationType.Steam or GameInstallationType.EaApp;
     }
 
+    private static bool IsNonRetailCommunityPatch(ContentManifest manifest)
+    {
+        var hasNonRetTag = manifest.Metadata?.Tags is { } tags &&
+                           tags.Any(CommunityOutpostConstants.IsNonRetailIdentifier);
+
+        return CommunityOutpostConstants.IsNonRetailIdentifier(manifest.Id.Value) ||
+               CommunityOutpostConstants.IsNonRetailIdentifier(manifest.Name) ||
+               hasNonRetTag;
+    }
+
+    private static bool IsNonRetailClient(GameClient client)
+    {
+        return CommunityOutpostConstants.IsNonRetailIdentifier(client.Id) ||
+               CommunityOutpostConstants.IsNonRetailIdentifier(client.Name);
+    }
+
     private static bool IsCommunityPatchManifest(ContentManifest manifest)
     {
         var hasMatchingTag = manifest.Metadata?.Tags is { } tags &&
@@ -344,6 +360,11 @@ public sealed partial class GameClientSelectionViewModel(
 
     private static bool IsZeroHour104Manifest(ContentManifest manifest)
     {
+        if (IsNonRetailCommunityPatch(manifest))
+        {
+            return false;
+        }
+
         return IsCommunityPatchManifest(manifest) ||
                string.Equals(manifest.Version, ReplayManagerConstants.ZeroHourRetailVersion, StringComparison.OrdinalIgnoreCase) ||
                manifest.Id.Value.Contains(ReplayManagerConstants.ZeroHourManifestSegment, StringComparison.OrdinalIgnoreCase) ||
@@ -371,6 +392,11 @@ public sealed partial class GameClientSelectionViewModel(
 
     private static bool IsCommunityPatchClient(GameClient client)
     {
+        if (IsNonRetailClient(client))
+        {
+            return false;
+        }
+
         return (client.Id is { } id1 && id1.Contains(ReplayManagerConstants.CommunityPatchHyphenatedKeyword, StringComparison.OrdinalIgnoreCase)) ||
                (client.Id is { } id2 && id2.Contains(ReplayManagerConstants.CommunityPatchKeyword, StringComparison.OrdinalIgnoreCase)) ||
                (client.Name is { } name && name.Contains(ReplayManagerConstants.CommunityPatchDisplayName, StringComparison.OrdinalIgnoreCase));

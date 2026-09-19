@@ -821,10 +821,46 @@ public sealed class ReplayDirectoryService(
             return false;
         }
 
+        if (IsNonRetailCommunityPatchProfile(p))
+        {
+            return false;
+        }
+
         return (client.Id is { } id1 && id1.Contains(ReplayManagerConstants.CommunityPatchHyphenatedKeyword, StringComparison.OrdinalIgnoreCase)) ||
                (client.Id is { } id2 && id2.Contains(ReplayManagerConstants.CommunityPatchKeyword, StringComparison.OrdinalIgnoreCase)) ||
                (client.Name is { } name && name.Contains(ReplayManagerConstants.CommunityPatchDisplayName, StringComparison.OrdinalIgnoreCase)) ||
                (p.EnabledContentIds is { } contentIds && contentIds.Any(id => id.Contains(ReplayManagerConstants.CommunityPatchHyphenatedKeyword, StringComparison.OrdinalIgnoreCase) || id.Contains(ReplayManagerConstants.CommunityPatchKeyword, StringComparison.OrdinalIgnoreCase)));
+    }
+
+    /// <summary>
+    /// Determines whether the specified profile represents a non-retail Community Patch game client or build.
+    /// </summary>
+    /// <param name="p">The game profile to inspect.</param>
+    /// <returns><c>true</c> if the profile corresponds to a non-retail Community Patch; otherwise, <c>false</c>.</returns>
+    internal static bool IsNonRetailCommunityPatchProfile(GameProfile p)
+    {
+        var client = p.GameClient;
+        if (client != null)
+        {
+            if (client.Id is { } id && id.Contains(CommunityOutpostConstants.CommunityPatchNonRetCode, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+
+            if (client.Name is { } name && (name.Contains(CommunityOutpostConstants.CommunityPatchNonRetDisplayName, StringComparison.OrdinalIgnoreCase) ||
+                                            name.Contains(CommunityOutpostConstants.NonRetailTag, StringComparison.OrdinalIgnoreCase)))
+            {
+                return true;
+            }
+        }
+
+        if (p.EnabledContentIds is { } contentIds &&
+            contentIds.Any(id => id.Contains(CommunityOutpostConstants.CommunityPatchNonRetCode, StringComparison.OrdinalIgnoreCase)))
+        {
+            return true;
+        }
+
+        return false;
     }
 
     /// <summary>
@@ -1777,9 +1813,10 @@ public sealed class ReplayDirectoryService(
         if (gameVersion == GameType.ZeroHour)
         {
             return acquiredIds.Any(id =>
-                id.Contains(ReplayManagerConstants.CommunityPatchHyphenatedKeyword, StringComparison.OrdinalIgnoreCase) ||
+                !id.Contains(CommunityOutpostConstants.CommunityPatchNonRetCode, StringComparison.OrdinalIgnoreCase) &&
+                (id.Contains(ReplayManagerConstants.CommunityPatchHyphenatedKeyword, StringComparison.OrdinalIgnoreCase) ||
                 id.Contains(ReplayManagerConstants.CommunityPatchKeyword, StringComparison.OrdinalIgnoreCase) ||
-                id.Contains(ReplayManagerConstants.ZeroHourManifestSegment, StringComparison.OrdinalIgnoreCase));
+                id.Contains(ReplayManagerConstants.ZeroHourManifestSegment, StringComparison.OrdinalIgnoreCase)));
         }
 
         if (gameVersion == GameType.Generals)

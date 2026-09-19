@@ -202,6 +202,23 @@
             <Setter Property="Foreground" Value="#E0E0E0" />
         </Style>
 
+        <!-- Compatibility Badges -->
+        <Style Selector="Border.badge.compatibility-retail">
+            <Setter Property="BorderBrush" Value="#10B981" />
+            <Setter Property="Background" Value="#2010B981" />
+        </Style>
+        <Style Selector="Border.badge.compatibility-retail TextBlock.badge-text">
+            <Setter Property="Foreground" Value="#34D399" />
+        </Style>
+
+        <Style Selector="Border.badge.compatibility-nonretail">
+            <Setter Property="BorderBrush" Value="#F59E0B" />
+            <Setter Property="Background" Value="#20F59E0B" />
+        </Style>
+        <Style Selector="Border.badge.compatibility-nonretail TextBlock.badge-text">
+            <Setter Property="Foreground" Value="#FBBF24" />
+        </Style>
+
         <!-- Context Menu Style -->
         <Style Selector="ContextMenu">
             <Setter Property="Background" Value="#252525" />
@@ -412,6 +429,14 @@
 
                         <Border Classes="badge" IsVisible="{Binding Publisher, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
                             <TextBlock Classes="badge-text" Text="{Binding Publisher}" />
+                        </Border>
+
+                        <Border Classes="badge"
+                                Classes.compatibility-retail="{Binding IsRetailCompatible}"
+                                Classes.compatibility-nonretail="{Binding !IsRetailCompatible}"
+                                IsVisible="{Binding HasCompatibilityBadge}"
+                                ToolTip.Tip="{Binding CompatibilityTooltip}">
+                            <TextBlock Classes="badge-text" Text="{Binding CompatibilityBadgeText}" />
                         </Border>
 
                         <Border Classes="badge" IsVisible="{Binding RunAsAdmin}" BorderBrush="#EF4444" Background="#20EF4444">

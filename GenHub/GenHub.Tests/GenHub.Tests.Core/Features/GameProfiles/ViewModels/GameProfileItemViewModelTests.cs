@@ -269,6 +269,7 @@ public class GameProfileItemViewModelTests
                 Id = "1.000104.generalsonline.gameclient.zerohour",
                 Name = "Generals Online",
                 PublisherType = "GeneralsOnline",
+                GameType = GenHub.Core.Models.Enums.GameType.ZeroHour,
             },
             EnabledContentIds = ["1.106.communityoutpost.patch.zerohour"],
         };
@@ -341,5 +342,190 @@ public class GameProfileItemViewModelTests
         // Assert
         Assert.Equal("The Super Hackers", vm.Publisher);
         Assert.Equal("v104b", vm.GameVersion);
+    }
+
+    /// <summary>
+    /// Verifies that a Generals Online profile receives the non-retail compatible badge.
+    /// </summary>
+    [Fact]
+    public void Construction_WithGeneralsOnlineClient_SetsNonRetailCompatibleBadge()
+    {
+        // Arrange
+        var profile = new GenHub.Core.Models.GameProfile.GameProfile
+        {
+            Id = "test-go-compat",
+            Name = "Generals Online Profile",
+            GameClient = new GenHub.Core.Models.GameClients.GameClient
+            {
+                Id = "1.000104.generalsonline.gameclient.zerohour",
+                Name = "Generals Online",
+                PublisherType = "GeneralsOnline",
+                GameType = GenHub.Core.Models.Enums.GameType.ZeroHour,
+            },
+        };
+
+        // Act
+        var vm = new GameProfileItemViewModel("test-go-compat", profile, null!, null!);
+
+        // Assert
+        Assert.True(vm.HasCompatibilityBadge);
+        Assert.False(vm.IsRetailCompatible);
+        Assert.Equal("Non-Retail Compatible", vm.CompatibilityBadgeText);
+        Assert.Contains("1.04", vm.CompatibilityTooltip);
+    }
+
+    /// <summary>
+    /// Verifies that a Community Patch non-retail profile receives the non-retail compatible badge.
+    /// </summary>
+    [Fact]
+    public void Construction_WithNonRetailCommunityPatchClient_SetsNonRetailCompatibleBadge()
+    {
+        // Arrange
+        var profile = new GenHub.Core.Models.GameProfile.GameProfile
+        {
+            Id = "test-cp-nonretail-compat",
+            Name = "CP Non-Retail Profile",
+            GameClient = new GenHub.Core.Models.GameClients.GameClient
+            {
+                Id = "1.106.communityoutpost.gameclient.zerohour.nonretail",
+                Name = "Community Patch 1.06 (Non-Retail)",
+                PublisherType = "CommunityOutpost",
+                GameType = GenHub.Core.Models.Enums.GameType.ZeroHour,
+            },
+        };
+
+        // Act
+        var vm = new GameProfileItemViewModel("test-cp-nonretail-compat", profile, null!, null!);
+
+        // Assert
+        Assert.True(vm.HasCompatibilityBadge);
+        Assert.False(vm.IsRetailCompatible);
+        Assert.Equal("Non-Retail Compatible", vm.CompatibilityBadgeText);
+    }
+
+    /// <summary>
+    /// Verifies that a Community Patch retail profile receives the retail compatible badge.
+    /// </summary>
+    [Fact]
+    public void Construction_WithRetailCommunityPatchClient_SetsRetailCompatibleBadge()
+    {
+        // Arrange
+        var profile = new GenHub.Core.Models.GameProfile.GameProfile
+        {
+            Id = "test-cp-retail-compat",
+            Name = "CP Retail Profile",
+            GameClient = new GenHub.Core.Models.GameClients.GameClient
+            {
+                Id = "1.106.communityoutpost.gameclient.zerohour.retail",
+                Name = "Community Patch 1.06 (Retail)",
+                PublisherType = "CommunityOutpost",
+                GameType = GenHub.Core.Models.Enums.GameType.ZeroHour,
+            },
+        };
+
+        // Act
+        var vm = new GameProfileItemViewModel("test-cp-retail-compat", profile, null!, null!);
+
+        // Assert
+        Assert.True(vm.HasCompatibilityBadge);
+        Assert.True(vm.IsRetailCompatible);
+        Assert.Equal("Retail Compatible", vm.CompatibilityBadgeText);
+        Assert.Contains("1.04", vm.CompatibilityTooltip);
+    }
+
+    /// <summary>
+    /// Verifies that a retail Steam profile receives the retail compatible badge.
+    /// </summary>
+    [Fact]
+    public void Construction_WithSteamClient_SetsRetailCompatibleBadge()
+    {
+        // Arrange
+        var profile = new GenHub.Core.Models.GameProfile.GameProfile
+        {
+            Id = "test-steam-compat",
+            Name = "Steam Retail Profile",
+            GameClient = new GenHub.Core.Models.GameClients.GameClient
+            {
+                Id = "steam",
+                Name = "Command & Conquer Generals Zero Hour (Steam)",
+                PublisherType = "Steam",
+            },
+        };
+
+        // Act
+        var vm = new GameProfileItemViewModel("test-steam-compat", profile, null!, null!);
+
+        // Assert
+        Assert.True(vm.HasCompatibilityBadge);
+        Assert.True(vm.IsRetailCompatible);
+        Assert.Equal("Retail Compatible", vm.CompatibilityBadgeText);
+    }
+
+    /// <summary>
+    /// Verifies that a profile without a GameClient has no compatibility badge.
+    /// </summary>
+    [Fact]
+    public void Construction_WithoutGameClient_HasNoCompatibilityBadge()
+    {
+        // Arrange
+        var profile = new GenHub.Core.Models.GameProfile.GameProfile
+        {
+            Id = "test-noclient-compat",
+            Name = "No Client Profile",
+            GameClient = null,
+        };
+
+        // Act
+        var vm = new GameProfileItemViewModel("test-noclient-compat", profile, null!, null!);
+
+        // Assert
+        Assert.False(vm.HasCompatibilityBadge);
+        Assert.Empty(vm.CompatibilityBadgeText ?? string.Empty);
+    }
+
+    /// <summary>
+    /// Verifies that UpdateFromProfile updates the compatibility badge when client switches from retail to non-retail.
+    /// </summary>
+    [Fact]
+    public void UpdateFromProfile_WhenClientChangesToNonRetail_UpdatesCompatibilityBadge()
+    {
+        // Arrange
+        var initialProfile = new GenHub.Core.Models.GameProfile.GameProfile
+        {
+            Id = "test-updating-compat",
+            Name = "Updating Profile",
+            GameClient = new GenHub.Core.Models.GameClients.GameClient
+            {
+                Id = "steam",
+                Name = "Steam Client",
+                PublisherType = "Steam",
+            },
+        };
+
+        var vm = new GameProfileItemViewModel("test-updating-compat", initialProfile, null!, null!);
+        Assert.True(vm.HasCompatibilityBadge);
+        Assert.True(vm.IsRetailCompatible);
+        Assert.Equal("Retail Compatible", vm.CompatibilityBadgeText);
+
+        var updatedProfile = new GenHub.Core.Models.GameProfile.GameProfile
+        {
+            Id = "test-updating-compat",
+            Name = "Updating Profile",
+            GameClient = new GenHub.Core.Models.GameClients.GameClient
+            {
+                Id = "1.000104.generalsonline.gameclient.zerohour",
+                Name = "Generals Online",
+                PublisherType = "GeneralsOnline",
+                GameType = GenHub.Core.Models.Enums.GameType.ZeroHour,
+            },
+        };
+
+        // Act
+        vm.UpdateFromProfile(updatedProfile);
+
+        // Assert
+        Assert.True(vm.HasCompatibilityBadge);
+        Assert.False(vm.IsRetailCompatible);
+        Assert.Equal("Non-Retail Compatible", vm.CompatibilityBadgeText);
     }
 }
