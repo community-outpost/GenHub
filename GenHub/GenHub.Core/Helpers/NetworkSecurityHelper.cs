@@ -261,6 +261,12 @@ public static class NetworkSecurityHelper
             return true;
         }
 
+        // Deprecated Site-Local Unicast (fec0::/10 -> fec0:: to feff::)
+        if (b[0] == 0xfe && (b[1] & 0xc0) == 0xc0)
+        {
+            return true;
+        }
+
         // Multicast (ff00::/8)
         if (b[0] == 0xff)
         {

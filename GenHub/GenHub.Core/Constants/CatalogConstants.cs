@@ -31,7 +31,7 @@ public static class CatalogConstants
     /// <summary>
     /// Current publisher definition schema version ($schemaVersion).
     /// </summary>
-    public const int DefinitionSchemaVersion = 1;
+    public const int DefinitionSchemaVersion = 2;
 
     /// <summary>
     /// Maximum number of catalog mirror URLs attempted when fetching a catalog from a definition.

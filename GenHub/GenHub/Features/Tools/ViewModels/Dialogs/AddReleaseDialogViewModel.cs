@@ -1,14 +1,18 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using GenHub.Common.Validation;
+using GenHub.Core.Helpers;
 using GenHub.Core.Models.Providers;
 using GenHub.Core.Models.Publishers;
 using GenHub.Features.Tools.Interfaces;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.IO;
 using System.Linq;
+using System.Security.Cryptography;
 using System.Text.RegularExpressions;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace GenHub.Features.Tools.ViewModels.Dialogs;
@@ -137,6 +141,47 @@ public partial class AddReleaseDialogViewModel(
     /// </summary>
     public string SuggestedVersion => GetNextVersion(contentItem?.Releases ?? []);
 
+    /// <summary>
+    /// Creates artifacts from dropped file system paths, heuristically filling in
+    /// filename, size, SHA256 hash, and MIME content type for each entry.
+    /// Folders are added as ZIP archives that are packed during publish.
+    /// </summary>
+    /// <param name="paths">The dropped file or folder paths.</param>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    public async Task AddArtifactsFromPathsAsync(IEnumerable<string> paths)
+    {
+        ArgumentNullException.ThrowIfNull(paths);
+
+        foreach (var rawPath in paths)
+        {
+            if (string.IsNullOrWhiteSpace(rawPath))
+            {
+                continue;
+            }
+
+            var path = rawPath.Trim('"', '\'', ' ');
+            ReleaseArtifact? artifact = null;
+
+            if (File.Exists(path))
+            {
+                artifact = await BuildFileArtifactAsync(path, CancellationToken.None);
+            }
+            else if (Directory.Exists(path))
+            {
+                artifact = BuildFolderArtifact(path);
+            }
+
+            if (artifact == null)
+            {
+                continue;
+            }
+
+            Artifacts.Add(artifact);
+        }
+
+        Validate();
+    }
+
     [GeneratedRegex(@"^(\d+)\.(\d+)\.(\d+)")]
     private static partial Regex VersionRegex();
 
@@ -250,6 +295,68 @@ public partial class AddReleaseDialogViewModel(
             Artifacts.Add(artifact);
             Validate();
         }
+    }
+
+    private async Task<ReleaseArtifact> BuildFileArtifactAsync(string path, CancellationToken cancellationToken)
+    {
+        var fileInfo = new FileInfo(path);
+        var filename = fileInfo.Name;
+        string sha256 = string.Empty;
+
+        try
+        {
+            await using var stream = File.OpenRead(path);
+            using var hasher = SHA256.Create();
+            var hashBytes = await hasher.ComputeHashAsync(stream, cancellationToken);
+            sha256 = Convert.ToHexString(hashBytes).ToLowerInvariant();
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or OperationCanceledException)
+        {
+            sha256 = string.Empty;
+        }
+
+        return new ReleaseArtifact
+        {
+            Filename = filename,
+            DownloadUrl = string.Empty,
+            Size = fileInfo.Length,
+            Sha256 = sha256,
+            ContentType = MimeTypeHelper.FromFileName(filename),
+            IsPrimary = Artifacts.Count == 0,
+            LocalFilePath = path,
+        };
+    }
+
+    private ReleaseArtifact BuildFolderArtifact(string path)
+    {
+        var folderName = new DirectoryInfo(path).Name;
+        var filename = folderName.EndsWith(".zip", StringComparison.OrdinalIgnoreCase)
+            ? folderName
+            : folderName + ".zip";
+
+        long totalBytes = 0;
+        try
+        {
+            foreach (var file in new DirectoryInfo(path).EnumerateFiles("*", SearchOption.AllDirectories))
+            {
+                totalBytes += file.Length;
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            totalBytes = 0;
+        }
+
+        return new ReleaseArtifact
+        {
+            Filename = filename,
+            DownloadUrl = string.Empty,
+            Size = totalBytes,
+            Sha256 = string.Empty,
+            ContentType = MimeTypeHelper.FromFileName(filename),
+            IsPrimary = Artifacts.Count == 0,
+            LocalFilePath = path,
+        };
     }
 
     /// <summary>

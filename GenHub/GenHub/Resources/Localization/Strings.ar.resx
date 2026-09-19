@@ -8131,6 +8131,18 @@ GenHub هو مشغل ومدير حديث لألعاب **Command &amp; Conquer: G
   <data name="Tools.PublisherStudio.Artifact.Browse" xml:space="preserve">
     <value>استعراض...</value>
   </data>
+  <data name="Tools.PublisherStudio.Artifact.BrowseFolder" xml:space="preserve">
+    <value>استعراض مجلد</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.CalculatingFolderSize" xml:space="preserve">
+    <value>مجلد (جارٍ حساب الحجم...)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.DragDropHint" xml:space="preserve">
+    <value>تلميح: اسحب ملفًا أو مجلدًا وأفلته في أي مكان في هذا الحوار لملء التفاصيل.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.FolderSizeUnavailable" xml:space="preserve">
+    <value>مجلد (الحجم غير متوفر)</value>
+  </data>
   <data name="Tools.PublisherStudio.Artifact.ComputeHash" xml:space="preserve">
     <value>حساب</value>
   </data>
@@ -8232,9 +8244,6 @@ GenHub هو مشغل ومدير حديث لألعاب **Command &amp; Conquer: G
   </data>
   <data name="Tools.PublisherStudio.Content.BrowseFolder" xml:space="preserve">
     <value>استعراض مجلد...</value>
-  </data>
-  <data name="Tools.PublisherStudio.Content.CdnExplanation" xml:space="preserve">
-    <value>عادة ما تكون حزم عميل اللعبة والحزم الأساسية المستقلة كبيرة الحجم ويتم توزيعها عبر شبكات CDN خارجية أو خوادم نسخ متطابقة سريعة. استخدم عنوان URL للتنزيل المباشر لتوجيه اللاعبين إلى CDN الخاص بك دون إعادة الرفع.</value>
   </data>
   <data name="Tools.PublisherStudio.Content.Changelog" xml:space="preserve">
     <value>سجل التغييرات</value>
@@ -8842,6 +8851,30 @@ GenHub هو مشغل ومدير حديث لألعاب **Command &amp; Conquer: G
   <data name="Tools.PublisherStudio.Hosting.OpenUrlTip" xml:space="preserve">
     <value>فتح رابط التنزيل في المتصفح</value>
   </data>
+  <data name="Tools.PublisherStudio.Hosting.NotConnectedHint" xml:space="preserve">
+    <value>لا يوجد موفر استضافة متصل — تبقى الملفات محلية فقط حتى تتصل أدناه. يمكن بعد ذلك رفع الكتالوجات والتعريفات وملفات الإصدار مباشرة من المخزون.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.Upload" xml:space="preserve">
+    <value>رفع</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.UploadTip" xml:space="preserve">
+    <value>رفع هذا الملف إلى موفر الاستضافة المتصل</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.UploadInProgress" xml:space="preserve">
+    <value>يوجد رفع آخر قيد التنفيذ بالفعل.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.ConnectBeforeUpload" xml:space="preserve">
+    <value>اتصل بموفر الاستضافة قبل رفع الملفات.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.LocalFileMissingFormat" xml:space="preserve">
+    <value>الملف المحلي غير موجود: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.SingleUploadSuccessFormat" xml:space="preserve">
+    <value>تم رفع {0} بنجاح.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.SingleUploadFailedFormat" xml:space="preserve">
+    <value>فشل رفع {0}: {1}</value>
+  </data>
   <data name="Tools.PublisherStudio.Hosting.Provider" xml:space="preserve">
     <value>موفر الاستضافة</value>
   </data>
@@ -8997,6 +9030,24 @@ GenHub هو مشغل ومدير حديث لألعاب **Command &amp; Conquer: G
   </data>
   <data name="Tools.PublisherStudio.Library.DeleteReleaseTooltip" xml:space="preserve">
     <value>حذف الإصدار</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.DeleteReleaseTitle" xml:space="preserve">
+    <value>حذف الإصدار</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.DeleteReleaseMessageFormat" xml:space="preserve">
+    <value>هل أنت متأكد من حذف الإصدار v{0}؟ سيؤدي هذا أيضًا إلى إزالة أصوله ولا يمكن التراجع عنه.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.ReleaseDeletedTitle" xml:space="preserve">
+    <value>تم حذف الإصدار</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.ReleaseDeletedMessageFormat" xml:space="preserve">
+    <value>تم حذف الإصدار v{0}.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.HostingHintMessage" xml:space="preserve">
+    <value>{0} من الملفات بانتظار الرفع. اتصل بموفر استضافة لنشرها على السحابة.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.GoToHosting" xml:space="preserve">
+    <value>فتح الاستضافة</value>
   </data>
   <data name="Tools.PublisherStudio.Library.Dependencies" xml:space="preserve">
     <value>التبعيات</value>
@@ -9429,6 +9480,9 @@ GenHub هو مشغل ومدير حديث لألعاب **Command &amp; Conquer: G
   </data>
   <data name="Tools.PublisherStudio.Release.AddArtifact" xml:space="preserve">
     <value>إضافة أصل</value>
+  </data>
+  <data name="Tools.PublisherStudio.Release.DragDropHint" xml:space="preserve">
+    <value>تلميح: اسحب الملفات أو المجلدات وأفلتها هنا لإضافة أصول.</value>
   </data>
   <data name="Tools.PublisherStudio.Release.AddDependency" xml:space="preserve">
     <value>إضافة تبعية</value>
@@ -10293,6 +10347,9 @@ GenHub هو مشغل ومدير حديث لألعاب **Command &amp; Conquer: G
   </data>
   <data name="Tools.PublisherStudio.Publish.UploadFailedShort" xml:space="preserve">
     <value>فشل الرفع</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.UploadInProgressTitle" xml:space="preserve">
+    <value>الرفع قيد التنفيذ</value>
   </data>
   <data name="Tools.PublisherStudio.Publish.ArtifactUploadFailedFormat" xml:space="preserve">
     <value>فشل رفع {0}: {1}</value>

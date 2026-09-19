@@ -6,7 +6,8 @@
              xmlns:vm="using:GenHub.Features.Tools.ViewModels.Dialogs"
              mc:Ignorable="d" d:DesignWidth="500" d:DesignHeight="600"
              x:Class="GenHub.Features.Tools.Views.Dialogs.AddArtifactDialogView"
-             x:DataType="vm:AddArtifactDialogViewModel">
+             x:DataType="vm:AddArtifactDialogViewModel"
+             DragDrop.AllowDrop="True">
 
     <UserControl.Styles>
         <Style Selector="TextBox">
@@ -98,7 +99,7 @@
 
                     <!-- File Selection (visible when UseLocalFile is true) -->
                     <StackPanel Spacing="8" Margin="24,8,0,0" IsVisible="{Binding UseLocalFile}">
-                        <Grid ColumnDefinitions="*,Auto">
+                        <Grid ColumnDefinitions="*,Auto,Auto">
                             <TextBox Text="{Binding LocalFilePath}"
                                      IsReadOnly="True"
                                      Watermark="{localization:Localize Tools.PublisherStudio.Artifact.NoFileSelected}"
@@ -109,7 +110,14 @@
                                     Classes="small-glass-btn"
                                     Margin="8,0,0,0"
                                     Padding="16,8"/>
+                            <Button Grid.Column="2"
+                                    Command="{Binding BrowseLocalFolderCommand}"
+                                    Content="{localization:Localize Tools.PublisherStudio.Artifact.BrowseFolder}"
+                                    Classes="small-glass-btn"
+                                    Margin="8,0,0,0"
+                                    Padding="16,8"/>
                         </Grid>
+                        <TextBlock Text="{localization:Localize Tools.PublisherStudio.Artifact.DragDropHint}" Classes="hint"/>
                         <TextBlock Text="{Binding FileSizeDisplay}" Classes="hint"
                                    IsVisible="{Binding LocalFilePath, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
                     </StackPanel>

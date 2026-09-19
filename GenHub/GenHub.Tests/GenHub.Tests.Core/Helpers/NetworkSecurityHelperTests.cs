@@ -138,4 +138,24 @@ public class NetworkSecurityHelperTests
     {
         Assert.True(NetworkSecurityHelper.IsSafeIpAddress(IPAddress.Parse(address)));
     }
+
+    /// <summary>
+    /// Verifies that deprecated IPv6 site-local unicast addresses (fec0::/10) are rejected.
+    /// </summary>
+    /// <param name="address">The IPv6 site-local address to validate.</param>
+    [Theory]
+    [InlineData("fec0::1")]
+    [InlineData("fec0::")]
+    [InlineData("feff:ffff:ffff:ffff:ffff:ffff:ffff:ffff")]
+    [InlineData("fec0:0:0:ffff::1")]
+    [InlineData("fed0::1")]
+    [InlineData("fee0::1")]
+    public void IsSafeIpAddress_Ipv6SiteLocal_ReturnsFalse(string address)
+    {
+        Assert.False(NetworkSecurityHelper.IsSafeIpAddress(IPAddress.Parse(address)));
+
+        var urlResult = NetworkSecurityHelper.IsSafeUrl($"https://[{address}]/catalog.json", out var failureReason);
+        Assert.False(urlResult);
+        Assert.NotNull(failureReason);
+    }
 }

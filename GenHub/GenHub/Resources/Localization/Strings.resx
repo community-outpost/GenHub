@@ -8224,6 +8224,18 @@ Do you want to download and inspect this profile package?</value>
   <data name="Tools.PublisherStudio.Artifact.Browse" xml:space="preserve">
     <value>Browse...</value>
   </data>
+  <data name="Tools.PublisherStudio.Artifact.BrowseFolder" xml:space="preserve">
+    <value>Browse Folder</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.CalculatingFolderSize" xml:space="preserve">
+    <value>Folder (calculating size...)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.DragDropHint" xml:space="preserve">
+    <value>Tip: drag &amp; drop a file or folder anywhere in this dialog to fill in the details.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.FolderSizeUnavailable" xml:space="preserve">
+    <value>Folder (size unavailable)</value>
+  </data>
   <data name="Tools.PublisherStudio.Artifact.ComputeHash" xml:space="preserve">
     <value>Compute</value>
   </data>
@@ -8325,9 +8337,6 @@ Do you want to download and inspect this profile package?</value>
   </data>
   <data name="Tools.PublisherStudio.Content.BrowseFolder" xml:space="preserve">
     <value>Browse Folder...</value>
-  </data>
-  <data name="Tools.PublisherStudio.Content.CdnExplanation" xml:space="preserve">
-    <value>Game clients and standalone base packages are typically large and distributed via external CDNs or high-speed mirrors. Use Direct Download URL to point players to your CDN without re-uploading.</value>
   </data>
   <data name="Tools.PublisherStudio.Content.Changelog" xml:space="preserve">
     <value>Changelog</value>
@@ -8935,6 +8944,30 @@ Then click the 'Submit' button at the bottom of the page! (If permissions are no
   <data name="Tools.PublisherStudio.Hosting.OpenUrlTip" xml:space="preserve">
     <value>Open download URL in browser</value>
   </data>
+  <data name="Tools.PublisherStudio.Hosting.NotConnectedHint" xml:space="preserve">
+    <value>No hosting provider connected — files stay local-only until you connect below. Catalogs, definitions, and release files can then be uploaded straight from the inventory.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.Upload" xml:space="preserve">
+    <value>Upload</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.UploadTip" xml:space="preserve">
+    <value>Upload this file to the connected hosting provider</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.UploadInProgress" xml:space="preserve">
+    <value>Another upload is already in progress.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.ConnectBeforeUpload" xml:space="preserve">
+    <value>Connect to your hosting provider before uploading files.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.LocalFileMissingFormat" xml:space="preserve">
+    <value>Local file not found: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.SingleUploadSuccessFormat" xml:space="preserve">
+    <value>{0} uploaded successfully.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.SingleUploadFailedFormat" xml:space="preserve">
+    <value>Failed to upload {0}: {1}</value>
+  </data>
   <data name="Tools.PublisherStudio.Hosting.Provider" xml:space="preserve">
     <value>Hosting Provider</value>
   </data>
@@ -9090,6 +9123,24 @@ Then click the 'Submit' button at the bottom of the page! (If permissions are no
   </data>
   <data name="Tools.PublisherStudio.Library.DeleteReleaseTooltip" xml:space="preserve">
     <value>Delete Release</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.DeleteReleaseTitle" xml:space="preserve">
+    <value>Delete Release</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.DeleteReleaseMessageFormat" xml:space="preserve">
+    <value>Are you sure you want to delete release v{0}? This will also remove its artifacts and cannot be undone.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.ReleaseDeletedTitle" xml:space="preserve">
+    <value>Release Deleted</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.ReleaseDeletedMessageFormat" xml:space="preserve">
+    <value>Release v{0} was deleted.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.HostingHintMessage" xml:space="preserve">
+    <value>{0} file(s) are waiting for upload. Connect a hosting provider to publish them to the cloud.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.GoToHosting" xml:space="preserve">
+    <value>Open Hosting</value>
   </data>
   <data name="Tools.PublisherStudio.Library.Dependencies" xml:space="preserve">
     <value>Dependencies</value>
@@ -9522,6 +9573,9 @@ Then click the 'Submit' button at the bottom of the page! (If permissions are no
   </data>
   <data name="Tools.PublisherStudio.Release.AddArtifact" xml:space="preserve">
     <value>Add Artifact</value>
+  </data>
+  <data name="Tools.PublisherStudio.Release.DragDropHint" xml:space="preserve">
+    <value>Tip: drag &amp; drop files or folders here to add artifacts.</value>
   </data>
   <data name="Tools.PublisherStudio.Release.AddDependency" xml:space="preserve">
     <value>Add Dependency</value>
@@ -10386,6 +10440,9 @@ Then click the 'Submit' button at the bottom of the page! (If permissions are no
   </data>
   <data name="Tools.PublisherStudio.Publish.UploadFailedShort" xml:space="preserve">
     <value>Upload failed</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.UploadInProgressTitle" xml:space="preserve">
+    <value>Upload In Progress</value>
   </data>
   <data name="Tools.PublisherStudio.Publish.ArtifactUploadFailedFormat" xml:space="preserve">
     <value>Failed to upload {0}: {1}</value>

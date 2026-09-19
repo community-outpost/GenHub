@@ -1,6 +1,7 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using GenHub.Common.Validation;
+using GenHub.Core.Helpers;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Providers;
 using GenHub.Features.Tools.Interfaces;
@@ -152,11 +153,6 @@ public partial class AddContentDialogViewModel(
         GameType.Generals,
         GameType.ZeroHour,
     ];
-
-    /// <summary>
-    /// Gets a value indicating whether the selected content type is a GameClient.
-    /// </summary>
-    public bool IsGameClientType => SelectedContentType == ContentType.GameClient;
 
     /// <summary>
     /// Gets the dialog title based on mode.
@@ -330,6 +326,11 @@ public partial class AddContentDialogViewModel(
 
     private static ContentType? InferContentType(string path, string baseName)
     {
+        if (IsGameClientPath(path, baseName))
+        {
+            return ContentType.GameClient;
+        }
+
         var ext = Path.GetExtension(path);
         if (ext.Equals(".map", StringComparison.OrdinalIgnoreCase) || baseName.Contains("map", StringComparison.OrdinalIgnoreCase))
         {
@@ -347,6 +348,31 @@ public partial class AddContentDialogViewModel(
         }
 
         return null;
+    }
+
+    private static bool IsGameClientPath(string path, string baseName)
+    {
+        var ext = Path.GetExtension(path);
+        if (ext.Equals(".exe", StringComparison.OrdinalIgnoreCase) ||
+            ext.Equals(".msi", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        string[] clientKeywords =
+        [
+            "gameclient",
+            "game client",
+            "generalsonline",
+            "generals online",
+            "genlauncher",
+            "cnconline",
+            "cnc online",
+        ];
+
+        return clientKeywords.Any(keyword =>
+            baseName.Contains(keyword, StringComparison.OrdinalIgnoreCase) ||
+            path.Contains(keyword, StringComparison.OrdinalIgnoreCase));
     }
 
     private static ContentRelease CloneRelease(ContentRelease source)
@@ -399,17 +425,9 @@ public partial class AddContentDialogViewModel(
 
     partial void OnSelectedContentTypeChanged(ContentType value)
     {
+        _ = value;
         OnPropertyChanged(nameof(CanExtend));
         OnPropertyChanged(nameof(ShowAddonParentSelection));
-        OnPropertyChanged(nameof(IsGameClientType));
-        if (value == ContentType.GameClient)
-        {
-            UseDirectUrl = true;
-            LocalFilePath = null;
-            FileSize = 0;
-            FileSizeDisplay = string.Empty;
-            Sha256Hash = null;
-        }
     }
 
     partial void OnUseDirectUrlChanged(bool value)
@@ -716,6 +734,7 @@ public partial class AddContentDialogViewModel(
             LocalFilePath = UseDirectUrl ? null : LocalFilePath,
             Size = UseDirectUrl ? 0 : FileSize,
             Sha256 = UseDirectUrl ? string.Empty : (Sha256Hash?.Trim() ?? string.Empty),
+            ContentType = MimeTypeHelper.FromFileName(artifactName),
             IsPrimary = true,
         };
 

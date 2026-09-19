@@ -5,10 +5,60 @@ using System;
 namespace GenHub.Features.Tools.ViewModels;
 
 /// <summary>
+/// Kinds of assets tracked in the hosted asset inventory.
+/// </summary>
+public enum HostedAssetKind
+{
+    /// <summary>
+    /// The publisher definition manifest.
+    /// </summary>
+    Definition,
+
+    /// <summary>
+    /// A catalog manifest belonging to the project.
+    /// </summary>
+    Catalog,
+
+    /// <summary>
+    /// A release binary belonging to the project.
+    /// </summary>
+    Artifact,
+
+    /// <summary>
+    /// A file discovered in cloud storage that is not linked to the project.
+    /// </summary>
+    CloudFile,
+}
+
+/// <summary>
 /// ViewModel representing an asset hosted on a cloud provider or linked via external CDN.
 /// </summary>
 public partial class HostedAssetItemViewModel : ObservableObject
 {
+    [ObservableProperty]
+    private HostedAssetKind _assetKind = HostedAssetKind.Artifact;
+
+    [ObservableProperty]
+    private string? _catalogId;
+
+    [ObservableProperty]
+    private string? _contentId;
+
+    [ObservableProperty]
+    private string? _contentName;
+
+    [ObservableProperty]
+    private string? _releaseVersion;
+
+    [ObservableProperty]
+    private string? _localFilePath;
+
+    [ObservableProperty]
+    private bool _canUpload;
+
+    [ObservableProperty]
+    private bool _isUploading;
+
     [ObservableProperty]
     private string _name = string.Empty;
 

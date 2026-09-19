@@ -29,6 +29,7 @@ namespace GenHub.Features.Tools.Services.Hosting;
 /// </remarks>
 public class GitHubHostingProvider(ILogger<GitHubHostingProvider> logger) : IHostingProvider
 {
+    private const string NotAuthenticatedErrorMessage = "Not authenticated with GitHub";
     private static readonly TimeSpan RegexTimeout = TimeSpan.FromSeconds(1);
     private static readonly Regex GistRawShaRegex = new(@"/raw/[0-9a-fA-F]{40}/", RegexOptions.Compiled, RegexTimeout);
 
@@ -153,7 +154,7 @@ public class GitHubHostingProvider(ILogger<GitHubHostingProvider> logger) : IHos
     {
         if (_client == null || string.IsNullOrEmpty(_authenticatedUsername))
         {
-            return OperationResult<HostingUploadResult>.CreateFailure("Not authenticated with GitHub");
+            return OperationResult<HostingUploadResult>.CreateFailure(NotAuthenticatedErrorMessage);
         }
 
         try
@@ -277,7 +278,7 @@ public class GitHubHostingProvider(ILogger<GitHubHostingProvider> logger) : IHos
     {
         if (_client == null || string.IsNullOrEmpty(_authenticatedUsername))
         {
-            return OperationResult<HostingUploadResult>.CreateFailure("Not authenticated with GitHub");
+            return OperationResult<HostingUploadResult>.CreateFailure(NotAuthenticatedErrorMessage);
         }
 
         try
@@ -346,7 +347,7 @@ public class GitHubHostingProvider(ILogger<GitHubHostingProvider> logger) : IHos
     {
         if (_client == null || string.IsNullOrEmpty(_authenticatedUsername))
         {
-            return OperationResult<HostingUploadResult>.CreateFailure("Not authenticated with GitHub");
+            return OperationResult<HostingUploadResult>.CreateFailure(NotAuthenticatedErrorMessage);
         }
 
         try
@@ -450,7 +451,7 @@ public class GitHubHostingProvider(ILogger<GitHubHostingProvider> logger) : IHos
     {
         if (_client == null || string.IsNullOrEmpty(_authenticatedUsername))
         {
-            return OperationResult<bool>.CreateFailure("Not authenticated with GitHub");
+            return OperationResult<bool>.CreateFailure(NotAuthenticatedErrorMessage);
         }
 
         if (string.IsNullOrWhiteSpace(fileId))
@@ -469,9 +470,9 @@ public class GitHubHostingProvider(ILogger<GitHubHostingProvider> logger) : IHos
         {
             throw;
         }
-        catch (NotFoundException)
+        catch (NotFoundException ex)
         {
-            logger.LogInformation("GitHub Gist {GistId} was already deleted.", fileId);
+            logger.LogInformation(ex, "GitHub Gist {GistId} was already deleted.", fileId);
             return OperationResult<bool>.CreateSuccess(true);
         }
         catch (Exception ex)

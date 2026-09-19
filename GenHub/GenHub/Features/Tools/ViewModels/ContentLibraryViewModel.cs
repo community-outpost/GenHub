@@ -129,6 +129,43 @@ public partial class ContentLibraryViewModel(
     public IAsyncRelayCommand<NamedCatalog>? RemoveCatalogCommand => parentViewModel?.RemoveCatalogCommand;
 
     /// <summary>
+    /// Gets the number of local artifacts in the selected content that are still waiting for cloud upload.
+    /// </summary>
+    public int PendingUploadCount => SelectedContent?.Releases
+        .SelectMany(r => r.Artifacts)
+        .Count(a => !string.IsNullOrEmpty(a.LocalFilePath) && string.IsNullOrEmpty(a.DownloadUrl)) ?? 0;
+
+    /// <summary>
+    /// Gets a value indicating whether a hosting provider is currently connected.
+    /// </summary>
+    public bool IsHostingConnected => parentViewModel?.PublishShareViewModel?.IsProviderAuthenticated ?? false;
+
+    /// <summary>
+    /// Gets a value indicating whether the hosting hint banner should be shown.
+    /// Shown when local files are pending upload but no hosting provider is connected.
+    /// </summary>
+    public bool ShowHostingHint => PendingUploadCount > 0 && !IsHostingConnected;
+
+    /// <summary>
+    /// Gets the localized hosting hint message for pending uploads.
+    /// </summary>
+    public string HostingHintMessage => string.Format(
+        localizationService?.GetString("Tools.PublisherStudio.Library.HostingHintMessage")
+            ?? "{0} file(s) are waiting for upload. Connect a hosting provider to publish them to the cloud.",
+        PendingUploadCount);
+
+    /// <summary>
+    /// Refreshes hosting-related hint bindings, for example after a provider was connected on another tab.
+    /// </summary>
+    public void RefreshHostingHint()
+    {
+        OnPropertyChanged(nameof(PendingUploadCount));
+        OnPropertyChanged(nameof(IsHostingConnected));
+        OnPropertyChanged(nameof(ShowHostingHint));
+        OnPropertyChanged(nameof(HostingHintMessage));
+    }
+
+    /// <summary>
     /// Adds a new content item to the active catalog with an optional initial folder/file path.
     /// </summary>
     /// <param name="initialPath">Optional initial path of dropped or selected folder/file.</param>
@@ -176,6 +213,18 @@ public partial class ContentLibraryViewModel(
     }
 
     /// <summary>
+    /// Navigates to the Hosting &amp; Cloud Storage tab.
+    /// </summary>
+    [RelayCommand]
+    private void GoToHosting()
+    {
+        if (parentViewModel != null)
+        {
+            parentViewModel.SelectedTabIndex = PublisherStudioViewModel.TabHostingStorage;
+        }
+    }
+
+    /// <summary>
     /// Renames the active catalog.
     /// </summary>
     [RelayCommand]
@@ -218,8 +267,7 @@ public partial class ContentLibraryViewModel(
             SelectedContent.ExtendsContentId = edited.ExtendsContentId;
 
             // Trigger UI update
-            OnPropertyChanged(nameof(FilteredContent));
-            OnPropertyChanged(nameof(SelectedContent));
+            RefreshSelectedContent();
 
             parentViewModel?.MarkDirty();
             if (parentViewModel != null)
@@ -297,7 +345,7 @@ public partial class ContentLibraryViewModel(
             }
 
             SelectedContent.Releases.Add(newRelease);
-            OnPropertyChanged(nameof(SelectedContent));
+            RefreshSelectedContent();
 
             parentViewModel?.MarkDirty();
             if (parentViewModel != null)
@@ -321,7 +369,7 @@ public partial class ContentLibraryViewModel(
         if (dependency != null)
         {
             SelectedContent.BundledItems.Add(dependency);
-            OnPropertyChanged(nameof(SelectedContent));
+            RefreshSelectedContent();
 
             parentViewModel?.MarkDirty();
             if (parentViewModel != null)
@@ -342,7 +390,7 @@ public partial class ContentLibraryViewModel(
         if (SelectedContent == null || dependency == null) return;
 
         SelectedContent.BundledItems.Remove(dependency);
-        OnPropertyChanged(nameof(SelectedContent));
+        RefreshSelectedContent();
 
         parentViewModel?.MarkDirty();
         if (parentViewModel != null)
@@ -354,7 +402,7 @@ public partial class ContentLibraryViewModel(
     }
 
     /// <summary>
-    /// Deletes a release from the selected content item.
+    /// Deletes a release from the selected content item after user confirmation.
     /// </summary>
     [RelayCommand]
     private async Task DeleteReleaseAsync(ContentRelease? release)
@@ -364,16 +412,43 @@ public partial class ContentLibraryViewModel(
             return;
         }
 
-        SelectedContent.Releases.Remove(release);
-        OnPropertyChanged(nameof(SelectedContent));
+        var title = GetLocalizedString("Tools.PublisherStudio.Library.DeleteReleaseTitle", "Delete Release");
+        var message = string.Format(
+            GetLocalizedString(
+                "Tools.PublisherStudio.Library.DeleteReleaseMessageFormat",
+                "Are you sure you want to delete release v{0}? This will also remove its artifacts and cannot be undone."),
+            release.Version);
+
+        var confirmed = await dialogService.ShowConfirmationAsync(title, message);
+        if (!confirmed)
+        {
+            return;
+        }
+
+        var contentId = SelectedContent.Id;
+        var version = release.Version;
+        if (!SelectedContent.Releases.Remove(release))
+        {
+            return;
+        }
+
+        RefreshSelectedContent();
 
         parentViewModel?.MarkDirty();
         if (parentViewModel != null)
         {
-            await parentViewModel.SaveProjectAsync();
+            await parentViewModel.SaveProjectSilentAsync();
         }
 
-        logger.LogInformation("Removed release v{Version} from content: {ContentId}", release.Version, SelectedContent.Id);
+        var deletedTitle = GetLocalizedString("Tools.PublisherStudio.Library.ReleaseDeletedTitle", "Release Deleted");
+        var deletedMessage = string.Format(
+            GetLocalizedString(
+                "Tools.PublisherStudio.Library.ReleaseDeletedMessageFormat",
+                "Release v{0} was deleted."),
+            version);
+        notificationService?.ShowSuccess(deletedTitle, deletedMessage);
+
+        logger.LogInformation("Removed release v{Version} from content: {ContentId}", version, contentId);
     }
 
     /// <summary>
@@ -410,7 +485,7 @@ public partial class ContentLibraryViewModel(
             parentViewModel?.PublishShareViewModel?.RefreshUploadHierarchy();
             parentViewModel?.PublishShareViewModel?.RefreshArtifactStatuses();
 
-            OnPropertyChanged(nameof(SelectedContent));
+            RefreshSelectedContent();
 
             parentViewModel?.MarkDirty();
             if (parentViewModel != null)
@@ -442,7 +517,7 @@ public partial class ContentLibraryViewModel(
             }
 
             release.Artifacts.Add(artifact);
-            OnPropertyChanged(nameof(SelectedContent));
+            RefreshSelectedContent();
 
             parentViewModel?.MarkDirty();
             if (parentViewModel != null)
@@ -466,7 +541,7 @@ public partial class ContentLibraryViewModel(
         if (release != null)
         {
             release.Artifacts.Remove(artifact);
-            OnPropertyChanged(nameof(SelectedContent));
+            RefreshSelectedContent();
 
             parentViewModel?.MarkDirty();
             if (parentViewModel != null)
@@ -490,7 +565,7 @@ public partial class ContentLibraryViewModel(
         if (dependency != null)
         {
             release.Dependencies.Add(dependency);
-            OnPropertyChanged(nameof(SelectedContent));
+            RefreshSelectedContent();
 
             parentViewModel?.MarkDirty();
             if (parentViewModel != null)
@@ -514,7 +589,7 @@ public partial class ContentLibraryViewModel(
         if (release != null)
         {
             release.Dependencies.Remove(dependency);
-            OnPropertyChanged(nameof(SelectedContent));
+            RefreshSelectedContent();
 
             parentViewModel?.MarkDirty();
             if (parentViewModel != null)
@@ -529,6 +604,31 @@ public partial class ContentLibraryViewModel(
     partial void OnSearchTextChanged(string value)
     {
         OnPropertyChanged(nameof(FilteredContent));
+    }
+
+    partial void OnSelectedContentChanged(CatalogContentItem? value)
+    {
+        _ = value;
+        RefreshHostingHint();
+    }
+
+    /// <summary>
+    /// Forces the content detail panel to rebuild.
+    /// Selected content instances are mutable models, so mutating their releases, artifacts,
+    /// or dependencies in place does not raise change notifications on its own.
+    /// </summary>
+    private void RefreshSelectedContent()
+    {
+        var selected = SelectedContent;
+        if (selected == null)
+        {
+            return;
+        }
+
+        SelectedContent = null;
+        SelectedContent = selected;
+        OnPropertyChanged(nameof(FilteredContent));
+        RefreshHostingHint();
     }
 
     /// <summary>
