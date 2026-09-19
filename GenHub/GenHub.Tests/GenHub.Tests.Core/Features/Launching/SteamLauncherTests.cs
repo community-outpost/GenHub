@@ -429,7 +429,9 @@ public sealed class SteamLauncherTests : IDisposable
             .Where(f => f.EndsWith(".exe", StringComparison.OrdinalIgnoreCase))
             .ToArray();
         var deployedExe = Assert.Single(deployedExes);
-        Assert.Equal("Genhub-Test-Game.EXE", Path.GetFileName(deployedExe), ignoreCase: true);
+
+        // Enforce exact casing preservation on case-sensitive platforms (Linux/macOS), while allowing case-insensitive matching on Windows NTFS.
+        Assert.Equal("Genhub-Test-Game.EXE", Path.GetFileName(deployedExe), ignoreCase: OperatingSystem.IsWindows());
         Assert.Equal("proxy executable", File.ReadAllText(deployedExe));
         Assert.Equal("original executable", File.ReadAllText(deployedExe + SteamConstants.BackupExtension));
         Assert.Empty(GetRollbackArtifacts());
@@ -454,7 +456,9 @@ public sealed class SteamLauncherTests : IDisposable
             .Where(f => f.EndsWith(".dll", StringComparison.OrdinalIgnoreCase))
             .ToArray();
         var dll = Assert.Single(copied);
-        Assert.Equal("BINKW32.DLL", Path.GetFileName(dll), ignoreCase: true);
+
+        // Enforce exact casing preservation on case-sensitive platforms (Linux/macOS), while allowing case-insensitive matching on Windows NTFS.
+        Assert.Equal("BINKW32.DLL", Path.GetFileName(dll), ignoreCase: OperatingSystem.IsWindows());
         Assert.Equal("installation dependency", File.ReadAllText(dll));
     }
 

@@ -58,7 +58,7 @@
 
     <!-- Ensure Proxy Launcher is PUBLISHED as SingleFile and copied to build output -->
     <Target Name="BuildProxyLauncher" BeforeTargets="Build">
-        <Exec Command="dotnet publish &quot;..\GenHub.ProxyLauncher\GenHub.ProxyLauncher.csproj&quot; -c $(Configuration) -f net8.0 -r win-x64 --self-contained true -p:PublishSingleFile=true -p:Version=$(Version) -p:GitShortHash=$(GitShortHash) -p:PullRequestNumber=$(PullRequestNumber) -p:BuildChannel=$(BuildChannel) -o &quot;$(MSBuildProjectDirectory)\..\GenHub.ProxyLauncher\bin\Publish\$(Configuration)&quot;" />
+        <Exec Command="dotnet publish &quot;..\GenHub.ProxyLauncher\GenHub.ProxyLauncher.csproj&quot; -c $(Configuration) -f net8.0 -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IntermediateOutputPath=&quot;obj/$(Configuration)/net8.0/win-x64/Windows/&quot; -p:Version=$(Version) -p:GitShortHash=$(GitShortHash) -p:PullRequestNumber=$(PullRequestNumber) -p:BuildChannel=$(BuildChannel) -o &quot;$(MSBuildProjectDirectory)\..\GenHub.ProxyLauncher\bin\Publish\$(Configuration)&quot;" />
     </Target>
 
     <Target Name="CopyProxyLauncher" AfterTargets="Build">

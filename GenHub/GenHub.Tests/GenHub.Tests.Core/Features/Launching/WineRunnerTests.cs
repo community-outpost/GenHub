@@ -62,13 +62,8 @@ public sealed class WineRunnerTests : IDisposable
     [Fact]
     public void ResolveCommand_WithoutWine_ReturnsFailure()
     {
-        // Arrange: a machine with Wine installed cannot observe the missing-runner path.
-        if (WineBinaryExistsOnPath())
-        {
-            return;
-        }
-
-        var runner = CreateRunner([], Path.Combine(_tempDirectory, "prefix"));
+        // Arrange
+        var runner = CreateRunner([], Path.Combine(_tempDirectory, "prefix"), [$"missing-wine-{Guid.NewGuid():N}"]);
         var configuration = new GameLaunchConfiguration
         {
             ExecutablePath = Path.Combine(_tempDirectory, "game", "generals.exe"),
@@ -365,13 +360,8 @@ public sealed class WineRunnerTests : IDisposable
     [Fact]
     public void CanLaunchWindowsExecutables_WithoutWine_ReturnsFalse()
     {
-        // Arrange: a machine with Wine installed cannot observe the missing-runner path.
-        if (WineBinaryExistsOnPath())
-        {
-            return;
-        }
-
-        var runner = CreateRunner([], Path.Combine(_tempDirectory, "prefix"));
+        // Arrange
+        var runner = CreateRunner([], Path.Combine(_tempDirectory, "prefix"), [$"missing-wine-{Guid.NewGuid():N}"]);
 
         // Act and Assert
         Assert.False(runner.CanLaunchWindowsExecutables());
@@ -482,29 +472,13 @@ public sealed class WineRunnerTests : IDisposable
         GC.SuppressFinalize(this);
     }
 
-    private static bool WineBinaryExistsOnPath()
-    {
-        var pathVariable = Environment.GetEnvironmentVariable(WineConstants.PathEnvironmentVariable);
-        if (string.IsNullOrEmpty(pathVariable))
-        {
-            return false;
-        }
-
-        return pathVariable
-            .Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-            .Where(Directory.Exists)
-            .SelectMany(directory => new[]
-            {
-                Path.Combine(directory, WineConstants.WineBinaryName),
-                Path.Combine(directory, WineConstants.Wine64BinaryName),
-            })
-            .Any(File.Exists);
-    }
-
-    private WineRunner CreateRunner(string[] extraSearchDirectories, string prefixPath)
+    private WineRunner CreateRunner(
+        string[] extraSearchDirectories,
+        string prefixPath,
+        string[]? binaryNames = null)
     {
         var options = new WineRunnerOptions(
-            [WineConstants.WineBinaryName, WineConstants.Wine64BinaryName],
+            binaryNames ?? [WineConstants.WineBinaryName, WineConstants.Wine64BinaryName],
             [],
             extraSearchDirectories,
             prefixPath);

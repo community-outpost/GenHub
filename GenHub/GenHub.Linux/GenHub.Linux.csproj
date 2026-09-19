@@ -42,7 +42,7 @@
     <!-- Publish the Windows proxy launcher (win-x64 PE) and copy it to build output.
          The proxy must stay a Windows binary: Steam runs the swapped-in file through Proton. -->
     <Target Name="BuildProxyLauncher" BeforeTargets="Build">
-        <Exec Command="dotnet publish &quot;../GenHub.ProxyLauncher/GenHub.ProxyLauncher.csproj&quot; -c $(Configuration) -f net8.0 -r win-x64 --self-contained true -p:PublishSingleFile=true -p:Version=$(Version) -p:GitShortHash=$(GitShortHash) -p:PullRequestNumber=$(PullRequestNumber) -p:BuildChannel=$(BuildChannel) -o &quot;$(MSBuildProjectDirectory)/../GenHub.ProxyLauncher/bin/Publish/Linux/$(Configuration)&quot;" />
+        <Exec Command="dotnet publish &quot;../GenHub.ProxyLauncher/GenHub.ProxyLauncher.csproj&quot; -c $(Configuration) -f net8.0 -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IntermediateOutputPath=&quot;obj/$(Configuration)/net8.0/win-x64/Linux/&quot; -p:Version=$(Version) -p:GitShortHash=$(GitShortHash) -p:PullRequestNumber=$(PullRequestNumber) -p:BuildChannel=$(BuildChannel) -o &quot;$(MSBuildProjectDirectory)/../GenHub.ProxyLauncher/bin/Publish/Linux/$(Configuration)&quot;" />
     </Target>
 
     <Target Name="CopyProxyLauncher" AfterTargets="Build">
