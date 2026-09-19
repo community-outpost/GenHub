@@ -19,6 +19,9 @@ namespace GenHub.Features.GameProfiles.ViewModels;
 /// </summary>
 public partial class GameProfileItemViewModel : ViewModelBase
 {
+    /// <summary>Gets or sets the identity of the running process, independently of its reusable PID.</summary>
+    public Guid ProcessInstanceId { get; set; }
+
     /// <summary>
     /// Gets or sets the action to launch the profile.
     /// </summary>

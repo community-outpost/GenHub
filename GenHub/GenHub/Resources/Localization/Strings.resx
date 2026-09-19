@@ -8188,4 +8188,10 @@ Do you want to download and inspect this profile package?</value>
   <data name="GameProfiles.Notification.UnexpectedExit.Title" xml:space="preserve">
     <value>Game Exited Unexpectedly</value>
   </data>
+  <data name="GameProfiles.Notification.UnexpectedExit.Message" xml:space="preserve">
+    <value>The game exited unexpectedly (code {0}). See the logs for details.</value>
+  </data>
+  <data name="GameProfiles.Notification.UnexpectedExit.Archives" xml:space="preserve">
+    <value>The game could not load these archives: {0}. Exit code: {1}.</value>
+  </data>
 </root>

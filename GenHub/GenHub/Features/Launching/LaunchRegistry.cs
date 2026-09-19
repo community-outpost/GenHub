@@ -16,7 +16,7 @@ namespace GenHub.Features.Launching;
 /// <summary>
 /// In-memory implementation of the launch registry.
 /// </summary>
-public class LaunchRegistry : ILaunchRegistry
+public class LaunchRegistry : ILaunchRegistry, IDisposable
 {
     private const int MaxInspectionFailures = 5;
 
@@ -153,7 +153,7 @@ public class LaunchRegistry : ILaunchRegistry
                 if (launchInfo.ProcessInfo.IsRunning)
                 {
                     launchInfo.ProcessInfo.IsRunning = false;
-                    WeakReferenceMessenger.Default.Send(new ProfileStoppedMessage(launchInfo.ProfileId, launchInfo.ProcessInfo.ProcessId));
+                    WeakReferenceMessenger.Default.Send(new ProfileStoppedMessage(launchInfo.ProfileId, launchInfo.ProcessInfo.ProcessId) { ProcessInstanceId = launchInfo.ProcessInfo.ProcessInstanceId });
                 }
 
                 _logger.LogInformation("Unregistered launch {LaunchId} for profile {ProfileId}", launchId, launchInfo.ProfileId);
@@ -168,11 +168,17 @@ public class LaunchRegistry : ILaunchRegistry
     }
 
     /// <inheritdoc/>
-    public Task<GameLaunchInfo?> GetLaunchInfoAsync(string launchId)
+    public async Task<GameLaunchInfo?> GetLaunchInfoAsync(string launchId)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(launchId);
 
         _activeLaunches.TryGetValue(launchId, out var launchInfo);
+
+        // Let the manager finalize its owned handle before the PID-only fallback loses diagnostics.
+        if (_processManager != null && launchInfo?.ProcessInfo.ProcessId > 0 && !launchInfo.TerminatedAt.HasValue)
+        {
+            await _processManager.GetProcessInfoAsync(launchInfo.ProcessInfo.ProcessId);
+        }
 
         // Check if this launch is stale
         if (launchInfo != null && !launchInfo.TerminatedAt.HasValue)
@@ -180,18 +186,34 @@ public class LaunchRegistry : ILaunchRegistry
             TryUpdateProcessStatus(launchInfo, launchId);
         }
 
-        return Task.FromResult(launchInfo);
+        return launchInfo;
     }
 
     /// <inheritdoc/>
-    public Task<IEnumerable<GameLaunchInfo>> GetAllActiveLaunchesAsync()
+    public async Task<IEnumerable<GameLaunchInfo>> GetAllActiveLaunchesAsync()
     {
+        if (_processManager != null)
+        {
+            await _processManager.GetActiveProcessesAsync();
+        }
+
         // Clean up stale launches before returning
         CleanupStaleLaunches();
 
         // Only return launches that haven't been terminated
         // This prevents race conditions where a launch is being terminated but still in the registry
-        return Task.FromResult(_activeLaunches.Values.Where(l => !l.TerminatedAt.HasValue).AsEnumerable());
+        return _activeLaunches.Values.Where(l => !l.TerminatedAt.HasValue).ToList();
+    }
+
+    /// <summary>Detaches the manager event subscription when the registry is released.</summary>
+    public void Dispose()
+    {
+        if (_processManager != null)
+        {
+            _processManager.ProcessExited -= OnProcessExited;
+        }
+
+        GC.SuppressFinalize(this);
     }
 
     /// <summary>Applies a polling result once; exit diagnostics may subsequently enrich the same process instance.</summary>
@@ -210,7 +232,7 @@ public class LaunchRegistry : ILaunchRegistry
 
             launch.TerminatedAt = exitTime;
             launch.ProcessInfo.IsRunning = false;
-            WeakReferenceMessenger.Default.Send(new ProfileStoppedMessage(launch.ProfileId, launch.ProcessInfo.ProcessId));
+            WeakReferenceMessenger.Default.Send(new ProfileStoppedMessage(launch.ProfileId, launch.ProcessInfo.ProcessId) { ProcessInstanceId = launch.ProcessInfo.ProcessInstanceId });
         }
     }
 
@@ -349,7 +371,7 @@ public class LaunchRegistry : ILaunchRegistry
 
         if (!alreadyStopped)
         {
-            WeakReferenceMessenger.Default.Send(new ProfileStoppedMessage(launch.ProfileId, e.ProcessId));
+            WeakReferenceMessenger.Default.Send(new ProfileStoppedMessage(launch.ProfileId, e.ProcessId) { ProcessInstanceId = launch.ProcessInfo.ProcessInstanceId });
         }
     }
 

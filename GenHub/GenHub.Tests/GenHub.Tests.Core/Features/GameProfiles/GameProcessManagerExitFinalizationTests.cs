@@ -22,6 +22,20 @@ public class GameProcessManagerExitFinalizationTests
         }
     }
 
+    /// <summary>An inspection error retains the subscribed process and its stop ownership.</summary>
+    /// <returns>The async task.</returns>
+    [Fact]
+    public async Task GetActiveProcessesAsync_InspectionFails_RetainsTrackedInstanceAsync()
+    {
+        using var manager = new GameProcessManager(Mock.Of<ILogger<GameProcessManager>>());
+        using var process = new DisposableProcess();
+        const int processId = 12345;
+        GetState(manager, "_managedProcesses")[processId] = process;
+        var result = await manager.GetActiveProcessesAsync();
+        Assert.True(result.Success);
+        Assert.Same(process, GetState(manager, "_managedProcesses")[processId]);
+    }
+
     /// <summary>Natural exits release their process after all subscribers have returned.</summary>
     /// <param name="requested">Whether the termination caller owns disposal.</param>
     [Theory]

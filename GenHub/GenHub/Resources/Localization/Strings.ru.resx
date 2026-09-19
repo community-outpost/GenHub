@@ -8094,4 +8094,10 @@ GenHub передает официальный идентификатор AppID 
   <data name="GameProfiles.Notification.UnexpectedExit.Title" xml:space="preserve">
     <value>Игра неожиданно завершилась</value>
   </data>
+  <data name="GameProfiles.Notification.UnexpectedExit.Message" xml:space="preserve">
+    <value>Игра неожиданно завершилась (код {0}). Подробности см. в журнале.</value>
+  </data>
+  <data name="GameProfiles.Notification.UnexpectedExit.Archives" xml:space="preserve">
+    <value>Игра не смогла загрузить архивы: {0}. Код завершения: {1}.</value>
+  </data>
 </root>

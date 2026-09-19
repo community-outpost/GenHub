@@ -204,7 +204,8 @@ public class GameProcessManager(
         var exitObserved = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         void ObserveExit(object? sender, GameProcessExitedEventArgs args)
         {
-            if (args.ProcessId == processId)
+            if (process != null && args.ProcessId == processId
+                && args.ProcessInstanceId == _exitFinalizations.GetValue(process, _ => new ExitFinalizationState()).InstanceId)
             {
                 exitObserved.TrySetResult();
             }
@@ -376,8 +377,9 @@ public class GameProcessManager(
                 catch (Exception ex)
                 {
                     logger.LogWarning(ex, "Failed to get info for managed process {ProcessId}", kvp.Key);
-                    _managedProcesses.TryRemove(new KeyValuePair<int, Process>(kvp.Key, kvp.Value));
-                    _stderrBuffers.TryRemove(kvp.Value, out _);
+
+                    // A transient inspection failure does not transfer ownership. Keep the
+                    // subscribed instance and its diagnostics available for Stop and later polls.
                 }
             }
 
@@ -683,13 +685,12 @@ public class GameProcessManager(
         {
             foreach (var prefix in sentinelPrefixes)
             {
-                var index = line.IndexOf(prefix, StringComparison.Ordinal);
-                if (index < 0)
+                if (!line.StartsWith(prefix, StringComparison.Ordinal))
                 {
                     continue;
                 }
 
-                var archive = line[(index + prefix.Length)..].Trim();
+                var archive = line[prefix.Length..].Trim();
                 if (archive.Length > 0 && !archives.Contains(archive))
                 {
                     archives.Add(archive);

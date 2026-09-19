@@ -979,6 +979,11 @@ public class GameLauncher(
             };
             logger.LogDebug("[GameLauncher] Updating launch registry with real process info");
             await launchRegistry.RegisterLaunchAsync(launchInfo);
+            if (launchInfo.TerminatedAt.HasValue || launchInfo.HasFailed)
+            {
+                return LaunchOperationResult<GameLaunchInfo>.CreateFailure(
+                    launchInfo.FailureReason ?? "The game exited before launch completed.", launchId, profile.Id);
+            }
 
             progress?.Report(new LaunchProgress { Phase = LaunchPhase.Running, PercentComplete = 100 });
             logger.LogInformation("[GameLauncher] === Launch completed successfully for profile {ProfileId} ===", profile.Id);
