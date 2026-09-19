@@ -2093,27 +2093,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
                     await _manifestPool.RemoveManifestAsync(manifest.Id);
                 }
 
-                // Clean up orphaned content IDs from profiles
-                var profilesResult = await _profileManager.GetAllProfilesAsync();
-                if (profilesResult.Success && profilesResult.Data != null)
-                {
-                    foreach (var profile in profilesResult.Data)
-                    {
-                        if (profile.EnabledContentIds != null && profile.EnabledContentIds.Any(id => deletedIds.Contains(id)))
-                        {
-                            var updatedContentIds = profile.EnabledContentIds
-                                .Where(id => !deletedIds.Contains(id))
-                                .ToList();
-
-                            var updateRequest = new UpdateProfileRequest
-                            {
-                                EnabledContentIds = updatedContentIds,
-                            };
-                            await _profileManager.UpdateProfileAsync(profile.Id, updateRequest);
-                            _logger.LogInformation("Scrubbed deleted manifest IDs from profile {ProfileName} ({ProfileId})", profile.Name, profile.Id);
-                        }
-                    }
-                }
+                await ScrubDeletedManifestIdsFromProfilesAsync(deletedIds);
 
                 if (showToast)
                 {
@@ -2134,6 +2114,39 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
                 _notificationService.ShowError("Deletion Failed", $"Failed to delete manifests: {ex.Message}", 5000);
             }
         }
+    }
+
+    private async Task ScrubDeletedManifestIdsFromProfilesAsync(HashSet<string> deletedIds)
+    {
+        var profilesResult = await _profileManager.GetAllProfilesAsync();
+        if (!profilesResult.Success || profilesResult.Data == null)
+        {
+            return;
+        }
+
+        foreach (var profile in profilesResult.Data)
+        {
+            await ScrubDeletedManifestIdsFromProfileAsync(profile, deletedIds);
+        }
+    }
+
+    private async Task ScrubDeletedManifestIdsFromProfileAsync(GameProfile profile, HashSet<string> deletedIds)
+    {
+        if (profile.EnabledContentIds == null || !profile.EnabledContentIds.Any(id => deletedIds.Contains(id)))
+        {
+            return;
+        }
+
+        var updatedContentIds = profile.EnabledContentIds
+            .Where(id => !deletedIds.Contains(id))
+            .ToList();
+
+        var updateRequest = new UpdateProfileRequest
+        {
+            EnabledContentIds = updatedContentIds,
+        };
+        await _profileManager.UpdateProfileAsync(profile.Id, updateRequest);
+        _logger.LogInformation("Scrubbed deleted manifest IDs from profile {ProfileName} ({ProfileId})", profile.Name, profile.Id);
     }
 
     [RelayCommand]
