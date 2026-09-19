@@ -24,6 +24,8 @@ public class CasService(
     IStreamHashProvider streamHashProvider,
     ICasPoolManager? poolManager = null) : ICasService
 {
+    private const string GetObjectSizeFailureMessage = "Failed to get size of CAS object {Hash}";
+
     /// <inheritdoc/>
     public async Task<OperationResult<string>> StoreContentAsync(string sourcePath, string? expectedHash = null, CancellationToken cancellationToken = default)
     {
@@ -596,7 +598,7 @@ public class CasService(
         }
     }
 
-    private static long GetObjectSize(ICasStorage poolStorage, string hash)
+    private long GetObjectSize(ICasStorage poolStorage, string hash)
     {
         try
         {
@@ -606,9 +608,17 @@ public class CasService(
                 return new FileInfo(objectPath).Length;
             }
         }
-        catch
+        catch (IOException ex)
         {
-            // Skip files that can't be accessed
+            logger.LogDebug(ex, GetObjectSizeFailureMessage, hash);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            logger.LogDebug(ex, GetObjectSizeFailureMessage, hash);
+        }
+        catch (NotSupportedException ex)
+        {
+            logger.LogDebug(ex, GetObjectSizeFailureMessage, hash);
         }
 
         return 0;

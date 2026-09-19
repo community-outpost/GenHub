@@ -1229,6 +1229,10 @@
     <value>يتطلب تشغيل ألعاب Windows على هذا النظام وجود Wine، لكنه غير موجود. ثبّت Wine على Linux، أو CrossOver أو Wine على macOS، ثم حاول مرة أخرى.</value>
     <comment>Error shown when no Wine compatibility runner is available on Linux or macOS</comment>
   </data>
+  <data name="Launch.CasPreflight.Missing.Message" xml:space="preserve">
+    <value>هناك {0} من كائنات CAS المطلوبة مفقودة ({1}). يجب تنزيل المحتوى قبل التشغيل.</value>
+    <comment>Error shown when required CAS objects are missing at launch, formatted with the missing object count and a sample list</comment>
+  </data>
   <data name="Maps.Button.ClearAllHistory" xml:space="preserve">
     <value>مسح كل السجل</value>
   </data>

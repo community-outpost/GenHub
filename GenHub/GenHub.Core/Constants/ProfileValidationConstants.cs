@@ -146,4 +146,15 @@ public static class ProfileValidationConstants
     /// English fallback when the compatibility runner message resource is unavailable.
     /// </summary>
     public const string MissingCompatibilityRunner = "Wine is required to run Windows games on this system but was not found. Install Wine on Linux, or CrossOver or Wine on macOS, then try again.";
+
+    /// <summary>
+    /// Resource key for the error shown when required CAS objects are missing at launch.
+    /// </summary>
+    public const string MissingCasObjectsMessageKey = "Launch.CasPreflight.Missing.Message";
+
+    /// <summary>
+    /// English fallback when the missing CAS objects message resource is unavailable.
+    /// Format placeholders: {0} is the missing object count, {1} is a sample list.
+    /// </summary>
+    public const string MissingCasObjectsMessage = "Missing {0} required CAS objects ({1}). Content must be downloaded before launching.";
 }
