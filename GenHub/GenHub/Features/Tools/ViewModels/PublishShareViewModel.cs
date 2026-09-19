@@ -48,7 +48,6 @@ public partial class PublishShareViewModel(
     ILocalizationService? localizationService = null,
     IHostingCredentialStore? credentialStore = null) : ObservableObject, IDisposable
 {
-    private const string PleaseSelectHostingProviderMessage = "Please select a hosting provider";
     private const string SuccessLiteral = "Success";
     private const string WarningLiteral = "Warning";
     private const string CommonNotificationSuccessKey = "Common.Notification.Success";
@@ -311,7 +310,7 @@ public partial class PublishShareViewModel(
     /// Gets an explanatory warning message when the provider cannot host the pending local files.
     /// </summary>
     public string IncompatibleArtifactsWarningMessage =>
-        $"{SelectedHostingProvider?.DisplayName ?? "This provider"} only hosts catalog metadata (JSON). Your project has {PendingArtifactsCount} local file(s) pending upload. Either provide direct CDN URLs for those files, or switch to Google Drive or Dropbox to host binary archives.";
+        FormatLocalizedString("Tools.PublisherStudio.Publish.IncompatibleArtifactsWarningFormat", "{0} only hosts catalog metadata (JSON). Your project has {1} local file(s) pending upload. Either provide direct CDN URLs for those files, or switch to Google Drive or Dropbox to host binary archives.", SelectedHostingProvider?.DisplayName ?? "This provider", PendingArtifactsCount);
 
     /// <summary>
     /// Gets the content item count in the active catalog.
@@ -332,6 +331,14 @@ public partial class PublishShareViewModel(
     /// Gets the total release count across all content items in the active catalog.
     /// </summary>
     public int TotalReleaseCount => ActiveCatalog?.Catalog.Content.Sum(c => c.Releases.Count) ?? 0;
+
+    /// <summary>
+    /// Gets the localized display name of the selected hosting provider.
+    /// </summary>
+    public string ProviderDisplayName => SelectedHostingProvider?.DisplayName
+        ?? GetLocalizedString("Tools.PublisherStudio.Hosting.NotConnected", "Not Connected");
+
+    private string PleaseSelectHostingProviderMessage => GetLocalizedString("Tools.PublisherStudio.Publish.SelectHostingProvider", "Please select a hosting provider");
 
     /// <summary>
     /// Updates the catalog ID, name, and file name in the hosting state if present and persists the change.
@@ -487,6 +494,35 @@ public partial class PublishShareViewModel(
         OnPropertyChanged(nameof(HostedAssetsCountText));
     }
 
+    /// <summary>
+    /// Rebuilds the artifact URL validation statuses from the active catalog.
+    /// </summary>
+    public void RefreshArtifactStatuses()
+    {
+        ArtifactStatuses.Clear();
+
+        if (ActiveCatalog == null)
+        {
+            return;
+        }
+
+        foreach (var content in ActiveCatalog.Catalog.Content)
+        {
+            foreach (var release in content.Releases)
+            {
+                foreach (var artifact in release.Artifacts)
+                {
+                    ArtifactStatuses.Add(new ArtifactUrlStatus(artifact, content.Name, release.Version, localizationService));
+                }
+            }
+        }
+
+        OnPropertyChanged(nameof(PendingArtifactsCount));
+        OnPropertyChanged(nameof(ExternalCdnArtifactsCount));
+        OnPropertyChanged(nameof(HasIncompatibleArtifactsForProvider));
+        OnPropertyChanged(nameof(IncompatibleArtifactsWarningMessage));
+    }
+
     /// <inheritdoc />
     public void Dispose()
     {
@@ -612,8 +648,8 @@ public partial class PublishShareViewModel(
         HostedAssets.Add(new HostedAssetItemViewModel
         {
             Name = project.ProviderDefinitionFileName ?? HostingConstants.DefaultDefinitionFileName,
-            Category = "Publisher Definition",
-            Location = isDefHosted ? $"{providerName} ({HostingConstants.DropboxDefaultPublisherFolder})" : "Local only",
+            Category = GetLocalizedString("Tools.PublisherStudio.Hosting.AssetCategoryDefinition", "Publisher Definition"),
+            Location = isDefHosted ? $"{providerName} ({HostingConstants.DropboxDefaultPublisherFolder})" : GetLocalizedString("Tools.PublisherStudio.Hosting.AssetLocationLocalOnly", "Local only"),
             FileSize = defSize,
             Url = defUrl ?? string.Empty,
             Status = isDefHosted
@@ -644,8 +680,8 @@ public partial class PublishShareViewModel(
             HostedAssets.Add(new HostedAssetItemViewModel
             {
                 Name = catalog.FileName,
-                Category = $"Catalog Manifest ({catalog.Name})",
-                Location = isCatHosted ? $"{providerName} ({HostingConstants.DropboxDefaultPublisherFolder})" : "Local only",
+                Category = FormatLocalizedString("Tools.PublisherStudio.Hosting.AssetCategoryCatalogFormat", "Catalog Manifest ({0})", catalog.Name),
+                Location = isCatHosted ? $"{providerName} ({HostingConstants.DropboxDefaultPublisherFolder})" : GetLocalizedString("Tools.PublisherStudio.Hosting.AssetLocationLocalOnly", "Local only"),
                 FileSize = catSize,
                 Url = catUrl,
                 Status = isCatHosted
@@ -702,14 +738,14 @@ public partial class PublishShareViewModel(
         }
         else
         {
-            location = "Local file";
+            location = GetLocalizedString("Tools.PublisherStudio.Hosting.AssetLocationLocalFile", "Local file");
             status = GetLocalizedString("Tools.PublisherStudio.Hosting.StatusPendingUpload", HostingConstants.StatusPendingUpload);
         }
 
         HostedAssets.Add(new HostedAssetItemViewModel
         {
             Name = artifact.Filename,
-            Category = $"Release Binary ({contentName} v{releaseVersion})",
+            Category = FormatLocalizedString("Tools.PublisherStudio.Hosting.AssetCategoryReleaseFormat", "Release Binary ({0} v{1})", contentName, releaseVersion),
             Location = location,
             FileSize = artSize,
             Url = artifact.DownloadUrl ?? string.Empty,
@@ -738,7 +774,7 @@ public partial class PublishShareViewModel(
             HostedAssets.Add(new HostedAssetItemViewModel
             {
                 Name = string.IsNullOrEmpty(cloudCat.FileName) ? $"catalog-{cloudCat.CatalogId}.json" : cloudCat.FileName,
-                Category = $"Cloud Catalog ({cloudCat.CatalogId})",
+                Category = FormatLocalizedString("Tools.PublisherStudio.Hosting.AssetCategoryCloudCatalogFormat", "Cloud Catalog ({0})", cloudCat.CatalogId),
                 Location = $"{providerName} ({HostingConstants.DropboxDefaultPublisherFolder})",
                 FileSize = cloudCat.FileSize,
                 Url = cloudCat.Url,
@@ -759,7 +795,7 @@ public partial class PublishShareViewModel(
             HostedAssets.Add(new HostedAssetItemViewModel
             {
                 Name = cloudArt.FileName,
-                Category = "Cloud Artifact",
+                Category = GetLocalizedString("Tools.PublisherStudio.Hosting.AssetCategoryCloudArtifact", "Cloud Artifact"),
                 Location = $"{providerName} ({HostingConstants.DropboxDefaultPublisherFolder})",
                 FileSize = cloudArt.FileSize,
                 Url = cloudArt.Url,
@@ -782,12 +818,6 @@ public partial class PublishShareViewModel(
         OnPropertyChanged(nameof(ActiveCatalogPendingArtifactsCount));
         OnPropertyChanged(nameof(HasIncompatibleArtifactsForActiveCatalog));
     }
-
-    /// <summary>
-    /// Gets the localized display name of the selected hosting provider.
-    /// </summary>
-    public string ProviderDisplayName => SelectedHostingProvider?.DisplayName
-        ?? GetLocalizedString("Tools.PublisherStudio.Hosting.NotConnected", "Not Connected");
 
     partial void OnSelectedHostingProviderChanged(IHostingProvider? value)
     {
@@ -871,13 +901,13 @@ public partial class PublishShareViewModel(
         }
         catch (OperationCanceledException ex)
         {
-            AuthenticationStatusMessage = "Authentication was canceled or timed out. For Google Drive, ensure you selected 'Desktop app' (not 'Web application') in Google Cloud Console.";
+            AuthenticationStatusMessage = GetLocalizedString("Tools.PublisherStudio.Publish.AuthCanceledDriveHelp", "Authentication was canceled or timed out. For Google Drive, ensure you selected 'Desktop app' (not 'Web application') in Google Cloud Console.");
             logger.LogInformation(ex, "Authentication canceled or timed out for {Provider}", SelectedHostingProvider.DisplayName);
             notificationService?.ShowWarning(GetLocalizedString("Tools.PublisherStudio.Publish.AuthCanceledTitle", "Authentication Canceled"), GetLocalizedString("Tools.PublisherStudio.Publish.AuthCanceledTimeout", "Authentication timed out or was canceled."));
         }
         catch (Exception ex)
         {
-            AuthenticationStatusMessage = $"Authentication error: {ex.Message}";
+            AuthenticationStatusMessage = FormatLocalizedString("Tools.PublisherStudio.Publish.AuthenticationErrorFormat", "Authentication error: {0}", ex.Message);
             logger.LogError(ex, "Authentication error for {Provider}", SelectedHostingProvider.DisplayName);
         }
         finally
@@ -905,7 +935,7 @@ public partial class PublishShareViewModel(
             }
 
             IsAuthenticating = false;
-            AuthenticationStatusMessage = "Authentication canceled.";
+            AuthenticationStatusMessage = GetLocalizedString("Tools.PublisherStudio.Publish.AuthenticationCanceled", "Authentication canceled.");
             NotifyAuthenticationStateChanged();
             notificationService?.ShowInfo(GetLocalizedString("Tools.PublisherStudio.Publish.AuthCanceledTitle", "Authentication Canceled"), GetLocalizedString("Tools.PublisherStudio.Publish.AuthCanceledAborted", "Hosting provider connection was aborted."));
         }
@@ -922,7 +952,7 @@ public partial class PublishShareViewModel(
         {
             if (string.IsNullOrWhiteSpace(GitHubPersonalAccessToken))
             {
-                AuthenticationStatusMessage = "Please enter your GitHub Personal Access Token";
+                AuthenticationStatusMessage = GetLocalizedString("Tools.PublisherStudio.Publish.EnterGitHubToken", "Please enter your GitHub Personal Access Token");
                 return null;
             }
 
@@ -933,7 +963,7 @@ public partial class PublishShareViewModel(
         {
             if (string.IsNullOrWhiteSpace(DropboxAccessToken))
             {
-                AuthenticationStatusMessage = "Please enter your Dropbox Access Token";
+                AuthenticationStatusMessage = GetLocalizedString("Tools.PublisherStudio.Publish.EnterDropboxToken", "Please enter your Dropbox Access Token");
                 return null;
             }
 
@@ -1041,35 +1071,9 @@ public partial class PublishShareViewModel(
         }
         catch (Exception ex)
         {
-            AuthenticationStatusMessage = $"Sign out error: {ex.Message}";
+            AuthenticationStatusMessage = FormatLocalizedString("Tools.PublisherStudio.Publish.SignOutError", "Sign out error: {0}", ex.Message);
             logger.LogError(ex, "Sign out error for {Provider}", SelectedHostingProvider.DisplayName);
         }
-    }
-
-    private void RefreshArtifactStatuses()
-    {
-        ArtifactStatuses.Clear();
-
-        if (ActiveCatalog == null)
-        {
-            return;
-        }
-
-        foreach (var content in ActiveCatalog.Catalog.Content)
-        {
-            foreach (var release in content.Releases)
-            {
-                foreach (var artifact in release.Artifacts)
-                {
-                    ArtifactStatuses.Add(new ArtifactUrlStatus(artifact, content.Name, release.Version));
-                }
-            }
-        }
-
-        OnPropertyChanged(nameof(PendingArtifactsCount));
-        OnPropertyChanged(nameof(ExternalCdnArtifactsCount));
-        OnPropertyChanged(nameof(HasIncompatibleArtifactsForProvider));
-        OnPropertyChanged(nameof(IncompatibleArtifactsWarningMessage));
     }
 
     private async Task LoadHostingStateAsync()
@@ -1119,7 +1123,7 @@ public partial class PublishShareViewModel(
 
     private void PopulateUploadHierarchyHeader()
     {
-        UploadHierarchy.PublisherName = project.Catalog.Publisher?.Name ?? "Publisher";
+        UploadHierarchy.PublisherName = project.Catalog.Publisher?.Name ?? GetLocalizedString("Tools.PublisherStudio.Publish.UnknownPublisher", "Publisher");
         UploadHierarchy.PublisherId = project.Catalog.Publisher?.Id ?? "publisher";
         UploadHierarchy.AvatarUrl = project.Catalog.Publisher?.AvatarUrl;
         UploadHierarchy.Website = project.Catalog.Publisher?.Website;
@@ -1236,7 +1240,7 @@ public partial class PublishShareViewModel(
             if (ActiveCatalog == null)
             {
                 IsValid = false;
-                ValidationMessage = "No catalog selected";
+                ValidationMessage = GetLocalizedString("Tools.PublisherStudio.Publish.NoCatalogSelected", "No catalog selected");
                 return;
             }
 
@@ -1250,20 +1254,22 @@ public partial class PublishShareViewModel(
             if (artifactErrors.Any())
             {
                 IsValid = false;
-                ValidationMessage = $"Validation failed: {artifactErrors.Count} artifacts have invalid or missing URLs";
+                ValidationMessage = FormatLocalizedString("Tools.PublisherStudio.Publish.ValidationArtifactsInvalidFormat", "Validation failed: {0} artifacts have invalid or missing URLs", artifactErrors.Count);
                 return;
             }
 
             var result = await publisherStudioService.ValidateCatalogAsync(ActiveCatalog.Catalog, allowPendingArtifacts: true, cancellationToken: CancellationToken.None);
             IsValid = result.Success;
-            ValidationMessage = result.Success ? $"Catalog '{ActiveCatalog.Name}' is valid" : $"Validation failed: {result.FirstError}";
+            ValidationMessage = result.Success
+                ? FormatLocalizedString("Tools.PublisherStudio.Publish.CatalogValidFormat", "Catalog '{0}' is valid", ActiveCatalog.Name)
+                : FormatLocalizedString("Tools.PublisherStudio.Publish.ValidationFailedFormat", "Validation failed: {0}", result.FirstError);
 
             logger.LogInformation("Catalog '{CatalogName}' validation: {IsValid}", ActiveCatalog.Name, IsValid);
         }
         catch (Exception ex)
         {
             IsValid = false;
-            ValidationMessage = $"Validation error: {ex.Message}";
+            ValidationMessage = FormatLocalizedString("Tools.PublisherStudio.Publish.ValidationErrorFormat", "Validation error: {0}", ex.Message);
             logger.LogError(ex, "Error validating catalog");
         }
     }
@@ -1294,7 +1300,7 @@ public partial class PublishShareViewModel(
                 logger.LogError("Failed to export catalog '{CatalogName}': {Error}", ActiveCatalog.Name, result.FirstError);
                 notificationService?.ShowError(
                     GetLocalizedString("Tools.PublisherStudio.Publish.ExportFailedTitle", "Export Failed"),
-                    result.FirstError ?? "Failed to export catalog JSON.");
+                    result.FirstError ?? GetLocalizedString("Tools.PublisherStudio.Publish.ExportCatalogJsonFailed", "Failed to export catalog JSON."));
             }
         }
         catch (Exception ex)
@@ -1338,7 +1344,7 @@ public partial class PublishShareViewModel(
 
         if (HasIncompatibleArtifactsForActiveCatalog)
         {
-            var warningMsg = $"{SelectedHostingProvider?.DisplayName ?? "This provider"} only hosts catalog metadata (JSON). The active catalog '{ActiveCatalog?.Name}' has {ActiveCatalogPendingArtifactsCount} local file(s) pending upload. Either provide direct CDN URLs for those files, or switch to Google Drive or Dropbox to host binary archives.";
+            var warningMsg = FormatLocalizedString("Tools.PublisherStudio.Publish.IncompatibleArtifactsActiveCatalogFormat", "{0} only hosts catalog metadata (JSON). The active catalog '{1}' has {2} local file(s) pending upload. Either provide direct CDN URLs for those files, or switch to Google Drive or Dropbox to host binary archives.", SelectedHostingProvider?.DisplayName ?? "This provider", ActiveCatalog?.Name, ActiveCatalogPendingArtifactsCount);
             UploadStatusMessage = warningMsg;
             notificationService?.ShowError(GetLocalizedString("Tools.PublisherStudio.Publish.IncompatibleProvider", "Incompatible Provider"), warningMsg);
             return OperationResult<HostingUploadResult>.CreateFailure(warningMsg);
@@ -1348,7 +1354,7 @@ public partial class PublishShareViewModel(
         if (!IsValid)
         {
             UploadStatusMessage = string.IsNullOrWhiteSpace(ValidationMessage)
-                ? "Please fix catalog validation errors before uploading."
+                ? GetLocalizedString("Tools.PublisherStudio.Publish.FixValidationBeforeUpload", "Please fix catalog validation errors before uploading.")
                 : ValidationMessage;
             notificationService?.ShowWarning(
                 GetLocalizedString("Tools.PublisherStudio.Publish.ValidationFailedTitle", "Validation Failed"),
@@ -1383,7 +1389,7 @@ public partial class PublishShareViewModel(
             }
 
             UploadProgress = 0;
-            UploadStatusMessage = "Preparing to publish...";
+            UploadStatusMessage = GetLocalizedString("Tools.PublisherStudio.Publish.PreparingToPublish", "Preparing to publish...");
             PublishCompleted = false;
             CurrentPublishStep = 0;
             PublishSummary = string.Empty;
@@ -1404,21 +1410,21 @@ public partial class PublishShareViewModel(
             CurrentPublishStep = 2;
             if (ActiveCatalog == null)
             {
-                UploadStatusMessage = "No catalog selected";
+                UploadStatusMessage = GetLocalizedString("Tools.PublisherStudio.Publish.NoCatalogSelected", "No catalog selected");
                 return OperationResult<HostingUploadResult>.CreateFailure("No catalog selected");
             }
 
-            UploadStatusMessage = $"Generating catalog '{ActiveCatalog.Name}'...";
+            UploadStatusMessage = FormatLocalizedString("Tools.PublisherStudio.Publish.GeneratingCatalogFormat", "Generating catalog '{0}'...", ActiveCatalog.Name);
             var exportResult = await publisherStudioService.ExportCatalogAsync(project, ActiveCatalog, cancellationToken: cancellationToken);
             if (!exportResult.Success || string.IsNullOrEmpty(exportResult.Data))
             {
-                UploadStatusMessage = $"Failed to export catalog: {exportResult.FirstError}";
+                UploadStatusMessage = FormatLocalizedString("Tools.PublisherStudio.Publish.ExportCatalogFailedFormat", "Failed to export catalog: {0}", exportResult.FirstError);
                 return OperationResult<HostingUploadResult>.CreateFailure(exportResult);
             }
 
             CatalogJson = exportResult.Data;
             UploadProgress = 80;
-            UploadStatusMessage = $"Uploading catalog '{ActiveCatalog.Name}' to {SelectedHostingProvider.DisplayName}...";
+            UploadStatusMessage = FormatLocalizedString("Tools.PublisherStudio.Publish.UploadingCatalogFormat", "Uploading catalog '{0}' to {1}...", ActiveCatalog.Name, SelectedHostingProvider.DisplayName);
 
             // 3. Upload Catalog
             CurrentPublishStep = 3;
@@ -1435,7 +1441,7 @@ public partial class PublishShareViewModel(
             }
             else
             {
-                UploadStatusMessage = $"Catalog upload failed: {uploadResult.FirstError}";
+                UploadStatusMessage = FormatLocalizedString("Tools.PublisherStudio.Publish.CatalogUploadFailedFormat", "Catalog upload failed: {0}", uploadResult.FirstError);
                 return uploadResult;
             }
         }
@@ -1447,7 +1453,7 @@ public partial class PublishShareViewModel(
         }
         catch (Exception ex)
         {
-            UploadStatusMessage = $"Error: {ex.Message}";
+            UploadStatusMessage = FormatLocalizedString("Tools.PublisherStudio.Publish.ErrorFormat", "Error: {0}", ex.Message);
             logger.LogError(ex, "Error uploading catalog");
             return OperationResult<HostingUploadResult>.CreateFailure($"Error uploading catalog: {ex.Message}");
         }
@@ -1472,7 +1478,7 @@ public partial class PublishShareViewModel(
             var authResult = await ExecuteAuthenticationByProviderTypeAsync(cancellationToken);
             if (authResult == null || !authResult.Success)
             {
-                UploadStatusMessage = $"Authentication failed: {authResult?.FirstError ?? AuthenticationStatusMessage}";
+                UploadStatusMessage = FormatLocalizedString("Tools.PublisherStudio.Publish.AuthFailed", "Authentication failed: {0}", authResult?.FirstError ?? AuthenticationStatusMessage);
                 return false;
             }
         }
@@ -1496,7 +1502,7 @@ public partial class PublishShareViewModel(
 
         if (!string.IsNullOrEmpty(existingCatalogFileId) && SelectedHostingProvider.SupportsUpdate)
         {
-            UploadStatusMessage = $"Updating existing catalog '{ActiveCatalog.Name}'...";
+            UploadStatusMessage = FormatLocalizedString("Tools.PublisherStudio.Publish.UpdatingCatalogFormat", "Updating existing catalog '{0}'...", ActiveCatalog.Name);
             using var stream = new System.IO.MemoryStream(System.Text.Encoding.UTF8.GetBytes(CatalogJson));
             return await SelectedHostingProvider.UpdateFileAsync(existingCatalogFileId, stream, catalogFileName, progress, cancellationToken);
         }
@@ -1523,7 +1529,7 @@ public partial class PublishShareViewModel(
 
         // 4. Generate and upload provider definition
         CurrentPublishStep = 4;
-        UploadStatusMessage = "Generating provider definition...";
+        UploadStatusMessage = GetLocalizedString("Tools.PublisherStudio.Publish.GeneratingProviderDefinition", "Generating provider definition...");
         var definitionGenerated = await GenerateProviderDefinitionAsync();
 
         var defResult = await UploadProviderDefinitionIfAvailableAsync(cancellationToken);
@@ -1536,7 +1542,7 @@ public partial class PublishShareViewModel(
         PublishSummary = BuildPublishSummary(CatalogUrl, ProviderDefinitionUrl, SubscriptionUrl);
         if (defResult != null && !defResult.Success)
         {
-            UploadStatusMessage = $"Catalog published, but provider definition upload failed: {defResult.FirstError}";
+            UploadStatusMessage = FormatLocalizedString("Tools.PublisherStudio.Publish.DefinitionUploadFailedAfterPublishFormat", "Catalog published, but provider definition upload failed: {0}", defResult.FirstError);
             notificationService?.ShowWarning(GetLocalizedString(PublishWarningKey, PublishWarningDefaultMessage), UploadStatusMessage);
         }
         else if (!definitionGenerated)
@@ -1557,7 +1563,7 @@ public partial class PublishShareViewModel(
         }
 
         CurrentPublishStep = 5;
-        UploadStatusMessage = "Uploading provider definition...";
+        UploadStatusMessage = GetLocalizedString("Tools.PublisherStudio.Publish.UploadingProviderDefinition", "Uploading provider definition...");
         var defFileName = project.ProviderDefinitionFileName ?? HostingConstants.DefaultDefinitionFileName;
         var existingDefFileId = _currentHostingState?.Definition?.FileId;
 
@@ -1609,7 +1615,7 @@ public partial class PublishShareViewModel(
 
         if (!provider.SupportsArtifactHosting)
         {
-            UploadStatusMessage = "Provider does not support artifact hosting. Please add URLs manually.";
+            UploadStatusMessage = GetLocalizedString("Tools.PublisherStudio.Publish.ArtifactHostingNotSupported", "Provider does not support artifact hosting. Please add URLs manually.");
             return false;
         }
 
@@ -1660,7 +1666,7 @@ public partial class PublishShareViewModel(
     {
         if (Directory.Exists(task.Artifact.LocalFilePath))
         {
-            UploadStatusMessage = $"Compressing folder '{Path.GetFileName(task.Artifact.LocalFilePath)}' into archive...";
+            UploadStatusMessage = FormatLocalizedString("Tools.PublisherStudio.Publish.CompressingFolderFormat", "Compressing folder '{0}' into archive...", Path.GetFileName(task.Artifact.LocalFilePath));
             var tempDir = Path.Combine(Path.GetTempPath(), "GenHub", "ArtifactCache");
             Directory.CreateDirectory(tempDir);
             var archiveName = string.IsNullOrWhiteSpace(task.Artifact.Filename)
@@ -1719,8 +1725,8 @@ public partial class PublishShareViewModel(
         }
 
         task.Status = UploadStatus.Failed;
-        task.ErrorMessage = "File or directory not found";
-        UploadStatusMessage = $"File or directory not found: {task.Artifact.LocalFilePath}";
+        task.ErrorMessage = GetLocalizedString("Tools.PublisherStudio.Publish.FileOrDirectoryNotFound", "File or directory not found");
+        UploadStatusMessage = FormatLocalizedString("Tools.PublisherStudio.Publish.FileOrDirectoryNotFoundFormat", "File or directory not found: {0}", task.Artifact.LocalFilePath);
         return (null, null, false);
     }
 
@@ -1770,7 +1776,7 @@ public partial class PublishShareViewModel(
     private async Task<bool> ExecuteSingleArtifactUploadAsync(IHostingProvider provider, ArtifactUploadTask task, int current, int total, CancellationToken cancellationToken = default)
     {
         task.Status = UploadStatus.Uploading;
-        UploadStatusMessage = $"Uploading artifact {current}/{total}: {task.Artifact.Filename}";
+        UploadStatusMessage = FormatLocalizedString("Tools.PublisherStudio.Publish.UploadingArtifactFormat", "Uploading artifact {0}/{1}: {2}", current, total, task.Artifact.Filename);
         UploadProgress = (int)((double)(current - 1) / total * 80);
 
         string? tempZipToCleanup = null;
@@ -1806,8 +1812,8 @@ public partial class PublishShareViewModel(
                 }
 
                 task.Status = UploadStatus.Failed;
-                task.ErrorMessage = result.FirstError ?? "Upload failed";
-                UploadStatusMessage = $"Failed to upload {task.Artifact.Filename}: {result.FirstError}";
+                task.ErrorMessage = result.FirstError ?? GetLocalizedString("Tools.PublisherStudio.Publish.UploadFailedShort", "Upload failed");
+                UploadStatusMessage = FormatLocalizedString("Tools.PublisherStudio.Publish.ArtifactUploadFailedFormat", "Failed to upload {0}: {1}", task.Artifact.Filename, result.FirstError);
                 return false;
             }
             finally
@@ -1819,14 +1825,14 @@ public partial class PublishShareViewModel(
         catch (OperationCanceledException)
         {
             task.Status = UploadStatus.Failed;
-            task.ErrorMessage = "Upload canceled";
+            task.ErrorMessage = GetLocalizedString("Tools.PublisherStudio.Publish.UploadCanceledError", "Upload canceled");
             throw;
         }
         catch (Exception ex)
         {
             task.Status = UploadStatus.Failed;
             task.ErrorMessage = ex.Message;
-            UploadStatusMessage = $"Error uploading {task.Artifact.Filename}: {ex.Message}";
+            UploadStatusMessage = FormatLocalizedString("Tools.PublisherStudio.Publish.ErrorUploadingArtifactFormat", "Error uploading {0}: {1}", task.Artifact.Filename, ex.Message);
             logger.LogError(ex, "Error uploading artifact {Filename}", task.Artifact.Filename);
             return false;
         }
@@ -2030,7 +2036,7 @@ public partial class PublishShareViewModel(
     {
         if (_currentHostingState == null || _currentHostingState.Catalogs.Count == 0)
         {
-            UploadStatusMessage = "No catalogs have been published yet";
+            UploadStatusMessage = GetLocalizedString("Tools.PublisherStudio.Publish.NoCatalogsPublishedYet", "No catalogs have been published yet");
             return false;
         }
 
@@ -2044,7 +2050,7 @@ public partial class PublishShareViewModel(
 
             if (catalogHostingInfo.Count == 0)
             {
-                UploadStatusMessage = "No catalog URLs available for definition";
+                UploadStatusMessage = GetLocalizedString("Tools.PublisherStudio.Publish.NoCatalogUrlsForDefinition", "No catalog URLs available for definition");
                 return false;
             }
 
@@ -2063,14 +2069,14 @@ public partial class PublishShareViewModel(
             else
             {
                 logger.LogError("Failed to generate provider definition: {Error}", result.FirstError);
-                UploadStatusMessage = $"Failed to generate definition: {result.FirstError}";
+                UploadStatusMessage = FormatLocalizedString("Tools.PublisherStudio.Publish.GenerateDefinitionFailedFormat", "Failed to generate definition: {0}", result.FirstError);
                 return false;
             }
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Error generating provider definition");
-            UploadStatusMessage = $"Error: {ex.Message}";
+            UploadStatusMessage = FormatLocalizedString("Tools.PublisherStudio.Publish.ErrorFormat", "Error: {0}", ex.Message);
             return false;
         }
     }
@@ -2093,7 +2099,7 @@ public partial class PublishShareViewModel(
         {
             var msg = !string.IsNullOrWhiteSpace(UploadStatusMessage)
                 ? UploadStatusMessage
-                : "No catalogs have been published yet. Please publish a catalog first.";
+                : GetLocalizedString("Tools.PublisherStudio.Publish.NoCatalogsPublishedPublishFirst", "No catalogs have been published yet. Please publish a catalog first.");
             notificationService?.ShowWarning(
                 GetLocalizedString("Tools.PublisherStudio.Publish.DefinitionFailedTitle", "Provider Definition Required"),
                 msg);
@@ -2190,15 +2196,15 @@ public partial class PublishShareViewModel(
                 return result;
             }
 
-            UploadStatusMessage = $"Upload failed: {result.FirstError}";
+            UploadStatusMessage = FormatLocalizedString("Tools.PublisherStudio.Publish.UploadFailedFormat", "Upload failed: {0}", result.FirstError);
             notificationService?.ShowError(
                 GetLocalizedString("Tools.PublisherStudio.Publish.FailedTitle", "Upload Failed"),
-                result.FirstError ?? "Failed to upload provider definition.");
+                result.FirstError ?? GetLocalizedString("Tools.PublisherStudio.Publish.UploadDefinitionFailedMessage", "Failed to upload provider definition."));
             return result;
         }
         catch (Exception ex)
         {
-            UploadStatusMessage = $"Error uploading definition: {ex.Message}";
+            UploadStatusMessage = FormatLocalizedString("Tools.PublisherStudio.Publish.ErrorUploadingDefinitionFormat", "Error uploading definition: {0}", ex.Message);
             logger.LogError(ex, "Error uploading provider definition");
             notificationService?.ShowError(
                 GetLocalizedString("Tools.PublisherStudio.Publish.FailedTitle", "Upload Failed"),
@@ -2514,7 +2520,7 @@ public partial class PublishShareViewModel(
 
         if (HasIncompatibleArtifactsForActiveCatalog)
         {
-            var warningMsg = $"{SelectedHostingProvider.DisplayName} only hosts catalog metadata (JSON). The active catalog '{ActiveCatalog?.Name}' has {ActiveCatalogPendingArtifactsCount} local file(s) pending upload. Either provide direct CDN URLs for those files, or switch to Google Drive or Dropbox to host binary archives.";
+            var warningMsg = FormatLocalizedString("Tools.PublisherStudio.Publish.IncompatibleArtifactsActiveCatalogFormat", "{0} only hosts catalog metadata (JSON). The active catalog '{1}' has {2} local file(s) pending upload. Either provide direct CDN URLs for those files, or switch to Google Drive or Dropbox to host binary archives.", SelectedHostingProvider.DisplayName, ActiveCatalog?.Name, ActiveCatalogPendingArtifactsCount);
             UploadStatusMessage = warningMsg;
             notificationService?.ShowError(GetLocalizedString("Tools.PublisherStudio.Publish.IncompatibleProvider", "Incompatible Provider"), warningMsg);
             return false;
@@ -2524,7 +2530,7 @@ public partial class PublishShareViewModel(
         if (!IsValid)
         {
             UploadStatusMessage = string.IsNullOrWhiteSpace(ValidationMessage)
-                ? "Please fix catalog validation errors before publishing."
+                ? GetLocalizedString("Tools.PublisherStudio.Publish.FixValidationBeforePublish", "Please fix catalog validation errors before publishing.")
                 : ValidationMessage;
             notificationService?.ShowWarning(
                 GetLocalizedString("Tools.PublisherStudio.Publish.ValidationFailedTitle", "Validation Failed"),
@@ -2582,18 +2588,18 @@ public partial class PublishShareViewModel(
             }
             else
             {
-                UploadStatusMessage = "Publishing all catalogs failed.";
+                UploadStatusMessage = GetLocalizedString("Tools.PublisherStudio.Publish.PublishAllFailed", "Publishing all catalogs failed.");
                 notificationService?.ShowError(GetLocalizedString("Tools.PublisherStudio.Publish.PublishFailed", "Publish Failed"), UploadStatusMessage);
             }
         }
         catch (OperationCanceledException)
         {
-            UploadStatusMessage = "Publishing all catalogs was canceled.";
+            UploadStatusMessage = GetLocalizedString("Tools.PublisherStudio.Publish.PublishAllCanceled", "Publishing all catalogs was canceled.");
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to publish all catalogs");
-            UploadStatusMessage = $"Error: {ex.Message}";
+            UploadStatusMessage = FormatLocalizedString("Tools.PublisherStudio.Publish.ErrorFormat", "Error: {0}", ex.Message);
         }
         finally
         {
@@ -2610,7 +2616,7 @@ public partial class PublishShareViewModel(
 
     private async Task<bool> PublishCatalogItemAsync(NamedCatalog catalog, int currentCatalog, int totalCatalogs, CancellationToken cancellationToken)
     {
-        UploadStatusMessage = $"Publishing catalog {currentCatalog}/{totalCatalogs}: {catalog.Name}";
+        UploadStatusMessage = FormatLocalizedString("Tools.PublisherStudio.Publish.PublishingCatalogFormat", "Publishing catalog {0}/{1}: {2}", currentCatalog, totalCatalogs, catalog.Name);
 
         var previousActive = ActiveCatalog;
         ActiveCatalog = catalog;
@@ -2652,8 +2658,8 @@ public partial class PublishShareViewModel(
             {
                 definitionProblem = true;
                 UploadStatusMessage = succeededCount == totalCatalogs
-                    ? $"Successfully published all {totalCatalogs} catalog(s), but provider definition upload failed: {defResult.FirstError}"
-                    : $"Published {succeededCount} of {totalCatalogs} catalog(s), but provider definition upload failed: {defResult.FirstError}";
+                    ? FormatLocalizedString("Tools.PublisherStudio.Publish.PublishAllSuccessDefinitionFailedFormat", "Successfully published all {0} catalog(s), but provider definition upload failed: {1}", totalCatalogs, defResult.FirstError)
+                    : FormatLocalizedString("Tools.PublisherStudio.Publish.PublishAllPartialDefinitionFailedFormat", "Published {0} of {1} catalog(s), but provider definition upload failed: {2}", succeededCount, totalCatalogs, defResult.FirstError);
                 notificationService?.ShowWarning(GetLocalizedString(PublishWarningKey, PublishWarningDefaultMessage), UploadStatusMessage);
             }
         }
@@ -2670,8 +2676,8 @@ public partial class PublishShareViewModel(
         if (!definitionProblem)
         {
             UploadStatusMessage = succeededCount == totalCatalogs
-                ? $"Successfully published all {totalCatalogs} catalogs!"
-                : $"Published {succeededCount} of {totalCatalogs} catalogs.";
+                ? FormatLocalizedString("Tools.PublisherStudio.Publish.PublishAllSuccessFormat", "Successfully published all {0} catalogs!", totalCatalogs)
+                : FormatLocalizedString("Tools.PublisherStudio.Publish.PublishAllPartialFormat", "Published {0} of {1} catalogs.", succeededCount, totalCatalogs);
         }
 
         notificationService?.ShowSuccess(
@@ -2826,7 +2832,7 @@ public partial class PublishShareViewModel(
 
         if (!IsProviderAuthenticated)
         {
-            StorageScanStatusMessage = "Please connect to your hosting provider first.";
+            StorageScanStatusMessage = GetLocalizedString("Tools.PublisherStudio.Publish.ConnectProviderFirst", "Please connect to your hosting provider first.");
             notificationService?.ShowWarning(
                 GetLocalizedString("Tools.PublisherStudio.Publish.ProviderNotConnected", "Provider Not Connected"),
                 GetLocalizedString("Tools.PublisherStudio.Publish.ConnectBeforeScan", "Connect to your hosting provider before scanning storage."));
@@ -2864,7 +2870,7 @@ public partial class PublishShareViewModel(
         var foundCount = (_currentHostingState?.Catalogs.Count ?? 0) +
                          (_currentHostingState?.Artifacts.Count ?? 0) +
                          (_currentHostingState?.Definition != null ? 1 : 0);
-        StorageScanStatusMessage = $"Sync complete! Discovered {foundCount} file(s) in {SelectedHostingProvider?.DisplayName}.";
+        StorageScanStatusMessage = FormatLocalizedString("Tools.PublisherStudio.Publish.SyncCompleteFormat", "Sync complete! Discovered {0} file(s) in {1}.", foundCount, SelectedHostingProvider?.DisplayName);
         notificationService?.ShowSuccess(
             GetLocalizedString("Tools.PublisherStudio.Publish.StorageSynced", "Storage Synced"),
             StorageScanStatusMessage,
@@ -2892,7 +2898,7 @@ public partial class PublishShareViewModel(
         var ct = _scanCts.Token;
 
         IsScanningStorage = true;
-        StorageScanStatusMessage = $"Scanning {SelectedHostingProvider.DisplayName} folder for hosted files...";
+        StorageScanStatusMessage = FormatLocalizedString("Tools.PublisherStudio.Publish.ScanningFolderFormat", "Scanning {0} folder for hosted files...", SelectedHostingProvider.DisplayName);
 
         try
         {
@@ -2903,7 +2909,7 @@ public partial class PublishShareViewModel(
             }
             else
             {
-                StorageScanStatusMessage = result.FirstError ?? "No hosted files discovered in cloud storage folder.";
+                StorageScanStatusMessage = result.FirstError ?? GetLocalizedString("Tools.PublisherStudio.Publish.NoHostedFilesFound", "No hosted files discovered in cloud storage folder.");
             }
         }
         catch (OperationCanceledException ex)
@@ -2915,7 +2921,7 @@ public partial class PublishShareViewModel(
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to scan cloud storage");
-            StorageScanStatusMessage = $"Scan error: {ex.Message}";
+            StorageScanStatusMessage = FormatLocalizedString("Tools.PublisherStudio.Publish.ScanErrorFormat", "Scan error: {0}", ex.Message);
             notificationService?.ShowError(GetLocalizedString("Tools.PublisherStudio.Publish.ScanError", "Scan Error"), ex.Message);
         }
         finally

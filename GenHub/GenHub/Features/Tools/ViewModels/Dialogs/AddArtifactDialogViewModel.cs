@@ -97,6 +97,15 @@ public partial class AddArtifactDialogViewModel(Action<ReleaseArtifact> onArtifa
     public bool IsHosted => !string.IsNullOrEmpty(DownloadUrl) && !IsLocalFile;
 
     /// <summary>
+    /// Gets the localized parsed file-size hint, or null when no size is parsed.
+    /// </summary>
+    public string? ParsedSizeDisplay => string.IsNullOrEmpty(FileSizeDisplay)
+        ? null
+        : string.Format(
+            localizationService?.GetString("Tools.PublisherStudio.Artifact.ParsedSize") ?? "Parsed: {0}",
+            FileSizeDisplay);
+
+    /// <summary>
     /// Attempts to parse a human-readable file size string (e.g. 500 MB, 1.2 GB, or raw bytes).
     /// </summary>
     /// <param name="input">The size string to parse.</param>
@@ -206,15 +215,6 @@ public partial class AddArtifactDialogViewModel(Action<ReleaseArtifact> onArtifa
         _hashCts?.Dispose();
         _hashCts = null;
     }
-
-    /// <summary>
-    /// Gets the localized parsed file-size hint, or null when no size is parsed.
-    /// </summary>
-    public string? ParsedSizeDisplay => string.IsNullOrEmpty(FileSizeDisplay)
-        ? null
-        : string.Format(
-            localizationService?.GetString("Tools.PublisherStudio.Artifact.ParsedSize") ?? "Parsed: {0}",
-            FileSizeDisplay);
 
     partial void OnFilenameChanged(string value)
     {

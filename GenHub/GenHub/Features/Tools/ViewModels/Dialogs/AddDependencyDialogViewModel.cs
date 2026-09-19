@@ -207,7 +207,7 @@ public partial class AddDependencyDialogViewModel(
             return null;
         }
 
-        if (parsedCatalog == null)
+        if (parsedCatalog == null || parsedCatalog.Content is not { Count: > 0 })
         {
             return null;
         }

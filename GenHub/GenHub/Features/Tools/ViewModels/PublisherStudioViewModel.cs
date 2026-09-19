@@ -292,7 +292,7 @@ public partial class PublisherStudioViewModel(
             if (result.Success)
             {
                 HasUnsavedChanges = false;
-                StatusMessage = "Project saved. Go to 'Publish & Share' to export and release.";
+                StatusMessage = GetStatusString("Tools.PublisherStudio.Studio.ProjectSavedHint", "Project saved. Go to 'Publish & Share' to export and release.");
                 logger.LogInformation("Saved project: {ProjectName}", project.ProjectName);
 
                 // Persist the project path for auto-load on next launch
@@ -313,24 +313,25 @@ public partial class PublisherStudioViewModel(
             }
             else
             {
-                StatusMessage = $"Failed to save: {result.FirstError}";
+                StatusMessage = GetStatusString("Tools.PublisherStudio.Studio.SaveProjectFailedFormat", "Failed to save: {0}", result.FirstError);
                 logger.LogError("Failed to save project: {Error}", result.FirstError);
 
                 var saveFailedTitle = localizationService?.GetString("Tools.PublisherStudio.Notification.SaveFailedTitle") ?? "Save Failed";
                 notificationService?.ShowError(
                     saveFailedTitle,
-                    result.FirstError ?? "An unknown error occurred while saving the project.");
+                    result.FirstError ?? localizationService?.GetString("Tools.PublisherStudio.Notification.SaveUnknownError") ?? "An unknown error occurred while saving the project.");
             }
         }
         catch (Exception ex)
         {
-            StatusMessage = $"Error saving: {ex.Message}";
+            StatusMessage = GetStatusString("Tools.PublisherStudio.Studio.SaveProjectErrorFormat", "Error saving: {0}", ex.Message);
             logger.LogError(ex, "Error saving project");
 
             var saveErrorTitle = localizationService?.GetString("Tools.PublisherStudio.Notification.SaveErrorTitle") ?? "Save Error";
+            var saveErrorTemplate = localizationService?.GetString("Tools.PublisherStudio.Notification.SaveErrorMessageFormat") ?? "An error occurred while saving: {0}";
             notificationService?.ShowError(
                 saveErrorTitle,
-                $"An error occurred while saving: {ex.Message}");
+                string.Format(saveErrorTemplate, ex.Message));
         }
         finally
         {

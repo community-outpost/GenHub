@@ -1,4 +1,5 @@
 using CommunityToolkit.Mvvm.ComponentModel;
+using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Models.Providers;
 
 namespace GenHub.Features.Tools.ViewModels;
@@ -9,6 +10,7 @@ namespace GenHub.Features.Tools.ViewModels;
 public partial class ArtifactUrlStatus : ObservableObject
 {
     private readonly ReleaseArtifact _artifact;
+    private readonly ILocalizationService? _localizationService;
 
     [ObservableProperty]
     private string _artifactName = string.Empty;
@@ -30,6 +32,25 @@ public partial class ArtifactUrlStatus : ObservableObject
 
     [ObservableProperty]
     private string _localFilePath = string.Empty;
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="ArtifactUrlStatus"/> class.
+    /// </summary>
+    /// <param name="artifact">The release artifact to validate.</param>
+    /// <param name="contentName">The name of the content.</param>
+    /// <param name="version">The release version.</param>
+    /// <param name="localizationService">The optional localization service.</param>
+    public ArtifactUrlStatus(ReleaseArtifact artifact, string contentName, string version, ILocalizationService? localizationService = null)
+    {
+        _artifact = artifact;
+        _localizationService = localizationService;
+        ContentName = contentName;
+        ReleaseVersion = version;
+        ArtifactName = artifact.Filename;
+        LocalFilePath = artifact.LocalFilePath ?? string.Empty;
+        HasLocalFile = !string.IsNullOrEmpty(artifact.LocalFilePath);
+        Validate();
+    }
 
     /// <summary>
     /// Gets a value indicating whether this artifact is an external CDN direct link (not pending upload).
@@ -61,23 +82,6 @@ public partial class ArtifactUrlStatus : ObservableObject
     }
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="ArtifactUrlStatus"/> class.
-    /// </summary>
-    /// <param name="artifact">The release artifact to validate.</param>
-    /// <param name="contentName">The name of the content.</param>
-    /// <param name="version">The release version.</param>
-    public ArtifactUrlStatus(ReleaseArtifact artifact, string contentName, string version)
-    {
-        _artifact = artifact;
-        ContentName = contentName;
-        ReleaseVersion = version;
-        ArtifactName = artifact.Filename;
-        LocalFilePath = artifact.LocalFilePath ?? string.Empty;
-        HasLocalFile = !string.IsNullOrEmpty(artifact.LocalFilePath);
-        Validate();
-    }
-
-    /// <summary>
     /// Validates the download URL and updates the status.
     /// </summary>
     public void Validate()
@@ -94,18 +98,18 @@ public partial class ArtifactUrlStatus : ObservableObject
             {
                 // Has local file or folder but no URL - will be uploaded during publish
                 IsValid = true;
-                StatusMessage = "Pending cloud upload";
+                StatusMessage = GetStatusString("Tools.PublisherStudio.ArtifactStatus.PendingUpload", "Pending cloud upload");
             }
             else
             {
                 IsValid = false;
-                StatusMessage = "Local file or directory not found";
+                StatusMessage = GetStatusString("Tools.PublisherStudio.ArtifactStatus.LocalFileNotFound", "Local file or directory not found");
             }
         }
         else
         {
             IsValid = false;
-            StatusMessage = "No file or URL configured";
+            StatusMessage = GetStatusString("Tools.PublisherStudio.ArtifactStatus.NoFileOrUrl", "No file or URL configured");
         }
 
         OnPropertyChanged(nameof(IsExternalCdn));
@@ -126,12 +130,12 @@ public partial class ArtifactUrlStatus : ObservableObject
         else if (HasLocalFile)
         {
             IsValid = true;
-            StatusMessage = "Pending cloud upload";
+            StatusMessage = GetStatusString("Tools.PublisherStudio.ArtifactStatus.PendingUpload", "Pending cloud upload");
         }
         else
         {
             IsValid = false;
-            StatusMessage = "No file or URL configured";
+            StatusMessage = GetStatusString("Tools.PublisherStudio.ArtifactStatus.NoFileOrUrl", "No file or URL configured");
         }
 
         OnPropertyChanged(nameof(IsExternalCdn));
@@ -150,12 +154,17 @@ public partial class ArtifactUrlStatus : ObservableObject
             && (uri.Scheme == System.Uri.UriSchemeHttp || uri.Scheme == System.Uri.UriSchemeHttps))
         {
             IsValid = true;
-            StatusMessage = HasLocalFile ? "Hosted (local file available)" : "Hosted (External CDN)";
+            StatusMessage = HasLocalFile
+                ? GetStatusString("Tools.PublisherStudio.ArtifactStatus.HostedWithLocal", "Hosted (local file available)")
+                : GetStatusString("Tools.PublisherStudio.ArtifactStatus.HostedExternalCdn", "Hosted (External CDN)");
         }
         else
         {
             IsValid = false;
-            StatusMessage = "Invalid URL format";
+            StatusMessage = GetStatusString("Tools.PublisherStudio.ArtifactStatus.InvalidUrlFormat", "Invalid URL format");
         }
     }
+
+    private string GetStatusString(string key, string fallback) =>
+        _localizationService?.GetString(key) ?? fallback;
 }

@@ -12367,6 +12367,213 @@ GameFilesEdited/Data/INI/**/*.ini</value>
   <data name="Tools.PublisherStudio.Artifact.ParsedSize" xml:space="preserve">
     <value>Распознано: {0}</value>
   </data>
+  <data name="Tools.PublisherStudio.Publish.SelectHostingProvider" xml:space="preserve">
+    <value>Пожалуйста, выберите хостинг-провайдера</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.AuthenticationErrorFormat" xml:space="preserve">
+    <value>Ошибка аутентификации: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.AuthenticationCanceled" xml:space="preserve">
+    <value>Аутентификация отменена.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.NoCatalogSelected" xml:space="preserve">
+    <value>Каталог не выбран</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ValidationArtifactsInvalidFormat" xml:space="preserve">
+    <value>Проверка не пройдена: у артефактов ({0}) недопустимые или отсутствующие URL-адреса</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.CatalogValidFormat" xml:space="preserve">
+    <value>Каталог «{0}» действителен</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ValidationFailedFormat" xml:space="preserve">
+    <value>Проверка не пройдена: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ValidationErrorFormat" xml:space="preserve">
+    <value>Ошибка проверки: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.IncompatibleArtifactsActiveCatalogFormat" xml:space="preserve">
+    <value>{0} размещает только метаданные каталога (JSON). Активный каталог «{1}» содержит локальных файлов, ожидающих загрузки: {2}. Укажите прямые CDN-ссылки для этих файлов или переключитесь на Google Drive или Dropbox для размещения бинарных архивов.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.FixValidationBeforeUpload" xml:space="preserve">
+    <value>Пожалуйста, исправьте ошибки проверки каталога перед загрузкой.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.FixValidationBeforePublish" xml:space="preserve">
+    <value>Пожалуйста, исправьте ошибки проверки каталога перед публикацией.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.PreparingToPublish" xml:space="preserve">
+    <value>Подготовка к публикации...</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.GeneratingCatalogFormat" xml:space="preserve">
+    <value>Создание каталога «{0}»...</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ExportCatalogFailedFormat" xml:space="preserve">
+    <value>Не удалось экспортировать каталог: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.UploadingCatalogFormat" xml:space="preserve">
+    <value>Загрузка каталога «{0}» в {1}...</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.CatalogUploadFailedFormat" xml:space="preserve">
+    <value>Не удалось загрузить каталог: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ErrorFormat" xml:space="preserve">
+    <value>Ошибка: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.UpdatingCatalogFormat" xml:space="preserve">
+    <value>Обновление существующего каталога «{0}»...</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.GeneratingProviderDefinition" xml:space="preserve">
+    <value>Создание определения поставщика...</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.DefinitionUploadFailedAfterPublishFormat" xml:space="preserve">
+    <value>Каталог опубликован, но загрузить определение поставщика не удалось: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ArtifactHostingNotSupported" xml:space="preserve">
+    <value>Провайдер не поддерживает размещение артефактов. Добавьте URL-адреса вручную.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.CompressingFolderFormat" xml:space="preserve">
+    <value>Сжатие папки «{0}» в архив...</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.FileOrDirectoryNotFound" xml:space="preserve">
+    <value>Файл или папка не найдены</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.FileOrDirectoryNotFoundFormat" xml:space="preserve">
+    <value>Файл или папка не найдены: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.UploadingArtifactFormat" xml:space="preserve">
+    <value>Загрузка артефакта {0}/{1}: {2}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.UploadFailedShort" xml:space="preserve">
+    <value>Загрузка не удалась</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ArtifactUploadFailedFormat" xml:space="preserve">
+    <value>Не удалось загрузить {0}: {1}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.UploadCanceledError" xml:space="preserve">
+    <value>Загрузка отменена</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ErrorUploadingArtifactFormat" xml:space="preserve">
+    <value>Ошибка загрузки {0}: {1}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.NoCatalogsPublishedYet" xml:space="preserve">
+    <value>Каталоги пока не опубликованы</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.NoCatalogsPublishedPublishFirst" xml:space="preserve">
+    <value>Каталоги пока не опубликованы. Сначала опубликуйте каталог.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.NoCatalogUrlsForDefinition" xml:space="preserve">
+    <value>Нет доступных URL-адресов каталогов для определения</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.GenerateDefinitionFailedFormat" xml:space="preserve">
+    <value>Не удалось создать определение: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.UploadFailedFormat" xml:space="preserve">
+    <value>Загрузка не удалась: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ErrorUploadingDefinitionFormat" xml:space="preserve">
+    <value>Ошибка загрузки определения: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.PublishAllFailed" xml:space="preserve">
+    <value>Не удалось опубликовать все каталоги.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.PublishAllCanceled" xml:space="preserve">
+    <value>Публикация всех каталогов отменена.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.PublishingCatalogFormat" xml:space="preserve">
+    <value>Публикация каталога {0}/{1}: {2}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.PublishAllSuccessDefinitionFailedFormat" xml:space="preserve">
+    <value>Все каталоги ({0}) успешно опубликованы, но загрузить определение поставщика не удалось: {1}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.PublishAllPartialDefinitionFailedFormat" xml:space="preserve">
+    <value>Опубликовано {0} из {1} каталогов, но загрузить определение поставщика не удалось: {2}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.PublishAllSuccessFormat" xml:space="preserve">
+    <value>Все каталоги ({0}) успешно опубликованы!</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.PublishAllPartialFormat" xml:space="preserve">
+    <value>Опубликовано {0} из {1} каталогов.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ConnectProviderFirst" xml:space="preserve">
+    <value>Сначала подключитесь к хостинг-провайдеру.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.SyncCompleteFormat" xml:space="preserve">
+    <value>Синхронизация завершена! Обнаружено файлов ({0}) в {1}.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ScanningFolderFormat" xml:space="preserve">
+    <value>Сканирование папки {0} для поиска размещенных файлов...</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.NoHostedFilesFound" xml:space="preserve">
+    <value>В папке облачного хранилища размещенные файлы не обнаружены.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ScanErrorFormat" xml:space="preserve">
+    <value>Ошибка сканирования: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.IncompatibleArtifactsWarningFormat" xml:space="preserve">
+    <value>{0} размещает только метаданные каталога (JSON). В вашем проекте локальных файлов, ожидающих загрузки: {1}. Укажите прямые CDN-ссылки для этих файлов или переключитесь на Google Drive или Dropbox для размещения бинарных архивов.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ExportCatalogJsonFailed" xml:space="preserve">
+    <value>Не удалось экспортировать каталог в JSON.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.UploadDefinitionFailedMessage" xml:space="preserve">
+    <value>Не удалось загрузить определение поставщика.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.UnknownPublisher" xml:space="preserve">
+    <value>Издатель</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.ProjectSavedHint" xml:space="preserve">
+    <value>Проект сохранен. Перейдите в раздел «Публикация», чтобы экспортировать и выпустить.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.SaveProjectFailedFormat" xml:space="preserve">
+    <value>Не удалось сохранить: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.SaveProjectErrorFormat" xml:space="preserve">
+    <value>Ошибка сохранения: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Notification.SaveUnknownError" xml:space="preserve">
+    <value>При сохранении проекта произошла неизвестная ошибка.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Notification.SaveErrorMessageFormat" xml:space="preserve">
+    <value>При сохранении произошла ошибка: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.ArtifactStatus.PendingUpload" xml:space="preserve">
+    <value>Ожидает загрузки в облако</value>
+  </data>
+  <data name="Tools.PublisherStudio.ArtifactStatus.LocalFileNotFound" xml:space="preserve">
+    <value>Локальный файл или папка не найдены</value>
+  </data>
+  <data name="Tools.PublisherStudio.ArtifactStatus.NoFileOrUrl" xml:space="preserve">
+    <value>Файл или URL-адрес не настроены</value>
+  </data>
+  <data name="Tools.PublisherStudio.ArtifactStatus.HostedWithLocal" xml:space="preserve">
+    <value>Размещен (доступен локальный файл)</value>
+  </data>
+  <data name="Tools.PublisherStudio.ArtifactStatus.HostedExternalCdn" xml:space="preserve">
+    <value>Размещен (внешний CDN)</value>
+  </data>
+  <data name="Tools.PublisherStudio.ArtifactStatus.InvalidUrlFormat" xml:space="preserve">
+    <value>Недопустимый формат URL-адреса</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.AssetCategoryDefinition" xml:space="preserve">
+    <value>Определение издателя</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.AssetLocationLocalOnly" xml:space="preserve">
+    <value>Только локально</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.AssetCategoryCatalogFormat" xml:space="preserve">
+    <value>Манифест каталога ({0})</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.AssetCategoryReleaseFormat" xml:space="preserve">
+    <value>Бинарный файл выпуска ({0} v{1})</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.AssetLocationLocalFile" xml:space="preserve">
+    <value>Локальный файл</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.AssetCategoryCloudCatalogFormat" xml:space="preserve">
+    <value>Облачный каталог ({0})</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.AssetCategoryCloudArtifact" xml:space="preserve">
+    <value>Облачный артефакт</value>
+  </data>
   <data name="GameProfiles.Notification.UnexpectedExit.Title" xml:space="preserve">
     <value>Игра неожиданно завершилась</value>
   </data>
