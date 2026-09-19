@@ -559,6 +559,60 @@ public class SettingsViewModelTests
     }
 
     /// <summary>
+    /// Verifies that deleting manifests scrubs orphaned manifest IDs from existing game profiles.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task DeleteManifestsCommand_WhenConfirmed_ScrubsDeletedManifestIdsFromProfilesAsync()
+    {
+        // Arrange
+        const string manifestId = "1.0.test.mod.mymod";
+        var manifest = new ContentManifest
+        {
+            Id = ManifestId.Create(manifestId),
+            Name = "Test Mod",
+        };
+
+        var profile = new GameProfile
+        {
+            Id = "profile-1",
+            Name = "Test Profile",
+            EnabledContentIds = [manifestId, "unrelated-id"],
+        };
+
+        _mockManifestPool
+            .Setup(x => x.GetAllManifestsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IEnumerable<ContentManifest>>.CreateSuccess([manifest]));
+
+        _mockProfileManager
+            .Setup(x => x.GetAllProfilesAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<IReadOnlyList<GameProfile>>.CreateSuccess([profile]));
+
+        _mockDialogService
+            .Setup(x => x.ShowConfirmationAsync(
+                AppConstants.DeleteManifestsConfirmationTitle,
+                AppConstants.DeleteManifestsConfirmationMessage,
+                AppConstants.DeleteManifestsConfirmText,
+                It.IsAny<string>(),
+                It.IsAny<string?>()))
+            .ReturnsAsync(true);
+
+        var viewModel = CreateViewModel();
+
+        // Act
+        await viewModel.DeleteManifestsCommand.ExecuteAsync(null);
+
+        // Assert
+        _mockManifestPool.Verify(x => x.RemoveManifestAsync(manifest.Id, It.IsAny<bool>(), It.IsAny<CancellationToken>()), Times.Once);
+        _mockProfileManager.Verify(
+            x => x.UpdateProfileAsync(
+                "profile-1",
+                It.Is<UpdateProfileRequest>(req => req.EnabledContentIds != null && req.EnabledContentIds.SequenceEqual(new[] { "unrelated-id" })),
+                It.IsAny<CancellationToken>()),
+            Times.Once);
+    }
+
+    /// <summary>
     /// Verifies that declining the manifest deletion confirmation does not remove manifests.
     /// </summary>
     /// <returns>A task representing the asynchronous unit test.</returns>

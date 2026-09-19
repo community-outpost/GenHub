@@ -1122,18 +1122,8 @@ public class ProfileLauncherFacade(
             var errorMessage = $"HardLink strategy failed because your workspace is on a different drive than the game on {gameDrive} drive. " +
                 "You can manually change to FullCopy strategy (uses more disk space) or move your workspace to the same drive as your game.";
 
-            notificationService.ShowError(
-                "Launch Failed - Cross-Drive Issue",
-                errorMessage,
-                NotificationDurations.Critical);
-
             return ProfileOperationResult<GameLaunchInfo>.CreateFailure(errorMessage);
         }
-
-        notificationService.ShowError(
-            "Launch Failed",
-            $"Cannot launch '{profile.Name}': {launchResult.FirstError ?? "Unknown error"}",
-            NotificationDurations.VeryLong);
 
         return ProfileOperationResult<GameLaunchInfo>.CreateFailure(string.Join(", ", launchResult.Errors));
     }
@@ -1175,8 +1165,13 @@ public class ProfileLauncherFacade(
             return ProfileOperationResult<bool>.CreateFailure(string.Join(", ", errors));
         }
 
-        var (manifests, hasGameInstallationManifest, hasGameClientManifest) =
+        var (manifests, hasGameInstallationManifest, hasGameClientManifest, missingContentIds) =
             await CollectAndValidateManifestsAsync(profile, cancellationToken);
+
+        if (missingContentIds.Count > 0)
+        {
+            errors.Add($"Missing or invalid content IDs: {string.Join(", ", missingContentIds)}");
+        }
 
         if (!hasGameInstallationManifest)
         {
@@ -1353,13 +1348,14 @@ public class ProfileLauncherFacade(
         return null;
     }
 
-    private async Task<(List<ContentManifest> Manifests, bool HasInstallation, bool HasClient)> CollectAndValidateManifestsAsync(
+    private async Task<(List<ContentManifest> Manifests, bool HasInstallation, bool HasClient, List<string> MissingContentIds)> CollectAndValidateManifestsAsync(
         GameProfile profile,
         CancellationToken cancellationToken)
     {
         var hasGameInstallationManifest = false;
         var hasGameClientManifest = false;
         var manifests = new List<ContentManifest>();
+        var missingContentIds = new List<string>();
 
         if (profile.EnabledContentIds != null)
         {
@@ -1368,6 +1364,7 @@ public class ProfileLauncherFacade(
                 var manifest = await TryRetrieveManifestAsync(contentId, cancellationToken);
                 if (manifest == null)
                 {
+                    missingContentIds.Add(contentId);
                     continue;
                 }
 
@@ -1390,10 +1387,11 @@ public class ProfileLauncherFacade(
             {
                 manifests.Add(clientManifest);
                 hasGameClientManifest = true;
+                missingContentIds.Remove(profile.GameClient.Id);
             }
         }
 
-        return (manifests, hasGameInstallationManifest, hasGameClientManifest);
+        return (manifests, hasGameInstallationManifest, hasGameClientManifest, missingContentIds);
     }
 
     /// <summary>

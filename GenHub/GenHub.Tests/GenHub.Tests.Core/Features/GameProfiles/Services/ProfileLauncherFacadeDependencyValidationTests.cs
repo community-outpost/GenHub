@@ -576,6 +576,80 @@ public sealed class ProfileLauncherFacadeDependencyValidationTests
         Assert.Contains(result.Errors, err => err.Contains("Missing") && err.Contains("CAS objects"));
     }
 
+    /// <summary>
+    /// Verifies that when an enabled content ID has no corresponding manifest in the pool, launch validation fails early.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task ValidateLaunchAsync_WhenEnabledContentManifestMissingFromPool_FailsValidationAsync()
+    {
+        // Arrange
+        const string profileId = "profile-missing-manifest";
+        const string installationManifestId = "1.104.steam.gameinstallation.zerohour";
+        const string clientManifestId = "1.0.communityoutpost.gameclient.communityoutpostgameclientcommunitypatch";
+        const string missingContentId = "1.1.communityoutpost.addon.crzh";
+
+        var installationManifest = new ContentManifest
+        {
+            Id = ManifestId.Create(installationManifestId),
+            Name = "Steam Zero Hour",
+            ContentType = ContentType.GameInstallation,
+            TargetGame = GameType.ZeroHour,
+        };
+
+        var clientManifest = new ContentManifest
+        {
+            Id = ManifestId.Create(clientManifestId),
+            Name = "Community Patch",
+            ContentType = ContentType.GameClient,
+            TargetGame = GameType.ZeroHour,
+            Publisher = new PublisherInfo { PublisherType = "communityoutpost" },
+        };
+
+        var profile = new GameProfile
+        {
+            Id = profileId,
+            Name = "Steam SuperHackers - Zero Hour",
+            GameInstallationId = "steam-zh-install-id",
+            GameClient = new GameClient
+            {
+                Id = clientManifestId,
+                Name = clientManifest.Name,
+                GameType = GameType.ZeroHour,
+                InstallationId = "steam-zh-install-id",
+            },
+            EnabledContentIds =
+            [
+                installationManifestId,
+                clientManifestId,
+                missingContentId,
+            ],
+        };
+
+        _profileManagerMock
+            .Setup(p => p.GetProfileAsync(profileId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(profile));
+
+        _manifestPoolMock
+            .Setup(m => m.GetManifestAsync(ManifestId.Create(installationManifestId), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentManifest?>.CreateSuccess(installationManifest));
+        _manifestPoolMock
+            .Setup(m => m.GetManifestAsync(ManifestId.Create(clientManifestId), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentManifest?>.CreateSuccess(clientManifest));
+        _manifestPoolMock
+            .Setup(m => m.GetManifestAsync(ManifestId.Create(missingContentId), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentManifest?>.CreateSuccess(null));
+
+        var facade = CreateFacade();
+
+        // Act
+        var result = await facade.ValidateLaunchAsync(profileId);
+
+        // Assert
+        Assert.False(result.Success);
+        Assert.Contains(result.Errors, err => err.Contains($"Missing or invalid content IDs: {missingContentId}"));
+    }
+
     private ProfileLauncherFacade CreateFacade()
     {
         return new ProfileLauncherFacade(
