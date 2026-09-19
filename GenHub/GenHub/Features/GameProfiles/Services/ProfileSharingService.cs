@@ -1,0 +1,3420 @@
+using CommunityToolkit.Mvvm.Messaging;
+using GenHub.Core.Constants;
+using GenHub.Core.Helpers;
+using GenHub.Core.Interfaces.Common;
+using GenHub.Core.Interfaces.Content;
+using GenHub.Core.Interfaces.GameInstallations;
+using GenHub.Core.Interfaces.GameProfiles;
+using GenHub.Core.Interfaces.Manifest;
+using GenHub.Core.Interfaces.Services;
+using GenHub.Core.Interfaces.Storage;
+using GenHub.Core.Models.Content;
+using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.GameClients;
+using GenHub.Core.Models.GameInstallations;
+using GenHub.Core.Models.GameProfile;
+using GenHub.Core.Models.GameProfiles;
+using GenHub.Core.Models.Manifest;
+using GenHub.Core.Models.Results;
+using GenHub.Core.Models.Results.Content;
+using GenHub.Features.Content.Services.Publishers;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
+using System;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
+using System.Globalization;
+using System.IO;
+using System.IO.Compression;
+using System.Linq;
+using System.Net;
+using System.Net.Http;
+using System.Net.Sockets;
+using System.Security.Cryptography;
+using System.Text;
+using System.Text.Json;
+using System.Text.Json.Serialization;
+using System.Threading;
+using System.Threading.Tasks;
+
+namespace GenHub.Features.GameProfiles.Services;
+
+/// <summary>
+/// Service that implements profile package export, URL generation, pre-import inspection, and acquisition.
+/// </summary>
+[SuppressMessage("Major Code Smell", "S107:Methods should not have too many parameters", Justification = "ProfileSharingService is the comprehensive facade coordinating storage, profiles, manifest pools, installation, upload, and verification services injected via DI.")]
+public class ProfileSharingService(
+    IGameProfileRepository profileRepository,
+    IContentManifestPool manifestPool,
+    IGameInstallationService installationService,
+    IContentOrchestrator contentOrchestrator,
+    PublisherManifestFactoryResolver publisherManifestFactoryResolver,
+    ILogger<ProfileSharingService> logger,
+    ICasService? casService = null,
+    IUploadThingService? uploadThingService = null,
+    IUploadHistoryService? uploadHistoryService = null) : IProfileSharingService, IDisposable
+{
+    private sealed record ManifestInspectionSummary(
+        List<SharedManifestDependency> Manifests,
+        int CachedCount,
+        int MissingCount,
+        long TotalMissingDownloadBytes);
+
+    private static readonly JsonSerializerOptions JsonOptions = new()
+    {
+        WriteIndented = true,
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        PropertyNameCaseInsensitive = true,
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+        Converters = { new JsonStringEnumConverter() },
+    };
+
+    // Hosts validated by the SSRF guard, mapped to the public IP addresses observed at validation time.
+    // Static because connections are pinned through a shared handler; entries are refreshed on every validation.
+    private static readonly ConcurrentDictionary<string, HashSet<IPAddress>> ValidatedHostAddresses = new(StringComparer.OrdinalIgnoreCase);
+
+    private static readonly System.Text.RegularExpressions.Regex DuplicateCounterRegex =
+        new(@"\s*\(\d+\)$", System.Text.RegularExpressions.RegexOptions.Compiled, TimeSpan.FromSeconds(1));
+
+    // HTTP client whose connections are pinned to previously validated addresses, defeating DNS rebinding.
+    private readonly HttpClient safeHttpClient = CreateSafeHttpClient();
+
+    /// <inheritdoc/>
+    public async Task<OperationResult<string>> ExportProfileToUriAsync(string profileId, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (string.IsNullOrWhiteSpace(profileId))
+            {
+                return OperationResult<string>.CreateFailure(ProfileSharingConstants.EmptyProfileIdErrorMessage);
+            }
+
+            var packageResult = await BuildPackageFromProfileIdAsync(profileId, allowCloudUpload: true, cancellationToken);
+            if (!packageResult.Success || packageResult.Data == null)
+            {
+                return OperationResult<string>.CreateFailure(packageResult.Errors);
+            }
+
+            var json = JsonSerializer.Serialize(packageResult.Data, JsonOptions);
+            var encodedPayload = ProfileSharingCompressionHelper.CompressAndEncode(json);
+
+            if (encodedPayload.Length > ProfileSharingConstants.MaxInlinePayloadLength)
+            {
+                logger?.LogWarning("Exported profile {ProfileId} payload ({Length} chars) exceeds inline limit.", profileId, encodedPayload.Length);
+                return OperationResult<string>.CreateFailure(
+                    $"Profile payload ({encodedPayload.Length} characters) exceeds the maximum inline sharing limit of {ProfileSharingConstants.MaxInlinePayloadLength} characters. Please export as a .ghprofile file instead.");
+            }
+
+            string shareUri = $"{CommandLineConstants.ProfileImportUriPrefix}?{CommandLineConstants.DataQueryParam}{encodedPayload}";
+            return OperationResult<string>.CreateSuccess(shareUri);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            logger?.LogError(ex, "Unexpected error generating share URI for profile {ProfileId}.", profileId);
+            return OperationResult<string>.CreateFailure($"Failed to generate share URI: {ex.Message}");
+        }
+    }
+
+    /// <inheritdoc/>
+    public async Task<OperationResult<string>> ExportProfileToFileAsync(string profileId, string destinationPath, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (string.IsNullOrWhiteSpace(profileId))
+            {
+                return OperationResult<string>.CreateFailure(ProfileSharingConstants.EmptyProfileIdErrorMessage);
+            }
+
+            if (string.IsNullOrWhiteSpace(destinationPath))
+            {
+                return OperationResult<string>.CreateFailure("Destination file path cannot be empty.");
+            }
+
+            var packageResult = await BuildPackageFromProfileIdAsync(profileId, allowCloudUpload: false, cancellationToken);
+            if (!packageResult.Success || packageResult.Data == null)
+            {
+                return OperationResult<string>.CreateFailure(packageResult.Errors);
+            }
+
+            var json = JsonSerializer.Serialize(packageResult.Data, JsonOptions);
+            var directory = Path.GetDirectoryName(destinationPath);
+            if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
+            {
+                Directory.CreateDirectory(directory);
+            }
+
+            await File.WriteAllTextAsync(destinationPath, json, cancellationToken);
+            logger?.LogInformation("Exported profile {ProfileId} to file: {DestinationPath}", profileId, destinationPath);
+            return OperationResult<string>.CreateSuccess(destinationPath);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            logger?.LogError(ex, "Unexpected error exporting profile {ProfileId} to file {DestinationPath}.", profileId, destinationPath);
+            return OperationResult<string>.CreateFailure($"Failed to export profile to file: {ex.Message}");
+        }
+    }
+
+    /// <inheritdoc/>
+    public async Task<OperationResult<string>> ExportProfileToJsonAsync(string profileId, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (string.IsNullOrWhiteSpace(profileId))
+            {
+                return OperationResult<string>.CreateFailure(ProfileSharingConstants.EmptyProfileIdErrorMessage);
+            }
+
+            var packageResult = await BuildPackageFromProfileIdAsync(profileId, allowCloudUpload: false, cancellationToken);
+            if (!packageResult.Success || packageResult.Data == null)
+            {
+                return OperationResult<string>.CreateFailure(packageResult.Errors);
+            }
+
+            var json = JsonSerializer.Serialize(packageResult.Data, JsonOptions);
+            return OperationResult<string>.CreateSuccess(json);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            logger?.LogError(ex, "Unexpected error exporting profile {ProfileId} to JSON.", profileId);
+            return OperationResult<string>.CreateFailure($"Failed to export profile to JSON: {ex.Message}");
+        }
+    }
+
+    /// <inheritdoc/>
+    public async Task<OperationResult<SharedProfileInspectionResult>> InspectSharedProfileAsync(
+        string shareUriOrJsonOrPath,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var packageResult = await ResolveAndDeserializePackageAsync(shareUriOrJsonOrPath, cancellationToken);
+            if (!packageResult.Success || packageResult.Data == null)
+            {
+                return OperationResult<SharedProfileInspectionResult>.CreateFailure(packageResult.Errors);
+            }
+
+            var package = packageResult.Data;
+            _ = ProfileSharingCompressionHelper.SanitizeCommandLineArguments(
+                package.Profile.CommandLineArguments,
+                out var securityWarnings,
+                out var securityWarningCodes);
+
+            var manifestDiffResult = await DiffManifestsAgainstPoolAsync(package, cancellationToken);
+            if (!manifestDiffResult.Success || manifestDiffResult.Data == null)
+            {
+                return OperationResult<SharedProfileInspectionResult>.CreateFailure(manifestDiffResult.Errors);
+            }
+
+            var manifestSummary = manifestDiffResult.Data;
+
+            ValidateMissingDependencySources(manifestSummary.Manifests, securityWarnings, securityWarningCodes);
+
+            var (compatibleInstallations, matchedInstallationId) = await FindCompatibleInstallationsAsync(package.Profile.GameType, cancellationToken);
+            var (suggestedName, hasNameConflict) = await DetermineSuggestedProfileNameAsync(package.Profile.Name, cancellationToken);
+
+            var result = new SharedProfileInspectionResult
+            {
+                ProfileMetadata = package.Profile,
+                Manifests = manifestSummary.Manifests,
+                TotalDownloadBytesRequired = manifestSummary.TotalMissingDownloadBytes,
+                CachedManifestCount = manifestSummary.CachedCount,
+                MissingManifestCount = manifestSummary.MissingCount,
+                HasValidGameInstallation = compatibleInstallations.Count > 0,
+                MatchedGameInstallationId = matchedInstallationId,
+                CompatibleInstallations = compatibleInstallations,
+                HasNameConflict = hasNameConflict,
+                SuggestedProfileName = suggestedName,
+                SecurityWarnings = securityWarnings,
+                SecurityWarningCodes = securityWarningCodes,
+                Package = package,
+            };
+
+            return OperationResult<SharedProfileInspectionResult>.CreateSuccess(result);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            logger?.LogError(ex, "Unexpected error during profile inspection.");
+            return OperationResult<SharedProfileInspectionResult>.CreateFailure($"Failed to inspect shared profile: {ex.Message}");
+        }
+    }
+
+    /// <inheritdoc/>
+    public async Task<OperationResult<GameProfile>> ImportSharedProfileAsync(
+        SharedProfileImportRequest request,
+        IProgress<ContentAcquisitionProgress>? progress = null,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var validationResult = ValidateImportRequest(request);
+            if (!validationResult.Success)
+            {
+                return OperationResult<GameProfile>.CreateFailure(validationResult.Errors);
+            }
+
+            var package = request.Package;
+            var selectedInstallation = await ResolveSelectedInstallationAsync(request.GameInstallationId, cancellationToken);
+            if (selectedInstallation == null)
+            {
+                return OperationResult<GameProfile>.CreateFailure(
+                    "No compatible game installation is available. Install a matching game before importing this profile.");
+            }
+
+            var compatibilityResult = ValidateClientCompatibility(selectedInstallation, package);
+            if (!compatibilityResult.Success)
+            {
+                return OperationResult<GameProfile>.CreateFailure(compatibilityResult.Errors);
+            }
+
+            var dependenciesResult = await AcquireAllDependenciesAsync(package, progress, cancellationToken);
+            if (!dependenciesResult.Success || dependenciesResult.Data == null)
+            {
+                return OperationResult<GameProfile>.CreateFailure(dependenciesResult.Errors);
+            }
+
+            var gameClient = ResolveGameClient(selectedInstallation, package);
+            var newProfile = BuildImportedProfile(request, selectedInstallation, gameClient, dependenciesResult.Data);
+
+            var saveResult = await profileRepository.SaveProfileAsync(newProfile, cancellationToken);
+            if (!saveResult.Success || saveResult.Data == null)
+            {
+                return OperationResult<GameProfile>.CreateFailure(saveResult.Errors);
+            }
+
+            logger?.LogInformation("Successfully imported profile: {ProfileName} ({ProfileId})", newProfile.Name, newProfile.Id);
+            WeakReferenceMessenger.Default.Send(new ProfileCreatedMessage(saveResult.Data));
+            return OperationResult<GameProfile>.CreateSuccess(saveResult.Data);
+        }
+        catch (OperationCanceledException ex) when (!cancellationToken.IsCancellationRequested)
+        {
+            logger?.LogError(ex, "Timeout occurred during shared profile import.");
+            return OperationResult<GameProfile>.CreateFailure("Profile import timed out. Please check your network connection and try again.");
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            logger?.LogError(ex, "Unexpected error during profile import.");
+            return OperationResult<GameProfile>.CreateFailure($"Failed to import profile: {ex.Message}");
+        }
+    }
+
+    /// <inheritdoc/>
+    public void Dispose()
+    {
+        Dispose(true);
+        GC.SuppressFinalize(this);
+    }
+
+    /// <summary>
+    /// Releases managed and unmanaged resources.
+    /// </summary>
+    /// <param name="disposing">True if called from Dispose; false if from finalizer.</param>
+    protected virtual void Dispose(bool disposing)
+    {
+        if (disposing)
+        {
+            safeHttpClient.Dispose();
+        }
+    }
+
+    private static HttpClient CreateSafeHttpClient()
+    {
+        var handler = new SocketsHttpHandler
+        {
+            ConnectCallback = (context, token) =>
+                ConnectToValidatedAddressAsync(ValidatedHostAddresses, context, token),
+            AllowAutoRedirect = false,
+            AutomaticDecompression = DecompressionMethods.All,
+        };
+
+        var client = new HttpClient(handler)
+        {
+            Timeout = Timeout.InfiniteTimeSpan,
+        };
+
+        client.DefaultRequestHeaders.UserAgent.ParseAdd(ApiConstants.DefaultUserAgent);
+        return client;
+    }
+
+    private static bool IsPublicIpAddress(IPAddress ip)
+    {
+        if (ip.IsIPv4MappedToIPv6)
+        {
+            ip = ip.MapToIPv4();
+        }
+
+        if (IPAddress.IsLoopback(ip))
+        {
+            return false;
+        }
+
+        if (ip.AddressFamily == AddressFamily.InterNetworkV6)
+        {
+            return !ip.IsIPv6LinkLocal &&
+                   !ip.IsIPv6SiteLocal &&
+                   !ip.IsIPv6Multicast &&
+                   !ip.IsIPv6UniqueLocal;
+        }
+
+        if (ip.AddressFamily != AddressFamily.InterNetwork)
+        {
+            return false;
+        }
+
+        byte[] bytes = ip.GetAddressBytes();
+        return !IsPrivateOrReservedIpv4(bytes);
+    }
+
+    private static bool IsPrivateOrReservedIpv4(byte[] bytes)
+    {
+        return bytes switch
+        {
+            [0, ..] => true,
+            [10, ..] => true,
+            [100, >= 64 and <= 127, ..] => true,
+            [127, ..] => true,
+            [169, 254, ..] => true,
+            [172, >= 16 and <= 31, ..] => true,
+            [192, 168, ..] => true,
+            [192, 0, 0, ..] => true,
+            [192, 0, 2, ..] => true,
+            [198, 18 or 19, ..] => true,
+            [198, 51, 100, ..] => true,
+            [203, 0, 113, ..] => true,
+            [>= 224, ..] => true,
+            _ => false,
+        };
+    }
+
+    private static async ValueTask<Stream> ConnectToValidatedAddressAsync(
+        ConcurrentDictionary<string, HashSet<IPAddress>> validatedHosts,
+        SocketsHttpConnectionContext context,
+        CancellationToken cancellationToken)
+    {
+        string host = context.DnsEndPoint.Host;
+
+        // Reject hosts that were never cleared by the SSRF guard, and pin the connection
+        // to an address observed during validation so a rebinding DNS answer cannot reroute it.
+        if (!validatedHosts.TryGetValue(host, out var allowedAddresses))
+        {
+            throw new IOException($"Host '{host}' was not validated before connecting.");
+        }
+
+        IPAddress? candidate;
+        if (IPAddress.TryParse(host, out var literalAddress))
+        {
+            candidate = allowedAddresses.Contains(literalAddress) ? literalAddress : null;
+        }
+        else
+        {
+            var addresses = await Dns.GetHostAddressesAsync(host, cancellationToken);
+            candidate = addresses.FirstOrDefault(allowedAddresses.Contains);
+        }
+
+        if (candidate is null)
+        {
+            throw new IOException($"DNS resolution for '{host}' returned no previously validated addresses.");
+        }
+
+        var socket = new Socket(candidate.AddressFamily, SocketType.Stream, ProtocolType.Tcp)
+        {
+            NoDelay = true,
+        };
+
+        try
+        {
+            await socket.ConnectAsync(candidate, context.DnsEndPoint.Port, cancellationToken);
+            return new NetworkStream(socket, ownsSocket: true);
+        }
+        catch
+        {
+            socket.Dispose();
+            throw;
+        }
+    }
+
+    private static async Task<HttpResponseMessage> SendWithManualRedirectsAsync(
+        HttpClient client,
+        Uri initialUri,
+        HttpCompletionOption completionOption,
+        CancellationToken cancellationToken)
+    {
+        const int maxRedirects = 5;
+        var currentUri = initialUri;
+
+        for (int i = 0; i <= maxRedirects; i++)
+        {
+            using var request = new HttpRequestMessage(HttpMethod.Get, currentUri);
+            var response = await client.SendAsync(request, completionOption, cancellationToken);
+
+            if (response.StatusCode is HttpStatusCode.MovedPermanently or
+                HttpStatusCode.Found or
+                HttpStatusCode.SeeOther or
+                HttpStatusCode.TemporaryRedirect or
+                (HttpStatusCode)308)
+            {
+                var location = response.Headers.Location;
+                response.Dispose();
+
+                if (location == null)
+                {
+                    throw new HttpRequestException("Redirect response missing Location header.");
+                }
+
+                var nextUri = location.IsAbsoluteUri ? location : new Uri(currentUri, location);
+                if (!await IsSafeRemoteUriAsync(nextUri, cancellationToken))
+                {
+                    throw new HttpRequestException($"Redirect target URL '{nextUri}' is blocked by security policies.");
+                }
+
+                currentUri = nextUri;
+                continue;
+            }
+
+            return response;
+        }
+
+        throw new HttpRequestException($"Too many redirects (exceeded limit of {maxRedirects}).");
+    }
+
+    private static Dictionary<string, object?> ExtractSettingsOverridesFromProfile(GameProfile profile)
+    {
+        var dict = new Dictionary<string, object?>();
+        ExtractVideoSettingsOverrides(profile, dict);
+        ExtractTshSettingsOverrides(profile, dict);
+        ExtractGoSettingsOverrides(profile, dict);
+        return dict;
+    }
+
+    private static string ToCamelCase(string name) =>
+        string.IsNullOrEmpty(name) || char.IsLower(name[0])
+            ? name
+            : char.ToLowerInvariant(name[0]) + name[1..];
+
+    private static void ExtractVideoSettingsOverrides(GameProfile profile, Dictionary<string, object?> dict)
+    {
+        if (profile.VideoResolutionWidth.HasValue)
+        {
+            dict[ToCamelCase(nameof(profile.VideoResolutionWidth))] = profile.VideoResolutionWidth.Value;
+        }
+
+        if (profile.VideoResolutionHeight.HasValue)
+        {
+            dict[ToCamelCase(nameof(profile.VideoResolutionHeight))] = profile.VideoResolutionHeight.Value;
+        }
+
+        if (profile.VideoWindowed.HasValue)
+        {
+            dict[ToCamelCase(nameof(profile.VideoWindowed))] = profile.VideoWindowed.Value;
+        }
+
+        if (profile.VideoTextureQuality.HasValue)
+        {
+            dict[ToCamelCase(nameof(profile.VideoTextureQuality))] = profile.VideoTextureQuality.Value.ToString();
+        }
+
+        if (profile.EnableVideoShadows.HasValue)
+        {
+            dict[ToCamelCase(nameof(profile.EnableVideoShadows))] = profile.EnableVideoShadows.Value;
+        }
+
+        if (profile.AudioSoundVolume.HasValue)
+        {
+            dict[ToCamelCase(nameof(profile.AudioSoundVolume))] = profile.AudioSoundVolume.Value;
+        }
+
+        if (profile.AudioMusicVolume.HasValue)
+        {
+            dict[ToCamelCase(nameof(profile.AudioMusicVolume))] = profile.AudioMusicVolume.Value;
+        }
+
+        if (profile.AudioSpeechVolume.HasValue)
+        {
+            dict[ToCamelCase(nameof(profile.AudioSpeechVolume))] = profile.AudioSpeechVolume.Value;
+        }
+    }
+
+    private static void ExtractTshSettingsOverrides(GameProfile profile, Dictionary<string, object?> dict)
+    {
+        if (profile.TshArchiveReplays.HasValue)
+        {
+            dict[ToCamelCase(nameof(profile.TshArchiveReplays))] = profile.TshArchiveReplays.Value;
+        }
+
+        if (profile.TshRenderFpsFontSize.HasValue)
+        {
+            dict[ToCamelCase(nameof(profile.TshRenderFpsFontSize))] = profile.TshRenderFpsFontSize.Value;
+        }
+
+        if (profile.TshNetworkLatencyFontSize.HasValue)
+        {
+            dict[ToCamelCase(nameof(profile.TshNetworkLatencyFontSize))] = profile.TshNetworkLatencyFontSize.Value;
+        }
+
+        if (profile.TshSystemTimeFontSize.HasValue)
+        {
+            dict[ToCamelCase(nameof(profile.TshSystemTimeFontSize))] = profile.TshSystemTimeFontSize.Value;
+        }
+    }
+
+    private static void ExtractGoSettingsOverrides(GameProfile profile, Dictionary<string, object?> dict)
+    {
+        if (profile.GoShowFps.HasValue)
+        {
+            dict[ToCamelCase(nameof(profile.GoShowFps))] = profile.GoShowFps.Value;
+        }
+
+        if (profile.GoShowPing.HasValue)
+        {
+            dict[ToCamelCase(nameof(profile.GoShowPing))] = profile.GoShowPing.Value;
+        }
+
+        if (profile.GoShowPlayerRanks.HasValue)
+        {
+            dict[ToCamelCase(nameof(profile.GoShowPlayerRanks))] = profile.GoShowPlayerRanks.Value;
+        }
+
+        if (profile.GoRenderFpsLimit.HasValue)
+        {
+            dict[ToCamelCase(nameof(profile.GoRenderFpsLimit))] = profile.GoRenderFpsLimit.Value;
+        }
+    }
+
+    private static OperationResult<bool> ValidateImportRequest(SharedProfileImportRequest request)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        if (string.IsNullOrWhiteSpace(request.ProfileName) || request.ProfileName.Length > ProfileSharingConstants.MaxProfileNameLength)
+        {
+            return OperationResult<bool>.CreateFailure($"Profile name must be between 1 and {ProfileSharingConstants.MaxProfileNameLength} characters.");
+        }
+
+        if (request.Package?.Profile == null || request.Package.RequiredManifests == null)
+        {
+            return OperationResult<bool>.CreateFailure("Package must include profile metadata and required manifests list.");
+        }
+
+        if (request.Package.SchemaVersion != ProfileSharingConstants.DefaultSchemaVersion)
+        {
+            return OperationResult<bool>.CreateFailure($"Unsupported package schema version {request.Package.SchemaVersion}. Expected version {ProfileSharingConstants.DefaultSchemaVersion}.");
+        }
+
+        return OperationResult<bool>.CreateSuccess(true);
+    }
+
+    private static OperationResult<bool> ValidateClientCompatibility(GameInstallation? installation, SharedGameProfilePackage package)
+    {
+        if (installation == null)
+        {
+            return OperationResult<bool>.CreateFailure($"No game installation available for profile game type {package.Profile.GameType}.");
+        }
+
+        bool supportsGame = package.Profile.GameType switch
+        {
+            GameType.Generals => installation.HasGenerals || installation.GeneralsClient != null,
+            GameType.ZeroHour => installation.HasZeroHour || installation.ZeroHourClient != null,
+            _ => installation.AvailableGameClients.Any(c => c.GameType == package.Profile.GameType),
+        };
+
+        if (!supportsGame)
+        {
+            return OperationResult<bool>.CreateFailure($"Selected game installation '{installation.DisplayName}' does not support shared profile game type ({package.Profile.GameType}).");
+        }
+
+        if (package.Profile.GameClientManifestId != null)
+        {
+            var matchedClient = installation.AvailableGameClients.FirstOrDefault(c => c.Id == package.Profile.GameClientManifestId);
+            if (matchedClient is { } client && client.GameType != package.Profile.GameType)
+            {
+                return OperationResult<bool>.CreateFailure($"Client '{client.Name}' game type ({client.GameType}) does not match shared profile game type ({package.Profile.GameType}).");
+            }
+        }
+
+        return OperationResult<bool>.CreateSuccess(true);
+    }
+
+    private static GameClient? ResolveGameClient(GameInstallation? installation, SharedGameProfilePackage package)
+    {
+        if (installation != null)
+        {
+            var matched = installation.AvailableGameClients.FirstOrDefault(c => c.Id == package.Profile.GameClientManifestId)
+                ?? installation.AvailableGameClients.FirstOrDefault(c => c.GameType == package.Profile.GameType);
+
+            if (matched != null)
+            {
+                return matched;
+            }
+        }
+
+        if (package.Profile.GameClientManifestId == null)
+        {
+            return null;
+        }
+
+        return new GameClient
+        {
+            Id = package.Profile.GameClientManifestId,
+            Name = package.Profile.Name,
+            Version = package.Profile.GameVersion,
+            GameType = package.Profile.GameType,
+            ExecutablePath = ResolveFallbackExecutablePath(installation, package.Profile.GameType),
+        };
+    }
+
+    private static string ResolveFallbackExecutablePath(GameInstallation? installation, GameType gameType)
+    {
+        if (installation == null)
+        {
+            return string.Empty;
+        }
+
+        var client = gameType == GameType.ZeroHour ? installation.ZeroHourClient : installation.GeneralsClient;
+        if (!string.IsNullOrEmpty(client?.ExecutablePath))
+        {
+            return client.ExecutablePath;
+        }
+
+        var basePath = gameType == GameType.ZeroHour ? installation.ZeroHourPath : installation.GeneralsPath;
+        if (string.IsNullOrEmpty(basePath))
+        {
+            basePath = installation.InstallationPath;
+        }
+
+        var fallbackExe = gameType == GameType.ZeroHour ? GameClientConstants.ZeroHourExecutable : GameClientConstants.GeneralsExecutable;
+        return !string.IsNullOrEmpty(basePath) ? Path.Combine(basePath, fallbackExe) : string.Empty;
+    }
+
+    /// <summary>
+    /// Removes machine-specific artwork paths before a profile is packaged for sharing.
+    /// Local absolute paths, UNC paths, and traversal segments are stripped to
+    /// avoid leaking exporter filesystem details to recipients. Built-in application
+    /// assets (avares://, /Assets/, Assets/) are preserved.
+    /// </summary>
+    private static string? SanitizeShareableArtworkPath(string? path)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return null;
+        }
+
+        string trimmed = path.Trim();
+
+        // Built-in assets and Avalonia resources are safe and portable across all GenHub installations
+        if (ProfileSharingConstants.BuiltInAssetPrefixes.Any(prefix =>
+            trimmed.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)))
+        {
+            return trimmed;
+        }
+
+        bool isWindowsDrive = (trimmed.Length >= 2 && char.IsLetter(trimmed[0]) && trimmed[1] == ':') ||
+            (trimmed.Length >= 3 && char.IsLetter(trimmed[0]) && trimmed[1] == ':' && (trimmed[2] == '/' || trimmed[2] == '\\'));
+        bool isRooted = Path.IsPathRooted(trimmed) ||
+            isWindowsDrive ||
+            trimmed.StartsWith('/') ||
+            trimmed.StartsWith('\\');
+
+        bool isShareable = !isRooted &&
+            !trimmed.Contains(ProfileSharingConstants.SchemeDelimiter, StringComparison.Ordinal) &&
+            !trimmed.Contains(ProfileSharingConstants.ParentDirectorySegment, StringComparison.Ordinal);
+
+        return isShareable ? trimmed : null;
+    }
+
+    private static async Task<bool> IsSafeRemoteUriAsync(Uri uri, CancellationToken cancellationToken)
+    {
+        if (uri.Scheme != Uri.UriSchemeHttps || string.IsNullOrEmpty(uri.DnsSafeHost))
+        {
+            return false;
+        }
+
+        if (IPAddress.TryParse(uri.DnsSafeHost, out var literalAddress))
+        {
+            if (!IsPublicIpAddress(literalAddress))
+            {
+                return false;
+            }
+
+            StoreValidatedHost(uri.DnsSafeHost, [literalAddress]);
+            return true;
+        }
+
+        try
+        {
+            var addresses = await Dns.GetHostAddressesAsync(uri.DnsSafeHost, cancellationToken);
+            var publicAddresses = new HashSet<IPAddress>();
+
+            foreach (var ip in addresses)
+            {
+                if (!IsPublicIpAddress(ip))
+                {
+                    return false;
+                }
+
+                publicAddresses.Add(ip);
+            }
+
+            if (publicAddresses.Count == 0)
+            {
+                return false;
+            }
+
+            StoreValidatedHost(uri.DnsSafeHost, publicAddresses);
+            return true;
+        }
+        catch (SocketException)
+        {
+            return false;
+        }
+    }
+
+    private static void StoreValidatedHost(string host, IEnumerable<IPAddress> addresses)
+    {
+        if (ValidatedHostAddresses.Count >= 500)
+        {
+            foreach (var key in ValidatedHostAddresses.Keys.Take(100))
+            {
+                ValidatedHostAddresses.TryRemove(key, out _);
+            }
+        }
+
+        ValidatedHostAddresses[host] = new HashSet<IPAddress>(addresses);
+    }
+
+    private static async Task<OperationResult<string>> ResolvePayloadFromLocalFileAsync(string input, CancellationToken cancellationToken)
+    {
+        if (!File.Exists(input))
+        {
+            return OperationResult<string>.CreateFailure($"Specified profile file does not exist: {input}");
+        }
+
+        try
+        {
+            await using var stream = new FileStream(input, FileMode.Open, FileAccess.Read, FileShare.Read, 4096, useAsync: true);
+            if (stream.Length > ProfileSharingConstants.MaxProfileFileBytes)
+            {
+                return OperationResult<string>.CreateFailure($"Profile file size exceeds maximum limit ({ProfileSharingConstants.MaxProfileFileBytes} bytes).");
+            }
+
+            using var reader = new StreamReader(stream, Encoding.UTF8);
+            var fileContent = await reader.ReadToEndAsync(cancellationToken);
+            if (fileContent.TrimStart().StartsWith('{'))
+            {
+                return OperationResult<string>.CreateSuccess(fileContent);
+            }
+
+            try
+            {
+                var decompressed = await ProfileSharingCompressionHelper.DecodeAndDecompressAsync(fileContent.Trim(), cancellationToken);
+                return OperationResult<string>.CreateSuccess(decompressed);
+            }
+            catch (Exception ex) when (ex is FormatException or InvalidDataException or ArgumentException)
+            {
+                return OperationResult<string>.CreateFailure($"Unable to parse shared profile file '{input}': {ex.Message}");
+            }
+        }
+        catch (IOException ex)
+        {
+            return OperationResult<string>.CreateFailure($"Unable to read shared profile file '{input}': {ex.Message}");
+        }
+    }
+
+    private static async Task<OperationResult<string>> ResolvePayloadFromRawOrCompressedAsync(string input, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var decompressed = await ProfileSharingCompressionHelper.DecodeAndDecompressAsync(input, cancellationToken);
+            return OperationResult<string>.CreateSuccess(decompressed);
+        }
+        catch (Exception ex) when (ex is FormatException or InvalidDataException or ArgumentException)
+        {
+            return OperationResult<string>.CreateFailure($"Unable to parse shared profile payload: {ex.Message}");
+        }
+    }
+
+    private static void ApplySettingsOverridesToProfile(GameProfile profile, Dictionary<string, object?> rawOverrides)
+    {
+        var overrides = new Dictionary<string, object?>(rawOverrides, StringComparer.OrdinalIgnoreCase);
+        ApplyVideoSettingsOverrides(profile, overrides);
+        ApplyAudioSettingsOverrides(profile, overrides);
+        ApplyTshSettingsOverrides(profile, overrides);
+        ApplyGoSettingsOverrides(profile, overrides);
+    }
+
+    private static void ApplyVideoSettingsOverrides(GameProfile profile, Dictionary<string, object?> overrides)
+    {
+        if (TryReadInt32(overrides, nameof(profile.VideoResolutionWidth), out var width))
+        {
+            profile.VideoResolutionWidth = width;
+        }
+
+        if (TryReadInt32(overrides, nameof(profile.VideoResolutionHeight), out var height))
+        {
+            profile.VideoResolutionHeight = height;
+        }
+
+        if (TryReadBoolean(overrides, nameof(profile.VideoWindowed), out var windowed))
+        {
+            profile.VideoWindowed = windowed;
+        }
+
+        if (TryReadBoolean(overrides, nameof(profile.EnableVideoShadows), out var shadows))
+        {
+            profile.EnableVideoShadows = shadows;
+        }
+
+        if (TryReadTextureQuality(overrides, nameof(profile.VideoTextureQuality), out var textureQuality))
+        {
+            profile.VideoTextureQuality = textureQuality;
+        }
+    }
+
+    private static void ApplyAudioSettingsOverrides(GameProfile profile, Dictionary<string, object?> overrides)
+    {
+        if (TryReadInt32(overrides, nameof(profile.AudioSoundVolume), out var sound))
+        {
+            profile.AudioSoundVolume = sound;
+        }
+
+        if (TryReadInt32(overrides, nameof(profile.AudioMusicVolume), out var music))
+        {
+            profile.AudioMusicVolume = music;
+        }
+
+        if (TryReadInt32(overrides, nameof(profile.AudioSpeechVolume), out var speech))
+        {
+            profile.AudioSpeechVolume = speech;
+        }
+    }
+
+    private static void ApplyTshSettingsOverrides(GameProfile profile, Dictionary<string, object?> overrides)
+    {
+        if (TryReadBoolean(overrides, nameof(profile.TshArchiveReplays), out var tshArchiveReplays))
+        {
+            profile.TshArchiveReplays = tshArchiveReplays;
+        }
+
+        if (TryReadInt32(overrides, nameof(profile.TshRenderFpsFontSize), out var fpsSize))
+        {
+            profile.TshRenderFpsFontSize = fpsSize;
+        }
+
+        if (TryReadInt32(overrides, nameof(profile.TshNetworkLatencyFontSize), out var latSize))
+        {
+            profile.TshNetworkLatencyFontSize = latSize;
+        }
+
+        if (TryReadInt32(overrides, nameof(profile.TshSystemTimeFontSize), out var timeSize))
+        {
+            profile.TshSystemTimeFontSize = timeSize;
+        }
+    }
+
+    private static void ApplyGoSettingsOverrides(GameProfile profile, Dictionary<string, object?> overrides)
+    {
+        if (TryReadBoolean(overrides, nameof(profile.GoShowFps), out var showFps))
+        {
+            profile.GoShowFps = showFps;
+        }
+
+        if (TryReadBoolean(overrides, nameof(profile.GoShowPing), out var showPing))
+        {
+            profile.GoShowPing = showPing;
+        }
+
+        if (TryReadBoolean(overrides, nameof(profile.GoShowPlayerRanks), out var showPlayerRanks))
+        {
+            profile.GoShowPlayerRanks = showPlayerRanks;
+        }
+
+        if (TryReadInt32(overrides, nameof(profile.GoRenderFpsLimit), out var fpsLimit))
+        {
+            profile.GoRenderFpsLimit = fpsLimit;
+        }
+    }
+
+    private static bool TryReadInt32(Dictionary<string, object?> overrides, string key, out int value)
+    {
+        value = 0;
+        if (!overrides.TryGetValue(key, out var raw) || raw is null)
+        {
+            return false;
+        }
+
+        switch (raw)
+        {
+            case int i:
+                value = i;
+                return true;
+            case long l when l is >= int.MinValue and <= int.MaxValue:
+                value = (int)l;
+                return true;
+            case short s:
+                value = s;
+                return true;
+            case byte b:
+                value = b;
+                return true;
+            case JsonElement elem when elem.ValueKind == JsonValueKind.Number && elem.TryGetInt32(out var parsed):
+                value = parsed;
+                return true;
+            case string str when int.TryParse(str, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsed):
+                value = parsed;
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    private static bool TryReadTextureQuality(Dictionary<string, object?> overrides, string key, out TextureQuality quality)
+    {
+        quality = TextureQuality.High;
+        if (!overrides.TryGetValue(key, out var raw) || raw is null)
+        {
+            return false;
+        }
+
+        switch (raw)
+        {
+            case TextureQuality tq:
+                quality = tq;
+                return true;
+            case string str when Enum.TryParse<TextureQuality>(str, ignoreCase: true, out var parsed):
+                quality = parsed;
+                return true;
+            case JsonElement elem when elem.ValueKind == JsonValueKind.String && Enum.TryParse<TextureQuality>(elem.GetString(), ignoreCase: true, out var parsed):
+                quality = parsed;
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    private static bool TryReadBoolean(Dictionary<string, object?> overrides, string key, out bool value)
+    {
+        value = false;
+        if (!overrides.TryGetValue(key, out var raw) || raw is null)
+        {
+            return false;
+        }
+
+        switch (raw)
+        {
+            case bool b:
+                value = b;
+                return true;
+            case JsonElement { ValueKind: JsonValueKind.True }:
+                value = true;
+                return true;
+            case JsonElement { ValueKind: JsonValueKind.False }:
+                value = false;
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    private static Dictionary<string, string> ParseQueryParameters(string queryString)
+    {
+        var parameters = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        if (string.IsNullOrWhiteSpace(queryString))
+        {
+            return parameters;
+        }
+
+        var pairs = queryString.Split('&', StringSplitOptions.RemoveEmptyEntries);
+        foreach (var pair in pairs)
+        {
+            int eqIdx = pair.IndexOf('=');
+            if (eqIdx >= 0)
+            {
+                string key = Uri.UnescapeDataString(pair[..eqIdx]);
+                string val = Uri.UnescapeDataString(pair[(eqIdx + 1)..]);
+                parameters[key] = val;
+            }
+            else
+            {
+                parameters[Uri.UnescapeDataString(pair)] = string.Empty;
+            }
+        }
+
+        return parameters;
+    }
+
+    private static async Task<OperationResult<string>> ResolveInlinePayloadAsync(string encoded, CancellationToken cancellationToken)
+    {
+        if (encoded.Length > ProfileSharingConstants.MaxInlinePayloadLength)
+        {
+            return OperationResult<string>.CreateFailure($"Inline payload length ({encoded.Length}) exceeds maximum permitted size.");
+        }
+
+        try
+        {
+            string decompressed = await ProfileSharingCompressionHelper.DecodeAndDecompressAsync(encoded, cancellationToken);
+            return OperationResult<string>.CreateSuccess(decompressed);
+        }
+        catch (Exception ex) when (ex is FormatException or InvalidDataException or ArgumentException)
+        {
+            return OperationResult<string>.CreateFailure($"Unable to parse inline shared profile payload: {ex.Message}");
+        }
+    }
+
+    private static bool IsCustomLocalManifest(ContentManifest manifest)
+    {
+        if (manifest.ContentType == ContentType.GameInstallation ||
+            manifest.Id.ToString().Contains(ManifestConstants.GameInstallationSegment, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        if (string.Equals(manifest.Publisher?.PublisherType, PublisherTypeConstants.Local, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(manifest.Publisher?.Name, PublisherTypeConstants.Local, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        if (manifest.Id.ToString().Contains(ManifestConstants.GameClientSegment, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        return manifest.Id.ToString().Contains(ManifestConstants.LocalSegment, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static ManifestFile ToSharedManifestFile(ManifestFile source, string? downloadUrlOverride = null)
+    {
+        return new ManifestFile
+        {
+            RelativePath = source.RelativePath,
+            Hash = source.Hash,
+            Size = source.Size,
+            SourceType = source.SourceType != ContentSourceType.Unknown ? source.SourceType : ContentSourceType.ContentAddressable,
+            InstallTarget = source.InstallTarget,
+            IsRequired = source.IsRequired,
+            IsExecutable = source.IsExecutable,
+            Permissions = source.Permissions,
+            DownloadUrl = downloadUrlOverride ?? source.DownloadUrl,
+            SourcePath = source.SourcePath,
+            PatchSourceFile = source.PatchSourceFile,
+            PackageInfo = source.PackageInfo,
+        };
+    }
+
+    private static async Task<OperationResult<bool>> ExtractAndVerifyPackageFilesAsync(
+        string tempZipPath,
+        string stagingDir,
+        SharedManifestDependency dependency,
+        CancellationToken cancellationToken)
+    {
+        string canonicalStagingDir = GetCanonicalStagingDirectory(stagingDir);
+
+        var extractResult = await ExtractArchiveEntriesAsync(tempZipPath, stagingDir, canonicalStagingDir, cancellationToken);
+        if (!extractResult.Success)
+        {
+            return extractResult;
+        }
+
+        return await VerifyExtractedFilesAsync(dependency, stagingDir, canonicalStagingDir, cancellationToken);
+    }
+
+    private static string GetCanonicalStagingDirectory(string stagingDir)
+    {
+        string canonicalStagingDir = Path.GetFullPath(stagingDir);
+        return canonicalStagingDir.EndsWith(Path.DirectorySeparatorChar)
+            ? canonicalStagingDir
+            : canonicalStagingDir + Path.DirectorySeparatorChar;
+    }
+
+    [SuppressMessage("Major Code Smell", "S6966:Await async method instead of sync counterpart", Justification = "ZipFile.OpenRead and ZipArchiveEntry.Open have no asynchronous OpenReadAsync/OpenAsync methods in .NET 8 BCL.")]
+    private static async Task<OperationResult<bool>> ExtractArchiveEntriesAsync(
+        string tempZipPath,
+        string stagingDir,
+        string canonicalStagingDir,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            long totalUncompressedBytes = 0;
+            using var archive = ZipFile.OpenRead(tempZipPath);
+            foreach (var entry in archive.Entries)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+
+                if (string.IsNullOrEmpty(entry.Name))
+                {
+                    continue;
+                }
+
+                var normalizedRelativePath = entry.FullName.Replace('\\', '/');
+                var destinationPath = Path.GetFullPath(Path.Combine(stagingDir, normalizedRelativePath));
+                if (!destinationPath.StartsWith(canonicalStagingDir, StringComparison.Ordinal))
+                {
+                    return OperationResult<bool>.CreateFailure($"Package contains entry attempting directory traversal: {entry.FullName}");
+                }
+
+                var directory = Path.GetDirectoryName(destinationPath);
+                if (!string.IsNullOrEmpty(directory))
+                {
+                    Directory.CreateDirectory(directory);
+                }
+
+                await using var entryStream = entry.Open();
+                await using var outputStream = File.Create(destinationPath);
+
+                var buffer = new byte[81920];
+                int bytesRead = 0;
+                while ((bytesRead = await entryStream.ReadAsync(buffer.AsMemory(0, buffer.Length), cancellationToken)) > 0)
+                {
+                    totalUncompressedBytes += bytesRead;
+                    if (totalUncompressedBytes > ProfileSharingConstants.MaxExtractedPackageBytes)
+                    {
+                        return OperationResult<bool>.CreateFailure($"Package uncompressed size exceeds maximum allowed limit ({ProfileSharingConstants.MaxExtractedPackageBytes / (1024 * 1024)} MB).");
+                    }
+
+                    await outputStream.WriteAsync(buffer.AsMemory(0, bytesRead), cancellationToken);
+                }
+            }
+
+            return OperationResult<bool>.CreateSuccess(true);
+        }
+        catch (InvalidDataException ex)
+        {
+            return OperationResult<bool>.CreateFailure($"Archive extraction failed: {ex.Message}");
+        }
+        catch (IOException ex)
+        {
+            return OperationResult<bool>.CreateFailure($"Archive I/O error: {ex.Message}");
+        }
+    }
+
+    private static async Task<OperationResult<bool>> VerifyExtractedFilesAsync(
+        SharedManifestDependency dependency,
+        string stagingDir,
+        string canonicalStagingDir,
+        CancellationToken cancellationToken)
+    {
+        if (dependency.Files is not { Count: > 0 })
+        {
+            return OperationResult<bool>.CreateFailure($"Shared package '{dependency.DisplayName}' ({dependency.ManifestId}) does not define any files.");
+        }
+
+        foreach (var file in dependency.Files)
+        {
+            var validatePathResult = ValidateExtractedFilePath(file.RelativePath, stagingDir, canonicalStagingDir);
+            if (!validatePathResult.Success)
+            {
+                return OperationResult<bool>.CreateFailure(validatePathResult.Errors);
+            }
+
+            var filePath = validatePathResult.Data;
+            if (string.IsNullOrWhiteSpace(filePath))
+            {
+                return OperationResult<bool>.CreateFailure($"Package contains invalid path for: {file.RelativePath}");
+            }
+
+            if (string.IsNullOrWhiteSpace(file.Hash))
+            {
+                return OperationResult<bool>.CreateFailure($"Package file '{file.RelativePath}' in manifest '{dependency.DisplayName}' is missing required cryptographic hash.");
+            }
+
+            var hashCheckResult = await ValidateFileChecksumAsync(filePath, file.RelativePath, file.Hash, cancellationToken);
+            if (!hashCheckResult.Success)
+            {
+                return hashCheckResult;
+            }
+        }
+
+        return OperationResult<bool>.CreateSuccess(true);
+    }
+
+    private static OperationResult<string> ValidateExtractedFilePath(
+        string? relativePath,
+        string stagingDir,
+        string canonicalStagingDir)
+    {
+        if (string.IsNullOrWhiteSpace(relativePath))
+        {
+            return OperationResult<string>.CreateFailure("Package contains a file with an empty or missing relative path.");
+        }
+
+        var normalizedPath = relativePath.Replace('\\', '/');
+        if (Path.IsPathRooted(normalizedPath) ||
+            normalizedPath.Split('/', StringSplitOptions.RemoveEmptyEntries).Contains(ProfileSharingConstants.ParentDirectorySegment))
+        {
+            return OperationResult<string>.CreateFailure($"Package contains invalid relative path: {relativePath}");
+        }
+
+        var filePath = Path.GetFullPath(Path.Combine(stagingDir, normalizedPath));
+        if (!filePath.StartsWith(canonicalStagingDir, StringComparison.Ordinal))
+        {
+            return OperationResult<string>.CreateFailure($"Package path escapes staging directory: {relativePath}");
+        }
+
+        if (!File.Exists(filePath))
+        {
+            return OperationResult<string>.CreateFailure($"Package is missing expected file: {relativePath}");
+        }
+
+        return OperationResult<string>.CreateSuccess(filePath);
+    }
+
+    private static async Task<OperationResult<bool>> ValidateFileChecksumAsync(
+        string filePath,
+        string relativePath,
+        string expectedHash,
+        CancellationToken cancellationToken)
+    {
+        using var sha = SHA256.Create();
+        await using var stream = File.OpenRead(filePath);
+        var hashBytes = await sha.ComputeHashAsync(stream, cancellationToken);
+        var actualHash = Convert.ToHexString(hashBytes).ToLowerInvariant();
+        var normalizedExpectedHash = expectedHash.Replace("-", string.Empty).ToLowerInvariant();
+
+        if (!string.Equals(actualHash, normalizedExpectedHash, StringComparison.OrdinalIgnoreCase))
+        {
+            return OperationResult<bool>.CreateFailure($"SHA-256 hash mismatch for {relativePath}.");
+        }
+
+        return OperationResult<bool>.CreateSuccess(true);
+    }
+
+    private static void PruneUnverifiedStagingFiles(string stagingDir, IEnumerable<ManifestFile> declaredFiles)
+    {
+        if (!Directory.Exists(stagingDir))
+        {
+            return;
+        }
+
+        var fullStagingPath = Path.GetFullPath(stagingDir);
+        var canonicalPrefix = fullStagingPath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) + Path.DirectorySeparatorChar;
+
+        var declaredSet = new HashSet<string>(
+            declaredFiles
+                .Where(file => !string.IsNullOrWhiteSpace(file.RelativePath))
+                .Select(file => Path.GetFullPath(Path.Combine(stagingDir, file.RelativePath)))
+                .Where(fullPath => fullPath.StartsWith(canonicalPrefix, StringComparison.Ordinal)),
+            StringComparer.Ordinal);
+
+        foreach (var diskFile in Directory.GetFiles(stagingDir, "*", SearchOption.AllDirectories))
+        {
+            var fullDiskPath = Path.GetFullPath(diskFile);
+            if (!declaredSet.Contains(fullDiskPath))
+            {
+                try
+                {
+                    File.Delete(fullDiskPath);
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                {
+                    // Ignore deletion failures during unverified file pruning
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Validates that dependencies without local cache have at least one download source specified.
+    /// </summary>
+    /// <param name="manifests">The manifest dependencies to validate.</param>
+    /// <param name="securityWarnings">The list to which any security warnings will be appended.</param>
+    /// <param name="securityWarningCodes">The optional list to which any security warning codes will be appended.</param>
+    private static void ValidateMissingDependencySources(
+        IEnumerable<SharedManifestDependency> manifests,
+        List<string> securityWarnings,
+        List<ProfileSecurityWarningCode>? securityWarningCodes = null)
+    {
+        foreach (var manifest in manifests)
+        {
+            if (!manifest.IsCachedLocally)
+            {
+                var hasPackageUrl = !string.IsNullOrWhiteSpace(manifest.PackageUrl);
+                var hasFileUrls = manifest.Files?.Any(f => !string.IsNullOrWhiteSpace(f.DownloadUrl)) == true;
+                if (!hasPackageUrl && !hasFileUrls)
+                {
+                    securityWarnings.Add($"Component '{manifest.DisplayName}' is not cached locally and has no download source. It cannot be acquired.");
+                    securityWarningCodes?.Add(ProfileSecurityWarningCode.MissingDownloadSource);
+                }
+            }
+        }
+    }
+
+    private static string? ResolvePackageUrl(SharedManifestDependency dependency) =>
+        !string.IsNullOrWhiteSpace(dependency.PackageUrl)
+            ? dependency.PackageUrl
+            : dependency.Files?.FirstOrDefault(f => !string.IsNullOrWhiteSpace(f.DownloadUrl))?.DownloadUrl;
+
+    private static string? ResolveDirectUrl(SharedManifestDependency dependency)
+    {
+        if (!string.IsNullOrWhiteSpace(dependency.PackageUrl))
+        {
+            return dependency.PackageUrl;
+        }
+
+        return dependency.Files?.FirstOrDefault(f => !string.IsNullOrWhiteSpace(f.DownloadUrl))?.DownloadUrl;
+    }
+
+    private static bool IsZipArchivePackage(string? packageUrl, string? explicitPackageUrl)
+    {
+        if (string.IsNullOrWhiteSpace(packageUrl))
+        {
+            return false;
+        }
+
+        // ModDB and DBolical links require Playwright browser handling and must not be treated as generic zip archives.
+        if (Uri.TryCreate(packageUrl, UriKind.Absolute, out var uri) && ModDBConstants.IsModDbOrDbolicalUri(uri))
+        {
+            return false;
+        }
+
+        if (packageUrl.EndsWith(ProfileSharingConstants.JsonExtension, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        if (packageUrl.EndsWith(ProfileSharingConstants.ZipExtension, StringComparison.OrdinalIgnoreCase) ||
+            packageUrl.Contains(ApiConstants.UploadThingUrlFragment, StringComparison.OrdinalIgnoreCase) ||
+            packageUrl.Contains(ApiConstants.UploadThingUfsUrlFragment, StringComparison.OrdinalIgnoreCase) ||
+            packageUrl.Contains(ApiConstants.UploadThingUfsShortUrlFragment, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        return !string.IsNullOrWhiteSpace(explicitPackageUrl);
+    }
+
+    private static bool CanDownloadPerFile(SharedManifestDependency dependency) =>
+        dependency.Files is { Count: > 0 } &&
+        (dependency.PublisherType == null || !dependency.PublisherType.StartsWith(ModDBConstants.PublisherType, StringComparison.OrdinalIgnoreCase)) &&
+        (dependency.PublisherType == null || !dependency.PublisherType.StartsWith(ModDBConstants.PublisherPrefix, StringComparison.OrdinalIgnoreCase)) &&
+        dependency.Files.All(f =>
+            !string.IsNullOrWhiteSpace(f.DownloadUrl) &&
+            !string.IsNullOrWhiteSpace(f.Hash) &&
+            (!Uri.TryCreate(f.DownloadUrl, UriKind.Absolute, out var uri) || !ModDBConstants.IsModDbOrDbolicalUri(uri)));
+
+    private static bool IsGameInstallationDependency(SharedManifestDependency dep) =>
+        dep.ContentType == ContentType.GameInstallation ||
+        dep.ManifestId.Contains(ManifestConstants.GameInstallationSegment, StringComparison.OrdinalIgnoreCase);
+
+    private static bool IsLocalOrSourcelessDependency(SharedManifestDependency dependency)
+    {
+        if (string.Equals(dependency.PublisherType, PublisherTypeConstants.Local, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(dependency.PublisherType, PublisherTypeConstants.GenHubLocal, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        if (ManifestId.TryCreate(dependency.ManifestId, out var parsed) &&
+            (string.Equals(parsed.Publisher, PublisherTypeConstants.Local, StringComparison.OrdinalIgnoreCase) ||
+             string.Equals(parsed.Publisher, PublisherTypeConstants.GenHubLocal, StringComparison.OrdinalIgnoreCase)))
+        {
+            return true;
+        }
+
+        if (!HasAcquisitionSource(dependency) &&
+            !PublisherTypeConstants.IsCuratedPublisher(dependency.PublisherType))
+        {
+            return true;
+        }
+
+        return false;
+    }
+
+    private static bool HasAcquisitionSource(SharedManifestDependency dependency)
+    {
+        if (!string.IsNullOrWhiteSpace(dependency.PackageUrl) ||
+            !string.IsNullOrWhiteSpace(dependency.PackageHash))
+        {
+            return true;
+        }
+
+        if (dependency.Files != null && dependency.Files.Count > 0 &&
+            dependency.Files.Any(f => !string.IsNullOrWhiteSpace(f.DownloadUrl)))
+        {
+            return true;
+        }
+
+        return false;
+    }
+
+    private static OperationResult<string> CreateFallbackAcquisitionFailure(SharedManifestDependency dependency)
+    {
+        if (dependency.ManifestId.Contains(ManifestConstants.LocalSegment, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(dependency.PublisherType, PublisherTypeConstants.Local, StringComparison.OrdinalIgnoreCase))
+        {
+            return OperationResult<string>.CreateFailure(
+                $"Custom local component '{dependency.DisplayName}' ({dependency.ManifestId}) was exported without cloud storage and does not exist in your local cache. Request an online share link from the author.");
+        }
+
+        return OperationResult<string>.CreateFailure(
+            $"Dependency '{dependency.DisplayName}' ({dependency.ManifestId}) was not found in the local cache or any connected content source.");
+    }
+
+    private static ContentSearchResult? FindMatchingResult(
+        IEnumerable<ContentSearchResult> results,
+        SharedManifestDependency dependency)
+    {
+        var resultList = results.Where(r => IsCandidateCompatible(r, dependency)).ToList();
+
+        return FindExactManifestIdMatch(resultList, dependency.ManifestId)
+            ?? FindDisplayNameMatch(resultList, dependency.DisplayName, dependency)
+            ?? FindNormalizedDisplayNameMatch(resultList, dependency.DisplayName, dependency)
+            ?? FindSegmentMatch(resultList, dependency.ManifestId);
+    }
+
+    private static bool IsCandidateCompatible(ContentSearchResult candidate, SharedManifestDependency dependency)
+    {
+        if (candidate.ContentType != dependency.ContentType)
+        {
+            return false;
+        }
+
+        if (dependency.TargetGame != GameType.Unknown && candidate.TargetGame != GameType.Unknown &&
+            candidate.TargetGame != dependency.TargetGame)
+        {
+            return false;
+        }
+
+        return true;
+    }
+
+    private static bool HasCompatiblePublisher(ContentSearchResult candidate, SharedManifestDependency dependency)
+    {
+        if (ManifestId.TryCreate(candidate.Id, out var candidateId) &&
+            ManifestId.TryCreate(dependency.ManifestId, out var depId) &&
+            !string.Equals(candidateId.Publisher, depId.Publisher, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        return true;
+    }
+
+    private static ContentSearchResult? FindExactManifestIdMatch(
+        IReadOnlyList<ContentSearchResult> results,
+        string manifestId) =>
+        results.FirstOrDefault(r =>
+            string.Equals(r.Id, manifestId, StringComparison.OrdinalIgnoreCase));
+
+    private static ContentSearchResult? FindDisplayNameMatch(
+        IReadOnlyList<ContentSearchResult> results,
+        string? displayName,
+        SharedManifestDependency dependency)
+    {
+        if (string.IsNullOrWhiteSpace(displayName))
+        {
+            return null;
+        }
+
+        return results.FirstOrDefault(r =>
+            !string.IsNullOrWhiteSpace(r.Name) &&
+            string.Equals(r.Name, displayName, StringComparison.OrdinalIgnoreCase) &&
+            HasCompatiblePublisher(r, dependency));
+    }
+
+    private static ContentSearchResult? FindNormalizedDisplayNameMatch(
+        IReadOnlyList<ContentSearchResult> results,
+        string? displayName,
+        SharedManifestDependency dependency)
+    {
+        if (string.IsNullOrWhiteSpace(displayName))
+        {
+            return null;
+        }
+
+        var normalizedDepName = NormalizeContentName(displayName);
+        if (string.IsNullOrEmpty(normalizedDepName))
+        {
+            return null;
+        }
+
+        return results.FirstOrDefault(r =>
+            !string.IsNullOrWhiteSpace(r.Name) &&
+            string.Equals(NormalizeContentName(r.Name), normalizedDepName, StringComparison.OrdinalIgnoreCase) &&
+            HasCompatiblePublisher(r, dependency));
+    }
+
+    private static ContentSearchResult? FindSegmentMatch(
+        IReadOnlyList<ContentSearchResult> results,
+        string manifestId)
+    {
+        var depSegments = manifestId.Split('.');
+        if (depSegments.Length < 5)
+        {
+            return null;
+        }
+
+        var depPub = depSegments[2];
+        var depType = depSegments[3];
+        var depSlug = depSegments[^1];
+
+        return results.FirstOrDefault(r => MatchesSegments(r.Id, depPub, depType, depSlug));
+    }
+
+    private static bool MatchesSegments(string? id, string depPub, string depType, string depSlug)
+    {
+        if (string.IsNullOrWhiteSpace(id))
+        {
+            return false;
+        }
+
+        var rSegments = id.Split('.');
+        return rSegments.Length >= 5 &&
+               string.Equals(rSegments[^1], depSlug, StringComparison.OrdinalIgnoreCase) &&
+               string.Equals(rSegments[3], depType, StringComparison.OrdinalIgnoreCase) &&
+               string.Equals(rSegments[2], depPub, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string NormalizeContentName(string? name)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            return string.Empty;
+        }
+
+        return new string(name.Where(char.IsLetterOrDigit).Select(char.ToLowerInvariant).ToArray());
+    }
+
+    private static string? ResolveProviderName(SharedManifestDependency dependency)
+    {
+        return ResolveProviderFromPublisherType(dependency.PublisherType)
+            ?? ResolveProviderFromPublisher(dependency.Publisher)
+            ?? ResolveProviderFromManifestId(dependency.ManifestId)
+            ?? ResolveProviderFromUrls(dependency);
+    }
+
+    private static string? ResolveProviderFromUrls(SharedManifestDependency dependency)
+    {
+        var urls = new List<string?>();
+        if (!string.IsNullOrWhiteSpace(dependency.PackageUrl))
+        {
+            urls.Add(dependency.PackageUrl);
+        }
+
+        if (dependency.Files != null)
+        {
+            urls.AddRange(dependency.Files.Select(f => f.DownloadUrl));
+        }
+
+        foreach (var urlStr in urls)
+        {
+            if (string.IsNullOrWhiteSpace(urlStr) || !Uri.TryCreate(urlStr, UriKind.Absolute, out var uri))
+            {
+                continue;
+            }
+
+            var provider = ResolveProviderFromUri(uri);
+            if (provider != null)
+            {
+                return provider;
+            }
+        }
+
+        return null;
+    }
+
+    private static string? ResolveProviderFromUri(Uri uri)
+    {
+        if (ModDBConstants.IsModDbOrDbolicalUri(uri))
+        {
+            return ModDBConstants.DiscovererSourceName;
+        }
+
+        if (uri.Host.Contains(GitHubConstants.GitHubHost, StringComparison.OrdinalIgnoreCase) ||
+            uri.Host.Contains(GitHubConstants.GitHubUserContentHost, StringComparison.OrdinalIgnoreCase))
+        {
+            return ContentSourceNames.GitHubDiscoverer;
+        }
+
+        if (uri.Host.Contains(CNCLabsConstants.Host, StringComparison.OrdinalIgnoreCase))
+        {
+            return CNCLabsConstants.SourceName;
+        }
+
+        if (uri.Host.Contains(AODMapsConstants.Host, StringComparison.OrdinalIgnoreCase) ||
+            uri.Host.Contains(AODMapsConstants.HostFragment, StringComparison.OrdinalIgnoreCase))
+        {
+            return AODMapsConstants.DiscovererSourceName;
+        }
+
+        return null;
+    }
+
+    private static string? ResolveProviderFromPublisherType(string? publisherType)
+    {
+        if (string.IsNullOrWhiteSpace(publisherType))
+        {
+            return null;
+        }
+
+        if (string.Equals(publisherType, PublisherTypeConstants.GitHub, StringComparison.OrdinalIgnoreCase) ||
+            publisherType.StartsWith(GitHubConstants.PublisherIdPrefix, StringComparison.OrdinalIgnoreCase))
+        {
+            return ContentSourceNames.GitHubDiscoverer;
+        }
+
+        if (publisherType.StartsWith(ModDBConstants.PublisherType, StringComparison.OrdinalIgnoreCase))
+        {
+            return ModDBConstants.DiscovererSourceName;
+        }
+
+        if (string.Equals(publisherType, AODMapsConstants.PublisherType, StringComparison.OrdinalIgnoreCase))
+        {
+            return AODMapsConstants.DiscovererSourceName;
+        }
+
+        if (string.Equals(publisherType, PublisherTypeConstants.CncLabs, StringComparison.OrdinalIgnoreCase))
+        {
+            return CNCLabsConstants.SourceName;
+        }
+
+        if (string.Equals(publisherType, CommunityOutpostConstants.PublisherType, StringComparison.OrdinalIgnoreCase))
+        {
+            return CommunityOutpostConstants.PublisherType;
+        }
+
+        if (string.Equals(publisherType, PublisherTypeConstants.TheSuperHackers, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(publisherType, PublisherTypeConstants.LegacySuperHackers, StringComparison.OrdinalIgnoreCase))
+        {
+            return PublisherTypeConstants.TheSuperHackers;
+        }
+
+        if (string.Equals(publisherType, PublisherTypeConstants.GeneralsOnline, StringComparison.OrdinalIgnoreCase))
+        {
+            return GeneralsOnlineConstants.PublisherType;
+        }
+
+        return null;
+    }
+
+    private static string? ResolveProviderFromPublisher(string? publisher)
+    {
+        if (string.IsNullOrWhiteSpace(publisher))
+        {
+            return null;
+        }
+
+        if (publisher.Contains(PublisherTypeConstants.GitHub, StringComparison.OrdinalIgnoreCase))
+        {
+            return ContentSourceNames.GitHubDiscoverer;
+        }
+
+        if (publisher.Contains(ModDBConstants.PublisherDisplayName, StringComparison.OrdinalIgnoreCase))
+        {
+            return ModDBConstants.DiscovererSourceName;
+        }
+
+        if (publisher.Contains(AODMapsConstants.DiscovererSourceName, StringComparison.OrdinalIgnoreCase))
+        {
+            return AODMapsConstants.DiscovererSourceName;
+        }
+
+        if (publisher.Contains(CNCLabsConstants.AuthorName, StringComparison.OrdinalIgnoreCase) ||
+            publisher.Contains(PublisherTypeConstants.CncLabs, StringComparison.OrdinalIgnoreCase))
+        {
+            return CNCLabsConstants.SourceName;
+        }
+
+        if (publisher.Contains(CommunityOutpostConstants.PublisherType, StringComparison.OrdinalIgnoreCase) ||
+            publisher.Contains(PublisherTypeConstants.CommunityOutpostDisplayName, StringComparison.OrdinalIgnoreCase))
+        {
+            return CommunityOutpostConstants.PublisherType;
+        }
+
+        if (publisher.Contains(PublisherTypeConstants.TheSuperHackers, StringComparison.OrdinalIgnoreCase) ||
+            publisher.Contains(PublisherTypeConstants.LegacySuperHackers, StringComparison.OrdinalIgnoreCase) ||
+            publisher.Contains(PublisherTypeConstants.TheSuperHackersDisplayName, StringComparison.OrdinalIgnoreCase))
+        {
+            return PublisherTypeConstants.TheSuperHackers;
+        }
+
+        if (publisher.Contains(GeneralsOnlineConstants.DiscovererSourceName, StringComparison.OrdinalIgnoreCase) ||
+            publisher.Contains(PublisherTypeConstants.GeneralsOnlineDisplayName, StringComparison.OrdinalIgnoreCase))
+        {
+            return GeneralsOnlineConstants.PublisherType;
+        }
+
+        return null;
+    }
+
+    private static string? ResolveProviderFromManifestId(string? manifestId)
+    {
+        if (string.IsNullOrWhiteSpace(manifestId) || !ManifestId.TryCreate(manifestId, out _))
+        {
+            return null;
+        }
+
+        var segments = manifestId.Split('.');
+        if (segments.Length < 5)
+        {
+            return null;
+        }
+
+        var pubSegment = segments[2];
+        if (string.Equals(pubSegment, PublisherTypeConstants.GitHub, StringComparison.OrdinalIgnoreCase) ||
+            pubSegment.StartsWith(GitHubConstants.PublisherIdPrefix, StringComparison.OrdinalIgnoreCase))
+        {
+            return ContentSourceNames.GitHubDiscoverer;
+        }
+
+        if (pubSegment.StartsWith(ModDBConstants.PublisherPrefix, StringComparison.OrdinalIgnoreCase))
+        {
+            return ModDBConstants.DiscovererSourceName;
+        }
+
+        if (string.Equals(pubSegment, AODMapsConstants.PublisherType, StringComparison.OrdinalIgnoreCase))
+        {
+            return AODMapsConstants.DiscovererSourceName;
+        }
+
+        if (string.Equals(pubSegment, PublisherTypeConstants.CncLabs, StringComparison.OrdinalIgnoreCase))
+        {
+            return CNCLabsConstants.SourceName;
+        }
+
+        if (string.Equals(pubSegment, CommunityOutpostConstants.PublisherType, StringComparison.OrdinalIgnoreCase))
+        {
+            return CommunityOutpostConstants.PublisherType;
+        }
+
+        if (string.Equals(pubSegment, PublisherTypeConstants.TheSuperHackers, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(pubSegment, PublisherTypeConstants.LegacySuperHackers, StringComparison.OrdinalIgnoreCase))
+        {
+            return PublisherTypeConstants.TheSuperHackers;
+        }
+
+        if (string.Equals(pubSegment, PublisherTypeConstants.GeneralsOnline, StringComparison.OrdinalIgnoreCase))
+        {
+            return GeneralsOnlineConstants.PublisherType;
+        }
+
+        return null;
+    }
+
+    private static string ResolvePublisherType(string? publisherType, ManifestId manifestId)
+    {
+        if (!string.IsNullOrWhiteSpace(publisherType) &&
+            !string.Equals(publisherType, PublisherTypeConstants.Unknown, StringComparison.OrdinalIgnoreCase) &&
+            !string.Equals(publisherType, PublisherTypeConstants.Local, StringComparison.OrdinalIgnoreCase))
+        {
+            return publisherType;
+        }
+
+        var segments = manifestId.Value.Split('.');
+        if (segments.Length >= 5)
+        {
+            var idPub = segments[2];
+            if (!string.Equals(idPub, PublisherTypeConstants.Unknown, StringComparison.OrdinalIgnoreCase) &&
+                !string.Equals(idPub, PublisherTypeConstants.Local, StringComparison.OrdinalIgnoreCase) &&
+                !string.Equals(idPub, PublisherTypeConstants.Any, StringComparison.OrdinalIgnoreCase))
+            {
+                return idPub;
+            }
+        }
+
+        return !string.IsNullOrWhiteSpace(publisherType) ? publisherType : PublisherTypeConstants.Local;
+    }
+
+    private static string GetDefaultPublisherNameForType(string? publisherType)
+    {
+        if (string.IsNullOrWhiteSpace(publisherType))
+        {
+            return ProfileSharingConstants.DefaultCommunityPublisherName;
+        }
+
+        if (string.Equals(publisherType, PublisherTypeConstants.GitHub, StringComparison.OrdinalIgnoreCase) ||
+            publisherType.StartsWith(GitHubConstants.PublisherIdPrefix, StringComparison.OrdinalIgnoreCase))
+        {
+            return PublisherTypeConstants.GitHubDisplayName;
+        }
+
+        if (publisherType.StartsWith(ModDBConstants.PublisherType, StringComparison.OrdinalIgnoreCase) ||
+            publisherType.StartsWith(ModDBConstants.PublisherPrefix, StringComparison.OrdinalIgnoreCase))
+        {
+            return ModDBConstants.PublisherDisplayName;
+        }
+
+        if (string.Equals(publisherType, PublisherTypeConstants.CncLabs, StringComparison.OrdinalIgnoreCase))
+        {
+            return CNCLabsConstants.PublisherName;
+        }
+
+        if (string.Equals(publisherType, AODMapsConstants.PublisherType, StringComparison.OrdinalIgnoreCase))
+        {
+            return AODMapsConstants.DiscovererSourceName;
+        }
+
+        if (string.Equals(publisherType, PublisherTypeConstants.TheSuperHackers, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(publisherType, PublisherTypeConstants.LegacySuperHackers, StringComparison.OrdinalIgnoreCase))
+        {
+            return SuperHackersConstants.PublisherName;
+        }
+
+        if (string.Equals(publisherType, PublisherTypeConstants.GeneralsOnline, StringComparison.OrdinalIgnoreCase))
+        {
+            return GeneralsOnlineConstants.PublisherName;
+        }
+
+        if (string.Equals(publisherType, CommunityOutpostConstants.PublisherType, StringComparison.OrdinalIgnoreCase))
+        {
+            return CommunityOutpostConstants.PublisherName;
+        }
+
+        if (string.Equals(publisherType, PublisherTypeConstants.Local, StringComparison.OrdinalIgnoreCase))
+        {
+            return ProfileSharingConstants.DefaultLocalPublisherName;
+        }
+
+        return publisherType;
+    }
+
+    private static string GenerateConflictFreeProfileName(string baseName, ISet<string> existingNames)
+    {
+        int counter = 1;
+        string candidate;
+        do
+        {
+            string suffix = string.Format(System.Globalization.CultureInfo.InvariantCulture, ProfileSharingConstants.ConflictSuffixFormat, counter);
+            int maxBaseLen = Math.Max(1, ProfileSharingConstants.MaxProfileNameLength - suffix.Length);
+            string truncatedBase = baseName.Length > maxBaseLen ? baseName[..maxBaseLen].Trim() : baseName;
+            candidate = $"{truncatedBase}{suffix}";
+            counter++;
+        }
+        while (existingNames.Contains(candidate));
+
+        return candidate;
+    }
+
+    private async Task<GameInstallation?> ResolveSelectedInstallationAsync(string? installationId, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrEmpty(installationId))
+        {
+            return null;
+        }
+
+        var instResult = await installationService.GetInstallationAsync(installationId, cancellationToken);
+        return instResult.Success ? instResult.Data : null;
+    }
+
+    private async Task<OperationResult<string>> EnsureDependencyManifestAcquiredAsync(
+        SharedManifestDependency dep,
+        int currentIndex,
+        int totalCount,
+        IProgress<ContentAcquisitionProgress>? progress,
+        CancellationToken cancellationToken)
+    {
+        if (!ManifestId.TryCreate(dep.ManifestId, out _))
+        {
+            return OperationResult<string>.CreateFailure($"Invalid dependency manifest ID '{dep.ManifestId}'.");
+        }
+
+        var isCachedResult = await manifestPool.IsManifestAcquiredAsync(dep.ManifestId, cancellationToken);
+        if (isCachedResult.Success && isCachedResult.Data)
+        {
+            return OperationResult<string>.CreateSuccess(dep.ManifestId);
+        }
+
+        logger?.LogInformation("Acquiring missing dependency for profile import: {ManifestId}", dep.ManifestId);
+        progress?.Report(new ContentAcquisitionProgress
+        {
+            Phase = ContentAcquisitionPhase.Downloading,
+            ProgressPercentage = totalCount > 0 ? ((double)currentIndex / totalCount) * 100.0 : 0.0,
+            CurrentOperation = $"Acquiring {dep.DisplayName}...",
+            CurrentFile = dep.DisplayName,
+            FilesProcessed = currentIndex,
+            TotalFiles = totalCount,
+        });
+
+        var acquireResult = await AcquireMissingManifestAsync(dep, progress, cancellationToken);
+        if (!acquireResult.Success || string.IsNullOrWhiteSpace(acquireResult.Data))
+        {
+            return OperationResult<string>.CreateFailure($"Failed to acquire manifest {dep.DisplayName} ({dep.ManifestId}): {acquireResult.FirstError}");
+        }
+
+        return OperationResult<string>.CreateSuccess(acquireResult.Data);
+    }
+
+    private async Task<OperationResult<List<string>>> AcquireAllDependenciesAsync(
+        SharedGameProfilePackage package,
+        IProgress<ContentAcquisitionProgress>? progress,
+        CancellationToken cancellationToken)
+    {
+        var requiredManifestIds = new List<string>();
+
+        for (int i = 0; i < package.RequiredManifests.Count; i++)
+        {
+            var dep = package.RequiredManifests[i];
+            if (IsGameInstallationDependency(dep))
+            {
+                continue;
+            }
+
+            var acquireResult = await EnsureDependencyManifestAcquiredAsync(
+                dep,
+                i,
+                package.RequiredManifests.Count,
+                progress,
+                cancellationToken);
+
+            if (!acquireResult.Success)
+            {
+                return OperationResult<List<string>>.CreateFailure(acquireResult.FirstError ?? "Failed to acquire dependency manifest.");
+            }
+
+            requiredManifestIds.Add(acquireResult.Data);
+        }
+
+        return OperationResult<List<string>>.CreateSuccess(requiredManifestIds);
+    }
+
+    private GameProfile BuildImportedProfile(
+        SharedProfileImportRequest request,
+        GameInstallation? selectedInstallation,
+        GameClient? gameClient,
+        List<string> requiredManifestIds)
+    {
+        var package = request.Package;
+        var sanitizedArgs = ProfileSharingCompressionHelper.SanitizeCommandLineArguments(
+            package.Profile.CommandLineArguments,
+            out _);
+
+        var enabledIds = new List<string>(requiredManifestIds);
+
+        // If a local game installation is selected, resolve and attach the matching local GameInstallation manifest ID
+        if (selectedInstallation != null)
+        {
+            var baseGameClient = selectedInstallation.AvailableGameClients
+                .FirstOrDefault(c => c.GameType == package.Profile.GameType && !c.IsPublisherClient)
+                ?? selectedInstallation.AvailableGameClients.FirstOrDefault(c => c.GameType == package.Profile.GameType);
+
+            if (baseGameClient != null)
+            {
+                var version = GameVersionHelper.NormalizeVersion(baseGameClient.Version);
+                var localInstallManifestId = ManifestIdGenerator.GenerateGameInstallationId(
+                    selectedInstallation,
+                    package.Profile.GameType,
+                    version);
+
+                if (!enabledIds.Contains(localInstallManifestId))
+                {
+                    enabledIds.Add(localInstallManifestId);
+                }
+            }
+        }
+
+        var newProfile = new GameProfile
+        {
+            Id = Guid.NewGuid().ToString("N"),
+            Name = request.ProfileName,
+            Description = package.Profile.Description,
+            ThemeColor = package.Profile.ThemeColor ?? ProfileSharingConstants.DefaultThemeColor,
+            IconPath = SanitizeShareableArtworkPath(package.Profile.IconPath),
+            CoverPath = SanitizeShareableArtworkPath(package.Profile.CoverPath),
+            GameInstallationId = request.GameInstallationId,
+            GameClient = gameClient,
+            WorkspaceStrategy = request.WorkspaceStrategy ?? package.Profile.WorkspaceStrategy,
+            CommandLineArguments = sanitizedArgs,
+            UseSteamLaunch = selectedInstallation != null
+                ? selectedInstallation.InstallationType == GameInstallationType.Steam
+                : package.Profile.UseSteamLaunch ?? false,
+            EnabledContentIds = enabledIds,
+        };
+
+        if (request.IncludeGameSettings && package.Profile.GameSettingsOverrides != null)
+        {
+            ApplySettingsOverridesToProfile(newProfile, package.Profile.GameSettingsOverrides);
+        }
+
+        return newProfile;
+    }
+
+    private async Task<OperationResult<SharedGameProfilePackage>> BuildPackageFromProfileIdAsync(string profileId, bool allowCloudUpload, CancellationToken cancellationToken)
+    {
+        var profileResult = await profileRepository.LoadProfileAsync(profileId, cancellationToken);
+        if (!profileResult.Success || profileResult.Data == null)
+        {
+            return OperationResult<SharedGameProfilePackage>.CreateFailure($"Profile not found: {profileId}");
+        }
+
+        var profile = profileResult.Data;
+        var manifests = new List<SharedManifestDependency>();
+
+        foreach (var contentId in profile.EnabledContentIds ?? [])
+        {
+            var dependencyResult = await ResolveProfileContentDependencyAsync(contentId, allowCloudUpload, cancellationToken);
+            if (!dependencyResult.Success)
+            {
+                return OperationResult<SharedGameProfilePackage>.CreateFailure(
+                    dependencyResult.FirstError ?? $"Failed to process dependency for {contentId}.");
+            }
+
+            if (dependencyResult.Data != null)
+            {
+                manifests.Add(dependencyResult.Data);
+            }
+        }
+
+        var settingsOverrides = ExtractSettingsOverridesFromProfile(profile);
+
+        var package = new SharedGameProfilePackage
+        {
+            SchemaVersion = ProfileSharingConstants.DefaultSchemaVersion,
+            GeneratorVersion = AppConstants.AppVersion,
+            ExportedAt = DateTime.UtcNow,
+            Profile = new SharedProfileMetadata
+            {
+                Name = profile.Name,
+                Description = profile.Description ?? string.Empty,
+                ThemeColor = profile.ThemeColor,
+                IconPath = SanitizeShareableArtworkPath(profile.IconPath),
+                CoverPath = SanitizeShareableArtworkPath(profile.CoverPath),
+                GameType = profile.GameClient?.GameType ?? GameType.Unknown,
+                GameVersion = profile.Version,
+                GameClientManifestId = profile.GameClient?.Id,
+                UseSteamLaunch = profile.UseSteamLaunch,
+                WorkspaceStrategy = profile.WorkspaceStrategy,
+                CommandLineArguments = profile.CommandLineArguments ?? string.Empty,
+                GameSettingsOverrides = settingsOverrides,
+            },
+            RequiredManifests = manifests,
+        };
+
+        return OperationResult<SharedGameProfilePackage>.CreateSuccess(package);
+    }
+
+    private async Task<OperationResult<SharedManifestDependency?>> ResolveProfileContentDependencyAsync(
+        string contentId,
+        bool allowCloudUpload,
+        CancellationToken cancellationToken)
+    {
+        var manifestResult = await manifestPool.GetManifestAsync(contentId, cancellationToken);
+        if (manifestResult is { Success: true, Data: not null })
+        {
+            var manifest = manifestResult.Data;
+
+            // Exclude local GameInstallation manifests as base game installations are locally scanned
+            if (manifest.ContentType == ContentType.GameInstallation)
+            {
+                return OperationResult<SharedManifestDependency?>.CreateSuccess(null);
+            }
+
+            var dependencyResult = await BuildManifestDependencyAsync(manifest, allowCloudUpload, cancellationToken);
+            if (!dependencyResult.Success || dependencyResult.Data == null)
+            {
+                return OperationResult<SharedManifestDependency?>.CreateFailure(
+                    dependencyResult.FirstError ?? $"Failed to process dependency for manifest {manifest.Id}.");
+            }
+
+            return OperationResult<SharedManifestDependency?>.CreateSuccess(dependencyResult.Data);
+        }
+
+        // Exclude any gameinstallation IDs
+        if (contentId.Contains(ManifestConstants.GameInstallationSegment, StringComparison.OrdinalIgnoreCase))
+        {
+            return OperationResult<SharedManifestDependency?>.CreateSuccess(null);
+        }
+
+        return OperationResult<SharedManifestDependency?>.CreateFailure(
+            $"Content manifest '{contentId}' referenced by profile could not be found in local manifest pool.");
+    }
+
+    private async Task<OperationResult<SharedManifestDependency>> BuildManifestDependencyAsync(
+        ContentManifest manifest,
+        bool allowCloudUpload,
+        CancellationToken cancellationToken)
+    {
+        var dependencyFiles = (manifest.Files ?? []).Select(f => ToSharedManifestFile(f)).ToList();
+
+        string? packageUrl = null;
+        string? packageHash = null;
+
+        bool isLocal = IsCustomLocalManifest(manifest);
+
+        if (allowCloudUpload && isLocal && dependencyFiles.Count > 0)
+        {
+            if (uploadThingService == null || casService == null)
+            {
+                return OperationResult<SharedManifestDependency>.CreateFailure(
+                    $"Cloud upload service is unavailable to upload local content '{manifest.Name}'. Export as a .ghprofile file instead.");
+            }
+
+            var uploadResult = await PackageAndUploadLocalManifestAsync(manifest, cancellationToken);
+            if (!uploadResult.Success || string.IsNullOrWhiteSpace(uploadResult.Data.Url))
+            {
+                return OperationResult<SharedManifestDependency>.CreateFailure(
+                    uploadResult.FirstError ?? $"Failed to upload local content '{manifest.Name}'. Export as a .ghprofile file instead.");
+            }
+
+            packageUrl = uploadResult.Data.Url;
+            packageHash = uploadResult.Data.Hash;
+            dependencyFiles = dependencyFiles.Select(f => ToSharedManifestFile(f, packageUrl)).ToList();
+        }
+
+        var pubType = ResolvePublisherType(manifest.Publisher?.PublisherType, manifest.Id);
+        var pubName = manifest.Publisher?.Name ?? GetDefaultPublisherNameForType(pubType);
+
+        var dependency = new SharedManifestDependency
+        {
+            ManifestId = manifest.Id.ToString(),
+            DisplayName = manifest.Name,
+            Version = manifest.Version,
+            ContentType = manifest.ContentType,
+            TargetGame = manifest.TargetGame,
+            Publisher = pubName,
+            PublisherType = pubType,
+            DownloadSize = dependencyFiles.Sum(f => f.Size),
+            IsCachedLocally = true,
+            Hash = packageHash ?? dependencyFiles.FirstOrDefault()?.Hash,
+            PackageUrl = packageUrl,
+            PackageHash = packageHash,
+            Files = dependencyFiles,
+        };
+
+        return OperationResult<SharedManifestDependency>.CreateSuccess(dependency);
+    }
+
+    private async Task<OperationResult<(string? Url, string? Hash)>> PackageAndUploadLocalManifestAsync(
+        ContentManifest manifest,
+        CancellationToken cancellationToken)
+    {
+        if (uploadThingService == null || casService == null || manifest.Files is not { Count: > 0 })
+        {
+            return OperationResult<(string? Url, string? Hash)>.CreateFailure(
+                $"Cannot package local manifest '{manifest.Name}': missing files or upload services.");
+        }
+
+        var stagingBase = Path.Combine(Path.GetTempPath(), AppConstants.AppName, ProfileSharingConstants.CloudUploadStagingDirectoryName);
+        var tempZipPath = Path.Combine(stagingBase, $"{Guid.NewGuid():N}.zip");
+
+        try
+        {
+            Directory.CreateDirectory(stagingBase);
+            var zipHash = await CreateLocalManifestArchiveAsync(tempZipPath, manifest, cancellationToken);
+            if (string.IsNullOrEmpty(zipHash))
+            {
+                return OperationResult<(string? Url, string? Hash)>.CreateFailure(
+                    $"Failed to create archive for local manifest '{manifest.Name}'. Verify local content exists in CAS.");
+            }
+
+            return await UploadLocalManifestPackageAsync(manifest, tempZipPath, zipHash, cancellationToken);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            (logger ?? NullLogger<ProfileSharingService>.Instance).LogError(ex, "Unexpected error uploading local manifest {ManifestId}", manifest.Id);
+            return OperationResult<(string? Url, string? Hash)>.CreateFailure(
+                $"Unexpected error uploading local manifest '{manifest.Name}': {ex.Message}");
+        }
+        finally
+        {
+            CleanupStagingFile(tempZipPath);
+        }
+    }
+
+    private async Task<string?> CreateLocalManifestArchiveAsync(
+        string tempZipPath,
+        ContentManifest manifest,
+        CancellationToken cancellationToken)
+    {
+        if (casService == null || manifest.Files == null)
+        {
+            return null;
+        }
+
+        var sortedFiles = manifest.Files.OrderBy(f => f.RelativePath, StringComparer.Ordinal).ToList();
+        var written = await WriteLocalManifestArchiveEntriesAsync(tempZipPath, manifest, sortedFiles, cancellationToken);
+        if (!written)
+        {
+            return null;
+        }
+
+        var zipInfo = new FileInfo(tempZipPath);
+        if (zipInfo.Length == 0)
+        {
+            return null;
+        }
+
+        using var sha = SHA256.Create();
+        await using var readStream = File.OpenRead(tempZipPath);
+        var hashBytes = await sha.ComputeHashAsync(readStream, cancellationToken);
+        return Convert.ToHexString(hashBytes).ToLowerInvariant();
+    }
+
+    [SuppressMessage("Major Code Smell", "S6966:Await async method instead of sync counterpart", Justification = "ZipArchiveEntry.Open has no asynchronous OpenAsync method in .NET 8 BCL.")]
+    private async Task<bool> WriteLocalManifestArchiveEntriesAsync(
+        string tempZipPath,
+        ContentManifest manifest,
+        IReadOnlyList<ManifestFile> sortedFiles,
+        CancellationToken cancellationToken)
+    {
+        var fixedTimestamp = new DateTimeOffset(2000, 1, 1, 0, 0, 0, TimeSpan.Zero);
+        using var zipFile = File.Create(tempZipPath);
+        using var archive = new ZipArchive(zipFile, ZipArchiveMode.Create);
+        foreach (var file in sortedFiles)
+        {
+            var contentPathResult = await casService!.GetContentPathAsync(file.Hash, manifest.ContentType, cancellationToken);
+            if (!contentPathResult.Success || !File.Exists(contentPathResult.Data))
+            {
+                (logger ?? NullLogger<ProfileSharingService>.Instance).LogError(
+                    "File {RelativePath} ({Hash}) not found in CAS for local manifest {ManifestId}.",
+                    file.RelativePath,
+                    file.Hash,
+                    manifest.Id);
+                return false;
+            }
+
+            var entryName = file.RelativePath.Replace('\\', '/');
+            var entry = archive.CreateEntry(entryName, CompressionLevel.Optimal);
+            entry.LastWriteTime = fixedTimestamp;
+
+            await using var sourceStream = File.OpenRead(contentPathResult.Data);
+            await using var entryStream = entry.Open();
+            await sourceStream.CopyToAsync(entryStream, cancellationToken);
+        }
+
+        return true;
+    }
+
+    private async Task<OperationResult<(string? Url, string? Hash)>> UploadLocalManifestPackageAsync(
+        ContentManifest manifest,
+        string tempZipPath,
+        string zipHash,
+        CancellationToken cancellationToken)
+    {
+        if (uploadHistoryService != null)
+        {
+            var existing = await uploadHistoryService.FindExistingUploadAsync(zipHash, ProfileSharingConstants.UploadCategoryProfiles, null, cancellationToken);
+            if (existing != null && !string.IsNullOrWhiteSpace(existing.Url))
+            {
+                (logger ?? NullLogger<ProfileSharingService>.Instance).LogInformation(
+                    "Reusing existing cloud upload for local manifest {ManifestId}: {Url}",
+                    manifest.Id,
+                    existing.Url);
+                return OperationResult<(string? Url, string? Hash)>.CreateSuccess((existing.Url, zipHash));
+            }
+        }
+
+        var zipInfo = new FileInfo(tempZipPath);
+        if (zipInfo.Length > ProfileSharingConstants.MaxCloudUploadSizeBytes)
+        {
+            (logger ?? NullLogger<ProfileSharingService>.Instance).LogWarning(
+                "Local manifest {ManifestId} size ({Size} bytes) exceeds cloud upload quota of {Max} bytes.",
+                manifest.Id,
+                zipInfo.Length,
+                ProfileSharingConstants.MaxCloudUploadSizeBytes);
+            return OperationResult<(string? Url, string? Hash)>.CreateFailure(
+                $"Local content '{manifest.Name}' ({zipInfo.Length / 1024.0 / 1024.0:F1} MB) exceeds maximum cloud upload size of {ProfileSharingConstants.MaxCloudUploadSizeBytes / (1024 * 1024)} MB. Export as a .ghprofile file instead.");
+        }
+
+        if (uploadThingService == null)
+        {
+            return OperationResult<(string? Url, string? Hash)>.CreateFailure("UploadThing service is not available.");
+        }
+
+        if (uploadHistoryService != null && !await uploadHistoryService.CanUploadAsync(zipInfo.Length, ProfileSharingConstants.UploadCategoryProfiles, cancellationToken))
+        {
+            (logger ?? NullLogger<ProfileSharingService>.Instance).LogWarning(
+                "Skipping cloud upload for manifest {ManifestId}: upload quota exceeded ({Size} bytes).",
+                manifest.Id,
+                zipInfo.Length);
+            return OperationResult<(string? Url, string? Hash)>.CreateFailure(
+                $"Cloud upload quota exceeded for '{manifest.Name}'. Delete older uploads in Settings or export as a .ghprofile file.");
+        }
+
+        var uploadResult = await uploadThingService.UploadFileAsync(tempZipPath, null, cancellationToken);
+        if (uploadResult.Success && uploadResult.Data != null)
+        {
+            var data = uploadResult.Data;
+            uploadHistoryService?.RecordUpload(
+                zipInfo.Length,
+                data.PublicUrl,
+                $"{manifest.Name}.zip",
+                data.FileKey,
+                data.DeleteToken,
+                zipHash,
+                ProfileSharingConstants.UploadCategoryProfiles);
+
+            (logger ?? NullLogger<ProfileSharingService>.Instance).LogInformation(
+                "Uploaded local manifest {ManifestId} package to cloud: {Url}",
+                manifest.Id,
+                data.PublicUrl);
+
+            return OperationResult<(string? Url, string? Hash)>.CreateSuccess((data.PublicUrl, zipHash));
+        }
+
+        (logger ?? NullLogger<ProfileSharingService>.Instance).LogWarning(
+            "Failed to upload local manifest {ManifestId} package: {Error}",
+            manifest.Id,
+            uploadResult.FirstError);
+        return OperationResult<(string? Url, string? Hash)>.CreateFailure(
+            $"Failed to upload local content '{manifest.Name}' package: {uploadResult.FirstError ?? "Unknown error"}");
+    }
+
+    private async Task<OperationResult<string>> ResolvePayloadJsonAsync(string shareUriOrJsonOrPath, CancellationToken cancellationToken)
+    {
+        string input = shareUriOrJsonOrPath.Trim();
+
+        if (input.StartsWith(CommandLineConstants.UriScheme, StringComparison.OrdinalIgnoreCase))
+        {
+            return await ResolvePayloadFromUriAsync(input, cancellationToken);
+        }
+
+        if (File.Exists(input) || input.EndsWith(ProfileSharingConstants.ProfileFileExtension, StringComparison.OrdinalIgnoreCase))
+        {
+            return await ResolvePayloadFromLocalFileAsync(input, cancellationToken);
+        }
+
+        if (input.StartsWith('{'))
+        {
+            return OperationResult<string>.CreateSuccess(input);
+        }
+
+        return await ResolvePayloadFromRawOrCompressedAsync(input, cancellationToken);
+    }
+
+    private async Task<OperationResult<string>> ResolvePayloadFromUriAsync(string input, CancellationToken cancellationToken)
+    {
+        if (input.StartsWith(CommandLineConstants.ProfileImportUriPrefix, StringComparison.OrdinalIgnoreCase) ||
+            input.StartsWith(CommandLineConstants.ProfileViewUriPrefix, StringComparison.OrdinalIgnoreCase))
+        {
+            int queryIndex = input.IndexOf('?');
+            if (queryIndex != -1 && queryIndex < input.Length - 1)
+            {
+                var queryString = input[(queryIndex + 1)..];
+                var queryParams = ParseQueryParameters(queryString);
+
+                if (queryParams.TryGetValue(CommandLineConstants.UrlQueryKey, out var remoteUrl) && !string.IsNullOrWhiteSpace(remoteUrl))
+                {
+                    return await ResolveRemotePayloadAsync(remoteUrl, cancellationToken);
+                }
+
+                if (queryParams.TryGetValue(CommandLineConstants.DataQueryKey, out var inlineData) && !string.IsNullOrWhiteSpace(inlineData))
+                {
+                    return await ResolveInlinePayloadAsync(inlineData, cancellationToken);
+                }
+            }
+        }
+
+        var displayInput = input.Length > 100 ? $"{input[..100]}..." : input;
+        return OperationResult<string>.CreateFailure($"Unsupported or malformed genhub:// sharing URI: {displayInput}");
+    }
+
+    private async Task<OperationResult<string>> ResolveRemotePayloadAsync(string url, CancellationToken cancellationToken)
+    {
+        if (!Uri.TryCreate(url, UriKind.Absolute, out var profileUri) || !await IsSafeRemoteUriAsync(profileUri, cancellationToken))
+        {
+            return OperationResult<string>.CreateFailure($"Remote URL '{url}' is blocked by security policies.");
+        }
+
+        return await FetchRemotePayloadWithLimitAsync(profileUri, cancellationToken);
+    }
+
+    private async Task<OperationResult<string>> FetchRemotePayloadWithLimitAsync(Uri profileUri, CancellationToken cancellationToken)
+    {
+        using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        linkedCts.CancelAfter(ProfileSharingConstants.RemotePayloadTimeout);
+
+        try
+        {
+            using var response = await SendWithManualRedirectsAsync(safeHttpClient, profileUri, HttpCompletionOption.ResponseHeadersRead, linkedCts.Token);
+            response.EnsureSuccessStatusCode();
+
+            await using var responseStream = await response.Content.ReadAsStreamAsync(linkedCts.Token);
+            using var buffered = new MemoryStream();
+
+            byte[] buffer = new byte[8192];
+            int bytesRead = 0;
+            long totalBytes = 0;
+
+            while ((bytesRead = await responseStream.ReadAsync(buffer.AsMemory(0, buffer.Length), linkedCts.Token)) > 0)
+            {
+                totalBytes += bytesRead;
+                if (totalBytes > ProfileSharingConstants.MaxDecompressedPayloadBytes)
+                {
+                    return OperationResult<string>.CreateFailure(
+                        $"Remote profile payload exceeds maximum allowed size ({ProfileSharingConstants.MaxDecompressedPayloadBytes} bytes).");
+                }
+
+                await buffered.WriteAsync(buffer.AsMemory(0, bytesRead), linkedCts.Token);
+            }
+
+            return OperationResult<string>.CreateSuccess(Encoding.UTF8.GetString(buffered.ToArray()));
+        }
+        catch (OperationCanceledException ex) when (!cancellationToken.IsCancellationRequested)
+        {
+            logger?.LogWarning(ex, "Timeout fetching remote profile payload from {Uri}", profileUri);
+            return OperationResult<string>.CreateFailure($"Request timed out fetching remote profile payload from {profileUri}.");
+        }
+        catch (HttpRequestException ex)
+        {
+            logger?.LogWarning(ex, "Failed to fetch remote profile payload from {Uri}", profileUri);
+            return OperationResult<string>.CreateFailure($"Failed to fetch remote profile payload: {ex.Message}");
+        }
+    }
+
+    private async Task<OperationResult<string>> AcquireMissingManifestAsync(
+        SharedManifestDependency dependency,
+        IProgress<ContentAcquisitionProgress>? progress,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (!ManifestId.TryCreate(dependency.ManifestId, out var validatedManifestId))
+            {
+                return OperationResult<string>.CreateFailure($"Invalid manifest ID '{dependency.ManifestId}'.");
+            }
+
+            // 1 & 2. Check local manifest pool or CAS storage (zero-download path)
+            if (await TryAcquireFromLocalOrCasAsync(validatedManifestId, dependency, cancellationToken))
+            {
+                return OperationResult<string>.CreateSuccess(validatedManifestId.Value);
+            }
+
+            // 3 & 4. Direct package zip or per-file downloads
+            var directDownloadResult = await TryDownloadDirectPackageOrFilesAsync(dependency, validatedManifestId, cancellationToken);
+            if (directDownloadResult != null)
+            {
+                return directDownloadResult;
+            }
+
+            // 5. Fallback: Search & acquire from connected content provider pipeline (GeneralsOnline, ModDB, AODMaps, etc.)
+            if (IsLocalOrSourcelessDependency(dependency))
+            {
+                return OperationResult<string>.CreateFailure(
+                    $"Local dependency '{dependency.DisplayName}' ({dependency.ManifestId}) is not present on this machine and cannot be acquired from remote providers.");
+            }
+
+            return await SearchAndAcquireFallbackManifestAsync(dependency, progress, cancellationToken);
+        }
+        catch (OperationCanceledException ex) when (!cancellationToken.IsCancellationRequested)
+        {
+            (logger ?? NullLogger<ProfileSharingService>.Instance).LogError(ex, "Timeout acquiring missing manifest {ManifestId}", dependency.ManifestId);
+            return OperationResult<string>.CreateFailure($"Download timed out while acquiring dependency {dependency.DisplayName}.");
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            (logger ?? NullLogger<ProfileSharingService>.Instance).LogError(ex, "Error acquiring missing manifest {ManifestId}", dependency.ManifestId);
+            return OperationResult<string>.CreateFailure($"Failed to acquire manifest: {ex.Message}");
+        }
+    }
+
+    private async Task<bool> TryAcquireFromLocalOrCasAsync(
+        ManifestId validatedManifestId,
+        SharedManifestDependency dependency,
+        CancellationToken cancellationToken)
+    {
+        var acquiredResult = await manifestPool.IsManifestAcquiredAsync(validatedManifestId, cancellationToken);
+        if (acquiredResult.Success && acquiredResult.Data)
+        {
+            return true;
+        }
+
+        var casCheckResult = await TryRegisterFromExistingCasBlobsAsync(validatedManifestId, dependency, cancellationToken);
+        if (casCheckResult.Success && casCheckResult.Data)
+        {
+            logger?.LogInformation(
+                "Manifest {ManifestId} was reconstructed directly from existing CAS pool objects without downloading.",
+                dependency.ManifestId);
+            return true;
+        }
+
+        if (!casCheckResult.Success)
+        {
+            logger?.LogWarning(
+                "CAS storage check/reconstruction failed for manifest {ManifestId}: {Error}. Falling back to download sources.",
+                dependency.ManifestId,
+                casCheckResult.FirstError);
+        }
+
+        return false;
+    }
+
+    private async Task<OperationResult<string>?> TryDownloadDirectPackageOrFilesAsync(
+        SharedManifestDependency dependency,
+        ManifestId validatedManifestId,
+        CancellationToken cancellationToken)
+    {
+        string? packageUrl = ResolvePackageUrl(dependency);
+        if (IsZipArchivePackage(packageUrl, dependency.PackageUrl))
+        {
+            var zipResult = await DownloadAndRegisterZipPackageAsync(dependency, validatedManifestId, packageUrl!, cancellationToken);
+            return zipResult.Success
+                ? OperationResult<string>.CreateSuccess(validatedManifestId.Value)
+                : OperationResult<string>.CreateFailure(zipResult.Errors);
+        }
+
+        if (CanDownloadPerFile(dependency))
+        {
+            var fileResult = await DownloadAndRegisterManifestFilesAsync(dependency, validatedManifestId, cancellationToken);
+            return fileResult.Success
+                ? OperationResult<string>.CreateSuccess(validatedManifestId.Value)
+                : OperationResult<string>.CreateFailure(fileResult.Errors);
+        }
+
+        return null;
+    }
+
+    private async Task<bool> AreAllCasBlobsAvailableAsync(
+        SharedManifestDependency dependency,
+        CancellationToken cancellationToken)
+    {
+        if (casService == null || dependency.Files is not { Count: > 0 } || dependency.Files.Any(f => string.IsNullOrWhiteSpace(f.Hash)))
+        {
+            return false;
+        }
+
+        foreach (var file in dependency.Files)
+        {
+            var blobPathResult = await casService.GetContentPathAsync(file.Hash, dependency.ContentType, cancellationToken);
+            if (!blobPathResult.Success || !File.Exists(blobPathResult.Data))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private async Task<OperationResult<bool>> MaterializeCasBlobsToStagingAsync(
+        SharedManifestDependency dependency,
+        string stagingDir,
+        CancellationToken cancellationToken)
+    {
+        if (casService == null || dependency.Files == null)
+        {
+            return OperationResult<bool>.CreateFailure("CAS service or dependency files unavailable.");
+        }
+
+        var canonicalStagingPrefix = Path.GetFullPath(stagingDir) + Path.DirectorySeparatorChar;
+        foreach (var file in dependency.Files)
+        {
+            var fileResult = await MaterializeSingleCasBlobFileAsync(dependency, file, stagingDir, canonicalStagingPrefix, cancellationToken);
+            if (!fileResult.Success)
+            {
+                return fileResult;
+            }
+        }
+
+        return OperationResult<bool>.CreateSuccess(true);
+    }
+
+    private async Task<OperationResult<bool>> MaterializeSingleCasBlobFileAsync(
+        SharedManifestDependency dependency,
+        ManifestFile file,
+        string stagingDir,
+        string canonicalStagingPrefix,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(file.RelativePath))
+        {
+            return OperationResult<bool>.CreateFailure("Dependency file has an empty relative path.");
+        }
+
+        var blobPathResult = await casService!.GetContentPathAsync(file.Hash, dependency.ContentType, cancellationToken);
+        var normalizedRelativePath = file.RelativePath.Replace('\\', '/');
+        var destinationPath = Path.GetFullPath(Path.Combine(stagingDir, normalizedRelativePath));
+        if (!destinationPath.StartsWith(canonicalStagingPrefix, StringComparison.Ordinal))
+        {
+            return OperationResult<bool>.CreateFailure($"Invalid relative path escapes staging directory: {file.RelativePath}");
+        }
+
+        var directory = Path.GetDirectoryName(destinationPath);
+        if (!string.IsNullOrEmpty(directory))
+        {
+            Directory.CreateDirectory(directory);
+        }
+
+        if (blobPathResult.Success && !string.IsNullOrWhiteSpace(blobPathResult.Data) && File.Exists(blobPathResult.Data))
+        {
+            await using (var sourceStream = new FileStream(blobPathResult.Data, FileMode.Open, FileAccess.Read, FileShare.Read, 81920, useAsync: true))
+            await using (var destinationStream = new FileStream(destinationPath, FileMode.Create, FileAccess.Write, FileShare.None, 81920, useAsync: true))
+            {
+                await sourceStream.CopyToAsync(destinationStream, cancellationToken);
+                await destinationStream.FlushAsync(cancellationToken);
+            }
+
+            if (!string.IsNullOrWhiteSpace(file.Hash))
+            {
+                var checksumResult = await ValidateFileChecksumAsync(destinationPath, file.RelativePath, file.Hash, cancellationToken);
+                if (!checksumResult.Success)
+                {
+                    return checksumResult;
+                }
+            }
+        }
+        else
+        {
+            return OperationResult<bool>.CreateFailure($"Failed to locate local CAS content for: {file.RelativePath}");
+        }
+
+        return OperationResult<bool>.CreateSuccess(true);
+    }
+
+    private async Task<OperationResult<bool>> TryRegisterFromExistingCasBlobsAsync(
+        ManifestId validatedManifestId,
+        SharedManifestDependency dependency,
+        CancellationToken cancellationToken)
+    {
+        if (!await AreAllCasBlobsAvailableAsync(dependency, cancellationToken))
+        {
+            return OperationResult<bool>.CreateSuccess(false);
+        }
+
+        var stagingBase = Path.Combine(Path.GetTempPath(), AppConstants.AppName, ProfileSharingConstants.CasMaterializeStagingDirectoryName);
+        var stagingDir = Path.Combine(stagingBase, Guid.NewGuid().ToString("N"));
+
+        try
+        {
+            Directory.CreateDirectory(stagingDir);
+            var materializeResult = await MaterializeCasBlobsToStagingAsync(dependency, stagingDir, cancellationToken);
+            if (!materializeResult.Success)
+            {
+                return materializeResult;
+            }
+
+            return await RegisterExtractedManifestAsync(validatedManifestId, dependency, stagingDir, cancellationToken);
+        }
+        catch (OperationCanceledException ex) when (!cancellationToken.IsCancellationRequested)
+        {
+            (logger ?? NullLogger<ProfileSharingService>.Instance).LogError(ex, "Timeout downloading package for {ManifestId}", dependency.ManifestId);
+            return OperationResult<bool>.CreateFailure($"Download timed out for {dependency.DisplayName}.");
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            logger?.LogWarning(ex, "Failed to materialize manifest {ManifestId} from existing CAS objects.", validatedManifestId);
+            return OperationResult<bool>.CreateFailure($"Failed to materialize manifest '{validatedManifestId}' from CAS: {ex.Message}");
+        }
+        finally
+        {
+            CleanupStagingDirectories(string.Empty, stagingDir, stagingBase);
+        }
+    }
+
+    private async Task<OperationResult<bool>> DownloadAndRegisterZipPackageAsync(
+        SharedManifestDependency dependency,
+        ManifestId validatedManifestId,
+        string packageUrl,
+        CancellationToken cancellationToken)
+    {
+        var stagingBase = Path.Combine(Path.GetTempPath(), AppConstants.AppName, ProfileSharingConstants.SharedImportStagingDirectoryName);
+        var stagingDir = Path.Combine(stagingBase, Guid.NewGuid().ToString("N"));
+        var tempZipPath = Path.Combine(stagingBase, $"{Guid.NewGuid():N}.zip");
+
+        try
+        {
+            Directory.CreateDirectory(stagingBase);
+            Directory.CreateDirectory(stagingDir);
+
+            var downloadResult = await DownloadPackageArchiveAsync(packageUrl, tempZipPath, dependency.DisplayName, cancellationToken);
+            if (!downloadResult.Success)
+            {
+                return downloadResult;
+            }
+
+            if (!string.IsNullOrWhiteSpace(dependency.PackageHash))
+            {
+                var packageHashCheck = await ValidateFileChecksumAsync(tempZipPath, Path.GetFileName(tempZipPath), dependency.PackageHash, cancellationToken);
+                if (!packageHashCheck.Success)
+                {
+                    return packageHashCheck;
+                }
+            }
+
+            var extractionResult = await ExtractAndVerifyPackageFilesAsync(tempZipPath, stagingDir, dependency, cancellationToken);
+            if (!extractionResult.Success)
+            {
+                return extractionResult;
+            }
+
+            return await RegisterExtractedManifestAsync(validatedManifestId, dependency, stagingDir, cancellationToken);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            (logger ?? NullLogger<ProfileSharingService>.Instance).LogError(ex, "Failed to download and register cloud package for {ManifestId}", dependency.ManifestId);
+            return OperationResult<bool>.CreateFailure($"Failed to download cloud package: {ex.Message}");
+        }
+        finally
+        {
+            CleanupStagingDirectories(tempZipPath, stagingDir, stagingBase);
+        }
+    }
+
+    private async Task<OperationResult<bool>> DownloadPackageArchiveAsync(
+        string packageUrl,
+        string tempZipPath,
+        string displayName,
+        CancellationToken cancellationToken)
+    {
+        if (!Uri.TryCreate(packageUrl, UriKind.Absolute, out var uri) || !await IsSafeRemoteUriAsync(uri, cancellationToken))
+        {
+            return OperationResult<bool>.CreateFailure($"Unsafe package download URL blocked: {packageUrl}");
+        }
+
+        using var downloadCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        downloadCts.CancelAfter(ProfileSharingConstants.PackageDownloadTimeout);
+
+        try
+        {
+            using var response = await SendWithManualRedirectsAsync(safeHttpClient, uri, HttpCompletionOption.ResponseHeadersRead, downloadCts.Token);
+            if (response.StatusCode == HttpStatusCode.NotFound || response.StatusCode == HttpStatusCode.Gone)
+            {
+                return OperationResult<bool>.CreateFailure(
+                    $"The cloud package for '{displayName}' has expired or is no longer available. Please request an updated share link from the author.");
+            }
+
+            response.EnsureSuccessStatusCode();
+
+            await using var responseStream = await response.Content.ReadAsStreamAsync(downloadCts.Token);
+            await using var fileStream = File.Create(tempZipPath);
+
+            byte[] buffer = new byte[16384];
+            int bytesRead = 0;
+            long totalDownloaded = 0;
+            long maxAllowedBytes = ProfileSharingConstants.MaxDownloadedFileBytes;
+
+            while ((bytesRead = await responseStream.ReadAsync(buffer.AsMemory(0, buffer.Length), downloadCts.Token)) > 0)
+            {
+                await fileStream.WriteAsync(buffer.AsMemory(0, bytesRead), downloadCts.Token);
+                totalDownloaded += bytesRead;
+
+                if (totalDownloaded > maxAllowedBytes)
+                {
+                    return OperationResult<bool>.CreateFailure($"Package download for {displayName} exceeded maximum size limit ({maxAllowedBytes} bytes).");
+                }
+            }
+
+            return OperationResult<bool>.CreateSuccess(true);
+        }
+        catch (OperationCanceledException ex) when (!cancellationToken.IsCancellationRequested)
+        {
+            logger?.LogWarning(ex, "Download timed out for package {DisplayName} from {Url}", displayName, packageUrl);
+            return OperationResult<bool>.CreateFailure($"Download timed out for package '{displayName}'.");
+        }
+        catch (HttpRequestException ex)
+        {
+            logger?.LogWarning(ex, "Failed to download cloud package for {DisplayName} from {Url}", displayName, packageUrl);
+            return OperationResult<bool>.CreateFailure($"Failed to download cloud package: {ex.Message}");
+        }
+    }
+
+    private async Task<OperationResult<bool>> RegisterExtractedManifestAsync(
+        ManifestId validatedManifestId,
+        SharedManifestDependency dependency,
+        string stagingDir,
+        CancellationToken cancellationToken)
+    {
+        var resolvedPublisherType = ResolvePublisherType(dependency.PublisherType, validatedManifestId);
+        var resolvedPublisherName = dependency.Publisher ?? GetDefaultPublisherNameForType(resolvedPublisherType);
+
+        // Curated or platform publishers must never be registered from direct/untrusted package extracts into the manifest pool
+        if (PublisherTypeConstants.IsCuratedPublisher(resolvedPublisherType) ||
+            PublisherTypeConstants.IsCuratedPublisher(validatedManifestId.Publisher))
+        {
+            (logger ?? NullLogger<ProfileSharingService>.Instance).LogWarning(
+                "Refusing to register manifest '{ManifestId}' from direct package extract because publisher '{Publisher}' is curated.",
+                validatedManifestId,
+                resolvedPublisherType);
+
+            return OperationResult<bool>.CreateFailure(
+                $"Cannot register manifest '{validatedManifestId}' from direct package download. Content from curated publisher '{resolvedPublisherType}' must be acquired through its official provider.");
+        }
+
+        // Never overwrite an already acquired manifest
+        var isAcquiredResult = await manifestPool.IsManifestAcquiredAsync(validatedManifestId, cancellationToken);
+        if (isAcquiredResult.Success && isAcquiredResult.Data)
+        {
+            (logger ?? NullLogger<ProfileSharingService>.Instance).LogWarning(
+                "Manifest '{ManifestId}' is already acquired in the local pool. Skipping overwrite from untrusted package.",
+                validatedManifestId);
+
+            return OperationResult<bool>.CreateSuccess(true);
+        }
+
+        var contentManifest = new ContentManifest
+        {
+            Id = validatedManifestId,
+            Name = dependency.DisplayName,
+            Version = dependency.Version,
+            ContentType = dependency.ContentType,
+            TargetGame = dependency.TargetGame,
+            Publisher = new PublisherInfo
+            {
+                Name = resolvedPublisherName,
+                PublisherType = resolvedPublisherType,
+            },
+            Files = dependency.Files.Select(f => ToSharedManifestFile(f)).ToList(),
+        };
+
+        var poolResult = await AddManifestToPoolAsync(contentManifest, stagingDir, dependency.Files, cancellationToken).ConfigureAwait(false);
+        if (!poolResult.Success)
+        {
+            return poolResult;
+        }
+
+        ScanStagingExecutables(stagingDir, validatedManifestId);
+        return OperationResult<bool>.CreateSuccess(true);
+    }
+
+    private async Task<OperationResult<bool>> AddManifestToPoolAsync(
+        ContentManifest contentManifest,
+        string stagingDir,
+        IReadOnlyList<ManifestFile> files,
+        CancellationToken cancellationToken)
+    {
+        var factory = publisherManifestFactoryResolver?.ResolveFactory(contentManifest);
+        if (factory != null)
+        {
+            PruneUnverifiedStagingFiles(stagingDir, files);
+            var createdManifestsResult = await factory.CreateManifestsFromExtractedContentAsync(contentManifest, stagingDir, cancellationToken).ConfigureAwait(false);
+            if (!createdManifestsResult.Success || createdManifestsResult.Data == null)
+            {
+                (logger ?? NullLogger<ProfileSharingService>.Instance).LogError(
+                    "Failed to create manifests from extracted content for {ManifestId}: {Error}",
+                    contentManifest.Id,
+                    createdManifestsResult.FirstError);
+                return OperationResult<bool>.CreateFailure($"Failed to create manifests from extracted content for '{contentManifest.Id}': {createdManifestsResult.FirstError}");
+            }
+
+            foreach (var m in createdManifestsResult.Data)
+            {
+                var factoryAddResult = await manifestPool.AddManifestAsync(m, stagingDir, cancellationToken: cancellationToken).ConfigureAwait(false);
+                if (!factoryAddResult.Success)
+                {
+                    (logger ?? NullLogger<ProfileSharingService>.Instance).LogError(
+                        "Failed to register factory manifest {ManifestId} into pool: {Error}",
+                        m.Id,
+                        factoryAddResult.FirstError);
+                    return OperationResult<bool>.CreateFailure($"Failed to register extracted manifest '{m.Id}': {factoryAddResult.FirstError}");
+                }
+            }
+        }
+        else
+        {
+            var addResult = await manifestPool.AddManifestAsync(contentManifest, stagingDir, cancellationToken: cancellationToken).ConfigureAwait(false);
+            if (!addResult.Success)
+            {
+                (logger ?? NullLogger<ProfileSharingService>.Instance).LogError(
+                    "Failed to register extracted manifest {ManifestId} into pool: {Error}",
+                    contentManifest.Id,
+                    addResult.FirstError);
+                return OperationResult<bool>.CreateFailure($"Failed to register extracted manifest '{contentManifest.Id}': {addResult.FirstError}");
+            }
+        }
+
+        return OperationResult<bool>.CreateSuccess(true);
+    }
+
+    private void ScanStagingExecutables(string stagingDir, ManifestId validatedManifestId)
+    {
+        if (!Directory.Exists(stagingDir))
+        {
+            return;
+        }
+
+        var stagingFiles = Directory.GetFiles(stagingDir, "*", SearchOption.AllDirectories);
+        var foundExecutables = stagingFiles
+            .Where(f => ProfileSharingConstants.ExecutableFileExtensions.Contains(Path.GetExtension(f)))
+            .Select(f => Path.GetRelativePath(stagingDir, f))
+            .ToList();
+
+        if (foundExecutables.Count > 0)
+        {
+            (logger ?? NullLogger<ProfileSharingService>.Instance).LogWarning(
+                "Extracted content for manifest '{ManifestId}' contains {Count} executable file(s): {Files}",
+                validatedManifestId,
+                foundExecutables.Count,
+                string.Join(", ", foundExecutables.Take(5)));
+        }
+    }
+
+    private void CleanupStagingFile(string tempZipPath)
+    {
+        try
+        {
+            if (File.Exists(tempZipPath))
+            {
+                File.Delete(tempZipPath);
+            }
+        }
+        catch (Exception ex)
+        {
+            (logger ?? NullLogger<ProfileSharingService>.Instance).LogWarning(ex, "Failed to delete temp zip {Path}", tempZipPath);
+        }
+    }
+
+    private void CleanupStagingDirectories(string tempZipPath, string stagingDir, string stagingBase)
+    {
+        try
+        {
+            if (File.Exists(tempZipPath))
+            {
+                File.Delete(tempZipPath);
+            }
+
+            if (Directory.Exists(stagingDir) && Path.GetFullPath(stagingDir).StartsWith(Path.GetFullPath(stagingBase), StringComparison.Ordinal))
+            {
+                Directory.Delete(stagingDir, true);
+            }
+        }
+        catch (Exception ex)
+        {
+            (logger ?? NullLogger<ProfileSharingService>.Instance).LogWarning(ex, "Failed to clean up staging directory {StagingDir}", stagingDir);
+        }
+    }
+
+    private async Task<OperationResult<bool>> DownloadAndRegisterManifestFilesAsync(
+        SharedManifestDependency dependency,
+        ManifestId validatedManifestId,
+        CancellationToken cancellationToken)
+    {
+        var stagingBase = Path.Combine(Path.GetTempPath(), AppConstants.AppName, ProfileSharingConstants.SharedImportStagingDirectoryName);
+        var stagingDir = Path.Combine(stagingBase, Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(stagingDir);
+
+        try
+        {
+            var canonicalStagingPrefix = Path.GetFullPath(stagingDir) + Path.DirectorySeparatorChar;
+
+            foreach (var file in dependency.Files)
+            {
+                var downloadResult = await DownloadAndVerifyFileAsync(file, stagingDir, canonicalStagingPrefix, cancellationToken);
+                if (!downloadResult.Success)
+                {
+                    return downloadResult;
+                }
+            }
+
+            return await RegisterExtractedManifestAsync(validatedManifestId, dependency, stagingDir, cancellationToken);
+        }
+        finally
+        {
+            CleanupStagingDirectories(string.Empty, stagingDir, stagingBase);
+        }
+    }
+
+    private async Task<OperationResult<bool>> DownloadAndVerifyFileAsync(
+        ManifestFile file,
+        string stagingDir,
+        string canonicalStagingPrefix,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(file.DownloadUrl))
+        {
+            return OperationResult<bool>.CreateFailure($"Missing download URL for manifest file: {file.RelativePath}");
+        }
+
+        if (string.IsNullOrWhiteSpace(file.Hash))
+        {
+            return OperationResult<bool>.CreateFailure($"Manifest file {file.RelativePath} is missing required cryptographic hash.");
+        }
+
+        var normalizedRelativePath = file.RelativePath.Replace('\\', '/');
+        if (string.IsNullOrWhiteSpace(normalizedRelativePath) ||
+            Path.IsPathRooted(normalizedRelativePath) ||
+            normalizedRelativePath.Split('/', StringSplitOptions.RemoveEmptyEntries).Contains(ProfileSharingConstants.ParentDirectorySegment))
+        {
+            return OperationResult<bool>.CreateFailure($"Invalid relative path in manifest: {file.RelativePath}");
+        }
+
+        var destination = Path.GetFullPath(Path.Combine(stagingDir, normalizedRelativePath));
+        if (!destination.StartsWith(canonicalStagingPrefix, StringComparison.Ordinal))
+        {
+            return OperationResult<bool>.CreateFailure($"File path escapes staging directory: {file.RelativePath}");
+        }
+
+        var destinationDir = Path.GetDirectoryName(destination);
+        if (!string.IsNullOrEmpty(destinationDir))
+        {
+            Directory.CreateDirectory(destinationDir);
+        }
+
+        if (!Uri.TryCreate(file.DownloadUrl, UriKind.Absolute, out var fileDownloadUri) || !await IsSafeRemoteUriAsync(fileDownloadUri, cancellationToken))
+        {
+            return OperationResult<bool>.CreateFailure($"Unsafe download URL blocked: {file.DownloadUrl}");
+        }
+
+        using var downloadCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        downloadCts.CancelAfter(ProfileSharingConstants.PackageDownloadTimeout);
+
+        try
+        {
+            using var response = await SendWithManualRedirectsAsync(safeHttpClient, fileDownloadUri, HttpCompletionOption.ResponseHeadersRead, downloadCts.Token);
+            response.EnsureSuccessStatusCode();
+
+            using var sha256 = SHA256.Create();
+            await using var responseStream = await response.Content.ReadAsStreamAsync(downloadCts.Token);
+            await using var fileStream = File.Create(destination);
+
+            byte[] buffer = new byte[16384];
+            int bytesRead = 0;
+            long totalDownloaded = 0;
+            long maxAllowedBytes = file.Size > 0
+                ? Math.Min(file.Size + (1024 * 1024), ProfileSharingConstants.MaxDownloadedFileBytes)
+                : ProfileSharingConstants.MaxDownloadedFileBytes;
+
+            while ((bytesRead = await responseStream.ReadAsync(buffer.AsMemory(0, buffer.Length), downloadCts.Token)) > 0)
+            {
+                sha256.TransformBlock(buffer, 0, bytesRead, null, 0);
+                await fileStream.WriteAsync(buffer.AsMemory(0, bytesRead), downloadCts.Token);
+                totalDownloaded += bytesRead;
+
+                if (totalDownloaded > maxAllowedBytes)
+                {
+                    return OperationResult<bool>.CreateFailure($"Download size for {file.RelativePath} exceeded expected size limit ({maxAllowedBytes} bytes).");
+                }
+            }
+
+            sha256.TransformFinalBlock([], 0, 0);
+            var computedHash = Convert.ToHexString(sha256.Hash ?? []).ToLowerInvariant();
+
+            if (!string.Equals(computedHash, file.Hash.Replace("-", string.Empty).ToLowerInvariant(), StringComparison.OrdinalIgnoreCase))
+            {
+                return OperationResult<bool>.CreateFailure($"SHA-256 hash mismatch for {file.RelativePath}.");
+            }
+
+            return OperationResult<bool>.CreateSuccess(true);
+        }
+        catch (OperationCanceledException ex) when (!cancellationToken.IsCancellationRequested)
+        {
+            logger?.LogWarning(ex, "Download timed out for file {RelativePath} from {Url}", file.RelativePath, file.DownloadUrl);
+            return OperationResult<bool>.CreateFailure($"Download timed out for file '{file.RelativePath}'.");
+        }
+        catch (HttpRequestException ex)
+        {
+            logger?.LogWarning(ex, "Failed to download file {RelativePath} from {Url}", file.RelativePath, file.DownloadUrl);
+            return OperationResult<bool>.CreateFailure($"Failed to download {file.RelativePath}: {ex.Message}");
+        }
+    }
+
+    private async Task<OperationResult<IEnumerable<ContentSearchResult>>> ExecuteFallbackSearchAsync(
+        SharedManifestDependency dependency,
+        string? targetProvider,
+        CancellationToken cancellationToken)
+    {
+        var query = new ContentSearchQuery
+        {
+            SearchTerm = dependency.DisplayName,
+            ContentType = dependency.ContentType,
+            TargetGame = dependency.TargetGame != GameType.Unknown ? dependency.TargetGame : null,
+            ProviderName = targetProvider,
+            Take = ProfileSharingConstants.FallbackSearchLimit,
+        };
+
+        return await contentOrchestrator.SearchAsync(query, cancellationToken);
+    }
+
+    private async Task<OperationResult<string>?> TrySearchMatchAndAcquireAsync(
+        SharedManifestDependency dependency,
+        string? targetProvider,
+        IProgress<ContentAcquisitionProgress>? progress,
+        CancellationToken cancellationToken)
+    {
+        var searchResult = await ExecuteFallbackSearchAsync(dependency, targetProvider, cancellationToken);
+        if (searchResult.Success && searchResult.Data != null)
+        {
+            var match = FindMatchingResult(searchResult.Data, dependency);
+            if (match != null)
+            {
+                return await TryAcquireMatchedFallbackAsync(match, dependency, progress, cancellationToken);
+            }
+        }
+
+        var directUrl = ResolveDirectUrl(dependency);
+        if (!string.IsNullOrWhiteSpace(directUrl) && !string.Equals(directUrl, dependency.DisplayName, StringComparison.OrdinalIgnoreCase))
+        {
+            var urlQuery = new ContentSearchQuery
+            {
+                SearchTerm = directUrl,
+                ContentType = dependency.ContentType,
+                TargetGame = dependency.TargetGame != GameType.Unknown ? dependency.TargetGame : null,
+                ProviderName = targetProvider,
+                Take = ProfileSharingConstants.FallbackSearchLimit,
+            };
+
+            var urlSearchResult = await contentOrchestrator.SearchAsync(urlQuery, cancellationToken);
+            if (urlSearchResult.Success && urlSearchResult.Data != null)
+            {
+                var match = FindMatchingResult(urlSearchResult.Data, dependency);
+                if (match != null)
+                {
+                    return await TryAcquireMatchedFallbackAsync(match, dependency, progress, cancellationToken);
+                }
+            }
+        }
+
+        return null;
+    }
+
+    private async Task<OperationResult<string>?> TryAcquireMatchedFallbackAsync(
+        ContentSearchResult match,
+        SharedManifestDependency dependency,
+        IProgress<ContentAcquisitionProgress>? progress,
+        CancellationToken cancellationToken)
+    {
+        var acquireRes = await contentOrchestrator.AcquireContentAsync(match, progress, cancellationToken);
+        if (acquireRes.Success && acquireRes.Data != null)
+        {
+            logger?.LogInformation(
+                "Successfully acquired dependency '{DisplayName}' as manifest '{AcquiredId}' via content orchestrator.",
+                dependency.DisplayName,
+                acquireRes.Data.Id.Value);
+
+            return OperationResult<string>.CreateSuccess(acquireRes.Data.Id.Value);
+        }
+
+        if (!acquireRes.Success)
+        {
+            logger?.LogWarning(
+                "Content acquisition failed for dependency '{DisplayName}' ({ManifestId}) from provider '{Provider}': {Error}",
+                dependency.DisplayName,
+                dependency.ManifestId,
+                match.ProviderName,
+                acquireRes.FirstError);
+        }
+
+        return null;
+    }
+
+    private async Task<OperationResult<string>> SearchAndAcquireFallbackManifestAsync(
+        SharedManifestDependency dependency,
+        IProgress<ContentAcquisitionProgress>? progress,
+        CancellationToken cancellationToken)
+    {
+        var targetProvider = ResolveProviderName(dependency);
+        if (!string.IsNullOrEmpty(targetProvider))
+        {
+            var acquireResult = await TrySearchMatchAndAcquireAsync(dependency, targetProvider, progress, cancellationToken);
+            if (acquireResult != null)
+            {
+                return acquireResult;
+            }
+
+            logger?.LogInformation(
+                "Targeted search for '{DisplayName}' on provider '{Provider}' yielded no matching candidates. Retrying with broad search.",
+                dependency.DisplayName,
+                targetProvider);
+        }
+
+        var broadResult = await TrySearchMatchAndAcquireAsync(dependency, null, progress, cancellationToken);
+        if (broadResult != null)
+        {
+            return broadResult;
+        }
+
+        logger?.LogWarning(
+            "Dependency '{DisplayName}' ({ManifestId}) could not be acquired from any connected content source.",
+            dependency.DisplayName,
+            dependency.ManifestId);
+
+        return CreateFallbackAcquisitionFailure(dependency);
+    }
+
+    private async Task<OperationResult<SharedGameProfilePackage>> ResolveAndDeserializePackageAsync(
+        string shareUriOrJsonOrPath,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(shareUriOrJsonOrPath))
+        {
+            return OperationResult<SharedGameProfilePackage>.CreateFailure("Shared profile payload or path cannot be empty.");
+        }
+
+        var rawJsonResult = await ResolvePayloadJsonAsync(shareUriOrJsonOrPath, cancellationToken);
+        if (!rawJsonResult.Success || string.IsNullOrEmpty(rawJsonResult.Data))
+        {
+            return OperationResult<SharedGameProfilePackage>.CreateFailure(rawJsonResult.Errors);
+        }
+
+        return DeserializeSharedPackage(rawJsonResult.Data);
+    }
+
+    private OperationResult<SharedGameProfilePackage> DeserializeSharedPackage(string json)
+    {
+        SharedGameProfilePackage? package;
+        try
+        {
+            package = JsonSerializer.Deserialize<SharedGameProfilePackage>(json, JsonOptions);
+        }
+        catch (Exception ex)
+        {
+            logger?.LogWarning(ex, "Failed to deserialize shared profile package JSON.");
+            return OperationResult<SharedGameProfilePackage>.CreateFailure($"Invalid shared profile package format: {ex.Message}");
+        }
+
+        if (package?.Profile == null || package.RequiredManifests == null)
+        {
+            return OperationResult<SharedGameProfilePackage>.CreateFailure("Package does not contain valid profile metadata or manifests list.");
+        }
+
+        if (package.SchemaVersion != ProfileSharingConstants.DefaultSchemaVersion)
+        {
+            return OperationResult<SharedGameProfilePackage>.CreateFailure($"Unsupported package schema version {package.SchemaVersion}. Expected version {ProfileSharingConstants.DefaultSchemaVersion}.");
+        }
+
+        return OperationResult<SharedGameProfilePackage>.CreateSuccess(package);
+    }
+
+    private async Task<OperationResult<ManifestInspectionSummary>> DiffManifestsAgainstPoolAsync(
+        SharedGameProfilePackage package,
+        CancellationToken cancellationToken)
+    {
+        var inspectedManifests = new List<SharedManifestDependency>();
+        long totalMissingDownloadBytes = 0;
+        int cachedCount = 0;
+        int missingCount = 0;
+
+        foreach (var reqManifest in package.RequiredManifests)
+        {
+            if (reqManifest.ContentType == ContentType.GameInstallation ||
+                reqManifest.ManifestId.Contains(ManifestConstants.GameInstallationSegment, StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            if (!ManifestId.TryCreate(reqManifest.ManifestId, out _))
+            {
+                return OperationResult<ManifestInspectionSummary>.CreateFailure($"Invalid manifest identifier '{reqManifest.ManifestId}'. Manifest IDs must follow the 5-segment schema format.");
+            }
+
+            bool isCached = false;
+            long rawSize = Math.Max(reqManifest.DownloadSize, reqManifest.Files?.Sum(f => Math.Clamp(f.Size, 0, ProfileSharingConstants.MaxDownloadedFileBytes)) ?? 0);
+            long missingBytes = Math.Max(0, rawSize);
+            var acquiredResult = await manifestPool.IsManifestAcquiredAsync(reqManifest.ManifestId, cancellationToken);
+            if (acquiredResult.Success && acquiredResult.Data)
+            {
+                isCached = true;
+                cachedCount++;
+            }
+            else
+            {
+                missingCount++;
+                totalMissingDownloadBytes += missingBytes;
+            }
+
+            inspectedManifests.Add(new SharedManifestDependency
+            {
+                ManifestId = reqManifest.ManifestId,
+                DisplayName = reqManifest.DisplayName,
+                Version = reqManifest.Version,
+                ContentType = reqManifest.ContentType,
+                TargetGame = reqManifest.TargetGame != GameType.Unknown ? reqManifest.TargetGame : package.Profile.GameType,
+                Publisher = reqManifest.Publisher,
+                PublisherType = reqManifest.PublisherType,
+                DownloadSize = missingBytes > 0 ? missingBytes : reqManifest.DownloadSize,
+                IsCachedLocally = isCached,
+                Hash = reqManifest.Hash,
+                PackageUrl = reqManifest.PackageUrl,
+                PackageHash = reqManifest.PackageHash,
+                Files = reqManifest.Files ?? [],
+            });
+        }
+
+        return OperationResult<ManifestInspectionSummary>.CreateSuccess(
+            new ManifestInspectionSummary(inspectedManifests, cachedCount, missingCount, totalMissingDownloadBytes));
+    }
+
+    private async Task<(List<GameInstallation> Compatible, string? MatchedId)> FindCompatibleInstallationsAsync(
+        GameType gameType,
+        CancellationToken cancellationToken)
+    {
+        var compatibleInstallations = new List<GameInstallation>();
+        string? matchedInstallationId = null;
+
+        var installationsResult = await installationService.GetAllInstallationsAsync(cancellationToken);
+        if (installationsResult is { Success: true, Data: not null })
+        {
+            foreach (var inst in installationsResult.Data)
+            {
+                bool isCompatible = gameType switch
+                {
+                    GameType.Generals => inst.HasGenerals,
+                    GameType.ZeroHour => inst.HasZeroHour,
+                    _ => inst.HasZeroHour || inst.HasGenerals,
+                };
+
+                if (isCompatible)
+                {
+                    compatibleInstallations.Add(inst);
+                }
+            }
+
+            matchedInstallationId = compatibleInstallations.FirstOrDefault()?.Id;
+        }
+
+        return (compatibleInstallations, matchedInstallationId);
+    }
+
+    private async Task<(string SuggestedName, bool HasConflict)> DetermineSuggestedProfileNameAsync(
+        string profileName,
+        CancellationToken cancellationToken)
+    {
+        string baseName = DuplicateCounterRegex.Replace(profileName.Trim(), string.Empty).Trim();
+        if (string.IsNullOrEmpty(baseName))
+        {
+            baseName = ProfileSharingConstants.DefaultSharedProfileName;
+        }
+
+        if (baseName.Length > ProfileSharingConstants.MaxProfileNameLength)
+        {
+            baseName = baseName[..ProfileSharingConstants.MaxProfileNameLength].Trim();
+        }
+
+        string suggestedName = profileName.Trim();
+        if (suggestedName.Length > ProfileSharingConstants.MaxProfileNameLength)
+        {
+            suggestedName = baseName;
+        }
+
+        var allProfilesResult = await profileRepository.LoadAllProfilesAsync(cancellationToken);
+        if (allProfilesResult is not { Success: true, Data: not null })
+        {
+            return (suggestedName, false);
+        }
+
+        var existingNames = allProfilesResult.Data.Select(p => p.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        if (!existingNames.Contains(suggestedName))
+        {
+            return (suggestedName, false);
+        }
+
+        return (GenerateConflictFreeProfileName(baseName, existingNames), true);
+    }
+}

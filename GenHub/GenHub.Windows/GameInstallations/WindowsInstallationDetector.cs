@@ -1,3 +1,10 @@
+using GenHub.Core.Constants;
+using GenHub.Core.Extensions.GameInstallations;
+using GenHub.Core.Interfaces.GameInstallations;
+using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.GameInstallations;
+using GenHub.Core.Models.Results;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -6,13 +13,6 @@ using System.Linq;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
-using GenHub.Core.Constants;
-using GenHub.Core.Extensions.GameInstallations;
-using GenHub.Core.Interfaces.GameInstallations;
-using GenHub.Core.Models.Enums;
-using GenHub.Core.Models.GameInstallations;
-using GenHub.Core.Models.Results;
-using Microsoft.Extensions.Logging;
 
 namespace GenHub.Windows.GameInstallations;
 
@@ -30,6 +30,8 @@ public class WindowsInstallationDetector(ILogger<WindowsInstallationDetector> lo
     /// Gets a value indicating whether this detector can run on the current OS/platform.
     /// </summary>
     public bool CanDetectOnCurrentPlatform => RuntimeInformation.IsOSPlatform(OSPlatform.Windows);
+
+    private static readonly GameInstallationType[] PriorityOrder = [GameInstallationType.Steam, GameInstallationType.EaApp, GameInstallationType.CDISO, GameInstallationType.Retail, GameInstallationType.TheFirstDecade];
 
     /// <summary>
     /// Scan for Windows platform installations and return them.
@@ -121,16 +123,54 @@ public class WindowsInstallationDetector(ILogger<WindowsInstallationDetector> lo
     private List<GameInstallation> DetectRetailInstallations()
     {
         var retailInstalls = new List<GameInstallation>();
+
+        var programFiles = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles);
+        var programFilesX86 = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86);
+
         var possiblePaths = new[]
         {
-            @"C:\Program Files\EA Games\Command & Conquer Generals",
-            @"C:\Program Files (x86)\EA Games\Command & Conquer Generals",
+            Path.Combine(programFiles, GameClientConstants.EaGamesParentDirectoryName, GameClientConstants.GeneralsRetailDirectoryName),
+            Path.Combine(programFilesX86, GameClientConstants.EaGamesParentDirectoryName, GameClientConstants.GeneralsRetailDirectoryName),
+            Path.Combine(programFiles, GameClientConstants.EaGamesParentDirectoryName, GameClientConstants.ZeroHourRetailDirectoryName),
+            Path.Combine(programFilesX86, GameClientConstants.EaGamesParentDirectoryName, GameClientConstants.ZeroHourRetailDirectoryName),
         };
 
         foreach (var basePath in possiblePaths)
         {
             if (Directory.Exists(basePath))
             {
+                // Check if this is a "flat" installation (base path IS the game directory)
+                // This is common for "ZH" folders or custom repacks
+                var zeroHourExecutables = new[]
+                {
+                    GameClientConstants.ZeroHourExecutable,
+                    GameClientConstants.GeneralsExecutable,
+                    GameClientConstants.SuperHackersZeroHourExecutable,
+                };
+
+                // If check for valid ZH executables in the root
+                if (zeroHourExecutables.Any(exe => File.Exists(Path.Combine(basePath, exe))))
+                {
+                    // Check if standard subdirectories exist. If NOT, then assume flat install.
+                    bool hasGeneralsSubdir = Directory.Exists(Path.Combine(basePath, GameClientConstants.GeneralsDirectoryName));
+                    bool hasZeroHourSubdir = Directory.Exists(Path.Combine(basePath, GameClientConstants.ZeroHourDirectoryName));
+
+                    if (!hasGeneralsSubdir && !hasZeroHourSubdir)
+                    {
+                        var installation = new GameInstallation(basePath, GameInstallationType.Retail, null);
+
+                        // For a flat install, both paths point to the base path (assuming merged)
+                        // Or just set ZeroHour if only ZH is present.
+                        // Safe bet: If generals.exe exists, assume base path covers both capabilities in a flat structure.
+                        installation.SetPaths(basePath, basePath);
+
+                        retailInstalls.Add(installation);
+                        logger.LogInformation("Detected standalone/flat Retail installation at {BasePath}", basePath);
+                        continue;
+                    }
+                }
+
+                // Standard detection: check for subdirectories
                 var generalsPath = Path.Combine(basePath, GameClientConstants.GeneralsDirectoryName);
                 var zeroHourPath = Path.Combine(basePath, GameClientConstants.ZeroHourDirectoryName);
 
@@ -164,8 +204,7 @@ public class WindowsInstallationDetector(ILogger<WindowsInstallationDetector> lo
         var deduplicated = new List<GameInstallation>();
 
         // Define priority order: Steam > EA App > CDISO > Retail
-        var priorityOrder = new[] { GameInstallationType.Steam, GameInstallationType.EaApp, GameInstallationType.CDISO, GameInstallationType.Retail, GameInstallationType.TheFirstDecade };
-        var orderedInstallations = installations.OrderBy(i => Array.IndexOf(priorityOrder, i.InstallationType)).ToList();
+        var orderedInstallations = installations.OrderBy(i => Array.IndexOf(PriorityOrder, i.InstallationType)).ToList();
 
         foreach (var installation in orderedInstallations)
         {

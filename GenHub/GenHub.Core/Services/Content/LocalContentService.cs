@@ -1,10 +1,18 @@
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.Manifest;
+using GenHub.Core.Models.CommunityOutpost;
+using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
 using Microsoft.Extensions.Logging;
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace GenHub.Core.Services.Content;
 
@@ -14,7 +22,9 @@ namespace GenHub.Core.Services.Content;
 public class LocalContentService(
     IManifestGenerationService manifestGenerationService,
     IContentStorageService contentStorageService,
-    ILogger<LocalContentService> logger) : ILocalContentService
+    IContentReconciliationService reconciliationService,
+    ILogger<LocalContentService> logger,
+    IArchivePayloadProcessor? archivePayloadProcessor = null) : ILocalContentService
 {
     /// <summary>
     /// The publisher name for locally-generated content.
@@ -34,7 +44,37 @@ public class LocalContentService(
         ContentType.Map,
         ContentType.MapPack,
         ContentType.Mission,
+        ContentType.Mod,
+        ContentType.ModdingTool,
+        ContentType.Executable,
+        ContentType.Patch,
     ];
+
+    /// <inheritdoc />
+    public Task<OperationResult<ContentManifest>> CreateLocalContentManifestAsync(
+        string directoryPath,
+        string name,
+        ContentType contentType,
+        GameType targetGame,
+        string? sourcePath = null,
+        IProgress<ContentStorageProgress>? progress = null,
+        CancellationToken cancellationToken = default,
+        string? entryPoint = null)
+    {
+        return CreateLocalContentManifestAsync(
+            directoryPath,
+            name,
+            contentType,
+            targetGame,
+            new LocalContentOptions
+            {
+                SourcePath = sourcePath,
+                Progress = progress,
+                CancellationToken = cancellationToken,
+                EntryPoint = entryPoint,
+                NormalizeInactiveArchives = true,
+            });
+    }
 
     /// <inheritdoc />
     public async Task<OperationResult<ContentManifest>> CreateLocalContentManifestAsync(
@@ -42,8 +82,7 @@ public class LocalContentService(
         string name,
         ContentType contentType,
         GameType targetGame,
-        IProgress<GenHub.Core.Models.Content.ContentStorageProgress>? progress = null,
-        CancellationToken cancellationToken = default)
+        LocalContentOptions? options)
     {
         try
         {
@@ -63,11 +102,34 @@ public class LocalContentService(
                     $"Directory not found: {directoryPath}");
             }
 
+            var sourcePath = options?.SourcePath;
+            var progress = options?.Progress;
+            var cancellationToken = options?.CancellationToken ?? default;
+            var entryPoint = options?.EntryPoint;
+            var normalizeInactiveArchives = options?.NormalizeInactiveArchives ?? true;
+
+            var sanitizedName = SanitizeForManifestId(name);
+            if (string.IsNullOrEmpty(sanitizedName))
+            {
+                sanitizedName = "generated-" + Guid.NewGuid().ToString("N")[..8];
+                logger.LogWarning("Sanitized name for '{Name}' resulted in empty string. Using fallback: {Fallback}", name, sanitizedName);
+            }
+
             logger.LogInformation(
                 "Creating local content manifest for '{Name}' from '{Path}' as {ContentType}",
                 name,
                 directoryPath,
                 contentType);
+
+            if (archivePayloadProcessor != null)
+            {
+                await archivePayloadProcessor.NormalizeDirectoryStructureAsync(
+                    directoryPath,
+                    contentType,
+                    targetGame,
+                    normalizeInactiveArchives,
+                    cancellationToken);
+            }
 
             // Use the existing manifest generation service
             var builder = await manifestGenerationService.CreateContentManifestAsync(
@@ -79,38 +141,201 @@ public class LocalContentService(
                 targetGame: targetGame);
 
             var manifest = builder.Build();
+            manifest.SourcePath = !string.IsNullOrEmpty(sourcePath) ? sourcePath : directoryPath;
 
-            // Override publisher info to mark as local content
-            manifest.Publisher = new PublisherInfo
+            if (!string.IsNullOrWhiteSpace(entryPoint))
             {
-                Name = LocalPublisherName,
-                PublisherType = LocalPublisherType,
-            };
+                var normalizedEntryPoint = entryPoint.Replace('\\', '/').TrimStart('/');
 
-            // Update the manifest ID to use local prefix and compliant format
-            // Format: schemaVersion.userVersion.publisher.contentType.contentName
-            var sanitizedName = SanitizeForManifestId(name);
-            var typeString = contentType.ToString().ToLowerInvariant();
-            manifest.Id = $"1.0.{LocalPublisherType}.{typeString}.{sanitizedName}";
+                var segments = normalizedEntryPoint.Split('/', StringSplitOptions.RemoveEmptyEntries);
+                if (Path.IsPathRooted(entryPoint) || segments.Any(s => s == ".."))
+                {
+                    return OperationResult<ContentManifest>.CreateFailure(
+                        $"Entry point '{entryPoint}' is invalid. It must be a relative path without parent directory traversal ('..').");
+                }
 
-            logger.LogInformation(
-                "Created local content manifest with ID '{Id}' for '{Name}'",
-                manifest.Id,
-                name);
+                var matchedFile = manifest.Files.FirstOrDefault(f =>
+                    ManifestVariantResolver.PathsMatch(f.RelativePath, normalizedEntryPoint));
 
-            // Store content in CAS
-            var storageResult = await contentStorageService.StoreContentAsync(manifest, directoryPath, progress, cancellationToken);
-            if (!storageResult.Success)
-            {
-                return OperationResult<ContentManifest>.CreateFailure($"Failed to store local content: {storageResult.FirstError}");
+                if (matchedFile == null)
+                {
+                    return OperationResult<ContentManifest>.CreateFailure(
+                        $"Entry point '{entryPoint}' was not found among the files in the directory.");
+                }
+
+                manifest.EntryPoint = matchedFile.RelativePath.Replace('\\', '/');
             }
 
-            return OperationResult<ContentManifest>.CreateSuccess(storageResult.Data);
+            // Auto-add GameInstallation dependency for GameClient content types
+            // This ensures auto-resolution logic works correctly for locally added clients
+            if (contentType == ContentType.GameClient)
+            {
+                manifest.Dependencies.Add(new ContentDependency
+                {
+                    Id = ManifestId.Create(ManifestConstants.DefaultContentDependencyId),
+                    Name = "Base Game Installation (Required)",
+                    DependencyType = ContentType.GameInstallation,
+                    CompatibleGameTypes = [targetGame],
+                    IsOptional = false,
+                });
+
+                logger.LogInformation("Auto-added GameInstallation dependency for local GameClient");
+
+                // Check if this looks like a GenPatcher official client (10zh, 10gn)
+                // If so, we can link to the files directly if they are already in a game-like structure
+                if (GenPatcherContentRegistry.IsKnownCode(name) || GenPatcherContentRegistry.IsKnownCode(sanitizedName))
+                {
+                    var code = GenPatcherContentRegistry.IsKnownCode(name) ? name : sanitizedName;
+                    var metadata = GenPatcherContentRegistry.GetMetadata(code);
+
+                    logger.LogInformation("Detected GenPatcher content code '{Code}' (Category: {Category})", code, metadata.Category);
+                }
+            }
+
+            // Ingest into CAS storage
+            var storageResult = await contentStorageService.StoreContentAsync(
+                manifest,
+                directoryPath,
+                progress,
+                cancellationToken);
+
+            if (!storageResult.Success)
+            {
+                logger.LogError("Failed to store content in CAS: {Error}", storageResult.FirstError);
+                return OperationResult<ContentManifest>.CreateFailure(
+                    $"Failed to store content: {storageResult.FirstError}");
+            }
+
+            logger.LogInformation(
+                "Successfully created and stored local content manifest for '{Name}' (ID: {Id})",
+                name,
+                manifest.Id);
+
+            return OperationResult<ContentManifest>.CreateSuccess(manifest);
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Failed to create local content manifest for '{Name}'", name);
-            return OperationResult<ContentManifest>.CreateFailure($"Failed to create manifest: {ex.Message}");
+            logger.LogError(ex, "Error creating local content manifest for '{Name}'", name);
+            return OperationResult<ContentManifest>.CreateFailure($"Failed to create content manifest: {ex.Message}");
+        }
+    }
+
+    /// <inheritdoc />
+    public Task<OperationResult<ContentManifest>> AddLocalContentAsync(
+        string name,
+        string directoryPath,
+        ContentType contentType,
+        GameType targetGame,
+        CancellationToken cancellationToken = default)
+    {
+        return CreateLocalContentManifestAsync(directoryPath, name, contentType, targetGame, cancellationToken: cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public Task<OperationResult<ContentManifest>> UpdateLocalContentManifestAsync(
+        string existingManifestId,
+        string name,
+        string directoryPath,
+        ContentType contentType,
+        GameType targetGame,
+        string? sourcePath = null,
+        IProgress<ContentStorageProgress>? progress = null,
+        CancellationToken cancellationToken = default,
+        string? entryPoint = null)
+    {
+        return UpdateLocalContentManifestAsync(
+            existingManifestId,
+            name,
+            directoryPath,
+            contentType,
+            targetGame,
+            new LocalContentOptions
+            {
+                SourcePath = sourcePath,
+                Progress = progress,
+                CancellationToken = cancellationToken,
+                EntryPoint = entryPoint,
+                NormalizeInactiveArchives = true,
+            });
+    }
+
+    /// <inheritdoc />
+    public async Task<OperationResult<ContentManifest>> UpdateLocalContentManifestAsync(
+        string existingManifestId,
+        string name,
+        string directoryPath,
+        ContentType contentType,
+        GameType targetGame,
+        LocalContentOptions? options)
+    {
+        try
+        {
+            var cancellationToken = options?.CancellationToken ?? default;
+
+            // 1. Create the new manifest/content
+            // We do this FIRST to ensure the new content is valid before deleting the old one
+            var createResult = await CreateLocalContentManifestAsync(directoryPath, name, contentType, targetGame, options);
+
+            if (!createResult.Success)
+            {
+                return createResult;
+            }
+
+            // 2. Orchestrate Update
+            // This handles Profile ID replacement, CAS reference cleanup,
+            // and removal of the old manifest from the pool.
+            var reconcileResult = await reconciliationService.OrchestrateLocalUpdateAsync(
+                existingManifestId,
+                createResult.Data,
+                cancellationToken);
+
+            if (!reconcileResult.Success)
+            {
+                logger.LogWarning("Local content update orchestration failed for '{ManifestId}': {Error}", existingManifestId, reconcileResult.FirstError);
+
+                // We still return the createResult manifest, but the old one might still be there
+            }
+
+            return createResult;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error updating local content '{ManifestId}'", existingManifestId);
+            return OperationResult<ContentManifest>.CreateFailure($"Failed to update content: {ex.Message}");
+        }
+    }
+
+    /// <inheritdoc />
+    public async Task<OperationResult> DeleteLocalContentAsync(string manifestId, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            logger.LogInformation("Deleting local content with manifest ID '{ManifestId}'", manifestId);
+
+            // 1. Reconcile Profiles (Remove reference) and untrack CAS safely
+            var reconcileResult = await reconciliationService.OrchestrateBulkRemovalAsync([manifestId], cancellationToken);
+            if (!reconcileResult.Success)
+            {
+                logger.LogWarning("Failed to reconcile profiles for '{ManifestId}': {Error}", manifestId, reconcileResult.FirstError);
+                return OperationResult.CreateFailure($"Failed to reconcile profiles: {reconcileResult.FirstError}");
+            }
+
+            // 2. Remove Content from storage
+            var result = await contentStorageService.RemoveContentAsync(ManifestId.Create(manifestId), cancellationToken: cancellationToken);
+
+            if (!result.Success)
+            {
+                logger.LogWarning("Failed to delete local content '{ManifestId}': {Error}", manifestId, result.FirstError);
+                return OperationResult.CreateFailure(result.FirstError ?? "Unknown error occurred during deletion");
+            }
+
+            logger.LogInformation("Successfully deleted local content '{ManifestId}'", manifestId);
+            return OperationResult.CreateSuccess();
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error deleting local content '{ManifestId}'", manifestId);
+            return OperationResult.CreateFailure($"Failed to delete content: {ex.Message}");
         }
     }
 

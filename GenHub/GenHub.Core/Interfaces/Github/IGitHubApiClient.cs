@@ -1,5 +1,5 @@
-using System.Security;
 using GenHub.Core.Models.GitHub;
+using System.Security;
 
 namespace GenHub.Core.Interfaces.GitHub;
 
@@ -12,6 +12,18 @@ public interface IGitHubApiClient
     /// Gets a value indicating whether the client is authenticated.
     /// </summary>
     bool IsAuthenticated { get; }
+
+    /// <summary>
+    /// Ensures credentials are loaded asynchronously and returns whether the client is authenticated.
+    /// </summary>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>True if authenticated; otherwise false.</returns>
+    Task<bool> EnsureAuthenticatedAsync(CancellationToken cancellationToken = default) => Task.FromResult(IsAuthenticated);
+
+    /// <summary>
+    /// Gets a value indicating whether the GitHub API rate limit is reached.
+    /// </summary>
+    bool IsRateLimited { get; }
 
     /// <summary>
     /// Gets the latest release from the specified repository.
@@ -120,6 +132,11 @@ public interface IGitHubApiClient
     /// </summary>
     /// <param name="token">The GitHub token.</param>
     void SetAuthenticationToken(SecureString token);
+
+    /// <summary>
+    /// Clears any configured authentication token.
+    /// </summary>
+    void ClearAuthenticationToken();
 
     /// <summary>
     /// Gets the currently authenticated user.

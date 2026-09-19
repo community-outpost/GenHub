@@ -39,6 +39,17 @@ GenHub's content system supports:
 - **Community Patches**: Bug fixes and improvements
 - **Balance Patches**: Gameplay modifications
 
+### Tools & Executables
+
+- **WorldBuilder**: Official map creation tool
+- **Modding Utilities**: Custom executables for game modification and management
+- **Tool**: (formerly ModdingTool) Dedicated content type for modding tools
+- **Executable**: Generic standalone executable support
+
+### Games
+
+- **Game**: (formerly GameClient) Support for game installations (e.g. generals.exe) imported as content
+
 ## Content Discovery
 
 ### Browse Content
@@ -87,6 +98,14 @@ For custom or local content:
 - Switch between different content setups
 - Share profiles with the community
 - Backup and restore content configurations
+
+### Tool Profiles
+
+Tool Profiles are a specialized classification of `GameProfile` designed for standalone executables (e.g., `WorldBuilder.exe`). Unlike regular game profiles, Tool Profiles:
+
+- **Bypass Game Requirements**: Do not require a base game installation or game client
+- **Single Tool Restriction**: Can only contain exactly one content item of type `ModdingTool`
+- **Direct Launch**: Launch the tool executable directly, skipping workspace assembly and game-specific preparation
 
 ## Compatibility & Validation
 

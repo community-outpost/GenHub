@@ -1,21 +1,24 @@
+using AngleSharp;
+using AngleSharp.Dom;
+using GenHub.Core.Constants;
+using GenHub.Core.Helpers;
+using GenHub.Core.Interfaces.Content;
+using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.Manifest;
+using GenHub.Core.Models.Results;
+using GenHub.Core.Models.Results.Content;
+using GenHub.Features.Content.Services.Helpers;
+using GenHub.Features.Content.Services.Publishers;
+using Microsoft.Extensions.Logging;
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
-using AngleSharp;
-using AngleSharp.Dom;
-using GenHub.Core.Constants;
-using GenHub.Core.Helpers;
-using GenHub.Core.Interfaces.Content;
-using GenHub.Core.Models.Manifest;
-using GenHub.Core.Models.Results;
-using GenHub.Features.Content.Services.Helpers;
-using GenHub.Features.Content.Services.Publishers;
-using Microsoft.Extensions.Logging;
-using MapDetails = GenHub.Core.Models.ModDB.MapDetails;
+using ParsedContentDetails = GenHub.Core.Models.Content.ParsedContentDetails;
 
 namespace GenHub.Features.Content.Services.ContentResolvers;
 
@@ -23,6 +26,7 @@ namespace GenHub.Features.Content.Services.ContentResolvers;
 /// Resolves CNC Labs map details from discovered content items.
 /// Parses HTML detail pages and generates content manifests.
 /// </summary>
+[SuppressMessage("Minor Code Smell", "S101:Types should be named in PascalCase", Justification = "Domain acronym")]
 public class CNCLabsMapResolver(
     HttpClient httpClient,
     CNCLabsManifestFactory manifestFactory,
@@ -50,30 +54,48 @@ public class CNCLabsMapResolver(
 
         try
         {
-            logger.LogInformation("Resolving CNC Labs content from {Url}", discoveredItem.SourceUrl);
+            var sourceUrl = NormalizeSourceUrl(discoveredItem.SourceUrl, logger);
+            var mapId = ExtractMapId(discoveredItem);
+
+            logger.LogInformation("Resolving CNC Labs content from {Url} (Map ID: {MapId})", sourceUrl, mapId);
 
             // Fetch HTML
-            var html = await httpClient.GetStringAsync(discoveredItem.SourceUrl, cancellationToken);
+            var html = await httpClient.GetStringAsync(sourceUrl, cancellationToken);
             cancellationToken.ThrowIfCancellationRequested();
 
             // Parse details from HTML
             var mapDetails = await ParseMapDetailPageAsync(html, cancellationToken);
+            mapDetails = EnrichMapDetailsWithFallbacks(mapDetails, discoveredItem, mapId, logger);
 
-            if (string.IsNullOrEmpty(mapDetails.downloadUrl))
+            if (string.IsNullOrEmpty(mapDetails.DownloadUrl))
             {
                 return OperationResult<ContentManifest>.CreateFailure("No download URL found in map details");
             }
 
-            // Extract map ID from metadata
-            if (!discoveredItem.ResolverMetadata.TryGetValue(CNCLabsConstants.MapIdMetadataKey, out var mapIdStr)
-                || !int.TryParse(mapIdStr, out var mapId))
+            if (!mapId.HasValue)
             {
                 logger.LogWarning("Invalid or missing map ID in resolver metadata for {Url}", discoveredItem.SourceUrl);
                 return OperationResult<ContentManifest>.CreateFailure("Invalid map ID in resolver metadata");
             }
 
             // Use factory to create manifest
-            var manifest = await manifestFactory.CreateManifestAsync(mapDetails, discoveredItem.SourceUrl);
+            var manifest = await manifestFactory.CreateManifestAsync(mapDetails);
+
+            if (string.IsNullOrEmpty(manifest.OriginalProviderName))
+            {
+                manifest.OriginalProviderName = CNCLabsConstants.PublisherPrefix;
+            }
+
+            if (string.IsNullOrEmpty(manifest.OriginalContentId))
+            {
+                discoveredItem.ResolverMetadata.TryGetValue(ContentConstants.ParentContentIdMetadataKey, out var parentId);
+                manifest.OriginalContentId = !string.IsNullOrEmpty(parentId) ? parentId : discoveredItem.Id;
+            }
+
+            if (!string.IsNullOrWhiteSpace(discoveredItem.SourceUrl) && manifest.Publisher != null)
+            {
+                manifest.Publisher.SupportUrl = discoveredItem.SourceUrl;
+            }
 
             logger.LogInformation(
                 "Successfully resolved CNC Labs content: {ManifestId} - {Name}",
@@ -92,6 +114,105 @@ public class CNCLabsMapResolver(
             logger.LogError(ex, "Failed to resolve map details from {Url}", discoveredItem.SourceUrl);
             return OperationResult<ContentManifest>.CreateFailure($"Resolution failed: {ex.Message}");
         }
+    }
+
+    private static string NormalizeSourceUrl(string sourceUrl, ILogger logger)
+    {
+        if (!Uri.IsWellFormedUriString(sourceUrl, UriKind.Absolute))
+        {
+            var absoluteUrl = $"{CNCLabsConstants.PublisherWebsite.TrimEnd('/')}/{sourceUrl.TrimStart('/')}";
+            logger.LogDebug("Converted relative URL to absolute: {AbsoluteUrl}", absoluteUrl);
+            return absoluteUrl;
+        }
+
+        return sourceUrl;
+    }
+
+    private static int? ExtractMapId(ContentSearchResult discoveredItem)
+    {
+        if (discoveredItem.ResolverMetadata.TryGetValue(CNCLabsConstants.MapIdMetadataKey, out var mapIdStr)
+            && int.TryParse(mapIdStr, out var id))
+        {
+            return id;
+        }
+
+        return null;
+    }
+
+    private static ParsedContentDetails EnrichMapDetailsWithFallbacks(
+        ParsedContentDetails mapDetails,
+        ContentSearchResult discoveredItem,
+        int? mapId,
+        ILogger logger)
+    {
+        mapDetails = EnrichDownloadAndIdentity(mapDetails, discoveredItem, mapId, logger);
+        return EnrichDisplayMetadata(mapDetails, discoveredItem);
+    }
+
+    private static ParsedContentDetails EnrichDownloadAndIdentity(
+        ParsedContentDetails mapDetails,
+        ContentSearchResult discoveredItem,
+        int? mapId,
+        ILogger logger)
+    {
+        // Fallback: Construct download URL from Map ID if parsing failed
+        if (string.IsNullOrEmpty(mapDetails.DownloadUrl) && mapId.HasValue)
+        {
+            mapDetails = mapDetails with
+            {
+                DownloadUrl = $"{CNCLabsConstants.PublisherWebsite}/downloads/fetch.aspx?id={mapId}",
+            };
+            logger.LogWarning("Download URL parsing failed. Constructed fallback URL: {FallbackUrl}", mapDetails.DownloadUrl);
+        }
+
+        if (string.IsNullOrWhiteSpace(mapDetails.Name) && !string.IsNullOrWhiteSpace(discoveredItem.Name))
+        {
+            mapDetails = mapDetails with { Name = discoveredItem.Name };
+        }
+
+        if (mapDetails.ContentType == ContentType.UnknownContentType)
+        {
+            var fallbackContentType = discoveredItem.ContentType != ContentType.UnknownContentType
+                ? discoveredItem.ContentType
+                : ContentType.Map;
+            mapDetails = mapDetails with { ContentType = fallbackContentType };
+        }
+
+        if (mapDetails.TargetGame == GameType.Unknown)
+        {
+            var fallbackGame = discoveredItem.TargetGame != GameType.Unknown
+                ? discoveredItem.TargetGame
+                : GameType.ZeroHour;
+            mapDetails = mapDetails with { TargetGame = fallbackGame };
+        }
+
+        return mapDetails;
+    }
+
+    private static ParsedContentDetails EnrichDisplayMetadata(
+        ParsedContentDetails mapDetails,
+        ContentSearchResult discoveredItem)
+    {
+        // Fallback: Use discovered item metadata if details page omitted author, description, or preview image
+        if (string.IsNullOrWhiteSpace(mapDetails.Description)
+            && !string.IsNullOrWhiteSpace(discoveredItem.Description)
+            && discoveredItem.Description != CNCLabsConstants.MapDescriptionTemplate)
+        {
+            mapDetails = mapDetails with { Description = discoveredItem.Description };
+        }
+
+        if ((string.IsNullOrWhiteSpace(mapDetails.Author) || mapDetails.Author == CNCLabsConstants.DefaultAuthorName)
+            && !string.IsNullOrWhiteSpace(discoveredItem.AuthorName))
+        {
+            mapDetails = mapDetails with { Author = discoveredItem.AuthorName };
+        }
+
+        if (string.IsNullOrWhiteSpace(mapDetails.PreviewImage) && !string.IsNullOrWhiteSpace(discoveredItem.IconUrl))
+        {
+            mapDetails = mapDetails with { PreviewImage = discoveredItem.IconUrl };
+        }
+
+        return mapDetails;
     }
 
     /// <summary>
@@ -113,8 +234,8 @@ public class CNCLabsMapResolver(
     /// </summary>
     /// <param name="html">The HTML content of the map detail page.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>A <see cref="MapDetails"/> record containing parsed details.</returns>
-    private async Task<MapDetails> ParseMapDetailPageAsync(string html, CancellationToken cancellationToken)
+    /// <returns>A <see cref="ParsedContentDetails"/> record containing parsed details.</returns>
+    private async Task<ParsedContentDetails> ParseMapDetailPageAsync(string html, CancellationToken cancellationToken)
     {
         var context = BrowsingContext.New(Configuration.Default);
         var document = await context.OpenAsync(req => req.Content(html), cancellationToken);
@@ -152,14 +273,27 @@ public class CNCLabsMapResolver(
         var (gameType, contentType) = CNCLabsHelper.ExtractBreadcrumbCategory(document);
         logger.LogDebug("Detected game type: {GameType}, content type: {ContentType}", gameType, contentType);
 
-        // 5. Download URL
-        var downloadLink = document.QuerySelector("a[href*='DownloadFile.aspx']");
+        // 5. Download URL - Try multiple selectors for robustness
+        var downloadLink = document.QuerySelector("a[href*='DownloadFile.aspx']")
+                           ?? document.QuerySelector("a[href*='downloader.aspx']")
+                           ?? document.QuerySelector("#ctl00_Main_MapDisplay_DownloadLink")
+                           ?? document.QuerySelector("a[id$='DownloadButton']")
+                           ?? document.QuerySelector("div.DownloadButton a")
+                           ?? document.QuerySelector("a[href*='/downloads/file/']");
+
         var downloadUrl = downloadLink?.GetAttribute(CNCLabsConstants.HrefAttribute) ?? string.Empty;
 
         // Ensure absolute URL
         if (!string.IsNullOrEmpty(downloadUrl) && !downloadUrl.StartsWith("http", StringComparison.OrdinalIgnoreCase))
         {
-            downloadUrl = $"https://www.cnclabs.com{downloadUrl}";
+            downloadUrl = $"{CNCLabsConstants.PublisherWebsite.TrimEnd('/')}/{downloadUrl.TrimStart('/')}";
+        }
+
+        // Rewrite downloader.aspx to fetch.aspx to bypass JS redirect
+        if (downloadUrl.Contains("downloader.aspx", StringComparison.OrdinalIgnoreCase))
+        {
+            downloadUrl = downloadUrl.Replace("downloader.aspx", "fetch.aspx", StringComparison.OrdinalIgnoreCase);
+            logger.LogDebug("Rewrote downloader URL to direct fetch URL: {DownloadUrl}", downloadUrl);
         }
 
         logger.LogDebug("Parsed download URL: {DownloadUrl}", downloadUrl);
@@ -167,9 +301,6 @@ public class CNCLabsMapResolver(
         // 6. File metadata (optional but useful)
         var fileSizeText = ExtractMetadataValue(document, "File Size:");
         var fileSize = FileSizeFormatter.ParseToBytes(fileSizeText);
-
-        var maxPlayersText = ExtractMetadataValue(document, "Max Players:");
-        var maxPlayers = int.TryParse(maxPlayersText?.Trim(), out var p) ? p : 0;
 
         var submittedText = ExtractMetadataValue(document, "Submitted:");
         var submissionDate = DateTime.TryParse(submittedText, out var sd) ? sd : DateTime.MinValue;
@@ -189,25 +320,26 @@ public class CNCLabsMapResolver(
 
         var screenshots = document.QuerySelectorAll("img.Screenshot")
             .Select(img => img.GetAttribute("src"))
+            .OfType<string>()
             .Where(src => !string.IsNullOrEmpty(src))
-            .Select(src => src!.StartsWith("http", StringComparison.OrdinalIgnoreCase)
+            .Select(src => src.StartsWith("http", StringComparison.OrdinalIgnoreCase)
                 ? src
                 : $"https://www.cnclabs.com{src}")
             .ToList();
 
-        return new MapDetails(
-            name: name,
-            description: description,
-            author: author,
-            previewImage: previewImage,
-            screenshots: screenshots,
-            fileSize: fileSize,
-            downloadCount: downloadCount,
-            submissionDate: submissionDate,
-            downloadUrl: downloadUrl,
-            targetGame: gameType,
-            contentType: contentType,
-            fileType: Path.GetExtension(downloadUrl),
-            rating: rating);
+        return new ParsedContentDetails(
+            Name: name,
+            Description: description,
+            Author: author,
+            PreviewImage: previewImage,
+            Screenshots: screenshots,
+            FileSize: fileSize,
+            DownloadCount: downloadCount,
+            SubmissionDate: submissionDate,
+            DownloadUrl: downloadUrl,
+            TargetGame: gameType,
+            ContentType: contentType,
+            FileType: Path.GetExtension(downloadUrl),
+            Rating: rating);
     }
 }

@@ -1,8 +1,10 @@
+using GenHub.Common.Services;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Storage;
 using GenHub.Core.Models.Storage;
 using GenHub.Features.Storage.Services;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace GenHub.Infrastructure.DependencyInjection;
 
@@ -18,14 +20,19 @@ public static class CasModule
     /// <returns>The service collection for chaining.</returns>
     public static IServiceCollection AddCasServices(this IServiceCollection services)
     {
+        // Pool selection depends on whether a pool location accepts writes
+        services.TryAddSingleton<IStorageWritabilityProbe, StorageWritabilityProbe>();
+
         // Pool management services (must be registered first for CasService to use)
         services.AddSingleton<ICasPoolResolver, CasPoolResolver>();
         services.AddSingleton<ICasPoolManager, CasPoolManager>();
+        services.AddSingleton<IInstallationCasPoolService, InstallationCasPoolService>();
 
         // CAS integration services
         services.AddSingleton<ICasService, CasService>();
         services.AddSingleton<ICasStorage, CasStorage>();
         services.AddSingleton<CasReferenceTracker>();
+        services.AddSingleton<ICasReferenceTracker>(sp => sp.GetRequiredService<CasReferenceTracker>());
 
         // Configuration
         services.AddOptions<CasConfiguration>().Configure<IConfigurationProviderService>((config, configProvider) =>
@@ -34,6 +41,8 @@ public static class CasModule
             config.EnableAutomaticGc = userCasConfig.EnableAutomaticGc;
             config.CasRootPath = userCasConfig.CasRootPath;
             config.InstallationPoolRootPath = userCasConfig.InstallationPoolRootPath;
+            config.IsInstallationPoolRootPathAutoDerived = userCasConfig.IsInstallationPoolRootPathAutoDerived;
+            config.LegacyInstallationPoolRootPaths = [.. userCasConfig.LegacyInstallationPoolRootPaths];
             config.HashAlgorithm = userCasConfig.HashAlgorithm;
             config.GcGracePeriod = userCasConfig.GcGracePeriod;
             config.MaxCacheSizeBytes = userCasConfig.MaxCacheSizeBytes;

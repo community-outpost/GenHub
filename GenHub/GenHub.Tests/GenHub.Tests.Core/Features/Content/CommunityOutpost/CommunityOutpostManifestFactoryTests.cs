@@ -1,0 +1,371 @@
+using GenHub.Core.Constants;
+using GenHub.Core.Interfaces.Common;
+using GenHub.Core.Interfaces.Content;
+using GenHub.Core.Models.CommunityOutpost;
+using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.Manifest;
+using GenHub.Features.Content.Services.CommunityOutpost;
+using Microsoft.Extensions.Logging;
+using Moq;
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
+using Xunit;
+
+namespace GenHub.Tests.Core.Features.Content.CommunityOutpost;
+
+/// <summary>
+/// Tests for CommunityOutpostManifestFactory.
+/// </summary>
+public class CommunityOutpostManifestFactoryTests : IDisposable
+{
+    private readonly Mock<ILogger<CommunityOutpostManifestFactory>> _loggerMock;
+    private readonly Mock<IFileHashProvider> _hashProviderMock;
+    private readonly Mock<IControlBarPackageProcessor> _controlBarProcessorMock;
+    private readonly CommunityOutpostManifestFactory _factory;
+    private readonly string _tempDir;
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="CommunityOutpostManifestFactoryTests"/> class.
+    /// </summary>
+    public CommunityOutpostManifestFactoryTests()
+    {
+        _loggerMock = new Mock<ILogger<CommunityOutpostManifestFactory>>();
+        _hashProviderMock = new Mock<IFileHashProvider>();
+        _controlBarProcessorMock = new Mock<IControlBarPackageProcessor>();
+
+        _hashProviderMock.Setup(x => x.ComputeFileHashAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync("abc123hash");
+
+        _controlBarProcessorMock.Setup(x => x.IsMetadataOnlyBig(It.IsAny<string>()))
+            .Returns<string>(fileName =>
+                fileName.Equals(GameContentConstants.ControlBarProBaseFileName, StringComparison.OrdinalIgnoreCase) ||
+                fileName.Equals(GameContentConstants.ControlBarProLemonBaseFileName, StringComparison.OrdinalIgnoreCase));
+        _factory = new CommunityOutpostManifestFactory(_loggerMock.Object, _hashProviderMock.Object, _controlBarProcessorMock.Object);
+        _tempDir = Path.Combine(Path.GetTempPath(), "GenHubTest_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(_tempDir);
+    }
+
+    /// <summary>
+    /// Disposes of the test directory.
+    /// </summary>
+    public void Dispose()
+    {
+        if (Directory.Exists(_tempDir))
+        {
+            Directory.Delete(_tempDir, true);
+        }
+
+        GC.SuppressFinalize(this);
+    }
+
+    /// <summary>
+    /// Verifies that multiple variants are correctly split into manifests.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task CreateManifestsFromExtractedContentAsync_WithHleiPackage_ShouldSplitIntoMultipleManifestsAsync()
+    {
+        // Arrange
+        var zhEnDir = Path.Combine(_tempDir, "ZH", "BIG EN");
+        var zhDeDir = Path.Combine(_tempDir, "ZH", "BIG DE");
+        var zhRuDir = Path.Combine(_tempDir, "ZH", "BIG RU");
+        var ccgEnDir = Path.Combine(_tempDir, "CCG", "BIG EN");
+
+        Directory.CreateDirectory(zhEnDir);
+        Directory.CreateDirectory(zhDeDir);
+        Directory.CreateDirectory(zhRuDir);
+        Directory.CreateDirectory(ccgEnDir);
+
+        File.WriteAllText(Path.Combine(zhEnDir, "!HotkeysLeikezeENZH.big"), "mock content");
+        File.WriteAllText(Path.Combine(zhDeDir, "!HotkeysLeikezeDEZH.big"), "mock content");
+        File.WriteAllText(Path.Combine(zhRuDir, "!HotkeysLeikezeRUZH.big"), "mock content");
+        File.WriteAllText(Path.Combine(ccgEnDir, "!HotkeysLeikezeEN.big"), "mock content");
+        File.WriteAllText(Path.Combine(_tempDir, "!HotkeysLeikezeIndicatorsZH.big"), "mock indicator");
+
+        var originalManifest = new ContentManifest
+        {
+            Id = ManifestId.Create("1.0.communityoutpost.addon.hlei"),
+            Name = "Leikeze's Hotkeys",
+            ContentType = GenHub.Core.Models.Enums.ContentType.Addon,
+            Publisher = new PublisherInfo { PublisherType = "communityoutpost" },
+            Metadata = new ContentMetadata
+            {
+                Tags = ["contentCode:hlei"],
+            },
+        };
+
+        // Act
+        var result = await _factory.CreateManifestsFromExtractedContentAsync(originalManifest, _tempDir);
+        Assert.True(result.Success);
+        var manifests = result.Data!;
+
+        // Assert
+        Assert.Equal(4, manifests.Count);
+
+        var zhEnManifest = manifests.FirstOrDefault(m => m.Id.Value.Contains("-zerohour-en"));
+        Assert.NotNull(zhEnManifest);
+        Assert.Equal(GameType.ZeroHour, zhEnManifest.TargetGame);
+        Assert.Equal("1.0.communityoutpost.addon.hlei-zerohour-en", zhEnManifest.Id.Value);
+        Assert.Equal("Leikeze's Hotkeys (EN)", zhEnManifest.Name);
+        Assert.Equal(2, zhEnManifest.Files.Count);
+
+        var zhDeManifest = manifests.FirstOrDefault(m => m.Id.Value.Contains("-zerohour-de"));
+        Assert.NotNull(zhDeManifest);
+        Assert.Equal(GameType.ZeroHour, zhDeManifest.TargetGame);
+        Assert.Equal("1.0.communityoutpost.addon.hlei-zerohour-de", zhDeManifest.Id.Value);
+        Assert.Equal("Leikeze's Hotkeys (DE)", zhDeManifest.Name);
+        Assert.Equal(2, zhDeManifest.Files.Count);
+
+        var zhRuManifest = manifests.FirstOrDefault(m => m.Id.Value.Contains("-zerohour-ru"));
+        Assert.NotNull(zhRuManifest);
+        Assert.Equal(GameType.ZeroHour, zhRuManifest.TargetGame);
+        Assert.Equal("1.0.communityoutpost.addon.hlei-zerohour-ru", zhRuManifest.Id.Value);
+        Assert.Equal("Leikeze's Hotkeys (RU)", zhRuManifest.Name);
+        Assert.Equal(2, zhRuManifest.Files.Count);
+
+        var ccgEnManifest = manifests.FirstOrDefault(m => m.Id.Value.Contains("-generals-en"));
+        Assert.NotNull(ccgEnManifest);
+        Assert.Equal(GameType.Generals, ccgEnManifest.TargetGame);
+        Assert.Equal("1.0.communityoutpost.addon.hlei-generals-en", ccgEnManifest.Id.Value);
+        Assert.Equal("Leikeze's Hotkeys [Generals] (EN)", ccgEnManifest.Name);
+        Assert.Single(ccgEnManifest.Files);
+    }
+
+    /// <summary>
+    /// Verifies that resolving package with variant suffix in ID still produces canonical IDs without duplicate names.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task CreateManifestsFromExtractedContentAsync_WithVariantSuffixInOriginalManifestId_ProducesCanonicalIdsAndNamesAsync()
+    {
+        // Arrange
+        var zhRuDir = Path.Combine(_tempDir, "ZH", "BIG RU");
+        Directory.CreateDirectory(zhRuDir);
+        File.WriteAllText(Path.Combine(zhRuDir, "!HotkeysLeikezeRUZH.big"), "RU BIG CONTENT");
+
+        var originalManifest = new ContentManifest
+        {
+            Id = ManifestId.Create("1.0.communityoutpost.addon.hlei-zerohour-ru"),
+            Name = "Leikeze's Hotkeys (RU)",
+            ContentType = GenHub.Core.Models.Enums.ContentType.Addon,
+            Publisher = new PublisherInfo { PublisherType = "communityoutpost" },
+            Metadata = new ContentMetadata
+            {
+                Tags = ["contentCode:hlei", "selectedVariant:zerohour-ru"],
+                SelectedVariantId = "zerohour-ru",
+            },
+        };
+
+        // Act
+        var result = await _factory.CreateManifestsFromExtractedContentAsync(originalManifest, _tempDir);
+        Assert.True(result.Success);
+        var manifests = result.Data!;
+
+        // Assert
+        Assert.Equal(4, manifests.Count);
+        var ruManifest = manifests.FirstOrDefault(m => m.Metadata?.SelectedVariantId == "zerohour-ru");
+        Assert.NotNull(ruManifest);
+        Assert.Equal("1.0.communityoutpost.addon.hlei-zerohour-ru", ruManifest.Id.Value);
+        Assert.Equal("Leikeze's Hotkeys (RU)", ruManifest.Name);
+        Assert.Equal("zerohour-ru", ruManifest.Metadata?.SelectedVariantId);
+
+        var enManifest = manifests.FirstOrDefault(m => m.Metadata?.SelectedVariantId == "zerohour-en");
+        Assert.NotNull(enManifest);
+        Assert.Equal("1.0.communityoutpost.addon.hlei-zerohour-en", enManifest.Id.Value);
+        Assert.Equal("Leikeze's Hotkeys (EN)", enManifest.Name);
+    }
+
+    /// <summary>
+    /// Verifies that content with no variants returns a single manifest.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task CreateManifestsFromExtractedContentAsync_WithNoVariants_ShouldReturnSingleManifestAsync()
+    {
+        // Arrange
+        File.WriteAllText(Path.Combine(_tempDir, "mod.big"), "mock content");
+
+        var originalManifest = new ContentManifest
+        {
+            Id = ManifestId.Create("1.0.communityoutpost.addon.gent"),
+            Name = "GenTool",
+            ContentType = GenHub.Core.Models.Enums.ContentType.Addon,
+            Publisher = new PublisherInfo { PublisherType = "communityoutpost" },
+            Metadata = new ContentMetadata
+            {
+                Tags = ["contentCode:gent"],
+            },
+        };
+
+        // Act
+        var result = await _factory.CreateManifestsFromExtractedContentAsync(originalManifest, _tempDir);
+        Assert.True(result.Success);
+        var manifests = result.Data!;
+
+        // Assert
+        Assert.Single(manifests);
+        Assert.Equal("1.0.communityoutpost.addon.gent", manifests[0].Id.Value);
+        Assert.Single(manifests[0].Files);
+    }
+
+    /// <summary>
+    /// Verifies that multi-variant Control Bar processing calls ProcessAndRepackControlBarAsync with cleanupSources=false
+    /// across variants and invokes CleanupSourceDirectories once after all variants finish.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task CreateManifestsFromExtractedContentAsync_WithControlBarVariants_CleansUpSourcesAfterAllVariantsAsync()
+    {
+        // Arrange
+        var baseBig = Path.Combine(_tempDir, "340_ControlBarProZH.big");
+        File.WriteAllText(baseBig, "metadata big");
+
+        var originalManifest = new ContentManifest
+        {
+            Id = ManifestId.Create("1.0.communityoutpost.addon.cbpr"),
+            Name = "Control Bar Pro",
+            ContentType = GenHub.Core.Models.Enums.ContentType.Addon,
+            Publisher = new PublisherInfo { PublisherType = "communityoutpost" },
+            Metadata = new ContentMetadata
+            {
+                Tags = ["contentCode:cbpr"],
+            },
+        };
+
+        _controlBarProcessorMock
+            .Setup(c => c.ProcessAndRepackControlBarAsync(
+                _tempDir,
+                originalManifest,
+                It.IsAny<string?>(),
+                false,
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync((string _, ContentManifest _, string? variantId, bool _, CancellationToken _) =>
+            {
+                var suffix = variantId switch
+                {
+                    "1080p" => "1080",
+                    "1440p" => "1440",
+                    _ => variantId ?? string.Empty,
+                };
+                var artFile = $"340_ControlBarProArt{suffix}ZH.big";
+                File.WriteAllText(Path.Combine(_tempDir, artFile), "art big");
+                return new[] { artFile, "340_ControlBarProZH.big" };
+            });
+
+        // Act
+        var result = await _factory.CreateManifestsFromExtractedContentAsync(originalManifest, _tempDir);
+        Assert.True(result.Success);
+        var manifests = result.Data!;
+
+        // Assert: Each variant was processed with cleanupSources: false
+        Assert.NotEmpty(manifests);
+        _controlBarProcessorMock.Verify(
+            c => c.ProcessAndRepackControlBarAsync(_tempDir, originalManifest, It.IsAny<string?>(), false, It.IsAny<CancellationToken>()),
+            Times.AtLeastOnce());
+
+        // Assert: CleanupSourceDirectories was called exactly once after the variant loop
+        _controlBarProcessorMock.Verify(
+            c => c.CleanupSourceDirectories(_tempDir, It.Is<IEnumerable<string>>(outputs => outputs.Any())),
+            Times.Once());
+    }
+
+    /// <summary>
+    /// Verifies that when a Control Bar variant produces no outputs (assets not present in package),
+    /// no manifest is emitted for that missing variant.
+    /// </summary>
+    /// <returns>A completed task.</returns>
+    [Fact]
+    public async Task CreateManifestsFromExtractedContentAsync_ControlBarVariantWithNoMatchingAssets_SkipsMissingVariant()
+    {
+        // Arrange
+        var baseBig = Path.Combine(_tempDir, "340_ControlBarProZH.big");
+        File.WriteAllText(baseBig, "metadata big");
+
+        var originalManifest = new ContentManifest
+        {
+            Id = ManifestId.Create("1.103.communityoutpost.addon.cbpr"),
+            Name = "Control Bar Pro (Xezon)",
+            ContentType = GenHub.Core.Models.Enums.ContentType.Addon,
+            Publisher = new PublisherInfo { PublisherType = "communityoutpost" },
+            Metadata = new ContentMetadata
+            {
+                Tags = ["contentCode:cbpr"],
+            },
+        };
+
+        // Only 1080p produces outputs; 1440p and others produce empty outputs
+        _controlBarProcessorMock
+            .Setup(c => c.ProcessAndRepackControlBarAsync(
+                _tempDir,
+                originalManifest,
+                "1080p",
+                false,
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(() =>
+            {
+                var artFile = "340_ControlBarProArt1080ZH.big";
+                File.WriteAllText(Path.Combine(_tempDir, artFile), "art big");
+                return new[] { artFile, "340_ControlBarProZH.big" };
+            });
+
+        _controlBarProcessorMock
+            .Setup(c => c.ProcessAndRepackControlBarAsync(
+                _tempDir,
+                originalManifest,
+                It.Is<string?>(v => v != "1080p"),
+                false,
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Array.Empty<string>());
+
+        // Act
+        var result = await _factory.CreateManifestsFromExtractedContentAsync(originalManifest, _tempDir);
+        Assert.True(result.Success);
+        var manifests = result.Data!;
+
+        // Assert: Only 1080p manifest is created; other variants with no assets are skipped
+        Assert.Single(manifests);
+        Assert.Contains("1080p", manifests[0].Id.Value);
+    }
+
+    /// <summary>
+    /// Verifies that variant identity resolution normalizes compound content codes and produces clean variant IDs.
+    /// </summary>
+    /// <returns>A task representing the test.</returns>
+    [Fact]
+    public async Task CreateManifestsFromExtractedContentAsync_WithCompoundContentCode_NormalizesVariantIdsAsync()
+    {
+        // Arrange
+        var ruBig = Path.Combine(_tempDir, "!HotkeysLeikezeRUZH.big");
+        File.WriteAllText(ruBig, "ru hotkey content");
+        var deBig = Path.Combine(_tempDir, "!HotkeysLeikezeDEZH.big");
+        File.WriteAllText(deBig, "de hotkey content");
+
+        var originalManifest = new ContentManifest
+        {
+            Id = ManifestId.Create("1.0.communityoutpost.addon.hleizerohourru"),
+            Name = "Leikeze's Hotkeys (RU)",
+            ContentType = GenHub.Core.Models.Enums.ContentType.Addon,
+            Publisher = new PublisherInfo { PublisherType = "communityoutpost" },
+            Metadata = new ContentMetadata
+            {
+                Tags = ["contentCode:hleizerohourru"],
+            },
+        };
+
+        // Act
+        var result = await _factory.CreateManifestsFromExtractedContentAsync(originalManifest, _tempDir);
+        Assert.True(result.Success);
+        var manifests = result.Data!;
+
+        // Assert
+        Assert.Equal(4, manifests.Count);
+        Assert.Contains(manifests, m => m.Id.Value == "1.0.communityoutpost.addon.hlei-zerohour-ru" && m.Name == "Leikeze's Hotkeys (RU)");
+        Assert.Contains(manifests, m => m.Id.Value == "1.0.communityoutpost.addon.hlei-zerohour-de" && m.Name == "Leikeze's Hotkeys (DE)");
+        Assert.DoesNotContain(manifests, m => m.Id.Value.Contains("hleizerohourru-zerohour"));
+        Assert.DoesNotContain(manifests, m => m.Name.Contains("Leikeze's Hotkeys (RU) - Leikeze's Hotkeys"));
+    }
+}

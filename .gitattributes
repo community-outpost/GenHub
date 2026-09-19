@@ -1,0 +1,8 @@
+# Exclude large backdrop cover images and hotkey assets from source archives (PURA bot 25MB cap / GitHub release tarballs)
+GenHub/GenHub/Assets/Covers/*.png export-ignore
+GenHub/GenHub/Assets/GenHotkeys/**/*.webp export-ignore
+GenHub/GenHub/Assets/GenHotkeys/**/*.png export-ignore
+.gitattributes export-ignore
+
+# Ensure CSV files retain LF line endings across all platforms
+*.csv text eol=lf

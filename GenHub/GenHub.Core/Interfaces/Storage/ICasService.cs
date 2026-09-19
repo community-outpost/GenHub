@@ -53,22 +53,14 @@ public interface ICasService
     Task<OperationResult<Stream>> OpenContentStreamAsync(string hash, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Runs garbage collection to remove unreferenced content.
-    /// </summary>
-    /// <param name="force">If true, ignores the grace period and deletes all unreferenced objects immediately.</param>
-    /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>The result of the garbage collection operation.</returns>
-    Task<CasGarbageCollectionResult> RunGarbageCollectionAsync(bool force = false, CancellationToken cancellationToken = default);
-
-    /// <summary>
-    /// Validates the integrity of content in the CAS.
+    /// Validates the integrity of content in the CAS, spanning every configured pool.
     /// </summary>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>The result of the validation operation.</returns>
     Task<CasValidationResult> ValidateIntegrityAsync(CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Gets statistics about the CAS system.
+    /// Gets statistics about the CAS system, aggregated across every configured pool.
     /// </summary>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>CAS statistics.</returns>

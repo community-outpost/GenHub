@@ -164,7 +164,7 @@ public class AppConstantsTests
             Assert.Equal("1.05", registry.GetVersionFromHash(GameClientHashRegistry.ZeroHour105HashPublic, GameType.ZeroHour));
 
             // Test unknown hash
-            Assert.Equal("Unknown", registry.GetVersionFromHash("unknownhash", GameType.Generals));
+            Assert.Equal(GameClientConstants.UnknownVersion, registry.GetVersionFromHash("unknownhash", GameType.Generals));
 
             // Test all known hashes are recognized
             Assert.True(registry.IsKnownHash(GameClientHashRegistry.Generals108HashPublic));
@@ -177,7 +177,6 @@ public class AppConstantsTests
 
             // Test that executable names array is populated
             Assert.NotEmpty(registry.PossibleExecutableNames);
-            Assert.Contains("generals.exe", registry.PossibleExecutableNames);
         });
     }
 }

@@ -13,10 +13,12 @@ using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Storage;
 using GenHub.Core.Models.Workspace;
 using GenHub.Features.Storage.Services;
+using GenHub.Features.Workspace;
 using GenHub.Infrastructure.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Moq;
+using System.Runtime.InteropServices;
 
 namespace GenHub.Tests.Core.Features.Workspace;
 
@@ -70,6 +72,7 @@ public class GameProfileWorkspaceIntegrationTest : IDisposable
 
         // Register CAS reference tracker (required by WorkspaceManager)
         services.AddSingleton<CasReferenceTracker>();
+        services.AddSingleton<ICasReferenceTracker>(sp => sp.GetRequiredService<CasReferenceTracker>());
 
         // Mock services - register before AddWorkspaceServices to avoid dependency issues
         _mockInstallationService = new Mock<IGameInstallationService>();
@@ -80,6 +83,19 @@ public class GameProfileWorkspaceIntegrationTest : IDisposable
         services.AddSingleton<ICasService>(mockCasService.Object);
 
         services.AddWorkspaceServices();
+
+        // AddWorkspaceServices registers the base FileOperationsService, which cannot
+        // create hard links on any platform by design — each host registers a decorator
+        // that can. Do the same here on Unix so the HardLink strategy is genuinely
+        // exercised rather than skipped.
+        if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        {
+            services.AddScoped<IFileOperationsService>(sp => new UnixFileOperationsService(
+                sp.GetRequiredService<FileOperationsService>(),
+                sp.GetRequiredService<ICasService>(),
+                sp.GetRequiredService<ILogger<UnixFileOperationsService>>()));
+            services.AddScoped<FileOperationsService>();
+        }
 
         _serviceProvider = services.BuildServiceProvider();
         _workspaceManager = _serviceProvider.GetRequiredService<IWorkspaceManager>();
@@ -93,7 +109,7 @@ public class GameProfileWorkspaceIntegrationTest : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous test operation.</returns>
     [Fact]
-    public async Task PrepareWorkspace_FullCopyStrategy_CopiesGameInstallationAndClientFiles()
+    public async Task PrepareWorkspace_FullCopyStrategy_CopiesGameInstallationAndClientFilesAsync()
     {
         // Arrange
         var manifests = CreateTestManifests();
@@ -145,7 +161,7 @@ public class GameProfileWorkspaceIntegrationTest : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     [Fact]
-    public async Task PrepareWorkspace_SymlinkStrategy_LinksGameInstallationAndClientFiles()
+    public async Task PrepareWorkspace_SymlinkStrategy_LinksGameInstallationAndClientFilesAsync()
     {
         // Skip on systems that don't support symlinks
         bool isWindows = OperatingSystem.IsWindows();
@@ -204,7 +220,7 @@ public class GameProfileWorkspaceIntegrationTest : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     [Fact]
-    public async Task PrepareWorkspace_MixedContentTypes_HandlesGameInstallationAndGameClientCorrectly()
+    public async Task PrepareWorkspace_MixedContentTypes_HandlesGameInstallationAndGameClientCorrectlyAsync()
     {
         bool isWindows = OperatingSystem.IsWindows();
         bool isAdmin = isWindows &&
@@ -223,10 +239,11 @@ public class GameProfileWorkspaceIntegrationTest : IDisposable
             Id = ManifestId.Create("1.0.genhub.gameinstallation.testgeneinstall"),
             ContentType = GenHub.Core.Models.Enums.ContentType.GameInstallation,
             TargetGame = GameType.Generals,
-            Files = new List<ManifestFile>
-            {
+            Files =
+            [
+
                 // GameInstallation files have complete SourcePath
-                new ManifestFile
+                new()
                 {
                     RelativePath = "generals.exe",
                     SourcePath = Path.Combine(_tempGameInstall, "generals.exe"), // Complete path
@@ -234,14 +251,14 @@ public class GameProfileWorkspaceIntegrationTest : IDisposable
                     Size = new FileInfo(Path.Combine(_tempGameInstall, "generals.exe")).Length,
                     IsExecutable = true,
                 },
-                new ManifestFile
+                new()
                 {
                     RelativePath = "data/generals.big",
                     SourcePath = Path.Combine(_tempGameInstall, "data", "generals.big"), // Complete path
                     SourceType = GenHub.Core.Models.Enums.ContentSourceType.GameInstallation,
                     Size = new FileInfo(Path.Combine(_tempGameInstall, "data", "generals.big")).Length,
                 },
-            },
+            ],
         };
 
         var gameClientManifest = new ContentManifest
@@ -249,23 +266,24 @@ public class GameProfileWorkspaceIntegrationTest : IDisposable
             Id = ManifestId.Create("1.0.genhub.gameclient.testgameclient"),
             ContentType = GenHub.Core.Models.Enums.ContentType.GameClient,
             TargetGame = GameType.Generals,
-            Files = new List<ManifestFile>
-            {
+            Files =
+            [
+
                 // GameClient files might use RelativePath with BaseInstallationPath
-                new ManifestFile
+                new()
                 {
                     RelativePath = "generals.exe",
                     SourceType = GenHub.Core.Models.Enums.ContentSourceType.GameInstallation,
                     Size = new FileInfo(Path.Combine(_tempGameInstall, "generals.exe")).Length,
                     IsExecutable = true,
                 },
-            },
+            ],
         };
 
         var workspaceConfig = new WorkspaceConfiguration
         {
             Id = "test-workspace-mixed",
-            Manifests = new List<ContentManifest> { gameInstallationManifest, gameClientManifest },
+            Manifests = [gameInstallationManifest, gameClientManifest],
             GameClient = new GameClient
             {
                 Id = "generals-108",
@@ -308,7 +326,7 @@ public class GameProfileWorkspaceIntegrationTest : IDisposable
     [InlineData(WorkspaceStrategy.SymlinkOnly)]
     [InlineData(WorkspaceStrategy.HybridCopySymlink)]
     [InlineData(WorkspaceStrategy.HardLink)]
-    public async Task PrepareWorkspace_AllStrategies_HandleGameInstallationFiles(WorkspaceStrategy strategy)
+    public async Task PrepareWorkspace_AllStrategies_HandleGameInstallationFilesAsync(WorkspaceStrategy strategy)
     {
         bool isWindows = OperatingSystem.IsWindows();
         bool isAdmin = isWindows &&
@@ -323,8 +341,9 @@ public class GameProfileWorkspaceIntegrationTest : IDisposable
             return;
         }
 
-        // Skip HardLink strategy on Windows in Core tests - the base FileOperationsService
-        // doesn't support hard links on Windows, use WindowsFileOperationsService instead
+        // Skip HardLink on Windows: the decorator that implements it there lives in
+        // GenHub.Windows and is covered by WindowsFileOperationsServiceTests. On Unix the
+        // real UnixFileOperationsService is registered above, so HardLink runs for real.
         if (strategy == WorkspaceStrategy.HardLink && isWindows)
         {
             return;
@@ -334,7 +353,7 @@ public class GameProfileWorkspaceIntegrationTest : IDisposable
         var manifests = CreateTestManifests();
         var workspaceConfig = new WorkspaceConfiguration
         {
-            Id = $"test-workspace-{strategy.ToString().ToLower()}",
+            Id = $"test-workspace-{strategy.ToString().ToLowerInvariant()}",
             Manifests = manifests,
             GameClient = new GameClient
             {
@@ -375,7 +394,7 @@ public class GameProfileWorkspaceIntegrationTest : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     [Fact]
-    public async Task CleanupWorkspace_RemovesAllFiles()
+    public async Task CleanupWorkspace_RemovesAllFilesAsync()
     {
         // Arrange
         var manifests = CreateTestManifests();
@@ -413,13 +432,13 @@ public class GameProfileWorkspaceIntegrationTest : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     [Fact]
-    public async Task PrepareWorkspace_EmptyManifests_CreatesEmptyWorkspace()
+    public async Task PrepareWorkspace_EmptyManifests_CreatesEmptyWorkspaceAsync()
     {
         // Arrange
         var workspaceConfig = new WorkspaceConfiguration
         {
             Id = "test-workspace-empty",
-            Manifests = new List<ContentManifest>(),
+            Manifests = [],
             GameClient = new GameClient
             {
                 Id = "generals-108",
@@ -446,7 +465,7 @@ public class GameProfileWorkspaceIntegrationTest : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     [Fact]
-    public async Task PrepareWorkspace_ForceRecreate_RemovesExistingWorkspace()
+    public async Task PrepareWorkspace_ForceRecreate_RemovesExistingWorkspaceAsync()
     {
         // Arrange
         var manifests = CreateTestManifests();
@@ -487,7 +506,7 @@ public class GameProfileWorkspaceIntegrationTest : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     [Fact]
-    public async Task PrepareWorkspace_NestedDirectories_PreservesStructure()
+    public async Task PrepareWorkspace_NestedDirectories_PreservesStructureAsync()
     {
         // Arrange
         var manifests = CreateTestManifests();
@@ -523,7 +542,7 @@ public class GameProfileWorkspaceIntegrationTest : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     [Fact]
-    public async Task PrepareWorkspace_LargeFiles_CopiesSuccessfully()
+    public async Task PrepareWorkspace_LargeFiles_CopiesSuccessfullyAsync()
     {
         // Arrange - Create a larger test file
         var largeFilePath = Path.Combine(_tempGameInstall, "large.dat");
@@ -534,22 +553,22 @@ public class GameProfileWorkspaceIntegrationTest : IDisposable
         {
             Id = ManifestId.Create("1.0.genhub.gameinstallation.largefile"),
             ContentType = GenHub.Core.Models.Enums.ContentType.GameInstallation,
-            Files = new List<ManifestFile>
-            {
-                new ManifestFile
+            Files =
+            [
+                new()
                 {
                     RelativePath = "large.dat",
                     SourcePath = largeFilePath,
                     SourceType = GenHub.Core.Models.Enums.ContentSourceType.GameInstallation,
                     Size = largeFileSize,
                 },
-            },
+            ],
         };
 
         var workspaceConfig = new WorkspaceConfiguration
         {
             Id = "test-workspace-large",
-            Manifests = new List<ContentManifest> { manifest },
+            Manifests = [manifest],
             GameClient = new GameClient
             {
                 Id = "generals-108",
@@ -577,45 +596,45 @@ public class GameProfileWorkspaceIntegrationTest : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     [Fact]
-    public async Task PrepareWorkspace_OverlappingManifests_HandlesCorrectly()
+    public async Task PrepareWorkspace_OverlappingManifests_HandlesCorrectlyAsync()
     {
         // Arrange
         var manifest1 = new ContentManifest
         {
             Id = ManifestId.Create("1.0.genhub.gameinstallation.testmanifestone"),
             ContentType = GenHub.Core.Models.Enums.ContentType.GameInstallation,
-            Files = new List<ManifestFile>
-            {
-                new ManifestFile
+            Files =
+            [
+                new()
                 {
                     RelativePath = "generals.exe",
                     SourcePath = Path.Combine(_tempGameInstall, "generals.exe"),
                     SourceType = GenHub.Core.Models.Enums.ContentSourceType.GameInstallation,
                     Size = new FileInfo(Path.Combine(_tempGameInstall, "generals.exe")).Length,
                 },
-            },
+            ],
         };
 
         var manifest2 = new ContentManifest
         {
             Id = ManifestId.Create("1.0.genhub.mod.testmanifesttwo"),
             ContentType = GenHub.Core.Models.Enums.ContentType.Mod,
-            Files = new List<ManifestFile>
-            {
-                new ManifestFile
+            Files =
+            [
+                new()
                 {
                     RelativePath = "mods/mod1/mod.ini",
                     SourcePath = Path.Combine(_tempGameInstall, "mods", "mod1", "mod.ini"),
                     SourceType = GenHub.Core.Models.Enums.ContentSourceType.GameInstallation,
                     Size = new FileInfo(Path.Combine(_tempGameInstall, "mods", "mod1", "mod.ini")).Length,
                 },
-            },
+            ],
         };
 
         var workspaceConfig = new WorkspaceConfiguration
         {
             Id = "test-workspace-overlap",
-            Manifests = new List<ContentManifest> { manifest1, manifest2 },
+            Manifests = [manifest1, manifest2],
             GameClient = new GameClient
             {
                 Id = "generals-108",
@@ -700,7 +719,6 @@ public class GameProfileWorkspaceIntegrationTest : IDisposable
         var testFiles = new[]
         {
             "generals.exe",
-            "generals.exe",
             "data/generals.big",
             "data/textures/texture1.tga",
             "mods/mod1/mod.ini",
@@ -725,9 +743,9 @@ public class GameProfileWorkspaceIntegrationTest : IDisposable
             Id = "test-installation-123",
             HasGenerals = true,
             GeneralsPath = _tempGameInstall,
-            AvailableGameClients = new List<GameClient>
-            {
-                new GameClient
+            AvailableGameClients =
+            [
+                new()
                 {
                     Id = "generals-108",
                     Name = "Generals 1.08",
@@ -737,7 +755,7 @@ public class GameProfileWorkspaceIntegrationTest : IDisposable
                     InstallationId = "test-installation-123",
                     WorkingDirectory = _tempGameInstall,
                 },
-            },
+            ],
         };
 
         _mockInstallationService
@@ -751,7 +769,7 @@ public class GameProfileWorkspaceIntegrationTest : IDisposable
             Name = "Test Profile",
             GameInstallationId = "test-installation-123",
             GameClient = gameInstallation.AvailableGameClients.First(),
-            EnabledContentIds = new List<string> { "1.0.genhub.gameinstallation.testgeneinstall", "1.0.genhub.gameclient.testgameclient" },
+            EnabledContentIds = ["1.0.genhub.gameinstallation.testgeneinstall", "1.0.genhub.gameclient.testgameclient"],
             WorkspaceStrategy = WorkspaceStrategy.FullCopy,
         };
 
@@ -766,11 +784,11 @@ public class GameProfileWorkspaceIntegrationTest : IDisposable
         {
             Id = ManifestId.Create("1.0.genhub.gameinstallation.testgeneinstall"),
             ContentType = GenHub.Core.Models.Enums.ContentType.GameInstallation,
-            Files = new List<ManifestFile>(),
+            Files = [],
         };
 
         // Add files with complete SourcePath (typical for GameInstallation content)
-        var testFiles = new[] { "generals.exe", "generals.exe", "data/generals.big", "data/textures/texture1.tga", "mods/mod1/mod.ini" };
+        var testFiles = new[] { "generals.exe", "data/generals.big", "data/textures/texture1.tga", "mods/mod1/mod.ini" };
         foreach (var file in testFiles)
         {
             var fullPath = Path.Combine(_tempGameInstall, file);
@@ -787,6 +805,6 @@ public class GameProfileWorkspaceIntegrationTest : IDisposable
             }
         }
 
-        return new List<ContentManifest> { gameInstallationManifest };
+        return [gameInstallationManifest];
     }
 }

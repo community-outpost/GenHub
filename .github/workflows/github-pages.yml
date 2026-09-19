@@ -1,0 +1,48 @@
+name: Deploy Landing Page to GitHub Pages
+
+on:
+  push:
+    branches: [main, development]
+    paths:
+      - 'Landing-page/**'
+      - 'scripts/build-landing.sh'
+      - 'scripts/fetch-changelogs.py'
+      - '.github/workflows/github-pages.yml'
+  workflow_run:
+    workflows: ["GenHub Release"]
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    if: >-
+      github.event_name == 'push' ||
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success')
+    
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+
+      - uses: actions/configure-pages@v5
+
+      - name: Build landing page
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          bash scripts/build-landing.sh
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./public
+
+      - uses: actions/deploy-pages@v4

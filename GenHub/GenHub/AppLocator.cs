@@ -1,5 +1,5 @@
-﻿using System;
 using GenHub.Core.Interfaces.SingleInstance;
+using System;
 
 namespace GenHub;
 

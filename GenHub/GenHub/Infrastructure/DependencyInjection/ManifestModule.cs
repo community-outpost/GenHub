@@ -1,10 +1,10 @@
-using System;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Interfaces.Steam;
 using GenHub.Core.Models.Manifest;
 using GenHub.Features.Manifest;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using System;
 
 namespace GenHub.Infrastructure.DependencyInjection;
 
@@ -46,7 +46,7 @@ public static class ManifestModule
         services.AddSingleton<IManifestIdService, ManifestIdService>();
 
         // Discovery and generation services
-        services.AddScoped<ManifestDiscoveryService>();
+        services.AddSingleton<ManifestDiscoveryService>();
 
         services.AddScoped<IManifestGenerationService, ManifestGenerationService>();
 

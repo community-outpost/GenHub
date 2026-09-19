@@ -1,9 +1,3 @@
-using System;
-using System.IO;
-using System.Linq;
-using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Storage;
@@ -11,6 +5,12 @@ using GenHub.Core.Models.Storage;
 using GenHub.Features.Workspace;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using System;
+using System.IO;
+using System.Linq;
+using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace GenHub.Features.Storage.Services;
 
@@ -23,11 +23,9 @@ public class CasStorage(
     IFileHashProvider hashProvider) : ICasStorage
 {
     private readonly CasConfiguration _config = config.Value;
-    private readonly ILogger<CasStorage> _logger = logger;
     private readonly string _objectsDirectory = Path.Combine(config.Value.CasRootPath, "objects");
     private readonly string _tempDirectory = Path.Combine(config.Value.CasRootPath, "temp");
     private readonly string _lockDirectory = Path.Combine(config.Value.CasRootPath, "locks");
-    private readonly IFileHashProvider _hashProvider = hashProvider;
 
     // Ensure directory structure exists on first use
     private bool _directoriesEnsured = false;
@@ -35,7 +33,6 @@ public class CasStorage(
     /// <inheritdoc/>
     public string GetObjectPath(string hash)
     {
-        EnsureDirectoriesCreated();
         ValidateHashFormat(hash);
         var subDirectory = hash[..2].ToLowerInvariant();
         return Path.Combine(_objectsDirectory, subDirectory, hash.ToLowerInvariant());
@@ -56,7 +53,7 @@ public class CasStorage(
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to check existence of object {Hash}", hash);
+            logger.LogError(ex, "Failed to check existence of object {Hash}", hash);
             throw;
         }
     }
@@ -82,7 +79,7 @@ public class CasStorage(
                 // Check if object already exists (race condition protection)
                 if (await ObjectExistsAsync(hash, cancellationToken))
                 {
-                    _logger.LogDebug("Object {Hash} already exists in CAS", hash);
+                    logger.LogDebug("Object {Hash} already exists in CAS", hash);
                     return objectPath;
                 }
 
@@ -107,7 +104,7 @@ public class CasStorage(
                 // Verify integrity if enabled
                 if (_config.VerifyIntegrity)
                 {
-                    var actualHash = await _hashProvider.ComputeFileHashAsync(tempPath, cancellationToken);
+                    var actualHash = await hashProvider.ComputeFileHashAsync(tempPath, cancellationToken);
                     if (!string.Equals(actualHash, hash, StringComparison.OrdinalIgnoreCase))
                     {
                         throw new InvalidDataException($"Hash mismatch: expected {hash}, got {actualHash}");
@@ -121,7 +118,7 @@ public class CasStorage(
                 // Atomic move to final location
                 File.Move(tempPath, objectPath);
 
-                _logger.LogDebug("Stored object {Hash} in CAS at {Path}", hash, objectPath);
+                logger.LogDebug("Stored object {Hash} in CAS at {Path}", hash, objectPath);
                 return objectPath;
             }
             finally
@@ -132,13 +129,13 @@ public class CasStorage(
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogWarning(ex, "Failed to cleanup temp file {TempPath}", tempPath);
+                    logger.LogWarning(ex, "Failed to cleanup temp file {TempPath}", tempPath);
                 }
             }
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to store object {Hash} in CAS", hash);
+            logger.LogError(ex, "Failed to store object {Hash} in CAS", hash);
             return null;
         }
     }
@@ -152,7 +149,7 @@ public class CasStorage(
 
             if (!await ObjectExistsAsync(hash, cancellationToken))
             {
-                _logger.LogWarning("Object {Hash} not found in CAS", hash);
+                logger.LogWarning("Object {Hash} not found in CAS", hash);
                 return null;
             }
 
@@ -160,7 +157,7 @@ public class CasStorage(
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to open stream for object {Hash}", hash);
+            logger.LogError(ex, "Failed to open stream for object {Hash}", hash);
             return null;
         }
     }
@@ -181,12 +178,12 @@ public class CasStorage(
             if (await ObjectExistsAsync(hash, cancellationToken))
             {
                 await Task.Run(() => File.Delete(objectPath), cancellationToken);
-                _logger.LogDebug("Deleted object {Hash} from CAS", hash);
+                logger.LogDebug("Deleted object {Hash} from CAS", hash);
             }
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to delete object {Hash} from CAS", hash);
+            logger.LogError(ex, "Failed to delete object {Hash} from CAS", hash);
             throw;
         }
     }
@@ -214,9 +211,13 @@ public class CasStorage(
 
             return hashes;
         }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to enumerate CAS objects");
+            logger.LogError(ex, "Failed to enumerate CAS objects");
             return [];
         }
     }
@@ -234,15 +235,15 @@ public class CasStorage(
             var objectPath = GetObjectPath(hash);
             if (!await ObjectExistsAsync(hash, cancellationToken))
             {
-                _logger.LogWarning("Object {Hash} not found in CAS", hash);
+                logger.LogWarning("Object {Hash} not found in CAS", hash);
                 return null;
             }
 
-            return await Task.Run(() => File.GetCreationTime(objectPath), cancellationToken);
+            return await Task.Run(() => File.GetCreationTimeUtc(objectPath), cancellationToken);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to get creation time for object {Hash}", hash);
+            logger.LogError(ex, "Failed to get creation time for object {Hash}", hash);
             return null;
         }
     }
@@ -307,7 +308,7 @@ public class CasStorage(
         {
             if (FileOperationsService.EnsureDirectoryExists(directory))
             {
-                _logger.LogDebug("Created CAS directory: {Directory}", directory);
+                logger.LogDebug("Created CAS directory: {Directory}", directory);
             }
         }
     }

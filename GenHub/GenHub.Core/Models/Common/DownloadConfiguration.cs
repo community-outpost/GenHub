@@ -28,6 +28,7 @@ public sealed class DownloadConfiguration
         VerifySslCertificate = true;
         MaxRetryAttempts = 3;
         RetryDelay = TimeSpan.FromSeconds(1);
+        ValidateRedirectsManually = false;
     }
 
     /// <summary>Gets or sets the user agent string.</summary>
@@ -65,4 +66,7 @@ public sealed class DownloadConfiguration
 
     /// <summary>Gets or sets the delay between retry attempts.</summary>
     public TimeSpan RetryDelay { get; set; }
+
+    /// <summary>Gets or sets a value indicating whether redirects are followed hop by hop with per-hop SSRF validation. Requires a client with automatic redirects disabled.</summary>
+    public bool ValidateRedirectsManually { get; set; }
 }

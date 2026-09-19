@@ -1,14 +1,15 @@
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Threading;
-using System.Threading.Tasks;
+using GenHub.Core.Interfaces.Workspace;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Workspace;
 using GenHub.Features.Workspace;
 using Microsoft.Extensions.Logging;
 using Moq;
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Threading;
+using System.Threading.Tasks;
 using Xunit;
 using ContentType = GenHub.Core.Models.Enums.ContentType;
 
@@ -31,7 +32,8 @@ public class WorkspaceReconcilerConflictTests : IDisposable
         _testDirectory = Path.Combine(Path.GetTempPath(), $"GenHubTest_{Guid.NewGuid()}");
         Directory.CreateDirectory(_testDirectory);
         _mockLogger = new Mock<ILogger<WorkspaceReconciler>>();
-        _reconciler = new WorkspaceReconciler(_mockLogger.Object);
+        var mockFileOps = new Mock<IFileOperationsService>();
+        _reconciler = new WorkspaceReconciler(_mockLogger.Object, mockFileOps.Object);
     }
 
     /// <summary>
@@ -40,7 +42,7 @@ public class WorkspaceReconcilerConflictTests : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task AnalyzeWorkspaceDelta_ModVsGameInstallation_ModWins()
+    public async Task AnalyzeWorkspaceDelta_ModVsGameInstallation_ModWinsAsync()
     {
         // Arrange
         var testFile = "Data\\Art\\Textures\\test.dds";
@@ -55,7 +57,7 @@ public class WorkspaceReconcilerConflictTests : IDisposable
         };
 
         // Act
-        var result = await _reconciler.AnalyzeWorkspaceDeltaAsync(null, config, CancellationToken.None);
+        var result = await _reconciler.AnalyzeWorkspaceDeltaAsync(null, config);
 
         // Assert
         Assert.NotEmpty(result);
@@ -71,7 +73,7 @@ public class WorkspaceReconcilerConflictTests : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task AnalyzeWorkspaceDelta_PatchVsGameClient_PatchWins()
+    public async Task AnalyzeWorkspaceDelta_PatchVsGameClient_PatchWinsAsync()
     {
         // Arrange
         var testFile = "generals.exe";
@@ -86,7 +88,7 @@ public class WorkspaceReconcilerConflictTests : IDisposable
         };
 
         // Act
-        var result = await _reconciler.AnalyzeWorkspaceDeltaAsync(null, config, CancellationToken.None);
+        var result = await _reconciler.AnalyzeWorkspaceDeltaAsync(null, config);
 
         // Assert
         Assert.NotEmpty(result);
@@ -102,7 +104,7 @@ public class WorkspaceReconcilerConflictTests : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task AnalyzeWorkspaceDelta_GameClientVsGameInstallation_GameClientWins()
+    public async Task AnalyzeWorkspaceDelta_GameClientVsGameInstallation_GameClientWinsAsync()
     {
         // Arrange
         var testFile = "options.ini";
@@ -117,7 +119,7 @@ public class WorkspaceReconcilerConflictTests : IDisposable
         };
 
         // Act
-        var result = await _reconciler.AnalyzeWorkspaceDeltaAsync(null, config, CancellationToken.None);
+        var result = await _reconciler.AnalyzeWorkspaceDeltaAsync(null, config);
 
         // Assert
         Assert.NotEmpty(result);
@@ -133,7 +135,7 @@ public class WorkspaceReconcilerConflictTests : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task AnalyzeWorkspaceDelta_ThreeWayConflict_HighestPriorityWins()
+    public async Task AnalyzeWorkspaceDelta_ThreeWayConflict_HighestPriorityWinsAsync()
     {
         // Arrange
         var testFile = "Data\\INI\\GameData.ini";
@@ -149,7 +151,7 @@ public class WorkspaceReconcilerConflictTests : IDisposable
         };
 
         // Act
-        var result = await _reconciler.AnalyzeWorkspaceDeltaAsync(null, config, CancellationToken.None);
+        var result = await _reconciler.AnalyzeWorkspaceDeltaAsync(null, config);
 
         // Assert
         Assert.NotEmpty(result);
@@ -166,7 +168,7 @@ public class WorkspaceReconcilerConflictTests : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task AnalyzeWorkspaceDelta_NoConflict_FileAddedNormally()
+    public async Task AnalyzeWorkspaceDelta_NoConflict_FileAddedNormallyAsync()
     {
         // Arrange
         var testFile = "unique.dat";
@@ -180,7 +182,7 @@ public class WorkspaceReconcilerConflictTests : IDisposable
         };
 
         // Act
-        var result = await _reconciler.AnalyzeWorkspaceDeltaAsync(null, config, CancellationToken.None);
+        var result = await _reconciler.AnalyzeWorkspaceDeltaAsync(null, config);
 
         // Assert
         Assert.NotEmpty(result);
@@ -193,7 +195,7 @@ public class WorkspaceReconcilerConflictTests : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task AnalyzeWorkspaceDelta_ConflictOccurs_LogsWarning()
+    public async Task AnalyzeWorkspaceDelta_ConflictOccurs_LogsWarningAsync()
     {
         // Arrange
         var testFile = "conflict.txt";
@@ -208,7 +210,7 @@ public class WorkspaceReconcilerConflictTests : IDisposable
         };
 
         // Act
-        await _reconciler.AnalyzeWorkspaceDeltaAsync(null, config, CancellationToken.None);
+        await _reconciler.AnalyzeWorkspaceDeltaAsync(null, config);
 
         // Assert
         _mockLogger.Verify(
@@ -219,6 +221,147 @@ public class WorkspaceReconcilerConflictTests : IDisposable
                 It.IsAny<Exception>(),
                 It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
             Times.Once);
+    }
+
+    /// <summary>
+    /// Verifies that when EA_LOGO.BIK is missing from workspace (e.g. deleted by Skip EA Logo setting),
+    /// AnalyzeWorkspaceDeltaAsync treats it as a Skip operation instead of forcing a workspace rebuild.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task AnalyzeWorkspaceDelta_MissingEaLogo_ProducesSkipOperationAsync()
+    {
+        // Arrange
+        var logoFile = Path.Combine("Data", "English", "Movies", "EA_LOGO.BIK");
+        var manifest = CreateManifest(ContentType.GameInstallation, logoFile, "logo-hash");
+        var workspacePath = Path.Combine(_testDirectory, "ws1");
+        Directory.CreateDirectory(workspacePath);
+
+        var workspaceInfo = new WorkspaceInfo
+        {
+            Id = "ws1",
+            WorkspacePath = workspacePath,
+            Strategy = WorkspaceStrategy.HardLink,
+        };
+
+        var config = new WorkspaceConfiguration
+        {
+            Id = "ws1",
+            WorkspaceRootPath = _testDirectory,
+            Manifests = new List<ContentManifest> { manifest },
+            Strategy = WorkspaceStrategy.HardLink,
+        };
+
+        // Act
+        var result = await _reconciler.AnalyzeWorkspaceDeltaAsync(workspaceInfo, config);
+
+        // Assert
+        Assert.Single(result);
+        Assert.Equal(WorkspaceDeltaOperation.Skip, result[0].Operation);
+    }
+
+    /// <summary>
+    /// Verifies that runtime workspace files like receipts and log files are not flagged as orphan Remove operations.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task AnalyzeWorkspaceDelta_RuntimeWorkspaceFiles_IgnoredFromRemoveDeltasAsync()
+    {
+        // Arrange
+        var normalFile = "generals.exe";
+        var manifest = CreateManifest(ContentType.GameInstallation, normalFile, "exe-hash");
+        var workspacePath = Path.Combine(_testDirectory, "ws2");
+        Directory.CreateDirectory(workspacePath);
+
+        // Create runtime artifacts in the workspace directory
+        await File.WriteAllTextAsync(Path.Combine(workspacePath, normalFile), "exe content");
+        await File.WriteAllTextAsync(Path.Combine(workspacePath, "launch.receipt.json"), "{}");
+        await File.WriteAllTextAsync(Path.Combine(workspacePath, "game.log"), "log content");
+
+        var workspaceInfo = new WorkspaceInfo
+        {
+            Id = "ws2",
+            WorkspacePath = workspacePath,
+            Strategy = WorkspaceStrategy.HardLink,
+        };
+
+        var config = new WorkspaceConfiguration
+        {
+            Id = "ws2",
+            WorkspaceRootPath = _testDirectory,
+            Manifests = new List<ContentManifest> { manifest },
+            Strategy = WorkspaceStrategy.HardLink,
+        };
+
+        // Act
+        var result = await _reconciler.AnalyzeWorkspaceDeltaAsync(workspaceInfo, config);
+
+        // Assert
+        var removeDeltas = result.FindAll(d => d.Operation == WorkspaceDeltaOperation.Remove);
+        Assert.Empty(removeDeltas);
+    }
+
+    /// <summary>
+    /// Verifies that generals.exe alias created for a custom executable is not flagged for removal.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task AnalyzeWorkspaceDelta_GeneralsExeAlias_IgnoredFromRemoveDeltasAsync()
+    {
+        // Arrange: Workspace has generals.exe alias, but manifest only specifies generals.ctr
+        var manifest = CreateManifest(ContentType.Mod, "generals.ctr", "hash1");
+        var workspacePath = Path.Combine(_testDirectory, "ws_alias");
+        Directory.CreateDirectory(workspacePath);
+
+        // Create both generals.ctr and the generals.exe alias
+        File.WriteAllText(Path.Combine(workspacePath, "generals.ctr"), "contra executable");
+        File.WriteAllText(Path.Combine(workspacePath, "generals.exe"), "alias copy");
+
+        var workspaceInfo = new WorkspaceInfo
+        {
+            Id = "ws_alias",
+            WorkspacePath = workspacePath,
+            Strategy = WorkspaceStrategy.HardLink,
+        };
+
+        var config = new WorkspaceConfiguration
+        {
+            Id = "ws_alias",
+            WorkspaceRootPath = _testDirectory,
+            Manifests = new List<ContentManifest> { manifest },
+            Strategy = WorkspaceStrategy.HardLink,
+        };
+
+        // Act
+        var result = await _reconciler.AnalyzeWorkspaceDeltaAsync(workspaceInfo, config);
+
+        // Assert: generals.exe must NOT be flagged as Remove
+        var removeDeltas = result.FindAll(d => d.Operation == WorkspaceDeltaOperation.Remove);
+        Assert.DoesNotContain(removeDeltas, d => string.Equals(Path.GetFileName(d.WorkspacePath), "generals.exe", StringComparison.OrdinalIgnoreCase));
+    }
+
+    /// <summary>
+    /// Verifies that cancellation token is respected and throws when cancellation is requested.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task AnalyzeWorkspaceDelta_WhenCanceled_ThrowsOperationCanceledExceptionAsync()
+    {
+        // Arrange
+        var manifest = CreateManifest(ContentType.Mod, "test.big", "hash1");
+        var config = new WorkspaceConfiguration
+        {
+            Id = "ws_cancel",
+            WorkspaceRootPath = _testDirectory,
+            Manifests = new List<ContentManifest> { manifest },
+        };
+
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+
+        // Act & Assert
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(
+            () => _reconciler.AnalyzeWorkspaceDeltaAsync(null, config, cancellationToken: cts.Token));
     }
 
     /// <inheritdoc/>

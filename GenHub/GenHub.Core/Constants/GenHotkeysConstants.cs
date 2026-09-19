@@ -1,0 +1,464 @@
+using GenHub.Core.Models.Enums;
+using System;
+using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
+using System.Globalization;
+using System.Text.RegularExpressions;
+
+namespace GenHub.Core.Constants;
+
+/// <summary>
+/// Constants for the GenHotkeys tool.
+/// </summary>
+public static class GenHotkeysConstants
+{
+    /// <summary>Mutual exclusion and special action CSF labels.</summary>
+    public static class CsfLabels
+    {
+        /// <summary>CSF label for Daisy Cutter special power.</summary>
+        public const string DaisyCutter = "CONTROLBAR:DaisyCutter";
+
+        /// <summary>CSF label for MOAB special power.</summary>
+        public const string Moab = "CONTROLBAR:MOAB";
+
+        /// <summary>CSF label for China Land Mines upgrade.</summary>
+        public const string UpgradeChinaMines = "CONTROLBAR:UpgradeChinaMines";
+
+        /// <summary>CSF label for China EMP / Neutron Mines upgrade.</summary>
+        public const string UpgradeEmpMines = "CONTROLBAR:UpgradeEMPMines";
+
+        /// <summary>CSF label for China Satellite Hack 1 upgrade.</summary>
+        public const string UpgradeChinaSatelliteHackOne = "CONTROLBAR:UpgradeChinaSatelliteHackOne";
+
+        /// <summary>CSF label for China Satellite Hack 2 upgrade.</summary>
+        public const string UpgradeChinaSatelliteHackTwo = "CONTROLBAR:UpgradeChinaSatelliteHackTwo";
+
+        /// <summary>CSF label for Structure Sell command.</summary>
+        public const string Sell = "CONTROLBAR:Sell";
+
+        /// <summary>CSF label for Capture Building action.</summary>
+        public const string CaptureBuilding = "CONTROLBAR:CaptureBuilding";
+
+        /// <summary>CSF label for Cash Hack action.</summary>
+        public const string CashHack = "CONTROLBAR:CashHack";
+
+        /// <summary>CSF label for Steal Cash Hack action.</summary>
+        public const string StealCashHack = "CONTROLBAR:StealCashHack";
+
+        /// <summary>CSF label for Guard action.</summary>
+        public const string Guard = "CONTROLBAR:Guard";
+
+        /// <summary>CSF label for Carpet Bomb special power.</summary>
+        public const string CarpetBomb = "CONTROLBAR:CarpetBomb";
+
+        /// <summary>CSF label for America Composite Armor upgrade.</summary>
+        public const string UpgradeAmericaCompositeArmor = "CONTROLBAR:UpgradeAmericaCompositeArmor";
+
+        /// <summary>CSF label for Timed Demo Charge action.</summary>
+        public const string TimedDemoCharge = "CONTROLBAR:TimedDemoCharge";
+
+        /// <summary>CSF label for Detonate Charges action.</summary>
+        public const string DetonateCharges = "CONTROLBAR:DetonateCharges";
+
+        /// <summary>CSF label for GLA Junk Repair upgrade.</summary>
+        public const string UpgradeGlaJunkRepair = "CONTROLBAR:UpgradeGLAJunkRepair";
+
+        /// <summary>CSF label for GLA AP Rockets upgrade.</summary>
+        public const string UpgradeGlaApRockets = "CONTROLBAR:UpgradeGLAAPRockets";
+
+        /// <summary>CSF label for GLA Radar Van construct action.</summary>
+        public const string ConstructGlaVehicleRadarVan = "CONTROLBAR:ConstructGLAVehicleRadarVan";
+
+        /// <summary>CSF label for GLA Camo Netting upgrade.</summary>
+        public const string UpgradeGlaCamoNetting = "CONTROLBAR:UpgradeGLACamoNetting";
+
+        /// <summary>CSF label for China Radar upgrade.</summary>
+        public const string UpgradeChinaRadar = "CONTROLBAR:UpgradeChinaRadar";
+
+        /// <summary>CSF label for Particle Uplink Cannon fire ability.</summary>
+        public const string FireParticleUplinkCannon = "CONTROLBAR:FireParticleUplinkCannon";
+
+        /// <summary>CSF label for Comanche Rocket Pods upgrade.</summary>
+        public const string UpgradeComancheRocketPods = "CONTROLBAR:UpgradeComancheRocketPods";
+
+        /// <summary>CSF label for China Patriotism / Fanaticism upgrade.</summary>
+        public const string UpgradeChinaFanaticism = "CONTROLBAR:UpgradeChinaFanaticism";
+
+        /// <summary>CSF label for GLA Demo Trap Proximity Fuse trigger.</summary>
+        public const string ProximityFuse = "CONTROLBAR:ProximityFuse";
+
+        /// <summary>CSF label for Set Rally Point command.</summary>
+        public const string SetRallyPoint = "CONTROLBAR:SetRallyPoint";
+
+        /// <summary>CSF label for America Detention Camp construction.</summary>
+        public const string ConstructAmericaDetentionCamp = "CONTROLBAR:ConstructAmericaDetentionCamp";
+
+        /// <summary>CSF label for America Supply Center construction.</summary>
+        public const string ConstructAmericaSupplyCenter = "CONTROLBAR:ConstructAmericaSupplyCenter";
+
+        /// <summary>CSF label for China Inferno Cannon construction.</summary>
+        public const string ConstructChinaVehicleInfernoCannon = "CONTROLBAR:ConstructChinaVehicleInfernoCannon";
+
+        /// <summary>CSF label for GLA Angry Mob construction.</summary>
+        public const string ConstructGLAInfantryAngryMob = "CONTROLBAR:ConstructGLAInfantryAngryMob";
+
+        /// <summary>CSF label for America Tomahawk Launcher construction.</summary>
+        public const string ConstructAmericaVehicleTomahawk = "CONTROLBAR:ConstructAmericaVehicleTomahawk";
+
+        /// <summary>CSF label for Laser General Crusader / Laser Tank construction.</summary>
+        public const string LazrConstructAmericaTankCrusader = "CONTROLBAR:Lazr_ConstructAmericaTankCrusader";
+    }
+
+    /// <summary>Mutual exclusion and special action icon names.</summary>
+    public static class IconNames
+    {
+        /// <summary>Icon identifier for USA Daisy Cutter.</summary>
+        public const string UsaDaisyCutter = "USADaisyCutter";
+
+        /// <summary>Icon identifier for USA MOAB.</summary>
+        public const string UsaMoab = "USAMOAB";
+
+        /// <summary>Icon identifier for PRC Land Mines.</summary>
+        public const string PrcLandMine = "PRCLandMine";
+
+        /// <summary>Icon identifier for PRC Neutron Mines.</summary>
+        public const string PrcNeutronMines = "PRCNeutronMines";
+
+        /// <summary>Icon identifier for PRC Satellite Hack 1.</summary>
+        public const string PrcSatelliteHack1 = "PRCSatelliteHack1";
+
+        /// <summary>Icon identifier for PRC Satellite Hack 2.</summary>
+        public const string PrcSatelliteHack2 = "PRCSatelliteHack2";
+
+        /// <summary>Icon identifier for Sell action.</summary>
+        public const string Sell = "Sell";
+    }
+
+    /// <summary>Standard faction short-codes and keywords.</summary>
+    public static class FactionCodes
+    {
+        /// <summary>PRC / China faction code.</summary>
+        public const string Prc = "PRC";
+
+        /// <summary>Infantry general code.</summary>
+        public const string Infantry = "INF";
+
+        /// <summary>Nuke general code.</summary>
+        public const string Nuke = "NUK";
+
+        /// <summary>Tank general code.</summary>
+        public const string Tank = "TNK";
+
+        /// <summary>GLA faction code.</summary>
+        public const string Gla = "GLA";
+
+        /// <summary>Toxin general code.</summary>
+        public const string Toxic = "TOX";
+
+        /// <summary>Stealth general code.</summary>
+        public const string Stealth = "STL";
+
+        /// <summary>Demolition general code.</summary>
+        public const string Demo = "DML";
+
+        /// <summary>USA faction code.</summary>
+        public const string Usa = "USA";
+
+        /// <summary>Air Force general code.</summary>
+        public const string AirForce = "AIR";
+
+        /// <summary>Laser general code.</summary>
+        public const string Laser = "LSR";
+
+        /// <summary>Superweapon general code.</summary>
+        public const string SuperWeapon = "SWG";
+
+        /// <summary>Keyword identifying Infantry general.</summary>
+        public const string KeywordInfantry = "Infantry";
+
+        /// <summary>Keyword identifying Nuke general.</summary>
+        public const string KeywordNuke = "Nuke";
+
+        /// <summary>Keyword identifying Tank general.</summary>
+        public const string KeywordTank = "Tank";
+
+        /// <summary>Keyword identifying Toxin general.</summary>
+        public const string KeywordTox = "Tox";
+
+        /// <summary>Keyword identifying Stealth general.</summary>
+        public const string KeywordStealth = "Stealth";
+
+        /// <summary>Keyword identifying Demolition general.</summary>
+        public const string KeywordDemo = "Demo";
+
+        /// <summary>Keyword identifying Air Force general.</summary>
+        public const string KeywordAirForce = "AirForce";
+
+        /// <summary>Keyword identifying Laser general.</summary>
+        public const string KeywordLaser = "Laser";
+    }
+
+    /// <summary>Standard UI text, button labels, and fallback constants for GenHotkeys.</summary>
+    public static class UiText
+    {
+        /// <summary>Default fallback faction short name.</summary>
+        public const string DefaultFactionShortName = "DEFAULT";
+
+        /// <summary>Default fallback faction display name.</summary>
+        public const string DefaultFactionDisplayName = "Default";
+
+        /// <summary>Button text for creating a hotkey addon.</summary>
+        public const string CreateAddonText = "Create Addon";
+
+        /// <summary>Button text for updating an existing hotkey addon.</summary>
+        public const string UpdateAddonText = "Update Addon";
+
+        /// <summary>Button text for adding hotkey to profile.</summary>
+        public const string AddToProfileText = "Add to Profile";
+
+        /// <summary>Default button text for applying hotkey to all.</summary>
+        public const string DefaultApplyToAllText = "Apply to All";
+
+        /// <summary>Tooltip text for creating a hotkey addon.</summary>
+        public const string CreateAddonToolTip = "Export this hotkey layout as an Addon for C&C Generals / Zero Hour (English string table).";
+    }
+
+    /// <summary>Tool unique identifier.</summary>
+    public const string ToolId = "genhotkeys";
+
+    /// <summary>Tool display name.</summary>
+    public const string ToolName = "Hotkeys Editor";
+
+    /// <summary>Tool description.</summary>
+    public const string ToolDescription = "Visual hotkey editor for C&C Generals & Zero Hour with icon overlays and direct .big addon integration (English string table).";
+
+    /// <summary>Tool icon URI.</summary>
+    public const string ToolIconUri = UriConstants.HotkeysEditorIconUri;
+
+    /// <summary>Tool plugin version.</summary>
+    public const string PluginVersion = "1.0.0";
+
+    /// <summary>Vanilla preset name.</summary>
+    public const string PresetVanilla = "Vanilla";
+
+    /// <summary>Legionnaire preset name.</summary>
+    public const string PresetLegionnaire = "Legionnaire";
+
+    /// <summary>Leikeze preset name.</summary>
+    public const string PresetLeikeze = "Leikeze";
+
+    /// <summary>Game tag for Generals.</summary>
+    public const string GameTagGenerals = "Gen";
+
+    /// <summary>Game tag for Zero Hour.</summary>
+    public const string GameTagZeroHour = "ZH";
+
+    /// <summary>Display name for Generals.</summary>
+    public const string GameDisplayNameGenerals = "Generals";
+
+    /// <summary>Display name for Zero Hour.</summary>
+    public const string GameDisplayNameZeroHour = "Zero Hour";
+
+    /// <summary>Profile directory name for Generals.</summary>
+    public const string ProfileDirectoryGenerals = "Generals";
+
+    /// <summary>Profile directory name for Zero Hour.</summary>
+    public const string ProfileDirectoryGeneralsZh = "GeneralsZH";
+
+    /// <summary>Candidate icon path template.</summary>
+    public const string ProfileIconsPathPattern = "Profiles/{0}/Icons/{1}{2}{3}";
+
+    /// <summary>URI pattern for Avalonia faction icons.</summary>
+    [SuppressMessage("Minor Code Smell", "S1075:URIs should not be hardcoded", Justification = "Avalonia resource URI pattern")]
+    public const string FactionIconUriPattern = "avares://GenHub/Assets/Icons/Factions/{0}";
+
+    /// <summary>Minimum overlap ratio threshold between layout actions to consider an upgrade variant.</summary>
+    public const double UpgradeVariantOverlapRatioThreshold = 0.40;
+
+    /// <summary>Storage directory name for user hotkey profiles.</summary>
+    public const string HotkeysStorageDirectory = "Hotkeys";
+
+    /// <summary>Standard CSF filename.</summary>
+    public const string GeneralsCsfFileName = "generals.csf";
+
+    /// <summary>Preset path for English CSF (Vanilla Zero Hour retail layout).</summary>
+    public const string PresetsVanillaZhEn = "Presets/VanillaZH.csf";
+
+    /// <summary>Preset path for English CSF (Vanilla Generals retail layout).</summary>
+    public const string PresetsVanillaGenEn = "Presets/VanillaGEN.csf";
+
+    /// <summary>Preset path for English CSF (Leikeze layout).</summary>
+    public const string PresetsLeikezeEn = "Presets/LeikezeEN.csf";
+
+    /// <summary>Preset path for English CSF (Legionnaire layout).</summary>
+    public const string PresetsLegionnaireEn = "Presets/LegionnaireEN.csf";
+
+    /// <summary>Tech tree relative path for Generals.</summary>
+    public const string TechTreeGenerals = "Profiles/Generals/TechTree.json";
+
+    /// <summary>Tech tree relative path for Zero Hour.</summary>
+    public const string TechTreeGeneralsZh = "Profiles/GeneralsZH/TechTree.json";
+
+    /// <summary>
+    /// Naming format for generated hotkey .big files: !Hotkeys_{0}{1}_{2}.big.
+    /// Prefixed with '!' so SAGE engine loads it alphabetically before retail archives (e.g. EnglishZH.big),
+    /// because SAGE's ArchiveFileSystem uses first-loaded wins (overwrite = FALSE).
+    /// Placeholders: {0} = sanitized profile name, {1} = optional profile ID suffix, {2} = game tag.
+    /// </summary>
+    public const string BigFileNamePattern = "!Hotkeys_{0}{1}_{2}.big";
+
+    /// <summary>Target directory in .big for localized CSF files.</summary>
+    public const string DataEnglishDirectory = "Data/English";
+
+    /// <summary>Target directory in .big for overlay TGA textures.</summary>
+    public const string ArtTexturesDirectory = "Art/Textures";
+
+    /// <summary>Relative directory in .big for hand-created mapped images INIs.</summary>
+    public const string MappedImagesHandCreatedDirectory = "Data/INI/MappedImages/HandCreated";
+
+    /// <summary>Relative directory in .big for 512-texture size mapped images INIs.</summary>
+    public const string MappedImagesTextureSize512Directory = "Data/INI/MappedImages/TextureSize_512";
+
+    /// <summary>MappedImages INI filename for hand-created overrides.</summary>
+    public const string HandCreatedHotkeysIniFileName = "Hotkeys.ini";
+
+    /// <summary>MappedImages INI filename for TextureSize_512 overrides.</summary>
+    public const string TextureSize512HotkeysIniFileName = "zzHotkeys.ini";
+
+    /// <summary>ControlBar CSF key prefix.</summary>
+    public const string CsfControlBarPrefix = "CONTROLBAR:";
+
+    /// <summary>Command CSF key prefix.</summary>
+    public const string CsfCommandPrefix = "COMMAND:";
+
+    /// <summary>
+    /// Mapping of primary hotkey labels (typically CONTROLBAR:...) to their corresponding
+    /// sidebar shortcut button labels (OBJECT:..., GUI:Superweapon..., ...Shortcut) in generals.csf.
+    /// In the SAGE engine, original Generals uses SPECIAL_POWER_FROM_COMMAND_CENTER and Zero Hour uses
+    /// SPECIAL_POWER_FROM_SHORTCUT with identical labels, which reference distinct CSF labels rather than
+    /// the primary Command Center button labels.
+    /// </summary>
+    public static readonly IReadOnlyDictionary<string, string[]> ShortcutLabelAliases =
+        new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase)
+        {
+            // USA Generals Powers & Superweapons
+            ["CONTROLBAR:SpyDrone"] = ["OBJECT:SpyDrone"],
+            ["CONTROLBAR:A10ThunderboltMissileStrike"] = ["GUI:SuperweaponA10ThunderboltMissileStrike"],
+            ["CONTROLBAR:DaisyCutter"] = ["OBJECT:DaisyCutterBomb"],
+            ["CONTROLBAR:Paradrop"] = ["GUI:SuperweaponParadropAmerica"],
+            ["CONTROLBAR:TankParadrop"] = ["GUI:SuperweaponTankParadrop"],
+            ["CONTROLBAR:ClusterMines"] = ["OBJECT:ClusterMinesBomb"],
+            ["CONTROLBAR:EMPPulse"] = ["OBJECT:EMPPulseBomb"],
+            ["CONTROLBAR:SpectreGunship"] = ["CONTROLBAR:SpectreGunshipFromShortcut"],
+            ["CONTROLBAR:LeafletDrop"] = ["CONTROLBAR:LeafletDropShort"],
+            ["CONTROLBAR:FireParticleUplinkCannon"] = ["CONTROLBAR:FireParticleUplinkCannonShortcut"],
+            ["CONTROLBAR:EmergencyRepair"] = ["GUI:SuperweaponEmergencyRepair"],
+            ["CONTROLBAR:SpySatellite"] = ["CONTROLBAR:NoHotKeySpySatellite"],
+            ["CONTROLBAR:CIAIntelligence"] = ["CONTROLBAR:CIAIntelligenceShortcut"],
+
+            // China Generals Powers & Superweapons
+            ["CONTROLBAR:CarpetBomb"] = ["OBJECT:CarpetBomb"],
+            ["CONTROLBAR:Nuke_CarpetBomb"] = ["OBJECT:Nuke_CarpetBomb"],
+            ["CONTROLBAR:ArtilleryBarrage"] = ["CONTROLBAR:NoHotKeyArtilleryBarrage"],
+            ["CONTROLBAR:Frenzy"] = ["CONTROLBAR:NoHotKeyFrenzy"],
+            ["CONTROLBAR:CashHack"] = ["GUI:SuperweaponCashHack"],
+            ["CONTROLBAR:NeutronMissile"] = ["CONTROLBAR:NeutronMissileShortcut"],
+            ["CONTROLBAR:NukeDrop"] = ["OBJECT:NukeDrop"],
+            ["CONTROLBAR:CommunicationsDownload"] = ["CONTROLBAR:CommunicationsDownloadShortcut"],
+            ["CONTROLBAR:NapalmStrike"] = ["GUI:SuperweaponNapalmStrike"],
+            ["CONTROLBAR:CrateDrop"] = ["GUI:SuperweaponCrateDrop"],
+
+            // GLA Generals Powers & Superweapons
+            ["CONTROLBAR:ScudStorm"] = ["CONTROLBAR:ScudStormShortcut"],
+            ["CONTROLBAR:AnthraxBomb"] = ["OBJECT:AnthraxBomb"],
+            ["CONTROLBAR:Ambush"] = ["GUI:SuperweaponRebelAmbush"],
+            ["CONTROLBAR:SneakAttack"] = ["CONTROLBAR:SneakAttackShort"],
+            ["CONTROLBAR:GPSScrambler"] = ["GUI:SuperweaponGPSScrambler"],
+            ["CONTROLBAR:RadarVanScan"] = ["CONTROLBAR:RadarVanScanShortcut"],
+        };
+
+    /// <summary>
+    /// Gets the relative asset path for the vanilla reference CSF of the specified game type.
+    /// </summary>
+    /// <param name="gameType">Target game type.</param>
+    /// <returns>Relative asset path for the vanilla CSF.</returns>
+    public static string GetVanillaPresetCsfPath(GameType gameType) =>
+        gameType == GameType.Generals ? PresetsVanillaGenEn : PresetsVanillaZhEn;
+
+    /// <summary>
+    /// Gets the abbreviated game tag ("Gen" or "ZH") for the specified game type.
+    /// </summary>
+    /// <param name="gameType">Target game type.</param>
+    /// <returns>"Gen" for Generals, "ZH" for Zero Hour.</returns>
+    public static string GetGameTag(GameType gameType) =>
+        gameType == GameType.Generals ? GameTagGenerals : GameTagZeroHour;
+
+    /// <summary>
+    /// Gets the friendly display name ("Generals" or "Zero Hour") for the specified game type.
+    /// </summary>
+    /// <param name="gameType">Target game type.</param>
+    /// <returns>"Generals" or "Zero Hour".</returns>
+    public static string GetGameDisplayName(GameType gameType) =>
+        gameType == GameType.Generals ? GameDisplayNameGenerals : GameDisplayNameZeroHour;
+
+    /// <summary>
+    /// Gets the profile asset directory ("Generals" or "GeneralsZH") for the specified game type.
+    /// </summary>
+    /// <param name="gameType">Target game type.</param>
+    /// <returns>Asset directory name.</returns>
+    public static string GetProfileDirectory(GameType gameType) =>
+        gameType == GameType.Generals ? ProfileDirectoryGenerals : ProfileDirectoryGeneralsZh;
+
+    /// <summary>
+    /// Computes the standard .big filename for a hotkey profile.
+    /// </summary>
+    /// <param name="profileName">Profile name.</param>
+    /// <param name="targetGame">Target game.</param>
+    /// <returns>The .big filename, e.g. !Hotkeys_MyProfile_ZH.big.</returns>
+    public static string GetBigFileName(string? profileName, GameType targetGame) =>
+        GetBigFileName(profileName, targetGame, null);
+
+    /// <summary>
+    /// Computes the standard .big filename for a hotkey profile.
+    /// </summary>
+    /// <param name="profileName">Profile name.</param>
+    /// <param name="targetGame">Target game.</param>
+    /// <param name="profileId">The unique ID of the profile to avoid collisions between profiles with matching sanitized names, or <see langword="null"/>.</param>
+    /// <returns>The .big filename, e.g. !Hotkeys_MyProfile_ZH.big.</returns>
+    public static string GetBigFileName(string? profileName, GameType targetGame, string? profileId)
+    {
+        var rawName = string.IsNullOrWhiteSpace(profileName) ? "Hotkeys" : profileName;
+        var sanitizedName = Regex.Replace(rawName, @"[^a-zA-Z0-9_\-]", "_", RegexOptions.None, TimeSpan.FromSeconds(1));
+        if (string.IsNullOrWhiteSpace(sanitizedName.Trim('_')))
+        {
+            sanitizedName = "Hotkeys";
+        }
+
+        string idSuffix;
+        if (!string.IsNullOrWhiteSpace(profileId))
+        {
+            var sanitizedId = Regex.Replace(profileId, @"[^a-zA-Z0-9_\-]", "_", RegexOptions.None, TimeSpan.FromSeconds(1));
+            var prefix = sanitizedId[..Math.Min(8, sanitizedId.Length)];
+            idSuffix = !string.IsNullOrWhiteSpace(prefix.Trim('_')) ? $"_{prefix}" : string.Empty;
+        }
+        else
+        {
+            idSuffix = string.Empty;
+        }
+
+        var gameTag = GetGameTag(targetGame);
+        return string.Format(CultureInfo.InvariantCulture, BigFileNamePattern, sanitizedName, idSuffix, gameTag);
+    }
+
+    /// <summary>
+    /// Computes the manifest display name for a hotkey profile addon.
+    /// </summary>
+    /// <param name="profileName">Profile name.</param>
+    /// <param name="targetGame">Target game.</param>
+    /// <returns>The manifest name, e.g. Hotkeys - MyProfile (ZH).</returns>
+    public static string GetManifestDisplayName(string? profileName, GameType targetGame)
+    {
+        var gameTag = GetGameTag(targetGame);
+        return $"Hotkeys - {profileName ?? "Default"} ({gameTag})";
+    }
+}

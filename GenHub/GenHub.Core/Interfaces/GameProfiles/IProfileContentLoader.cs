@@ -66,4 +66,18 @@ public interface IProfileContentLoader
     /// <param name="manifestId">The manifest ID to retrieve.</param>
     /// <returns>An operation result containing the manifest if found.</returns>
     Task<OperationResult<ContentManifest?>> GetManifestAsync(string manifestId);
+
+    /// <summary>
+    /// Creates a content display item from a manifest.
+    /// </summary>
+    /// <param name="manifest">The content manifest.</param>
+    /// <param name="sourceId">Optional source ID.</param>
+    /// <param name="gameClientId">Optional game client ID.</param>
+    /// <param name="isEnabled">Whether the item is enabled.</param>
+    /// <returns>A new content display item.</returns>
+    ContentDisplayItem CreateManifestDisplayItem(
+        ContentManifest manifest,
+        string? sourceId = null,
+        string? gameClientId = null,
+        bool isEnabled = false);
 }

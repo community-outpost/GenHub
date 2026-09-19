@@ -70,7 +70,7 @@ public abstract class BaseDependencyBuilder
         {
             // Use 'any' publisher since any platform's Generals installation satisfies this
             Id = ManifestId.Create($"{SchemaVersion}.108.{AnyPublisher}.gameinstallation.generals"),
-            Name = GameClientConstants.GeneralsInstallationDependencyName,
+            Name = "Generals 1.08 (Required)",
             DependencyType = ContentType.GameInstallation,
             MinVersion = ManifestConstants.GeneralsManifestVersion, // "1.08"
             InstallBehavior = DependencyInstallBehavior.RequireExisting,
@@ -217,5 +217,31 @@ public abstract class BaseDependencyBuilder
     public virtual bool IsCategoryExclusive(string category)
     {
         return false;
+    }
+
+    /// <summary>
+    /// Creates a list with a single dependency for convenience.
+    /// </summary>
+    /// <param name="dependency">The dependency to wrap in a list.</param>
+    /// <returns>A list containing the single dependency.</returns>
+    protected static List<ContentDependency> SingleDependency(ContentDependency dependency)
+    {
+        return new List<ContentDependency> { dependency };
+    }
+
+    /// <summary>
+    /// Combines multiple dependency lists into one.
+    /// </summary>
+    /// <param name="dependencyLists">The dependency lists to combine.</param>
+    /// <returns>A combined list of all dependencies.</returns>
+    protected static List<ContentDependency> CombineDependencies(params List<ContentDependency>[] dependencyLists)
+    {
+        var result = new List<ContentDependency>();
+        foreach (var list in dependencyLists)
+        {
+            result.AddRange(list);
+        }
+
+        return result;
     }
 }

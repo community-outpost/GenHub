@@ -1,14 +1,16 @@
+using GenHub.Core.Constants;
+using GenHub.Core.Interfaces.Content;
+using GenHub.Core.Models.Content;
+using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.Manifest;
+using GenHub.Core.Models.Results;
+using GenHub.Features.Content.Services.Publishers;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using GenHub.Core.Constants;
-using GenHub.Core.Interfaces.Content;
-using GenHub.Core.Models.Content;
-using GenHub.Core.Models.Manifest;
-using GenHub.Core.Models.Results;
-using Microsoft.Extensions.Logging;
 
 namespace GenHub.Features.Content.Services.ContentProviders;
 
@@ -16,38 +18,30 @@ namespace GenHub.Features.Content.Services.ContentProviders;
 /// CNC Labs content provider that orchestrates discovery→resolution→delivery pipeline
 /// for CNC Labs-hosted content.
 /// </summary>
-public class CNCLabsContentProvider : BaseContentProvider
+public class CNCLabsContentProvider(
+    IEnumerable<IContentDiscoverer> discoverers,
+    IEnumerable<IContentResolver> resolvers,
+    IEnumerable<IContentDeliverer> deliverers,
+    CNCLabsManifestFactory manifestFactory,
+    ILogger<CNCLabsContentProvider> logger,
+    IContentValidator contentValidator,
+    IInstallationInstructionsService installationInstructionsService)
+    : BaseContentProvider(contentValidator, installationInstructionsService, logger)
 {
-    private readonly IContentDiscoverer _cncLabsDiscoverer;
-    private readonly IContentResolver _cncLabsResolver;
-    private readonly IContentDeliverer _httpDeliverer;
+    private readonly IContentDiscoverer _cncLabsDiscoverer = discoverers.FirstOrDefault(d => d.SourceName?.Equals(ContentSourceNames.CNCLabsDiscoverer, StringComparison.OrdinalIgnoreCase) == true)
+        ?? throw new ArgumentException("CNC Labs discoverer not found", nameof(discoverers));
 
-    /// <summary>
-    /// Initializes a new instance of the <see cref="CNCLabsContentProvider"/> class.
-    /// </summary>
-    /// <param name="discoverers">Available content discoverers.</param>
-    /// <param name="resolvers">Available content resolvers.</param>
-    /// <param name="deliverers">Available content deliverers.</param>
-    /// <param name="logger">The logger instance.</param>
-    /// <param name="contentValidator">The content validator.</param>
-    public CNCLabsContentProvider(
-        IEnumerable<IContentDiscoverer> discoverers,
-        IEnumerable<IContentResolver> resolvers,
-        IEnumerable<IContentDeliverer> deliverers,
-        ILogger<CNCLabsContentProvider> logger,
-        IContentValidator contentValidator)
-        : base(contentValidator, logger)
-    {
-        _cncLabsDiscoverer = discoverers.FirstOrDefault(d => d.SourceName?.Equals(ContentSourceNames.CNCLabsDiscoverer, StringComparison.OrdinalIgnoreCase) == true)
-            ?? throw new ArgumentException("CNC Labs discoverer not found", nameof(discoverers));
-        _cncLabsResolver = resolvers.FirstOrDefault(r => r.ResolverId?.Equals(ContentSourceNames.CNCLabsResolverId, StringComparison.OrdinalIgnoreCase) == true)
-            ?? throw new ArgumentException("CNC Labs resolver not found", nameof(resolvers));
-        _httpDeliverer = deliverers.FirstOrDefault(d => d.SourceName?.Equals(ContentSourceNames.HttpDeliverer, StringComparison.OrdinalIgnoreCase) == true)
-            ?? throw new ArgumentException("HTTP deliverer not found", nameof(deliverers));
-    }
+    private readonly IContentResolver _cncLabsResolver = resolvers.FirstOrDefault(r => r.ResolverId?.Equals(ContentSourceNames.CNCLabsResolverId, StringComparison.OrdinalIgnoreCase) == true)
+        ?? throw new ArgumentException("CNC Labs resolver not found", nameof(resolvers));
+
+    private readonly IContentDeliverer _httpDeliverer = deliverers.FirstOrDefault(d => d.SourceName?.Equals(ContentSourceNames.HttpDeliverer, StringComparison.OrdinalIgnoreCase) == true)
+        ?? throw new ArgumentException("HTTP deliverer not found", nameof(deliverers));
 
     /// <inheritdoc />
-    public override string SourceName => "CNC Labs";
+    /// <remarks>
+    /// Must match the ProviderName set by CNCLabsMapDiscoverer on search results.
+    /// </remarks>
+    public override string SourceName => CNCLabsConstants.SourceName;
 
     /// <inheritdoc />
     public override string Description => "Provides maps and content from CNC Labs";
@@ -65,20 +59,26 @@ public class CNCLabsContentProvider : BaseContentProvider
     public override async Task<OperationResult<ContentManifest>> GetValidatedContentAsync(
         string contentId, CancellationToken cancellationToken = default)
     {
+        if (string.IsNullOrWhiteSpace(contentId))
+        {
+            return OperationResult<ContentManifest>.CreateFailure("Content ID cannot be null or empty");
+        }
+
         var query = new ContentSearchQuery { SearchTerm = contentId, Take = ContentConstants.SingleResultQueryLimit };
         var searchResult = await SearchAsync(query, cancellationToken);
 
-        if (!searchResult.Success || !searchResult.Data!.Any())
+        if (!searchResult.Success || !searchResult.Data.Any())
         {
-            return OperationResult<ContentManifest>.CreateFailure($"Content not found: {contentId}");
+            return OperationResult<ContentManifest>.CreateFailure(
+                $"Content not found for ID '{contentId}': {searchResult.FirstError ?? "No matching results"}");
         }
 
-        var result = searchResult.Data!.First();
+        var result = searchResult.Data.First();
         var manifest = result.GetData<ContentManifest>();
 
         return manifest != null
             ? OperationResult<ContentManifest>.CreateSuccess(manifest)
-            : OperationResult<ContentManifest>.CreateFailure("Manifest not available in search result");
+            : OperationResult<ContentManifest>.CreateFailure($"Invalid manifest data for content ID '{contentId}'");
     }
 
     /// <inheritdoc />
@@ -88,24 +88,14 @@ public class CNCLabsContentProvider : BaseContentProvider
         IProgress<ContentAcquisitionProgress>? progress,
         CancellationToken cancellationToken)
     {
-        try
-        {
-            Logger.LogDebug("Preparing CNC Labs content for manifest {ManifestId}", manifest.Id);
+        Logger.LogInformation("Preparing CNC Labs content: {ManifestId} ({Name})", manifest.Id, manifest.Name);
 
-            progress?.Report(new ContentAcquisitionProgress
-            {
-                Phase = ContentAcquisitionPhase.Downloading,
-                CurrentOperation = "Preparing CNC Labs content...",
-            });
-
-            // For CNC Labs content, typically just return the manifest as content preparation
-            // is handled by the delivery pipeline
-            return Task.FromResult(OperationResult<ContentManifest>.CreateSuccess(manifest));
-        }
-        catch (Exception ex)
-        {
-            Logger.LogError(ex, "Failed to prepare CNC Labs content for manifest {ManifestId}", manifest.Id);
-            return Task.FromResult(OperationResult<ContentManifest>.CreateFailure($"CNC Labs content preparation failed: {ex.Message}"));
-        }
+        return DeliverAndEnrichContentAsync(
+            _httpDeliverer,
+            manifestFactory,
+            manifest,
+            workingDirectory,
+            progress,
+            cancellationToken);
     }
 }

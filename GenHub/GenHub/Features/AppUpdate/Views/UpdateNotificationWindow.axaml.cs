@@ -1,10 +1,12 @@
-using System.Threading.Tasks;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Markup.Xaml;
+using GenHub.Common.Helpers;
 using GenHub.Features.AppUpdate.ViewModels;
 using Microsoft.Extensions.Logging;
+using System;
+using System.Threading.Tasks;
 
 namespace GenHub.Features.AppUpdate.Views;
 
@@ -23,6 +25,7 @@ public partial class UpdateNotificationWindow : Window
         _logger = AppLocator.GetServiceOrDefault<ILogger<UpdateNotificationWindow>>();
 
         InitializeComponent();
+        WindowChromeHelper.ApplyPlatformDecorations(this);
 
         try
         {
@@ -34,6 +37,16 @@ public partial class UpdateNotificationWindow : Window
         {
             _logger?.LogError(ex, "Failed to initialize UpdateNotificationWindow ViewModel");
         }
+
+        // The view model is transient but subscribes to singleton service events,
+        // so it must be disposed when the window closes to avoid leaking it.
+        Closed += (_, _) =>
+        {
+            if (DataContext is IDisposable disposable)
+            {
+                disposable.Dispose();
+            }
+        };
     }
 
     /// <summary>
@@ -53,7 +66,7 @@ public partial class UpdateNotificationWindow : Window
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     public async Task InitializeAsync()
     {
-        if (DataContext is UpdateNotificationViewModel viewModel)
+        if (DataContext is UpdateNotificationViewModel)
         {
             // Add any initialization logic here
             await Task.CompletedTask;
@@ -63,22 +76,42 @@ public partial class UpdateNotificationWindow : Window
     private void InitializeComponent() => AvaloniaXamlLoader.Load(this);
 
     /// <summary>
+    /// Handles the maximize/restore button click event.
+    /// </summary>
+    /// <param name="sender">The sender.</param>
+    /// <param name="e">The event args.</param>
+    private void MaximizeButton_Click(object? sender, RoutedEventArgs e)
+    {
+        WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
+    }
+
+    /// <summary>
     /// Handles the close button click event.
     /// </summary>
     /// <param name="sender">The sender.</param>
     /// <param name="e">The event args.</param>
-    private void CloseButton_Click(object sender, RoutedEventArgs e)
+    private void CloseButton_Click(object? sender, RoutedEventArgs e)
     {
         Close();
     }
 
     /// <summary>
-    /// Handles pointer pressed event for the title bar to enable window dragging.
+    /// Handles pointer pressed event for the title bar to enable window dragging and double-click maximize.
     /// </summary>
     /// <param name="sender">The sender.</param>
     /// <param name="e">The pointer event args.</param>
-    private void TitleBar_PointerPressed(object sender, PointerPressedEventArgs e)
+    private void TitleBar_PointerPressed(object? sender, PointerPressedEventArgs e)
     {
-        BeginMoveDrag(e);
+        if (e.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
+        {
+            if (e.ClickCount == 2)
+            {
+                MaximizeButton_Click(sender, new RoutedEventArgs());
+            }
+            else
+            {
+                BeginMoveDrag(e);
+            }
+        }
     }
 }

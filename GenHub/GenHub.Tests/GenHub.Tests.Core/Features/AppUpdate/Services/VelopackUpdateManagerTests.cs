@@ -3,6 +3,8 @@ using GenHub.Core.Interfaces.GitHub;
 using GenHub.Features.AppUpdate.Services;
 using Microsoft.Extensions.Logging;
 using Moq;
+using System.Text.Json;
+using Velopack.Sources;
 
 namespace GenHub.Tests.Core.Features.AppUpdate.Services;
 
@@ -13,7 +15,7 @@ public class VelopackUpdateManagerTests
 {
     private readonly Mock<ILogger<VelopackUpdateManager>> _mockLogger;
     private readonly Mock<IHttpClientFactory> _mockHttpClientFactory;
-    private readonly Mock<IGitHubTokenStorage> _mockGitHubTokenStorage;
+    private readonly Mock<IGitHubAuthService> _mockGitHubAuthService;
     private readonly Mock<IUserSettingsService> _mockUserSettingsService;
 
     /// <summary>
@@ -23,14 +25,14 @@ public class VelopackUpdateManagerTests
     {
         _mockLogger = new Mock<ILogger<VelopackUpdateManager>>();
         _mockHttpClientFactory = new Mock<IHttpClientFactory>();
-        _mockGitHubTokenStorage = new Mock<IGitHubTokenStorage>();
+        _mockGitHubAuthService = new Mock<IGitHubAuthService>();
         _mockUserSettingsService = new Mock<IUserSettingsService>();
 
         // Use the actual interface method, not the extension method
         _mockHttpClientFactory.Setup(x => x.CreateClient(It.IsAny<string>())).Returns(new HttpClient());
 
-        // Default: no PAT token available
-        _mockGitHubTokenStorage.Setup(x => x.HasToken()).Returns(false);
+        // Default: no GitHub authentication available
+        _mockGitHubAuthService.SetupGet(x => x.IsAuthenticated).Returns(false);
 
         // Default: return default settings
         _mockUserSettingsService.Setup(x => x.Get()).Returns(new GenHub.Core.Models.Common.UserSettings());
@@ -55,7 +57,7 @@ public class VelopackUpdateManagerTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     [Fact]
-    public async Task CheckForUpdatesAsync_InDevEnvironment_ShouldReturnNull()
+    public async Task CheckForUpdatesAsync_InDevEnvironment_ShouldReturnNullAsync()
     {
         // Arrange
         var manager = CreateManager();
@@ -72,7 +74,7 @@ public class VelopackUpdateManagerTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     [Fact]
-    public async Task CheckForUpdatesAsync_WithCancellation_ShouldHandleGracefully()
+    public async Task CheckForUpdatesAsync_WithCancellation_ShouldHandleGracefullyAsync()
     {
         // Arrange
         var manager = CreateManager();
@@ -91,7 +93,7 @@ public class VelopackUpdateManagerTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     [Fact]
-    public async Task DownloadUpdatesAsync_WhenNotInitialized_ShouldThrowInvalidOperationException()
+    public async Task DownloadUpdatesAsync_WhenNotInitialized_ShouldThrowInvalidOperationExceptionAsync()
     {
         // Arrange
         var manager = CreateManager();
@@ -170,14 +172,14 @@ public class VelopackUpdateManagerTests
     }
 
     /// <summary>
-    /// Tests that CheckForArtifactUpdatesAsync returns null when no PAT is available.
+    /// Tests that CheckForArtifactUpdatesAsync returns null when GitHub authentication is not available.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     [Fact]
-    public async Task CheckForArtifactUpdatesAsync_WithoutPAT_ShouldReturnNull()
+    public async Task CheckForArtifactUpdatesAsync_WithoutAuthentication_ShouldReturnNullAsync()
     {
         // Arrange
-        _mockGitHubTokenStorage.Setup(x => x.HasToken()).Returns(false);
+        _mockGitHubAuthService.SetupGet(x => x.IsAuthenticated).Returns(false);
         var manager = CreateManager();
 
         // Act
@@ -189,8 +191,104 @@ public class VelopackUpdateManagerTests
     }
 
     /// <summary>
+    /// Tests that VelopackUpdateManager accepts a custom IFileDownloader.
+    /// </summary>
+    [Fact]
+    public void Constructor_WithCustomFileDownloader_ShouldInitializeSuccessfully()
+    {
+        // Arrange
+        var customDownloader = new Mock<IFileDownloader>().Object;
+
+        // Act
+        var manager = new VelopackUpdateManager(
+            _mockLogger.Object,
+            _mockHttpClientFactory.Object,
+            _mockGitHubAuthService.Object,
+            _mockUserSettingsService.Object,
+            customDownloader);
+
+        // Assert
+        Assert.NotNull(manager);
+        Assert.False(manager.IsUpdatePendingRestart);
+    }
+
+    /// <summary>
+    /// Tests that IsMatchingWorkflowRun accepts push, workflow_dispatch, and pull_request events when head_branch matches.
+    /// </summary>
+    /// <param name="eventType">The workflow run event type.</param>
+    /// <param name="expected">The expected match result.</param>
+    [Theory]
+    [InlineData("push", true)]
+    [InlineData("workflow_dispatch", true)]
+    [InlineData("pull_request", true)]
+    [InlineData("issue_comment", false)]
+    public void IsMatchingWorkflowRun_BranchMatchingEvents_ReturnsExpected(string eventType, bool expected)
+    {
+        // Arrange
+        var json = $"{{\"head_branch\": \"development\", \"event\": \"{eventType}\"}}";
+        using var doc = JsonDocument.Parse(json);
+
+        // Act
+        var result = VelopackUpdateManager.IsMatchingWorkflowRun(doc.RootElement, "development", null);
+
+        // Assert
+        Assert.Equal(expected, result);
+    }
+
+    /// <summary>
+    /// Tests that IsMatchingWorkflowRun rejects runs whose head branch does not match requested branch.
+    /// </summary>
+    [Fact]
+    public void IsMatchingWorkflowRun_WhenHeadBranchDiffers_ReturnsFalse()
+    {
+        // Arrange
+        var json = "{\"head_branch\": \"feature/other\", \"event\": \"pull_request\"}";
+        using var doc = JsonDocument.Parse(json);
+
+        // Act
+        var result = VelopackUpdateManager.IsMatchingWorkflowRun(doc.RootElement, "development", null);
+
+        // Assert
+        Assert.False(result);
+    }
+
+    /// <summary>
+    /// Tests that IsMatchingWorkflowRun matches PR numbers when specified.
+    /// </summary>
+    [Fact]
+    public void IsMatchingWorkflowRun_WithMatchingPrNumber_ReturnsTrue()
+    {
+        // Arrange
+        var json = "{\"head_branch\": \"development\", \"event\": \"pull_request\", \"pull_requests\": [{\"number\": 378}]}";
+        using var doc = JsonDocument.Parse(json);
+
+        // Act
+        var result = VelopackUpdateManager.IsMatchingWorkflowRun(doc.RootElement, null, 378);
+
+        // Assert
+        Assert.True(result);
+    }
+
+    /// <summary>
+    /// Tests that IsMatchingWorkflowRun rejects non-matching PR numbers.
+    /// </summary>
+    [Fact]
+    public void IsMatchingWorkflowRun_WithDifferentPrNumber_ReturnsFalse()
+    {
+        // Arrange
+        var json = "{\"head_branch\": \"development\", \"event\": \"pull_request\", \"pull_requests\": [{\"number\": 378}]}";
+        using var doc = JsonDocument.Parse(json);
+
+        // Act
+        var result = VelopackUpdateManager.IsMatchingWorkflowRun(doc.RootElement, null, 400);
+
+        // Assert
+        Assert.False(result);
+    }
+
+    /// <summary>
     /// Creates a new VelopackUpdateManager instance with mocked dependencies.
     /// </summary>
     private VelopackUpdateManager CreateManager() =>
-        new(_mockLogger.Object, _mockHttpClientFactory.Object, _mockGitHubTokenStorage.Object, _mockUserSettingsService.Object);
+        new(_mockLogger.Object, _mockHttpClientFactory.Object, _mockGitHubAuthService.Object, _mockUserSettingsService.Object);
 }

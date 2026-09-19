@@ -1,12 +1,12 @@
-using System;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Features.Content.Services.GeneralsOnline;
 using GenHub.Features.Content.Services.Publishers;
 using Microsoft.Extensions.Logging.Abstractions;
+using System;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using Xunit;
 
 namespace GenHub.Tests.Integration.ContentPipeline;
@@ -20,7 +20,7 @@ namespace GenHub.Tests.Integration.ContentPipeline;
 public class ContentPipelineIntegrationTests
 {
     [Fact]
-    public async Task GeneralsOnline_ManifestEndpoint_ShouldReturnValidManifests()
+    public async Task GeneralsOnline_ManifestEndpoint_ShouldReturnValidManifestsAsync()
     {
         // Arrange
         var discoverer = new GeneralsOnlineDiscoverer(
@@ -48,7 +48,7 @@ public class ContentPipelineIntegrationTests
     }
 
     [Fact]
-    public async Task GeneralsOnline_CreateDualManifests_ShouldGenerate30HzAnd60Hz()
+    public async Task GeneralsOnline_CreateDualManifests_ShouldGenerate30HzAnd60HzAsync()
     {
         // Arrange
         var discoverer = new GeneralsOnlineDiscoverer(
@@ -85,7 +85,7 @@ public class ContentPipelineIntegrationTests
     }
 
     [Fact(Skip = "Requires GitHub API client setup - manual verification at https://github.com/TheSuperHackers/GeneralsGameCode/releases")]
-    public async Task TheSuperHackers_GitHubReleases_ShouldFindWeeklyReleases()
+    public async Task TheSuperHackers_GitHubReleases_ShouldFindWeeklyReleasesAsync()
     {
         // This test requires actual GitHub API access with authentication
         // Skipped until proper test infrastructure is in place
@@ -93,7 +93,7 @@ public class ContentPipelineIntegrationTests
     }
 
     [Fact]
-    public async Task TheSuperHackers_ManifestFactory_ShouldCreateGeneralsAndZeroHourManifests()
+    public async Task TheSuperHackers_ManifestFactory_ShouldCreateGeneralsAndZeroHourManifestsAsync()
     {
         // Arrange
         var factory = new SuperHackersManifestFactory(

@@ -1,0 +1,74 @@
+using System.Diagnostics.CodeAnalysis;
+
+namespace GenHub.Core.Constants;
+
+/// <summary>
+/// Constants related to Steam integration.
+/// </summary>
+[SuppressMessage("Minor Code Smell", "S1075:URIs should not be hardcoded", Justification = "Steam client URI scheme prefix is a fixed external protocol contract.")]
+public static class SteamConstants
+{
+    /// <summary>
+    /// Steam AppID for Command &amp; Conquer: Generals.
+    /// </summary>
+    public const string GeneralsAppId = "17300";
+
+    /// <summary>
+    /// Steam AppID for Command &amp; Conquer: Generals - Zero Hour.
+    /// </summary>
+    public const string ZeroHourAppId = "2732960";
+
+    /// <summary>
+    /// The URL scheme prefix used to run a game by AppID through Steam.
+    /// </summary>
+    public const string RunGameIdUrlPrefix = "steam://rungameid/";
+
+    /// <summary>
+    /// The name of the tracking file used for Steam launches.
+    /// </summary>
+    public const string TrackingFileName = ".genhub-files.json";
+
+    /// <summary>
+    /// The name of the backup directory for original game files.
+    /// </summary>
+    public const string BackupDirName = ".genhub-backup";
+
+    /// <summary>
+    /// The extension used for backed up game executables.
+    /// </summary>
+    public const string BackupExtension = FileTypes.BackupExtension;
+
+    /// <summary>
+    /// The filename of the proxy launcher executable.
+    /// </summary>
+    public const string ProxyLauncherFileName = "GenHub.ProxyLauncher.exe";
+
+    /// <summary>
+    /// The filename of the proxy launcher assembly.
+    /// </summary>
+    public const string ProxyLauncherDllFileName = "GenHub.ProxyLauncher.dll";
+
+    /// <summary>
+    /// The product and internal name of the proxy launcher.
+    /// </summary>
+    public const string ProxyLauncherName = "GenHub.ProxyLauncher";
+
+    /// <summary>
+    /// The application name token used for identifying proxy launchers.
+    /// </summary>
+    public const string AppNameToken = "GenHub";
+
+    /// <summary>
+    /// The proxy description token used for identifying proxy launchers.
+    /// </summary>
+    public const string ProxyDescriptionToken = "Proxy";
+
+    /// <summary>Steam directory name.</summary>
+    public const string SteamDirectoryName = "Steam";
+
+    /// <summary>Steam apps directory name.</summary>
+    public const string SteamAppsDirectoryName = "steamapps";
+
+    /// <summary>Steam common directory name.</summary>
+    public const string CommonDirectoryName = "common";
+}

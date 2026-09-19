@@ -13,7 +13,7 @@ public class GameProcessInfo
     public string ProcessName { get; set; } = string.Empty;
 
     /// <summary>Gets or sets the start time.</summary>
-    public DateTime StartTime { get; set; } = DateTime.Now;
+    public DateTime StartTime { get; set; } = DateTime.UtcNow;
 
     /// <summary>Gets or sets a value indicating whether the process is running.</summary>
     public bool IsRunning { get; set; }
