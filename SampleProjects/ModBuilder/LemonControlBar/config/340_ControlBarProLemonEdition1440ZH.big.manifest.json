@@ -1,8 +1,8 @@
 {
-  "bigFileName": "340_ControlBarProLemonEdition1080ZH.big",
+  "bigFileName": "340_ControlBarProLemonEdition1440ZH.big",
   "trailerHex": "0000000000000000",
   "headerSizeOverride": null,
-  "sha256": "ce169f207867aeb7594e799e1cc67abd8561a1d1b5c6cb2e59af88f4caeca828",
+  "sha256": "2dfd213ea9011363746d27b30feb05f5e692c665104bc4ea0c5a3597af804eb1",
   "entryOrder": [
     "Data\\Brazilian\\HeaderTemplate.ini",
     "Data\\Brazilian\\Language.ini",

@@ -1590,6 +1590,7 @@ public sealed class ProjectConfigService(
                         Name = "PatchINI",
                         SourceFiles = new[] { $"{directories.GameFilesEdited}/Data/INI/**/*.ini" },
                         OutputFormat = "INI",
+                        ManifestFile = "config/500_900_CommunityPatch_CoreINI.big.manifest.json",
                         Description = "Community Patch 2.0 balance and bugfix INI rules and overrides",
                     },
                 },
@@ -1643,6 +1644,7 @@ public sealed class ProjectConfigService(
                         SourceFiles = new[] { $"{directories.GameFilesEdited}/ZeroHour/English/**/*.csf" },
                         OutputFormat = "RAW",
                         NoConvert = true,
+                        ManifestFile = "config/!HotkeysLeikezeENZH.big.manifest.json",
                         Description = "Leikeze Zero Hour English hotkey string table",
                     },
                     new
@@ -1651,6 +1653,7 @@ public sealed class ProjectConfigService(
                         SourceFiles = new[] { $"{directories.GameFilesEdited}/Generals/English/**/*.csf" },
                         OutputFormat = "RAW",
                         NoConvert = true,
+                        ManifestFile = "config/!HotkeysLeikezeEN.big.manifest.json",
                         Description = "Leikeze Generals English hotkey string table",
                     },
                     new
@@ -1659,6 +1662,7 @@ public sealed class ProjectConfigService(
                         SourceFiles = new[] { $"{directories.GameFilesEdited}/ZeroHour/German/**/*.csf" },
                         OutputFormat = "RAW",
                         NoConvert = true,
+                        ManifestFile = "config/!HotkeysLeikezeDEZH.big.manifest.json",
                         Description = "Leikeze Zero Hour German hotkey string table",
                     },
                 },
@@ -1812,6 +1816,10 @@ public sealed class ProjectConfigService(
             {
                 BundleItems = new object[]
                 {
+                    // Note: no ManifestFile refs here. Hotkeys sources are loose files
+                    // with no reference archive to extract a manifest from, and an
+                    // explicit-but-missing manifest fails the build. Sorted-order
+                    // packing produces identical bytes to the manifest-pinned sample.
                     new
                     {
                         Name = "HotkeyIndicators",
@@ -1822,14 +1830,14 @@ public sealed class ProjectConfigService(
                     new
                     {
                         Name = "HotkeyINIs",
-                        SourceFiles = new[] { $"{directories.GameFilesEdited}/Data/INI/**/*.ini", $"{directories.GameFilesEdited}/Data/INI/**/*.INI" },
+                        SourceFiles = new[] { $"{directories.GameFilesEdited}/Data/INI/**/*.ini" },
                         OutputFormat = "INI",
                         Description = "Command button assignments and mapped image coordinates",
                     },
                     new
                     {
                         Name = "HotkeyStrings",
-                        SourceFiles = new[] { $"{directories.GameFilesEdited}/Data/English/**/*.csf", $"{directories.GameFilesEdited}/Data/English/**/*.str" },
+                        SourceFiles = new[] { $"{directories.GameFilesEdited}/Data/English/**/*.csf" },
                         OutputFormat = "CSF",
                         Description = "String table with hotkey annotations (&Key)",
                     },
@@ -1888,7 +1896,7 @@ public sealed class ProjectConfigService(
         var texReadme = Path.Combine(texDir, "README.txt");
         if (!File.Exists(texReadme))
         {
-            await File.WriteAllTextAsync(texReadme, "Place your 32-bit RGBA .tga icon sheets here.\nModBuilder will automatically compress them to DXT5 DDS during build.\n", cancellationToken).ConfigureAwait(false);
+            await File.WriteAllTextAsync(texReadme, "Place your 32-bit RGBA .tga icon sheets here.\nTGA sources stay TGA when the bundle OutputFormat is TGA; set OutputFormat to DDS to convert.\n", cancellationToken).ConfigureAwait(false);
         }
     }
 
@@ -1925,62 +1933,120 @@ public sealed class ProjectConfigService(
                 {
                     new
                     {
-                        Name = ModBuilderConstants.LemonControlBarArtItemName,
+                        Name = ModBuilderConstants.LemonControlBarArt1080ItemName,
                         SourceFiles = new[]
                         {
-                            $"{directories.GameFilesEdited}/Art/**/*.dds",
-                            $"{directories.GameFilesEdited}/Art/**/*.tga",
+                            $"{directories.GameFilesEdited}/Gen1080/Art/**/*.dds",
+                            $"{directories.GameFilesEdited}/Gen1080/Art/**/*.tga",
                         },
-                        OutputFormat = "BIG",
-                        Description = "Lemon Control Bar UI textures (America, China, GLA command bars)",
+                        OutputFormat = "RAW",
+                        NoConvert = true,
+                        ManifestFile = "config/340_ControlBarProLemonEditionArt1080ZH.big.manifest.json",
+                        Description = "Lemon Edition 1080-generation command bar and power textures (DDS/TGA)",
                     },
                     new
                     {
-                        Name = ModBuilderConstants.LemonControlBarDataItemName,
+                        Name = ModBuilderConstants.LemonControlBarArt2160ItemName,
                         SourceFiles = new[]
                         {
-                            $"{directories.GameFilesEdited}/Data/**/*.ini",
-                            $"{directories.GameFilesEdited}/GenTool/**/*",
-                            $"{directories.GameFilesEdited}/ControlBarPro.txt",
+                            $"{directories.GameFilesEdited}/Gen2160/Art/**/*.dds",
+                            $"{directories.GameFilesEdited}/Gen2160/Art/**/*.tga",
                         },
-                        OutputFormat = "BIG",
-                        Description = "Lemon Control Bar INI layouts, scheme configurations, and GenTool support files",
+                        OutputFormat = "RAW",
+                        NoConvert = true,
+                        ManifestFile = "config/340_ControlBarProLemonEditionArt2160ZH.big.manifest.json",
+                        Description = "Lemon Edition 2160-generation command bar and power textures (DDS/TGA)",
+                    },
+                    new
+                    {
+                        Name = ModBuilderConstants.LemonControlBarData1080ItemName,
+                        SourceFiles = new[]
+                        {
+                            $"{directories.GameFilesEdited}/Gen1080/Data/**/*.ini",
+                            $"{directories.GameFilesEdited}/Gen1080/Window/**/*.wnd",
+                        },
+                        OutputFormat = "RAW",
+                        NoConvert = true,
+                        ManifestFile = "config/340_ControlBarProLemonEditionData1080ZH.big.manifest.json",
+                        Description = "Lemon Edition 1080-generation control bar scheme, mapped images, and window layouts",
+                    },
+                    new
+                    {
+                        Name = ModBuilderConstants.LemonControlBarData2160ItemName,
+                        SourceFiles = new[]
+                        {
+                            $"{directories.GameFilesEdited}/Gen2160/Data/**/*.ini",
+                            $"{directories.GameFilesEdited}/Gen2160/Window/**/*.wnd",
+                        },
+                        OutputFormat = "RAW",
+                        NoConvert = true,
+                        ManifestFile = "config/340_ControlBarProLemonEditionData2160ZH.big.manifest.json",
+                        Description = "Lemon Edition 2160-generation control bar scheme, mapped images, and window layouts",
+                    },
+                    new
+                    {
+                        Name = ModBuilderConstants.LemonControlBarBaseItemName,
+                        SourceFiles = new[]
+                        {
+                            $"{directories.GameFilesEdited}/ControlBarPro.txt",
+                            $"{directories.GameFilesEdited}/GenTool/**/*",
+                        },
+                        OutputFormat = "RAW",
+                        NoConvert = true,
+                        ManifestFile = "config/340_ControlBarProLemonEditionZH.big.manifest.json",
+                        Description = "Lemon Edition shared base files (ControlBarPro.txt and GenTool fullviewport data)",
                     },
                     new
                     {
                         Name = ModBuilderConstants.LemonControlBarWindows720pItemName,
-                        SourceFiles = new[] { $"{directories.GameFilesEdited}/Window/720p/**/*.wnd" },
-                        BaseDir = $"{directories.GameFilesEdited}/Window/720p",
-                        TargetDir = ModBuilderConstants.WindowDirectoryName,
-                        OutputFormat = "BIG",
-                        Description = "1280x720 window layouts and control bar UI",
+                        SourceFiles = new[]
+                        {
+                            $"{directories.GameFilesEdited}/Res720p/Data/**/*.ini",
+                            $"{directories.GameFilesEdited}/Res720p/Window/**/*.wnd",
+                        },
+                        OutputFormat = "RAW",
+                        NoConvert = true,
+                        ManifestFile = "config/340_ControlBarProLemonEdition720ZH.big.manifest.json",
+                        Description = "Lemon Edition 720p (1280x720) locale data and widescreen window layouts",
                     },
                     new
                     {
                         Name = ModBuilderConstants.LemonControlBarWindows1080pItemName,
-                        SourceFiles = new[] { $"{directories.GameFilesEdited}/Window/1080p/**/*.wnd" },
-                        BaseDir = $"{directories.GameFilesEdited}/Window/1080p",
-                        TargetDir = ModBuilderConstants.WindowDirectoryName,
-                        OutputFormat = "BIG",
-                        Description = "1920x1080 window layouts and control bar UI",
+                        SourceFiles = new[]
+                        {
+                            $"{directories.GameFilesEdited}/Res1080p/Data/**/*.ini",
+                            $"{directories.GameFilesEdited}/Res1080p/Window/**/*.wnd",
+                        },
+                        OutputFormat = "RAW",
+                        NoConvert = true,
+                        ManifestFile = "config/340_ControlBarProLemonEdition1080ZH.big.manifest.json",
+                        Description = "Lemon Edition 1080p (1920x1080) locale data and widescreen window layouts",
                     },
                     new
                     {
                         Name = ModBuilderConstants.LemonControlBarWindows1440pItemName,
-                        SourceFiles = new[] { $"{directories.GameFilesEdited}/Window/1440p/**/*.wnd" },
-                        BaseDir = $"{directories.GameFilesEdited}/Window/1440p",
-                        TargetDir = ModBuilderConstants.WindowDirectoryName,
-                        OutputFormat = "BIG",
-                        Description = "2560x1440 window layouts and control bar UI",
+                        SourceFiles = new[]
+                        {
+                            $"{directories.GameFilesEdited}/Res1440p/Data/**/*.ini",
+                            $"{directories.GameFilesEdited}/Res1440p/Window/**/*.wnd",
+                        },
+                        OutputFormat = "RAW",
+                        NoConvert = true,
+                        ManifestFile = "config/340_ControlBarProLemonEdition1440ZH.big.manifest.json",
+                        Description = "Lemon Edition 1440p (2560x1440) locale data and widescreen window layouts",
                     },
                     new
                     {
                         Name = ModBuilderConstants.LemonControlBarWindows4KItemName,
-                        SourceFiles = new[] { $"{directories.GameFilesEdited}/Window/4K/**/*.wnd" },
-                        BaseDir = $"{directories.GameFilesEdited}/Window/4K",
-                        TargetDir = ModBuilderConstants.WindowDirectoryName,
-                        OutputFormat = "BIG",
-                        Description = "3840x2160 (4K) window layouts and control bar UI",
+                        SourceFiles = new[]
+                        {
+                            $"{directories.GameFilesEdited}/Res4K/Data/**/*.ini",
+                            $"{directories.GameFilesEdited}/Res4K/Window/**/*.wnd",
+                        },
+                        OutputFormat = "RAW",
+                        NoConvert = true,
+                        ManifestFile = "config/340_ControlBarProLemonEdition2160ZH.big.manifest.json",
+                        Description = "Lemon Edition 4K (3840x2160) locale data and widescreen window layouts",
                     },
                 },
             };
@@ -1998,43 +2064,111 @@ public sealed class ProjectConfigService(
                 {
                     new
                     {
+                        Name = "LemonControlBar_Art1080",
+                        Items = new[] { ModBuilderConstants.LemonControlBarArt1080ItemName },
+                        ItemNames = new[] { ModBuilderConstants.LemonControlBarArt1080ItemName },
+                        AllowBuild = true,
+                        AllowInstall = true,
+                        OutputFile = $"{directories.Release}/340_ControlBarProLemonEditionArt1080ZH.big",
+                        ManifestFile = "config/340_ControlBarProLemonEditionArt1080ZH.big.manifest.json",
+                        Big = true,
+                        Description = "Lemon Edition 1080-generation art textures BIG archive",
+                    },
+                    new
+                    {
+                        Name = "LemonControlBar_Art2160",
+                        Items = new[] { ModBuilderConstants.LemonControlBarArt2160ItemName },
+                        ItemNames = new[] { ModBuilderConstants.LemonControlBarArt2160ItemName },
+                        AllowBuild = true,
+                        AllowInstall = true,
+                        OutputFile = $"{directories.Release}/340_ControlBarProLemonEditionArt2160ZH.big",
+                        ManifestFile = "config/340_ControlBarProLemonEditionArt2160ZH.big.manifest.json",
+                        Big = true,
+                        Description = "Lemon Edition 2160-generation art textures BIG archive",
+                    },
+                    new
+                    {
+                        Name = "LemonControlBar_Data1080",
+                        Items = new[] { ModBuilderConstants.LemonControlBarData1080ItemName },
+                        ItemNames = new[] { ModBuilderConstants.LemonControlBarData1080ItemName },
+                        AllowBuild = true,
+                        AllowInstall = true,
+                        OutputFile = $"{directories.Release}/340_ControlBarProLemonEditionData1080ZH.big",
+                        ManifestFile = "config/340_ControlBarProLemonEditionData1080ZH.big.manifest.json",
+                        Big = true,
+                        Description = "Lemon Edition 1080-generation data and window layouts BIG archive",
+                    },
+                    new
+                    {
+                        Name = "LemonControlBar_Data2160",
+                        Items = new[] { ModBuilderConstants.LemonControlBarData2160ItemName },
+                        ItemNames = new[] { ModBuilderConstants.LemonControlBarData2160ItemName },
+                        AllowBuild = true,
+                        AllowInstall = true,
+                        OutputFile = $"{directories.Release}/340_ControlBarProLemonEditionData2160ZH.big",
+                        ManifestFile = "config/340_ControlBarProLemonEditionData2160ZH.big.manifest.json",
+                        Big = true,
+                        Description = "Lemon Edition 2160-generation data and window layouts BIG archive",
+                    },
+                    new
+                    {
+                        Name = "LemonControlBar_Base",
+                        Items = new[] { ModBuilderConstants.LemonControlBarBaseItemName },
+                        ItemNames = new[] { ModBuilderConstants.LemonControlBarBaseItemName },
+                        AllowBuild = true,
+                        AllowInstall = true,
+                        OutputFile = $"{directories.Release}/340_ControlBarProLemonEditionZH.big",
+                        ManifestFile = "config/340_ControlBarProLemonEditionZH.big.manifest.json",
+                        Big = true,
+                        Description = "Lemon Edition shared base files BIG archive",
+                    },
+                    new
+                    {
                         Name = "LemonControlBar_720p",
-                        Items = new[] { ModBuilderConstants.LemonControlBarArtItemName, ModBuilderConstants.LemonControlBarDataItemName, ModBuilderConstants.LemonControlBarWindows720pItemName },
-                        ItemNames = new[] { ModBuilderConstants.LemonControlBarArtItemName, ModBuilderConstants.LemonControlBarDataItemName, ModBuilderConstants.LemonControlBarWindows720pItemName },
+                        Items = new[] { ModBuilderConstants.LemonControlBarWindows720pItemName },
+                        ItemNames = new[] { ModBuilderConstants.LemonControlBarWindows720pItemName },
                         AllowBuild = true,
                         AllowInstall = true,
                         OutputFile = $"{directories.Release}/340_ControlBarProLemonEdition720ZH.big",
-                        Description = "Lemon Control Bar - 1280x720 (720p) resolution variant",
+                        ManifestFile = "config/340_ControlBarProLemonEdition720ZH.big.manifest.json",
+                        Big = true,
+                        Description = "Lemon Edition 720p (1280x720) widescreen control bar BIG archive",
                     },
                     new
                     {
                         Name = "LemonControlBar_1080p",
-                        Items = new[] { ModBuilderConstants.LemonControlBarArtItemName, ModBuilderConstants.LemonControlBarDataItemName, ModBuilderConstants.LemonControlBarWindows1080pItemName },
-                        ItemNames = new[] { ModBuilderConstants.LemonControlBarArtItemName, ModBuilderConstants.LemonControlBarDataItemName, ModBuilderConstants.LemonControlBarWindows1080pItemName },
+                        Items = new[] { ModBuilderConstants.LemonControlBarWindows1080pItemName },
+                        ItemNames = new[] { ModBuilderConstants.LemonControlBarWindows1080pItemName },
                         AllowBuild = true,
                         AllowInstall = true,
                         OutputFile = $"{directories.Release}/340_ControlBarProLemonEdition1080ZH.big",
-                        Description = "Lemon Control Bar - 1920x1080 (1080p) resolution variant",
+                        ManifestFile = "config/340_ControlBarProLemonEdition1080ZH.big.manifest.json",
+                        Big = true,
+                        Description = "Lemon Edition 1080p (1920x1080) widescreen control bar BIG archive",
                     },
                     new
                     {
                         Name = "LemonControlBar_1440p",
-                        Items = new[] { ModBuilderConstants.LemonControlBarArtItemName, ModBuilderConstants.LemonControlBarDataItemName, ModBuilderConstants.LemonControlBarWindows1440pItemName },
-                        ItemNames = new[] { ModBuilderConstants.LemonControlBarArtItemName, ModBuilderConstants.LemonControlBarDataItemName, ModBuilderConstants.LemonControlBarWindows1440pItemName },
+                        Items = new[] { ModBuilderConstants.LemonControlBarWindows1440pItemName },
+                        ItemNames = new[] { ModBuilderConstants.LemonControlBarWindows1440pItemName },
                         AllowBuild = true,
                         AllowInstall = true,
                         OutputFile = $"{directories.Release}/340_ControlBarProLemonEdition1440ZH.big",
-                        Description = "Lemon Control Bar - 2560x1440 (1440p) resolution variant",
+                        ManifestFile = "config/340_ControlBarProLemonEdition1440ZH.big.manifest.json",
+                        Big = true,
+                        Description = "Lemon Edition 1440p (2560x1440) widescreen control bar BIG archive",
                     },
                     new
                     {
                         Name = "LemonControlBar_4K",
-                        Items = new[] { ModBuilderConstants.LemonControlBarArtItemName, ModBuilderConstants.LemonControlBarDataItemName, ModBuilderConstants.LemonControlBarWindows4KItemName },
-                        ItemNames = new[] { ModBuilderConstants.LemonControlBarArtItemName, ModBuilderConstants.LemonControlBarDataItemName, ModBuilderConstants.LemonControlBarWindows4KItemName },
+                        Items = new[] { ModBuilderConstants.LemonControlBarWindows4KItemName },
+                        ItemNames = new[] { ModBuilderConstants.LemonControlBarWindows4KItemName },
                         AllowBuild = true,
                         AllowInstall = true,
                         OutputFile = $"{directories.Release}/340_ControlBarProLemonEdition2160ZH.big",
-                        Description = "Lemon Control Bar - 3840x2160 (4K) resolution variant",
+                        ManifestFile = "config/340_ControlBarProLemonEdition2160ZH.big.manifest.json",
+                        Big = true,
+                        Description = "Lemon Edition 4K (3840x2160) widescreen control bar BIG archive",
                     },
                 },
             };
@@ -2062,6 +2196,7 @@ public sealed class ProjectConfigService(
                         Name = ModBuilderConstants.MenuWindowsItemName,
                         SourceFiles = new[] { $"{directories.GameFilesEdited}/window/Menus/**/*.wnd" },
                         OutputFormat = "WINDOW",
+                        ManifestFile = "config/0_ImprovedMenusEnglish.big.manifest.json",
                         Description = "Widescreen adapted .wnd menu layout definitions (Common)",
                     },
                     new
@@ -2069,30 +2204,34 @@ public sealed class ProjectConfigService(
                         Name = ModBuilderConstants.MenuMappedImagesItemName,
                         SourceFiles = new[] { $"{directories.GameFilesEdited}/Data/INI/MappedImages/**/*.ini" },
                         OutputFormat = "INI",
+                        ManifestFile = "config/0_ImprovedMenusEnglish.big.manifest.json",
                         Description = "MappedImage coordinate definitions for widescreen menu textures (Common)",
                     },
                     new
                     {
                         Name = ModBuilderConstants.MenuTexturesEnglishItemName,
-                        SourceFiles = new[] { $"{directories.GameFilesEdited}/Data/English/Art/Textures/**/*.tga" },
+                        SourceFiles = new[] { $"{directories.GameFilesEdited}/Data/English/Art/Textures/**/*.tga", $"{directories.GameFilesEdited}/Data/English/Art/Textures/**/*.dds" },
                         OutputFormat = "RAW",
                         NoConvert = true,
+                        ManifestFile = "config/0_ImprovedMenusEnglish.big.manifest.json",
                         Description = "English high resolution menu backdrops and UI frame textures",
                     },
                     new
                     {
                         Name = ModBuilderConstants.MenuTexturesRussianItemName,
-                        SourceFiles = new[] { $"{directories.GameFilesEdited}/Data/Russian/Art/Textures/**/*.tga" },
+                        SourceFiles = new[] { $"{directories.GameFilesEdited}/Data/Russian/Art/Textures/**/*.tga", $"{directories.GameFilesEdited}/Data/Russian/Art/Textures/**/*.dds" },
                         OutputFormat = "RAW",
                         NoConvert = true,
+                        ManifestFile = "config/0_ImprovedMenusRussian.big.manifest.json",
                         Description = "Russian high resolution menu backdrops and UI frame textures",
                     },
                     new
                     {
                         Name = ModBuilderConstants.MenuTexturesSpanishItemName,
-                        SourceFiles = new[] { $"{directories.GameFilesEdited}/Data/Spanish/Art/Textures/**/*.tga" },
+                        SourceFiles = new[] { $"{directories.GameFilesEdited}/Data/Spanish/Art/Textures/**/*.tga", $"{directories.GameFilesEdited}/Data/Spanish/Art/Textures/**/*.dds" },
                         OutputFormat = "RAW",
                         NoConvert = true,
+                        ManifestFile = "config/0_ImprovedMenusSpanish.big.manifest.json",
                         Description = "Spanish high resolution menu backdrops and UI frame textures",
                     },
                 },

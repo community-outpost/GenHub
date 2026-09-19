@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
@@ -148,12 +149,12 @@ public sealed class SampleProjectServiceTests : IDisposable
     [Fact]
     public void HasSampleAssets_WhenLemonControlBarMissingControlBarProTxt_ReturnsFalse()
     {
-        // Arrange: stale asset cache with Art/Window/Data but predating ControlBarPro.txt acquisition.
+        // Arrange: per-generation layout predating ControlBarPro.txt acquisition.
         var projectDir = Path.Combine(_tempDirectory, "LemonControlBar");
         var editedDir = Path.Combine(projectDir, ModBuilderConstants.GameFilesEditedDir);
-        var artDir = Path.Combine(editedDir, "Art");
-        var wndDir = Path.Combine(editedDir, "Window");
-        var dataDir = Path.Combine(editedDir, "Data");
+        var artDir = Path.Combine(editedDir, "Gen1080", "Art");
+        var wndDir = Path.Combine(editedDir, "Res1080p", "Window");
+        var dataDir = Path.Combine(editedDir, "Gen1080", "Data");
         Directory.CreateDirectory(artDir);
         Directory.CreateDirectory(wndDir);
         Directory.CreateDirectory(dataDir);
@@ -169,9 +170,10 @@ public sealed class SampleProjectServiceTests : IDisposable
     }
 
     [Fact]
-    public void HasSampleAssets_WhenLemonControlBarAssetsComplete_ReturnsTrue()
+    public void HasSampleAssets_WhenLemonControlBarHasLegacyMergedLayout_ReturnsFalse()
     {
-        // Arrange
+        // Arrange: stale cache with merged Art/Window/Data roots predating the
+        // per-generation layout must trigger re-acquisition even with all files present.
         var projectDir = Path.Combine(_tempDirectory, "LemonControlBar");
         var editedDir = Path.Combine(projectDir, ModBuilderConstants.GameFilesEditedDir);
         var artDir = Path.Combine(editedDir, "Art");
@@ -189,7 +191,109 @@ public sealed class SampleProjectServiceTests : IDisposable
         var result = _service.HasSampleAssets(projectDir);
 
         // Assert
+        result.Should().BeFalse();
+    }
+
+    [Fact]
+    public void HasSampleAssets_WhenLemonControlBarAssetsComplete_ReturnsTrue()
+    {
+        // Arrange
+        var projectDir = Path.Combine(_tempDirectory, "LemonControlBar");
+        var editedDir = Path.Combine(projectDir, ModBuilderConstants.GameFilesEditedDir);
+        var artDir = Path.Combine(editedDir, "Gen1080", "Art");
+        var wndDir = Path.Combine(editedDir, "Res1080p", "Window");
+        var dataDir = Path.Combine(editedDir, "Gen1080", "Data");
+        Directory.CreateDirectory(artDir);
+        Directory.CreateDirectory(wndDir);
+        Directory.CreateDirectory(dataDir);
+        File.WriteAllText(Path.Combine(artDir, "texture.dds"), "dds");
+        File.WriteAllText(Path.Combine(wndDir, "MainMenu.wnd"), "wnd");
+        File.WriteAllText(Path.Combine(dataDir, "GameData.ini"), "ini");
+        File.WriteAllText(Path.Combine(editedDir, ModBuilderConstants.ControlBarProTxtFileName), "txt");
+
+        // Act
+        var result = _service.HasSampleAssets(projectDir);
+
+        // Assert
         result.Should().BeTrue();
+    }
+
+    [Fact]
+    public void FindZhEnglishCsf_WhenRussianVariantPresent_PrefersEnglish()
+    {
+        // Arrange: the Russian ZH table shares ZH and English path tokens.
+        var stagingDir = Path.Combine(_tempDirectory, "hlei");
+        var ruCsf = Path.Combine(stagingDir, "ZH", "BIG RU", "Data", "English", "generals.csf");
+        var enCsf = Path.Combine(stagingDir, "ZH", "BIG EN", "Data", "English", "generals.csf");
+        var csfFiles = new List<string> { ruCsf, enCsf };
+
+        // Act
+        var result = SampleProjectService.FindZhEnglishCsf(csfFiles, stagingDir);
+
+        // Assert
+        result.Should().Be(enCsf);
+    }
+
+    [Fact]
+    public void FindGeneralsEnglishCsf_WhenMultipleVariantsPresent_SelectsGeneralsEnglish()
+    {
+        // Arrange
+        var stagingDir = Path.Combine(_tempDirectory, "hlei");
+        var zhEnCsf = Path.Combine(stagingDir, "ZH", "BIG EN", "Data", "English", "generals.csf");
+        var genEnCsf = Path.Combine(stagingDir, "CCG", "BIG EN", "Data", "English", "generals.csf");
+        var zhDeCsf = Path.Combine(stagingDir, "ZH", "BIG DE", "Data", "English", "generals.csf");
+        var csfFiles = new List<string> { zhEnCsf, genEnCsf, zhDeCsf };
+
+        // Act
+        var result = SampleProjectService.FindGeneralsEnglishCsf(csfFiles, stagingDir);
+
+        // Assert
+        result.Should().Be(genEnCsf);
+    }
+
+    [Fact]
+    public void FindGermanCsf_WhenMultipleVariantsPresent_SelectsGerman()
+    {
+        // Arrange
+        var stagingDir = Path.Combine(_tempDirectory, "hlei");
+        var zhEnCsf = Path.Combine(stagingDir, "ZH", "BIG EN", "Data", "English", "generals.csf");
+        var zhDeCsf = Path.Combine(stagingDir, "ZH", "BIG DE", "Data", "English", "generals.csf");
+        var csfFiles = new List<string> { zhEnCsf, zhDeCsf };
+
+        // Act
+        var result = SampleProjectService.FindGermanCsf(csfFiles, stagingDir);
+
+        // Assert
+        result.Should().Be(zhDeCsf);
+    }
+
+    [Theory]
+    [InlineData("340_ControlBarProLemonEditionArt1080ZH.big", SampleProjectService.LemonBigRole.Art)]
+    [InlineData("340_ControlBarProLemonEditionArt2160ZH.big", SampleProjectService.LemonBigRole.Art)]
+    [InlineData("340_ControlBarProLemonEditionData1080ZH.big", SampleProjectService.LemonBigRole.Data)]
+    [InlineData("340_ControlBarProLemonEditionData2160ZH.big", SampleProjectService.LemonBigRole.Data)]
+    [InlineData("340_ControlBarProLemonEditionZH.big", SampleProjectService.LemonBigRole.Base)]
+    [InlineData("340_ControlBarProLemonEdition1080ZH.big", SampleProjectService.LemonBigRole.Resolution)]
+    [InlineData("340_ControlBarProLemonEdition720ZH.big", null)]
+    public void ClassifyLemonBig_RoutesArchivesByRole(string fileName, SampleProjectService.LemonBigRole? expected)
+    {
+        // Arrange
+        var spec = new SampleProjectService.LemonResolutionSpec(
+            "1080p",
+            "https://example.invalid/1080.zip",
+            "1080.zip",
+            "340_ControlBarProLemonEdition1080ZH.big",
+            "res-sha",
+            "Gen1080",
+            "art-sha",
+            "data-sha",
+            true);
+
+        // Act
+        var result = SampleProjectService.ClassifyLemonBig(fileName, spec);
+
+        // Assert
+        result.Should().Be(expected);
     }
 
     [Fact]

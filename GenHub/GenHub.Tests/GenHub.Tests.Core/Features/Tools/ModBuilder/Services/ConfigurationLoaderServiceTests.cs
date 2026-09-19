@@ -577,4 +577,84 @@ public sealed class ConfigurationLoaderServiceTests : IDisposable
         pack.Big.Should().BeFalse();
         pack.IsBigPack.Should().BeFalse();
     }
+
+    [Fact]
+    public async Task LoadConfigurationResultAsync_WithSimplifiedBundleItemManifestFile_MapsManifest()
+    {
+        // Arrange
+        var configPath = Path.Combine(_tempDirectory, "items.json");
+        var json = @"{
+            ""BundleItems"": [
+                {
+                    ""Name"": ""PatchINI"",
+                    ""SourceFiles"": [""GameFilesEdited/Data/INI/**/*.ini""],
+                    ""OutputFormat"": ""INI"",
+                    ""ManifestFile"": ""config/500_900_CommunityPatch_CoreINI.big.manifest.json""
+                }
+            ]
+        }";
+        await File.WriteAllTextAsync(configPath, json);
+
+        // Act
+        var result = (await _service.LoadConfigurationResultAsync(configPath)).Data!;
+
+        // Assert
+        result.Should().NotBeNull();
+        result.Items.Should().HaveCount(1);
+        result.Items[0].ManifestFile.Should().Be("config/500_900_CommunityPatch_CoreINI.big.manifest.json");
+    }
+
+    [Fact]
+    public async Task LoadConfigurationResultAsync_WithSimplifiedExplicitFile_StripsGameFilesEditedPrefix()
+    {
+        // Arrange
+        var configPath = Path.Combine(_tempDirectory, "items.json");
+        var json = @"{
+            ""BundleItems"": [
+                {
+                    ""Name"": ""Base"",
+                    ""SourceFiles"": [""GameFilesEdited/ControlBarPro.txt""],
+                    ""OutputFormat"": ""RAW"",
+                    ""NoConvert"": true
+                }
+            ]
+        }";
+        await File.WriteAllTextAsync(configPath, json);
+
+        // Act
+        var result = (await _service.LoadConfigurationResultAsync(configPath)).Data!;
+
+        // Assert
+        result.Should().NotBeNull();
+        result.Items.Should().HaveCount(1);
+        result.Items[0].Files.Should().HaveCount(1);
+        result.Items[0].Files[0].RelTargetFile.Should().Be("ControlBarPro.txt");
+    }
+
+    [Fact]
+    public async Task LoadConfigurationResultAsync_WithPythonBundleItemManifestFile_MapsManifest()
+    {
+        // Arrange
+        var configPath = Path.Combine(_tempDirectory, "bundle_items.json");
+        var json = @"{
+            ""bundles"": {
+                ""items"": [
+                    {
+                        ""name"": ""PatchINI"",
+                        ""manifestFile"": ""config/500_900_CommunityPatch_CoreINI.big.manifest.json"",
+                        ""files"": []
+                    }
+                ]
+            }
+        }";
+        await File.WriteAllTextAsync(configPath, json);
+
+        // Act
+        var result = (await _service.LoadConfigurationResultAsync(configPath)).Data!;
+
+        // Assert
+        result.Should().NotBeNull();
+        result.Items.Should().HaveCount(1);
+        result.Items[0].ManifestFile.Should().Be("config/500_900_CommunityPatch_CoreINI.big.manifest.json");
+    }
 }

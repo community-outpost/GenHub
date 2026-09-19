@@ -50,6 +50,14 @@ public class BundleItem
     public string BigSuffix { get; set; } = string.Empty;
 
     /// <summary>
+    /// Gets or sets the optional manifest file path for byte-for-byte reproducible BIG packing.
+    /// When the item contains the same file set as a release pack, referencing the pack
+    /// manifest makes the intermediate item archive byte-identical to the release archive.
+    /// </summary>
+    [JsonPropertyName("manifestFile")]
+    public string? ManifestFile { get; set; }
+
+    /// <summary>
     /// Gets or sets the game language to set on installation.
     /// </summary>
     [JsonPropertyName("setGameLanguageOnInstall")]

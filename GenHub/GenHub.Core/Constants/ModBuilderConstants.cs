@@ -266,14 +266,29 @@ public static class ModBuilderConstants
     public const string HotkeysSampleName = "Hotkeys";
 
     /// <summary>
-    /// Bundle item name for Lemon Control Bar art textures.
+    /// Bundle item name for Lemon Control Bar 1080-generation art textures.
     /// </summary>
-    public const string LemonControlBarArtItemName = "LemonControlBarArt";
+    public const string LemonControlBarArt1080ItemName = "LemonControlBarArt1080";
 
     /// <summary>
-    /// Bundle item name for Lemon Control Bar data and configuration files.
+    /// Bundle item name for Lemon Control Bar 2160-generation art textures.
     /// </summary>
-    public const string LemonControlBarDataItemName = "LemonControlBarData";
+    public const string LemonControlBarArt2160ItemName = "LemonControlBarArt2160";
+
+    /// <summary>
+    /// Bundle item name for Lemon Control Bar 1080-generation data and configuration files.
+    /// </summary>
+    public const string LemonControlBarData1080ItemName = "LemonControlBarData1080";
+
+    /// <summary>
+    /// Bundle item name for Lemon Control Bar 2160-generation data and configuration files.
+    /// </summary>
+    public const string LemonControlBarData2160ItemName = "LemonControlBarData2160";
+
+    /// <summary>
+    /// Bundle item name for Lemon Control Bar shared base files (ControlBarPro.txt and GenTool data).
+    /// </summary>
+    public const string LemonControlBarBaseItemName = "LemonControlBarBase";
 
     /// <summary>
     /// Bundle item name for Lemon Control Bar 720p window layouts.
@@ -722,6 +737,9 @@ public static class ModBuilderConstants
         /// <summary>Search pattern for CSF string table files.</summary>
         public const string CsfSearchPattern = "*.csf";
 
+        /// <summary>Search pattern for DDS texture files.</summary>
+        public const string DdsSearchPattern = "*.dds";
+
         /// <summary>Search pattern for JSON files.</summary>
         public const string JsonSearchPattern = "*.json";
 
@@ -856,6 +874,16 @@ public static class ModBuilderConstants
         public const string ImprovedMenusSha256 = "3280056a2d7cf9bc5cbe8d4ac18fb082846e6db11ad7bb5c60f7c4619353f0a4";
 
         /// <summary>
+        /// Expected SHA256 hash for Improved Menus Russian BIG archive.
+        /// </summary>
+        public const string ImprovedMenusRussianSha256 = "9b5bd315545a9fee17582f7dca4962f1004ea1b40699d3582845af66ac414715";
+
+        /// <summary>
+        /// Expected SHA256 hash for Improved Menus Spanish BIG archive.
+        /// </summary>
+        public const string ImprovedMenusSpanishSha256 = "515649ee2db438aaf5a02a8bb2a1b24cc1ce3d4f4aa4bd635d5ff927bbf7a003";
+
+        /// <summary>
         /// Environment variable name for overriding the Lemon Control Bar 720p download URL.
         /// </summary>
         public const string LemonControlBar720pUrlEnvVar = "GENHUB_MODBUILDER_LEMONCONTROLBAR_720P_URL";
@@ -901,6 +929,76 @@ public static class ModBuilderConstants
         public const string LemonControlBarSha256 = "ce169f207867aeb7594e799e1cc67abd8561a1d1b5c6cb2e59af88f4caeca828";
 
         /// <summary>
+        /// Expected SHA256 hash for Lemon Control Bar 720p window BIG archive.
+        /// </summary>
+        public const string LemonControlBar720pSha256 = "d79d8be0448461adeba69f4def5bf9a759bfea1266d7c0f5af6bd5287abeb221";
+
+        /// <summary>
+        /// Expected SHA256 hash for Lemon Control Bar 1440p window BIG archive.
+        /// </summary>
+        public const string LemonControlBar1440pSha256 = "2dfd213ea9011363746d27b30feb05f5e692c665104bc4ea0c5a3597af804eb1";
+
+        /// <summary>
+        /// Expected SHA256 hash for Lemon Control Bar 4K (2160p) window BIG archive.
+        /// </summary>
+        public const string LemonControlBar2160Sha256 = "d2ea1be2ec22ff6756c8655c1ea8cd07b581f4da9755dbe5bb97b1da803dd770";
+
+        /// <summary>
+        /// Expected SHA256 hash for Lemon Control Bar 1080-generation art BIG archive.
+        /// </summary>
+        public const string LemonControlBarArt1080Sha256 = "935ea092e15f96300c155e1277c7b758d5e80f2e13cea084102d9ee1707c158f";
+
+        /// <summary>
+        /// Expected SHA256 hash for Lemon Control Bar 1080-generation data BIG archive.
+        /// </summary>
+        public const string LemonControlBarData1080Sha256 = "e46dfd902b98455d697b71588dd150dc9b7139a886a1cb40ea6afa860147b56a";
+
+        /// <summary>
+        /// Expected SHA256 hash for Lemon Control Bar 2160-generation art BIG archive.
+        /// </summary>
+        public const string LemonControlBarArt2160Sha256 = "bb72394d20d3eea65d34d149bbf0e0578b48ff0aabdafdac3c9881da0c3fd060";
+
+        /// <summary>
+        /// Expected SHA256 hash for Lemon Control Bar 2160-generation data BIG archive.
+        /// </summary>
+        public const string LemonControlBarData2160Sha256 = "9bbe25446eeb500b96a5d45b2fab4d9438b12a19f3d04532fb45107f70847ef0";
+
+        /// <summary>
+        /// Expected SHA256 hash for Lemon Control Bar shared base BIG archive (ControlBarPro.txt and GenTool data).
+        /// </summary>
+        public const string LemonControlBarBaseSha256 = "e2c98cf602b89f0963dd8afbce82b7bebd124dd3c2420578724b86d26217a150";
+
+        /// <summary>
+        /// Shared base BIG filename carried by every Lemon Control Bar resolution zip.
+        /// </summary>
+        public const string LemonControlBarBaseBigFileName = "340_ControlBarProLemonEditionZH.big";
+
+        /// <summary>
+        /// Filename marker identifying Lemon Control Bar art BIG archives.
+        /// </summary>
+        public const string LemonArtBigMarker = "Art";
+
+        /// <summary>
+        /// Filename marker identifying Lemon Control Bar data BIG archives.
+        /// </summary>
+        public const string LemonDataBigMarker = "Data";
+
+        /// <summary>
+        /// Generation directory for 1080-generation Lemon assets inside GameFilesEdited.
+        /// </summary>
+        public const string LemonGen1080Dir = "Gen1080";
+
+        /// <summary>
+        /// Generation directory for 2160-generation Lemon assets inside GameFilesEdited.
+        /// </summary>
+        public const string LemonGen2160Dir = "Gen2160";
+
+        /// <summary>
+        /// Prefix for per-resolution Lemon directories inside GameFilesEdited (for example Res1080p).
+        /// </summary>
+        public const string LemonResolutionDirPrefix = "Res";
+
+        /// <summary>
         /// Environment variable name for overriding the Leikeze Hotkeys download URL.
         /// </summary>
         public const string LeikezeHotkeysUrlEnvVar = "GENHUB_MODBUILDER_LEIKEZEHOTKEYS_URL";
@@ -911,9 +1009,24 @@ public static class ModBuilderConstants
         public const string DefaultLeikezeHotkeysUrl = "https://legi.cc/gp2/f/hlei.dat";
 
         /// <summary>
-        /// Expected SHA256 hash for Leikeze Hotkeys BIG archive.
+        /// Expected SHA256 hash for Leikeze Hotkeys source archive (hlei.dat).
         /// </summary>
-        public const string LeikezeHotkeysSha256 = "b06677d18c83c108aaa482d571c99a5aad3365c8a492067ef6eaf09364d3ab88";
+        public const string LeikezeHotkeysSha256 = "a2450942bbf0ec2d8b3f62eb427844b65653d9aef103288449472390cc411215";
+
+        /// <summary>
+        /// Release BIG filename for Leikeze Zero Hour English hotkeys.
+        /// </summary>
+        public const string LeikezeHotkeysZhEnBigFileName = "!HotkeysLeikezeENZH.big";
+
+        /// <summary>
+        /// Release BIG filename for Leikeze Generals English hotkeys.
+        /// </summary>
+        public const string LeikezeHotkeysGeneralsEnBigFileName = "!HotkeysLeikezeEN.big";
+
+        /// <summary>
+        /// Release BIG filename for Leikeze Zero Hour German hotkeys.
+        /// </summary>
+        public const string LeikezeHotkeysZhDeBigFileName = "!HotkeysLeikezeDEZH.big";
 
         /// <summary>
         /// Environment variable name for overriding the Hotkeys hleg download URL.

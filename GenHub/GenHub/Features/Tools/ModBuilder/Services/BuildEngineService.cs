@@ -542,7 +542,7 @@ public sealed class BuildEngineService(
         {
             cancellationToken.ThrowIfCancellationRequested();
             currentItem++;
-            await BuildSingleBigBundleItemAsync(item, bundlesDir, progress, currentItem, totalBigItems, cancellationToken)
+            await BuildSingleBigBundleItemAsync(item, bundlesDir, setup.ProjectDir, progress, currentItem, totalBigItems, cancellationToken)
                 .ConfigureAwait(false);
         }
     }
@@ -561,6 +561,7 @@ public sealed class BuildEngineService(
     private async Task BuildSingleBigBundleItemAsync(
         BundleItem item,
         string bundlesDir,
+        string? projectDir,
         IProgress<BuildProgress>? progress,
         int currentItem,
         int totalBigItems,
@@ -643,7 +644,13 @@ public sealed class BuildEngineService(
                 });
             });
 
-            await CreateBigArchiveWithLoggingAsync(stagingDir, bigFilePath, item.Name, archiveProgress, cancellationToken).ConfigureAwait(false);
+            var manifestPath = ResolveItemManifestPath(item, projectDir);
+            await CreateBigArchiveWithLoggingAsync(stagingDir, bigFilePath, item.Name, manifestPath, archiveProgress, cancellationToken).ConfigureAwait(false);
+
+            if (File.Exists(bigFilePath))
+            {
+                await VerifyBuiltArchiveHashAsync(bigFilePath, manifestPath, item.ManifestFile, progress, cancellationToken).ConfigureAwait(false);
+            }
         }
         finally
         {
@@ -685,10 +692,13 @@ public sealed class BuildEngineService(
         string stagingDir,
         string bigFilePath,
         string itemName,
+        string? manifestPath,
         IProgress<double> progress,
         CancellationToken cancellationToken)
     {
-        var archiveResult = await archiveService.CreateBigArchiveAsync(stagingDir, bigFilePath, progress, cancellationToken).ConfigureAwait(false);
+        var archiveResult = !string.IsNullOrEmpty(manifestPath)
+            ? await archiveService.CreateBigArchiveAsync(stagingDir, bigFilePath, manifestPath, progress, cancellationToken).ConfigureAwait(false)
+            : await archiveService.CreateBigArchiveAsync(stagingDir, bigFilePath, progress, cancellationToken).ConfigureAwait(false);
 
         if (!archiveResult.Success)
         {
@@ -815,7 +825,7 @@ public sealed class BuildEngineService(
         {
             if (items != null)
             {
-                await StagePackFilesAsync(pack, items, bundlesDir, packStagingDir, buildDir, progress, cancellationToken).ConfigureAwait(false);
+                await StagePackFilesAsync(pack, items, bundlesDir, packStagingDir, buildDir, setup.ProjectDir, progress, cancellationToken).ConfigureAwait(false);
             }
 
             var stagedFiles = Directory.GetFiles(packStagingDir, "*", SearchOption.AllDirectories);
@@ -881,6 +891,21 @@ public sealed class BuildEngineService(
             : Path.Combine(projectDir, pack.ManifestFile);
     }
 
+    private static string? ResolveItemManifestPath(BundleItem item, string? projectDir)
+    {
+        if (string.IsNullOrEmpty(item.ManifestFile))
+        {
+            return null;
+        }
+
+        if (Path.IsPathRooted(item.ManifestFile) || string.IsNullOrEmpty(projectDir))
+        {
+            return item.ManifestFile;
+        }
+
+        return Path.Combine(projectDir, item.ManifestFile);
+    }
+
     private async Task<OperationResult<bool>> CreatePackArchiveAsync(
         BundlePack pack,
         string packStagingDir,
@@ -942,6 +967,29 @@ public sealed class BuildEngineService(
             }
 
             var packFileName = Path.GetFileName(packFilePath);
+            if (manifest.EntryOrder.Count > 0 && TryReadBigEntryCount(packFilePath, out var entryCount) && entryCount != manifest.EntryOrder.Count)
+            {
+                if (entryCount < manifest.EntryOrder.Count)
+                {
+                    // Subset archives (bundle items sharing a release manifest) can
+                    // never match the release hash, so skip them without warning.
+                    logger.LogDebug(
+                        "Skipping hash verification for {File}: {Built} entries is a subset of {Manifest} manifest entries",
+                        packFileName,
+                        entryCount,
+                        manifest.EntryOrder.Count);
+                }
+                else
+                {
+                    logger.LogWarning(
+                        "Archive {File} contains {Built} entries but the manifest lists {Manifest}; extra files were packed beyond the release set",
+                        packFileName,
+                        entryCount,
+                        manifest.EntryOrder.Count);
+                }
+
+                return;
+            }
             progress?.Report(new BuildProgress
             {
                 CurrentStage = BuildStage.Archiving,
@@ -978,6 +1026,34 @@ public sealed class BuildEngineService(
         }
     }
 
+    private static bool TryReadBigEntryCount(string bigPath, out int entryCount)
+    {
+        entryCount = 0;
+        try
+        {
+            using var stream = File.OpenRead(bigPath);
+            if (stream.Length < 12)
+            {
+                return false;
+            }
+
+            using var reader = new BinaryReader(stream);
+            reader.ReadBytes(8);
+            var countBytes = reader.ReadBytes(4);
+            if (BitConverter.IsLittleEndian)
+            {
+                Array.Reverse(countBytes);
+            }
+
+            entryCount = (int)BitConverter.ToUInt32(countBytes, 0);
+            return true;
+        }
+        catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException)
+        {
+            return false;
+        }
+    }
+
     private void CleanupPackStagingDir(string packStagingDir)
     {
         if (Directory.Exists(packStagingDir))
@@ -993,7 +1069,7 @@ public sealed class BuildEngineService(
         }
     }
 
-    private async Task StagePackFilesAsync(BundlePack pack, IReadOnlyList<BundleItem> items, string bundlesDir, string packStagingDir, string buildDir, IProgress<BuildProgress>? progress, CancellationToken cancellationToken)
+    private async Task StagePackFilesAsync(BundlePack pack, IReadOnlyList<BundleItem> items, string bundlesDir, string packStagingDir, string buildDir, string? projectDir, IProgress<BuildProgress>? progress, CancellationToken cancellationToken)
     {
         if (pack.IsBigPack)
         {
@@ -1001,7 +1077,7 @@ public sealed class BuildEngineService(
         }
         else
         {
-            await StageStandardPackFilesAsync(pack, items, bundlesDir, packStagingDir, buildDir, progress, cancellationToken).ConfigureAwait(false);
+            await StageStandardPackFilesAsync(pack, items, bundlesDir, packStagingDir, buildDir, projectDir, progress, cancellationToken).ConfigureAwait(false);
         }
     }
 
@@ -1131,11 +1207,7 @@ public sealed class BuildEngineService(
             return (sourcePath, targetRelPath);
         }
 
-        if (file.Params != null &&
-            (file.Params.Any(kvp => string.Equals(kvp.Key, ModBuilderConstants.BundleParams.NoConvert, StringComparison.OrdinalIgnoreCase)) ||
-             file.Params.Any(kvp => string.Equals(kvp.Key, ModBuilderConstants.BundleParams.Raw, StringComparison.OrdinalIgnoreCase)) ||
-             file.Params.Any(kvp => string.Equals(kvp.Key, ModBuilderConstants.BundleParams.OutputFormat, StringComparison.OrdinalIgnoreCase) &&
-                                    string.Equals(kvp.Value?.ToString(), ModBuilderConstants.BundleParams.RawValue, StringComparison.OrdinalIgnoreCase))))
+        if (IsRawPassthrough(file))
         {
             return (sourcePath, targetRelPath);
         }
@@ -1194,7 +1266,7 @@ public sealed class BuildEngineService(
         logger.LogDebug("Staged file {RelPath} for BIG pack {PackName}", finalTargetRelPath, packName);
     }
 
-    private async Task StageStandardPackFilesAsync(BundlePack pack, IReadOnlyList<BundleItem> items, string bundlesDir, string packStagingDir, string buildDir, IProgress<BuildProgress>? progress, CancellationToken cancellationToken)
+    private async Task StageStandardPackFilesAsync(BundlePack pack, IReadOnlyList<BundleItem> items, string bundlesDir, string packStagingDir, string buildDir, string? projectDir, IProgress<BuildProgress>? progress, CancellationToken cancellationToken)
     {
         var totalItems = pack.ItemNames.Count;
         var stagedItems = 0;
@@ -1209,7 +1281,7 @@ public sealed class BuildEngineService(
 
             if (item.IsBig)
             {
-                await StageBigBundleArchiveAsync(item, bundlesDir, packStagingDir, pack.Name, progress, cancellationToken).ConfigureAwait(false);
+                await StageBigBundleArchiveAsync(item, bundlesDir, packStagingDir, pack.Name, projectDir, progress, cancellationToken).ConfigureAwait(false);
             }
             else
             {
@@ -1231,7 +1303,7 @@ public sealed class BuildEngineService(
         }
     }
 
-    private async Task StageBigBundleArchiveAsync(BundleItem item, string bundlesDir, string packStagingDir, string packName, IProgress<BuildProgress>? progress, CancellationToken cancellationToken)
+    private async Task StageBigBundleArchiveAsync(BundleItem item, string bundlesDir, string packStagingDir, string packName, string? projectDir, IProgress<BuildProgress>? progress, CancellationToken cancellationToken)
     {
         var bigFileName = GetBigFileName(item);
         var srcBig = Path.Combine(bundlesDir, bigFileName);
@@ -1247,7 +1319,7 @@ public sealed class BuildEngineService(
                 }
 
                 buildAttempted = true;
-                await BuildSingleBigBundleItemAsync(item, bundlesDir, progress, 1, 1, cancellationToken).ConfigureAwait(false);
+                await BuildSingleBigBundleItemAsync(item, bundlesDir, projectDir, progress, 1, 1, cancellationToken).ConfigureAwait(false);
             }
         }
 
@@ -1417,6 +1489,15 @@ public sealed class BuildEngineService(
     {
         var extension = Path.GetExtension(filePath).ToLowerInvariant();
         var targetPath = GetTargetPathForFile(filePath, BuildIndex.RawBundleItem, setup);
+        var bundleFile = FindBundleFile(filePath);
+
+        // Honor explicit passthrough: files already in their declared output format,
+        // or marked noconvert/raw, are copied verbatim so builds stay byte-for-byte
+        // reproducible instead of being pointlessly re-encoded.
+        if (IsRawPassthrough(bundleFile) || OutputFormatMatchesSource(bundleFile, extension))
+        {
+            return await CopyFileDirectlyAsync(filePath, targetPath, cancellationToken).ConfigureAwait(false);
+        }
 
         return extension switch
         {
@@ -1425,6 +1506,46 @@ public sealed class BuildEngineService(
             ModBuilderConstants.FileExtensions.Ini => await ProcessIniFileAsync(filePath, targetPath, cancellationToken).ConfigureAwait(false),
             _ => await CopyFileDirectlyAsync(filePath, targetPath, cancellationToken).ConfigureAwait(false),
         };
+    }
+
+    private BundleFile? FindBundleFile(string sourcePath)
+    {
+        if (_cachedSourceToBundleFileMap?.TryGetValue(sourcePath, out var bundleFile) == true)
+        {
+            return bundleFile;
+        }
+
+        return _cachedBuildStructure?.BundleItems?.Values
+            .SelectMany(i => i.Files)
+            .FirstOrDefault(f => string.Equals(f.AbsSourceFile, sourcePath, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static bool IsRawPassthrough(BundleFile? file)
+    {
+        if (file?.Params == null)
+        {
+            return false;
+        }
+
+        return file.Params.Any(kvp => string.Equals(kvp.Key, ModBuilderConstants.BundleParams.NoConvert, StringComparison.OrdinalIgnoreCase)) ||
+            file.Params.Any(kvp => string.Equals(kvp.Key, ModBuilderConstants.BundleParams.Raw, StringComparison.OrdinalIgnoreCase)) ||
+            file.Params.Any(kvp => string.Equals(kvp.Key, ModBuilderConstants.BundleParams.OutputFormat, StringComparison.OrdinalIgnoreCase) &&
+                string.Equals(kvp.Value?.ToString(), ModBuilderConstants.BundleParams.RawValue, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static bool OutputFormatMatchesSource(BundleFile? file, string sourceExtension)
+    {
+        var outputFormat = file?.Params?
+            .FirstOrDefault(kvp => string.Equals(kvp.Key, ModBuilderConstants.BundleParams.OutputFormat, StringComparison.OrdinalIgnoreCase)).Value?
+            .ToString();
+        if (string.IsNullOrWhiteSpace(outputFormat))
+        {
+            return false;
+        }
+
+        var normalizedFormat = outputFormat.Trim().TrimStart('.');
+        var normalizedSource = sourceExtension.Trim().TrimStart('.');
+        return string.Equals(normalizedFormat, normalizedSource, StringComparison.OrdinalIgnoreCase);
     }
 
     private async Task<bool> ConvertImageFileAsync(string sourcePath, string targetPath, CancellationToken cancellationToken)
@@ -1481,19 +1602,10 @@ public sealed class BuildEngineService(
         var buildDir = setup.Folders?.AbsBuildDir ?? ModBuilderConstants.DefaultBuildDir;
         string? relPath = null;
 
-        if (_cachedSourceToBundleFileMap?.TryGetValue(sourcePath, out var bundleFile) == true)
+        var bundleFile = FindBundleFile(sourcePath);
+        if (bundleFile != null)
         {
             relPath = GetTargetRelativePath(bundleFile);
-        }
-        else if (_cachedBuildStructure?.BundleItems != null)
-        {
-            var fallbackFile = _cachedBuildStructure.BundleItems.Values
-                .SelectMany(i => i.Files)
-                .FirstOrDefault(f => string.Equals(f.AbsSourceFile, sourcePath, StringComparison.OrdinalIgnoreCase));
-            if (fallbackFile != null)
-            {
-                relPath = GetTargetRelativePath(fallbackFile);
-            }
         }
 
         if (string.IsNullOrEmpty(relPath) && !string.IsNullOrEmpty(setup.ProjectDir))
@@ -1714,7 +1826,7 @@ public sealed class BuildEngineService(
 
             if (item.IsBig)
             {
-                await BuildSingleBigBundleItemAsync(item, bundlesDir, progress, 1, 1, cancellationToken).ConfigureAwait(false);
+                await BuildSingleBigBundleItemAsync(item, bundlesDir, setup.ProjectDir, progress, 1, 1, cancellationToken).ConfigureAwait(false);
             }
             else
             {

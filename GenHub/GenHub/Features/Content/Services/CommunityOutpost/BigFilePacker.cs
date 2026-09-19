@@ -553,11 +553,15 @@ public static class BigFilePacker
     private static (List<(string FullPath, string NormalizedRelPath, long Size)> Unique, int DuplicateCount) DeduplicateCandidates(
         IEnumerable<(string FullPath, string NormalizedRelPath, long Size)> candidates)
     {
+        // Sort before dedup so the surviving entry is stable across filesystems.
+        // Directory enumeration order is OS-dependent; without this, colliding
+        // paths would resolve to different winners on different machines.
+        var ordered = candidates.OrderBy(c => c.FullPath, StringComparer.Ordinal).ToList();
         var seenRelPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        var uniqueCandidates = new List<(string FullPath, string NormalizedRelPath, long Size)>();
+        var uniqueCandidates = new List<(string FullPath, string NormalizedRelPath, long Size)>(ordered.Count);
         var duplicateCount = 0;
 
-        foreach (var candidate in candidates)
+        foreach (var candidate in ordered)
         {
             if (seenRelPaths.Add(candidate.NormalizedRelPath))
             {

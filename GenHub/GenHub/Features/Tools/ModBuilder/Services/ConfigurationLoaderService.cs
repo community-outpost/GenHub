@@ -1071,6 +1071,7 @@ public class ConfigurationLoaderService(ILogger<ConfigurationLoaderService> logg
             IsBig = pythonItem.Big,
             BigSuffix = pythonItem.BigSuffix,
             SetGameLanguageOnInstall = pythonItem.SetGameLanguageOnInstall,
+            ManifestFile = pythonItem.ManifestFile,
         };
 
         if (pythonItem.Files != null)
@@ -1222,6 +1223,7 @@ public class ConfigurationLoaderService(ILogger<ConfigurationLoaderService> logg
         {
             Name = simpItem.Name!,
             IsBig = simpItem.Big ?? true,
+            ManifestFile = simpItem.ManifestFile,
         };
 
         var fileParams = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
@@ -1241,9 +1243,17 @@ public class ConfigurationLoaderService(ILogger<ConfigurationLoaderService> logg
 
         if (simpItem.SourceFiles != null)
         {
-            var relTarget = !string.IsNullOrWhiteSpace(simpItem.TargetDir) ? simpItem.TargetDir : string.Empty;
+            var configuredTarget = !string.IsNullOrWhiteSpace(simpItem.TargetDir) ? simpItem.TargetDir : string.Empty;
             foreach (var pattern in simpItem.SourceFiles)
             {
+                var relTarget = configuredTarget;
+                if (string.IsNullOrEmpty(relTarget) && !ContainsWildcard(pattern))
+                {
+                    // Explicit entries bypass DetermineTargetPath, so mirror its
+                    // GameFilesEdited handling here for consistent staging targets.
+                    relTarget = StripGameFilesEditedPrefix(pattern.Replace('\\', '/'));
+                }
+
                 item.Files.Add(new BundleFile
                 {
                     AbsSourceParent = projectDir,

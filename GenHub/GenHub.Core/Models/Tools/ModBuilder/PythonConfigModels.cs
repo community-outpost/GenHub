@@ -105,6 +105,12 @@ public sealed class PythonBundleItem
     public string SetGameLanguageOnInstall { get; set; } = string.Empty;
 
     /// <summary>
+    /// Gets or sets the manifest file path for byte-for-byte reproducible BIG packing.
+    /// </summary>
+    [JsonPropertyName("manifestFile")]
+    public string? ManifestFile { get; set; }
+
+    /// <summary>
     /// Gets or sets the list of file groups.
     /// </summary>
     [JsonPropertyName("files")]
@@ -477,6 +483,13 @@ public sealed class SimplifiedBundleItem
     [JsonPropertyName("NoConvert")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public bool NoConvert { get; set; }
+
+    /// <summary>
+    /// Gets or sets the manifest file path for byte-for-byte reproducible BIG packing.
+    /// </summary>
+    [JsonPropertyName("ManifestFile")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? ManifestFile { get; set; }
 
     /// <summary>
     /// Gets or sets the item description.

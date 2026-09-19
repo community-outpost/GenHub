@@ -1354,4 +1354,199 @@ public sealed class BuildEngineServiceTests : IDisposable
         packingReports.Should().NotBeEmpty("release packing progress must be reported");
         packingReports.Should().Contain(p => p.PercentComplete == 100);
     }
+
+    [Fact]
+    public async Task ExecuteBuildAsync_WithBigBundleItemManifest_PassesManifestToArchiveCreation()
+    {
+        // Arrange
+        var patchProjectDir = Path.Combine(_tempDirectory, "ItemManifest");
+        var editedDir = Path.Combine(patchProjectDir, "GameFilesEdited");
+        var buildDir = Path.Combine(patchProjectDir, ".Build");
+        var releaseDir = Path.Combine(patchProjectDir, ".Release");
+
+        Directory.CreateDirectory(Path.Combine(editedDir, "Data", "INI"));
+        var iniFile = Path.Combine(editedDir, "Data", "INI", "GameData.ini");
+        await File.WriteAllTextAsync(iniFile, "GameData content");
+
+        var project = new ModBuilderProject
+        {
+            Name = "ItemManifest",
+            ProjectDir = patchProjectDir,
+            Directories = new ProjectDirectories
+            {
+                GameFilesEdited = editedDir,
+                Build = buildDir,
+                Release = releaseDir,
+            },
+            BundleConfigs = new List<string>(),
+        };
+
+        var configuration = new BuildConfiguration
+        {
+            Folders = new FolderConfiguration
+            {
+                AbsBuildDir = buildDir,
+                AbsReleaseDir = releaseDir,
+            },
+            Items = new List<BundleItem>
+            {
+                new()
+                {
+                    Name = "PatchINI",
+                    IsBig = true,
+                    ManifestFile = "config/500_900_CommunityPatch_CoreINI.big.manifest.json",
+                    Files = new List<BundleFile>
+                    {
+                        new() { AbsSourceParent = patchProjectDir, AbsSourceFile = iniFile, RelTargetFile = "Data/INI/GameData.ini" },
+                    },
+                },
+            },
+            Packs = new List<BundlePack>(),
+        };
+
+        _mockCacheService.Setup(x => x.DetermineFileStatus(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<Dictionary<string, object>>()))
+            .Returns(BuildFileStatus.Added);
+
+        // Act
+        var result = await _service.ExecuteBuildAsync(
+            project,
+            configuration,
+            new List<string>(),
+            BuildStep.Build);
+
+        // Assert
+        result.Success.Should().BeTrue(result.FirstError);
+        var expectedManifest = Path.Combine(patchProjectDir, "config", "500_900_CommunityPatch_CoreINI.big.manifest.json");
+        _mockArchiveService.Verify(
+            x => x.CreateBigArchiveAsync(
+                It.IsAny<string>(),
+                It.Is<string>(p => p.EndsWith("PatchINI.big", StringComparison.OrdinalIgnoreCase)),
+                It.Is<string>(p => string.Equals(p, expectedManifest, StringComparison.Ordinal)),
+                It.IsAny<IProgress<double>?>(),
+                It.IsAny<CancellationToken>()),
+            Times.Once);
+    }
+
+    [Fact]
+    public async Task ExecuteBuildAsync_WithTgaMatchingOutputFormat_CopiesVerbatimWithoutConversion()
+    {
+        // Arrange
+        var sourceFile = Path.Combine(_tempDirectory, "texture.tga");
+        var sourceBytes = new byte[] { 0x54, 0x47, 0x41, 0x00, 0x01, 0x02 };
+        await File.WriteAllBytesAsync(sourceFile, sourceBytes);
+
+        var project = new ModBuilderProject
+        {
+            Name = "TgaPassthrough",
+            ProjectDir = _tempDirectory,
+            Directories = new ProjectDirectories
+            {
+                GameFilesEdited = _tempDirectory,
+                Build = Path.Combine(_tempDirectory, "output")
+            },
+            BundleConfigs = new List<string>()
+        };
+
+        var configuration = new BuildConfiguration
+        {
+            Items = new List<BundleItem>
+            {
+                new()
+                {
+                    Name = "Indicators",
+                    IsBig = false,
+                    Files = new List<BundleFile>
+                    {
+                        new()
+                        {
+                            AbsSourceParent = _tempDirectory,
+                            AbsSourceFile = sourceFile,
+                            RelTargetFile = "Art/Textures/texture.tga",
+                            Params = new Dictionary<string, object> { ["outputformat"] = "TGA" },
+                        }
+                    }
+                }
+            },
+            Packs = new List<BundlePack>(),
+        };
+
+        _mockCacheService.Setup(x => x.DetermineFileStatus(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<Dictionary<string, object>>()))
+            .Returns(BuildFileStatus.Added);
+
+        // Act
+        var result = await _service.ExecuteBuildAsync(project, configuration, new List<string>(), BuildStep.Build);
+
+        // Assert
+        result.Success.Should().BeTrue(result.FirstError);
+        _mockFileConversionService.Verify(
+            x => x.ConvertFileAsync(
+                It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<IProgress<double>>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+        var rawCopies = Directory.GetFiles(Path.Combine(_tempDirectory, "output"), "*.tga", SearchOption.AllDirectories);
+        rawCopies.Should().HaveCount(1);
+        (await File.ReadAllBytesAsync(rawCopies[0])).Should().Equal(sourceBytes);
+    }
+
+    [Fact]
+    public async Task ExecuteBuildAsync_WithTgaAndNoOutputFormat_ConvertsToDds()
+    {
+        // Arrange: legacy default converts images to DDS when no output format is declared.
+        var sourceFile = Path.Combine(_tempDirectory, "legacy.tga");
+        await File.WriteAllBytesAsync(sourceFile, new byte[] { 0x54, 0x47, 0x41 });
+
+        var project = new ModBuilderProject
+        {
+            Name = "TgaLegacy",
+            ProjectDir = _tempDirectory,
+            Directories = new ProjectDirectories
+            {
+                GameFilesEdited = _tempDirectory,
+                Build = Path.Combine(_tempDirectory, "output")
+            },
+            BundleConfigs = new List<string>()
+        };
+
+        var configuration = new BuildConfiguration
+        {
+            Items = new List<BundleItem>
+            {
+                new()
+                {
+                    Name = "Indicators",
+                    IsBig = false,
+                    Files = new List<BundleFile>
+                    {
+                        new()
+                        {
+                            AbsSourceParent = _tempDirectory,
+                            AbsSourceFile = sourceFile,
+                            RelTargetFile = "Art/Textures/legacy.tga",
+                        }
+                    }
+                }
+            },
+            Packs = new List<BundlePack>(),
+        };
+
+        _mockCacheService.Setup(x => x.DetermineFileStatus(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<Dictionary<string, object>>()))
+            .Returns(BuildFileStatus.Added);
+
+        _mockFileConversionService.Setup(x => x.ConvertFileAsync(
+            It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<IProgress<double>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ConversionOperationResult.CreateSuccess());
+
+        // Act
+        var result = await _service.ExecuteBuildAsync(project, configuration, new List<string>(), BuildStep.Build);
+
+        // Assert
+        result.Success.Should().BeTrue(result.FirstError);
+        _mockFileConversionService.Verify(
+            x => x.ConvertFileAsync(
+                sourceFile,
+                It.Is<string>(p => p.EndsWith(".dds", StringComparison.OrdinalIgnoreCase)),
+                It.IsAny<string>(),
+                It.IsAny<IProgress<double>>(),
+                It.IsAny<CancellationToken>()),
+            Times.Once);
+    }
 }

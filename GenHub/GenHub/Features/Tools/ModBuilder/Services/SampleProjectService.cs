@@ -39,13 +39,42 @@ public class SampleProjectService(
         string ZipUrl,
         string ZipPath,
         string AssetLabel,
-        string LanguageSubDir);
+        string LanguageSubDir,
+        string ExpectedSha256);
 
     private sealed record LeikezeVariantSpec(
         string TargetGameSubDir,
         string PackSubDir,
         string LanguageFolder,
         string BigFileName);
+
+    internal enum LemonBigRole
+    {
+        /// <summary>Shared art texture archive.</summary>
+        Art,
+
+        /// <summary>Shared data and window layout archive.</summary>
+        Data,
+
+        /// <summary>Per-resolution locale and window layout archive.</summary>
+        Resolution,
+
+        /// <summary>Shared base files archive.</summary>
+        Base,
+    }
+
+    internal sealed record LemonResolutionSpec(
+        string Resolution,
+        string Url,
+        string FileName,
+        string ResBigName,
+        string ResBigSha256,
+        string GenDir,
+        string ArtBigSha256,
+        string DataBigSha256,
+        bool IsPrimary);
+
+    internal sealed record LemonBigOutcome(LemonBigRole? Role, bool VerificationFailed);
 
     private static readonly string[] SampleProjectNames =
     [
@@ -127,21 +156,19 @@ public class SampleProjectService(
 
     private static bool HasLemonControlBarAssets(string gameFilesDir)
     {
-        var artDir = Path.Combine(gameFilesDir, ArtDirectoryName);
-        var wndDir = Path.Combine(gameFilesDir, WindowDirectoryName);
-        var dataDir = Path.Combine(gameFilesDir, DataDirectoryName);
-
-        // The bundle config references ControlBarPro.txt explicitly, so stale
-        // asset caches predating its acquisition must trigger re-acquisition.
+        // Assets live in per-generation (Gen1080/Gen2160) and per-resolution
+        // (Res720p/...) subdirectories, so search recursively for each kind.
+        // The generation marker forces re-acquisition for caches predating the
+        // per-generation layout, and ControlBarPro.txt is referenced explicitly
+        // by the bundle config.
         var controlBarProTxt = Path.Combine(gameFilesDir, ModBuilderConstants.ControlBarProTxtFileName);
+        var genMarker = Path.Combine(gameFilesDir, ModBuilderConstants.SampleProjects.LemonGen1080Dir);
 
-        return Directory.Exists(artDir) &&
-               Directory.EnumerateFiles(artDir, "*.*", SearchOption.AllDirectories).Any() &&
-               Directory.Exists(wndDir) &&
-               Directory.EnumerateFiles(wndDir, ModBuilderConstants.FileNames.WndSearchPattern, SearchOption.AllDirectories).Any() &&
-               Directory.Exists(dataDir) &&
-               Directory.EnumerateFiles(dataDir, ModBuilderConstants.FileNames.IniSearchPattern, SearchOption.AllDirectories).Any() &&
-               File.Exists(controlBarProTxt);
+        return Directory.Exists(genMarker) &&
+               File.Exists(controlBarProTxt) &&
+               Directory.EnumerateFiles(gameFilesDir, ModBuilderConstants.FileNames.DdsSearchPattern, SearchOption.AllDirectories).Any() &&
+               Directory.EnumerateFiles(gameFilesDir, ModBuilderConstants.FileNames.WndSearchPattern, SearchOption.AllDirectories).Any() &&
+               Directory.EnumerateFiles(gameFilesDir, ModBuilderConstants.FileNames.IniSearchPattern, SearchOption.AllDirectories).Any();
     }
 
     private static bool HasImprovedMenusAssets(string gameFilesDir)
@@ -440,12 +467,17 @@ public class SampleProjectService(
         }
     }
 
-    private static async Task<bool> VerifyFileSha256Async(string filePath, string expectedSha256, CancellationToken cancellationToken)
+    private static async Task<string> ComputeFileSha256Async(string filePath, CancellationToken cancellationToken)
     {
         await using var stream = File.OpenRead(filePath);
         using var sha = SHA256.Create();
         var hash = await sha.ComputeHashAsync(stream, cancellationToken).ConfigureAwait(false);
-        var actualHex = Convert.ToHexString(hash);
+        return Convert.ToHexString(hash).ToLowerInvariant();
+    }
+
+    private static async Task<bool> VerifyFileSha256Async(string filePath, string expectedSha256, CancellationToken cancellationToken)
+    {
+        var actualHex = await ComputeFileSha256Async(filePath, cancellationToken).ConfigureAwait(false);
         return string.Equals(actualHex, expectedSha256, StringComparison.OrdinalIgnoreCase);
     }
 
@@ -792,7 +824,22 @@ public class SampleProjectService(
                 Directory.CreateDirectory(staging);
                 await ExtractArchiveFileAsync(spec.ZipPath, staging, cancellationToken).ConfigureAwait(false);
 
-                var bigFiles = Directory.GetFiles(staging, BigFileSearchPattern, SearchOption.AllDirectories);
+                var bigFiles = Directory.GetFiles(staging, BigFileSearchPattern, SearchOption.AllDirectories)
+                    .OrderBy(f => f, StringComparer.Ordinal)
+                    .ToList();
+                if (bigFiles.Count == 0)
+                {
+                    logger.LogWarning("No BIG archives found in {Label} package, skipping variant", spec.AssetLabel);
+                    return;
+                }
+
+                if (!await VerifyFileSha256Async(bigFiles[0], spec.ExpectedSha256, cancellationToken).ConfigureAwait(false))
+                {
+                    logger.LogWarning("{Label} BIG file failed SHA-256 integrity verification: {File}", spec.AssetLabel, bigFiles[0]);
+                    DeleteCachedFileQuietly(spec.ZipPath);
+                    return;
+                }
+
                 foreach (var big in bigFiles)
                 {
                     var unpackDir = Path.Combine(staging, $"unpack_{Path.GetFileNameWithoutExtension(big)}");
@@ -893,7 +940,8 @@ public class SampleProjectService(
                 ModBuilderConstants.SampleProjects.ImprovedMenusRussianUrl,
                 Path.Combine(cacheDir, "0_ImprovedMenusRussian.zip"),
                 "Improved Menus Russian",
-                RussianLanguageName),
+                RussianLanguageName,
+                ModBuilderConstants.SampleProjects.ImprovedMenusRussianSha256),
             gameFilesDir,
             releaseDir,
             progress,
@@ -905,7 +953,8 @@ public class SampleProjectService(
                 ModBuilderConstants.SampleProjects.ImprovedMenusSpanishUrl,
                 Path.Combine(cacheDir, "0_ImprovedMenusSpanish.zip"),
                 "Improved Menus Spanish",
-                SpanishLanguageName),
+                SpanishLanguageName,
+                ModBuilderConstants.SampleProjects.ImprovedMenusSpanishSha256),
             gameFilesDir,
             releaseDir,
             progress,
@@ -928,6 +977,10 @@ public class SampleProjectService(
                     return;
                 }
 
+                // Persist the archive hash so later builds can verify byte-for-byte
+                // reproduction instead of silently skipping verification.
+                manifest.Sha256 = await ComputeFileSha256Async(bigFilePath, cancellationToken).ConfigureAwait(false);
+
                 var configDir = Path.Combine(projectDir, ModBuilderConstants.LowercaseConfigDir);
                 Directory.CreateDirectory(configDir);
                 var manifestPath = Path.Combine(configDir, $"{Path.GetFileName(bigFilePath)}.manifest.json");
@@ -946,34 +999,43 @@ public class SampleProjectService(
 
     private async Task<bool> ProcessLemonResolutionArchiveAsync(
         string zipPath,
-        string resolution,
+        LemonResolutionSpec spec,
         string gameFilesDir,
         string? releaseDir,
         CancellationToken cancellationToken)
     {
-        var staging = Path.Combine(Path.GetTempPath(), $"genhub_lemon_{resolution}_{Guid.NewGuid():N}");
+        var staging = Path.Combine(Path.GetTempPath(), $"genhub_lemon_{spec.Resolution}_{Guid.NewGuid():N}");
         try
         {
             Directory.CreateDirectory(staging);
             await ExtractArchiveFileAsync(zipPath, staging, cancellationToken).ConfigureAwait(false);
 
-            var bigFiles = Directory.GetFiles(staging, BigFileSearchPattern, SearchOption.AllDirectories);
-            if (bigFiles.Length == 0)
+            var bigFiles = Directory.GetFiles(staging, BigFileSearchPattern, SearchOption.AllDirectories)
+                .OrderBy(f => f, StringComparer.Ordinal)
+                .ToList();
+            if (bigFiles.Count == 0)
             {
                 logger.LogWarning("No BIG archives found in Lemon Control Bar archive: {Path}", zipPath);
                 return false;
             }
 
-            var processedAny = false;
+            var resolutionFound = false;
             foreach (var bigFile in bigFiles)
             {
-                if (await ProcessSingleLemonBigFileAsync(bigFile, staging, resolution, gameFilesDir, releaseDir, cancellationToken).ConfigureAwait(false))
+                var outcome = await ProcessSingleLemonBigFileAsync(bigFile, staging, spec, gameFilesDir, releaseDir, cancellationToken).ConfigureAwait(false);
+                if (outcome.VerificationFailed)
                 {
-                    processedAny = true;
+                    DeleteCachedFileQuietly(zipPath);
+                    return false;
+                }
+
+                if (outcome.Role == LemonBigRole.Resolution)
+                {
+                    resolutionFound = true;
                 }
             }
 
-            return processedAny;
+            return resolutionFound;
         }
         catch (OperationCanceledException)
         {
@@ -981,7 +1043,7 @@ public class SampleProjectService(
         }
         catch (Exception ex)
         {
-            logger.LogWarning(ex, "Failed to process Lemon Control Bar archive for resolution {Res}", resolution);
+            logger.LogWarning(ex, "Failed to process Lemon Control Bar archive for resolution {Res}", spec.Resolution);
             return false;
         }
         finally
@@ -990,21 +1052,29 @@ public class SampleProjectService(
         }
     }
 
-    private async Task<bool> ProcessSingleLemonBigFileAsync(
+    private async Task<LemonBigOutcome> ProcessSingleLemonBigFileAsync(
         string bigFile,
         string staging,
-        string resolution,
+        LemonResolutionSpec spec,
         string gameFilesDir,
         string? releaseDir,
         CancellationToken cancellationToken)
     {
         var fileName = Path.GetFileName(bigFile);
-        if (string.Equals(resolution, "1080p", StringComparison.OrdinalIgnoreCase) &&
-            !await VerifyFileSha256Async(bigFile, ModBuilderConstants.SampleProjects.LemonControlBarSha256, cancellationToken).ConfigureAwait(false))
+        var role = ClassifyLemonBig(fileName, spec);
+        if (role == null)
         {
-            logger.LogWarning("Lemon Control Bar 1080p BIG file failed SHA-256 integrity verification: {File}", fileName);
-            return false;
+            logger.LogWarning("Skipping unrecognized BIG file {File} in Lemon Control Bar archive", fileName);
+            return new LemonBigOutcome(null, false);
         }
+
+        var expectedSha = GetLemonExpectedSha(role.Value, spec);
+        if (!await VerifyFileSha256Async(bigFile, expectedSha, cancellationToken).ConfigureAwait(false))
+        {
+            logger.LogWarning("Lemon Control Bar BIG file failed SHA-256 integrity verification: {File}", fileName);
+            return new LemonBigOutcome(null, true);
+        }
+
         var unpackDir = Path.Combine(staging, $"unpack_{Path.GetFileNameWithoutExtension(fileName)}");
         Directory.CreateDirectory(unpackDir);
 
@@ -1012,16 +1082,10 @@ public class SampleProjectService(
         if (!unpackRes.Success)
         {
             logger.LogWarning("Failed to unpack BIG file {File}: {Error}", fileName, unpackRes.FirstError);
-            return false;
+            return new LemonBigOutcome(null, false);
         }
 
-        CopyLemonBigSubdirectories(unpackDir, gameFilesDir, resolution, cancellationToken);
-
-        var cbProTxt = Path.Combine(unpackDir, ModBuilderConstants.ControlBarProTxtFileName);
-        if (File.Exists(cbProTxt))
-        {
-            File.Copy(cbProTxt, Path.Combine(gameFilesDir, ModBuilderConstants.ControlBarProTxtFileName), overwrite: true);
-        }
+        CopyLemonRoleFiles(unpackDir, gameFilesDir, spec, role.Value, cancellationToken);
 
         if (!string.IsNullOrEmpty(releaseDir))
         {
@@ -1029,37 +1093,119 @@ public class SampleProjectService(
         }
 
         await TryExtractAndSaveManifestAsync(bigFile, gameFilesDir, cancellationToken).ConfigureAwait(false);
-        return true;
+        return new LemonBigOutcome(role, false);
     }
 
-    private static void CopyLemonBigSubdirectories(
+    internal static LemonBigRole? ClassifyLemonBig(string fileName, LemonResolutionSpec spec)
+    {
+        if (string.Equals(fileName, ModBuilderConstants.SampleProjects.LemonControlBarBaseBigFileName, StringComparison.OrdinalIgnoreCase))
+        {
+            return LemonBigRole.Base;
+        }
+
+        if (fileName.Contains(ModBuilderConstants.SampleProjects.LemonArtBigMarker, StringComparison.OrdinalIgnoreCase))
+        {
+            return LemonBigRole.Art;
+        }
+
+        if (fileName.Contains(ModBuilderConstants.SampleProjects.LemonDataBigMarker, StringComparison.OrdinalIgnoreCase))
+        {
+            return LemonBigRole.Data;
+        }
+
+        if (string.Equals(fileName, spec.ResBigName, StringComparison.OrdinalIgnoreCase))
+        {
+            return LemonBigRole.Resolution;
+        }
+
+        return null;
+    }
+
+    private static string GetLemonExpectedSha(LemonBigRole role, LemonResolutionSpec spec)
+    {
+        return role switch
+        {
+            LemonBigRole.Art => spec.ArtBigSha256,
+            LemonBigRole.Data => spec.DataBigSha256,
+            LemonBigRole.Base => ModBuilderConstants.SampleProjects.LemonControlBarBaseSha256,
+            _ => spec.ResBigSha256,
+        };
+    }
+
+    private static void CopyLemonRoleFiles(
         string unpackDir,
         string gameFilesDir,
-        string resolution,
+        LemonResolutionSpec spec,
+        LemonBigRole role,
         CancellationToken cancellationToken)
     {
-        var artDir = Path.Combine(unpackDir, ArtDirectoryName);
-        if (Directory.Exists(artDir))
+        switch (role)
         {
-            CopyDirectoryContents(artDir, Path.Combine(gameFilesDir, ArtDirectoryName), cancellationToken);
-        }
+            case LemonBigRole.Art:
+                CopyDirectoryIfExists(
+                    Path.Combine(unpackDir, ArtDirectoryName),
+                    Path.Combine(gameFilesDir, spec.GenDir, ArtDirectoryName),
+                    cancellationToken);
+                break;
+            case LemonBigRole.Data:
+                CopyDirectoryIfExists(
+                    Path.Combine(unpackDir, DataDirectoryName),
+                    Path.Combine(gameFilesDir, spec.GenDir, DataDirectoryName),
+                    cancellationToken);
+                CopyDirectoryIfExists(
+                    Path.Combine(unpackDir, WindowDirectoryName),
+                    Path.Combine(gameFilesDir, spec.GenDir, WindowDirectoryName),
+                    cancellationToken);
+                break;
+            case LemonBigRole.Resolution:
+                var resDir = Path.Combine(gameFilesDir, ModBuilderConstants.SampleProjects.LemonResolutionDirPrefix + spec.Resolution);
+                CopyDirectoryIfExists(
+                    Path.Combine(unpackDir, DataDirectoryName),
+                    Path.Combine(resDir, DataDirectoryName),
+                    cancellationToken);
+                CopyDirectoryIfExists(
+                    Path.Combine(unpackDir, WindowDirectoryName),
+                    Path.Combine(resDir, WindowDirectoryName),
+                    cancellationToken);
+                break;
+            case LemonBigRole.Base:
+                var cbProTxt = Path.Combine(unpackDir, ModBuilderConstants.ControlBarProTxtFileName);
+                if (File.Exists(cbProTxt))
+                {
+                    File.Copy(cbProTxt, Path.Combine(gameFilesDir, ModBuilderConstants.ControlBarProTxtFileName), overwrite: true);
+                }
 
-        var dataDir = Path.Combine(unpackDir, DataDirectoryName);
-        if (Directory.Exists(dataDir))
-        {
-            CopyDirectoryContents(dataDir, Path.Combine(gameFilesDir, DataDirectoryName), cancellationToken);
+                CopyDirectoryIfExists(
+                    Path.Combine(unpackDir, GenToolDirectoryName),
+                    Path.Combine(gameFilesDir, GenToolDirectoryName),
+                    cancellationToken);
+                break;
+            default:
+                break;
         }
+    }
 
-        var wndDir = Path.Combine(unpackDir, WindowDirectoryName);
-        if (Directory.Exists(wndDir))
+    private static void CopyDirectoryIfExists(string sourceDir, string targetDir, CancellationToken cancellationToken)
+    {
+        if (Directory.Exists(sourceDir))
         {
-            CopyDirectoryContents(wndDir, Path.Combine(gameFilesDir, WindowDirectoryName, resolution), cancellationToken);
+            CopyDirectoryContents(sourceDir, targetDir, cancellationToken);
         }
+    }
 
-        var genToolDir = Path.Combine(unpackDir, ModBuilderConstants.GenToolDirectoryName);
-        if (Directory.Exists(genToolDir))
+    private void DeleteCachedFileQuietly(string cachePath)
+    {
+        try
         {
-            CopyDirectoryContents(genToolDir, Path.Combine(gameFilesDir, ModBuilderConstants.GenToolDirectoryName), cancellationToken);
+            if (File.Exists(cachePath))
+            {
+                File.Delete(cachePath);
+                logger.LogInformation("Deleted corrupt cached asset so it re-downloads on the next attempt: {Path}", cachePath);
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogDebug(ex, "Failed to delete corrupt cached asset {Path}", cachePath);
         }
     }
 
@@ -1094,10 +1240,10 @@ public class SampleProjectService(
 
         var resolutions = new[]
         {
-            (Resolution: "1080p", Url: ModBuilderConstants.SampleProjects.LemonControlBar1080pUrl, FileName: "ControlBarProLemonEditionZH_v1.3_1920x1080.zip", BigName: "340_ControlBarProLemonEdition1080ZH.big", IsPrimary: true),
-            (Resolution: "720p", Url: ModBuilderConstants.SampleProjects.LemonControlBar720pUrl, FileName: "ControlBarProLemonEditionZH_v1.3_1280x720.zip", BigName: "340_ControlBarProLemonEdition720ZH.big", IsPrimary: false),
-            (Resolution: "1440p", Url: ModBuilderConstants.SampleProjects.LemonControlBar1440pUrl, FileName: "ControlBarProLemonEditionZH_v1.3_2560x1440.zip", BigName: "340_ControlBarProLemonEdition1440ZH.big", IsPrimary: false),
-            (Resolution: "4K", Url: ModBuilderConstants.SampleProjects.LemonControlBar4KUrl, FileName: "ControlBarProLemonEditionZH_v1.3_3840x2160.zip", BigName: "340_ControlBarProLemonEdition2160ZH.big", IsPrimary: false),
+            new LemonResolutionSpec("1080p", ModBuilderConstants.SampleProjects.LemonControlBar1080pUrl, "ControlBarProLemonEditionZH_v1.3_1920x1080.zip", "340_ControlBarProLemonEdition1080ZH.big", ModBuilderConstants.SampleProjects.LemonControlBarSha256, ModBuilderConstants.SampleProjects.LemonGen1080Dir, ModBuilderConstants.SampleProjects.LemonControlBarArt1080Sha256, ModBuilderConstants.SampleProjects.LemonControlBarData1080Sha256, true),
+            new LemonResolutionSpec("720p", ModBuilderConstants.SampleProjects.LemonControlBar720pUrl, "ControlBarProLemonEditionZH_v1.3_1280x720.zip", "340_ControlBarProLemonEdition720ZH.big", ModBuilderConstants.SampleProjects.LemonControlBar720pSha256, ModBuilderConstants.SampleProjects.LemonGen1080Dir, ModBuilderConstants.SampleProjects.LemonControlBarArt1080Sha256, ModBuilderConstants.SampleProjects.LemonControlBarData1080Sha256, false),
+            new LemonResolutionSpec("1440p", ModBuilderConstants.SampleProjects.LemonControlBar1440pUrl, "ControlBarProLemonEditionZH_v1.3_2560x1440.zip", "340_ControlBarProLemonEdition1440ZH.big", ModBuilderConstants.SampleProjects.LemonControlBar1440pSha256, ModBuilderConstants.SampleProjects.LemonGen2160Dir, ModBuilderConstants.SampleProjects.LemonControlBarArt2160Sha256, ModBuilderConstants.SampleProjects.LemonControlBarData2160Sha256, false),
+            new LemonResolutionSpec("4K", ModBuilderConstants.SampleProjects.LemonControlBar4KUrl, "ControlBarProLemonEditionZH_v1.3_3840x2160.zip", "340_ControlBarProLemonEdition2160ZH.big", ModBuilderConstants.SampleProjects.LemonControlBar2160Sha256, ModBuilderConstants.SampleProjects.LemonGen2160Dir, ModBuilderConstants.SampleProjects.LemonControlBarArt2160Sha256, ModBuilderConstants.SampleProjects.LemonControlBarData2160Sha256, false),
         };
 
         var primarySucceeded = false;
@@ -1123,7 +1269,7 @@ public class SampleProjectService(
                 continue;
             }
 
-            var success = await ProcessLemonResolutionArchiveAsync(zipPath, res.Resolution, gameFilesDir, releaseDir, cancellationToken).ConfigureAwait(false);
+            var success = await ProcessLemonResolutionArchiveAsync(zipPath, res, gameFilesDir, releaseDir, cancellationToken).ConfigureAwait(false);
             if (res.IsPrimary)
             {
                 if (success)
@@ -1147,19 +1293,21 @@ public class SampleProjectService(
         return OperationResult<bool>.CreateSuccess(true);
     }
 
-    private static string? FindZhEnglishCsf(IReadOnlyList<string> csfFiles, string stagingDir)
+    internal static string? FindZhEnglishCsf(IReadOnlyList<string> csfFiles, string stagingDir)
     {
-        return csfFiles.FirstOrDefault(f => MatchesCsfTokens(f, stagingDir, ["ZH"], ["EN", EnglishLanguageName], [GermanLanguageName, "DE"]))
-            ?? csfFiles.FirstOrDefault(f => MatchesCsfTokens(f, stagingDir, ["ZH"], null, [GermanLanguageName, "DE"]))
+        // Exclude the Russian ZH table explicitly: it also carries ZH and English
+        // path tokens, so without this the pick would depend on enumeration order.
+        return csfFiles.FirstOrDefault(f => MatchesCsfTokens(f, stagingDir, ["ZH"], ["EN", EnglishLanguageName], [GermanLanguageName, "DE", RussianLanguageName, "RU"]))
+            ?? csfFiles.FirstOrDefault(f => MatchesCsfTokens(f, stagingDir, ["ZH"], null, [GermanLanguageName, "DE", RussianLanguageName, "RU"]))
             ?? csfFiles.FirstOrDefault();
     }
 
-    private static string? FindGeneralsEnglishCsf(IReadOnlyList<string> csfFiles, string stagingDir)
+    internal static string? FindGeneralsEnglishCsf(IReadOnlyList<string> csfFiles, string stagingDir)
     {
         return csfFiles.FirstOrDefault(f => MatchesCsfTokens(f, stagingDir, [ModBuilderConstants.GeneralsInstallationType, "Gen"], ["EN", EnglishLanguageName], [ModBuilderConstants.ZeroHourInstallationType, "ZH", GermanLanguageName, "DE"]));
     }
 
-    private static string? FindGermanCsf(IReadOnlyList<string> csfFiles, string stagingDir)
+    internal static string? FindGermanCsf(IReadOnlyList<string> csfFiles, string stagingDir)
     {
         return csfFiles.FirstOrDefault(f => MatchesCsfTokens(f, stagingDir, null, [GermanLanguageName, "DE"], null));
     }
@@ -1294,7 +1442,7 @@ public class SampleProjectService(
         var downloadResult = await EnsureAssetDownloadedAsync(
             ModBuilderConstants.SampleProjects.LeikezeHotkeysUrl,
             datCachePath,
-            500_000,
+            100_000,
             "Leikeze Hotkeys",
             cancellationToken,
             ModBuilderConstants.SampleProjects.LeikezeHotkeysSha256).ConfigureAwait(false);
@@ -1318,14 +1466,17 @@ public class SampleProjectService(
                 Directory.CreateDirectory(releaseDir);
             }
 
-            var csfFiles = Directory.GetFiles(tempStaging, ModBuilderConstants.FileNames.CsfSearchPattern, SearchOption.AllDirectories);
+            // Sort for deterministic variant selection regardless of filesystem order.
+            var csfFiles = Directory.GetFiles(tempStaging, ModBuilderConstants.FileNames.CsfSearchPattern, SearchOption.AllDirectories)
+                .OrderBy(f => f, StringComparer.Ordinal)
+                .ToList();
 
             // 1. Zero Hour English
             var zhEnSpec = new LeikezeVariantSpec(
                 Path.Combine(ModBuilderConstants.DirectoryNames.ZeroHour, EnglishLanguageName, ModBuilderConstants.DirectoryNames.Data, EnglishLanguageName),
                 "pack_zhen",
                 EnglishLanguageName,
-                "400_Hotkeys_ZH_EN.big");
+                ModBuilderConstants.SampleProjects.LeikezeHotkeysZhEnBigFileName);
             var zhEnCsf = FindZhEnglishCsf(csfFiles, tempStaging);
             await SetupLeikezeVariantIfPresentAsync(zhEnCsf, zhEnSpec, gameFilesDir, releaseDir, cancellationToken).ConfigureAwait(false);
 
@@ -1334,7 +1485,7 @@ public class SampleProjectService(
                 Path.Combine(ModBuilderConstants.DirectoryNames.Generals, EnglishLanguageName, ModBuilderConstants.DirectoryNames.Data, EnglishLanguageName),
                 "pack_genen",
                 EnglishLanguageName,
-                "400_Hotkeys_Generals_EN.big");
+                ModBuilderConstants.SampleProjects.LeikezeHotkeysGeneralsEnBigFileName);
             var genEnCsf = FindGeneralsEnglishCsf(csfFiles, tempStaging);
             await SetupLeikezeVariantIfPresentAsync(genEnCsf, genEnSpec, gameFilesDir, releaseDir, cancellationToken).ConfigureAwait(false);
 
@@ -1343,7 +1494,7 @@ public class SampleProjectService(
                 Path.Combine(ModBuilderConstants.DirectoryNames.ZeroHour, GermanLanguageName, ModBuilderConstants.DirectoryNames.Data, GermanLanguageName),
                 "pack_zhde",
                 GermanLanguageName,
-                "400_Hotkeys_ZH_DE.big");
+                ModBuilderConstants.SampleProjects.LeikezeHotkeysZhDeBigFileName);
             var zhDeCsf = FindGermanCsf(csfFiles, tempStaging);
             await SetupLeikezeVariantIfPresentAsync(zhDeCsf, zhDeSpec, gameFilesDir, releaseDir, cancellationToken).ConfigureAwait(false);
 

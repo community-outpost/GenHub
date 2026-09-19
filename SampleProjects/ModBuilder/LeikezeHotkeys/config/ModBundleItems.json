@@ -7,6 +7,7 @@
       ],
       "OutputFormat": "RAW",
       "NoConvert": true,
+      "ManifestFile": "config/!HotkeysLeikezeENZH.big.manifest.json",
       "Description": "Leikeze Zero Hour English hotkey CSF string tables"
     },
     {
@@ -16,6 +17,7 @@
       ],
       "OutputFormat": "RAW",
       "NoConvert": true,
+      "ManifestFile": "config/!HotkeysLeikezeEN.big.manifest.json",
       "Description": "Leikeze Generals English hotkey CSF string tables"
     },
     {
@@ -25,6 +27,7 @@
       ],
       "OutputFormat": "RAW",
       "NoConvert": true,
+      "ManifestFile": "config/!HotkeysLeikezeDEZH.big.manifest.json",
       "Description": "Leikeze Zero Hour German hotkey CSF string tables"
     }
   ]

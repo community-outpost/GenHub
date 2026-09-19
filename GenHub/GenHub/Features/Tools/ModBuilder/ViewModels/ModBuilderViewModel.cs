@@ -1285,24 +1285,7 @@ public partial class ModBuilderViewModel(
             return;
         }
 
-        if (IsBuildRunning)
-        {
-            notificationService.ShowWarning(localizationService.GetString(OperationInProgressTitleKey), localizationService.GetString("Tools.ModBuilder.Notification.Busy.OpenSample"));
-            return;
-        }
-
-        var canStart = await InvokeOnUIThreadAsync(() =>
-        {
-            if (IsBuildRunning)
-            {
-                return false;
-            }
-
-            IsBuildRunning = true;
-            return true;
-        }).ConfigureAwait(false);
-
-        if (!canStart)
+        if (!await TryClaimBuildSlotAsync().ConfigureAwait(false))
         {
             notificationService.ShowWarning(localizationService.GetString(OperationInProgressTitleKey), localizationService.GetString("Tools.ModBuilder.Notification.Busy.OpenSample"));
             return;
@@ -1320,22 +1303,9 @@ public partial class ModBuilderViewModel(
             if (!string.IsNullOrEmpty(projectFile) && File.Exists(projectFile))
             {
                 var projectDir = Path.GetDirectoryName(projectFile)!;
-                if (sampleProjectService != null && !sampleProjectService.HasSampleAssets(projectDir))
+                if (!await TryEnsureSampleAssetsAsync(projectDir, item.Id, item.Name, cts.Token).ConfigureAwait(false))
                 {
-                    AppendBuildLog($"Downloading and extracting sample assets for {item.Name}...");
-                    var progress = new Progress<string>(AppendBuildLog);
-
-                    var assetResult = await sampleProjectService.EnsureSampleAssetsAsync(projectDir, item.Id, progress, cts.Token).ConfigureAwait(false);
-                    if (!assetResult.Success)
-                    {
-                        notificationService.ShowError(
-                            localizationService.GetString("Tools.ModBuilder.Notification.AssetAcquisitionFailed.Title"),
-                            localizationService.GetString("Tools.ModBuilder.Notification.AssetAcquisitionFailed.Message", assetResult.FirstError));
-                        AppendBuildLog($"Sample asset acquisition failed: {assetResult.FirstError}");
-                        return;
-                    }
-
-                    AppendBuildLog($"Sample assets unpacked into {ModBuilderConstants.GameFilesEditedDir}.");
+                    return;
                 }
 
                 await LoadProjectFromPathAsync(projectFile).ConfigureAwait(false);
@@ -1367,6 +1337,64 @@ public partial class ModBuilderViewModel(
             cts.Dispose();
             await InvokeOnUIThreadAsync(() => IsBuildRunning = false);
         }
+    }
+
+    /// <summary>
+    /// Atomically claims the exclusive build/import slot on the UI thread.
+    /// Combines the fast-path check with the check-and-set so no await window
+    /// exists in which a second guarded operation could start concurrently.
+    /// </summary>
+    /// <returns>True when the slot was claimed; otherwise, false.</returns>
+    private async Task<bool> TryClaimBuildSlotAsync()
+    {
+        if (IsBuildRunning)
+        {
+            return false;
+        }
+
+        return await InvokeOnUIThreadAsync(() =>
+        {
+            if (IsBuildRunning)
+            {
+                return false;
+            }
+
+            IsBuildRunning = true;
+            return true;
+        }).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Ensures sample assets are present for a sample project directory,
+    /// acquiring them on demand with user feedback when acquisition fails.
+    /// </summary>
+    /// <param name="projectDir">The sample project directory.</param>
+    /// <param name="sampleId">The sample identifier used for asset acquisition.</param>
+    /// <param name="displayName">The display name used in log output.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>True when assets are present or were acquired; otherwise, false.</returns>
+    private async Task<bool> TryEnsureSampleAssetsAsync(string projectDir, string sampleId, string displayName, CancellationToken cancellationToken)
+    {
+        if (sampleProjectService == null || sampleProjectService.HasSampleAssets(projectDir))
+        {
+            return true;
+        }
+
+        AppendBuildLog($"Downloading and extracting sample assets for {displayName}...");
+        var progress = new Progress<string>(AppendBuildLog);
+
+        var assetResult = await sampleProjectService.EnsureSampleAssetsAsync(projectDir, sampleId, progress, cancellationToken).ConfigureAwait(false);
+        if (!assetResult.Success)
+        {
+            notificationService.ShowError(
+                localizationService.GetString("Tools.ModBuilder.Notification.AssetAcquisitionFailed.Title"),
+                localizationService.GetString("Tools.ModBuilder.Notification.AssetAcquisitionFailed.Message", assetResult.FirstError));
+            AppendBuildLog($"Sample asset acquisition failed: {assetResult.FirstError}");
+            return false;
+        }
+
+        AppendBuildLog($"Sample assets unpacked into {ModBuilderConstants.GameFilesEditedDir}.");
+        return true;
     }
 
     private async Task<string?> ResolveOrProvisionSampleProjectFileAsync(string sampleId, CancellationToken cancellationToken)
@@ -1526,26 +1554,9 @@ public partial class ModBuilderViewModel(
     [RelayCommand]
     private async Task LoadSampleProjectAsync()
     {
-        if (IsBuildRunning)
-        {
-            logger.LogWarning("LoadSampleProjectAsync ignored because build or import is already running");
-            return;
-        }
-
         logger.LogInformation("LoadSampleProjectAsync requested");
 
-        var canStart = await InvokeOnUIThreadAsync(() =>
-        {
-            if (IsBuildRunning)
-            {
-                return false;
-            }
-
-            IsBuildRunning = true;
-            return true;
-        }).ConfigureAwait(false);
-
-        if (!canStart)
+        if (!await TryClaimBuildSlotAsync().ConfigureAwait(false))
         {
             logger.LogWarning("LoadSampleProjectAsync ignored because build or import is already running");
             return;

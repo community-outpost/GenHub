@@ -1,10 +1,68 @@
 {
   "BundlePacks": [
     {
+      "Name": "LemonControlBar_Art1080",
+      "Items": [
+        "LemonControlBarArt1080"
+      ],
+      "OutputFile": ".Release/340_ControlBarProLemonEditionArt1080ZH.big",
+      "ManifestFile": "config/340_ControlBarProLemonEditionArt1080ZH.big.manifest.json",
+      "Big": true,
+      "AllowBuild": true,
+      "AllowInstall": true,
+      "Description": "Lemon Edition 1080-generation art textures BIG archive"
+    },
+    {
+      "Name": "LemonControlBar_Art2160",
+      "Items": [
+        "LemonControlBarArt2160"
+      ],
+      "OutputFile": ".Release/340_ControlBarProLemonEditionArt2160ZH.big",
+      "ManifestFile": "config/340_ControlBarProLemonEditionArt2160ZH.big.manifest.json",
+      "Big": true,
+      "AllowBuild": true,
+      "AllowInstall": true,
+      "Description": "Lemon Edition 2160-generation art textures BIG archive"
+    },
+    {
+      "Name": "LemonControlBar_Data1080",
+      "Items": [
+        "LemonControlBarData1080"
+      ],
+      "OutputFile": ".Release/340_ControlBarProLemonEditionData1080ZH.big",
+      "ManifestFile": "config/340_ControlBarProLemonEditionData1080ZH.big.manifest.json",
+      "Big": true,
+      "AllowBuild": true,
+      "AllowInstall": true,
+      "Description": "Lemon Edition 1080-generation data and window layouts BIG archive"
+    },
+    {
+      "Name": "LemonControlBar_Data2160",
+      "Items": [
+        "LemonControlBarData2160"
+      ],
+      "OutputFile": ".Release/340_ControlBarProLemonEditionData2160ZH.big",
+      "ManifestFile": "config/340_ControlBarProLemonEditionData2160ZH.big.manifest.json",
+      "Big": true,
+      "AllowBuild": true,
+      "AllowInstall": true,
+      "Description": "Lemon Edition 2160-generation data and window layouts BIG archive"
+    },
+    {
+      "Name": "LemonControlBar_Base",
+      "Items": [
+        "LemonControlBarBase"
+      ],
+      "OutputFile": ".Release/340_ControlBarProLemonEditionZH.big",
+      "ManifestFile": "config/340_ControlBarProLemonEditionZH.big.manifest.json",
+      "Big": true,
+      "AllowBuild": true,
+      "AllowInstall": true,
+      "Description": "Lemon Edition shared base files BIG archive"
+    },
+    {
       "Name": "LemonControlBar_720p",
       "Items": [
-        "LemonControlBarArt",
-        "LemonControlBarData",
         "LemonControlBarWindows_720p"
       ],
       "OutputFile": ".Release/340_ControlBarProLemonEdition720ZH.big",
@@ -17,8 +75,6 @@
     {
       "Name": "LemonControlBar_1080p",
       "Items": [
-        "LemonControlBarArt",
-        "LemonControlBarData",
         "LemonControlBarWindows_1080p"
       ],
       "OutputFile": ".Release/340_ControlBarProLemonEdition1080ZH.big",
@@ -31,8 +87,6 @@
     {
       "Name": "LemonControlBar_1440p",
       "Items": [
-        "LemonControlBarArt",
-        "LemonControlBarData",
         "LemonControlBarWindows_1440p"
       ],
       "OutputFile": ".Release/340_ControlBarProLemonEdition1440ZH.big",
@@ -45,8 +99,6 @@
     {
       "Name": "LemonControlBar_4K",
       "Items": [
-        "LemonControlBarArt",
-        "LemonControlBarData",
         "LemonControlBarWindows_4K"
       ],
       "OutputFile": ".Release/340_ControlBarProLemonEdition2160ZH.big",

@@ -6,6 +6,7 @@
         "GameFilesEdited/window/Menus/**/*.wnd"
       ],
       "OutputFormat": "WINDOW",
+      "ManifestFile": "config/0_ImprovedMenusEnglish.big.manifest.json",
       "Description": "Widescreen adapted .wnd menu layout definitions (Common)"
     },
     {
@@ -14,33 +15,40 @@
         "GameFilesEdited/Data/INI/MappedImages/**/*.ini"
       ],
       "OutputFormat": "INI",
+      "ManifestFile": "config/0_ImprovedMenusEnglish.big.manifest.json",
       "Description": "MappedImage coordinate definitions for widescreen menu textures (Common)"
     },
     {
       "Name": "MenuTexturesEnglish",
       "SourceFiles": [
-        "GameFilesEdited/Data/English/Art/Textures/**/*.tga"
+        "GameFilesEdited/Data/English/Art/Textures/**/*.tga",
+        "GameFilesEdited/Data/English/Art/Textures/**/*.dds"
       ],
       "OutputFormat": "RAW",
       "NoConvert": true,
+      "ManifestFile": "config/0_ImprovedMenusEnglish.big.manifest.json",
       "Description": "English high resolution menu backdrops and UI frame textures"
     },
     {
       "Name": "MenuTexturesRussian",
       "SourceFiles": [
-        "GameFilesEdited/Data/Russian/Art/Textures/**/*.tga"
+        "GameFilesEdited/Data/Russian/Art/Textures/**/*.tga",
+        "GameFilesEdited/Data/Russian/Art/Textures/**/*.dds"
       ],
       "OutputFormat": "RAW",
       "NoConvert": true,
+      "ManifestFile": "config/0_ImprovedMenusRussian.big.manifest.json",
       "Description": "Russian high resolution menu backdrops and UI frame textures"
     },
     {
       "Name": "MenuTexturesSpanish",
       "SourceFiles": [
-        "GameFilesEdited/Data/Spanish/Art/Textures/**/*.tga"
+        "GameFilesEdited/Data/Spanish/Art/Textures/**/*.tga",
+        "GameFilesEdited/Data/Spanish/Art/Textures/**/*.dds"
       ],
       "OutputFormat": "RAW",
       "NoConvert": true,
+      "ManifestFile": "config/0_ImprovedMenusSpanish.big.manifest.json",
       "Description": "Spanish high resolution menu backdrops and UI frame textures"
     }
   ]
