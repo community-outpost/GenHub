@@ -2097,14 +2097,29 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             {
                 var count = manifestsResult.Data.Count();
                 var deletedIds = manifestsResult.Data.Select(m => m.Id.Value).ToHashSet(StringComparer.OrdinalIgnoreCase);
+                var removedIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-                foreach (var manifest in manifestsResult.Data)
+                try
                 {
-                    cancellationToken.ThrowIfCancellationRequested();
-                    await _manifestPool.RemoveManifestAsync(manifest.Id, cancellationToken: cancellationToken);
-                }
+                    foreach (var manifest in manifestsResult.Data)
+                    {
+                        cancellationToken.ThrowIfCancellationRequested();
+                        await _manifestPool.RemoveManifestAsync(manifest.Id, cancellationToken: cancellationToken);
+                        removedIds.Add(manifest.Id.Value);
+                    }
 
-                await ScrubDeletedManifestIdsFromProfilesAsync(deletedIds, showToast, cancellationToken);
+                    await ScrubDeletedManifestIdsFromProfilesAsync(deletedIds, showToast, cancellationToken);
+                }
+                catch (OperationCanceledException)
+                {
+                    if (removedIds.Count > 0)
+                    {
+                        _logger.LogWarning("Manifest deletion was cancelled after removing {RemovedCount} manifest(s); scrubbing their references from profiles", removedIds.Count);
+                        await ScrubDeletedManifestIdsFromProfilesAsync(removedIds, showToast, CancellationToken.None);
+                    }
+
+                    throw;
+                }
 
                 if (showToast)
                 {

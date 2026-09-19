@@ -4,6 +4,7 @@ using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -91,6 +92,7 @@ public static class CasServiceExtensions
         var missingFiles = new List<string>();
         foreach (var manifest in manifests)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             var manifestDisplayName = !string.IsNullOrWhiteSpace(manifest.Name) ? manifest.Name : manifest.Id.Value;
             var missingCasFiles = await casService.GetMissingRequiredCasFilesAsync(manifest, cancellationToken).ConfigureAwait(false);
             foreach (var file in missingCasFiles)
@@ -107,11 +109,12 @@ public static class CasServiceExtensions
     /// Builds the user-facing failure message describing missing required CAS objects.
     /// </summary>
     /// <param name="missingFiles">The missing file display names.</param>
+    /// <param name="messageFormat">The localized message format ({0} is the count, {1} is a sample list).</param>
     /// <returns>The failure message listing the missing object count and a sample.</returns>
-    public static string BuildMissingCasObjectsMessage(IEnumerable<string> missingFiles)
+    public static string BuildMissingCasObjectsMessage(IEnumerable<string> missingFiles, string messageFormat)
     {
         var distinctMissing = missingFiles.Distinct().ToList();
-        return $"Missing {distinctMissing.Count} required CAS objects ({string.Join(", ", distinctMissing.Take(5))}). Content must be downloaded before launching.";
+        return string.Format(CultureInfo.InvariantCulture, messageFormat, distinctMissing.Count, string.Join(", ", distinctMissing.Take(5)));
     }
 
     /// <summary>
@@ -119,19 +122,21 @@ public static class CasServiceExtensions
     /// </summary>
     /// <param name="casService">The CAS service.</param>
     /// <param name="manifests">The manifests to check.</param>
+    /// <param name="missingObjectsMessageFormat">The localized failure message format ({0} is the count, {1} is a sample list).</param>
     /// <param name="onMissingFile">Optional callback invoked for each missing file, e.g. for logging.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>Success when all required objects are present; otherwise, a failure listing the missing objects.</returns>
     public static async Task<OperationResult<bool>> VerifyRequiredCasContentAvailableAsync(
         this ICasService casService,
         IEnumerable<ContentManifest> manifests,
+        string missingObjectsMessageFormat,
         Action<ContentManifest, ManifestFile>? onMissingFile = null,
         CancellationToken cancellationToken = default)
     {
         var missingFiles = await casService.CollectMissingRequiredCasDisplayNamesAsync(manifests, onMissingFile, cancellationToken).ConfigureAwait(false);
         if (missingFiles.Count > 0)
         {
-            return OperationResult<bool>.CreateFailure(BuildMissingCasObjectsMessage(missingFiles));
+            return OperationResult<bool>.CreateFailure(BuildMissingCasObjectsMessage(missingFiles, missingObjectsMessageFormat));
         }
 
         return OperationResult<bool>.CreateSuccess(true);

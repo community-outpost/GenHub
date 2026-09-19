@@ -51,7 +51,8 @@ public class GameLauncher(
     IGameSettingsService gameSettingsService,
     IProfileContentLinker profileContentLinker,
     ISteamLauncher steamLauncher,
-    IConfigurationProviderService configurationProvider) : IGameLauncher
+    IConfigurationProviderService configurationProvider,
+    ILocalizationService? localizationService = null) : IGameLauncher
 {
     private static readonly ConcurrentDictionary<string, SemaphoreSlim> _profileLaunchLocks = new();
     private static readonly ConcurrentDictionary<string, SemaphoreSlim> _steamInstallationLaunchLocks =
@@ -1843,6 +1844,9 @@ public class GameLauncher(
     /// <returns>A result indicating success or failure.</returns>
     private async Task<OperationResult<bool>> PreflightCasCheckAsync(IEnumerable<ContentManifest> manifests, CancellationToken cancellationToken)
     {
-        return await casService.VerifyRequiredCasContentAvailableAsync(manifests, LogMissingCasFile, cancellationToken).ConfigureAwait(false);
+        var messageFormat = localizationService?.TryGetString(ProfileValidationConstants.MissingCasObjectsMessageKey, out var localized) == true
+            ? localized
+            : ProfileValidationConstants.MissingCasObjectsMessage;
+        return await casService.VerifyRequiredCasContentAvailableAsync(manifests, messageFormat, LogMissingCasFile, cancellationToken).ConfigureAwait(false);
     }
 }

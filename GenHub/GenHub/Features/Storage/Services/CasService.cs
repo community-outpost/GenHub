@@ -9,7 +9,6 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
-using System.Security;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -25,6 +24,8 @@ public class CasService(
     IStreamHashProvider streamHashProvider,
     ICasPoolManager? poolManager = null) : ICasService
 {
+    private const string GetObjectSizeFailureMessage = "Failed to get size of CAS object {Hash}";
+
     /// <inheritdoc/>
     public async Task<OperationResult<string>> StoreContentAsync(string sourcePath, string? expectedHash = null, CancellationToken cancellationToken = default)
     {
@@ -609,19 +610,15 @@ public class CasService(
         }
         catch (IOException ex)
         {
-            logger.LogDebug(ex, "Failed to get size of CAS object {Hash}", hash);
+            logger.LogDebug(ex, GetObjectSizeFailureMessage, hash);
         }
         catch (UnauthorizedAccessException ex)
         {
-            logger.LogDebug(ex, "Failed to get size of CAS object {Hash}", hash);
+            logger.LogDebug(ex, GetObjectSizeFailureMessage, hash);
         }
         catch (NotSupportedException ex)
         {
-            logger.LogDebug(ex, "Failed to get size of CAS object {Hash}", hash);
-        }
-        catch (SecurityException ex)
-        {
-            logger.LogDebug(ex, "Failed to get size of CAS object {Hash}", hash);
+            logger.LogDebug(ex, GetObjectSizeFailureMessage, hash);
         }
 
         return 0;

@@ -2007,7 +2007,10 @@ public class ProfileLauncherFacade(
         {
             var distinctMissing = missingFiles.Distinct().ToList();
             logger.LogError("[CAS Preflight] Found {Count} missing CAS objects: {Files}", distinctMissing.Count, string.Join(", ", distinctMissing.Take(10)));
-            return OperationResult<bool>.CreateFailure(CasServiceExtensions.BuildMissingCasObjectsMessage(distinctMissing));
+            var messageFormat = localizationService?.TryGetString(ProfileValidationConstants.MissingCasObjectsMessageKey, out var localized) == true
+                ? localized
+                : ProfileValidationConstants.MissingCasObjectsMessage;
+            return OperationResult<bool>.CreateFailure(CasServiceExtensions.BuildMissingCasObjectsMessage(missingFiles, messageFormat));
         }
 
         return OperationResult<bool>.CreateSuccess(true);
