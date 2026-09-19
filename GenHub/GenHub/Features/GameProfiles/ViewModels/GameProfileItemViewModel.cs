@@ -10,6 +10,7 @@ using GenHub.Core.Models.GameProfile;
 using GenHub.Infrastructure.Converters;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Threading.Tasks;
 
@@ -1067,6 +1068,7 @@ public partial class GameProfileItemViewModel : ViewModelBase
         }
     }
 
+    [SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Mutates CommunityToolkit generated observable properties.")]
     private void ResolveCompatibilityBadge(IGameProfile profile)
     {
         if (profile.GameClient == null)

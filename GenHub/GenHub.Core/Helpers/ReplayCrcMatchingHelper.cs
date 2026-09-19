@@ -152,36 +152,22 @@ public static class ReplayCrcMatchingHelper
             return false;
         }
 
-        var fullExePath = ResolveProfileFullExePath(client);
-        if (!string.IsNullOrWhiteSpace(fullExePath) && File.Exists(fullExePath))
+        if (TryGetCachedExeCrc(client, out var cachedCrc))
         {
-            var cachedCrc = GetCachedExeCrc(fullExePath);
-            if (!string.IsNullOrWhiteSpace(cachedCrc))
-            {
-                return IsZeroHourRetailExeCrc(cachedCrc);
-            }
+            return IsZeroHourRetailExeCrc(cachedCrc);
         }
 
-        if (string.Equals(client.PublisherType, PublisherTypeConstants.GeneralsOnline, StringComparison.OrdinalIgnoreCase) ||
-            (!string.IsNullOrEmpty(client.Name) && client.Name.Contains(GeneralsOnlineConstants.ClientName, StringComparison.OrdinalIgnoreCase)) ||
-            (!string.IsNullOrEmpty(client.Id) && client.Id.Contains(PublisherTypeConstants.GeneralsOnline, StringComparison.OrdinalIgnoreCase)))
+        if (IsGeneralsOnlineClient(client))
         {
             return false;
         }
 
-        if (CommunityOutpostConstants.IsNonRetailIdentifier(client.Id) ||
-            CommunityOutpostConstants.IsNonRetailIdentifier(client.Name) ||
-            CommunityOutpostConstants.IsNonRetailIdentifier(client.PublisherType) ||
-            (enabledContentIds != null && enabledContentIds.Any(CommunityOutpostConstants.IsNonRetailIdentifier)))
+        if (HasNonRetailIdentifier(client, enabledContentIds))
         {
             return false;
         }
 
-        if ((string.Equals(client.PublisherType, PublisherTypeConstants.TheSuperHackers, StringComparison.OrdinalIgnoreCase) ||
-             string.Equals(client.PublisherType, PublisherTypeConstants.LegacySuperHackers, StringComparison.OrdinalIgnoreCase) ||
-             (!string.IsNullOrEmpty(client.Id) && client.Id.Contains(PublisherTypeConstants.TheSuperHackers, StringComparison.OrdinalIgnoreCase))) &&
-            !string.Equals(client.PublisherType, CommunityOutpostConstants.PublisherType, StringComparison.OrdinalIgnoreCase) &&
-            (client.Name == null || !client.Name.Contains("Community Patch", StringComparison.OrdinalIgnoreCase)))
+        if (IsLegacySuperHackersClient(client))
         {
             return false;
         }
@@ -212,14 +198,9 @@ public static class ReplayCrcMatchingHelper
 
         if (isExplicitGenerals)
         {
-            var fullExePath = ResolveProfileFullExePath(client);
-            if (!string.IsNullOrWhiteSpace(fullExePath) && File.Exists(fullExePath))
+            if (TryGetCachedExeCrc(client, out var cachedCrc))
             {
-                var cachedCrc = GetCachedExeCrc(fullExePath);
-                if (!string.IsNullOrWhiteSpace(cachedCrc))
-                {
-                    return IsGeneralsRetailExeCrc(cachedCrc);
-                }
+                return IsGeneralsRetailExeCrc(cachedCrc);
             }
 
             return !client.IsPublisherClient ||
@@ -461,5 +442,64 @@ public static class ReplayCrcMatchingHelper
     {
         ExeCrcCache.Clear();
         GameCrcCalculatorService.ClearCache();
+    }
+
+    /// <summary>
+    /// Tries to resolve the client's executable path and read its cached CRC.
+    /// </summary>
+    /// <param name="client">The game client to evaluate.</param>
+    /// <param name="cachedCrc">The cached CRC string, if available and fresh.</param>
+    /// <returns><c>true</c> if a cached CRC was found; otherwise, <c>false</c>.</returns>
+    private static bool TryGetCachedExeCrc(GameClient client, out string? cachedCrc)
+    {
+        cachedCrc = null;
+        var fullExePath = ResolveProfileFullExePath(client);
+        if (string.IsNullOrWhiteSpace(fullExePath) || !File.Exists(fullExePath))
+        {
+            return false;
+        }
+
+        cachedCrc = GetCachedExeCrc(fullExePath);
+        return !string.IsNullOrWhiteSpace(cachedCrc);
+    }
+
+    /// <summary>
+    /// Determines whether the specified game client is a Generals Online client.
+    /// </summary>
+    /// <param name="client">The game client to evaluate.</param>
+    /// <returns><c>true</c> if it is a Generals Online client; otherwise, <c>false</c>.</returns>
+    private static bool IsGeneralsOnlineClient(GameClient client)
+    {
+        return string.Equals(client.PublisherType, PublisherTypeConstants.GeneralsOnline, StringComparison.OrdinalIgnoreCase) ||
+            (!string.IsNullOrEmpty(client.Name) && client.Name.Contains(GeneralsOnlineConstants.ClientName, StringComparison.OrdinalIgnoreCase)) ||
+            (!string.IsNullOrEmpty(client.Id) && client.Id.Contains(PublisherTypeConstants.GeneralsOnline, StringComparison.OrdinalIgnoreCase));
+    }
+
+    /// <summary>
+    /// Determines whether the client or any enabled content uses a non-retail identifier.
+    /// </summary>
+    /// <param name="client">The game client to evaluate.</param>
+    /// <param name="enabledContentIds">Optional list of enabled content manifest IDs for the profile.</param>
+    /// <returns><c>true</c> if a non-retail identifier was found; otherwise, <c>false</c>.</returns>
+    private static bool HasNonRetailIdentifier(GameClient client, IReadOnlyList<string>? enabledContentIds)
+    {
+        return CommunityOutpostConstants.IsNonRetailIdentifier(client.Id) ||
+            CommunityOutpostConstants.IsNonRetailIdentifier(client.Name) ||
+            CommunityOutpostConstants.IsNonRetailIdentifier(client.PublisherType) ||
+            (enabledContentIds != null && enabledContentIds.Any(CommunityOutpostConstants.IsNonRetailIdentifier));
+    }
+
+    /// <summary>
+    /// Determines whether the specified game client is a legacy SuperHackers client rather than a Community Patch build.
+    /// </summary>
+    /// <param name="client">The game client to evaluate.</param>
+    /// <returns><c>true</c> if it is a legacy SuperHackers client; otherwise, <c>false</c>.</returns>
+    private static bool IsLegacySuperHackersClient(GameClient client)
+    {
+        return (string.Equals(client.PublisherType, PublisherTypeConstants.TheSuperHackers, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(client.PublisherType, PublisherTypeConstants.LegacySuperHackers, StringComparison.OrdinalIgnoreCase) ||
+            (!string.IsNullOrEmpty(client.Id) && client.Id.Contains(PublisherTypeConstants.TheSuperHackers, StringComparison.OrdinalIgnoreCase))) &&
+            !string.Equals(client.PublisherType, CommunityOutpostConstants.PublisherType, StringComparison.OrdinalIgnoreCase) &&
+            (client.Name == null || !client.Name.Contains(CommunityOutpostConstants.ContentName, StringComparison.OrdinalIgnoreCase));
     }
 }
