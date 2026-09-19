@@ -118,12 +118,9 @@ public partial class ProjectItemPickerViewModel : ObservableObject
         }
 
         var rootRel = GetTreeRootRelativePath();
-        foreach (var matched in _snapshot.MatchFiles(_initialPatterns))
+        foreach (var matched in _snapshot.MatchFiles(_initialPatterns).Where(matched => IsTreeVisible(matched, rootRel)))
         {
-            if (IsTreeVisible(matched, rootRel))
-            {
-                _initialMatchedFiles.Add(matched);
-            }
+            _initialMatchedFiles.Add(matched);
         }
 
         // Patterns matching only outside the visible tree cannot be edited here; carry them through saves.
@@ -440,7 +437,8 @@ public partial class ProjectItemPickerViewModel : ObservableObject
 
         foreach (var dirNode in selectedNodes.Where(n => n.IsDirectory))
         {
-            EmitDirectorySelection(dirNode, checkedFiles, patterns, emittedPaths, globCoveredFiles);
+            var covered = EmitDirectorySelection(dirNode, checkedFiles, patterns, emittedPaths);
+            globCoveredFiles.UnionWith(covered);
         }
 
         foreach (var fileNode in checkedFileNodes)
@@ -452,12 +450,9 @@ public partial class ProjectItemPickerViewModel : ObservableObject
             }
         }
 
-        foreach (var preserved in _preservedPatterns)
+        foreach (var preserved in _preservedPatterns.Where(p => !patterns.Contains(p, StringComparer.OrdinalIgnoreCase)))
         {
-            if (!patterns.Contains(preserved, StringComparer.OrdinalIgnoreCase))
-            {
-                patterns.Add(preserved);
-            }
+            patterns.Add(preserved);
         }
 
         return patterns;
@@ -477,15 +472,14 @@ public partial class ProjectItemPickerViewModel : ObservableObject
         return checkedFiles.SetEquals(_initialMatchedFiles) && checkedDirs.SetEquals(_initialCheckedDirs);
     }
 
-    private void EmitDirectorySelection(
+    private IReadOnlyCollection<string> EmitDirectorySelection(
         FileTreeNode dirNode,
         HashSet<string> checkedFiles,
         List<string> patterns,
-        HashSet<string> emittedPaths,
-        HashSet<string> globCoveredFiles)
+        HashSet<string> emittedPaths)
     {
         var rel = NormalizeRelativePath(dirNode.RelativePath);
-        var glob = BuildDirectoryGlob(rel);
+        var glob = BuildDirectoryGlob(rel, GlobOption);
         HashSet<string> matchedByGlob = _snapshot?.MatchFiles([glob]) ?? [];
 
         // Emit the directory glob when every file it covers is checked, or when it is
@@ -503,24 +497,18 @@ public partial class ProjectItemPickerViewModel : ObservableObject
                 patterns.Add(glob);
             }
 
-            foreach (var matched in matchedByGlob)
-            {
-                globCoveredFiles.Add(matched);
-            }
-
-            return;
+            return matchedByGlob;
         }
 
-        foreach (var matched in matchedChecked)
+        foreach (var matched in matchedChecked.Where(emittedPaths.Add))
         {
-            if (emittedPaths.Add(matched))
-            {
-                patterns.Add(matched);
-            }
+            patterns.Add(matched);
         }
+
+        return Array.Empty<string>();
     }
 
-    private string BuildDirectoryGlob(string relativeDir) => GlobOption switch
+    private static string BuildDirectoryGlob(string relativeDir, DirectoryGlobOption globOption) => globOption switch
     {
         DirectoryGlobOption.IniFiles => $"{relativeDir}/**/*.ini",
         DirectoryGlobOption.Textures => $"{relativeDir}/**/*.tga",

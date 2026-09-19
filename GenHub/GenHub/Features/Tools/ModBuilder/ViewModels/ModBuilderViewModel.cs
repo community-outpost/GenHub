@@ -60,6 +60,17 @@ public partial class ModBuilderViewModel(
     IDialogService? dialogService = null,
     ISampleProjectService? sampleProjectService = null) : ObservableObject, IDisposable
 {
+    private const string UnknownErrorKey = UnknownErrorKey;
+    private const string OperationInProgressTitleKey = OperationInProgressTitleKey;
+    private const string BusyImportFilesKey = BusyImportFilesKey;
+    private const string NoProjectTitleKey = NoProjectTitleKey;
+    private const string NoProjectMessageKey = NoProjectMessageKey;
+    private const string ProjectFileTypeNameKey = ProjectFileTypeNameKey;
+    private const string LoadFailedTitleKey = LoadFailedTitleKey;
+    private const string OpenFailedTitleKey = OpenFailedTitleKey;
+    private const string FolderRestrictedTitleKey = FolderRestrictedTitleKey;
+    private const string ImportFailedTitleKey = ImportFailedTitleKey;
+
     private readonly Stopwatch _buildStopwatch = new();
     private readonly Dictionary<string, (bool? Big, string? OutputFile)> _originalPackStates = new(StringComparer.OrdinalIgnoreCase);
     private readonly List<RecentProjectInfo> _allRecentProjects = [];
@@ -708,7 +719,7 @@ public partial class ModBuilderViewModel(
             SuggestedStartLocation = suggestedFolder,
             FileTypeChoices =
             [
-                new FilePickerFileType(localizationService.GetString("Tools.ModBuilder.Project.FileTypeName")) { Patterns = [ModBuilderConstants.ProjectFilePattern,], }
+                new FilePickerFileType(localizationService.GetString(ProjectFileTypeNameKey)) { Patterns = [ModBuilderConstants.ProjectFilePattern,], }
             ],
         }).ConfigureAwait(false);
 
@@ -743,7 +754,7 @@ public partial class ModBuilderViewModel(
                 {
                     notificationService.ShowError(
                         localizationService.GetString("Tools.ModBuilder.Notification.CreationFailed.Title"),
-                        result.FirstError ?? localizationService.GetString("Common.UnknownError"));
+                        result.FirstError ?? localizationService.GetString(UnknownErrorKey));
                     logger.LogWarning("Project creation failed: {Error}", result.FirstError);
                 }
             }
@@ -783,7 +794,7 @@ public partial class ModBuilderViewModel(
             SuggestedStartLocation = suggestedFolder,
             FileTypeFilter =
             [
-                new FilePickerFileType(localizationService.GetString("Tools.ModBuilder.Project.FileTypeName")) { Patterns = [ModBuilderConstants.ProjectFilePattern,], }
+                new FilePickerFileType(localizationService.GetString(ProjectFileTypeNameKey)) { Patterns = [ModBuilderConstants.ProjectFilePattern,], }
             ],
         }).ConfigureAwait(false);
 
@@ -811,7 +822,7 @@ public partial class ModBuilderViewModel(
 
         if (IsBuildRunning)
         {
-            notificationService.ShowWarning(localizationService.GetString("Tools.ModBuilder.Notification.OperationInProgress.Title"), localizationService.GetString("Tools.ModBuilder.Notification.Busy.ImportFiles"));
+            notificationService.ShowWarning(localizationService.GetString(OperationInProgressTitleKey), localizationService.GetString(BusyImportFilesKey));
             return;
         }
 
@@ -834,7 +845,7 @@ public partial class ModBuilderViewModel(
 
         if (!canStart)
         {
-            notificationService.ShowWarning(localizationService.GetString("Tools.ModBuilder.Notification.OperationInProgress.Title"), localizationService.GetString("Tools.ModBuilder.Notification.Busy.ImportFiles"));
+            notificationService.ShowWarning(localizationService.GetString(OperationInProgressTitleKey), localizationService.GetString(BusyImportFilesKey));
             return;
         }
 
@@ -911,7 +922,7 @@ public partial class ModBuilderViewModel(
                 }
                 else
                 {
-                    notificationService.ShowError(localizationService.GetString("Tools.ModBuilder.Notification.ImportFailed.Title"), result.FirstError ?? localizationService.GetString("Common.UnknownError"));
+                    notificationService.ShowError(localizationService.GetString(ImportFailedTitleKey), result.FirstError ?? localizationService.GetString(UnknownErrorKey));
                     AppendBuildLog($"Import failed: {result.FirstError}");
                 }
             }
@@ -953,7 +964,7 @@ public partial class ModBuilderViewModel(
     {
         if (IsBuildRunning)
         {
-            notificationService.ShowWarning(localizationService.GetString("Tools.ModBuilder.Notification.OperationInProgress.Title"), localizationService.GetString("Tools.ModBuilder.Notification.Busy.ImportFiles"));
+            notificationService.ShowWarning(localizationService.GetString(OperationInProgressTitleKey), localizationService.GetString(BusyImportFilesKey));
             return;
         }
 
@@ -999,7 +1010,7 @@ public partial class ModBuilderViewModel(
 
         if (!canStart)
         {
-            notificationService.ShowWarning(localizationService.GetString("Tools.ModBuilder.Notification.OperationInProgress.Title"), localizationService.GetString("Tools.ModBuilder.Notification.Busy.ImportFiles"));
+            notificationService.ShowWarning(localizationService.GetString(OperationInProgressTitleKey), localizationService.GetString(BusyImportFilesKey));
             return;
         }
 
@@ -1030,7 +1041,7 @@ public partial class ModBuilderViewModel(
                 SuggestedStartLocation = suggestedFolder,
                 FileTypeChoices =
                 [
-                    new FilePickerFileType(localizationService.GetString("Tools.ModBuilder.Project.FileTypeName")) { Patterns = [ModBuilderConstants.ProjectFilePattern], },
+                    new FilePickerFileType(localizationService.GetString(ProjectFileTypeNameKey)) { Patterns = [ModBuilderConstants.ProjectFilePattern], },
                 ],
             }).ConfigureAwait(false);
 
@@ -1089,7 +1100,7 @@ public partial class ModBuilderViewModel(
             }
             else
             {
-                notificationService.ShowError(localizationService.GetString("Tools.ModBuilder.Notification.ImportFailed.Title"), result.FirstError ?? localizationService.GetString("Common.UnknownError"));
+                notificationService.ShowError(localizationService.GetString(ImportFailedTitleKey), result.FirstError ?? localizationService.GetString(UnknownErrorKey));
                 AppendBuildLog($"Failed to create imported project: {result.FirstError}");
             }
         }
@@ -1267,7 +1278,7 @@ public partial class ModBuilderViewModel(
 
         if (IsBuildRunning)
         {
-            notificationService.ShowWarning(localizationService.GetString("Tools.ModBuilder.Notification.OperationInProgress.Title"), localizationService.GetString("Tools.ModBuilder.Notification.Busy.OpenSample"));
+            notificationService.ShowWarning(localizationService.GetString(OperationInProgressTitleKey), localizationService.GetString("Tools.ModBuilder.Notification.Busy.OpenSample"));
             return;
         }
 
@@ -1326,7 +1337,7 @@ public partial class ModBuilderViewModel(
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to load sample project {SampleId}", item.Id);
-            notificationService.ShowError(localizationService.GetString("Tools.ModBuilder.Notification.LoadFailed.Title"), localizationService.GetString("Tools.ModBuilder.Notification.LoadSampleFailed.Message", ex.Message));
+            notificationService.ShowError(localizationService.GetString(LoadFailedTitleKey), localizationService.GetString("Tools.ModBuilder.Notification.LoadSampleFailed.Message", ex.Message));
         }
         finally
         {
@@ -1559,7 +1570,7 @@ public partial class ModBuilderViewModel(
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to load sample project");
-            notificationService.ShowError(localizationService.GetString("Tools.ModBuilder.Notification.LoadFailed.Title"), localizationService.GetString("Tools.ModBuilder.Notification.LoadSampleFailed.Message", ex.Message));
+            notificationService.ShowError(localizationService.GetString(LoadFailedTitleKey), localizationService.GetString("Tools.ModBuilder.Notification.LoadSampleFailed.Message", ex.Message));
         }
         finally
         {
@@ -1957,7 +1968,7 @@ public partial class ModBuilderViewModel(
         logger.LogInformation("OpenFileManagerAsync requested");
         if (CurrentProject == null)
         {
-            notificationService.ShowWarning(localizationService.GetString("Tools.ModBuilder.Notification.NoProject.Title"), localizationService.GetString("Tools.ModBuilder.Notification.NoProject.Message"));
+            notificationService.ShowWarning(localizationService.GetString(NoProjectTitleKey), localizationService.GetString(NoProjectMessageKey));
             return;
         }
 
@@ -2116,7 +2127,7 @@ public partial class ModBuilderViewModel(
             else
             {
                 var errorMessage = result.FirstError ?? "Unknown error occurred while loading project";
-                notificationService.ShowError(localizationService.GetString("Tools.ModBuilder.Notification.LoadFailed.Title"), errorMessage);
+                notificationService.ShowError(localizationService.GetString(LoadFailedTitleKey), errorMessage);
                 AppendBuildLog($"Failed to load project: {errorMessage}");
             }
         }
@@ -2176,7 +2187,7 @@ public partial class ModBuilderViewModel(
             }
             else
             {
-                notificationService.ShowError(localizationService.GetString("Tools.ModBuilder.Notification.SaveFailed.Title"), result.FirstError ?? localizationService.GetString("Common.UnknownError"));
+                notificationService.ShowError(localizationService.GetString("Tools.ModBuilder.Notification.SaveFailed.Title"), result.FirstError ?? localizationService.GetString(UnknownErrorKey));
                 logger.LogWarning("Failed to save project: {Error}", result.FirstError);
             }
         }
@@ -2197,7 +2208,7 @@ public partial class ModBuilderViewModel(
     {
         if (CurrentProject == null)
         {
-            notificationService.ShowWarning(localizationService.GetString("Tools.ModBuilder.Notification.NoProject.Title"), localizationService.GetString("Tools.ModBuilder.Notification.NoProject.Message"));
+            notificationService.ShowWarning(localizationService.GetString(NoProjectTitleKey), localizationService.GetString(NoProjectMessageKey));
             return;
         }
 
@@ -2493,13 +2504,13 @@ public partial class ModBuilderViewModel(
     {
         if (CurrentProject == null)
         {
-            notificationService.ShowWarning(localizationService.GetString("Tools.ModBuilder.Notification.NoProject.Title"), localizationService.GetString("Tools.ModBuilder.Notification.NoProject.Message"));
+            notificationService.ShowWarning(localizationService.GetString(NoProjectTitleKey), localizationService.GetString(NoProjectMessageKey));
             return;
         }
 
         if (IsBuildRunning)
         {
-            notificationService.ShowWarning(localizationService.GetString("Tools.ModBuilder.Notification.OperationInProgress.Title"), localizationService.GetString("Tools.ModBuilder.Notification.Busy.StartBuild"));
+            notificationService.ShowWarning(localizationService.GetString(OperationInProgressTitleKey), localizationService.GetString("Tools.ModBuilder.Notification.Busy.StartBuild"));
             return;
         }
 
@@ -2566,8 +2577,8 @@ public partial class ModBuilderViewModel(
             else
             {
                 AppendBuildLog("\n=== Build Failed ===");
-                AppendBuildLog(result.FirstError ?? localizationService.GetString("Common.UnknownError"));
-                notificationService.ShowError(localizationService.GetString("Tools.ModBuilder.Notification.BuildFailed.Title"), result.FirstError ?? localizationService.GetString("Common.UnknownError"));
+                AppendBuildLog(result.FirstError ?? localizationService.GetString(UnknownErrorKey));
+                notificationService.ShowError(localizationService.GetString("Tools.ModBuilder.Notification.BuildFailed.Title"), result.FirstError ?? localizationService.GetString(UnknownErrorKey));
             }
         }
         catch (OperationCanceledException ex)
@@ -2625,13 +2636,13 @@ public partial class ModBuilderViewModel(
     {
         if (CurrentProject == null)
         {
-            notificationService.ShowWarning(localizationService.GetString("Tools.ModBuilder.Notification.NoProject.Title"), localizationService.GetString("Tools.ModBuilder.Notification.NoProject.Message"));
+            notificationService.ShowWarning(localizationService.GetString(NoProjectTitleKey), localizationService.GetString(NoProjectMessageKey));
             return;
         }
 
         if (IsBuildRunning)
         {
-            notificationService.ShowWarning(localizationService.GetString("Tools.ModBuilder.Notification.OperationInProgress.Title"), localizationService.GetString("Tools.ModBuilder.Notification.Busy.CreateManifest"));
+            notificationService.ShowWarning(localizationService.GetString(OperationInProgressTitleKey), localizationService.GetString("Tools.ModBuilder.Notification.Busy.CreateManifest"));
             return;
         }
 
@@ -2672,7 +2683,7 @@ public partial class ModBuilderViewModel(
             else
             {
                 AppendBuildLog("\n=== Manifest Creation Failed ===");
-                AppendBuildLog(result.FirstError ?? localizationService.GetString("Common.UnknownError"));
+                AppendBuildLog(result.FirstError ?? localizationService.GetString(UnknownErrorKey));
                 await InvokeOnUIThreadAsync(() =>
                     notificationService.ShowError(localizationService.GetString("Tools.ModBuilder.Notification.ManifestCreationFailed.Title"), result.FirstError ?? localizationService.GetString("Tools.ModBuilder.Notification.ManifestCreationFailed.Fallback")));
             }
@@ -2857,7 +2868,7 @@ public partial class ModBuilderViewModel(
         var projectDir = !string.IsNullOrEmpty(ProjectPath) ? Path.GetDirectoryName(ProjectPath) : CurrentProject?.ProjectDir;
         if (string.IsNullOrEmpty(projectDir))
         {
-            notificationService.ShowWarning(localizationService.GetString("Tools.ModBuilder.Notification.NoProject.Title"), localizationService.GetString("Tools.ModBuilder.Notification.NoProject.Message"));
+            notificationService.ShowWarning(localizationService.GetString(NoProjectTitleKey), localizationService.GetString(NoProjectMessageKey));
             return;
         }
 
@@ -2877,7 +2888,7 @@ public partial class ModBuilderViewModel(
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to open project folder");
-            notificationService.ShowError(localizationService.GetString("Tools.ModBuilder.Notification.OpenFailed.Title"), localizationService.GetString("Tools.ModBuilder.Notification.OpenFailed.ProjectFolder"));
+            notificationService.ShowError(localizationService.GetString(OpenFailedTitleKey), localizationService.GetString("Tools.ModBuilder.Notification.OpenFailed.ProjectFolder"));
         }
     }
 
@@ -2891,7 +2902,7 @@ public partial class ModBuilderViewModel(
         var projectDir = !string.IsNullOrEmpty(ProjectPath) ? Path.GetDirectoryName(ProjectPath) : CurrentProject?.ProjectDir;
         if (string.IsNullOrEmpty(projectDir))
         {
-            notificationService.ShowWarning(localizationService.GetString("Tools.ModBuilder.Notification.NoProject.Title"), localizationService.GetString("Tools.ModBuilder.Notification.NoProject.Message"));
+            notificationService.ShowWarning(localizationService.GetString(NoProjectTitleKey), localizationService.GetString(NoProjectMessageKey));
             return;
         }
 
@@ -2902,7 +2913,7 @@ public partial class ModBuilderViewModel(
             if (IsPathInsideAppDirectory(editFolder))
             {
                 logger.LogWarning("Refusing to open edit folder inside app directory: {Path}", editFolder);
-                notificationService.ShowWarning(localizationService.GetString("Tools.ModBuilder.Notification.FolderRestricted.Title"), localizationService.GetString("Tools.ModBuilder.Notification.FolderRestricted.AppDir"));
+                notificationService.ShowWarning(localizationService.GetString(FolderRestrictedTitleKey), localizationService.GetString("Tools.ModBuilder.Notification.FolderRestricted.AppDir"));
                 return;
             }
 
@@ -2920,7 +2931,7 @@ public partial class ModBuilderViewModel(
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to open edit folder");
-            notificationService.ShowError(localizationService.GetString("Tools.ModBuilder.Notification.OpenFailed.Title"), localizationService.GetString("Tools.ModBuilder.Notification.OpenFailed.GameFilesEdited"));
+            notificationService.ShowError(localizationService.GetString(OpenFailedTitleKey), localizationService.GetString("Tools.ModBuilder.Notification.OpenFailed.GameFilesEdited"));
         }
     }
 
@@ -2933,7 +2944,7 @@ public partial class ModBuilderViewModel(
         logger.LogInformation("OpenBuildFolder requested for: {Path}", ProjectPath);
         if (CurrentProject == null || string.IsNullOrEmpty(ProjectPath))
         {
-            notificationService.ShowWarning(localizationService.GetString("Tools.ModBuilder.Notification.NoProject.Title"), localizationService.GetString("Tools.ModBuilder.Notification.NoProject.Message"));
+            notificationService.ShowWarning(localizationService.GetString(NoProjectTitleKey), localizationService.GetString(NoProjectMessageKey));
             return;
         }
 
@@ -2950,7 +2961,7 @@ public partial class ModBuilderViewModel(
             if (IsPathInsideAppDirectory(buildPath))
             {
                 logger.LogWarning("Refusing to open build folder inside app directory: {Path}", buildPath);
-                notificationService.ShowWarning(localizationService.GetString("Tools.ModBuilder.Notification.FolderRestricted.Title"), localizationService.GetString("Tools.ModBuilder.Notification.FolderRestricted.BuildFolder"));
+                notificationService.ShowWarning(localizationService.GetString(FolderRestrictedTitleKey), localizationService.GetString("Tools.ModBuilder.Notification.FolderRestricted.BuildFolder"));
                 return;
             }
 
@@ -2968,7 +2979,7 @@ public partial class ModBuilderViewModel(
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to open build folder");
-            notificationService.ShowError(localizationService.GetString("Tools.ModBuilder.Notification.OpenFailed.Title"), localizationService.GetString("Tools.ModBuilder.Notification.OpenFailed.BuildFolder"));
+            notificationService.ShowError(localizationService.GetString(OpenFailedTitleKey), localizationService.GetString("Tools.ModBuilder.Notification.OpenFailed.BuildFolder"));
         }
     }
 
@@ -3009,7 +3020,7 @@ public partial class ModBuilderViewModel(
             if (IsPathInsideAppDirectory(releasePath))
             {
                 logger.LogWarning("Refusing to open release folder inside app directory: {Path}", releasePath);
-                notificationService.ShowWarning(localizationService.GetString("Tools.ModBuilder.Notification.FolderRestricted.Title"), localizationService.GetString("Tools.ModBuilder.Notification.FolderRestricted.ReleaseFolder"));
+                notificationService.ShowWarning(localizationService.GetString(FolderRestrictedTitleKey), localizationService.GetString("Tools.ModBuilder.Notification.FolderRestricted.ReleaseFolder"));
                 return;
             }
 

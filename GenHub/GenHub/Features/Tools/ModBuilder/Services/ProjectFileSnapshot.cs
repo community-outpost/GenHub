@@ -52,7 +52,7 @@ public sealed class ProjectFileSnapshot
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
         {
-            rootPath = projectDir;
+            // Fall back to projectDir when full path resolution fails.
         }
 
         var root = new InMemoryDirectory(GetDirectoryName(rootPath), rootPath, null);
