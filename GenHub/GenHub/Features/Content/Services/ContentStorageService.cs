@@ -1,4 +1,5 @@
 using GenHub.Core.Constants;
+using GenHub.Core.Extensions.Storage;
 using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
@@ -354,7 +355,14 @@ public class ContentStorageService : IContentStorageService
             using var writeLease = await _writeFence.TrackWriteAsync(cancellationToken);
 
             // Store content files in CAS with integrity verification
-            var updatedManifest = await StoreContentFilesAsync(manifest, sourceDirectory, progress, cancellationToken);
+            var storeFilesResult = await StoreContentFilesAsync(manifest, sourceDirectory, progress, cancellationToken);
+            if (!storeFilesResult.Success || storeFilesResult.Data == null)
+            {
+                return OperationResult<ContentManifest>.CreateFailure(
+                    storeFilesResult.FirstError ?? $"Failed to store content files for manifest {manifest.Id}");
+            }
+
+            var updatedManifest = storeFilesResult.Data;
 
             // Track CAS references to ensure files are not prematurely garbage collected
             var trackResult = await _referenceTracker.TrackManifestReferencesAsync(updatedManifest.Id, updatedManifest, cancellationToken);
@@ -485,10 +493,17 @@ public class ContentStorageService : IContentStorageService
             var allExist = await VerifyAllRequiredCasFilesExistAsync(manifest, cancellationToken).ConfigureAwait(false);
             return OperationResult<bool>.CreateSuccess(allExist);
         }
-        catch (Exception ex)
+        catch (IOException ex)
         {
-            _logger.LogWarning(ex, "Failed to verify stored content for manifest {ManifestId}", manifestId);
-            return OperationResult<bool>.CreateSuccess(false);
+            return LogVerificationFailure(manifestId, ex);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return LogVerificationFailure(manifestId, ex);
+        }
+        catch (JsonException ex)
+        {
+            return LogVerificationFailure(manifestId, ex);
         }
     }
 
@@ -754,8 +769,8 @@ public class ContentStorageService : IContentStorageService
     /// <param name="sourceDirectory">Source directory containing content files.</param>
     /// <param name="progress">Optional progress reporter for tracking storage operations.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>The updated manifest with storage information.</returns>
-    private async Task<ContentManifest> StoreContentFilesAsync(
+    /// <returns>The updated manifest with storage information, or a failure when a required file cannot be stored.</returns>
+    private async Task<OperationResult<ContentManifest>> StoreContentFilesAsync(
         ContentManifest manifest,
         string sourceDirectory,
         IProgress<ContentStorageProgress>? progress,
@@ -765,14 +780,14 @@ public class ContentStorageService : IContentStorageService
         {
             _logger.LogWarning("Source directory does not exist: {SourceDirectory}", sourceDirectory);
             manifest.Files.Clear();
-            return manifest;
+            return OperationResult<ContentManifest>.CreateSuccess(manifest);
         }
 
         if (IsInvalidOrRemovableDrive(sourceDirectory) && !ShouldForceStorage(manifest, sourceDirectory))
         {
             _logger.LogWarning("Source directory {SourceDirectory} is on an invalid or removable drive", sourceDirectory);
             manifest.Files.Clear();
-            return manifest;
+            return OperationResult<ContentManifest>.CreateSuccess(manifest);
         }
 
         _logger.LogInformation(
@@ -850,9 +865,8 @@ public class ContentStorageService : IContentStorageService
 
                     if (manifestFile.IsRequired)
                     {
-                        throw new FileNotFoundException(
-                            $"Required file '{manifestFile.RelativePath}' not found at source path '{sourcePath}'",
-                            sourcePath);
+                        return OperationResult<ContentManifest>.CreateFailure(
+                            $"Required file '{manifestFile.RelativePath}' not found at source path '{sourcePath}'");
                     }
 
                     processedCount++;
@@ -890,7 +904,7 @@ public class ContentStorageService : IContentStorageService
 
                         if (manifestFile.IsRequired)
                         {
-                            throw new InvalidOperationException(
+                            return OperationResult<ContentManifest>.CreateFailure(
                                 $"Failed to store required file '{manifestFile.RelativePath}' in CAS: {casResult.FirstError}");
                         }
 
@@ -919,7 +933,7 @@ public class ContentStorageService : IContentStorageService
 
                         if (manifestFile.IsRequired)
                         {
-                            throw new InvalidOperationException(
+                            return OperationResult<ContentManifest>.CreateFailure(
                                 $"Failed to store required file '{manifestFile.RelativePath}' in CAS: {casResult.FirstError}");
                         }
 
@@ -949,7 +963,7 @@ public class ContentStorageService : IContentStorageService
                     CurrentFileName = manifestFile.RelativePath,
                 });
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not OperationCanceledException)
             {
                 _logger.LogWarning(
                     ex,
@@ -959,7 +973,8 @@ public class ContentStorageService : IContentStorageService
 
                 if (manifestFile.IsRequired)
                 {
-                    throw;
+                    return OperationResult<ContentManifest>.CreateFailure(
+                        $"Failed to store required file '{manifestFile.RelativePath}' for manifest {manifest.Id}: {ex.Message}");
                 }
 
                 processedCount++;
@@ -980,7 +995,7 @@ public class ContentStorageService : IContentStorageService
         {
             var missingList = string.Join(", ", missingRequiredFiles.Select(f => f.RelativePath));
             _logger.LogError("Failed to store all required files for manifest {ManifestId}. Missing: {MissingFiles}", manifest.Id, missingList);
-            throw new InvalidOperationException($"Failed to store required files for manifest {manifest.Id}: {missingList}");
+            return OperationResult<ContentManifest>.CreateFailure($"Failed to store required files for manifest {manifest.Id}: {missingList}");
         }
 
         manifest.Files = updatedFiles;
@@ -991,7 +1006,7 @@ public class ContentStorageService : IContentStorageService
             totalFiles,
             manifest.Id);
 
-        return manifest;
+        return OperationResult<ContentManifest>.CreateSuccess(manifest);
     }
 
     private async Task<OperationResult<string>> MaterializeManifestFileAsync(
@@ -1035,18 +1050,6 @@ public class ContentStorageService : IContentStorageService
         return OperationResult<string>.CreateSuccess(targetPath);
     }
 
-    private async Task<bool> CheckCasFileExistsAsync(string hash, ContentType contentType, CancellationToken cancellationToken)
-    {
-        var existsResult = await _casService.ExistsAsync(hash, contentType, cancellationToken).ConfigureAwait(false);
-        if (existsResult.Success && existsResult.Data)
-        {
-            return true;
-        }
-
-        var fallbackResult = await _casService.ExistsAsync(hash, cancellationToken).ConfigureAwait(false);
-        return fallbackResult.Success && fallbackResult.Data;
-    }
-
     private async Task<List<string>> GetMissingRequiredCasFilesAsync(ContentManifest manifest, CancellationToken cancellationToken)
     {
         var missingCasFiles = new List<string>();
@@ -1055,9 +1058,10 @@ public class ContentStorageService : IContentStorageService
             return missingCasFiles;
         }
 
-        foreach (var file in manifest.Files.Where(f => f.SourceType == ContentSourceType.ContentAddressable && !string.IsNullOrEmpty(f.Hash) && f.IsRequired))
+        foreach (var file in manifest.Files.Where(f => f.SourceType == ContentSourceType.ContentAddressable && f.IsRequired))
         {
-            var exists = await CheckCasFileExistsAsync(file.Hash, manifest.ContentType, cancellationToken).ConfigureAwait(false);
+            var exists = !string.IsNullOrEmpty(file.Hash) &&
+                await _casService.ExistsInAnyPoolAsync(file.Hash, manifest.ContentType, cancellationToken).ConfigureAwait(false);
             if (!exists)
             {
                 missingCasFiles.Add(file.RelativePath);
@@ -1097,9 +1101,10 @@ public class ContentStorageService : IContentStorageService
             return true;
         }
 
-        foreach (var file in manifest.Files.Where(f => f.SourceType == ContentSourceType.ContentAddressable && f.IsRequired && !string.IsNullOrEmpty(f.Hash)))
+        foreach (var file in manifest.Files.Where(f => f.SourceType == ContentSourceType.ContentAddressable && f.IsRequired))
         {
-            var exists = await CheckCasFileExistsAsync(file.Hash, manifest.ContentType, cancellationToken).ConfigureAwait(false);
+            var exists = !string.IsNullOrEmpty(file.Hash) &&
+                await _casService.ExistsInAnyPoolAsync(file.Hash, manifest.ContentType, cancellationToken).ConfigureAwait(false);
             if (!exists)
             {
                 _logger.LogWarning(
@@ -1112,5 +1117,11 @@ public class ContentStorageService : IContentStorageService
         }
 
         return true;
+    }
+
+    private OperationResult<bool> LogVerificationFailure(ManifestId manifestId, Exception ex)
+    {
+        _logger.LogWarning(ex, "Failed to verify stored content for manifest {ManifestId}", manifestId);
+        return OperationResult<bool>.CreateSuccess(false);
     }
 }

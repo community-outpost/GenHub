@@ -199,6 +199,12 @@ public static class CommunityOutpostConstants
     /// <summary>Keyword identifying nonretail builds.</summary>
     public const string NonRetailKeyword = "nonretail";
 
+    /// <summary>Directory name suffix identifying Generals content.</summary>
+    public const string GeneralsDirectorySuffix = "CG";
+
+    /// <summary>Directory name suffix identifying Zero Hour content.</summary>
+    public const string ZeroHourDirectorySuffix = "ZH";
+
     /// <summary>
     /// Tags associated with the patch content.
     /// </summary>
@@ -270,6 +276,16 @@ public static class CommunityOutpostConstants
     /// Tags associated with addons.
     /// </summary>
     public static readonly IReadOnlyList<string> AddonTags = [AddonTag, "community", "genpatcher"];
+
+    /// <summary>
+    /// Language subdirectory names used by Generals game client packages.
+    /// </summary>
+    public static readonly IReadOnlyList<string> GeneralsLanguageSubdirectories = ["CCG", "ECG", "GCG", "FCG"];
+
+    /// <summary>
+    /// Language subdirectory names used by Zero Hour game client packages.
+    /// </summary>
+    public static readonly IReadOnlyList<string> ZeroHourLanguageSubdirectories = ["ZH", "EZH", "GZH", "FZH"];
 
     /// <summary>
     /// Checks whether an identifier, filename, or display name represents a non-retail (stream) build.

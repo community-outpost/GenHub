@@ -1,6 +1,7 @@
 using CommunityToolkit.Mvvm.Messaging;
 using GenHub.Core.Constants;
 using GenHub.Core.Extensions;
+using GenHub.Core.Extensions.Storage;
 using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
@@ -1985,18 +1986,6 @@ public class ProfileLauncherFacade(
         }
     }
 
-    private async Task<bool> IsCasObjectPresentAsync(string hash, ContentType contentType, CancellationToken cancellationToken)
-    {
-        var existsResult = await casService.ExistsAsync(hash, contentType, cancellationToken).ConfigureAwait(false);
-        if (existsResult.Success && existsResult.Data)
-        {
-            return true;
-        }
-
-        var fallbackResult = await casService.ExistsAsync(hash, cancellationToken).ConfigureAwait(false);
-        return fallbackResult.Success && fallbackResult.Data;
-    }
-
     private async Task CheckManifestCasFilesAsync(ContentManifest manifest, List<string> missingFiles, CancellationToken cancellationToken)
     {
         if (manifest.Files == null)
@@ -2004,9 +1993,10 @@ public class ProfileLauncherFacade(
             return;
         }
 
-        foreach (var file in manifest.Files.Where(f => f.SourceType == ContentSourceType.ContentAddressable && !string.IsNullOrEmpty(f.Hash) && f.IsRequired))
+        foreach (var file in manifest.Files.Where(f => f.SourceType == ContentSourceType.ContentAddressable && f.IsRequired))
         {
-            var present = await IsCasObjectPresentAsync(file.Hash, manifest.ContentType, cancellationToken).ConfigureAwait(false);
+            var present = !string.IsNullOrEmpty(file.Hash) &&
+                await casService.ExistsInAnyPoolAsync(file.Hash, manifest.ContentType, cancellationToken).ConfigureAwait(false);
             if (!present)
             {
                 var manifestDisplayName = !string.IsNullOrWhiteSpace(manifest.Name) ? manifest.Name : manifest.Id.Value;

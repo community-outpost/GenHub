@@ -432,6 +432,45 @@ public class ContentStorageServiceTests : IDisposable
     }
 
     /// <summary>
+    /// Tests that IsContentStoredAsync returns false when a required CAS file has no hash.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task IsContentStoredAsync_WhenRequiredCasFileHasEmptyHash_ReturnsFalseAsync()
+    {
+        // Arrange
+        var manifestId = ManifestId.Create("1.0.local.addon.empty-hash");
+        var manifestPath = _service.GetManifestStoragePath(manifestId);
+        var manifestDir = Path.GetDirectoryName(manifestPath)!;
+        Directory.CreateDirectory(manifestDir);
+
+        var manifest = new ContentManifest
+        {
+            Id = manifestId,
+            ContentType = ContentType.Addon,
+            Files =
+            [
+                new()
+                {
+                    RelativePath = "Generals.exe",
+                    Hash = string.Empty,
+                    SourceType = ContentSourceType.ContentAddressable,
+                    IsRequired = true,
+                },
+            ],
+        };
+
+        await File.WriteAllTextAsync(manifestPath, System.Text.Json.JsonSerializer.Serialize(manifest));
+
+        // Act
+        var result = await _service.IsContentStoredAsync(manifestId);
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.False(result.Data);
+    }
+
+    /// <summary>
     /// Disposes resources.
     /// </summary>
     /// <param name="disposing">Whether managed resources should be disposed.</param>
