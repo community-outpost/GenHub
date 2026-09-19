@@ -20,6 +20,7 @@ using GenHub.Core.Models.ModDB;
 using GenHub.Core.Models.Parsers;
 using GenHub.Core.Models.Providers;
 using GenHub.Core.Models.Results.Content;
+using GenHub.Features.Content.Services;
 using GenHub.Features.Content.Services.ContentDiscoverers;
 using GenHub.Features.Downloads.Services;
 using GenHub.Features.Downloads.Views;
@@ -63,6 +64,7 @@ namespace GenHub.Features.Downloads.ViewModels;
 /// <param name="localizationService">Optional localization service for dynamic string localization.</param>
 /// <param name="dialogService">Optional dialog service for delete confirmations.</param>
 /// <param name="deletedAction">Optional callback invoked with the deleted manifest ID after a successful delete.</param>
+/// <param name="artworkService">Optional artwork service for purging persisted icons and covers on delete.</param>
 [SuppressMessage("Major Code Smell", "S107:Methods should not have too many parameters", Justification = "ContentDetailViewModel coordinates rich media, downloads, profile binding, and custom tabs.")]
 [SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Properties and methods access CommunityToolkit MVVM generated instance properties.")]
 [SuppressMessage("Critical Code Smell", "S3776:Cognitive Complexity of methods should not be too high", Justification = "Content detail ViewModel coordinates complex UI state, downloads, and multiple catalog sources.")]
@@ -86,7 +88,8 @@ public partial class ContentDetailViewModel(
     string? initialVariantManifestId = null,
     ILocalizationService? localizationService = null,
     IDialogService? dialogService = null,
-    Func<string, Task>? deletedAction = null) : ObservableObject, IDisposable
+    Func<string, Task>? deletedAction = null,
+    IContentArtworkService? artworkService = null) : ObservableObject, IDisposable
 {
     // ===== Constants =====
     private const string UnknownValue = "Unknown";
@@ -522,9 +525,12 @@ public partial class ContentDetailViewModel(
 
     /// <summary>
     /// Gets the formatted markdown description with clickable links for PRs, issues, and URLs.
+    /// Falls back to key content facts when no description is available.
     /// </summary>
     public string FormattedDescription =>
-        MarkdownLinkFormatter.FormatLinks(Description, searchResult.SourceUrl);
+        string.IsNullOrWhiteSpace(Description)
+            ? BuildDetailsFallback()
+            : MarkdownLinkFormatter.FormatLinks(Description, searchResult.SourceUrl);
 
     /// <summary>
     /// Gets the author name - prefers parsed page context developer.
@@ -5042,6 +5048,15 @@ public partial class ContentDetailViewModel(
             }
 
             logger.LogInformation("Deleted downloaded content {ManifestId}", manifestId);
+            if (artworkService != null)
+            {
+                var purgeResult = await artworkService.PurgeArtworkAsync(manifestId, _cts.Token);
+                if (!purgeResult.Success)
+                {
+                    logger.LogWarning("Deleted {ManifestId} but failed to purge its artwork: {Error}", manifestId, purgeResult.FirstError);
+                }
+            }
+
             notificationService.ShowSuccess(
                 GetLocalizedString("Downloads.ContentDetail.DeletedTitle", "Download Deleted"),
                 FormatLocalizedString("Downloads.ContentDetail.DeletedMessage", "Deleted '{0}' and freed unused storage.", Name),
@@ -5668,6 +5683,57 @@ public partial class ContentDetailViewModel(
                 !string.IsNullOrWhiteSpace(a.Name) &&
                 (trimmedSearchName.Contains(a.Name.Trim(), StringComparison.OrdinalIgnoreCase) ||
                  a.Name.Trim().Contains(trimmedSearchName, StringComparison.OrdinalIgnoreCase)));
+    }
+
+    private string BuildDetailsFallback()
+    {
+        var lines = new List<string>
+        {
+            $"_{GetLocalizedString("Downloads.ContentDetail.NoDescriptionAvailable", "No description available.")}_",
+            string.Empty,
+            FormatFallbackLine(
+                GetLocalizedString("Downloads.ContentDetail.Type", "Type"),
+                GetLocalizedString($"ContentType.{searchResult.ContentType}", searchResult.ContentType.GetDisplayName())),
+            FormatFallbackLine(
+                GetLocalizedString("Downloads.Filter.Game", "Game"),
+                ResolveGameDisplayName(searchResult.TargetGame)),
+        };
+
+        if (HasVersion)
+        {
+            lines.Add(FormatFallbackLine(GetLocalizedString("Downloads.ContentDetail.Version", "Version"), Version));
+        }
+
+        if (HasAuthor)
+        {
+            lines.Add(FormatFallbackLine(GetLocalizedString("Downloads.ContentDetail.Author", "Author"), AuthorName));
+        }
+
+        if (HasLastUpdated)
+        {
+            lines.Add(FormatFallbackLine(GetLocalizedString("Downloads.ContentDetail.Updated", "Updated"), LastUpdatedDisplay));
+        }
+
+        return string.Join(Environment.NewLine, lines);
+    }
+
+    private string FormatFallbackLine(string label, string value) => $"- **{label}:** {value}";
+
+    private string ResolveGameDisplayName(GameType? game)
+    {
+        var key = game switch
+        {
+            GameType.ZeroHour => "Common.Game.ZeroHour",
+            GameType.Generals => "Common.Game.Generals",
+            _ => null,
+        };
+
+        if (key != null)
+        {
+            return GetLocalizedString(key, game?.ToString() ?? string.Empty);
+        }
+
+        return game?.ToString() ?? string.Empty;
     }
 
     private string GetLocalizedString(string key, string fallback) =>

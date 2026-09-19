@@ -17,6 +17,7 @@ using GenHub.Core.Models.Parsers;
 using GenHub.Core.Models.Providers;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Results.Content;
+using GenHub.Features.Content.Services;
 using GenHub.Features.Downloads.ViewModels;
 using Microsoft.Extensions.Logging;
 using Moq;
@@ -1650,6 +1651,10 @@ public sealed class ContentDetailViewModelTests
             .ReturnsAsync(true);
 
         var notifications = new Mock<INotificationService>();
+        var artworkService = new Mock<IContentArtworkService>();
+        artworkService
+            .Setup(service => service.PurgeArtworkAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
         string? deletedId = null;
         var viewModel = CreateViewModel(
             searchResult,
@@ -1662,7 +1667,8 @@ public sealed class ContentDetailViewModelTests
             {
                 deletedId = id;
                 return Task.CompletedTask;
-            });
+            },
+            artworkService: artworkService.Object);
         viewModel.IsDownloaded = true;
 
         // Act
@@ -1672,6 +1678,9 @@ public sealed class ContentDetailViewModelTests
         Assert.NotNull(removedId);
         Assert.Equal(manifestId, removedId.Value.Value);
         Assert.Equal(manifestId, deletedId);
+        artworkService.Verify(
+            service => service.PurgeArtworkAsync(manifestId, It.IsAny<CancellationToken>()),
+            Times.Once);
         notifications.Verify(
             n => n.ShowSuccess(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
             Times.Once);
@@ -1997,6 +2006,59 @@ public sealed class ContentDetailViewModelTests
         Assert.DoesNotContain("Loner Mod", confirmationMessage, StringComparison.Ordinal);
     }
 
+    /// <summary>
+    /// Verifies that items without a description show key content facts instead of a blank About section.
+    /// </summary>
+    [Fact]
+    public void FormattedDescription_WhenEmpty_ShowsDetailsFallback()
+    {
+        // Arrange
+        var item = new ContentSearchResult
+        {
+            Id = "test-item",
+            Name = "Test Item",
+            Description = string.Empty,
+            ContentType = ContentType.Patch,
+            TargetGame = GameType.ZeroHour,
+            Version = "1.04",
+            AuthorName = "Test Author",
+        };
+        var viewModel = CreateViewModel(item, new Mock<IContentDownloadCoordinator>().Object);
+
+        // Act
+        var formatted = viewModel.FormattedDescription;
+
+        // Assert
+        Assert.Contains("No description available.", formatted, StringComparison.Ordinal);
+        Assert.Contains("1.04", formatted, StringComparison.Ordinal);
+        Assert.Contains("Test Author", formatted, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// Verifies that items with a description render it instead of the facts fallback.
+    /// </summary>
+    [Fact]
+    public void FormattedDescription_WhenPresent_RendersDescription()
+    {
+        // Arrange
+        var item = new ContentSearchResult
+        {
+            Id = "test-item",
+            Name = "Test Item",
+            Description = "A great patch with many fixes.",
+            ContentType = ContentType.Patch,
+            TargetGame = GameType.ZeroHour,
+        };
+        var viewModel = CreateViewModel(item, new Mock<IContentDownloadCoordinator>().Object);
+
+        // Act
+        var formatted = viewModel.FormattedDescription;
+
+        // Assert
+        Assert.Contains("A great patch with many fixes.", formatted, StringComparison.Ordinal);
+        Assert.DoesNotContain("No description available.", formatted, StringComparison.Ordinal);
+    }
+
     private static Mock<IContentManifestPool> CreateManifestPoolMock(ContentManifest doomedManifest, IReadOnlyList<ContentManifest>? allManifests = null)
     {
         var manifestPool = new Mock<IContentManifestPool>();
@@ -2034,7 +2096,8 @@ public sealed class ContentDetailViewModelTests
         string? initialVariantManifestId = null,
         IGameProfileManager? profileManager = null,
         IDialogService? dialogService = null,
-        Func<string, Task>? deletedAction = null)
+        Func<string, Task>? deletedAction = null,
+        IContentArtworkService? artworkService = null)
     {
         if (contentStateService == null)
         {
@@ -2066,7 +2129,8 @@ public sealed class ContentDetailViewModelTests
             isUpdateAvailable: isUpdateAvailable,
             initialVariantManifestId: initialVariantManifestId,
             dialogService: dialogService,
-            deletedAction: deletedAction);
+            deletedAction: deletedAction,
+            artworkService: artworkService);
     }
 
     private sealed class CapturingContentDetailViewModel(
@@ -2087,7 +2151,8 @@ public sealed class ContentDetailViewModelTests
         bool? isUpdateAvailable = null,
         string? initialVariantManifestId = null,
         IDialogService? dialogService = null,
-        Func<string, Task>? deletedAction = null)
+        Func<string, Task>? deletedAction = null,
+        IContentArtworkService? artworkService = null)
         : ContentDetailViewModel(
             searchResult,
             parsers,
@@ -2106,7 +2171,8 @@ public sealed class ContentDetailViewModelTests
             isUpdateAvailable: isUpdateAvailable,
             initialVariantManifestId: initialVariantManifestId,
             dialogService: dialogService,
-            deletedAction: deletedAction)
+            deletedAction: deletedAction,
+            artworkService: artworkService)
     {
         /// <summary>
         /// Gets the manifest ID sent to the profile selection flow.

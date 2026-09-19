@@ -19,6 +19,7 @@ using GenHub.Core.Models.GameProfile;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Results.Content;
+using GenHub.Features.Content.Services;
 using GenHub.Features.Content.Services.Catalog;
 using GenHub.Features.Content.Services.ContentDiscoverers;
 using GenHub.Features.Content.Services.GeneralsOnline;
@@ -1222,7 +1223,9 @@ public sealed partial class DownloadsBrowserViewModel(
             }
 
             var result = await manifestPool.GetAllManifestsAsync(_vmCts.Token);
-            var count = result.Success && result.Data != null ? result.Data.Count() : 0;
+            var count = result.Success && result.Data != null
+                ? result.Data.Count(manifest => manifest.ContentType != ContentType.GameInstallation)
+                : 0;
             RunOnUi(() =>
             {
                 var entry = Publishers.FirstOrDefault(p =>
@@ -2171,7 +2174,8 @@ public sealed partial class DownloadsBrowserViewModel(
                 initialVariantManifestId: selectedVariantId,
                 localizationService: serviceProvider.GetService(typeof(ILocalizationService)) as ILocalizationService,
                 dialogService: dialogService,
-                deletedAction: OnContentDeletedAsync);
+                deletedAction: OnContentDeletedAsync,
+                artworkService: serviceProvider.GetService<IContentArtworkService>());
 
             if (item.HasBundleComponents)
             {

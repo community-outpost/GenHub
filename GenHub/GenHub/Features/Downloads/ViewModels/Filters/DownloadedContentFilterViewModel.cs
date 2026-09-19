@@ -17,7 +17,7 @@ namespace GenHub.Features.Downloads.ViewModels.Filters;
 /// Filter view model for the offline downloaded-content library ("My Downloads").
 /// Provides content-type and target-game filtering over locally stored manifests.
 /// </summary>
-public partial class DownloadedContentFilterViewModel : FilterPanelViewModelBase, IDisposable
+public sealed partial class DownloadedContentFilterViewModel : FilterPanelViewModelBase, IDisposable
 {
     private readonly ILocalizationService? _localizationService;
     private bool _disposed;
@@ -225,7 +225,9 @@ public partial class DownloadedContentFilterViewModel : FilterPanelViewModelBase
     [RelayCommand]
     private void ToggleContentType(ContentTypeFilterItem item)
     {
-        if (item.IsSelected)
+        // Derive from the selection, not the toggle state: the IsSelected binding
+        // updates before the command runs, so item.IsSelected already reflects the click.
+        if (SelectedContentType == item.ContentType)
         {
             // Deselect - clear filter
             item.IsSelected = false;

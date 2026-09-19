@@ -7757,6 +7757,9 @@ GenHub передает официальный идентификатор AppID 
   <data name="Downloads.ContentDetail.DeletedMessage" xml:space="preserve">
     <value>«{0}» удалено, неиспользуемое место в хранилище освобождено.</value>
   </data>
+  <data name="Downloads.ContentDetail.NoDescriptionAvailable" xml:space="preserve">
+    <value>Описание отсутствует.</value>
+  </data>
   <data name="Downloads.ContentDetail.DeleteConfirmDependentsNote" xml:space="preserve">
     <value>Другой загруженный контент также может нуждаться в этом: {0}.</value>
   </data>

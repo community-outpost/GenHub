@@ -1,4 +1,5 @@
 using GenHub.Core.Constants;
+using GenHub.Core.Extensions;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
@@ -139,6 +140,24 @@ public sealed class DownloadedContentFilterViewModelTests
     }
 
     /// <summary>
+    /// Verifies that selecting a type works when the toggle binding updates before the
+    /// command runs (Avalonia pushes IsSelected first, then executes the command).
+    /// </summary>
+    [Fact]
+    public void ToggleContentType_WhenBindingUpdatesFirst_SelectsType()
+    {
+        var viewModel = new DownloadedContentFilterViewModel();
+        var modFilter = viewModel.ContentTypeFilters.First(item => item.ContentType == ContentType.Mod);
+
+        modFilter.IsSelected = true;
+        viewModel.ToggleContentTypeCommand.Execute(modFilter);
+
+        Assert.True(modFilter.IsSelected);
+        Assert.Equal(ContentType.Mod, viewModel.SelectedContentType);
+        Assert.True(viewModel.HasActiveFilters);
+    }
+
+    /// <summary>
     /// Verifies toggling the selected type again clears the selection.
     /// </summary>
     [Fact]
@@ -214,7 +233,7 @@ public sealed class DownloadedContentFilterViewModelTests
 
         var modFilter = viewModel.ContentTypeFilters.First(item => item.ContentType == ContentType.Mod);
 
-        Assert.False(string.IsNullOrWhiteSpace(modFilter.DisplayName));
+        Assert.Equal(ContentType.Mod.GetDisplayName(), modFilter.DisplayName);
     }
 
     /// <summary>

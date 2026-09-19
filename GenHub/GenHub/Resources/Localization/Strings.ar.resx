@@ -7757,6 +7757,9 @@ GenHub هو مشغل ومدير حديث لألعاب **Command &amp; Conquer: G
   <data name="Downloads.ContentDetail.DeletedMessage" xml:space="preserve">
     <value>تم حذف '{0}' وتحرير مساحة التخزين غير المستخدمة.</value>
   </data>
+  <data name="Downloads.ContentDetail.NoDescriptionAvailable" xml:space="preserve">
+    <value>لا يتوفر وصف.</value>
+  </data>
   <data name="Downloads.ContentDetail.DeleteConfirmDependentsNote" xml:space="preserve">
     <value>قد يحتاج محتوى آخر تم تنزيله إلى هذا أيضًا: {0}.</value>
   </data>

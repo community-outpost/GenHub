@@ -1,8 +1,10 @@
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
+using GenHub.Features.Content.Services;
 using GenHub.Features.Content.Services.ContentDiscoverers;
 using Microsoft.Extensions.Logging;
 using Moq;
@@ -156,6 +158,73 @@ public sealed class DownloadedContentDiscovererTests
     }
 
     /// <summary>
+    /// Verifies that persisted local artwork wins over remote manifest URLs.
+    /// </summary>
+    /// <returns>A task that represents the asynchronous test.</returns>
+    [Fact]
+    public async Task DiscoverAsync_PrefersLocalArtworkOverRemoteUrlsAsync()
+    {
+        var manifest = CreateManifest("1.20260101.test.mod.alpha", "Alpha Mod", ContentType.Mod, GameType.ZeroHour);
+        manifest.Metadata.IconUrl = "https://example.com/icon.png";
+        manifest.Metadata.CoverUrl = "https://example.com/cover.png";
+
+        var artworkService = CreateArtworkService();
+        artworkService
+            .Setup(service => service.GetLocalArtworkPath(manifest.Id.Value, ContentArtworkKind.Icon))
+            .Returns("/artwork/alpha/icon.png");
+        artworkService
+            .Setup(service => service.GetLocalArtworkPath(manifest.Id.Value, ContentArtworkKind.Cover))
+            .Returns("/artwork/alpha/cover.png");
+
+        var discoverer = CreateDiscoverer([manifest], artworkService);
+
+        var result = await discoverer.DiscoverAsync(new ContentSearchQuery { Take = 10 });
+
+        Assert.True(result.Success);
+        var item = Assert.Single(result.Data!.Items);
+        Assert.Equal("/artwork/alpha/icon.png", item.IconUrl);
+        Assert.Equal("/artwork/alpha/cover.png", item.BannerUrl);
+    }
+
+    /// <summary>
+    /// Verifies that iconless game clients fall back to bundled per-game covers.
+    /// </summary>
+    /// <returns>A task that represents the asynchronous test.</returns>
+    [Fact]
+    public async Task DiscoverAsync_UsesGameCoverFallbackForIconlessClientsAsync()
+    {
+        var discoverer = CreateDiscoverer(
+        [
+            CreateManifest("1.20260101.steam.gameclient.zerohour", "Zero Hour", ContentType.GameClient, GameType.ZeroHour),
+        ]);
+
+        var result = await discoverer.DiscoverAsync(new ContentSearchQuery { Take = 10 });
+
+        Assert.True(result.Success);
+        var item = Assert.Single(result.Data!.Items);
+        Assert.Equal(ContentArtworkConstants.ZeroHourCoverSource, item.BannerUrl);
+    }
+
+    /// <summary>
+    /// Verifies that iconless content from known publishers falls back to the publisher logo.
+    /// </summary>
+    /// <returns>A task that represents the asynchronous test.</returns>
+    [Fact]
+    public async Task DiscoverAsync_UsesPublisherLogoFallbackForIconlessContentAsync()
+    {
+        var manifest = CreateManifest("1.20260101.test.mod.alpha", "Alpha Mod", ContentType.Mod, GameType.ZeroHour);
+        manifest.Publisher = new PublisherInfo { Name = "GO", PublisherType = PublisherTypeConstants.GeneralsOnline };
+
+        var discoverer = CreateDiscoverer([manifest]);
+
+        var result = await discoverer.DiscoverAsync(new ContentSearchQuery { Take = 10 });
+
+        Assert.True(result.Success);
+        var item = Assert.Single(result.Data!.Items);
+        Assert.Equal(PublisherInfoConstants.GeneralsOnline.LogoSource, item.IconUrl);
+    }
+
+    /// <summary>
     /// Verifies that a manifest-pool failure surfaces as a failed discovery result.
     /// </summary>
     /// <returns>A task that represents the asynchronous test.</returns>
@@ -168,6 +237,7 @@ public sealed class DownloadedContentDiscovererTests
             .ReturnsAsync(OperationResult<IEnumerable<ContentManifest>>.CreateFailure("Pool unavailable"));
         var discoverer = new DownloadedContentDiscoverer(
             manifestPool.Object,
+            CreateArtworkService().Object,
             new Mock<ILogger<DownloadedContentDiscoverer>>().Object);
 
         var result = await discoverer.DiscoverAsync(new ContentSearchQuery { Take = 10 });
@@ -175,7 +245,9 @@ public sealed class DownloadedContentDiscovererTests
         Assert.False(result.Success);
     }
 
-    private static DownloadedContentDiscoverer CreateDiscoverer(IReadOnlyList<ContentManifest> manifests)
+    private static DownloadedContentDiscoverer CreateDiscoverer(
+        IReadOnlyList<ContentManifest> manifests,
+        Mock<IContentArtworkService>? artworkService = null)
     {
         var manifestPool = new Mock<IContentManifestPool>();
         manifestPool
@@ -183,7 +255,17 @@ public sealed class DownloadedContentDiscovererTests
             .ReturnsAsync(OperationResult<IEnumerable<ContentManifest>>.CreateSuccess(manifests));
         return new DownloadedContentDiscoverer(
             manifestPool.Object,
+            (artworkService ?? CreateArtworkService()).Object,
             new Mock<ILogger<DownloadedContentDiscoverer>>().Object);
+    }
+
+    private static Mock<IContentArtworkService> CreateArtworkService()
+    {
+        var artworkService = new Mock<IContentArtworkService>();
+        artworkService
+            .Setup(service => service.PrefetchArtworkAsync(It.IsAny<ContentManifest>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+        return artworkService;
     }
 
     private static ContentManifest CreateManifest(string id, string name, ContentType contentType, GameType game)

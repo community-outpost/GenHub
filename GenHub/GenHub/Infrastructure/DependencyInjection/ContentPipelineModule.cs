@@ -72,11 +72,8 @@ public static class ContentPipelineModule
         AddAODMapsPipeline(services);
         AddModDBPipeline(services);
         AddLocalFileSystemPipeline(services);
-        AddDownloadedContentPipeline(services);
-
-        // CSV registers last: ContentPipelineModuleTests asserts the final
-        // IContentDiscoverer registration stays transient.
         AddCsvPipeline(services);
+        AddDownloadedContentPipeline(services);
         AddSharedComponents(services);
 
         return services;
@@ -558,5 +555,8 @@ public static class ContentPipelineModule
 
         // Register installation instructions execution service
         services.AddSingleton<IInstallationInstructionsService, InstallationInstructionsService>();
+
+        // Register per-manifest artwork persistence for the offline library
+        services.AddSingleton<IContentArtworkService, ContentArtworkService>();
     }
 }
