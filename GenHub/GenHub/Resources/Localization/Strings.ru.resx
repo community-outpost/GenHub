@@ -291,8 +291,12 @@
     <value>Загрузка завершена</value>
     <comment>Success toast title</comment>
   </data>
+  <data name="Downloads.Notification.Starting.Message" xml:space="preserve">
+    <value>Запуск...</value>
+    <comment>Initial pinned download message shown before progress arrives</comment>
+  </data>
   <data name="Downloads.Notification.Connecting.Message" xml:space="preserve">
-    <value>Подключение...</value>
+    <value>Запуск...</value>
     <comment>Initial pinned download message shown before progress arrives</comment>
   </data>
   <data name="Downloads.Notification.Downloading.Title" xml:space="preserve">

@@ -58,6 +58,8 @@ public class SetupWizardService(
             Inst = inst,
             Client = inst.AvailableGameClients.FirstOrDefault(c =>
                 c.PublisherType == CommunityOutpostConstants.PublisherType &&
+                !CommunityOutpostConstants.IsBaseGameIdentifier(c.Id) &&
+                !CommunityOutpostConstants.IsBaseGameIdentifier(c.Name) &&
                 !CommunityOutpostConstants.IsNonRetailIdentifier(c.Id) &&
                 !CommunityOutpostConstants.IsNonRetailIdentifier(c.Name)),
         }).Where(x => x.Client != null).ToList();
@@ -67,6 +69,8 @@ public class SetupWizardService(
             Inst = inst,
             Client = inst.AvailableGameClients.FirstOrDefault(c =>
                 c.PublisherType == CommunityOutpostConstants.PublisherType &&
+                !CommunityOutpostConstants.IsBaseGameIdentifier(c.Id) &&
+                !CommunityOutpostConstants.IsBaseGameIdentifier(c.Name) &&
                 (CommunityOutpostConstants.IsNonRetailIdentifier(c.Id) ||
                  CommunityOutpostConstants.IsNonRetailIdentifier(c.Name))),
         }).Where(x => x.Client != null).ToList();
@@ -263,14 +267,16 @@ public class SetupWizardService(
         var shCleanVersion = CleanVersionString(shLatestVersion);
 
         static bool IsCpRetailManifest(ContentManifest m) =>
+            CommunityOutpostConstants.IsCommunityPatch(m) &&
             !CommunityOutpostConstants.IsNonRetailIdentifier(m.Id.Value) &&
             !CommunityOutpostConstants.IsNonRetailIdentifier(m.Name) &&
             !(m.Metadata?.Tags != null && m.Metadata.Tags.Any(CommunityOutpostConstants.IsNonRetailIdentifier));
 
         static bool IsCpNonRetManifest(ContentManifest m) =>
-            CommunityOutpostConstants.IsNonRetailIdentifier(m.Id.Value) ||
-            CommunityOutpostConstants.IsNonRetailIdentifier(m.Name) ||
-            (m.Metadata?.Tags != null && m.Metadata.Tags.Any(CommunityOutpostConstants.IsNonRetailIdentifier));
+            CommunityOutpostConstants.IsCommunityPatch(m) &&
+            (CommunityOutpostConstants.IsNonRetailIdentifier(m.Id.Value) ||
+             CommunityOutpostConstants.IsNonRetailIdentifier(m.Name) ||
+             (m.Metadata?.Tags != null && m.Metadata.Tags.Any(CommunityOutpostConstants.IsNonRetailIdentifier)));
 
         var cpRetailDescription = string.IsNullOrEmpty(cpRetailCleanVersion)
             ? "Download and install Community Patch (Retail)."
@@ -307,7 +313,7 @@ public class SetupWizardService(
             Metadata = CommunityOutpostConstants.CommunityPatchNonRetCode,
             ManifestFilter = IsCpNonRetManifest,
             DefaultSelected = false,
-            DescriptionSuffix = " Not compatible with retail 1.04 zero hour.",
+            DescriptionSuffix = " (Stream build - not compatible with retail multiplayer)",
         };
         var cpNonRetRes = await ProcessComponentAsync(cpNonRetConfig);
         result.CommunityPatchNonRetAction = cpNonRetRes.FinalAction;
@@ -318,10 +324,10 @@ public class SetupWizardService(
             ComponentGlobal = goGlobal,
             LatestVersion = goCleanVersion,
             Title = "Generals Online",
-            MissingDescription = $"Download and install Generals Online {goCleanVersion} for multiplayer support.",
-            IconPath = UriConstants.GeneralsOnlineLogoUri,
+            MissingDescription = string.IsNullOrEmpty(goCleanVersion) ? "Download and install Generals Online." : $"Download and install Generals Online {goCleanVersion}.",
+            IconPath = "/Assets/Logos/generalsonline-logo.png",
             Metadata = PublisherTypeConstants.GeneralsOnline,
-            DefaultSelected = false,
+            DefaultSelected = true,
         };
         var goRes = await ProcessComponentAsync(goConfig);
         result.GeneralsOnlineAction = goRes.FinalAction;
@@ -331,96 +337,79 @@ public class SetupWizardService(
             PublisherType = PublisherTypeConstants.TheSuperHackers,
             ComponentGlobal = shGlobal,
             LatestVersion = shCleanVersion,
-            Title = "The Super Hackers",
-            MissingDescription = "Install The Super Hackers for advanced modding and features.",
-            IconPath = UriConstants.SuperHackersLogoUri,
+            Title = "TheSuperHackers",
+            MissingDescription = string.IsNullOrEmpty(shCleanVersion) ? "Download and install TheSuperHackers." : $"Download and install TheSuperHackers {shCleanVersion}.",
+            IconPath = "/Assets/Logos/thesuperhackers-logo.png",
             Metadata = PublisherTypeConstants.TheSuperHackers,
             DefaultSelected = false,
         };
         var shRes = await ProcessComponentAsync(shConfig);
         result.SuperHackersAction = shRes.FinalAction;
 
-        // 4. Presentation Phase: Show Wizard
+        // 4. Show Wizard Dialog if there are items to review
         if (wizardItems.Count > 0)
         {
+            logger.LogInformation("[SetupWizard] Showing wizard with {Count} item(s)", wizardItems.Count);
             var wizardVm = new SetupWizardViewModel(wizardItems);
-            if (DialogShower != null)
+
+            var accepted = await ShowWizardDialogAsync(wizardVm);
+            if (accepted)
             {
-                result.Confirmed = await DialogShower(wizardVm);
+                logger.LogInformation("[SetupWizard] User accepted wizard selections");
+
+                // Read decisions back to result
+                foreach (var item in wizardVm.Items)
+                {
+                    var finalAction = item.IsSelected ? item.ActionType : GameClientConstants.WizardActionTypes.Decline;
+                    if (string.Equals(item.Metadata as string, CommunityOutpostConstants.CommunityPatchRetailCode, StringComparison.Ordinal))
+                    {
+                        result.CommunityPatchAction = finalAction;
+                    }
+                    else if (string.Equals(item.Metadata as string, CommunityOutpostConstants.CommunityPatchNonRetCode, StringComparison.Ordinal))
+                    {
+                        result.CommunityPatchNonRetAction = finalAction;
+                    }
+                    else if (string.Equals(item.Metadata as string, PublisherTypeConstants.GeneralsOnline, StringComparison.Ordinal))
+                    {
+                        result.GeneralsOnlineAction = finalAction;
+                    }
+                    else if (string.Equals(item.Metadata as string, PublisherTypeConstants.TheSuperHackers, StringComparison.Ordinal))
+                    {
+                        result.SuperHackersAction = finalAction;
+                    }
+                }
             }
             else
             {
-                var mainWindow = GetMainWindow();
-                if (mainWindow != null)
-                {
-                    var wizardView = new SetupWizardView
-                    {
-                        DataContext = wizardVm,
-                    };
-
-                    await wizardView.ShowDialog(mainWindow);
-
-                    result.Confirmed = wizardVm.Confirmed;
-                }
-                else
-                {
-                    logger.LogWarning("Could not resolve MainWindow for Setup Wizard.");
-                    result.Confirmed = false;
-                }
+                logger.LogInformation("[SetupWizard] User canceled or declined the wizard");
+                result.CommunityPatchAction = GameClientConstants.WizardActionTypes.Decline;
+                result.CommunityPatchNonRetAction = GameClientConstants.WizardActionTypes.Decline;
+                result.GeneralsOnlineAction = GameClientConstants.WizardActionTypes.Decline;
+                result.SuperHackersAction = GameClientConstants.WizardActionTypes.Decline;
             }
         }
         else
         {
-            // If we didn't show the wizard, it means we either had nothing to do or only auto-accept actions.
-            result.Confirmed = true;
+            logger.LogInformation("[SetupWizard] No wizard items required. All detected clients are already up to date.");
         }
-
-        // 5. Final decisions: If item was in wizard, override with user selection
-        string FinalizeAction(string metadata, string currentAction)
-        {
-            var item = wizardItems.FirstOrDefault(x => x.Metadata as string == metadata);
-            if (item != null)
-            {
-                return (result.Confirmed && item.IsSelected) ? item.ActionType : GameClientConstants.WizardActionTypes.Decline;
-            }
-
-            return currentAction;
-        }
-
-        result.CommunityPatchAction = FinalizeAction(
-            CommunityOutpostConstants.CommunityPatchRetailCode,
-            result.CommunityPatchAction);
-        result.CommunityPatchNonRetAction = FinalizeAction(
-            CommunityOutpostConstants.CommunityPatchNonRetCode,
-            result.CommunityPatchNonRetAction);
-        result.GeneralsOnlineAction = FinalizeAction(
-            PublisherTypeConstants.GeneralsOnline,
-            result.GeneralsOnlineAction);
-        result.SuperHackersAction = FinalizeAction(
-            PublisherTypeConstants.TheSuperHackers,
-            result.SuperHackersAction);
 
         return result;
     }
 
-    private static string FormatCreateProfileDescription(string title, string version) =>
-        string.Format(CultureInfo.InvariantCulture, GameClientConstants.WizardDescriptionTemplates.CreateProfileFormat, title, version);
+    private static string FormatCreateProfileDescription(string title, string? version) =>
+        string.IsNullOrEmpty(version) || version == GameClientConstants.UnknownVersion
+            ? $"Create a game profile for {title}."
+            : $"Create a game profile for {title} {version}.";
 
-    private static string FormatUpdateProfileDescription(string title, string version) =>
-        string.Format(CultureInfo.InvariantCulture, GameClientConstants.WizardDescriptionTemplates.UpdateProfileFormat, title, version);
+    private static string FormatUpdateProfileDescription(string title, string? version) =>
+        string.IsNullOrEmpty(version) || version == GameClientConstants.UnknownVersion
+            ? $"Update {title} to the latest version."
+            : $"Update {title} to version {version}.";
 
-    private static string FormatDetectedInstallDescription(string title, string version) =>
-        string.Format(CultureInfo.InvariantCulture, GameClientConstants.WizardDescriptionTemplates.DetectedInstallFormat, title, version);
-
-    private static Window? GetMainWindow()
-    {
-        if (Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
-        {
-            return desktop.MainWindow;
-        }
-
-        return null;
-    }
+    private static string FormatDetectedInstallDescription(string title, string? version) =>
+        string.IsNullOrEmpty(version) || version == GameClientConstants.UnknownVersion
+            ? $"Download and install managed {title} files."
+            : $"Download and install managed {title} {version} files.";
 
     private static string CleanVersionString(string? version)
     {
@@ -445,11 +434,13 @@ public class SetupWizardService(
             var result = await communityOutpostDiscoverer.DiscoverAsync(new ContentSearchQuery());
             if (result.Success && result.Data?.Items != null)
             {
-                var retail = result.Data.Items.FirstOrDefault(i =>
+                var cpItems = result.Data.Items.Where(CommunityOutpostConstants.IsCommunityPatch).ToList();
+
+                var retail = cpItems.FirstOrDefault(i =>
                     !CommunityOutpostConstants.IsNonRetailIdentifier(i.Id) &&
                     !CommunityOutpostConstants.IsNonRetailIdentifier(i.Name))?.Version ?? string.Empty;
 
-                var nonRet = result.Data.Items.FirstOrDefault(i =>
+                var nonRet = cpItems.FirstOrDefault(i =>
                     CommunityOutpostConstants.IsNonRetailIdentifier(i.Id) ||
                     CommunityOutpostConstants.IsNonRetailIdentifier(i.Name))?.Version ?? string.Empty;
 
@@ -501,6 +492,42 @@ public class SetupWizardService(
         }
 
         return GameClientConstants.UnknownVersion;
+    }
+
+    /// <summary>
+    /// Shows the wizard dialog asynchronously, respecting testing hooks.
+    /// </summary>
+    private async Task<bool> ShowWizardDialogAsync(SetupWizardViewModel viewModel)
+    {
+        if (DialogShower != null)
+        {
+            return await DialogShower(viewModel);
+        }
+
+        var mainWindow = GetMainWindow();
+        if (mainWindow == null)
+        {
+            logger.LogWarning("[SetupWizard] Cannot display wizard dialog: MainWindow is null");
+            return false;
+        }
+
+        var dialog = new SetupWizardView
+        {
+            DataContext = viewModel,
+        };
+
+        await dialog.ShowDialog(mainWindow);
+        return viewModel.Confirmed;
+    }
+
+    private Window? GetMainWindow()
+    {
+        if (Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
+        {
+            return desktop.MainWindow;
+        }
+
+        return null;
     }
 
     /// <summary>

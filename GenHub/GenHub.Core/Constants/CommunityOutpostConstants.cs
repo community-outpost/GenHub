@@ -1,5 +1,10 @@
+using GenHub.Core.Models.Content;
+using GenHub.Core.Models.Manifest;
+using GenHub.Core.Models.Results.Content;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
+using System.Linq;
 
 namespace GenHub.Core.Constants;
 
@@ -283,5 +288,94 @@ public static class CommunityOutpostConstants
                name.Contains(NonRetailKeyword, System.StringComparison.OrdinalIgnoreCase) ||
                name.Contains(NonRetailTag, System.StringComparison.OrdinalIgnoreCase) ||
                name.Contains(StreamTag, System.StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// Checks whether an identifier, tag, or display name represents official base game content (e.g. 10zh, 10gn).
+    /// </summary>
+    /// <param name="value">The string value to check.</param>
+    /// <returns><c>true</c> if base game content; otherwise, <c>false</c>.</returns>
+    public static bool IsBaseGameIdentifier(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return false;
+        }
+
+        return value.Equals("10zh", System.StringComparison.OrdinalIgnoreCase) ||
+               value.Equals("10gn", System.StringComparison.OrdinalIgnoreCase) ||
+               value.EndsWith(".10zh", System.StringComparison.OrdinalIgnoreCase) ||
+               value.EndsWith(".10gn", System.StringComparison.OrdinalIgnoreCase) ||
+               value.Equals("basegame", System.StringComparison.OrdinalIgnoreCase) ||
+               value.Equals("base-game", System.StringComparison.OrdinalIgnoreCase) ||
+               value.Equals("official", System.StringComparison.OrdinalIgnoreCase) ||
+               value.Contains("Zero Hour 1.04", System.StringComparison.OrdinalIgnoreCase) ||
+               value.Contains("Generals 1.08", System.StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// Checks whether an identifier, tag, or display name represents Community Patch content.
+    /// </summary>
+    /// <param name="value">The string value to check.</param>
+    /// <returns><c>true</c> if Community Patch; otherwise, <c>false</c>.</returns>
+    public static bool IsCommunityPatchIdentifier(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value) || IsBaseGameIdentifier(value))
+        {
+            return false;
+        }
+
+        return value.Contains(CommunityPatchTag, System.StringComparison.OrdinalIgnoreCase) ||
+               value.Contains(CommunityPatchNonRetCode, System.StringComparison.OrdinalIgnoreCase) ||
+               value.Contains(ContentName, System.StringComparison.OrdinalIgnoreCase) ||
+               value.Equals("CommunityPatch", System.StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// Checks whether a content search result represents Community Patch content.
+    /// </summary>
+    /// <param name="result">The search result to check.</param>
+    /// <returns><c>true</c> if Community Patch; otherwise, <c>false</c>.</returns>
+    public static bool IsCommunityPatch(ContentSearchResult? result)
+    {
+        if (result == null)
+        {
+            return false;
+        }
+
+        if (IsBaseGameIdentifier(result.Id) || IsBaseGameIdentifier(result.Name) ||
+            (result.Tags != null && result.Tags.Any(IsBaseGameIdentifier)))
+        {
+            return false;
+        }
+
+        return IsCommunityPatchIdentifier(result.Id) ||
+               IsCommunityPatchIdentifier(result.Name) ||
+               (result.Tags != null && result.Tags.Any(IsCommunityPatchIdentifier)) ||
+               (result.ResolverMetadata != null && result.ResolverMetadata.TryGetValue("category", out var cat) &&
+                string.Equals(cat, "CommunityPatch", System.StringComparison.OrdinalIgnoreCase));
+    }
+
+    /// <summary>
+    /// Checks whether a content manifest represents Community Patch content.
+    /// </summary>
+    /// <param name="manifest">The manifest to check.</param>
+    /// <returns><c>true</c> if Community Patch; otherwise, <c>false</c>.</returns>
+    public static bool IsCommunityPatch(ContentManifest? manifest)
+    {
+        if (manifest == null)
+        {
+            return false;
+        }
+
+        if (IsBaseGameIdentifier(manifest.Id.Value) || IsBaseGameIdentifier(manifest.Name) ||
+            (manifest.Metadata?.Tags != null && manifest.Metadata.Tags.Any(IsBaseGameIdentifier)))
+        {
+            return false;
+        }
+
+        return IsCommunityPatchIdentifier(manifest.Id.Value) ||
+               IsCommunityPatchIdentifier(manifest.Name) ||
+               (manifest.Metadata?.Tags != null && manifest.Metadata.Tags.Any(IsCommunityPatchIdentifier));
     }
 }

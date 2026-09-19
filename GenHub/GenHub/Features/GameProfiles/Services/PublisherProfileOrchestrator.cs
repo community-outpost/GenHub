@@ -245,13 +245,13 @@ public class PublisherProfileOrchestrator(
                         return false;
                     }
 
-                    // For Community Outpost, exclude base game content (10gn, 10zh)
+                    // For Community Outpost, ensure it is a Community Patch and exclude base game content (10gn, 10zh)
                     // Base games should only be created as fallback when user explicitly declines Community Patch
                     if (string.Equals(publisherType, CommunityOutpostConstants.PublisherType, StringComparison.OrdinalIgnoreCase) &&
-                        m.Metadata?.Tags?.Any(t => t.Equals("basegame", StringComparison.OrdinalIgnoreCase)) == true)
+                        !CommunityOutpostConstants.IsCommunityPatch(m))
                     {
                         logger.LogDebug(
-                            "Skipping base game manifest {ManifestId} - base games should only be created when user declines Community Patch",
+                            "Skipping non-Community Patch manifest {ManifestId} for Community Outpost publisher client",
                             m.Id);
                         return false;
                     }
@@ -273,7 +273,7 @@ public class PublisherProfileOrchestrator(
         string publisherType)
     {
         var candidates = isCommunityOutpost
-            ? results.Where(r => isNonRet ? IsNonRetail(r) : !IsNonRetail(r))
+            ? results.Where(r => CommunityOutpostConstants.IsCommunityPatch(r) && (isNonRet ? IsNonRetail(r) : !IsNonRetail(r)))
             : results;
 
         var selected = candidates.FirstOrDefault();
@@ -332,6 +332,9 @@ public class PublisherProfileOrchestrator(
                     "No matching {Variant} content discovered from {PublisherType} for acquisition",
                     variant,
                     publisherType);
+                notificationService.ShowWarning(
+                    $"{publisherDisplayName} Not Found",
+                    $"Could not find {publisherDisplayName} content to download.");
                 return;
             }
 
@@ -358,41 +361,38 @@ public class PublisherProfileOrchestrator(
                 }
                 else
                 {
-                    var errorMsg = ManifestHelper.FormatErrors(acquireResult.Errors);
+                    var errorMsg = acquireResult.FirstError ?? "Acquisition failed";
                     logger.LogWarning(
-                        "Failed to acquire content for publisher client {ClientName}: {Errors}",
+                        "Failed to acquire content for publisher client {ClientName}: {Error}",
                         gameClient.Name,
                         errorMsg);
 
-                    scope.CompleteFailure(errorMsg, $"{publisherDisplayName} Download Failed");
+                    scope.CompleteFailure(errorMsg);
                 }
             }
             catch (OperationCanceledException)
             {
+                logger.LogInformation("Content acquisition canceled for {ClientName}", gameClient.Name);
                 scope.CompleteCanceled();
                 throw;
             }
             catch (Exception ex)
             {
-                scope.CompleteFailure(ex.Message, $"{publisherDisplayName} Download Failed");
+                logger.LogError(ex, "Unexpected error acquiring content for {ClientName}", gameClient.Name);
+                scope.CompleteFailure(ex.Message);
                 throw;
             }
         }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Error acquiring content for publisher client {ClientName}", gameClient.Name);
+            logger.LogError(ex, "Error in publisher client content acquisition for {ClientName}", gameClient.Name);
         }
     }
 
-    /// <summary>
-    /// Checks if a newer version is available for the publisher content.
-    /// </summary>
-    /// <param name="publisherType">The publisher type to check.</param>
-    /// <param name="existingManifests">The currently installed manifests.</param>
-    /// <param name="isCommunityOutpost">Whether this is Community Outpost publisher.</param>
-    /// <param name="isNonRet">Whether non-retail build is targeted.</param>
-    /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>True if a newer version is available, false otherwise.</returns>
     private async Task<bool> CheckForNewerVersionAsync(
         string publisherType,
         List<ContentManifest> existingManifests,

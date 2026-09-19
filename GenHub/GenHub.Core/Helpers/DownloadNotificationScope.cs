@@ -1,4 +1,4 @@
-﻿using GenHub.Core.Constants;
+using GenHub.Core.Constants;
 using GenHub.Core.Extensions;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Notifications;
@@ -30,7 +30,7 @@ public sealed class DownloadNotificationScope : IProgress<ContentAcquisitionProg
     private readonly string? _startTitleOverride;
     private readonly Guid _notificationId = Guid.NewGuid();
     private readonly object _lock = new();
-    private long _lastUpdateTimestamp = Stopwatch.GetTimestamp();
+    private long _lastUpdateTimestamp;
     private bool _terminalShown;
     private bool _dismissed;
     private bool _disposed;
@@ -66,8 +66,8 @@ public sealed class DownloadNotificationScope : IProgress<ContentAcquisitionProg
                 DownloadNotificationConstants.DownloadingTitleFormat,
                 _contentName);
             var message = options?.StartMessage ?? Localize(
-                DownloadNotificationConstants.ConnectingMessageKey,
-                DownloadNotificationConstants.ConnectingMessage);
+                DownloadNotificationConstants.StartingMessageKey,
+                DownloadNotificationConstants.StartingMessage);
             _notifications.Show(new NotificationMessage(
                 NotificationType.Info,
                 title,
@@ -353,7 +353,9 @@ public sealed class DownloadNotificationScope : IProgress<ContentAcquisitionProg
                 return;
             }
 
-            var elapsedMs = Stopwatch.GetElapsedTime(_lastUpdateTimestamp).TotalMilliseconds;
+            var elapsedMs = _lastUpdateTimestamp == 0
+                ? double.MaxValue
+                : Stopwatch.GetElapsedTime(_lastUpdateTimestamp).TotalMilliseconds;
             var isComplete = clampedPercentage >= 100;
             if (elapsedMs < ManifestConstants.NotificationUpdateThrottleMs && !isComplete)
             {
