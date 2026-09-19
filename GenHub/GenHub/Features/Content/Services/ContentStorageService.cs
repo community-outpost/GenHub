@@ -345,7 +345,7 @@ public class ContentStorageService : IContentStorageService
             // Hold the write fence until references are tracked and the manifest is
             // persisted so forced garbage collection cannot delete these blobs while
             // they are still invisible to the GC live set.
-            using var writeLease = _writeFence.TrackWrite();
+            using var writeLease = await _writeFence.TrackWriteAsync(cancellationToken);
 
             // Store content files in CAS with integrity verification
             var updatedManifest = await StoreContentFilesAsync(manifest, sourceDirectory, progress, cancellationToken);

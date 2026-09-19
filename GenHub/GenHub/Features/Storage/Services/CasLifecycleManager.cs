@@ -160,16 +160,6 @@ public class CasLifecycleManager(
         TimeSpan? lockTimeout = null,
         CancellationToken cancellationToken = default)
     {
-        // Forced collection bypasses the grace period, so refuse while an import holds
-        // the write fence. Its blobs are not yet tracked or persisted and would look
-        // unreferenced to the live-set snapshot.
-        if (force && writeFence.HasActiveWrites)
-        {
-            logger.LogWarning("Forced garbage collection refused: content is being imported into CAS");
-            return OperationResult<GarbageCollectionStats>.CreateFailure(
-                "Cannot clean CAS storage while content is being imported. Try again when the import finishes.");
-        }
-
         // Ensure only one GC runs at a time
         var timeout = lockTimeout ?? config.Value.GcLockTimeout;
         if (!await _gcLock.WaitAsync(timeout, cancellationToken))
@@ -180,8 +170,19 @@ public class CasLifecycleManager(
             return OperationResult<GarbageCollectionStats>.CreateSuccess(GarbageCollectionStats.InProgressResult);
         }
 
+        IDisposable? collectionLease = null;
         try
         {
+            // Forced collection bypasses the grace period, so hold the exclusive
+            // collection lease from here through the whole sweep. Imports starting
+            // mid-sweep wait on the fence instead of losing untracked blobs.
+            if (force && !writeFence.TryAcquireCollectionLease(TimeSpan.Zero, out collectionLease))
+            {
+                logger.LogWarning("Forced garbage collection refused: content is being imported into CAS");
+                return OperationResult<GarbageCollectionStats>.CreateFailure(
+                    "Cannot clean CAS storage while content is being imported. Try again when the import finishes.");
+            }
+
             var stopwatch = Stopwatch.StartNew();
             logger.LogInformation("Starting garbage collection (force={Force})", force);
 
@@ -211,6 +212,7 @@ public class CasLifecycleManager(
         }
         finally
         {
+            collectionLease?.Dispose();
             _gcLock.Release();
         }
     }

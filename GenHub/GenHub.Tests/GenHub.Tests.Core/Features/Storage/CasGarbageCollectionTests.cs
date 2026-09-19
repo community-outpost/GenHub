@@ -380,7 +380,7 @@ public class CasGarbageCollectionTests
     {
         // Arrange
         using var manager = CreateLifecycleManager();
-        using var lease = _writeFence.TrackWrite();
+        using var lease = await _writeFence.TrackWriteAsync();
 
         // Act
         var result = await manager.RunGarbageCollectionAsync(force: true);
@@ -400,7 +400,7 @@ public class CasGarbageCollectionTests
     {
         // Arrange
         using var manager = CreateLifecycleManager();
-        using var lease = _writeFence.TrackWrite();
+        using var lease = await _writeFence.TrackWriteAsync();
         _primaryStorageMock
             .Setup(s => s.GetAllObjectHashesAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync([]);
@@ -410,6 +410,44 @@ public class CasGarbageCollectionTests
 
         // Assert
         Assert.True(result.Success);
+    }
+
+    /// <summary>
+    /// Verifies that forced garbage collection holds the collection lease through the sweep.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test.</returns>
+    [Fact]
+    public async Task RunGarbageCollectionAsync_WhenForced_HoldsCollectionLeaseThroughSweep()
+    {
+        // Arrange
+        using var manager = CreateLifecycleManager();
+
+        var releaseSignal = new TaskCompletionSource<bool>();
+        var enteredSignal = new TaskCompletionSource<bool>();
+        _primaryStorageMock
+            .Setup(s => s.GetAllObjectHashesAsync(It.IsAny<CancellationToken>()))
+            .Returns(async () =>
+            {
+                enteredSignal.TrySetResult(true);
+                await releaseSignal.Task;
+                return Array.Empty<string>();
+            });
+
+        // Act
+        var gcTask = Task.Run(() => manager.RunGarbageCollectionAsync(force: true));
+        await enteredSignal.Task;
+
+        // Assert - lease is held while the sweep runs
+        Assert.False(_writeFence.TryAcquireCollectionLease(TimeSpan.Zero, out var duringLease));
+        Assert.Null(duringLease);
+
+        releaseSignal.SetResult(true);
+        var result = await gcTask;
+        Assert.True(result.Success);
+
+        // Assert - lease is released after the sweep
+        Assert.True(_writeFence.TryAcquireCollectionLease(TimeSpan.Zero, out var afterLease));
+        afterLease?.Dispose();
     }
 
     /// <summary>
