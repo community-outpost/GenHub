@@ -81,7 +81,7 @@ public class GeneralsOnlineDeliverer(
             progress?.Report(new ContentAcquisitionProgress
             {
                 Phase = ContentAcquisitionPhase.Copying,
-                ProgressPercentage = 60,
+                ProgressPercentage = 75,
                 CurrentOperation = "Generating variant manifests (60Hz, MapPack, and GameData Patch)",
             });
 
@@ -103,7 +103,7 @@ public class GeneralsOnlineDeliverer(
             progress?.Report(new ContentAcquisitionProgress
             {
                 Phase = ContentAcquisitionPhase.Copying,
-                ProgressPercentage = 80,
+                ProgressPercentage = 90,
                 CurrentOperation = "Registering all variant manifests to content library",
             });
 
@@ -271,7 +271,7 @@ public class GeneralsOnlineDeliverer(
         progress?.Report(new ContentAcquisitionProgress
         {
             Phase = ContentAcquisitionPhase.Downloading,
-            ProgressPercentage = 10,
+            ProgressPercentage = 0,
             CurrentOperation = "Downloading Generals Online ZIP package",
             CurrentFile = zipFile.RelativePath,
         });
@@ -285,12 +285,29 @@ public class GeneralsOnlineDeliverer(
             expectedHash = null;
         }
 
+        var downloadProgress = progress != null
+            ? new Progress<DownloadProgress>(dp =>
+            {
+                var percentage = Math.Clamp(dp.Percentage * 0.5, 0, 50);
+                var status = $"Downloading Generals Online: {dp.FormattedProgress} ({dp.FormattedSpeed})";
+                progress.Report(new ContentAcquisitionProgress
+                {
+                    Phase = ContentAcquisitionPhase.Downloading,
+                    ProgressPercentage = percentage,
+                    CurrentOperation = status,
+                    CurrentFile = zipFile.RelativePath,
+                    BytesProcessed = dp.BytesReceived,
+                    TotalBytes = dp.TotalBytes,
+                });
+            })
+            : null;
+
         logger.LogDebug("Downloading ZIP from {Url} to {Path} (expected hash: {Hash})", zipFile.DownloadUrl, zipPath, expectedHash);
         var downloadResult = await downloadService.DownloadFileAsync(
             new Uri(zipFile.DownloadUrl!),
             zipPath,
             expectedHash: expectedHash,
-            progress: null,
+            progress: downloadProgress,
             cancellationToken);
 
         if (!downloadResult.Success)
@@ -305,7 +322,7 @@ public class GeneralsOnlineDeliverer(
         progress?.Report(new ContentAcquisitionProgress
         {
             Phase = ContentAcquisitionPhase.Extracting,
-            ProgressPercentage = 40,
+            ProgressPercentage = 60,
             CurrentOperation = "Extracting Generals Online files",
         });
 

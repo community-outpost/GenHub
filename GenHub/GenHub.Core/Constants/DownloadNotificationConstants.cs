@@ -20,12 +20,22 @@ public static class DownloadNotificationConstants
     /// <summary>
     /// Localization key for the initial pinned download message shown before progress arrives.
     /// </summary>
-    public const string ConnectingMessageKey = "Downloads.Notification.Connecting.Message";
+    public const string StartingMessageKey = "Downloads.Notification.Starting.Message";
 
     /// <summary>
     /// Fallback initial pinned download message shown before progress arrives.
     /// </summary>
-    public const string ConnectingMessage = "Connecting...";
+    public const string StartingMessage = "Starting...";
+
+    /// <summary>
+    /// Backward-compatible alias for <see cref="StartingMessageKey"/>.
+    /// </summary>
+    public const string ConnectingMessageKey = StartingMessageKey;
+
+    /// <summary>
+    /// Backward-compatible alias for <see cref="StartingMessage"/>.
+    /// </summary>
+    public const string ConnectingMessage = StartingMessage;
 
     /// <summary>
     /// Localization key for live progress updates, formatted with percentage and status.
