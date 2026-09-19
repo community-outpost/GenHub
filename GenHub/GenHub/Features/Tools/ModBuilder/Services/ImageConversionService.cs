@@ -89,7 +89,7 @@ public class ImageConversionService(ILogger<ImageConversionService> logger) : II
                     return HasAlphaChannelPsd(imagePath);
                 }
 
-                using var image = Image.Load(imagePath);
+                using var image = Image.Load<Rgba32>(imagePath);
                 return ImageProcessingHelper.DetectAlpha(image);
             }, cancellationToken);
         }
@@ -233,7 +233,7 @@ public class ImageConversionService(ILogger<ImageConversionService> logger) : II
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            using var image = await Image.LoadAsync(sourcePath, cancellationToken).ConfigureAwait(false);
+            using var image = await Image.LoadAsync<Rgba32>(sourcePath, cancellationToken).ConfigureAwait(false);
             var resizedImage = ImageProcessingHelper.ApplyResizeParameters(image, parameters);
 
             cancellationToken.ThrowIfCancellationRequested();

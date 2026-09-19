@@ -58,6 +58,7 @@ public partial class ProjectItemPickerViewModel : ObservableObject
     private readonly HashSet<string> _initialMatchedFiles = new(StringComparer.OrdinalIgnoreCase);
     private readonly HashSet<string> _initialCheckedDirs = new(StringComparer.OrdinalIgnoreCase);
     private readonly ProjectFileSnapshot? _snapshot;
+    private bool _isPropagatingSelection;
 
     /// <summary>
     /// Gets the root nodes of the project file tree.
@@ -93,17 +94,44 @@ public partial class ProjectItemPickerViewModel : ObservableObject
     /// </summary>
     /// <param name="projectDir">The root directory of the project.</param>
     /// <param name="existingPatterns">Optional initial patterns to pre-select.</param>
-    public ProjectItemPickerViewModel(string projectDir, IEnumerable<string>? existingPatterns = null)
+    /// <param name="snapshot">Optional existing file snapshot to avoid crawling disk again.</param>
+    public ProjectItemPickerViewModel(
+        string projectDir,
+        IEnumerable<string>? existingPatterns = null,
+        ProjectFileSnapshot? snapshot = null)
     {
         _projectDir = projectDir;
         if (existingPatterns != null)
         {
-            _initialPatterns.AddRange(existingPatterns.Where(p => !string.IsNullOrWhiteSpace(p)).Select(p => p.Trim().Replace("\\", "/")));
+            foreach (var raw in existingPatterns.Where(p => !string.IsNullOrWhiteSpace(p)))
+            {
+                var trimmed = raw.Trim().Replace('\\', '/');
+                if (Path.IsPathRooted(trimmed) || (trimmed.Length > 2 && trimmed[1] == ':'))
+                {
+                    try
+                    {
+                        var rel = Path.GetRelativePath(projectDir, trimmed).Replace('\\', '/');
+                        if (!rel.StartsWith("..", StringComparison.Ordinal))
+                        {
+                            _initialPatterns.Add(rel);
+                            continue;
+                        }
+                    }
+                    catch
+                    {
+                        // Fall back
+                    }
+                }
+
+                _initialPatterns.Add(trimmed.TrimStart('/'));
+            }
         }
 
         if (Directory.Exists(projectDir))
         {
-            _snapshot = ProjectFileSnapshot.Create(projectDir);
+            _snapshot = snapshot is { } provided && provided.IsSameRoot(projectDir)
+                ? provided
+                : ProjectFileSnapshot.Create(projectDir);
             CollectInitialMatches();
         }
 
@@ -162,8 +190,7 @@ public partial class ProjectItemPickerViewModel : ObservableObject
 
         var rootNode = CreateDirectoryNode(rootDir, _projectDir);
         rootNode.IsExpanded = true;
-        ExpandAncestorsOfSelected(rootNode);
-        ExpandSelectedDirectories(rootNode);
+        ExpandTreeNodes(rootNode);
         Nodes.Add(rootNode);
 
         foreach (var dirNode in GetSelectedNodes(Nodes).Where(n => n.IsDirectory))
@@ -193,7 +220,7 @@ public partial class ProjectItemPickerViewModel : ObservableObject
         {
             if (e.PropertyName == nameof(FileTreeNode.IsSelected))
             {
-                UpdateSelectionSummary();
+                OnNodeSelectedChanged(node);
             }
         };
 
@@ -207,6 +234,7 @@ public partial class ProjectItemPickerViewModel : ObservableObject
             foreach (var subDirPath in subDirs)
             {
                 var subNode = CreateDirectoryNode(subDirPath, baseProjectDir);
+                subNode.Parent = node;
                 node.Children.Add(subNode);
             }
 
@@ -226,6 +254,7 @@ public partial class ProjectItemPickerViewModel : ObservableObject
                     IsDirectory = false,
                     Size = file.Length,
                     Extension = file.Extension,
+                    Parent = node,
                     IsSelected = IsNodeInitiallySelected(fileRelPath, false),
                 };
 
@@ -233,7 +262,7 @@ public partial class ProjectItemPickerViewModel : ObservableObject
                 {
                     if (e.PropertyName == nameof(FileTreeNode.IsSelected))
                     {
-                        UpdateSelectionSummary();
+                        OnNodeSelectedChanged(fileNode);
                     }
                 };
 
@@ -246,6 +275,61 @@ public partial class ProjectItemPickerViewModel : ObservableObject
         }
 
         return node;
+    }
+
+    private void OnNodeSelectedChanged(FileTreeNode node)
+    {
+        if (_isPropagatingSelection)
+        {
+            return;
+        }
+
+        try
+        {
+            _isPropagatingSelection = true;
+            if (node.IsDirectory)
+            {
+                CascadeSelectionDown(node, node.IsSelected);
+            }
+
+            // Upward propagation
+            if (!node.IsSelected)
+            {
+                var parent = node.Parent;
+                while (parent != null)
+                {
+                    parent.IsSelected = false;
+                    parent = parent.Parent;
+                }
+            }
+            else
+            {
+                var parent = node.Parent;
+                while (parent != null && parent.Children.All(c => c.IsSelected))
+                {
+                    parent.IsSelected = true;
+                    parent = parent.Parent;
+                }
+            }
+
+            UpdateSelectionSummary();
+        }
+        finally
+        {
+            _isPropagatingSelection = false;
+        }
+    }
+
+    private static void CascadeSelectionDown(FileTreeNode parent, bool isSelected)
+    {
+        foreach (var child in parent.Children)
+        {
+            child.IsSelected = isSelected;
+            if (child.IsDirectory)
+            {
+                CascadeSelectionDown(child, isSelected);
+            }
+        }
     }
 
     /// <summary>
@@ -325,38 +409,26 @@ public partial class ProjectItemPickerViewModel : ObservableObject
     }
 
     private static string NormalizeRelativePath(string path) =>
-        path.Trim('/').Replace("\\", "/");
+        path.Trim('/').Replace('\\', '/');
 
-    private static bool ExpandAncestorsOfSelected(FileTreeNode node)
+    private static bool ExpandTreeNodes(FileTreeNode node)
     {
         var hasSelectedDescendant = false;
         foreach (var child in node.Children)
         {
-            if (child.IsSelected || ExpandAncestorsOfSelected(child))
+            var childHasSelected = ExpandTreeNodes(child);
+            if (child.IsSelected || childHasSelected)
             {
                 hasSelectedDescendant = true;
             }
         }
 
-        if (hasSelectedDescendant)
+        if (hasSelectedDescendant || node.IsSelected)
         {
             node.IsExpanded = true;
         }
 
-        return hasSelectedDescendant;
-    }
-
-    private static void ExpandSelectedDirectories(FileTreeNode node)
-    {
-        if (node.IsDirectory && node.IsSelected)
-        {
-            node.IsExpanded = true;
-        }
-
-        foreach (var child in node.Children)
-        {
-            ExpandSelectedDirectories(child);
-        }
+        return hasSelectedDescendant || node.IsSelected;
     }
 
     partial void OnSearchTextChanged(string value)

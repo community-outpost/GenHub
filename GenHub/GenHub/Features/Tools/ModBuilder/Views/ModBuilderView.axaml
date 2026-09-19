@@ -445,6 +445,12 @@
                                  TextTrimming="CharacterEllipsis" Foreground="{DynamicResource TextPrimary}"
                                  ToolTip.Tip="{Binding CurrentFile}"/>
                     </Grid>
+                    <Grid ColumnDefinitions="Auto,*" IsVisible="{Binding CurrentStep, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                      <TextBlock Grid.Column="0" Text="Step" Foreground="{DynamicResource TextSecondary}" Width="70"/>
+                      <TextBlock Grid.Column="1" Text="{Binding CurrentStep}"
+                                 TextTrimming="CharacterEllipsis" Foreground="{DynamicResource TextPrimary}"
+                                 ToolTip.Tip="{Binding CurrentStep}"/>
+                    </Grid>
 
                     <Separator Background="{DynamicResource BorderBrush}" Height="1" Margin="0,4"/>
 

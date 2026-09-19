@@ -284,6 +284,12 @@ public partial class ModBuilderViewModel(
     private string _currentFile = string.Empty;
 
     /// <summary>
+    /// Gets or sets the current step description.
+    /// </summary>
+    [ObservableProperty]
+    private string _currentStep = string.Empty;
+
+    /// <summary>
     /// Gets or sets the number of processed files.
     /// </summary>
     [ObservableProperty]
@@ -2543,6 +2549,8 @@ public partial class ModBuilderViewModel(
                 ProcessedFiles = 0;
                 TotalFiles = fileCount;
                 PercentComplete = 0;
+                CurrentFile = string.Empty;
+                CurrentStep = string.Empty;
                 EstimatedTimeRemaining = null;
             });
 
@@ -3251,6 +3259,7 @@ public partial class ModBuilderViewModel(
             BuildProgress = progress;
             BuildStage = stageName;
             CurrentFile = progress.CurrentFile;
+            CurrentStep = progress.CurrentStep;
             ProcessedFiles = progress.ProcessedFiles;
             TotalFiles = progress.TotalFiles;
             PercentComplete = progress.PercentComplete;

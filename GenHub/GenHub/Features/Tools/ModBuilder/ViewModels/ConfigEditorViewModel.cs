@@ -116,18 +116,29 @@ public partial class ConfigEditorViewModel(
     partial void OnSelectedBundleItemChanged(BundleItemEditorViewModel? value)
     {
         UpdateBundleItemPackLinks();
-        value?.RecalculateMatches(CurrentProject?.ProjectDir, _fileSnapshot);
         RemoveBundleItemCommand.NotifyCanExecuteChanged();
     }
 
     private void UpdatePackItemSelections()
     {
-        PackItemSelections.Clear();
         if (SelectedBundlePack == null)
         {
+            PackItemSelections.Clear();
             return;
         }
 
+        if (PackItemSelections.Count == BundleItems.Count &&
+            PackItemSelections.Select(p => p.Name).SequenceEqual(BundleItems.Select(b => b.Name), StringComparer.OrdinalIgnoreCase))
+        {
+            foreach (var selection in PackItemSelections)
+            {
+                selection.IsSelected = SelectedBundlePack.ItemNames.Contains(selection.Name, StringComparer.OrdinalIgnoreCase);
+            }
+
+            return;
+        }
+
+        PackItemSelections.Clear();
         foreach (var item in BundleItems)
         {
             var itemName = item.Name;
@@ -144,6 +155,18 @@ public partial class ConfigEditorViewModel(
     {
         if (SelectedBundleItem == null)
         {
+            return;
+        }
+
+        if (SelectedBundleItem.PackLinks.Count == BundlePacks.Count &&
+            SelectedBundleItem.PackLinks.Select(l => l.PackName).SequenceEqual(BundlePacks.Select(p => p.Name), StringComparer.OrdinalIgnoreCase))
+        {
+            foreach (var link in SelectedBundleItem.PackLinks)
+            {
+                var targetPack = BundlePacks.FirstOrDefault(p => p.Name.Equals(link.PackName, StringComparison.OrdinalIgnoreCase));
+                link.IsLinked = targetPack != null && targetPack.ItemNames.Contains(SelectedBundleItem.Name, StringComparer.OrdinalIgnoreCase);
+            }
+
             return;
         }
 
@@ -227,12 +250,47 @@ public partial class ConfigEditorViewModel(
             ? null
             : await Task.Run(() => ProjectFileSnapshot.Create(projectDir)).ConfigureAwait(false);
 
+        var precalculatedItems = await Task.Run(() =>
+        {
+            var items = new List<BundleItemEditorViewModel>();
+            if (Configuration?.Items != null)
+            {
+                foreach (var item in Configuration.Items)
+                {
+                    var pattern = item.Files.Count > 0
+                        ? string.Join("; ", item.Files.Select(f => f.AbsSourceFile))
+                        : "GameFilesEdited/**/*.*";
+
+                    var itemVm = new BundleItemEditorViewModel
+                    {
+                        Name = item.Name,
+                        NamePrefix = item.NamePrefix,
+                        NameSuffix = item.NameSuffix,
+                        IsBig = item.IsBig,
+                        BigSuffix = item.BigSuffix,
+                        SetGameLanguageOnInstall = item.SetGameLanguageOnInstall,
+                        FileCount = item.Files.Count,
+                        SourcePattern = pattern,
+                    };
+
+                    itemVm.RecalculateMatches(projectDir, _fileSnapshot);
+                    items.Add(itemVm);
+                }
+            }
+
+            return items;
+        }).ConfigureAwait(false);
+
         void LoadData()
         {
             BundleItems.Clear();
             BundlePacks.Clear();
 
-            PopulateBundleItems(Configuration);
+            foreach (var itemVm in precalculatedItems)
+            {
+                BundleItems.Add(itemVm);
+            }
+
             PopulateBundlePacks(Configuration);
 
             SelectedBundleItem = BundleItems.FirstOrDefault();
@@ -420,7 +478,7 @@ public partial class ConfigEditorViewModel(
         }
 
         var existingPatterns = SelectedBundleItem.SourcePatternsList.Select(p => p.Pattern).ToList();
-        var pickerVm = new ProjectItemPickerViewModel(CurrentProject.ProjectDir, existingPatterns);
+        var pickerVm = new ProjectItemPickerViewModel(CurrentProject.ProjectDir, existingPatterns, _fileSnapshot);
         var dialog = new Views.ProjectItemPickerDialog(pickerVm);
         var parentWindow = owner ?? GetActiveWindow();
 
