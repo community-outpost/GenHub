@@ -54,6 +54,21 @@ public class ManifestProviderTests
         _manifestProvider = new ManifestProvider(_loggerMock.Object, _poolMock.Object, _manifestIdServiceMock.Object, _manifestBuilderMock.Object);
     }
 
+    /// <summary>Invalid game types are rejected before accessing the manifest pool.</summary>
+    /// <param name="gameType">The unsupported game type.</param>
+    /// <returns>The asynchronous operation.</returns>
+    [Theory]
+    [InlineData(GameType.Unknown)]
+    [InlineData((GameType)999)]
+    public async Task GetManifestAsync_UnsupportedGame_RejectsBeforeLookupAsync(GameType gameType)
+    {
+        var installation = new GameInstallation(Path.GetTempPath(), GameInstallationType.Retail);
+        var exception = await Assert.ThrowsAsync<ArgumentOutOfRangeException>(
+            () => _manifestProvider.GetManifestAsync(installation, gameType));
+        Assert.Equal("gameType", exception.ParamName);
+        _poolMock.VerifyNoOtherCalls();
+    }
+
     /// <summary>
     /// Tests that GetManifestAsync returns manifest from cache when available for GameClient.
     /// </summary>
@@ -179,8 +194,10 @@ public class ManifestProviderTests
         // Arrange
         var tempZeroHourPath = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(tempZeroHourPath);
-        var zeroHourExe = Path.Combine(tempZeroHourPath, "generals.exe");
-        File.WriteAllText(zeroHourExe, "dummy");
+
+        // Zero Hour is flagged by its retail archives, not by an executable name.
+        var zeroHourArchive = Path.Combine(tempZeroHourPath, "INIZH.big");
+        File.WriteAllText(zeroHourArchive, "archive");
         try
         {
             var installation = new GameInstallation(
@@ -215,6 +232,49 @@ public class ManifestProviderTests
             {
                 Directory.Delete(tempZeroHourPath, true);
             }
+        }
+    }
+
+    /// <summary>
+    /// The single-manifest overload prefers Zero Hour for a combined installation, so
+    /// Generals can only be reached through the game-typed overload. This asserts that
+    /// overload requests the Generals manifest id for such an installation.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task GetManifestAsync_WithCombinedInstallationAndExplicitGenerals_UsesGeneralsId()
+    {
+        var combinedPath = Directory.CreateTempSubdirectory("GenHub.CombinedManifest.").FullName;
+        File.WriteAllText(Path.Combine(combinedPath, "INI.big"), "archive");
+        File.WriteAllText(Path.Combine(combinedPath, "INIZH.big"), "archive");
+        try
+        {
+            var installation = new GameInstallation(
+                installationPath: combinedPath,
+                installationType: GameInstallationType.Steam,
+                logger: null);
+            installation.SetPaths(combinedPath, combinedPath);
+            Assert.True(installation.HasGenerals);
+            Assert.True(installation.HasZeroHour);
+
+            var expectedManifest = new ContentManifest
+            {
+                Id = ManifestId.Create("1.108.steam.gameinstallation.generals"),
+                Name = "Test Manifest",
+            };
+
+            _poolMock.Setup(x => x.GetManifestAsync(ManifestId.Create("1.108.steam.gameinstallation.generals"), It.IsAny<CancellationToken>()))
+                      .ReturnsAsync(OperationResult<ContentManifest?>.CreateSuccess(expectedManifest));
+
+            var result = await _manifestProvider.GetManifestAsync(installation, GameType.Generals);
+
+            Assert.NotNull(result);
+            Assert.Equal("1.108.steam.gameinstallation.generals", result.Id);
+            _poolMock.Verify(x => x.GetManifestAsync(ManifestId.Create("1.108.steam.gameinstallation.generals"), It.IsAny<CancellationToken>()), Times.Once);
+        }
+        finally
+        {
+            Directory.Delete(combinedPath, true);
         }
     }
 

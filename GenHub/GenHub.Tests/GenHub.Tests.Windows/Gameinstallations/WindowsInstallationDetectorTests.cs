@@ -1,5 +1,8 @@
+using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.GameInstallations;
 using GenHub.Windows.GameInstallations;
 using Microsoft.Extensions.Logging.Abstractions;
+using System.Reflection;
 
 namespace GenHub.Tests.Windows.Gameinstallations;
 
@@ -39,5 +42,59 @@ public class WindowsInstallationDetectorTests
         var result = await detector.DetectInstallationsAsync();
         Assert.NotNull(result);
         Assert.True(result.Success || !result.Success); // Always true, just checks method runs
+    }
+
+    /// <summary>A partial higher-priority detection cannot hide the other game in a combined root.</summary>
+    /// <param name="generalsClaimed">Whether the earlier detection claimed Generals rather than Zero Hour.</param>
+    /// <param name="trailingSeparator">Whether the combined source includes a trailing separator.</param>
+    [Theory]
+    [InlineData(true, false)]
+    [InlineData(false, false)]
+    [InlineData(true, true)]
+    [InlineData(false, true)]
+    public void DeduplicateInstallations_PartiallyClaimedCombinedRoot_IsRetained(bool generalsClaimed, bool trailingSeparator)
+    {
+        var directory = Path.GetFullPath("combined-installation");
+        var partial = new GameInstallation(directory, GameInstallationType.Steam)
+        {
+            HasGenerals = generalsClaimed, HasZeroHour = !generalsClaimed,
+            GeneralsPath = generalsClaimed ? directory : string.Empty,
+            ZeroHourPath = generalsClaimed ? string.Empty : directory,
+        };
+        var combined = new GameInstallation(directory, GameInstallationType.Retail)
+        {
+            HasGenerals = true, HasZeroHour = true, GeneralsPath = trailingSeparator ? directory + Path.DirectorySeparatorChar : directory,
+            ZeroHourPath = directory,
+        };
+        var detector = new WindowsInstallationDetector(NullLogger<WindowsInstallationDetector>.Instance);
+        var method = typeof(WindowsInstallationDetector).GetMethod("DeduplicateInstallations", BindingFlags.Instance | BindingFlags.NonPublic)!;
+        var result = (List<GameInstallation>)method.Invoke(detector, [new List<GameInstallation> { partial, combined }])!;
+        Assert.Same(partial, Assert.Single(result));
+        Assert.True(partial.HasGenerals);
+        Assert.True(partial.HasZeroHour);
+    }
+
+    /// <summary>Retaining a combined root must not discard a distinct game directory.</summary>
+    [Fact]
+    public void DeduplicateInstallations_SharedRootWithDistinctSibling_PreservesSibling()
+    {
+        var directory = Path.GetFullPath("combined-installation");
+        var siblingDirectory = Path.GetFullPath("other-zero-hour");
+        var split = new GameInstallation(directory, GameInstallationType.Steam)
+        {
+            HasGenerals = true, HasZeroHour = true,
+            GeneralsPath = directory, ZeroHourPath = siblingDirectory,
+        };
+        var combined = new GameInstallation(directory, GameInstallationType.Retail)
+        {
+            HasGenerals = true, HasZeroHour = true, GeneralsPath = directory, ZeroHourPath = directory,
+        };
+        var detector = new WindowsInstallationDetector(NullLogger<WindowsInstallationDetector>.Instance);
+        var method = typeof(WindowsInstallationDetector).GetMethod("DeduplicateInstallations", BindingFlags.Instance | BindingFlags.NonPublic)!;
+        var result = (List<GameInstallation>)method.Invoke(detector, [new List<GameInstallation> { split, combined }])!;
+        Assert.Equal(2, result.Count);
+        Assert.Same(combined, Assert.Single(result, i => i.HasGenerals));
+        Assert.False(split.HasGenerals);
+        Assert.Equal(siblingDirectory, split.ZeroHourPath);
     }
 }

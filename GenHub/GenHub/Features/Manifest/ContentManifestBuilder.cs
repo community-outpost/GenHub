@@ -12,6 +12,7 @@ using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace GenHub.Features.Manifest;
@@ -483,12 +484,24 @@ public partial class ContentManifestBuilder(
     /// <param name="fileFilter">File filter.</param>
     /// <param name="isExecutable">Is executable.</param>
     /// <returns>A task that yields the <see cref="IContentManifestBuilder"/> instance for chaining upon completion.</returns>
-    public async Task<IContentManifestBuilder> AddFilesFromDirectoryAsync(
+    public Task<IContentManifestBuilder> AddFilesFromDirectoryAsync(
         string sourceDirectory,
         ContentSourceType sourceType = ContentSourceType.ContentAddressable,
         string fileFilter = "*",
         bool isExecutable = false)
     {
+        return AddFilesFromDirectoryAsync(sourceDirectory, CancellationToken.None, sourceType, fileFilter, isExecutable);
+    }
+
+    /// <inheritdoc/>
+    public async Task<IContentManifestBuilder> AddFilesFromDirectoryAsync(
+        string sourceDirectory,
+        CancellationToken cancellationToken,
+        ContentSourceType sourceType = ContentSourceType.ContentAddressable,
+        string fileFilter = "*",
+        bool isExecutable = false)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
         if (!Directory.Exists(sourceDirectory))
         {
             logger.LogWarning("Source directory does not exist: {Directory}", sourceDirectory);
@@ -508,6 +521,7 @@ public partial class ContentManifestBuilder(
 
         foreach (var filePath in files)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             var relativePath = Path.GetRelativePath(sourceDirectory, filePath);
             var fileInfo = new FileInfo(filePath);
 
@@ -516,7 +530,7 @@ public partial class ContentManifestBuilder(
             string? hash = null;
             if (shouldComputeHash)
             {
-                hash = await _hashProvider.ComputeFileHashAsync(filePath);
+                hash = await _hashProvider.ComputeFileHashAsync(filePath, cancellationToken);
             }
 
             var installTarget = DetermineInstallTarget(relativePath);

@@ -1,5 +1,6 @@
 using GenHub.Core.Constants;
 using GenHub.Core.Extensions.GameInstallations;
+using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameInstallations;
@@ -120,6 +121,30 @@ public class WindowsInstallationDetector(ILogger<WindowsInstallationDetector> lo
         return Task.FromResult(result);
     }
 
+    /// <summary>Transfers known combined-root coverage to higher-priority partial sources.</summary>
+    /// <param name="installations">All detected sources, before deduplication.</param>
+    private static void CompletePartialDetections(List<GameInstallation> installations)
+    {
+        var combinedPaths = installations.Where(i => i.IsCombinedDirectory)
+            .Select(i => Path.TrimEndingDirectorySeparator(Path.GetFullPath(i.GeneralsPath))).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        foreach (var installation in installations)
+        {
+            if (installation.HasGenerals == installation.HasZeroHour)
+            {
+                continue;
+            }
+
+            var path = installation.HasGenerals ? installation.GeneralsPath : installation.ZeroHourPath;
+            if (!string.IsNullOrEmpty(path) && combinedPaths.Contains(Path.TrimEndingDirectorySeparator(Path.GetFullPath(path))))
+            {
+                installation.GeneralsPath = path;
+                installation.ZeroHourPath = path;
+                installation.HasGenerals = true;
+                installation.HasZeroHour = true;
+            }
+        }
+    }
+
     private List<GameInstallation> DetectRetailInstallations()
     {
         var retailInstalls = new List<GameInstallation>();
@@ -140,16 +165,12 @@ public class WindowsInstallationDetector(ILogger<WindowsInstallationDetector> lo
             if (Directory.Exists(basePath))
             {
                 // Check if this is a "flat" installation (base path IS the game directory)
-                // This is common for "ZH" folders or custom repacks
-                var zeroHourExecutables = new[]
-                {
-                    GameClientConstants.ZeroHourExecutable,
-                    GameClientConstants.GeneralsExecutable,
-                    GameClientConstants.SuperHackersZeroHourExecutable,
-                };
-
-                // If check for valid ZH executables in the root
-                if (zeroHourExecutables.Any(exe => File.Exists(Path.Combine(basePath, exe))))
+                // This is common for "ZH" folders or custom repacks. Archive classification
+                // identifies which games' retail data the root holds, so a combined flat
+                // directory yields one installation with both paths set while a Zero
+                // Hour-only folder no longer reads as Generals too.
+                var rootClassification = RetailArchiveClassifier.ClassifyArchivesSafely(basePath, logger);
+                if (rootClassification.HasAnyGame)
                 {
                     // Check if standard subdirectories exist. If NOT, then assume flat install.
                     bool hasGeneralsSubdir = Directory.Exists(Path.Combine(basePath, GameClientConstants.GeneralsDirectoryName));
@@ -158,11 +179,9 @@ public class WindowsInstallationDetector(ILogger<WindowsInstallationDetector> lo
                     if (!hasGeneralsSubdir && !hasZeroHourSubdir)
                     {
                         var installation = new GameInstallation(basePath, GameInstallationType.Retail, null);
-
-                        // For a flat install, both paths point to the base path (assuming merged)
-                        // Or just set ZeroHour if only ZH is present.
-                        // Safe bet: If generals.exe exists, assume base path covers both capabilities in a flat structure.
-                        installation.SetPaths(basePath, basePath);
+                        installation.SetPaths(
+                            rootClassification.HasGeneralsArchives ? basePath : null,
+                            rootClassification.HasZeroHourArchives ? basePath : null);
 
                         retailInstalls.Add(installation);
                         logger.LogInformation("Detected standalone/flat Retail installation at {BasePath}", basePath);
@@ -193,28 +212,53 @@ public class WindowsInstallationDetector(ILogger<WindowsInstallationDetector> lo
 
     /// <summary>
     /// Deduplicates installations that point to the same actual game directories.
-    /// Prioritizes installations in this order: Steam > EA App > Retail.
+    /// Keeps complete combined roots ahead of partial detections, then prefers Steam > EA App > Retail.
     /// </summary>
     /// <param name="installations">The list of installations to deduplicate.</param>
     /// <returns>A deduplicated list of installations.</returns>
     private List<GameInstallation> DeduplicateInstallations(List<GameInstallation> installations)
     {
+        CompletePartialDetections(installations);
         var seenGeneralsPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var seenZeroHourPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var deduplicated = new List<GameInstallation>();
 
-        // Define priority order: Steam > EA App > CDISO > Retail
-        var orderedInstallations = installations.OrderBy(i => Array.IndexOf(PriorityOrder, i.InstallationType)).ToList();
+        // Claim complete combined roots first so a partial source cannot own the same
+        // directory separately. Source priority breaks ties between complete detections.
+        var orderedInstallations = installations.OrderByDescending(i => i.IsCombinedDirectory)
+            .ThenBy(i => Array.IndexOf(PriorityOrder, i.InstallationType)).ToList();
 
         foreach (var installation in orderedInstallations)
         {
+            // A combined directory — both games flagged at the same path — is one unit.
+            // Splitting it across sources by clearing whichever game another source
+            // already claimed would leave the same directory owned by two installations
+            // and scanned twice for clients, so it is kept whole or dropped whole.
+            if (installation.IsCombinedDirectory)
+            {
+                var combinedPath = Path.TrimEndingDirectorySeparator(Path.GetFullPath(installation.GeneralsPath));
+                if (seenGeneralsPaths.Contains(combinedPath) && seenZeroHourPaths.Contains(combinedPath))
+                {
+                    logger.LogWarning(
+                        "Skipping combined {InstallationType} installation at {CombinedPath} (directory already detected from another source)",
+                        installation.InstallationType,
+                        combinedPath);
+                    continue;
+                }
+
+                seenGeneralsPaths.Add(combinedPath);
+                seenZeroHourPaths.Add(combinedPath);
+                deduplicated.Add(installation);
+                continue;
+            }
+
             var hasUniqueGenerals = false;
             var hasUniqueZeroHour = false;
 
             // Check if Generals path is unique
             if (installation.HasGenerals && !string.IsNullOrEmpty(installation.GeneralsPath))
             {
-                var normalizedGeneralsPath = Path.GetFullPath(installation.GeneralsPath);
+                var normalizedGeneralsPath = Path.TrimEndingDirectorySeparator(Path.GetFullPath(installation.GeneralsPath));
                 if (seenGeneralsPaths.Add(normalizedGeneralsPath))
                 {
                     hasUniqueGenerals = true;
@@ -231,7 +275,7 @@ public class WindowsInstallationDetector(ILogger<WindowsInstallationDetector> lo
             // Check if Zero Hour path is unique
             if (installation.HasZeroHour && !string.IsNullOrEmpty(installation.ZeroHourPath))
             {
-                var normalizedZeroHourPath = Path.GetFullPath(installation.ZeroHourPath);
+                var normalizedZeroHourPath = Path.TrimEndingDirectorySeparator(Path.GetFullPath(installation.ZeroHourPath));
                 if (seenZeroHourPaths.Add(normalizedZeroHourPath))
                 {
                     hasUniqueZeroHour = true;

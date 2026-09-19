@@ -1,5 +1,6 @@
 using GenHub.Core.Constants;
 using GenHub.Core.Extensions.GameInstallations;
+using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameInstallations;
@@ -83,13 +84,20 @@ public class InstallationPathResolver(
             return Task.FromResult(OperationResult<bool>.CreateSuccess(false));
         }
 
-        // Check game-specific subdirectories and the root installation directory
-        // against the shared valid executable list so all locations accept
-        // every recognized edition (Steam, retail, SuperHackers, GeneralsOnline, Contra).
-        var hasValidFiles =
-            (installation.HasGenerals && InstallationExtensions.HasValidGeneralsExecutable(installation.GeneralsPath)) ||
-            (installation.HasZeroHour && InstallationExtensions.HasValidZeroHourExecutable(installation.ZeroHourPath)) ||
-            ((installation.HasGenerals || installation.HasZeroHour) && InstallationExtensions.HasValidGameExecutable(installation.InstallationPath));
+        // Archive presence validates retail data independently of the executable form.
+        bool hasValidFiles;
+        try
+        {
+            hasValidFiles =
+                (installation.HasGenerals || installation.HasZeroHour) &&
+                (!installation.HasGenerals || RetailArchiveClassifier.ClassifyArchives(installation.GeneralsPath).HasGeneralsArchives) &&
+                (!installation.HasZeroHour || RetailArchiveClassifier.ClassifyArchives(installation.ZeroHourPath).HasZeroHourArchives);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            logger.LogWarning(ex, "Could not validate retail archives at {Path}", installation.InstallationPath);
+            return Task.FromResult(OperationResult<bool>.CreateFailure(ex.Message));
+        }
 
         if (!hasValidFiles)
         {
@@ -194,7 +202,7 @@ public class InstallationPathResolver(
         return resolvedPath.TryGetDirectoryCaseInsensitive(
             GameClientConstants.GeneralsSubdirectoryName,
             out var subPath) &&
-            InstallationExtensions.HasValidGeneralsExecutable(subPath)
+            RetailArchiveClassifier.ClassifyArchives(subPath).HasGeneralsArchives
             ? subPath
             : resolvedPath;
     }
@@ -204,7 +212,7 @@ public class InstallationPathResolver(
         if (resolvedPath.TryGetDirectoryCaseInsensitive(
             GameClientConstants.ZeroHourDirectoryName,
             out var standardPath) &&
-            InstallationExtensions.HasValidZeroHourExecutable(standardPath))
+            RetailArchiveClassifier.ClassifyArchives(standardPath).HasZeroHourArchives)
         {
             return standardPath;
         }
@@ -212,7 +220,7 @@ public class InstallationPathResolver(
         return resolvedPath.TryGetDirectoryCaseInsensitive(
             GameClientConstants.ZeroHourSubdirectoryName,
             out var shortPath) &&
-            InstallationExtensions.HasValidZeroHourExecutable(shortPath)
+            RetailArchiveClassifier.ClassifyArchives(shortPath).HasZeroHourArchives
             ? shortPath
             : resolvedPath;
     }
@@ -246,31 +254,6 @@ public class InstallationPathResolver(
 
         var hash = await ComputeFileHashAsync(resolvedGameDatPath, cancellationToken);
         return string.Equals(hash, gameDatHash, StringComparison.OrdinalIgnoreCase);
-    }
-
-    private static bool HasMatchingZeroHourFiles(string directory)
-    {
-        var dbgHelpDll = Path.Combine(directory, GameClientConstants.DbgHelpDll);
-        return dbgHelpDll.FileExistsCaseInsensitive() ||
-            Path.Combine(directory, GameClientConstants.ZeroHourIniBig).FileExistsCaseInsensitive() ||
-            Path.Combine(directory, GameClientConstants.ZeroHourPatchBig).FileExistsCaseInsensitive();
-    }
-
-    private static bool HasMatchingGeneralsFiles(string directory, string? gameDatHash)
-    {
-        // Having a Generals-specific executable is enough for Generals
-        if (Path.Combine(directory, GameClientConstants.GeneralsExecutable).FileExistsCaseInsensitive() ||
-            Path.Combine(directory, GameClientConstants.SuperHackersGeneralsExecutable).FileExistsCaseInsensitive() ||
-            Path.Combine(directory, GameClientConstants.ContraExecutable).FileExistsCaseInsensitive())
-        {
-            return true;
-        }
-
-        // If only a generic executable (e.g. game.exe, game.dat) was matched, require corroborating Generals files or hash
-        return Path.Combine(directory, GameClientConstants.GeneralsIniBig).FileExistsCaseInsensitive() ||
-            Path.Combine(directory, GameClientConstants.GeneralsPatchBig).FileExistsCaseInsensitive() ||
-            Path.Combine(directory, GameClientConstants.DbgHelpDll).FileExistsCaseInsensitive() ||
-            !string.IsNullOrEmpty(gameDatHash);
     }
 
     private async Task<string?> TryComputeExistingGameDatHashAsync(
@@ -367,8 +350,13 @@ public class InstallationPathResolver(
     {
         try
         {
-            // Check for valid game executable
-            if (!InstallationExtensions.HasValidGameExecutable(directory))
+            var hasGeneralsArchives = installation.HasGenerals &&
+                RetailArchiveClassifier.ClassifyArchives(ResolveGeneralsSubPath(directory)).HasGeneralsArchives;
+            var hasZeroHourArchives = installation.HasZeroHour &&
+                RetailArchiveClassifier.ClassifyArchives(ResolveZeroHourSubPath(directory)).HasZeroHourArchives;
+            if ((!installation.HasGenerals && !installation.HasZeroHour)
+                || (installation.HasGenerals && !hasGeneralsArchives)
+                || (installation.HasZeroHour && !hasZeroHourArchives))
             {
                 return false;
             }
@@ -380,18 +368,7 @@ public class InstallationPathResolver(
                 return false;
             }
 
-            // Check for game type specific files
-            if (installation.HasZeroHour && HasMatchingZeroHourFiles(directory))
-            {
-                return true;
-            }
-
-            if (installation.HasGenerals && HasMatchingGeneralsFiles(directory, gameDatHash))
-            {
-                return true;
-            }
-
-            return false;
+            return true;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {

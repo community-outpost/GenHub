@@ -4,6 +4,7 @@ using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
+using GenHub.Core.Utilities;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
@@ -64,7 +65,7 @@ public class SuperHackersManifestFactory(
     {
         logger.LogInformation("Creating SuperHackers manifests from extracted content in: {Directory}", extractedDirectory);
 
-        var detectedExecutables = DetectGameExecutables(extractedDirectory);
+        var detectedExecutables = DetectGameExecutables(extractedDirectory, cancellationToken);
 
         if (detectedExecutables.Count == 0)
         {
@@ -129,7 +130,7 @@ public class SuperHackersManifestFactory(
         // Detect executables in installation path
         // For SuperHackers, the "extracted directory" logic works on installation path too
         // since the executables are direct children usually
-        var detectedExecutables = DetectGameExecutables(installationPath);
+        var detectedExecutables = DetectGameExecutables(installationPath, cancellationToken);
 
         if (detectedExecutables.Count == 0)
         {
@@ -187,28 +188,52 @@ public class SuperHackersManifestFactory(
     /// <summary>
     /// Detects SuperHackers game executables in the extracted directory.
     /// </summary>
-    private Dictionary<GameType, string> DetectGameExecutables(string directory)
+    /// <remarks>
+    /// Candidates are selected via <see cref="ExecutableFileClassifier.IsLegacyLaunchCandidate"/>
+    /// instead of a <c>*.exe</c> glob, because a native Mach-O or ELF build of the same
+    /// client is extensionless and the glob hid it entirely. The name match then accepts
+    /// either the Windows executable name or its extensionless form. The classifier
+    /// verifies native executable signatures for extensionless candidates.
+    /// </remarks>
+    /// <param name="directory">The extracted content directory.</param>
+    /// <param name="cancellationToken">Cancellation for discovery and classification.</param>
+    /// <returns>The preferred executable path for each detected game.</returns>
+    internal Dictionary<GameType, string> DetectGameExecutables(string directory, CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         var result = new Dictionary<GameType, string>();
 
         if (!Directory.Exists(directory))
             return result;
 
-        var allFiles = Directory.GetFiles(directory, "*.exe", SearchOption.AllDirectories);
+        var allFiles = Directory.EnumerateFiles(directory, "*", new EnumerationOptions
+        {
+            RecurseSubdirectories = true,
+            IgnoreInaccessible = true,
+        }).Select(path =>
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            return path;
+        }).OrderBy(path => OperatingSystem.IsWindows() == Path.HasExtension(path) ? 0 : 1)
+          .ThenBy(path => path, StringComparer.Ordinal);
 
         foreach (var filePath in allFiles)
         {
-            var fileName = Path.GetFileName(filePath).ToLowerInvariant();
-
-            // Check for SuperHackers executables
-            if (string.Equals(fileName, GameClientConstants.SuperHackersGeneralsExecutable, StringComparison.OrdinalIgnoreCase))
+            cancellationToken.ThrowIfCancellationRequested();
+            var matchesGenerals = SuperHackersClientIdentifier.MatchesExecutableName(filePath, GameClientConstants.SuperHackersGeneralsExecutable);
+            var matchesZeroHour = SuperHackersClientIdentifier.MatchesExecutableName(filePath, GameClientConstants.SuperHackersZeroHourExecutable);
+            if ((!matchesGenerals && !matchesZeroHour) || !ExecutableFileClassifier.IsLegacyLaunchCandidate(filePath, filePath))
             {
-                result[GameType.Generals] = filePath;
+                continue;
+            }
+
+            // Prefer the platform's executable form, with stable path ordering for ties.
+            if (matchesGenerals && result.TryAdd(GameType.Generals, filePath))
+            {
                 logger.LogInformation("Detected SuperHackers Generals executable: {Path}", filePath);
             }
-            else if (string.Equals(fileName, GameClientConstants.SuperHackersZeroHourExecutable, StringComparison.OrdinalIgnoreCase))
+            else if (matchesZeroHour && result.TryAdd(GameType.ZeroHour, filePath))
             {
-                result[GameType.ZeroHour] = filePath;
                 logger.LogInformation("Detected SuperHackers Zero Hour executable: {Path}", filePath);
             }
         }
