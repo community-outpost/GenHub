@@ -317,11 +317,7 @@ public partial class AddReleaseDialogViewModel(
     /// Cancels the dialog without saving.
     /// </summary>
     [RelayCommand]
-    private void Cancel()
-    {
-        ArgumentNullException.ThrowIfNull(onReleaseCreated);
-        onReleaseCreated(null!);
-    }
+    private void Cancel() => Close();
 
     /// <summary>
     /// Creates the release if validation passes.

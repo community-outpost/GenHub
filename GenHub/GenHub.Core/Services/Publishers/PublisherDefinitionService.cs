@@ -308,7 +308,6 @@ public class PublisherDefinitionService(
         {
             for (var hop = 0; hop <= CatalogConstants.MaxCatalogRedirects; hop++)
             {
-                response?.Dispose();
                 using var request = new HttpRequestMessage(HttpMethod.Get, currentUri);
                 response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct);
 
@@ -320,6 +319,8 @@ public class PublisherDefinitionService(
                 }
 
                 var location = response.Headers.Location;
+                response.Dispose();
+                response = null;
                 if (location == null)
                 {
                     return OperationResult<HttpResponseMessage>.CreateFailure(

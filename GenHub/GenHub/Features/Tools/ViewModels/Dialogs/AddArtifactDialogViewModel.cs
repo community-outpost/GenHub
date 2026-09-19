@@ -356,74 +356,10 @@ public partial class AddArtifactDialogViewModel(Action<ReleaseArtifact> onArtifa
     {
         try
         {
-            var lifetime = Application.Current?.ApplicationLifetime
-                as IClassicDesktopStyleApplicationLifetime;
-            var mainWindow = lifetime?.MainWindow;
-            if (mainWindow == null) return;
-
-            var topLevel = TopLevel.GetTopLevel(mainWindow);
-            if (topLevel == null) return;
-
-            var files = await topLevel.StorageProvider.OpenFilePickerAsync(
-                new FilePickerOpenOptions
-                {
-                    Title = "Select Artifact File",
-                    AllowMultiple = false,
-                    FileTypeFilter = new[]
-                    {
-                        new FilePickerFileType("Archives") { Patterns = new[] { "*.zip", "*.rar", "*.7z" } },
-                        new FilePickerFileType("All Files") { Patterns = new[] { "*" } },
-                    },
-                });
-
-            if (files.Count > 0)
+            var path = await PickLocalFilePathAsync();
+            if (!string.IsNullOrEmpty(path))
             {
-                var file = files[0];
-                var path = file.TryGetLocalPath();
-                if (!string.IsNullOrEmpty(path))
-                {
-                    LocalFilePath = path;
-                    Filename = Path.GetFileName(path);
-
-                    var fileInfo = new FileInfo(path);
-                    FileSize = fileInfo.Length;
-                    FileSizeDisplay = FormatFileSize(FileSize);
-                    _suppressFileSizeParsing = true;
-                    try
-                    {
-                        FileSizeInput = FileSizeDisplay;
-                    }
-                    finally
-                    {
-                        _suppressFileSizeParsing = false;
-                    }
-
-                    // Compute SHA256 in background
-                    CancelPendingHash();
-                    _hashCts = new CancellationTokenSource();
-                    var hashCt = _hashCts.Token;
-                    var hashGeneration = ++_hashGeneration;
-                    IsComputingHash = true;
-                    try
-                    {
-                        var computedHash = await Task.Run(() => ComputeSha256(path, hashCt), hashCt);
-                        if (!hashCt.IsCancellationRequested && LocalFilePath == path)
-                        {
-                            Sha256Hash = computedHash;
-                        }
-                    }
-                    catch (OperationCanceledException)
-                    {
-                        // Superseded by a newer selection or dialog close
-                    }
-                    finally
-                    {
-                        if (hashGeneration == _hashGeneration)
-                        {
-                            IsComputingHash = false;
-                        }
-                    }
-                }
+                await PopulateFromLocalFileAsync(path);
             }
         }
         catch (OperationCanceledException)
@@ -435,6 +371,86 @@ public partial class AddArtifactDialogViewModel(Action<ReleaseArtifact> onArtifa
             ArtifactStatus = localizationService?.GetString(
                 "Tools.PublisherStudio.Artifact.BrowseError",
                 ex.Message) ?? $"Error: {ex.Message}";
+        }
+    }
+
+    private async Task<string?> PickLocalFilePathAsync()
+    {
+        var lifetime = Application.Current?.ApplicationLifetime
+            as IClassicDesktopStyleApplicationLifetime;
+        var mainWindow = lifetime?.MainWindow;
+        if (mainWindow == null)
+        {
+            return null;
+        }
+
+        var topLevel = TopLevel.GetTopLevel(mainWindow);
+        if (topLevel == null)
+        {
+            return null;
+        }
+
+        var files = await topLevel.StorageProvider.OpenFilePickerAsync(
+            new FilePickerOpenOptions
+            {
+                Title = "Select Artifact File",
+                AllowMultiple = false,
+                FileTypeFilter = new[]
+                {
+                    new FilePickerFileType("Archives") { Patterns = new[] { "*.zip", "*.rar", "*.7z" } },
+                    new FilePickerFileType("All Files") { Patterns = new[] { "*" } },
+                },
+            });
+
+        return files.Count > 0 ? files[0].TryGetLocalPath() : null;
+    }
+
+    private async Task PopulateFromLocalFileAsync(string path)
+    {
+        LocalFilePath = path;
+        Filename = Path.GetFileName(path);
+
+        var fileInfo = new FileInfo(path);
+        FileSize = fileInfo.Length;
+        FileSizeDisplay = FormatFileSize(FileSize);
+        _suppressFileSizeParsing = true;
+        try
+        {
+            FileSizeInput = FileSizeDisplay;
+        }
+        finally
+        {
+            _suppressFileSizeParsing = false;
+        }
+
+        await ComputeHashForLocalFileAsync(path);
+    }
+
+    private async Task ComputeHashForLocalFileAsync(string path)
+    {
+        CancelPendingHash();
+        _hashCts = new CancellationTokenSource();
+        var hashCt = _hashCts.Token;
+        var hashGeneration = ++_hashGeneration;
+        IsComputingHash = true;
+        try
+        {
+            var computedHash = await Task.Run(() => ComputeSha256(path, hashCt), hashCt);
+            if (!hashCt.IsCancellationRequested && LocalFilePath == path)
+            {
+                Sha256Hash = computedHash;
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // Superseded by a newer selection or dialog close
+        }
+        finally
+        {
+            if (hashGeneration == _hashGeneration)
+            {
+                IsComputingHash = false;
+            }
         }
     }
 
@@ -595,11 +611,7 @@ public partial class AddArtifactDialogViewModel(Action<ReleaseArtifact> onArtifa
     /// Cancels the dialog without saving.
     /// </summary>
     [RelayCommand]
-    private void Cancel()
-    {
-        ArgumentNullException.ThrowIfNull(onArtifactCreated);
-        onArtifactCreated(null!);
-    }
+    private void Cancel() => Close();
 
     private void Validate()
     {
