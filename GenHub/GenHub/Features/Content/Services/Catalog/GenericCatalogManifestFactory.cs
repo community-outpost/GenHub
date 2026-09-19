@@ -1,4 +1,5 @@
 using GenHub.Core.Constants;
+using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Models.Enums;
@@ -175,18 +176,19 @@ public class GenericCatalogManifestFactory(
             updatedManifest.Version = CommunityOutpostCatalogConstants.DefaultMetadataVersion;
         }
 
-        if (string.IsNullOrWhiteSpace(updatedManifest.EntryPoint))
+        var entryResult = ManifestEntryPointHelper.BakeEntryPoint(updatedManifest, extractedDirectory);
+        if (!entryResult.Success)
         {
-            var entryPointResolution = ManifestVariantResolver.ResolveEntryPoint(updatedManifest);
-            if (entryPointResolution.Success)
-            {
-                updatedManifest.EntryPoint = entryPointResolution.RelativePath;
-                logger.LogInformation(
-                    "Inferred entry point '{EntryPoint}' for manifest {ManifestId} ({Reason})",
-                    updatedManifest.EntryPoint,
-                    updatedManifest.Id,
-                    entryPointResolution.Reason);
-            }
+            logger.LogWarning("Refusing game client manifest without a launch entry: {Error}", entryResult.FirstError);
+            return OperationResult<List<ContentManifest>>.CreateFailure(entryResult.FirstError ?? "Unable to determine the launch entry.");
+        }
+
+        if (entryResult.Data is not null)
+        {
+            logger.LogInformation(
+                "Baked entry point '{EntryPoint}' for manifest {ManifestId}",
+                entryResult.Data,
+                updatedManifest.Id);
         }
 
         logger.LogInformation(

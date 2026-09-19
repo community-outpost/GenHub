@@ -199,6 +199,38 @@ public static class GitHubInferenceHelper
     }
 
     /// <summary>
+    /// Applies per-asset typing as a downgrade only: a release typed
+    /// <see cref="ContentType.GameClient"/> drops to <see cref="ContentType.Patch"/> or
+    /// <see cref="ContentType.Mod"/> when the asset name carries a strong patch/mod signal.
+    /// Every other type passes through unchanged, so an asset name can never promote a
+    /// patch or mod into a game client.
+    /// </summary>
+    /// <param name="releaseType">The release-level content type.</param>
+    /// <param name="assetName">The individual asset file name.</param>
+    /// <returns>The asset-level content type.</returns>
+    public static ContentType DowngradeClientTypeForAsset(ContentType releaseType, string? assetName)
+    {
+        if (releaseType != ContentType.GameClient || string.IsNullOrWhiteSpace(assetName))
+        {
+            return releaseType;
+        }
+
+        if (assetName.Contains("patch", StringComparison.OrdinalIgnoreCase)
+            || assetName.Contains("fix", StringComparison.OrdinalIgnoreCase))
+        {
+            return ContentType.Patch;
+        }
+
+        if (assetName.Contains("mod", StringComparison.OrdinalIgnoreCase)
+            || assetName.Contains("addon", StringComparison.OrdinalIgnoreCase))
+        {
+            return ContentType.Mod;
+        }
+
+        return releaseType;
+    }
+
+    /// <summary>
     /// Infer the game type from an asset name or filename.
     /// Detects Generals vs Zero Hour based on executable names and filename patterns.
     /// </summary>

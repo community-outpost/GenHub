@@ -7,6 +7,7 @@ using GenHub.Core.Models.GitHub;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Results.Content;
+using GenHub.Core.Utilities;
 using GenHub.Features.Content.Services.Helpers;
 using GenHub.Features.GitHub.Services;
 using Microsoft.Extensions.Logging;
@@ -122,14 +123,6 @@ public partial class GitHubTopicsDiscoverer(
             { "italian", "Italian" },
             { "portuguese", "Portuguese" },
         };
-
-        /// <summary>
-        /// File extensions that are archives and should be checked for variants.
-        /// </summary>
-        public static readonly string[] ArchiveExtensions =
-        [
-            ".zip", ".7z", ".rar", ".tar.gz", ".tgz",
-        ];
 
         /// <summary>
         /// Filenames to exclude from variant splitting (source code, etc.).
@@ -361,9 +354,12 @@ public partial class GitHubTopicsDiscoverer(
 
     /// <summary>
     /// Determines if release assets should be split into separate content entries.
-    /// Detects standalone game files and variant-based archives (resolution packs, language packs).
+    /// Detects standalone game files, variant-based archives (resolution packs, language
+    /// packs), and mixed-type payloads (a client plus patch/mod zips in one release).
     /// </summary>
-    private static bool ShouldSplitAssets(GitHubRelease release)
+    /// <param name="release">The release to inspect.</param>
+    /// <param name="releaseType">The release-level content type before per-asset downgrade.</param>
+    private static bool ShouldSplitAssets(GitHubRelease release, ContentType releaseType)
     {
         if (release.Assets == null || release.Assets.Count <= 1)
             return false;
@@ -383,6 +379,23 @@ public partial class GitHubTopicsDiscoverer(
 
         if (archiveAssets.Count > 1 && HasVariantPattern(archiveAssets))
             return true;
+
+        // Check 3: Per-asset typing diverges (client plus patch/mod assets in one release).
+        // Guided-rejection formats are excluded: they never become variants.
+        var understoodAssets = release.Assets
+            .Where(a => !IsSourceCodeAsset(a.Name) && ContentFormatPolicy.IsUnderstoodAsset(a.Name))
+            .ToList();
+
+        if (understoodAssets.Count > 1)
+        {
+            var distinctTypes = understoodAssets
+                .Select(a => GitHubInferenceHelper.DowngradeClientTypeForAsset(releaseType, a.Name))
+                .Distinct()
+                .Count();
+
+            if (distinctTypes > 1)
+                return true;
+        }
 
         return false;
     }
@@ -445,8 +458,33 @@ public partial class GitHubTopicsDiscoverer(
     /// </summary>
     private static bool IsArchiveAsset(string assetName)
     {
-        var lowerName = assetName.ToLowerInvariant();
-        return VariantPatterns.ArchiveExtensions.Any(lowerName.EndsWith);
+        return ContentFormatPolicy.IsArchiveContainer(assetName);
+    }
+
+    /// <summary>
+    /// Infers the release-level content and game types from topics with name fallback.
+    /// Shared by the single-card and per-asset paths so both agree on the base type
+    /// before per-asset downgrade.
+    /// </summary>
+    private static (ContentType ContentType, bool IsTypeInferred, GameType GameType, bool IsGameInferred) InferReleaseTypes(
+        GitHubRepositorySearchItem repo,
+        GitHubRelease? release)
+    {
+        var (contentType, isTypeInferred) = GitHubInferenceHelper.InferContentTypeFromTopics(repo.Topics);
+        if (isTypeInferred)
+        {
+            var nameInference = GitHubInferenceHelper.InferContentType(repo.Name, release?.Name);
+            contentType = nameInference.Type;
+        }
+
+        var (gameType, isGameInferred) = GitHubInferenceHelper.InferGameTypeFromTopics(repo.Topics);
+        if (isGameInferred)
+        {
+            var nameInference = GitHubInferenceHelper.InferTargetGame(repo.Name, release?.Name);
+            gameType = nameInference.Type;
+        }
+
+        return (contentType, isTypeInferred, gameType, isGameInferred);
     }
 
     /// <summary>
@@ -711,11 +749,15 @@ public partial class GitHubTopicsDiscoverer(
         var results = new List<ContentSearchResult>();
 
         // Check if this is a multi-variant release
-        if (latestRelease != null && ShouldSplitAssets(latestRelease))
+        var releaseType = latestRelease is null
+            ? ContentType.Addon
+            : InferReleaseTypes(repo, latestRelease).ContentType;
+        if (latestRelease != null && ShouldSplitAssets(latestRelease, releaseType))
         {
-            // Filter to only content assets (exclude source code)
+            // Filter to only installable content assets (exclude source code and formats
+            // needing external tooling, which fail with guidance at resolve time instead).
             var contentAssets = latestRelease.Assets
-                .Where(a => !IsSourceCodeAsset(a.Name))
+                .Where(a => !IsSourceCodeAsset(a.Name) && ContentFormatPolicy.IsUnderstoodAsset(a.Name))
                 .ToList();
 
             logger.LogInformation(
@@ -730,40 +772,49 @@ public partial class GitHubTopicsDiscoverer(
                 results.Add(assetResult);
             }
 
-            // Stamp variant group info on all sibling cards so the downloads browser
-            // collapses them into a single card with a variant picker.
-            var variantGroupId = $"github.{repo.Owner.Login}.{repo.Name}.{latestRelease.TagName}";
-            var variantFamilyName = repo.Name;
-            var variantList = results
-                .Select(r => new ContentVariantInfo
-                {
-                    Id = r.Id,
-                    Name = r.Name,
-                    ManifestId = r.Id,
-                    VariantType = InferVariantType(r),
-                    IsDefault = false,
-                    TargetGame = r.TargetGame,
-                })
-                .ToList();
-
-            // Mark the best default variant so the downloads browser pre-selects it.
-            // Priority: preferred resolution (1080p) > English language > last variant
-            // (most recently published / highest version when assets are listed in order).
-            MarkDefaultVariant(variantList);
-
-            foreach (var r in results)
+            // Stamp variant group info on sibling cards so the downloads browser
+            // collapses them into a single card with a variant picker. Siblings of
+            // different content types (client versus patch/mod) form separate groups
+            // so a client is never offered as a variant of a patch.
+            var siblingsByType = results.GroupBy(r => r.ContentType).ToList();
+            foreach (var typeGroup in siblingsByType)
             {
-                r.VariantGroupId = variantGroupId;
-                r.VariantFamilyName = variantFamilyName;
-                r.Variants = variantList.Select(v => new ContentVariantInfo
+                var suffix = siblingsByType.Count > 1
+                    ? $".{typeGroup.Key.ToString().ToLowerInvariant()}"
+                    : string.Empty;
+                var variantGroupId = $"github.{repo.Owner.Login}.{repo.Name}.{latestRelease.TagName}{suffix}";
+                var variantFamilyName = repo.Name;
+                var variantList = typeGroup
+                    .Select(r => new ContentVariantInfo
+                    {
+                        Id = r.Id,
+                        Name = r.Name,
+                        ManifestId = r.Id,
+                        VariantType = InferVariantType(r),
+                        IsDefault = false,
+                        TargetGame = r.TargetGame,
+                    })
+                    .ToList();
+
+                // Mark the best default variant so the downloads browser pre-selects it.
+                // Priority: preferred resolution (1080p) > English language > last variant
+                // (most recently published / highest version when assets are listed in order).
+                MarkDefaultVariant(variantList);
+
+                foreach (var r in typeGroup)
                 {
-                    Id = v.Id,
-                    Name = v.Name,
-                    ManifestId = v.ManifestId,
-                    VariantType = v.VariantType,
-                    IsDefault = v.IsDefault,
-                    TargetGame = v.TargetGame,
-                }).ToList();
+                    r.VariantGroupId = variantGroupId;
+                    r.VariantFamilyName = variantFamilyName;
+                    r.Variants = variantList.Select(v => new ContentVariantInfo
+                    {
+                        Id = v.Id,
+                        Name = v.Name,
+                        ManifestId = v.ManifestId,
+                        VariantType = v.VariantType,
+                        IsDefault = v.IsDefault,
+                        TargetGame = v.TargetGame,
+                    }).ToList();
+                }
             }
         }
         else
@@ -785,21 +836,10 @@ public partial class GitHubTopicsDiscoverer(
         GitHubReleaseAsset asset,
         string sourceTopic)
     {
-        // Infer content type from topics first, then fall back to name-based inference
-        var (contentType, isTypeInferred) = GitHubInferenceHelper.InferContentTypeFromTopics(repo.Topics);
-        if (isTypeInferred)
-        {
-            var nameInference = GitHubInferenceHelper.InferContentType(repo.Name, release.Name);
-            contentType = nameInference.Type;
-        }
-
-        // Infer game type
-        var (gameType, isGameInferred) = GitHubInferenceHelper.InferGameTypeFromTopics(repo.Topics);
-        if (isGameInferred)
-        {
-            var nameInference = GitHubInferenceHelper.InferTargetGame(repo.Name, release.Name);
-            gameType = nameInference.Type;
-        }
+        // Infer release types, then downgrade per asset: a client release carrying a
+        // patch/mod asset yields a Patch/Mod card for that asset, never the reverse.
+        var (contentType, isTypeInferred, gameType, isGameInferred) = InferReleaseTypes(repo, release);
+        contentType = GitHubInferenceHelper.DowngradeClientTypeForAsset(contentType, asset.Name);
 
         // Extract asset variant name (e.g., "English" from "0_ImprovedMenusEnglish.big")
         var assetVariant = ExtractAssetVariant(asset.Name);
@@ -883,21 +923,8 @@ public partial class GitHubTopicsDiscoverer(
         GitHubRelease? latestRelease,
         string sourceTopic)
     {
-        // Infer content type from topics first, then fall back to name-based inference
-        var (contentType, isTypeInferred) = GitHubInferenceHelper.InferContentTypeFromTopics(repo.Topics);
-        if (isTypeInferred)
-        {
-            var nameInference = GitHubInferenceHelper.InferContentType(repo.Name, latestRelease?.Name);
-            contentType = nameInference.Type;
-        }
-
-        // Infer game type
-        var (gameType, isGameInferred) = GitHubInferenceHelper.InferGameTypeFromTopics(repo.Topics);
-        if (isGameInferred)
-        {
-            var nameInference = GitHubInferenceHelper.InferTargetGame(repo.Name, latestRelease?.Name);
-            gameType = nameInference.Type;
-        }
+        // Infer content and game types from topics with name fallback.
+        var (contentType, isTypeInferred, gameType, isGameInferred) = InferReleaseTypes(repo, latestRelease);
 
         // Generate manifest ID
         var version = latestRelease?.TagName ?? "latest";

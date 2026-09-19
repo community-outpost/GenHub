@@ -126,6 +126,9 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
+                // 0. Dereference symlinks so hashing, detection, and CAS see real files
+                DereferenceSymbolicLinks(extractedDirectory, logger);
+
                 // 1. Purge system junk files and folders
                 PurgeSystemJunk(extractedDirectory);
 
@@ -282,6 +285,53 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
     }
 
     /// <summary>
+    /// Replaces file symlinks with copies of their targets and removes links that dangle
+    /// or escape the payload, so downstream hashing, entry detection, and CAS ingestion
+    /// operate on real files. Directory symlinks resolving inside the payload are kept
+    /// because bundle layouts address content through them at runtime.
+    /// </summary>
+    /// <param name="root">The payload root.</param>
+    /// <param name="logger">Optional logger instance.</param>
+    /// <returns>The number of links replaced or removed.</returns>
+    internal static int DereferenceSymbolicLinks(string root, ILogger? logger = null)
+    {
+        var handled = 0;
+        var rootFull = Path.GetFullPath(root);
+        var visited = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { rootFull };
+        var pending = new Stack<string>();
+        pending.Push(rootFull);
+
+        while (pending.Count > 0)
+        {
+            var current = pending.Pop();
+            string[] entries;
+            try
+            {
+                entries = Directory.GetFileSystemEntries(current);
+            }
+            catch
+            {
+                continue;
+            }
+
+            foreach (var entry in entries)
+            {
+                if (TryDereferenceLink(entry, rootFull, pending, visited, logger, out var changed) && changed)
+                {
+                    handled++;
+                }
+            }
+        }
+
+        if (handled > 0)
+        {
+            logger?.LogInformation("Dereferenced {Count} symlink(s) in payload {Root}", handled, root);
+        }
+
+        return handled;
+    }
+
+    /// <summary>
     /// Validates that an archive payload file exists, is non-empty, and does not contain HTML error text.
     /// </summary>
     /// <param name="archivePath">Path to the archive file.</param>
@@ -310,6 +360,131 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
             var preview = ReadTextPreview(archivePath, maxChars: 120);
             throw new InvalidDataException(
                 $"Downloaded file is HTML, not an archive (likely a broken download URL or HTTP error page): {archivePath}. Preview: {preview}");
+        }
+    }
+
+    private static bool TryDereferenceLink(
+        string entry,
+        string rootFull,
+        Stack<string> pending,
+        HashSet<string> visited,
+        ILogger? logger,
+        out bool changed)
+    {
+        changed = false;
+
+        FileAttributes attributes;
+        try
+        {
+            attributes = File.GetAttributes(entry);
+        }
+        catch
+        {
+            return false;
+        }
+
+        var isDirectory = attributes.HasFlag(FileAttributes.Directory);
+        if (!attributes.HasFlag(FileAttributes.ReparsePoint))
+        {
+            if (isDirectory)
+            {
+                var full = Path.GetFullPath(entry);
+                if (visited.Add(full))
+                {
+                    pending.Push(full);
+                }
+            }
+
+            return true;
+        }
+
+        string? target;
+        try
+        {
+            FileSystemInfo info = isDirectory ? new DirectoryInfo(entry) : new FileInfo(entry);
+            target = info.LinkTarget;
+        }
+        catch
+        {
+            return false;
+        }
+
+        if (string.IsNullOrEmpty(target))
+        {
+            return true;
+        }
+
+        var entryDirectory = Path.GetDirectoryName(entry) ?? rootFull;
+        string targetFull;
+        try
+        {
+            targetFull = Path.GetFullPath(Path.Combine(entryDirectory, target));
+        }
+        catch
+        {
+            return false;
+        }
+
+        var inside = targetFull.Equals(rootFull, StringComparison.OrdinalIgnoreCase)
+            || targetFull.StartsWith(rootFull + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase);
+        if (!inside)
+        {
+            DeleteLink(entry, isDirectory, logger);
+            changed = true;
+            return true;
+        }
+
+        if (isDirectory)
+        {
+            // Kept: bundle layouts resolve content through interior directory links.
+            if (!Directory.Exists(targetFull) && !File.Exists(targetFull))
+            {
+                DeleteLink(entry, isDirectory: true, logger);
+                changed = true;
+            }
+
+            return true;
+        }
+
+        if (!File.Exists(targetFull))
+        {
+            DeleteLink(entry, isDirectory: false, logger);
+            changed = true;
+            return true;
+        }
+
+        try
+        {
+            File.Delete(entry);
+            File.Copy(targetFull, entry);
+            changed = true;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
+        {
+            logger?.LogDebug(ex, "Failed to dereference symlink {Entry}", entry);
+        }
+
+        return true;
+    }
+
+    private static void DeleteLink(string entry, bool isDirectory, ILogger? logger)
+    {
+        try
+        {
+            if (isDirectory)
+            {
+                Directory.Delete(entry, recursive: false);
+            }
+            else
+            {
+                File.Delete(entry);
+            }
+
+            logger?.LogDebug("Removed {Kind} symlink {Entry} escaping or dangling outside the payload", isDirectory ? "directory" : "file", entry);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
+        {
+            logger?.LogDebug(ex, "Failed to remove symlink {Entry}", entry);
         }
     }
 

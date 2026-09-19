@@ -1,9 +1,11 @@
 using GenHub.Core.Constants;
+using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
+using GenHub.Core.Utilities;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
@@ -85,10 +87,8 @@ public class GitHubManifestFactory(
             // Compute hash for ContentAddressable storage
             string fileHash = await hashProvider.ComputeFileHashAsync(filePath, cancellationToken);
 
-            // Determine if executable (simple heuristic for now, can be improved)
-            bool isExecutable = filePath.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) ||
-                                filePath.EndsWith(".bat", StringComparison.OrdinalIgnoreCase) ||
-                                filePath.EndsWith(".cmd", StringComparison.OrdinalIgnoreCase);
+            // Classify from content: extensionless native binaries count, libraries do not.
+            bool isExecutable = ExecutableFileClassifier.RequiresExecutePermission(relativePath, filePath);
 
             var installTarget = originalManifest.ContentType switch
             {
@@ -132,6 +132,13 @@ public class GitHubManifestFactory(
             RequiredDirectories = originalManifest.RequiredDirectories,
             InstallationInstructions = originalManifest.InstallationInstructions,
         };
+
+        var entryResult = ManifestEntryPointHelper.BakeEntryPoint(manifest, extractedDirectory);
+        if (!entryResult.Success)
+        {
+            logger.LogWarning("Refusing game client manifest without a launch entry: {Error}", entryResult.FirstError);
+            return OperationResult<List<ContentManifest>>.CreateFailure(entryResult.FirstError ?? "Unable to determine the launch entry.");
+        }
 
         return OperationResult<List<ContentManifest>>.CreateSuccess([manifest]);
     }

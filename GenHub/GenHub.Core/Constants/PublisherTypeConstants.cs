@@ -78,6 +78,12 @@ public static class PublisherTypeConstants
     /// <summary>Legacy alias for The Super Hackers community publisher.</summary>
     public const string LegacySuperHackers = "superhackers";
 
+    /// <summary>Okladnoj macOS client publisher.</summary>
+    public const string Okladnoj = "okladnoj";
+
+    /// <summary>GeneralsX community client publisher.</summary>
+    public const string GeneralsX = "generalsx";
+
     /// <summary>CNC Labs community site.</summary>
     public const string CncLabs = "cnclabs";
 
