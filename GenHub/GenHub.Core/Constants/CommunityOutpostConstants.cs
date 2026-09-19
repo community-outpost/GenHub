@@ -199,12 +199,6 @@ public static class CommunityOutpostConstants
     /// <summary>Keyword identifying nonretail builds.</summary>
     public const string NonRetailKeyword = "nonretail";
 
-    /// <summary>Directory name suffix identifying Generals content.</summary>
-    public const string GeneralsDirectorySuffix = "CG";
-
-    /// <summary>Directory name suffix identifying Zero Hour content.</summary>
-    public const string ZeroHourDirectorySuffix = "ZH";
-
     /// <summary>
     /// Tags associated with the patch content.
     /// </summary>
