@@ -14,6 +14,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Globalization;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -114,7 +115,8 @@ public partial class GameProfileSettingsViewModel
         {
             _logger?.LogError(ex, "Error loading available content");
             StatusMessage = "Error loading content";
-            _notificationService?.ShowError("Error loading content", ex.Message);
+            var title = _localizationService?.GetString("GameProfiles.Notification.ErrorLoadingContent.Title") ?? "Error loading content";
+            _notificationService?.ShowError(title, ex.Message);
         }
         finally
         {
@@ -937,8 +939,12 @@ public partial class GameProfileSettingsViewModel
     {
         if (!isProfileRunning || _profileContentLinker == null || _manifestPool == null || string.IsNullOrEmpty(CurrentProfileId))
         {
-            StatusMessage = $"Failed to update profile: {string.Join(", ", result.Errors)}";
-            _logger?.LogWarning("Failed to update profile {ProfileId}: {Errors}", CurrentProfileId, string.Join(", ", result.Errors));
+            var errors = string.Join(", ", result.Errors);
+            StatusMessage = $"Failed to update profile: {errors}";
+            _logger?.LogWarning("Failed to update profile {ProfileId}: {Errors}", CurrentProfileId, errors);
+            var title = _localizationService?.GetString("GameProfiles.Notification.ErrorLoadingProfile.Title") ?? "Error loading profile";
+            var msgFormat = _localizationService?.GetString("GameProfiles.Notification.ProfileUpdateFailedMessage") ?? "Failed to update profile: {0}";
+            _notificationService?.ShowError(title, string.Format(CultureInfo.CurrentCulture, msgFormat, errors));
             return;
         }
 

@@ -1,6 +1,8 @@
 using GenHub.Core.Constants;
 using GenHub.Core.Extensions;
+using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GameSettings;
+using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameClients;
 using GenHub.Core.Models.GameProfile;
@@ -1168,6 +1170,85 @@ public class GameSettingsViewModelTests
         Assert.True(savedOptions.AdditionalSections.TryGetValue(GameSettingsTheSuperHackersConstants.SectionName, out var tsh));
         Assert.True(tsh.TryGetValue("GameTimeFontSize", out var syncedFontSize));
         Assert.Equal("18", syncedFontSize);
+    }
+
+    /// <summary>
+    /// Should show warning notification using localized strings when initializing with unknown game type.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task InitializeForProfileAsync_Should_ShowWarningNotification_WhenGameTypeIsUnknownAsync()
+    {
+        // Arrange
+        var notificationMock = new Mock<INotificationService>();
+        var localizationMock = new Mock<ILocalizationService>();
+        localizationMock.Setup(l => l.GetString("GameSettings.Notification.SettingsWarning")).Returns("Settings Warning");
+        localizationMock.Setup(l => l.GetString("GameSettings.Notification.UnknownGameType")).Returns("Cannot load settings for unknown game type");
+
+        var vm = new GameSettingsViewModel(_gameSettingsServiceMock.Object, _loggerMock.Object, notificationMock.Object, localizationMock.Object);
+        var profile = new GameProfile
+        {
+            Id = "unknown-profile",
+            Name = "Unknown Profile",
+            GameClient = new GameClient { GameType = GameType.Unknown },
+        };
+
+        // Act
+        await vm.InitializeForProfileAsync("unknown-profile", profile);
+
+        // Assert
+        notificationMock.Verify(n => n.ShowWarning("Settings Warning", "Cannot load settings for unknown game type", It.IsAny<int?>(), It.IsAny<bool>()), Times.Once);
+    }
+
+    /// <summary>
+    /// Should show warning notification using localized strings when loading settings fails.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task LoadSettings_Should_ShowWarningNotification_WhenLoadFailsAsync()
+    {
+        // Arrange
+        var notificationMock = new Mock<INotificationService>();
+        var localizationMock = new Mock<ILocalizationService>();
+        localizationMock.Setup(l => l.GetString("GameSettings.Notification.SettingsWarning")).Returns("Settings Warning");
+        localizationMock.Setup(l => l.GetString("GameSettings.Status.LoadFailed", "File corrupt")).Returns("Failed to load settings: File corrupt");
+
+        _gameSettingsServiceMock.Setup(x => x.LoadOptionsAsync(GameType.Generals))
+            .ReturnsAsync(OperationResult<IniOptions>.CreateFailure("File corrupt"));
+
+        var vm = new GameSettingsViewModel(_gameSettingsServiceMock.Object, _loggerMock.Object, notificationMock.Object, localizationMock.Object);
+        vm.SelectedGameType = GameType.Generals;
+
+        // Act
+        await vm.LoadSettingsCommand.ExecuteAsync(null);
+
+        // Assert
+        notificationMock.Verify(n => n.ShowWarning("Settings Warning", "Failed to load settings: File corrupt", It.IsAny<int?>(), It.IsAny<bool>()), Times.Once);
+    }
+
+    /// <summary>
+    /// Should show error notification using localized strings when saving settings fails.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task SaveSettings_Should_ShowErrorNotification_WhenSaveFailsAsync()
+    {
+        // Arrange
+        var notificationMock = new Mock<INotificationService>();
+        var localizationMock = new Mock<ILocalizationService>();
+        localizationMock.Setup(l => l.GetString("GameSettings.Notification.ErrorSavingSettings")).Returns("Error Saving Settings");
+
+        _gameSettingsServiceMock.Setup(x => x.SaveOptionsAsync(GameType.Generals, It.IsAny<IniOptions>()))
+            .ReturnsAsync(OperationResult<bool>.CreateFailure("Disk full"));
+
+        var vm = new GameSettingsViewModel(_gameSettingsServiceMock.Object, _loggerMock.Object, notificationMock.Object, localizationMock.Object);
+        vm.SelectedGameType = GameType.Generals;
+
+        // Act
+        await vm.SaveSettingsCommand.ExecuteAsync(null);
+
+        // Assert
+        notificationMock.Verify(n => n.ShowError("Error Saving Settings", "Disk full", It.IsAny<int?>(), It.IsAny<bool>()), Times.Once);
     }
 
     private static GameProfile CreateGeneralsOnlineProfile()

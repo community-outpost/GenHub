@@ -8181,4 +8181,52 @@ GenHub هو مشغل ومدير حديث لألعاب **Command &amp; Conquer: G
   <data name="Replays.Tooltip.CopyGenHubLink" xml:space="preserve">
     <value>نسخ رابط GenHub (يفتح GenHub ويستورد تلقائيًا).</value>
   </data>
+  <data name="GameProfiles.Notification.ErrorLoadingContent.Title" xml:space="preserve">
+    <value>خطأ في تحميل المحتوى</value>
+  </data>
+  <data name="GameProfiles.Notification.ErrorLoadingProfile.Title" xml:space="preserve">
+    <value>خطأ في تحميل ملف التعريف</value>
+  </data>
+  <data name="GameProfiles.Notification.ProfileUpdateFailedMessage" xml:space="preserve">
+    <value>فشل تحديث ملف التعريف: {0}</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.CannotSaveOptionsMissingMessage" xml:space="preserve">
+    <value>تعذر تحميل Options.ini وسيؤدي الحفظ إلى استبدال الإعدادات الحالية غير المدارة.</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.CannotSaveSettingsTitle" xml:space="preserve">
+    <value>لا يمكن حفظ الإعدادات</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.DirectoryNotFoundMessage" xml:space="preserve">
+    <value>لم يتم العثور على مجلد ملف الخيارات</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.DirectoryNotFoundTitle" xml:space="preserve">
+    <value>لم يتم العثور على المجلد</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.ErrorLoadingSettingsTitle" xml:space="preserve">
+    <value>خطأ في تحميل الإعدادات</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.ErrorOpeningLocationTitle" xml:space="preserve">
+    <value>خطأ في فتح المسار</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.ErrorSavingSettingsTitle" xml:space="preserve">
+    <value>خطأ في حفظ الإعدادات</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.LoadFailedMessage" xml:space="preserve">
+    <value>فشل في تحميل الإعدادات: {0}</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.PartialSaveGeneralsOnlineOnlyMessage" xml:space="preserve">
+    <value>تم حفظ إعدادات GeneralsOnline؛ لم يتم حفظ Options.ini: {0}</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.PartialSaveOptionsOnlyMessage" xml:space="preserve">
+    <value>تم حفظ Options.ini؛ لم تتم كتابة إعدادات GeneralsOnline: {0}</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.ServiceUnavailableMessage" xml:space="preserve">
+    <value>خدمة إعدادات اللعبة غير متوفرة</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.UnknownGameTypeMessage" xml:space="preserve">
+    <value>لا يمكن تحميل الإعدادات لنوع لعبة غير معروف</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.WarningTitle" xml:space="preserve">
+    <value>تحذير الإعدادات</value>
+  </data>
 </root>
