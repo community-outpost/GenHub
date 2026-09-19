@@ -801,9 +801,9 @@ public class OctokitGitHubApiClient(
             cache.Set(cacheKey, markdown, DefaultCacheDuration);
             return markdown;
         }
-        catch (NotFoundException)
+        catch (NotFoundException ex)
         {
-            logger.LogDebug("Repository {Owner}/{Repo} has no README", owner, repo);
+            logger.LogDebug(ex, "Repository {Owner}/{Repo} has no README", owner, repo);
             cache.Set<string?>(cacheKey, null, DefaultCacheDuration);
             return null;
         }

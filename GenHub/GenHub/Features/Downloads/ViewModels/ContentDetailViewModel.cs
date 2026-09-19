@@ -3497,12 +3497,9 @@ public partial class ContentDetailViewModel(
                         continue;
                     }
 
-                    foreach (var item in group)
+                    foreach (var item in group.Where(item => string.IsNullOrWhiteSpace(item.Row.FullDescription)))
                     {
-                        if (string.IsNullOrWhiteSpace(item.Row.FullDescription))
-                        {
-                            updates.Add((item.Row, body));
-                        }
+                        updates.Add((item.Row, body));
                     }
                 }
 
@@ -4712,12 +4709,20 @@ public partial class ContentDetailViewModel(
     /// <summary>
     /// Pins a GitHub release row to its own asset so acquisition downloads only the clicked
     /// file instead of the full release. Cards that already pin an asset keep their pin.
+    /// Rows whose filename matches no attached asset (such as the legacy source-URL
+    /// fallback row for asset-less releases) are left unpinned.
     /// </summary>
     /// <param name="rowSearchResult">The per-row search result being built.</param>
     /// <param name="file">The row file carrying the release asset filename.</param>
     private void StampGitHubAssetPin(ContentSearchResult rowSearchResult, DownloadableFile file)
     {
-        if (string.IsNullOrWhiteSpace(file.Filename) || searchResult.GetData<GitHubRelease>() == null)
+        var release = searchResult.GetData<GitHubRelease>();
+        if (string.IsNullOrWhiteSpace(file.Filename) || release?.Assets is not { Count: > 0 })
+        {
+            return;
+        }
+
+        if (!release.Assets.Any(asset => string.Equals(asset.Name, file.Filename, StringComparison.OrdinalIgnoreCase)))
         {
             return;
         }

@@ -1439,6 +1439,76 @@ public sealed class ContentDetailViewModelTests
     }
 
     /// <summary>
+    /// Verifies that downloading the legacy fallback row of an asset-less GitHub release
+    /// carries no asset pin, so resolution keeps using the source-URL fallback.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task ReleaseRowDownload_GitHubReleaseWithoutAssets_FallbackRowCarriesNoPinAsync()
+    {
+        // Arrange
+        var release = new GitHubRelease
+        {
+            TagName = "v1.0",
+            Name = "Notes only",
+            Body = "No assets attached",
+            HtmlUrl = "https://github.com/modauthor/coolmod/releases/tag/v1.0",
+            CreatedAt = new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero),
+            Assets = [],
+        };
+
+        var parent = new ContentSearchResult
+        {
+            Id = "github.modauthor.coolmod.v1.0",
+            Name = "coolmod v1.0",
+            Description = "Short repo about text",
+            Version = "v1.0",
+            ContentType = ContentType.Mod,
+            TargetGame = GameType.ZeroHour,
+            ProviderName = "github-topics",
+            AuthorName = "modauthor",
+            RequiresResolution = true,
+            ResolverId = ContentSourceNames.GitHubResolverId,
+            SourceUrl = release.HtmlUrl,
+            LastUpdated = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc),
+        };
+        parent.ResolverMetadata[GitHubConstants.OwnerMetadataKey] = "modauthor";
+        parent.ResolverMetadata[GitHubConstants.RepoMetadataKey] = "coolmod";
+        parent.ResolverMetadata[GitHubConstants.TagMetadataKey] = "v1.0";
+        parent.SetData(release);
+
+        ContentSearchResult? coordinatorInput = null;
+        var coordinator = new Mock<IContentDownloadCoordinator>();
+        coordinator
+            .Setup(c => c.DownloadContentAsync(
+                It.IsAny<ContentSearchResult>(),
+                It.IsAny<IProgress<ContentAcquisitionProgress>>(),
+                It.IsAny<CancellationToken>(),
+                It.IsAny<bool>()))
+            .Callback<ContentSearchResult, IProgress<ContentAcquisitionProgress>?, CancellationToken, bool>(
+                (content, _, _, _) => coordinatorInput = content)
+            .ReturnsAsync(OperationResult<ContentManifest>.CreateSuccess(new ContentManifest
+            {
+                Id = ManifestId.Create("1.20260101.github.mod.coolmod"),
+                Name = "coolmod",
+                ContentType = ContentType.Mod,
+            }));
+
+        var viewModel = CreateViewModel(parent, coordinator.Object);
+        viewModel.Initialize();
+        await viewModel.WaitForInitializationAsync();
+        var row = Assert.Single(viewModel.Releases);
+
+        // Act
+        await Assert.IsAssignableFrom<IAsyncRelayCommand>(row.DownloadCommand).ExecuteAsync(null);
+
+        // Assert
+        Assert.NotNull(coordinatorInput);
+        Assert.False(coordinatorInput.ResolverMetadata.ContainsKey(GitHubConstants.AssetNameMetadataKey));
+        Assert.Equal(parent.SourceUrl, coordinatorInput.SelectedDownloadUrl);
+    }
+
+    /// <summary>
     /// Verifies that downloading a row of an asset-pinned GitHub card keeps the existing pin.
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
