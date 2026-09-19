@@ -237,7 +237,7 @@
                                                 CommandParameter="{Binding}"
                                                 ToolTip.Tip="{Binding RemoveToolTip}">
                                             <StackPanel Spacing="6" HorizontalAlignment="Left" VerticalAlignment="Center">
-                                                <TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold" FontSize="13.5" TextTrimming="CharacterEllipsis" Foreground="{DynamicResource TextPrimary}"/>
+                                                <TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold" FontSize="13.5" TextWrapping="Wrap" Foreground="{DynamicResource TextPrimary}"/>
                                                 <WrapPanel Orientation="Horizontal" Margin="0,0,8,0">
                                                     <Border Background="{DynamicResource AccentBadgeBackgroundBrush}" BorderBrush="{DynamicResource AccentBrush}" BorderThickness="1" CornerRadius="4" Padding="6,2" Margin="0,0,4,4"
                                                             IsVisible="{Binding Publisher, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
@@ -350,7 +350,7 @@
                                                 CommandParameter="{Binding}"
                                                 ToolTip.Tip="{Binding AddToolTip}">
                                             <StackPanel Spacing="6" HorizontalAlignment="Left" VerticalAlignment="Center">
-                                                <TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold" FontSize="13.5" TextTrimming="CharacterEllipsis" Foreground="{DynamicResource TextPrimary}"/>
+                                                <TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold" FontSize="13.5" TextWrapping="Wrap" Foreground="{DynamicResource TextPrimary}"/>
                                                 <WrapPanel Orientation="Horizontal" Margin="0,0,8,0">
                                                     <Border Background="{DynamicResource AccentBadgeBackgroundBrush}" BorderBrush="{DynamicResource AccentBrush}" BorderThickness="1" CornerRadius="4" Padding="6,2" Margin="0,0,4,4"
                                                             IsVisible="{Binding Publisher, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">

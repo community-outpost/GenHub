@@ -8301,6 +8301,10 @@ Do you want to download and inspect this profile package?</value>
   <data name="GameProfiles.Settings.Notification.ErrorOpeningLocationTitle" xml:space="preserve">
     <value>Error Opening Location</value>
   </data>
+  <data name="GameProfiles.Settings.Notification.ErrorOpeningLocationMessage" xml:space="preserve">
+    <value>Failed to open file location</value>
+    <comment>Message for notification when opening file location fails</comment>
+  </data>
   <data name="GameProfiles.Settings.Notification.ErrorSavingSettingsTitle" xml:space="preserve">
     <value>Error Saving Settings</value>
   </data>

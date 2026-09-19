@@ -77,9 +77,9 @@ public partial class GameProfileSettingsViewModel
         catch (Exception ex)
         {
             _logger?.LogError(ex, "Error initializing new profile");
-            StatusMessage = "Error loading content";
+            StatusMessage = DefaultErrorLoadingContent;
             LoadingError = true;
-            var title = _localizationService?.GetString("GameProfiles.Notification.ErrorLoadingContent.Title") ?? "Error loading content";
+            var title = GetErrorLoadingContentTitle();
             _notificationService?.ShowError(title, ex.Message);
         }
         finally
@@ -114,10 +114,10 @@ public partial class GameProfileSettingsViewModel
             if (_gameProfileManager == null)
             {
                 _logger?.LogWarning("Failed to load profile {ProfileId}: GameProfileManager is null", profileId);
-                StatusMessage = "Error loading profile";
+                StatusMessage = DefaultErrorLoadingProfile;
                 LoadingError = true;
-                var title = _localizationService?.GetString("GameProfiles.Notification.ErrorLoadingProfile.Title") ?? "Error loading profile";
-                var message = _localizationService?.GetString("GameProfiles.Settings.Notification.ServiceUnavailableMessage") ?? "Game settings service not available";
+                var title = GetErrorLoadingProfileTitle();
+                var message = GetProfileManagerUnavailableMessage();
                 _notificationService?.ShowError(title, message);
                 return;
             }
@@ -128,7 +128,7 @@ public partial class GameProfileSettingsViewModel
                 _logger?.LogWarning("Failed to load profile {ProfileId}: {Errors}", profileId, string.Join(", ", profileResult.Errors));
                 StatusMessage = "Failed to load profile";
                 LoadingError = true;
-                var title = _localizationService?.GetString("GameProfiles.Notification.ErrorLoadingProfile.Title") ?? "Error loading profile";
+                var title = GetErrorLoadingProfileTitle();
                 var errors = string.Join(", ", profileResult.Errors);
                 if (string.IsNullOrWhiteSpace(errors))
                 {
@@ -169,9 +169,9 @@ public partial class GameProfileSettingsViewModel
         catch (Exception ex)
         {
             _logger?.LogError(ex, "Error initializing profile {ProfileId}", profileId);
-            StatusMessage = "Error loading profile";
+            StatusMessage = DefaultErrorLoadingProfile;
             LoadingError = true;
-            var title = _localizationService?.GetString("GameProfiles.Notification.ErrorLoadingProfile.Title") ?? "Error loading profile";
+            var title = GetErrorLoadingProfileTitle();
             _notificationService?.ShowError(title, ex.Message);
         }
         finally

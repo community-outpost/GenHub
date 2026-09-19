@@ -54,6 +54,22 @@ public partial class GameSettingsViewModel(
     private const int MinNumSounds = GameSettingsConstants.Audio.MinNumSounds;
     private const int MaxNumSounds = GameSettingsConstants.Audio.MaxNumSounds;
 
+    // Notification and localization constants
+    private const string WarningTitleKey = "GameProfiles.Settings.Notification.WarningTitle";
+    private const string DefaultWarningTitle = "Settings Warning";
+    private const string ServiceUnavailableMessageKey = "GameProfiles.Settings.Notification.ServiceUnavailableMessage";
+    private const string DefaultServiceUnavailableMessage = "Game settings service not available";
+    private const string UnknownGameTypeMessageKey = "GameProfiles.Settings.Notification.UnknownGameTypeMessage";
+    private const string DefaultUnknownGameTypeMessage = "Cannot load settings for unknown game type";
+    private const string ErrorLoadingSettingsTitleKey = "GameProfiles.Settings.Notification.ErrorLoadingSettingsTitle";
+    private const string DefaultErrorLoadingSettingsTitle = "Error Loading Settings";
+    private const string ErrorSavingSettingsTitleKey = "GameProfiles.Settings.Notification.ErrorSavingSettingsTitle";
+    private const string DefaultErrorSavingSettingsTitle = "Error Saving Settings";
+    private const string ErrorOpeningLocationTitleKey = "GameProfiles.Settings.Notification.ErrorOpeningLocationTitle";
+    private const string DefaultErrorOpeningLocationTitle = "Error Opening Location";
+    private const string ErrorOpeningLocationMessageKey = "GameProfiles.Settings.Notification.ErrorOpeningLocationMessage";
+    private const string DefaultErrorOpeningLocationMessage = "Failed to open file location";
+
     private static bool ParseBool(string value) =>
         value.Equals("yes", StringComparison.OrdinalIgnoreCase) ||
         value.Equals("true", StringComparison.OrdinalIgnoreCase) ||
@@ -628,8 +644,8 @@ public partial class GameSettingsViewModel(
                 logger.LogWarning("Cannot initialize settings for profile {Id} with Unknown game type", profile.Id);
                 SelectedGameType = GameType.Unknown;
                 StatusMessage = "Profile has an unknown game type. Settings cannot be loaded.";
-                var title = localizationService?.GetString("GameProfiles.Settings.Notification.WarningTitle") ?? "Settings Warning";
-                var message = localizationService?.GetString("GameProfiles.Settings.Notification.UnknownGameTypeMessage") ?? "Cannot load settings for unknown game type";
+                var title = GetWarningTitle();
+                var message = GetUnknownGameTypeMessage();
                 notificationService?.ShowWarning(title, message);
                 return false;
             }
@@ -716,16 +732,16 @@ public partial class GameSettingsViewModel(
     {
         if (gameSettingsService == null)
         {
-            var title = localizationService?.GetString("GameProfiles.Settings.Notification.WarningTitle") ?? "Settings Warning";
-            var message = localizationService?.GetString("GameProfiles.Settings.Notification.ServiceUnavailableMessage") ?? "Game settings service not available";
+            var title = GetWarningTitle();
+            var message = GetServiceUnavailableMessage();
             notificationService?.ShowWarning(title, message);
             return false;
         }
 
         if (gameType == GameType.Unknown)
         {
-            var title = localizationService?.GetString("GameProfiles.Settings.Notification.WarningTitle") ?? "Settings Warning";
-            var message = localizationService?.GetString("GameProfiles.Settings.Notification.UnknownGameTypeMessage") ?? "Cannot load settings for unknown game type";
+            var title = GetWarningTitle();
+            var message = GetUnknownGameTypeMessage();
             notificationService?.ShowWarning(title, message);
             return false;
         }
@@ -758,7 +774,7 @@ public partial class GameSettingsViewModel(
             _currentOptions = null;
             StatusMessage = $"Failed to load settings: {string.Join(", ", errors)}";
             logger.LogWarning("Failed to load Options.ini for {GameType}: {Errors}", gameType, string.Join(", ", errors));
-            var title = localizationService?.GetString("GameProfiles.Settings.Notification.WarningTitle") ?? "Settings Warning";
+            var title = GetWarningTitle();
             var msgFormat = localizationService?.GetString("GameProfiles.Settings.Notification.LoadFailedMessage") ?? "Failed to load settings: {0}";
             notificationService?.ShowWarning(title, string.Format(CultureInfo.CurrentCulture, msgFormat, string.Join(", ", errors)));
             return false;
@@ -773,7 +789,7 @@ public partial class GameSettingsViewModel(
             _currentOptions = null;
             logger.LogError(ex, "Error loading Options.ini for {GameType}", gameType);
             StatusMessage = $"Error loading settings: {ex.Message}";
-            var title = localizationService?.GetString("GameProfiles.Settings.Notification.ErrorLoadingSettingsTitle") ?? "Error Loading Settings";
+            var title = GetErrorLoadingSettingsTitle();
             notificationService?.ShowError(title, ex.Message);
             return false;
         }
@@ -792,9 +808,9 @@ public partial class GameSettingsViewModel(
 
             if (gameSettingsService == null)
             {
-                StatusMessage = "Game settings service not available";
-                var title = localizationService?.GetString("GameProfiles.Settings.Notification.WarningTitle") ?? "Settings Warning";
-                var message = localizationService?.GetString("GameProfiles.Settings.Notification.ServiceUnavailableMessage") ?? "Game settings service not available";
+                StatusMessage = DefaultServiceUnavailableMessage;
+                var title = GetWarningTitle();
+                var message = GetServiceUnavailableMessage();
                 notificationService?.ShowWarning(title, message);
                 return;
             }
@@ -803,8 +819,8 @@ public partial class GameSettingsViewModel(
             {
                 StatusMessage = "Cannot load settings: Game type is Unknown";
                 logger.LogWarning("LoadSettings called with Unknown GameType");
-                var title = localizationService?.GetString("GameProfiles.Settings.Notification.WarningTitle") ?? "Settings Warning";
-                var message = localizationService?.GetString("GameProfiles.Settings.Notification.UnknownGameTypeMessage") ?? "Cannot load settings for unknown game type";
+                var title = GetWarningTitle();
+                var message = GetUnknownGameTypeMessage();
                 notificationService?.ShowWarning(title, message);
                 return;
             }
@@ -849,7 +865,7 @@ public partial class GameSettingsViewModel(
         {
             logger.LogError(ex, "Error loading settings for {GameType}", SelectedGameType);
             StatusMessage = $"Error loading settings: {ex.Message}";
-            var title = localizationService?.GetString("GameProfiles.Settings.Notification.ErrorLoadingSettingsTitle") ?? "Error Loading Settings";
+            var title = GetErrorLoadingSettingsTitle();
             notificationService?.ShowError(title, ex.Message);
         }
         finally
@@ -1052,9 +1068,9 @@ public partial class GameSettingsViewModel(
     {
         if (gameSettingsService == null)
         {
-            StatusMessage = "Game settings service not available";
-            var title = localizationService?.GetString("GameProfiles.Settings.Notification.WarningTitle") ?? "Settings Warning";
-            var message = localizationService?.GetString("GameProfiles.Settings.Notification.ServiceUnavailableMessage") ?? "Game settings service not available";
+            StatusMessage = DefaultServiceUnavailableMessage;
+            var title = GetWarningTitle();
+            var message = GetServiceUnavailableMessage();
             notificationService?.ShowWarning(title, message);
             return;
         }
@@ -1142,7 +1158,7 @@ public partial class GameSettingsViewModel(
                 var goErrors = string.Join(", ", generalsOnlineErrors);
                 StatusMessage = $"Options.ini saved; GeneralsOnline settings not written: {goErrors}";
                 logger.LogWarning("Saved Options.ini for {GameType} but did not write GeneralsOnline settings: {Errors}", SelectedGameType, goErrors);
-                var title = localizationService?.GetString("GameProfiles.Settings.Notification.WarningTitle") ?? "Settings Warning";
+                var title = GetWarningTitle();
                 var msgFormat = localizationService?.GetString("GameProfiles.Settings.Notification.PartialSaveOptionsOnlyMessage") ?? "Options.ini saved; GeneralsOnline settings not written: {0}";
                 notificationService?.ShowWarning(title, string.Format(CultureInfo.CurrentCulture, msgFormat, goErrors));
             }
@@ -1151,7 +1167,7 @@ public partial class GameSettingsViewModel(
                 var iniErrors = string.Join(", ", optionsErrors);
                 StatusMessage = $"GeneralsOnline settings saved; Options.ini not saved: {iniErrors}";
                 logger.LogWarning("Wrote GeneralsOnline settings but failed to save Options.ini for {GameType}: {Errors}", SelectedGameType, iniErrors);
-                var title = localizationService?.GetString("GameProfiles.Settings.Notification.WarningTitle") ?? "Settings Warning";
+                var title = GetWarningTitle();
                 var msgFormat = localizationService?.GetString("GameProfiles.Settings.Notification.PartialSaveGeneralsOnlineOnlyMessage") ?? "GeneralsOnline settings saved; Options.ini not saved: {0}";
                 notificationService?.ShowWarning(title, string.Format(CultureInfo.CurrentCulture, msgFormat, iniErrors));
             }
@@ -1160,7 +1176,7 @@ public partial class GameSettingsViewModel(
                 var errors = string.Join(", ", optionsErrors.Concat(generalsOnlineErrors));
                 StatusMessage = $"Failed to save settings: {errors}";
                 logger.LogWarning("Failed to save settings: {Errors}", errors);
-                var title = localizationService?.GetString("GameProfiles.Settings.Notification.ErrorSavingSettingsTitle") ?? "Error Saving Settings";
+                var title = GetErrorSavingSettingsTitle();
                 notificationService?.ShowError(title, errors);
             }
         }
@@ -1168,7 +1184,7 @@ public partial class GameSettingsViewModel(
         {
             logger.LogError(ex, "Error saving settings for {GameType}", SelectedGameType);
             StatusMessage = $"Error saving settings: {ex.Message}";
-            var title = localizationService?.GetString("GameProfiles.Settings.Notification.ErrorSavingSettingsTitle") ?? "Error Saving Settings";
+            var title = GetErrorSavingSettingsTitle();
             notificationService?.ShowError(title, ex.Message);
         }
         finally
@@ -1245,8 +1261,9 @@ public partial class GameSettingsViewModel(
         {
             logger.LogError(ex, "Error opening file location");
             StatusMessage = $"Error opening location: {ex.Message}";
-            var title = localizationService?.GetString("GameProfiles.Settings.Notification.ErrorOpeningLocationTitle") ?? "Error Opening Location";
-            notificationService?.ShowError(title, ex.Message);
+            var title = GetErrorOpeningLocationTitle();
+            var message = GetErrorOpeningLocationMessage();
+            notificationService?.ShowError(title, message);
         }
     }
 
@@ -1296,7 +1313,7 @@ public partial class GameSettingsViewModel(
             {
                 logger.LogError(ex, "Failed to load settings for {GameType}", value);
                 StatusMessage = $"Error loading settings: {ex.Message}";
-                var title = localizationService?.GetString("GameProfiles.Settings.Notification.ErrorLoadingSettingsTitle") ?? "Error Loading Settings";
+                var title = GetErrorLoadingSettingsTitle();
                 notificationService?.ShowError(title, ex.Message);
             }
         });
@@ -1657,4 +1674,25 @@ public partial class GameSettingsViewModel(
         settings.Social.NotificationPlayerSendsRequestGameplay = GoSocialNotificationPlayerSendsRequestGameplay;
         settings.Social.NotificationPlayerSendsRequestMenus = GoSocialNotificationPlayerSendsRequestMenus;
     }
+
+    private string GetWarningTitle() =>
+        localizationService?.GetString(WarningTitleKey) ?? DefaultWarningTitle;
+
+    private string GetServiceUnavailableMessage() =>
+        localizationService?.GetString(ServiceUnavailableMessageKey) ?? DefaultServiceUnavailableMessage;
+
+    private string GetUnknownGameTypeMessage() =>
+        localizationService?.GetString(UnknownGameTypeMessageKey) ?? DefaultUnknownGameTypeMessage;
+
+    private string GetErrorLoadingSettingsTitle() =>
+        localizationService?.GetString(ErrorLoadingSettingsTitleKey) ?? DefaultErrorLoadingSettingsTitle;
+
+    private string GetErrorSavingSettingsTitle() =>
+        localizationService?.GetString(ErrorSavingSettingsTitleKey) ?? DefaultErrorSavingSettingsTitle;
+
+    private string GetErrorOpeningLocationTitle() =>
+        localizationService?.GetString(ErrorOpeningLocationTitleKey) ?? DefaultErrorOpeningLocationTitle;
+
+    private string GetErrorOpeningLocationMessage() =>
+        localizationService?.GetString(ErrorOpeningLocationMessageKey) ?? DefaultErrorOpeningLocationMessage;
 }

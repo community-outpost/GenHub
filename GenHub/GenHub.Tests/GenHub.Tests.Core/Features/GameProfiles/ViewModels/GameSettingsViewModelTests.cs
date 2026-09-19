@@ -1182,8 +1182,8 @@ public class GameSettingsViewModelTests
         // Arrange
         var notificationMock = new Mock<INotificationService>();
         var localizationMock = new Mock<ILocalizationService>();
-        localizationMock.Setup(l => l.GetString("GameSettings.Notification.SettingsWarning")).Returns("Settings Warning");
-        localizationMock.Setup(l => l.GetString("GameSettings.Notification.UnknownGameType")).Returns("Cannot load settings for unknown game type");
+        localizationMock.Setup(l => l.GetString("GameProfiles.Settings.Notification.WarningTitle")).Returns("Settings Warning");
+        localizationMock.Setup(l => l.GetString("GameProfiles.Settings.Notification.UnknownGameTypeMessage")).Returns("Cannot load settings for unknown game type");
 
         var vm = new GameSettingsViewModel(_gameSettingsServiceMock.Object, _loggerMock.Object, notificationMock.Object, localizationMock.Object);
         var profile = new GameProfile
@@ -1210,8 +1210,8 @@ public class GameSettingsViewModelTests
         // Arrange
         var notificationMock = new Mock<INotificationService>();
         var localizationMock = new Mock<ILocalizationService>();
-        localizationMock.Setup(l => l.GetString("GameSettings.Notification.SettingsWarning")).Returns("Settings Warning");
-        localizationMock.Setup(l => l.GetString("GameSettings.Status.LoadFailed", "File corrupt")).Returns("Failed to load settings: File corrupt");
+        localizationMock.Setup(l => l.GetString("GameProfiles.Settings.Notification.WarningTitle")).Returns("Settings Warning");
+        localizationMock.Setup(l => l.GetString("GameProfiles.Settings.Notification.LoadFailedMessage")).Returns("Failed to load settings: {0}");
 
         _gameSettingsServiceMock.Setup(x => x.LoadOptionsAsync(GameType.Generals))
             .ReturnsAsync(OperationResult<IniOptions>.CreateFailure("File corrupt"));
@@ -1236,7 +1236,7 @@ public class GameSettingsViewModelTests
         // Arrange
         var notificationMock = new Mock<INotificationService>();
         var localizationMock = new Mock<ILocalizationService>();
-        localizationMock.Setup(l => l.GetString("GameSettings.Notification.ErrorSavingSettings")).Returns("Error Saving Settings");
+        localizationMock.Setup(l => l.GetString("GameProfiles.Settings.Notification.ErrorSavingSettingsTitle")).Returns("Error Saving Settings");
 
         _gameSettingsServiceMock.Setup(x => x.SaveOptionsAsync(GameType.Generals, It.IsAny<IniOptions>()))
             .ReturnsAsync(OperationResult<bool>.CreateFailure("Disk full"));

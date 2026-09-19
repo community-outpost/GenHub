@@ -8208,6 +8208,10 @@ GenHub هو مشغل ومدير حديث لألعاب **Command &amp; Conquer: G
   <data name="GameProfiles.Settings.Notification.ErrorOpeningLocationTitle" xml:space="preserve">
     <value>خطأ في فتح المسار</value>
   </data>
+  <data name="GameProfiles.Settings.Notification.ErrorOpeningLocationMessage" xml:space="preserve">
+    <value>فشل في فتح موقع الملف</value>
+    <comment>Message for notification when opening file location fails</comment>
+  </data>
   <data name="GameProfiles.Settings.Notification.ErrorSavingSettingsTitle" xml:space="preserve">
     <value>خطأ في حفظ الإعدادات</value>
   </data>
