@@ -6,11 +6,13 @@ using GenHub.Core.Interfaces.GitHub;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Interfaces.Parsers;
 using GenHub.Core.Interfaces.Providers;
+using GenHub.Core.Interfaces.Publishers;
 using GenHub.Core.Interfaces.Storage;
 using GenHub.Core.Interfaces.Tools;
 using GenHub.Core.Services.Content;
 using GenHub.Core.Services.Providers;
 using GenHub.Core.Services.Providers.VersionSchemes;
+using GenHub.Core.Services.Publishers;
 using GenHub.Features.Content.Services;
 using GenHub.Features.Content.Services.Catalog;
 using GenHub.Features.Content.Services.Common;
@@ -52,6 +54,8 @@ namespace GenHub.Infrastructure.DependencyInjection;
 /// </summary>
 public static class ContentPipelineModule
 {
+    private const string UserAgentHeader = "User-Agent";
+
     /// <summary>
     /// Registers content pipeline services for dependency injection.
     /// </summary>
@@ -210,6 +214,9 @@ public static class ContentPipelineModule
 
         // User-followed GenHub catalogs (catalog-direct now; definition URLs via Publisher Studio later)
         services.AddSingleton<IPublisherSubscriptionStore, PublisherSubscriptionStore>();
+
+        // Register publisher definition service (fetches via the shared catalog HTTP client)
+        services.AddSingleton<IPublisherDefinitionService, PublisherDefinitionService>();
 
         // Register catalog parser and version selector
         services.AddSingleton<IPublisherCatalogParser, JsonPublisherCatalogParser>();
@@ -404,7 +411,7 @@ public static class ContentPipelineModule
         services.AddHttpClient(AODMapsConstants.PublisherType, httpClient =>
         {
             httpClient.Timeout = TimeSpan.FromSeconds(30);
-            httpClient.DefaultRequestHeaders.Add("User-Agent", ApiConstants.DefaultUserAgent);
+            httpClient.DefaultRequestHeaders.Add(UserAgentHeader, ApiConstants.DefaultUserAgent);
         });
 
         // Register AODMaps content provider
@@ -438,7 +445,7 @@ public static class ContentPipelineModule
         services.AddHttpClient(ModDBConstants.PublisherPrefix, httpClient =>
         {
             httpClient.Timeout = TimeSpan.FromSeconds(45); // ModDB can be slower
-            httpClient.DefaultRequestHeaders.Add("User-Agent", ApiConstants.DefaultUserAgent);
+            httpClient.DefaultRequestHeaders.Add(UserAgentHeader, ApiConstants.DefaultUserAgent);
         });
 
         // Register Playwright service for web page parsing (singleton for shared browser instance)

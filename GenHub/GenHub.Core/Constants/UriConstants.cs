@@ -63,6 +63,11 @@ public static class UriConstants
     /// </summary>
     public const string HotkeysEditorIconUri = "avares://GenHub/Assets/Icons/hotkeyseditor-icon.png";
 
+    /// <summary>
+    /// Icon URI for Publisher Studio tool.
+    /// </summary>
+    public const string PublisherStudioIconUri = "avares://GenHub/Assets/Icons/publisherstudio-icon.png";
+
     // Icon Path Constants
 
     /// <summary>
@@ -124,6 +129,11 @@ public static class UriConstants
     /// Filename for Hotkeys Editor icon.
     /// </summary>
     public const string HotkeysEditorIconFilename = "hotkeyseditor-icon.png";
+
+    /// <summary>
+    /// Filename for Publisher Studio icon.
+    /// </summary>
+    public const string PublisherStudioIconFilename = "publisherstudio-icon.png";
 
     // Cover Path Constants
 

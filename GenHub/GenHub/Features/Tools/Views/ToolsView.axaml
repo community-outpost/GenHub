@@ -28,6 +28,12 @@
 
     <Style Selector="Border.tool-content-card">
       <Setter Property="Background" Value="Transparent" />
+      <Setter Property="Margin" Value="10" />
+    </Style>
+
+    <Style Selector="Border.tool-content-card.fullscreen">
+      <Setter Property="Margin" Value="0" />
+      <Setter Property="CornerRadius" Value="0" />
     </Style>
 
     <Style Selector="Button.tools-action-btn">
@@ -186,40 +192,44 @@
           </Button>
       </controls:SidebarLayout.PaneFooter>
 
-      <!-- Main Content -->
-       <Grid>
-         <!-- Tool Content -->
-         <Border Classes="tool-content-card"
-                 Margin="0"
-                 IsVisible="{Binding SelectedTool, Converter={x:Static ObjectConverters.IsNotNull}}">
-            <ContentControl Content="{Binding CurrentToolControl}" />
-         </Border>
+      <Grid RowDefinitions="Auto,*">
+         <!-- Header / Status Area -->
+         <Grid Grid.Row="0" Margin="20" ColumnDefinitions="Auto,*" IsVisible="{Binding !SelectedTool.Metadata.IsFullScreen}">
+           <TextBlock Text="{Binding SelectedTool, Converter={StaticResource LocalizedToolNameConverter}, FallbackValue='GenHub Tools'}" Classes="header" />
 
-         <!-- Empty State -->
-         <Grid IsVisible="{Binding SelectedTool, Converter={x:Static ObjectConverters.IsNull}}"
-               HorizontalAlignment="Center"
-               VerticalAlignment="Center">
-             <StackPanel Spacing="20">
-                 <material:MaterialIcon Kind="AutoFix" Width="64" Height="64" Foreground="{DynamicResource TextMuted}" HorizontalAlignment="Center"/>
-                 <TextBlock Text="{localization:Localize Tools.Label.SelectToolPlaceholder}"
-                            FontSize="18"
-                            Foreground="{DynamicResource TextSecondary}"
-                            HorizontalAlignment="Center"/>
-             </StackPanel>
+           <!-- Status Messages -->
+           <Border Grid.Column="1"
+                   Classes="status-banner"
+                   Classes.success="{Binding IsStatusSuccess}"
+                   Classes.error="{Binding IsStatusError}"
+                   Classes.info="{Binding IsStatusInfo}"
+                   IsVisible="{Binding IsStatusVisible}">
+              <TextBlock Text="{Binding StatusMessage}" VerticalAlignment="Center" Foreground="{DynamicResource TextPrimary}" />
+           </Border>
          </Grid>
 
-         <!-- Status Toast / Floating Notification -->
-         <Border HorizontalAlignment="Right"
-                 VerticalAlignment="Top"
-                 Margin="20"
-                 ZIndex="50"
-                 Classes="status-banner"
-                 Classes.success="{Binding IsStatusSuccess}"
-                 Classes.error="{Binding IsStatusError}"
-                 Classes.info="{Binding IsStatusInfo}"
-                 IsVisible="{Binding IsStatusVisible}">
-            <TextBlock Text="{Binding StatusMessage}" VerticalAlignment="Center" Foreground="{DynamicResource TextPrimary}" />
-         </Border>
+         <!-- Content Area -->
+         <Panel Grid.Row="1" Margin="10">
+            <!-- Empty State -->
+            <Grid IsVisible="{Binding SelectedTool, Converter={x:Static ObjectConverters.IsNull}}"
+                  HorizontalAlignment="Center"
+                  VerticalAlignment="Center">
+                <StackPanel Spacing="20">
+                    <material:MaterialIcon Kind="AutoFix" Width="64" Height="64" Foreground="{DynamicResource TextMuted}" HorizontalAlignment="Center"/>
+                    <TextBlock Text="{localization:Localize Tools.Label.SelectToolPlaceholder}"
+                               FontSize="18"
+                               Foreground="{DynamicResource TextSecondary}"
+                               HorizontalAlignment="Center"/>
+                </StackPanel>
+            </Grid>
+
+            <!-- Tool Content -->
+            <Border Classes="tool-content-card"
+                    Classes.fullscreen="{Binding SelectedTool.Metadata.IsFullScreen}"
+                    IsVisible="{Binding SelectedTool, Converter={x:Static ObjectConverters.IsNotNull}}">
+               <ContentControl Content="{Binding CurrentToolControl}" />
+            </Border>
+         </Panel>
        </Grid>
     </controls:SidebarLayout>
 

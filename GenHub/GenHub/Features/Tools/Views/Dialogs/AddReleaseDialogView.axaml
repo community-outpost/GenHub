@@ -1,0 +1,236 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:localization="clr-namespace:GenHub.Common.Markup"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="using:GenHub.Features.Tools.ViewModels.Dialogs"
+             mc:Ignorable="d" d:DesignWidth="700" d:DesignHeight="600"
+             x:Class="GenHub.Features.Tools.Views.Dialogs.AddReleaseDialogView"
+             x:DataType="vm:AddReleaseDialogViewModel"
+             x:Name="Root"
+             DragDrop.AllowDrop="True">
+
+
+    <UserControl.Styles>
+        <Style Selector="TextBox">
+            <Setter Property="Background" Value="{DynamicResource GlassFillBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource GlassBorderBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="Padding" Value="12,10"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="SelectionBrush" Value="{DynamicResource AccentColorBrush}"/>
+            <Setter Property="SelectionForegroundBrush" Value="{DynamicResource TextPrimary}"/>
+            <Setter Property="CaretBrush" Value="{DynamicResource TextPrimary}"/>
+        </Style>
+        <Style Selector="TextBox:focus">
+            <Setter Property="Background" Value="{DynamicResource GlassBorderSubtleBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentColorBrush}"/>
+        </Style>
+        <Style Selector="CheckBox">
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+        </Style>
+        <Style Selector="ListBox">
+            <Setter Property="Background" Value="{DynamicResource GlassFillSubtleBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource GlassFillBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="6"/>
+        </Style>
+        <Style Selector="ListBoxItem">
+             <Setter Property="CornerRadius" Value="4"/>
+             <Setter Property="Padding" Value="8"/>
+        </Style>
+        <Style Selector="ListBoxItem:pointerover /template/ ContentPresenter">
+             <Setter Property="Background" Value="{DynamicResource GlassFillBrush}"/>
+        </Style>
+         <Style Selector="TextBlock.label">
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextSecondary}"/>
+            <Setter Property="FontSize" Value="13"/>
+        </Style>
+        <Style Selector="Button.small-glass-btn">
+            <Setter Property="Background" Value="{DynamicResource GlassFillBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource GlassBorderBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="4"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+            <Setter Property="Padding" Value="12,6"/>
+            <Setter Property="FontSize" Value="12"/>
+        </Style>
+        <Style Selector="Button.small-glass-btn:pointerover">
+            <Setter Property="Background" Value="{DynamicResource GlassBorderBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource GlassBorderBrush}"/>
+        </Style>
+    </UserControl.Styles>
+
+    <Grid RowDefinitions="Auto,*,Auto" Margin="24">
+        <!-- Header -->
+        <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,24">
+            <TextBlock Text="{Binding DialogTitle}"
+                       FontSize="22" FontWeight="Bold"
+                       Foreground="{DynamicResource TextPrimary}"/>
+            <Button Grid.Column="1"
+                    Command="{Binding CloseCommand}"
+                    Background="Transparent"
+                    Padding="8"
+                    CornerRadius="8"
+                    BorderThickness="0"
+                    VerticalAlignment="Top">
+                <PathIcon Data="{StaticResource CloseIcon}"
+                          Width="12" Height="12"
+                          Foreground="{DynamicResource TextMuted}"/>
+                <Button.Styles>
+                    <Style Selector="Button:pointerover /template/ ContentPresenter">
+                        <Setter Property="Background" Value="{DynamicResource GlassFillBrush}"/>
+                    </Style>
+                    <Style Selector="Button:pointerover PathIcon">
+                        <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+                    </Style>
+                </Button.Styles>
+            </Button>
+        </Grid>
+
+        <!-- Form -->
+        <ScrollViewer Grid.Row="1" Margin="0,0,0,24">
+            <StackPanel Spacing="20">
+                <!-- Info -->
+                <TextBlock Text="{Binding ContentName}" FontWeight="Bold" Opacity="0.5" Foreground="{DynamicResource TextPrimary}"/>
+
+                <!-- Version -->
+                <StackPanel Spacing="8">
+                    <StackPanel Orientation="Horizontal" Spacing="4">
+                        <TextBlock Text="{localization:Localize Tools.PublisherStudio.Release.Version}" Classes="label"/>
+                        <TextBlock Text="*" Foreground="{DynamicResource StatusErrorBrush}"/>
+                    </StackPanel>
+                    <Grid ColumnDefinitions="*,8,Auto">
+                         <TextBox Text="{Binding Version}" Watermark="{localization:Localize Tools.PublisherStudio.Release.VersionPlaceholder}"/>
+                         <Button Grid.Column="2" Content="{localization:Localize Tools.PublisherStudio.Release.Suggest}"
+                                 Command="{Binding ApplySuggestedVersionCommand}"
+                                 Classes="small-glass-btn"/>
+                    </Grid>
+                </StackPanel>
+
+                <!-- Date & Options -->
+                <Grid ColumnDefinitions="*,Auto,Auto,Auto">
+                    <DatePicker Grid.Column="0" SelectedDate="{Binding ReleaseDate}" Foreground="{DynamicResource TextPrimary}" Background="{DynamicResource GlassFillBrush}" BorderBrush="{DynamicResource GlassBorderBrush}" CornerRadius="6"/>
+                    <CheckBox Grid.Column="1" Content="{localization:Localize Tools.PublisherStudio.Release.Latest}" IsChecked="{Binding IsLatest}" Margin="8,0"/>
+                    <CheckBox Grid.Column="2" Content="{localization:Localize Tools.PublisherStudio.Release.Prerelease}" IsChecked="{Binding IsPrerelease}" Margin="8,0"/>
+                    <CheckBox Grid.Column="3" Content="{localization:Localize Tools.PublisherStudio.Release.Featured}" IsChecked="{Binding IsFeatured}" Margin="8,0"/>
+                </Grid>
+
+                <!-- Changelog -->
+                <StackPanel Spacing="8">
+                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Release.Changelog}" Classes="label"/>
+                    <TextBox Text="{Binding Changelog}"
+                             TextWrapping="Wrap"
+                             AcceptsReturn="True"
+                             Height="80"/>
+                </StackPanel>
+
+                <!-- Artifacts Section -->
+                <StackPanel Spacing="8">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <StackPanel Spacing="2" VerticalAlignment="Center">
+                            <StackPanel Orientation="Horizontal" Spacing="4">
+                                <TextBlock Text="{localization:Localize Tools.PublisherStudio.Release.ArtifactsFiles}" Classes="label"/>
+                                <TextBlock Text="*" Foreground="{DynamicResource StatusErrorBrush}"/>
+                            </StackPanel>
+                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Release.DragDropHint}" FontSize="11" Foreground="{DynamicResource TextSecondary}"/>
+                        </StackPanel>
+                        <Button Grid.Column="1"
+                                Command="{Binding AddArtifactCommand}"
+                                Classes="small-glass-btn">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <PathIcon Data="{StaticResource AddIcon}" Width="10" Height="10" Foreground="{DynamicResource TextPrimary}"/>
+                                <TextBlock Text="{localization:Localize Tools.PublisherStudio.Release.AddArtifact}" FontSize="11" Foreground="{DynamicResource TextPrimary}"/>
+                            </StackPanel>
+                        </Button>
+                    </Grid>
+
+                    <ListBox ItemsSource="{Binding Artifacts}" MinHeight="60">
+                         <ListBox.ItemTemplate>
+                             <DataTemplate>
+                                 <Grid ColumnDefinitions="*,Auto">
+                                     <StackPanel>
+                                         <TextBlock Text="{Binding Filename}" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}"/>
+                                         <TextBlock Text="{Binding Size}" FontSize="11" Foreground="{DynamicResource TextSecondary}"/>
+                                     </StackPanel>
+                                     <Button Grid.Column="1"
+                                             Command="{ReflectionBinding DataContext.RemoveArtifactCommand, ElementName=Root}"
+                                             CommandParameter="{Binding}"
+                                             Background="Transparent"
+                                             BorderThickness="0"
+                                             Padding="8">
+                                         <PathIcon Data="{StaticResource CloseIcon}" Width="10" Height="10" Foreground="{DynamicResource StatusErrorBrush}"/>
+                                     </Button>
+                                 </Grid>
+                             </DataTemplate>
+                         </ListBox.ItemTemplate>
+                    </ListBox>
+                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Release.ArtifactRequired}" FontSize="11" Foreground="{DynamicResource StatusErrorBrush}" IsVisible="{Binding !Artifacts.Count}"/>
+                </StackPanel>
+
+                <!-- Dependencies Section -->
+                <StackPanel Spacing="8">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <TextBlock Text="{localization:Localize Tools.PublisherStudio.Release.Dependencies}" Classes="label" VerticalAlignment="Center"/>
+                        <Button Grid.Column="1"
+                                Command="{Binding AddDependencyCommand}"
+                                Classes="small-glass-btn">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <PathIcon Data="{StaticResource AddIcon}" Width="10" Height="10" Foreground="{DynamicResource TextPrimary}"/>
+                                <TextBlock Text="{localization:Localize Tools.PublisherStudio.Release.AddDependency}" FontSize="11" Foreground="{DynamicResource TextPrimary}"/>
+                            </StackPanel>
+                        </Button>
+                    </Grid>
+
+                    <ListBox ItemsSource="{Binding Dependencies}" MinHeight="60">
+                         <ListBox.ItemTemplate>
+                             <DataTemplate>
+                                 <Grid ColumnDefinitions="*,Auto">
+                                     <StackPanel>
+                                         <TextBlock Text="{Binding ContentId}" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}"/>
+                                         <TextBlock Text="{Binding VersionConstraint, StringFormat='v{0}'}" FontSize="11" Foreground="{DynamicResource TextSecondary}"/>
+                                     </StackPanel>
+                                      <Button Grid.Column="1"
+                                              Command="{ReflectionBinding DataContext.RemoveDependencyCommand, ElementName=Root}"
+                                              CommandParameter="{Binding}"
+                                              Background="Transparent"
+                                              BorderThickness="0"
+                                              Padding="8">
+                                          <PathIcon Data="{StaticResource CloseIcon}" Width="10" Height="10" Foreground="{DynamicResource StatusErrorBrush}"/>
+                                      </Button>
+                                 </Grid>
+                             </DataTemplate>
+                         </ListBox.ItemTemplate>
+                    </ListBox>
+                </StackPanel>
+            </StackPanel>
+        </ScrollViewer>
+
+        <!-- Footer -->
+        <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="16" HorizontalAlignment="Right">
+             <TextBlock Text="{Binding ValidationError}"
+                        Foreground="{DynamicResource StatusErrorBrush}"
+                        VerticalAlignment="Center"
+                        TextWrapping="Wrap"
+                        MaxWidth="300"/>
+
+             <Button Content="{Binding SubmitButtonText}"
+                     Command="{Binding CreateReleaseCommand}"
+                     Background="{DynamicResource PrimaryGradientBrush}"
+                     Foreground="{DynamicResource TextPrimary}"
+                     CornerRadius="8"
+                     Padding="40,14"
+                     FontWeight="Bold"
+                     BorderThickness="0">
+                <Button.Styles>
+                    <Style Selector="Button:pointerover /template/ ContentPresenter">
+                        <Setter Property="Background" Value="{DynamicResource PrimaryGradientBrush}"/>
+                        <Setter Property="Opacity" Value="0.85"/>
+                    </Style>
+                </Button.Styles>
+            </Button>
+        </StackPanel>
+    </Grid>
+</UserControl>

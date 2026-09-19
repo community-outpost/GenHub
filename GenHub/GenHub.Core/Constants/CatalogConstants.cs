@@ -29,6 +29,16 @@ public static class CatalogConstants
     public const int CatalogSchemaVersion = 1;
 
     /// <summary>
+    /// Current publisher definition schema version ($schemaVersion).
+    /// </summary>
+    public const int DefinitionSchemaVersion = 2;
+
+    /// <summary>
+    /// Maximum number of catalog mirror URLs attempted when fetching a catalog from a definition.
+    /// </summary>
+    public const int MaxCatalogMirrorAttempts = 3;
+
+    /// <summary>
     /// Filename for user subscription storage under application data.
     /// </summary>
     public const string SubscriptionFileName = "subscriptions.json";
@@ -227,4 +237,49 @@ public static class CatalogConstants
     /// Standard 1920x1080 resolution variant label.
     /// </summary>
     public const string Resolution1920x1080Label = "1920x1080";
+
+    /// <summary>
+    /// Known reference catalog URL for ModDB.
+    /// </summary>
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Minor Code Smell", "S1075:URIs should not be hardcoded", Justification = "Known reference catalog endpoint")]
+    public const string ModDbCatalogUrl = "https://api.moddb.com/catalog.json";
+
+    /// <summary>
+    /// Known reference catalog URL for CNC Labs.
+    /// </summary>
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Minor Code Smell", "S1075:URIs should not be hardcoded", Justification = "Known reference catalog endpoint")]
+    public const string CncLabsCatalogUrl = "https://github.com/CnC-Labs/mods-catalog/raw/main/catalog.json";
+
+    /// <summary>
+    /// Known direct downloads catalog URL for CNC Labs.
+    /// </summary>
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Minor Code Smell", "S1075:URIs should not be hardcoded", Justification = "Known reference catalog endpoint")]
+    public const string CncLabsDownloadsCatalogUrl = "https://www.cnclabs.com/downloads/catalog.json";
+
+    /// <summary>
+    /// Known catalog URL for GeneralsOnline.
+    /// </summary>
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Minor Code Smell", "S1075:URIs should not be hardcoded", Justification = "Known reference catalog endpoint")]
+    public const string GeneralsOnlineCatalogUrl = "https://cdn.playgenerals.online/catalog.json";
+
+    /// <summary>
+    /// Known catalog URL for Community Outpost.
+    /// </summary>
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Minor Code Smell", "S1075:URIs should not be hardcoded", Justification = "Known reference catalog endpoint")]
+    public const string CommunityOutpostCatalogUrl = "https://raw.githubusercontent.com/community-outpost/genhub-catalog/main/catalog.json";
+
+    /// <summary>
+    /// Status badge color for an unreleased or unpublished catalog (#6B7280).
+    /// </summary>
+    public const string CatalogStatusNotPublishedColor = "#6B7280";
+
+    /// <summary>
+    /// Status badge color for a catalog with pending changes (#F59E0B).
+    /// </summary>
+    public const string CatalogStatusPendingColor = "#F59E0B";
+
+    /// <summary>
+    /// Status badge color for an up-to-date published catalog (#10B981).
+    /// </summary>
+    public const string CatalogStatusPublishedColor = "#10B981";
 }

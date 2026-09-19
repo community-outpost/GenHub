@@ -5447,7 +5447,6 @@
   <data name="Tools.GenHotkeys.UpdateAddonTooltip" xml:space="preserve">
     <value>تحديث الملحق الحالي '{0}' بإعدادات مفاتيح الاختصار الحالية.</value>
   </data>
-
   <data name="Tools.ReplayManager.ClientSelection.Title" xml:space="preserve">
     <value>تحديد عميل اللعبة</value>
   </data>
@@ -5583,7 +5582,7 @@
   <data name="Tools.ReplayManager.Client.CustomExeIni" xml:space="preserve">
     <value>مخصص (Exe: {0}, INI: {1})</value>
   </data>
-    <data name="Info.Card.app-updates.rollback.Content" xml:space="preserve">
+  <data name="Info.Card.app-updates.rollback.Content" xml:space="preserve">
     <value>طريقة العودة إلى إصدار سابق مستقر في حال دعت الحاجة.</value>
   </data>
   <data name="Info.Card.app-updates.rollback.DetailedContent" xml:space="preserve">
@@ -8101,6 +8100,1650 @@ GenHub هو مشغل ومدير حديث لألعاب **Command &amp; Conquer: G
   <data name="Info.Demo.AppUpdates.AuthSampleCode" xml:space="preserve">
     <value>WDAS-5678</value>
   </data>
+  <data name="Downloads.Browser.ImportSubscription" xml:space="preserve">
+    <value>استيراد كتالوج / موفر</value>
+  </data>
+  <data name="Downloads.Browser.ImportSubscriptionTooltip" xml:space="preserve">
+    <value>استيراد كتالوج ناشر مخصص أو رابط اشتراك موفر</value>
+  </data>
+  <data name="Downloads.ImportSubscription.Cancel" xml:space="preserve">
+    <value>إلغاء</value>
+  </data>
+  <data name="Downloads.ImportSubscription.LoadAndSubscribe" xml:space="preserve">
+    <value>تحميل واشتراك</value>
+  </data>
+  <data name="Downloads.ImportSubscription.Prompt" xml:space="preserve">
+    <value>عنوان URL للاشتراك أو البيان:</value>
+  </data>
+  <data name="Downloads.ImportSubscription.Subtitle" xml:space="preserve">
+    <value>إضافة كتالوجات ناشر خارجية أو الاشتراك في موفري محتوى مخصصين عبر عنوان URL مباشر أو رابط بروتوكول GenHub.</value>
+  </data>
+  <data name="Downloads.ImportSubscription.SupportedSources" xml:space="preserve">
+    <value>المدعوم: روابط genhub://، وروابط GitHub Gist، وروابط Dropbox، وروابط Google Drive، أو أي رابط JSON مباشر للكتالوج/الناشر.</value>
+  </data>
+  <data name="Downloads.ImportSubscription.Title" xml:space="preserve">
+    <value>استيراد كتالوج / موفر مخصص</value>
+  </data>
+  <data name="Downloads.ImportSubscription.UrlWatermark" xml:space="preserve">
+    <value>genhub://subscribe?url=... أو https://example.com/catalog.json</value>
+  </data>
+  <data name="Tools.Plugin.publisher-studio.Description" xml:space="preserve">
+    <value>إنشاء واستضافة ونشر بيانات الألعاب والكتالوجات والتنزيلات المخصصة عبر شبكة GenHub.</value>
+  </data>
+  <data name="Tools.Plugin.publisher-studio.Name" xml:space="preserve">
+    <value>استوديو الناشر</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.AddTitle" xml:space="preserve">
+    <value>إضافة أصل</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.Browse" xml:space="preserve">
+    <value>استعراض...</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.BrowseFolder" xml:space="preserve">
+    <value>استعراض مجلد</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.CalculatingFolderSize" xml:space="preserve">
+    <value>مجلد (جارٍ حساب الحجم...)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.DragDropHint" xml:space="preserve">
+    <value>تلميح: اسحب ملفًا أو مجلدًا وأفلته في أي مكان في هذا الحوار لملء التفاصيل.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.FolderSizeUnavailable" xml:space="preserve">
+    <value>مجلد (الحجم غير متوفر)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.ComputeHash" xml:space="preserve">
+    <value>حساب</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.ComputingHash" xml:space="preserve">
+    <value>جارٍ حساب تجزئة SHA-256...</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.DirectDownloadUrl" xml:space="preserve">
+    <value>رابط التنزيل المباشر *</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.ExternalCdn" xml:space="preserve">
+    <value>CDN خارجي / رابط مباشر (مثل عميل اللعبة، خادم مرآة سريع)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.ExternalCdnHint" xml:space="preserve">
+    <value>رابط خارجي مستضاف مسبقًا (عملاء اللعبة، CDN المجتمع، S3، خوادم المرايا). يبقى كما هو دون الحاجة لإعادة الرفع السحابي.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.FileSize" xml:space="preserve">
+    <value>حجم الملف (مثلاً: 500 MB أو 1.2 GB أو بالبايت)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.FileSizePlaceholder" xml:space="preserve">
+    <value>مثلاً: 750 MB</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.DirectDownloadUrlPlaceholder" xml:space="preserve">
+    <value>https://cdn.example.com/downloads/gameclient-v1.0.zip</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.Filename" xml:space="preserve">
+    <value>اسم الملف</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.FilenameHint" xml:space="preserve">
+    <value>يتم ملؤه تلقائيًا من الملف المحدد أو الرابط المباشر</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.FilenamePlaceholder" xml:space="preserve">
+    <value>مثلاً: GeneralsOnline-Client-v1.0.zip</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.HashHint" xml:space="preserve">
+    <value>يتم حسابه تلقائيًا من الملف المحلي المحدد</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.HashPlaceholder" xml:space="preserve">
+    <value>سلسلة التجزئة (اختياري لـ CDN الخارجي)...</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.LocalFile" xml:space="preserve">
+    <value>ملف محلي (رفع إلى التخزين السحابي)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.LocalFileHint" xml:space="preserve">
+    <value>سيتم نسخ الملف وحساب تجزئة SHA-256 وتجهيزه للرفع السحابي في تبويب النشر والمشاركة.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.MetadataHeader" xml:space="preserve">
+    <value>البيانات الوصفية للأصل:</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.NoFileSelected" xml:space="preserve">
+    <value>لم يتم تحديد أي ملف...</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.PrimaryArtifact" xml:space="preserve">
+    <value>الأصل الأساسي</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.PrimaryArtifactTooltip" xml:space="preserve">
+    <value>هذا هو الملف الرئيسي الذي يجب على المستخدمين تنزيله.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.Sha256Hash" xml:space="preserve">
+    <value>تجزئة SHA256 (اختياري)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.SourceMethod" xml:space="preserve">
+    <value>طريقة مصدر الأصول:</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.SourcePrompt" xml:space="preserve">
+    <value>اختر مصدر العنصر:</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.Subtitle" xml:space="preserve">
+    <value>تحديد تفاصيل الأصول الثنائية. يدعم GenHub رفع الملفات المحلية إلى التخزين السحابي أو الربط بـ CDN خارجي / رابط مباشر.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.UploadLocalFile" xml:space="preserve">
+    <value>تحميل ملف محلي (استضافة سحابية)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.UploadLocalFileHint" xml:space="preserve">
+    <value>سيتم تحميل الملف إلى مزود الاستضافة السحابية المتصل عند النشر</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.AddButton" xml:space="preserve">
+    <value>إضافة المحتوى</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.AddTitle" xml:space="preserve">
+    <value>إضافة عنصر محتوى</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.ArtifactExternalCdn" xml:space="preserve">
+    <value>CDN خارجي / رابط مباشر</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.ArtifactExternalCdnHint" xml:space="preserve">
+    <value>رابط مستضاف مسبقًا (عملاء اللعبة، مرايا سريعة). يُحفظ كما هو دون إعادة رفع سحابي.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.ArtifactLocalFile" xml:space="preserve">
+    <value>ملف محلي (رفع إلى التخزين السحابي)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.ArtifactLocalFileHint" xml:space="preserve">
+    <value>سيتم نسخ الملف وتجهيزه للرفع عند النشر.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.Browse" xml:space="preserve">
+    <value>استعراض...</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.BrowseFile" xml:space="preserve">
+    <value>استعراض ملف...</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.BrowseFolder" xml:space="preserve">
+    <value>استعراض مجلد...</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.Changelog" xml:space="preserve">
+    <value>سجل التغييرات</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.ChangelogPlaceholder" xml:space="preserve">
+    <value>ملاحظات الإصدار الأولي...</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.ContentType" xml:space="preserve">
+    <value>نوع المحتوى</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.Description" xml:space="preserve">
+    <value>الوصف</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.DescriptionPlaceholder" xml:space="preserve">
+    <value>صف عنصر المحتوى الخاص بك...</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.DirectDownloadUrl" xml:space="preserve">
+    <value>رابط التنزيل المباشر *</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.DirectDownloadUrlPlaceholder" xml:space="preserve">
+    <value>https://cdn.example.com/downloads/gameclient-v1.0.zip</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.DirectUrlOption" xml:space="preserve">
+    <value>عنوان URL للتنزيل المباشر (مستضاف/CDN)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.DownloadSource" xml:space="preserve">
+    <value>مصدر التنزيل / التوزيع</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.DownloadUrl" xml:space="preserve">
+    <value>عنوان URL للتنزيل</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.DownloadUrlHint" xml:space="preserve">
+    <value>عنوان URL مباشر حيث يقوم اللاعبون بتنزيل هذه الحزمة (Google Drive، CDN، GitHub، إلخ)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.DragDropHint" xml:space="preserve">
+    <value>اسحب وأفلت المجلدات أو الملفات هنا</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.ExtendsContent" xml:space="preserve">
+    <value>يوسع المحتوى</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.ExtendsContentPlaceholder" xml:space="preserve">
+    <value>معرف المحتوى الأصلي إذا كان هذا تعديلاً فرعيًا/إضافة</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.ExtendsHint" xml:space="preserve">
+    <value>معرّف المحتوى الذي يمتد إليه هذا الملحق. استخدم 'content-id' لنفس الكتالوج، أو 'publisher-id/content-id' لكتالوج ناشر آخر.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.ExtendsPlaceholder" xml:space="preserve">
+    <value>مثال: my-mod أو publisher-id/content-id</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.FileSize" xml:space="preserve">
+    <value>حجم الملف</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.FileSizePlaceholder" xml:space="preserve">
+    <value>مثلاً: 500 MB أو 1.2 GB أو بالبايت</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.Id" xml:space="preserve">
+    <value>معرف المحتوى</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.IdHint" xml:space="preserve">
+    <value>معرف فريد لعنصر المحتوى هذا. أحرف وأرقام وشرطات فقط.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.IdPlaceholder" xml:space="preserve">
+    <value>مثلاً: generals-online</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.IncludeInitialRelease" xml:space="preserve">
+    <value>تضمين الإصدار الأولي وعنصر الحزمة</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.InitialArtifact" xml:space="preserve">
+    <value>الأصل الأولي (اختياري)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.InitialRelease" xml:space="preserve">
+    <value>الإصدار الأولي (اختياري)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.LocalFileOption" xml:space="preserve">
+    <value>ملف محلي (للرفع إلى السحابة)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.LocalFileOrFolder" xml:space="preserve">
+    <value>اسحب وأفلت المجلدات أو الملفات هنا</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.Name" xml:space="preserve">
+    <value>الاسم</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.NamePlaceholder" xml:space="preserve">
+    <value>مثلاً: Generals Online</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.NoFileSelected" xml:space="preserve">
+    <value>لم يتم تحديد أي ملف...</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.PackageFilename" xml:space="preserve">
+    <value>اسم ملف الحزمة</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.PackageFilenamePlaceholder" xml:space="preserve">
+    <value>مثال: GeneralsOnline.zip</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.ReleaseVersion" xml:space="preserve">
+    <value>إصدار الإصدار</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.SelectOrDragPlaceholder" xml:space="preserve">
+    <value>حدد أو اسحب وأفلت مجلداً أو ملف أرشيف...</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.Subtitle" xml:space="preserve">
+    <value>إنشاء عنصر محتوى جديد في هذا الكتالوج. يمكنك إضافة الإصدارات وملفات الأصول بعد الإنشاء.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.Tags" xml:space="preserve">
+    <value>الوسوم (مفصولة بفواصل)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.TagsPlaceholder" xml:space="preserve">
+    <value>مثلاً: multiplayer, patch, balance</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.TargetGame" xml:space="preserve">
+    <value>اللعبة المستهدفة</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.Type" xml:space="preserve">
+    <value>نوع المحتوى</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.UseSuggestedId" xml:space="preserve">
+    <value>استخدم المعرّف المقترح</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.Version" xml:space="preserve">
+    <value>الإصدار</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.VersionPlaceholder" xml:space="preserve">
+    <value>مثلاً: 1.0.0</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dependency.AddButton" xml:space="preserve">
+    <value>إضافة تبعية</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dependency.AddTitle" xml:space="preserve">
+    <value>إضافة تبعية</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dependency.AvailableVersions" xml:space="preserve">
+    <value>الإصدارات المتاحة: </value>
+  </data>
+  <data name="Tools.PublisherStudio.Dependency.BrowseKnown" xml:space="preserve">
+    <value>استعراض المحتوى المعروف</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dependency.CatalogUrl" xml:space="preserve">
+    <value>عنوان URL للكتالوج / التعريف (موصى به)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dependency.ConflictsWith" xml:space="preserve">
+    <value>يتعارض مع (اختياري)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dependency.ConflictsWithHint" xml:space="preserve">
+    <value>معرفات المانيفست المفصولة بفواصل التي تتعارض مع هذه التبعية.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dependency.ConflictsWithPlaceholder" xml:space="preserve">
+    <value>مثال: 1.0.other.mod.id, 1.0.another.mod</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dependency.ContentId" xml:space="preserve">
+    <value>معرف المحتوى</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dependency.ContentIdPlaceholder" xml:space="preserve">
+    <value>مثال: worldbuilder-tool</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dependency.CatalogUrlPlaceholder" xml:space="preserve">
+    <value>https://example.com/publisher.json</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dependency.Discover" xml:space="preserve">
+    <value>اكتشاف</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dependency.DiscoverHint" xml:space="preserve">
+    <value>يوفر إدخال عنوان URL إمكانية اكتشاف معرّفات المحتوى تلقائياً.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dependency.DiscoverTooltip" xml:space="preserve">
+    <value>جلب الكتالوجات من هذا الناشر لاستعراض المحتوى المتاح</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dependency.DiscoveredContent" xml:space="preserve">
+    <value>المحتوى المكتشف</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dependency.DiscoveredCount" xml:space="preserve">
+    <value>تم العثور على {0} عنصر محتوى من الناشر '{1}'</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dependency.ExactVersion" xml:space="preserve">
+    <value>الإصدار المحدد بالضبط (اختياري)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dependency.ExactVersionPlaceholder" xml:space="preserve">
+    <value>مثلاً: 1.2.3</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dependency.Examples" xml:space="preserve">
+    <value>أمثلة:</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dependency.ExternalPublisher" xml:space="preserve">
+    <value>ناشر خارجي</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dependency.FromMyCatalog" xml:space="preserve">
+    <value>من الكتالوج الخاص بي</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dependency.MaxVersion" xml:space="preserve">
+    <value>الحد الأقصى للإصدار (اختياري)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dependency.MaxVersionPlaceholder" xml:space="preserve">
+    <value>مثلاً: 2.0.0</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dependency.MinVersion" xml:space="preserve">
+    <value>الحد الأدنى للإصدار (اختياري)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dependency.MinVersionPlaceholder" xml:space="preserve">
+    <value>مثلاً: 1.0.0</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dependency.NoContentDiscovered" xml:space="preserve">
+    <value>لم يتم العثور على محتوى لهذا الناشر.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dependency.NoKnownPublishers" xml:space="preserve">
+    <value>لا يوجد ناشرون معروفون متاحون</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dependency.NoOtherItems" xml:space="preserve">
+    <value>لا توجد عناصر محتوى أخرى متاحة.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dependency.OptionalDependency" xml:space="preserve">
+    <value>تبعية اختيارية</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dependency.PublisherId" xml:space="preserve">
+    <value>معرف الناشر</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dependency.PublisherIdPlaceholder" xml:space="preserve">
+    <value>مثلاً: community-outpost</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dependency.RequiredNotice" xml:space="preserve">
+    <value>* معرف الناشر ومعرف المحتوى كلاهما مطلوبان.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dependency.Select" xml:space="preserve">
+    <value>تحديد</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dependency.SelectContentItem" xml:space="preserve">
+    <value>حدد عنصر المحتوى</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dependency.SelectFromDiscovered" xml:space="preserve">
+    <value>أو اختر من المحتوى المكتشف:</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dependency.SelectPublisherFirst" xml:space="preserve">
+    <value>حدد ناشرًا أولاً</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dependency.Source" xml:space="preserve">
+    <value>مصدر التبعية</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dependency.Subtitle" xml:space="preserve">
+    <value>تحديد تبعية مطلوبة لهذا الإصدار.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dependency.VersionConstraint" xml:space="preserve">
+    <value>قيد الإصدار (SemVer)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dependency.VersionConstraintPlaceholder" xml:space="preserve">
+    <value>مثال: &gt;=1.0.0</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.AssetBreakdown" xml:space="preserve">
+    <value>تفصيل الأصول</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.AuthRequired" xml:space="preserve">
+    <value>المصادقة مطلوبة</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.Cancel" xml:space="preserve">
+    <value>إلغاء</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.CancelAuthTip" xml:space="preserve">
+    <value>إلغاء المصادقة الجارية</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.CatalogsPrefix" xml:space="preserve">
+    <value>الكتالوجات: </value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.CloudFilesSummary" xml:space="preserve">
+    <value>الملفات السحابية (التعريف، الكتالوجات، الإصدارات)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.CloudProviderSetup" xml:space="preserve">
+    <value>إعداد موفر التخزين السحابي</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.CloudProviderSetupSubtitle" xml:space="preserve">
+    <value>حدد خدمة استضافة لرفع الكتالوجات والإصدارات. يتم توفير إرشادات الإعداد خطوة بخطوة أدناه.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.ColActions" xml:space="preserve">
+    <value>الإجراءات</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.ColCategory" xml:space="preserve">
+    <value>الفئة</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.ColFileName" xml:space="preserve">
+    <value>اسم الملف</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.ColLocation" xml:space="preserve">
+    <value>الموقع</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.ColSize" xml:space="preserve">
+    <value>الحجم</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.ColStatus" xml:space="preserve">
+    <value>الحالة</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.ConnectProvider" xml:space="preserve">
+    <value>اتصال بالموفر</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.ConnectProviderTip" xml:space="preserve">
+    <value>الاتصال والمصادقة مع الموفر المحدد</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.Connected" xml:space="preserve">
+    <value>متصل</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.Copy" xml:space="preserve">
+    <value>نسخ</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.CopyDownloadLinkTip" xml:space="preserve">
+    <value>نسخ رابط التنزيل المباشر</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.CreateDropboxApp" xml:space="preserve">
+    <value>1. إنشاء تطبيق Dropbox (وحدة تحكم التطبيق)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DBGuideSubtitle" xml:space="preserve">
+    <value>يوفر Dropbox مساحة تخزين مجانية تبلغ 2 جيجابايت مع روابط تنزيل مباشرة فورية. يستغرق الإعداد أقل من دقيقة واحدة:</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DBGuideTitle" xml:space="preserve">
+    <value>دليل إعداد ورمز Dropbox (لا يلزم مشروع سحابي)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DBStep1Desc" xml:space="preserve">
+    <value>انقر فوق الزر رقم 1 أدناه ('1. إنشاء تطبيق Dropbox'). حدد 'Scoped access'، واختر 'Full Dropbox' (أو 'App folder')، وأدخل اسم التطبيق (مثلاً: 'GenHubPublisher')، وانقر فوق 'Create app'.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DBStep1Title" xml:space="preserve">
+    <value>الخطوة 1: إنشاء تطبيق بنطاق محدد</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DBStep2Desc" xml:space="preserve">
+    <value>انتقل إلى علامة التبويب 'Permissions' في الجزء العلوي من صفحة تطبيق Dropbox الخاصة بك. قم بتمكين جميع الأذونات التالية:
+• files.content.write
+• files.content.read
+• sharing.write
+• sharing.read
+• account_info.read
+ثم انقر فوق الزر 'Submit' في أسفل الصفحة! (إذا لم يتم حفظ الأذونات، فستفشل عملية إنشاء الرابط مع HTTP 400).</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DBStep2Title" xml:space="preserve">
+    <value>الخطوة 2: تفعيل الأذونات في وحدة تحكم Dropbox  [حاسم: يمنع خطأ 400 Bad Request]</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DBStep3Desc" xml:space="preserve">
+    <value>انقر فوق علامة التبويب 'Settings' في صفحة تطبيق Dropbox الخاصة بك. قم بالتمرير لأسفل إلى 'Generated access token' وانقر فوق 'Generate'. انسخ الرمز والصقه أدناه.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DBStep3Title" xml:space="preserve">
+    <value>الخطوة 3: إنشاء رمز الوصول</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.Disconnect" xml:space="preserve">
+    <value>قطع الاتصال</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DropboxConsole" xml:space="preserve">
+    <value>فتح وحدة تحكم تطبيق Dropbox</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DropboxConsoleTip" xml:space="preserve">
+    <value>فتح وحدة تحكم تطبيق Dropbox في متصفحك الافتراضي</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DropboxDescription" xml:space="preserve">
+    <value>يتيح Dropbox استضافة كل من بيانات الكتالوج وعناصر أصول الإصدار الثنائية داخل حساب Dropbox الشخصي الخاص بك.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DropboxDevSettings" xml:space="preserve">
+    <value>2. إعدادات مطور Dropbox</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DropboxFullTokenPlaceholder" xml:space="preserve">
+    <value>sl.u.xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DropboxHowTo" xml:space="preserve">
+    <value>كيفية إنشاء رمز وصول Dropbox في 30 ثانية:</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DropboxStep1" xml:space="preserve">
+    <value>1. انقر فوق 'فتح وحدة تحكم تطبيق Dropbox' أدناه (أو أنشئ تطبيقًا إذا لم تفعل ذلك بعد: Scoped access &gt; App folder أو Full Dropbox).</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DropboxStep2" xml:space="preserve">
+    <value>2. في علامة التبويب 'Permissions' في الأعلى: حدد 'account_info.read' و 'files.content.read' و 'files.content.write' و 'sharing.read' و 'sharing.write'، ثم انقر فوق 'Submit' في الأسفل.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DropboxStep3" xml:space="preserve">
+    <value>3. في علامة التبويب 'Settings': مرر لأسفل إلى قسم 'OAuth 2' -&gt; وابحث عن 'Generated access token'.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DropboxStep4" xml:space="preserve">
+    <value>4. انقر فوق الزر 'Generate' مباشرة في الصفحة. سيكشف Dropbox عن رمز الوصول الخاص بك (يبدأ بـ 'sl.').</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DropboxStep5" xml:space="preserve">
+    <value>5. انسخ هذا الرمز، والصقه أدناه، وانقر فوق 'اتصال'.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DropboxTip" xml:space="preserve">
+    <value>نصيحة: إذا كنت تفضل تجنب إعداد مشروع Google Cloud وتطبيق OAuth، فقم بالتبديل إلى Dropbox أعلاه! لا يتطلب Dropbox مشروعًا سحابيًا أو شاشة موافقة — يمكنك إنشاء رمز في 30 ثانية.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DropboxTokenPlaceholder" xml:space="preserve">
+    <value>sl.xxxxxxxx...</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DropboxTokenPrompt" xml:space="preserve">
+    <value>رمز وصول Dropbox (sl.u.xxxxxx...):</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.ExternalCdnPrefix" xml:space="preserve">
+    <value>CDN خارجي: </value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.FilesHostedOnCloud" xml:space="preserve">
+    <value>الملفات المستضافة على التخزين السحابي</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GDGuideSubtitle" xml:space="preserve">
+    <value>يدعم Google Drive استضافة كل من بيانات الكتالوج والأرشيفات الثنائية (ملفات zip للتعديلات/التصحيحات) حتى حصة تخزين Drive الخاصة بك.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GDGuideTitle" xml:space="preserve">
+    <value>دليل إعداد Google Drive Desktop OAuth (خطوة بخطوة)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GDS1Step1" xml:space="preserve">
+    <value>1. انقر فوق '1. فتح منصة مصادقة Google' أو '2. فتح وحدة تحكم بيانات الاعتماد' أدناه وسجل الدخول إلى حساب Google الخاص بك.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GDS1Step2" xml:space="preserve">
+    <value>2. في شريط التنقل العلوي (بجوار 'Google Cloud')، انقر فوق القائمة المنسدلة لاختيار المشروع، ثم انقر فوق 'NEW PROJECT'.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GDS1Step3" xml:space="preserve">
+    <value>3. أدخل اسم المشروع (مثلاً: 'GenHub Publisher')، واترك المنظمة كـ 'No organization'، وانقر فوق 'CREATE'.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GDS1Step4" xml:space="preserve">
+    <value>4. انتظر بضع ثوانٍ حتى يكتمل الإنشاء، ثم انقر فوق القائمة المنسدلة لاختيار المشروع أعلاه مرة أخرى وحدد مشروعك الجديد.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GDS1Title" xml:space="preserve">
+    <value>الخطوة 1: إنشاء مشروع في Google Cloud</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GDS2Step1" xml:space="preserve">
+    <value>1. انقر فوق '1. فتح منصة مصادقة Google' أدناه. إذا رأيت 'Google auth platform not configured yet'، فانقر فوق الزر الأزرق 'Get started'. (إذا رأيت شعارًا أصفر 'To create an OAuth client ID, you must first configure your consent screen'، فانقر فوق 'Configure consent screen').</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GDS2Step2" xml:space="preserve">
+    <value>2. سيفتح معالج 'تكوين المشروع' المكون من 4 خطوات:</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GDS2Step2a" xml:space="preserve">
+    <value>   • معلومات التطبيق: أدخل اسم التطبيق (مثلاً: 'GenHub')، وحدد بريدك الإلكتروني في 'User support email'، وانقر فوق 'Next'.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GDS2Step2b" xml:space="preserve">
+    <value>   • الجمهور: حدد 'External' (الخيار الداخلي فقط لمؤسسات Google Workspace؛ يسمح الخيار الخارجي لحساب Google الخاص بك بالاختبار). انقر فوق 'Next'.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GDS2Step2c" xml:space="preserve">
+    <value>   • معلومات الاتصال: أدخل عنوان بريدك الإلكتروني في 'Developer contact information'، ثم انقر فوق 'Next'.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GDS2Step2d" xml:space="preserve">
+    <value>   • الإنهاء: راجع وانقر فوق 'Create'. ستظهر لك رسالة تأكيد: 'OAuth configuration created'.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GDS2Title" xml:space="preserve">
+    <value>الخطوة 2: إنشاء التطبيق عبر 'تكوين المشروع' (منصة مصادقة Google)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GDS2Warning" xml:space="preserve">
+    <value>ملاحظة: لن تسمح Google بإنشاء بيانات اعتماد OAuth حتى يتم تكوين تطبيق لمشروعك!</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GDS3Step1" xml:space="preserve">
+    <value>1. في شريط البحث العلوي، ابحث عن 'Google Drive API' وانقر عليه.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GDS3Step2" xml:space="preserve">
+    <value>2. انقر فوق الزر الأزرق 'ENABLE'.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GDS3Title" xml:space="preserve">
+    <value>الخطوة 3: تفعيل Google Drive API</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GDS4Step1" xml:space="preserve">
+    <value>1. في منصة مصادقة Google، انقر فوق 'Clients' في القائمة اليسرى (أو انقر فوق '2. فتح وحدة تحكم بيانات الاعتماد' أدناه).</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GDS4Step2" xml:space="preserve">
+    <value>2. انقر فوق '+ Create client' (أو '+ CREATE CREDENTIALS' &gt; 'OAuth client ID').</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GDS4Step3" xml:space="preserve">
+    <value>3. نوع التطبيق: يجب عليك اختيار 'Desktop app' (لا تتركه كـ 'Web application' — تضعه Google افتراضيًا على Web application، وهو ما سيفشل بسبب أخطاء عنوان URI لإعادة التوجيه في تطبيقات سطح المكتب!).</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GDS4Step4" xml:space="preserve">
+    <value>4. أدخل اسمًا (مثلاً: 'GenHub Desktop') وانقر فوق 'CREATE'.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GDS4Step5" xml:space="preserve">
+    <value>5. ستظهر نافذة منبثقة 'OAuth client created' تعرض 'Client ID' و 'Client secret'.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GDS4Step6" xml:space="preserve">
+    <value>6. هام: انسخ كلاهما الآن! تحذر Google من أنك لن تتمكن من عرض السر مرة أخرى بمجرد إغلاق مربع الحوار.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GDS4Title" xml:space="preserve">
+    <value>الخطوة 4: إنشاء بيانات اعتماد عميل Desktop OAuth</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GDS5Step1" xml:space="preserve">
+    <value>1. في منصة مصادقة Google، انقر فوق علامة التبويب 'Audience' في القائمة اليسرى (أو انقر فوق الزر رقم 3 أدناه).</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GDS5Step2" xml:space="preserve">
+    <value>2. ضمن 'Test users'، انقر فوق '+ ADD USERS'، وأدخل البريد الإلكتروني لحساب Google الخاص بك (مثلاً: Gmail الخاص بك)، وانقر فوق 'SAVE'.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GDS5Step2Note" xml:space="preserve">
+    <value>   (بدون هذا، ستحظر Google التفويض مع 'Error 403: access_denied / Access blocked: GenHub has not completed the Google verification process').</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GDS5Title" xml:space="preserve">
+    <value>الخطوة 5: إضافة حساب Google الخاص بك إلى المستخدمين التجريبيين  [حاسم: يصلح الخطأ 403 access_denied]</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GDS6Step1" xml:space="preserve">
+    <value>1. انسخ والصق معرف العميل وسر العميل في حقلي الإدخال أدناه.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GDS6Step2" xml:space="preserve">
+    <value>2. انقر فوق 'الاتصال بـ Google Drive'. ستفتح نافذة متصفح تطلب منك تسجيل الدخول إلى حساب Google الخاص بك ومنح أذونات ملفات Drive لمشروعك.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GDS6Title" xml:space="preserve">
+    <value>الخطوة 6: اللصق والاتصال في GenHub</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GDStep1Desc" xml:space="preserve">
+    <value>انقر فوق الزر رقم 1 أدناه. في Google Cloud Console، انقر فوق محدد المشروع في الأعلى &gt; 'NEW PROJECT' &gt; سمه 'GenHub Publisher' &gt; انقر فوق 'CREATE'. ثم حدده من القائمة المنسدلة للمشروع.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GDStep1Title" xml:space="preserve">
+    <value>الخطوة 1: إنشاء مشروع في Google Cloud</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GDStep2Desc" xml:space="preserve">
+    <value>انقر فوق الزر رقم 1 أدناه ('فتح منصة مصادقة Google'). إذا رأيت 'Google auth platform not configured yet'، فانقر فوق 'Get started' (أو 'Configure consent screen'). أدخل اسم التطبيق (GenHub)، وحدد بريدك الإلكتروني، واضبط الجمهور على خارجي، وبريد المطور الإلكتروني، وانقر فوق إنشاء.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GDStep2Title" xml:space="preserve">
+    <value>الخطوة 2: إنشاء تطبيق عبر 'تكوين المشروع'  [حاسم: قم بالتكوين أولاً]</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GDStep3Desc" xml:space="preserve">
+    <value>ابحث عن 'Google Drive API' في شريط البحث العلوي وانقر فوق 'ENABLE'.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GDStep4Desc" xml:space="preserve">
+    <value>في منصة مصادقة Google، انقر فوق 'Clients' (أو انقر فوق الزر رقم 2 أدناه). انقر فوق '+ Create client'. اضبط نوع التطبيق على 'Desktop app' (لا تتركه كـ 'Web application'!). سمه 'GenHub Desktop' وانقر فوق 'CREATE'. انسخ معرف العميل وسر العميل على الفور!</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GDStep4Title" xml:space="preserve">
+    <value>الخطوة 4: إنشاء معرف عميل Desktop OAuth  [حاسم: يجب تحديد 'Desktop app']</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GDStep5Desc" xml:space="preserve">
+    <value>في منصة مصادقة Google، انقر فوق 'Audience' (أو الزر رقم 3 أدناه). ضمن 'Test users'، انقر فوق '+ ADD USERS'، وأدخل البريد الإلكتروني لحساب Google الخاص بك (مثلاً: Gmail الخاص بك)، وانقر فوق 'SAVE'. إذا تخطيت هذا، فستحظر Google التفويض مع Error 403: access_denied.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GDStep5Title" xml:space="preserve">
+    <value>الخطوة 5: إضافة حساب Google الخاص بك إلى المستخدمين التجريبيين  [حاسم: يصلح الخطأ 403 access_denied]</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GDStep6Desc" xml:space="preserve">
+    <value>انسخ معرف العميل وسر العميل في حقلي الإدخال أدناه وانقر فوق اتصال.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GDStep6Title" xml:space="preserve">
+    <value>الخطوة 6: الصق معرف العميل والسر أدناه واتصل</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GitHubGenerateToken" xml:space="preserve">
+    <value>إنشاء رمز وصول شخصي على GitHub</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GitHubGistsDescription" xml:space="preserve">
+    <value>تستضيف GitHub Gists بيانات الكتالوج وتعريف الموفر الخاص بك كـ Gists عامة على ملفك الشخصي في GitHub.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GitHubGistsHowItWorks" xml:space="preserve">
+    <value>كيف تعمل استضافة GitHub Gists:</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GitHubGistsManifestsOnly" xml:space="preserve">
+    <value>• البيانات الوصفية فقط: ينشر 'catalog.json' و 'publisher.json' كـ Gists عامة تحت حسابك في GitHub.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GitHubGistsNoBinaryHosting" xml:space="preserve">
+    <value>• بدون استضافة ثنائية: لا تخزن Gists الأرشيفات الثنائية (zip/exe). يجب أن تستخدم جميع عناصر الأصول روابط CDN خارجية أو روابط تنزيل مباشرة.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GitHubGistsNoRepoCommits" xml:space="preserve">
+    <value>• بدون التزامات للمستودع: لا يتم تسجيل أي ملفات في مستودعاتك؛ Gists هي قصاصات مستقلة.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GitHubGistsStep1" xml:space="preserve">
+    <value>1. انقر فوق 'إنشاء رمز وصول شخصي على GitHub' أدناه.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GitHubGistsStep2" xml:space="preserve">
+    <value>2. تأكد من تحديد نطاق 'gist' (أو 'repo').</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GitHubGistsStep3" xml:space="preserve">
+    <value>3. انقر فوق 'Generate token' في الأسفل، وانسخ الرمز 'ghp_...'، والصقه أدناه، ثم اتصل.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GitHubTokenTip" xml:space="preserve">
+    <value>فتح صفحة إنشاء رموز GitHub مع نطاق المستودع المكون مسبقًا</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GoogleClientId" xml:space="preserve">
+    <value>معرف عميل Google:</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GoogleClientIdPlaceholder" xml:space="preserve">
+    <value>أدخل معرف العميل</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GoogleClientSecret" xml:space="preserve">
+    <value>سر عميل Google:</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GoogleDriveDescription" xml:space="preserve">
+    <value>يتيح Google Drive استضافة كل من بيانات الكتالوج وعناصر الأصول الثنائية الكبيرة مباشرة في Drive الشخصي الخاص بك.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GoogleDriveGuideSummary" xml:space="preserve">
+    <value>يتطلب Google Drive منك: 1) إنشاء مشروع Google Cloud، 2) إنشاء تطبيق في تكوين المشروع (منصة مصادقة Google)، و 3) إنشاء معرف عميل Desktop OAuth قبل السماح برفع الملفات.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GoogleDriveGuideTitle" xml:space="preserve">
+    <value>دليل إعداد Google Cloud OAuth (خطوة بخطوة):</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.HostedAssets" xml:space="preserve">
+    <value>الأصول المستضافة</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.InventorySubtitle" xml:space="preserve">
+    <value>مخزون تعريف الناشر وبيانات الكتالوج والملفات الثنائية للإصدار المخزنة في التخزين السحابي أو شبكات CDN الخارجية.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.InventoryTitle" xml:space="preserve">
+    <value>مخزون عناصر الأصول المستضافة</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.NoAssetsSubtitle" xml:space="preserve">
+    <value>ارفع الكتالوج الخاص بك أو انقر فوق 'فحص / مزامنة التخزين' لاكتشاف الملفات الموجودة على موفر السحابة الخاص بك.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.NoAssetsTitle" xml:space="preserve">
+    <value>لم يتم تسجيل أي أصول مستضافة</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.NotConnected" xml:space="preserve">
+    <value>غير متصل</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.OpenAuthPlatform" xml:space="preserve">
+    <value>1. فتح منصة مصادقة Google</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.OpenAuthWizardTip" xml:space="preserve">
+    <value>فتح معالج تكوين منصة مصادقة Google / المشروع في متصفحك الافتراضي</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.OpenCloudFolder" xml:space="preserve">
+    <value>فتح المجلد السحابي</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.OpenCloudFolderTip" xml:space="preserve">
+    <value>فتح مجلد التخزين /GenHub_Publisher للموفر في المتصفح</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.OpenCredentials" xml:space="preserve">
+    <value>2. فتح بيانات الاعتماد (Desktop Client ID)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.OpenCredentialsTip" xml:space="preserve">
+    <value>فتح صفحة بيانات اعتماد Google Cloud Console في متصفحك الافتراضي</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.OpenTestUsers" xml:space="preserve">
+    <value>3. فتح الجمهور / المستخدمين التجريبيين (إصلاح 403)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.OpenTestUsersTip" xml:space="preserve">
+    <value>فتح صفحة الجمهور / المستخدمين التجريبيين في منصة مصادقة Google لتفويض حسابك وإصلاح أخطاء 403</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.OpenUrlTip" xml:space="preserve">
+    <value>فتح رابط التنزيل في المتصفح</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.NotConnectedHint" xml:space="preserve">
+    <value>لا يوجد موفر استضافة متصل — تبقى الملفات محلية فقط حتى تتصل أدناه. يمكن بعد ذلك رفع الكتالوجات والتعريفات وملفات الإصدار مباشرة من المخزون.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.Upload" xml:space="preserve">
+    <value>رفع</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.UploadTip" xml:space="preserve">
+    <value>رفع هذا الملف إلى موفر الاستضافة المتصل</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.UploadInProgress" xml:space="preserve">
+    <value>يوجد رفع آخر قيد التنفيذ بالفعل.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.ConnectBeforeUpload" xml:space="preserve">
+    <value>اتصل بموفر الاستضافة قبل رفع الملفات.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.LocalFileMissingFormat" xml:space="preserve">
+    <value>الملف المحلي غير موجود: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.SingleUploadSuccessFormat" xml:space="preserve">
+    <value>تم رفع {0} بنجاح.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.SingleUploadFailedFormat" xml:space="preserve">
+    <value>فشل رفع {0}: {1}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.Provider" xml:space="preserve">
+    <value>موفر الاستضافة</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.ProviderSubtitle" xml:space="preserve">
+    <value>اختر مكان استضافة تعريف الموفر وبيانات الكتالوج وعناصر الأصول للتنزيل.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.ReleaseBinariesPrefix" xml:space="preserve">
+    <value>الملفات الثنائية للإصدار: </value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.ScanSyncStorage" xml:space="preserve">
+    <value>فحص / مزامنة التخزين</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.ScanSyncStorageTip" xml:space="preserve">
+    <value>فحص التخزين السحابي بحثًا عن ملفات الناشر المرفوعة بالفعل ومزامنة الحالة</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.Scanning" xml:space="preserve">
+    <value>جارٍ الفحص...</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.SelectProvider" xml:space="preserve">
+    <value>تحديد الموفر:</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.StatusExternalCdn" xml:space="preserve">
+    <value>CDN خارجي</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.StatusLiveOnline" xml:space="preserve">
+    <value>مباشر عبر الإنترنت</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.StatusPending" xml:space="preserve">
+    <value>قيد الانتظار</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.StatusCloudHosted" xml:space="preserve">
+    <value>مستضاف سحابياً</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.StatusPendingUpload" xml:space="preserve">
+    <value>بانتظار الرفع</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.StatusNoFileOrUrl" xml:space="preserve">
+    <value>لا ملف / رابط</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DestinationGitHubGists" xml:space="preserve">
+    <value>مقاطع Gist عامة</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DestinationRemoteCloud" xml:space="preserve">
+    <value>سحابة بعيدة</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GoogleDriveNotAuthenticated" xml:space="preserve">
+    <value>غير مسجل الدخول إلى Google Drive</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.AssetsTrackedFormat" xml:space="preserve">
+    <value>{0} من الأصول المتعقبة</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.StorageConsumed" xml:space="preserve">
+    <value>المساحة المستهلكة</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.StorageLocation" xml:space="preserve">
+    <value>موقع التخزين</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.Subtitle" xml:space="preserve">
+    <value>إدارة توزيع التخزين السحابي، ومراقبة المساحة المستهلكة، وفحص عناوين URL المباشرة للملفات، ومزامنة الأصول الحالية.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.Title" xml:space="preserve">
+    <value>الاستضافة والتخزين السحابي</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.AddArtifact" xml:space="preserve">
+    <value>إضافة أصل</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.AddArtifactTooltip" xml:space="preserve">
+    <value>إضافة أصل إلى هذا الإصدار</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.AddButton" xml:space="preserve">
+    <value>إضافة</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.AddCatalogTooltip" xml:space="preserve">
+    <value>إضافة كتالوج جديد</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.AddContent" xml:space="preserve">
+    <value>إضافة محتوى</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.AddContentTooltip" xml:space="preserve">
+    <value>إضافة عنصر محتوى</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.AddDependency" xml:space="preserve">
+    <value>إضافة تبعية</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.AddDependencyTooltip" xml:space="preserve">
+    <value>إضافة تبعية إلى هذا الإصدار</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.AddItem" xml:space="preserve">
+    <value>إضافة عنصر</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.AddRelease" xml:space="preserve">
+    <value>إضافة إصدار</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.AddReleaseTooltip" xml:space="preserve">
+    <value>إضافة إصدار جديد لعنصر المحتوى هذا</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.Artifacts" xml:space="preserve">
+    <value>العناصر</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.ArtifactsHeader" xml:space="preserve">
+    <value>تنزيل الأصول</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.BundledItems" xml:space="preserve">
+    <value>عناصر المحتوى المجمعة</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.BundledItemsHint" xml:space="preserve">
+    <value>العناصر المضمنة في هذه الحزمة والتي سيتم تثبيتها معاً</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.CdnDirectBadge" xml:space="preserve">
+    <value>CDN / رابط مباشر</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.Changelog" xml:space="preserve">
+    <value>سجل التغييرات</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.ColActions" xml:space="preserve">
+    <value>الإجراءات</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.ColContent" xml:space="preserve">
+    <value>المحتوى</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.ColFilename" xml:space="preserve">
+    <value>اسم الملف</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.ColHash" xml:space="preserve">
+    <value>تجزئة SHA256</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.ColPublisher" xml:space="preserve">
+    <value>الناشر</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.ColSize" xml:space="preserve">
+    <value>الحجم</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.ColVersionRange" xml:space="preserve">
+    <value>نطاق الإصدار</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.ContentId" xml:space="preserve">
+    <value>معرف المحتوى</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.ContentType" xml:space="preserve">
+    <value>نوع المحتوى</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.DeleteCatalogTooltip" xml:space="preserve">
+    <value>حذف الكتالوج المحدد</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.DeleteContent" xml:space="preserve">
+    <value>حذف عنصر المحتوى</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.DeleteContentTooltip" xml:space="preserve">
+    <value>حذف عنصر المحتوى</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.DeleteRelease" xml:space="preserve">
+    <value>حذف الإصدار</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.DeleteReleaseTooltip" xml:space="preserve">
+    <value>حذف الإصدار</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.DeleteReleaseTitle" xml:space="preserve">
+    <value>حذف الإصدار</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.DeleteReleaseMessageFormat" xml:space="preserve">
+    <value>هل أنت متأكد من حذف الإصدار v{0}؟ سيؤدي هذا أيضًا إلى إزالة أصوله ولا يمكن التراجع عنه.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.ReleaseDeletedTitle" xml:space="preserve">
+    <value>تم حذف الإصدار</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.ReleaseDeletedMessageFormat" xml:space="preserve">
+    <value>تم حذف الإصدار v{0}.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.HostingHintMessage" xml:space="preserve">
+    <value>{0} من الملفات بانتظار الرفع. اتصل بموفر استضافة لنشرها على السحابة.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.GoToHosting" xml:space="preserve">
+    <value>فتح الاستضافة</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.Dependencies" xml:space="preserve">
+    <value>التبعيات</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.Description" xml:space="preserve">
+    <value>الوصف</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.DragDropAddHint" xml:space="preserve">
+    <value>اسحب وأفلت المجلدات أو الأرشيفات هنا لإضافة محتوى</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.EditContentTooltip" xml:space="preserve">
+    <value>تعديل تفاصيل المحتوى</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.EditReleaseTooltip" xml:space="preserve">
+    <value>تعديل الإصدار</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.EmptyContent" xml:space="preserve">
+    <value>لا توجد عناصر محتوى حتى الآن</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.ExtendsContent" xml:space="preserve">
+    <value>يوسع المحتوى</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.LatestBadge" xml:space="preserve">
+    <value>الأحدث</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.Name" xml:space="preserve">
+    <value>الاسم</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.NoArtifacts" xml:space="preserve">
+    <value>لا توجد عناصر أصول في هذا الإصدار.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.NoBundledItems" xml:space="preserve">
+    <value>لا توجد عناصر مجمعة حتى الآن. انقر فوق 'إضافة عنصر' لتجميع المحتوى الحالي.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.NoContentSubtitle" xml:space="preserve">
+    <value>انقر فوق 'إضافة محتوى' أعلاه لإنشاء أول عنصر محتوى لك.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.NoContentTitle" xml:space="preserve">
+    <value>لا توجد عناصر محتوى في الكتالوج</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.NoDependencies" xml:space="preserve">
+    <value>لا توجد تبعيات لهذا الإصدار.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.NoReleases" xml:space="preserve">
+    <value>لا توجد إصدارات لعنصر المحتوى هذا. أضف إصدارًا للسماح للمستخدمين بتنزيل المحتوى.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.PendingCloudBadge" xml:space="preserve">
+    <value>في انتظار الرفع السحابي</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.PrereleaseBadge" xml:space="preserve">
+    <value>إصدار تجريبي</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.Primary" xml:space="preserve">
+    <value>أساسي</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.ManifestIdPrefix" xml:space="preserve">
+    <value>معرف البيان: </value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.SamePublisher" xml:space="preserve">
+    <value>(نفسه)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.PublisherPrefix" xml:space="preserve">
+    <value>الناشر: </value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.ReleaseDate" xml:space="preserve">
+    <value>تاريخ الإصدار</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.ReleasesAndArtifacts" xml:space="preserve">
+    <value>الإصدارات والعناصر</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.ReleasesHeader" xml:space="preserve">
+    <value>الإصدارات</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.ReleasesSuffix" xml:space="preserve">
+    <value> إصدارات</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.Remove" xml:space="preserve">
+    <value>إزالة</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.RemoveArtifactTooltip" xml:space="preserve">
+    <value>إزالة الأصل</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.RemoveDependencyTooltip" xml:space="preserve">
+    <value>إزالة التبعية</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.RemoveFromBundleTooltip" xml:space="preserve">
+    <value>إزالة من الحزمة المجمعة</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.RenameCatalogTooltip" xml:space="preserve">
+    <value>إعادة تسمية الكتالوج المحدد</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.SaveContent" xml:space="preserve">
+    <value>حفظ عنصر المحتوى</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.SaveRelease" xml:space="preserve">
+    <value>حفظ الإصدار</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.SearchWatermark" xml:space="preserve">
+    <value>البحث في المحتوى...</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.SelectItemPrompt" xml:space="preserve">
+    <value>حدد عنصر محتوى لعرض التفاصيل</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.Subtitle" xml:space="preserve">
+    <value>إدارة عناصر المحتوى والإصدارات وتنزيل الأصول في الكتالوج النشط</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.Tags" xml:space="preserve">
+    <value>الوسوم</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.TargetGame" xml:space="preserve">
+    <value>اللعبة المستهدفة</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.Title" xml:space="preserve">
+    <value>مكتبة المحتوى</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.Version" xml:space="preserve">
+    <value>الإصدار</value>
+  </data>
+  <data name="Tools.PublisherStudio.Profile.AvatarUrl" xml:space="preserve">
+    <value>عنوان URL للصورة الرمزية</value>
+  </data>
+  <data name="Tools.PublisherStudio.Profile.Description" xml:space="preserve">
+    <value>الوصف</value>
+  </data>
+  <data name="Tools.PublisherStudio.Profile.DescriptionHint" xml:space="preserve">
+    <value>وصف موجز لمنظمة أو فريق الناشر.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Profile.DescriptionPlaceholder" xml:space="preserve">
+    <value>حول هذا الناشر...</value>
+  </data>
+  <data name="Tools.PublisherStudio.Profile.DisplayName" xml:space="preserve">
+    <value>اسم العرض</value>
+  </data>
+  <data name="Tools.PublisherStudio.Profile.DisplayNameHint" xml:space="preserve">
+    <value>الاسم المقروء المعروض في GenHub.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Profile.DisplayNamePlaceholder" xml:space="preserve">
+    <value>مثلاً: Community Outpost</value>
+  </data>
+  <data name="Tools.PublisherStudio.Profile.Email" xml:space="preserve">
+    <value>البريد الإلكتروني للتواصل</value>
+  </data>
+  <data name="Tools.PublisherStudio.Profile.EmailPlaceholder" xml:space="preserve">
+    <value>publisher@example.com</value>
+  </data>
+  <data name="Tools.PublisherStudio.Profile.PublisherId" xml:space="preserve">
+    <value>معرف الناشر</value>
+  </data>
+  <data name="Tools.PublisherStudio.Profile.PublisherIdHint" xml:space="preserve">
+    <value>معرف فريد لهذا الناشر. أحرف وأرقام وشرطات فقط.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Profile.PublisherIdPlaceholder" xml:space="preserve">
+    <value>مثلاً: community-outpost</value>
+  </data>
+  <data name="Tools.PublisherStudio.Profile.Save" xml:space="preserve">
+    <value>حفظ الملف الشخصي</value>
+  </data>
+  <data name="Tools.PublisherStudio.Profile.SaveProfile" xml:space="preserve">
+    <value>حفظ الملف التعريفي</value>
+  </data>
+  <data name="Tools.PublisherStudio.Profile.Subtitle" xml:space="preserve">
+    <value>هوية الناشر الخاصة بك. يتم تضمين هذه المعلومات في جميع الكتالوجات التي تنتجها.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Profile.SupportDiscord" xml:space="preserve">
+    <value>رابط الدعم / ديسكورد</value>
+  </data>
+  <data name="Tools.PublisherStudio.Profile.Tags" xml:space="preserve">
+    <value>الوسوم (مفصولة بفواصل)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Profile.TagsPlaceholder" xml:space="preserve">
+    <value>مثلاً: mods, maps, patches</value>
+  </data>
+  <data name="Tools.PublisherStudio.Profile.Title" xml:space="preserve">
+    <value>ملف تعريف الناشر</value>
+  </data>
+  <data name="Tools.PublisherStudio.Profile.Website" xml:space="preserve">
+    <value>الموقع الإلكتروني</value>
+  </data>
+  <data name="Tools.PublisherStudio.Profile.WebsitePlaceholder" xml:space="preserve">
+    <value>https://example.com</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.CancelUpload" xml:space="preserve">
+    <value>إلغاء الرفع</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.CatalogsAndDefinition" xml:space="preserve">
+    <value>الكتالوجات والتعريف</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.CopyArtifactUrlTip" xml:space="preserve">
+    <value>نسخ رابط عنصر الأصل</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.CopyDefinitionUrlTip" xml:space="preserve">
+    <value>نسخ رابط التعريف</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.CopyLink" xml:space="preserve">
+    <value>نسخ الرابط</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.CopyProtocolLinkTip" xml:space="preserve">
+    <value>نسخ رابط البروتوكول</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.DefinitionUrlPlaceholder" xml:space="preserve">
+    <value>لم يتم الرفع بعد...</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.DefinitionUrlTitle" xml:space="preserve">
+    <value>رابط التنزيل المباشر للتعريف عبر الإنترنت (publisher.json)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ExternalCdnPreserved" xml:space="preserve">
+    <value>CDN خارجي (محفوظ)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.HierarchySubtitle" xml:space="preserve">
+    <value>نظرة عامة على الأصول المرفوعة: 1. تعريف الموفر  -&gt;  2. الكتالوجات  -&gt;  3. عناصر المحتوى والإصدارات</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.HierarchyTitle" xml:space="preserve">
+    <value>التسلسل الهرمي للرفع والتوزيع</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.LocalFilesToUpload" xml:space="preserve">
+    <value>الملفات المحلية للرفع</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.NotPublished" xml:space="preserve">
+    <value>غير منشور</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.NotUploadedYet" xml:space="preserve">
+    <value>لم يتم الرفع بعد</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.PendingUploadHint" xml:space="preserve">
+    <value>ملف محلي في انتظار الرفع</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ProtocolLinkHint" xml:space="preserve">
+    <value>يمكن للمستخدمين النقر على رابط genhub:// هذا أو لصقه في GenHub لعرض المحتوى الخاص بك والاشتراك فيه.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ProtocolLinkPlaceholder" xml:space="preserve">
+    <value>انشر التعريف لإنشاء الرابط...</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ProtocolLinkTitle" xml:space="preserve">
+    <value>رابط مشاركة بروتوكول GenHub</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.PublishCatalog" xml:space="preserve">
+    <value>نشر الكتالوج</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.Published" xml:space="preserve">
+    <value>منشور</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.PublishedCatalogs" xml:space="preserve">
+    <value>الكتالوجات والبيانات المنشورة</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.Revalidate" xml:space="preserve">
+    <value>إعادة التحقق</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.StepCatalogs" xml:space="preserve">
+    <value>2. الكتالوجات</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.StepContentReleases" xml:space="preserve">
+    <value>3. عناصر المحتوى والإصدارات</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.StepDefinition" xml:space="preserve">
+    <value>1. التعريف</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.Subtitle" xml:space="preserve">
+    <value>استضف تعريف الموفر والكتالوجات الخاصة بك على الإنترنت، وقم بتوزيعها عبر بروتوكول GenHub.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.TagCdn" xml:space="preserve">
+    <value>CDN</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.TagCloud" xml:space="preserve">
+    <value>سحابي</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.TagPending" xml:space="preserve">
+    <value>قيد الانتظار</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.TargetDestination" xml:space="preserve">
+    <value>وجهة الاستضافة المستهدفة:</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.Title" xml:space="preserve">
+    <value>نشر ومشاركة</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.UploadDefinition" xml:space="preserve">
+    <value>رفع / تحديث تعريف الموفر</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.Uploaded" xml:space="preserve">
+    <value>تم الرفع</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referral.AddButton" xml:space="preserve">
+    <value>إضافة إحالة</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referral.AddTitle" xml:space="preserve">
+    <value>إضافة إحالة ناشر</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referral.BrowseKnown" xml:space="preserve">
+    <value>استعراض الناشرين المعروفين</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referral.CatalogUrl" xml:space="preserve">
+    <value>عنوان URL للكتالوج / التعريف</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referral.CatalogUrlPlaceholder" xml:space="preserve">
+    <value>https://example.com/publisher.json</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referral.DefinitionUrl" xml:space="preserve">
+    <value>عنوان URL للتعريف</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referral.DefinitionUrlPlaceholder" xml:space="preserve">
+    <value>https://example.com/publisher.json</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referral.Description" xml:space="preserve">
+    <value>الوصف (اختياري)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referral.DescriptionPlaceholder" xml:space="preserve">
+    <value>لماذا توصي بهذا الناشر؟</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referral.Discover" xml:space="preserve">
+    <value>اكتشاف</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referral.DiscoverHint" xml:space="preserve">
+    <value>أدخل عنوان URL لتعريف الناشر (publisher.json) أو الكتالوج (catalog.json)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referral.NoKnownPublishers" xml:space="preserve">
+    <value>لا يوجد ناشرون معروفون متاحون</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referral.Note" xml:space="preserve">
+    <value>ملاحظة (اختياري)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referral.NotePlaceholder" xml:space="preserve">
+    <value>لماذا توصي بهذا الناشر؟</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referral.OrEnterManually" xml:space="preserve">
+    <value>أو أدخل يدوياً</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referral.PublisherFound" xml:space="preserve">
+    <value>تم العثور على الناشر</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referral.PublisherId" xml:space="preserve">
+    <value>معرف الناشر</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referral.PublisherIdPlaceholder" xml:space="preserve">
+    <value>مثلاً: community-outpost</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referral.QuickSelect" xml:space="preserve">
+    <value>تحديد سريع من اشتراكاتك</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referral.QuickSelectPrompt" xml:space="preserve">
+    <value>حدد ناشراً أنت مشترك فيه بالفعل:</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referral.RequiredNotice" xml:space="preserve">
+    <value>* معرف الناشر وعنوان URL للتعريف كلاهما مطلوبان.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referral.Subtitle" xml:space="preserve">
+    <value>التوصية بناشر آخر للمشتركين لديك. يساعد هذا المستخدمين على اكتشاف محتوى المجتمع ذي الصلة.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referrals.AddButton" xml:space="preserve">
+    <value>إضافة إحالة</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referrals.AddTooltip" xml:space="preserve">
+    <value>إضافة إحالة جديدة</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referrals.CatalogUrl" xml:space="preserve">
+    <value>عنوان URL للكتالوج</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referrals.ColActions" xml:space="preserve">
+    <value>الإجراءات</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referrals.ColDefinitionUrl" xml:space="preserve">
+    <value>عنوان URL للتعريف</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referrals.ColDescription" xml:space="preserve">
+    <value>الوصف</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referrals.ColPublisherId" xml:space="preserve">
+    <value>معرف الناشر</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referrals.DefinitionUrl" xml:space="preserve">
+    <value>عنوان URL للتعريف</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referrals.DefinitionUrlPlaceholder" xml:space="preserve">
+    <value>https://example.com/publisher.json</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referrals.Description" xml:space="preserve">
+    <value>الوصف (اختياري)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referrals.DescriptionPlaceholder" xml:space="preserve">
+    <value>لماذا توصي بهذا الناشر؟</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referrals.EditSubtitle" xml:space="preserve">
+    <value>تحديث تفاصيل توصية الناشر</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referrals.EditTitle" xml:space="preserve">
+    <value>تعديل الإحالة</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referrals.EmptyState" xml:space="preserve">
+    <value>لا توجد إحالات حتى الآن</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referrals.HowItWorksText" xml:space="preserve">
+    <value>تتيح الإحالات للكتالوج الخاص بك الترويج التبادلي لناشرين موثوقين آخرين (مثل Community-Outpost أو GeneralsOnline). عندما يشترك اللاعبون في الكتالوج الخاص بك، يمكنهم بسهولة اكتشاف وتثبيت المحتوى من الناشرين الذين أوصيت بهم.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referrals.HowItWorksTitle" xml:space="preserve">
+    <value>كيف تعمل الإحالات</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referrals.NoReferralsSubtitle" xml:space="preserve">
+    <value>انقر فوق 'إضافة إحالة' أعلاه للتوصية بناشرين آخرين.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referrals.NoReferralsTitle" xml:space="preserve">
+    <value>لم يتم تكوين أي إحالات</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referrals.PublisherId" xml:space="preserve">
+    <value>معرف الناشر</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referrals.PublisherIdPlaceholder" xml:space="preserve">
+    <value>مثلاً: generals-online</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referrals.RecommendationNote" xml:space="preserve">
+    <value>ملاحظة التوصية (اختياري)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referrals.RecommendationNotePlaceholder" xml:space="preserve">
+    <value>لماذا توصي بهذا الناشر للاعبيك؟</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referrals.Remove" xml:space="preserve">
+    <value>إزالة</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referrals.RemoveTooltip" xml:space="preserve">
+    <value>إزالة هذه الإحالة</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referrals.SaveChanges" xml:space="preserve">
+    <value>حفظ التغييرات</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referrals.SelectPrompt" xml:space="preserve">
+    <value>حدد إحالة لعرض التفاصيل، أو انقر فوق 'إضافة إحالة' للتوصية بناشر</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referrals.Subtitle" xml:space="preserve">
+    <value>التوصية بناشرين آخرين لمشتركيك. عندما يشترك المستخدمون في الكتالوج الخاص بك، سيرون هذه التوصيات.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referrals.Title" xml:space="preserve">
+    <value>الإحالات</value>
+  </data>
+  <data name="Tools.PublisherStudio.Release.AddArtifact" xml:space="preserve">
+    <value>إضافة أصل</value>
+  </data>
+  <data name="Tools.PublisherStudio.Release.DragDropHint" xml:space="preserve">
+    <value>تلميح: اسحب الملفات أو المجلدات وأفلتها هنا لإضافة أصول.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Release.AddDependency" xml:space="preserve">
+    <value>إضافة تبعية</value>
+  </data>
+  <data name="Tools.PublisherStudio.Release.AddRelease" xml:space="preserve">
+    <value>إضافة إصدار</value>
+  </data>
+  <data name="Tools.PublisherStudio.Release.AddTitle" xml:space="preserve">
+    <value>إضافة إصدار</value>
+  </data>
+  <data name="Tools.PublisherStudio.Release.ArtifactRequired" xml:space="preserve">
+    <value>مطلوب عنصر واحد على الأقل.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Release.Artifacts" xml:space="preserve">
+    <value>عناصر الأصول</value>
+  </data>
+  <data name="Tools.PublisherStudio.Release.ArtifactsFiles" xml:space="preserve">
+    <value>العناصر (الملفات)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Release.Changelog" xml:space="preserve">
+    <value>سجل التغييرات</value>
+  </data>
+  <data name="Tools.PublisherStudio.Release.ChangelogPlaceholder" xml:space="preserve">
+    <value>صف الجديد في هذا الإصدار...</value>
+  </data>
+  <data name="Tools.PublisherStudio.Release.Dependencies" xml:space="preserve">
+    <value>التبعيات</value>
+  </data>
+  <data name="Tools.PublisherStudio.Release.Featured" xml:space="preserve">
+    <value>مميز</value>
+  </data>
+  <data name="Tools.PublisherStudio.Release.Latest" xml:space="preserve">
+    <value>الأحدث</value>
+  </data>
+  <data name="Tools.PublisherStudio.Release.Prerelease" xml:space="preserve">
+    <value>إصدار تجريبي</value>
+  </data>
+  <data name="Tools.PublisherStudio.Release.Subtitle" xml:space="preserve">
+    <value>إنشاء إصدار جديد لعنصر المحتوى هذا. أضف عناصر أصول التنزيل وقم بتكوين التبعيات.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Release.Suggest" xml:space="preserve">
+    <value>اقتراح</value>
+  </data>
+  <data name="Tools.PublisherStudio.Release.Version" xml:space="preserve">
+    <value>الإصدار</value>
+  </data>
+  <data name="Tools.PublisherStudio.Release.VersionPlaceholder" xml:space="preserve">
+    <value>مثلاً: 1.0.0، 2.1-beta</value>
+  </data>
+  <data name="Tools.PublisherStudio.Release.VersionRequired" xml:space="preserve">
+    <value>* حقل الإصدار مطلوب.</value>
+  </data>
+  <data name="Tools.PublisherStudio.RenameCatalog.Cancel" xml:space="preserve">
+    <value>إلغاء</value>
+  </data>
+  <data name="Tools.PublisherStudio.RenameCatalog.CatalogName" xml:space="preserve">
+    <value>اسم الكتالوج</value>
+  </data>
+  <data name="Tools.PublisherStudio.RenameCatalog.CatalogNamePlaceholder" xml:space="preserve">
+    <value>مثلاً: التعديلات الرئيسية، التصحيحات، محتوى المجتمع</value>
+  </data>
+  <data name="Tools.PublisherStudio.RenameCatalog.Description" xml:space="preserve">
+    <value>ستؤدي إعادة التسمية إلى تحديث عنوان الكتالوج واسم ملف التصدير الخاص به (مثل catalog-maps.json).</value>
+  </data>
+  <data name="Tools.PublisherStudio.RenameCatalog.Name" xml:space="preserve">
+    <value>اسم الكتالوج</value>
+  </data>
+  <data name="Tools.PublisherStudio.RenameCatalog.NamePlaceholder" xml:space="preserve">
+    <value>مثال: Maps, Mods, Zero Hour Content</value>
+  </data>
+  <data name="Tools.PublisherStudio.RenameCatalog.RenameButton" xml:space="preserve">
+    <value>إعادة التسمية</value>
+  </data>
+  <data name="Tools.PublisherStudio.RenameCatalog.Save" xml:space="preserve">
+    <value>حفظ</value>
+  </data>
+  <data name="Tools.PublisherStudio.RenameCatalog.Subtitle" xml:space="preserve">
+    <value>تغيير اسم العرض لهذا الكتالوج. سيبقى معرف الكتالوج كما هو دون تغيير.</value>
+  </data>
+  <data name="Tools.PublisherStudio.RenameCatalog.Title" xml:space="preserve">
+    <value>إعادة تسمية الكتالوج</value>
+  </data>
+  <data name="Tools.PublisherStudio.SetupWizard.AllSet" xml:space="preserve">
+    <value>كل شيء جاهز!</value>
+  </data>
+  <data name="Tools.PublisherStudio.SetupWizard.AllSetDescription" xml:space="preserve">
+    <value>ملفك الشخصي للناشر جاهز. يمكنك الآن البدء في إضافة محتوى إلى الكتالوج الخاص بك.</value>
+  </data>
+  <data name="Tools.PublisherStudio.SetupWizard.Back" xml:space="preserve">
+    <value>رجوع</value>
+  </data>
+  <data name="Tools.PublisherStudio.SetupWizard.CompleteSetup" xml:space="preserve">
+    <value>إكمال الإعداد</value>
+  </data>
+  <data name="Tools.PublisherStudio.SetupWizard.ContactEmail" xml:space="preserve">
+    <value>البريد الإلكتروني للتواصل</value>
+  </data>
+  <data name="Tools.PublisherStudio.SetupWizard.ContactEmailPlaceholder" xml:space="preserve">
+    <value>publisher@example.com</value>
+  </data>
+  <data name="Tools.PublisherStudio.SetupWizard.ContactInfo" xml:space="preserve">
+    <value>قدم معلومات الاتصال للمستخدمين (اختياري).</value>
+  </data>
+  <data name="Tools.PublisherStudio.SetupWizard.DisplayName" xml:space="preserve">
+    <value>اسم العرض</value>
+  </data>
+  <data name="Tools.PublisherStudio.SetupWizard.DisplayNamePlaceholder" xml:space="preserve">
+    <value>مثلاً: Community Outpost</value>
+  </data>
+  <data name="Tools.PublisherStudio.SetupWizard.Finish" xml:space="preserve">
+    <value>إنهاء</value>
+  </data>
+  <data name="Tools.PublisherStudio.SetupWizard.InitialCatalog" xml:space="preserve">
+    <value>اسم الكتالوج الأولي</value>
+  </data>
+  <data name="Tools.PublisherStudio.SetupWizard.InitialCatalogHint" xml:space="preserve">
+    <value>يجب أن يكون لدى كل ناشر كتالوج واحد على الأقل.</value>
+  </data>
+  <data name="Tools.PublisherStudio.SetupWizard.InitialCatalogPlaceholder" xml:space="preserve">
+    <value>مثلاً: الرئيسي، المحتوى، التعديلات</value>
+  </data>
+  <data name="Tools.PublisherStudio.SetupWizard.Next" xml:space="preserve">
+    <value>التالي</value>
+  </data>
+  <data name="Tools.PublisherStudio.SetupWizard.PublisherId" xml:space="preserve">
+    <value>معرف الناشر</value>
+  </data>
+  <data name="Tools.PublisherStudio.SetupWizard.PublisherIdHint" xml:space="preserve">
+    <value>معرف أبجدي رقمي فريد يحتوي على شرطات. لا يمكن تغييره لاحقًا.</value>
+  </data>
+  <data name="Tools.PublisherStudio.SetupWizard.PublisherIdPlaceholder" xml:space="preserve">
+    <value>مثلاً: community-outpost</value>
+  </data>
+  <data name="Tools.PublisherStudio.SetupWizard.RequiredNotice" xml:space="preserve">
+    <value>* معرف الناشر واسم العرض واسم الكتالوج الأولي مطلوبة.</value>
+  </data>
+  <data name="Tools.PublisherStudio.SetupWizard.Subtitle" xml:space="preserve">
+    <value>تكوين هوية الناشر الخاصة بك. سيتم تضمين هذه المعلومات في بياناتك المنشورة.</value>
+  </data>
+  <data name="Tools.PublisherStudio.SetupWizard.Title" xml:space="preserve">
+    <value>إعداد الناشر</value>
+  </data>
+  <data name="Tools.PublisherStudio.SetupWizard.Website" xml:space="preserve">
+    <value>الموقع الإلكتروني (اختياري)</value>
+  </data>
+  <data name="Tools.PublisherStudio.SetupWizard.WebsitePlaceholder" xml:space="preserve">
+    <value>https://example.com</value>
+  </data>
+  <data name="Tools.PublisherStudio.SetupWizard.Welcome" xml:space="preserve">
+    <value>مرحباً بك في استوديو الناشر! دعنا نقوم بإعداد هوية الناشر الخاصة بك.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Status.ChangesPending" xml:space="preserve">
+    <value>تغييرات معلقة</value>
+  </data>
+  <data name="Tools.PublisherStudio.Status.NotPublished" xml:space="preserve">
+    <value>غير منشور</value>
+  </data>
+  <data name="Tools.PublisherStudio.Status.Published" xml:space="preserve">
+    <value>منشور</value>
+  </data>
+  <data name="Tools.PublisherStudio.Status.PublishedDate" xml:space="preserve">
+    <value>تم النشر {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.AddCatalogTooltip" xml:space="preserve">
+    <value>إضافة كتالوج جديد</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.BadgeCreator" xml:space="preserve">
+    <value>منشئ</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.ConfigureProfile" xml:space="preserve">
+    <value>تكوين الملف الشخصي</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.CurrentCatalog" xml:space="preserve">
+    <value>الكتالوج الحالي:</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.DeleteCatalogTooltip" xml:space="preserve">
+    <value>حذف الكتالوج المحدد</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.LoadProjectTooltip" xml:space="preserve">
+    <value>تحميل مشروع موجود</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.NewProjectTooltip" xml:space="preserve">
+    <value>إنشاء مشروع جديد</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.RenameCatalogTooltip" xml:space="preserve">
+    <value>إعادة تسمية الكتالوج المحدد</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.SaveProjectTooltip" xml:space="preserve">
+    <value>حفظ المشروع</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.SetupBannerSubtitle" xml:space="preserve">
+    <value>قم بتكوين هوية الناشر الخاصة بك قبل إنشاء الكتالوجات والمحتوى.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.SetupBannerTitle" xml:space="preserve">
+    <value>إعداد الناشر مطلوب</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.SetupPublisher" xml:space="preserve">
+    <value>إعداد الناشر</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.SetupRequired" xml:space="preserve">
+    <value>مطلوب إعداد الناشر</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.SetupRequiredDescription" xml:space="preserve">
+    <value>قم بتكوين معرّف الناشر واسمه في علامة تبويب الملف الشخصي لفتح مكتبة المحتوى وميزات النشر.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.Subtitle" xml:space="preserve">
+    <value>إنشاء وصيانة كتالوجات المحتوى المخصص للتوزيع</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.TabHelp" xml:space="preserve">
+    <value>المساعدة والتوثيق</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.TabHelpTooltip" xml:space="preserve">
+    <value>توثيق وأدلة استوديو الناشر</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.TabHosting" xml:space="preserve">
+    <value>الاستضافة والتخزين السحابي</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.TabHostingTooltip" xml:space="preserve">
+    <value>إدارة اتصالات التخزين السحابي ومراقبة المساحة وفحص الملفات الحالية</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.TabLibrary" xml:space="preserve">
+    <value>مكتبة المحتوى</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.TabLibraryTooltip" xml:space="preserve">
+    <value>إدارة التعديلات والخرائط والتصحيحات والإضافات في هذا الكتالوج</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.TabProfile" xml:space="preserve">
+    <value>ملف تعريف الناشر</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.TabProfileTooltip" xml:space="preserve">
+    <value>عرض وتعديل هوية الناشر والبيانات الوصفية الخاصة بك</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.TabPublish" xml:space="preserve">
+    <value>نشر ومشاركة</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.TabPublishTooltip" xml:space="preserve">
+    <value>استضف ملفات الكتالوج والتعريف عبر الإنترنت عبر موفري السحاب المدمجين</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.TabReferrals" xml:space="preserve">
+    <value>الإحالات</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.TabReferralsTooltip" xml:space="preserve">
+    <value>التوصية بناشرين آخرين لمشتركيك</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.Title" xml:space="preserve">
+    <value>استوديو الناشر</value>
+  </data>
+  <data name="Tools.PublisherStudio.Title" xml:space="preserve">
+    <value>استوديو الناشر</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.Unsaved" xml:space="preserve">
+    <value>غير محفوظ</value>
+  </data>
   <data name="Tools.Share.Title" xml:space="preserve">
     <value>مشاركة الرفع</value>
   </data>
@@ -8160,5 +9803,788 @@ GenHub هو مشغل ومدير حديث لألعاب **Command &amp; Conquer: G
   </data>
   <data name="Replays.Tooltip.CopyGenHubLink" xml:space="preserve">
     <value>نسخ رابط GenHub (يفتح GenHub ويستورد تلقائيًا).</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ConnectToProvider" xml:space="preserve">
+    <value>الاتصال بـ {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ConnectProvider" xml:space="preserve">
+    <value>اتصال بالمزود</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.PublishToProvider" xml:space="preserve">
+    <value>نشر إلى {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.PublishAllCatalogs" xml:space="preserve">
+    <value>نشر جميع الفهارس وتحديث التعريف</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.NoProviderSelected" xml:space="preserve">
+    <value>لم يتم تحديد مزود استضافة</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.DestinationGoogleDrive" xml:space="preserve">
+    <value>Google Drive الخاص بك (داخل مجلد '{0}')</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.DestinationDropbox" xml:space="preserve">
+    <value>حساب Dropbox الخاص بك (داخل مجلد التطبيق '/Apps/GenHub/')</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.DestinationGitHub" xml:space="preserve">
+    <value>GitHub Gists الخاصة بك (البيانات والتعريفات فقط؛ الملفات الثنائية تتطلب عناوين CDN)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ConnectedTitle" xml:space="preserve">
+    <value>متصل</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ConnectedMessage" xml:space="preserve">
+    <value>تم الاتصال بنجاح بـ {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.AuthCanceledTitle" xml:space="preserve">
+    <value>تم إلغاء المصادقة</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.AuthCanceledTimeout" xml:space="preserve">
+    <value>انتهت مهلة المصادقة أو تم إلغاؤها.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.AuthCanceledAborted" xml:space="preserve">
+    <value>تم إحباط الاتصال بمزود الاستضافة.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.AuthCanceledDriveHelp" xml:space="preserve">
+    <value>تم إلغاء المصادقة أو انتهت المهلة. بالنسبة إلى Google Drive، تأكد من تحديد 'Desktop app' (وليس 'Web application') في Google Cloud Console.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.AuthError" xml:space="preserve">
+    <value>خطأ في المصادقة</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.AuthFailed" xml:space="preserve">
+    <value>فشلت المصادقة: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.Authenticating" xml:space="preserve">
+    <value>جارٍ التحقق من الهوية...</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.EnterGitHubToken" xml:space="preserve">
+    <value>يرجى إدخال رمز الوصول الشخصي</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.EnterDropboxToken" xml:space="preserve">
+    <value>يرجى إدخال رمز وصول Dropbox</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.EnterGoogleCredentials" xml:space="preserve">
+    <value>يتطلب Google Drive بيانات اعتماد العميل. أدخل معرّف العميل وسر العميل أعلاه.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.AuthenticatedSuccess" xml:space="preserve">
+    <value>تمت المصادقة بنجاح</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.SignedOut" xml:space="preserve">
+    <value>تم تسجيل الخروج</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.SignOutError" xml:space="preserve">
+    <value>خطأ أثناء تسجيل الخروج: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.RestoredConnection" xml:space="preserve">
+    <value>تمت استعادة الاتصال</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.IncompatibleProvider" xml:space="preserve">
+    <value>مزود غير متوافق</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.PublishWarning" xml:space="preserve">
+    <value>تحذير النشر</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.PublishFailed" xml:space="preserve">
+    <value>فشل النشر</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.Copied" xml:space="preserve">
+    <value>تم النسخ</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.LinkCopied" xml:space="preserve">
+    <value>تم نسخ الرابط إلى الحافظة.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.BrowserError" xml:space="preserve">
+    <value>خطأ في المتصفح</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.CouldNotOpenUrl" xml:space="preserve">
+    <value>تعذر فتح الرابط: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ProviderNotConnected" xml:space="preserve">
+    <value>المزود غير متصل</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ConnectBeforeScan" xml:space="preserve">
+    <value>اتصل بمزود الاستضافة قبل فحص مساحة التخزين.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.StorageSynced" xml:space="preserve">
+    <value>تمت مزامنة التخزين</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ScanError" xml:space="preserve">
+    <value>خطأ في الفحص</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ScanBlockedByOperation" xml:space="preserve">
+    <value>يرجى الانتظار حتى انتهاء الرفع أو المزامنة الحالية قبل الفحص.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ContentItemsFormat" xml:space="preserve">
+    <value>{0} من العناصر</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.CatalogsCountFormat" xml:space="preserve">
+    <value>{0} من الفهارس</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.CopiedToClipboard" xml:space="preserve">
+    <value>تم النسخ إلى الحافظة</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.DirectDownloadUrlCopied" xml:space="preserve">
+    <value>تم نسخ رابط التنزيل المباشر.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.DeleteCatalogTitle" xml:space="preserve">
+    <value>حذف الفهرس</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.DeleteCatalogMessage" xml:space="preserve">
+    <value>هل أنت متأكد من حذف الفهرس '{0}'؟ لا يمكن التراجع عن هذا الإجراء.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.DeleteConfirm" xml:space="preserve">
+    <value>حذف</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.Cancel" xml:space="preserve">
+    <value>إلغاء</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.DuplicateCatalogId" xml:space="preserve">
+    <value>معرّف فهرس مكرر</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.CatalogAlreadyExists" xml:space="preserve">
+    <value>يوجد فهرس بالمعرّف '{0}' بالفعل.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.GoogleDriveCredentialsNeededTitle" xml:space="preserve">
+    <value>بيانات اعتماد Google Drive مطلوبة</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.GoogleDriveCredentialsNeededMessage" xml:space="preserve">
+    <value>يرجى إدخال معرف العميل والسر لـ Google OAuth للاتصال بـ Google Drive. اتبع دليل تكوين المشروع أعلاه.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Notification.ProjectSavedTitle" xml:space="preserve">
+    <value>تم حفظ المشروع</value>
+  </data>
+  <data name="Tools.PublisherStudio.Notification.ProjectSavedMessage" xml:space="preserve">
+    <value>تم حفظ مشروع الناشر '{0}' بنجاح.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Notification.SaveFailedTitle" xml:space="preserve">
+    <value>فشل الحفظ</value>
+  </data>
+  <data name="Tools.PublisherStudio.Notification.SaveErrorTitle" xml:space="preserve">
+    <value>خطأ في الحفظ</value>
+  </data>
+  <data name="Tools.PublisherStudio.Notification.DuplicateCatalogIdTitle" xml:space="preserve">
+    <value>معرف كتالوج مكرر</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.DuplicateIdTitle" xml:space="preserve">
+    <value>معرف محتوى مكرر</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.DuplicateIdMessageFormat" xml:space="preserve">
+    <value>يوجد بالفعل عنصر محتوى بالمعرف '{0}' في هذا الكتالوج.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.DeleteContentTitle" xml:space="preserve">
+    <value>حذف عنصر المحتوى</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.DeleteContentMessageFormat" xml:space="preserve">
+    <value>هل أنت متأكد من رغبتك في حذف '{0}' ({1})؟ سيؤدي هذا أيضاً إلى إزالة جميع إصداراته وملفاته.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.UploadCanceled" xml:space="preserve">
+    <value>تم إلغاء الرفع.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.PublishedSuccessfully" xml:space="preserve">
+    <value>تم النشر بنجاح!</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ProviderDefinitionUploaded" xml:space="preserve">
+    <value>تم رفع تعريف الموفر بنجاح.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.UploadingProviderDefinition" xml:space="preserve">
+    <value>جارٍ رفع تعريف الموفر...</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.EditTitle" xml:space="preserve">
+    <value>تعديل عنصر المحتوى</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CreateContent" xml:space="preserve">
+    <value>إنشاء المحتوى</value>
+  </data>
+  <data name="Tools.PublisherStudio.Release.EditTitle" xml:space="preserve">
+    <value>تعديل الإصدار</value>
+  </data>
+  <data name="Tools.PublisherStudio.Release.CreateRelease" xml:space="preserve">
+    <value>إنشاء الإصدار</value>
+  </data>
+  <data name="Tools.PublisherStudio.Common.SaveChanges" xml:space="preserve">
+    <value>حفظ التغييرات</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.NoFileConfigured" xml:space="preserve">
+    <value>لم يتم تكوين أي ملف</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.StatusLocalFile" xml:space="preserve">
+    <value>تم تحديد ملف محلي - سيتم رفعه أثناء النشر</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.StatusExternalCdn" xml:space="preserve">
+    <value>مستضاف خارجياً على شبكة CDN / خادم مرآة (لن يتم رفعه)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.InvalidSize" xml:space="preserve">
+    <value>حجم غير صالح</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.HashInProgress" xml:space="preserve">
+    <value>لا يزال حساب البصمة جارياً. يرجى الانتظار.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.InvalidSizeFormat" xml:space="preserve">
+    <value>تنسيق حجم الملف غير صالح (مثال: 10 MB، 500 KB، 1.5 GB)</value>
+  </data>
+  <data name="Common.Notification.Error" xml:space="preserve">
+    <value>خطأ</value>
+  </data>
+  <data name="Downloads.ImportSubscription.Error.InvalidUrl" xml:space="preserve">
+    <value>صيغة الرابط غير صالحة. يرجى تقديم رابط HTTPS أو genhub:// صالح.</value>
+  </data>
+  <data name="Downloads.ImportSubscription.Error.LaunchFailedFormat" xml:space="preserve">
+    <value>فشل تشغيل تأكيد الاشتراك: {0}</value>
+  </data>
+  <data name="Downloads.ImportSubscription.Error.UrlRequired" xml:space="preserve">
+    <value>يرجى إدخال رابط أو رابط genhub://.</value>
+  </data>
+  <data name="Downloads.ImportSubscription.ImportErrorBody" xml:space="preserve">
+    <value>تعذر فتح حوار الاستيراد: {0}</value>
+  </data>
+  <data name="Downloads.ImportSubscription.ImportErrorTitle" xml:space="preserve">
+    <value>خطأ في الاستيراد</value>
+  </data>
+  <data name="Downloads.ImportSubscription.ManifestsErrorBody" xml:space="preserve">
+    <value>تعذر فتح مجلد البيانات: {0}</value>
+  </data>
+  <data name="Downloads.ImportSubscription.ManifestsErrorTitle" xml:space="preserve">
+    <value>خطأ</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.BrowseError" xml:space="preserve">
+    <value>خطأ: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.HashComputeFailed" xml:space="preserve">
+    <value>تعذر حساب البصمة: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.LocalFileRequired" xml:space="preserve">
+    <value>يرجى اختيار ملف محلي للرفع</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.SelectLocalFileFirst" xml:space="preserve">
+    <value>يرجى اختيار ملف محلي أولاً</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.ValidUrlRequired" xml:space="preserve">
+    <value>يرجى إدخال رابط تنزيل صحيح يبدأ بـ HTTP أو HTTPS</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.SelectArchiveTitle" xml:space="preserve">
+    <value>اختيار ملف أرشيف المحتوى</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.SelectFolderTitle" xml:space="preserve">
+    <value>اختيار مجلد المحتوى</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dependency.ContentIdRequired" xml:space="preserve">
+    <value>معرف المحتوى مطلوب للتبعيات الخارجية</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dependency.DiscoveryFailed" xml:space="preserve">
+    <value>فشل الاكتشاف: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dependency.DiscoveryTimeout" xml:space="preserve">
+    <value>انتهت مهلة طلب الاكتشاف أو تم إلغاؤه.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dependency.EnterCatalogUrlFirst" xml:space="preserve">
+    <value>يرجى إدخال رابط الكتالوج أو تعريف المزود أولاً</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dependency.InvalidCatalogUrl" xml:space="preserve">
+    <value>يرجى إدخال رابط كتالوج صحيح</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dependency.NoContentFound" xml:space="preserve">
+    <value>لم يتم العثور على محتوى في الرابط المقدم</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dependency.NoOtherContentItems" xml:space="preserve">
+    <value>لا توجد عناصر محتوى أخرى متاحة في الكتالوج</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dependency.PublisherIdRequired" xml:space="preserve">
+    <value>معرف الناشر مطلوب للتبعيات الخارجية</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dependency.SelectContentRequired" xml:space="preserve">
+    <value>يرجى اختيار عنصر محتوى من الكتالوج</value>
+  </data>
+  <data name="Tools.PublisherStudio.Profile.SaveFailedTitle" xml:space="preserve">
+    <value>فشل الحفظ</value>
+  </data>
+  <data name="Tools.PublisherStudio.Profile.SavedMessage" xml:space="preserve">
+    <value>تم حفظ ملف الناشر بنجاح.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Profile.SavedTitle" xml:space="preserve">
+    <value>تم حفظ الملف</value>
+  </data>
+  <data name="Tools.PublisherStudio.Profile.ValidationMessage" xml:space="preserve">
+    <value>يرجى إصلاح أخطاء التحقق قبل الحفظ.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Profile.ValidationTitle" xml:space="preserve">
+    <value>أخطاء التحقق</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.CatalogJsonCopiedMessage" xml:space="preserve">
+    <value>تم نسخ JSON الكتالوج إلى الحافظة!</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.DefinitionFailedTitle" xml:space="preserve">
+    <value>رابط التعريف غير متاح</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ExportFailedTitle" xml:space="preserve">
+    <value>فشل التصدير</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.FailedTitle" xml:space="preserve">
+    <value>فشل النشر</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.NoCatalogUrlMessage" xml:space="preserve">
+    <value>يرجى نشر هذا الكتالوج أولاً قبل نسخ رابطه.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.NoDefinitionUrlMessage" xml:space="preserve">
+    <value>يرجى رفع تعريف المزود أولاً قبل نسخ رابطه.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.NoProviderTitle" xml:space="preserve">
+    <value>المزود مطلوب</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.NoSubscriptionUrlMessage" xml:space="preserve">
+    <value>يرجى نشر الكتالوجات وتعريف المزود أولاً قبل نسخ رابط الاشتراك.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.NoSubscriptionUrlPlaceholder" xml:space="preserve">
+    <value>يرجى النشر لإنشاء رابط الاشتراك</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.NoSubscriptionUrlTitle" xml:space="preserve">
+    <value>رابط الاشتراك غير متاح</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.NoUrlToCopy" xml:space="preserve">
+    <value>لا يوجد رابط متاح للنسخ.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ProviderDefinitionJsonCopiedMessage" xml:space="preserve">
+    <value>تم نسخ JSON تعريف المزود إلى الحافظة!</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ProviderDefinitionUploadedMessage" xml:space="preserve">
+    <value>تم رفع تعريف المزود بنجاح.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ScanInProgress" xml:space="preserve">
+    <value>فحص التخزين جارٍ. يرجى المحاولة مرة أخرى قريباً.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ScanTimedOut" xml:space="preserve">
+    <value>انتهت مهلة الفحص أو تم إلغاؤه. يرجى المحاولة مرة أخرى.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.SuccessTitle" xml:space="preserve">
+    <value>تم النشر بنجاح</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.UploadStatus.Failed" xml:space="preserve">
+    <value>فشل</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.UploadStatus.Pending" xml:space="preserve">
+    <value>قيد الانتظار</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.UploadStatus.Uploaded" xml:space="preserve">
+    <value>تم الرفع</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.UploadStatus.Uploading" xml:space="preserve">
+    <value>جارٍ الرفع...</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ValidationFailedTitle" xml:space="preserve">
+    <value>فشل التحقق</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referral.CatalogUrlRequired" xml:space="preserve">
+    <value>رابط الكتالوج مطلوب</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referral.DiscoveryError" xml:space="preserve">
+    <value>خطأ في الاكتشاف: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referral.DiscoveryTimeout" xml:space="preserve">
+    <value>انتهت مهلة طلب الاكتشاف. يرجى المحاولة مرة أخرى.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referral.FetchFailed" xml:space="preserve">
+    <value>تعذر جلب الكتالوج: HTTP {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referral.InvalidCatalogUrl" xml:space="preserve">
+    <value>رابط كتالوج غير صالح</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referral.NoPublisherDetails" xml:space="preserve">
+    <value>تعذر العثور على تفاصيل الناشر في الاستجابة</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referral.NoPublisherInfo" xml:space="preserve">
+    <value>لم يتم العثور على معلومات ناشر صالحة في الرابط</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referral.ParseFailed" xml:space="preserve">
+    <value>فشل تحليل الكتالوج: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referral.PublisherIdRequired" xml:space="preserve">
+    <value>معرف الناشر مطلوب</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referral.ValidUrlRequired" xml:space="preserve">
+    <value>يرجى إدخال رابط صحيح أولاً</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referrals.CatalogUrlInvalid" xml:space="preserve">
+    <value>يجب أن يكون رابط الكتالوج رابط http أو https صالحاً.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referrals.PublisherIdRequired" xml:space="preserve">
+    <value>معرف الناشر مطلوب.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referrals.ValidationTitle" xml:space="preserve">
+    <value>إحالة غير صالحة</value>
+  </data>
+  <data name="Tools.PublisherStudio.Release.DuplicateVersion" xml:space="preserve">
+    <value>الإصدار {0} موجود بالفعل لهذا المحتوى</value>
+  </data>
+  <data name="Tools.PublisherStudio.SetupWizard.InvalidContactEmail" xml:space="preserve">
+    <value>يرجى إدخال عنوان بريد إلكتروني صحيح.</value>
+  </data>
+  <data name="Tools.PublisherStudio.SetupWizard.InvalidWebsiteUrl" xml:space="preserve">
+    <value>يرجى إدخال رابط موقع صحيح يبدأ بـ HTTP أو HTTPS.</value>
+  </data>
+  <data name="Tools.PublisherStudio.SetupWizard.StepComplete" xml:space="preserve">
+    <value>اكتمل الإعداد</value>
+  </data>
+  <data name="Tools.PublisherStudio.SetupWizard.StepContact" xml:space="preserve">
+    <value>معلومات الاتصال</value>
+  </data>
+  <data name="Tools.PublisherStudio.SetupWizard.StepIdentity" xml:space="preserve">
+    <value>هوية الناشر</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.CannotRemoveLastCatalog" xml:space="preserve">
+    <value>لا يمكن إزالة الكتالوج الأخير</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.LoadProjectErrorFormat" xml:space="preserve">
+    <value>خطأ في تحميل المشروع: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.ProjectLoadedFormat" xml:space="preserve">
+    <value>تم تحميل المشروع: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.LoadProjectFailedFormat" xml:space="preserve">
+    <value>فشل تحميل المشروع: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.ProjectCreatedSetupHint" xml:space="preserve">
+    <value>تم إنشاء مشروع جديد - قم بإعداد ملف الناشر للبدء</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.ProjectCreated" xml:space="preserve">
+    <value>تم إنشاء مشروع جديد</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.CreateProjectFailedFormat" xml:space="preserve">
+    <value>فشل إنشاء المشروع: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.CreateProjectErrorFormat" xml:space="preserve">
+    <value>خطأ في إنشاء المشروع: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.CatalogRenamedFormat" xml:space="preserve">
+    <value>تمت إعادة تسمية الفهرس إلى '{0}'</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.HostingRecoveryNeeded" xml:space="preserve">
+    <value>حالة الاستضافة مفقودة - قد يلزم الاسترداد. استخدم علامة تبويب النشر والمشاركة لإعادة الاتصال.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.CatalogCountFormat" xml:space="preserve">
+    <value>{0} كتالوجات</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.NoProjectLoaded" xml:space="preserve">
+    <value>لا يوجد مشروع محمل</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dialogs.ConfirmButton" xml:space="preserve">
+    <value>تأكيد</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dialogs.CancelButton" xml:space="preserve">
+    <value>إلغاء</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dialogs.WindowTitle" xml:space="preserve">
+    <value>استوديو النشر GenHub</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.ItemsInCatalog" xml:space="preserve">
+    <value>{0} عنصر في الكتالوج</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.ParsedSize" xml:space="preserve">
+    <value>تم التحليل: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.SelectHostingProvider" xml:space="preserve">
+    <value>يرجى اختيار موفر الاستضافة</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.AuthenticationErrorFormat" xml:space="preserve">
+    <value>خطأ في المصادقة: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.AuthenticationCanceled" xml:space="preserve">
+    <value>تم إلغاء المصادقة.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.NoCatalogSelected" xml:space="preserve">
+    <value>لم يتم تحديد أي كتالوج</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ValidationArtifactsInvalidFormat" xml:space="preserve">
+    <value>فشل التحقق: يوجد {0} من الملفات بروابط غير صالحة أو مفقودة</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.CatalogValidFormat" xml:space="preserve">
+    <value>الكتالوج '{0}' صالح</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ValidationFailedFormat" xml:space="preserve">
+    <value>فشل التحقق: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ValidationErrorFormat" xml:space="preserve">
+    <value>خطأ في التحقق: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.IncompatibleArtifactsActiveCatalogFormat" xml:space="preserve">
+    <value>يستضيف {0} بيانات الكتالوج الوصفية (JSON) فقط. يحتوي الكتالوج النشط '{1}' على {2} من الملفات المحلية بانتظار الرفع. إما توفير روابط CDN مباشرة لتلك الملفات، أو التبديل إلى Google Drive أو Dropbox لاستضافة الأرشيفات الثنائية.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.FixValidationBeforeUpload" xml:space="preserve">
+    <value>يرجى إصلاح أخطاء التحقق من الكتالوج قبل الرفع.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.FixValidationBeforePublish" xml:space="preserve">
+    <value>يرجى إصلاح أخطاء التحقق من الكتالوج قبل النشر.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.PreparingToPublish" xml:space="preserve">
+    <value>جارٍ التحضير للنشر...</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.GeneratingCatalogFormat" xml:space="preserve">
+    <value>جارٍ إنشاء الكتالوج '{0}'...</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ExportCatalogFailedFormat" xml:space="preserve">
+    <value>فشل تصدير الكتالوج: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.UploadingCatalogFormat" xml:space="preserve">
+    <value>جارٍ رفع الكتالوج '{0}' إلى {1}...</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.CatalogUploadFailedFormat" xml:space="preserve">
+    <value>فشل رفع الكتالوج: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ErrorFormat" xml:space="preserve">
+    <value>خطأ: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.UpdatingCatalogFormat" xml:space="preserve">
+    <value>جارٍ تحديث الكتالوج الموجود '{0}'...</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.GeneratingProviderDefinition" xml:space="preserve">
+    <value>جارٍ إنشاء تعريف الموفر...</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.DefinitionUploadFailedAfterPublishFormat" xml:space="preserve">
+    <value>تم نشر الكتالوج، لكن فشل رفع تعريف الموفر: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ArtifactHostingNotSupported" xml:space="preserve">
+    <value>الموفر لا يدعم استضافة الملفات. يرجى إضافة الروابط يدويًا.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.CompressingFolderFormat" xml:space="preserve">
+    <value>جارٍ ضغط المجلد '{0}' في أرشيف...</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.FileOrDirectoryNotFound" xml:space="preserve">
+    <value>الملف أو المجلد غير موجود</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.FileOrDirectoryNotFoundFormat" xml:space="preserve">
+    <value>الملف أو المجلد غير موجود: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.UploadingArtifactFormat" xml:space="preserve">
+    <value>جارٍ رفع الملف {0}/{1}: {2}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.UploadFailedShort" xml:space="preserve">
+    <value>فشل الرفع</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.UploadInProgressTitle" xml:space="preserve">
+    <value>الرفع قيد التنفيذ</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ArtifactUploadFailedFormat" xml:space="preserve">
+    <value>فشل رفع {0}: {1}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.UploadCanceledError" xml:space="preserve">
+    <value>تم إلغاء الرفع</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ErrorUploadingArtifactFormat" xml:space="preserve">
+    <value>خطأ أثناء رفع {0}: {1}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.NoCatalogsPublishedYet" xml:space="preserve">
+    <value>لم يتم نشر أي كتالوجات بعد</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.NoCatalogsPublishedPublishFirst" xml:space="preserve">
+    <value>لم يتم نشر أي كتالوجات بعد. يرجى نشر كتالوج أولًا.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.NoCatalogUrlsForDefinition" xml:space="preserve">
+    <value>لا توجد روابط كتالوجات متاحة للتعريف</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.GenerateDefinitionFailedFormat" xml:space="preserve">
+    <value>فشل إنشاء التعريف: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.UploadFailedFormat" xml:space="preserve">
+    <value>فشل الرفع: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ErrorUploadingDefinitionFormat" xml:space="preserve">
+    <value>خطأ أثناء رفع التعريف: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.PublishAllFailed" xml:space="preserve">
+    <value>فشل نشر جميع الكتالوجات.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.PublishAllCanceled" xml:space="preserve">
+    <value>تم إلغاء نشر جميع الكتالوجات.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.PublishingCatalogFormat" xml:space="preserve">
+    <value>جارٍ نشر الكتالوج {0}/{1}: {2}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.PublishAllSuccessDefinitionFailedFormat" xml:space="preserve">
+    <value>تم نشر جميع الكتالوجات ({0}) بنجاح، لكن فشل رفع تعريف الموفر: {1}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.PublishAllPartialDefinitionFailedFormat" xml:space="preserve">
+    <value>تم نشر {0} من {1} من الكتالوجات، لكن فشل رفع تعريف الموفر: {2}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.PublishAllSuccessFormat" xml:space="preserve">
+    <value>تم نشر جميع الكتالوجات ({0}) بنجاح!</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.PublishAllPartialFormat" xml:space="preserve">
+    <value>تم نشر {0} من {1} من الكتالوجات.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ConnectProviderFirst" xml:space="preserve">
+    <value>يرجى الاتصال بموفر الاستضافة أولًا.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.SyncCompleteFormat" xml:space="preserve">
+    <value>اكتملت المزامنة! تم اكتشاف {0} من الملفات في {1}.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ScanningFolderFormat" xml:space="preserve">
+    <value>جارٍ فحص مجلد {0} بحثًا عن الملفات المستضافة...</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.NoHostedFilesFound" xml:space="preserve">
+    <value>لم يتم اكتشاف أي ملفات مستضافة في مجلد التخزين السحابي.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ScanErrorFormat" xml:space="preserve">
+    <value>خطأ في الفحص: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.IncompatibleArtifactsWarningFormat" xml:space="preserve">
+    <value>يستضيف {0} بيانات الكتالوج الوصفية (JSON) فقط. يحتوي مشروعك على {1} من الملفات المحلية بانتظار الرفع. إما توفير روابط CDN مباشرة لتلك الملفات، أو التبديل إلى Google Drive أو Dropbox لاستضافة الأرشيفات الثنائية.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ExportCatalogJsonFailed" xml:space="preserve">
+    <value>فشل تصدير الكتالوج بصيغة JSON.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.UploadDefinitionFailedMessage" xml:space="preserve">
+    <value>فشل رفع تعريف الموفر.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.UnknownPublisher" xml:space="preserve">
+    <value>الناشر</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.ProjectSavedHint" xml:space="preserve">
+    <value>تم حفظ المشروع. انتقل إلى 'النشر والمشاركة' للتصدير والإصدار.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.SaveProjectFailedFormat" xml:space="preserve">
+    <value>فشل الحفظ: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.SaveProjectErrorFormat" xml:space="preserve">
+    <value>خطأ أثناء الحفظ: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Notification.SaveUnknownError" xml:space="preserve">
+    <value>حدث خطأ غير معروف أثناء حفظ المشروع.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Notification.SaveErrorMessageFormat" xml:space="preserve">
+    <value>حدث خطأ أثناء الحفظ: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.ArtifactStatus.PendingUpload" xml:space="preserve">
+    <value>بانتظار الرفع السحابي</value>
+  </data>
+  <data name="Tools.PublisherStudio.ArtifactStatus.LocalFileNotFound" xml:space="preserve">
+    <value>الملف أو المجلد المحلي غير موجود</value>
+  </data>
+  <data name="Tools.PublisherStudio.ArtifactStatus.NoFileOrUrl" xml:space="preserve">
+    <value>لم يتم تكوين أي ملف أو رابط</value>
+  </data>
+  <data name="Tools.PublisherStudio.ArtifactStatus.HostedWithLocal" xml:space="preserve">
+    <value>مستضاف (يتوفر ملف محلي)</value>
+  </data>
+  <data name="Tools.PublisherStudio.ArtifactStatus.HostedExternalCdn" xml:space="preserve">
+    <value>مستضاف (CDN خارجي)</value>
+  </data>
+  <data name="Tools.PublisherStudio.ArtifactStatus.InvalidUrlFormat" xml:space="preserve">
+    <value>صيغة الرابط غير صالحة</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.AssetCategoryDefinition" xml:space="preserve">
+    <value>تعريف الناشر</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.AssetLocationLocalOnly" xml:space="preserve">
+    <value>محلي فقط</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.AssetCategoryCatalogFormat" xml:space="preserve">
+    <value>بيان الكتالوج ({0})</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.AssetCategoryReleaseFormat" xml:space="preserve">
+    <value>الملف الثنائي للإصدار ({0} الإصدار {1})</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.AssetLocationLocalFile" xml:space="preserve">
+    <value>ملف محلي</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.AssetCategoryCloudCatalogFormat" xml:space="preserve">
+    <value>كتالوج سحابي ({0})</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.AssetCategoryCloudArtifact" xml:space="preserve">
+    <value>ملف سحابي</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.AuthFailedMessage" xml:space="preserve">
+    <value>فشل المصادقة مع موفر الاستضافة.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ClipboardUnavailable" xml:space="preserve">
+    <value>الحافظة غير متاحة.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.CopyToClipboardFailedFormat" xml:space="preserve">
+    <value>فشل النسخ إلى الحافظة: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.CatalogJsonGenerationFailed" xml:space="preserve">
+    <value>تعذر إنشاء الكتالوج بصيغة JSON.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.DefinitionJsonGenerationFailed" xml:space="preserve">
+    <value>تعذر إنشاء تعريف الموفر بصيغة JSON.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Validation.FilenameRequired" xml:space="preserve">
+    <value>اسم الملف مطلوب</value>
+  </data>
+  <data name="Tools.PublisherStudio.Validation.ContentIdRequired" xml:space="preserve">
+    <value>معرف المحتوى مطلوب</value>
+  </data>
+  <data name="Tools.PublisherStudio.Validation.ContentIdPattern" xml:space="preserve">
+    <value>يجب أن يتكون المعرف من أحرف صغيرة وأرقام وواصلات فقط</value>
+  </data>
+  <data name="Tools.PublisherStudio.Validation.ContentIdMinLength" xml:space="preserve">
+    <value>يجب أن يتكون المعرف من 3 أحرف على الأقل</value>
+  </data>
+  <data name="Tools.PublisherStudio.Validation.ContentIdMaxLength" xml:space="preserve">
+    <value>لا يمكن أن يتجاوز المعرف 64 حرفًا</value>
+  </data>
+  <data name="Tools.PublisherStudio.Validation.ContentNameRequired" xml:space="preserve">
+    <value>اسم المحتوى مطلوب</value>
+  </data>
+  <data name="Tools.PublisherStudio.Validation.ContentNameMinLength" xml:space="preserve">
+    <value>يجب أن يتكون الاسم من حرفين على الأقل</value>
+  </data>
+  <data name="Tools.PublisherStudio.Validation.ContentNameMaxLength" xml:space="preserve">
+    <value>لا يمكن أن يتجاوز الاسم 100 حرف</value>
+  </data>
+  <data name="Tools.PublisherStudio.Validation.DescriptionRequired" xml:space="preserve">
+    <value>الوصف مطلوب</value>
+  </data>
+  <data name="Tools.PublisherStudio.Validation.DescriptionMinLength" xml:space="preserve">
+    <value>يجب أن يتكون الوصف من 10 أحرف على الأقل</value>
+  </data>
+  <data name="Tools.PublisherStudio.Validation.DescriptionMaxLength" xml:space="preserve">
+    <value>لا يمكن أن يتجاوز الوصف 2000 حرف</value>
+  </data>
+  <data name="Tools.PublisherStudio.Validation.DependencyPublisherIdRequired" xml:space="preserve">
+    <value>معرف الناشر مطلوب للتبعيات الخارجية</value>
+  </data>
+  <data name="Tools.PublisherStudio.Validation.DependencyContentIdRequired" xml:space="preserve">
+    <value>معرف المحتوى مطلوب للتبعيات الخارجية</value>
+  </data>
+  <data name="Tools.PublisherStudio.Validation.ValidCatalogUrl" xml:space="preserve">
+    <value>يرجى إدخال رابط كتالوج صالح</value>
+  </data>
+  <data name="Tools.PublisherStudio.Validation.PublisherIdRequired" xml:space="preserve">
+    <value>معرف الناشر مطلوب</value>
+  </data>
+  <data name="Tools.PublisherStudio.Validation.CatalogUrlRequired" xml:space="preserve">
+    <value>رابط الكتالوج مطلوب</value>
+  </data>
+  <data name="Tools.PublisherStudio.Validation.ValidUrl" xml:space="preserve">
+    <value>يرجى إدخال رابط صالح</value>
+  </data>
+  <data name="Tools.PublisherStudio.Validation.VersionRequired" xml:space="preserve">
+    <value>الإصدار مطلوب</value>
+  </data>
+  <data name="Tools.PublisherStudio.Validation.VersionPattern" xml:space="preserve">
+    <value>صيغة الإصدار: X.Y أو X.Y.Z أو X.Y.Z-tag (مثال: 1.0، 2.1.0، 1.0.0-beta)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Validation.PublisherIdPattern" xml:space="preserve">
+    <value>أحرف صغيرة وأرقام فقط</value>
+  </data>
+  <data name="Tools.PublisherStudio.Validation.DisplayNameRequired" xml:space="preserve">
+    <value>اسم العرض مطلوب</value>
+  </data>
+  <data name="Tools.PublisherStudio.Validation.MinLength2" xml:space="preserve">
+    <value>حرفان على الأقل</value>
+  </data>
+  <data name="Tools.PublisherStudio.Validation.CatalogNameRequired" xml:space="preserve">
+    <value>اسم الكتالوج مطلوب</value>
+  </data>
+  <data name="Tools.PublisherStudio.Validation.CatalogNameNotEmpty" xml:space="preserve">
+    <value>لا يمكن أن يكون اسم الكتالوج فارغًا</value>
+  </data>
+  <data name="Tools.PublisherStudio.Validation.ValidHttpUrlFormat" xml:space="preserve">
+    <value>يجب أن يكون {0} رابط http أو https صالحًا.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Validation.ValidContactEmail" xml:space="preserve">
+    <value>يجب أن يكون البريد الإلكتروني للتواصل عنوانًا صالحًا.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Validation.GenericError" xml:space="preserve">
+    <value>خطأ في التحقق</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GoogleDriveApiNotEnabled" xml:space="preserve">
+    <value>لم يتم تفعيل Google Drive API لمشروع Google Cloud الخاص بك. فعّله عبر https://console.developers.google.com/apis/api/drive.googleapis.com، وانتظر بضع دقائق حتى يسري التغيير، ثم أعد المحاولة.</value>
   </data>
 </root>

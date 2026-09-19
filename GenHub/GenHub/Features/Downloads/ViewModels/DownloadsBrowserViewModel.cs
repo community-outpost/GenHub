@@ -1,3 +1,4 @@
+using Avalonia;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
@@ -24,6 +25,7 @@ using GenHub.Features.Content.Services.ContentDiscoverers;
 using GenHub.Features.Content.Services.GeneralsOnline;
 using GenHub.Features.Downloads.Services;
 using GenHub.Features.Downloads.ViewModels.Filters;
+using GenHub.Features.Downloads.Views;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using System;
@@ -63,7 +65,8 @@ public sealed partial class DownloadsBrowserViewModel(
     ILoggerFactory loggerFactory,
     IPublisherSubscriptionStore subscriptionStore,
     IContentDownloadCoordinator? downloadCoordinator = null,
-    IPublisherReconcilerRegistry? reconcilerRegistry = null) : ObservableObject, IDisposable
+    IPublisherReconcilerRegistry? reconcilerRegistry = null,
+    ILocalizationService? localizationService = null) : ObservableObject, IDisposable
 {
     /// <summary>
     /// Tracks an in-flight background default browse operation so switching away
@@ -2720,7 +2723,43 @@ public sealed partial class DownloadsBrowserViewModel(
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to open manifests directory");
-            notificationService.ShowError("Error", $"Failed to open manifests directory: {ex.Message}", 5000);
+            notificationService.ShowError(
+                localizationService?.GetString("Downloads.ImportSubscription.ManifestsErrorTitle") ?? "Error",
+                localizationService?.GetString("Downloads.ImportSubscription.ManifestsErrorBody", ex.Message) ?? $"Failed to open manifests directory: {ex.Message}",
+                5000);
+        }
+    }
+
+    /// <summary>
+    /// Opens the Import Subscription / Catalog dialog.
+    /// </summary>
+    [RelayCommand]
+    private async Task ImportSubscriptionAsync()
+    {
+        try
+        {
+            var importVm = new ImportSubscriptionViewModel(serviceProvider);
+            var dialog = new ImportSubscriptionDialog
+            {
+                DataContext = importVm,
+            };
+
+            var mainWindow = (Application.Current?.ApplicationLifetime as Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime)?.MainWindow;
+            if (mainWindow != null)
+            {
+                await dialog.ShowDialog(mainWindow);
+            }
+            else
+            {
+                dialog.Show();
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to show Import Subscription dialog");
+            notificationService.ShowError(
+                localizationService?.GetString("Downloads.ImportSubscription.ImportErrorTitle") ?? "Import Error",
+                localizationService?.GetString("Downloads.ImportSubscription.ImportErrorBody", ex.Message) ?? $"Failed to open import dialog: {ex.Message}");
         }
     }
 }

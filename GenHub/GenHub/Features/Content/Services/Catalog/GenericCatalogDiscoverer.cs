@@ -1,4 +1,5 @@
 using GenHub.Core.Constants;
+using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.GitHub;
 using GenHub.Core.Interfaces.Providers;
@@ -49,6 +50,8 @@ public class GenericCatalogDiscoverer(
     private static readonly ConcurrentDictionary<string, (GitHubRelease Release, DateTime CachedAt)> ReleaseCache = new(StringComparer.OrdinalIgnoreCase);
     private static readonly ConcurrentDictionary<string, Task<GitHubRelease?>> PendingReleaseFetches = new(StringComparer.OrdinalIgnoreCase);
     private static readonly TimeSpan CacheTtl = TimeSpan.FromMinutes(30);
+
+    private static readonly JsonSerializerOptions DefinitionJsonOptions = PublisherJsonOptions.Definition;
 
     private Core.Models.Providers.PublisherSubscription? _subscription;
 
@@ -231,6 +234,50 @@ public class GenericCatalogDiscoverer(
         if (catalog.Referrals is { Count: > 0 })
         {
             searchResult.ResolverMetadata[CatalogConstants.CatalogReferralsJsonMetadataKey] = JsonSerializer.Serialize(catalog.Referrals);
+        }
+    }
+
+    private static IReadOnlyList<string> ResolveDefinitionCatalogUrls(PublisherDefinition? definition)
+    {
+        var urls = new List<string>();
+        if (definition == null)
+        {
+            return urls;
+        }
+
+        AddDefinitionUrl(urls, definition.CatalogUrl);
+        if (definition.CatalogMirrors != null)
+        {
+            foreach (var mirror in definition.CatalogMirrors)
+            {
+                AddDefinitionUrl(urls, mirror);
+            }
+        }
+
+        if (definition.Catalogs != null)
+        {
+            foreach (var entry in definition.Catalogs)
+            {
+                AddDefinitionUrl(urls, entry.Url);
+                if (entry.Mirrors != null)
+                {
+                    foreach (var mirror in entry.Mirrors)
+                    {
+                        AddDefinitionUrl(urls, mirror);
+                    }
+                }
+            }
+        }
+
+        return urls;
+    }
+
+    private static void AddDefinitionUrl(List<string> urls, string? url)
+    {
+        if (!string.IsNullOrWhiteSpace(url) &&
+            !urls.Contains(url, StringComparer.OrdinalIgnoreCase))
+        {
+            urls.Add(url);
         }
     }
 
@@ -611,6 +658,68 @@ public class GenericCatalogDiscoverer(
         }
     }
 
+    private async Task<OperationResult<PublisherCatalog>?> TryFetchFromDefinitionAsync(
+        HttpClient httpClient,
+        string definitionUrl,
+        CancellationToken cancellationToken)
+    {
+        PublisherDefinition? definition;
+        try
+        {
+            var defJson = await CatalogDocumentReader.ReadAsync(
+                httpClient,
+                definitionUrl,
+                CatalogConstants.MaxCatalogSizeBytes,
+                cancellationToken);
+            definition = JsonSerializer.Deserialize<PublisherDefinition>(defJson, DefinitionJsonOptions);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            logger.LogDebug(ex, "Failed to read publisher definition; falling back to direct catalog URL");
+            return null;
+        }
+
+        var candidateUrls = ResolveDefinitionCatalogUrls(definition);
+        if (candidateUrls.Count == 0)
+        {
+            return null;
+        }
+
+        foreach (var candidateUrl in candidateUrls)
+        {
+            OperationResult<PublisherCatalog>? parsed = null;
+            try
+            {
+                var candidateJson = await CatalogDocumentReader.ReadAsync(
+                    httpClient,
+                    candidateUrl,
+                    CatalogConstants.MaxCatalogSizeBytes,
+                    cancellationToken);
+                parsed = await catalogParser.ParseCatalogAsync(candidateJson, cancellationToken);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                logger.LogDebug(ex, "Definition catalog candidate failed: {CatalogUrl}", candidateUrl);
+            }
+
+            if (parsed?.Success == true && parsed.Data != null)
+            {
+                return OperationResult<PublisherCatalog>.CreateSuccess(parsed.Data);
+            }
+        }
+
+        return OperationResult<PublisherCatalog>.CreateFailure(
+            "Failed to fetch catalog from all definition URLs and mirrors.");
+    }
+
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1031:DoNotCatchGeneralExceptionTypes", Justification = "Catalog discovery failures are reported via OperationResult.")]
     private async Task<OperationResult<PublisherCatalog>> FetchCatalogAsync(CancellationToken cancellationToken)
     {
@@ -624,16 +733,29 @@ public class GenericCatalogDiscoverer(
             var httpClient = httpClientFactory.CreateClient(CatalogConstants.CatalogHttpClientName);
             httpClient.Timeout = TimeSpan.FromSeconds(30);
 
-            if (!string.IsNullOrWhiteSpace(_subscription.DefinitionUrl))
+            var targetCatalogUrl = _subscription.CatalogUrl;
+
+            // If catalog URL is missing, resolve it from the Definition URL
+            if (string.IsNullOrWhiteSpace(targetCatalogUrl) && !string.IsNullOrWhiteSpace(_subscription.DefinitionUrl))
             {
-                return OperationResult<PublisherCatalog>.CreateFailure("Definition-resolved catalogs (Publisher Studio) are not yet supported. Only direct CatalogUrl subscriptions are supported.");
+                logger.LogInformation("Resolving catalog URL from definition: {DefinitionUrl}", _subscription.DefinitionUrl);
+                var definitionResult = await TryFetchFromDefinitionAsync(httpClient, _subscription.DefinitionUrl, cancellationToken);
+                if (definitionResult != null)
+                {
+                    return definitionResult;
+                }
             }
 
-            logger.LogDebug("Fetching catalog from: {CatalogUrl}", _subscription.CatalogUrl);
+            if (string.IsNullOrWhiteSpace(targetCatalogUrl))
+            {
+                return OperationResult<PublisherCatalog>.CreateFailure("No catalog URL available for subscription.");
+            }
+
+            logger.LogDebug("Fetching catalog from: {CatalogUrl}", targetCatalogUrl);
 
             var catalogJson = await CatalogDocumentReader.ReadAsync(
                 httpClient,
-                _subscription.CatalogUrl,
+                targetCatalogUrl,
                 CatalogConstants.MaxCatalogSizeBytes,
                 cancellationToken);
 
