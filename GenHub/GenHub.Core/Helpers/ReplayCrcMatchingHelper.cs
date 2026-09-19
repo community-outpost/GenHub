@@ -206,7 +206,11 @@ public static class ReplayCrcMatchingHelper
             return false;
         }
 
-        if (client.GameType == GameType.Generals)
+        var isExplicitGenerals = client.GameType == GameType.Generals &&
+                                 !(!string.IsNullOrEmpty(client.Id) && client.Id.Contains("zerohour", StringComparison.OrdinalIgnoreCase)) &&
+                                 !(!string.IsNullOrEmpty(client.Name) && client.Name.Contains("Zero Hour", StringComparison.OrdinalIgnoreCase));
+
+        if (isExplicitGenerals)
         {
             var fullExePath = ResolveProfileFullExePath(client);
             if (!string.IsNullOrWhiteSpace(fullExePath) && File.Exists(fullExePath))

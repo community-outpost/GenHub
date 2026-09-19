@@ -163,7 +163,7 @@ public sealed class PublisherProfileOrchestratorTests
         _manifestPoolMock
             .Setup(p => p.GetAllManifestsAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(() =>
-            {\
+            {
                 invocationCount++;
                 return OperationResult<IEnumerable<ContentManifest>>.CreateSuccess(
                     invocationCount == 1 ? [] : [manifest]);

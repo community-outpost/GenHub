@@ -269,6 +269,7 @@ public class GameProfileItemViewModelTests
                 Id = "1.000104.generalsonline.gameclient.zerohour",
                 Name = "Generals Online",
                 PublisherType = "GeneralsOnline",
+                GameType = GenHub.Core.Models.Enums.GameType.ZeroHour,
             },
             EnabledContentIds = ["1.106.communityoutpost.patch.zerohour"],
         };
@@ -342,6 +343,7 @@ public class GameProfileItemViewModelTests
         Assert.Equal("The Super Hackers", vm.Publisher);
         Assert.Equal("v104b", vm.GameVersion);
     }
+
     /// <summary>
     /// Verifies that a Generals Online profile receives the non-retail compatible badge.
     /// </summary>
@@ -358,6 +360,7 @@ public class GameProfileItemViewModelTests
                 Id = "1.000104.generalsonline.gameclient.zerohour",
                 Name = "Generals Online",
                 PublisherType = "GeneralsOnline",
+                GameType = GenHub.Core.Models.Enums.GameType.ZeroHour,
             },
         };
 
@@ -387,6 +390,7 @@ public class GameProfileItemViewModelTests
                 Id = "1.106.communityoutpost.gameclient.zerohour.nonretail",
                 Name = "Community Patch 1.06 (Non-Retail)",
                 PublisherType = "CommunityOutpost",
+                GameType = GenHub.Core.Models.Enums.GameType.ZeroHour,
             },
         };
 
@@ -415,6 +419,7 @@ public class GameProfileItemViewModelTests
                 Id = "1.106.communityoutpost.gameclient.zerohour.retail",
                 Name = "Community Patch 1.06 (Retail)",
                 PublisherType = "CommunityOutpost",
+                GameType = GenHub.Core.Models.Enums.GameType.ZeroHour,
             },
         };
 
@@ -511,6 +516,7 @@ public class GameProfileItemViewModelTests
                 Id = "1.000104.generalsonline.gameclient.zerohour",
                 Name = "Generals Online",
                 PublisherType = "GeneralsOnline",
+                GameType = GenHub.Core.Models.Enums.GameType.ZeroHour,
             },
         };
 

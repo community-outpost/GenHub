@@ -291,9 +291,12 @@ public class ReplayCrcMatchingHelperTests
             }
         }
     }
+
     /// <summary>
     /// Verifies that IsZeroHourRetailExeCrc handles hex prefix and case insensitivity.
     /// </summary>
+    /// <param name="crc">The CRC hex string to test.</param>
+    /// <param name="expected">Expected compatibility result.</param>
     [Theory]
     [InlineData("0x401D89EA", true)]
     [InlineData("401d89ea", true)]
