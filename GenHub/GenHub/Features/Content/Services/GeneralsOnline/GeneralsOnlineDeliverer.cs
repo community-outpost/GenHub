@@ -310,7 +310,7 @@ public class GeneralsOnlineDeliverer(
         });
 
         logger.LogDebug("Extracting ZIP to {Path}", extractPath);
-        ZipArchiveGuard.ExtractToDirectory(zipPath, extractPath);
+        ZipArchiveGuard.ExtractToDirectory(zipPath, extractPath, cancellationToken);
 
         return OperationResult<(string, string)>.CreateSuccess((zipPath, extractPath));
     }

@@ -756,7 +756,7 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
             progress?.Report(new UpdateProgress { Status = "Extracting artifact...", PercentComplete = 30 });
 
             // Extract the ZIP with per-entry containment validation (zip-slip hardening)
-            ZipArchiveGuard.ExtractToDirectory(zipPath, tempDir);
+            ZipArchiveGuard.ExtractToDirectory(zipPath, tempDir, cancellationToken);
 
             // Find .nupkg file
             var nupkgFiles = Directory.GetFiles(tempDir, "*.nupkg", SearchOption.AllDirectories);

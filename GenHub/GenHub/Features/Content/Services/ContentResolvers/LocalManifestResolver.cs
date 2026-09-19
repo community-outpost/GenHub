@@ -18,6 +18,8 @@ namespace GenHub.Features.Content.Services.ContentResolvers;
 /// </summary>
 public class LocalManifestResolver(ILogger<LocalManifestResolver> logger) : IContentResolver
 {
+    private const string FailedToResolveManifestLogMessage = "Failed to resolve manifest from local file: {Path}";
+
     /// <summary>
     /// Gets the resolver ID for local manifest content.
     /// </summary>
@@ -59,24 +61,9 @@ public class LocalManifestResolver(ILogger<LocalManifestResolver> logger) : ICon
 
             return OperationResult<ContentManifest>.CreateSuccess(manifest);
         }
-        catch (JsonException ex)
+        catch (Exception ex) when (ex is JsonException or ArgumentException or IOException or UnauthorizedAccessException)
         {
-            logger.LogError(ex, "Failed to resolve manifest from local file: {Path}", manifestPath);
-            return OperationResult<ContentManifest>.CreateFailure($"Failed to read or parse local manifest: {ex.Message}");
-        }
-        catch (ArgumentException ex)
-        {
-            logger.LogError(ex, "Failed to resolve manifest from local file: {Path}", manifestPath);
-            return OperationResult<ContentManifest>.CreateFailure($"Failed to read or parse local manifest: {ex.Message}");
-        }
-        catch (IOException ex)
-        {
-            logger.LogError(ex, "Failed to resolve manifest from local file: {Path}", manifestPath);
-            return OperationResult<ContentManifest>.CreateFailure($"Failed to read or parse local manifest: {ex.Message}");
-        }
-        catch (UnauthorizedAccessException ex)
-        {
-            logger.LogError(ex, "Failed to resolve manifest from local file: {Path}", manifestPath);
+            logger.LogError(ex, FailedToResolveManifestLogMessage, manifestPath);
             return OperationResult<ContentManifest>.CreateFailure($"Failed to read or parse local manifest: {ex.Message}");
         }
     }

@@ -28,6 +28,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
+using System.Reflection;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -2864,6 +2865,33 @@ public class ProfileSharingServiceTests
         Assert.True(result.Data.HasNameConflict);
         Assert.True(result.Data.SuggestedProfileName.Length <= ProfileSharingConstants.MaxProfileNameLength);
         Assert.EndsWith(" (1)", result.Data.SuggestedProfileName);
+    }
+
+    /// <summary>
+    /// Verifies that SSRF validation rejects private IP literals and allows public IP literals.
+    /// </summary>
+    /// <param name="url">The URL to test.</param>
+    /// <param name="expectedSafe">Whether the URL is expected to be considered safe.</param>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Theory]
+    [InlineData("https://127.0.0.1/profile.ghprofile", false)]
+    [InlineData("https://192.168.1.50/profile.ghprofile", false)]
+    [InlineData("https://10.0.0.1/profile.ghprofile", false)]
+    [InlineData("https://169.254.169.254/profile.ghprofile", false)]
+    [InlineData("https://93.184.216.34/profile.ghprofile", true)]
+    [InlineData("https://8.8.8.8/profile.ghprofile", true)]
+    public async Task IsSafeRemoteUriAsync_Should_ValidateIpLiteralsCorrectly(string url, bool expectedSafe)
+    {
+        var method = typeof(ProfileSharingService).GetMethod(
+            "IsSafeRemoteUriAsync",
+            BindingFlags.NonPublic | BindingFlags.Static);
+        Assert.NotNull(method);
+
+        var uri = new Uri(url);
+        var task = (Task<bool>)method.Invoke(null, new object[] { uri, CancellationToken.None })!;
+        var isSafe = await task;
+
+        Assert.Equal(expectedSafe, isSafe);
     }
 
     private static GameProfile CreateTestProfile(string id, string name)

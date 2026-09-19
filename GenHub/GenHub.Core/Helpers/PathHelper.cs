@@ -197,28 +197,6 @@ public static class PathHelper
     }
 
     /// <summary>
-    /// Sanitizes a file name by replacing invalid characters with underscores.
-    /// </summary>
-    /// <param name="fileName">The file name to sanitize.</param>
-    /// <param name="replaceSpaces">When true, spaces are also replaced (desktop-entry rule).</param>
-    /// <returns>A sanitized file name.</returns>
-    public static string SanitizeFileName(string fileName, bool replaceSpaces = false)
-    {
-        var sanitized = new System.Text.StringBuilder(fileName);
-        foreach (var invalidCharacter in Path.GetInvalidFileNameChars())
-        {
-            sanitized.Replace(invalidCharacter, '_');
-        }
-
-        if (replaceSpaces)
-        {
-            sanitized.Replace(' ', '_');
-        }
-
-        return sanitized.ToString().Trim();
-    }
-
-    /// <summary>
     /// Gets the parent directory of a path, with fallback to the path itself if at drive root.
     /// </summary>
     /// <param name="path">The path to get the parent directory from.</param>
@@ -350,6 +328,28 @@ public static class PathHelper
         }
 
         return sanitized;
+    }
+
+    /// <summary>
+    /// Sanitizes a file name by replacing invalid characters with underscores.
+    /// </summary>
+    /// <param name="fileName">The file name to sanitize.</param>
+    /// <param name="replaceSpaces">When true, spaces are also replaced (desktop-entry rule).</param>
+    /// <returns>A sanitized file name.</returns>
+    public static string SanitizeFileName(string fileName, bool replaceSpaces)
+    {
+        var sanitized = new System.Text.StringBuilder(fileName);
+        foreach (var invalidCharacter in Path.GetInvalidFileNameChars())
+        {
+            sanitized.Replace(invalidCharacter, '_');
+        }
+
+        if (replaceSpaces)
+        {
+            sanitized.Replace(' ', '_');
+        }
+
+        return sanitized.ToString().Trim();
     }
 
     /// <summary>

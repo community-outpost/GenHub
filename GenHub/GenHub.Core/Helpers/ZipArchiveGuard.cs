@@ -2,6 +2,7 @@ using GenHub.Core.Constants;
 using System;
 using System.IO;
 using System.IO.Compression;
+using System.Threading;
 
 namespace GenHub.Core.Helpers;
 
@@ -16,7 +17,8 @@ public static class ZipArchiveGuard
     /// </summary>
     /// <param name="zipPath">The archive file path.</param>
     /// <param name="destinationDirectory">The extraction root directory.</param>
-    public static void ExtractToDirectory(string zipPath, string destinationDirectory)
+    /// <param name="cancellationToken">The cancellation token to observe.</param>
+    public static void ExtractToDirectory(string zipPath, string destinationDirectory, CancellationToken cancellationToken = default)
     {
         var fullDestination = Path.GetFullPath(destinationDirectory);
         Directory.CreateDirectory(fullDestination);
@@ -30,6 +32,8 @@ public static class ZipArchiveGuard
         long totalBytes = 0;
         foreach (var entry in archive.Entries)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             if (string.IsNullOrEmpty(entry.Name) && entry.FullName.EndsWith("/", StringComparison.Ordinal))
             {
                 continue;
@@ -54,31 +58,40 @@ public static class ZipArchiveGuard
                 Directory.CreateDirectory(entryDir);
             }
 
-            totalBytes = CopyEntryWithinLimits(entry, targetPath, totalBytes);
+            totalBytes = CopyEntryWithinLimits(entry, targetPath, totalBytes, cancellationToken);
         }
     }
 
-    private static long CopyEntryWithinLimits(ZipArchiveEntry entry, string targetPath, long totalBytes)
+    private static long CopyEntryWithinLimits(ZipArchiveEntry entry, string targetPath, long totalBytes, CancellationToken cancellationToken)
     {
         bool exceeded = false;
         long entryBytes = 0;
-        using (var source = entry.Open())
-        using (var destination = File.Create(targetPath))
+        try
         {
-            var buffer = new byte[ValidationLimits.ZipCopyBufferSize];
-            int read;
-            while ((read = source.Read(buffer, 0, buffer.Length)) > 0)
+            using (var source = entry.Open())
+            using (var destination = File.Create(targetPath))
             {
-                entryBytes += read;
-                totalBytes += read;
-                if (entryBytes > ValidationLimits.MaxZipArchiveEntryBytes || totalBytes > ValidationLimits.MaxZipArchiveTotalBytes)
+                var buffer = new byte[ValidationLimits.ZipCopyBufferSize];
+                int read;
+                while ((read = source.Read(buffer, 0, buffer.Length)) > 0)
                 {
-                    exceeded = true;
-                    break;
-                }
+                    cancellationToken.ThrowIfCancellationRequested();
+                    entryBytes += read;
+                    totalBytes += read;
+                    if (entryBytes > ValidationLimits.MaxZipArchiveEntryBytes || totalBytes > ValidationLimits.MaxZipArchiveTotalBytes)
+                    {
+                        exceeded = true;
+                        break;
+                    }
 
-                destination.Write(buffer, 0, read);
+                    destination.Write(buffer, 0, read);
+                }
             }
+        }
+        catch (OperationCanceledException)
+        {
+            DeleteBestEffort(targetPath);
+            throw;
         }
 
         if (exceeded)

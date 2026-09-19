@@ -425,8 +425,17 @@ public class ProfileSharingService(
             throw new IOException($"Host '{host}' was not validated before connecting.");
         }
 
-        var hostEntry = await Dns.GetHostEntryAsync(host, cancellationToken);
-        var candidate = hostEntry.AddressList.FirstOrDefault(allowedAddresses.Contains);
+        IPAddress? candidate;
+        if (IPAddress.TryParse(host, out var literalAddress))
+        {
+            candidate = allowedAddresses.Contains(literalAddress) ? literalAddress : null;
+        }
+        else
+        {
+            var addresses = await Dns.GetHostAddressesAsync(host, cancellationToken);
+            candidate = addresses.FirstOrDefault(allowedAddresses.Contains);
+        }
+
         if (candidate is null)
         {
             throw new IOException($"DNS resolution for '{host}' returned no previously validated addresses.");
@@ -716,9 +725,8 @@ public class ProfileSharingService(
         string trimmed = path.Trim();
 
         // Built-in assets and Avalonia resources are safe and portable across all GenHub installations
-        if (trimmed.StartsWith("avares://", StringComparison.OrdinalIgnoreCase) ||
-            trimmed.StartsWith("/Assets/", StringComparison.OrdinalIgnoreCase) ||
-            trimmed.StartsWith("Assets/", StringComparison.OrdinalIgnoreCase))
+        if (ProfileSharingConstants.BuiltInAssetPrefixes.Any(prefix =>
+            trimmed.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)))
         {
             return trimmed;
         }
@@ -731,8 +739,8 @@ public class ProfileSharingService(
             trimmed.StartsWith('\\');
 
         bool isShareable = !isRooted &&
-            !trimmed.Contains("://", StringComparison.Ordinal) &&
-            !trimmed.Contains("..", StringComparison.Ordinal);
+            !trimmed.Contains(ProfileSharingConstants.SchemeDelimiter, StringComparison.Ordinal) &&
+            !trimmed.Contains(ProfileSharingConstants.ParentDirectorySegment, StringComparison.Ordinal);
 
         return isShareable ? trimmed : null;
     }
@@ -744,12 +752,23 @@ public class ProfileSharingService(
             return false;
         }
 
+        if (IPAddress.TryParse(uri.DnsSafeHost, out var literalAddress))
+        {
+            if (!IsPublicIpAddress(literalAddress))
+            {
+                return false;
+            }
+
+            StoreValidatedHost(uri.DnsSafeHost, [literalAddress]);
+            return true;
+        }
+
         try
         {
-            var hostEntry = await Dns.GetHostEntryAsync(uri.DnsSafeHost, cancellationToken);
+            var addresses = await Dns.GetHostAddressesAsync(uri.DnsSafeHost, cancellationToken);
             var publicAddresses = new HashSet<IPAddress>();
 
-            foreach (var ip in hostEntry.AddressList)
+            foreach (var ip in addresses)
             {
                 if (!IsPublicIpAddress(ip))
                 {
@@ -764,21 +783,26 @@ public class ProfileSharingService(
                 return false;
             }
 
-            if (ValidatedHostAddresses.Count >= 500)
-            {
-                foreach (var key in ValidatedHostAddresses.Keys.Take(100))
-                {
-                    ValidatedHostAddresses.TryRemove(key, out _);
-                }
-            }
-
-            ValidatedHostAddresses[uri.DnsSafeHost] = publicAddresses;
+            StoreValidatedHost(uri.DnsSafeHost, publicAddresses);
             return true;
         }
         catch (SocketException)
         {
             return false;
         }
+    }
+
+    private static void StoreValidatedHost(string host, IEnumerable<IPAddress> addresses)
+    {
+        if (ValidatedHostAddresses.Count >= 500)
+        {
+            foreach (var key in ValidatedHostAddresses.Keys.Take(100))
+            {
+                ValidatedHostAddresses.TryRemove(key, out _);
+            }
+        }
+
+        ValidatedHostAddresses[host] = new HashSet<IPAddress>(addresses);
     }
 
     private static async Task<OperationResult<string>> ResolvePayloadFromLocalFileAsync(string input, CancellationToken cancellationToken)
@@ -1366,12 +1390,12 @@ public class ProfileSharingService(
             return false;
         }
 
-        if (packageUrl.EndsWith(".json", StringComparison.OrdinalIgnoreCase))
+        if (packageUrl.EndsWith(ProfileSharingConstants.JsonExtension, StringComparison.OrdinalIgnoreCase))
         {
             return false;
         }
 
-        if (packageUrl.EndsWith(".zip", StringComparison.OrdinalIgnoreCase) ||
+        if (packageUrl.EndsWith(ProfileSharingConstants.ZipExtension, StringComparison.OrdinalIgnoreCase) ||
             packageUrl.Contains(ApiConstants.UploadThingUrlFragment, StringComparison.OrdinalIgnoreCase) ||
             packageUrl.Contains(ApiConstants.UploadThingUfsUrlFragment, StringComparison.OrdinalIgnoreCase) ||
             packageUrl.Contains(ApiConstants.UploadThingUfsShortUrlFragment, StringComparison.OrdinalIgnoreCase))
@@ -1873,7 +1897,7 @@ public class ProfileSharingService(
         string candidate;
         do
         {
-            string suffix = $" ({counter})";
+            string suffix = string.Format(System.Globalization.CultureInfo.InvariantCulture, ProfileSharingConstants.ConflictSuffixFormat, counter);
             int maxBaseLen = Math.Max(1, ProfileSharingConstants.MaxProfileNameLength - suffix.Length);
             string truncatedBase = baseName.Length > maxBaseLen ? baseName[..maxBaseLen].Trim() : baseName;
             candidate = $"{truncatedBase}{suffix}";

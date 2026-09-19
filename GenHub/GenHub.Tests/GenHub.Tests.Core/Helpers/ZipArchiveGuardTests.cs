@@ -2,6 +2,7 @@ using GenHub.Core.Helpers;
 using System;
 using System.IO;
 using System.IO.Compression;
+using System.Threading;
 using Xunit;
 
 namespace GenHub.Tests.Core.Helpers;
@@ -68,5 +69,27 @@ public class ZipArchiveGuardTests : IDisposable
         }
 
         Assert.Throws<IOException>(() => ZipArchiveGuard.ExtractToDirectory(zipPath, Path.Combine(_tempRoot, "out")));
+    }
+
+    /// <summary>
+    /// Tests that extraction is aborted and throws OperationCanceledException when cancellation is requested.
+    /// </summary>
+    [Fact]
+    public void ExtractToDirectory_WhenCancelled_ThrowsOperationCanceledException()
+    {
+        var zipPath = Path.Combine(_tempRoot, "cancel.zip");
+        using (var archive = ZipFile.Open(zipPath, ZipArchiveMode.Create))
+        {
+            var entry = archive.CreateEntry("data/file.txt");
+            using var writer = new StreamWriter(entry.Open());
+            writer.Write("payload");
+        }
+
+        var destination = Path.Combine(_tempRoot, "out_cancel");
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+
+        Assert.Throws<OperationCanceledException>(() =>
+            ZipArchiveGuard.ExtractToDirectory(zipPath, destination, cts.Token));
     }
 }
