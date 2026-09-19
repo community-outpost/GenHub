@@ -887,9 +887,10 @@ public sealed class BuildEngineService(
             return null;
         }
 
-        return Path.IsPathRooted(pack.ManifestFile)
+        var path = Path.IsPathRooted(pack.ManifestFile) || string.IsNullOrEmpty(projectDir)
             ? pack.ManifestFile
             : Path.Combine(projectDir, pack.ManifestFile);
+        return Path.GetFullPath(path);
     }
 
     private static string? ResolveItemManifestPath(BundleItem item, string? projectDir)
@@ -899,12 +900,10 @@ public sealed class BuildEngineService(
             return null;
         }
 
-        if (Path.IsPathRooted(item.ManifestFile) || string.IsNullOrEmpty(projectDir))
-        {
-            return item.ManifestFile;
-        }
-
-        return Path.Combine(projectDir, item.ManifestFile);
+        var path = Path.IsPathRooted(item.ManifestFile) || string.IsNullOrEmpty(projectDir)
+            ? item.ManifestFile
+            : Path.Combine(projectDir, item.ManifestFile);
+        return Path.GetFullPath(path);
     }
 
     private async Task<OperationResult<bool>> CreatePackArchiveAsync(

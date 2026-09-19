@@ -1421,7 +1421,7 @@ public sealed class BuildEngineServiceTests : IDisposable
             x => x.CreateBigArchiveAsync(
                 It.IsAny<string>(),
                 It.Is<string>(p => p.EndsWith("PatchINI.big", StringComparison.OrdinalIgnoreCase)),
-                It.Is<string>(p => string.Equals(p, expectedManifest, StringComparison.Ordinal)),
+                It.Is<string>(p => p != null && string.Equals(Path.GetFullPath(p), Path.GetFullPath(expectedManifest), StringComparison.OrdinalIgnoreCase)),
                 It.IsAny<IProgress<double>?>(),
                 It.IsAny<CancellationToken>()),
             Times.Once);
