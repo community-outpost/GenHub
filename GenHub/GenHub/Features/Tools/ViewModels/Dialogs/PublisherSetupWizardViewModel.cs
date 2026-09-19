@@ -1,8 +1,8 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using GenHub.Common.Validation;
 using GenHub.Core.Models.Publishers;
 using System;
-using System.ComponentModel.DataAnnotations;
 using System.Threading.Tasks;
 
 namespace GenHub.Features.Tools.ViewModels.Dialogs;
@@ -23,14 +23,14 @@ public partial class PublisherSetupWizardViewModel(
 
     [ObservableProperty]
     [NotifyDataErrorInfo]
-    [Required(ErrorMessage = "Publisher ID is required")]
-    [RegularExpression("^[a-z0-9]+$", ErrorMessage = "Lowercase, alphanumeric only")]
+    [LocalizedRequired("Tools.PublisherStudio.Validation.PublisherIdRequired", "Publisher ID is required")]
+    [LocalizedRegularExpression("^[a-z0-9]+$", "Tools.PublisherStudio.Validation.PublisherIdPattern", "Lowercase, alphanumeric only")]
     private string _publisherId = string.Empty;
 
     [ObservableProperty]
     [NotifyDataErrorInfo]
-    [Required(ErrorMessage = "Display Name is required")]
-    [MinLength(2, ErrorMessage = "At least 2 characters")]
+    [LocalizedRequired("Tools.PublisherStudio.Validation.DisplayNameRequired", "Display Name is required")]
+    [LocalizedMinLength(2, "Tools.PublisherStudio.Validation.MinLength2", "At least 2 characters")]
     private string _publisherName = string.Empty;
 
     [ObservableProperty]

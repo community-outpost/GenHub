@@ -1,11 +1,11 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using GenHub.Common.Validation;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Providers;
 using GenHub.Features.Tools.Interfaces;
 using System;
 using System.Collections.Generic;
-using System.ComponentModel.DataAnnotations;
 using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
@@ -33,22 +33,22 @@ public partial class AddContentDialogViewModel(
     private bool _isEditMode;
 
     [ObservableProperty]
-    [Required(ErrorMessage = "Content ID is required")]
-    [RegularExpression(@"^[a-z0-9-]+$", ErrorMessage = "ID must be lowercase alphanumeric with hyphens only")]
-    [MinLength(3, ErrorMessage = "ID must be at least 3 characters")]
-    [MaxLength(64, ErrorMessage = "ID cannot exceed 64 characters")]
+    [LocalizedRequired("Tools.PublisherStudio.Validation.ContentIdRequired", "Content ID is required")]
+    [LocalizedRegularExpression(@"^[a-z0-9-]+$", "Tools.PublisherStudio.Validation.ContentIdPattern", "ID must be lowercase alphanumeric with hyphens only")]
+    [LocalizedMinLength(3, "Tools.PublisherStudio.Validation.ContentIdMinLength", "ID must be at least 3 characters")]
+    [LocalizedMaxLength(64, "Tools.PublisherStudio.Validation.ContentIdMaxLength", "ID cannot exceed 64 characters")]
     private string _contentId = string.Empty;
 
     [ObservableProperty]
-    [Required(ErrorMessage = "Content name is required")]
-    [MinLength(2, ErrorMessage = "Name must be at least 2 characters")]
-    [MaxLength(100, ErrorMessage = "Name cannot exceed 100 characters")]
+    [LocalizedRequired("Tools.PublisherStudio.Validation.ContentNameRequired", "Content name is required")]
+    [LocalizedMinLength(2, "Tools.PublisherStudio.Validation.ContentNameMinLength", "Name must be at least 2 characters")]
+    [LocalizedMaxLength(100, "Tools.PublisherStudio.Validation.ContentNameMaxLength", "Name cannot exceed 100 characters")]
     private string _contentName = string.Empty;
 
     [ObservableProperty]
-    [Required(ErrorMessage = "Description is required")]
-    [MinLength(10, ErrorMessage = "Description must be at least 10 characters")]
-    [MaxLength(2000, ErrorMessage = "Description cannot exceed 2000 characters")]
+    [LocalizedRequired("Tools.PublisherStudio.Validation.DescriptionRequired", "Description is required")]
+    [LocalizedMinLength(10, "Tools.PublisherStudio.Validation.DescriptionMinLength", "Description must be at least 10 characters")]
+    [LocalizedMaxLength(2000, "Tools.PublisherStudio.Validation.DescriptionMaxLength", "Description cannot exceed 2000 characters")]
     private string _description = string.Empty;
 
     [ObservableProperty]

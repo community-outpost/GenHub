@@ -120,6 +120,16 @@ public interface IHostingProvider
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Deletes a previously uploaded file from the hosting provider.
+    /// Used to clean up orphaned remote files, e.g. after a catalog rename causes the next
+    /// publish to upload under a new name. Implementations should treat a missing file as success.
+    /// </summary>
+    /// <param name="fileId">The provider file ID (or path) of the file to delete.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>An operation result indicating success or failure.</returns>
+    Task<OperationResult<bool>> DeleteFileAsync(string fileId, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Gets or creates the publisher folder on the hosting provider.
     /// </summary>
     /// <param name="cancellationToken">Cancellation token.</param>

@@ -9785,7 +9785,7 @@ GenHub передает официальный идентификатор AppID 
     <value>Аутентификация отменена или истекло время ожидания. Для Google Диска убедитесь, что в Google Cloud Console выбрано 'Desktop app' (а не 'Web application').</value>
   </data>
   <data name="Tools.PublisherStudio.Publish.AuthError" xml:space="preserve">
-    <value>Ошибка аутентификации: {0}</value>
+    <value>Ошибка аутентификации</value>
   </data>
   <data name="Tools.PublisherStudio.Publish.AuthFailed" xml:space="preserve">
     <value>Сбой аутентификации: {0}</value>
@@ -10422,5 +10422,104 @@ GenHub передает официальный идентификатор AppID 
   </data>
   <data name="Tools.PublisherStudio.Hosting.AssetCategoryCloudArtifact" xml:space="preserve">
     <value>Облачный артефакт</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.AuthFailedMessage" xml:space="preserve">
+    <value>Не удалось пройти аутентификацию у хостинг-провайдера.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ClipboardUnavailable" xml:space="preserve">
+    <value>Буфер обмена недоступен.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.CopyToClipboardFailedFormat" xml:space="preserve">
+    <value>Не удалось скопировать в буфер обмена: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.CatalogJsonGenerationFailed" xml:space="preserve">
+    <value>Не удалось создать JSON каталога.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.DefinitionJsonGenerationFailed" xml:space="preserve">
+    <value>Не удалось создать JSON определения поставщика.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Validation.FilenameRequired" xml:space="preserve">
+    <value>Необходимо указать имя файла</value>
+  </data>
+  <data name="Tools.PublisherStudio.Validation.ContentIdRequired" xml:space="preserve">
+    <value>Необходимо указать идентификатор контента</value>
+  </data>
+  <data name="Tools.PublisherStudio.Validation.ContentIdPattern" xml:space="preserve">
+    <value>Идентификатор должен содержать только строчные буквы, цифры и дефисы</value>
+  </data>
+  <data name="Tools.PublisherStudio.Validation.ContentIdMinLength" xml:space="preserve">
+    <value>Идентификатор должен содержать не менее 3 символов</value>
+  </data>
+  <data name="Tools.PublisherStudio.Validation.ContentIdMaxLength" xml:space="preserve">
+    <value>Идентификатор не должен превышать 64 символов</value>
+  </data>
+  <data name="Tools.PublisherStudio.Validation.ContentNameRequired" xml:space="preserve">
+    <value>Необходимо указать название контента</value>
+  </data>
+  <data name="Tools.PublisherStudio.Validation.ContentNameMinLength" xml:space="preserve">
+    <value>Название должно содержать не менее 2 символов</value>
+  </data>
+  <data name="Tools.PublisherStudio.Validation.ContentNameMaxLength" xml:space="preserve">
+    <value>Название не должно превышать 100 символов</value>
+  </data>
+  <data name="Tools.PublisherStudio.Validation.DescriptionRequired" xml:space="preserve">
+    <value>Необходимо указать описание</value>
+  </data>
+  <data name="Tools.PublisherStudio.Validation.DescriptionMinLength" xml:space="preserve">
+    <value>Описание должно содержать не менее 10 символов</value>
+  </data>
+  <data name="Tools.PublisherStudio.Validation.DescriptionMaxLength" xml:space="preserve">
+    <value>Описание не должно превышать 2000 символов</value>
+  </data>
+  <data name="Tools.PublisherStudio.Validation.DependencyPublisherIdRequired" xml:space="preserve">
+    <value>Для внешних зависимостей необходимо указать идентификатор издателя</value>
+  </data>
+  <data name="Tools.PublisherStudio.Validation.DependencyContentIdRequired" xml:space="preserve">
+    <value>Для внешних зависимостей необходимо указать идентификатор контента</value>
+  </data>
+  <data name="Tools.PublisherStudio.Validation.ValidCatalogUrl" xml:space="preserve">
+    <value>Введите допустимый URL-адрес каталога</value>
+  </data>
+  <data name="Tools.PublisherStudio.Validation.PublisherIdRequired" xml:space="preserve">
+    <value>Необходимо указать идентификатор издателя</value>
+  </data>
+  <data name="Tools.PublisherStudio.Validation.CatalogUrlRequired" xml:space="preserve">
+    <value>Необходимо указать URL-адрес каталога</value>
+  </data>
+  <data name="Tools.PublisherStudio.Validation.ValidUrl" xml:space="preserve">
+    <value>Введите допустимый URL-адрес</value>
+  </data>
+  <data name="Tools.PublisherStudio.Validation.VersionRequired" xml:space="preserve">
+    <value>Необходимо указать версию</value>
+  </data>
+  <data name="Tools.PublisherStudio.Validation.VersionPattern" xml:space="preserve">
+    <value>Формат версии: X.Y, X.Y.Z или X.Y.Z-tag (например, 1.0, 2.1.0, 1.0.0-beta)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Validation.PublisherIdPattern" xml:space="preserve">
+    <value>Только строчные буквы и цифры</value>
+  </data>
+  <data name="Tools.PublisherStudio.Validation.DisplayNameRequired" xml:space="preserve">
+    <value>Необходимо указать отображаемое имя</value>
+  </data>
+  <data name="Tools.PublisherStudio.Validation.MinLength2" xml:space="preserve">
+    <value>Не менее 2 символов</value>
+  </data>
+  <data name="Tools.PublisherStudio.Validation.CatalogNameRequired" xml:space="preserve">
+    <value>Необходимо указать название каталога</value>
+  </data>
+  <data name="Tools.PublisherStudio.Validation.CatalogNameNotEmpty" xml:space="preserve">
+    <value>Название каталога не должно быть пустым</value>
+  </data>
+  <data name="Tools.PublisherStudio.Validation.ValidHttpUrlFormat" xml:space="preserve">
+    <value>{0} должен быть допустимым URL-адресом http или https.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Validation.ValidContactEmail" xml:space="preserve">
+    <value>Контактный адрес должен быть допустимым адресом электронной почты.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Validation.GenericError" xml:space="preserve">
+    <value>Ошибка проверки</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GoogleDriveApiNotEnabled" xml:space="preserve">
+    <value>API Google Диска не включен для вашего проекта Google Cloud. Включите его на странице https://console.developers.google.com/apis/api/drive.googleapis.com, подождите несколько минут, затем повторите попытку.</value>
   </data>
 </root>

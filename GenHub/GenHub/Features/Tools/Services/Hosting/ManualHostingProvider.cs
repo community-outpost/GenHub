@@ -109,6 +109,14 @@ public class ManualHostingProvider : IHostingProvider
     }
 
     /// <inheritdoc/>
+    public Task<OperationResult<bool>> DeleteFileAsync(string fileId, CancellationToken cancellationToken = default)
+    {
+        // Manual hosting has no API; publishers delete files on their own hosting service
+        return Task.FromResult(OperationResult<bool>.CreateFailure(
+            "Manual hosting does not support remote deletion. Please delete the file on your hosting service."));
+    }
+
+    /// <inheritdoc/>
     public Task<OperationResult<string>> GetOrCreatePublisherFolderAsync(CancellationToken cancellationToken = default)
     {
         // Manual hosting doesn't use folders - publishers manage their own file organization

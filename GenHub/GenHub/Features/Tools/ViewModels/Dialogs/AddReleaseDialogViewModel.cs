@@ -1,12 +1,12 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using GenHub.Common.Validation;
 using GenHub.Core.Models.Providers;
 using GenHub.Core.Models.Publishers;
 using GenHub.Features.Tools.Interfaces;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using System.ComponentModel.DataAnnotations;
 using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
@@ -27,8 +27,8 @@ public partial class AddReleaseDialogViewModel(
 
     [ObservableProperty]
     [NotifyDataErrorInfo]
-    [Required(ErrorMessage = "Version is required")]
-    [RegularExpression(@"^\d+\.\d+(\.\d+)?(-[a-zA-Z0-9.]+)?$", ErrorMessage = "Version format: X.Y or X.Y.Z or X.Y.Z-tag (e.g. 1.0, 2.1.0, 1.0.0-beta)")]
+    [LocalizedRequired("Tools.PublisherStudio.Validation.VersionRequired", "Version is required")]
+    [LocalizedRegularExpression(@"^\d+\.\d+(\.\d+)?(-[a-zA-Z0-9.]+)?$", "Tools.PublisherStudio.Validation.VersionPattern", "Version format: X.Y or X.Y.Z or X.Y.Z-tag (e.g. 1.0, 2.1.0, 1.0.0-beta)")]
     private string _version = GetNextVersion(contentItem?.Releases ?? []);
 
     [ObservableProperty]
@@ -385,7 +385,7 @@ public partial class AddReleaseDialogViewModel(
 
         if (HasErrors)
         {
-            errors.AddRange(GetErrors().Select(e => e.ErrorMessage ?? "Validation error"));
+            errors.AddRange(GetErrors().Select(e => e.ErrorMessage ?? ValidationResourceResolver.FormatMessage("Tools.PublisherStudio.Validation.GenericError", "Validation error")));
         }
 
         if (Artifacts.Count == 0)

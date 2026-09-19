@@ -1,7 +1,7 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using GenHub.Common.Validation;
 using System;
-using System.ComponentModel.DataAnnotations;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 
@@ -13,13 +13,12 @@ namespace GenHub.Features.Tools.ViewModels.Dialogs;
 [SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "ViewModel properties and methods bound to MVVM UI.")]
 public partial class RenameCatalogDialogViewModel(
     string currentName,
-    Action<string?> onComplete,
-    GenHub.Core.Interfaces.Common.ILocalizationService? localizationService = null) : ObservableValidator
+    Action<string?> onComplete) : ObservableValidator
 {
     [ObservableProperty]
     [NotifyDataErrorInfo]
-    [Required(ErrorMessage = "Catalog name is required")]
-    [MinLength(1, ErrorMessage = "Catalog name cannot be empty")]
+    [LocalizedRequired("Tools.PublisherStudio.Validation.CatalogNameRequired", "Catalog name is required")]
+    [LocalizedMinLength(1, "Tools.PublisherStudio.Validation.CatalogNameNotEmpty", "Catalog name cannot be empty")]
     private string _catalogName = currentName ?? string.Empty;
 
     [ObservableProperty]
@@ -38,27 +37,8 @@ public partial class RenameCatalogDialogViewModel(
         ValidateAllProperties();
         IsValid = !HasErrors;
         ValidationError = HasErrors
-            ? string.Join(Environment.NewLine, GetErrors().Select(e => LocalizeValidationMessage(e.ErrorMessage)))
+            ? string.Join(Environment.NewLine, GetErrors().Select(e => e.ErrorMessage ?? string.Empty))
             : null;
-    }
-
-    private string LocalizeValidationMessage(string? message)
-    {
-        return message switch
-        {
-            "Catalog name is required" => GetLocalizedString(
-                "Tools.PublisherStudio.Catalog.NameRequired",
-                message),
-            "Catalog name cannot be empty" => GetLocalizedString(
-                "Tools.PublisherStudio.Catalog.NameNotEmpty",
-                message),
-            _ => message ?? string.Empty,
-        };
-    }
-
-    private string GetLocalizedString(string key, string fallback)
-    {
-        return localizationService?.GetString(key) ?? fallback;
     }
 
     [RelayCommand]

@@ -9785,7 +9785,7 @@ GenHub هو مشغل ومدير حديث لألعاب **Command &amp; Conquer: G
     <value>تم إلغاء المصادقة أو انتهت المهلة. بالنسبة إلى Google Drive، تأكد من تحديد 'Desktop app' (وليس 'Web application') في Google Cloud Console.</value>
   </data>
   <data name="Tools.PublisherStudio.Publish.AuthError" xml:space="preserve">
-    <value>خطأ في المصادقة: {0}</value>
+    <value>خطأ في المصادقة</value>
   </data>
   <data name="Tools.PublisherStudio.Publish.AuthFailed" xml:space="preserve">
     <value>فشلت المصادقة: {0}</value>
@@ -10422,5 +10422,104 @@ GenHub هو مشغل ومدير حديث لألعاب **Command &amp; Conquer: G
   </data>
   <data name="Tools.PublisherStudio.Hosting.AssetCategoryCloudArtifact" xml:space="preserve">
     <value>ملف سحابي</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.AuthFailedMessage" xml:space="preserve">
+    <value>فشل المصادقة مع موفر الاستضافة.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ClipboardUnavailable" xml:space="preserve">
+    <value>الحافظة غير متاحة.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.CopyToClipboardFailedFormat" xml:space="preserve">
+    <value>فشل النسخ إلى الحافظة: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.CatalogJsonGenerationFailed" xml:space="preserve">
+    <value>تعذر إنشاء الكتالوج بصيغة JSON.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.DefinitionJsonGenerationFailed" xml:space="preserve">
+    <value>تعذر إنشاء تعريف الموفر بصيغة JSON.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Validation.FilenameRequired" xml:space="preserve">
+    <value>اسم الملف مطلوب</value>
+  </data>
+  <data name="Tools.PublisherStudio.Validation.ContentIdRequired" xml:space="preserve">
+    <value>معرف المحتوى مطلوب</value>
+  </data>
+  <data name="Tools.PublisherStudio.Validation.ContentIdPattern" xml:space="preserve">
+    <value>يجب أن يتكون المعرف من أحرف صغيرة وأرقام وواصلات فقط</value>
+  </data>
+  <data name="Tools.PublisherStudio.Validation.ContentIdMinLength" xml:space="preserve">
+    <value>يجب أن يتكون المعرف من 3 أحرف على الأقل</value>
+  </data>
+  <data name="Tools.PublisherStudio.Validation.ContentIdMaxLength" xml:space="preserve">
+    <value>لا يمكن أن يتجاوز المعرف 64 حرفًا</value>
+  </data>
+  <data name="Tools.PublisherStudio.Validation.ContentNameRequired" xml:space="preserve">
+    <value>اسم المحتوى مطلوب</value>
+  </data>
+  <data name="Tools.PublisherStudio.Validation.ContentNameMinLength" xml:space="preserve">
+    <value>يجب أن يتكون الاسم من حرفين على الأقل</value>
+  </data>
+  <data name="Tools.PublisherStudio.Validation.ContentNameMaxLength" xml:space="preserve">
+    <value>لا يمكن أن يتجاوز الاسم 100 حرف</value>
+  </data>
+  <data name="Tools.PublisherStudio.Validation.DescriptionRequired" xml:space="preserve">
+    <value>الوصف مطلوب</value>
+  </data>
+  <data name="Tools.PublisherStudio.Validation.DescriptionMinLength" xml:space="preserve">
+    <value>يجب أن يتكون الوصف من 10 أحرف على الأقل</value>
+  </data>
+  <data name="Tools.PublisherStudio.Validation.DescriptionMaxLength" xml:space="preserve">
+    <value>لا يمكن أن يتجاوز الوصف 2000 حرف</value>
+  </data>
+  <data name="Tools.PublisherStudio.Validation.DependencyPublisherIdRequired" xml:space="preserve">
+    <value>معرف الناشر مطلوب للتبعيات الخارجية</value>
+  </data>
+  <data name="Tools.PublisherStudio.Validation.DependencyContentIdRequired" xml:space="preserve">
+    <value>معرف المحتوى مطلوب للتبعيات الخارجية</value>
+  </data>
+  <data name="Tools.PublisherStudio.Validation.ValidCatalogUrl" xml:space="preserve">
+    <value>يرجى إدخال رابط كتالوج صالح</value>
+  </data>
+  <data name="Tools.PublisherStudio.Validation.PublisherIdRequired" xml:space="preserve">
+    <value>معرف الناشر مطلوب</value>
+  </data>
+  <data name="Tools.PublisherStudio.Validation.CatalogUrlRequired" xml:space="preserve">
+    <value>رابط الكتالوج مطلوب</value>
+  </data>
+  <data name="Tools.PublisherStudio.Validation.ValidUrl" xml:space="preserve">
+    <value>يرجى إدخال رابط صالح</value>
+  </data>
+  <data name="Tools.PublisherStudio.Validation.VersionRequired" xml:space="preserve">
+    <value>الإصدار مطلوب</value>
+  </data>
+  <data name="Tools.PublisherStudio.Validation.VersionPattern" xml:space="preserve">
+    <value>صيغة الإصدار: X.Y أو X.Y.Z أو X.Y.Z-tag (مثال: 1.0، 2.1.0، 1.0.0-beta)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Validation.PublisherIdPattern" xml:space="preserve">
+    <value>أحرف صغيرة وأرقام فقط</value>
+  </data>
+  <data name="Tools.PublisherStudio.Validation.DisplayNameRequired" xml:space="preserve">
+    <value>اسم العرض مطلوب</value>
+  </data>
+  <data name="Tools.PublisherStudio.Validation.MinLength2" xml:space="preserve">
+    <value>حرفان على الأقل</value>
+  </data>
+  <data name="Tools.PublisherStudio.Validation.CatalogNameRequired" xml:space="preserve">
+    <value>اسم الكتالوج مطلوب</value>
+  </data>
+  <data name="Tools.PublisherStudio.Validation.CatalogNameNotEmpty" xml:space="preserve">
+    <value>لا يمكن أن يكون اسم الكتالوج فارغًا</value>
+  </data>
+  <data name="Tools.PublisherStudio.Validation.ValidHttpUrlFormat" xml:space="preserve">
+    <value>يجب أن يكون {0} رابط http أو https صالحًا.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Validation.ValidContactEmail" xml:space="preserve">
+    <value>يجب أن يكون البريد الإلكتروني للتواصل عنوانًا صالحًا.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Validation.GenericError" xml:space="preserve">
+    <value>خطأ في التحقق</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GoogleDriveApiNotEnabled" xml:space="preserve">
+    <value>لم يتم تفعيل Google Drive API لمشروع Google Cloud الخاص بك. فعّله عبر https://console.developers.google.com/apis/api/drive.googleapis.com، وانتظر بضع دقائق حتى يسري التغيير، ثم أعد المحاولة.</value>
   </data>
 </root>

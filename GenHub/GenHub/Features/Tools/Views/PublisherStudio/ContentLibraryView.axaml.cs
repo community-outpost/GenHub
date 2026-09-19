@@ -19,17 +19,30 @@ public partial class ContentLibraryView : UserControl
     {
         InitializeComponent();
         DragDrop.SetAllowDrop(this, true);
-        AddHandler(DragDrop.DragOverEvent, OnDragOver);
-        AddHandler(DragDrop.DropEvent, OnDrop);
+        AddHandler(DragDrop.DragOverEvent, OnDragOver, handledEventsToo: true);
+        AddHandler(DragDrop.DropEvent, OnDrop, handledEventsToo: true);
     }
 
     private static void OnDragOver(object? sender, DragEventArgs e)
     {
-        e.DragEffects = e.Data.Contains(DataFormats.Files) ? DragDropEffects.Copy : DragDropEffects.None;
+        if (e.Data.Contains(DataFormats.Files))
+        {
+            e.DragEffects = DragDropEffects.Copy;
+            e.Handled = true;
+        }
+        else
+        {
+            e.DragEffects = DragDropEffects.None;
+        }
     }
 
     private async void OnDrop(object? sender, DragEventArgs e)
     {
+        if (!e.Data.Contains(DataFormats.Files))
+        {
+            return;
+        }
+
         if (DataContext is not ContentLibraryViewModel vm) return;
 
         try

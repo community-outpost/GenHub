@@ -4,9 +4,9 @@ using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Platform.Storage;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using GenHub.Common.Validation;
 using GenHub.Core.Models.Providers;
 using System;
-using System.ComponentModel.DataAnnotations;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
@@ -25,7 +25,7 @@ public partial class AddArtifactDialogViewModel(Action<ReleaseArtifact> onArtifa
 {
     [ObservableProperty]
     [NotifyDataErrorInfo]
-    [Required(ErrorMessage = "Filename is required")]
+    [LocalizedRequired("Tools.PublisherStudio.Validation.FilenameRequired", "Filename is required")]
     private string _filename = string.Empty;
 
     [ObservableProperty]

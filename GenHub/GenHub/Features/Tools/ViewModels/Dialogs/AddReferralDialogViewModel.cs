@@ -1,5 +1,6 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using GenHub.Common.Validation;
 using GenHub.Core.Constants;
 using GenHub.Core.Helpers;
 using GenHub.Core.Models.Providers;
@@ -8,7 +9,6 @@ using GenHub.Infrastructure.Services;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using System.ComponentModel.DataAnnotations;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Net.Http;
@@ -39,13 +39,13 @@ public partial class AddReferralDialogViewModel(
 
     [ObservableProperty]
     [NotifyDataErrorInfo]
-    [Required(ErrorMessage = "Publisher ID is required")]
+    [LocalizedRequired("Tools.PublisherStudio.Validation.PublisherIdRequired", "Publisher ID is required")]
     private string _publisherId = string.Empty;
 
     [ObservableProperty]
     [NotifyDataErrorInfo]
-    [Required(ErrorMessage = "Catalog URL is required")]
-    [Url(ErrorMessage = "Please enter a valid URL")]
+    [LocalizedRequired("Tools.PublisherStudio.Validation.CatalogUrlRequired", "Catalog URL is required")]
+    [LocalizedUrl("Tools.PublisherStudio.Validation.ValidUrl", "Please enter a valid URL")]
     private string _catalogUrl = string.Empty;
 
     [ObservableProperty]

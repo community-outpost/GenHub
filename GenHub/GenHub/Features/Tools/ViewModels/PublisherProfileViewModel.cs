@@ -1,5 +1,6 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using GenHub.Common.Validation;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Notifications;
@@ -24,7 +25,7 @@ public partial class PublisherProfileViewModel(
 {
     [ObservableProperty]
     [NotifyDataErrorInfo]
-    [Required(ErrorMessage = "Publisher ID is required")]
+    [LocalizedRequired("Tools.PublisherStudio.Validation.PublisherIdRequired", "Publisher ID is required")]
     [RegularExpression(RegexConstants.PublisherIdPattern, ErrorMessage = "Publisher ID must use lowercase letters, numbers, and hyphens only (no spaces or special characters)")]
     private string _publisherId = project?.Catalog?.Publisher?.Id ?? string.Empty;
 
@@ -79,7 +80,7 @@ public partial class PublisherProfileViewModel(
             return ValidationResult.Success;
         }
 
-        return new ValidationResult($"{context.DisplayName} must be a valid http or https URL.");
+        return new ValidationResult(ValidationResourceResolver.FormatMessage("Tools.PublisherStudio.Validation.ValidHttpUrlFormat", "{0} must be a valid http or https URL.", context.DisplayName));
     }
 
     /// <summary>
@@ -101,7 +102,7 @@ public partial class PublisherProfileViewModel(
             return ValidationResult.Success;
         }
 
-        return new ValidationResult("Contact email must be a valid email address.");
+        return new ValidationResult(ValidationResourceResolver.FormatMessage("Tools.PublisherStudio.Validation.ValidContactEmail", "Contact email must be a valid email address."));
     }
 
     partial void OnPublisherIdChanged(string value) => MarkDirty();

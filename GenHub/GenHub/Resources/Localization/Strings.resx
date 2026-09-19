@@ -9878,7 +9878,7 @@ Then click the 'Submit' button at the bottom of the page! (If permissions are no
     <value>Authentication was canceled or timed out. For Google Drive, ensure you selected 'Desktop app' (not 'Web application') in Google Cloud Console.</value>
   </data>
   <data name="Tools.PublisherStudio.Publish.AuthError" xml:space="preserve">
-    <value>Authentication error: {0}</value>
+    <value>Authentication Error</value>
   </data>
   <data name="Tools.PublisherStudio.Publish.AuthFailed" xml:space="preserve">
     <value>Authentication failed: {0}</value>
@@ -10515,5 +10515,104 @@ Then click the 'Submit' button at the bottom of the page! (If permissions are no
   </data>
   <data name="Tools.PublisherStudio.Hosting.AssetCategoryCloudArtifact" xml:space="preserve">
     <value>Cloud Artifact</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.AuthFailedMessage" xml:space="preserve">
+    <value>Failed to authenticate with the hosting provider.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ClipboardUnavailable" xml:space="preserve">
+    <value>Clipboard is not available.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.CopyToClipboardFailedFormat" xml:space="preserve">
+    <value>Failed to copy to clipboard: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.CatalogJsonGenerationFailed" xml:space="preserve">
+    <value>Catalog JSON could not be generated.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.DefinitionJsonGenerationFailed" xml:space="preserve">
+    <value>Provider definition JSON could not be generated.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Validation.FilenameRequired" xml:space="preserve">
+    <value>Filename is required</value>
+  </data>
+  <data name="Tools.PublisherStudio.Validation.ContentIdRequired" xml:space="preserve">
+    <value>Content ID is required</value>
+  </data>
+  <data name="Tools.PublisherStudio.Validation.ContentIdPattern" xml:space="preserve">
+    <value>ID must be lowercase alphanumeric with hyphens only</value>
+  </data>
+  <data name="Tools.PublisherStudio.Validation.ContentIdMinLength" xml:space="preserve">
+    <value>ID must be at least 3 characters</value>
+  </data>
+  <data name="Tools.PublisherStudio.Validation.ContentIdMaxLength" xml:space="preserve">
+    <value>ID cannot exceed 64 characters</value>
+  </data>
+  <data name="Tools.PublisherStudio.Validation.ContentNameRequired" xml:space="preserve">
+    <value>Content name is required</value>
+  </data>
+  <data name="Tools.PublisherStudio.Validation.ContentNameMinLength" xml:space="preserve">
+    <value>Name must be at least 2 characters</value>
+  </data>
+  <data name="Tools.PublisherStudio.Validation.ContentNameMaxLength" xml:space="preserve">
+    <value>Name cannot exceed 100 characters</value>
+  </data>
+  <data name="Tools.PublisherStudio.Validation.DescriptionRequired" xml:space="preserve">
+    <value>Description is required</value>
+  </data>
+  <data name="Tools.PublisherStudio.Validation.DescriptionMinLength" xml:space="preserve">
+    <value>Description must be at least 10 characters</value>
+  </data>
+  <data name="Tools.PublisherStudio.Validation.DescriptionMaxLength" xml:space="preserve">
+    <value>Description cannot exceed 2000 characters</value>
+  </data>
+  <data name="Tools.PublisherStudio.Validation.DependencyPublisherIdRequired" xml:space="preserve">
+    <value>Publisher ID is required for external dependencies</value>
+  </data>
+  <data name="Tools.PublisherStudio.Validation.DependencyContentIdRequired" xml:space="preserve">
+    <value>Content ID is required for external dependencies</value>
+  </data>
+  <data name="Tools.PublisherStudio.Validation.ValidCatalogUrl" xml:space="preserve">
+    <value>Please enter a valid catalog URL</value>
+  </data>
+  <data name="Tools.PublisherStudio.Validation.PublisherIdRequired" xml:space="preserve">
+    <value>Publisher ID is required</value>
+  </data>
+  <data name="Tools.PublisherStudio.Validation.CatalogUrlRequired" xml:space="preserve">
+    <value>Catalog URL is required</value>
+  </data>
+  <data name="Tools.PublisherStudio.Validation.ValidUrl" xml:space="preserve">
+    <value>Please enter a valid URL</value>
+  </data>
+  <data name="Tools.PublisherStudio.Validation.VersionRequired" xml:space="preserve">
+    <value>Version is required</value>
+  </data>
+  <data name="Tools.PublisherStudio.Validation.VersionPattern" xml:space="preserve">
+    <value>Version format: X.Y or X.Y.Z or X.Y.Z-tag (e.g. 1.0, 2.1.0, 1.0.0-beta)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Validation.PublisherIdPattern" xml:space="preserve">
+    <value>Lowercase, alphanumeric only</value>
+  </data>
+  <data name="Tools.PublisherStudio.Validation.DisplayNameRequired" xml:space="preserve">
+    <value>Display Name is required</value>
+  </data>
+  <data name="Tools.PublisherStudio.Validation.MinLength2" xml:space="preserve">
+    <value>At least 2 characters</value>
+  </data>
+  <data name="Tools.PublisherStudio.Validation.CatalogNameRequired" xml:space="preserve">
+    <value>Catalog name is required</value>
+  </data>
+  <data name="Tools.PublisherStudio.Validation.CatalogNameNotEmpty" xml:space="preserve">
+    <value>Catalog name cannot be empty</value>
+  </data>
+  <data name="Tools.PublisherStudio.Validation.ValidHttpUrlFormat" xml:space="preserve">
+    <value>{0} must be a valid http or https URL.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Validation.ValidContactEmail" xml:space="preserve">
+    <value>Contact email must be a valid email address.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Validation.GenericError" xml:space="preserve">
+    <value>Validation error</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GoogleDriveApiNotEnabled" xml:space="preserve">
+    <value>The Google Drive API is not enabled for your Google Cloud project. Enable it at https://console.developers.google.com/apis/api/drive.googleapis.com, wait a few minutes for the change to propagate, then retry.</value>
   </data>
 </root>
