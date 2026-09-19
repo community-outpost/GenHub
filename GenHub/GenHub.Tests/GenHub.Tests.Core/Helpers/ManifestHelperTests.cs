@@ -201,4 +201,53 @@ public sealed class ManifestHelperTests
         var result = ManifestHelper.SelectPrimaryManifest([m1, m2], reference);
         Assert.Same(m1, result);
     }
+
+    /// <summary>
+    /// Tests that launcher-managed manifests (installations and installation-detected
+    /// game clients) are distinguished from publisher downloads.
+    /// </summary>
+    /// <param name="id">The manifest id under test.</param>
+    /// <param name="publisherType">The publisher type to assign, or null to keep the default.</param>
+    /// <param name="contentType">The content type to assign.</param>
+    /// <param name="expected">The expected classification result.</param>
+    [Theory]
+    [InlineData("1.104.steam.gameinstallation.generals", "steam", ContentType.GameInstallation, true)]
+    [InlineData("1.108.steam.gameclient.zerohour", "steam", ContentType.GameClient, true)]
+    [InlineData("1.108.wine.gameclient.zerohour", "retail", ContentType.GameClient, true)]
+    [InlineData("1.108.lutris.gameclient.zerohour", "unknown", ContentType.GameClient, true)]
+    [InlineData("1.108.custom.gameclient.zerohour", "retail", ContentType.GameClient, true)]
+    [InlineData("1.108.custom.gameclient.zerohour", "unknown", ContentType.GameClient, false)]
+    [InlineData("1.108.custom.gameclient.zerohour", null, ContentType.GameClient, false)]
+    [InlineData("1.108.generalsonline.gameclient.zerohour", "generalsonline", ContentType.GameClient, false)]
+    [InlineData("1.20260101.steamworkshop.mod.maps", "steamworkshop", ContentType.Mod, false)]
+    [InlineData("1.20260101.generalsonline.patch.hotfix", "generalsonline", ContentType.Patch, false)]
+    public void IsLauncherManagedManifest_ClassifiesManifestsCorrectly(
+        string id,
+        string? publisherType,
+        ContentType contentType,
+        bool expected)
+    {
+        var manifest = new ContentManifest
+        {
+            Id = ManifestId.Create(id),
+            Name = "Test",
+            ContentType = contentType,
+            TargetGame = GameType.ZeroHour,
+        };
+        if (publisherType != null)
+        {
+            manifest.Publisher = new PublisherInfo { PublisherType = publisherType };
+        }
+
+        Assert.Equal(expected, ManifestHelper.IsLauncherManagedManifest(manifest));
+    }
+
+    /// <summary>
+    /// Tests that a null manifest is never launcher-managed.
+    /// </summary>
+    [Fact]
+    public void IsLauncherManagedManifest_WithNull_ReturnsFalse()
+    {
+        Assert.False(ManifestHelper.IsLauncherManagedManifest(null));
+    }
 }

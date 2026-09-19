@@ -116,18 +116,23 @@ public sealed partial class DownloadedContentFilterViewModel : FilterPanelViewMo
     /// <inheritdoc />
     public void Dispose()
     {
+        Dispose(true);
+        GC.SuppressFinalize(this);
+    }
+
+    private void Dispose(bool disposing)
+    {
         if (_disposed)
         {
             return;
         }
 
-        _disposed = true;
-        if (_localizationService != null)
+        if (disposing && _localizationService != null)
         {
             _localizationService.PropertyChanged -= OnLocalizationChanged;
         }
 
-        GC.SuppressFinalize(this);
+        _disposed = true;
     }
 
     private ObservableCollection<ContentTypeFilterItem> CreateContentTypeFilters()

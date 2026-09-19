@@ -117,10 +117,6 @@ public sealed class ContentArtworkService(
 
             return Task.FromResult(OperationResult<bool>.CreateSuccess(true));
         }
-        catch (OperationCanceledException)
-        {
-            throw;
-        }
         catch (IOException ex)
         {
             return PurgeFailure(manifestId, ex);
@@ -198,10 +194,6 @@ public sealed class ContentArtworkService(
             await File.WriteAllBytesAsync(Path.Combine(directory, GetSlotName(kind) + ResolveExtension(remoteUrl)), bytes, cancellationToken);
             logger.LogDebug("Persisted {Kind} artwork for {ManifestId}", kind, manifest.Id.Value);
         }
-        catch (OperationCanceledException)
-        {
-            throw;
-        }
         catch (HttpRequestException ex)
         {
             PersistFailure(manifest, kind, failures, ex);
@@ -243,7 +235,7 @@ public sealed class ContentArtworkService(
             int read;
             while ((read = await stream.ReadAsync(chunk, cancellationToken)) > 0)
             {
-                buffer.Write(chunk, 0, read);
+                await buffer.WriteAsync(chunk.AsMemory(0, read), cancellationToken);
                 if (buffer.Length > ImageCacheConstants.MaxImageDownloadSizeBytes)
                 {
                     return null;
@@ -252,9 +244,9 @@ public sealed class ContentArtworkService(
 
             return buffer.ToArray();
         }
-        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        catch (OperationCanceledException ex) when (!cancellationToken.IsCancellationRequested)
         {
-            logger.LogDebug("Artwork download timed out: {Url}", url);
+            logger.LogDebug(ex, "Artwork download timed out: {Url}", url);
             return null;
         }
     }

@@ -4897,7 +4897,7 @@ public partial class ContentDetailViewModel(
         try
         {
             var manifest = await GetDownloadedManifestAsync(manifestId);
-            if (manifest?.ContentType == ContentType.GameInstallation)
+            if (ManifestHelper.IsLauncherManagedManifest(manifest))
             {
                 logger.LogWarning("Cannot delete {ManifestId}: installation manifests are launcher-managed", manifestId);
                 notificationService.ShowWarning(
@@ -5730,7 +5730,7 @@ public partial class ContentDetailViewModel(
 
         if (key != null)
         {
-            return GetLocalizedString(key, game?.ToString() ?? string.Empty);
+            return GetLocalizedString(key, game!.Value.ToString());
         }
 
         return game?.ToString() ?? string.Empty;

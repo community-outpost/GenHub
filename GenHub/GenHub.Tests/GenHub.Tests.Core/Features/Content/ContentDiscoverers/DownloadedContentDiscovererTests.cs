@@ -8,6 +8,7 @@ using GenHub.Features.Content.Services;
 using GenHub.Features.Content.Services.ContentDiscoverers;
 using Microsoft.Extensions.Logging;
 using Moq;
+using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
@@ -187,7 +188,7 @@ public sealed class DownloadedContentDiscovererTests
     }
 
     /// <summary>
-    /// Verifies that iconless game clients fall back to bundled per-game covers.
+    /// Verifies that iconless publisher-downloaded game clients fall back to bundled per-game covers.
     /// </summary>
     /// <returns>A task that represents the asynchronous test.</returns>
     [Fact]
@@ -195,7 +196,7 @@ public sealed class DownloadedContentDiscovererTests
     {
         var discoverer = CreateDiscoverer(
         [
-            CreateManifest("1.20260101.steam.gameclient.zerohour", "Zero Hour", ContentType.GameClient, GameType.ZeroHour),
+            CreateManifest("1.20260101.generalsonline.gameclient.zerohour", "Zero Hour", ContentType.GameClient, GameType.ZeroHour),
         ]);
 
         var result = await discoverer.DiscoverAsync(new ContentSearchQuery { Take = 10 });
@@ -203,6 +204,105 @@ public sealed class DownloadedContentDiscovererTests
         Assert.True(result.Success);
         var item = Assert.Single(result.Data!.Items);
         Assert.Equal(ContentArtworkConstants.ZeroHourCoverSource, item.BannerUrl);
+    }
+
+    /// <summary>
+    /// Verifies that locally detected game clients are excluded while publisher-downloaded
+    /// clients remain listed.
+    /// </summary>
+    /// <returns>A task that represents the asynchronous test.</returns>
+    [Fact]
+    public async Task DiscoverAsync_ExcludesLocallyDetectedGameClientsAsync()
+    {
+        var retailClient = CreateManifest("1.20260102.custom.gameclient.generals", "Retail Generals", ContentType.GameClient, GameType.Generals);
+        retailClient.Publisher = new PublisherInfo { Name = "Retail", PublisherType = PublisherTypeConstants.Retail };
+        var downloadedClient = CreateManifest("1.20260103.generalsonline.gameclient.zerohour", "GO Zero Hour", ContentType.GameClient, GameType.ZeroHour);
+        downloadedClient.Publisher = new PublisherInfo { Name = "Generals Online", PublisherType = PublisherTypeConstants.GeneralsOnline };
+
+        var discoverer = CreateDiscoverer(
+        [
+            CreateManifest("1.20260101.steam.gameclient.zerohour", "Steam Zero Hour", ContentType.GameClient, GameType.ZeroHour),
+            retailClient,
+            downloadedClient,
+        ]);
+
+        var result = await discoverer.DiscoverAsync(new ContentSearchQuery { Take = 10 });
+
+        Assert.True(result.Success);
+        var item = Assert.Single(result.Data!.Items);
+        Assert.Equal("GO Zero Hour", item.Name);
+        Assert.Equal(1, result.Data.TotalItems);
+    }
+
+    /// <summary>
+    /// Verifies that the flat GitHub publisher id resolves to the GitHub logo fallback.
+    /// </summary>
+    /// <returns>A task that represents the asynchronous test.</returns>
+    [Fact]
+    public async Task DiscoverAsync_ResolvesFlatGitHubPublisherLogoAsync()
+    {
+        var manifest = CreateManifest("1.20260101.github.mod.alpha", "Alpha Mod", ContentType.Mod, GameType.ZeroHour);
+        manifest.Publisher = new PublisherInfo { Name = "GitHub", PublisherType = PublisherTypeConstants.GitHub };
+
+        var discoverer = CreateDiscoverer([manifest]);
+
+        var result = await discoverer.DiscoverAsync(new ContentSearchQuery { Take = 10 });
+
+        Assert.True(result.Success);
+        var item = Assert.Single(result.Data!.Items);
+        Assert.Equal(PublisherInfoConstants.GitHub.LogoSource, item.IconUrl);
+    }
+
+    /// <summary>
+    /// Verifies that background artwork prefetch receives the caller's cancellation token.
+    /// </summary>
+    /// <returns>A task that represents the asynchronous test.</returns>
+    [Fact]
+    public async Task DiscoverAsync_PassesCallerTokenToArtworkPrefetchAsync()
+    {
+        var manifest = CreateManifest("1.20260101.test.mod.alpha", "Alpha Mod", ContentType.Mod, GameType.ZeroHour);
+        manifest.Metadata.IconUrl = "https://example.com/icon.png";
+
+        var capturedToken = new TaskCompletionSource<CancellationToken>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var artworkService = CreateArtworkService();
+        artworkService
+            .Setup(service => service.PrefetchArtworkAsync(It.IsAny<ContentManifest>(), It.IsAny<CancellationToken>()))
+            .Callback<ContentManifest, CancellationToken>((_, token) => capturedToken.TrySetResult(token))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+
+        var discoverer = CreateDiscoverer([manifest], artworkService);
+        using var cts = new CancellationTokenSource();
+
+        var result = await discoverer.DiscoverAsync(new ContentSearchQuery { Take = 10 }, cts.Token);
+
+        Assert.True(result.Success);
+        var completed = await Task.WhenAny(capturedToken.Task, Task.Delay(TimeSpan.FromSeconds(5)));
+        Assert.True(completed == capturedToken.Task, "Artwork prefetch was not invoked.");
+        Assert.Equal(cts.Token, await capturedToken.Task);
+    }
+
+    /// <summary>
+    /// Verifies that a cancelled query token suppresses the background artwork prefetch.
+    /// </summary>
+    /// <returns>A task that represents the asynchronous test.</returns>
+    [Fact]
+    public async Task DiscoverAsync_WithCancelledToken_SkipsArtworkPrefetchAsync()
+    {
+        var manifest = CreateManifest("1.20260101.test.mod.alpha", "Alpha Mod", ContentType.Mod, GameType.ZeroHour);
+        manifest.Metadata.IconUrl = "https://example.com/icon.png";
+
+        var artworkService = CreateArtworkService();
+        var discoverer = CreateDiscoverer([manifest], artworkService);
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+
+        var result = await discoverer.DiscoverAsync(new ContentSearchQuery { Take = 10 }, cts.Token);
+
+        Assert.True(result.Success);
+        await Task.Delay(TimeSpan.FromMilliseconds(250));
+        artworkService.Verify(
+            service => service.PrefetchArtworkAsync(It.IsAny<ContentManifest>(), It.IsAny<CancellationToken>()),
+            Times.Never);
     }
 
     /// <summary>

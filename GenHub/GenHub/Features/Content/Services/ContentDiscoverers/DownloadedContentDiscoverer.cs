@@ -1,4 +1,5 @@
 using GenHub.Core.Constants;
+using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Models.Content;
@@ -84,7 +85,7 @@ public sealed class DownloadedContentDiscoverer(
             pageItems.Count,
             page);
 
-        PrefetchPageArtwork(pageItems);
+        PrefetchPageArtwork(pageItems, cancellationToken);
 
         return OperationResult<ContentDiscoveryResult>.CreateSuccess(new ContentDiscoveryResult
         {
@@ -101,9 +102,10 @@ public sealed class DownloadedContentDiscoverer(
             return false;
         }
 
-        // Installation bookkeeping is launcher-managed (metadata-only, deterministically
-        // regenerated), never a user download, so it stays out of the library.
-        if (manifest.ContentType == ContentType.GameInstallation)
+        // Launcher-managed manifests (installation bookkeeping and locally detected
+        // game clients) are deterministically regenerated, never user downloads,
+        // so they stay out of the library.
+        if (ManifestHelper.IsLauncherManagedManifest(manifest))
         {
             return false;
         }
@@ -152,52 +154,11 @@ public sealed class DownloadedContentDiscoverer(
         return PublisherTypeConstants.Downloaded;
     }
 
-    private static string? ResolvePublisherLogo(string? publisherType)
+    private static string? ResolvePublisherLogo(ContentManifest manifest)
     {
-        if (string.IsNullOrWhiteSpace(publisherType))
-        {
-            return null;
-        }
-
-        string logo;
-        if (publisherType.Equals(PublisherTypeConstants.GeneralsOnline, StringComparison.OrdinalIgnoreCase))
-        {
-            logo = PublisherInfoConstants.GeneralsOnline.LogoSource;
-        }
-        else if (publisherType.Equals(PublisherTypeConstants.TheSuperHackers, StringComparison.OrdinalIgnoreCase))
-        {
-            logo = PublisherInfoConstants.TheSuperHackers.LogoSource;
-        }
-        else if (publisherType.Equals(CommunityOutpostConstants.PublisherType, StringComparison.OrdinalIgnoreCase))
-        {
-            logo = PublisherInfoConstants.CommunityOutpost.LogoSource;
-        }
-        else if (publisherType.Equals(ModDBConstants.PublisherType, StringComparison.OrdinalIgnoreCase))
-        {
-            logo = PublisherInfoConstants.ModDB.LogoSource;
-        }
-        else if (publisherType.Equals(CNCLabsConstants.PublisherType, StringComparison.OrdinalIgnoreCase))
-        {
-            logo = PublisherInfoConstants.CNCLabs.LogoSource;
-        }
-        else if (publisherType.Equals(GitHubTopicsConstants.PublisherType, StringComparison.OrdinalIgnoreCase))
-        {
-            logo = PublisherInfoConstants.GitHub.LogoSource;
-        }
-        else if (publisherType.Equals(AODMapsConstants.PublisherType, StringComparison.OrdinalIgnoreCase))
-        {
-            logo = PublisherInfoConstants.AODMaps.LogoSource;
-        }
-        else if (publisherType.Equals(PublisherTypeConstants.GenLauncher, StringComparison.OrdinalIgnoreCase))
-        {
-            logo = PublisherInfoConstants.GenLauncher.LogoSource;
-        }
-        else
-        {
-            return null;
-        }
-
-        return NullIfEmpty(logo);
+        return NullIfEmpty(PublisherInfoConstants.GetPublisherLogo(
+            manifest.Publisher?.PublisherType,
+            manifest.Id.Value));
     }
 
     private static string? ResolveCoverFallback(ContentManifest manifest)
@@ -209,21 +170,12 @@ public sealed class DownloadedContentDiscoverer(
                 : ContentArtworkConstants.ZeroHourCoverSource;
         }
 
-        var publisherType = manifest.Publisher?.PublisherType;
-        if (string.Equals(publisherType, PublisherTypeConstants.GeneralsOnline, StringComparison.OrdinalIgnoreCase))
-        {
-            return GeneralsOnlineConstants.CoverSource;
-        }
-
-        if (string.Equals(publisherType, CommunityOutpostConstants.PublisherType, StringComparison.OrdinalIgnoreCase))
-        {
-            return CommunityOutpostConstants.CoverSource;
-        }
-
-        return null;
+        return PublisherInfoConstants.GetPublisherCover(
+            manifest.Publisher?.PublisherType,
+            manifest.Id.Value);
     }
 
-    private void PrefetchPageArtwork(IReadOnlyList<ContentManifest> pageItems)
+    private void PrefetchPageArtwork(IReadOnlyList<ContentManifest> pageItems, CancellationToken cancellationToken)
     {
         var candidates = pageItems
             .Where(manifest => IsRemoteUrl(manifest.Metadata?.IconUrl) || IsRemoteUrl(manifest.Metadata?.CoverUrl))
@@ -233,13 +185,27 @@ public sealed class DownloadedContentDiscoverer(
             return;
         }
 
-        _ = Task.Run(async () =>
-        {
-            foreach (var manifest in candidates)
+        _ = Task.Run(
+            async () =>
             {
-                await artworkService.PrefetchArtworkAsync(manifest, CancellationToken.None);
-            }
-        });
+                try
+                {
+                    foreach (var manifest in candidates)
+                    {
+                        cancellationToken.ThrowIfCancellationRequested();
+                        await artworkService.PrefetchArtworkAsync(manifest, cancellationToken);
+                    }
+                }
+                catch (OperationCanceledException ex)
+                {
+                    logger.LogDebug(ex, "Artwork prefetch cancelled for {Count} candidates", candidates.Count);
+                }
+                catch (Exception ex)
+                {
+                    logger.LogDebug(ex, "Background artwork prefetch failed for {Count} candidates", candidates.Count);
+                }
+            },
+            cancellationToken);
     }
 
     private ContentSearchResult ToSearchResult(ContentManifest manifest)
@@ -289,7 +255,7 @@ public sealed class DownloadedContentDiscoverer(
     {
         return artworkService.GetLocalArtworkPath(manifest.Id.Value, ContentArtworkKind.Icon)
             ?? NullIfEmpty(manifest.Metadata?.IconUrl)
-            ?? ResolvePublisherLogo(manifest.Publisher?.PublisherType);
+            ?? ResolvePublisherLogo(manifest);
     }
 
     private string? ResolveCoverUrl(ContentManifest manifest)

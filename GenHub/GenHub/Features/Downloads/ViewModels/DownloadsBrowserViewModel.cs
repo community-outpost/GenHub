@@ -1224,7 +1224,7 @@ public sealed partial class DownloadsBrowserViewModel(
 
             var result = await manifestPool.GetAllManifestsAsync(_vmCts.Token);
             var count = result.Success && result.Data != null
-                ? result.Data.Count(manifest => manifest.ContentType != ContentType.GameInstallation)
+                ? result.Data.Count(manifest => !ManifestHelper.IsLauncherManagedManifest(manifest))
                 : 0;
             RunOnUi(() =>
             {

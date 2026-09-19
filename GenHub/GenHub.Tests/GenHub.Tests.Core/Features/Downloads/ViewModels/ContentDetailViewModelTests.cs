@@ -1940,6 +1940,47 @@ public sealed class ContentDetailViewModelTests
     }
 
     /// <summary>
+    /// Verifies the delete command blocks locally detected game clients, which the
+    /// launcher regenerates automatically, instead of removing them.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task DeleteDownloadCommand_WhenManifestIsLocalGameClient_BlocksDeleteAsync()
+    {
+        // Arrange
+        const string manifestId = "1.20260901.steam.gameclient.zerohour";
+        var searchResult = new ContentSearchResult
+        {
+            Id = manifestId,
+            Name = "Steam Zero Hour",
+            ProviderName = "steam",
+            ContentType = ContentType.GameClient,
+            TargetGame = GameType.ZeroHour,
+        };
+
+        var manifestPool = CreateManifestPoolMock(CreateDownloadedManifest(manifestId, "Steam Zero Hour", ContentType.GameClient));
+        var notifications = new Mock<INotificationService>();
+        var viewModel = CreateViewModel(
+            searchResult,
+            new Mock<IContentDownloadCoordinator>().Object,
+            manifestPool: manifestPool.Object,
+            notificationService: notifications.Object,
+            dialogService: new Mock<IDialogService>().Object);
+        viewModel.IsDownloaded = true;
+
+        // Act
+        await viewModel.DeleteDownloadCommand.ExecuteAsync(null);
+
+        // Assert
+        manifestPool.Verify(
+            pool => pool.RemoveManifestAsync(It.IsAny<ManifestId>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+        notifications.Verify(
+            n => n.ShowWarning(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
+            Times.Once);
+    }
+
+    /// <summary>
     /// Verifies the delete confirmation names other stored content with type-based
     /// dependencies the doomed manifest may satisfy.
     /// </summary>
