@@ -171,7 +171,7 @@
                                 IsPaneOpen="{Binding IsPaneOpen, Mode=TwoWay}"
                                 OpenPaneLength="{Binding OpenPaneLength, Mode=TwoWay}"
                                 ItemTemplate="{StaticResource SettingsSectionItemTemplate}">
-  <ScrollViewer Focusable="True" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+  <ScrollViewer x:Name="SettingsScrollViewer" Focusable="True" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" BringIntoViewOnFocusChange="False">
     <StackPanel Margin="32,24" Spacing="24" MaxWidth="840">
 
       <!-- Header -->

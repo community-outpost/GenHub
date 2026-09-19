@@ -1047,6 +1047,17 @@ User interface sizing, theme color, and display name constants.
 - `GeneralsThemeColor`: Default theme color for Generals content (`"#BD5A0F"`)
 - `ZeroHourThemeColor`: Default theme color for Zero Hour content (`"#1B6575"`)
 
+## ScrollSpyConstants Class
+
+Constants for sidebar section scroll-spy behavior shared by settings-style pages.
+
+- `AnimationDurationMs`: 350
+- `AnimationFrameIntervalMs`: 16
+- `MinActiveThreshold`: 60.0
+- `ViewportThresholdRatio`: 0.35
+- `BottomSnapTolerance`: 25.0
+- `ScrollSnapEpsilon`: 1.0
+
 ## ValidationLimits Class
 
 - `MinConcurrentDownloads`: 1

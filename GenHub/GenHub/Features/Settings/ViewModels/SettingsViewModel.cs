@@ -560,6 +560,17 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>
+    /// Updates the selected section to follow the scroll position. The view suppresses
+    /// scroll-to-section while applying this update so the sidebar highlight stays in sync.
+    /// </summary>
+    /// <param name="section">The newly visible section.</param>
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Instance method required: assigns instance state through the source-generated SelectedSection property.")]
+    public void UpdateSectionFromScroll(SettingsSectionItem section)
+    {
+        SelectedSection = section;
+    }
+
+    /// <summary>
     /// Loads custom game installations.
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
