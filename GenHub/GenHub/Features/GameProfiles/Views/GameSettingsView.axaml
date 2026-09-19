@@ -17,6 +17,24 @@
         <conv:EqualityConverter x:Key="EqualityConverter" />
     </UserControl.Resources>
 
+    <UserControl.Styles>
+        <!-- Settings card style -->
+        <Style Selector="Border.settings-card">
+            <Setter Property="Background" Value="#10FFFFFF" />
+            <Setter Property="BorderBrush" Value="#20FFFFFF" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="12" />
+            <Setter Property="Padding" Value="24" />
+            <Setter Property="Margin" Value="24,0,24,24" />
+            <Setter Property="HorizontalAlignment" Value="Stretch" />
+            <Setter Property="MinWidth" Value="0" />
+            <Setter Property="TextElement.Foreground" Value="White" />
+        </Style>
+        <Style Selector="Border.settings-card:pointerover">
+            <Setter Property="BorderBrush" Value="#40FFFFFF" />
+        </Style>
+    </UserControl.Styles>
+
     <Grid>
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="190" MinWidth="68" MaxWidth="300" />

@@ -114,6 +114,7 @@ public partial class GameProfileSettingsViewModel
         {
             _logger?.LogError(ex, "Error loading available content");
             StatusMessage = "Error loading content";
+            _notificationService?.ShowError("Error loading content", ex.Message);
         }
         finally
         {

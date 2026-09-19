@@ -79,6 +79,7 @@ public partial class GameProfileSettingsViewModel
             _logger?.LogError(ex, "Error initializing new profile");
             StatusMessage = "Error loading content";
             LoadingError = true;
+            _notificationService?.ShowError("Error loading content", ex.Message);
         }
         finally
         {
@@ -158,6 +159,7 @@ public partial class GameProfileSettingsViewModel
             _logger?.LogError(ex, "Error initializing profile {ProfileId}", profileId);
             StatusMessage = "Error loading profile";
             LoadingError = true;
+            _notificationService?.ShowError("Error loading profile", ex.Message);
         }
         finally
         {
