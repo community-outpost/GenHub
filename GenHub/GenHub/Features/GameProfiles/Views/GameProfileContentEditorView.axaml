@@ -84,16 +84,18 @@
 
         <!-- Content Card Styles -->
         <Style Selector="Grid.content-card">
-            <Setter Property="MaxWidth" Value="240" />
+            <Setter Property="Width" Value="180" />
+            <Setter Property="MaxWidth" Value="180" />
         </Style>
         <Style Selector="Button.content-card-btn">
             <Setter Property="Background" Value="#08FFFFFF" />
             <Setter Property="BorderBrush" Value="#15FFFFFF" />
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="CornerRadius" Value="10" />
-            <Setter Property="Padding" Value="14" />
+            <Setter Property="Padding" Value="12,10" />
             <Setter Property="Margin" Value="4" />
-            <Setter Property="MaxWidth" Value="240" />
+            <Setter Property="Width" Value="180" />
+            <Setter Property="MaxWidth" Value="180" />
             <Setter Property="HorizontalContentAlignment" Value="Stretch" />
             <Setter Property="VerticalContentAlignment" Value="Stretch" />
             <Setter Property="Cursor" Value="Hand" />
@@ -244,6 +246,10 @@
                                                     <Border Background="{DynamicResource SurfaceHoverBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="4" Padding="6,2" Margin="0,0,4,4">
                                                         <TextBlock Text="{Binding ContentType, Converter={x:Static conv:ContentTypeDisplayConverter.Instance}}" FontSize="10" Foreground="{DynamicResource TextSecondary}" />
                                                     </Border>
+                                                    <Border Background="{DynamicResource SurfaceHoverBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="4" Padding="6,2" Margin="0,0,4,4"
+                                                            IsVisible="{Binding HasDisplayVersion}">
+                                                        <TextBlock Text="{Binding DisplayVersion}" FontSize="10" Foreground="{DynamicResource TextSecondary}" />
+                                                    </Border>
                                                 </WrapPanel>
                                             </StackPanel>
                                         </Button>
@@ -350,8 +356,9 @@
                                                             IsVisible="{Binding Publisher, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
                                                         <TextBlock Text="{Binding Publisher}" FontSize="10" Foreground="{DynamicResource AccentLightBrush}" FontWeight="SemiBold" />
                                                     </Border>
-                                                    <Border Background="{DynamicResource SurfaceHoverBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="4" Padding="6,2" Margin="0,0,4,4">
-                                                        <TextBlock Text="{Binding ContentType, Converter={x:Static conv:ContentTypeDisplayConverter.Instance}}" FontSize="10" Foreground="{DynamicResource TextSecondary}" />
+                                                    <Border Background="{DynamicResource SurfaceHoverBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="4" Padding="6,2" Margin="0,0,4,4"
+                                                            IsVisible="{Binding HasDisplayVersion}">
+                                                        <TextBlock Text="{Binding DisplayVersion}" FontSize="10" Foreground="{DynamicResource TextSecondary}" />
                                                     </Border>
                                                 </WrapPanel>
                                             </StackPanel>

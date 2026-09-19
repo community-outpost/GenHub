@@ -72,7 +72,7 @@ public partial class GameProfileSettingsViewModel
 
             await GameSettingsViewModel.InitializeForProfileAsync(null, null, SelectedGameInstallation?.GameType);
 
-            StatusMessage = $"Found {AvailableGameInstallations.Count} installations and {AvailableContent.Count} content items";
+            StatusMessage = string.Empty;
         }
         catch (Exception ex)
         {
@@ -151,7 +151,7 @@ public partial class GameProfileSettingsViewModel
 
             SelectInitialGameInstallation(profile);
 
-            StatusMessage = $"Profile loaded with {EnabledContent.Count} enabled content items";
+            StatusMessage = string.Empty;
         }
         catch (Exception ex)
         {

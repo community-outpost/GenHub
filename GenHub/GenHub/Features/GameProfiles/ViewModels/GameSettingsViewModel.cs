@@ -881,10 +881,7 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
         var currentRes = $"{ResolutionWidth}x{ResolutionHeight}";
         SelectedResolutionPreset = ResolutionPresets.Contains(currentRes) ? currentRes : null;
 
-        var gameType = profile.GameClient?.GameType;
-        StatusMessage = gameType != null
-            ? $"Loaded profile settings for {gameType}"
-            : "Loaded profile settings (no game client configured)";
+        StatusMessage = string.Empty;
         _logger.LogInformation(
             "Loaded profile settings - Windowed={Windowed}, Resolution={Width}x{Height}",
             Windowed,

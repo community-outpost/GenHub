@@ -152,7 +152,7 @@ public class GameSettingsViewModelTests
         Assert.Equal(80, _viewModel.Gamma);
         Assert.Equal(75, _viewModel.SoundVolume);
         Assert.False(_viewModel.AudioEnabled);
-        Assert.Contains("Loaded profile settings", _viewModel.StatusMessage);
+        Assert.True(string.IsNullOrEmpty(_viewModel.StatusMessage));
     }
 
     /// <summary>
