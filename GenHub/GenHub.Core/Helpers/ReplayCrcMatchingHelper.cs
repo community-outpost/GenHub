@@ -48,18 +48,34 @@ public static class ReplayCrcMatchingHelper
     /// </summary>
     /// <param name="crc">CRC string to test.</param>
     /// <returns><c>true</c> if it matches retail Zero Hour executable CRC; otherwise, <c>false</c>.</returns>
-    public static bool IsZeroHourRetailExeCrc(string? crc) =>
-        string.Equals(crc, ReplayManagerConstants.RetailZeroHourExeCrcFirstDecade, StringComparison.OrdinalIgnoreCase) ||
-        string.Equals(crc, ReplayManagerConstants.RetailZeroHourExeCrcSteam, StringComparison.OrdinalIgnoreCase);
+    public static bool IsZeroHourRetailExeCrc(string? crc)
+    {
+        if (string.IsNullOrWhiteSpace(crc))
+        {
+            return false;
+        }
+
+        var normalized = NormalizeCrcHex(crc);
+        return string.Equals(normalized, NormalizeCrcHex(ReplayManagerConstants.RetailZeroHourExeCrcFirstDecade), StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(normalized, NormalizeCrcHex(ReplayManagerConstants.RetailZeroHourExeCrcSteam), StringComparison.OrdinalIgnoreCase);
+    }
 
     /// <summary>
     /// Checks if a given CRC string corresponds to known retail Generals 1.08 executables.
     /// </summary>
     /// <param name="crc">CRC string to test.</param>
     /// <returns><c>true</c> if it matches retail Generals executable CRC; otherwise, <c>false</c>.</returns>
-    public static bool IsGeneralsRetailExeCrc(string? crc) =>
-        string.Equals(crc, ReplayManagerConstants.RetailGeneralsExeCrcFirstDecade, StringComparison.OrdinalIgnoreCase) ||
-        string.Equals(crc, ReplayManagerConstants.RetailGeneralsExeCrcSteam, StringComparison.OrdinalIgnoreCase);
+    public static bool IsGeneralsRetailExeCrc(string? crc)
+    {
+        if (string.IsNullOrWhiteSpace(crc))
+        {
+            return false;
+        }
+
+        var normalized = NormalizeCrcHex(crc);
+        return string.Equals(normalized, NormalizeCrcHex(ReplayManagerConstants.RetailGeneralsExeCrcFirstDecade), StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(normalized, NormalizeCrcHex(ReplayManagerConstants.RetailGeneralsExeCrcSteam), StringComparison.OrdinalIgnoreCase);
+    }
 
     /// <summary>
     /// Checks if a given CRC string corresponds to known retail executables for the specified game type.
@@ -118,6 +134,96 @@ public static class ReplayCrcMatchingHelper
         }
 
         return IsRetailExeCrc(actualCrc, gameType) && IsRetailExeCrc(targetCrc, gameType);
+    }
+
+    /// <summary>
+    /// Determines whether the specified game client and enabled content are compatible with the retail Zero Hour 1.04 executable CRC.
+    /// </summary>
+    /// <param name="client">The game client to evaluate.</param>
+    /// <param name="enabledContentIds">Optional list of enabled content manifest IDs for the profile.</param>
+    /// <returns>
+    /// <c>true</c> if the client is compatible with retail Zero Hour 1.04 executable CRC;
+    /// <c>false</c> if it uses a non-retail or custom executable (such as Generals Online or non-retail Community Patch).
+    /// </returns>
+    public static bool IsZeroHourRetailCompatible(GameClient? client, IReadOnlyList<string>? enabledContentIds = null)
+    {
+        if (client == null)
+        {
+            return false;
+        }
+
+        var fullExePath = ResolveProfileFullExePath(client);
+        if (!string.IsNullOrWhiteSpace(fullExePath) && File.Exists(fullExePath))
+        {
+            var cachedCrc = GetCachedExeCrc(fullExePath);
+            if (!string.IsNullOrWhiteSpace(cachedCrc))
+            {
+                return IsZeroHourRetailExeCrc(cachedCrc);
+            }
+        }
+
+        if (string.Equals(client.PublisherType, PublisherTypeConstants.GeneralsOnline, StringComparison.OrdinalIgnoreCase) ||
+            (!string.IsNullOrEmpty(client.Name) && client.Name.Contains(GeneralsOnlineConstants.ClientName, StringComparison.OrdinalIgnoreCase)) ||
+            (!string.IsNullOrEmpty(client.Id) && client.Id.Contains(PublisherTypeConstants.GeneralsOnline, StringComparison.OrdinalIgnoreCase)))
+        {
+            return false;
+        }
+
+        if (CommunityOutpostConstants.IsNonRetailIdentifier(client.Id) ||
+            CommunityOutpostConstants.IsNonRetailIdentifier(client.Name) ||
+            CommunityOutpostConstants.IsNonRetailIdentifier(client.PublisherType) ||
+            (enabledContentIds != null && enabledContentIds.Any(CommunityOutpostConstants.IsNonRetailIdentifier)))
+        {
+            return false;
+        }
+
+        if ((string.Equals(client.PublisherType, PublisherTypeConstants.TheSuperHackers, StringComparison.OrdinalIgnoreCase) ||
+             string.Equals(client.PublisherType, PublisherTypeConstants.LegacySuperHackers, StringComparison.OrdinalIgnoreCase) ||
+             (!string.IsNullOrEmpty(client.Id) && client.Id.Contains(PublisherTypeConstants.TheSuperHackers, StringComparison.OrdinalIgnoreCase))) &&
+            !string.Equals(client.PublisherType, CommunityOutpostConstants.PublisherType, StringComparison.OrdinalIgnoreCase) &&
+            (client.Name == null || !client.Name.Contains("Community Patch", StringComparison.OrdinalIgnoreCase)))
+        {
+            return false;
+        }
+
+        return true;
+    }
+
+    /// <summary>
+    /// Determines whether the specified game client is compatible with the retail executable CRC for its game type.
+    /// For Zero Hour, checks compatibility with retail 1.04 executable CRC.
+    /// </summary>
+    /// <param name="client">The game client to evaluate.</param>
+    /// <param name="enabledContentIds">Optional list of enabled content manifest IDs for the profile.</param>
+    /// <returns>
+    /// <c>true</c> if compatible with retail executable CRC (e.g. retail 1.04 for Zero Hour);
+    /// <c>false</c> if it uses a non-retail or custom executable.
+    /// </returns>
+    public static bool IsRetailCompatible(GameClient? client, IReadOnlyList<string>? enabledContentIds = null)
+    {
+        if (client == null)
+        {
+            return false;
+        }
+
+        if (client.GameType == GameType.Generals)
+        {
+            var fullExePath = ResolveProfileFullExePath(client);
+            if (!string.IsNullOrWhiteSpace(fullExePath) && File.Exists(fullExePath))
+            {
+                var cachedCrc = GetCachedExeCrc(fullExePath);
+                if (!string.IsNullOrWhiteSpace(cachedCrc))
+                {
+                    return IsGeneralsRetailExeCrc(cachedCrc);
+                }
+            }
+
+            return !client.IsPublisherClient ||
+                   string.Equals(client.PublisherType, PublisherTypeConstants.Steam, StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(client.PublisherType, PublisherTypeConstants.Ea, StringComparison.OrdinalIgnoreCase) || string.Equals(client.PublisherType, PublisherTypeConstants.EaApp, StringComparison.OrdinalIgnoreCase);
+        }
+
+        return IsZeroHourRetailCompatible(client, enabledContentIds);
     }
 
     /// <summary>

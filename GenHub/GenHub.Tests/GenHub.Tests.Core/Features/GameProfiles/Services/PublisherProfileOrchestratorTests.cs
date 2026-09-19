@@ -163,7 +163,7 @@ public sealed class PublisherProfileOrchestratorTests
         _manifestPoolMock
             .Setup(p => p.GetAllManifestsAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(() =>
-            {
+            {\
                 invocationCount++;
                 return OperationResult<IEnumerable<ContentManifest>>.CreateSuccess(
                     invocationCount == 1 ? [] : [manifest]);
@@ -373,7 +373,55 @@ public sealed class PublisherProfileOrchestratorTests
             Times.Once);
     }
 
-    private static GameInstallation CreateInstallation() => new("C:\\Games\\ZeroHour", GameInstallationType.Steam, null);
+    /// <summary>
+    /// Verifies that when a non-retail Community Patch client is requested but only retail candidates
+    /// are discovered, the orchestrator does not acquire the incompatible retail variant.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task CreateProfilesForPublisherClientAsync_WhenNonRetailRequestedButOnlyRetailFound_DoesNotAcquireOppositeVariantAsync()
+    {
+        // Arrange
+        var installation = CreateInstallation();
+        var client = new GameClient
+        {
+            Id = GameClientConstants.SyntheticClientIds.CommunityPatchNonRet,
+            Name = "Community Patch (Non-Retail)",
+            PublisherType = CommunityOutpostConstants.PublisherType,
+        };
+
+        var retailItem = new ContentSearchResult
+        {
+            Id = "generalszh_23-07-2026.zip",
+            Name = "Community Patch 23-07-2026",
+            Version = "23-07-2026",
+            ContentType = ContentType.GameClient,
+            ProviderName = CommunityOutpostConstants.PublisherType,
+        };
+
+        _manifestPoolMock
+            .Setup(p => p.GetAllManifestsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IEnumerable<ContentManifest>>.CreateSuccess([]));
+
+        _contentOrchestratorMock
+            .Setup(o => o.SearchAsync(It.IsAny<ContentSearchQuery>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IEnumerable<ContentSearchResult>>.CreateSuccess([retailItem]));
+
+        // Act
+        var result = await _orchestrator.CreateProfilesForPublisherClientAsync(installation, client);
+
+        // Assert: Never acquires retailItem
+        Assert.True(result.Success);
+        Assert.Equal(0, result.Data);
+        _contentOrchestratorMock.Verify(
+            o => o.AcquireContentAsync(
+                It.IsAny<ContentSearchResult>(),
+                It.IsAny<IProgress<ContentAcquisitionProgress>>(),
+                It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    private static GameInstallation CreateInstallation() => new(@"C:\Games\ZeroHour", GameInstallationType.Steam, null);
 
     private static GameClient CreateGameClient() => new()
     {

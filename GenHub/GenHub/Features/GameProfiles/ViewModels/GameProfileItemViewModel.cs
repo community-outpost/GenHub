@@ -7,6 +7,7 @@ using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameClients;
 using GenHub.Core.Models.GameProfile;
+using GenHub.Infrastructure.Converters;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -223,6 +224,30 @@ public partial class GameProfileItemViewModel : ViewModelBase
     /// </summary>
     [ObservableProperty]
     private string? _publisher;
+
+    /// <summary>
+    /// Gets or sets the compatibility badge text (e.g., "Retail Compatible", "Non-Retail Compatible").
+    /// </summary>
+    [ObservableProperty]
+    private string? _compatibilityBadgeText;
+
+    /// <summary>
+    /// Gets or sets a value indicating whether the client executable is retail compatible (matches retail 1.04 CRC).
+    /// </summary>
+    [ObservableProperty]
+    private bool _isRetailCompatible;
+
+    /// <summary>
+    /// Gets or sets a value indicating whether this profile has a compatibility badge to display.
+    /// </summary>
+    [ObservableProperty]
+    private bool _hasCompatibilityBadge;
+
+    /// <summary>
+    /// Gets or sets the tooltip text describing the executable compatibility status.
+    /// </summary>
+    [ObservableProperty]
+    private string? _compatibilityTooltip;
 
     /// <summary>
     /// Gets or sets the content type display name.
@@ -460,6 +485,8 @@ public partial class GameProfileItemViewModel : ViewModelBase
             UpdateDescription(gameProfile);
         }
 
+        ResolveCompatibilityBadge(profile);
+
         // Set color value with game type defaults or profile theme
         if (profile is GameProfile gp && !string.IsNullOrEmpty(gp.ThemeColor))
         {
@@ -594,6 +621,8 @@ public partial class GameProfileItemViewModel : ViewModelBase
 
             UpdateDescription(gameProfile);
         }
+
+        ResolveCompatibilityBadge(updatedProfile);
 
         // Notify UI of all property changes
         NotifyAllPropertiesChanged();
@@ -1038,12 +1067,59 @@ public partial class GameProfileItemViewModel : ViewModelBase
         }
     }
 
+    private void ResolveCompatibilityBadge(IGameProfile profile)
+    {
+        if (profile.GameClient == null)
+        {
+            CompatibilityBadgeText = string.Empty;
+            HasCompatibilityBadge = false;
+            IsRetailCompatible = false;
+            CompatibilityTooltip = string.Empty;
+            return;
+        }
+
+        var isRetail = ReplayCrcMatchingHelper.IsRetailCompatible(profile.GameClient, profile.EnabledContentIds);
+        IsRetailCompatible = isRetail;
+        HasCompatibilityBadge = true;
+
+        var loc = LocalizationConverterHelper.ResolveLocalizationService();
+
+        if (isRetail)
+        {
+            CompatibilityBadgeText = LocalizationConverterHelper.GetLocalizedOrDefault(
+                loc,
+                "GameProfiles.Badge.RetailCompatible",
+                "Retail Compatible");
+            CompatibilityTooltip = profile.GameClient.GameType == GameType.Generals
+                ? "Compatible with retail 1.08 (EXE CRC match)"
+                : LocalizationConverterHelper.GetLocalizedOrDefault(
+                    loc,
+                    "GameProfiles.Tooltip.RetailCompatible",
+                    "Compatible with retail 1.04 (EXE CRC match)");
+        }
+        else
+        {
+            CompatibilityBadgeText = LocalizationConverterHelper.GetLocalizedOrDefault(
+                loc,
+                "GameProfiles.Badge.NonRetailCompatible",
+                "Non-Retail Compatible");
+            CompatibilityTooltip = LocalizationConverterHelper.GetLocalizedOrDefault(
+                loc,
+                "GameProfiles.Tooltip.NonRetailCompatible",
+                "Non-retail executable (different EXE CRC from 1.04)");
+        }
+    }
+
     private void NotifyAllPropertiesChanged()
     {
         OnPropertyChanged(nameof(Name));
         OnPropertyChanged(nameof(Version));
         OnPropertyChanged(nameof(GameVersion));
         OnPropertyChanged(nameof(Publisher));
+        OnPropertyChanged(nameof(CompatibilityBadgeText));
+        OnPropertyChanged(nameof(IsRetailCompatible));
+        OnPropertyChanged(nameof(HasCompatibilityBadge));
+        OnPropertyChanged(nameof(CompatibilityTooltip));
         OnPropertyChanged(nameof(Description));
         OnPropertyChanged(nameof(ColorValue));
         OnPropertyChanged(nameof(IconPath));

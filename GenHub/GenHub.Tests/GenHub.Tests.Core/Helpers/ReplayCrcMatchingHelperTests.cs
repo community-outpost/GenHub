@@ -291,4 +291,70 @@ public class ReplayCrcMatchingHelperTests
             }
         }
     }
+    /// <summary>
+    /// Verifies that IsZeroHourRetailExeCrc handles hex prefix and case insensitivity.
+    /// </summary>
+    [Theory]
+    [InlineData("0x401D89EA", true)]
+    [InlineData("401d89ea", true)]
+    [InlineData("0xda2b4b18", true)]
+    [InlineData("DA2B4B18", true)]
+    [InlineData("0xB9DB8815", false)]
+    [InlineData("0xE3DB8319", false)]
+    [InlineData("", false)]
+    [InlineData(null, false)]
+    public void IsZeroHourRetailExeCrc_HandlesPrefixAndCase(string? crc, bool expected)
+    {
+        var result = ReplayCrcMatchingHelper.IsZeroHourRetailExeCrc(crc);
+        Assert.Equal(expected, result);
+    }
+
+    /// <summary>
+    /// Verifies that IsZeroHourRetailCompatible accurately differentiates retail vs non-retail clients.
+    /// </summary>
+    [Fact]
+    public void IsZeroHourRetailCompatible_DifferentiatesClients()
+    {
+        Assert.False(ReplayCrcMatchingHelper.IsZeroHourRetailCompatible(null));
+
+        var goClient = new GameClient
+        {
+            Id = "1.000104.generalsonline.gameclient.zerohour",
+            Name = "Generals Online",
+            PublisherType = "GeneralsOnline",
+            GameType = GameType.ZeroHour,
+        };
+        Assert.False(ReplayCrcMatchingHelper.IsZeroHourRetailCompatible(goClient));
+
+        var nonRetailClient = new GameClient
+        {
+            Id = "1.106.communityoutpost.gameclient.zerohour.nonretail",
+            Name = "Community Patch 1.06 (Non-Retail)",
+            PublisherType = CommunityOutpostConstants.PublisherType,
+            GameType = GameType.ZeroHour,
+        };
+        Assert.False(ReplayCrcMatchingHelper.IsZeroHourRetailCompatible(nonRetailClient));
+
+        var retailClient = new GameClient
+        {
+            Id = "1.106.communityoutpost.gameclient.zerohour.retail",
+            Name = "Community Patch 1.06 (Retail)",
+            PublisherType = CommunityOutpostConstants.PublisherType,
+            GameType = GameType.ZeroHour,
+        };
+        Assert.True(ReplayCrcMatchingHelper.IsZeroHourRetailCompatible(retailClient));
+
+        var steamClient = new GameClient
+        {
+            Id = "steam",
+            Name = "Command & Conquer Generals Zero Hour (Steam)",
+            PublisherType = "Steam",
+            GameType = GameType.ZeroHour,
+        };
+        Assert.True(ReplayCrcMatchingHelper.IsZeroHourRetailCompatible(steamClient));
+
+        Assert.False(ReplayCrcMatchingHelper.IsZeroHourRetailCompatible(
+            steamClient,
+            new[] { "1.106.communityoutpost.patch.zerohour.nonretail" }));
+    }
 }

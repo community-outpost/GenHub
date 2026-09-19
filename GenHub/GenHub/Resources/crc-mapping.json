@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "lastUpdated": "2026-09-19T00:15:00.000000+00:00",
+  "lastUpdated": "2026-09-19T01:31:47.016305+00:00",
   "totalEntries": 140,
   "mappings": [
     {
@@ -13,7 +13,8 @@
       "version": "1.04",
       "buildDate": "2003-09-16",
       "description": "Official Steam Zero Hour 1.04",
-      "cdnUrl": null
+      "cdnUrl": null,
+      "dataPatchName": "Steam 1.04 INI"
     },
     {
       "exeCrc": "0x401D89EA",
@@ -37,7 +38,8 @@
       "version": "1.08",
       "buildDate": "2003-02-11",
       "description": "Official Steam Generals 1.08",
-      "cdnUrl": null
+      "cdnUrl": null,
+      "dataPatchName": "Steam 1.08 INI"
     },
     {
       "exeCrc": "0x27533BB0",
@@ -1699,7 +1701,8 @@
       "version": "11-09-2026",
       "buildDate": "2026-09-11",
       "description": "Community Patch (TheSuperHackers Non-Retail Build) 11-09-2026",
-      "cdnUrl": "https://legi.cc/patch/generalszh_11-09-2026_NonRet.zip"
+      "cdnUrl": "https://legi.cc/patch/generalszh_11-09-2026_NonRet.zip",
+      "dataPatchName": "Vanilla 1.04 INI"
     },
     {
       "exeCrc": "0x391259B0",
@@ -1711,7 +1714,8 @@
       "version": "23-07-2026",
       "buildDate": "2026-07-23",
       "description": "Community Patch (TheSuperHackers Build) 23-07-2026",
-      "cdnUrl": "https://legi.cc/patch/generalszh_23-07-2026.zip"
+      "cdnUrl": "https://legi.cc/patch/generalszh_23-07-2026.zip",
+      "dataPatchName": "Vanilla 1.04 INI"
     }
   ]
 }

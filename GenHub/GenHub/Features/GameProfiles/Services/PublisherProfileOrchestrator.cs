@@ -165,9 +165,7 @@ public class PublisherProfileOrchestrator(
             // Show single notification for all profiles created
             if (profilesCreated > 0)
             {
-                var displayName = isCommunityOutpost
-                    ? (isNonRet ? "Community Patch (Non-Retail)" : "Community Patch")
-                    : publisherType;
+                var displayName = GetPublisherDisplayName(publisherType, isNonRet);
 
                 notificationService.ShowSuccess(
                     $"{displayName} Profiles Created",
@@ -175,7 +173,7 @@ public class PublisherProfileOrchestrator(
             }
 
             logger.LogInformation(
-                "Created {Count} profiles for {PublisherType} (IsNonRet: {IsNonRet}) from {TotalManifests} GameClient manifests",
+                "Created {ProfilesCreated} profiles for {PublisherType} (IsNonRet: {IsNonRet}) from {TotalManifests} GameClient manifests",
                 profilesCreated,
                 publisherType,
                 isNonRet,
@@ -188,6 +186,28 @@ public class PublisherProfileOrchestrator(
             logger.LogError(ex, "Error creating profiles for publisher client {ClientName}", gameClient?.Name);
             return OperationResult<int>.CreateFailure($"Internal error: {ex.Message}");
         }
+    }
+
+    private static string GetPublisherDisplayName(string publisherType, bool isNonRet)
+    {
+        if (publisherType.Equals(PublisherTypeConstants.TheSuperHackers, StringComparison.OrdinalIgnoreCase))
+        {
+            return SuperHackersConstants.PublisherName;
+        }
+
+        if (publisherType.Equals(PublisherTypeConstants.GeneralsOnline, StringComparison.OrdinalIgnoreCase))
+        {
+            return "Generals Online";
+        }
+
+        if (publisherType.Equals(CommunityOutpostConstants.PublisherType, StringComparison.OrdinalIgnoreCase))
+        {
+            return isNonRet
+                ? "Community Patch (Non-Retail)"
+                : CommunityOutpostConstants.PublisherName;
+        }
+
+        return publisherType;
     }
 
     private static bool IsNonRetail(GameClient client) =>
@@ -246,6 +266,29 @@ public class PublisherProfileOrchestrator(
         }
     }
 
+    private ContentSearchResult? FindCandidate(
+        IEnumerable<ContentSearchResult> results,
+        bool isCommunityOutpost,
+        bool isNonRet,
+        string publisherType)
+    {
+        var candidates = isCommunityOutpost
+            ? results.Where(r => isNonRet ? IsNonRetail(r) : !IsNonRetail(r))
+            : results;
+
+        var selected = candidates.FirstOrDefault();
+        if (selected == null)
+        {
+            var variant = isNonRet ? "non-retail" : "retail";
+            logger.LogDebug(
+                "No matching {Variant} content discovered from {PublisherType}",
+                variant,
+                publisherType);
+        }
+
+        return selected;
+    }
+
     private async Task AcquirePublisherClientContentAsync(
         GameClient gameClient,
         bool isCommunityOutpost,
@@ -263,25 +306,7 @@ public class PublisherProfileOrchestrator(
                 publisherType,
                 isNonRet);
 
-            string publisherDisplayName;
-            if (publisherType.Equals(PublisherTypeConstants.TheSuperHackers, StringComparison.OrdinalIgnoreCase))
-            {
-                publisherDisplayName = SuperHackersConstants.PublisherName;
-            }
-            else if (publisherType.Equals(PublisherTypeConstants.GeneralsOnline, StringComparison.OrdinalIgnoreCase))
-            {
-                publisherDisplayName = "Generals Online";
-            }
-            else if (publisherType.Equals(CommunityOutpostConstants.PublisherType, StringComparison.OrdinalIgnoreCase))
-            {
-                publisherDisplayName = isNonRet
-                    ? "Community Patch (Non-Retail)"
-                    : CommunityOutpostConstants.PublisherName;
-            }
-            else
-            {
-                publisherDisplayName = publisherType;
-            }
+            var publisherDisplayName = GetPublisherDisplayName(publisherType, isNonRet);
 
             var searchQuery = new ContentSearchQuery
             {
@@ -299,13 +324,16 @@ public class PublisherProfileOrchestrator(
                 return;
             }
 
-            var candidates = searchResult.Data;
-            if (isCommunityOutpost)
+            var contentToAcquire = FindCandidate(searchResult.Data, isCommunityOutpost, isNonRet, publisherType);
+            if (contentToAcquire == null)
             {
-                candidates = [.. candidates.Where(r => isNonRet ? IsNonRetail(r) : !IsNonRetail(r))];
+                var variant = isNonRet ? "non-retail" : "retail";
+                logger.LogWarning(
+                    "No matching {Variant} content discovered from {PublisherType} for acquisition",
+                    variant,
+                    publisherType);
+                return;
             }
-
-            var contentToAcquire = candidates.FirstOrDefault() ?? searchResult.Data.First();
 
             logger.LogInformation(
                 "Found {PublisherType} content to acquire: {Name} v{Version}",
@@ -407,16 +435,9 @@ public class PublisherProfileOrchestrator(
                 return false; // If we can't discover new content, don't trigger acquisition
             }
 
-            var candidates = searchResult.Data;
-            if (isCommunityOutpost)
-            {
-                candidates = [.. candidates.Where(r => isNonRet ? IsNonRetail(r) : !IsNonRetail(r))];
-            }
-
-            var latestAvailable = candidates.FirstOrDefault();
+            var latestAvailable = FindCandidate(searchResult.Data, isCommunityOutpost, isNonRet, publisherType);
             if (latestAvailable == null)
             {
-                logger.LogDebug("No matching {Variant} content discovered from {PublisherType}", isNonRet ? "non-retail" : "retail", publisherType);
                 return false;
             }
 
