@@ -16,44 +16,64 @@ ROOT_DIR = os.path.dirname(SCRIPT_DIR)
 DEFAULT_DATA_DIR = os.path.join(ROOT_DIR, "public", "assets", "data")
 
 
-def fetch_github_releases(data_dir: str):
-    print("Fetching GitHub releases for community-outpost/GenHub...")
-    releases = []
+def build_asset_entry(asset: Dict[str, Any]) -> Dict[str, Any]:
+    return {
+        "name": asset.get("name"),
+        "download_count": asset.get("download_count", 0),
+        "browser_download_url": asset.get("browser_download_url", "")
+    }
+
+
+def build_release_entry(release: Dict[str, Any]) -> Dict[str, Any]:
+    return {
+        "tag_name": release.get("tag_name"),
+        "name": release.get("name"),
+        "published_at": release.get("published_at"),
+        "html_url": release.get("html_url"),
+        "body": release.get("body", ""),
+        "prerelease": release.get("prerelease", False),
+        "draft": release.get("draft", False),
+        "assets": [build_asset_entry(a) for a in release.get("assets", [])]
+    }
+
+
+def fetch_releases_page(page: int) -> List[Any]:
+    url = f"https://api.github.com/repos/community-outpost/GenHub/releases?per_page=100&page={page}"
+    req = urllib.request.Request(url, headers={"User-Agent": "GenHub-LandingPage"})
+    with urllib.request.urlopen(req, timeout=10) as resp:
+        data = json.loads(resp.read().decode("utf-8"))
+    return data if isinstance(data, list) else []
+
+
+def collect_github_releases() -> List[Dict[str, Any]]:
+    releases: List[Dict[str, Any]] = []
     page = 1
     max_pages = 10  # Cap at 1000 releases
 
     while page <= max_pages:
-        url = f"https://api.github.com/repos/community-outpost/GenHub/releases?per_page=100&page={page}"
         try:
-            req = urllib.request.Request(url, headers={"User-Agent": "GenHub-LandingPage"})
-            with urllib.request.urlopen(req, timeout=10) as resp:
-                data = json.loads(resp.read().decode("utf-8"))
-            if not data or not isinstance(data, list):
-                break
-            for r in data:
-                assets = []
-                for a in r.get("assets", []):
-                    assets.append({
-                        "name": a.get("name"),
-                        "download_count": a.get("download_count", 0),
-                        "browser_download_url": a.get("browser_download_url", "")
-                    })
-                releases.append({
-                    "tag_name": r.get("tag_name"),
-                    "name": r.get("name"),
-                    "published_at": r.get("published_at"),
-                    "html_url": r.get("html_url"),
-                    "body": r.get("body", ""),
-                    "prerelease": r.get("prerelease", False),
-                    "draft": r.get("draft", False),
-                    "assets": assets
-                })
-            if len(data) < 100:
-                break
-            page += 1
+            data = fetch_releases_page(page)
         except Exception as e:
             print(f"Warning: Failed to fetch GitHub releases page {page}: {e}", file=sys.stderr)
             break
+        if not data:
+            break
+        for r in data:
+            # Drafts (e.g. the release-drafter staging draft) have no
+            # assets and must never surface on the website.
+            if r.get("draft", False):
+                continue
+            releases.append(build_release_entry(r))
+        if len(data) < 100:
+            break
+        page += 1
+
+    return releases
+
+
+def fetch_github_releases(data_dir: str):
+    print("Fetching GitHub releases for community-outpost/GenHub...")
+    releases = collect_github_releases()
 
     out_file = os.path.join(data_dir, "genhub_releases.json")
     try:
