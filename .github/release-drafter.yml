@@ -1,6 +1,15 @@
 name-template: 'GenHub Alpha v$RESOLVED_VERSION'
 tag-template: 'v$RESOLVED_VERSION'
 
+# All GenHub releases are prereleases. Without this, release-drafter ignores
+# every published release when resolving the previous version, so the draft
+# falls back to v0.1.0 with notes spanning the entire repository history.
+include-pre-releases: true
+
+# Drafts must stay prereleases so the draft matcher finds its own draft and a
+# mistakenly published draft can never go out as a full release.
+prerelease: true
+
 categories:
   - title: '🚀 New Features & Enhancements'
     labels:
@@ -55,15 +64,13 @@ change-template: '- $TITLE (@$AUTHOR in #$NUMBER)'
 change-title-escapes: '\<*_&'
 
 version-resolver:
+  # Alpha releases progress as 0.0.x patches only. Keep major and minor empty
+  # until 0.1.0 is intentionally cut, otherwise any Enhancement label resolves
+  # the next draft to v0.1.0 instead of v0.0.4.
   major:
-    labels:
-      - 'Major'
-      - 'major'
-      - 'breaking-change'
+    labels: []
   minor:
-    labels:
-      - 'Enhancement'
-      - 'feature'
+    labels: []
   patch:
     labels:
       - 'Fix'

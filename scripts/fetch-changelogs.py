@@ -31,6 +31,10 @@ def fetch_github_releases(data_dir: str):
             if not data or not isinstance(data, list):
                 break
             for r in data:
+                # Drafts (e.g. the release-drafter staging draft) have no
+                # assets and must never surface on the website.
+                if r.get("draft", False):
+                    continue
                 assets = []
                 for a in r.get("assets", []):
                     assets.append({

@@ -356,7 +356,9 @@ public class OctokitGitHubApiClient(
             var releases = await gitHubClient.Repository.Release.GetAll(owner, repo)
                 .ConfigureAwait(false);
             UpdateRateLimitFromLastApiInfo();
-            var mappedReleases = releases.Select(MapToGitHubRelease).ToList();
+
+            // Drafts have no assets and must never surface as releases.
+            var mappedReleases = releases.Where(release => !release.Draft).Select(MapToGitHubRelease).ToList();
 
             cache.Set(cacheKey, mappedReleases, DefaultCacheDuration);
             return mappedReleases;
