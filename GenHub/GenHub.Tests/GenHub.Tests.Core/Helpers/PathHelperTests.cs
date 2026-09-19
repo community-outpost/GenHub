@@ -397,6 +397,17 @@ public sealed class PathHelperTests
         Assert.Equal(localPath, sanitized);
     }
 
+    /// <summary>
+    /// Verifies that the replacement-based SanitizeFileName overload substitutes invalid characters with underscores.
+    /// </summary>
+    [Fact]
+    public void SanitizeFileName_WithReplacement_SubstitutesInvalidCharacters()
+    {
+        Assert.Equal("a_b", PathHelper.SanitizeFileName("a/b", replaceSpaces: false));
+        Assert.Equal("a b", PathHelper.SanitizeFileName("a b", replaceSpaces: false));
+        Assert.Equal("a_b", PathHelper.SanitizeFileName("a b", replaceSpaces: true));
+    }
+
     private static string CreateWorkingDirectory()
     {
         var root = Path.Combine(Path.GetTempPath(), "GenHubContainmentLinks", Guid.NewGuid().ToString("N"));

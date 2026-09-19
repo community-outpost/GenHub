@@ -28,14 +28,14 @@ public interface IProviderDefinitionLoader
     /// Gets all currently loaded provider definitions.
     /// </summary>
     /// <returns>All loaded provider definitions.</returns>
-    IEnumerable<ProviderDefinition> GetAllProviders();
+    IReadOnlyList<ProviderDefinition> GetAllProviders();
 
     /// <summary>
     /// Gets provider definitions by type (static or dynamic).
     /// </summary>
     /// <param name="providerType">The provider type to filter by.</param>
     /// <returns>Provider definitions matching the specified type.</returns>
-    IEnumerable<ProviderDefinition> GetProvidersByType(ProviderType providerType);
+    IReadOnlyList<ProviderDefinition> GetProvidersByType(ProviderType providerType);
 
     /// <summary>
     /// Reloads provider definitions from disk.

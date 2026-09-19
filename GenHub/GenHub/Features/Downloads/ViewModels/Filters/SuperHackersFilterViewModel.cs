@@ -57,6 +57,7 @@ public partial class SuperHackersFilterViewModel : FilterPanelViewModelBase
         }
 
         NotifyFiltersChanged();
+        OnFiltersCleared();
     }
 
     /// <inheritdoc />

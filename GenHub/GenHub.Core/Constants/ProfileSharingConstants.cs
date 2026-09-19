@@ -145,6 +145,41 @@ public static class ProfileSharingConstants
     public const string DefaultShareAccentColor = "#9575CD";
 
     /// <summary>
+    /// File extension for JSON manifests and metadata.
+    /// </summary>
+    public const string JsonExtension = ".json";
+
+    /// <summary>
+    /// File extension for ZIP archive packages.
+    /// </summary>
+    public const string ZipExtension = ".zip";
+
+    /// <summary>
+    /// URI scheme delimiter marker.
+    /// </summary>
+    public const string SchemeDelimiter = "://";
+
+    /// <summary>
+    /// Format string for conflict-free profile name suffix.
+    /// </summary>
+    public const string ConflictSuffixFormat = " ({0})";
+
+    /// <summary>
+    /// Prefix for Avalonia resource URIs.
+    /// </summary>
+    public const string AvaresPrefix = "avares://";
+
+    /// <summary>
+    /// Path prefix for assets with leading slash.
+    /// </summary>
+    public const string AssetsLeadingSlashPrefix = "/Assets/";
+
+    /// <summary>
+    /// Path prefix for assets relative path.
+    /// </summary>
+    public const string AssetsPrefix = "Assets/";
+
+    /// <summary>
     /// Default timeout for remote profile payload metadata fetches (60 seconds).
     /// </summary>
     public static readonly TimeSpan RemotePayloadTimeout = TimeSpan.FromSeconds(60);
@@ -162,4 +197,14 @@ public static class ProfileSharingConstants
         ".exe", ".dll", ".asi", ".bat", ".cmd", ".ps1", ".vbs",
         ".msi", ".scr", ".com", ".pif", ".hta", ".jar", ".lnk", ".wsf",
     };
+
+    /// <summary>
+    /// Built-in asset and resource prefixes allowed in shareable artwork paths.
+    /// </summary>
+    public static readonly IReadOnlyList<string> BuiltInAssetPrefixes =
+    [
+        AvaresPrefix,
+        AssetsLeadingSlashPrefix,
+        AssetsPrefix,
+    ];
 }

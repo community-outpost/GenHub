@@ -6,6 +6,7 @@ using GenHub.Core.Interfaces.Storage;
 using GenHub.Core.Interfaces.Workspace;
 using GenHub.Features.GameSettings;
 using GenHub.Features.Workspace;
+using GenHub.Infrastructure.DependencyInjection;
 using GenHub.Linux.Features.GitHub.Services;
 using GenHub.Linux.Features.Shortcuts;
 using GenHub.Linux.Features.Storage;
@@ -39,16 +40,7 @@ public static class LinuxServicesModule
         services.Replace(ServiceDescriptor.Singleton<IInstallationLocationTracker, LinuxInstallationTracker>());
         services.Replace(ServiceDescriptor.Singleton<IInstallationSearchPathProvider, LinuxInstallationSearchPathProvider>());
 
-        // Real hard links via link(2). Without this the base implementation throws, which
-        // is deliberate: silently copying made a missing registration invisible while
-        // every workspace consumed a full copy of the game.
-        services.AddScoped<IFileOperationsService>(serviceProvider =>
-        {
-            var baseService = serviceProvider.GetRequiredService<FileOperationsService>();
-            var casService = serviceProvider.GetRequiredService<ICasService>();
-            var logger = serviceProvider.GetRequiredService<ILogger<UnixFileOperationsService>>();
-            return new UnixFileOperationsService(baseService, casService, logger);
-        });
+        services.AddUnixFileOperations();
 
         return services;
     }

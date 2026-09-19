@@ -986,8 +986,8 @@ public class CommunityOutpostDeliverer(
                 // Download dependency archive
                 var urlsToTry = new List<string>
                 {
-                    $"https://legi.cc/gp2/f/{actualContentCode}.dat",
-                    $"https://legi.cc/patch/{actualContentCode}.dat",
+                    string.Format(ApiConstants.LegacyContentDependencyFormat, actualContentCode),
+                    string.Format(ApiConstants.LegacyPatchDependencyFormat, actualContentCode),
                 };
 
                 var uniqueId = Guid.NewGuid().ToString("N");

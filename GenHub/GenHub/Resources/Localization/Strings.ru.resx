@@ -1,4 +1,4 @@
-﻿<?xml version='1.0' encoding='utf-8'?>
+<?xml version='1.0' encoding='utf-8'?>
 <root>
   <resheader name="resmimetype">
     <value>text/microsoft-resx</value>
@@ -7992,6 +7992,22 @@ GenHub передает официальный идентификатор AppID 
   </data>
   <data name="ModDB.ChromiumInstallFailedMessage" xml:space="preserve">
     <value>GenHub не удалось установить управляемую среду Chromium. Проверьте сетевое подключение и повторите попытку.</value>
+  </data>
+
+  <data name="Updates.Status.InstallationFailed" xml:space="preserve">
+    <value>Установка не удалась</value>
+  </data>
+  <data name="Updates.Status.NoArtifactAvailable" xml:space="preserve">
+    <value>Артефакт недоступен</value>
+  </data>
+  <data name="Tools.GenHotkeys.Status.HotkeyAssigned" xml:space="preserve">
+    <value>Назначена горячая клавиша {0}.</value>
+  </data>
+  <data name="Tools.GenHotkeys.Notification.HotkeyAssignedTitle" xml:space="preserve">
+    <value>Горячая клавиша назначена</value>
+  </data>
+  <data name="Tools.GenHotkeys.Notification.HotkeyAssigned" xml:space="preserve">
+    <value>Назначено {0}.</value>
   </data>
 
   <data name="Settings.GitHubAuth.Label" xml:space="preserve">

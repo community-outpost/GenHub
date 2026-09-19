@@ -1,4 +1,4 @@
-﻿<?xml version='1.0' encoding='utf-8'?>
+<?xml version='1.0' encoding='utf-8'?>
 <root>
   <resheader name="resmimetype">
     <value>text/microsoft-resx</value>
@@ -7992,6 +7992,22 @@ GenHub هو مشغل ومدير حديث لألعاب **Command &amp; Conquer: G
   </data>
   <data name="ModDB.ChromiumInstallFailedMessage" xml:space="preserve">
     <value>تعذر على GenHub تثبيت بيئة Chromium المدارة. تحقق من الاتصال بالشبكة وحاول مرة أخرى.</value>
+  </data>
+
+  <data name="Updates.Status.InstallationFailed" xml:space="preserve">
+    <value>فشل التثبيت</value>
+  </data>
+  <data name="Updates.Status.NoArtifactAvailable" xml:space="preserve">
+    <value>لا يوجد عنصر متاح</value>
+  </data>
+  <data name="Tools.GenHotkeys.Status.HotkeyAssigned" xml:space="preserve">
+    <value>تم تعيين مفتاح الاختصار {0}.</value>
+  </data>
+  <data name="Tools.GenHotkeys.Notification.HotkeyAssignedTitle" xml:space="preserve">
+    <value>تم تعيين مفتاح الاختصار</value>
+  </data>
+  <data name="Tools.GenHotkeys.Notification.HotkeyAssigned" xml:space="preserve">
+    <value>تم تعيين {0}.</value>
   </data>
 
   <data name="Settings.GitHubAuth.Label" xml:space="preserve">

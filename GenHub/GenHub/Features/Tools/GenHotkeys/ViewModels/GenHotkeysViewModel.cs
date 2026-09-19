@@ -331,11 +331,12 @@ public partial class GenHotkeysViewModel(
         ApplyProfileMappingsToViewModels();
         _ = SaveCurrentProfileAsync(CancellationToken.None);
         ValidateConflicts();
-        StatusMessage = $"Assigned hotkey '{upperKey}' to '{SelectedAction.DisplayName}'.";
-        notificationService?.ShowSuccess(
-            "Hotkey Assigned",
-            $"Assigned '{upperKey}' to '{SelectedAction.DisplayName}'.",
-            NotificationDurations.Short);
+        var assignedDetail = $"'{upperKey}' to '{SelectedAction.DisplayName}'";
+        var statusText = localizationService?.GetString("Tools.GenHotkeys.Status.HotkeyAssigned", assignedDetail) ?? $"Assigned hotkey {assignedDetail}.";
+        StatusMessage = statusText;
+        var toastTitle = localizationService?.GetString("Tools.GenHotkeys.Notification.HotkeyAssignedTitle") ?? "Hotkey Assigned";
+        var toastDetail = localizationService?.GetString("Tools.GenHotkeys.Notification.HotkeyAssigned", assignedDetail) ?? $"Assigned {assignedDetail}.";
+        notificationService?.ShowSuccess(toastTitle, toastDetail, NotificationDurations.Short);
     }
 
     /// <summary>

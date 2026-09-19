@@ -8087,6 +8087,21 @@ Do you want to download and inspect this profile package?</value>
   <data name="ModDB.ChromiumInstallFailedMessage" xml:space="preserve">
     <value>GenHub could not install its managed Chromium runtime. Check your network connection and try again.</value>
   </data>
+  <data name="Updates.Status.InstallationFailed" xml:space="preserve">
+    <value>Installation failed</value>
+  </data>
+  <data name="Updates.Status.NoArtifactAvailable" xml:space="preserve">
+    <value>No artifact available</value>
+  </data>
+  <data name="Tools.GenHotkeys.Status.HotkeyAssigned" xml:space="preserve">
+    <value>Assigned hotkey {0}.</value>
+  </data>
+  <data name="Tools.GenHotkeys.Notification.HotkeyAssignedTitle" xml:space="preserve">
+    <value>Hotkey Assigned</value>
+  </data>
+  <data name="Tools.GenHotkeys.Notification.HotkeyAssigned" xml:space="preserve">
+    <value>Assigned {0}.</value>
+  </data>
 
   <data name="Settings.GitHubAuth.Label" xml:space="preserve">
     <value>GitHub Account</value>

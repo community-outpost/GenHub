@@ -331,6 +331,28 @@ public static class PathHelper
     }
 
     /// <summary>
+    /// Sanitizes a file name by replacing invalid characters with underscores.
+    /// </summary>
+    /// <param name="fileName">The file name to sanitize.</param>
+    /// <param name="replaceSpaces">When true, spaces are also replaced (desktop-entry rule).</param>
+    /// <returns>A sanitized file name.</returns>
+    public static string SanitizeFileName(string fileName, bool replaceSpaces)
+    {
+        var sanitized = new System.Text.StringBuilder(fileName);
+        foreach (var invalidCharacter in Path.GetInvalidFileNameChars())
+        {
+            sanitized.Replace(invalidCharacter, '_');
+        }
+
+        if (replaceSpaces)
+        {
+            sanitized.Replace(' ', '_');
+        }
+
+        return sanitized.ToString().Trim();
+    }
+
+    /// <summary>
     /// Opens the native file explorer and selects the specified file or folder, or ignores if not supported.
     /// </summary>
     /// <param name="filePath">The absolute path to the file to reveal.</param>

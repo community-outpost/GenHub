@@ -30,6 +30,8 @@ namespace GenHub.Features.AppUpdate.ViewModels;
 /// </summary>
 public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
 {
+    private const string InstallationFailedLocalizationKey = "Updates.Status.InstallationFailed";
+
     private static readonly Lazy<string> CachedCurrentAppVersion = new(() =>
     {
         try
@@ -1232,10 +1234,10 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
             _logger.LogError(ex, "Failed to install PR artifact");
             HasError = true;
             ErrorMessage = $"PR installation failed: {ex.Message}";
-            StatusMessage = "PR installation failed";
+            StatusMessage = GetLocalizedString(InstallationFailedLocalizationKey, AppUpdateConstants.InstallationFailedMessage);
             InstallationProgress = new UpdateProgress
             {
-                Status = "Installation failed",
+                Status = GetLocalizedString(InstallationFailedLocalizationKey, AppUpdateConstants.InstallationFailedMessage),
                 HasError = true,
                 ErrorMessage = ex.Message,
             };
@@ -1284,7 +1286,7 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
                 _logger.LogWarning("No artifact found for branch '{Branch}'", SubscribedBranch);
                 HasError = true;
                 ErrorMessage = $"No artifact found for branch '{SubscribedBranch}'";
-                StatusMessage = "No artifact available";
+                StatusMessage = GetLocalizedString("Updates.Status.NoArtifactAvailable", AppUpdateConstants.NoArtifactAvailableMessage);
                 return;
             }
 
@@ -1297,10 +1299,10 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
             _logger.LogError(ex, "Failed to install branch artifact");
             HasError = true;
             ErrorMessage = $"Branch installation failed: {ex.Message}";
-            StatusMessage = "Branch installation failed";
+            StatusMessage = GetLocalizedString(InstallationFailedLocalizationKey, AppUpdateConstants.InstallationFailedMessage);
             InstallationProgress = new UpdateProgress
             {
-                Status = "Installation failed",
+                Status = GetLocalizedString(InstallationFailedLocalizationKey, AppUpdateConstants.InstallationFailedMessage),
                 HasError = true,
                 ErrorMessage = ex.Message,
             };
@@ -1333,10 +1335,10 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
             _logger.LogError(ex, "Failed to install artifact");
             HasError = true;
             ErrorMessage = $"Installation failed: {ex.Message}";
-            StatusMessage = "Installation failed";
+            StatusMessage = GetLocalizedString(InstallationFailedLocalizationKey, AppUpdateConstants.InstallationFailedMessage);
             InstallationProgress = new UpdateProgress
             {
-                Status = "Installation failed",
+                Status = GetLocalizedString(InstallationFailedLocalizationKey, AppUpdateConstants.InstallationFailedMessage),
                 HasError = true,
                 ErrorMessage = ex.Message,
             };

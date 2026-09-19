@@ -92,6 +92,38 @@ internal static class LocalizationConverterHelper
         return fallback;
     }
 
+    /// <summary>
+    /// Converts a tool plugin, tool metadata, or raw tool ID to localized text.
+    /// </summary>
+    /// <param name="value">The converter input value.</param>
+    /// <param name="keyFormat">The key format string (e.g., "Tools.Plugin.{0}.Name").</param>
+    /// <param name="selectText">Selects the fallback display text from tool metadata.</param>
+    /// <returns>The localized text, or the string form of the input when no localization applies.</returns>
+    public static string ConvertToolText(
+        object? value,
+        string keyFormat,
+        Func<GenHub.Core.Models.Tools.ToolMetadata, string?> selectText)
+    {
+        var localizationService = ResolveLocalizationService();
+
+        if (value is GenHub.Core.Interfaces.Tools.IToolPlugin plugin)
+        {
+            return ResolveToolMetadataText(localizationService, keyFormat, plugin.Metadata.Id, selectText(plugin.Metadata) ?? string.Empty);
+        }
+
+        if (value is GenHub.Core.Models.Tools.ToolMetadata metadata)
+        {
+            return ResolveToolMetadataText(localizationService, keyFormat, metadata.Id, selectText(metadata) ?? string.Empty);
+        }
+
+        if (value is string text && !string.IsNullOrWhiteSpace(text))
+        {
+            return ResolveToolMetadataText(localizationService, keyFormat, text, text);
+        }
+
+        return value?.ToString() ?? string.Empty;
+    }
+
     private static string NormalizeId(string id)
     {
         var lastDot = id.LastIndexOf('.');
