@@ -330,6 +330,32 @@ public class CommunityOutpostManifestFactory(
         return false;
     }
 
+    /// <summary>
+    /// Resolves the manifest-relative path for a discovered file. Files inside the manifest
+    /// directory are relative to it; files outside of it (siblings of a language subdirectory)
+    /// keep their layout relative to the extraction root so they install in place.
+    /// </summary>
+    /// <param name="fullPath">The full file path.</param>
+    /// <param name="baseDirectory">The manifest directory files are mapped against.</param>
+    /// <param name="extractedDirectory">The extraction root directory.</param>
+    /// <returns>The manifest-relative path for the file.</returns>
+    private static string ResolveManifestRelativePath(string fullPath, string baseDirectory, string extractedDirectory)
+    {
+        var relativePath = Path.GetRelativePath(baseDirectory, fullPath);
+        if (!relativePath.StartsWith("..", StringComparison.Ordinal))
+        {
+            return relativePath;
+        }
+
+        var rootRelativePath = Path.GetRelativePath(extractedDirectory, fullPath);
+        if (rootRelativePath.StartsWith("..", StringComparison.Ordinal))
+        {
+            return Path.GetFileName(fullPath);
+        }
+
+        return rootRelativePath;
+    }
+
     private async Task<OperationResult<List<ContentManifest>>> CreateVariantManifestsAsync(
         ContentManifest originalManifest,
         string extractedDirectory,
@@ -445,6 +471,7 @@ public class CommunityOutpostManifestFactory(
             var fileEntries = await CollectManifestFilesAsync(
                 allFiles,
                 manifestDirectory,
+                extractedDirectory,
                 contentMetadata,
                 inclusionContext,
                 cancellationToken);
@@ -579,6 +606,7 @@ public class CommunityOutpostManifestFactory(
     private async Task<List<ManifestFile>> CollectManifestFilesAsync(
         string[] allFiles,
         string baseDirectory,
+        string extractedDirectory,
         GenPatcherContentMetadata contentMetadata,
         ManifestInclusionContext inclusionContext,
         CancellationToken cancellationToken)
@@ -588,11 +616,7 @@ public class CommunityOutpostManifestFactory(
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            var relativePath = Path.GetRelativePath(baseDirectory, fullPath);
-            if (relativePath.StartsWith("..", StringComparison.Ordinal))
-            {
-                relativePath = Path.GetFileName(fullPath);
-            }
+            var relativePath = ResolveManifestRelativePath(fullPath, baseDirectory, extractedDirectory);
 
             if (!ShouldIncludeFile(relativePath, inclusionContext))
             {

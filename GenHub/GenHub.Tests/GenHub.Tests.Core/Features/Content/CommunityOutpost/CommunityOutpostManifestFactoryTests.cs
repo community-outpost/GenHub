@@ -412,7 +412,8 @@ public class CommunityOutpostManifestFactoryTests : IDisposable
 
     /// <summary>
     /// Verifies that non-variant content inside a language subdirectory (e.g. EZH) also
-    /// preserves files from sibling subdirectories and the extraction root.
+    /// preserves files from sibling subdirectories and the extraction root, keeping the
+    /// sibling subpath relative to the extraction root so content installs in place.
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Fact]
@@ -453,7 +454,8 @@ public class CommunityOutpostManifestFactoryTests : IDisposable
         var manifest = manifests[0];
         Assert.Equal(3, manifest.Files.Count);
         Assert.Contains(manifest.Files, f => f.RelativePath == "Generals.exe" && f.SourcePath == exePath);
-        Assert.Contains(manifest.Files, f => f.RelativePath == "extra.big" && f.SourcePath == siblingPath);
+        Assert.Contains(manifest.Files, f => f.RelativePath == Path.Combine("Data", "extra.big") && f.SourcePath == siblingPath);
         Assert.Contains(manifest.Files, f => f.RelativePath == "readme.txt" && f.SourcePath == rootPath);
+        Assert.Equal(3, manifest.Files.Select(f => f.RelativePath).Distinct(StringComparer.OrdinalIgnoreCase).Count());
     }
 }
