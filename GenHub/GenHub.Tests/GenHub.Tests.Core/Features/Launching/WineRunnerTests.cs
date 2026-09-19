@@ -191,6 +191,126 @@ public sealed class WineRunnerTests : IDisposable
     }
 
     /// <summary>
+    /// Verifies that when only the Documents folder exists in the prefix, Options.ini is mirrored into Documents.
+    /// </summary>
+    [Fact]
+    public void ResolveCommand_WithOnlyDocumentsDirectoryExisting_MirrorsIntoDocuments()
+    {
+        // Arrange
+        var binDirectory = CreateDirectory("bin");
+        File.WriteAllText(Path.Combine(binDirectory, "wine"), "fake wine");
+        var prefixPath = Path.Combine(_tempDirectory, "prefix-docs-only");
+        var runner = CreateRunner([binDirectory], prefixPath);
+        var nativeOptionsPath = Path.Combine(CreateDirectory("userdata-docs"), "Options.ini");
+        File.WriteAllText(nativeOptionsPath, "docs-only-settings");
+
+        var userDocs = Path.Combine(
+            prefixPath,
+            WineConstants.DriveCDirectoryName,
+            WineConstants.PrefixUsersDirectoryName,
+            Environment.UserName,
+            WineConstants.DocumentsDirectoryName);
+        Directory.CreateDirectory(userDocs);
+
+        var configuration = new GameLaunchConfiguration
+        {
+            ExecutablePath = Path.Combine(_tempDirectory, "game", "generals.exe"),
+            GameType = GameType.ZeroHour,
+            NativeOptionsIniPath = nativeOptionsPath,
+        };
+
+        // Act
+        var result = runner.ResolveCommand(configuration);
+
+        // Assert
+        Assert.True(result.Success, result.AllErrors);
+        var mirrored = Directory.GetFiles(prefixPath, "Options.ini", SearchOption.AllDirectories);
+        var mirroredPath = Assert.Single(mirrored);
+        Assert.Equal("docs-only-settings", File.ReadAllText(mirroredPath));
+        Assert.Contains(WineConstants.DocumentsDirectoryName, mirroredPath);
+    }
+
+    /// <summary>
+    /// Verifies that when only the legacy My Documents folder exists in the prefix, Options.ini is mirrored into My Documents.
+    /// </summary>
+    [Fact]
+    public void ResolveCommand_WithOnlyLegacyMyDocumentsExisting_MirrorsIntoMyDocuments()
+    {
+        // Arrange
+        var binDirectory = CreateDirectory("bin");
+        File.WriteAllText(Path.Combine(binDirectory, "wine"), "fake wine");
+        var prefixPath = Path.Combine(_tempDirectory, "prefix-legacy-docs");
+        var runner = CreateRunner([binDirectory], prefixPath);
+        var nativeOptionsPath = Path.Combine(CreateDirectory("userdata-legacy"), "Options.ini");
+        File.WriteAllText(nativeOptionsPath, "legacy-settings");
+
+        var userDocs = Path.Combine(
+            prefixPath,
+            WineConstants.DriveCDirectoryName,
+            WineConstants.PrefixUsersDirectoryName,
+            Environment.UserName,
+            WineConstants.MyDocumentsDirectoryName);
+        Directory.CreateDirectory(userDocs);
+
+        var configuration = new GameLaunchConfiguration
+        {
+            ExecutablePath = Path.Combine(_tempDirectory, "game", "generals.exe"),
+            GameType = GameType.ZeroHour,
+            NativeOptionsIniPath = nativeOptionsPath,
+        };
+
+        // Act
+        var result = runner.ResolveCommand(configuration);
+
+        // Assert
+        Assert.True(result.Success, result.AllErrors);
+        var mirrored = Directory.GetFiles(prefixPath, "Options.ini", SearchOption.AllDirectories);
+        var mirroredPath = Assert.Single(mirrored);
+        Assert.Equal("legacy-settings", File.ReadAllText(mirroredPath));
+        Assert.Contains(WineConstants.MyDocumentsDirectoryName, mirroredPath);
+    }
+
+    /// <summary>
+    /// Verifies that when both Documents and My Documents exist, Documents is preferred.
+    /// </summary>
+    [Fact]
+    public void ResolveCommand_WithBothDocumentsAndMyDocumentsExisting_PrefersDocuments()
+    {
+        // Arrange
+        var binDirectory = CreateDirectory("bin");
+        File.WriteAllText(Path.Combine(binDirectory, "wine"), "fake wine");
+        var prefixPath = Path.Combine(_tempDirectory, "prefix-both-docs");
+        var runner = CreateRunner([binDirectory], prefixPath);
+        var nativeOptionsPath = Path.Combine(CreateDirectory("userdata-both"), "Options.ini");
+        File.WriteAllText(nativeOptionsPath, "both-settings");
+
+        var userDir = Path.Combine(
+            prefixPath,
+            WineConstants.DriveCDirectoryName,
+            WineConstants.PrefixUsersDirectoryName,
+            Environment.UserName);
+        Directory.CreateDirectory(Path.Combine(userDir, WineConstants.DocumentsDirectoryName));
+        Directory.CreateDirectory(Path.Combine(userDir, WineConstants.MyDocumentsDirectoryName));
+
+        var configuration = new GameLaunchConfiguration
+        {
+            ExecutablePath = Path.Combine(_tempDirectory, "game", "generals.exe"),
+            GameType = GameType.ZeroHour,
+            NativeOptionsIniPath = nativeOptionsPath,
+        };
+
+        // Act
+        var result = runner.ResolveCommand(configuration);
+
+        // Assert
+        Assert.True(result.Success, result.AllErrors);
+        var mirrored = Directory.GetFiles(prefixPath, "Options.ini", SearchOption.AllDirectories);
+        var mirroredPath = Assert.Single(mirrored);
+        Assert.Equal("both-settings", File.ReadAllText(mirroredPath));
+        Assert.Contains(WineConstants.DocumentsDirectoryName, mirroredPath);
+    }
+
+    /// <summary>
     /// Verifies a newer prefix Options.ini (for example edited in-game) is never overwritten.
     /// </summary>
     [Fact]

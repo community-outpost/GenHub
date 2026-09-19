@@ -145,8 +145,8 @@ public class WineRunner(
                 WineConstants.PrefixUsersDirectoryName,
                 SanitizeUserName(Environment.UserName));
             var documentsDirectoryName = !Directory.Exists(Path.Combine(userDirectory, WineConstants.DocumentsDirectoryName))
-                && Directory.Exists(Path.Combine(userDirectory, WineConstants.LegacyMyDocumentsDirectoryName))
-                ? WineConstants.LegacyMyDocumentsDirectoryName
+                && Directory.Exists(Path.Combine(userDirectory, WineConstants.MyDocumentsDirectoryName))
+                ? WineConstants.MyDocumentsDirectoryName
                 : WineConstants.DocumentsDirectoryName;
             var userDocuments = Path.Combine(
                 userDirectory,

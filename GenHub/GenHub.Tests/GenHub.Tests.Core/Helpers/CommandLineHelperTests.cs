@@ -1,4 +1,5 @@
 using GenHub.Core.Helpers;
+using System;
 using Xunit;
 
 namespace GenHub.Tests.Core.Helpers;
@@ -42,6 +43,31 @@ public sealed class CommandLineHelperTests
     public void QuoteArgument_WithQuotes_EscapesAndQuotesArgument(string input, string expected)
     {
         Assert.Equal(expected, CommandLineHelper.QuoteArgument(input));
+    }
+
+    /// <summary>
+    /// Verifies that trailing backslashes in quoted arguments are doubled to prevent escaping the closing quote delimiter.
+    /// </summary>
+    /// <param name="input">The input argument string.</param>
+    /// <param name="expected">The expected quoted argument string.</param>
+    [Theory]
+    [InlineData(@"C:\Games\My Mod\", "\"C:\\Games\\My Mod\\\\\"")]
+    [InlineData(@"C:\Games\My Mod\\", "\"C:\\Games\\My Mod\\\\\\\\\"")]
+    [InlineData(@"C:\Games\My Mod\game.exe", "\"C:\\Games\\My Mod\\game.exe\"")]
+    [InlineData(@"-mod ""C:\Games\My Mod\""", "\"-mod \\\"C:\\Games\\My Mod\\\\\\\"\"")]
+    public void QuoteArgument_WithTrailingBackslash_DoublesTrailingBackslash(string input, string expected)
+    {
+        Assert.Equal(expected, CommandLineHelper.QuoteArgument(input));
+    }
+
+    /// <summary>
+    /// Verifies that empty arguments are quoted and null throws an ArgumentNullException.
+    /// </summary>
+    [Fact]
+    public void QuoteArgument_EmptyAndNull_HandledCorrectly()
+    {
+        Assert.Equal("\"\"", CommandLineHelper.QuoteArgument(string.Empty));
+        Assert.Throws<ArgumentNullException>(() => CommandLineHelper.QuoteArgument(null!));
     }
 
     /// <summary>

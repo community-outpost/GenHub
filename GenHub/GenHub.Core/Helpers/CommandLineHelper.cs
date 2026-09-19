@@ -1,6 +1,7 @@
 using GenHub.Core.Constants;
 using System;
 using System.IO;
+using System.Text;
 
 namespace GenHub.Core.Helpers;
 
@@ -10,19 +11,50 @@ namespace GenHub.Core.Helpers;
 public static class CommandLineHelper
 {
     /// <summary>
-    /// Encloses a command line argument in double quotes and escapes any embedded double quotes
-    /// if the argument contains spaces, tabs, or quotes.
+    /// Encloses a command line argument in double quotes and escapes embedded quotes and backslashes
+    /// according to CommandLineToArgvW rules if the argument contains spaces, tabs, or quotes,
+    /// or is empty. Trailing backslashes before the closing quote are doubled so they are not parsed
+    /// as escaping the closing delimiter.
     /// </summary>
     /// <param name="value">The argument string to quote if necessary.</param>
     /// <returns>The quoted argument, or the original string if quoting is not required.</returns>
     public static string QuoteArgument(string value)
     {
-        if (value.Contains(' ') || value.Contains('\t') || value.Contains('"'))
+        ArgumentNullException.ThrowIfNull(value);
+
+        if (value.Length == 0)
         {
-            return $"\"{value.Replace("\"", "\\\"")}\"";
+            return "\"\"";
         }
 
-        return value;
+        if (!NeedsQuoting(value))
+        {
+            return value;
+        }
+
+        var sb = new StringBuilder(value.Length + 16);
+        sb.Append('"');
+
+        int i = 0;
+        while (i < value.Length)
+        {
+            char c = value[i++];
+            if (c == '\\')
+            {
+                AppendBackslashSequence(sb, value, ref i);
+            }
+            else if (c == '"')
+            {
+                sb.Append('\\').Append('"');
+            }
+            else
+            {
+                sb.Append(c);
+            }
+        }
+
+        sb.Append('"');
+        return sb.ToString();
     }
 
     /// <summary>
@@ -40,5 +72,36 @@ public static class CommandLineHelper
         return WineConstants.WindowsExecutableExtension.Equals(
             Path.GetExtension(executablePath),
             StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool NeedsQuoting(string value) =>
+        value.Contains(' ') || value.Contains('\t') || value.Contains('"');
+
+    private static void AppendBackslashSequence(StringBuilder sb, string value, ref int index)
+    {
+        int backslashCount = 1;
+        while (index < value.Length && value[index] == '\\')
+        {
+            index++;
+            backslashCount++;
+        }
+
+        if (index == value.Length)
+        {
+            // Trailing backslashes before the closing quote must be doubled (2N)
+            sb.Append('\\', backslashCount * 2);
+        }
+        else if (value[index] == '"')
+        {
+            // Backslashes preceding a quote must be 2N + 1
+            sb.Append('\\', (backslashCount * 2) + 1);
+            sb.Append('"');
+            index++;
+        }
+        else
+        {
+            // Backslashes followed by normal characters are emitted as-is
+            sb.Append('\\', backslashCount);
+        }
     }
 }
