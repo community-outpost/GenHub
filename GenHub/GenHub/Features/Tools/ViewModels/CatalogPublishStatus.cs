@@ -33,6 +33,21 @@ public partial class CatalogPublishStatus : ObservableObject, IDisposable
     private bool _hasChanges;
 
     /// <summary>
+    /// Initializes a new instance of the <see cref="CatalogPublishStatus"/> class.
+    /// </summary>
+    /// <param name="catalog">The catalog.</param>
+    /// <param name="localizationService">The optional localization service.</param>
+    public CatalogPublishStatus(NamedCatalog catalog, ILocalizationService? localizationService = null)
+    {
+        _catalog = catalog;
+        _localizationService = localizationService;
+        if (_localizationService != null)
+        {
+            _localizationService.PropertyChanged += OnLocalizationPropertyChanged;
+        }
+    }
+
+    /// <summary>
     /// Gets the display status text.
     /// </summary>
     public string StatusText
@@ -79,21 +94,6 @@ public partial class CatalogPublishStatus : ObservableObject, IDisposable
             }
 
             return CatalogConstants.CatalogStatusPublishedColor;
-        }
-    }
-
-    /// <summary>
-    /// Initializes a new instance of the <see cref="CatalogPublishStatus"/> class.
-    /// </summary>
-    /// <param name="catalog">The catalog.</param>
-    /// <param name="localizationService">The optional localization service.</param>
-    public CatalogPublishStatus(NamedCatalog catalog, ILocalizationService? localizationService = null)
-    {
-        _catalog = catalog;
-        _localizationService = localizationService;
-        if (_localizationService != null)
-        {
-            _localizationService.PropertyChanged += OnLocalizationPropertyChanged;
         }
     }
 

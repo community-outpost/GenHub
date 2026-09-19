@@ -10216,4 +10216,211 @@ GenHub هو مشغل ومدير حديث لألعاب **Command &amp; Conquer: G
   <data name="Tools.PublisherStudio.Artifact.ParsedSize" xml:space="preserve">
     <value>تم التحليل: {0}</value>
   </data>
+  <data name="Tools.PublisherStudio.Publish.SelectHostingProvider" xml:space="preserve">
+    <value>يرجى اختيار موفر الاستضافة</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.AuthenticationErrorFormat" xml:space="preserve">
+    <value>خطأ في المصادقة: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.AuthenticationCanceled" xml:space="preserve">
+    <value>تم إلغاء المصادقة.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.NoCatalogSelected" xml:space="preserve">
+    <value>لم يتم تحديد أي كتالوج</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ValidationArtifactsInvalidFormat" xml:space="preserve">
+    <value>فشل التحقق: يوجد {0} من الملفات بروابط غير صالحة أو مفقودة</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.CatalogValidFormat" xml:space="preserve">
+    <value>الكتالوج '{0}' صالح</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ValidationFailedFormat" xml:space="preserve">
+    <value>فشل التحقق: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ValidationErrorFormat" xml:space="preserve">
+    <value>خطأ في التحقق: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.IncompatibleArtifactsActiveCatalogFormat" xml:space="preserve">
+    <value>يستضيف {0} بيانات الكتالوج الوصفية (JSON) فقط. يحتوي الكتالوج النشط '{1}' على {2} من الملفات المحلية بانتظار الرفع. إما توفير روابط CDN مباشرة لتلك الملفات، أو التبديل إلى Google Drive أو Dropbox لاستضافة الأرشيفات الثنائية.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.FixValidationBeforeUpload" xml:space="preserve">
+    <value>يرجى إصلاح أخطاء التحقق من الكتالوج قبل الرفع.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.FixValidationBeforePublish" xml:space="preserve">
+    <value>يرجى إصلاح أخطاء التحقق من الكتالوج قبل النشر.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.PreparingToPublish" xml:space="preserve">
+    <value>جارٍ التحضير للنشر...</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.GeneratingCatalogFormat" xml:space="preserve">
+    <value>جارٍ إنشاء الكتالوج '{0}'...</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ExportCatalogFailedFormat" xml:space="preserve">
+    <value>فشل تصدير الكتالوج: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.UploadingCatalogFormat" xml:space="preserve">
+    <value>جارٍ رفع الكتالوج '{0}' إلى {1}...</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.CatalogUploadFailedFormat" xml:space="preserve">
+    <value>فشل رفع الكتالوج: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ErrorFormat" xml:space="preserve">
+    <value>خطأ: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.UpdatingCatalogFormat" xml:space="preserve">
+    <value>جارٍ تحديث الكتالوج الموجود '{0}'...</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.GeneratingProviderDefinition" xml:space="preserve">
+    <value>جارٍ إنشاء تعريف الموفر...</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.DefinitionUploadFailedAfterPublishFormat" xml:space="preserve">
+    <value>تم نشر الكتالوج، لكن فشل رفع تعريف الموفر: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ArtifactHostingNotSupported" xml:space="preserve">
+    <value>الموفر لا يدعم استضافة الملفات. يرجى إضافة الروابط يدويًا.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.CompressingFolderFormat" xml:space="preserve">
+    <value>جارٍ ضغط المجلد '{0}' في أرشيف...</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.FileOrDirectoryNotFound" xml:space="preserve">
+    <value>الملف أو المجلد غير موجود</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.FileOrDirectoryNotFoundFormat" xml:space="preserve">
+    <value>الملف أو المجلد غير موجود: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.UploadingArtifactFormat" xml:space="preserve">
+    <value>جارٍ رفع الملف {0}/{1}: {2}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.UploadFailedShort" xml:space="preserve">
+    <value>فشل الرفع</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ArtifactUploadFailedFormat" xml:space="preserve">
+    <value>فشل رفع {0}: {1}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.UploadCanceledError" xml:space="preserve">
+    <value>تم إلغاء الرفع</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ErrorUploadingArtifactFormat" xml:space="preserve">
+    <value>خطأ أثناء رفع {0}: {1}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.NoCatalogsPublishedYet" xml:space="preserve">
+    <value>لم يتم نشر أي كتالوجات بعد</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.NoCatalogsPublishedPublishFirst" xml:space="preserve">
+    <value>لم يتم نشر أي كتالوجات بعد. يرجى نشر كتالوج أولًا.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.NoCatalogUrlsForDefinition" xml:space="preserve">
+    <value>لا توجد روابط كتالوجات متاحة للتعريف</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.GenerateDefinitionFailedFormat" xml:space="preserve">
+    <value>فشل إنشاء التعريف: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.UploadFailedFormat" xml:space="preserve">
+    <value>فشل الرفع: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ErrorUploadingDefinitionFormat" xml:space="preserve">
+    <value>خطأ أثناء رفع التعريف: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.PublishAllFailed" xml:space="preserve">
+    <value>فشل نشر جميع الكتالوجات.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.PublishAllCanceled" xml:space="preserve">
+    <value>تم إلغاء نشر جميع الكتالوجات.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.PublishingCatalogFormat" xml:space="preserve">
+    <value>جارٍ نشر الكتالوج {0}/{1}: {2}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.PublishAllSuccessDefinitionFailedFormat" xml:space="preserve">
+    <value>تم نشر جميع الكتالوجات ({0}) بنجاح، لكن فشل رفع تعريف الموفر: {1}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.PublishAllPartialDefinitionFailedFormat" xml:space="preserve">
+    <value>تم نشر {0} من {1} من الكتالوجات، لكن فشل رفع تعريف الموفر: {2}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.PublishAllSuccessFormat" xml:space="preserve">
+    <value>تم نشر جميع الكتالوجات ({0}) بنجاح!</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.PublishAllPartialFormat" xml:space="preserve">
+    <value>تم نشر {0} من {1} من الكتالوجات.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ConnectProviderFirst" xml:space="preserve">
+    <value>يرجى الاتصال بموفر الاستضافة أولًا.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.SyncCompleteFormat" xml:space="preserve">
+    <value>اكتملت المزامنة! تم اكتشاف {0} من الملفات في {1}.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ScanningFolderFormat" xml:space="preserve">
+    <value>جارٍ فحص مجلد {0} بحثًا عن الملفات المستضافة...</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.NoHostedFilesFound" xml:space="preserve">
+    <value>لم يتم اكتشاف أي ملفات مستضافة في مجلد التخزين السحابي.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ScanErrorFormat" xml:space="preserve">
+    <value>خطأ في الفحص: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.IncompatibleArtifactsWarningFormat" xml:space="preserve">
+    <value>يستضيف {0} بيانات الكتالوج الوصفية (JSON) فقط. يحتوي مشروعك على {1} من الملفات المحلية بانتظار الرفع. إما توفير روابط CDN مباشرة لتلك الملفات، أو التبديل إلى Google Drive أو Dropbox لاستضافة الأرشيفات الثنائية.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ExportCatalogJsonFailed" xml:space="preserve">
+    <value>فشل تصدير الكتالوج بصيغة JSON.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.UploadDefinitionFailedMessage" xml:space="preserve">
+    <value>فشل رفع تعريف الموفر.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.UnknownPublisher" xml:space="preserve">
+    <value>الناشر</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.ProjectSavedHint" xml:space="preserve">
+    <value>تم حفظ المشروع. انتقل إلى 'النشر والمشاركة' للتصدير والإصدار.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.SaveProjectFailedFormat" xml:space="preserve">
+    <value>فشل الحفظ: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.SaveProjectErrorFormat" xml:space="preserve">
+    <value>خطأ أثناء الحفظ: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Notification.SaveUnknownError" xml:space="preserve">
+    <value>حدث خطأ غير معروف أثناء حفظ المشروع.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Notification.SaveErrorMessageFormat" xml:space="preserve">
+    <value>حدث خطأ أثناء الحفظ: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.ArtifactStatus.PendingUpload" xml:space="preserve">
+    <value>بانتظار الرفع السحابي</value>
+  </data>
+  <data name="Tools.PublisherStudio.ArtifactStatus.LocalFileNotFound" xml:space="preserve">
+    <value>الملف أو المجلد المحلي غير موجود</value>
+  </data>
+  <data name="Tools.PublisherStudio.ArtifactStatus.NoFileOrUrl" xml:space="preserve">
+    <value>لم يتم تكوين أي ملف أو رابط</value>
+  </data>
+  <data name="Tools.PublisherStudio.ArtifactStatus.HostedWithLocal" xml:space="preserve">
+    <value>مستضاف (يتوفر ملف محلي)</value>
+  </data>
+  <data name="Tools.PublisherStudio.ArtifactStatus.HostedExternalCdn" xml:space="preserve">
+    <value>مستضاف (CDN خارجي)</value>
+  </data>
+  <data name="Tools.PublisherStudio.ArtifactStatus.InvalidUrlFormat" xml:space="preserve">
+    <value>صيغة الرابط غير صالحة</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.AssetCategoryDefinition" xml:space="preserve">
+    <value>تعريف الناشر</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.AssetLocationLocalOnly" xml:space="preserve">
+    <value>محلي فقط</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.AssetCategoryCatalogFormat" xml:space="preserve">
+    <value>بيان الكتالوج ({0})</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.AssetCategoryReleaseFormat" xml:space="preserve">
+    <value>الملف الثنائي للإصدار ({0} الإصدار {1})</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.AssetLocationLocalFile" xml:space="preserve">
+    <value>ملف محلي</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.AssetCategoryCloudCatalogFormat" xml:space="preserve">
+    <value>كتالوج سحابي ({0})</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.AssetCategoryCloudArtifact" xml:space="preserve">
+    <value>ملف سحابي</value>
+  </data>
 </root>

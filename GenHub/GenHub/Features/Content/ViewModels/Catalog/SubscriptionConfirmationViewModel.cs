@@ -61,32 +61,6 @@ public partial class SubscriptionConfirmationViewModel(
     private string? _resolvedDefinitionUrl;
     private string? _resolvedCatalogUrl;
 
-    private static bool HasCatalogReference(PublisherDefinition? definition) =>
-        (definition?.Catalogs?.Count > 0) || !string.IsNullOrWhiteSpace(definition?.CatalogUrl);
-
-    private static string? ResolveTargetCatalogUrl(PublisherDefinition? definition)
-    {
-        if (definition == null)
-        {
-            return null;
-        }
-
-        return !string.IsNullOrWhiteSpace(definition.CatalogUrl)
-            ? definition.CatalogUrl
-            : definition.Catalogs?.FirstOrDefault()?.Url;
-    }
-
-    private string GetLocalizedString(string key, string fallback) =>
-        localizationService?.GetString(key) ?? fallback;
-
-    private string GetLocalizedString(string key, string fallback, params object[] args)
-    {
-        var format = localizationService?.GetString(key);
-        return string.IsNullOrEmpty(format) || string.Equals(format, key, StringComparison.Ordinal)
-            ? string.Format(System.Globalization.CultureInfo.InvariantCulture, fallback, args)
-            : string.Format(System.Globalization.CultureInfo.InvariantCulture, format, args);
-    }
-
     /// <summary>
     /// Gets or sets an action that occurs when a request is made to close the dialog.
     /// The boolean parameter indicates the result (true for Success/Subscribe, false for Cancel).
@@ -312,6 +286,21 @@ public partial class SubscriptionConfirmationViewModel(
         ErrorMessage = null;
     }
 
+    private static bool HasCatalogReference(PublisherDefinition? definition) =>
+        (definition?.Catalogs?.Count > 0) || !string.IsNullOrWhiteSpace(definition?.CatalogUrl);
+
+    private static string? ResolveTargetCatalogUrl(PublisherDefinition? definition)
+    {
+        if (definition == null)
+        {
+            return null;
+        }
+
+        return !string.IsNullOrWhiteSpace(definition.CatalogUrl)
+            ? definition.CatalogUrl
+            : definition.Catalogs?.FirstOrDefault()?.Url;
+    }
+
     [RelayCommand]
     private async Task ConfirmAsync(CancellationToken cancellationToken = default)
     {
@@ -378,6 +367,17 @@ public partial class SubscriptionConfirmationViewModel(
     private void Cancel()
     {
         RequestClose?.Invoke(false);
+    }
+
+    private string GetLocalizedString(string key, string fallback) =>
+        localizationService?.GetString(key) ?? fallback;
+
+    private string GetLocalizedString(string key, string fallback, params object[] args)
+    {
+        var format = localizationService?.GetString(key);
+        return string.IsNullOrEmpty(format) || string.Equals(format, key, StringComparison.Ordinal)
+            ? string.Format(System.Globalization.CultureInfo.InvariantCulture, fallback, args)
+            : string.Format(System.Globalization.CultureInfo.InvariantCulture, format, args);
     }
 
     private async Task<(PublisherCatalog? Catalog, string? DefinitionUrl, string? CatalogUrl)> ResolveCatalogDataAsync(
@@ -488,6 +488,17 @@ public partial class SubscriptionConfirmationViewModel(
 
             if (string.IsNullOrWhiteSpace(targetCatalogUrl))
             {
+                return (null, null, null);
+            }
+
+            var (targetSafe, ssrfReason) = await NetworkSecurityHelper.IsSafeUrlAsync(targetCatalogUrl, cancellationToken);
+            if (!targetSafe)
+            {
+                if (!string.IsNullOrEmpty(ssrfReason))
+                {
+                    logger.LogWarning("Blocked unsafe catalog URL in definition payload: {Reason}", ssrfReason);
+                }
+
                 return (null, null, null);
             }
 

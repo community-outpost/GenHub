@@ -408,6 +408,7 @@ public partial class ContentLibraryViewModel(
 
             // Artifact instances were replaced, so refresh the Publish tab statuses built from the old objects
             parentViewModel?.PublishShareViewModel?.RefreshUploadHierarchy();
+            parentViewModel?.PublishShareViewModel?.RefreshArtifactStatuses();
 
             OnPropertyChanged(nameof(SelectedContent));
 

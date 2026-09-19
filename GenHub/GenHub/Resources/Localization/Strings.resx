@@ -10309,4 +10309,211 @@ Then click the 'Submit' button at the bottom of the page! (If permissions are no
   <data name="Tools.PublisherStudio.Artifact.ParsedSize" xml:space="preserve">
     <value>Parsed: {0}</value>
   </data>
+  <data name="Tools.PublisherStudio.Publish.SelectHostingProvider" xml:space="preserve">
+    <value>Please select a hosting provider</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.AuthenticationErrorFormat" xml:space="preserve">
+    <value>Authentication error: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.AuthenticationCanceled" xml:space="preserve">
+    <value>Authentication canceled.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.NoCatalogSelected" xml:space="preserve">
+    <value>No catalog selected</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ValidationArtifactsInvalidFormat" xml:space="preserve">
+    <value>Validation failed: {0} artifacts have invalid or missing URLs</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.CatalogValidFormat" xml:space="preserve">
+    <value>Catalog '{0}' is valid</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ValidationFailedFormat" xml:space="preserve">
+    <value>Validation failed: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ValidationErrorFormat" xml:space="preserve">
+    <value>Validation error: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.IncompatibleArtifactsActiveCatalogFormat" xml:space="preserve">
+    <value>{0} only hosts catalog metadata (JSON). The active catalog '{1}' has {2} local file(s) pending upload. Either provide direct CDN URLs for those files, or switch to Google Drive or Dropbox to host binary archives.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.FixValidationBeforeUpload" xml:space="preserve">
+    <value>Please fix catalog validation errors before uploading.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.FixValidationBeforePublish" xml:space="preserve">
+    <value>Please fix catalog validation errors before publishing.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.PreparingToPublish" xml:space="preserve">
+    <value>Preparing to publish...</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.GeneratingCatalogFormat" xml:space="preserve">
+    <value>Generating catalog '{0}'...</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ExportCatalogFailedFormat" xml:space="preserve">
+    <value>Failed to export catalog: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.UploadingCatalogFormat" xml:space="preserve">
+    <value>Uploading catalog '{0}' to {1}...</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.CatalogUploadFailedFormat" xml:space="preserve">
+    <value>Catalog upload failed: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ErrorFormat" xml:space="preserve">
+    <value>Error: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.UpdatingCatalogFormat" xml:space="preserve">
+    <value>Updating existing catalog '{0}'...</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.GeneratingProviderDefinition" xml:space="preserve">
+    <value>Generating provider definition...</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.DefinitionUploadFailedAfterPublishFormat" xml:space="preserve">
+    <value>Catalog published, but provider definition upload failed: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ArtifactHostingNotSupported" xml:space="preserve">
+    <value>Provider does not support artifact hosting. Please add URLs manually.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.CompressingFolderFormat" xml:space="preserve">
+    <value>Compressing folder '{0}' into archive...</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.FileOrDirectoryNotFound" xml:space="preserve">
+    <value>File or directory not found</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.FileOrDirectoryNotFoundFormat" xml:space="preserve">
+    <value>File or directory not found: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.UploadingArtifactFormat" xml:space="preserve">
+    <value>Uploading artifact {0}/{1}: {2}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.UploadFailedShort" xml:space="preserve">
+    <value>Upload failed</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ArtifactUploadFailedFormat" xml:space="preserve">
+    <value>Failed to upload {0}: {1}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.UploadCanceledError" xml:space="preserve">
+    <value>Upload canceled</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ErrorUploadingArtifactFormat" xml:space="preserve">
+    <value>Error uploading {0}: {1}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.NoCatalogsPublishedYet" xml:space="preserve">
+    <value>No catalogs have been published yet</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.NoCatalogsPublishedPublishFirst" xml:space="preserve">
+    <value>No catalogs have been published yet. Please publish a catalog first.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.NoCatalogUrlsForDefinition" xml:space="preserve">
+    <value>No catalog URLs available for definition</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.GenerateDefinitionFailedFormat" xml:space="preserve">
+    <value>Failed to generate definition: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.UploadFailedFormat" xml:space="preserve">
+    <value>Upload failed: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ErrorUploadingDefinitionFormat" xml:space="preserve">
+    <value>Error uploading definition: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.PublishAllFailed" xml:space="preserve">
+    <value>Publishing all catalogs failed.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.PublishAllCanceled" xml:space="preserve">
+    <value>Publishing all catalogs was canceled.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.PublishingCatalogFormat" xml:space="preserve">
+    <value>Publishing catalog {0}/{1}: {2}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.PublishAllSuccessDefinitionFailedFormat" xml:space="preserve">
+    <value>Successfully published all {0} catalog(s), but provider definition upload failed: {1}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.PublishAllPartialDefinitionFailedFormat" xml:space="preserve">
+    <value>Published {0} of {1} catalog(s), but provider definition upload failed: {2}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.PublishAllSuccessFormat" xml:space="preserve">
+    <value>Successfully published all {0} catalogs!</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.PublishAllPartialFormat" xml:space="preserve">
+    <value>Published {0} of {1} catalogs.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ConnectProviderFirst" xml:space="preserve">
+    <value>Please connect to your hosting provider first.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.SyncCompleteFormat" xml:space="preserve">
+    <value>Sync complete! Discovered {0} file(s) in {1}.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ScanningFolderFormat" xml:space="preserve">
+    <value>Scanning {0} folder for hosted files...</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.NoHostedFilesFound" xml:space="preserve">
+    <value>No hosted files discovered in cloud storage folder.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ScanErrorFormat" xml:space="preserve">
+    <value>Scan error: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.IncompatibleArtifactsWarningFormat" xml:space="preserve">
+    <value>{0} only hosts catalog metadata (JSON). Your project has {1} local file(s) pending upload. Either provide direct CDN URLs for those files, or switch to Google Drive or Dropbox to host binary archives.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ExportCatalogJsonFailed" xml:space="preserve">
+    <value>Failed to export catalog JSON.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.UploadDefinitionFailedMessage" xml:space="preserve">
+    <value>Failed to upload provider definition.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.UnknownPublisher" xml:space="preserve">
+    <value>Publisher</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.ProjectSavedHint" xml:space="preserve">
+    <value>Project saved. Go to 'Publish &amp; Share' to export and release.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.SaveProjectFailedFormat" xml:space="preserve">
+    <value>Failed to save: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.SaveProjectErrorFormat" xml:space="preserve">
+    <value>Error saving: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Notification.SaveUnknownError" xml:space="preserve">
+    <value>An unknown error occurred while saving the project.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Notification.SaveErrorMessageFormat" xml:space="preserve">
+    <value>An error occurred while saving: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.ArtifactStatus.PendingUpload" xml:space="preserve">
+    <value>Pending cloud upload</value>
+  </data>
+  <data name="Tools.PublisherStudio.ArtifactStatus.LocalFileNotFound" xml:space="preserve">
+    <value>Local file or directory not found</value>
+  </data>
+  <data name="Tools.PublisherStudio.ArtifactStatus.NoFileOrUrl" xml:space="preserve">
+    <value>No file or URL configured</value>
+  </data>
+  <data name="Tools.PublisherStudio.ArtifactStatus.HostedWithLocal" xml:space="preserve">
+    <value>Hosted (local file available)</value>
+  </data>
+  <data name="Tools.PublisherStudio.ArtifactStatus.HostedExternalCdn" xml:space="preserve">
+    <value>Hosted (External CDN)</value>
+  </data>
+  <data name="Tools.PublisherStudio.ArtifactStatus.InvalidUrlFormat" xml:space="preserve">
+    <value>Invalid URL format</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.AssetCategoryDefinition" xml:space="preserve">
+    <value>Publisher Definition</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.AssetLocationLocalOnly" xml:space="preserve">
+    <value>Local only</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.AssetCategoryCatalogFormat" xml:space="preserve">
+    <value>Catalog Manifest ({0})</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.AssetCategoryReleaseFormat" xml:space="preserve">
+    <value>Release Binary ({0} v{1})</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.AssetLocationLocalFile" xml:space="preserve">
+    <value>Local file</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.AssetCategoryCloudCatalogFormat" xml:space="preserve">
+    <value>Cloud Catalog ({0})</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.AssetCategoryCloudArtifact" xml:space="preserve">
+    <value>Cloud Artifact</value>
+  </data>
 </root>
