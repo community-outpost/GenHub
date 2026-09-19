@@ -69,6 +69,39 @@ public class GameLauncher(
         return new SemaphoreReleaser(semaphore);
     }
 
+    /// <summary>
+    /// Resolves the supplemental archive root whose top-level archives are linked into the workspace.
+    /// </summary>
+    /// <remarks>
+    /// Only Zero Hour needs this: it mounts the base Generals archives in addition to its own, and
+    /// only a Windows retail binary running under Wine or Proton cannot resolve that second root
+    /// out of band. The executable check deliberately mirrors <see cref="WineRunner"/>: supplemental
+    /// archives are provided exactly when the runner will wrap the binary in Wine. Native engine
+    /// binaries keep the environment-variable mechanism untouched. The caller applies the
+    /// <see cref="OperatingSystem.IsWindows"/> gate; on Windows the registry resolves both roots.
+    /// </remarks>
+    /// <param name="gameType">The game being launched.</param>
+    /// <param name="executablePath">The game client's executable path.</param>
+    /// <param name="effectiveGeneralsArchivePath">The effective base Generals archive root, if any.</param>
+    /// <returns>The supplemental archive root, or <c>null</c> when the launch needs none.</returns>
+    internal static string? ResolveSupplementalArchiveRoot(
+        GameType gameType,
+        string? executablePath,
+        string? effectiveGeneralsArchivePath)
+    {
+        if (gameType != GameType.ZeroHour)
+        {
+            return null;
+        }
+
+        if (!CommandLineHelper.IsWindowsExecutable(executablePath))
+        {
+            return null;
+        }
+
+        return string.IsNullOrWhiteSpace(effectiveGeneralsArchivePath) ? null : effectiveGeneralsArchivePath;
+    }
+
     private async Task<IDisposable> AcquireSteamInstallationLockAsync(
         string installationPath,
         CancellationToken cancellationToken)
@@ -918,6 +951,7 @@ public class GameLauncher(
                 profile,
                 manifests,
                 gameClient,
+                installation,
                 actualInstallationPath,
                 dynamicWorkspacePath,
                 isSteamLaunch,
@@ -1040,6 +1074,7 @@ public class GameLauncher(
         GameProfile profile,
         List<ContentManifest> manifests,
         GenHub.Core.Models.GameClients.GameClient gameClient,
+        GameInstallation installation,
         string actualInstallationPath,
         string dynamicWorkspacePath,
         bool isSteamLaunch,
@@ -1062,6 +1097,7 @@ public class GameLauncher(
                 profile,
                 manifests,
                 gameClient,
+                installation,
                 actualInstallationPath,
                 dynamicWorkspacePath,
                 isSteamLaunch,
@@ -1145,6 +1181,7 @@ public class GameLauncher(
         GameProfile profile,
         List<ContentManifest> manifests,
         GenHub.Core.Models.GameClients.GameClient gameClient,
+        GameInstallation installation,
         string actualInstallationPath,
         string dynamicWorkspacePath,
         bool isSteamLaunch,
@@ -1164,6 +1201,9 @@ public class GameLauncher(
             WorkspaceRootPath = dynamicWorkspacePath,
             BaseInstallationPath = actualInstallationPath,
             ManifestSourcePaths = manifestSourcePaths,
+            SupplementalArchiveRoot = OperatingSystem.IsWindows()
+                ? null
+                : ResolveSupplementalArchiveRoot(gameClient.GameType, gameClient.ExecutablePath, installation.EffectiveGeneralsArchivePath),
         };
         logger.LogDebug("[GameLauncher] BaseInstallationPath set to: {Path}", workspaceConfig.BaseInstallationPath);
 

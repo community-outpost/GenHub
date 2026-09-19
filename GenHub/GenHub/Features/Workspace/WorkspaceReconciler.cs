@@ -3,6 +3,7 @@ using GenHub.Core.Interfaces.Workspace;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Workspace;
+using GenHub.Features.Workspace.Strategies;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
@@ -184,6 +185,12 @@ public class WorkspaceReconciler(ILogger<WorkspaceReconciler> logger, IFileOpera
             }
         }
 
+        // Supplemental archives are workspace content that no manifest names: without this exclusion
+        // every launch would report them as orphans and force a full workspace recreation.
+        WorkspaceCompatibilityHelper.TryGetSupplementalArchiveNames(
+            configuration.SupplementalArchiveRoot,
+            out var supplementalNames);
+
         // Determine files to remove (exist in workspace but not in manifests)
         foreach (var relativePath in existingFiles)
         {
@@ -199,6 +206,11 @@ public class WorkspaceReconciler(ILogger<WorkspaceReconciler> logger, IFileOpera
                 // If this is generals.exe and generals.exe is not explicitly in manifests, check if it was created
                 // as a compatibility alias for another custom executable/entrypoint, so it is not treated as an orphan.
                 if (string.Equals(relativePath, GameClientConstants.GeneralsExecutable, StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                if (IsSupplementalArchiveFile(workspacePath, relativePath, configuration.SupplementalArchiveRoot, supplementalNames))
                 {
                     continue;
                 }
@@ -242,6 +254,34 @@ public class WorkspaceReconciler(ILogger<WorkspaceReconciler> logger, IFileOpera
                fileName.EndsWith(WorkspaceConstants.TmpFileExtension, StringComparison.OrdinalIgnoreCase) ||
                string.Equals(fileName, WorkspaceConstants.LaunchReceiptFile, StringComparison.OrdinalIgnoreCase) ||
                string.Equals(fileName, WorkspaceConstants.ReleaseCrashInfoFile, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsSupplementalArchiveFile(
+        string workspacePath,
+        string relativePath,
+        string? supplementalRoot,
+        IReadOnlySet<string> supplementalNames)
+    {
+        if (supplementalNames.Count == 0 || string.IsNullOrWhiteSpace(supplementalRoot))
+        {
+            return false;
+        }
+
+        if (relativePath.IndexOfAny([Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar]) >= 0)
+        {
+            return false;
+        }
+
+        if (!supplementalNames.Contains(relativePath))
+        {
+            return false;
+        }
+
+        // A link pointing outside the current root is either foreign content or a leftover from a
+        // previous root: it must not be mistaken for this root's archive, so it stays a removal
+        // candidate and a recreation cleans it up. Regular files (copy fallback) are accepted.
+        var linkTarget = new FileInfo(Path.Combine(workspacePath, relativePath)).LinkTarget;
+        return linkTarget is null || WorkspaceCompatibilityHelper.IsLinkTargetUnderRoot(linkTarget, supplementalRoot);
     }
 
     /// <summary>

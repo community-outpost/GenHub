@@ -4,6 +4,7 @@ using GenHub.Core.Models.Common;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Results;
 using GenHub.Features.Workspace;
+using GenHub.Tests.Core.Helpers;
 using Microsoft.Extensions.Logging;
 using Moq;
 
@@ -100,7 +101,7 @@ public class FileOperationsServiceTests : IDisposable
         var link = Path.Combine(_tempDir, "link.txt");
         await File.WriteAllTextAsync(file, "shared content");
 
-        if (!TryCreateSymbolicLink(link, file))
+        if (!SymlinkTestHelper.TryCreateFileSymlink(link, file))
         {
             return;
         }
@@ -129,7 +130,7 @@ public class FileOperationsServiceTests : IDisposable
         var link = Path.Combine(_tempDir, "pointer.txt");
         await File.WriteAllTextAsync(file, "irreplaceable content");
 
-        if (!TryCreateSymbolicLink(link, file))
+        if (!SymlinkTestHelper.TryCreateFileSymlink(link, file))
         {
             return;
         }
@@ -517,33 +518,5 @@ public class FileOperationsServiceTests : IDisposable
     public void Dispose()
     {
         FileOperationsService.DeleteDirectoryIfExists(_tempDir);
-    }
-
-    /// <summary>
-    /// Creates a symbolic link, reporting failure rather than throwing when the platform withholds
-    /// the privilege it needs.
-    /// </summary>
-    /// <param name="linkPath">The link to create.</param>
-    /// <param name="targetPath">The file the link points at.</param>
-    /// <returns>True when the link was created.</returns>
-    private static bool TryCreateSymbolicLink(string linkPath, string targetPath)
-    {
-        try
-        {
-            File.CreateSymbolicLink(linkPath, targetPath);
-            return true;
-        }
-        catch (IOException)
-        {
-            return false;
-        }
-        catch (UnauthorizedAccessException)
-        {
-            return false;
-        }
-        catch (PlatformNotSupportedException)
-        {
-            return false;
-        }
     }
 }

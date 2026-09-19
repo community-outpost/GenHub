@@ -362,6 +362,12 @@ public static class InstallationExtensions
     /// A directory that exists but cannot be read is returned rather than treated as absent,
     /// so launch validation reports it as unreadable and refuses to spawn instead of silently
     /// starting Zero Hour without its base archives.
+    /// <para>
+    /// The directory name is matched case-insensitively: retail data copied from a disc or a
+    /// Windows machine may carry a case variant the default lookup misses on Linux volumes and on
+    /// case-sensitive APFS. Falling back to the exact-case path preserves the unreadable
+    /// semantics below when the lookup itself cannot inspect the parent.
+    /// </para>
     /// </remarks>
     /// <param name="zeroHourPath">The Zero Hour installation path.</param>
     /// <returns>The path to the bundled base Generals directory if present and populated, or present but unreadable; otherwise <c>null</c>.</returns>
@@ -372,10 +378,13 @@ public static class InstallationExtensions
             return null;
         }
 
+        var bundled = zeroHourPath.TryGetDirectoryCaseInsensitive(GameClientConstants.ZhGeneralsDirectory, out var matched)
+            ? matched
+            : Path.Combine(zeroHourPath, GameClientConstants.ZhGeneralsDirectory);
+
         // The probe is the enumeration itself: Directory.Exists returns false for an
         // unreadable directory as well as a missing one, which would report a permission
         // problem as absent content. Only DirectoryNotFoundException means absence.
-        var bundled = Path.Combine(zeroHourPath, GameClientConstants.ZhGeneralsDirectory);
         try
         {
             return Directory.EnumerateFiles(bundled, RetailArchiveConstants.ArchiveSearchPattern, RetailArchiveConstants.ArchiveSearch).Any()

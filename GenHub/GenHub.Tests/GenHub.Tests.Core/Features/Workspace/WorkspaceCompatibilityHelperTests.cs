@@ -3,10 +3,12 @@ using GenHub.Core.Constants;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Workspace;
 using GenHub.Features.Workspace.Strategies;
+using GenHub.Tests.Core.Helpers;
 using Microsoft.Extensions.Logging.Abstractions;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Runtime.InteropServices;
 using Xunit;
 using ContentInstallTarget = GenHub.Core.Models.Enums.ContentInstallTarget;
 using ContentType = GenHub.Core.Models.Enums.ContentType;
@@ -289,5 +291,365 @@ public class WorkspaceCompatibilityHelperTests : IDisposable
 
         // Assert
         result.Should().Be(Path.Combine(customSourceDir, relativeFilePath));
+    }
+
+    /// <summary>
+    /// Verifies that a supplemental archive root materializes its top-level archives into the
+    /// workspace root, matching archive extensions case-insensitively and ignoring subdirectories
+    /// and non-archive files.
+    /// </summary>
+    [Fact]
+    public void EnsureDrmAndAssetCompatibility_WithSupplementalRoot_LinksTopLevelArchives()
+    {
+        // Arrange
+        var supplementalRoot = Path.Combine(_tempDir, "generals");
+        Directory.CreateDirectory(supplementalRoot);
+        Directory.CreateDirectory(Path.Combine(supplementalRoot, "Data"));
+        File.WriteAllText(Path.Combine(supplementalRoot, "Textures.big"), "generals textures");
+        File.WriteAllText(Path.Combine(supplementalRoot, "Models.BIG"), "generals models");
+        File.WriteAllText(Path.Combine(supplementalRoot, "Data", "Nested.big"), "nested archive");
+        File.WriteAllText(Path.Combine(supplementalRoot, "readme.txt"), "not an archive");
+
+        var workspaceInfo = new WorkspaceInfo
+        {
+            Id = "test-workspace",
+            WorkspacePath = _workspaceDir,
+            FileCount = 5,
+        };
+
+        var config = new WorkspaceConfiguration
+        {
+            Id = "test-workspace",
+            BaseInstallationPath = _gameInstallDir,
+            Manifests = [],
+            SupplementalArchiveRoot = supplementalRoot,
+        };
+
+        // Act
+        WorkspaceCompatibilityHelper.EnsureDrmAndAssetCompatibility(workspaceInfo, config, NullLogger.Instance);
+
+        // Assert
+        File.ReadAllText(Path.Combine(_workspaceDir, "Textures.big")).Should().Be("generals textures");
+        File.ReadAllText(Path.Combine(_workspaceDir, "Models.BIG")).Should().Be("generals models");
+        File.Exists(Path.Combine(_workspaceDir, "Nested.big")).Should().BeFalse();
+        File.Exists(Path.Combine(_workspaceDir, "readme.txt")).Should().BeFalse();
+        workspaceInfo.FileCount.Should().Be(7);
+
+        // Act: a second run (workspace reuse) must not count the same links again.
+        WorkspaceCompatibilityHelper.EnsureDrmAndAssetCompatibility(workspaceInfo, config, NullLogger.Instance);
+
+        // Assert
+        workspaceInfo.FileCount.Should().Be(7);
+    }
+
+    /// <summary>
+    /// Verifies that existing workspace entries always win over supplemental archives sharing
+    /// their name, so Zero Hour and mod content is never shadowed by base Generals files.
+    /// </summary>
+    [Fact]
+    public void EnsureDrmAndAssetCompatibility_WithSupplementalRoot_SkipsExistingEntries()
+    {
+        // Arrange
+        var supplementalRoot = Path.Combine(_tempDir, "generals");
+        Directory.CreateDirectory(supplementalRoot);
+        File.WriteAllText(Path.Combine(supplementalRoot, "Textures.big"), "generals textures");
+        File.WriteAllText(Path.Combine(_workspaceDir, "Textures.big"), "zero hour textures");
+
+        var workspaceInfo = new WorkspaceInfo
+        {
+            Id = "test-workspace",
+            WorkspacePath = _workspaceDir,
+            FileCount = 1,
+        };
+
+        var config = new WorkspaceConfiguration
+        {
+            Id = "test-workspace",
+            BaseInstallationPath = _gameInstallDir,
+            Manifests = [],
+            SupplementalArchiveRoot = supplementalRoot,
+        };
+
+        // Act
+        WorkspaceCompatibilityHelper.EnsureDrmAndAssetCompatibility(workspaceInfo, config, NullLogger.Instance);
+
+        // Assert
+        File.ReadAllText(Path.Combine(_workspaceDir, "Textures.big")).Should().Be("zero hour textures");
+        workspaceInfo.FileCount.Should().Be(1);
+    }
+
+    /// <summary>
+    /// Verifies that no supplemental content is materialized when no root is configured.
+    /// </summary>
+    [Fact]
+    public void EnsureDrmAndAssetCompatibility_WithoutSupplementalRoot_CreatesNothing()
+    {
+        // Arrange
+        var workspaceInfo = new WorkspaceInfo
+        {
+            Id = "test-workspace",
+            WorkspacePath = _workspaceDir,
+        };
+
+        var config = new WorkspaceConfiguration
+        {
+            Id = "test-workspace",
+            BaseInstallationPath = _gameInstallDir,
+            Manifests = [],
+        };
+
+        // Act
+        WorkspaceCompatibilityHelper.EnsureDrmAndAssetCompatibility(workspaceInfo, config, NullLogger.Instance);
+
+        // Assert
+        Directory.GetFiles(_workspaceDir).Should().BeEmpty();
+    }
+
+    /// <summary>
+    /// Verifies that links pointing into the supplemental root are removed once the root no
+    /// longer provides their name.
+    /// </summary>
+    [Fact]
+    public void EnsureDrmAndAssetCompatibility_WithSupplementalRoot_RemovesStaleLinks()
+    {
+        // Arrange
+        var supplementalRoot = Path.Combine(_tempDir, "generals");
+        Directory.CreateDirectory(supplementalRoot);
+        File.WriteAllText(Path.Combine(supplementalRoot, "New.big"), "current archive");
+
+        if (!SymlinkTestHelper.TryCreateFileSymlink(
+            Path.Combine(_workspaceDir, "Old.big"),
+            Path.Combine(supplementalRoot, "Old.big")))
+        {
+            return;
+        }
+
+        var workspaceInfo = new WorkspaceInfo
+        {
+            Id = "test-workspace",
+            WorkspacePath = _workspaceDir,
+        };
+
+        var config = new WorkspaceConfiguration
+        {
+            Id = "test-workspace",
+            BaseInstallationPath = _gameInstallDir,
+            Manifests = [],
+            SupplementalArchiveRoot = supplementalRoot,
+        };
+
+        // Act
+        WorkspaceCompatibilityHelper.EnsureDrmAndAssetCompatibility(workspaceInfo, config, NullLogger.Instance);
+
+        // Assert
+        Directory.GetFiles(_workspaceDir).Should().BeEquivalentTo(Path.Combine(_workspaceDir, "New.big"));
+    }
+
+    /// <summary>
+    /// Verifies that links owned by manifests, mods, or the user are never touched even when
+    /// they share a supplemental archive's name.
+    /// </summary>
+    [Fact]
+    public void EnsureDrmAndAssetCompatibility_WithSupplementalRoot_LeavesForeignLinksAlone()
+    {
+        // Arrange
+        var supplementalRoot = Path.Combine(_tempDir, "generals");
+        Directory.CreateDirectory(supplementalRoot);
+        File.WriteAllText(Path.Combine(supplementalRoot, "Textures.big"), "generals textures");
+
+        var modDir = Path.Combine(_tempDir, "mod");
+        Directory.CreateDirectory(modDir);
+        var modArchive = Path.Combine(modDir, "Textures.big");
+        File.WriteAllText(modArchive, "mod textures");
+
+        var workspaceLink = Path.Combine(_workspaceDir, "Textures.big");
+        if (!SymlinkTestHelper.TryCreateFileSymlink(workspaceLink, modArchive))
+        {
+            return;
+        }
+
+        var workspaceInfo = new WorkspaceInfo
+        {
+            Id = "test-workspace",
+            WorkspacePath = _workspaceDir,
+        };
+
+        var config = new WorkspaceConfiguration
+        {
+            Id = "test-workspace",
+            BaseInstallationPath = _gameInstallDir,
+            Manifests = [],
+            SupplementalArchiveRoot = supplementalRoot,
+        };
+
+        // Act
+        WorkspaceCompatibilityHelper.EnsureDrmAndAssetCompatibility(workspaceInfo, config, NullLogger.Instance);
+
+        // Assert
+        new FileInfo(workspaceLink).LinkTarget.Should().Be(modArchive);
+        File.ReadAllText(workspaceLink).Should().Be("mod textures");
+    }
+
+    /// <summary>
+    /// Verifies that a supplemental link pointing at the wrong file inside its own root is
+    /// repaired to the expected archive.
+    /// </summary>
+    [Fact]
+    public void EnsureDrmAndAssetCompatibility_WithSupplementalRoot_RelinksMismatchedOwnLinks()
+    {
+        // Arrange
+        var supplementalRoot = Path.Combine(_tempDir, "generals");
+        Directory.CreateDirectory(supplementalRoot);
+        File.WriteAllText(Path.Combine(supplementalRoot, "A.big"), "archive a");
+        File.WriteAllText(Path.Combine(supplementalRoot, "B.big"), "archive b");
+
+        var workspaceLink = Path.Combine(_workspaceDir, "A.big");
+        if (!SymlinkTestHelper.TryCreateFileSymlink(workspaceLink, Path.Combine(supplementalRoot, "B.big")))
+        {
+            return;
+        }
+
+        var workspaceInfo = new WorkspaceInfo
+        {
+            Id = "test-workspace",
+            WorkspacePath = _workspaceDir,
+        };
+
+        var config = new WorkspaceConfiguration
+        {
+            Id = "test-workspace",
+            BaseInstallationPath = _gameInstallDir,
+            Manifests = [],
+            SupplementalArchiveRoot = supplementalRoot,
+        };
+
+        // Act
+        WorkspaceCompatibilityHelper.EnsureDrmAndAssetCompatibility(workspaceInfo, config, NullLogger.Instance);
+
+        // Assert
+        new FileInfo(workspaceLink).LinkTarget.Should().Be(Path.Combine(supplementalRoot, "A.big"));
+        File.ReadAllText(workspaceLink).Should().Be("archive a");
+    }
+
+    /// <summary>
+    /// Verifies that a missing supplemental root enumerates as an empty set rather than an error.
+    /// </summary>
+    [Fact]
+    public void TryGetSupplementalArchiveNames_WithMissingDirectory_ReturnsTrueAndEmpty()
+    {
+        // Act
+        var result = WorkspaceCompatibilityHelper.TryGetSupplementalArchiveNames(
+            Path.Combine(_tempDir, "does-not-exist"),
+            out var names);
+
+        // Assert
+        result.Should().BeTrue();
+        names.Should().BeEmpty();
+    }
+
+    /// <summary>
+    /// Verifies that a null supplemental root enumerates as an empty set.
+    /// </summary>
+    [Fact]
+    public void TryGetSupplementalArchiveNames_WithNullRoot_ReturnsTrueAndEmpty()
+    {
+        // Act
+        var result = WorkspaceCompatibilityHelper.TryGetSupplementalArchiveNames(null, out var names);
+
+        // Assert
+        result.Should().BeTrue();
+        names.Should().BeEmpty();
+    }
+
+    /// <summary>
+    /// Verifies that archive names enumerate with their on-disk spelling while comparing
+    /// case-insensitively.
+    /// </summary>
+    [Fact]
+    public void TryGetSupplementalArchiveNames_WithArchives_ReturnsCaseInsensitiveNames()
+    {
+        // Arrange
+        var supplementalRoot = Path.Combine(_tempDir, "generals");
+        Directory.CreateDirectory(supplementalRoot);
+        Directory.CreateDirectory(Path.Combine(supplementalRoot, "Data"));
+        File.WriteAllText(Path.Combine(supplementalRoot, "Textures.big"), "generals textures");
+        File.WriteAllText(Path.Combine(supplementalRoot, "Models.BIG"), "generals models");
+        File.WriteAllText(Path.Combine(supplementalRoot, "Data", "Nested.big"), "nested archive");
+
+        // Act
+        var result = WorkspaceCompatibilityHelper.TryGetSupplementalArchiveNames(supplementalRoot, out var names);
+
+        // Assert
+        result.Should().BeTrue();
+        names.Should().BeEquivalentTo("Textures.big", "Models.BIG");
+        names.Contains("textures.BIG").Should().BeTrue();
+    }
+
+    /// <summary>
+    /// Verifies link ownership detection: only absolute targets directly inside the root match,
+    /// so manifest, mod, and user links are never mistaken for supplemental content.
+    /// </summary>
+    /// <param name="targetKind">How the link target relates to the root.</param>
+    /// <param name="expected">The expected ownership verdict.</param>
+    [Theory]
+    [InlineData("inside", true)]
+    [InlineData("inside-trailing-separator", true)]
+    [InlineData("elsewhere", false)]
+    [InlineData("relative", false)]
+    [InlineData("null", false)]
+    public void IsLinkTargetUnderRoot_ClassifiesOwnershipCorrectly(string targetKind, bool expected)
+    {
+        // Arrange
+        var root = Path.Combine(_tempDir, "generals");
+        var linkTarget = targetKind switch
+        {
+            "inside" => Path.Combine(root, "Textures.big"),
+            "inside-trailing-separator" => Path.Combine(root, "Textures.big"),
+            "elsewhere" => Path.Combine(_tempDir, "other", "Textures.big"),
+            "relative" => Path.Combine("..", "generals", "Textures.big"),
+            _ => null,
+        };
+        var effectiveRoot = targetKind == "inside-trailing-separator" ? root + Path.DirectorySeparatorChar : root;
+
+        // Act
+        var result = WorkspaceCompatibilityHelper.IsLinkTargetUnderRoot(linkTarget, effectiveRoot);
+
+        // Assert
+        result.Should().Be(expected);
+    }
+
+    /// <summary>
+    /// Verifies that an unreadable supplemental root fails enumeration so the caller warns
+    /// instead of silently launching without the archives.
+    /// </summary>
+    [Fact]
+    public void TryGetSupplementalArchiveNames_WithUnreadableRoot_ReturnsFalse()
+    {
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows) || Environment.UserName == "root")
+        {
+            return;
+        }
+
+        // Arrange
+        var parent = Directory.CreateDirectory(Path.Combine(_tempDir, "locked")).FullName;
+        var root = Directory.CreateDirectory(Path.Combine(parent, "generals")).FullName;
+        File.WriteAllText(Path.Combine(root, "Textures.big"), "generals textures");
+        File.SetUnixFileMode(parent, UnixFileMode.UserWrite);
+
+        try
+        {
+            // Act
+            var result = WorkspaceCompatibilityHelper.TryGetSupplementalArchiveNames(root, out var names);
+
+            // Assert
+            result.Should().BeFalse();
+            names.Should().BeEmpty();
+        }
+        finally
+        {
+            File.SetUnixFileMode(
+                parent,
+                UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+        }
     }
 }

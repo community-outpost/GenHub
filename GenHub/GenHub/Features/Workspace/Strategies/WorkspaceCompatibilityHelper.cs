@@ -1,4 +1,5 @@
 using GenHub.Core.Constants;
+using GenHub.Core.Helpers;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Validation;
@@ -30,6 +31,11 @@ public static class WorkspaceCompatibilityHelper
         WorkspaceConfiguration configuration,
         ILogger logger)
     {
+        // Cross-platform: runs on every preparation and every workspace reuse, on all operating
+        // systems. It is a no-op unless the launcher configured a supplemental archive root, so
+        // existing callers are unaffected.
+        EnsureSupplementalArchives(workspaceInfo, configuration, logger);
+
         if (!OperatingSystem.IsWindows())
         {
             return;
@@ -91,6 +97,217 @@ public static class WorkspaceCompatibilityHelper
         // Final fallback - use RelativePath with BaseInstallationPath
         return Path.Combine(configuration.BaseInstallationPath, file.RelativePath);
     }
+
+    /// <summary>
+    /// Enumerates the top-level retail archives a supplemental root provides, matched the same way
+    /// the engine mounts them: <c>*.big</c>, case-insensitive, non-recursive.
+    /// </summary>
+    /// <remarks>
+    /// This is the single enumeration both the workspace linker and the delta reconciler consume,
+    /// so the set of files treated as supplemental content is identical in both places. A missing
+    /// root is reported as an empty set rather than an error; only an unreadable one fails, so the
+    /// caller can warn instead of silently launching without the archives.
+    /// </remarks>
+    /// <param name="supplementalRoot">The supplemental archive root, or null when none is configured.</param>
+    /// <param name="archiveNames">The on-disk archive filenames, compared case-insensitively.</param>
+    /// <returns><c>true</c> when the root was enumerated or is absent; <c>false</c> when it exists but could not be read.</returns>
+    public static bool TryGetSupplementalArchiveNames(string? supplementalRoot, out IReadOnlySet<string> archiveNames)
+    {
+        var names = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        if (string.IsNullOrWhiteSpace(supplementalRoot))
+        {
+            archiveNames = names;
+            return true;
+        }
+
+        try
+        {
+            foreach (var path in Directory.EnumerateFiles(supplementalRoot, RetailArchiveConstants.ArchiveSearchPattern, RetailArchiveConstants.ArchiveSearch))
+            {
+                names.Add(Path.GetFileName(path));
+            }
+
+            archiveNames = names;
+            return true;
+        }
+        catch (DirectoryNotFoundException)
+        {
+            // A missing root yields nothing, so the set is already empty.
+            archiveNames = names;
+            return true;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            archiveNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Determines whether a symbolic link target resides directly inside the given root directory.
+    /// Relative targets can never match: links created by workspace preparation always store
+    /// absolute paths, so a relative target proves foreign ownership.
+    /// </summary>
+    /// <param name="linkTarget">The link target as stored in the link.</param>
+    /// <param name="root">The root directory to test against.</param>
+    /// <returns><c>true</c> when the target is an absolute path inside <paramref name="root"/>.</returns>
+    internal static bool IsLinkTargetUnderRoot(string? linkTarget, string root)
+    {
+        if (!Path.IsPathRooted(linkTarget))
+        {
+            return false;
+        }
+
+        return string.Equals(
+            NormalizeLinkPath(Path.GetDirectoryName(linkTarget)),
+            NormalizeLinkPath(root),
+            PathHelper.PathComparison);
+    }
+
+    /// <summary>
+    /// Links the supplemental root's top-level archives into the workspace root and removes links
+    /// left over from a root that no longer provides them.
+    /// </summary>
+    /// <remarks>
+    /// Existing workspace entries always win: a supplemental archive is only created when nothing
+    /// occupies its name, and reconciliation only touches links pointing into the supplemental
+    /// root — never regular files and never foreign links — so manifest content, mods, and user
+    /// files cannot be removed or shadowed by this step.
+    /// </remarks>
+    /// <param name="workspaceInfo">The workspace info.</param>
+    /// <param name="configuration">The workspace configuration.</param>
+    /// <param name="logger">Logger instance.</param>
+    private static void EnsureSupplementalArchives(
+        WorkspaceInfo workspaceInfo,
+        WorkspaceConfiguration configuration,
+        ILogger logger)
+    {
+        var supplementalRoot = configuration.SupplementalArchiveRoot;
+        if (string.IsNullOrWhiteSpace(supplementalRoot))
+        {
+            return;
+        }
+
+        if (!TryGetSupplementalArchiveNames(supplementalRoot, out var desiredNames))
+        {
+            logger.LogWarning("Supplemental archive root could not be read: {Root}", supplementalRoot);
+            workspaceInfo.ValidationIssues.Add(new ValidationIssue(
+                $"Supplemental archive root could not be read: {supplementalRoot}",
+                ValidationSeverity.Warning));
+            return;
+        }
+
+        var created = LinkMissingSupplementalArchives(workspaceInfo.WorkspacePath, supplementalRoot, desiredNames, workspaceInfo, logger);
+        ReconcileStaleSupplementalLinks(workspaceInfo.WorkspacePath, supplementalRoot, desiredNames, logger);
+        workspaceInfo.FileCount += created;
+    }
+
+    /// <summary>
+    /// Creates workspace-root links for every desired archive that has no entry yet.
+    /// </summary>
+    /// <returns>The number of links created.</returns>
+    private static int LinkMissingSupplementalArchives(
+        string workspacePath,
+        string supplementalRoot,
+        IReadOnlySet<string> desiredNames,
+        WorkspaceInfo workspaceInfo,
+        ILogger logger)
+    {
+        var created = 0;
+        foreach (var name in desiredNames)
+        {
+            var targetPath = Path.Combine(workspacePath, name);
+            try
+            {
+                if (new FileInfo(targetPath).LinkTarget is not null ||
+                    File.Exists(targetPath) ||
+                    Directory.Exists(targetPath))
+                {
+                    continue;
+                }
+
+                LinkFileOrCopy(Path.Combine(supplementalRoot, name), targetPath, name, logger);
+                created++;
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                logger.LogWarning(ex, "Failed to link supplemental archive {Archive} to {Target}", name, targetPath);
+                workspaceInfo.ValidationIssues.Add(new ValidationIssue(
+                    $"Failed to link supplemental archive {name} to workspace: {ex.Message}",
+                    ValidationSeverity.Warning));
+            }
+        }
+
+        return created;
+    }
+
+    /// <summary>
+    /// Repairs supplemental links whose target is stale and deletes those the root no longer provides.
+    /// </summary>
+    /// <remarks>
+    /// Only links pointing into the supplemental root are ever touched. A link owned by a manifest,
+    /// a mod, or the user may share a supplemental archive's name (a mod overriding a retail archive
+    /// under a link-based strategy does exactly that), so name alone never establishes ownership.
+    /// </remarks>
+    private static void ReconcileStaleSupplementalLinks(
+        string workspacePath,
+        string supplementalRoot,
+        IReadOnlySet<string> desiredNames,
+        ILogger logger)
+    {
+        string[] entries;
+        try
+        {
+            entries = Directory.GetFiles(workspacePath, "*", SearchOption.TopDirectoryOnly);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            logger.LogDebug(ex, "Failed to enumerate workspace root for supplemental reconciliation: {Workspace}", workspacePath);
+            return;
+        }
+
+        foreach (var entry in entries)
+        {
+            try
+            {
+                ReconcileSupplementalEntry(entry, supplementalRoot, desiredNames, logger);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                logger.LogDebug(ex, "Failed to reconcile supplemental entry {Entry}; it will be retried on the next launch", entry);
+            }
+        }
+    }
+
+    private static void ReconcileSupplementalEntry(string entry, string supplementalRoot, IReadOnlySet<string> desiredNames, ILogger logger)
+    {
+        var linkTarget = new FileInfo(entry).LinkTarget;
+        if (linkTarget is null || !IsLinkTargetUnderRoot(linkTarget, supplementalRoot))
+        {
+            return;
+        }
+
+        var name = Path.GetFileName(entry);
+        if (desiredNames.Contains(name))
+        {
+            var expectedSource = Path.Combine(supplementalRoot, name);
+            if (string.Equals(NormalizeLinkPath(linkTarget), NormalizeLinkPath(expectedSource), PathHelper.PathComparison) &&
+                File.Exists(entry))
+            {
+                return;
+            }
+
+            File.Delete(entry);
+            LinkFileOrCopy(expectedSource, entry, name, logger);
+            return;
+        }
+
+        File.Delete(entry);
+        logger.LogDebug("Removed stale supplemental link {Entry} targeting {Target}", entry, linkTarget);
+    }
+
+    private static string NormalizeLinkPath(string? path) =>
+        (path ?? string.Empty).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
 
     private static void EnsureDrmMarkerDirectory(string workspacePath, WorkspaceInfo workspaceInfo, ILogger logger)
     {
@@ -269,16 +486,27 @@ public static class WorkspaceCompatibilityHelper
         }
     }
 
-    private static void MaterializeDirect3DWrapperFile(string sourcePath, string targetPath, ILogger logger)
+    private static void MaterializeDirect3DWrapperFile(string sourcePath, string targetPath, ILogger logger) =>
+        LinkFileOrCopy(sourcePath, targetPath, GameClientConstants.Direct3D8WrapperDll, logger);
+
+    /// <summary>
+    /// Materializes one compatibility file as a symbolic link, falling back to a copy when the
+    /// filesystem or the process cannot create links.
+    /// </summary>
+    /// <param name="sourcePath">The file to link or copy from.</param>
+    /// <param name="targetPath">The workspace path to create.</param>
+    /// <param name="label">The display name used in log messages.</param>
+    /// <param name="logger">Logger instance.</param>
+    private static void LinkFileOrCopy(string sourcePath, string targetPath, string label, ILogger logger)
     {
         try
         {
             File.CreateSymbolicLink(targetPath, sourcePath);
-            logger.LogInformation("Linked {Dll} from {Source} to {Target}", GameClientConstants.Direct3D8WrapperDll, sourcePath, targetPath);
+            logger.LogInformation("Linked {Label} from {Source} to {Target}", label, sourcePath, targetPath);
         }
         catch (Exception symlinkEx)
         {
-            logger.LogDebug(symlinkEx, "Failed to create symlink for {Dll}, falling back to copy: {Target}", GameClientConstants.Direct3D8WrapperDll, targetPath);
+            logger.LogDebug(symlinkEx, "Failed to create symlink for {Label}, falling back to copy: {Target}", label, targetPath);
             try
             {
                 File.Delete(targetPath);
@@ -289,7 +517,7 @@ public static class WorkspaceCompatibilityHelper
             }
 
             File.Copy(sourcePath, targetPath, overwrite: true);
-            logger.LogInformation("Copied {Dll} from {Source} to {Target}", GameClientConstants.Direct3D8WrapperDll, sourcePath, targetPath);
+            logger.LogInformation("Copied {Label} from {Source} to {Target}", label, sourcePath, targetPath);
         }
     }
 
