@@ -119,6 +119,37 @@ public sealed class ProjectFileSnapshotTests : IDisposable
         Assert.Empty(snapshot.MatchFiles(["**/*.*"]));
     }
 
+    [Fact]
+    public void MatchFiles_MixedLiteralsAndGlobs_EqualsDiskMatcherResults()
+    {
+        var snapshot = ProjectFileSnapshot.Create(_tempDirectory);
+        string[] patterns =
+        [
+            "GameFilesEdited/Data/INI/a.ini",
+            "GameFilesEdited/Data/English/c.csf",
+            "Data/INI/*.ini",
+            "config/ModBundleItems.json",
+            "missing/file.txt",
+        ];
+
+        var expected = MatchOnDisk(patterns);
+        var actual = snapshot.MatchFiles(patterns);
+
+        Assert.Equal(expected, actual);
+    }
+
+    [Theory]
+    [InlineData("GameFilesEdited/Data/INI/a.ini", false)]
+    [InlineData("config/ModBundleItems.json", false)]
+    [InlineData("GameFilesEdited/**/*.*", true)]
+    [InlineData("**/*.ini", true)]
+    [InlineData("Data/INI/a?.ini", true)]
+    [InlineData("Data/INI/[ab].ini", true)]
+    public void IsGlobPattern_ClassifiesPatterns(string pattern, bool expected)
+    {
+        Assert.Equal(expected, ProjectFileSnapshot.IsGlobPattern(pattern));
+    }
+
     public void Dispose()
     {
         if (Directory.Exists(_tempDirectory))

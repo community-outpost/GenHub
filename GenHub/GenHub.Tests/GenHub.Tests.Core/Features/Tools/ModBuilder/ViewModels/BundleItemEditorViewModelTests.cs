@@ -99,6 +99,53 @@ public sealed class BundleItemEditorViewModelTests : IDisposable
         Assert.Equal(3, viewModel.MatchingFilesCount);
     }
 
+    [Fact]
+    public void AddPatterns_BulkAdd_RecalculatesOnceAndDedupes()
+    {
+        var snapshot = ProjectFileSnapshot.Create(_tempDirectory);
+        var viewModel = new BundleItemEditorViewModel();
+        viewModel.SetPatterns(["GameFilesEdited/Data/English/c.csf"], _tempDirectory, snapshot);
+
+        viewModel.AddPatterns(
+            ["GameFilesEdited/Data/INI/a.ini", "GameFilesEdited/Data/INI/b.ini", "GameFilesEdited/Data/INI/A.INI"],
+            _tempDirectory,
+            snapshot);
+
+        Assert.Equal(3, viewModel.SourcePatternsList.Count);
+        Assert.Equal(3, viewModel.MatchingFilesCount);
+    }
+
+    [Fact]
+    public void AddPatterns_ReplacesDefaultWildcard()
+    {
+        var viewModel = new BundleItemEditorViewModel();
+        viewModel.SetPatterns(["GameFilesEdited/**/*.*"]);
+
+        viewModel.AddPatterns(["GameFilesEdited/Data/INI/a.ini"]);
+
+        Assert.Single(viewModel.SourcePatternsList);
+        Assert.Equal("GameFilesEdited/Data/INI/a.ini", viewModel.SourcePatternsList[0].Pattern);
+    }
+
+    [Fact]
+    public void SetPatterns_RaisesSingleCollectionNotification()
+    {
+        var viewModel = new BundleItemEditorViewModel();
+        var notifications = 0;
+        viewModel.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(BundleItemEditorViewModel.SourcePatternsList))
+            {
+                notifications++;
+            }
+        };
+
+        viewModel.SetPatterns(["a.ini", "b.ini", "c.ini"]);
+
+        Assert.Equal(1, notifications);
+        Assert.Equal(3, viewModel.SourcePatternsList.Count);
+    }
+
     public void Dispose()
     {
         if (Directory.Exists(_tempDirectory))

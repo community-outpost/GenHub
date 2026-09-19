@@ -95,6 +95,7 @@ public class ConfigEditorViewModelTests
         Assert.Equal("ReleasePack", viewModel.BundlePacks[0].Name);
         Assert.Contains("CoreINI", viewModel.BundlePacks[0].ItemNames);
         Assert.False(viewModel.HasChanges);
+        Assert.False(viewModel.IsLoading);
     }
 
     [Fact]

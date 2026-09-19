@@ -2241,7 +2241,8 @@ public partial class ModBuilderViewModel(
                 localizationService,
                 loggerFactory.CreateLogger<ConfigEditorViewModel>());
 
-            await configEditorViewModel.InitializeAsync(CurrentProject).ConfigureAwait(false);
+            // Start loading in the background and show the window immediately with a loading state.
+            var initializeTask = configEditorViewModel.InitializeAsync(CurrentProject);
 
             await InvokeOnUIThreadAsync(async () =>
             {
@@ -2256,6 +2257,7 @@ public partial class ModBuilderViewModel(
                     dialog.Show();
                 }
 
+                await initializeTask.ConfigureAwait(false);
                 await LoadBundlesAsync().ConfigureAwait(false);
             });
         }
@@ -2282,6 +2284,15 @@ public partial class ModBuilderViewModel(
         {
             PopulateProjectBundlesAndProperties(CurrentProject.Configuration);
             logger.LogInformation("Loaded {Count} bundles", Bundles.Count);
+        });
+
+        // Populate only sums pattern counts, which would reset the Files in staging
+        // card to the number of patterns. Recount the actual staged files instead.
+        var countedFiles = await CountFilesToBuildAsync(CancellationToken.None).ConfigureAwait(false);
+        await InvokeOnUIThreadAsync(() =>
+        {
+            FileCount = countedFiles;
+            FilesToBuildCount = countedFiles;
         });
     }
 

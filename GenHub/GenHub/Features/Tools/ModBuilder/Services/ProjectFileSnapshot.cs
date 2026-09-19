@@ -82,9 +82,25 @@ public sealed class ProjectFileSnapshot
     /// <returns>Matching relative paths with forward slashes (case-insensitive set).</returns>
     public HashSet<string> MatchFiles(IEnumerable<string> patterns)
     {
-        var matcher = CreateMatcher(patterns);
-        var result = matcher.Execute(_root);
+        var (literals, globs) = PartitionPatterns(patterns);
         var matched = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var literal in literals.Where(_allFiles.Contains))
+        {
+            matched.Add(literal);
+        }
+
+        if (globs.Count == 0)
+        {
+            return matched;
+        }
+
+        var matcher = new Matcher(StringComparison.OrdinalIgnoreCase);
+        foreach (var glob in globs)
+        {
+            matcher.AddInclude(glob);
+        }
+
+        var result = matcher.Execute(_root);
         foreach (var file in result.Files)
         {
             var normalized = NormalizeRelativePath(file.Path);
@@ -96,6 +112,17 @@ public sealed class ProjectFileSnapshot
 
         return matched;
     }
+
+    /// <summary>
+    /// Determines whether a pattern contains glob wildcard characters.
+    /// </summary>
+    /// <param name="pattern">The pattern to inspect.</param>
+    /// <returns>True when the pattern contains <c>*</c>, <c>?</c>, <c>[</c>, or <c>]</c>.</returns>
+    public static bool IsGlobPattern(string pattern) =>
+        pattern.Contains('*', StringComparison.Ordinal) ||
+        pattern.Contains('?', StringComparison.Ordinal) ||
+        pattern.Contains('[', StringComparison.Ordinal) ||
+        pattern.Contains(']', StringComparison.Ordinal);
 
     /// <summary>
     /// Determines whether this snapshot was taken from the given project directory.
@@ -122,9 +149,10 @@ public sealed class ProjectFileSnapshot
         }
     }
 
-    private Matcher CreateMatcher(IEnumerable<string> patterns)
+    private (List<string> Literals, List<string> Globs) PartitionPatterns(IEnumerable<string> patterns)
     {
-        var matcher = new Matcher(StringComparison.OrdinalIgnoreCase);
+        var literals = new List<string>();
+        var globs = new List<string>();
         foreach (var rawPattern in patterns)
         {
             if (string.IsNullOrWhiteSpace(rawPattern))
@@ -132,34 +160,40 @@ public sealed class ProjectFileSnapshot
                 continue;
             }
 
-            var pattern = rawPattern.Trim();
-            if (Path.IsPathRooted(pattern) || (pattern.Length > 2 && pattern[1] == ':'))
-            {
-                try
-                {
-                    var rel = Path.GetRelativePath(RootPath, pattern).Replace('\\', '/');
-                    if (!rel.StartsWith("..", StringComparison.Ordinal))
-                    {
-                        pattern = rel;
-                    }
-                }
-                catch
-                {
-                    // Fall back to original pattern
-                }
-            }
-
-            pattern = pattern.TrimStart('/', '\\').Replace('\\', '/');
-            matcher.AddInclude(pattern);
+            var pattern = NormalizePattern(rawPattern);
+            var target = IsGlobPattern(pattern) ? globs : literals;
+            target.Add(pattern);
 
             // If pattern does not start with GameFilesEdited/, also match within GameFilesEdited
             if (!pattern.StartsWith(ModBuilderConstants.GameFilesEditedPrefix, StringComparison.OrdinalIgnoreCase))
             {
-                matcher.AddInclude($"{ModBuilderConstants.GameFilesEditedDir}/{pattern}");
+                target.Add($"{ModBuilderConstants.GameFilesEditedDir}/{pattern}");
             }
         }
 
-        return matcher;
+        return (literals, globs);
+    }
+
+    private string NormalizePattern(string rawPattern)
+    {
+        var pattern = rawPattern.Trim();
+        if (Path.IsPathRooted(pattern) || (pattern.Length > 2 && pattern[1] == ':'))
+        {
+            try
+            {
+                var rel = Path.GetRelativePath(RootPath, pattern).Replace('\\', '/');
+                if (!rel.StartsWith("..", StringComparison.Ordinal))
+                {
+                    pattern = rel;
+                }
+            }
+            catch
+            {
+                // Fall back to original pattern
+            }
+        }
+
+        return pattern.TrimStart('/', '\\').Replace('\\', '/');
     }
 
     private static void CollectFiles(DirectoryInfo dir, string rootPath, InMemoryDirectory node, List<string> relativePaths)

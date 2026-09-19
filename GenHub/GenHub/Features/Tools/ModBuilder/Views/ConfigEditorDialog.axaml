@@ -28,6 +28,7 @@
     </ResourceDictionary>
   </Window.Resources>
 
+  <Panel>
   <Grid RowDefinitions="Auto,*,Auto" Margin="24">
 
     <!-- Header Section -->
@@ -224,9 +225,11 @@
 
                         <Border Margin="0,6,0,0" Background="{DynamicResource SurfaceBackgroundDarkBrush}"
                                 BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="6" Padding="6">
-                          <ScrollViewer MaxHeight="280" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-                            <ItemsControl ItemsSource="{Binding SelectedBundleItem.SourcePatternsList}">
-                              <ItemsControl.ItemTemplate>
+                          <!-- Virtualized list: only visible rows are realized for large pattern sets -->
+                          <ListBox MaxHeight="280" ItemsSource="{Binding SelectedBundleItem.SourcePatternsList}"
+                                   Background="Transparent" BorderThickness="0" Padding="0"
+                                   ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                            <ListBox.ItemTemplate>
                                 <DataTemplate x:DataType="vm:SourcePathItemViewModel">
                                   <Border Background="{DynamicResource CardBackground}"
                                           BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
@@ -279,9 +282,8 @@
                                     </Grid>
                                   </Border>
                                 </DataTemplate>
-                              </ItemsControl.ItemTemplate>
-                            </ItemsControl>
-                          </ScrollViewer>
+                            </ListBox.ItemTemplate>
+                          </ListBox>
                         </Border>
                       </Expander>
 
@@ -560,4 +562,16 @@
               Padding="24,10" CornerRadius="8" Cursor="Hand"/>
     </Grid>
   </Grid>
+
+  <!-- Loading overlay while the configuration loads on a background thread -->
+  <Border Background="{DynamicResource WindowBackground}"
+          IsVisible="{Binding IsLoading}">
+    <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="12">
+      <ProgressBar IsIndeterminate="True" Width="240" HorizontalAlignment="Center"/>
+      <TextBlock Text="{localization:Localize Tools.ModBuilder.ConfigEditor.LoadingMessage}"
+                 FontSize="12" Foreground="{DynamicResource TextSecondary}"
+                 HorizontalAlignment="Center"/>
+    </StackPanel>
+  </Border>
+  </Panel>
 </Window>

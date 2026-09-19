@@ -7319,6 +7319,9 @@ GenHub هو مشغل ومدير حديث لألعاب **Command &amp; Conquer: G
   <data name="Tools.ModBuilder.ConfigEditor.ButtonSave" xml:space="preserve">
     <value>حفظ</value>
   </data>
+  <data name="Tools.ModBuilder.ConfigEditor.LoadingMessage" xml:space="preserve">
+    <value>جارٍ تحميل الإعدادات...</value>
+  </data>
   <data name="Tools.ModBuilder.ConfigEditor.TooltipClose" xml:space="preserve">
     <value>إغلاق محرر التكوين دون حفظ</value>
   </data>
@@ -7360,6 +7363,9 @@ GenHub هو مشغل ومدير حديث لألعاب **Command &amp; Conquer: G
   </data>
   <data name="Tools.ModBuilder.ProjectItemPicker.ButtonApply" xml:space="preserve">
     <value>تطبيق التحديد</value>
+  </data>
+  <data name="Tools.ModBuilder.ProjectItemPicker.LoadingMessage" xml:space="preserve">
+    <value>جارٍ تحميل ملفات المشروع...</value>
   </data>
   <data name="Tools.ModBuilder.ConfigEditor.TooltipClearPatterns" xml:space="preserve">
     <value>مسح جميع أنماط المصدر</value>

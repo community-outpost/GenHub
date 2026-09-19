@@ -1,3 +1,5 @@
+using Avalonia;
+using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using GenHub.Core.Constants;
@@ -8,6 +10,8 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace GenHub.Features.Tools.ModBuilder.ViewModels;
 
@@ -57,7 +61,10 @@ public partial class ProjectItemPickerViewModel : ObservableObject
     private readonly List<string> _preservedPatterns = [];
     private readonly HashSet<string> _initialMatchedFiles = new(StringComparer.OrdinalIgnoreCase);
     private readonly HashSet<string> _initialCheckedDirs = new(StringComparer.OrdinalIgnoreCase);
-    private readonly ProjectFileSnapshot? _snapshot;
+    private readonly HashSet<string> _initialDirLookup = new(StringComparer.OrdinalIgnoreCase);
+    private readonly ProjectFileSnapshot? _providedSnapshot;
+    private ProjectFileSnapshot? _snapshot;
+    private FileTreeNode? _pendingRoot;
     private bool _isPropagatingSelection;
 
     /// <summary>
@@ -90,7 +97,15 @@ public partial class ProjectItemPickerViewModel : ObservableObject
     private bool _hasSelection;
 
     /// <summary>
+    /// Gets or sets a value indicating whether the file tree is still loading.
+    /// </summary>
+    [ObservableProperty]
+    private bool _isLoading = true;
+
+    /// <summary>
     /// Initializes a new instance of the <see cref="ProjectItemPickerViewModel"/> class.
+    /// The constructor is intentionally lightweight; call <see cref="InitializeAsync"/>
+    /// to crawl the project and build the tree on a background thread.
     /// </summary>
     /// <param name="projectDir">The root directory of the project.</param>
     /// <param name="existingPatterns">Optional initial patterns to pre-select.</param>
@@ -101,20 +116,75 @@ public partial class ProjectItemPickerViewModel : ObservableObject
         ProjectFileSnapshot? snapshot = null)
     {
         _projectDir = projectDir;
+        _providedSnapshot = snapshot;
         if (existingPatterns != null)
         {
             _initialPatterns.AddRange(NormalizeInitialPatterns(existingPatterns, projectDir));
         }
+    }
 
-        if (Directory.Exists(projectDir))
+    /// <summary>
+    /// Builds the file tree and pre-selects initial patterns on a background thread,
+    /// then publishes the result to the UI thread.
+    /// </summary>
+    /// <param name="cancellationToken">A cancellation token.</param>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    public async Task InitializeAsync(CancellationToken cancellationToken = default)
+    {
+        try
         {
-            _snapshot = snapshot is { } provided && provided.IsSameRoot(projectDir)
-                ? provided
-                : ProjectFileSnapshot.Create(projectDir);
-            CollectInitialMatches();
+            await Task.Run(() =>
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                EnsureSnapshot();
+                CollectInitialMatches();
+                cancellationToken.ThrowIfCancellationRequested();
+                BuildTreeCore();
+            }, cancellationToken).ConfigureAwait(false);
+
+            cancellationToken.ThrowIfCancellationRequested();
+            await RunOnUIThreadAsync(PublishTree).ConfigureAwait(false);
+        }
+        finally
+        {
+            await RunOnUIThreadAsync(() => IsLoading = false).ConfigureAwait(false);
+        }
+    }
+
+    private void EnsureSnapshot()
+    {
+        if (!Directory.Exists(_projectDir))
+        {
+            return;
         }
 
-        BuildTree();
+        _snapshot = _providedSnapshot is { } provided && provided.IsSameRoot(_projectDir)
+            ? provided
+            : ProjectFileSnapshot.Create(_projectDir);
+    }
+
+    private void PublishTree()
+    {
+        Nodes.Clear();
+        if (_pendingRoot != null)
+        {
+            Nodes.Add(_pendingRoot);
+            _pendingRoot = null;
+        }
+
+        UpdateSelectionSummary();
+    }
+
+    private static async Task RunOnUIThreadAsync(Action action)
+    {
+        if (Application.Current == null || Dispatcher.UIThread.CheckAccess())
+        {
+            action();
+        }
+        else
+        {
+            await Dispatcher.UIThread.InvokeAsync(action);
+        }
     }
 
     private static List<string> NormalizeInitialPatterns(IEnumerable<string> existingPatterns, string projectDir)
@@ -162,6 +232,7 @@ public partial class ProjectItemPickerViewModel : ObservableObject
 
     private void CollectInitialMatches()
     {
+        BuildInitialDirLookup();
         if (_snapshot == null || _initialPatterns.Count == 0)
         {
             return;
@@ -174,6 +245,7 @@ public partial class ProjectItemPickerViewModel : ObservableObject
         }
 
         // Patterns matching only outside the visible tree cannot be edited here; carry them through saves.
+        // Single-pattern matches stay cheap: literal patterns resolve through hash lookups.
         foreach (var pattern in _initialPatterns)
         {
             var matches = _snapshot.MatchFiles([pattern]);
@@ -181,6 +253,28 @@ public partial class ProjectItemPickerViewModel : ObservableObject
             {
                 _preservedPatterns.Add(pattern);
             }
+        }
+    }
+
+    private void BuildInitialDirLookup()
+    {
+        _initialDirLookup.Clear();
+        foreach (var pattern in _initialPatterns)
+        {
+            var normPat = NormalizeRelativePath(pattern);
+            _initialDirLookup.Add(normPat);
+            _initialDirLookup.Add(StripEditedPrefix(normPat));
+
+            var dirClean = normPat.Replace("/**/*.*", string.Empty)
+                                  .Replace("/**", string.Empty)
+                                  .Replace("/*.*", string.Empty);
+            if (dirClean.EndsWith("/*", StringComparison.Ordinal))
+            {
+                dirClean = dirClean[..^2];
+            }
+
+            _initialDirLookup.Add(dirClean);
+            _initialDirLookup.Add(StripEditedPrefix(dirClean));
         }
     }
 
@@ -199,9 +293,8 @@ public partial class ProjectItemPickerViewModel : ObservableObject
         IsUnderTreeRoot(relativePath, rootRel) &&
         !relativePath.Split('/').Any(ModBuilderConstants.IsIgnoredProjectFile);
 
-    private void BuildTree()
+    private void BuildTreeCore()
     {
-        Nodes.Clear();
         if (string.IsNullOrWhiteSpace(_projectDir) || !Directory.Exists(_projectDir))
         {
             return;
@@ -213,14 +306,12 @@ public partial class ProjectItemPickerViewModel : ObservableObject
         var rootNode = CreateDirectoryNode(rootDir, _projectDir);
         rootNode.IsExpanded = true;
         ExpandTreeNodes(rootNode);
-        Nodes.Add(rootNode);
+        _pendingRoot = rootNode;
 
-        foreach (var dirNode in GetSelectedNodes(Nodes).Where(n => n.IsDirectory))
+        foreach (var dirNode in GetSelectedNodes([rootNode]).Where(n => n.IsDirectory))
         {
             _initialCheckedDirs.Add(NormalizeRelativePath(dirNode.RelativePath));
         }
-
-        UpdateSelectionSummary();
     }
 
     private FileTreeNode CreateDirectoryNode(string dirPath, string baseProjectDir)
@@ -397,37 +488,8 @@ public partial class ProjectItemPickerViewModel : ObservableObject
             return _initialMatchedFiles.Contains(normRel);
         }
 
-        var normRelNoPrefix = StripEditedPrefix(normRel);
-
-        foreach (var pattern in _initialPatterns)
-        {
-            var normPat = NormalizeRelativePath(pattern);
-            var normPatNoPrefix = StripEditedPrefix(normPat);
-
-            if (normRel.Equals(normPat, StringComparison.OrdinalIgnoreCase) ||
-                normRelNoPrefix.Equals(normPatNoPrefix, StringComparison.OrdinalIgnoreCase))
-            {
-                return true;
-            }
-
-            var dirClean = normPat.Replace("/**/*.*", string.Empty)
-                                  .Replace("/**", string.Empty)
-                                  .Replace("/*.*", string.Empty);
-            if (dirClean.EndsWith("/*", StringComparison.Ordinal))
-            {
-                dirClean = dirClean[..^2];
-            }
-
-            var dirCleanNoPrefix = StripEditedPrefix(dirClean);
-
-            if (normRel.Equals(dirClean, StringComparison.OrdinalIgnoreCase) ||
-                normRelNoPrefix.Equals(dirCleanNoPrefix, StringComparison.OrdinalIgnoreCase))
-            {
-                return true;
-            }
-        }
-
-        return false;
+        return _initialDirLookup.Contains(normRel) ||
+            _initialDirLookup.Contains(StripEditedPrefix(normRel));
     }
 
     private static string NormalizeRelativePath(string path) =>
