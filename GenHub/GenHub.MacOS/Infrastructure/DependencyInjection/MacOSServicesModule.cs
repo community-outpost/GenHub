@@ -1,13 +1,17 @@
 using GenHub.Common.Services;
+using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Interfaces.GameSettings;
 using GenHub.Core.Interfaces.GitHub;
+using GenHub.Core.Interfaces.Launching;
 using GenHub.Core.Interfaces.Shortcuts;
 using GenHub.Core.Interfaces.Storage;
 using GenHub.Core.Interfaces.Workspace;
+using GenHub.Core.Models.Launching;
 using GenHub.Features.AppUpdate.Interfaces;
 using GenHub.Features.AppUpdate.Services;
 using GenHub.Features.GameSettings;
+using GenHub.Features.Launching;
 using GenHub.Features.Workspace;
 using GenHub.Infrastructure.DependencyInjection;
 using GenHub.MacOS.Features.GitHub.Services;
@@ -41,6 +45,9 @@ public static class MacOSServicesModule
         services.AddSingleton<IShortcutService, MacOSShortcutService>();
         services.Replace(ServiceDescriptor.Singleton<IInstallationLocationTracker, FileInstallationLocationTracker>());
         services.Replace(ServiceDescriptor.Singleton<IInstallationSearchPathProvider, MacOSInstallationSearchPathProvider>());
+        services.Replace(ServiceDescriptor.Singleton<IGameLaunchRunner>(provider => new WineRunner(
+            WineRunnerOptions.MacOS(provider.GetRequiredService<IConfigurationProviderService>().GetRootAppDataPath()),
+            provider.GetRequiredService<ILogger<WineRunner>>())));
 
         services.AddUnixFileOperations();
 

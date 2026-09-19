@@ -1225,6 +1225,10 @@
     <value>Symlinked</value>
     <comment>Workspace status when using symlinks</comment>
   </data>
+  <data name="Launch.Runner.Missing.Message" xml:space="preserve">
+    <value>Wine is required to run Windows games on this system but was not found. Install Wine on Linux, or CrossOver or Wine on macOS, then try again.</value>
+    <comment>Error shown when no Wine compatibility runner is available on Linux or macOS</comment>
+  </data>
   <data name="Maps.Button.ClearAllHistory" xml:space="preserve">
     <value>Clear All History</value>
   </data>

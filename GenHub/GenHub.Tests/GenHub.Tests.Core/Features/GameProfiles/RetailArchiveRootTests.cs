@@ -1,7 +1,10 @@
 using GenHub.Core.Constants;
+using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Models.Launching;
 using GenHub.Features.GameProfiles.Infrastructure;
+using GenHub.Features.Launching;
 using Microsoft.Extensions.Logging.Abstractions;
+using Moq;
 using System;
 using System.IO;
 using System.Linq;
@@ -33,7 +36,10 @@ public class RetailArchiveRootTests : IDisposable
         Path.GetTempPath(),
         $"genhub-engine-only-{Guid.NewGuid():N}");
 
-    private readonly GameProcessManager _processManager = new(NullLogger<GameProcessManager>.Instance);
+    private readonly GameProcessManager _processManager = new(
+        NullLogger<GameProcessManager>.Instance,
+        new DirectRunner(NullLogger<DirectRunner>.Instance),
+        Mock.Of<ILocalizationService>());
 
     /// <summary>
     /// An engine-only workspace plus environment-supplied archive roots must launch and

@@ -240,3 +240,13 @@ if (File.Exists(backupPath))
 - **Rollback Mechanism**: If deployment fails, automatically restore from backup
 - **Health Checks**: Verify proxy config validity before launch
 - **Multi-Game Support**: Extend mechanism to support other Steam games beyond C&C Generals
+
+## Linux and macOS Support
+
+The proxy launcher is a Windows executable, so on Linux and macOS it runs under the same Wine/Proton layer as the game itself:
+
+- **Self-contained binary**: the proxy publishes as a self-contained `win-x64` executable with no runtime dependency, so Wine can start it without a .NET runtime installed in the prefix.
+- **Shipped on every platform**: the Linux and macOS releases bundle the proxy next to the host app, exactly like the Windows release. At deploy time GenHub picks the sibling `GenHub.ProxyLauncher.exe` to the running application.
+- **Case-insensitive swap**: Linux and macOS filesystems are usually case-sensitive while the game expects Windows semantics, so deployment resolves the on-disk executable name case-insensitively (`TryGetFileCaseInsensitive`) before swapping it with the proxy and restoring the backup later.
+- **Proton drive mapping**: paths written into `proxy_config.json` use the Proton `Z:` mapping (`/home/user/...` becomes `Z:\home\user\...`) so the proxy resolves the workspace target the same way under Proton and vanilla Wine.
+- **Non-Steam launches**: games can launch without Steam through the platform `IGameLaunchRunner` (`DirectRunner` on Windows, `WineRunner` on Linux/macOS), which resolves the Wine binary from PATH, manages a GenHub Wine prefix, and mirrors `Options.ini` into the prefix user profile before starting the game.

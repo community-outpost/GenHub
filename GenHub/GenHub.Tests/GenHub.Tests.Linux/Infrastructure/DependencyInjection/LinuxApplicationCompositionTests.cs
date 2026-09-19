@@ -1,9 +1,12 @@
 using GenHub.Common.ViewModels;
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Interfaces.GitHub;
+using GenHub.Core.Interfaces.Launching;
 using GenHub.Core.Interfaces.Shortcuts;
 using GenHub.Features.GameProfiles.ViewModels;
+using GenHub.Features.Launching;
 using GenHub.Features.Settings.ViewModels;
 using GenHub.Infrastructure.DependencyInjection;
 using GenHub.Linux.Features.GitHub.Services;
@@ -11,6 +14,7 @@ using GenHub.Linux.GameInstallations;
 using GenHub.Linux.Infrastructure.DependencyInjection;
 using GenHub.Tests.Shared;
 using Microsoft.Extensions.DependencyInjection;
+using System.IO;
 using System.Runtime.Versioning;
 using Xunit;
 
@@ -49,6 +53,14 @@ public class LinuxApplicationCompositionTests
             serviceProvider.GetRequiredService<IGameInstallationDetector>());
         Assert.IsType<LinuxInstallationSearchPathProvider>(
             serviceProvider.GetRequiredService<IInstallationSearchPathProvider>());
+        var launchRunner = Assert.IsType<WineRunner>(
+            serviceProvider.GetRequiredService<IGameLaunchRunner>());
+        Assert.Equal(
+            new[] { WineConstants.WineBinaryName, WineConstants.Wine64BinaryName },
+            launchRunner.Options.BinaryNames);
+        Assert.Equal(
+            Path.Combine(serviceProvider.GetRequiredService<IConfigurationProviderService>().GetRootAppDataPath(), WineConstants.ManagedPrefixDirectoryName),
+            launchRunner.Options.PrefixPath);
         Assert.NotNull(serviceProvider.GetRequiredService<IShortcutService>());
         Assert.Contains(
             services,
