@@ -156,6 +156,36 @@ public static partial class GameVersionHelper
     }
 
     /// <summary>
+    /// Formats a version string for display in UI badges, or returns null if it shouldn't be displayed.
+    /// Suppresses empty, whitespace, default (e.g. 0, 1.0, 1.00), and unknown sentinel versions.
+    /// Prefixes with 'v' if the version starts with a digit.
+    /// </summary>
+    /// <param name="version">The raw version string.</param>
+    /// <returns>The formatted version string, or null.</returns>
+    public static string? FormatDisplayVersion(string? version)
+    {
+        if (string.IsNullOrWhiteSpace(version) ||
+            IsDefaultVersion(version) ||
+            IsUnknownVersion(version))
+        {
+            return null;
+        }
+
+        var trimmed = version.Trim();
+        if (trimmed.StartsWith("v", StringComparison.OrdinalIgnoreCase) && trimmed.Length > 1 && char.IsDigit(trimmed[1]))
+        {
+            return trimmed;
+        }
+
+        if (char.IsDigit(trimmed[0]))
+        {
+            return $"v{trimmed}";
+        }
+
+        return trimmed;
+    }
+
+    /// <summary>
     /// Converts a version string to a normalized integer format.
     /// Examples: "1.04" -> 104, "1.08" -> 108, "20251226" -> 20251226.
     /// Used primarily for manifest ID components where a simple integer is needed.
