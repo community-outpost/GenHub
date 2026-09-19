@@ -969,6 +969,76 @@ public class SettingsViewModelTests
     }
 
     /// <summary>
+    /// Verifies that cancelling manifest deletion after partial removal scrubs only the removed IDs with an uncancelled token and propagates cancellation.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task DeleteManifestsCommand_WhenCancelledMidDeletion_ScrubsRemovedIdsAndPropagatesCancellationAsync()
+    {
+        // Arrange
+        const string removedManifestId = "1.0.test.mod.removed";
+        const string pendingManifestId = "1.0.test.mod.pending";
+        var manifests = new List<ContentManifest>
+        {
+            new ContentManifest { Id = ManifestId.Create(removedManifestId), Name = "Removed Mod" },
+            new ContentManifest { Id = ManifestId.Create(pendingManifestId), Name = "Pending Mod" },
+        };
+
+        var profile = new GameProfile
+        {
+            Id = "profile-1",
+            Name = "Test Profile",
+            EnabledContentIds = [removedManifestId, pendingManifestId],
+        };
+
+        _mockManifestPool
+            .Setup(x => x.GetAllManifestsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IEnumerable<ContentManifest>>.CreateSuccess(manifests));
+
+        _mockManifestPool
+            .SetupSequence(x => x.RemoveManifestAsync(It.IsAny<ManifestId>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true))
+            .ThrowsAsync(new OperationCanceledException());
+
+        CancellationToken? scrubToken = null;
+        _mockProfileManager
+            .Setup(x => x.GetAllProfilesAsync(It.IsAny<CancellationToken>()))
+            .Callback<CancellationToken>(token => scrubToken = token)
+            .ReturnsAsync(ProfileOperationResult<IReadOnlyList<GameProfile>>.CreateSuccess([profile]));
+
+        _mockProfileManager
+            .Setup(x => x.UpdateProfileAsync(It.IsAny<string>(), It.IsAny<UpdateProfileRequest>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(profile));
+
+        _mockDialogService
+            .Setup(x => x.ShowConfirmationAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string?>()))
+            .ReturnsAsync(true);
+
+        var viewModel = CreateViewModel();
+
+        // Act
+        await Assert.ThrowsAsync<OperationCanceledException>(() => viewModel.DeleteManifestsCommand.ExecuteAsync(null));
+
+        // Assert
+        Assert.True(viewModel.DeleteManifestsCommand.ExecutionTask?.IsCanceled == true);
+        _mockManifestPool.Verify(
+            x => x.RemoveManifestAsync(It.IsAny<ManifestId>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()),
+            Times.Exactly(2));
+        _mockProfileManager.Verify(
+            x => x.UpdateProfileAsync(
+                "profile-1",
+                It.Is<UpdateProfileRequest>(req => req.EnabledContentIds != null && req.EnabledContentIds.SequenceEqual(new[] { pendingManifestId })),
+                It.IsAny<CancellationToken>()),
+            Times.Once);
+        Assert.Equal(CancellationToken.None, scrubToken);
+    }
+
+    /// <summary>
     /// Verifies that accepting the profile deletion confirmation removes all profiles.
     /// </summary>
     /// <returns>A task representing the asynchronous unit test.</returns>

@@ -2095,29 +2095,26 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             var manifestsResult = await _manifestPool.GetAllManifestsAsync(cancellationToken);
             if (manifestsResult.Success && manifestsResult.Data != null)
             {
-                var count = manifestsResult.Data.Count();
-                var deletedIds = manifestsResult.Data.Select(m => m.Id.Value).ToHashSet(StringComparer.OrdinalIgnoreCase);
-                var removedIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                var manifests = manifestsResult.Data.ToList();
+                var count = manifests.Count;
+                var orderedIds = manifests.Select(m => m.Id.Value).ToList();
+                var deletedIds = orderedIds.ToHashSet(StringComparer.OrdinalIgnoreCase);
+                var removedCount = 0;
 
                 try
                 {
-                    foreach (var manifest in manifestsResult.Data)
+                    foreach (var manifest in manifests)
                     {
                         cancellationToken.ThrowIfCancellationRequested();
                         await _manifestPool.RemoveManifestAsync(manifest.Id, cancellationToken: cancellationToken);
-                        removedIds.Add(manifest.Id.Value);
+                        removedCount++;
                     }
 
                     await ScrubDeletedManifestIdsFromProfilesAsync(deletedIds, showToast, cancellationToken);
                 }
-                catch (OperationCanceledException)
+                catch (OperationCanceledException ex)
                 {
-                    if (removedIds.Count > 0)
-                    {
-                        _logger.LogWarning("Manifest deletion was cancelled after removing {RemovedCount} manifest(s); scrubbing their references from profiles", removedIds.Count);
-                        await ScrubDeletedManifestIdsFromProfilesAsync(removedIds, showToast, CancellationToken.None);
-                    }
-
+                    await ScrubPartiallyRemovedManifestsAsync(orderedIds, removedCount, showToast, ex);
                     throw;
                 }
 
@@ -2144,6 +2141,27 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
                 _notificationService.ShowError("Deletion Failed", $"Failed to delete manifests: {ex.Message}", 5000);
             }
         }
+    }
+
+    /// <summary>
+    /// Scrubs already-removed manifest IDs from profiles after a cancelled deletion, keeping profiles
+    /// consistent with what was actually deleted. Does nothing when nothing was removed yet.
+    /// </summary>
+    /// <param name="orderedIds">The manifest IDs in removal order.</param>
+    /// <param name="removedCount">The number of manifests successfully removed before cancellation.</param>
+    /// <param name="showToast">Whether to show toast notifications for scrub failures.</param>
+    /// <param name="exception">The cancellation that interrupted the deletion.</param>
+    private async Task ScrubPartiallyRemovedManifestsAsync(IReadOnlyList<string> orderedIds, int removedCount, bool showToast, OperationCanceledException exception)
+    {
+        if (removedCount <= 0)
+        {
+            return;
+        }
+
+        // Manifests are removed sequentially, so the first removedCount IDs are the removed ones.
+        var removedIds = orderedIds.Take(removedCount).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        _logger.LogWarning(exception, "Manifest deletion was cancelled after removing {RemovedCount} manifest(s); scrubbing their references from profiles", removedCount);
+        await ScrubDeletedManifestIdsFromProfilesAsync(removedIds, showToast, CancellationToken.None);
     }
 
     private async Task ScrubDeletedManifestIdsFromProfilesAsync(HashSet<string> deletedIds, bool showToast, CancellationToken cancellationToken = default)
