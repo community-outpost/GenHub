@@ -89,7 +89,7 @@ public sealed class DownloadedContentDiscoverer(
 
         return OperationResult<ContentDiscoveryResult>.CreateSuccess(new ContentDiscoveryResult
         {
-            Items = pageItems.Select(ToSearchResult),
+            Items = pageItems.Select(ToSearchResult).ToList(),
             HasMoreItems = skip + pageItems.Count < total,
             TotalItems = total,
         });
