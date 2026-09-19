@@ -1,5 +1,6 @@
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
+using GenHub.Core.Interfaces.Publishers;
 using GenHub.Core.Models.Publishers;
 using GenHub.Core.Models.Results;
 using GenHub.Features.Tools.Interfaces;
@@ -28,7 +29,8 @@ namespace GenHub.Features.Tools.Services.Hosting;
 public class GoogleDriveHostingProvider(
     ILogger<GoogleDriveHostingProvider> logger,
     IConfigurationProviderService? configurationProvider = null,
-    ILocalizationService? localizationService = null) : IHostingProvider
+    ILocalizationService? localizationService = null,
+    IHostingCredentialStore? credentialStore = null) : IHostingProvider
 {
     private const string ApplicationName = "GenHub Publisher Studio";
     private const string PublisherFolderName = HostingConstants.GoogleDriveDefaultPublisherFolder;
@@ -40,16 +42,6 @@ public class GoogleDriveHostingProvider(
         TimeSpan.FromSeconds(1));
 
     private DriveService? _driveService;
-
-    private static string EscapeDriveQueryParameter(string input)
-    {
-        return input.Replace("\\", "\\\\").Replace("'", "\\'");
-    }
-
-    private string GetNotAuthenticatedMessage() =>
-        localizationService != null && localizationService.TryGetString("Tools.PublisherStudio.Hosting.GoogleDriveNotAuthenticated", out var localized)
-            ? localized
-            : HostingConstants.GoogleDriveNotAuthenticated;
 
     /// <summary>
     /// Gets the maximum file size supported by Google Drive.
@@ -124,12 +116,7 @@ public class GoogleDriveHostingProvider(
                 ClientSecret = clientSecret,
             };
 
-            // Store credentials in the GenHub app data directory
-            var baseDataPath = configurationProvider?.GetApplicationDataPath()
-                ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".genhub");
-            var credPath = Path.Combine(baseDataPath, HostingConstants.GoogleDriveTokenDirectoryName);
-
-            var dataStore = new FileDataStore(credPath, true);
+            var dataStore = CreateTokenDataStore();
 
             var credential = await GoogleWebAuthorizationBroker.AuthorizeAsync(
                 secrets,
@@ -137,6 +124,8 @@ public class GoogleDriveHostingProvider(
                 "user",
                 cancellationToken,
                 dataStore);
+
+            DeleteLegacyPlaintextTokenStore();
 
             _driveService = new DriveService(new BaseClientService.Initializer
             {
@@ -179,12 +168,21 @@ public class GoogleDriveHostingProvider(
     }
 
     /// <inheritdoc />
-    public Task SignOutAsync()
+    public async Task SignOutAsync()
     {
         _driveService?.Dispose();
         _driveService = null;
+
+        try
+        {
+            await CreateTokenDataStore().ClearAsync();
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Failed to clear the stored Google Drive token during sign-out.");
+        }
+
         logger.LogInformation("Signed out from Google Drive");
-        return Task.CompletedTask;
     }
 
     /// <inheritdoc />
@@ -283,7 +281,7 @@ public class GoogleDriveHostingProvider(
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to upload {FileName} to Google Drive", fileName);
-            return OperationResult<HostingUploadResult>.CreateFailure($"Upload error: {ex.Message}");
+            return OperationResult<HostingUploadResult>.CreateFailure(GetUserFacingApiErrorMessage(ex, "Upload error"));
         }
     }
 
@@ -376,7 +374,42 @@ public class GoogleDriveHostingProvider(
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to update file {FileId} on Google Drive", fileId);
-            return OperationResult<HostingUploadResult>.CreateFailure($"Update error: {ex.Message}");
+            return OperationResult<HostingUploadResult>.CreateFailure(GetUserFacingApiErrorMessage(ex, "Update error"));
+        }
+    }
+
+    /// <inheritdoc />
+    public async Task<OperationResult<bool>> DeleteFileAsync(string fileId, CancellationToken cancellationToken = default)
+    {
+        if (_driveService == null)
+        {
+            return OperationResult<bool>.CreateFailure(GetNotAuthenticatedMessage());
+        }
+
+        if (string.IsNullOrWhiteSpace(fileId))
+        {
+            return OperationResult<bool>.CreateFailure("A Google Drive file ID is required to delete a file.");
+        }
+
+        try
+        {
+            await _driveService.Files.Delete(fileId.Trim()).ExecuteAsync(cancellationToken);
+            logger.LogInformation("Deleted Google Drive file {FileId}", fileId);
+            return OperationResult<bool>.CreateSuccess(true);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Google.GoogleApiException ex) when (ex.HttpStatusCode == HttpStatusCode.NotFound)
+        {
+            logger.LogInformation("Google Drive file {FileId} was already deleted.", fileId);
+            return OperationResult<bool>.CreateSuccess(true);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to delete Google Drive file {FileId}", fileId);
+            return OperationResult<bool>.CreateFailure($"Google Drive delete error: {ex.Message}");
         }
     }
 
@@ -499,7 +532,7 @@ public class GoogleDriveHostingProvider(
         catch (Exception ex)
         {
             logger.LogError(ex, "Error scanning Google Drive for publisher files");
-            return OperationResult<HostingState?>.CreateFailure($"Google Drive scan error: {ex.Message}");
+            return OperationResult<HostingState?>.CreateFailure(GetUserFacingApiErrorMessage(ex, "Google Drive scan error"));
         }
     }
 
@@ -546,6 +579,11 @@ public class GoogleDriveHostingProvider(
             : shareUrl;
     }
 
+    private static string EscapeDriveQueryParameter(string input)
+    {
+        return input.Replace("\\", "\\\\").Replace("'", "\\'");
+    }
+
     private static string GetMimeType(string fileName)
     {
         var ext = Path.GetExtension(fileName).ToLowerInvariant();
@@ -576,6 +614,72 @@ public class GoogleDriveHostingProvider(
 
         var match = GoogleDriveIdRegex.Match(url);
         return match.Success ? match.Groups[1].Value : null;
+    }
+
+    private string GetNotAuthenticatedMessage() =>
+        localizationService != null && localizationService.TryGetString("Tools.PublisherStudio.Hosting.GoogleDriveNotAuthenticated", out var localized)
+            ? localized
+            : HostingConstants.GoogleDriveNotAuthenticated;
+
+    private string GetUserFacingApiErrorMessage(Exception ex, string operationFallback)
+    {
+        if (ex is Google.GoogleApiException apiEx &&
+            apiEx.HttpStatusCode == HttpStatusCode.Forbidden &&
+            apiEx.Error?.Errors != null &&
+            apiEx.Error.Errors.Any(e => string.Equals(e.Reason, "accessNotConfigured", StringComparison.OrdinalIgnoreCase)))
+        {
+            if (localizationService != null && localizationService.TryGetString("Tools.PublisherStudio.Hosting.GoogleDriveApiNotEnabled", out var localized))
+            {
+                return localized;
+            }
+
+            return "The Google Drive API is not enabled for your Google Cloud project. Enable it at https://console.developers.google.com/apis/api/drive.googleapis.com, wait a few minutes for the change to propagate, then retry.";
+        }
+
+        return $"{operationFallback}: {ex.Message}";
+    }
+
+    private IDataStore CreateTokenDataStore()
+    {
+        if (credentialStore != null)
+        {
+            return new CredentialStoreDataStore(credentialStore);
+        }
+
+        // Fallback for hosts without a credential store (e.g. unit tests)
+        var baseDataPath = configurationProvider?.GetApplicationDataPath()
+            ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".genhub");
+        var credPath = Path.Combine(baseDataPath, HostingConstants.GoogleDriveTokenDirectoryName);
+        return new FileDataStore(credPath, true);
+    }
+
+    private string GetLegacyTokenStorePath()
+    {
+        var baseDataPath = configurationProvider?.GetApplicationDataPath()
+            ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".genhub");
+        return Path.Combine(baseDataPath, HostingConstants.GoogleDriveTokenDirectoryName);
+    }
+
+    private void DeleteLegacyPlaintextTokenStore()
+    {
+        if (credentialStore == null)
+        {
+            return;
+        }
+
+        try
+        {
+            var legacyPath = GetLegacyTokenStorePath();
+            if (Directory.Exists(legacyPath))
+            {
+                Directory.Delete(legacyPath, true);
+                logger.LogInformation("Removed legacy plaintext Google Drive token store after migrating to the secure credential store.");
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Failed to remove the legacy plaintext Google Drive token store. Please delete it manually.");
+        }
     }
 
     private async Task<string?> FindPublisherFolderIdAsync(CancellationToken cancellationToken)

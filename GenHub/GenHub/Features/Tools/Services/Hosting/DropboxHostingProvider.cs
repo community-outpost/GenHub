@@ -36,13 +36,6 @@ public class DropboxHostingProvider(ILogger<DropboxHostingProvider> logger, IHtt
 
     private readonly HttpClient _httpClient = InitializeHttpClient(httpClientFactory);
 
-    private static HttpClient InitializeHttpClient(IHttpClientFactory factory)
-    {
-        var client = factory.CreateClient();
-        client.Timeout = TimeSpan.FromMinutes(5);
-        return client;
-    }
-
     private string? _accessToken;
     private bool _disposed;
 
@@ -304,6 +297,58 @@ public class DropboxHostingProvider(ILogger<DropboxHostingProvider> logger, IHtt
     }
 
     /// <inheritdoc/>
+    public async Task<OperationResult<bool>> DeleteFileAsync(string fileId, CancellationToken cancellationToken = default)
+    {
+        if (!IsAuthenticated)
+        {
+            return OperationResult<bool>.CreateFailure("Not authenticated with Dropbox.");
+        }
+
+        if (string.IsNullOrWhiteSpace(fileId))
+        {
+            return OperationResult<bool>.CreateFailure("A Dropbox file ID or path is required to delete a file.");
+        }
+
+        try
+        {
+            // Dropbox file IDs (id:...) are accepted anywhere a path is expected
+            var deleteArgs = new { path = fileId.Trim() };
+            using var request = CreateAuthorizedRequest(HttpMethod.Post, $"{DropboxApiUrl}/files/delete_v2", _accessToken);
+            request.Content = new StringContent(
+                JsonSerializer.Serialize(deleteArgs),
+                Encoding.UTF8,
+                HostingConstants.JsonContentType);
+
+            using var response = await _httpClient.SendAsync(request, cancellationToken).ConfigureAwait(false);
+            if (response.IsSuccessStatusCode)
+            {
+                logger.LogInformation("Deleted Dropbox file {FileId}", fileId);
+                return OperationResult<bool>.CreateSuccess(true);
+            }
+
+            var error = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+            if (error.Contains("path_lookup/not_found", StringComparison.OrdinalIgnoreCase) ||
+                error.Contains("path/not_found", StringComparison.OrdinalIgnoreCase))
+            {
+                logger.LogInformation("Dropbox file {FileId} was already deleted.", fileId);
+                return OperationResult<bool>.CreateSuccess(true);
+            }
+
+            logger.LogWarning("Dropbox delete failed for {FileId}: {Status} {Error}", fileId, response.StatusCode, error);
+            return OperationResult<bool>.CreateFailure($"Dropbox delete failed ({response.StatusCode}): {error}");
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to delete Dropbox file {FileId}", fileId);
+            return OperationResult<bool>.CreateFailure($"Dropbox delete error: {ex.Message}");
+        }
+    }
+
+    /// <inheritdoc/>
     public Task<OperationResult<string>> GetOrCreatePublisherFolderAsync(CancellationToken cancellationToken = default)
     {
         // Dropbox creates folders implicitly on upload
@@ -450,6 +495,13 @@ public class DropboxHostingProvider(ILogger<DropboxHostingProvider> logger, IHtt
             // ObjectDisposedException on shared handlers.
             _disposed = true;
         }
+    }
+
+    private static HttpClient InitializeHttpClient(IHttpClientFactory factory)
+    {
+        var client = factory.CreateClient();
+        client.Timeout = TimeSpan.FromMinutes(5);
+        return client;
     }
 
     private static HttpRequestMessage CreateAuthorizedRequest(HttpMethod method, string requestUri, string? accessToken)

@@ -1,4 +1,5 @@
 using GenHub.Core.Interfaces.Common;
+using GenHub.Core.Interfaces.Publishers;
 using GenHub.Features.Tools.Interfaces;
 using Microsoft.Extensions.Logging;
 using System.Collections.Generic;
@@ -21,15 +22,17 @@ public class HostingProviderFactory : IHostingProviderFactory
     /// <param name="httpClientFactory">The HTTP client factory.</param>
     /// <param name="configurationProvider">Optional configuration provider service.</param>
     /// <param name="localizationService">Optional localization service for provider messages.</param>
+    /// <param name="credentialStore">Optional encrypted credential store for OAuth tokens.</param>
     public HostingProviderFactory(
         ILoggerFactory loggerFactory,
         IHttpClientFactory httpClientFactory,
         IConfigurationProviderService? configurationProvider = null,
-        ILocalizationService? localizationService = null)
+        ILocalizationService? localizationService = null,
+        IHostingCredentialStore? credentialStore = null)
     {
         _providers = new List<IHostingProvider>
         {
-            new GoogleDriveHostingProvider(loggerFactory.CreateLogger<GoogleDriveHostingProvider>(), configurationProvider, localizationService),
+            new GoogleDriveHostingProvider(loggerFactory.CreateLogger<GoogleDriveHostingProvider>(), configurationProvider, localizationService, credentialStore),
             new GitHubHostingProvider(loggerFactory.CreateLogger<GitHubHostingProvider>()),
             new DropboxHostingProvider(loggerFactory.CreateLogger<DropboxHostingProvider>(), httpClientFactory),
             new ManualHostingProvider(),

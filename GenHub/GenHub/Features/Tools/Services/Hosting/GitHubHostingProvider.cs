@@ -446,6 +446,42 @@ public class GitHubHostingProvider(ILogger<GitHubHostingProvider> logger) : IHos
     }
 
     /// <inheritdoc/>
+    public async Task<OperationResult<bool>> DeleteFileAsync(string fileId, CancellationToken cancellationToken = default)
+    {
+        if (_client == null || string.IsNullOrEmpty(_authenticatedUsername))
+        {
+            return OperationResult<bool>.CreateFailure("Not authenticated with GitHub");
+        }
+
+        if (string.IsNullOrWhiteSpace(fileId))
+        {
+            return OperationResult<bool>.CreateFailure("A Gist ID is required to delete a file.");
+        }
+
+        try
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            await _client.Gist.Delete(fileId.Trim());
+            logger.LogInformation("Deleted GitHub Gist {GistId}", fileId);
+            return OperationResult<bool>.CreateSuccess(true);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (NotFoundException)
+        {
+            logger.LogInformation("GitHub Gist {GistId} was already deleted.", fileId);
+            return OperationResult<bool>.CreateSuccess(true);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to delete GitHub Gist {GistId}", fileId);
+            return OperationResult<bool>.CreateFailure($"GitHub delete error: {ex.Message}");
+        }
+    }
+
+    /// <inheritdoc/>
     public Task<OperationResult<string>> GetOrCreatePublisherFolderAsync(CancellationToken cancellationToken = default)
     {
         // GitHub doesn't use traditional folders - repositories are created by users

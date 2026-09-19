@@ -1,5 +1,6 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using GenHub.Common.Validation;
 using GenHub.Core.Constants;
 using GenHub.Core.Helpers;
 using GenHub.Core.Models.Providers;
@@ -9,7 +10,6 @@ using GenHub.Infrastructure.Services;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using System.ComponentModel.DataAnnotations;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
@@ -46,16 +46,16 @@ public partial class AddDependencyDialogViewModel(
 
     [ObservableProperty]
     [NotifyDataErrorInfo]
-    [Required(ErrorMessage = "Publisher ID is required for external dependencies")]
+    [LocalizedRequired("Tools.PublisherStudio.Validation.DependencyPublisherIdRequired", "Publisher ID is required for external dependencies")]
     private string _externalPublisherId = string.Empty;
 
     [ObservableProperty]
     [NotifyDataErrorInfo]
-    [Required(ErrorMessage = "Content ID is required for external dependencies")]
+    [LocalizedRequired("Tools.PublisherStudio.Validation.DependencyContentIdRequired", "Content ID is required for external dependencies")]
     private string _externalContentId = string.Empty;
 
     [ObservableProperty]
-    [Url(ErrorMessage = "Please enter a valid catalog URL")]
+    [LocalizedUrl("Tools.PublisherStudio.Validation.ValidCatalogUrl", "Please enter a valid catalog URL")]
     private string _externalCatalogUrl = string.Empty;
 
     [ObservableProperty]

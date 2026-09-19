@@ -1017,7 +1017,7 @@ public partial class PublishShareViewModel(
         AuthenticationStatusMessage = FormatLocalizedString("Tools.PublisherStudio.Publish.AuthFailed", "Authentication failed: {0}", result.FirstError ?? "Unknown error");
         logger.LogWarning("Authentication failed for {Provider}: {Error}", SelectedHostingProvider?.DisplayName ?? "Provider", result.FirstError);
 
-        notificationService?.ShowError(GetLocalizedString("Tools.PublisherStudio.Publish.AuthError", "Authentication Error"), result.FirstError ?? "Failed to authenticate with the hosting provider.");
+        notificationService?.ShowError(GetLocalizedString("Tools.PublisherStudio.Publish.AuthError", "Authentication Error"), result.FirstError ?? GetLocalizedString("Tools.PublisherStudio.Publish.AuthFailedMessage", "Failed to authenticate with the hosting provider."));
     }
 
     private void NotifyAuthenticationStateChanged()
@@ -1857,6 +1857,7 @@ public partial class PublishShareViewModel(
             _currentHostingState.Catalogs.Add(catalogEntry);
         }
 
+        var previousFileId = catalogEntry.FileId;
         catalogEntry.FileId = catalogFileId;
         catalogEntry.Url = catalogUrl;
         catalogEntry.FileSize = catalogFileSize;
@@ -1876,7 +1877,40 @@ public partial class PublishShareViewModel(
             }
         }
 
+        await DeleteOrphanedRemoteFileAsync(previousFileId, catalogFileId, cancellationToken);
+
         RefreshHostedAssets();
+    }
+
+    private async Task DeleteOrphanedRemoteFileAsync(string? previousFileId, string currentFileId, CancellationToken cancellationToken)
+    {
+        if (SelectedHostingProvider == null ||
+            string.IsNullOrWhiteSpace(previousFileId) ||
+            string.Equals(previousFileId, currentFileId, StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        try
+        {
+            var result = await SelectedHostingProvider.DeleteFileAsync(previousFileId, cancellationToken);
+            if (result.Success)
+            {
+                logger.LogInformation("Deleted orphaned remote file {FileId} after re-upload under a new name", previousFileId);
+            }
+            else
+            {
+                logger.LogWarning("Failed to delete orphaned remote file {FileId}: {Error}", previousFileId, result.FirstError);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            logger.LogInformation("Orphaned remote file cleanup was canceled for {FileId}", previousFileId);
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Failed to delete orphaned remote file {FileId}", previousFileId);
+        }
     }
 
     private async Task SaveAuthTokenAsync()
@@ -2114,6 +2148,7 @@ public partial class PublishShareViewModel(
         ProviderDefinitionUrl = uploadResult.DirectDownloadUrl;
         if (_currentHostingState != null && !string.IsNullOrEmpty(project.ProjectPath))
         {
+            var previousDefinitionFileId = _currentHostingState.Definition?.FileId;
             _currentHostingState.Definition = new HostedFileInfo
             {
                 FileId = uploadResult.FileId,
@@ -2125,6 +2160,8 @@ public partial class PublishShareViewModel(
             {
                 await hostingStateManager.SaveStateAsync(project.ProjectPath, _currentHostingState, ct);
             }
+
+            await DeleteOrphanedRemoteFileAsync(previousDefinitionFileId, uploadResult.FileId, ct);
         }
 
         GenerateSubscriptionUrl(); // Regenerate based on new definition URL
@@ -2272,7 +2309,7 @@ public partial class PublishShareViewModel(
             {
                 notificationService?.ShowWarning(
                     GetLocalizedString(CommonNotificationWarningKey, WarningLiteral),
-                    "Clipboard is not available.");
+                    GetLocalizedString("Tools.PublisherStudio.Publish.ClipboardUnavailable", "Clipboard is not available."));
             }
         }
         catch (Exception ex)
@@ -2280,7 +2317,7 @@ public partial class PublishShareViewModel(
             logger.LogError(ex, "Failed to copy to clipboard");
             notificationService?.ShowError(
                 GetLocalizedString("Common.Notification.Error", "Error"),
-                $"Failed to copy to clipboard: {ex.Message}");
+                FormatLocalizedString("Tools.PublisherStudio.Publish.CopyToClipboardFailedFormat", "Failed to copy to clipboard: {0}", ex.Message));
         }
     }
 
@@ -2320,7 +2357,7 @@ public partial class PublishShareViewModel(
         {
             notificationService?.ShowWarning(
                 GetLocalizedString(CommonNotificationWarningKey, WarningLiteral),
-                "Catalog JSON could not be generated.");
+                GetLocalizedString("Tools.PublisherStudio.Publish.CatalogJsonGenerationFailed", "Catalog JSON could not be generated."));
             return;
         }
 
@@ -2346,7 +2383,7 @@ public partial class PublishShareViewModel(
         {
             notificationService?.ShowWarning(
                 GetLocalizedString(CommonNotificationWarningKey, WarningLiteral),
-                "Provider definition JSON could not be generated.");
+                GetLocalizedString("Tools.PublisherStudio.Publish.DefinitionJsonGenerationFailed", "Provider definition JSON could not be generated."));
             return;
         }
 

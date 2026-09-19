@@ -205,7 +205,7 @@ public class PublisherStudioDialogService(
     public async Task<string?> ShowRenameCatalogDialogAsync(string currentName)
     {
         return await ShowDialogAsync<RenameCatalogDialogViewModel, RenameCatalogDialogView, string>(
-            callback => new RenameCatalogDialogViewModel(currentName, res => callback(res!), localizationService));
+            callback => new RenameCatalogDialogViewModel(currentName, res => callback(res!)));
     }
 
     /// <summary>
