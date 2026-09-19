@@ -313,7 +313,7 @@ public class SetupWizardService(
             Metadata = CommunityOutpostConstants.CommunityPatchNonRetCode,
             ManifestFilter = IsCpNonRetManifest,
             DefaultSelected = false,
-            DescriptionSuffix = " (Stream build - not compatible with retail multiplayer)",
+            DescriptionSuffix = " Not compatible with retail 1.04 zero hour.",
         };
         var cpNonRetRes = await ProcessComponentAsync(cpNonRetConfig);
         result.CommunityPatchNonRetAction = cpNonRetRes.FinalAction;
@@ -427,6 +427,16 @@ public class SetupWizardService(
         return trimmed;
     }
 
+    private static Window? GetMainWindow()
+    {
+        if (Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
+        {
+            return desktop.MainWindow;
+        }
+
+        return null;
+    }
+
     private async Task<(string RetailVersion, string NonRetVersion)> GetLatestCommunityPatchVersionsAsync()
     {
         try
@@ -518,16 +528,6 @@ public class SetupWizardService(
 
         await dialog.ShowDialog(mainWindow);
         return viewModel.Confirmed;
-    }
-
-    private Window? GetMainWindow()
-    {
-        if (Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
-        {
-            return desktop.MainWindow;
-        }
-
-        return null;
     }
 
     /// <summary>

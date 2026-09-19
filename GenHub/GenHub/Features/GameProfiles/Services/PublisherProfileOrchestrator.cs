@@ -370,15 +370,14 @@ public class PublisherProfileOrchestrator(
                     scope.CompleteFailure(errorMsg);
                 }
             }
-            catch (OperationCanceledException)
+            catch (OperationCanceledException ex)
             {
-                logger.LogInformation("Content acquisition canceled for {ClientName}", gameClient.Name);
+                logger.LogInformation(ex, "Content acquisition canceled for {ClientName}", gameClient.Name);
                 scope.CompleteCanceled();
                 throw;
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, "Unexpected error acquiring content for {ClientName}", gameClient.Name);
                 scope.CompleteFailure(ex.Message);
                 throw;
             }
