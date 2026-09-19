@@ -393,6 +393,52 @@ public sealed class ProfileLauncherFacadeWorkspaceNotificationTests
         Assert.Equal("Localized Initializing Message", prepNotification.Message);
     }
 
+    /// <summary>
+    /// Verifies that when launch fails in GameLauncher, ProfileLauncherFacade does not show duplicate error notification toasts.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task LaunchProfileAsync_WhenGameLauncherFails_DoesNotShowDuplicateErrorNotificationAsync()
+    {
+        // Arrange
+        _gameLauncherMock
+            .Setup(g => g.LaunchProfileAsync(It.IsAny<GameProfile>(), It.IsAny<IProgress<LaunchProgress>>(), It.IsAny<bool>(), It.IsAny<IReadOnlyDictionary<string, string>?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(LaunchOperationResult<GameLaunchInfo>.CreateFailure("Dependency resolution failed"));
+
+        var facade = CreateFacade();
+
+        // Act
+        var result = await facade.LaunchProfileAsync("test-profile");
+
+        // Assert
+        Assert.False(result.Success);
+        Assert.Equal("Dependency resolution failed", result.FirstError);
+        _notificationServiceMock.Verify(n => n.ShowError(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()), Times.Never);
+    }
+
+    /// <summary>
+    /// Verifies that when launch fails due to cross-drive hardlink error, ProfileLauncherFacade translates error but does not show duplicate notification toast.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task LaunchProfileAsync_WhenCrossDriveHardlinkFails_DoesNotShowDuplicateErrorNotificationAsync()
+    {
+        // Arrange
+        _gameLauncherMock
+            .Setup(g => g.LaunchProfileAsync(It.IsAny<GameProfile>(), It.IsAny<IProgress<LaunchProgress>>(), It.IsAny<bool>(), It.IsAny<IReadOnlyDictionary<string, string>?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(LaunchOperationResult<GameLaunchInfo>.CreateFailure("Cannot create hard link across different volumes"));
+
+        var facade = CreateFacade();
+
+        // Act
+        var result = await facade.LaunchProfileAsync("test-profile");
+
+        // Assert
+        Assert.False(result.Success);
+        Assert.Contains("different drive", result.FirstError);
+        _notificationServiceMock.Verify(n => n.ShowError(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()), Times.Never);
+    }
+
     private ProfileLauncherFacade CreateFacade(ILocalizationService? localizationService = null) => new(
         _profileManagerMock.Object,
         _gameLauncherMock.Object,

@@ -21,6 +21,7 @@ using GenHub.Core.Models.AppUpdate;
 using GenHub.Core.Models.Common;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameInstallations;
+using GenHub.Core.Models.GameProfile;
 using GenHub.Core.Models.GitHub;
 using GenHub.Core.Models.Providers;
 using GenHub.Core.Models.Results.CAS;
@@ -2085,9 +2086,33 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             if (manifestsResult.Success && manifestsResult.Data != null)
             {
                 var count = manifestsResult.Data.Count();
+                var deletedIds = manifestsResult.Data.Select(m => m.Id.Value).ToHashSet(StringComparer.OrdinalIgnoreCase);
+
                 foreach (var manifest in manifestsResult.Data)
                 {
                     await _manifestPool.RemoveManifestAsync(manifest.Id);
+                }
+
+                // Clean up orphaned content IDs from profiles
+                var profilesResult = await _profileManager.GetAllProfilesAsync();
+                if (profilesResult.Success && profilesResult.Data != null)
+                {
+                    foreach (var profile in profilesResult.Data)
+                    {
+                        if (profile.EnabledContentIds != null && profile.EnabledContentIds.Any(id => deletedIds.Contains(id)))
+                        {
+                            var updatedContentIds = profile.EnabledContentIds
+                                .Where(id => !deletedIds.Contains(id))
+                                .ToList();
+
+                            var updateRequest = new UpdateProfileRequest
+                            {
+                                EnabledContentIds = updatedContentIds,
+                            };
+                            await _profileManager.UpdateProfileAsync(profile.Id, updateRequest);
+                            _logger.LogInformation("Scrubbed deleted manifest IDs from profile {ProfileName} ({ProfileId})", profile.Name, profile.Id);
+                        }
+                    }
                 }
 
                 if (showToast)
