@@ -59,6 +59,31 @@ public static class ManifestHelper
         errors?.Any() == true ? string.Join(", ", errors) : "Unknown error";
 
     /// <summary>
+    /// Gets every CAS hash a manifest links, across its flat file list and all artifact variants.
+    /// The comparison is case-insensitive because hashes are hexadecimal and storage file names
+    /// are normalized to lowercase while manifests may carry uppercase hex.
+    /// </summary>
+    /// <param name="manifest">The manifest to extract hashes from.</param>
+    /// <returns>The linked content hashes.</returns>
+    public static HashSet<string> GetContentAddressableHashes(ContentManifest manifest)
+    {
+        ArgumentNullException.ThrowIfNull(manifest);
+
+        var hashes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        CollectContentAddressableHashes(manifest.Files, hashes);
+
+        if (manifest.Variants is { Count: > 0 })
+        {
+            foreach (var variant in manifest.Variants)
+            {
+                CollectContentAddressableHashes(variant?.Files, hashes);
+            }
+        }
+
+        return hashes;
+    }
+
+    /// <summary>
     /// Determines whether the specified manifest file is an executable binary or script based on its file extension.
     /// </summary>
     /// <param name="file">The manifest file to check.</param>
@@ -117,6 +142,19 @@ public static class ManifestHelper
         }
 
         return primaryManifest ?? manifests[0];
+    }
+
+    private static void CollectContentAddressableHashes(IEnumerable<ManifestFile>? files, HashSet<string> hashes)
+    {
+        if (files == null)
+        {
+            return;
+        }
+
+        foreach (var file in files.Where(file => file != null && !string.IsNullOrWhiteSpace(file.Hash)))
+        {
+            hashes.Add(file.Hash);
+        }
     }
 
     /// <summary>

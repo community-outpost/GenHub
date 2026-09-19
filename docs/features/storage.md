@@ -99,10 +99,7 @@ Task<OperationResult<bool>> ExistsAsync(
     ContentType contentType, 
     CancellationToken cancellationToken = default);
 
-// Garbage collection
-Task<CasGarbageCollectionResult> RunGarbageCollectionAsync(
-    bool force = false, 
-    CancellationToken cancellationToken = default);
+// Garbage collection is managed by ICasLifecycleManager
 
 // Integrity validation
 Task<CasValidationResult> ValidateIntegrityAsync(
@@ -259,13 +256,16 @@ Garbage collection removes unreferenced content to free disk space.
 **Manual Garbage Collection**:
 
 ```csharp
-var gcResult = await casService.RunGarbageCollectionAsync(
+var gcResult = await casLifecycleManager.RunGarbageCollectionAsync(
     force: false, // Respect grace period
     cancellationToken: cancellationToken
 );
 
-Console.WriteLine($"Removed {gcResult.ObjectsRemoved} objects");
-Console.WriteLine($"Reclaimed {gcResult.SpaceReclaimed} bytes");
+if (gcResult.Success && gcResult.Data != null)
+{
+    Console.WriteLine($"Removed {gcResult.Data.ObjectsDeleted} objects");
+    Console.WriteLine($"Reclaimed {gcResult.Data.BytesFreed} bytes");
+}
 ```
 
 **Automatic Garbage Collection**:

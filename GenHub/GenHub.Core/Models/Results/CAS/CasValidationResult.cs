@@ -19,10 +19,12 @@ public class CasValidationResult : ResultBase
         : base(
             !issues.Any(i => i.IssueType == CasValidationIssueType.HashMismatch ||
                              i.IssueType == CasValidationIssueType.CorruptedObject ||
-                             i.IssueType == CasValidationIssueType.MissingObject),
+                             i.IssueType == CasValidationIssueType.MissingObject ||
+                             i.IssueType == CasValidationIssueType.Critical),
             issues.Where(i => i.IssueType == CasValidationIssueType.HashMismatch ||
                               i.IssueType == CasValidationIssueType.CorruptedObject ||
-                              i.IssueType == CasValidationIssueType.MissingObject)
+                              i.IssueType == CasValidationIssueType.MissingObject ||
+                              i.IssueType == CasValidationIssueType.Critical)
                   .Select(i => $"{i.IssueType}: {i.Details}")
                   .ToList(),
             elapsed)

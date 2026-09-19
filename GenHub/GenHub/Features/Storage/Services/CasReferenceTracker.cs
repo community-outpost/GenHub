@@ -1,5 +1,5 @@
+using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Storage;
-using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Storage;
@@ -60,10 +60,7 @@ public class CasReferenceTracker(
 
             EnsureRefsDirectory();
 
-            var references = manifest.Files
-                .Where(f => f.SourceType == ContentSourceType.ContentAddressable && !string.IsNullOrEmpty(f.Hash))
-                .Select(f => f.Hash!)
-                .ToHashSet();
+            var references = ManifestHelper.GetContentAddressableHashes(manifest);
 
             var refData = new
             {
@@ -282,7 +279,9 @@ public class CasReferenceTracker(
     /// <returns>Set of all referenced hashes.</returns>
     public async Task<HashSet<string>> GetAllReferencedHashesAsync(CancellationToken cancellationToken = default)
     {
-        var allReferences = new HashSet<string>();
+        // OrdinalIgnoreCase because storage file names are lowercase hex while tracked
+        // hashes may carry the uppercase hex produced when content was hashed.
+        var allReferences = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         try
         {
@@ -340,7 +339,7 @@ public class CasReferenceTracker(
 
     private async Task<HashSet<string>> ReadReferencesFromFileAsync(string refFile, CancellationToken cancellationToken)
     {
-        var references = new HashSet<string>();
+        var references = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         try
         {
             var json = await File.ReadAllTextAsync(refFile, cancellationToken);

@@ -24,10 +24,4 @@ public static class CasDefaults
     /// Default garbage collection grace period in days.
     /// </summary>
     public const int GcGracePeriodDays = 7;
-
-    /// <summary>
-    /// Explains why destructive CAS garbage collection is currently unavailable.
-    /// </summary>
-    public const string GarbageCollectionDisabledMessage =
-        "CAS garbage collection is disabled until complete reachability tracking is proven safe. No CAS blobs were deleted.";
 }

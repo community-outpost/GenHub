@@ -1936,8 +1936,28 @@
   <data name="Settings.DangerZone.DeleteAllData" xml:space="preserve">
     <value>УДАЛИТЬ ВСЕ ДАННЫЕ ПРИЛОЖЕНИЯ</value>
   </data>
+  <data name="Settings.DangerZone.DeleteAllData.CasCleanupFailed" xml:space="preserve">
+    <value>Очистка CAS не удалась</value>
+    <comment>Delete-all-data partial failure detail when CAS cleanup failed.</comment>
+  </data>
+  <data name="Settings.DangerZone.DeleteAllData.CasCleanupSkipped" xml:space="preserve">
+    <value>Очистка CAS пропущена (уже выполняется)</value>
+    <comment>Delete-all-data partial failure detail when CAS cleanup was skipped.</comment>
+  </data>
+  <data name="Settings.DangerZone.DeleteAllData.SuccessMessage" xml:space="preserve">
+    <value>Профили, рабочие области, манифесты, данные пользователя и несвязанные объекты CAS были удалены.</value>
+    <comment>Delete-all-data success toast message.</comment>
+  </data>
   <data name="Settings.DangerZone.DeleteCasStorage" xml:space="preserve">
     <value>Удалить хранилище CAS</value>
+  </data>
+  <data name="Settings.DangerZone.DeleteCasStorage.SkippedMessage" xml:space="preserve">
+    <value>Очистка CAS уже выполняется. Повторите попытку после её завершения.</value>
+    <comment>Toast message when CAS cleanup was skipped because another run is in progress.</comment>
+  </data>
+  <data name="Settings.DangerZone.DeleteCasStorage.SkippedTitle" xml:space="preserve">
+    <value>Очистка CAS уже выполняется</value>
+    <comment>Toast title when CAS cleanup was skipped because another run is in progress.</comment>
   </data>
   <data name="Settings.DangerZone.DeleteCasStorage.ToolTip" xml:space="preserve">
     <value>Удаляет все кэшированные файлы игры</value>

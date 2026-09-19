@@ -37,13 +37,13 @@ public interface ICasLifecycleManager
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Requests garbage collection.
-    /// Destructive collection is currently disabled until reachability tracking is proven complete.
+    /// Collects CAS blobs that are neither tracked nor linked by any persisted manifest.
+    /// Blobs linked by a manifest in the pool are never deleted, with or without force.
     /// </summary>
     /// <param name="force">Whether to force collection regardless of grace period.</param>
-    /// <param name="lockTimeout">Optional timeout to wait for the GC lock. Defaults to 5 seconds if not specified.</param>
+    /// <param name="lockTimeout">Optional timeout to wait for the GC lock. Uses the configured CasConfiguration.GcLockTimeout value (30 seconds by default) when not specified.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>A disabled result with zero deletion statistics.</returns>
+    /// <returns>Collection statistics.</returns>
     Task<OperationResult<GarbageCollectionStats>> RunGarbageCollectionAsync(
         bool force = false,
         TimeSpan? lockTimeout = null,

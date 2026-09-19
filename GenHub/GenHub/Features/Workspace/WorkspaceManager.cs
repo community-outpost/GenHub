@@ -318,14 +318,12 @@ public class WorkspaceManager(
 
     private async Task<OperationResult<bool>> TrackWorkspaceCasReferencesAsync(string workspaceId, IEnumerable<ContentManifest> manifests, CancellationToken cancellationToken)
     {
-        // Only track CAS files that are actually installed into the workspace
-        var casReferences = manifests.SelectMany(m => m.Files ?? [])
-            .Where(f => f.SourceType == ContentSourceType.ContentAddressable
-                     && !string.IsNullOrEmpty(f.Hash)
-                     && !string.IsNullOrEmpty(f.RelativePath)) // Only track files with relative paths (workspace-targeted)
-            .Select(f => f.Hash!)
-            .Distinct()
-            .ToList();
+        // Track every content-addressable hash so blobs stay reachable while the workspace exists
+        var casReferences = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var manifest in manifests)
+        {
+            casReferences.UnionWith(ManifestHelper.GetContentAddressableHashes(manifest));
+        }
 
         if (casReferences.Count > 0)
         {

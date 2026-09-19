@@ -1,4 +1,3 @@
-using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Storage;
 using GenHub.Core.Models.Enums;
@@ -6,8 +5,9 @@ using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Results.CAS;
 using GenHub.Core.Models.Storage;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 using System;
+using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
@@ -19,9 +19,7 @@ namespace GenHub.Features.Storage.Services;
 /// </summary>
 public class CasService(
     ICasStorage storage,
-    ICasReferenceTracker referenceTracker,
     ILogger<CasService> logger,
-    IOptions<CasConfiguration> config,
     IFileHashProvider fileHashProvider,
     IStreamHashProvider streamHashProvider,
     ICasPoolManager? poolManager = null) : ICasService
@@ -256,92 +254,43 @@ public class CasService(
     }
 
     /// <inheritdoc/>
-    public Task<CasGarbageCollectionResult> RunGarbageCollectionAsync(
-        bool force = false,
-        CancellationToken cancellationToken = default)
-    {
-        _ = referenceTracker;
-        _ = config;
-
-        // Re-enable only after references cover every persisted manifest, workspace, user-data
-        // link, and CAS pool; startup can rebuild and audit that graph; and crash/concurrency
-        // tests prove that no live blob can be classified as unreachable.
-        logger.LogWarning(
-            "{Message} Requested force={Force}",
-            CasDefaults.GarbageCollectionDisabledMessage,
-            force);
-        return Task.FromResult(CasGarbageCollectionResult.CreateDisabled());
-    }
-
-    /// <inheritdoc/>
     public async Task<CasValidationResult> ValidateIntegrityAsync(CancellationToken cancellationToken = default)
     {
-        var result = new CasValidationResult();
+        var stopwatch = Stopwatch.StartNew();
+        var issues = new List<CasValidationIssue>();
+        var objectsValidated = 0;
 
         try
         {
             logger.LogInformation("Starting CAS integrity validation");
 
-            var allHashes = await storage.GetAllObjectHashesAsync(cancellationToken);
-            result.ObjectsValidated = allHashes.Length;
-
-            foreach (var expectedHash in allHashes)
+            foreach (var poolStorage in CasPoolStorages.GetStoragesForEnumeration(poolManager, storage))
             {
-                try
+                var allHashes = await poolStorage.GetAllObjectHashesAsync(cancellationToken);
+                foreach (var expectedHash in allHashes)
                 {
-                    var objectPath = storage.GetObjectPath(expectedHash);
-
-                    if (!File.Exists(objectPath))
-                    {
-                        result.Issues.Add(new CasValidationIssue
-                        {
-                            ObjectPath = objectPath,
-                            ExpectedHash = expectedHash,
-                            IssueType = CasValidationIssueType.MissingObject,
-                            Details = "Object file is missing from filesystem",
-                        });
-                        continue;
-                    }
-
-                    var actualHash = await fileHashProvider.ComputeFileHashAsync(objectPath, cancellationToken);
-
-                    if (!string.Equals(expectedHash, actualHash, StringComparison.OrdinalIgnoreCase))
-                    {
-                        result.Issues.Add(new CasValidationIssue
-                        {
-                            ObjectPath = objectPath,
-                            ExpectedHash = expectedHash,
-                            ActualHash = actualHash,
-                            IssueType = CasValidationIssueType.HashMismatch,
-                            Details = "Computed hash does not match expected hash",
-                        });
-                    }
-                }
-                catch (Exception ex)
-                {
-                    result.Issues.Add(new CasValidationIssue
-                    {
-                        ObjectPath = storage.GetObjectPath(expectedHash),
-                        ExpectedHash = expectedHash,
-                        IssueType = CasValidationIssueType.CorruptedObject,
-                        Details = $"Validation failed: {ex.Message}",
-                    });
+                    objectsValidated++;
+                    await ValidateObjectAsync(poolStorage, expectedHash, issues, cancellationToken);
                 }
             }
 
-            logger.LogInformation("CAS integrity validation completed: {ObjectsValidated} objects validated, {Issues} issues found", result.ObjectsValidated, result.ObjectsWithIssues);
+            logger.LogInformation("CAS integrity validation completed: {ObjectsValidated} objects validated, {Issues} issues found", objectsValidated, issues.Count);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "CAS integrity validation failed");
-            result.Issues.Add(new CasValidationIssue
+            issues.Add(new CasValidationIssue
             {
-                IssueType = CasValidationIssueType.Warning,
+                IssueType = CasValidationIssueType.Critical,
                 Details = $"Validation process failed: {ex.Message}",
             });
         }
 
-        return result;
+        return new CasValidationResult(issues, objectsValidated, stopwatch.Elapsed);
     }
 
     /// <inheritdoc/>
@@ -349,33 +298,28 @@ public class CasService(
     {
         try
         {
-            var allHashes = await storage.GetAllObjectHashesAsync(cancellationToken);
-            var stats = new CasStats
-            {
-                ObjectCount = allHashes.Length,
-            };
-
-            // Calculate total size
+            var uniqueHashes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             long totalSize = 0;
-            foreach (var hash in allHashes)
+
+            foreach (var poolStorage in CasPoolStorages.GetStoragesForEnumeration(poolManager, storage))
             {
-                try
+                var allHashes = await poolStorage.GetAllObjectHashesAsync(cancellationToken);
+                foreach (var hash in allHashes)
                 {
-                    var objectPath = storage.GetObjectPath(hash);
-                    if (File.Exists(objectPath))
-                    {
-                        var fileInfo = new FileInfo(objectPath);
-                        totalSize += fileInfo.Length;
-                    }
-                }
-                catch
-                {
-                    // Skip files that can't be accessed
+                    uniqueHashes.Add(hash);
+                    totalSize += GetObjectSize(poolStorage, hash);
                 }
             }
 
-            stats.TotalSize = totalSize;
-            return stats;
+            return new CasStats
+            {
+                ObjectCount = uniqueHashes.Count,
+                TotalSize = totalSize,
+            };
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
         }
         catch (Exception ex)
         {
@@ -649,6 +593,76 @@ public class CasService(
         {
             logger.LogError(ex, "Failed to check existence of hash {Hash} in pool ({ContentType})", hash, contentType);
             return OperationResult<bool>.CreateFailure($"Existence check failed: {ex.Message}");
+        }
+    }
+
+    private static long GetObjectSize(ICasStorage poolStorage, string hash)
+    {
+        try
+        {
+            var objectPath = poolStorage.GetObjectPath(hash);
+            if (File.Exists(objectPath))
+            {
+                return new FileInfo(objectPath).Length;
+            }
+        }
+        catch
+        {
+            // Skip files that can't be accessed
+        }
+
+        return 0;
+    }
+
+    private async Task ValidateObjectAsync(
+        ICasStorage poolStorage,
+        string expectedHash,
+        List<CasValidationIssue> issues,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var objectPath = poolStorage.GetObjectPath(expectedHash);
+
+            if (!File.Exists(objectPath))
+            {
+                issues.Add(new CasValidationIssue
+                {
+                    ObjectPath = objectPath,
+                    ExpectedHash = expectedHash,
+                    IssueType = CasValidationIssueType.MissingObject,
+                    Details = "Object file is missing from filesystem",
+                });
+                return;
+            }
+
+            var actualHash = await fileHashProvider.ComputeFileHashAsync(objectPath, cancellationToken);
+
+            if (!string.Equals(expectedHash, actualHash, StringComparison.OrdinalIgnoreCase))
+            {
+                issues.Add(new CasValidationIssue
+                {
+                    ObjectPath = objectPath,
+                    ExpectedHash = expectedHash,
+                    ActualHash = actualHash,
+                    IssueType = CasValidationIssueType.HashMismatch,
+                    Details = "Computed hash does not match expected hash",
+                });
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            issues.Add(new CasValidationIssue
+            {
+                ObjectPath = poolStorage.GetObjectPath(expectedHash),
+                ExpectedHash = expectedHash,
+                IssueType = CasValidationIssueType.CorruptedObject,
+                Details = $"Validation failed: {ex.Message}",
+            });
         }
     }
 }

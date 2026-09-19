@@ -211,6 +211,10 @@ public class CasStorage(
 
             return hashes;
         }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to enumerate CAS objects");
@@ -235,7 +239,7 @@ public class CasStorage(
                 return null;
             }
 
-            return await Task.Run(() => File.GetCreationTime(objectPath), cancellationToken);
+            return await Task.Run(() => File.GetCreationTimeUtc(objectPath), cancellationToken);
         }
         catch (Exception ex)
         {

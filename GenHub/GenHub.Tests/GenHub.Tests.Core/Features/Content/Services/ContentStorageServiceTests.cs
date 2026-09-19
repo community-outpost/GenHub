@@ -54,7 +54,8 @@ public class ContentStorageServiceTests : IDisposable
             _storageRoot,
             _loggerMock.Object,
             _casServiceMock.Object,
-            referenceTracker);
+            referenceTracker,
+            new CasWriteFence());
     }
 
     /// <inheritdoc/>

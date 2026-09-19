@@ -1,3 +1,5 @@
+using GenHub.Core.Helpers;
+using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Interfaces.Storage;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
@@ -16,14 +18,17 @@ namespace GenHub.Features.Storage.Services;
 
 /// <summary>
 /// Manages CAS reference lifecycle with proper ordering guarantees.
-/// Wraps CasReferenceTracker and CasService to ensure GC only runs after untracking.
+/// Owns garbage collection so it only runs after references are properly untracked,
+/// and only deletes blobs that no tracked reference and no persisted manifest link.
 /// </summary>
 public class CasLifecycleManager(
     ICasReferenceTracker referenceTracker,
-    ICasService casService,
+    IContentManifestPool manifestPool,
     ICasStorage casStorage,
     IOptions<CasConfiguration> config,
-    ILogger<CasLifecycleManager> logger) : ICasLifecycleManager, IDisposable
+    ILogger<CasLifecycleManager> logger,
+    CasWriteFence writeFence,
+    ICasPoolManager? poolManager = null) : ICasLifecycleManager, IDisposable
 {
     private readonly SemaphoreSlim _gcLock = new(1, 1);
 
@@ -165,35 +170,26 @@ public class CasLifecycleManager(
             return OperationResult<GarbageCollectionStats>.CreateSuccess(GarbageCollectionStats.InProgressResult);
         }
 
+        IDisposable? collectionLease = null;
         try
         {
+            // Forced collection bypasses the grace period, so hold the exclusive
+            // collection lease from here through the whole sweep. Imports starting
+            // mid-sweep wait on the fence instead of losing untracked blobs.
+            if (force && !writeFence.TryAcquireCollectionLease(TimeSpan.Zero, out collectionLease))
+            {
+                logger.LogWarning("Forced garbage collection refused: content is being imported into CAS");
+                return OperationResult<GarbageCollectionStats>.CreateFailure(
+                    "Cannot clean CAS storage while content is being imported. Try again when the import finishes.");
+            }
+
             var stopwatch = Stopwatch.StartNew();
             logger.LogInformation("Starting garbage collection (force={Force})", force);
 
-            var gcResult = await casService.RunGarbageCollectionAsync(force, cancellationToken);
-
+            var liveSet = await BuildLiveSetAsync(cancellationToken);
+            var stats = await CollectUnreferencedObjectsAsync(liveSet, force, cancellationToken);
             stopwatch.Stop();
-
-            var stats = new GarbageCollectionStats
-            {
-                ObjectsScanned = gcResult.ObjectsScanned,
-                ObjectsReferenced = gcResult.ObjectsReferenced,
-                ObjectsDeleted = gcResult.ObjectsDeleted,
-                BytesFreed = gcResult.BytesFreed,
-                Duration = stopwatch.Elapsed,
-                Skipped = gcResult.Disabled,
-                Disabled = gcResult.Disabled,
-            };
-
-            if (!gcResult.Success)
-            {
-                var error = gcResult.FirstError ?? "CAS garbage collection failed";
-                logger.LogWarning("Garbage collection did not run: {Error}", error);
-                return OperationResult<GarbageCollectionStats>.CreateFailure(
-                    error,
-                    stats,
-                    stopwatch.Elapsed);
-            }
+            stats = stats with { Duration = stopwatch.Elapsed };
 
             logger.LogInformation(
                 "GC completed: scanned={Scanned}, referenced={Referenced}, deleted={Deleted}, freed={Bytes} bytes",
@@ -216,6 +212,7 @@ public class CasLifecycleManager(
         }
         finally
         {
+            collectionLease?.Dispose();
             _gcLock.Release();
         }
     }
@@ -226,14 +223,19 @@ public class CasLifecycleManager(
     {
         try
         {
-            // Get all referenced hashes
-            var referencedHashes = await referenceTracker.GetAllReferencedHashesAsync(cancellationToken);
+            // Use the same live set as garbage collection so the audit agrees with it.
+            var liveSet = await BuildLiveSetAsync(cancellationToken);
 
-            // Get all CAS objects
-            var allObjects = await casStorage.GetAllObjectHashesAsync(cancellationToken);
+            // Get all CAS objects across every pool
+            var allObjects = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var poolStorage in CasPoolStorages.GetStoragesForEnumeration(poolManager, casStorage))
+            {
+                var hashes = await poolStorage.GetAllObjectHashesAsync(cancellationToken);
+                allObjects.UnionWith(hashes);
+            }
 
             // Count orphaned objects
-            var orphanedCount = allObjects.Except(referencedHashes).Count();
+            var orphanedCount = allObjects.Except(liveSet, StringComparer.OrdinalIgnoreCase).Count();
 
             // Count manifests and workspaces from refs directory
             var casRoot = config.Value.CasRootPath;
@@ -262,8 +264,8 @@ public class CasLifecycleManager(
             {
                 TotalManifests = manifestIds.Count,
                 TotalWorkspaces = workspaceIds.Count,
-                TotalReferencedHashes = referencedHashes.Count,
-                TotalCasObjects = allObjects.Length,
+                TotalReferencedHashes = liveSet.Count,
+                TotalCasObjects = allObjects.Count,
                 OrphanedObjects = orphanedCount,
                 ManifestIds = manifestIds,
                 WorkspaceIds = workspaceIds,
@@ -288,5 +290,111 @@ public class CasLifecycleManager(
     {
         _gcLock.Dispose();
         GC.SuppressFinalize(this);
+    }
+
+    private async Task<HashSet<string>> BuildLiveSetAsync(CancellationToken cancellationToken)
+    {
+        // Reference files for tracked manifests and workspaces. The tracker throws when
+        // it cannot enumerate, which fails collection closed before anything is deleted.
+        var liveSet = await referenceTracker.GetAllReferencedHashesAsync(cancellationToken);
+
+        // Every persisted manifest, even one whose reference file is missing or stale.
+        // A CAS blob linked by a manifest in the pool is never deleted.
+        var manifestsResult = await manifestPool.GetAllManifestsAsync(cancellationToken);
+        if (!manifestsResult.Success || manifestsResult.Data == null)
+        {
+            throw new InvalidOperationException(
+                $"Cannot enumerate persisted manifests: {manifestsResult.FirstError ?? "unknown error"}");
+        }
+
+        foreach (var manifest in manifestsResult.Data)
+        {
+            liveSet.UnionWith(ManifestHelper.GetContentAddressableHashes(manifest));
+        }
+
+        return liveSet;
+    }
+
+    private async Task<GarbageCollectionStats> CollectUnreferencedObjectsAsync(
+        HashSet<string> liveSet,
+        bool force,
+        CancellationToken cancellationToken)
+    {
+        var scanned = 0;
+        var referenced = 0;
+        var deleted = 0;
+        long bytesFreed = 0;
+
+        foreach (var poolStorage in CasPoolStorages.GetStoragesForEnumeration(poolManager, casStorage))
+        {
+            var hashes = await poolStorage.GetAllObjectHashesAsync(cancellationToken);
+            foreach (var hash in hashes)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                scanned++;
+
+                if (!liveSet.Contains(hash) && (force || await IsPastGracePeriodAsync(poolStorage, hash, cancellationToken)))
+                {
+                    var (objectDeleted, objectBytesFreed) = await TryDeleteObjectAsync(poolStorage, hash, cancellationToken);
+                    if (objectDeleted)
+                    {
+                        deleted++;
+                        bytesFreed += objectBytesFreed;
+                        continue;
+                    }
+                }
+
+                referenced++;
+            }
+        }
+
+        return new GarbageCollectionStats
+        {
+            ObjectsScanned = scanned,
+            ObjectsReferenced = referenced,
+            ObjectsDeleted = deleted,
+            BytesFreed = bytesFreed,
+        };
+    }
+
+    private async Task<bool> IsPastGracePeriodAsync(ICasStorage poolStorage, string hash, CancellationToken cancellationToken)
+    {
+        var createdAt = await poolStorage.GetObjectCreationTimeAsync(hash, cancellationToken);
+        if (createdAt == null)
+        {
+            // Fail closed: unknown age is treated as young.
+            return false;
+        }
+
+        return DateTime.UtcNow - createdAt.Value >= config.Value.GcGracePeriod;
+    }
+
+    private async Task<(bool Deleted, long BytesFreed)> TryDeleteObjectAsync(
+        ICasStorage poolStorage,
+        string hash,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var objectPath = poolStorage.GetObjectPath(hash);
+            long size = 0;
+            if (File.Exists(objectPath))
+            {
+                size = new FileInfo(objectPath).Length;
+            }
+
+            await poolStorage.DeleteObjectAsync(hash, cancellationToken);
+            logger.LogDebug("GC deleted unreferenced object {Hash} ({Size} bytes)", hash, size);
+            return (true, size);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "GC failed to delete unreferenced object {Hash}; keeping it", hash);
+            return (false, 0);
+        }
     }
 }
