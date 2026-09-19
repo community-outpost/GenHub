@@ -404,16 +404,20 @@ public class ConfigurationLoaderService(ILogger<ConfigurationLoaderService> logg
         return Directory.GetCurrentDirectory();
     }
 
-    private async Task<int> ResolveItemFilesAsync(BundleItem item, string projectDir, CancellationToken cancellationToken)
+    private static void SnapshotSourcePatterns(BundleItem item)
     {
-        cancellationToken.ThrowIfCancellationRequested();
-
         // Snapshot the configured patterns on first resolution so editors keep
         // showing (and saving) the original globs instead of resolved entries.
         if (item.SourcePatterns.Count == 0 && item.Files.Count > 0)
         {
             item.SourcePatterns = item.Files.Select(f => f.AbsSourceFile).ToList();
         }
+    }
+
+    private async Task<int> ResolveItemFilesAsync(BundleItem item, string projectDir, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        SnapshotSourcePatterns(item);
 
         var resolvedFiles = new List<BundleFile>();
         int filesResolved = 0;

@@ -284,13 +284,7 @@ public partial class ConfigEditorViewModel(
         string? projectDir,
         ProjectFileSnapshot? snapshot)
     {
-        // Prefer the original configured patterns: after wildcard resolution
-        // AbsSourceFile holds resolved absolute paths that must never be saved back.
-        var pattern = item.SourcePatterns.Count > 0
-            ? string.Join("; ", item.SourcePatterns)
-            : item.Files.Count > 0
-                ? string.Join("; ", item.Files.Select(f => f.AbsSourceFile))
-                : ModBuilderConstants.GameFilesEditedAllFilesGlob;
+        var pattern = ResolveEditorPattern(item);
 
         var itemVm = new BundleItemEditorViewModel
         {
@@ -312,6 +306,23 @@ public partial class ConfigEditorViewModel(
 
         itemVm.RecalculateMatches(projectDir, snapshot);
         return itemVm;
+    }
+
+    private static string ResolveEditorPattern(BundleItem item)
+    {
+        // Prefer the original configured patterns: after wildcard resolution
+        // AbsSourceFile holds resolved absolute paths that must never be saved back.
+        if (item.SourcePatterns.Count > 0)
+        {
+            return string.Join("; ", item.SourcePatterns);
+        }
+
+        if (item.Files.Count > 0)
+        {
+            return string.Join("; ", item.Files.Select(f => f.AbsSourceFile));
+        }
+
+        return ModBuilderConstants.GameFilesEditedAllFilesGlob;
     }
 
     private static string? ReadOutputFormat(BundleItem item)
