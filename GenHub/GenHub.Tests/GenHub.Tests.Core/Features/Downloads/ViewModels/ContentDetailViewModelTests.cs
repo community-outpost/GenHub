@@ -1,6 +1,7 @@
 using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
 using GenHub.Core.Constants;
+using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Interfaces.Manifest;
@@ -9,12 +10,14 @@ using GenHub.Core.Interfaces.Parsers;
 using GenHub.Core.Messages;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.GameProfile;
 using GenHub.Core.Models.GeneralsOnline;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Parsers;
 using GenHub.Core.Models.Providers;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Results.Content;
+using GenHub.Features.Content.Services;
 using GenHub.Features.Downloads.ViewModels;
 using Microsoft.Extensions.Logging;
 using Moq;
@@ -1585,6 +1588,541 @@ public sealed class ContentDetailViewModelTests
         Assert.False(viewModel.ShowDownloadButton);
     }
 
+    /// <summary>
+    /// Verifies the delete button is visible only for downloaded content.
+    /// </summary>
+    [Fact]
+    public void ShowDeleteButton_ReflectsDownloadedState()
+    {
+        // Arrange
+        var coordinator = new Mock<IContentDownloadCoordinator>();
+        var item = new ContentSearchResult { Id = "test-item", Name = "Test Item" };
+        var viewModel = CreateViewModel(item, coordinator.Object);
+
+        viewModel.IsDownloaded = false;
+        Assert.False(viewModel.ShowDeleteButton);
+
+        // Act
+        viewModel.IsDownloaded = true;
+
+        // Assert
+        Assert.True(viewModel.ShowDeleteButton);
+    }
+
+    /// <summary>
+    /// Verifies that confirming the delete dialog removes the manifest, notifies success,
+    /// and invokes the deleted callback with the removed manifest ID.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task DeleteDownloadCommand_WhenConfirmed_RemovesManifestAndNotifiesAsync()
+    {
+        // Arrange
+        const string manifestId = "1.20260901.custom.mod.test";
+        var searchResult = new ContentSearchResult
+        {
+            Id = manifestId,
+            Name = "Custom Mod",
+            ProviderName = "custom",
+            ContentType = ContentType.Mod,
+            TargetGame = GameType.ZeroHour,
+        };
+
+        var manifestPool = CreateManifestPoolMock(CreateDownloadedManifest(manifestId, "Custom Mod", ContentType.Mod));
+        ManifestId? removedId = null;
+        manifestPool
+            .Setup(pool => pool.RemoveManifestAsync(It.IsAny<ManifestId>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
+            .Callback<ManifestId, bool, CancellationToken>((id, _, _) => removedId = id)
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+
+        var profileManager = new Mock<IGameProfileManager>();
+        profileManager
+            .Setup(manager => manager.GetAllProfilesAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<IReadOnlyList<GameProfile>>.CreateSuccess([]));
+
+        var dialogService = new Mock<IDialogService>();
+        dialogService
+            .Setup(dialog => dialog.ShowConfirmationAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string?>()))
+            .ReturnsAsync(true);
+
+        var notifications = new Mock<INotificationService>();
+        var artworkService = new Mock<IContentArtworkService>();
+        artworkService
+            .Setup(service => service.PurgeArtworkAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+        string? deletedId = null;
+        var viewModel = CreateViewModel(
+            searchResult,
+            new Mock<IContentDownloadCoordinator>().Object,
+            manifestPool: manifestPool.Object,
+            notificationService: notifications.Object,
+            profileManager: profileManager.Object,
+            dialogService: dialogService.Object,
+            deletedAction: id =>
+            {
+                deletedId = id;
+                return Task.CompletedTask;
+            },
+            artworkService: artworkService.Object);
+        viewModel.IsDownloaded = true;
+
+        // Act
+        await viewModel.DeleteDownloadCommand.ExecuteAsync(null);
+
+        // Assert
+        Assert.NotNull(removedId);
+        Assert.Equal(manifestId, removedId.Value.Value);
+        Assert.Equal(manifestId, deletedId);
+        artworkService.Verify(
+            service => service.PurgeArtworkAsync(manifestId, It.IsAny<CancellationToken>()),
+            Times.Once);
+        notifications.Verify(
+            n => n.ShowSuccess(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
+            Times.Once);
+    }
+
+    /// <summary>
+    /// Verifies that dismissing the delete dialog leaves the stored manifest untouched.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task DeleteDownloadCommand_WhenCancelled_DoesNotRemoveManifestAsync()
+    {
+        // Arrange
+        const string manifestId = "1.20260901.custom.mod.test";
+        var searchResult = new ContentSearchResult
+        {
+            Id = manifestId,
+            Name = "Custom Mod",
+            ProviderName = "custom",
+            ContentType = ContentType.Mod,
+            TargetGame = GameType.ZeroHour,
+        };
+
+        var manifestPool = CreateManifestPoolMock(CreateDownloadedManifest(manifestId, "Custom Mod", ContentType.Mod));
+        var profileManager = new Mock<IGameProfileManager>();
+        profileManager
+            .Setup(manager => manager.GetAllProfilesAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<IReadOnlyList<GameProfile>>.CreateSuccess([]));
+
+        var dialogService = new Mock<IDialogService>();
+        dialogService
+            .Setup(dialog => dialog.ShowConfirmationAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string?>()))
+            .ReturnsAsync(false);
+
+        var deleted = false;
+        var viewModel = CreateViewModel(
+            searchResult,
+            new Mock<IContentDownloadCoordinator>().Object,
+            manifestPool: manifestPool.Object,
+            profileManager: profileManager.Object,
+            dialogService: dialogService.Object,
+            deletedAction: _ =>
+            {
+                deleted = true;
+                return Task.CompletedTask;
+            });
+        viewModel.IsDownloaded = true;
+
+        // Act
+        await viewModel.DeleteDownloadCommand.ExecuteAsync(null);
+
+        // Assert
+        manifestPool.Verify(
+            pool => pool.RemoveManifestAsync(It.IsAny<ManifestId>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+        Assert.False(deleted);
+    }
+
+    /// <summary>
+    /// Verifies the delete confirmation names the profiles currently using the content.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task DeleteDownloadCommand_WhenUsedByProfiles_NamesProfilesInConfirmationAsync()
+    {
+        // Arrange
+        const string manifestId = "1.20260901.custom.mod.test";
+        var searchResult = new ContentSearchResult
+        {
+            Id = manifestId,
+            Name = "Custom Mod",
+            ProviderName = "custom",
+            ContentType = ContentType.Mod,
+            TargetGame = GameType.ZeroHour,
+        };
+
+        var profileManager = new Mock<IGameProfileManager>();
+        profileManager
+            .Setup(manager => manager.GetAllProfilesAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<IReadOnlyList<GameProfile>>.CreateSuccess(
+            [
+                new GameProfile { Id = "main", Name = "Main Profile", EnabledContentIds = [manifestId] },
+                new GameProfile { Id = "other", Name = "Other Profile", EnabledContentIds = ["1.00000000.other.mod.else"] },
+            ]));
+
+        string? confirmationMessage = null;
+        var dialogService = new Mock<IDialogService>();
+        dialogService
+            .Setup(dialog => dialog.ShowConfirmationAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string?>()))
+            .Callback<string, string, string, string, string?>((_, message, _, _, _) => confirmationMessage = message)
+            .ReturnsAsync(false);
+
+        var viewModel = CreateViewModel(
+            searchResult,
+            new Mock<IContentDownloadCoordinator>().Object,
+            manifestPool: CreateManifestPoolMock(CreateDownloadedManifest(manifestId, "Custom Mod", ContentType.Mod)).Object,
+            profileManager: profileManager.Object,
+            dialogService: dialogService.Object);
+        viewModel.IsDownloaded = true;
+
+        // Act
+        await viewModel.DeleteDownloadCommand.ExecuteAsync(null);
+
+        // Assert
+        Assert.NotNull(confirmationMessage);
+        Assert.Contains("Main Profile", confirmationMessage, StringComparison.Ordinal);
+        Assert.DoesNotContain("Other Profile", confirmationMessage, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// Verifies that a missing confirmation service fails closed instead of deleting silently.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task DeleteDownloadCommand_WhenDialogServiceMissing_DoesNotRemoveManifestAsync()
+    {
+        // Arrange
+        const string manifestId = "1.20260901.custom.mod.test";
+        var searchResult = new ContentSearchResult
+        {
+            Id = manifestId,
+            Name = "Custom Mod",
+            ProviderName = "custom",
+            ContentType = ContentType.Mod,
+            TargetGame = GameType.ZeroHour,
+        };
+
+        var manifestPool = CreateManifestPoolMock(CreateDownloadedManifest(manifestId, "Custom Mod", ContentType.Mod));
+        var profileManager = new Mock<IGameProfileManager>();
+        profileManager
+            .Setup(manager => manager.GetAllProfilesAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<IReadOnlyList<GameProfile>>.CreateSuccess([]));
+
+        var viewModel = CreateViewModel(
+            searchResult,
+            new Mock<IContentDownloadCoordinator>().Object,
+            manifestPool: manifestPool.Object,
+            profileManager: profileManager.Object,
+            dialogService: null);
+        viewModel.IsDownloaded = true;
+
+        // Act
+        await viewModel.DeleteDownloadCommand.ExecuteAsync(null);
+
+        // Assert
+        manifestPool.Verify(
+            pool => pool.RemoveManifestAsync(It.IsAny<ManifestId>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    /// <summary>
+    /// Verifies that a profile-lookup failure aborts the delete with an error instead of
+    /// confirming without the in-use warning.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task DeleteDownloadCommand_WhenProfileLookupFails_AbortsDeleteAndReportsErrorAsync()
+    {
+        // Arrange
+        const string manifestId = "1.20260901.custom.mod.test";
+        var searchResult = new ContentSearchResult
+        {
+            Id = manifestId,
+            Name = "Custom Mod",
+            ProviderName = "custom",
+            ContentType = ContentType.Mod,
+            TargetGame = GameType.ZeroHour,
+        };
+
+        var manifestPool = CreateManifestPoolMock(CreateDownloadedManifest(manifestId, "Custom Mod", ContentType.Mod));
+        var profileManager = new Mock<IGameProfileManager>();
+        profileManager
+            .Setup(manager => manager.GetAllProfilesAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<IReadOnlyList<GameProfile>>.CreateFailure("Profiles unavailable"));
+
+        var dialogService = new Mock<IDialogService>();
+        var notifications = new Mock<INotificationService>();
+        var viewModel = CreateViewModel(
+            searchResult,
+            new Mock<IContentDownloadCoordinator>().Object,
+            manifestPool: manifestPool.Object,
+            notificationService: notifications.Object,
+            profileManager: profileManager.Object,
+            dialogService: dialogService.Object);
+        viewModel.IsDownloaded = true;
+
+        // Act
+        await viewModel.DeleteDownloadCommand.ExecuteAsync(null);
+
+        // Assert
+        manifestPool.Verify(
+            pool => pool.RemoveManifestAsync(It.IsAny<ManifestId>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+        dialogService.Verify(
+            dialog => dialog.ShowConfirmationAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string?>()),
+            Times.Never);
+        notifications.Verify(
+            n => n.ShowError(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
+            Times.Once);
+    }
+
+    /// <summary>
+    /// Verifies that launcher-managed installation manifests cannot be deleted.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task DeleteDownloadCommand_WhenManifestIsGameInstallation_BlocksDeleteAsync()
+    {
+        // Arrange
+        const string manifestId = "1.20260901.steam.gameinstallation.zerohour";
+        var searchResult = new ContentSearchResult
+        {
+            Id = manifestId,
+            Name = "Steam Zero Hour",
+            ProviderName = "steam",
+            ContentType = ContentType.GameInstallation,
+            TargetGame = GameType.ZeroHour,
+        };
+
+        var manifestPool = CreateManifestPoolMock(CreateDownloadedManifest(manifestId, "Steam Zero Hour", ContentType.GameInstallation));
+        var notifications = new Mock<INotificationService>();
+        var viewModel = CreateViewModel(
+            searchResult,
+            new Mock<IContentDownloadCoordinator>().Object,
+            manifestPool: manifestPool.Object,
+            notificationService: notifications.Object,
+            dialogService: new Mock<IDialogService>().Object);
+        viewModel.IsDownloaded = true;
+
+        // Act
+        await viewModel.DeleteDownloadCommand.ExecuteAsync(null);
+
+        // Assert: the button stays visible (search-result types are unreliable) while the
+        // command blocks launcher-managed manifests authoritatively.
+        Assert.True(viewModel.ShowDeleteButton);
+        manifestPool.Verify(
+            pool => pool.RemoveManifestAsync(It.IsAny<ManifestId>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+        notifications.Verify(
+            n => n.ShowWarning(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
+            Times.Once);
+    }
+
+    /// <summary>
+    /// Verifies the delete command blocks locally detected game clients, which the
+    /// launcher regenerates automatically, instead of removing them.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task DeleteDownloadCommand_WhenManifestIsLocalGameClient_BlocksDeleteAsync()
+    {
+        // Arrange
+        const string manifestId = "1.20260901.steam.gameclient.zerohour";
+        var searchResult = new ContentSearchResult
+        {
+            Id = manifestId,
+            Name = "Steam Zero Hour",
+            ProviderName = "steam",
+            ContentType = ContentType.GameClient,
+            TargetGame = GameType.ZeroHour,
+        };
+
+        var manifestPool = CreateManifestPoolMock(CreateDownloadedManifest(manifestId, "Steam Zero Hour", ContentType.GameClient));
+        var notifications = new Mock<INotificationService>();
+        var viewModel = CreateViewModel(
+            searchResult,
+            new Mock<IContentDownloadCoordinator>().Object,
+            manifestPool: manifestPool.Object,
+            notificationService: notifications.Object,
+            dialogService: new Mock<IDialogService>().Object);
+        viewModel.IsDownloaded = true;
+
+        // Act
+        await viewModel.DeleteDownloadCommand.ExecuteAsync(null);
+
+        // Assert
+        manifestPool.Verify(
+            pool => pool.RemoveManifestAsync(It.IsAny<ManifestId>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+        notifications.Verify(
+            n => n.ShowWarning(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
+            Times.Once);
+    }
+
+    /// <summary>
+    /// Verifies the delete confirmation names other stored content with type-based
+    /// dependencies the doomed manifest may satisfy.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task DeleteDownloadCommand_WhenTypeDependentsExist_NamesThemInConfirmationAsync()
+    {
+        // Arrange
+        const string manifestId = "1.20260901.custom.patch.test";
+        var searchResult = new ContentSearchResult
+        {
+            Id = manifestId,
+            Name = "Custom Patch",
+            ProviderName = "custom",
+            ContentType = ContentType.Patch,
+            TargetGame = GameType.ZeroHour,
+        };
+
+        var doomedManifest = CreateDownloadedManifest(manifestId, "Custom Patch", ContentType.Patch);
+        var dependentManifest = CreateDownloadedManifest("1.20260902.custom.mod.needy", "Needy Mod", ContentType.Mod);
+        dependentManifest.Dependencies.Add(new ContentDependency
+        {
+            Id = ManifestId.Create(ManifestConstants.DefaultContentDependencyId),
+            Name = "Base patch",
+            DependencyType = ContentType.Patch,
+            InstallBehavior = DependencyInstallBehavior.RequireExisting,
+            CompatibleGameTypes = [GameType.ZeroHour],
+            IsOptional = false,
+        });
+        var unrelatedManifest = CreateDownloadedManifest("1.20260903.custom.mod.loner", "Loner Mod", ContentType.Mod);
+
+        var manifestPool = CreateManifestPoolMock(doomedManifest, [doomedManifest, dependentManifest, unrelatedManifest]);
+        var profileManager = new Mock<IGameProfileManager>();
+        profileManager
+            .Setup(manager => manager.GetAllProfilesAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<IReadOnlyList<GameProfile>>.CreateSuccess([]));
+
+        string? confirmationMessage = null;
+        var dialogService = new Mock<IDialogService>();
+        dialogService
+            .Setup(dialog => dialog.ShowConfirmationAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string?>()))
+            .Callback<string, string, string, string, string?>((_, message, _, _, _) => confirmationMessage = message)
+            .ReturnsAsync(false);
+
+        var viewModel = CreateViewModel(
+            searchResult,
+            new Mock<IContentDownloadCoordinator>().Object,
+            manifestPool: manifestPool.Object,
+            profileManager: profileManager.Object,
+            dialogService: dialogService.Object);
+        viewModel.IsDownloaded = true;
+
+        // Act
+        await viewModel.DeleteDownloadCommand.ExecuteAsync(null);
+
+        // Assert
+        Assert.NotNull(confirmationMessage);
+        Assert.Contains("Needy Mod", confirmationMessage, StringComparison.Ordinal);
+        Assert.DoesNotContain("Loner Mod", confirmationMessage, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// Verifies that items without a description show key content facts instead of a blank About section.
+    /// </summary>
+    [Fact]
+    public void FormattedDescription_WhenEmpty_ShowsDetailsFallback()
+    {
+        // Arrange
+        var item = new ContentSearchResult
+        {
+            Id = "test-item",
+            Name = "Test Item",
+            Description = string.Empty,
+            ContentType = ContentType.Patch,
+            TargetGame = GameType.ZeroHour,
+            Version = "1.04",
+            AuthorName = "Test Author",
+        };
+        var viewModel = CreateViewModel(item, new Mock<IContentDownloadCoordinator>().Object);
+
+        // Act
+        var formatted = viewModel.FormattedDescription;
+
+        // Assert
+        Assert.Contains("No description available.", formatted, StringComparison.Ordinal);
+        Assert.Contains("1.04", formatted, StringComparison.Ordinal);
+        Assert.Contains("Test Author", formatted, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// Verifies that items with a description render it instead of the facts fallback.
+    /// </summary>
+    [Fact]
+    public void FormattedDescription_WhenPresent_RendersDescription()
+    {
+        // Arrange
+        var item = new ContentSearchResult
+        {
+            Id = "test-item",
+            Name = "Test Item",
+            Description = "A great patch with many fixes.",
+            ContentType = ContentType.Patch,
+            TargetGame = GameType.ZeroHour,
+        };
+        var viewModel = CreateViewModel(item, new Mock<IContentDownloadCoordinator>().Object);
+
+        // Act
+        var formatted = viewModel.FormattedDescription;
+
+        // Assert
+        Assert.Contains("A great patch with many fixes.", formatted, StringComparison.Ordinal);
+        Assert.DoesNotContain("No description available.", formatted, StringComparison.Ordinal);
+    }
+
+    private static Mock<IContentManifestPool> CreateManifestPoolMock(ContentManifest doomedManifest, IReadOnlyList<ContentManifest>? allManifests = null)
+    {
+        var manifestPool = new Mock<IContentManifestPool>();
+        manifestPool
+            .Setup(pool => pool.GetManifestAsync(It.IsAny<ManifestId>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentManifest?>.CreateSuccess(doomedManifest));
+        manifestPool
+            .Setup(pool => pool.GetAllManifestsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IEnumerable<ContentManifest>>.CreateSuccess(allManifests ?? [doomedManifest]));
+        return manifestPool;
+    }
+
+    private static ContentManifest CreateDownloadedManifest(string manifestId, string name, ContentType contentType)
+    {
+        return new ContentManifest
+        {
+            Id = ManifestId.Create(manifestId),
+            Name = name,
+            ContentType = contentType,
+            TargetGame = GameType.ZeroHour,
+        };
+    }
+
     private static CapturingContentDetailViewModel CreateViewModel(
         ContentSearchResult searchResult,
         IContentDownloadCoordinator downloadCoordinator,
@@ -1596,7 +2134,11 @@ public sealed class ContentDetailViewModelTests
         ContentSearchResult? updateTargetSearchResult = null,
         Func<CancellationToken, Task>? updateAction = null,
         bool? isUpdateAvailable = null,
-        string? initialVariantManifestId = null)
+        string? initialVariantManifestId = null,
+        IGameProfileManager? profileManager = null,
+        IDialogService? dialogService = null,
+        Func<string, Task>? deletedAction = null,
+        IContentArtworkService? artworkService = null)
     {
         if (contentStateService == null)
         {
@@ -1614,7 +2156,7 @@ public sealed class ContentDetailViewModelTests
             searchResult,
             parsers ?? [],
             new Mock<IProfileContentService>().Object,
-            new Mock<IGameProfileManager>().Object,
+            profileManager ?? new Mock<IGameProfileManager>().Object,
             notificationService ?? new Mock<INotificationService>().Object,
             new Mock<ITabProviderRegistry>().Object,
             contentStateService,
@@ -1626,7 +2168,10 @@ public sealed class ContentDetailViewModelTests
             updateTargetSearchResult: updateTargetSearchResult,
             updateAction: updateAction,
             isUpdateAvailable: isUpdateAvailable,
-            initialVariantManifestId: initialVariantManifestId);
+            initialVariantManifestId: initialVariantManifestId,
+            dialogService: dialogService,
+            deletedAction: deletedAction,
+            artworkService: artworkService);
     }
 
     private sealed class CapturingContentDetailViewModel(
@@ -1645,7 +2190,10 @@ public sealed class ContentDetailViewModelTests
         ContentSearchResult? updateTargetSearchResult = null,
         Func<CancellationToken, Task>? updateAction = null,
         bool? isUpdateAvailable = null,
-        string? initialVariantManifestId = null)
+        string? initialVariantManifestId = null,
+        IDialogService? dialogService = null,
+        Func<string, Task>? deletedAction = null,
+        IContentArtworkService? artworkService = null)
         : ContentDetailViewModel(
             searchResult,
             parsers,
@@ -1662,7 +2210,10 @@ public sealed class ContentDetailViewModelTests
             updateTargetSearchResult: updateTargetSearchResult,
             updateAction: updateAction,
             isUpdateAvailable: isUpdateAvailable,
-            initialVariantManifestId: initialVariantManifestId)
+            initialVariantManifestId: initialVariantManifestId,
+            dialogService: dialogService,
+            deletedAction: deletedAction,
+            artworkService: artworkService)
     {
         /// <summary>
         /// Gets the manifest ID sent to the profile selection flow.

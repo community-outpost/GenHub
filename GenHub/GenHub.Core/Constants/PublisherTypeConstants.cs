@@ -94,6 +94,12 @@ public static class PublisherTypeConstants
     public const string GenLauncher = "genlauncher";
 
     /// <summary>
+    /// Offline library of already-downloaded content (manifest pool).
+    /// Backed by <c>DownloadedContentDiscoverer</c>; never requires a network connection.
+    /// </summary>
+    public const string Downloaded = "downloaded";
+
+    /// <summary>
     /// Local custom content publisher for user-supplied mods, maps, and custom content.
     /// </summary>
     /// <remarks>

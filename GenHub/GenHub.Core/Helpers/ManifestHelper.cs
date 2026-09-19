@@ -1,4 +1,5 @@
 using GenHub.Core.Constants;
+using GenHub.Core.Extensions.GameInstallations;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
 using System;
@@ -48,6 +49,43 @@ public static class ManifestHelper
         }
 
         return false;
+    }
+
+    /// <summary>
+    /// Determines whether a manifest is launcher-managed rather than a user download.
+    /// Installation bookkeeping manifests always qualify. Game client manifests qualify
+    /// only when minted from a local installation (installation publisher segment or
+    /// installation publisher type); publisher-downloaded clients (GeneralsOnline,
+    /// SuperHackers, GitHub, and similar) remain ordinary downloads.
+    /// </summary>
+    /// <param name="manifest">The manifest to check.</param>
+    /// <returns>True when the launcher regenerates the manifest automatically.</returns>
+    public static bool IsLauncherManagedManifest(ContentManifest? manifest)
+    {
+        if (manifest is null)
+        {
+            return false;
+        }
+
+        if (manifest.ContentType == ContentType.GameInstallation)
+        {
+            return true;
+        }
+
+        if (manifest.ContentType != ContentType.GameClient)
+        {
+            return false;
+        }
+
+        if (InstallationExtensions.IsInstallationIdentifier(manifest.Id.Publisher))
+        {
+            return true;
+        }
+
+        var publisherType = manifest.Publisher?.PublisherType;
+        return !string.IsNullOrWhiteSpace(publisherType)
+            && !string.Equals(publisherType, PublisherTypeConstants.Unknown, StringComparison.OrdinalIgnoreCase)
+            && InstallationExtensions.IsInstallationIdentifier(publisherType);
     }
 
     /// <summary>

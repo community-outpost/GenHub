@@ -4484,6 +4484,9 @@ This will modify game files and configuration settings at:
   <data name="Downloads.Browser.Search" xml:space="preserve">
     <value>Search</value>
   </data>
+  <data name="Downloads.Browser.MyDownloads" xml:space="preserve">
+    <value>My Downloads</value>
+  </data>
   <data name="Downloads.Card.Includes" xml:space="preserve">
     <value>Includes</value>
   </data>
@@ -7814,6 +7817,51 @@ Recovery Engine: Profile '{0}' supports checkpoint saves, replay resumption, and
   </data>
   <data name="Downloads.ContentDetail.ImagePreview" xml:space="preserve">
     <value>Image Preview</value>
+  </data>
+  <data name="Downloads.ContentDetail.DeleteDownload" xml:space="preserve">
+    <value>Delete Download</value>
+  </data>
+  <data name="Downloads.ContentDetail.DeleteDownloadTooltip" xml:space="preserve">
+    <value>Delete this content from local storage</value>
+  </data>
+  <data name="Downloads.ContentDetail.DeleteNotDownloadedTitle" xml:space="preserve">
+    <value>Nothing To Delete</value>
+  </data>
+  <data name="Downloads.ContentDetail.DeleteNotDownloadedMessage" xml:space="preserve">
+    <value>This content is not stored locally, so there is nothing to delete.</value>
+  </data>
+  <data name="Downloads.ContentDetail.DeleteConfirmTitle" xml:space="preserve">
+    <value>Delete Download</value>
+  </data>
+  <data name="Downloads.ContentDetail.DeleteConfirmMessage" xml:space="preserve">
+    <value>Are you sure you want to delete '{0}'? This removes its files from storage and cannot be undone.</value>
+  </data>
+  <data name="Downloads.ContentDetail.DeleteConfirmMessageWithProfiles" xml:space="preserve">
+    <value>Are you sure you want to delete '{0}'? It is currently used by {1} profile(s): {2}. Deleting it removes its files from storage.</value>
+  </data>
+  <data name="Downloads.ContentDetail.DeleteFailedTitle" xml:space="preserve">
+    <value>Delete Failed</value>
+  </data>
+  <data name="Downloads.ContentDetail.DeleteFailedMessage" xml:space="preserve">
+    <value>Could not delete '{0}': {1}</value>
+  </data>
+  <data name="Downloads.ContentDetail.DeletedTitle" xml:space="preserve">
+    <value>Download Deleted</value>
+  </data>
+  <data name="Downloads.ContentDetail.DeletedMessage" xml:space="preserve">
+    <value>Deleted '{0}' and freed unused storage.</value>
+  </data>
+  <data name="Downloads.ContentDetail.NoDescriptionAvailable" xml:space="preserve">
+    <value>No description available.</value>
+  </data>
+  <data name="Downloads.ContentDetail.DeleteConfirmDependentsNote" xml:space="preserve">
+    <value>Other downloaded content may also need this: {0}.</value>
+  </data>
+  <data name="Downloads.ContentDetail.DeleteNotAllowedMessage" xml:space="preserve">
+    <value>'{0}' is managed automatically by GenHub and cannot be deleted.</value>
+  </data>
+  <data name="Downloads.ContentDetail.DeleteNotAllowedTitle" xml:space="preserve">
+    <value>Cannot Delete</value>
   </data>
   <data name="Profiles.AddLocalContent.StatusCasProgressImporting" xml:space="preserve">
     <value>Importing {0}: {1:0}% ({2}/{3} files)</value>

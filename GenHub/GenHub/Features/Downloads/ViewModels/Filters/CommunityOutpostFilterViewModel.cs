@@ -90,7 +90,9 @@ public partial class CommunityOutpostFilterViewModel : FilterPanelViewModelBase
     [RelayCommand]
     private void ToggleContentType(ContentTypeFilterItem item)
     {
-        if (item.IsSelected)
+        // Derive from the selection, not the toggle state: the IsSelected binding
+        // updates before the command runs, so item.IsSelected already reflects the click.
+        if (SelectedContentType == item.ContentType)
         {
             item.IsSelected = false;
             SelectedContentType = null;

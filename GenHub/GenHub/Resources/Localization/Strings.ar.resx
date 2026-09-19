@@ -4484,6 +4484,9 @@
   <data name="Downloads.Browser.Search" xml:space="preserve">
     <value>بحث</value>
   </data>
+  <data name="Downloads.Browser.MyDownloads" xml:space="preserve">
+    <value>تنزيلاتي</value>
+  </data>
   <data name="Downloads.Card.Includes" xml:space="preserve">
     <value>يتضمن</value>
   </data>
@@ -7720,6 +7723,51 @@ GenHub هو مشغل ومدير حديث لألعاب **Command &amp; Conquer: G
   </data>
   <data name="Downloads.ContentDetail.ImagePreview" xml:space="preserve">
     <value>معاينة الصورة</value>
+  </data>
+  <data name="Downloads.ContentDetail.DeleteDownload" xml:space="preserve">
+    <value>حذف التنزيل</value>
+  </data>
+  <data name="Downloads.ContentDetail.DeleteDownloadTooltip" xml:space="preserve">
+    <value>احذف هذا المحتوى من التخزين المحلي</value>
+  </data>
+  <data name="Downloads.ContentDetail.DeleteNotDownloadedTitle" xml:space="preserve">
+    <value>لا يوجد ما يُحذف</value>
+  </data>
+  <data name="Downloads.ContentDetail.DeleteNotDownloadedMessage" xml:space="preserve">
+    <value>هذا المحتوى غير مخزّن محليًا، لذا لا يوجد ما يُحذف.</value>
+  </data>
+  <data name="Downloads.ContentDetail.DeleteConfirmTitle" xml:space="preserve">
+    <value>حذف التنزيل</value>
+  </data>
+  <data name="Downloads.ContentDetail.DeleteConfirmMessage" xml:space="preserve">
+    <value>هل أنت متأكد من حذف '{0}'؟ سيؤدي ذلك إلى إزالة ملفاته من التخزين ولا يمكن التراجع عنه.</value>
+  </data>
+  <data name="Downloads.ContentDetail.DeleteConfirmMessageWithProfiles" xml:space="preserve">
+    <value>هل أنت متأكد من حذف '{0}'؟ إنه مستخدم حاليًا في {1} من ملفات التعريف: {2}. سيؤدي حذفه إلى إزالة ملفاته من التخزين.</value>
+  </data>
+  <data name="Downloads.ContentDetail.DeleteFailedTitle" xml:space="preserve">
+    <value>فشل الحذف</value>
+  </data>
+  <data name="Downloads.ContentDetail.DeleteFailedMessage" xml:space="preserve">
+    <value>تعذّر حذف '{0}': {1}</value>
+  </data>
+  <data name="Downloads.ContentDetail.DeletedTitle" xml:space="preserve">
+    <value>تم حذف التنزيل</value>
+  </data>
+  <data name="Downloads.ContentDetail.DeletedMessage" xml:space="preserve">
+    <value>تم حذف '{0}' وتحرير مساحة التخزين غير المستخدمة.</value>
+  </data>
+  <data name="Downloads.ContentDetail.NoDescriptionAvailable" xml:space="preserve">
+    <value>لا يتوفر وصف.</value>
+  </data>
+  <data name="Downloads.ContentDetail.DeleteConfirmDependentsNote" xml:space="preserve">
+    <value>قد يحتاج محتوى آخر تم تنزيله إلى هذا أيضًا: {0}.</value>
+  </data>
+  <data name="Downloads.ContentDetail.DeleteNotAllowedMessage" xml:space="preserve">
+    <value>'{0}' تتم إدارته تلقائيًا بواسطة GenHub ولا يمكن حذفه.</value>
+  </data>
+  <data name="Downloads.ContentDetail.DeleteNotAllowedTitle" xml:space="preserve">
+    <value>تعذّر الحذف</value>
   </data>
   <data name="Profiles.AddLocalContent.StatusCasProgressImporting" xml:space="preserve">
     <value>جارٍ استيراد {0}: {1:0}% ({2}/{3} ملفات)</value>

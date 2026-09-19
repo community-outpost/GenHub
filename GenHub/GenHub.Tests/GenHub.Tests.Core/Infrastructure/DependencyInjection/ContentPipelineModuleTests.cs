@@ -14,6 +14,7 @@ public class ContentPipelineModuleTests
 {
     /// <summary>
     /// Verifies that CSV discovery remains transient while remote data is cached on disk.
+    /// CSV is the only transient discoverer; every other pipeline registers singletons.
     /// </summary>
     [Fact]
     public void AddContentPipelineServices_RegistersTransientCsvDiscoverer()
@@ -22,9 +23,10 @@ public class ContentPipelineModuleTests
         services.AddContentPipelineServices();
 
         var concreteDescriptor = services.Single(descriptor => descriptor.ServiceType == typeof(CsvDiscoverer));
-        var interfaceDescriptor = services.Last(descriptor => descriptor.ServiceType == typeof(IContentDiscoverer));
+        var transientForwards = services.Count(descriptor =>
+            descriptor.ServiceType == typeof(IContentDiscoverer) && descriptor.Lifetime == ServiceLifetime.Transient);
 
         Assert.Equal(ServiceLifetime.Transient, concreteDescriptor.Lifetime);
-        Assert.Equal(ServiceLifetime.Transient, interfaceDescriptor.Lifetime);
+        Assert.Equal(1, transientForwards);
     }
 }

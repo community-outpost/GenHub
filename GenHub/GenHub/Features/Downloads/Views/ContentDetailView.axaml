@@ -1429,6 +1429,36 @@
                                 </StackPanel>
                             </Button>
 
+                            <!-- Delete Download Button (visible when stored locally) -->
+                            <Button HorizontalAlignment="Stretch"
+                                    Height="48"
+                                    Background="{DynamicResource ErrorBrush}"
+                                    Foreground="White"
+                                    CornerRadius="8"
+                                    FontSize="15"
+                                    FontWeight="SemiBold"
+                                    IsVisible="{Binding ShowDeleteButton}"
+                                    Command="{Binding DeleteDownloadCommand}"
+                                    Cursor="Hand"
+                                    Padding="20,0">
+                                <ToolTip.Tip>{localization:Localize Downloads.ContentDetail.DeleteDownloadTooltip}</ToolTip.Tip>
+                                <Button.Styles>
+                                    <Style Selector="Button:pointerover">
+                                        <Setter Property="Opacity" Value="0.9" />
+                                        <Setter Property="RenderTransform" Value="scale(1.02)" />
+                                    </Style>
+                                    <Style Selector="Button:pressed">
+                                        <Setter Property="RenderTransform" Value="scale(0.98)" />
+                                    </Style>
+                                </Button.Styles>
+                                <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Center">
+                                    <PathIcon Data="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"
+                                              Width="18" Height="18"
+                                              Foreground="White"/>
+                                    <TextBlock Text="{localization:Localize Downloads.ContentDetail.DeleteDownload}" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Button>
+
                             <!-- View on source website -->
                             <Button HorizontalAlignment="Stretch"
                                     Height="38"
