@@ -8233,4 +8233,25 @@ GenHub передает официальный идентификатор AppID 
   <data name="GameProfiles.Settings.Notification.WarningTitle" xml:space="preserve">
     <value>Предупреждение о настройках</value>
   </data>
+  <data name="GameProfiles.Settings.Notification.DefaultSettingsLoadedMessage" xml:space="preserve">
+    <value>Загружены настройки по умолчанию из Options.ini. Сохраните профиль, чтобы применить эти настройки.</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.DefaultSettingsLoadedTitle" xml:space="preserve">
+    <value>Загружены настройки по умолчанию</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.InvalidResolutionPresetMessage" xml:space="preserve">
+    <value>Недопустимый пресет разрешения: {0}</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.ResolutionSetMessage" xml:space="preserve">
+    <value>Разрешение установлено на {0}x{1}</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.ResolutionSetTitle" xml:space="preserve">
+    <value>Разрешение обновлено</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.SettingsSavedMessage" xml:space="preserve">
+    <value>Настройки {0} успешно сохранены</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.SettingsSavedTitle" xml:space="preserve">
+    <value>Настройки сохранены</value>
+  </data>
 </root>

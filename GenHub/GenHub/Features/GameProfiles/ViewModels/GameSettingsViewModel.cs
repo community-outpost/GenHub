@@ -69,6 +69,20 @@ public partial class GameSettingsViewModel(
     private const string DefaultErrorOpeningLocationTitle = "Error Opening Location";
     private const string ErrorOpeningLocationMessageKey = "GameProfiles.Settings.Notification.ErrorOpeningLocationMessage";
     private const string DefaultErrorOpeningLocationMessage = "Failed to open file location";
+    private const string SettingsSavedTitleKey = "GameProfiles.Settings.Notification.SettingsSavedTitle";
+    private const string DefaultSettingsSavedTitle = "Settings Saved";
+    private const string SettingsSavedMessageKey = "GameProfiles.Settings.Notification.SettingsSavedMessage";
+    private const string DefaultSettingsSavedMessage = "{0} settings saved successfully";
+    private const string DefaultSettingsLoadedTitleKey = "GameProfiles.Settings.Notification.DefaultSettingsLoadedTitle";
+    private const string DefaultDefaultSettingsLoadedTitle = "Default Settings Loaded";
+    private const string DefaultSettingsLoadedMessageKey = "GameProfiles.Settings.Notification.DefaultSettingsLoadedMessage";
+    private const string DefaultDefaultSettingsLoadedMessage = "Loaded default settings from Options.ini. Save the profile to persist these settings.";
+    private const string ResolutionSetTitleKey = "GameProfiles.Settings.Notification.ResolutionSetTitle";
+    private const string DefaultResolutionSetTitle = "Resolution Updated";
+    private const string ResolutionSetMessageKey = "GameProfiles.Settings.Notification.ResolutionSetMessage";
+    private const string DefaultResolutionSetMessage = "Resolution set to {0}x{1}";
+    private const string InvalidResolutionPresetMessageKey = "GameProfiles.Settings.Notification.InvalidResolutionPresetMessage";
+    private const string DefaultInvalidResolutionPresetMessage = "Invalid resolution preset: {0}";
 
     private static bool ParseBool(string value) =>
         value.Equals("yes", StringComparison.OrdinalIgnoreCase) ||
@@ -604,12 +618,18 @@ public partial class GameSettingsViewModel(
         {
             StatusMessage = $"Invalid resolution preset: {preset}";
             logger.LogWarning("Failed to parse resolution preset: {Preset}", preset);
+            var title = GetWarningTitle();
+            var message = GetInvalidResolutionPresetMessage(preset);
+            notificationService?.ShowWarning(title, message);
             return;
         }
 
         ResolutionWidth = width;
         ResolutionHeight = height;
         StatusMessage = $"Resolution set to {width}x{height}";
+        var infoTitle = GetResolutionSetTitle();
+        var infoMessage = GetResolutionSetMessage(width, height);
+        notificationService?.ShowInfo(infoTitle, infoMessage);
     }
 
     private IniOptions? _currentOptions;
@@ -717,6 +737,9 @@ public partial class GameSettingsViewModel(
         if (optionsLoaded)
         {
             StatusMessage = "Loaded default settings from Options.ini. Save the profile to persist these settings.";
+            var title = GetDefaultSettingsLoadedTitle();
+            var message = GetDefaultSettingsLoadedMessage();
+            notificationService?.ShowInfo(title, message);
         }
     }
 
@@ -1152,6 +1175,9 @@ public partial class GameSettingsViewModel(
             {
                 StatusMessage = $"{SelectedGameType} settings saved successfully";
                 logger.LogInformation("Saved settings for {GameType}", SelectedGameType);
+                var title = GetSettingsSavedTitle();
+                var message = GetSettingsSavedMessage(SelectedGameType);
+                notificationService?.ShowSuccess(title, message);
             }
             else if (optionsSaved)
             {
@@ -1695,4 +1721,34 @@ public partial class GameSettingsViewModel(
 
     private string GetErrorOpeningLocationMessage() =>
         localizationService?.GetString(ErrorOpeningLocationMessageKey) ?? DefaultErrorOpeningLocationMessage;
+
+    private string GetSettingsSavedTitle() =>
+        localizationService?.GetString(SettingsSavedTitleKey) ?? DefaultSettingsSavedTitle;
+
+    private string GetSettingsSavedMessage(GameType gameType)
+    {
+        var format = localizationService?.GetString(SettingsSavedMessageKey) ?? DefaultSettingsSavedMessage;
+        return string.Format(CultureInfo.CurrentCulture, format, gameType);
+    }
+
+    private string GetDefaultSettingsLoadedTitle() =>
+        localizationService?.GetString(DefaultSettingsLoadedTitleKey) ?? DefaultDefaultSettingsLoadedTitle;
+
+    private string GetDefaultSettingsLoadedMessage() =>
+        localizationService?.GetString(DefaultSettingsLoadedMessageKey) ?? DefaultDefaultSettingsLoadedMessage;
+
+    private string GetResolutionSetTitle() =>
+        localizationService?.GetString(ResolutionSetTitleKey) ?? DefaultResolutionSetTitle;
+
+    private string GetResolutionSetMessage(int width, int height)
+    {
+        var format = localizationService?.GetString(ResolutionSetMessageKey) ?? DefaultResolutionSetMessage;
+        return string.Format(CultureInfo.CurrentCulture, format, width, height);
+    }
+
+    private string GetInvalidResolutionPresetMessage(string? preset)
+    {
+        var format = localizationService?.GetString(InvalidResolutionPresetMessageKey) ?? DefaultInvalidResolutionPresetMessage;
+        return string.Format(CultureInfo.CurrentCulture, format, preset);
+    }
 }

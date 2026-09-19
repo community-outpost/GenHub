@@ -8233,4 +8233,25 @@ GenHub هو مشغل ومدير حديث لألعاب **Command &amp; Conquer: G
   <data name="GameProfiles.Settings.Notification.WarningTitle" xml:space="preserve">
     <value>تحذير الإعدادات</value>
   </data>
+  <data name="GameProfiles.Settings.Notification.DefaultSettingsLoadedMessage" xml:space="preserve">
+    <value>تم تحميل الإعدادات الافتراضية من Options.ini. احفظ الملف الشخصي للاحتفاظ بهذه الإعدادات.</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.DefaultSettingsLoadedTitle" xml:space="preserve">
+    <value>تم تحميل الإعدادات الافتراضية</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.InvalidResolutionPresetMessage" xml:space="preserve">
+    <value>إعداد مسبق غير صالح للدقة: {0}</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.ResolutionSetMessage" xml:space="preserve">
+    <value>تم تعيين الدقة إلى {0}x{1}</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.ResolutionSetTitle" xml:space="preserve">
+    <value>تم تحديث الدقة</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.SettingsSavedMessage" xml:space="preserve">
+    <value>تم حفظ إعدادات {0} بنجاح</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.SettingsSavedTitle" xml:space="preserve">
+    <value>تم حفظ الإعدادات</value>
+  </data>
 </root>

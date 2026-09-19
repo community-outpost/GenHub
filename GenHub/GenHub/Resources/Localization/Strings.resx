@@ -8326,4 +8326,25 @@ Do you want to download and inspect this profile package?</value>
   <data name="GameProfiles.Settings.Notification.WarningTitle" xml:space="preserve">
     <value>Settings Warning</value>
   </data>
+  <data name="GameProfiles.Settings.Notification.DefaultSettingsLoadedMessage" xml:space="preserve">
+    <value>Loaded default settings from Options.ini. Save the profile to persist these settings.</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.DefaultSettingsLoadedTitle" xml:space="preserve">
+    <value>Default Settings Loaded</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.InvalidResolutionPresetMessage" xml:space="preserve">
+    <value>Invalid resolution preset: {0}</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.ResolutionSetMessage" xml:space="preserve">
+    <value>Resolution set to {0}x{1}</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.ResolutionSetTitle" xml:space="preserve">
+    <value>Resolution Updated</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.SettingsSavedMessage" xml:space="preserve">
+    <value>{0} settings saved successfully</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.SettingsSavedTitle" xml:space="preserve">
+    <value>Settings Saved</value>
+  </data>
 </root>
