@@ -1563,15 +1563,12 @@ public class SettingsViewModelTests
         // Arrange
         var viewModel = CreateViewModel();
         var target = viewModel.Sections.Last();
-        string? notifiedProperty = null;
-        viewModel.PropertyChanged += (_, e) => notifiedProperty = e.PropertyName;
 
         // Act
-        viewModel.UpdateSectionFromScroll(target);
+        Assert.PropertyChanged(viewModel, nameof(SettingsViewModel.SelectedSection), () => viewModel.UpdateSectionFromScroll(target));
 
         // Assert
         Assert.Same(target, viewModel.SelectedSection);
-        Assert.Equal(nameof(SettingsViewModel.SelectedSection), notifiedProperty);
     }
 
     /// <summary>

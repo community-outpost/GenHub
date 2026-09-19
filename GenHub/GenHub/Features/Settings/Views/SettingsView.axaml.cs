@@ -17,6 +17,8 @@ namespace GenHub.Features.Settings.Views;
 /// </summary>
 public partial class SettingsView : UserControl
 {
+    // Sidebar sections in visual order. Cloud Uploads is intentionally omitted because
+    // it has content but no sidebar entry to highlight.
     private static readonly string[] SectionIdsInVisualOrder =
     [
         SettingsConstants.SectionGameConfig,
@@ -37,6 +39,7 @@ public partial class SettingsView : UserControl
     private SettingsViewModel? _boundViewModel;
     private SectionScrollSpy<string>? _scrollSpy;
     private bool _syncingSelectionFromScroll;
+    private bool _deferredScrollPending;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="SettingsView"/> class.
@@ -90,6 +93,7 @@ public partial class SettingsView : UserControl
         base.OnDetachedFromVisualTree(e);
         _scrollSpy?.Dispose();
         _scrollSpy = null;
+        _deferredScrollPending = false;
         UnhookViewModel();
         if (DataContext is SettingsViewModel vm)
         {
@@ -200,7 +204,7 @@ public partial class SettingsView : UserControl
 
     private void OnSpySectionActivated(string sectionId)
     {
-        if (_boundViewModel is null)
+        if (_deferredScrollPending || _boundViewModel is null)
         {
             return;
         }
@@ -247,11 +251,17 @@ public partial class SettingsView : UserControl
 
     private void ScrollAfterLayout(Expander expander, string sectionId)
     {
+        _deferredScrollPending = true;
+        var spy = _scrollSpy;
         EventHandler? onLayoutUpdated = null;
         onLayoutUpdated = (_, _) =>
         {
             expander.LayoutUpdated -= onLayoutUpdated;
-            _scrollSpy?.ScrollToSection(sectionId);
+            if (ReferenceEquals(_scrollSpy, spy))
+            {
+                _deferredScrollPending = false;
+                spy?.ScrollToSection(sectionId);
+            }
         };
         expander.LayoutUpdated += onLayoutUpdated;
     }

@@ -16,8 +16,7 @@ namespace GenHub.Common.Controls;
 public sealed class SectionScrollSpy<TKey>(ScrollViewer scrollViewer, Action<TKey> activeSectionChanged) : IDisposable
     where TKey : notnull
 {
-    private static readonly TimeSpan AnimationDuration = TimeSpan.FromMilliseconds(ScrollSpyConstants.AnimationDurationMs);
-
+    private readonly TimeSpan _animationDuration = TimeSpan.FromMilliseconds(ScrollSpyConstants.AnimationDurationMs);
     private readonly List<(TKey Key, Control Control)> _sections = [];
     private DispatcherTimer? _animationTimer;
     private double _animStartOffset;
@@ -40,15 +39,6 @@ public sealed class SectionScrollSpy<TKey>(ScrollViewer scrollViewer, Action<TKe
     public void RegisterSection(TKey key, Control control)
     {
         _sections.Add((key, control));
-    }
-
-    /// <summary>
-    /// Removes all registered sections.
-    /// </summary>
-    public void ClearSections()
-    {
-        _sections.Clear();
-        _hasReportedKey = false;
     }
 
     /// <summary>
@@ -239,7 +229,7 @@ public sealed class SectionScrollSpy<TKey>(ScrollViewer scrollViewer, Action<TKe
     private void OnAnimationTick(object? sender, EventArgs e)
     {
         var elapsed = DateTime.UtcNow - _animStartTime;
-        var progress = Math.Min(1.0, elapsed.TotalMilliseconds / AnimationDuration.TotalMilliseconds);
+        var progress = Math.Min(1.0, elapsed.TotalMilliseconds / _animationDuration.TotalMilliseconds);
         var currentY = _animStartOffset + ((_animTargetOffset - _animStartOffset) * EaseInOutQuadratic(progress));
         scrollViewer.Offset = new Vector(scrollViewer.Offset.X, currentY);
 
