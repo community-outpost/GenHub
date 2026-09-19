@@ -6,9 +6,13 @@ namespace GenHub.Tests.Core.Features.Tools.ModBuilder.ViewModels;
 
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
+using System.Resources;
 using System.Threading;
 using System.Threading.Tasks;
+using GenHub.Core.Constants;
+using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Interfaces.Tools.ModBuilder;
@@ -95,7 +99,7 @@ public class ModBuilderViewModelTests : IDisposable
 
         Assert.Null(viewModel.CurrentProject);
         Assert.False(viewModel.IsProjectLoaded);
-        Assert.Equal("Ready", viewModel.StatusMessage);
+        Assert.Equal("Ready", viewModel.BuildStatus);
         Assert.Empty(viewModel.Bundles);
     }
 
@@ -147,14 +151,15 @@ public class ModBuilderViewModelTests : IDisposable
     }
 
     [Fact]
-    public void ClearOutput_ClearsBuildLogAndUpdatesStatus()
+    public void ClearOutput_ClearsBuildLog()
     {
         var viewModel = CreateViewModel();
         viewModel.BuildLog.Add("Sample build log entry");
 
         viewModel.ClearOutputCommand.Execute(null);
 
-        Assert.Equal("Build output cleared", viewModel.StatusMessage);
+        Assert.Empty(viewModel.BuildLog);
+        Assert.Equal(string.Empty, viewModel.BuildOutput);
     }
 
     private ModBuilderViewModel CreateViewModel()
@@ -165,9 +170,25 @@ public class ModBuilderViewModelTests : IDisposable
             _mockConfigLoader.Object,
             _mockProjectStructureGenerator.Object,
             _mockNotificationService.Object,
+            CreateLocalizationService(),
             _fileManager,
             _mockLoggerFactory.Object,
             _mockLogger.Object);
+    }
+
+    private static ILocalizationService CreateLocalizationService()
+    {
+        var resourceManager = new ResourceManager(LocalizationConstants.StringResourceBaseName, typeof(GenHub.Common.Services.LocalizationService).Assembly);
+        var mock = new Mock<ILocalizationService>();
+        mock.Setup(m => m.GetString(It.IsAny<string>(), It.IsAny<object?[]>()))
+            .Returns<string, object?[]>((key, args) =>
+            {
+                var val = resourceManager.GetString(key, CultureInfo.InvariantCulture) ?? key;
+                return args != null && args.Length > 0 ? string.Format(CultureInfo.InvariantCulture, val, args) : val;
+            });
+        mock.Setup(m => m[It.IsAny<string>()])
+            .Returns<string>(key => resourceManager.GetString(key, CultureInfo.InvariantCulture) ?? key);
+        return mock.Object;
     }
 
     /// <summary>

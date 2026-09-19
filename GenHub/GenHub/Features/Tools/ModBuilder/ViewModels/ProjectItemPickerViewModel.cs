@@ -1,12 +1,13 @@
+using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
+using GenHub.Core.Constants;
+using GenHub.Features.Tools.ModBuilder.Models;
+using GenHub.Features.Tools.ModBuilder.Services;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
-using CommunityToolkit.Mvvm.ComponentModel;
-using CommunityToolkit.Mvvm.Input;
-using GenHub.Core.Constants;
-using GenHub.Features.Tools.ModBuilder.Models;
 
 namespace GenHub.Features.Tools.ModBuilder.ViewModels;
 
@@ -53,6 +54,10 @@ public partial class ProjectItemPickerViewModel : ObservableObject
 {
     private readonly string _projectDir;
     private readonly List<string> _initialPatterns = [];
+    private readonly List<string> _preservedPatterns = [];
+    private readonly HashSet<string> _initialMatchedFiles = new(StringComparer.OrdinalIgnoreCase);
+    private readonly HashSet<string> _initialCheckedDirs = new(StringComparer.OrdinalIgnoreCase);
+    private readonly ProjectFileSnapshot? _snapshot;
 
     /// <summary>
     /// Gets the root nodes of the project file tree.
@@ -96,8 +101,56 @@ public partial class ProjectItemPickerViewModel : ObservableObject
             _initialPatterns.AddRange(existingPatterns.Where(p => !string.IsNullOrWhiteSpace(p)).Select(p => p.Trim().Replace("\\", "/")));
         }
 
+        if (Directory.Exists(projectDir))
+        {
+            _snapshot = ProjectFileSnapshot.Create(projectDir);
+            CollectInitialMatches();
+        }
+
         BuildTree();
     }
+
+    private void CollectInitialMatches()
+    {
+        if (_snapshot == null || _initialPatterns.Count == 0)
+        {
+            return;
+        }
+
+        var rootRel = GetTreeRootRelativePath();
+        foreach (var matched in _snapshot.MatchFiles(_initialPatterns))
+        {
+            if (IsTreeVisible(matched, rootRel))
+            {
+                _initialMatchedFiles.Add(matched);
+            }
+        }
+
+        // Patterns matching only outside the visible tree cannot be edited here; carry them through saves.
+        foreach (var pattern in _initialPatterns)
+        {
+            var matches = _snapshot.MatchFiles([pattern]);
+            if (!matches.Any(m => IsTreeVisible(m, rootRel)))
+            {
+                _preservedPatterns.Add(pattern);
+            }
+        }
+    }
+
+    private string GetTreeRootRelativePath()
+    {
+        var gameFilesDir = Path.Combine(_projectDir, ModBuilderConstants.GameFilesEditedDir);
+        return Directory.Exists(gameFilesDir) ? ModBuilderConstants.GameFilesEditedDir : string.Empty;
+    }
+
+    private static bool IsUnderTreeRoot(string relativePath, string rootRel) =>
+        rootRel.Length == 0 ||
+        relativePath.Equals(rootRel, StringComparison.OrdinalIgnoreCase) ||
+        relativePath.StartsWith(rootRel + "/", StringComparison.OrdinalIgnoreCase);
+
+    private static bool IsTreeVisible(string relativePath, string rootRel) =>
+        IsUnderTreeRoot(relativePath, rootRel) &&
+        !relativePath.Split('/').Any(ModBuilderConstants.IsIgnoredProjectFile);
 
     private void BuildTree()
     {
@@ -113,7 +166,13 @@ public partial class ProjectItemPickerViewModel : ObservableObject
         var rootNode = CreateDirectoryNode(rootDir, _projectDir);
         rootNode.IsExpanded = true;
         ExpandAncestorsOfSelected(rootNode);
+        ExpandSelectedDirectories(rootNode);
         Nodes.Add(rootNode);
+
+        foreach (var dirNode in GetSelectedNodes(Nodes).Where(n => n.IsDirectory))
+        {
+            _initialCheckedDirs.Add(NormalizeRelativePath(dirNode.RelativePath));
+        }
 
         UpdateSelectionSummary();
     }
@@ -229,12 +288,17 @@ public partial class ProjectItemPickerViewModel : ObservableObject
             return false;
         }
 
-        var normRel = relativePath.Trim('/').Replace("\\", "/");
+        var normRel = NormalizeRelativePath(relativePath);
+        if (!isDirectory)
+        {
+            return _initialMatchedFiles.Contains(normRel);
+        }
+
         var normRelNoPrefix = StripEditedPrefix(normRel);
 
         foreach (var pattern in _initialPatterns)
         {
-            var normPat = pattern.Trim('/').Replace("\\", "/");
+            var normPat = NormalizeRelativePath(pattern);
             var normPatNoPrefix = StripEditedPrefix(normPat);
 
             if (normRel.Equals(normPat, StringComparison.OrdinalIgnoreCase) ||
@@ -243,23 +307,28 @@ public partial class ProjectItemPickerViewModel : ObservableObject
                 return true;
             }
 
-            if (isDirectory)
+            var dirClean = normPat.Replace("/**/*.*", string.Empty)
+                                  .Replace("/**", string.Empty)
+                                  .Replace("/*.*", string.Empty);
+            if (dirClean.EndsWith("/*", StringComparison.Ordinal))
             {
-                var dirClean = normPat.Replace("/**/*.*", string.Empty)
-                                      .Replace("/**", string.Empty)
-                                      .Replace("/*.*", string.Empty);
-                var dirCleanNoPrefix = StripEditedPrefix(dirClean);
+                dirClean = dirClean[..^2];
+            }
 
-                if (normRel.Equals(dirClean, StringComparison.OrdinalIgnoreCase) ||
-                    normRelNoPrefix.Equals(dirCleanNoPrefix, StringComparison.OrdinalIgnoreCase))
-                {
-                    return true;
-                }
+            var dirCleanNoPrefix = StripEditedPrefix(dirClean);
+
+            if (normRel.Equals(dirClean, StringComparison.OrdinalIgnoreCase) ||
+                normRelNoPrefix.Equals(dirCleanNoPrefix, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
             }
         }
 
         return false;
     }
+
+    private static string NormalizeRelativePath(string path) =>
+        path.Trim('/').Replace("\\", "/");
 
     private static bool ExpandAncestorsOfSelected(FileTreeNode node)
     {
@@ -278,6 +347,19 @@ public partial class ProjectItemPickerViewModel : ObservableObject
         }
 
         return hasSelectedDescendant;
+    }
+
+    private static void ExpandSelectedDirectories(FileTreeNode node)
+    {
+        if (node.IsDirectory && node.IsSelected)
+        {
+            node.IsExpanded = true;
+        }
+
+        foreach (var child in node.Children)
+        {
+            ExpandSelectedDirectories(child);
+        }
     }
 
     partial void OnSearchTextChanged(string value)
@@ -335,49 +417,116 @@ public partial class ProjectItemPickerViewModel : ObservableObject
 
     /// <summary>
     /// Generates glob pattern strings and file paths based on current selection.
+    /// An unchanged selection returns the original patterns verbatim so no-op saves
+    /// never rewrite the configuration.
     /// </summary>
     /// <returns>A list of relative source paths or globs.</returns>
     public List<string> GetGeneratedPatterns()
     {
-        var patterns = new List<string>();
         var selectedNodes = GetSelectedNodes(Nodes).ToList();
-
-        // 1. Process directories
-        foreach (var dirNode in selectedNodes.Where(n => n.IsDirectory))
+        if (GlobOption == DirectoryGlobOption.AllFiles && IsUnchangedSelection(selectedNodes))
         {
-            var rel = dirNode.RelativePath.Trim('/');
-            var pattern = GlobOption switch
-            {
-                DirectoryGlobOption.IniFiles => $"{rel}/**/*.ini",
-                DirectoryGlobOption.Textures => $"{rel}/**/*.tga",
-                DirectoryGlobOption.WindowUI => $"{rel}/**/*.wnd",
-                DirectoryGlobOption.StringTable => $"{rel}/**/*.csf",
-                DirectoryGlobOption.Audio => $"{rel}/**/*.wav",
-                _ => $"{rel}/**/*.*",
-            };
-
-            if (!patterns.Contains(pattern, StringComparer.OrdinalIgnoreCase))
-            {
-                patterns.Add(pattern);
-            }
+            return new List<string>(_initialPatterns);
         }
 
-        // 2. Process standalone selected files (if their parent dir wasn't selected)
-        var selectedDirPaths = selectedNodes
-            .Where(n => n.IsDirectory)
-            .Select(n => n.RelativePath.Trim('/'))
-            .ToList();
+        var patterns = new List<string>();
+        var emittedPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var globCoveredFiles = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-        foreach (var fileNode in selectedNodes.Where(n => !n.IsDirectory))
+        var checkedFileNodes = selectedNodes.Where(n => !n.IsDirectory).ToList();
+        var checkedFiles = new HashSet<string>(
+            checkedFileNodes.Select(n => NormalizeRelativePath(n.RelativePath)),
+            StringComparer.OrdinalIgnoreCase);
+
+        foreach (var dirNode in selectedNodes.Where(n => n.IsDirectory))
         {
-            var rel = fileNode.RelativePath.Trim('/');
-            var coveredByDir = selectedDirPaths.Any(dp => rel.StartsWith($"{dp}/", StringComparison.OrdinalIgnoreCase));
-            if (!coveredByDir && !patterns.Contains(rel, StringComparer.OrdinalIgnoreCase))
+            EmitDirectorySelection(dirNode, checkedFiles, patterns, emittedPaths, globCoveredFiles);
+        }
+
+        foreach (var fileNode in checkedFileNodes)
+        {
+            var rel = NormalizeRelativePath(fileNode.RelativePath);
+            if (!globCoveredFiles.Contains(rel) && emittedPaths.Add(rel))
             {
                 patterns.Add(rel);
             }
         }
 
+        foreach (var preserved in _preservedPatterns)
+        {
+            if (!patterns.Contains(preserved, StringComparer.OrdinalIgnoreCase))
+            {
+                patterns.Add(preserved);
+            }
+        }
+
         return patterns;
     }
+
+    private bool IsUnchangedSelection(List<FileTreeNode> selectedNodes)
+    {
+        var checkedFiles = selectedNodes
+            .Where(n => !n.IsDirectory)
+            .Select(n => NormalizeRelativePath(n.RelativePath))
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var checkedDirs = selectedNodes
+            .Where(n => n.IsDirectory)
+            .Select(n => NormalizeRelativePath(n.RelativePath))
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        return checkedFiles.SetEquals(_initialMatchedFiles) && checkedDirs.SetEquals(_initialCheckedDirs);
+    }
+
+    private void EmitDirectorySelection(
+        FileTreeNode dirNode,
+        HashSet<string> checkedFiles,
+        List<string> patterns,
+        HashSet<string> emittedPaths,
+        HashSet<string> globCoveredFiles)
+    {
+        var rel = NormalizeRelativePath(dirNode.RelativePath);
+        var glob = BuildDirectoryGlob(rel);
+        HashSet<string> matchedByGlob = _snapshot?.MatchFiles([glob]) ?? [];
+
+        // Emit the directory glob when every file it covers is checked, or when it is
+        // a pure directory selection. Otherwise explode to the checked files it covers
+        // so unchecking individual files is honored on save.
+        var matchedChecked = matchedByGlob
+            .Where(checkedFiles.Contains)
+            .OrderBy(p => p, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        if (matchedChecked.Count == matchedByGlob.Count || matchedChecked.Count == 0)
+        {
+            if (!patterns.Contains(glob, StringComparer.OrdinalIgnoreCase))
+            {
+                patterns.Add(glob);
+            }
+
+            foreach (var matched in matchedByGlob)
+            {
+                globCoveredFiles.Add(matched);
+            }
+
+            return;
+        }
+
+        foreach (var matched in matchedChecked)
+        {
+            if (emittedPaths.Add(matched))
+            {
+                patterns.Add(matched);
+            }
+        }
+    }
+
+    private string BuildDirectoryGlob(string relativeDir) => GlobOption switch
+    {
+        DirectoryGlobOption.IniFiles => $"{relativeDir}/**/*.ini",
+        DirectoryGlobOption.Textures => $"{relativeDir}/**/*.tga",
+        DirectoryGlobOption.WindowUI => $"{relativeDir}/**/*.wnd",
+        DirectoryGlobOption.StringTable => $"{relativeDir}/**/*.csf",
+        DirectoryGlobOption.Audio => $"{relativeDir}/**/*.wav",
+        _ => $"{relativeDir}/**/*.*",
+    };
 }

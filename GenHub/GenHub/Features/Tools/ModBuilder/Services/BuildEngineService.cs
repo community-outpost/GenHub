@@ -44,6 +44,15 @@ public sealed class BuildEngineService(
     IServiceScopeFactory serviceScopeFactory,
     ILogger<BuildEngineService> logger) : IBuildEngineService
 {
+    private sealed class StageProgressTracker(int totalFiles)
+    {
+        private int _filesDone;
+
+        public int TotalFiles => totalFiles;
+
+        public int IncrementDone() => Interlocked.Increment(ref _filesDone);
+    }
+
     private readonly SemaphoreSlim _buildLock = new(1, 1);
     private readonly object _abortLock = new();
 
@@ -421,11 +430,16 @@ public sealed class BuildEngineService(
             BuildIndex.BigBundleItem or BuildIndex.ReleaseBundlePack => BuildStage.Archiving,
             _ => BuildStage.Processing,
         };
+        var filesToProcess = GetFilesForStage(stage);
         progress?.Report(new BuildProgress
         {
             CurrentStage = currentBuildStage,
             CurrentIndex = stage,
             CurrentStep = $"Building {stage}",
+            ProcessedFiles = 0,
+            TotalFiles = filesToProcess.Count,
+            PercentComplete = 0,
+            Percentage = 0,
         });
 
         var startEvent = GetStartBuildEvent(stage);
@@ -453,7 +467,6 @@ public sealed class BuildEngineService(
         }
 
         var initialFailed = Volatile.Read(ref _filesFailed);
-        var filesToProcess = GetFilesForStage(stage);
 
         logger.LogInformation("Processing {Count} files for stage {Stage}", filesToProcess.Count, stage);
 
@@ -487,6 +500,7 @@ public sealed class BuildEngineService(
                 await ExecuteReleaseBundlePackStageAsync(setup, progress, cancellationToken).ConfigureAwait(false);
                 break;
             case BuildIndex.RawBundleItem:
+                var tracker = new StageProgressTracker(filesToProcess.Count);
                 await Parallel.ForEachAsync(
                     filesToProcess,
                     new ParallelOptions
@@ -495,13 +509,14 @@ public sealed class BuildEngineService(
                         CancellationToken = cancellationToken,
                     },
                     async (filePath, ct) =>
-                        await ProcessSingleFileAsync(filePath, stage, setup, progress, ct).ConfigureAwait(false)).ConfigureAwait(false);
+                        await ProcessSingleFileAsync(filePath, stage, setup, progress, tracker, ct).ConfigureAwait(false)).ConfigureAwait(false);
                 break;
             default:
+                var sequentialTracker = new StageProgressTracker(filesToProcess.Count);
                 foreach (var filePath in filesToProcess)
                 {
                     cancellationToken.ThrowIfCancellationRequested();
-                    await ProcessSingleFileAsync(filePath, stage, setup, progress, cancellationToken).ConfigureAwait(false);
+                    await ProcessSingleFileAsync(filePath, stage, setup, progress, sequentialTracker, cancellationToken).ConfigureAwait(false);
                 }
 
                 break;
@@ -596,7 +611,7 @@ public sealed class BuildEngineService(
                 File.Copy(sourceFile, targetStagedFile, true);
 
                 var processed = Interlocked.Increment(ref currentFile);
-                if (processed % 25 == 0 || processed == totalFiles)
+                if (processed % ModBuilderConstants.StagingProgressReportInterval == 0 || processed == totalFiles)
                 {
                     var fileProgress = (double)processed / totalFiles;
                     var overallProgress = ((currentItem - 1) + fileProgress) / totalBigItems;
@@ -804,7 +819,7 @@ public sealed class BuildEngineService(
         {
             if (items != null)
             {
-                await StagePackFilesAsync(pack, items, bundlesDir, packStagingDir, buildDir, cancellationToken).ConfigureAwait(false);
+                await StagePackFilesAsync(pack, items, bundlesDir, packStagingDir, buildDir, progress, cancellationToken).ConfigureAwait(false);
             }
 
             var stagedFiles = Directory.GetFiles(packStagingDir, "*", SearchOption.AllDirectories);
@@ -880,26 +895,29 @@ public sealed class BuildEngineService(
         CancellationToken cancellationToken)
     {
         var packFileName = Path.GetFileName(packFilePath);
+        var archiveProgress = new Progress<double>(p =>
+        {
+            var percent = p * 100;
+            progress?.Report(new BuildProgress
+            {
+                CurrentStage = BuildStage.Archiving,
+                CurrentFile = packFileName,
+                CurrentIndex = BuildIndex.ReleaseBundlePack,
+                CurrentStep = $"Packing {packFileName} ({p:P0})",
+                ProcessedFiles = Volatile.Read(ref _filesProcessed),
+                PercentComplete = percent,
+                Percentage = p,
+            });
+        });
+
         if (pack.IsBigPack)
         {
-            var archiveProgress = new Progress<double>(p =>
-            {
-                progress?.Report(new BuildProgress
-                {
-                    CurrentStage = BuildStage.Archiving,
-                    CurrentFile = packFileName,
-                    CurrentIndex = BuildIndex.ReleaseBundlePack,
-                    CurrentStep = $"Packing {packFileName} ({p:P0})",
-                    ProcessedFiles = Volatile.Read(ref _filesProcessed),
-                });
-            });
-
             return !string.IsNullOrEmpty(manifestPath)
                 ? await archiveService.CreateBigArchiveAsync(packStagingDir, packFilePath, manifestPath, archiveProgress, cancellationToken).ConfigureAwait(false)
                 : await archiveService.CreateBigArchiveAsync(packStagingDir, packFilePath, archiveProgress, cancellationToken).ConfigureAwait(false);
         }
 
-        return await archiveService.CreateZipArchiveAsync(packStagingDir, packFilePath, compressionLevel, null, cancellationToken).ConfigureAwait(false);
+        return await archiveService.CreateZipArchiveAsync(packStagingDir, packFilePath, compressionLevel, archiveProgress, cancellationToken).ConfigureAwait(false);
     }
 
     private async Task VerifyBuiltArchiveHashAsync(
@@ -966,19 +984,19 @@ public sealed class BuildEngineService(
         }
     }
 
-    private async Task StagePackFilesAsync(BundlePack pack, IReadOnlyList<BundleItem> items, string bundlesDir, string packStagingDir, string buildDir, CancellationToken cancellationToken)
+    private async Task StagePackFilesAsync(BundlePack pack, IReadOnlyList<BundleItem> items, string bundlesDir, string packStagingDir, string buildDir, IProgress<BuildProgress>? progress, CancellationToken cancellationToken)
     {
         if (pack.IsBigPack)
         {
-            StageBigPackFiles(pack, items, packStagingDir, buildDir, cancellationToken);
+            StageBigPackFiles(pack, items, packStagingDir, buildDir, progress, cancellationToken);
         }
         else
         {
-            await StageStandardPackFilesAsync(pack, items, bundlesDir, packStagingDir, buildDir, cancellationToken).ConfigureAwait(false);
+            await StageStandardPackFilesAsync(pack, items, bundlesDir, packStagingDir, buildDir, progress, cancellationToken).ConfigureAwait(false);
         }
     }
 
-    private void StageBigPackFiles(BundlePack pack, IReadOnlyList<BundleItem> items, string packStagingDir, string buildDir, CancellationToken cancellationToken)
+    private void StageBigPackFiles(BundlePack pack, IReadOnlyList<BundleItem> items, string packStagingDir, string buildDir, IProgress<BuildProgress>? progress, CancellationToken cancellationToken)
     {
         var filesToStage = new List<(BundleFile File, string ItemName)>();
         foreach (var itemName in pack.ItemNames)
@@ -1013,6 +1031,19 @@ public sealed class BuildEngineService(
             Directory.CreateDirectory(dir);
         }
 
+        var totalFiles = filesToStage.Count;
+        var stagedCount = 0;
+        progress?.Report(new BuildProgress
+        {
+            CurrentStage = BuildStage.Archiving,
+            CurrentIndex = BuildIndex.ReleaseBundlePack,
+            CurrentStep = $"Staging release {pack.Name} (0/{totalFiles} files)",
+            ProcessedFiles = 0,
+            TotalFiles = totalFiles,
+            PercentComplete = 0,
+            Percentage = 0,
+        });
+
         Parallel.ForEach(filesToStage, new ParallelOptions
         {
             MaxDegreeOfParallelism = Math.Clamp(Environment.ProcessorCount, 2, 8),
@@ -1021,6 +1052,23 @@ public sealed class BuildEngineService(
         {
             cancellationToken.ThrowIfCancellationRequested();
             StageBigPackFile(pair.File, packStagingDir, pack.Name, pair.ItemName, buildDir);
+
+            var staged = Interlocked.Increment(ref stagedCount);
+            if (staged % ModBuilderConstants.StagingProgressReportInterval == 0 || staged == totalFiles)
+            {
+                var percent = totalFiles > 0 ? (double)staged / totalFiles * 100 : 100;
+                progress?.Report(new BuildProgress
+                {
+                    CurrentStage = BuildStage.Archiving,
+                    CurrentFile = Path.GetFileName(pair.File.AbsSourceFile),
+                    CurrentIndex = BuildIndex.ReleaseBundlePack,
+                    CurrentStep = $"Staging release {pack.Name} ({staged}/{totalFiles} files)",
+                    ProcessedFiles = staged,
+                    TotalFiles = totalFiles,
+                    PercentComplete = percent,
+                    Percentage = percent / 100,
+                });
+            }
         });
     }
 
@@ -1137,8 +1185,10 @@ public sealed class BuildEngineService(
         logger.LogDebug("Staged file {RelPath} for BIG pack {PackName}", finalTargetRelPath, packName);
     }
 
-    private async Task StageStandardPackFilesAsync(BundlePack pack, IReadOnlyList<BundleItem> items, string bundlesDir, string packStagingDir, string buildDir, CancellationToken cancellationToken)
+    private async Task StageStandardPackFilesAsync(BundlePack pack, IReadOnlyList<BundleItem> items, string bundlesDir, string packStagingDir, string buildDir, IProgress<BuildProgress>? progress, CancellationToken cancellationToken)
     {
+        var totalItems = pack.ItemNames.Count;
+        var stagedItems = 0;
         foreach (var itemName in pack.ItemNames)
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -1150,16 +1200,29 @@ public sealed class BuildEngineService(
 
             if (item.IsBig)
             {
-                await StageBigBundleArchiveAsync(item, bundlesDir, packStagingDir, pack.Name, cancellationToken).ConfigureAwait(false);
+                await StageBigBundleArchiveAsync(item, bundlesDir, packStagingDir, pack.Name, progress, cancellationToken).ConfigureAwait(false);
             }
             else
             {
-                StageRawBundleFiles(item, packStagingDir, pack.Name, buildDir, cancellationToken);
+                StageRawBundleFiles(item, packStagingDir, pack.Name, buildDir, progress, cancellationToken);
             }
+
+            stagedItems++;
+            var percent = totalItems > 0 ? (double)stagedItems / totalItems * 100 : 100;
+            progress?.Report(new BuildProgress
+            {
+                CurrentStage = BuildStage.Archiving,
+                CurrentIndex = BuildIndex.ReleaseBundlePack,
+                CurrentStep = $"Staging release {pack.Name} ({stagedItems}/{totalItems} items)",
+                ProcessedFiles = stagedItems,
+                TotalFiles = totalItems,
+                PercentComplete = percent,
+                Percentage = percent / 100,
+            });
         }
     }
 
-    private async Task StageBigBundleArchiveAsync(BundleItem item, string bundlesDir, string packStagingDir, string packName, CancellationToken cancellationToken)
+    private async Task StageBigBundleArchiveAsync(BundleItem item, string bundlesDir, string packStagingDir, string packName, IProgress<BuildProgress>? progress, CancellationToken cancellationToken)
     {
         var bigFileName = GetBigFileName(item);
         var srcBig = Path.Combine(bundlesDir, bigFileName);
@@ -1175,7 +1238,7 @@ public sealed class BuildEngineService(
                 }
 
                 buildAttempted = true;
-                await BuildSingleBigBundleItemAsync(item, bundlesDir, null, 1, 1, cancellationToken).ConfigureAwait(false);
+                await BuildSingleBigBundleItemAsync(item, bundlesDir, progress, 1, 1, cancellationToken).ConfigureAwait(false);
             }
         }
 
@@ -1196,8 +1259,10 @@ public sealed class BuildEngineService(
         }
     }
 
-    private void StageRawBundleFiles(BundleItem item, string packStagingDir, string packName, string? buildDir = null, CancellationToken cancellationToken = default)
+    private void StageRawBundleFiles(BundleItem item, string packStagingDir, string packName, string? buildDir = null, IProgress<BuildProgress>? progress = null, CancellationToken cancellationToken = default)
     {
+        var totalFiles = item.Files.Count;
+        var stagedCount = 0;
         foreach (var file in item.Files)
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -1221,6 +1286,23 @@ public sealed class BuildEngineService(
             EnsureDestinationDirectory(destPath);
             File.Copy(actualSource, destPath, true);
             logger.LogDebug("Staged loose file {RelPath} for pack {PackName}", finalRelPath, packName);
+
+            stagedCount++;
+            if (stagedCount % ModBuilderConstants.StagingProgressReportInterval == 0 || stagedCount == totalFiles)
+            {
+                var percent = totalFiles > 0 ? (double)stagedCount / totalFiles * 100 : 100;
+                progress?.Report(new BuildProgress
+                {
+                    CurrentStage = BuildStage.Archiving,
+                    CurrentFile = Path.GetFileName(sourcePath),
+                    CurrentIndex = BuildIndex.ReleaseBundlePack,
+                    CurrentStep = $"Staging {item.Name} for release {packName} ({stagedCount}/{totalFiles} files)",
+                    ProcessedFiles = stagedCount,
+                    TotalFiles = totalFiles,
+                    PercentComplete = percent,
+                    Percentage = percent / 100,
+                });
+            }
         }
     }
 
@@ -1238,6 +1320,7 @@ public sealed class BuildEngineService(
         BuildIndex stage,
         BuildSetup setup,
         IProgress<BuildProgress>? progress,
+        StageProgressTracker tracker,
         CancellationToken cancellationToken)
     {
         if (!File.Exists(filePath))
@@ -1245,6 +1328,7 @@ public sealed class BuildEngineService(
             logger.LogWarning("File not found for stage {Stage}: {FilePath}", stage, filePath);
             Interlocked.Increment(ref _filesFailed);
             _lastErrorMessage = $"File not found: {filePath}";
+            ReportStageFileProgress(progress, stage, filePath, $"Missing {Path.GetFileName(filePath)}", tracker);
             return;
         }
 
@@ -1258,6 +1342,7 @@ public sealed class BuildEngineService(
             var mtime = fileInfo.LastWriteTimeUtc.Subtract(DateTime.UnixEpoch).TotalSeconds;
             cacheService.AddFile(filePath, mtime, currentMd5);
             Interlocked.Increment(ref _filesSkipped);
+            ReportStageFileProgress(progress, stage, filePath, $"Skipped {Path.GetFileName(filePath)}", tracker);
             return;
         }
 
@@ -1277,22 +1362,46 @@ public sealed class BuildEngineService(
             cacheService.AddFile(filePath, mtime, currentMd5);
 
             Interlocked.Increment(ref _filesProcessed);
-            var fileExt = Path.GetExtension(filePath).ToLowerInvariant();
-            var stageType = fileExt is ModBuilderConstants.FileExtensions.Tga or ModBuilderConstants.FileExtensions.Png or ModBuilderConstants.FileExtensions.Bmp or ModBuilderConstants.FileExtensions.Dds ? BuildStage.Converting : BuildStage.Processing;
-            progress?.Report(new BuildProgress
-            {
-                CurrentStage = stageType,
-                CurrentFile = Path.GetFileName(filePath),
-                CurrentIndex = stage,
-                CurrentStep = $"Processed {Path.GetFileName(filePath)}",
-                ProcessedFiles = Volatile.Read(ref _filesProcessed),
-            });
+            ReportStageFileProgress(progress, stage, filePath, $"Processed {Path.GetFileName(filePath)}", tracker);
         }
         else
         {
             Interlocked.Increment(ref _filesFailed);
             logger.LogError("Failed to process file: {FilePath}", filePath);
+            ReportStageFileProgress(progress, stage, filePath, $"Failed {Path.GetFileName(filePath)}", tracker);
         }
+    }
+
+    private static void ReportStageFileProgress(
+        IProgress<BuildProgress>? progress,
+        BuildIndex stage,
+        string filePath,
+        string step,
+        StageProgressTracker tracker)
+    {
+        if (progress == null)
+        {
+            return;
+        }
+
+        var done = tracker.IncrementDone();
+        var total = tracker.TotalFiles;
+        var percent = total > 0 ? (double)done / total * 100 : 100;
+        var fileExt = Path.GetExtension(filePath).ToLowerInvariant();
+        var stageType = fileExt is ModBuilderConstants.FileExtensions.Tga or ModBuilderConstants.FileExtensions.Png or ModBuilderConstants.FileExtensions.Bmp or ModBuilderConstants.FileExtensions.Dds
+            ? BuildStage.Converting
+            : BuildStage.Processing;
+        progress.Report(new BuildProgress
+        {
+            CurrentStage = stageType,
+            CurrentFile = Path.GetFileName(filePath),
+            CurrentIndex = stage,
+            CurrentStep = step,
+            ProcessedFiles = done,
+            TotalFiles = total,
+            PercentComplete = percent,
+            Percentage = percent / 100,
+        });
     }
 
     private async Task<bool> ProcessRawBundleItemFileAsync(string filePath, BuildSetup setup, CancellationToken cancellationToken)
@@ -1600,7 +1709,7 @@ public sealed class BuildEngineService(
             }
             else
             {
-                StageRawBundleFiles(item, bundlesDir, item.Name, setup.Folders?.AbsBuildDir, cancellationToken);
+                StageRawBundleFiles(item, bundlesDir, item.Name, setup.Folders?.AbsBuildDir, progress, cancellationToken);
             }
         }
 

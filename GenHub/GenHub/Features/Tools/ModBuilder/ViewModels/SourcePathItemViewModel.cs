@@ -47,22 +47,20 @@ public partial class SourcePathItemViewModel : ObservableObject
         Pattern = pattern;
         MatchedFilesCount = matchedCount;
         (TypeLabel, IconKey, IsDirectoryGlob) = DetermineTypeAndIcon(pattern);
-        UpdateDisplayNames(pattern);
+        (DisplayFileName, DisplayDirectory) = GetDisplayNames(pattern);
     }
 
     partial void OnPatternChanged(string value)
     {
         (TypeLabel, IconKey, IsDirectoryGlob) = DetermineTypeAndIcon(value);
-        UpdateDisplayNames(value);
+        (DisplayFileName, DisplayDirectory) = GetDisplayNames(value);
     }
 
-    private void UpdateDisplayNames(string pattern)
+    private static (string DisplayFileName, string DisplayDirectory) GetDisplayNames(string pattern)
     {
         if (string.IsNullOrWhiteSpace(pattern))
         {
-            DisplayFileName = string.Empty;
-            DisplayDirectory = string.Empty;
-            return;
+            return (string.Empty, string.Empty);
         }
 
         var normalized = pattern.Replace("\\", "/").Trim();
@@ -71,23 +69,16 @@ public partial class SourcePathItemViewModel : ObservableObject
             var cleanPath = normalized.Replace("/**/*.*", string.Empty)
                                       .Replace("/**", string.Empty)
                                       .Replace("/*.*", string.Empty);
-            DisplayFileName = Path.GetFileName(cleanPath) + "/*";
-            DisplayDirectory = Path.GetDirectoryName(cleanPath)?.Replace("\\", "/") ?? string.Empty;
+            return (Path.GetFileName(cleanPath) + "/*", Path.GetDirectoryName(cleanPath)?.Replace("\\", "/") ?? string.Empty);
         }
-        else
+
+        var lastSlash = normalized.LastIndexOf('/');
+        if (lastSlash >= 0)
         {
-            var lastSlash = normalized.LastIndexOf('/');
-            if (lastSlash >= 0)
-            {
-                DisplayFileName = normalized[(lastSlash + 1)..];
-                DisplayDirectory = normalized[..lastSlash];
-            }
-            else
-            {
-                DisplayFileName = normalized;
-                DisplayDirectory = string.Empty;
-            }
+            return (normalized[(lastSlash + 1)..], normalized[..lastSlash]);
         }
+
+        return (normalized, string.Empty);
     }
 
     private static bool IsFolderAllFilesGlob(string path) =>

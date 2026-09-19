@@ -1,6 +1,5 @@
 using CommunityToolkit.Mvvm.ComponentModel;
-using Microsoft.Extensions.FileSystemGlobbing;
-using Microsoft.Extensions.FileSystemGlobbing.Abstractions;
+using GenHub.Features.Tools.ModBuilder.Services;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -122,7 +121,8 @@ public partial class BundleItemEditorViewModel : ObservableObject
     /// </summary>
     /// <param name="patterns">The replacement patterns.</param>
     /// <param name="projectDir">Optional project directory to recalculate matches.</param>
-    public void SetPatterns(IEnumerable<string> patterns, string? projectDir = null)
+    /// <param name="snapshot">Optional shared file snapshot to match against instead of walking the disk.</param>
+    public void SetPatterns(IEnumerable<string> patterns, string? projectDir = null, ProjectFileSnapshot? snapshot = null)
     {
         SourcePatternsList.Clear();
         foreach (var pattern in patterns)
@@ -140,7 +140,7 @@ public partial class BundleItemEditorViewModel : ObservableObject
         }
 
         SyncTextFromList();
-        RecalculateMatches(projectDir);
+        RecalculateMatches(projectDir, snapshot);
     }
 
     /// <summary>
@@ -148,7 +148,8 @@ public partial class BundleItemEditorViewModel : ObservableObject
     /// </summary>
     /// <param name="pattern">The pattern or relative file path to add.</param>
     /// <param name="projectDir">Optional project root directory to recalculate matches.</param>
-    public void AddPattern(string pattern, string? projectDir = null)
+    /// <param name="snapshot">Optional shared file snapshot to match against instead of walking the disk.</param>
+    public void AddPattern(string pattern, string? projectDir = null, ProjectFileSnapshot? snapshot = null)
     {
         if (string.IsNullOrWhiteSpace(pattern))
         {
@@ -169,7 +170,7 @@ public partial class BundleItemEditorViewModel : ObservableObject
         {
             SourcePatternsList.Add(new SourcePathItemViewModel(normalized));
             SyncTextFromList();
-            RecalculateMatches(projectDir);
+            RecalculateMatches(projectDir, snapshot);
         }
     }
 
@@ -178,12 +179,13 @@ public partial class BundleItemEditorViewModel : ObservableObject
     /// </summary>
     /// <param name="item">The pattern item to remove.</param>
     /// <param name="projectDir">Optional project directory to recalculate matches.</param>
-    public void RemovePattern(SourcePathItemViewModel item, string? projectDir = null)
+    /// <param name="snapshot">Optional shared file snapshot to match against instead of walking the disk.</param>
+    public void RemovePattern(SourcePathItemViewModel item, string? projectDir = null, ProjectFileSnapshot? snapshot = null)
     {
         if (SourcePatternsList.Remove(item))
         {
             SyncTextFromList();
-            RecalculateMatches(projectDir);
+            RecalculateMatches(projectDir, snapshot);
         }
     }
 
@@ -191,18 +193,20 @@ public partial class BundleItemEditorViewModel : ObservableObject
     /// Clears all patterns.
     /// </summary>
     /// <param name="projectDir">Optional project directory.</param>
-    public void ClearPatterns(string? projectDir = null)
+    /// <param name="snapshot">Optional shared file snapshot to match against instead of walking the disk.</param>
+    public void ClearPatterns(string? projectDir = null, ProjectFileSnapshot? snapshot = null)
     {
         SourcePatternsList.Clear();
         SyncTextFromList();
-        RecalculateMatches(projectDir);
+        RecalculateMatches(projectDir, snapshot);
     }
 
     /// <summary>
     /// Recalculates the number of files matching all current patterns against the project directory.
     /// </summary>
     /// <param name="projectDir">The project directory.</param>
-    public void RecalculateMatches(string? projectDir)
+    /// <param name="snapshot">Optional shared file snapshot to match against instead of walking the disk.</param>
+    public void RecalculateMatches(string? projectDir, ProjectFileSnapshot? snapshot = null)
     {
         if (string.IsNullOrWhiteSpace(projectDir) || !Directory.Exists(projectDir) || SourcePatternsList.Count == 0)
         {
@@ -215,22 +219,10 @@ public partial class BundleItemEditorViewModel : ObservableObject
 
         try
         {
-            var matcher = new Matcher(StringComparison.OrdinalIgnoreCase);
-            foreach (var item in SourcePatternsList)
-            {
-                var p = item.Pattern.TrimStart('/', '\\').Replace('\\', '/');
-                matcher.AddInclude(p);
-
-                // If pattern does not start with GameFilesEdited/, also match within GameFilesEdited
-                if (!p.StartsWith("GameFilesEdited/", StringComparison.OrdinalIgnoreCase))
-                {
-                    matcher.AddInclude($"GameFilesEdited/{p}");
-                }
-            }
-
-            var dirInfo = new DirectoryInfo(projectDir);
-            var result = matcher.Execute(new DirectoryInfoWrapper(dirInfo));
-            var count = result.Files.Count();
+            var effectiveSnapshot = snapshot is { } provided && provided.IsSameRoot(projectDir)
+                ? provided
+                : ProjectFileSnapshot.Create(projectDir);
+            var count = effectiveSnapshot.CountMatches(SourcePatternsList.Select(item => item.Pattern));
 
             MatchingFilesCount = count;
             var matchSuffix = count == 1 ? "file matches" : "files match";

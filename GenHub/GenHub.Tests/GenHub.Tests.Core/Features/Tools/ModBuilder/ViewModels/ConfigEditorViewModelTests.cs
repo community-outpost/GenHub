@@ -30,6 +30,11 @@ public class ConfigEditorViewModelTests
         _mockLogger = new Mock<ILogger<ConfigEditorViewModel>>();
     }
 
+    private ConfigEditorViewModel CreateViewModel() => new(
+        _mockConfigLoader.Object,
+        _mockNotificationService.Object,
+        _mockLogger.Object);
+
     [Fact]
     public async Task InitializeAsync_PopulatesBundleItemsAndPacksFromProjectAsync()
     {
@@ -60,10 +65,7 @@ public class ConfigEditorViewModelTests
             },
         };
 
-        var viewModel = new ConfigEditorViewModel(
-            _mockConfigLoader.Object,
-            _mockNotificationService.Object,
-            _mockLogger.Object);
+        var viewModel = CreateViewModel();
 
         await viewModel.InitializeAsync(project);
 
@@ -86,10 +88,7 @@ public class ConfigEditorViewModelTests
             Configuration = new BuildConfiguration(),
         };
 
-        var viewModel = new ConfigEditorViewModel(
-            _mockConfigLoader.Object,
-            _mockNotificationService.Object,
-            _mockLogger.Object);
+        var viewModel = CreateViewModel();
 
         await viewModel.InitializeAsync(project);
 
@@ -132,10 +131,7 @@ public class ConfigEditorViewModelTests
             },
         };
 
-        var viewModel = new ConfigEditorViewModel(
-            _mockConfigLoader.Object,
-            _mockNotificationService.Object,
-            _mockLogger.Object);
+        var viewModel = CreateViewModel();
 
         await viewModel.InitializeAsync(project);
 
