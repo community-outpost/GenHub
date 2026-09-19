@@ -1273,7 +1273,7 @@ public class GameLauncherTests : IDisposable
     [InlineData(GameType.Generals, true)]
     [InlineData(GameType.ZeroHour, false)]
     [InlineData(GameType.ZeroHour, true)]
-    public async Task LaunchProfileAsync_WithValidProfile_RecordsLaunchReceipt(GameType gameType, bool overrideRoot)
+    public async Task LaunchProfileAsync_WithValidProfile_RecordsLaunchReceiptAsync(GameType gameType, bool overrideRoot)
     {
         // Arrange
         var profile = CreateTestProfile();
@@ -1414,7 +1414,7 @@ public class GameLauncherTests : IDisposable
         Assert.True(result.Success);
         _launchReceiptServiceMock.Verify(x => x.RecordLaunchAsync(It.IsAny<LaunchReceiptContext>(), CancellationToken.None), Times.Once);
         Assert.NotNull(result.Data);
-        Assert.Contains(revalidationThrows ? "Previous launch receipt could not be revalidated" : driftReport.DriftedFields[0], result.Data.ReceiptDriftWarnings);
+        Assert.Contains(revalidationThrows ? LaunchReceiptConstants.RevalidationWarningKey : driftReport.DriftedFields[0], result.Data.ReceiptDriftWarnings);
     }
 
     /// <summary>
@@ -1423,7 +1423,7 @@ public class GameLauncherTests : IDisposable
     /// </summary>
     /// <returns>The async task.</returns>
     [Fact]
-    public async Task LaunchProfileAsync_WithPreviousReceipt_ComparesUpcomingConfiguration()
+    public async Task LaunchProfileAsync_WithPreviousReceipt_ComparesUpcomingConfigurationAsync()
     {
         // Arrange
         var profile = CreateTestProfile();
@@ -1479,7 +1479,7 @@ public class GameLauncherTests : IDisposable
     /// </summary>
     /// <returns>The async task.</returns>
     [Fact]
-    public async Task LaunchProfileAsync_WhenReceiptRecordingFails_StillSucceeds()
+    public async Task LaunchProfileAsync_WhenReceiptRecordingFails_StillSucceedsAsync()
     {
         // Arrange
         var profile = CreateTestProfile();
@@ -1523,7 +1523,7 @@ public class GameLauncherTests : IDisposable
     /// <returns>The async task.</returns>
     [Theory]
     [MemberData(nameof(ReceiptRecordingExceptions))]
-    public async Task LaunchProfileAsync_WhenReceiptRecordingThrows_StillSucceeds(Exception thrown)
+    public async Task LaunchProfileAsync_WhenReceiptRecordingThrows_StillSucceedsAsync(Exception thrown)
     {
         // Arrange
         var profile = CreateTestProfile();

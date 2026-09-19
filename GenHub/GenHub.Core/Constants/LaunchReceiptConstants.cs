@@ -3,6 +3,15 @@ namespace GenHub.Core.Constants;
 /// <summary>Launch receipt serialization constants.</summary>
 public static class LaunchReceiptConstants
 {
+    /// <summary>Localization key for a receipt that could not be revalidated.</summary>
+    public const string RevalidationWarningKey = "GameProfiles.Notification.LaunchChanged.RevalidationFailed";
+
+    /// <summary>Localization key for a manifest that gained platform variants.</summary>
+    public const string VariantsAddedWarningKey = "GameProfiles.Notification.LaunchChanged.VariantsAdded";
+
+    /// <summary>Localization key for a manifest that no longer declares platform variants.</summary>
+    public const string VariantsRemovedWarningKey = "GameProfiles.Notification.LaunchChanged.VariantsRemoved";
+
     /// <summary>Schema storing environment names without value fingerprints.</summary>
     public const int CurrentSchemaVersion = 2;
 

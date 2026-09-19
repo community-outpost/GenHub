@@ -618,7 +618,9 @@ public partial class GameProfileLauncherViewModel(
     private static string BuildReceiptDriftNotice(IReadOnlyList<string> driftWarnings, ILocalizationService localization)
     {
         var lines = new List<string> { localization["GameProfiles.Notification.LaunchChanged.Message"] };
-        lines.AddRange(driftWarnings.Take(MaxReceiptDriftNoticeLines));
+        lines.AddRange(driftWarnings.Take(MaxReceiptDriftNoticeLines).Select(warning =>
+            warning is LaunchReceiptConstants.RevalidationWarningKey or LaunchReceiptConstants.VariantsAddedWarningKey or LaunchReceiptConstants.VariantsRemovedWarningKey
+                ? localization[warning] : warning));
         if (driftWarnings.Count > MaxReceiptDriftNoticeLines)
         {
             lines.Add(localization.GetString("GameProfiles.Notification.LaunchChanged.More", driftWarnings.Count - MaxReceiptDriftNoticeLines));

@@ -421,7 +421,9 @@ public class LaunchReceiptService(
 
         if (recorded.HasVariants != upcoming.HasVariants)
         {
-            report.DriftedFields.Add($"Manifest variant selection changed from {recorded.HasVariants} to {upcoming.HasVariants}");
+            report.DriftedFields.Add(upcoming.HasVariants
+                ? LaunchReceiptConstants.VariantsAddedWarningKey
+                : LaunchReceiptConstants.VariantsRemovedWarningKey);
         }
 
         if (!(recorded.VariantRuntimeIdentifiers ?? []).SequenceEqual(upcoming.VariantRuntimeIdentifiers ?? [], StringComparer.OrdinalIgnoreCase))

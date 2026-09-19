@@ -723,7 +723,9 @@ public class LaunchReceiptServiceTests : IDisposable
         context.EnvironmentVariables = new Dictionary<string, string>();
         Assert.False(_service.CompareUpcomingLaunch(receipt, context).HasDrift);
         await RecordSuccessfullyAsync(context);
-        Assert.NotEmpty((await ReadReceiptAsync()).ArchiveRoots);
+        Assert.Equal(
+            context.ArchiveRoots[RetailArchiveConstants.ZeroHourInstallPathVariable],
+            (await ReadReceiptAsync()).ArchiveRoots[RetailArchiveConstants.ZeroHourInstallPathVariable].Path);
     }
 
     /// <summary>Adding or removing a platform-neutral variant produces informational drift.</summary>
@@ -742,7 +744,9 @@ public class LaunchReceiptServiceTests : IDisposable
         context.Variant.HasVariants = !hasVariants;
         var report = _service.CompareUpcomingLaunch(receipt, context);
         Assert.Single(report.DriftedFields);
-        Assert.Contains("Manifest variant selection changed", report.DriftedFields[0]);
+        Assert.Equal(
+            hasVariants ? LaunchReceiptConstants.VariantsRemovedWarningKey : LaunchReceiptConstants.VariantsAddedWarningKey,
+            report.DriftedFields[0]);
     }
 
     /// <summary>

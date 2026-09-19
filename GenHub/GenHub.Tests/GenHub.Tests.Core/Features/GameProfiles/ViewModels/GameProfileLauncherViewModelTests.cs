@@ -587,8 +587,14 @@ public class GameProfileLauncherViewModelTests
     /// notice naming the drift, while the success presentation stays unchanged.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
-    [Fact]
-    public async Task LaunchProfileCommand_WithReceiptDrift_ShowsInformationalNoticeAsync()
+    /// <param name="warning">The diagnostic or localized-warning key.</param>
+    /// <param name="expected">The expected notification body text.</param>
+    [Theory]
+    [InlineData("Executable size changed from 1 to 2 bytes: generalszh", "Executable size changed from 1 to 2 bytes")]
+    [InlineData(LaunchReceiptConstants.VariantsAddedWarningKey, "The game client now supports platform variants.")]
+    [InlineData(LaunchReceiptConstants.VariantsRemovedWarningKey, "The game client no longer declares platform variants.")]
+    [InlineData(LaunchReceiptConstants.RevalidationWarningKey, "The previous launch receipt could not be checked.")]
+    public async Task LaunchProfileCommand_WithReceiptDrift_ShowsInformationalNoticeAsync(string warning, string expected)
     {
         var notificationService = new Mock<INotificationService>();
         var launcherFacade = new Mock<IProfileLauncherFacade>();
@@ -598,7 +604,7 @@ public class GameProfileLauncherViewModelTests
             ProfileId = "profile-1",
             WorkspaceId = "profile-1",
             ProcessInfo = new GameProcessInfo { ProcessId = 123 },
-            ReceiptDriftWarnings = ["Executable size changed from 1 to 2 bytes: generalszh"],
+            ReceiptDriftWarnings = [warning],
         };
         launcherFacade.Setup(x => x.LaunchProfileAsync("profile-1", It.IsAny<bool>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(ProfileOperationResult<GameLaunchInfo>.CreateSuccess(launchInfo));
@@ -617,7 +623,7 @@ public class GameProfileLauncherViewModelTests
                 "Launch Configuration Changed",
                 It.Is<string>(m =>
                     m.Contains("This launch differs from the last recorded launch") &&
-                    m.Contains("Executable size changed from 1 to 2 bytes")),
+                    m.Contains(expected)),
                 It.IsAny<int?>(),
                 It.IsAny<bool>()),
             Times.Once);
