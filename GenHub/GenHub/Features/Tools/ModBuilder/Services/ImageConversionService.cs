@@ -384,7 +384,7 @@ public class ImageConversionService(ILogger<ImageConversionService> logger) : II
         return (rawData, width, height, hasAlpha);
     }
 
-    private async Task<(byte[] RawData, int Width, int Height, bool HasAlpha)> LoadStandardPixelsAsync(
+    private static async Task<(byte[] RawData, int Width, int Height, bool HasAlpha)> LoadStandardPixelsAsync(
         string sourcePath,
         IDictionary<string, object>? parameters,
         CancellationToken cancellationToken)
