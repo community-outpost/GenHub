@@ -467,9 +467,9 @@ public class CrossPublisherDependencyResolverTests
     /// <param name="url">The loopback URL to test.</param>
     /// <returns>A task representing the asynchronous unit test.</returns>
     [Theory]
-    [InlineData("http://localhost/catalog.json")]
-    [InlineData("http://127.0.0.1/catalog.json")]
-    [InlineData("http://[::1]/catalog.json")]
+    [InlineData("https://localhost/catalog.json")]
+    [InlineData("https://127.0.0.1/catalog.json")]
+    [InlineData("https://[::1]/catalog.json")]
     public async Task FetchExternalCatalogAsync_LoopbackAddress_ReturnsFailureAsync(string url)
     {
         // Arrange
@@ -489,11 +489,11 @@ public class CrossPublisherDependencyResolverTests
     /// <param name="url">The private or metadata URL to test.</param>
     /// <returns>A task representing the asynchronous unit test.</returns>
     [Theory]
-    [InlineData("http://10.0.0.1/catalog.json")]
-    [InlineData("http://192.168.1.1/catalog.json")]
-    [InlineData("http://172.16.0.1/catalog.json")]
-    [InlineData("http://169.254.169.254/latest/meta-data/")]
-    [InlineData("http://metadata.google.internal/computeMetadata/v1/")]
+    [InlineData("https://10.0.0.1/catalog.json")]
+    [InlineData("https://192.168.1.1/catalog.json")]
+    [InlineData("https://172.16.0.1/catalog.json")]
+    [InlineData("https://169.254.169.254/latest/meta-data/")]
+    [InlineData("https://metadata.google.internal/computeMetadata/v1/")]
     public async Task FetchExternalCatalogAsync_PrivateAndMetadataAddresses_ReturnsFailureAsync(string url)
     {
         // Arrange
@@ -513,13 +513,13 @@ public class CrossPublisherDependencyResolverTests
     /// <param name="url">The transition/mapped address URL to test.</param>
     /// <returns>A task representing the asynchronous unit test.</returns>
     [Theory]
-    [InlineData("http://[::ffff:169.254.169.254]/latest/meta-data/")]
-    [InlineData("http://[::ffff:127.0.0.1]/catalog.json")]
-    [InlineData("http://[::ffff:10.0.0.1]/catalog.json")]
-    [InlineData("http://[::ffff:192.168.1.1]/catalog.json")]
-    [InlineData("http://[2002:a9fe:a9fe::]/catalog.json")]
-    [InlineData("http://[64:ff9b::169.254.169.254]/catalog.json")]
-    [InlineData("http://[64:ff9b:1::1]/catalog.json")]
+    [InlineData("https://[::ffff:169.254.169.254]/latest/meta-data/")]
+    [InlineData("https://[::ffff:127.0.0.1]/catalog.json")]
+    [InlineData("https://[::ffff:10.0.0.1]/catalog.json")]
+    [InlineData("https://[::ffff:192.168.1.1]/catalog.json")]
+    [InlineData("https://[2002:a9fe:a9fe::]/catalog.json")]
+    [InlineData("https://[64:ff9b::169.254.169.254]/catalog.json")]
+    [InlineData("https://[64:ff9b:1::1]/catalog.json")]
     public async Task FetchExternalCatalogAsync_Ipv6TransitionAndEmbeddedAddresses_ReturnsFailureAsync(string url)
     {
         // Arrange

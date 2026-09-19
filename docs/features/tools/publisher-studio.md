@@ -177,13 +177,12 @@ Each stage is represented by a tab in the Publisher Studio interface.
 
    **Option B: Upload to GitHub**
 
-   ```
-   1. Click "Select File" → Browse to your ZIP file
-   2. Click "Upload to GitHub Release"
-   3. Enter repository: yourusername/enhanced-mods
-   4. Release tag: v1.0.0
-   5. Wait for upload to complete
-   ```
+   GitHub hosting is handled from the "Publish & Share" tab:
+
+   1. Select hosting provider: "GitHub Gists"
+   2. Authenticate with a Personal Access Token
+   3. Catalogs and definitions upload as public Gists
+   4. For release binaries, set the folder path to `owner/repo/release-tag` to upload as a release asset (the release must already exist)
 
 3. Click "Add Artifact"
 4. Click "Create Release"

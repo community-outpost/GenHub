@@ -360,11 +360,12 @@ public class DropboxHostingProvider(ILogger<DropboxHostingProvider> logger, IHtt
                 return OperationResult<HostingState?>.CreateFailure("Dropbox list_folder response missing entries property.");
             }
 
+            // LastPublished is intentionally left unset: recovery rediscovers existing
+            // state rather than publishing, so there is no meaningful publish time.
             var state = new HostingState
             {
                 ProviderId = ProviderId,
                 FolderId = PublisherFolderPath,
-                LastPublished = DateTime.UtcNow,
             };
 
             foreach (var entry in entries.EnumerateArray())

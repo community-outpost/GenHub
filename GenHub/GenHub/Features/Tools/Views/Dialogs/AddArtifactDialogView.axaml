@@ -132,7 +132,7 @@
                             <TextBlock Text="{localization:Localize Tools.PublisherStudio.Artifact.DirectDownloadUrl}" Classes="label"/>
                             <TextBox Text="{Binding DownloadUrl}"
                                      AutomationProperties.Name="{localization:Localize Tools.PublisherStudio.Artifact.DirectDownloadUrl}"
-                                     Watermark="https://cdn.example.com/downloads/gameclient-v1.0.zip"/>
+                                     Watermark="{localization:Localize Tools.PublisherStudio.Artifact.DirectDownloadUrlPlaceholder}"/>
                         </StackPanel>
 
                         <StackPanel Spacing="4">

@@ -116,6 +116,7 @@ public partial class PublishShareViewModel(
     private CancellationTokenSource? _uploadCts;
     private CancellationTokenSource? _scanCts;
     private CancellationTokenSource? _silentScanCts;
+    private bool _isRestoringAuthentication;
 
     [ObservableProperty]
     private string _totalStorageUsedFormatted = "0 B";
@@ -317,6 +318,16 @@ public partial class PublishShareViewModel(
     public int ContentItemCount => ActiveCatalog?.Catalog.Content.Count ?? 0;
 
     /// <summary>
+    /// Gets the localized hosted-assets count display text.
+    /// </summary>
+    public string HostedAssetsCountText => FormatLocalizedString("Tools.PublisherStudio.Hosting.AssetsTrackedFormat", "{0} Assets Tracked", HostedAssets.Count);
+
+    /// <summary>
+    /// Gets the localized catalogs count display text.
+    /// </summary>
+    public string CatalogStatusesCountText => FormatLocalizedString("Tools.PublisherStudio.Publish.CatalogsCountFormat", "{0} Catalogs", CatalogStatuses.Count);
+
+    /// <summary>
     /// Gets the total release count across all content items in the active catalog.
     /// </summary>
     public int TotalReleaseCount => ActiveCatalog?.Catalog.Content.Sum(c => c.Releases.Count) ?? 0;
@@ -472,6 +483,7 @@ public partial class PublishShareViewModel(
         HostedCatalogsCount = catCount;
         HostedArtifactsCount = artCount;
         ExternalCdnCount = cdnCount;
+        OnPropertyChanged(nameof(HostedAssetsCountText));
     }
 
     /// <inheritdoc />
@@ -603,7 +615,9 @@ public partial class PublishShareViewModel(
             Location = isDefHosted ? $"{providerName} ({HostingConstants.DropboxDefaultPublisherFolder})" : "Local only",
             FileSize = defSize,
             Url = defUrl ?? string.Empty,
-            Status = isDefHosted ? HostingConstants.StatusLiveOnline : HostingConstants.StatusPendingUpload,
+            Status = isDefHosted
+                ? GetLocalizedString("Tools.PublisherStudio.Hosting.StatusLiveOnline", HostingConstants.StatusLiveOnline)
+                : GetLocalizedString("Tools.PublisherStudio.Hosting.StatusPendingUpload", HostingConstants.StatusPendingUpload),
             IsOnline = isDefHosted,
             IsExternalCdn = false,
             LastUpdated = defUpdated,
@@ -633,7 +647,9 @@ public partial class PublishShareViewModel(
                 Location = isCatHosted ? $"{providerName} ({HostingConstants.DropboxDefaultPublisherFolder})" : "Local only",
                 FileSize = catSize,
                 Url = catUrl,
-                Status = isCatHosted ? HostingConstants.StatusLiveOnline : HostingConstants.StatusPendingUpload,
+                Status = isCatHosted
+                    ? GetLocalizedString("Tools.PublisherStudio.Hosting.StatusLiveOnline", HostingConstants.StatusLiveOnline)
+                    : GetLocalizedString("Tools.PublisherStudio.Hosting.StatusPendingUpload", HostingConstants.StatusPendingUpload),
                 IsOnline = isCatHosted,
                 IsExternalCdn = false,
                 LastUpdated = catUpdated,
@@ -675,18 +691,18 @@ public partial class PublishShareViewModel(
             artCount++;
             totalBytes += artSize;
             location = $"{providerName} ({HostingConstants.DropboxDefaultPublisherFolder})";
-            status = HostingConstants.StatusLiveOnline;
+            status = GetLocalizedString("Tools.PublisherStudio.Hosting.StatusLiveOnline", HostingConstants.StatusLiveOnline);
         }
         else if (isExternal)
         {
             cdnCount++;
-            location = HostingConstants.StatusExternalCdn;
-            status = HostingConstants.StatusExternalCdn;
+            location = GetLocalizedString("Tools.PublisherStudio.Hosting.StatusExternalCdn", HostingConstants.StatusExternalCdn);
+            status = GetLocalizedString("Tools.PublisherStudio.Hosting.StatusExternalCdn", HostingConstants.StatusExternalCdn);
         }
         else
         {
             location = "Local file";
-            status = HostingConstants.StatusPendingUpload;
+            status = GetLocalizedString("Tools.PublisherStudio.Hosting.StatusPendingUpload", HostingConstants.StatusPendingUpload);
         }
 
         HostedAssets.Add(new HostedAssetItemViewModel
@@ -792,8 +808,8 @@ public partial class PublishShareViewModel(
         {
             HostingConstants.Dropbox => HostingConstants.DropboxDefaultPublisherFolder,
             HostingConstants.GoogleDrive => HostingConstants.GoogleDriveDefaultPublisherFolder,
-            HostingConstants.GitHub => HostingConstants.GitHubGistsDestinationLabel,
-            _ => HostingConstants.RemoteCloudDestinationLabel,
+            HostingConstants.GitHub => GetLocalizedString("Tools.PublisherStudio.Hosting.DestinationGitHubGists", HostingConstants.GitHubGistsDestinationLabel),
+            _ => GetLocalizedString("Tools.PublisherStudio.Hosting.DestinationRemoteCloud", HostingConstants.RemoteCloudDestinationLabel),
         };
         RefreshHostedAssets();
 
@@ -1130,6 +1146,7 @@ public partial class PublishShareViewModel(
             HasLocalFile = hasLocal,
             LocalFilePath = localPath,
             IsExternalCdn = isExternalCdn,
+            LocalizationService = localizationService,
         };
 
         return artNode;
@@ -1185,6 +1202,7 @@ public partial class PublishShareViewModel(
             Id = namedCat.Id,
             Name = namedCat.Name,
             Description = namedCat.Description ?? string.Empty,
+            LocalizationService = localizationService,
         };
 
         var hostedInfo = _currentHostingState?.Catalogs?.FirstOrDefault(c => c.CatalogId == namedCat.Id);
@@ -1888,6 +1906,28 @@ public partial class PublishShareViewModel(
 
     private async Task RestoreAuthenticationAsync()
     {
+        if (_isRestoringAuthentication)
+        {
+            return;
+        }
+
+        _isRestoringAuthentication = true;
+        try
+        {
+            await RestoreAuthenticationCoreAsync();
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Failed to restore authentication");
+        }
+        finally
+        {
+            _isRestoringAuthentication = false;
+        }
+    }
+
+    private async Task RestoreAuthenticationCoreAsync()
+    {
         var provider = SelectedHostingProvider
             ?? (_currentHostingState != null ? HostingProviders.FirstOrDefault(p => p.ProviderId == _currentHostingState.ProviderId) : null)
             ?? HostingProviders.FirstOrDefault();
@@ -2364,16 +2404,14 @@ public partial class PublishShareViewModel(
                 CatalogStatuses.Add(status);
             }
 
-            // Check if published
+            // Check if published; reset stale state when the catalog is no longer hosted
             var hostingInfo = _currentHostingState?.Catalogs
                 .FirstOrDefault(c => c.CatalogId == catalog.Id);
+            var isHosted = hostingInfo != null && !string.IsNullOrWhiteSpace(hostingInfo.Url);
 
-            if (hostingInfo != null)
-            {
-                status.IsPublished = true;
-                status.PublishedUrl = hostingInfo.Url;
-                status.LastPublished = hostingInfo.LastUpdated;
-            }
+            status.IsPublished = isHosted;
+            status.PublishedUrl = isHosted ? hostingInfo!.Url : null;
+            status.LastPublished = isHosted ? hostingInfo!.LastUpdated : null;
         }
 
         var projectCatalogIds = new HashSet<string>(project.Catalogs.Select(c => c.Id));
@@ -2385,6 +2423,8 @@ public partial class PublishShareViewModel(
                 CatalogStatuses.RemoveAt(i);
             }
         }
+
+        OnPropertyChanged(nameof(CatalogStatusesCountText));
     }
 
     /// <summary>
@@ -2793,6 +2833,13 @@ public partial class PublishShareViewModel(
             return;
         }
 
+        if (IsUploading || _silentScanCts != null)
+        {
+            StorageScanStatusMessage = GetLocalizedString("Tools.PublisherStudio.Publish.ScanBlockedByOperation", "Please wait for the current upload or sync to finish before scanning.");
+            notificationService?.ShowWarning(GetLocalizedString("Tools.PublisherStudio.Publish.ScanError", "Scan Error"), StorageScanStatusMessage);
+            return;
+        }
+
         if (_scanCts != null)
         {
             await _scanCts.CancelAsync();
@@ -2845,7 +2892,16 @@ public partial class PublishShareViewModel(
         }
         finally
         {
-            IsScanningStorage = false;
+            if (_scanCts?.Token == ct)
+            {
+                if (_silentScanCts == null)
+                {
+                    IsScanningStorage = false;
+                }
+
+                _scanCts.Dispose();
+                _scanCts = null;
+            }
         }
     }
 
@@ -2887,7 +2943,11 @@ public partial class PublishShareViewModel(
         }
         finally
         {
-            IsScanningStorage = false;
+            if (_scanCts == null)
+            {
+                IsScanningStorage = false;
+            }
+
             _silentScanCts?.Dispose();
             _silentScanCts = null;
         }

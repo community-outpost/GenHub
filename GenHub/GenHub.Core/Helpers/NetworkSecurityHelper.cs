@@ -15,8 +15,19 @@ public static class NetworkSecurityHelper
 {
     private const string DisallowedAddressMessage = "Loopback, private, and local addresses are not allowed.";
 
+    private const string UnresolvableHostMessage = "The URL host name could not be resolved to a safe address.";
+
     /// <summary>
-    /// Validates whether a URL is a safe external HTTP or HTTPS URL (not loopback, private, or local network).
+    /// Gets or sets a value indicating whether DNS resolution failures (SocketException)
+    /// should be permitted (e.g. for mock test hosts or offline testing environments).
+    /// </summary>
+    internal static bool AllowUnresolvableDnsForTesting { get; set; }
+
+    /// <summary>
+    /// Validates whether a URL is a safe external HTTPS URL (not loopback, private, or local network).
+    /// Plain HTTP is rejected to match the HTTPS-only remote catalog policy enforced at fetch time.
+    /// Host names that fail DNS resolution are rejected; callers must still fetch through an
+    /// SSRF-protected handler since DNS results can change between validation and connection.
     /// </summary>
     /// <param name="url">The URL string to validate.</param>
     /// <param name="failureReason">The error message if validation fails.</param>
@@ -48,23 +59,29 @@ public static class NetworkSecurityHelper
         try
         {
             var addresses = Dns.GetHostAddresses(uri.DnsSafeHost);
-            if (addresses.Length > 0 && !addresses.All(IsSafeIpAddress))
+            if (addresses.Length == 0 || !addresses.All(IsSafeIpAddress))
             {
-                failureReason = DisallowedAddressMessage;
+                failureReason = addresses.Length == 0 ? UnresolvableHostMessage : DisallowedAddressMessage;
                 return false;
             }
         }
         catch (SocketException)
         {
-            // In offline or mocked environments, connection-time SocketsHttpHandler enforces SSRF safety.
+            if (!AllowUnresolvableDnsForTesting)
+            {
+                failureReason = UnresolvableHostMessage;
+                return false;
+            }
         }
 
         return true;
     }
 
     /// <summary>
-    /// Asynchronously validates whether a URL is a safe external HTTP or HTTPS URL.
+    /// Asynchronously validates whether a URL is a safe external HTTPS URL.
     /// Unlike <see cref="IsSafeUrl"/>, host name resolution does not block the calling thread.
+    /// Host names that fail DNS resolution are rejected; callers must still fetch through an
+    /// SSRF-protected handler since DNS results can change between validation and connection.
     /// </summary>
     /// <param name="url">The URL string to validate.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
@@ -93,14 +110,19 @@ public static class NetworkSecurityHelper
         try
         {
             var addresses = await Dns.GetHostAddressesAsync(uri.DnsSafeHost, cancellationToken);
-            if (addresses.Length > 0 && !addresses.All(IsSafeIpAddress))
+            if (addresses.Length == 0 || !addresses.All(IsSafeIpAddress))
             {
-                return (false, DisallowedAddressMessage);
+                return addresses.Length == 0
+                    ? (false, UnresolvableHostMessage)
+                    : (false, DisallowedAddressMessage);
             }
         }
         catch (SocketException)
         {
-            // In offline or mocked environments, connection-time SocketsHttpHandler enforces SSRF safety.
+            if (!AllowUnresolvableDnsForTesting)
+            {
+                return (false, UnresolvableHostMessage);
+            }
         }
 
         return (true, null);
@@ -182,10 +204,10 @@ public static class NetworkSecurityHelper
         failureReason = null;
         if (string.IsNullOrWhiteSpace(url) ||
             !Uri.TryCreate(url, UriKind.Absolute, out uri) ||
-            (uri.Scheme != Uri.UriSchemeHttps && uri.Scheme != Uri.UriSchemeHttp))
+            uri.Scheme != Uri.UriSchemeHttps)
         {
             uri = null;
-            failureReason = "URL must be a valid absolute HTTP or HTTPS URL.";
+            failureReason = "URL must be a valid absolute HTTPS URL.";
             return false;
         }
 
@@ -195,6 +217,7 @@ public static class NetworkSecurityHelper
     private static bool IsBlockedHostName(Uri uri) =>
         uri.IsLoopback ||
         uri.Host.Equals("localhost", StringComparison.OrdinalIgnoreCase) ||
+        uri.Host.EndsWith(".localhost", StringComparison.OrdinalIgnoreCase) ||
         uri.Host.EndsWith(".local", StringComparison.OrdinalIgnoreCase) ||
         uri.Host.EndsWith(".internal", StringComparison.OrdinalIgnoreCase);
 

@@ -17,8 +17,11 @@ namespace GenHub.Features.Tools;
 /// </summary>
 public class PublisherStudioTool(ILogger<PublisherStudioTool> logger) : IToolPlugin
 {
+    private const int AutoSaveFlushTimeoutSeconds = 5;
+
     private PublisherStudioViewModel? _viewModel;
     private PublisherStudioView? _view;
+    private Task? _autoSaveTask;
 
     /// <inheritdoc/>
     public ToolMetadata Metadata => new()
@@ -76,8 +79,8 @@ public class PublisherStudioTool(ILogger<PublisherStudioTool> logger) : IToolPlu
             && _viewModel.HasUnsavedChanges
             && !string.IsNullOrEmpty(_viewModel.CurrentProject.ProjectPath))
         {
-            // Trigger auto-save asynchronously
-            _ = _viewModel.SaveProjectAsync().ContinueWith(
+            // Trigger auto-save asynchronously; the task is tracked so Dispose can flush it.
+            _autoSaveTask = _viewModel.SaveProjectAsync().ContinueWith(
                 task => logger.LogError(task.Exception, "Publisher Studio auto-save on deactivation failed."),
                 CancellationToken.None,
                 TaskContinuationOptions.OnlyOnFaulted,
@@ -88,7 +91,24 @@ public class PublisherStudioTool(ILogger<PublisherStudioTool> logger) : IToolPlu
     /// <inheritdoc/>
     public void Dispose()
     {
+        if (_autoSaveTask is { IsCompleted: false } pendingSave)
+        {
+            try
+            {
+                if (!pendingSave.Wait(TimeSpan.FromSeconds(AutoSaveFlushTimeoutSeconds)))
+                {
+                    logger.LogWarning("Publisher Studio auto-save did not complete before tool disposal.");
+                }
+            }
+            catch (AggregateException ex)
+            {
+                logger.LogError(ex, "Publisher Studio auto-save failed before tool disposal.");
+            }
+        }
+
+        _autoSaveTask = null;
         _view = null;
+        _viewModel?.Dispose();
         _viewModel = null;
     }
 }

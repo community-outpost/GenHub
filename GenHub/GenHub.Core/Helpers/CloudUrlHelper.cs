@@ -1,6 +1,7 @@
 using GenHub.Core.Constants;
 using System;
 using System.Globalization;
+using System.Linq;
 using System.Text.RegularExpressions;
 
 namespace GenHub.Core.Helpers;
@@ -66,8 +67,7 @@ public static class CloudUrlHelper
 
     private static bool TryNormalizeGoogleDriveUrl(string url, out string normalizedUrl)
     {
-        if (url.Contains("drive.google.com", StringComparison.OrdinalIgnoreCase) ||
-            url.Contains("docs.google.com", StringComparison.OrdinalIgnoreCase))
+        if (IsMatchingHost(url, "drive.google.com", "docs.google.com"))
         {
             var match = GoogleDriveRegex.Match(url);
             if (match.Success)
@@ -84,7 +84,7 @@ public static class CloudUrlHelper
 
     private static bool TryNormalizeDropboxUrl(string url, out string normalizedUrl)
     {
-        if (url.Contains("dropbox.com", StringComparison.OrdinalIgnoreCase))
+        if (IsMatchingHost(url, "dropbox.com"))
         {
             if (DropboxDlRegex.IsMatch(url))
             {
@@ -103,6 +103,18 @@ public static class CloudUrlHelper
 
         normalizedUrl = url;
         return false;
+    }
+
+    private static bool IsMatchingHost(string url, params string[] hosts)
+    {
+        if (!Uri.TryCreate(url, UriKind.Absolute, out var uri))
+        {
+            return false;
+        }
+
+        return hosts.Any(host =>
+            uri.Host.Equals(host, StringComparison.OrdinalIgnoreCase) ||
+            uri.Host.EndsWith("." + host, StringComparison.OrdinalIgnoreCase));
     }
 
     private static bool TryNormalizeGitHubBlobUrl(string url, out string normalizedUrl)

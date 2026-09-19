@@ -2,7 +2,7 @@ using GenHub.Core.Models.Publishers;
 using GenHub.Core.Models.Results;
 using Microsoft.Extensions.Logging;
 using System;
-using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.IO;
 using System.Text.Json;
 using System.Threading;
@@ -15,6 +15,13 @@ namespace GenHub.Features.Tools.Services.Hosting;
 /// </summary>
 public class HostingStateManager(ILogger<HostingStateManager> logger) : IHostingStateManager
 {
+    private sealed class RefCountedLock
+    {
+        public SemaphoreSlim Semaphore { get; } = new(1, 1);
+
+        public int RefCount { get; set; }
+    }
+
     private const string StateFileName = "hosting_state.json";
 
     private static readonly JsonSerializerOptions JsonOptions = new()
@@ -23,7 +30,9 @@ public class HostingStateManager(ILogger<HostingStateManager> logger) : IHosting
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
     };
 
-    private static readonly ConcurrentDictionary<string, SemaphoreSlim> StateLocks = new(StringComparer.OrdinalIgnoreCase);
+    private static readonly object StateLocksSync = new();
+
+    private static readonly Dictionary<string, RefCountedLock> StateLocks = new(StringComparer.OrdinalIgnoreCase);
 
     /// <inheritdoc />
     public string GetStateFilePath(string projectPath)
@@ -53,11 +62,14 @@ public class HostingStateManager(ILogger<HostingStateManager> logger) : IHosting
     public async Task<OperationResult<HostingState?>> LoadStateAsync(string projectPath, CancellationToken cancellationToken = default)
     {
         var stateFilePath = GetStateFilePath(projectPath);
-        var stateLock = GetStateLock(stateFilePath);
-        await stateLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+        var stateLock = AcquireStateLock(stateFilePath);
+        var semaphoreAcquired = false;
 
         try
         {
+            await stateLock.Semaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
+            semaphoreAcquired = true;
+
             if (!File.Exists(stateFilePath))
             {
                 logger.LogDebug("No hosting state file found at {Path}", stateFilePath);
@@ -92,7 +104,7 @@ public class HostingStateManager(ILogger<HostingStateManager> logger) : IHosting
         }
         finally
         {
-            stateLock.Release();
+            ReleaseStateLock(stateFilePath, stateLock, semaphoreAcquired);
         }
     }
 
@@ -100,11 +112,14 @@ public class HostingStateManager(ILogger<HostingStateManager> logger) : IHosting
     public async Task<OperationResult<bool>> SaveStateAsync(string projectPath, HostingState state, CancellationToken cancellationToken = default)
     {
         var stateFilePath = GetStateFilePath(projectPath);
-        var stateLock = GetStateLock(stateFilePath);
-        await stateLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+        var stateLock = AcquireStateLock(stateFilePath);
+        var semaphoreAcquired = false;
 
         try
         {
+            await stateLock.Semaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
+            semaphoreAcquired = true;
+
             var json = JsonSerializer.Serialize(state, JsonOptions);
             var tempPath = $"{stateFilePath}.tmp";
 
@@ -138,13 +153,43 @@ public class HostingStateManager(ILogger<HostingStateManager> logger) : IHosting
         }
         finally
         {
-            stateLock.Release();
+            ReleaseStateLock(stateFilePath, stateLock, semaphoreAcquired);
         }
     }
 
-    private static SemaphoreSlim GetStateLock(string stateFilePath)
+    private static RefCountedLock AcquireStateLock(string stateFilePath)
     {
-        return StateLocks.GetOrAdd(stateFilePath, _ => new SemaphoreSlim(1, 1));
+        lock (StateLocksSync)
+        {
+            if (!StateLocks.TryGetValue(stateFilePath, out var entry))
+            {
+                entry = new RefCountedLock();
+                StateLocks[stateFilePath] = entry;
+            }
+
+            entry.RefCount++;
+            return entry;
+        }
+    }
+
+    private static void ReleaseStateLock(string stateFilePath, RefCountedLock entry, bool releaseSemaphore)
+    {
+        if (releaseSemaphore)
+        {
+            entry.Semaphore.Release();
+        }
+
+        lock (StateLocksSync)
+        {
+            entry.RefCount--;
+            if (entry.RefCount == 0 &&
+                StateLocks.TryGetValue(stateFilePath, out var current) &&
+                ReferenceEquals(current, entry))
+            {
+                StateLocks.Remove(stateFilePath);
+                entry.Semaphore.Dispose();
+            }
+        }
     }
 
     private void DeleteTempFile(string tempPath)

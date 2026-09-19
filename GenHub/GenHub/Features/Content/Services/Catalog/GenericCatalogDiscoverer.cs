@@ -1,4 +1,5 @@
 using GenHub.Core.Constants;
+using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.GitHub;
 using GenHub.Core.Interfaces.Providers;
@@ -50,12 +51,7 @@ public class GenericCatalogDiscoverer(
     private static readonly ConcurrentDictionary<string, Task<GitHubRelease?>> PendingReleaseFetches = new(StringComparer.OrdinalIgnoreCase);
     private static readonly TimeSpan CacheTtl = TimeSpan.FromMinutes(30);
 
-    private static readonly JsonSerializerOptions DefinitionJsonOptions = new()
-    {
-        PropertyNameCaseInsensitive = true,
-        ReadCommentHandling = JsonCommentHandling.Skip,
-        AllowTrailingCommas = true,
-    };
+    private static readonly JsonSerializerOptions DefinitionJsonOptions = PublisherJsonOptions.Definition;
 
     private Core.Models.Providers.PublisherSubscription? _subscription;
 

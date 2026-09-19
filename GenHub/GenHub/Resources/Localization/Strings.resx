@@ -8245,6 +8245,9 @@ Do you want to download and inspect this profile package?</value>
   <data name="Tools.PublisherStudio.Artifact.FileSizePlaceholder" xml:space="preserve">
     <value>e.g. 750 MB</value>
   </data>
+  <data name="Tools.PublisherStudio.Artifact.DirectDownloadUrlPlaceholder" xml:space="preserve">
+    <value>https://cdn.example.com/downloads/gameclient-v1.0.zip</value>
+  </data>
   <data name="Tools.PublisherStudio.Artifact.Filename" xml:space="preserve">
     <value>Filename</value>
   </data>
@@ -8478,6 +8481,9 @@ Do you want to download and inspect this profile package?</value>
   </data>
   <data name="Tools.PublisherStudio.Dependency.ContentIdPlaceholder" xml:space="preserve">
     <value>e.g. worldbuilder-tool</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dependency.CatalogUrlPlaceholder" xml:space="preserve">
+    <value>https://example.com/publisher.json</value>
   </data>
   <data name="Tools.PublisherStudio.Dependency.Discover" xml:space="preserve">
     <value>Discover</value>
@@ -8959,6 +8965,27 @@ Then click the 'Submit' button at the bottom of the page! (If permissions are no
   <data name="Tools.PublisherStudio.Hosting.StatusPending" xml:space="preserve">
     <value>Pending</value>
   </data>
+  <data name="Tools.PublisherStudio.Hosting.StatusCloudHosted" xml:space="preserve">
+    <value>Cloud Hosted</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.StatusPendingUpload" xml:space="preserve">
+    <value>Pending Upload</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.StatusNoFileOrUrl" xml:space="preserve">
+    <value>No File / URL</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DestinationGitHubGists" xml:space="preserve">
+    <value>Public Gists</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DestinationRemoteCloud" xml:space="preserve">
+    <value>Remote Cloud</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GoogleDriveNotAuthenticated" xml:space="preserve">
+    <value>Not authenticated with Google Drive</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.AssetsTrackedFormat" xml:space="preserve">
+    <value>{0} Assets Tracked</value>
+  </data>
   <data name="Tools.PublisherStudio.Hosting.StorageConsumed" xml:space="preserve">
     <value>STORAGE CONSUMED</value>
   </data>
@@ -9354,6 +9381,9 @@ Then click the 'Submit' button at the bottom of the page! (If permissions are no
   </data>
   <data name="Tools.PublisherStudio.Referral.CatalogUrl" xml:space="preserve">
     <value>Catalog / Definition URL</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referral.CatalogUrlPlaceholder" xml:space="preserve">
+    <value>https://example.com/publisher.json</value>
   </data>
   <data name="Tools.PublisherStudio.Referral.DefinitionUrl" xml:space="preserve">
     <value>Definition URL</value>
@@ -9910,6 +9940,15 @@ Then click the 'Submit' button at the bottom of the page! (If permissions are no
   <data name="Tools.PublisherStudio.Publish.ScanError" xml:space="preserve">
     <value>Scan Error</value>
   </data>
+  <data name="Tools.PublisherStudio.Publish.ScanBlockedByOperation" xml:space="preserve">
+    <value>Please wait for the current upload or sync to finish before scanning.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ContentItemsFormat" xml:space="preserve">
+    <value>{0} items</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.CatalogsCountFormat" xml:space="preserve">
+    <value>{0} Catalogs</value>
+  </data>
   <data name="Tools.PublisherStudio.Publish.CopiedToClipboard" xml:space="preserve">
     <value>Copied to Clipboard</value>
   </data>
@@ -10005,6 +10044,9 @@ Then click the 'Submit' button at the bottom of the page! (If permissions are no
   </data>
   <data name="Tools.PublisherStudio.Artifact.InvalidSize" xml:space="preserve">
     <value>Invalid size</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.HashInProgress" xml:space="preserve">
+    <value>Hash computation is still in progress. Please wait.</value>
   </data>
   <data name="Tools.PublisherStudio.Artifact.InvalidSizeFormat" xml:space="preserve">
     <value>Invalid file size format (e.g., 10 MB, 500 KB, 1.5 GB)</value>
@@ -10218,6 +10260,33 @@ Then click the 'Submit' button at the bottom of the page! (If permissions are no
   </data>
   <data name="Tools.PublisherStudio.Studio.CannotRemoveLastCatalog" xml:space="preserve">
     <value>Cannot remove the last catalog</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.LoadProjectErrorFormat" xml:space="preserve">
+    <value>Error loading project: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.ProjectLoadedFormat" xml:space="preserve">
+    <value>Project loaded: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.LoadProjectFailedFormat" xml:space="preserve">
+    <value>Failed to load project: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.ProjectCreatedSetupHint" xml:space="preserve">
+    <value>New project created - configure your publisher profile to get started</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.ProjectCreated" xml:space="preserve">
+    <value>New project created</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.CreateProjectFailedFormat" xml:space="preserve">
+    <value>Failed to create project: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.CreateProjectErrorFormat" xml:space="preserve">
+    <value>Error creating project: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.CatalogRenamedFormat" xml:space="preserve">
+    <value>Renamed catalog to '{0}'</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.HostingRecoveryNeeded" xml:space="preserve">
+    <value>Hosting state missing - recovery may be needed. Use Publish &amp; Share tab to reconnect.</value>
   </data>
   <data name="Tools.PublisherStudio.Studio.CatalogCountFormat" xml:space="preserve">
     <value>{0} catalogs</value>

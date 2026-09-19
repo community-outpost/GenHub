@@ -8,6 +8,21 @@
              x:Class="GenHub.Features.Tools.Views.Dialogs.RenameCatalogDialogView"
              x:DataType="vm:RenameCatalogDialogViewModel">
 
+    <UserControl.Styles>
+        <Style Selector="Button.glass-btn">
+            <Setter Property="Background" Value="{DynamicResource GlassFillBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource GlassBorderBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="Padding" Value="16,10"/>
+            <Setter Property="Cursor" Value="Hand"/>
+        </Style>
+        <Style Selector="Button.glass-btn:pointerover">
+            <Setter Property="Background" Value="{DynamicResource GlassBorderBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource GlassBorderStrongBrush}"/>
+        </Style>
+    </UserControl.Styles>
+
     <Grid RowDefinitions="Auto, *, Auto" Margin="24">
         <!-- Header -->
         <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,16">

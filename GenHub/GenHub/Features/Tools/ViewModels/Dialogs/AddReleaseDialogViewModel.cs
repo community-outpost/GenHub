@@ -309,7 +309,8 @@ public partial class AddReleaseDialogViewModel(
     [RelayCommand]
     private void Close()
     {
-        // Dialog window will be closed by view binding
+        ArgumentNullException.ThrowIfNull(onReleaseCreated);
+        onReleaseCreated(null!);
     }
 
     /// <summary>
@@ -318,7 +319,8 @@ public partial class AddReleaseDialogViewModel(
     [RelayCommand]
     private void Cancel()
     {
-        // Dialog window will be closed by view binding
+        ArgumentNullException.ThrowIfNull(onReleaseCreated);
+        onReleaseCreated(null!);
     }
 
     /// <summary>

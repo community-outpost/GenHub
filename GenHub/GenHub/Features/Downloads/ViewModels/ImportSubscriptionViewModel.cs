@@ -81,14 +81,14 @@ public partial class ImportSubscriptionViewModel : ObservableObject
             DataContext = confirmVm,
         };
 
-        confirmDialog.Opened += (_, _) => RequestClose?.Invoke(true);
-
         if (parent != null)
         {
-            await confirmDialog.ShowDialog(parent);
+            var confirmResult = await confirmDialog.ShowDialog<bool>(parent);
+            RequestClose?.Invoke(confirmResult);
         }
         else
         {
+            confirmDialog.Closed += (_, _) => RequestClose?.Invoke(confirmDialog.DialogResult);
             confirmDialog.Show();
         }
     }

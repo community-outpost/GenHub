@@ -65,6 +65,10 @@ public partial class AddArtifactDialogViewModel(Action<ReleaseArtifact> onArtifa
 
     private CancellationTokenSource? _hashCts;
 
+    private bool _suppressFileSizeParsing;
+
+    private int _hashGeneration;
+
     [ObservableProperty]
     private string _artifactStatus = localizationService?.GetString("Tools.PublisherStudio.Artifact.NoFileConfigured") ?? "No file configured";
 
@@ -294,6 +298,11 @@ public partial class AddArtifactDialogViewModel(Action<ReleaseArtifact> onArtifa
 
     partial void OnFileSizeInputChanged(string value)
     {
+        if (_suppressFileSizeParsing)
+        {
+            return;
+        }
+
         if (string.IsNullOrWhiteSpace(value))
         {
             FileSize = 0;
@@ -379,12 +388,21 @@ public partial class AddArtifactDialogViewModel(Action<ReleaseArtifact> onArtifa
                     var fileInfo = new FileInfo(path);
                     FileSize = fileInfo.Length;
                     FileSizeDisplay = FormatFileSize(FileSize);
-                    FileSizeInput = FileSizeDisplay;
+                    _suppressFileSizeParsing = true;
+                    try
+                    {
+                        FileSizeInput = FileSizeDisplay;
+                    }
+                    finally
+                    {
+                        _suppressFileSizeParsing = false;
+                    }
 
                     // Compute SHA256 in background
                     CancelPendingHash();
                     _hashCts = new CancellationTokenSource();
                     var hashCt = _hashCts.Token;
+                    var hashGeneration = ++_hashGeneration;
                     IsComputingHash = true;
                     try
                     {
@@ -400,7 +418,10 @@ public partial class AddArtifactDialogViewModel(Action<ReleaseArtifact> onArtifa
                     }
                     finally
                     {
-                        IsComputingHash = false;
+                        if (hashGeneration == _hashGeneration)
+                        {
+                            IsComputingHash = false;
+                        }
                     }
                 }
             }
@@ -458,6 +479,7 @@ public partial class AddArtifactDialogViewModel(Action<ReleaseArtifact> onArtifa
         CancelPendingHash();
         _hashCts = new CancellationTokenSource();
         var hashCt = _hashCts.Token;
+        var hashGeneration = ++_hashGeneration;
         IsComputingHash = true;
         ValidationError = null;
 
@@ -486,7 +508,10 @@ public partial class AddArtifactDialogViewModel(Action<ReleaseArtifact> onArtifa
         }
         finally
         {
-            IsComputingHash = false;
+            if (hashGeneration == _hashGeneration)
+            {
+                IsComputingHash = false;
+            }
         }
     }
 
@@ -496,6 +521,15 @@ public partial class AddArtifactDialogViewModel(Action<ReleaseArtifact> onArtifa
     [RelayCommand]
     private void CreateArtifact()
     {
+        if (IsComputingHash)
+        {
+            ValidationError = GetLocalizedString(
+                "Tools.PublisherStudio.Artifact.HashInProgress",
+                "Hash computation is still in progress. Please wait.");
+            IsValid = false;
+            return;
+        }
+
         ValidateAllProperties();
 
         if (HasErrors)
@@ -553,7 +587,8 @@ public partial class AddArtifactDialogViewModel(Action<ReleaseArtifact> onArtifa
     [RelayCommand]
     private void Close()
     {
-        // Dialog window will be closed by view binding
+        ArgumentNullException.ThrowIfNull(onArtifactCreated);
+        onArtifactCreated(null!);
     }
 
     /// <summary>
@@ -562,7 +597,8 @@ public partial class AddArtifactDialogViewModel(Action<ReleaseArtifact> onArtifa
     [RelayCommand]
     private void Cancel()
     {
-        // Dialog window will be closed by view binding
+        ArgumentNullException.ThrowIfNull(onArtifactCreated);
+        onArtifactCreated(null!);
     }
 
     private void Validate()

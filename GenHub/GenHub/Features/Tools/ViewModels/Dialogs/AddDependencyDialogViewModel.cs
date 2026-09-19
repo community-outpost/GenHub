@@ -1,13 +1,16 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using GenHub.Core.Constants;
 using GenHub.Core.Helpers;
 using GenHub.Core.Models.Providers;
 using GenHub.Core.Models.Publishers;
+using GenHub.Features.Content.Services.Catalog;
 using GenHub.Infrastructure.Services;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel.DataAnnotations;
+using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Text.Json;
@@ -36,10 +39,10 @@ public partial class AddDependencyDialogViewModel(
     private CancellationTokenSource? _discoveryCts;
 
     [ObservableProperty]
-    private bool _isFromMyCatalog = catalog?.Content.Any(c => c.Id != currentContent.Id) == true;
+    private bool _isFromMyCatalog = catalog?.Content.Any(c => !string.Equals(c.Id, currentContent.Id, StringComparison.OrdinalIgnoreCase)) == true;
 
     [ObservableProperty]
-    private CatalogContentItem? _selectedContent = catalog?.Content.FirstOrDefault(c => c.Id != currentContent.Id);
+    private CatalogContentItem? _selectedContent = catalog?.Content.FirstOrDefault(c => !string.Equals(c.Id, currentContent.Id, StringComparison.OrdinalIgnoreCase));
 
     [ObservableProperty]
     [NotifyDataErrorInfo]
@@ -81,7 +84,7 @@ public partial class AddDependencyDialogViewModel(
     /// Excludes the current content item to prevent circular dependencies.
     /// </summary>
     public IReadOnlyList<CatalogContentItem> AvailableContent { get; } = catalog?.Content
-        .Where(c => c.Id != currentContent.Id)
+        .Where(c => !string.Equals(c.Id, currentContent.Id, StringComparison.OrdinalIgnoreCase))
         .ToList() ?? [];
 
     /// <summary>
@@ -144,7 +147,7 @@ public partial class AddDependencyDialogViewModel(
         PublisherDefinition? definition;
         try
         {
-            definition = JsonSerializer.Deserialize<PublisherDefinition>(json);
+            definition = JsonSerializer.Deserialize<PublisherDefinition>(json, PublisherJsonOptions.Definition);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -155,7 +158,9 @@ public partial class AddDependencyDialogViewModel(
             return null;
         }
 
-        if (definition == null || (definition.Catalogs.Count == 0 && string.IsNullOrWhiteSpace(definition.CatalogUrl)))
+        if (definition == null ||
+            definition.Publisher == null ||
+            (definition.Catalogs.Count == 0 && string.IsNullOrWhiteSpace(definition.CatalogUrl)))
         {
             return null;
         }
@@ -164,7 +169,13 @@ public partial class AddDependencyDialogViewModel(
             ? definition.CatalogUrl
             : definition.Catalogs.FirstOrDefault()?.Url;
 
-        if (string.IsNullOrWhiteSpace(targetUrl) || !NetworkSecurityHelper.IsSafeUrl(targetUrl, out _))
+        if (string.IsNullOrWhiteSpace(targetUrl))
+        {
+            return null;
+        }
+
+        var (targetSafe, _) = await NetworkSecurityHelper.IsSafeUrlAsync(targetUrl, cancellationToken);
+        if (!targetSafe)
         {
             return null;
         }
@@ -172,14 +183,26 @@ public partial class AddDependencyDialogViewModel(
         PublisherCatalog? parsedCatalog;
         try
         {
-            var catalogJson = await client.GetStringAsync(targetUrl, cancellationToken);
-            parsedCatalog = JsonSerializer.Deserialize<PublisherCatalog>(catalogJson);
+            var catalogJson = await CatalogDocumentReader.ReadAsync(client, targetUrl, CatalogConstants.MaxCatalogSizeBytes, cancellationToken);
+            parsedCatalog = JsonSerializer.Deserialize<PublisherCatalog>(catalogJson, PublisherJsonOptions.Definition);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
             throw;
         }
         catch (JsonException)
+        {
+            return null;
+        }
+        catch (ArgumentException)
+        {
+            return null;
+        }
+        catch (InvalidDataException)
+        {
+            return null;
+        }
+        catch (HttpRequestException)
         {
             return null;
         }
@@ -197,14 +220,14 @@ public partial class AddDependencyDialogViewModel(
         PublisherCatalog? parsedCatalog;
         try
         {
-            parsedCatalog = JsonSerializer.Deserialize<PublisherCatalog>(json);
+            parsedCatalog = JsonSerializer.Deserialize<PublisherCatalog>(json, PublisherJsonOptions.Definition);
         }
         catch (JsonException)
         {
             return null;
         }
 
-        if (parsedCatalog == null || parsedCatalog.Content.Count == 0)
+        if (parsedCatalog == null || parsedCatalog.Publisher == null || parsedCatalog.Content is not { Count: > 0 })
         {
             return null;
         }
@@ -357,7 +380,7 @@ public partial class AddDependencyDialogViewModel(
 
         try
         {
-            var json = await SharedHttpClient.GetStringAsync(requestedUrl, ct);
+            var json = await CatalogDocumentReader.ReadAsync(SharedHttpClient, requestedUrl, CatalogConstants.MaxCatalogSizeBytes, ct);
             if (ct.IsCancellationRequested || !string.Equals(ExternalCatalogUrl?.Trim(), requestedUrl, StringComparison.Ordinal))
             {
                 return;

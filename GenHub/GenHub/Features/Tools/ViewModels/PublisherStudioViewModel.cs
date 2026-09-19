@@ -16,6 +16,7 @@ using System.ComponentModel;
 using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace GenHub.Features.Tools.ViewModels;
@@ -57,6 +58,8 @@ public partial class PublisherStudioViewModel(
         configurationProvider?.GetApplicationDataPath() ?? Path.GetTempPath(),
         "GenHub",
         "publisher_studio_settings.json");
+
+    private readonly SemaphoreSlim _saveLock = new(1, 1);
 
     private bool _statusLocalizationHooked;
 
@@ -140,9 +143,17 @@ public partial class PublisherStudioViewModel(
         {
             CurrentProject.IsDirty = true;
             HasUnsavedChanges = true;
-            OnPropertyChanged(nameof(IsSetupComplete));
-            OnPropertyChanged(nameof(ShouldShowSetupOverlay));
+            RefreshSetupState();
         }
+    }
+
+    /// <summary>
+    /// Re-evaluates the publisher setup state and notifies bindings so tabs unlock once a profile is saved.
+    /// </summary>
+    public void RefreshSetupState()
+    {
+        OnPropertyChanged(nameof(IsSetupComplete));
+        OnPropertyChanged(nameof(ShouldShowSetupOverlay));
     }
 
     /// <summary>
@@ -157,57 +168,14 @@ public partial class PublisherStudioViewModel(
             return;
         }
 
+        await _saveLock.WaitAsync();
         try
         {
-            // Auto-assign default project path if empty to guarantee persistence
-            if (string.IsNullOrEmpty(CurrentProject.ProjectPath))
-            {
-                CurrentProject.ProjectPath = GetDefaultProjectPath();
-            }
-
-            var result = await publisherStudioService.SaveProjectAsync(CurrentProject);
-            if (result.Success)
-            {
-                HasUnsavedChanges = false;
-                StatusMessage = "Project saved. Go to 'Publish & Share' to export and release.";
-                logger.LogInformation("Saved project: {ProjectName}", CurrentProject.ProjectName);
-
-                // Persist the project path for auto-load on next launch
-                if (!string.IsNullOrEmpty(CurrentProject.ProjectPath))
-                {
-                    await SaveLastProjectPathAsync(CurrentProject.ProjectPath);
-                }
-
-                var savedTitle = localizationService?.GetString("Tools.PublisherStudio.Notification.ProjectSavedTitle") ?? "Project Saved";
-                var savedMsgTemplate = localizationService?.GetString("Tools.PublisherStudio.Notification.ProjectSavedMessage") ?? "Your publisher project '{0}' has been saved successfully.";
-                notificationService?.ShowSuccess(
-                    savedTitle,
-                    string.Format(savedMsgTemplate, CurrentProject.ProjectName),
-                    autoDismissMs: 4000);
-
-                // Force a dirty state update to refresh UI
-                OnPropertyChanged(nameof(HasUnsavedChanges));
-            }
-            else
-            {
-                StatusMessage = $"Failed to save: {result.FirstError}";
-                logger.LogError("Failed to save project: {Error}", result.FirstError);
-
-                var saveFailedTitle = localizationService?.GetString("Tools.PublisherStudio.Notification.SaveFailedTitle") ?? "Save Failed";
-                notificationService?.ShowError(
-                    saveFailedTitle,
-                    result.FirstError ?? "An unknown error occurred while saving the project.");
-            }
+            await SaveProjectCoreAsync(CurrentProject);
         }
-        catch (Exception ex)
+        finally
         {
-            StatusMessage = $"Error saving: {ex.Message}";
-            logger.LogError(ex, "Error saving project");
-
-            var saveErrorTitle = localizationService?.GetString("Tools.PublisherStudio.Notification.SaveErrorTitle") ?? "Save Error";
-            notificationService?.ShowError(
-                saveErrorTitle,
-                $"An error occurred while saving: {ex.Message}");
+            _saveLock.Release();
         }
     }
 
@@ -295,6 +263,7 @@ public partial class PublisherStudioViewModel(
 
             PublishShareViewModel?.Dispose();
             PublishShareViewModel = null;
+            _saveLock.Dispose();
         }
     }
 
@@ -307,6 +276,68 @@ public partial class PublisherStudioViewModel(
         slug = Regex.Replace(slug, @"-+", "-", RegexOptions.None, TimeSpan.FromSeconds(1));
         slug = slug.Trim('-');
         return string.IsNullOrEmpty(slug) ? "catalog" : slug;
+    }
+
+    private async Task SaveProjectCoreAsync(PublisherStudioProject project)
+    {
+        try
+        {
+            // Auto-assign default project path if empty to guarantee persistence
+            if (string.IsNullOrEmpty(project.ProjectPath))
+            {
+                project.ProjectPath = GetDefaultProjectPath();
+            }
+
+            var result = await publisherStudioService.SaveProjectAsync(project);
+            if (result.Success)
+            {
+                HasUnsavedChanges = false;
+                StatusMessage = "Project saved. Go to 'Publish & Share' to export and release.";
+                logger.LogInformation("Saved project: {ProjectName}", project.ProjectName);
+
+                // Persist the project path for auto-load on next launch
+                if (!string.IsNullOrEmpty(project.ProjectPath))
+                {
+                    await SaveLastProjectPathAsync(project.ProjectPath);
+                }
+
+                var savedTitle = localizationService?.GetString("Tools.PublisherStudio.Notification.ProjectSavedTitle") ?? "Project Saved";
+                var savedMsgTemplate = localizationService?.GetString("Tools.PublisherStudio.Notification.ProjectSavedMessage") ?? "Your publisher project '{0}' has been saved successfully.";
+                notificationService?.ShowSuccess(
+                    savedTitle,
+                    string.Format(savedMsgTemplate, project.ProjectName),
+                    autoDismissMs: 4000);
+
+                // Force a dirty state update to refresh UI
+                OnPropertyChanged(nameof(HasUnsavedChanges));
+            }
+            else
+            {
+                StatusMessage = $"Failed to save: {result.FirstError}";
+                logger.LogError("Failed to save project: {Error}", result.FirstError);
+
+                var saveFailedTitle = localizationService?.GetString("Tools.PublisherStudio.Notification.SaveFailedTitle") ?? "Save Failed";
+                notificationService?.ShowError(
+                    saveFailedTitle,
+                    result.FirstError ?? "An unknown error occurred while saving the project.");
+            }
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Error saving: {ex.Message}";
+            logger.LogError(ex, "Error saving project");
+
+            var saveErrorTitle = localizationService?.GetString("Tools.PublisherStudio.Notification.SaveErrorTitle") ?? "Save Error";
+            notificationService?.ShowError(
+                saveErrorTitle,
+                $"An error occurred while saving: {ex.Message}");
+        }
+        finally
+        {
+            // Profile data is written to the in-memory project before saving, so refresh
+            // the setup state even when persistence fails to keep tab bindings accurate.
+            RefreshSetupState();
+        }
     }
 
     private string GetStatusString(string key, string fallback, params object?[] args)
@@ -344,6 +375,7 @@ public partial class PublisherStudioViewModel(
         {
             OnPropertyChanged(nameof(ProjectStatusText));
             OnPropertyChanged(nameof(CatalogSummaryText));
+            ContentLibraryViewModel?.RefreshLocalizedText();
         }
     }
 
@@ -366,7 +398,7 @@ public partial class PublisherStudioViewModel(
     {
         if (value != null && CurrentProject != null)
         {
-            ContentLibraryViewModel = new GenHub.Features.Tools.ViewModels.ContentLibraryViewModel(CurrentProject, value, this, logger, dialogService);
+            ContentLibraryViewModel = new GenHub.Features.Tools.ViewModels.ContentLibraryViewModel(CurrentProject, value, this, logger, dialogService, notificationService, localizationService);
         }
     }
 
@@ -430,7 +462,7 @@ public partial class PublisherStudioViewModel(
         }
         catch (Exception ex)
         {
-            StatusMessage = $"Error loading project: {ex.Message}";
+            StatusMessage = GetStatusString("Tools.PublisherStudio.Studio.LoadProjectErrorFormat", "Error loading project: {0}", ex.Message);
             notificationService?.ShowError(StudioNotificationTitle, StatusMessage, NotificationDurations.Long);
             logger.LogError(ex, "Error loading project");
         }
@@ -448,20 +480,20 @@ public partial class PublisherStudioViewModel(
                 await InitializeChildViewModelsAsync();
                 await SaveLastProjectPathAsync(filePath);
                 HasUnsavedChanges = false;
-                StatusMessage = $"Project loaded: {CurrentProject.ProjectName}";
+                StatusMessage = GetStatusString("Tools.PublisherStudio.Studio.ProjectLoadedFormat", "Project loaded: {0}", CurrentProject.ProjectName);
                 notificationService?.ShowSuccess(StudioNotificationTitle, StatusMessage, NotificationDurations.Short);
                 logger.LogInformation("Loaded publisher project from {Path}", filePath);
             }
             else
             {
-                StatusMessage = $"Failed to load project: {result.FirstError}";
+                StatusMessage = GetStatusString("Tools.PublisherStudio.Studio.LoadProjectFailedFormat", "Failed to load project: {0}", result.FirstError);
                 notificationService?.ShowError(StudioNotificationTitle, StatusMessage, NotificationDurations.Long);
                 logger.LogError("Failed to load project: {Error}", result.FirstError);
             }
         }
         catch (Exception ex)
         {
-            StatusMessage = $"Error loading project: {ex.Message}";
+            StatusMessage = GetStatusString("Tools.PublisherStudio.Studio.LoadProjectErrorFormat", "Error loading project: {0}", ex.Message);
             notificationService?.ShowError(StudioNotificationTitle, StatusMessage, NotificationDurations.Long);
             logger.LogError(ex, "Error loading project from {Path}", filePath);
         }
@@ -527,20 +559,22 @@ public partial class PublisherStudioViewModel(
                 CurrentProject = result.Data;
                 CurrentProject.ProjectPath = GetDefaultProjectPath();
                 await InitializeChildViewModelsAsync();
-                StatusMessage = showWizard ? "New project created - configure your publisher profile to get started" : "New project created";
+                StatusMessage = showWizard
+                    ? GetStatusString("Tools.PublisherStudio.Studio.ProjectCreatedSetupHint", "New project created - configure your publisher profile to get started")
+                    : GetStatusString("Tools.PublisherStudio.Studio.ProjectCreated", "New project created");
                 notificationService?.ShowSuccess(StudioNotificationTitle, StatusMessage, NotificationDurations.Medium);
                 logger.LogInformation("Created new publisher project");
             }
             else
             {
-                StatusMessage = $"Failed to create project: {result.FirstError}";
+                StatusMessage = GetStatusString("Tools.PublisherStudio.Studio.CreateProjectFailedFormat", "Failed to create project: {0}", result.FirstError);
                 notificationService?.ShowError(StudioNotificationTitle, StatusMessage, NotificationDurations.Long);
                 logger.LogError("Failed to create new project: {Error}", result.FirstError);
             }
         }
         catch (Exception ex)
         {
-            StatusMessage = $"Error: {ex.Message}";
+            StatusMessage = GetStatusString("Tools.PublisherStudio.Studio.CreateProjectErrorFormat", "Error creating project: {0}", ex.Message);
             notificationService?.ShowError(StudioNotificationTitle, StatusMessage, NotificationDurations.Long);
             logger.LogError(ex, "Error creating new project");
         }
@@ -671,7 +705,7 @@ public partial class PublisherStudioViewModel(
         }
 
         await SaveProjectAsync();
-        StatusMessage = $"Renamed catalog to '{target.Name}'";
+        StatusMessage = GetStatusString("Tools.PublisherStudio.Studio.CatalogRenamedFormat", "Renamed catalog to '{0}'", target.Name);
         notificationService?.ShowSuccess(StudioNotificationTitle, StatusMessage, NotificationDurations.Short);
         logger.LogInformation("Renamed catalog to {CatalogName} ({CatalogId})", target.Name, target.Id);
     }
@@ -731,7 +765,7 @@ public partial class PublisherStudioViewModel(
             if (hasPublishedUrls)
             {
                 IsRecoveryNeeded = true;
-                StatusMessage = "Hosting state missing - recovery may be needed. Use Publish & Share tab to reconnect.";
+                StatusMessage = GetStatusString("Tools.PublisherStudio.Studio.HostingRecoveryNeeded", "Hosting state missing - recovery may be needed. Use Publish & Share tab to reconnect.");
                 notificationService?.ShowWarning(StudioNotificationTitle, StatusMessage, NotificationDurations.VeryLong);
                 logger.LogWarning("Project appears to have been published but hosting state is missing");
             }

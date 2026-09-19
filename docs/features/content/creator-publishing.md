@@ -214,15 +214,14 @@ This automatically:
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `$schemaVersion` | int | Yes | Schema version (`1` for multi-catalog support) |
+| `$schemaVersion` | int | Yes | Schema version (currently `1`) |
 | `publisher` | PublisherProfile | Yes | Publisher identity |
-| `content` | CatalogContentItem[] | Yes* | Content items (for single catalog) |
-| `catalogs` | NamedCatalog[] | Yes* | Multiple catalogs (for multi-catalog publishers) |
+| `content` | CatalogContentItem[] | Yes | Content items in this catalog |
 | `lastUpdated` | DateTime | Yes | Catalog last modified date |
 | `signature` | string | No | SHA256 signature (future) |
 | `referrals` | PublisherReferral[] | No | Links to other publishers |
 
-*Either `content` or `catalogs` is required. Use `content` for single-catalog definitions, `catalogs` for multi-catalog publishers.
+Multi-catalog publishers declare a `PublisherDefinition` whose `catalogs` array points at one catalog file per entry; each catalog file keeps the single-catalog shape above.
 
 ### PublisherProfile
 

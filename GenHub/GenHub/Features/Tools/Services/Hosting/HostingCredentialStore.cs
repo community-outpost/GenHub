@@ -205,7 +205,7 @@ public class HostingCredentialStore(
 
     private async Task WriteCredentialAtomicallyAsync(string filePath, byte[] encryptedBytes, CancellationToken cancellationToken)
     {
-        var tempPath = $"{filePath}.tmp";
+        var tempPath = $"{filePath}.{Guid.NewGuid():N}.tmp";
         try
         {
             var options = new FileStreamOptions

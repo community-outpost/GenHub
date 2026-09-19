@@ -142,7 +142,7 @@
                          <TextBlock Text="{localization:Localize Tools.PublisherStudio.Dependency.CatalogUrl}" Classes="label"/>
                          <Grid ColumnDefinitions="*, Auto" RowDefinitions="Auto, Auto">
                             <TextBox Grid.Column="0" Text="{Binding ExternalCatalogUrl}"
-                                     Watermark="https://example.com/publisher.json"/>
+                                     Watermark="{localization:Localize Tools.PublisherStudio.Dependency.CatalogUrlPlaceholder}"/>
                             <Button Grid.Column="1" Content="{localization:Localize Tools.PublisherStudio.Dependency.Discover}"
                                     Command="{Binding DiscoverContentCommand}"
                                     Margin="8,0,0,0"

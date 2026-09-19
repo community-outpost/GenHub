@@ -177,7 +177,8 @@
     <SolidColorBrush x:Key="PrimaryButtonForeground" Color="White" />
 
     <!-- Glass & Alpha Tokens -->
-    <SolidColorBrush x:Key="GlassFillBrush" Color="#15FFFFFF" />
+    <Color x:Key="GlassFillColor">#15FFFFFF</Color>
+    <SolidColorBrush x:Key="GlassFillBrush" Color="{StaticResource GlassFillColor}" />
     <SolidColorBrush x:Key="GlassFillSubtleBrush" Color="#0DFFFFFF" />
     <SolidColorBrush x:Key="GlassBorderBrush" Color="#25FFFFFF" />
     <SolidColorBrush x:Key="GlassBorderSubtleBrush" Color="#1AFFFFFF" />
@@ -222,7 +223,7 @@
     <SolidColorBrush x:Key="StatusBarBackground" Color="{DynamicResource StatusBarBackgroundDark}" />
     <SolidColorBrush x:Key="StatusBarForeground" Color="#9A9AB0" />
     <SolidColorBrush x:Key="StatusBarBorder" Color="{DynamicResource StatusBarBorderDark}" />
-    <SolidColorBrush x:Key="StatusBarItemHover" Color="#15FFFFFF" />
+    <SolidColorBrush x:Key="StatusBarItemHover" Color="{StaticResource GlassFillColor}" />
 
     <!-- ==================================================================== -->
     <!-- 5. Component Dimensions and Radii                                    -->

@@ -26,7 +26,7 @@
             <Setter Property="Background" Value="Transparent"/>
             <Setter Property="BorderBrush" Value="Transparent"/>
             <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="Foreground" Value="#9CA3AF"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextSecondary}"/>
             <Setter Property="CornerRadius" Value="8"/>
             <Setter Property="Padding" Value="14,8"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
@@ -42,7 +42,7 @@
 
         <Style Selector="Button.nav-pill:pointerover">
             <Setter Property="Foreground" Value="White"/>
-            <Setter Property="Background" Value="#15FFFFFF"/>
+            <Setter Property="Background" Value="{DynamicResource GlassFillBrush}"/>
         </Style>
 
         <Style Selector="Button.nav-pill.active">
@@ -53,8 +53,8 @@
 
         <!-- Glass Action Button (Header Top Right) -->
         <Style Selector="Button.glass-btn-icon">
-            <Setter Property="Background" Value="#15FFFFFF"/>
-            <Setter Property="BorderBrush" Value="#25FFFFFF"/>
+            <Setter Property="Background" Value="{DynamicResource GlassFillBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource GlassBorderBrush}"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="CornerRadius" Value="6"/>
             <Setter Property="Padding" Value="6"/>
@@ -68,8 +68,8 @@
         </Style>
 
         <Style Selector="Button.glass-btn-icon:pointerover">
-            <Setter Property="Background" Value="#25FFFFFF"/>
-            <Setter Property="BorderBrush" Value="#40FFFFFF"/>
+            <Setter Property="Background" Value="{DynamicResource GlassBorderBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource GlassBorderStrongBrush}"/>
         </Style>
 
         <!-- Primary Gradient Button -->
@@ -98,16 +98,16 @@
 
         <!-- Status Badges -->
         <Style Selector="Border.status-badge-warning">
-            <Setter Property="Background" Value="#20F59E0B"/>
-            <Setter Property="BorderBrush" Value="#40F59E0B"/>
+            <Setter Property="Background" Value="{DynamicResource StatusWarningBadgeBackgroundBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource WarningHighlightBrush}"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="CornerRadius" Value="6"/>
             <Setter Property="Padding" Value="8,3"/>
         </Style>
 
         <Style Selector="Border.status-badge-saved">
-            <Setter Property="Background" Value="#1522C55E"/>
-            <Setter Property="BorderBrush" Value="#3022C55E"/>
+            <Setter Property="Background" Value="{DynamicResource StatusSuccessBadgeBackgroundBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource SuccessBrush}"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="CornerRadius" Value="6"/>
             <Setter Property="Padding" Value="8,3"/>
@@ -145,19 +145,21 @@
                                                Foreground="{DynamicResource AccentLightBrush}"/>
                                 </Border>
                             </StackPanel>
-                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Studio.Subtitle}" FontSize="11" Foreground="#6B7280"/>
+                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Studio.Subtitle}" FontSize="11" Foreground="{DynamicResource TextMuted}"/>
                         </StackPanel>
                     </StackPanel>
 
-                    <!-- Center: Navigation Pills -->
+                    <!-- Center: Navigation Pills (wraps to a second row on narrow widths instead of overlapping neighbors) -->
                     <Border Grid.Column="1"
-                            HorizontalAlignment="Center"
-                            Background="#0DFFFFFF"
-                            BorderBrush="#1AFFFFFF"
+                            HorizontalAlignment="Stretch"
+                            VerticalAlignment="Center"
+                            Margin="12,0"
+                            Background="{DynamicResource GlassFillSubtleBrush}"
+                            BorderBrush="{DynamicResource GlassBorderSubtleBrush}"
                             BorderThickness="1"
                             CornerRadius="10"
                             Padding="4">
-                        <StackPanel Orientation="Horizontal" Spacing="2">
+                        <WrapPanel Orientation="Horizontal" HorizontalAlignment="Center">
                             <!-- Publisher Profile -->
                             <Button Classes="nav-pill"
                                     Classes.active="{Binding SelectedTabIndex, Converter={StaticResource EqualityConverter}, ConverterParameter=0}"
@@ -221,7 +223,7 @@
                                     <TextBlock Text="{localization:Localize Tools.PublisherStudio.Studio.TabPublish}"/>
                                 </StackPanel>
                             </Button>
-                        </StackPanel>
+                        </WrapPanel>
                     </Border>
 
                     <!-- Right: Catalog Selector + Project Actions -->
@@ -231,11 +233,11 @@
                                 Classes="status-badge-warning"
                                 VerticalAlignment="Center">
                             <StackPanel Orientation="Horizontal" Spacing="5">
-                                <Ellipse Width="6" Height="6" Fill="#F59E0B"/>
+                                <Ellipse Width="6" Height="6" Fill="{DynamicResource WarningHighlightBrush}"/>
                                 <TextBlock Text="{localization:Localize Tools.PublisherStudio.Studio.Unsaved}"
                                            FontSize="11"
                                            FontWeight="SemiBold"
-                                           Foreground="#F59E0B"/>
+                                           Foreground="{DynamicResource WarningHighlightBrush}"/>
                             </StackPanel>
                         </Border>
 
@@ -247,7 +249,7 @@
                                 ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Studio.NewProjectTooltip}">
                             <PathIcon Data="{StaticResource AddIcon}"
                                       Width="14" Height="14"
-                                      Foreground="#9CA3AF"/>
+                                      Foreground="{DynamicResource TextSecondary}"/>
                         </Button>
 
                         <!-- Load Project Button -->
@@ -256,7 +258,7 @@
                                 ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Studio.LoadProjectTooltip}">
                             <PathIcon Data="{StaticResource FolderOpenIcon}"
                                       Width="14" Height="14"
-                                      Foreground="#9CA3AF"/>
+                                      Foreground="{DynamicResource TextSecondary}"/>
                         </Button>
 
                         <!-- Save Button -->
@@ -266,7 +268,7 @@
                                 ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Studio.SaveProjectTooltip}">
                             <PathIcon Data="{StaticResource SaveIcon}"
                                       Width="14" Height="14"
-                                      Foreground="#9CA3AF"/>
+                                      Foreground="{DynamicResource TextSecondary}"/>
                         </Button>
                     </StackPanel>
                 </Grid>
@@ -307,7 +309,7 @@
 
                 <!-- Setup Required Overlay (when navigating to other tabs before profile is saved) -->
                 <Border IsVisible="{Binding ShouldShowSetupOverlay}"
-                        Background="#E00F172A"
+                        Background="{DynamicResource OverlayScrimBrush}"
                         IsHitTestVisible="{Binding ShouldShowSetupOverlay}">
                     <Border Classes="studio-header-panel"
                             Padding="36"
@@ -332,7 +334,7 @@
                                            HorizontalAlignment="Center"/>
                                 <TextBlock Text="{localization:Localize Tools.PublisherStudio.Studio.SetupRequiredDescription}"
                                            FontSize="13"
-                                           Foreground="#9CA3AF"
+                                           Foreground="{DynamicResource TextSecondary}"
                                            TextWrapping="Wrap"
                                            TextAlignment="Center"
                                            MaxWidth="340"/>
@@ -379,7 +381,7 @@
                         <TextBlock Text="{Binding ProjectStatusText}"
                                    FontSize="11"
                                    FontWeight="Medium"
-                                   Foreground="#D1D5DB"/>
+                                   Foreground="{DynamicResource TextPrimary}"/>
                     </StackPanel>
 
                     <!-- Center: Catalog Summary -->
@@ -387,10 +389,10 @@
                         <StackPanel Orientation="Horizontal" Spacing="6">
                             <PathIcon Data="{StaticResource ContentIcon}"
                                       Width="12" Height="12"
-                                      Foreground="#6B7280"/>
+                                      Foreground="{DynamicResource TextMuted}"/>
                             <TextBlock Text="{Binding CatalogSummaryText}"
                                        FontSize="11"
-                                       Foreground="#9CA3AF"/>
+                                       Foreground="{DynamicResource TextSecondary}"/>
                         </StackPanel>
                     </StackPanel>
 
