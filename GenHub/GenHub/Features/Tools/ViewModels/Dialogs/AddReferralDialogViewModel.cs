@@ -1,6 +1,9 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using GenHub.Core.Constants;
+using GenHub.Core.Helpers;
 using GenHub.Core.Models.Providers;
+using GenHub.Features.Content.Services.Catalog;
 using GenHub.Infrastructure.Services;
 using System;
 using System.Collections.Generic;
@@ -9,6 +12,7 @@ using System.ComponentModel.DataAnnotations;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Net.Http;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -30,6 +34,8 @@ public partial class AddReferralDialogViewModel(
     };
 
     private CancellationTokenSource? _discoveryCts;
+
+    private bool _suppressSelectionClear;
 
     [ObservableProperty]
     [NotifyDataErrorInfo]
@@ -95,11 +101,21 @@ public partial class AddReferralDialogViewModel(
         }
     }
 
-    partial void OnPublisherIdChanged(string value) => Validate();
+    partial void OnPublisherIdChanged(string value) => OnManualFieldChanged();
 
-    partial void OnCatalogUrlChanged(string value) => Validate();
+    partial void OnCatalogUrlChanged(string value) => OnManualFieldChanged();
 
     partial void OnSelectedPublisherChanged(PublisherReferralOption? value) => Validate();
+
+    private void OnManualFieldChanged()
+    {
+        if (!_suppressSelectionClear)
+        {
+            SelectedPublisher = null;
+        }
+
+        Validate();
+    }
 
     /// <summary>
     /// Closes the dialog without saving.
@@ -162,18 +178,7 @@ public partial class AddReferralDialogViewModel(
 
         try
         {
-            var response = await SharedHttpClient.GetAsync(uri, ct);
-            if (!response.IsSuccessStatusCode)
-            {
-                var statusCode = (int)response.StatusCode;
-                var fetchError = localizationService?.GetString(
-                    "Tools.PublisherStudio.Referral.FetchFailed",
-                    statusCode) ?? $"Could not fetch catalog: HTTP {statusCode}";
-                SetDiscoveryErrorIfCurrentToken(ct, fetchError);
-                return;
-            }
-
-            var json = await response.Content.ReadAsStringAsync(ct);
+            var json = await CatalogDocumentReader.ReadAsync(SharedHttpClient, uri.AbsoluteUri, CatalogConstants.MaxCatalogSizeBytes, ct);
 
             // Attempt to parse as PublisherDefinition first (which contains PublisherProfile)
             if (TryExtractPublisherFromDefinition(json, out var defProfile, out var extractedUrl))
@@ -213,6 +218,14 @@ public partial class AddReferralDialogViewModel(
                 SetDiscoveryErrorIfCurrentToken(ct, timeoutError);
             }
         }
+        catch (HttpRequestException ex)
+        {
+            var statusCode = (int?)ex.StatusCode;
+            var fetchError = localizationService?.GetString(
+                "Tools.PublisherStudio.Referral.FetchFailed",
+                statusCode) ?? $"Could not fetch catalog: HTTP {statusCode}";
+            SetDiscoveryErrorIfCurrentToken(ct, fetchError);
+        }
         catch (Exception ex)
         {
             var discoveryError = localizationService?.GetString(
@@ -237,9 +250,17 @@ public partial class AddReferralDialogViewModel(
     {
         if (publisher != null)
         {
-            SelectedPublisher = publisher;
-            PublisherId = publisher.PublisherId;
-            CatalogUrl = publisher.CatalogUrl;
+            _suppressSelectionClear = true;
+            try
+            {
+                SelectedPublisher = publisher;
+                PublisherId = publisher.PublisherId;
+                CatalogUrl = publisher.CatalogUrl;
+            }
+            finally
+            {
+                _suppressSelectionClear = false;
+            }
         }
     }
 
@@ -253,7 +274,7 @@ public partial class AddReferralDialogViewModel(
 
         try
         {
-            var definition = System.Text.Json.JsonSerializer.Deserialize<PublisherDefinition>(json);
+            var definition = JsonSerializer.Deserialize<PublisherDefinition>(json, PublisherJsonOptions.Definition);
             if (definition?.Publisher != null)
             {
                 profile = definition.Publisher;
@@ -261,7 +282,11 @@ public partial class AddReferralDialogViewModel(
                 return true;
             }
         }
-        catch
+        catch (JsonException)
+        {
+            // Not a definition, fallback to catalog parser
+        }
+        catch (NotSupportedException)
         {
             // Not a definition, fallback to catalog parser
         }
@@ -279,7 +304,7 @@ public partial class AddReferralDialogViewModel(
 
         try
         {
-            var catalog = System.Text.Json.JsonSerializer.Deserialize<PublisherCatalog>(json);
+            var catalog = JsonSerializer.Deserialize<PublisherCatalog>(json, PublisherJsonOptions.Definition);
             if (catalog?.Publisher != null)
             {
                 profile = catalog.Publisher;

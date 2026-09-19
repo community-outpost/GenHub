@@ -54,18 +54,18 @@ public class PublisherDefinitionServiceTests
     public async Task FetchDefinitionAsync_ValidUrl_ReturnsDefinitionAsync()
     {
         // Arrange
-        var json = "{\"publisher\":{\"id\":\"test\"}, \"catalogUrl\":\"https://test.com/catalog.json\"}";
+        var json = "{\"publisher\":{\"id\":\"test\"}, \"catalogUrl\":\"https://example.com/catalog.json\"}";
         SetupHttpResponse(HttpStatusCode.OK, json);
 
         // Act
-        var result = await _service.FetchDefinitionAsync("https://test.com/provider.json");
+        var result = await _service.FetchDefinitionAsync("https://example.com/provider.json");
 
         // Assert
         Assert.True(result.Success);
         Assert.NotNull(result.Data);
         Assert.Equal("test", result.Data.Publisher.Id);
-        Assert.Equal("https://test.com/catalog.json", result.Data.CatalogUrl);
-        Assert.Equal("https://test.com/provider.json", result.Data.DefinitionUrl);
+        Assert.Equal("https://example.com/catalog.json", result.Data.CatalogUrl);
+        Assert.Equal("https://example.com/provider.json", result.Data.DefinitionUrl);
     }
 
     /// <summary>
@@ -94,7 +94,7 @@ public class PublisherDefinitionServiceTests
         SetupHttpResponse(HttpStatusCode.NotFound, string.Empty);
 
         // Act
-        var result = await _service.FetchDefinitionAsync("https://test.com/404.json");
+        var result = await _service.FetchDefinitionAsync("https://example.com/404.json");
 
         // Assert
         Assert.False(result.Success);
@@ -112,11 +112,11 @@ public class PublisherDefinitionServiceTests
         var subscription = new PublisherSubscription
         {
             PublisherId = "test",
-            DefinitionUrl = "https://test.com/provider.json",
-            CatalogUrl = "https://test.com/old-catalog.json",
+            DefinitionUrl = "https://example.com/provider.json",
+            CatalogUrl = "https://example.com/old-catalog.json",
         };
 
-        var json = "{\"catalogUrl\":\"https://test.com/new-catalog.json\"}";
+        var json = "{\"catalogUrl\":\"https://example.com/new-catalog.json\"}";
         SetupHttpResponse(HttpStatusCode.OK, json);
 
         // Act
@@ -125,7 +125,7 @@ public class PublisherDefinitionServiceTests
         // Assert
         Assert.True(result.Success);
         Assert.True(result.Data); // True means update found
-        Assert.Equal("https://test.com/new-catalog.json", subscription.CatalogUrl);
+        Assert.Equal("https://example.com/new-catalog.json", subscription.CatalogUrl);
     }
 
     /// <summary>
@@ -139,11 +139,11 @@ public class PublisherDefinitionServiceTests
         var subscription = new PublisherSubscription
         {
             PublisherId = "test",
-            DefinitionUrl = "https://test.com/provider.json",
-            CatalogUrl = "https://test.com/same-catalog.json",
+            DefinitionUrl = "https://example.com/provider.json",
+            CatalogUrl = "https://example.com/same-catalog.json",
         };
 
-        var json = "{\"catalogUrl\":\"https://test.com/same-catalog.json\"}";
+        var json = "{\"catalogUrl\":\"https://example.com/same-catalog.json\"}";
         SetupHttpResponse(HttpStatusCode.OK, json);
 
         // Act
@@ -152,7 +152,7 @@ public class PublisherDefinitionServiceTests
         // Assert
         Assert.True(result.Success);
         Assert.False(result.Data); // False means no update
-        Assert.Equal("https://test.com/same-catalog.json", subscription.CatalogUrl);
+        Assert.Equal("https://example.com/same-catalog.json", subscription.CatalogUrl);
     }
 
     /// <summary>
@@ -167,7 +167,7 @@ public class PublisherDefinitionServiceTests
         {
             PublisherId = "test",
             DefinitionUrl = null, // No definition URL
-            CatalogUrl = "https://test.com/catalog.json",
+            CatalogUrl = "https://example.com/catalog.json",
         };
 
         // Act
@@ -176,6 +176,206 @@ public class PublisherDefinitionServiceTests
         // Assert
         Assert.True(result.Success);
         Assert.False(result.Data);
+    }
+
+    /// <summary>
+    /// Tests that fetching a definition follows redirects to safe HTTPS targets.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task FetchDefinitionAsync_RedirectToSafeUrl_FollowsRedirectAsync()
+    {
+        var json = "{\"publisher\":{\"id\":\"test\"}, \"catalogUrl\":\"https://example.com/catalog.json\"}";
+        var handler = new ScriptedHttpMessageHandler(request =>
+            request.RequestUri?.AbsolutePath == "/provider.json"
+                ? new HttpResponseMessage(HttpStatusCode.Found)
+                {
+                    Headers = { Location = new Uri("https://example.com/final.json") },
+                }
+                : new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(json) });
+        var service = CreateServiceWithHandler(handler);
+
+        var result = await service.FetchDefinitionAsync("https://example.com/provider.json");
+
+        Assert.True(result.Success);
+        Assert.NotNull(result.Data);
+        Assert.Equal("test", result.Data.Publisher.Id);
+        Assert.Equal(2, handler.CallCount);
+    }
+
+    /// <summary>
+    /// Tests that fetching a definition rejects redirects to unsafe targets.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task FetchDefinitionAsync_RedirectToUnsafeUrl_ReturnsFailureAsync()
+    {
+        var handler = new ScriptedHttpMessageHandler(_ =>
+            new HttpResponseMessage(HttpStatusCode.Found)
+            {
+                Headers = { Location = new Uri("https://127.0.0.1/evil.json") },
+            });
+        var service = CreateServiceWithHandler(handler);
+
+        var result = await service.FetchDefinitionAsync("https://example.com/provider.json");
+
+        Assert.False(result.Success);
+        Assert.Equal(1, handler.CallCount);
+    }
+
+    /// <summary>
+    /// Tests that fetching a definition fails after too many redirects.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task FetchDefinitionAsync_TooManyRedirects_ReturnsFailureAsync()
+    {
+        var handler = new ScriptedHttpMessageHandler(_ =>
+            new HttpResponseMessage(HttpStatusCode.Found)
+            {
+                Headers = { Location = new Uri("https://example.com/provider.json") },
+            });
+        var service = CreateServiceWithHandler(handler);
+
+        var result = await service.FetchDefinitionAsync("https://example.com/provider.json");
+
+        Assert.False(result.Success);
+        Assert.Contains("redirects", result.FirstError);
+    }
+
+    /// <summary>
+    /// Tests that fetching a definition from an SSRF-blocked URL fails without sending a request.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task FetchDefinitionAsync_SsrfBlockedUrl_ReturnsFailureWithoutRequestAsync()
+    {
+        var handler = new ScriptedHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
+        var service = CreateServiceWithHandler(handler);
+
+        var result = await service.FetchDefinitionAsync("https://127.0.0.1/provider.json");
+
+        Assert.False(result.Success);
+        Assert.Equal(0, handler.CallCount);
+    }
+
+    /// <summary>
+    /// Tests that fetching a definition with an unsupported schema version returns a failure.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task FetchDefinitionAsync_UnsupportedSchemaVersion_ReturnsFailureAsync()
+    {
+        var json = "{\"$schemaVersion\":999, \"publisher\":{\"id\":\"test\"}}";
+        SetupHttpResponse(HttpStatusCode.OK, json);
+
+        var result = await _service.FetchDefinitionAsync("https://example.com/provider.json");
+
+        Assert.False(result.Success);
+        Assert.Contains("schema version", result.FirstError);
+    }
+
+    /// <summary>
+    /// Tests that fetching a catalog falls back to mirrors when the primary URL fails.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task FetchCatalogFromDefinitionAsync_PrimaryFails_FallsBackToMirrorAsync()
+    {
+        var handler = new ScriptedHttpMessageHandler(request =>
+            request.RequestUri?.AbsolutePath == "/mirror.json"
+                ? new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("{}") }
+                : new HttpResponseMessage(HttpStatusCode.NotFound));
+        var service = CreateServiceWithHandler(handler);
+        _catalogParserMock
+            .Setup(p => p.ParseCatalogAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<PublisherCatalog>.CreateSuccess(new PublisherCatalog()));
+        var definition = new PublisherDefinition
+        {
+            CatalogUrl = "https://example.com/missing.json",
+            CatalogMirrors = ["https://example.com/mirror.json"],
+        };
+
+        var result = await service.FetchCatalogFromDefinitionAsync(definition);
+
+        Assert.True(result.Success);
+        Assert.NotNull(result.Data);
+        Assert.Equal(2, handler.CallCount);
+    }
+
+    /// <summary>
+    /// Tests that fetching a catalog without any catalog URL returns a failure.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task FetchCatalogFromDefinitionAsync_NoCatalogUrl_ReturnsFailureAsync()
+    {
+        var result = await _service.FetchCatalogFromDefinitionAsync(new PublisherDefinition());
+
+        Assert.False(result.Success);
+        Assert.Contains("no catalog URL", result.FirstError);
+    }
+
+    /// <summary>
+    /// Tests that mirror attempts are capped so a hostile definition cannot stall refresh.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task FetchCatalogFromDefinitionAsync_ManyMirrors_CapsAttemptsAsync()
+    {
+        var handler = new ScriptedHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.NotFound));
+        var service = CreateServiceWithHandler(handler);
+        var definition = new PublisherDefinition
+        {
+            CatalogUrl = "https://example.com/missing.json",
+            CatalogMirrors =
+            [
+                "https://example.com/mirror-1.json",
+                "https://example.com/mirror-2.json",
+                "https://example.com/mirror-3.json",
+                "https://example.com/mirror-4.json",
+                "https://example.com/mirror-5.json",
+            ],
+        };
+
+        var result = await service.FetchCatalogFromDefinitionAsync(definition);
+
+        Assert.False(result.Success);
+        Assert.Equal(1 + GenHub.Core.Constants.CatalogConstants.MaxCatalogMirrorAttempts, handler.CallCount);
+    }
+
+    /// <summary>
+    /// Tests the full definition-to-catalog round trip with real parsing and mocked transport.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task DefinitionToCatalog_EndToEndRoundTripAsync()
+    {
+        var definitionJson = "{\"$schemaVersion\":1,\"publisher\":{\"id\":\"acme\",\"name\":\"Acme Mods\"},\"catalogUrl\":\"https://example.com/catalog.json\"}";
+        var catalogJson = "{\"$schemaVersion\":1,\"publisher\":{\"id\":\"acme\",\"name\":\"Acme Mods\"},\"content\":[{\"id\":\"mod-1\",\"name\":\"Mod One\",\"contentType\":\"Mod\",\"targetGame\":\"ZeroHour\",\"releases\":[{\"version\":\"1.0.0\",\"artifacts\":[{\"filename\":\"mod-1.zip\",\"downloadUrl\":\"https://example.com/mod-1.zip\",\"size\":1024,\"sha256\":\"abc123\"}]}]}]}";
+        var handler = new ScriptedHttpMessageHandler(request =>
+            new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(request.RequestUri?.AbsolutePath == "/catalog.json" ? catalogJson : definitionJson),
+            });
+        var factoryMock = new Mock<IHttpClientFactory>();
+        factoryMock.Setup(x => x.CreateClient(It.IsAny<string>())).Returns(() => new HttpClient(handler, disposeHandler: false));
+        var parser = new GenHub.Features.Content.Services.Catalog.JsonPublisherCatalogParser(
+            new Mock<ILogger<GenHub.Features.Content.Services.Catalog.JsonPublisherCatalogParser>>().Object);
+        var service = new PublisherDefinitionService(factoryMock.Object, parser, _loggerMock.Object);
+
+        var definitionResult = await service.FetchDefinitionAsync("https://example.com/provider.json");
+        Assert.True(definitionResult.Success);
+        Assert.NotNull(definitionResult.Data);
+        Assert.Equal("acme", definitionResult.Data.Publisher.Id);
+
+        var catalogResult = await service.FetchCatalogFromDefinitionAsync(definitionResult.Data);
+        Assert.True(catalogResult.Success, catalogResult.FirstError);
+        Assert.NotNull(catalogResult.Data);
+        var content = Assert.Single(catalogResult.Data.Content);
+        Assert.Equal("mod-1", content.Id);
+        Assert.Equal("Mod One", content.Name);
+        Assert.Equal(GenHub.Core.Models.Enums.ContentType.Mod, content.ContentType);
     }
 
     /// <summary>
@@ -195,5 +395,24 @@ public class PublisherDefinitionServiceTests
                 StatusCode = statusCode,
                 Content = new StringContent(content),
             });
+    }
+
+    private PublisherDefinitionService CreateServiceWithHandler(HttpMessageHandler handler)
+    {
+        var factoryMock = new Mock<IHttpClientFactory>();
+        factoryMock.Setup(x => x.CreateClient(It.IsAny<string>())).Returns(new HttpClient(handler));
+        return new PublisherDefinitionService(factoryMock.Object, _catalogParserMock.Object, _loggerMock.Object);
+    }
+
+    private sealed class ScriptedHttpMessageHandler(Func<HttpRequestMessage, HttpResponseMessage> responder) : HttpMessageHandler
+    {
+        public int CallCount { get; private set; }
+
+        /// <inheritdoc />
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            CallCount++;
+            return Task.FromResult(responder(request));
+        }
     }
 }

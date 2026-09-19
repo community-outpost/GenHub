@@ -9,6 +9,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Net;
 using System.Net.Http;
 using System.Text;
 using System.Text.Json;
@@ -26,6 +27,8 @@ public class PublisherDefinitionService(
     IPublisherCatalogParser catalogParser,
     ILogger<PublisherDefinitionService> logger) : IPublisherDefinitionService
 {
+    // Intentionally separate from PublisherJsonOptions.Definition: catalog payloads carry
+    // string enums (contentType/targetGame) that require the enum converter below.
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         PropertyNameCaseInsensitive = true,
@@ -56,8 +59,14 @@ public class PublisherDefinitionService(
             }
 
             using var client = httpClientFactory.CreateClient(CatalogConstants.CatalogHttpClientName);
-            using var response = await client.GetAsync(uri, HttpCompletionOption.ResponseHeadersRead, ct);
+            var fetchResult = await GetWithRedirectsAsync(client, uri, "Definition", ct);
+            if (!fetchResult.Success || fetchResult.Data == null)
+            {
+                logger.LogWarning("Failed to fetch definition from {Url}: {Error}", definitionUrl, fetchResult.FirstError);
+                return OperationResult<PublisherDefinition>.CreateFailure(fetchResult.Errors);
+            }
 
+            using var response = fetchResult.Data;
             if (!response.IsSuccessStatusCode)
             {
                 logger.LogWarning("Failed to fetch definition from {Url}: {StatusCode}", definitionUrl, response.StatusCode);
@@ -77,6 +86,16 @@ public class PublisherDefinitionService(
             if (definition == null)
             {
                 return OperationResult<PublisherDefinition>.CreateFailure("Failed to deserialize publisher definition");
+            }
+
+            if (definition.SchemaVersion != CatalogConstants.DefinitionSchemaVersion)
+            {
+                logger.LogWarning(
+                    "Unsupported publisher definition schema version {Version} from {Url}",
+                    definition.SchemaVersion,
+                    definitionUrl);
+                return OperationResult<PublisherDefinition>.CreateFailure(
+                    $"Unsupported publisher definition schema version {definition.SchemaVersion}; expected {CatalogConstants.DefinitionSchemaVersion}.");
             }
 
             // Ensure the definition URL is set correctly on the object if not specified by the publisher JSON
@@ -122,7 +141,19 @@ public class PublisherDefinitionService(
             var urlsToTry = new List<string> { catalogUrl };
             if (definition.CatalogMirrors != null)
             {
-                urlsToTry.AddRange(definition.CatalogMirrors);
+                var mirrors = definition.CatalogMirrors
+                    .Where(mirror => !string.IsNullOrWhiteSpace(mirror))
+                    .Take(CatalogConstants.MaxCatalogMirrorAttempts)
+                    .ToList();
+                if (definition.CatalogMirrors.Count > mirrors.Count)
+                {
+                    logger.LogDebug(
+                        "Limiting catalog mirror attempts to {Max} of {Total} configured mirrors",
+                        CatalogConstants.MaxCatalogMirrorAttempts,
+                        definition.CatalogMirrors.Count);
+                }
+
+                urlsToTry.AddRange(mirrors);
             }
 
             foreach (var rawUrl in urlsToTry)
@@ -258,6 +289,68 @@ public class PublisherDefinitionService(
         }
     }
 
+    private static bool IsRedirectStatusCode(HttpStatusCode statusCode) =>
+        statusCode is HttpStatusCode.MovedPermanently or
+            HttpStatusCode.Found or
+            HttpStatusCode.SeeOther or
+            HttpStatusCode.TemporaryRedirect or
+            HttpStatusCode.PermanentRedirect;
+
+    private async Task<OperationResult<HttpResponseMessage>> GetWithRedirectsAsync(
+        HttpClient client,
+        Uri initialUri,
+        string resourceDescription,
+        CancellationToken ct)
+    {
+        var currentUri = initialUri;
+        HttpResponseMessage? response = null;
+        try
+        {
+            for (var hop = 0; hop <= CatalogConstants.MaxCatalogRedirects; hop++)
+            {
+                response?.Dispose();
+                using var request = new HttpRequestMessage(HttpMethod.Get, currentUri);
+                response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct);
+
+                if (!IsRedirectStatusCode(response.StatusCode))
+                {
+                    var finalResponse = response;
+                    response = null;
+                    return OperationResult<HttpResponseMessage>.CreateSuccess(finalResponse);
+                }
+
+                var location = response.Headers.Location;
+                if (location == null)
+                {
+                    return OperationResult<HttpResponseMessage>.CreateFailure(
+                        $"{resourceDescription} redirect response is missing a Location header.");
+                }
+
+                var nextUri = location.IsAbsoluteUri ? location : new Uri(currentUri, location);
+                var (hopSafe, hopFailure) = await NetworkSecurityHelper.IsSafeUrlAsync(nextUri.AbsoluteUri, ct);
+                if (!hopSafe)
+                {
+                    logger.LogWarning(
+                        "Blocked unsafe {Resource} redirect target {Target}: {Reason}",
+                        resourceDescription,
+                        nextUri.AbsoluteUri,
+                        hopFailure);
+                    return OperationResult<HttpResponseMessage>.CreateFailure(
+                        hopFailure ?? $"{resourceDescription} was redirected to an unsafe URL.");
+                }
+
+                currentUri = nextUri;
+            }
+
+            return OperationResult<HttpResponseMessage>.CreateFailure(
+                $"{resourceDescription} exceeded the maximum of {CatalogConstants.MaxCatalogRedirects} redirects.");
+        }
+        finally
+        {
+            response?.Dispose();
+        }
+    }
+
     private async Task<PublisherCatalog?> TryFetchAndParseCatalogUrlAsync(
         HttpClient client,
         string rawUrl,
@@ -288,7 +381,14 @@ public class PublisherDefinitionService(
 
         try
         {
-            using var response = await client.GetAsync(uri, HttpCompletionOption.ResponseHeadersRead, ct);
+            var fetchResult = await GetWithRedirectsAsync(client, uri, logContext, ct);
+            if (!fetchResult.Success || fetchResult.Data == null)
+            {
+                logger.LogWarning("Failed to fetch {Context} from {Url}: {Error}", logContext, rawUrl, fetchResult.FirstError);
+                return null;
+            }
+
+            using var response = fetchResult.Data;
             if (!response.IsSuccessStatusCode)
             {
                 logger.LogWarning("Failed to fetch {Context} from {Url}: {StatusCode}", logContext, rawUrl, response.StatusCode);

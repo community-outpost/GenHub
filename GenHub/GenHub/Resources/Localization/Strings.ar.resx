@@ -9351,6 +9351,9 @@ GenHub هو مشغل ومدير حديث لألعاب **Command &amp; Conquer: G
   <data name="Tools.PublisherStudio.Artifact.FileSizePlaceholder" xml:space="preserve">
     <value>مثلاً: 750 MB</value>
   </data>
+  <data name="Tools.PublisherStudio.Artifact.DirectDownloadUrlPlaceholder" xml:space="preserve">
+    <value>https://cdn.example.com/downloads/gameclient-v1.0.zip</value>
+  </data>
   <data name="Tools.PublisherStudio.Artifact.Filename" xml:space="preserve">
     <value>اسم الملف</value>
   </data>
@@ -9584,6 +9587,9 @@ GenHub هو مشغل ومدير حديث لألعاب **Command &amp; Conquer: G
   </data>
   <data name="Tools.PublisherStudio.Dependency.ContentIdPlaceholder" xml:space="preserve">
     <value>مثال: worldbuilder-tool</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dependency.CatalogUrlPlaceholder" xml:space="preserve">
+    <value>https://example.com/publisher.json</value>
   </data>
   <data name="Tools.PublisherStudio.Dependency.Discover" xml:space="preserve">
     <value>اكتشاف</value>
@@ -10065,6 +10071,27 @@ GenHub هو مشغل ومدير حديث لألعاب **Command &amp; Conquer: G
   <data name="Tools.PublisherStudio.Hosting.StatusPending" xml:space="preserve">
     <value>قيد الانتظار</value>
   </data>
+  <data name="Tools.PublisherStudio.Hosting.StatusCloudHosted" xml:space="preserve">
+    <value>مستضاف سحابياً</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.StatusPendingUpload" xml:space="preserve">
+    <value>بانتظار الرفع</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.StatusNoFileOrUrl" xml:space="preserve">
+    <value>لا ملف / رابط</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DestinationGitHubGists" xml:space="preserve">
+    <value>مقاطع Gist عامة</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DestinationRemoteCloud" xml:space="preserve">
+    <value>سحابة بعيدة</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GoogleDriveNotAuthenticated" xml:space="preserve">
+    <value>غير مسجل الدخول إلى Google Drive</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.AssetsTrackedFormat" xml:space="preserve">
+    <value>{0} من الأصول المتعقبة</value>
+  </data>
   <data name="Tools.PublisherStudio.Hosting.StorageConsumed" xml:space="preserve">
     <value>المساحة المستهلكة</value>
   </data>
@@ -10460,6 +10487,9 @@ GenHub هو مشغل ومدير حديث لألعاب **Command &amp; Conquer: G
   </data>
   <data name="Tools.PublisherStudio.Referral.CatalogUrl" xml:space="preserve">
     <value>عنوان URL للكتالوج / التعريف</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referral.CatalogUrlPlaceholder" xml:space="preserve">
+    <value>https://example.com/publisher.json</value>
   </data>
   <data name="Tools.PublisherStudio.Referral.DefinitionUrl" xml:space="preserve">
     <value>عنوان URL للتعريف</value>
@@ -11968,6 +11998,15 @@ GameFilesEdited/Data/INI/**/*.ini</value>
   <data name="Tools.PublisherStudio.Publish.ScanError" xml:space="preserve">
     <value>خطأ في الفحص</value>
   </data>
+  <data name="Tools.PublisherStudio.Publish.ScanBlockedByOperation" xml:space="preserve">
+    <value>يرجى الانتظار حتى انتهاء الرفع أو المزامنة الحالية قبل الفحص.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ContentItemsFormat" xml:space="preserve">
+    <value>{0} من العناصر</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.CatalogsCountFormat" xml:space="preserve">
+    <value>{0} من الفهارس</value>
+  </data>
   <data name="Tools.PublisherStudio.Publish.CopiedToClipboard" xml:space="preserve">
     <value>تم النسخ إلى الحافظة</value>
   </data>
@@ -12063,6 +12102,9 @@ GameFilesEdited/Data/INI/**/*.ini</value>
   </data>
   <data name="Tools.PublisherStudio.Artifact.InvalidSize" xml:space="preserve">
     <value>حجم غير صالح</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.HashInProgress" xml:space="preserve">
+    <value>لا يزال حساب البصمة جارياً. يرجى الانتظار.</value>
   </data>
   <data name="Tools.PublisherStudio.Artifact.InvalidSizeFormat" xml:space="preserve">
     <value>تنسيق حجم الملف غير صالح (مثال: 10 MB، 500 KB، 1.5 GB)</value>
@@ -12276,6 +12318,33 @@ GameFilesEdited/Data/INI/**/*.ini</value>
   </data>
   <data name="Tools.PublisherStudio.Studio.CannotRemoveLastCatalog" xml:space="preserve">
     <value>لا يمكن إزالة الكتالوج الأخير</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.LoadProjectErrorFormat" xml:space="preserve">
+    <value>خطأ في تحميل المشروع: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.ProjectLoadedFormat" xml:space="preserve">
+    <value>تم تحميل المشروع: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.LoadProjectFailedFormat" xml:space="preserve">
+    <value>فشل تحميل المشروع: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.ProjectCreatedSetupHint" xml:space="preserve">
+    <value>تم إنشاء مشروع جديد - قم بإعداد ملف الناشر للبدء</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.ProjectCreated" xml:space="preserve">
+    <value>تم إنشاء مشروع جديد</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.CreateProjectFailedFormat" xml:space="preserve">
+    <value>فشل إنشاء المشروع: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.CreateProjectErrorFormat" xml:space="preserve">
+    <value>خطأ في إنشاء المشروع: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.CatalogRenamedFormat" xml:space="preserve">
+    <value>تمت إعادة تسمية الفهرس إلى '{0}'</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.HostingRecoveryNeeded" xml:space="preserve">
+    <value>حالة الاستضافة مفقودة - قد يلزم الاسترداد. استخدم علامة تبويب النشر والمشاركة لإعادة الاتصال.</value>
   </data>
   <data name="Tools.PublisherStudio.Studio.CatalogCountFormat" xml:space="preserve">
     <value>{0} كتالوجات</value>

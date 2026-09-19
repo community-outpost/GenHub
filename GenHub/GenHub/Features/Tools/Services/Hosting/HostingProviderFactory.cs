@@ -20,14 +20,16 @@ public class HostingProviderFactory : IHostingProviderFactory
     /// <param name="loggerFactory">The logger factory.</param>
     /// <param name="httpClientFactory">The HTTP client factory.</param>
     /// <param name="configurationProvider">Optional configuration provider service.</param>
+    /// <param name="localizationService">Optional localization service for provider messages.</param>
     public HostingProviderFactory(
         ILoggerFactory loggerFactory,
         IHttpClientFactory httpClientFactory,
-        IConfigurationProviderService? configurationProvider = null)
+        IConfigurationProviderService? configurationProvider = null,
+        ILocalizationService? localizationService = null)
     {
         _providers = new List<IHostingProvider>
         {
-            new GoogleDriveHostingProvider(loggerFactory.CreateLogger<GoogleDriveHostingProvider>(), configurationProvider),
+            new GoogleDriveHostingProvider(loggerFactory.CreateLogger<GoogleDriveHostingProvider>(), configurationProvider, localizationService),
             new GitHubHostingProvider(loggerFactory.CreateLogger<GitHubHostingProvider>()),
             new DropboxHostingProvider(loggerFactory.CreateLogger<DropboxHostingProvider>(), httpClientFactory),
             new ManualHostingProvider(),

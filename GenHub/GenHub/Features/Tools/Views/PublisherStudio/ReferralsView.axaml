@@ -13,14 +13,14 @@
 
     <UserControl.Styles>
         <Style Selector="Border.glass-sidebar">
-            <Setter Property="Background" Value="#08FFFFFF"/>
-            <Setter Property="BorderBrush" Value="#15FFFFFF"/>
+            <Setter Property="Background" Value="{DynamicResource GlassFillSubtleBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource GlassFillBrush}"/>
             <Setter Property="BorderThickness" Value="0,0,1,0"/>
         </Style>
 
         <Style Selector="Border.glass-card">
-            <Setter Property="Background" Value="#0AFFFFFF"/>
-            <Setter Property="BorderBrush" Value="#18FFFFFF"/>
+            <Setter Property="Background" Value="{DynamicResource GlassFillSubtleBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource GlassFillBrush}"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="CornerRadius" Value="12"/>
         </Style>
@@ -39,11 +39,11 @@
         </Style>
 
         <Style Selector="ListBoxItem:pointerover">
-            <Setter Property="Background" Value="#12FFFFFF"/>
+            <Setter Property="Background" Value="{DynamicResource GlassFillSubtleBrush}"/>
         </Style>
 
         <Style Selector="ListBoxItem:selected">
-            <Setter Property="Background" Value="#18FFFFFF"/>
+            <Setter Property="Background" Value="{DynamicResource GlassFillBrush}"/>
         </Style>
 
         <Style Selector="ListBoxItem:selected /template/ ContentPresenter">
@@ -52,8 +52,8 @@
 
         <!-- TextBox Styles -->
         <Style Selector="TextBox">
-            <Setter Property="Background" Value="#10FFFFFF"/>
-            <Setter Property="BorderBrush" Value="#20FFFFFF"/>
+            <Setter Property="Background" Value="{DynamicResource GlassFillSubtleBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource GlassStrongBrush}"/>
             <Setter Property="Foreground" Value="White"/>
             <Setter Property="CornerRadius" Value="8"/>
             <Setter Property="Padding" Value="12,10"/>
@@ -61,13 +61,13 @@
         </Style>
 
         <Style Selector="TextBox:focus">
-            <Setter Property="Background" Value="#15FFFFFF"/>
+            <Setter Property="Background" Value="{DynamicResource GlassFillBrush}"/>
             <Setter Property="BorderBrush" Value="{DynamicResource AccentColorBrush}"/>
         </Style>
 
         <Style Selector="TextBox:pointerover">
-            <Setter Property="Background" Value="#15FFFFFF"/>
-            <Setter Property="BorderBrush" Value="#30FFFFFF"/>
+            <Setter Property="Background" Value="{DynamicResource GlassFillBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource GlassStrongBrush}"/>
         </Style>
 
         <!-- Button Styles -->
@@ -83,23 +83,23 @@
         </Style>
 
         <Style Selector="Button.danger-btn">
-            <Setter Property="Background" Value="#20EF4444"/>
-            <Setter Property="BorderBrush" Value="#40EF4444"/>
+            <Setter Property="Background" Value="{DynamicResource StatusErrorBadgeBackgroundBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource ErrorBrush}"/>
             <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="Foreground" Value="#EF4444"/>
+            <Setter Property="Foreground" Value="{DynamicResource ErrorBrush}"/>
             <Setter Property="CornerRadius" Value="8"/>
             <Setter Property="Padding" Value="12,8"/>
             <Setter Property="Cursor" Value="Hand"/>
         </Style>
 
         <Style Selector="Button.danger-btn:pointerover">
-            <Setter Property="Background" Value="#30EF4444"/>
+            <Setter Property="Background" Value="{DynamicResource ErrorFillBrush}"/>
         </Style>
 
         <!-- Label Styles -->
         <Style Selector="TextBlock.field-label">
             <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="Foreground" Value="#E5E7EB"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
             <Setter Property="FontSize" Value="12"/>
             <Setter Property="Margin" Value="0,0,0,4"/>
         </Style>
@@ -113,7 +113,7 @@
                 <Border Grid.Row="0"
                         Padding="16"
                         BorderThickness="0,0,0,1"
-                        BorderBrush="#15FFFFFF">
+                        BorderBrush="{DynamicResource GlassFillBrush}">
                     <Grid ColumnDefinitions="*,Auto">
                         <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
                             <Border Width="32" Height="32"
@@ -130,7 +130,7 @@
                                            Foreground="White"/>
                                 <TextBlock Text="{localization:Localize Tools.PublisherStudio.Referrals.Subtitle}"
                                            FontSize="11"
-                                           Foreground="#9CA3AF"/>
+                                           Foreground="{DynamicResource TextSecondary}"/>
                             </StackPanel>
                         </StackPanel>
                         <Button Grid.Column="1"
@@ -158,7 +158,7 @@
                                 <Grid ColumnDefinitions="Auto,*">
                                     <Border Width="32" Height="32"
                                             CornerRadius="8"
-                                            Background="#15FFFFFF"
+                                            Background="{DynamicResource GlassFillBrush}"
                                             Margin="0,0,10,0">
                                         <TextBlock Text="{Binding PublisherId, Converter={StaticResource FirstCharConverter}}"
                                                    FontSize="14"
@@ -174,7 +174,7 @@
                                                    FontSize="13"/>
                                         <TextBlock Text="{Binding CatalogUrl}"
                                                    FontSize="11"
-                                                   Foreground="#6B7280"
+                                                   Foreground="{DynamicResource TextMuted}"
                                                    TextTrimming="CharacterEllipsis"
                                                    MaxWidth="180"/>
                                     </StackPanel>
@@ -192,15 +192,15 @@
                             Spacing="12">
                     <Border Width="52" Height="52"
                             CornerRadius="14"
-                            Background="#0AFFFFFF"
+                            Background="{DynamicResource GlassFillSubtleBrush}"
                             HorizontalAlignment="Center">
                         <PathIcon Data="{StaticResource LinkIcon}"
                                   Width="24" Height="24"
-                                  Foreground="#4B5563"/>
+                                  Foreground="{DynamicResource TextMuted}"/>
                     </Border>
                     <TextBlock Text="{localization:Localize Tools.PublisherStudio.Referrals.EmptyState}"
                                FontSize="13"
-                               Foreground="#6B7280"
+                               Foreground="{DynamicResource TextMuted}"
                                HorizontalAlignment="Center"/>
                 </StackPanel>
 
@@ -208,7 +208,7 @@
                 <Border Grid.Row="2"
                         Padding="12"
                         BorderThickness="0,1,0,0"
-                        BorderBrush="#15FFFFFF">
+                        BorderBrush="{DynamicResource GlassFillBrush}">
                     <Grid ColumnDefinitions="*,Auto">
                         <Button Grid.Column="0"
                                 Classes="primary-btn"
@@ -248,7 +248,7 @@
                         <StackPanel Grid.Column="1" Spacing="2">
                             <TextBlock Text="{localization:Localize Tools.PublisherStudio.Referrals.HowItWorksTitle}" FontWeight="SemiBold" FontSize="12" Foreground="White"/>
                             <TextBlock Text="{localization:Localize Tools.PublisherStudio.Referrals.HowItWorksText}"
-                                       FontSize="11" Foreground="#BBBBCC" TextWrapping="Wrap" LineHeight="16"/>
+                                       FontSize="11" Foreground="{DynamicResource TextSecondary}" TextWrapping="Wrap" LineHeight="16"/>
                         </StackPanel>
                     </Grid>
                 </Border>
@@ -267,7 +267,7 @@
                                            Foreground="White"/>
                                 <TextBlock Text="{localization:Localize Tools.PublisherStudio.Referrals.EditSubtitle}"
                                            FontSize="12"
-                                           Foreground="#9CA3AF"/>
+                                           Foreground="{DynamicResource TextSecondary}"/>
                             </StackPanel>
                             <Button Grid.Column="1"
                                     Classes="primary-btn"
@@ -281,7 +281,7 @@
                             </Button>
                         </Grid>
 
-                        <Rectangle Height="1" Fill="#15FFFFFF"/>
+                        <Rectangle Height="1" Fill="{DynamicResource GlassFillBrush}"/>
 
                         <!-- Publisher ID -->
                         <StackPanel Spacing="4">
@@ -317,17 +317,17 @@
                             IsVisible="{Binding !IsEditing}">
                     <Border Width="64" Height="64"
                             CornerRadius="16"
-                            Background="#08FFFFFF"
-                            BorderBrush="#15FFFFFF"
+                            Background="{DynamicResource GlassFillSubtleBrush}"
+                            BorderBrush="{DynamicResource GlassFillBrush}"
                             BorderThickness="1"
                             HorizontalAlignment="Center">
                         <PathIcon Data="{StaticResource LinkIcon}"
                                   Width="28" Height="28"
-                                  Foreground="#374151"/>
+                                  Foreground="{DynamicResource TextMuted}"/>
                     </Border>
                     <TextBlock Text="{localization:Localize Tools.PublisherStudio.Referrals.SelectPrompt}"
                                FontSize="13"
-                               Foreground="#6B7280"
+                               Foreground="{DynamicResource TextMuted}"
                                HorizontalAlignment="Center"
                                TextAlignment="Center"
                                MaxWidth="360"/>

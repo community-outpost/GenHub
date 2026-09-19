@@ -54,10 +54,7 @@ public partial class SubscriptionConfirmationViewModel(
     private const string DefaultPublisherName = "Loading...";
     private const string FallbackPublisherInitial = "P";
 
-    private static readonly JsonSerializerOptions DefinitionJsonOptions = new()
-    {
-        PropertyNameCaseInsensitive = true,
-    };
+    private static readonly JsonSerializerOptions DefinitionJsonOptions = PublisherJsonOptions.Definition;
 
     private PublisherCatalog? _parsedCatalog;
 
@@ -453,7 +450,8 @@ public partial class SubscriptionConfirmationViewModel(
                 return (null, null, null);
             }
 
-            if (!NetworkSecurityHelper.IsSafeUrl(targetCatalogUrl, out var ssrfReason))
+            var (targetSafe, ssrfReason) = await NetworkSecurityHelper.IsSafeUrlAsync(targetCatalogUrl, cancellationToken);
+            if (!targetSafe)
             {
                 if (!string.IsNullOrEmpty(ssrfReason))
                 {

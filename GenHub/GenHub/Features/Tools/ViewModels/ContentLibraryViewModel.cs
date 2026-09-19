@@ -154,6 +154,7 @@ public partial class ContentLibraryViewModel(
             activeCatalog.Catalog.Content.Add(newContent);
             ContentItems.Add(newContent);
             OnPropertyChanged(nameof(FilteredContent));
+            OnPropertyChanged(nameof(CatalogSummaryText));
             SelectedContent = newContent;
 
             parentViewModel?.MarkDirty();
@@ -164,6 +165,14 @@ public partial class ContentLibraryViewModel(
 
             logger.LogInformation("Added new content item: {ContentId} to catalog: {CatalogId}", newContent.Id, activeCatalog.Id);
         }
+    }
+
+    /// <summary>
+    /// Refreshes localized display text after a culture change.
+    /// </summary>
+    public void RefreshLocalizedText()
+    {
+        OnPropertyChanged(nameof(CatalogSummaryText));
     }
 
     /// <summary>
@@ -253,6 +262,7 @@ public partial class ContentLibraryViewModel(
         ContentItems.Remove(SelectedContent);
         SelectedContent = null;
         OnPropertyChanged(nameof(FilteredContent));
+        OnPropertyChanged(nameof(CatalogSummaryText));
 
         parentViewModel?.MarkDirty();
         if (parentViewModel != null)

@@ -121,7 +121,12 @@ public partial class ReferralsViewModel(
         var referral = await dialogService.ShowAddReferralDialogAsync();
         if (referral != null)
         {
-            project?.Catalog?.Referrals.Add(referral);
+            if (project?.Catalog != null)
+            {
+                project.Catalog.Referrals ??= [];
+                project.Catalog.Referrals.Add(referral);
+            }
+
             Referrals.Add(referral);
             SelectedReferral = referral;
 
@@ -148,7 +153,7 @@ public partial class ReferralsViewModel(
 
         var publisherId = SelectedReferral.PublisherId;
 
-        project?.Catalog?.Referrals.Remove(SelectedReferral);
+        project?.Catalog?.Referrals?.Remove(SelectedReferral);
         Referrals.Remove(SelectedReferral);
 
         parentViewModel?.MarkDirty();

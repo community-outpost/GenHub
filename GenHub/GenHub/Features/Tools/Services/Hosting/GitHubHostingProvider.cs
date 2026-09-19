@@ -87,12 +87,11 @@ public class GitHubHostingProvider(ILogger<GitHubHostingProvider> logger) : IHos
         // In production, this would use OAuth device flow
         logger.LogInformation("Starting GitHub authentication...");
 
-        // Create client with product header
-        _client = new GitHubClient(new ProductHeaderValue("GenHub"));
-
         // OAuth device flow will be integrated in a future release.
         // For now, we'll use a placeholder that requires manual PAT entry
-        // The UI should prompt for a Personal Access Token
+        // The UI should prompt for a Personal Access Token.
+        // The existing client is intentionally left untouched so a failed generic
+        // auth attempt never discards a previously PAT-authenticated client.
         return Task.FromResult(OperationResult<bool>.CreateFailure("GitHub authentication not yet implemented. Please use a Personal Access Token."));
     }
 
@@ -106,13 +105,14 @@ public class GitHubHostingProvider(ILogger<GitHubHostingProvider> logger) : IHos
     {
         try
         {
-            _client = new GitHubClient(new ProductHeaderValue("GenHub"))
+            var candidate = new GitHubClient(new ProductHeaderValue("GenHub"))
             {
                 Credentials = new Credentials(personalAccessToken),
             };
 
-            // Verify the token by getting the current user
-            var user = await _client.User.Current();
+            // Verify the token by getting the current user before replacing the active client
+            var user = await candidate.User.Current();
+            _client = candidate;
             _authenticatedUsername = user.Login;
 
             logger.LogInformation("Authenticated with GitHub as {Username}", _authenticatedUsername);

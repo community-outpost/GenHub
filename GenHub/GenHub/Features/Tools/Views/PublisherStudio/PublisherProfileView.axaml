@@ -113,7 +113,7 @@
                             <TextBlock Text="{localization:Localize Tools.PublisherStudio.Profile.PublisherId}" Classes="field-label"/>
                             <TextBlock Text="*" Classes="required"/>
                         </StackPanel>
-                        <TextBox Text="{Binding PublisherId, Mode=TwoWay}"
+                        <TextBox Text="{Binding PublisherId, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                  Watermark="{localization:Localize Tools.PublisherStudio.Profile.PublisherIdPlaceholder}"/>
                         <TextBlock Text="{localization:Localize Tools.PublisherStudio.Profile.PublisherIdHint}" Classes="field-hint"/>
                     </StackPanel>
@@ -123,7 +123,7 @@
                             <TextBlock Text="{localization:Localize Tools.PublisherStudio.Profile.DisplayName}" Classes="field-label"/>
                             <TextBlock Text="*" Classes="required"/>
                         </StackPanel>
-                        <TextBox Text="{Binding PublisherName, Mode=TwoWay}"
+                        <TextBox Text="{Binding PublisherName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                  Watermark="{localization:Localize Tools.PublisherStudio.Profile.DisplayNamePlaceholder}"/>
                         <TextBlock Text="{localization:Localize Tools.PublisherStudio.Profile.DisplayNameHint}" Classes="field-hint"/>
                     </StackPanel>
@@ -131,20 +131,20 @@
                     <!-- Row 2: Website & Contact Email -->
                     <StackPanel Grid.Row="2" Grid.Column="0" Spacing="4">
                         <TextBlock Text="{localization:Localize Tools.PublisherStudio.Profile.Website}" Classes="field-label"/>
-                        <TextBox Text="{Binding WebsiteUrl, Mode=TwoWay}"
+                        <TextBox Text="{Binding WebsiteUrl, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                  Watermark="https://community-outpost.org"/>
                     </StackPanel>
 
                     <StackPanel Grid.Row="2" Grid.Column="2" Spacing="4">
                         <TextBlock Text="{localization:Localize Tools.PublisherStudio.Profile.Email}" Classes="field-label"/>
-                        <TextBox Text="{Binding ContactEmail, Mode=TwoWay}"
+                        <TextBox Text="{Binding ContactEmail, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                  Watermark="{localization:Localize Tools.PublisherStudio.Profile.EmailPlaceholder}"/>
                     </StackPanel>
 
                     <!-- Row 4: Support URL & Avatar URL -->
                     <StackPanel Grid.Row="4" Grid.Column="0" Spacing="4">
                         <TextBlock Text="{localization:Localize Tools.PublisherStudio.Profile.SupportDiscord}" Classes="field-label"/>
-                        <TextBox Text="{Binding SupportUrl, Mode=TwoWay}"
+                        <TextBox Text="{Binding SupportUrl, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                  Watermark="https://discord.gg/yourserver"/>
                     </StackPanel>
 
@@ -152,7 +152,7 @@
                         <TextBlock Text="{localization:Localize Tools.PublisherStudio.Profile.AvatarUrl}" Classes="field-label"/>
                         <Grid ColumnDefinitions="*,Auto">
                             <TextBox Grid.Column="0"
-                                     Text="{Binding AvatarUrl, Mode=TwoWay}"
+                                     Text="{Binding AvatarUrl, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                      Watermark="https://example.com/logo.png"/>
                             <Border Grid.Column="1"
                                     Margin="8,0,0,0"
@@ -174,13 +174,13 @@
                 <!-- Tags & Description -->
                 <StackPanel Spacing="4">
                     <TextBlock Text="{localization:Localize Tools.PublisherStudio.Profile.Tags}" Classes="field-label"/>
-                    <TextBox Text="{Binding TagsString, Mode=TwoWay}"
+                    <TextBox Text="{Binding TagsString, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                              Watermark="{localization:Localize Tools.PublisherStudio.Profile.TagsPlaceholder}"/>
                 </StackPanel>
 
                 <StackPanel Spacing="4">
                     <TextBlock Text="{localization:Localize Tools.PublisherStudio.Profile.Description}" Classes="field-label"/>
-                    <TextBox Text="{Binding Description, Mode=TwoWay}"
+                    <TextBox Text="{Binding Description, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                              Watermark="{localization:Localize Tools.PublisherStudio.Profile.DescriptionPlaceholder}"
                              AcceptsReturn="True"
                              Height="70"

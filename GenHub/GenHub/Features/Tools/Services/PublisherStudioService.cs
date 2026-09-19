@@ -137,6 +137,7 @@ public class PublisherStudioService(
         CancellationToken cancellationToken = default)
     {
         string? tempFile = null;
+        var previousLastModified = project.LastModified;
         try
         {
             if (string.IsNullOrWhiteSpace(project.ProjectPath))
@@ -168,10 +169,12 @@ public class PublisherStudioService(
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
+            project.LastModified = previousLastModified;
             throw;
         }
         catch (Exception ex)
         {
+            project.LastModified = previousLastModified;
             logger.LogError(ex, "Failed to save publisher project to {Path}", project.ProjectPath);
             return OperationResult<bool>.CreateFailure($"Failed to save project: {ex.Message}");
         }

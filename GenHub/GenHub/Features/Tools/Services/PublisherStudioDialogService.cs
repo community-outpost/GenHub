@@ -35,12 +35,7 @@ public class PublisherStudioDialogService(
     {
         confirmText ??= localizationService?.GetString("Tools.PublisherStudio.Dialogs.ConfirmButton") ?? "Confirm";
         cancelText ??= localizationService?.GetString("Tools.PublisherStudio.Dialogs.CancelButton") ?? "Cancel";
-        if (dialogService != null)
-        {
-            return await dialogService.ShowConfirmationAsync(title, message, confirmText, cancelText, sessionKey);
-        }
-
-        return false;
+        return await dialogService.ShowConfirmationAsync(title, message, confirmText, cancelText, sessionKey);
     }
 
     /// <inheritdoc/>

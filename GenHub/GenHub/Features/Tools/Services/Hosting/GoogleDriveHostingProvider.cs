@@ -13,6 +13,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Net;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Threading;
@@ -26,7 +27,8 @@ namespace GenHub.Features.Tools.Services.Hosting;
 /// </summary>
 public class GoogleDriveHostingProvider(
     ILogger<GoogleDriveHostingProvider> logger,
-    IConfigurationProviderService? configurationProvider = null) : IHostingProvider
+    IConfigurationProviderService? configurationProvider = null,
+    ILocalizationService? localizationService = null) : IHostingProvider
 {
     private const string ApplicationName = "GenHub Publisher Studio";
     private const string PublisherFolderName = HostingConstants.GoogleDriveDefaultPublisherFolder;
@@ -43,6 +45,11 @@ public class GoogleDriveHostingProvider(
     {
         return input.Replace("\\", "\\\\").Replace("'", "\\'");
     }
+
+    private string GetNotAuthenticatedMessage() =>
+        localizationService != null && localizationService.TryGetString("Tools.PublisherStudio.Hosting.GoogleDriveNotAuthenticated", out var localized)
+            ? localized
+            : HostingConstants.GoogleDriveNotAuthenticated;
 
     /// <summary>
     /// Gets the maximum file size supported by Google Drive.
@@ -190,7 +197,7 @@ public class GoogleDriveHostingProvider(
     {
         if (_driveService == null)
         {
-            return OperationResult<HostingUploadResult>.CreateFailure(HostingConstants.GoogleDriveNotAuthenticated);
+            return OperationResult<HostingUploadResult>.CreateFailure(GetNotAuthenticatedMessage());
         }
 
         try
@@ -303,7 +310,7 @@ public class GoogleDriveHostingProvider(
     {
         if (_driveService == null)
         {
-            return OperationResult<HostingUploadResult>.CreateFailure(HostingConstants.GoogleDriveNotAuthenticated);
+            return OperationResult<HostingUploadResult>.CreateFailure(GetNotAuthenticatedMessage());
         }
 
         try
@@ -378,22 +385,15 @@ public class GoogleDriveHostingProvider(
     {
         if (_driveService == null)
         {
-            return OperationResult<string>.CreateFailure(HostingConstants.GoogleDriveNotAuthenticated);
+            return OperationResult<string>.CreateFailure(GetNotAuthenticatedMessage());
         }
 
         try
         {
-            // Search for existing folder
-            var listRequest = _driveService.Files.List();
-            listRequest.Q = $"name = '{EscapeDriveQueryParameter(PublisherFolderName)}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false";
-            listRequest.Fields = "files(id, name)";
-
-            var listResult = await listRequest.ExecuteAsync(cancellationToken);
-            var existingFolder = listResult.Files?.FirstOrDefault();
-
-            if (existingFolder != null)
+            var existingFolderId = await FindPublisherFolderIdAsync(cancellationToken);
+            if (existingFolderId != null)
             {
-                return OperationResult<string>.CreateSuccess(existingFolder.Id);
+                return OperationResult<string>.CreateSuccess(existingFolderId);
             }
 
             // Create new folder
@@ -406,12 +406,24 @@ public class GoogleDriveHostingProvider(
             var createRequest = _driveService.Files.Create(folderMetadata);
             createRequest.Fields = "id";
 
-            var folder = await createRequest.ExecuteAsync(cancellationToken);
-            logger.LogInformation("Created Google Drive publisher folder with ID: {FolderId}", folder.Id);
+            try
+            {
+                var folder = await createRequest.ExecuteAsync(cancellationToken);
+                logger.LogInformation("Created Google Drive publisher folder with ID: {FolderId}", folder.Id);
 
-            // Files uploaded through this provider receive their own public reader
-            // permission, so the folder itself stays private.
-            return OperationResult<string>.CreateSuccess(folder.Id);
+                // Files uploaded through this provider receive their own public reader
+                // permission, so the folder itself stays private.
+                return OperationResult<string>.CreateSuccess(folder.Id);
+            }
+            catch (Google.GoogleApiException ex) when (ex.HttpStatusCode == HttpStatusCode.Conflict)
+            {
+                // A concurrent client created the folder first; re-query instead of failing.
+                logger.LogInformation(ex, "Publisher folder was created concurrently; reusing existing folder.");
+                var concurrentFolderId = await FindPublisherFolderIdAsync(cancellationToken);
+                return concurrentFolderId != null
+                    ? OperationResult<string>.CreateSuccess(concurrentFolderId)
+                    : OperationResult<string>.CreateFailure("Folder operation failed: publisher folder conflict could not be resolved.");
+            }
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -429,7 +441,7 @@ public class GoogleDriveHostingProvider(
     {
         if (_driveService == null)
         {
-            return OperationResult<HostingState?>.CreateFailure(HostingConstants.GoogleDriveNotAuthenticated);
+            return OperationResult<HostingState?>.CreateFailure(GetNotAuthenticatedMessage());
         }
 
         try
@@ -446,12 +458,14 @@ public class GoogleDriveHostingProvider(
             }
 
             var folderId = existingFolder.Id;
+
+            // LastPublished is intentionally left unset: recovery rediscovers existing
+            // state rather than publishing, so there is no meaningful publish time.
             var state = new HostingState
             {
                 ProviderId = ProviderId,
                 FolderId = folderId,
                 FolderUrl = string.Format(HostingConstants.GoogleDriveFolderUrlTemplate, folderId),
-                LastPublished = DateTime.UtcNow,
             };
 
             string? pageToken = null;
@@ -564,12 +578,27 @@ public class GoogleDriveHostingProvider(
         return match.Success ? match.Groups[1].Value : null;
     }
 
+    private async Task<string?> FindPublisherFolderIdAsync(CancellationToken cancellationToken)
+    {
+        if (_driveService == null)
+        {
+            return null;
+        }
+
+        var listRequest = _driveService.Files.List();
+        listRequest.Q = $"name = '{EscapeDriveQueryParameter(PublisherFolderName)}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false";
+        listRequest.Fields = "files(id, name)";
+
+        var listResult = await listRequest.ExecuteAsync(cancellationToken);
+        return listResult.Files?.FirstOrDefault()?.Id;
+    }
+
     private async Task<OperationResult<bool>> MakePublicAsync(string fileId, CancellationToken cancellationToken)
     {
         var service = _driveService;
         if (service == null)
         {
-            return OperationResult<bool>.CreateFailure(HostingConstants.GoogleDriveNotAuthenticated);
+            return OperationResult<bool>.CreateFailure(GetNotAuthenticatedMessage());
         }
 
         try

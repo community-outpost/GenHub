@@ -29,6 +29,16 @@ public static class CatalogConstants
     public const int CatalogSchemaVersion = 1;
 
     /// <summary>
+    /// Current publisher definition schema version ($schemaVersion).
+    /// </summary>
+    public const int DefinitionSchemaVersion = 1;
+
+    /// <summary>
+    /// Maximum number of catalog mirror URLs attempted when fetching a catalog from a definition.
+    /// </summary>
+    public const int MaxCatalogMirrorAttempts = 3;
+
+    /// <summary>
     /// Filename for user subscription storage under application data.
     /// </summary>
     public const string SubscriptionFileName = "subscriptions.json";

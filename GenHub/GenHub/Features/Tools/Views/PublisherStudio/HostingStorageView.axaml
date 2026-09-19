@@ -431,7 +431,7 @@
                         </StackPanel>
 
                         <Border Grid.Column="1" Classes="status-badge-info" VerticalAlignment="Center">
-                            <TextBlock Text="{Binding HostedAssets.Count, StringFormat='{}{0} Assets Tracked'}" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource StatusInfoBrush}"/>
+                            <TextBlock Text="{Binding HostedAssetsCountText}" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource StatusInfoBrush}"/>
                         </Border>
                     </Grid>
 

@@ -173,11 +173,6 @@ public static class HostingConstants
     public const string GoogleDriveNotAuthenticated = "Not authenticated with Google Drive";
 
     /// <summary>
-    /// Default timeout in seconds for external catalog fetch operations.
-    /// </summary>
-    public const int CatalogFetchTimeoutSeconds = 30;
-
-    /// <summary>
     /// Timeout in seconds for interactive browser-based OAuth authentication flows.
     /// </summary>
     public const int BrowserAuthTimeoutSeconds = 300;

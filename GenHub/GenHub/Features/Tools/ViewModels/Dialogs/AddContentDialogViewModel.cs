@@ -27,6 +27,8 @@ public partial class AddContentDialogViewModel(
     private readonly CatalogContentItem? _existingItem;
     private CancellationTokenSource? _computationCts;
 
+    private int _hashGeneration;
+
     [ObservableProperty]
     private bool _isEditMode;
 
@@ -347,6 +349,54 @@ public partial class AddContentDialogViewModel(
         return null;
     }
 
+    private static ContentRelease CloneRelease(ContentRelease source)
+    {
+        return new ContentRelease
+        {
+            Version = source.Version,
+            ReleaseDate = source.ReleaseDate,
+            IsPrerelease = source.IsPrerelease,
+            IsLatest = source.IsLatest,
+            IsFeatured = source.IsFeatured,
+            Changelog = source.Changelog,
+            Artifacts = source.Artifacts.Select(CloneArtifact).ToList(),
+            Dependencies = source.Dependencies.Select(CloneDependency).ToList(),
+        };
+    }
+
+    private static ReleaseArtifact CloneArtifact(ReleaseArtifact source)
+    {
+        return new ReleaseArtifact
+        {
+            Filename = source.Filename,
+            DownloadUrl = source.DownloadUrl,
+            Size = source.Size,
+            Sha256 = source.Sha256,
+            ContentType = source.ContentType,
+            IsPrimary = source.IsPrimary,
+            VariantAxis = source.VariantAxis,
+            Variant = source.Variant,
+            IsDefaultVariant = source.IsDefaultVariant,
+            LocalFilePath = source.LocalFilePath,
+        };
+    }
+
+    private static CatalogDependency CloneDependency(CatalogDependency source)
+    {
+        return new CatalogDependency
+        {
+            PublisherId = source.PublisherId,
+            ContentId = source.ContentId,
+            VersionConstraint = source.VersionConstraint,
+            IsOptional = source.IsOptional,
+            ContentType = source.ContentType,
+            CatalogUrl = source.CatalogUrl,
+            DependencyType = source.DependencyType,
+            DefinitionUrl = source.DefinitionUrl,
+            ConflictsWith = [.. source.ConflictsWith],
+        };
+    }
+
     partial void OnSelectedContentTypeChanged(ContentType value)
     {
         OnPropertyChanged(nameof(CanExtend));
@@ -396,6 +446,7 @@ public partial class AddContentDialogViewModel(
         _computationCts?.Dispose();
         _computationCts = new CancellationTokenSource();
         var ct = _computationCts.Token;
+        _hashGeneration++;
 
         if (Directory.Exists(path))
         {
@@ -499,13 +550,14 @@ public partial class AddContentDialogViewModel(
 
     private async Task ComputeSha256Async(string filePath, CancellationToken ct)
     {
+        var generation = _hashGeneration;
         try
         {
             IsComputingHash = true;
             using var stream = File.OpenRead(filePath);
             using var sha256 = SHA256.Create();
             var hashBytes = await sha256.ComputeHashAsync(stream, ct);
-            if (!ct.IsCancellationRequested)
+            if (!ct.IsCancellationRequested && generation == _hashGeneration)
             {
                 Sha256Hash = Convert.ToHexString(hashBytes).ToLowerInvariant();
             }
@@ -516,14 +568,17 @@ public partial class AddContentDialogViewModel(
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            if (!ct.IsCancellationRequested)
+            if (!ct.IsCancellationRequested && generation == _hashGeneration)
             {
                 Sha256Hash = string.Empty;
             }
         }
         finally
         {
-            IsComputingHash = false;
+            if (generation == _hashGeneration)
+            {
+                IsComputingHash = false;
+            }
         }
     }
 
@@ -559,6 +614,15 @@ public partial class AddContentDialogViewModel(
         if (HasErrors)
         {
             ValidationError = string.Join(Environment.NewLine, GetErrors().Select(e => e.ErrorMessage));
+            IsValid = false;
+            return;
+        }
+
+        if (IsComputingHash)
+        {
+            ValidationError = GetLocalizedString(
+                "Tools.PublisherStudio.Artifact.HashInProgress",
+                "Hash computation is still in progress. Please wait.");
             IsValid = false;
             return;
         }
@@ -659,20 +723,26 @@ public partial class AddContentDialogViewModel(
         contentItem.Releases.Add(release);
     }
 
-    private void CopyFromExistingItem(CatalogContentItem contentItem)
+    private bool CopyFromExistingItem(CatalogContentItem contentItem)
     {
-        if (_existingItem == null) return;
-
-        // Preserve existing releases & dependencies
-        foreach (var rel in _existingItem.Releases)
+        if (_existingItem == null)
         {
-            contentItem.Releases.Add(rel);
+            return false;
         }
 
-        foreach (var dep in _existingItem.BundledItems)
+        // Preserve existing releases & dependencies as deep copies so the edited
+        // item never aliases the source item's mutable lists.
+        foreach (var release in _existingItem.Releases)
         {
-            contentItem.BundledItems.Add(dep);
+            contentItem.Releases.Add(CloneRelease(release));
         }
+
+        foreach (var dependency in _existingItem.BundledItems)
+        {
+            contentItem.BundledItems.Add(CloneDependency(dependency));
+        }
+
+        return true;
     }
 
     partial void OnContentIdChanged(string value) => Validate();

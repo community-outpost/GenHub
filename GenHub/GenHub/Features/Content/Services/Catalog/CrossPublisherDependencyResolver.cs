@@ -87,7 +87,7 @@ public class CrossPublisherDependencyResolver(
 
             var httpClient = httpClientFactory.CreateClient(CatalogConstants.CatalogHttpClientName);
             using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            timeoutCts.CancelAfter(TimeSpan.FromSeconds(HostingConstants.CatalogFetchTimeoutSeconds));
+            timeoutCts.CancelAfter(TimeSpan.FromSeconds(CatalogConstants.DefaultCatalogTimeoutSeconds));
             var ct = timeoutCts.Token;
 
             logger.LogDebug("Fetching external catalog from: {CatalogUrl}", catalogUrl);
@@ -123,7 +123,7 @@ public class CrossPublisherDependencyResolver(
         }
         catch (OperationCanceledException ex)
         {
-            logger.LogWarning(ex, "Catalog fetch timed out after {Timeout} seconds", HostingConstants.CatalogFetchTimeoutSeconds);
+            logger.LogWarning(ex, "Catalog fetch timed out after {Timeout} seconds", CatalogConstants.DefaultCatalogTimeoutSeconds);
             return OperationResult<PublisherCatalog>.CreateFailure("Catalog fetch timed out");
         }
         catch (Exception ex)

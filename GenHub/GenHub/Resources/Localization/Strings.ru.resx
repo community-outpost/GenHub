@@ -9351,6 +9351,9 @@ GenHub передает официальный идентификатор AppID 
   <data name="Tools.PublisherStudio.Artifact.FileSizePlaceholder" xml:space="preserve">
     <value>например, 750 MB</value>
   </data>
+  <data name="Tools.PublisherStudio.Artifact.DirectDownloadUrlPlaceholder" xml:space="preserve">
+    <value>https://cdn.example.com/downloads/gameclient-v1.0.zip</value>
+  </data>
   <data name="Tools.PublisherStudio.Artifact.Filename" xml:space="preserve">
     <value>Имя файла</value>
   </data>
@@ -9584,6 +9587,9 @@ GenHub передает официальный идентификатор AppID 
   </data>
   <data name="Tools.PublisherStudio.Dependency.ContentIdPlaceholder" xml:space="preserve">
     <value>напр., worldbuilder-tool</value>
+  </data>
+  <data name="Tools.PublisherStudio.Dependency.CatalogUrlPlaceholder" xml:space="preserve">
+    <value>https://example.com/publisher.json</value>
   </data>
   <data name="Tools.PublisherStudio.Dependency.Discover" xml:space="preserve">
     <value>Найти</value>
@@ -10065,6 +10071,27 @@ GenHub передает официальный идентификатор AppID 
   <data name="Tools.PublisherStudio.Hosting.StatusPending" xml:space="preserve">
     <value>В ожидании</value>
   </data>
+  <data name="Tools.PublisherStudio.Hosting.StatusCloudHosted" xml:space="preserve">
+    <value>В облаке</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.StatusPendingUpload" xml:space="preserve">
+    <value>Ожидает загрузки</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.StatusNoFileOrUrl" xml:space="preserve">
+    <value>Нет файла / URL</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DestinationGitHubGists" xml:space="preserve">
+    <value>Публичные Gist</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DestinationRemoteCloud" xml:space="preserve">
+    <value>Удалённое облако</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.GoogleDriveNotAuthenticated" xml:space="preserve">
+    <value>Нет входа в Google Drive</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.AssetsTrackedFormat" xml:space="preserve">
+    <value>Отслеживаемых ресурсов: {0}</value>
+  </data>
   <data name="Tools.PublisherStudio.Hosting.StorageConsumed" xml:space="preserve">
     <value>ЗАНЯТОЕ МЕСТО</value>
   </data>
@@ -10460,6 +10487,9 @@ GenHub передает официальный идентификатор AppID 
   </data>
   <data name="Tools.PublisherStudio.Referral.CatalogUrl" xml:space="preserve">
     <value>URL каталога / манифеста</value>
+  </data>
+  <data name="Tools.PublisherStudio.Referral.CatalogUrlPlaceholder" xml:space="preserve">
+    <value>https://example.com/publisher.json</value>
   </data>
   <data name="Tools.PublisherStudio.Referral.DefinitionUrl" xml:space="preserve">
     <value>URL определения</value>
@@ -11968,6 +11998,15 @@ GameFilesEdited/Data/INI/**/*.ini</value>
   <data name="Tools.PublisherStudio.Publish.ScanError" xml:space="preserve">
     <value>Ошибка сканирования</value>
   </data>
+  <data name="Tools.PublisherStudio.Publish.ScanBlockedByOperation" xml:space="preserve">
+    <value>Дождитесь завершения текущей загрузки или синхронизации перед сканированием.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ContentItemsFormat" xml:space="preserve">
+    <value>Элементов: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.CatalogsCountFormat" xml:space="preserve">
+    <value>Каталогов: {0}</value>
+  </data>
   <data name="Tools.PublisherStudio.Publish.CopiedToClipboard" xml:space="preserve">
     <value>Скопировано в буфер обмена</value>
   </data>
@@ -12063,6 +12102,9 @@ GameFilesEdited/Data/INI/**/*.ini</value>
   </data>
   <data name="Tools.PublisherStudio.Artifact.InvalidSize" xml:space="preserve">
     <value>Недопустимый размер</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.HashInProgress" xml:space="preserve">
+    <value>Вычисление хеша ещё выполняется. Подождите.</value>
   </data>
   <data name="Tools.PublisherStudio.Artifact.InvalidSizeFormat" xml:space="preserve">
     <value>Неверный формат размера файла (например, 10 MB, 500 KB, 1.5 GB)</value>
@@ -12276,6 +12318,33 @@ GameFilesEdited/Data/INI/**/*.ini</value>
   </data>
   <data name="Tools.PublisherStudio.Studio.CannotRemoveLastCatalog" xml:space="preserve">
     <value>Нельзя удалить последний каталог</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.LoadProjectErrorFormat" xml:space="preserve">
+    <value>Ошибка загрузки проекта: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.ProjectLoadedFormat" xml:space="preserve">
+    <value>Проект загружен: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.LoadProjectFailedFormat" xml:space="preserve">
+    <value>Не удалось загрузить проект: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.ProjectCreatedSetupHint" xml:space="preserve">
+    <value>Новый проект создан – настройте профиль издателя для начала работы</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.ProjectCreated" xml:space="preserve">
+    <value>Новый проект создан</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.CreateProjectFailedFormat" xml:space="preserve">
+    <value>Не удалось создать проект: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.CreateProjectErrorFormat" xml:space="preserve">
+    <value>Ошибка создания проекта: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.CatalogRenamedFormat" xml:space="preserve">
+    <value>Каталог переименован в '{0}'</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.HostingRecoveryNeeded" xml:space="preserve">
+    <value>Состояние хостинга отсутствует — возможно, требуется восстановление. Используйте вкладку «Публикация» для переподключения.</value>
   </data>
   <data name="Tools.PublisherStudio.Studio.CatalogCountFormat" xml:space="preserve">
     <value>{0} каталогов</value>
