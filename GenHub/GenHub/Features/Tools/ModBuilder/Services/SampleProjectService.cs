@@ -48,7 +48,10 @@ public class SampleProjectService(
         string LanguageFolder,
         string BigFileName);
 
-    internal enum LemonBigRole
+    /// <summary>
+    /// Identifies the role of an archive within the Lemon Control Bar mod.
+    /// </summary>
+    public enum LemonBigRole
     {
         /// <summary>Shared art texture archive.</summary>
         Art,

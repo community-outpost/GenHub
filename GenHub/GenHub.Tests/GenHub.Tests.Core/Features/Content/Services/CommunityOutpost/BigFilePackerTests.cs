@@ -16,12 +16,16 @@ public sealed class BigFilePackerTests : IDisposable
 {
     private readonly string _tempDirectory;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="BigFilePackerTests"/> class.
+    /// </summary>
     public BigFilePackerTests()
     {
         _tempDirectory = Path.Combine(Path.GetTempPath(), "GenHub_BigPackerTests_" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(_tempDirectory);
     }
 
+    /// <inheritdoc />
     public void Dispose()
     {
         if (Directory.Exists(_tempDirectory))
@@ -37,6 +41,10 @@ public sealed class BigFilePackerTests : IDisposable
         }
     }
 
+    /// <summary>
+    /// Verifies that packing an archive with a non-alphabetically ordered manifest preserves entry order.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
     [Fact]
     public async Task PackAsync_WithNonAlphabeticalManifest_PreservesEntryOrderExactly()
     {
@@ -62,6 +70,10 @@ public sealed class BigFilePackerTests : IDisposable
         ReadEntryNames(target).Should().Equal(@"Data\INI\b.ini", @"Data\INI\a.ini");
     }
 
+    /// <summary>
+    /// Verifies that packing an archive with a subset of manifest entries ignores the header size override.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
     [Fact]
     public async Task PackAsync_WithSubsetOfManifestEntries_IgnoresHeaderSizeOverride()
     {
@@ -89,6 +101,10 @@ public sealed class BigFilePackerTests : IDisposable
         headerSize.Should().NotBe(9999);
     }
 
+    /// <summary>
+    /// Verifies that packing an archive with the full manifest set applies the header size override.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
     [Fact]
     public async Task PackAsync_WithFullManifestSet_AppliesHeaderSizeOverride()
     {
@@ -114,6 +130,10 @@ public sealed class BigFilePackerTests : IDisposable
         headerSize.Should().Be(1234);
     }
 
+    /// <summary>
+    /// Verifies that packing the same files twice produces identical byte output.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
     [Fact]
     public async Task PackAsync_WhenPackedTwice_ProducesIdenticalBytes()
     {
