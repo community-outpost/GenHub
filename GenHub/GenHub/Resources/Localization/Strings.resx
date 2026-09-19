@@ -8185,4 +8185,52 @@ Do you want to download and inspect this profile package?</value>
   <data name="Info.Demo.AppUpdates.AuthSampleCode" xml:space="preserve">
     <value>WDAS-5678</value>
   </data>
+  <data name="GameProfiles.Notification.ErrorLoadingContent.Title" xml:space="preserve">
+    <value>Error loading content</value>
+  </data>
+  <data name="GameProfiles.Notification.ErrorLoadingProfile.Title" xml:space="preserve">
+    <value>Error loading profile</value>
+  </data>
+  <data name="GameProfiles.Notification.ProfileUpdateFailedMessage" xml:space="preserve">
+    <value>Failed to update profile: {0}</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.CannotSaveOptionsMissingMessage" xml:space="preserve">
+    <value>Options.ini could not be loaded and saving would overwrite existing unmanaged settings.</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.CannotSaveSettingsTitle" xml:space="preserve">
+    <value>Cannot Save Settings</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.DirectoryNotFoundMessage" xml:space="preserve">
+    <value>Options file directory not found</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.DirectoryNotFoundTitle" xml:space="preserve">
+    <value>Directory Not Found</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.ErrorLoadingSettingsTitle" xml:space="preserve">
+    <value>Error Loading Settings</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.ErrorOpeningLocationTitle" xml:space="preserve">
+    <value>Error Opening Location</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.ErrorSavingSettingsTitle" xml:space="preserve">
+    <value>Error Saving Settings</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.LoadFailedMessage" xml:space="preserve">
+    <value>Failed to load settings: {0}</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.PartialSaveGeneralsOnlineOnlyMessage" xml:space="preserve">
+    <value>GeneralsOnline settings saved; Options.ini not saved: {0}</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.PartialSaveOptionsOnlyMessage" xml:space="preserve">
+    <value>Options.ini saved; GeneralsOnline settings not written: {0}</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.ServiceUnavailableMessage" xml:space="preserve">
+    <value>Game settings service not available</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.UnknownGameTypeMessage" xml:space="preserve">
+    <value>Cannot load settings for unknown game type</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.WarningTitle" xml:space="preserve">
+    <value>Settings Warning</value>
+  </data>
 </root>

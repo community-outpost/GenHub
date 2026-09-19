@@ -25,10 +25,12 @@
 
     <UserControl.Styles>
         <Style Selector="Border.content-card-btn">
-            <Setter Property="Width" Value="180" /><Setter Property="MaxWidth" Value="180" />
+            <Setter Property="Width" Value="180" />
+            <Setter Property="MaxWidth" Value="180" />
         </Style>
         <Style Selector="Grid.content-card">
-            <Setter Property="Width" Value="180" /><Setter Property="MaxWidth" Value="180" />
+            <Setter Property="Width" Value="180" />
+            <Setter Property="MaxWidth" Value="180" />
         </Style>
         <Style Selector="Button.edit-content-btn">
             <Setter Property="Opacity" Value="0" />
