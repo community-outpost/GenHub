@@ -398,6 +398,24 @@ public sealed class PathHelperTests
     }
 
     /// <summary>
+    /// Verifies that IsPathInsideAppDirectory returns true for paths within the application base directory
+    /// and false for paths outside or for null/whitespace.
+    /// </summary>
+    [Fact]
+    public void IsPathInsideAppDirectory_ValidatesAppDirectoryContainment()
+    {
+        Assert.False(PathHelper.IsPathInsideAppDirectory(null));
+        Assert.False(PathHelper.IsPathInsideAppDirectory("   "));
+
+        var appBase = AppDomain.CurrentDomain.BaseDirectory;
+        Assert.True(PathHelper.IsPathInsideAppDirectory(appBase));
+        Assert.True(PathHelper.IsPathInsideAppDirectory(Path.Combine(appBase, "subfolder", "file.txt")));
+
+        var outsidePath = Path.Combine(Path.GetTempPath(), "definitely_outside_app_dir_" + Guid.NewGuid().ToString("N"));
+        Assert.False(PathHelper.IsPathInsideAppDirectory(outsidePath));
+    }
+
+    /// <summary>
     /// Verifies that the replacement-based SanitizeFileName overload substitutes invalid characters with underscores.
     /// </summary>
     [Fact]

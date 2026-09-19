@@ -188,6 +188,15 @@ GenHub/GenHub/SampleCatalogs/Subscribe-Test-Catalog.desktop
 GenHub/GenHub/SampleCatalogs/Subscribe-Test-Catalog.command
 GenHub/GenHub/SampleCatalogs/Subscribe-Test-Catalog.webloc
 
+# Visual Studio metadata (exclude except AI context)
+.vs/*
+!.vs/Project-Overview.md
+!.vs/prompt.md
+
+# ModBuilder cache and serialization files
+*.msgpack
+.modbuilder_cache/
+
 # Landing page build output
 public/
 Landing-page/assets/data/*.json

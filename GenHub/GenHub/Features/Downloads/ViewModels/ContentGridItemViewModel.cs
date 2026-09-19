@@ -543,10 +543,15 @@ public sealed partial class ContentGridItemViewModel(
 
     private void OnDownloadStarted(ContentDownloadStartedMessage message)
     {
+        if (message.ContentKey?.StartsWith(ContentConstants.SampleContentKeyPrefix, StringComparison.OrdinalIgnoreCase) == true)
+        {
+            return;
+        }
+
         RunOnUi(() =>
         {
             HasActiveDownloads = true;
-            if (IsMatchingDownloadMessage(message.ContentKey, message.ContentId, message.ProviderName, message.ContentName, message.ParentContentId))
+            if (IsMatchingDownloadMessage(message.ContentKey ?? string.Empty, message.ContentId, message.ProviderName, message.ContentName, message.ParentContentId))
             {
                 IsDownloading = true;
                 DownloadProgress = 0;

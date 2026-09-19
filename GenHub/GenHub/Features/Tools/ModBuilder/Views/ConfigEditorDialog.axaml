@@ -1,0 +1,577 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:localization="clr-namespace:GenHub.Common.Markup"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:vm="clr-namespace:GenHub.Features.Tools.ModBuilder.ViewModels;assembly=GenHub"
+        mc:Ignorable="d" d:DesignWidth="1200" d:DesignHeight="800"
+        x:Class="GenHub.Features.Tools.ModBuilder.Views.ConfigEditorDialog"
+        x:DataType="vm:ConfigEditorViewModel"
+        Title="Configuration Editor"
+        Icon="/Assets/Icons/generalshub-icon.png"
+        Width="1200" Height="800"
+        MinWidth="1000" MinHeight="600"
+        WindowStartupLocation="CenterOwner"
+        CanResize="True"
+        SystemDecorations="Full"
+        ExtendClientAreaToDecorationsHint="True"
+        ExtendClientAreaChromeHints="NoChrome"
+        ExtendClientAreaTitleBarHeightHint="-1"
+        Background="{DynamicResource WindowBackground}">
+
+  <Window.Resources>
+    <ResourceDictionary>
+      <ResourceDictionary.MergedDictionaries>
+        <ResourceInclude Source="../Styles/ModBuilderStyles.axaml"/>
+        <ResourceInclude Source="../Styles/ModBuilderIcons.axaml"/>
+      </ResourceDictionary.MergedDictionaries>
+    </ResourceDictionary>
+  </Window.Resources>
+
+  <Panel>
+  <Grid RowDefinitions="Auto,*,Auto" Margin="24">
+
+    <!-- Header Section -->
+    <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,20">
+      <StackPanel Grid.Column="0" Spacing="4">
+        <TextBlock Text="{localization:Localize Tools.ModBuilder.ConfigEditor.Title}"
+                   FontSize="20" FontWeight="Bold"
+                   Foreground="{DynamicResource TextPrimary}"/>
+        <TextBlock Text="{localization:Localize Tools.ModBuilder.ConfigEditor.Subtitle}"
+                   FontSize="12" Foreground="{DynamicResource TextSecondary}"/>
+      </StackPanel>
+
+      <!-- Modified indicator -->
+      <Border Grid.Column="1" Background="{DynamicResource WarningBrush}"
+              CornerRadius="6" Padding="10,4" VerticalAlignment="Center"
+              IsVisible="{Binding HasChanges}">
+        <TextBlock Text="{localization:Localize Tools.ModBuilder.ConfigEditor.UnsavedChangesBadge}"
+                   FontSize="11" FontWeight="SemiBold"
+                   Foreground="White"/>
+      </Border>
+    </Grid>
+
+    <!-- Main Content Tabs -->
+    <TabControl Grid.Row="1" SelectedIndex="{Binding ActiveTabIndex}">
+
+      <!-- Bundle Items Tab -->
+      <TabItem Header="{localization:Localize Tools.ModBuilder.ConfigEditor.TabBundleItems}">
+        <Grid ColumnDefinitions="380,12,*" Margin="0,12,0,0">
+          <!-- Left: Items List & Actions -->
+          <Grid Grid.Column="0" RowDefinitions="Auto,*">
+            <!-- Toolbar -->
+            <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="8" Margin="0,0,0,10">
+              <Button Command="{Binding AddBundleItemCommand}"
+                      Background="{DynamicResource AccentBrush}"
+                      Foreground="White" BorderThickness="0"
+                      Padding="14,8" CornerRadius="8" Cursor="Hand"
+                      ToolTip.Tip="{localization:Localize Tools.ModBuilder.ConfigEditor.TooltipAddItem}">
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                  <Path Data="{StaticResource IconAdd}" Fill="White" Width="13" Height="13" Stretch="Uniform"/>
+                  <TextBlock Text="{localization:Localize Tools.ModBuilder.ConfigEditor.ButtonAddItem}" FontWeight="SemiBold"/>
+                </StackPanel>
+              </Button>
+
+              <Button Command="{Binding RemoveBundleItemCommand}"
+                      Background="{DynamicResource SurfaceElevatedBrush}"
+                      BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                      Foreground="{DynamicResource ErrorBrush}"
+                      Padding="14,8" CornerRadius="8" Cursor="Hand"
+                      ToolTip.Tip="{localization:Localize Tools.ModBuilder.ConfigEditor.TooltipRemoveItem}">
+                <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                  <Path Data="{StaticResource IconRemove}" Fill="{DynamicResource ErrorBrush}" Width="13" Height="13" Stretch="Uniform" VerticalAlignment="Center"/>
+                  <TextBlock Text="{localization:Localize Tools.ModBuilder.ConfigEditor.ButtonRemoveItem}" VerticalAlignment="Center"/>
+                </StackPanel>
+              </Button>
+            </StackPanel>
+
+            <!-- Items List -->
+            <Border Grid.Row="1" Background="{DynamicResource CardBackground}"
+                    BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                    CornerRadius="10" Padding="6">
+              <ListBox ItemsSource="{Binding BundleItems}"
+                       SelectedItem="{Binding SelectedBundleItem}"
+                       Background="Transparent">
+                <ListBox.ItemTemplate>
+                  <DataTemplate x:DataType="vm:BundleItemEditorViewModel">
+                    <Border Padding="10,8" CornerRadius="8" Background="Transparent">
+                      <Grid ColumnDefinitions="Auto,*,Auto">
+                        <!-- BIG Badge -->
+                        <Border Grid.Column="0" Background="{DynamicResource AccentBrush}"
+                                CornerRadius="4" Padding="5,2" Margin="0,0,10,0"
+                                IsVisible="{Binding IsBig}" VerticalAlignment="Center">
+                          <TextBlock Text="{localization:Localize Tools.ModBuilder.ConfigEditor.TagBig}" FontSize="10" FontWeight="Bold" Foreground="White"/>
+                        </Border>
+
+                        <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                          <TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold"
+                                     Foreground="{DynamicResource TextPrimary}" FontSize="13"/>
+                          <TextBlock Text="{Binding SourcePattern}" FontSize="11"
+                                     Foreground="{DynamicResource TextSecondary}"
+                                     TextTrimming="CharacterEllipsis"/>
+                        </StackPanel>
+
+                        <TextBlock Grid.Column="2" Text="{Binding FileCount, StringFormat='{}{0} files'}"
+                                   FontSize="11" Foreground="{DynamicResource TextSecondary}"
+                                   VerticalAlignment="Center" Margin="8,0,0,0"/>
+                      </Grid>
+                    </Border>
+                  </DataTemplate>
+                </ListBox.ItemTemplate>
+              </ListBox>
+            </Border>
+          </Grid>
+
+          <!-- Right: Detail Editor Inspector -->
+          <Border Grid.Column="2" Background="{DynamicResource CardBackground}"
+                  BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                  CornerRadius="10" Padding="18">
+            <ScrollViewer VerticalScrollBarVisibility="Auto">
+              <Panel>
+                <!-- Selected State -->
+                <StackPanel Spacing="16" IsVisible="{Binding SelectedBundleItem, Converter={x:Static ObjectConverters.IsNotNull}}">
+                  <!-- Header with Match Summary -->
+                  <Grid ColumnDefinitions="*,Auto">
+                    <TextBlock Grid.Column="0" Text="{localization:Localize Tools.ModBuilder.ConfigEditor.BundleItemSettingsHeader}" FontSize="15" FontWeight="Bold" Foreground="{DynamicResource TextPrimary}" VerticalAlignment="Center"/>
+                    <!-- Matching Files Badge -->
+                    <Border Grid.Column="1" Background="{DynamicResource SurfaceElevatedBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="6" Padding="8,4" VerticalAlignment="Center">
+                      <TextBlock Text="{Binding SelectedBundleItem.MatchingFilesSummary}" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource AccentBrush}"/>
+                    </Border>
+                  </Grid>
+                  <Separator Background="{DynamicResource BorderBrush}" Height="1"/>
+
+                  <!-- Item Name -->
+                  <StackPanel Spacing="6">
+                    <TextBlock Text="{localization:Localize Tools.ModBuilder.ConfigEditor.LabelBundleName}" FontWeight="SemiBold" FontSize="12.5" Foreground="{DynamicResource TextPrimary}"/>
+                    <TextBox Text="{Binding SelectedBundleItem.Name, Mode=TwoWay}" Watermark="{localization:Localize Tools.ModBuilder.ConfigEditor.WatermarkBundleName}" />
+                  </StackPanel>
+
+                  <!-- Source Selection Section -->
+                  <Border Background="{DynamicResource SurfaceElevatedBrush}"
+                          BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                          CornerRadius="8" Padding="14">
+                    <StackPanel Spacing="12">
+                      <Grid ColumnDefinitions="*,Auto">
+                        <StackPanel Grid.Column="0" Spacing="2">
+                          <TextBlock Text="{localization:Localize Tools.ModBuilder.ConfigEditor.LabelSourceFiles}" FontWeight="SemiBold" FontSize="13" Foreground="{DynamicResource TextPrimary}"/>
+                          <TextBlock Text="{localization:Localize Tools.ModBuilder.ConfigEditor.DescSourceFiles}" FontSize="11" Foreground="{DynamicResource TextSecondary}"/>
+                        </StackPanel>
+
+                        <!-- Clear All Button -->
+                        <Button Grid.Column="1" Command="{Binding ClearSourcePatternsCommand}"
+                                Background="Transparent" BorderThickness="0"
+                                Padding="8,4" CornerRadius="6" Cursor="Hand"
+                                ToolTip.Tip="{localization:Localize Tools.ModBuilder.ConfigEditor.TooltipClearPatterns}">
+                          <StackPanel Orientation="Horizontal" Spacing="4">
+                            <Path Data="{StaticResource IconClear}" Fill="{DynamicResource TextSecondary}" Width="11" Height="11" Stretch="Uniform"/>
+                            <TextBlock Text="{localization:Localize Common.Action.Clear}" FontSize="11" Foreground="{DynamicResource TextSecondary}"/>
+                          </StackPanel>
+                        </Button>
+                      </Grid>
+
+                      <!-- Action Buttons Toolbar -->
+                      <WrapPanel Orientation="Horizontal">
+                        <!-- Add Folder -->
+                        <Button Command="{Binding AddFolderCommand}" CommandParameter="{Binding $parent[Window]}"
+                                Background="{DynamicResource AccentBrush}" Foreground="White"
+                                Padding="12,7" CornerRadius="6" Margin="0,0,8,8" Cursor="Hand"
+                                ToolTip.Tip="{localization:Localize Tools.ModBuilder.ConfigEditor.TooltipAddFolder}">
+                          <StackPanel Orientation="Horizontal" Spacing="6">
+                            <Path Data="{StaticResource IconOpenFolder}" Fill="White" Width="12" Height="12" Stretch="Uniform"/>
+                            <TextBlock Text="{localization:Localize Tools.ModBuilder.ConfigEditor.ButtonAddFolder}" FontWeight="SemiBold" FontSize="11.5"/>
+                          </StackPanel>
+                        </Button>
+
+                        <!-- Add Files -->
+                        <Button Command="{Binding AddFilesCommand}" CommandParameter="{Binding $parent[Window]}"
+                                Background="{DynamicResource SurfaceCardBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                                Foreground="{DynamicResource TextPrimary}"
+                                Padding="12,7" CornerRadius="6" Margin="0,0,8,8" Cursor="Hand"
+                                ToolTip.Tip="{localization:Localize Tools.ModBuilder.ConfigEditor.TooltipAddFiles}">
+                          <StackPanel Orientation="Horizontal" Spacing="6">
+                            <Path Data="{StaticResource IconTextFile}" Fill="{DynamicResource AccentBrush}" Width="12" Height="12" Stretch="Uniform"/>
+                            <TextBlock Text="{localization:Localize Tools.ModBuilder.ConfigEditor.ButtonAddFiles}" FontWeight="SemiBold" FontSize="11.5"/>
+                          </StackPanel>
+                        </Button>
+
+                        <!-- Project Tree Browser -->
+                        <Button Command="{Binding OpenProjectTreeSelectorCommand}" CommandParameter="{Binding $parent[Window]}"
+                                Background="{DynamicResource SurfaceCardBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                                Foreground="{DynamicResource TextPrimary}"
+                                Padding="12,7" CornerRadius="6" Margin="0,0,8,8" Cursor="Hand"
+                                ToolTip.Tip="{localization:Localize Tools.ModBuilder.ConfigEditor.TooltipProjectTree}">
+                          <StackPanel Orientation="Horizontal" Spacing="6">
+                            <Path Data="{StaticResource IconSearch}" Fill="{DynamicResource AccentBrush}" Width="12" Height="12" Stretch="Uniform"/>
+                            <TextBlock Text="{localization:Localize Tools.ModBuilder.ConfigEditor.ButtonProjectTree}" FontWeight="SemiBold" FontSize="11.5"/>
+                          </StackPanel>
+                        </Button>
+                      </WrapPanel>
+
+                      <!-- Configured Source Items Expander -->
+                      <Expander IsExpanded="True" HorizontalAlignment="Stretch" Margin="0,4,0,0">
+                        <Expander.Header>
+                          <StackPanel Orientation="Horizontal" Spacing="8">
+                            <TextBlock Text="{localization:Localize Tools.ModBuilder.ConfigEditor.LabelConfiguredSources}"
+                                       FontSize="12" FontWeight="SemiBold"
+                                       Foreground="{DynamicResource TextPrimary}" VerticalAlignment="Center"/>
+                            <Border Background="{DynamicResource SurfaceElevatedBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                                    CornerRadius="10" Padding="6,1" VerticalAlignment="Center">
+                              <TextBlock Text="{Binding SelectedBundleItem.SourcePatternsList.Count}"
+                                         FontSize="10" FontWeight="Bold"
+                                         Foreground="{DynamicResource TextSecondary}"/>
+                            </Border>
+                          </StackPanel>
+                        </Expander.Header>
+
+                        <Border Margin="0,6,0,0" Background="{DynamicResource SurfaceBackgroundDarkBrush}"
+                                BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="6" Padding="6">
+                          <!-- Virtualized list: only visible rows are realized for large pattern sets -->
+                          <ListBox MaxHeight="280" ItemsSource="{Binding SelectedBundleItem.SourcePatternsList}"
+                                   Background="Transparent" BorderThickness="0" Padding="0"
+                                   ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate x:DataType="vm:SourcePathItemViewModel">
+                                  <Border Background="{DynamicResource CardBackground}"
+                                          BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                                          CornerRadius="6" Padding="10,6" Margin="0,2"
+                                          ToolTip.Tip="{Binding Pattern}">
+                                    <Grid ColumnDefinitions="Auto,*,Auto,Auto">
+                                      <!-- Folder Icon -->
+                                      <Path Grid.Column="0" Width="13" Height="13" Stretch="Uniform" VerticalAlignment="Center" Margin="0,0,8,0"
+                                            Fill="{DynamicResource AccentBrush}"
+                                            Data="{StaticResource IconOpenFolder}"
+                                            IsVisible="{Binding IsDirectoryGlob}"/>
+                                      <!-- File Icon -->
+                                      <Path Grid.Column="0" Width="13" Height="13" Stretch="Uniform" VerticalAlignment="Center" Margin="0,0,8,0"
+                                            Fill="{DynamicResource TextSecondary}"
+                                            Data="{StaticResource IconTextFile}"
+                                            IsVisible="{Binding !IsDirectoryGlob}"/>
+
+                                      <!-- Prominent Filename with Directory Subtitle -->
+                                      <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="1">
+                                        <TextBlock Text="{Binding DisplayFileName}"
+                                                   FontSize="12" FontWeight="SemiBold"
+                                                   Foreground="{DynamicResource TextPrimary}"
+                                                   TextTrimming="CharacterEllipsis"/>
+                                        <TextBlock Text="{Binding DisplayDirectory}"
+                                                   FontSize="10"
+                                                   Foreground="{DynamicResource TextSecondary}"
+                                                   TextTrimming="CharacterEllipsis"
+                                                   IsVisible="{Binding DisplayDirectory, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                                      </StackPanel>
+
+                                      <!-- Type Badge -->
+                                      <Border Grid.Column="2" Background="{DynamicResource SurfaceElevatedBrush}"
+                                              BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                                              CornerRadius="4" Padding="6,2" Margin="8,0" VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding TypeLabel}" FontSize="10" Foreground="{DynamicResource TextSecondary}"/>
+                                      </Border>
+
+                                      <!-- Delete Button -->
+                                      <Button Grid.Column="3"
+                                              Command="{Binding [Window].((vm:ConfigEditorViewModel)DataContext).RemoveSourcePatternCommand}"
+                                              CommandParameter="{Binding .}"
+                                              Background="Transparent" BorderThickness="0"
+                                              Padding="6,4" CornerRadius="4" Cursor="Hand"
+                                              VerticalAlignment="Center"
+                                              ToolTip.Tip="{localization:Localize Tools.ModBuilder.ConfigEditor.TooltipRemovePattern}">
+                                        <Path Width="10" Height="10" Stretch="Uniform"
+                                              Fill="{DynamicResource TextSecondary}"
+                                              Data="{StaticResource IconClear}"/>
+                                      </Button>
+                                    </Grid>
+                                  </Border>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                          </ListBox>
+                        </Border>
+                      </Expander>
+
+                      <!-- Add Custom Pattern Field -->
+                      <Grid ColumnDefinitions="*,Auto" Margin="0,4,0,0">
+                        <TextBox Grid.Column="0" Text="{Binding SelectedBundleItem.CustomPatternInput, Mode=TwoWay}"
+                                 Watermark="{localization:Localize Tools.ModBuilder.ConfigEditor.WatermarkAddPattern}"
+                                 Margin="0,0,8,0"/>
+                        <Button Grid.Column="1" Command="{Binding AddCustomPatternCommand}"
+                                Background="{DynamicResource SurfaceCardBrush}"
+                                BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                                Content="{localization:Localize Tools.ModBuilder.ConfigEditor.ButtonAddPattern}" Padding="12,6" CornerRadius="6" Cursor="Hand"
+                                ToolTip.Tip="{localization:Localize Tools.ModBuilder.ConfigEditor.TooltipAddPattern}"/>
+                      </Grid>
+
+                      <!-- Quick Presets -->
+                      <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,4,0,0">
+                        <TextBlock Text="{localization:Localize Tools.ModBuilder.ConfigEditor.QuickPresetsLabel}" FontSize="11" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                        <Button Command="{Binding SetSourcePatternCommand}" CommandParameter="GameFilesEdited/**/*.*"
+                                Padding="8,4" FontSize="11" CornerRadius="6"
+                                Background="{DynamicResource SurfaceCardBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                                Content="{localization:Localize Tools.ModBuilder.ConfigEditor.PresetAllFiles}" Cursor="Hand"
+                                ToolTip.Tip="{localization:Localize Tools.ModBuilder.ConfigEditor.TooltipPresetAllFiles}"/>
+                        <Button Command="{Binding SetSourcePatternCommand}" CommandParameter="GameFilesEdited/Data/INI/**/*.ini"
+                                Padding="8,4" FontSize="11" CornerRadius="6"
+                                Background="{DynamicResource SurfaceCardBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                                Content="{localization:Localize Tools.ModBuilder.ConfigEditor.PresetIniFiles}" Cursor="Hand"
+                                ToolTip.Tip="{localization:Localize Tools.ModBuilder.ConfigEditor.TooltipPresetIniFiles}"/>
+                        <Button Command="{Binding SetSourcePatternCommand}" CommandParameter="GameFilesEdited/**/Art/Textures/**/*.tga"
+                                Padding="8,4" FontSize="11" CornerRadius="6"
+                                Background="{DynamicResource SurfaceCardBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                                Content="{localization:Localize Tools.ModBuilder.ConfigEditor.PresetTextures}" Cursor="Hand"
+                                ToolTip.Tip="{localization:Localize Tools.ModBuilder.ConfigEditor.TooltipPresetTextures}"/>
+                        <Button Command="{Binding SetSourcePatternCommand}" CommandParameter="GameFilesEdited/window/**/*.wnd"
+                                Padding="8,4" FontSize="11" CornerRadius="6"
+                                Background="{DynamicResource SurfaceCardBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                                Content="{localization:Localize Tools.ModBuilder.ConfigEditor.PresetWindowUi}" Cursor="Hand"
+                                ToolTip.Tip="{localization:Localize Tools.ModBuilder.ConfigEditor.TooltipPresetWindowUi}"/>
+                        <Button Command="{Binding SetSourcePatternCommand}" CommandParameter="GameFilesEdited/**/*.csf"
+                                Padding="8,4" FontSize="11" CornerRadius="6"
+                                Background="{DynamicResource SurfaceCardBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                                Content="{localization:Localize Tools.ModBuilder.ConfigEditor.PresetCsfStrings}" Cursor="Hand"
+                                ToolTip.Tip="{localization:Localize Tools.ModBuilder.ConfigEditor.TooltipPresetCsfStrings}"/>
+                        <Button Command="{Binding SetSourcePatternCommand}" CommandParameter="GameFilesEdited/Data/Audio/**/*.*"
+                                Padding="8,4" FontSize="11" CornerRadius="6"
+                                Background="{DynamicResource SurfaceCardBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                                Content="{localization:Localize Tools.ModBuilder.ConfigEditor.PresetAudio}" Cursor="Hand"
+                                ToolTip.Tip="{localization:Localize Tools.ModBuilder.ConfigEditor.TooltipPresetAudio}"/>
+                      </StackPanel>
+
+                      <!-- Advanced: Manual Semicolon Glob String Expander -->
+                      <Expander Header="{localization:Localize Tools.ModBuilder.ConfigEditor.HeaderRawGlobString}"
+                                Background="Transparent" BorderThickness="0" Margin="0,2,0,0">
+                        <StackPanel Spacing="4" Margin="0,4,0,0">
+                          <TextBlock Text="{localization:Localize Tools.ModBuilder.ConfigEditor.LabelRawGlobString}" FontSize="11" Foreground="{DynamicResource TextSecondary}"/>
+                          <TextBox Text="{Binding SelectedBundleItem.SourcePattern, Mode=TwoWay}"
+                                   Watermark="{localization:Localize Tools.ModBuilder.ConfigEditor.WatermarkSourceFiles}"/>
+                        </StackPanel>
+                      </Expander>
+                    </StackPanel>
+                  </Border>
+
+                  <!-- Linked Bundle Packs Section -->
+                  <Border Background="{DynamicResource SurfaceElevatedBrush}"
+                          BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                          CornerRadius="8" Padding="14">
+                    <StackPanel Spacing="10">
+                      <TextBlock Text="{localization:Localize Tools.ModBuilder.ConfigEditor.HeaderLinkedBundlePacks}" FontWeight="SemiBold" FontSize="13" Foreground="{DynamicResource TextPrimary}"/>
+                      <TextBlock Text="{localization:Localize Tools.ModBuilder.ConfigEditor.DescLinkedBundlePacks}" FontSize="11" Foreground="{DynamicResource TextSecondary}"/>
+
+                      <ItemsControl ItemsSource="{Binding SelectedBundleItem.PackLinks}">
+                        <ItemsControl.ItemTemplate>
+                          <DataTemplate x:DataType="vm:BundlePackLinkItemViewModel">
+                            <CheckBox Content="{Binding PackName}"
+                                      IsChecked="{Binding IsLinked, Mode=TwoWay}"
+                                      FontWeight="SemiBold"
+                                      Foreground="{DynamicResource TextPrimary}"
+                                      Margin="0,2"/>
+                          </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                      </ItemsControl>
+
+                      <TextBlock Text="{localization:Localize Tools.ModBuilder.ConfigEditor.NoticeNoBundlePacks}"
+                                 FontSize="11" FontStyle="Italic" Foreground="{DynamicResource TextSecondary}"
+                                 IsVisible="{Binding !SelectedBundleItem.PackLinks.Count}"/>
+                    </StackPanel>
+                  </Border>
+
+                  <!-- BIG Archive Settings -->
+                  <Border Background="{DynamicResource SurfaceElevatedBrush}"
+                          BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                          CornerRadius="8" Padding="14">
+                    <StackPanel Spacing="10">
+                      <CheckBox Content="{localization:Localize Tools.ModBuilder.ConfigEditor.CheckPackAsBig}" IsChecked="{Binding SelectedBundleItem.IsBig, Mode=TwoWay}"
+                                FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}"
+                                ToolTip.Tip="{localization:Localize Tools.ModBuilder.ConfigEditor.TooltipPackAsBig}"/>
+                      <TextBlock Text="{localization:Localize Tools.ModBuilder.ConfigEditor.DescPackAsBig}"
+                                 FontSize="11" Foreground="{DynamicResource TextSecondary}" TextWrapping="Wrap"/>
+                      <StackPanel Spacing="6" IsVisible="{Binding SelectedBundleItem.IsBig}">
+                        <TextBlock Text="{localization:Localize Tools.ModBuilder.ConfigEditor.LabelArchiveSuffix}" FontSize="12" Foreground="{DynamicResource TextSecondary}"/>
+                        <TextBox Text="{Binding SelectedBundleItem.BigSuffix, Mode=TwoWay}" Watermark="{localization:Localize Tools.ModBuilder.ConfigEditor.WatermarkArchiveSuffix}"
+                                 ToolTip.Tip="{localization:Localize Tools.ModBuilder.ConfigEditor.TooltipArchiveSuffix}"/>
+                      </StackPanel>
+                    </StackPanel>
+                  </Border>
+                </StackPanel>
+
+                <!-- Empty State -->
+                <TextBlock Text="{localization:Localize Tools.ModBuilder.ConfigEditor.SelectBundleItemPrompt}"
+                           FontSize="13" Foreground="{DynamicResource TextSecondary}"
+                           HorizontalAlignment="Center" VerticalAlignment="Center"
+                           IsVisible="{Binding SelectedBundleItem, Converter={x:Static ObjectConverters.IsNull}}"/>
+              </Panel>
+            </ScrollViewer>
+          </Border>
+        </Grid>
+      </TabItem>
+
+      <!-- Bundle Packs Tab -->
+      <TabItem Header="{localization:Localize Tools.ModBuilder.ConfigEditor.TabBundlePacks}">
+        <Grid ColumnDefinitions="380,12,*" Margin="0,12,0,0">
+          <!-- Left: Packs List & Actions -->
+          <Grid Grid.Column="0" RowDefinitions="Auto,*">
+            <!-- Toolbar -->
+            <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="8" Margin="0,0,0,10">
+              <Button Command="{Binding AddBundlePackCommand}"
+                      Background="{DynamicResource AccentBrush}"
+                      Foreground="White" BorderThickness="0"
+                      Padding="14,8" CornerRadius="8" Cursor="Hand"
+                      ToolTip.Tip="{localization:Localize Tools.ModBuilder.ConfigEditor.TooltipAddPack}">
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                  <Path Data="{StaticResource IconAdd}" Fill="White" Width="13" Height="13" Stretch="Uniform"/>
+                  <TextBlock Text="{localization:Localize Tools.ModBuilder.ConfigEditor.ButtonAddPack}" FontWeight="SemiBold"/>
+                </StackPanel>
+              </Button>
+
+              <Button Command="{Binding RemoveBundlePackCommand}"
+                      Background="{DynamicResource SurfaceElevatedBrush}"
+                      BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                      Foreground="{DynamicResource ErrorBrush}"
+                      Padding="14,8" CornerRadius="8" Cursor="Hand"
+                      ToolTip.Tip="{localization:Localize Tools.ModBuilder.ConfigEditor.TooltipRemovePack}">
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                  <Path Data="{StaticResource IconRemove}" Fill="{DynamicResource ErrorBrush}" Width="13" Height="13" Stretch="Uniform"/>
+                  <TextBlock Text="{localization:Localize Tools.ModBuilder.ConfigEditor.ButtonRemovePack}"/>
+                </StackPanel>
+              </Button>
+            </StackPanel>
+
+            <!-- Packs List -->
+            <Border Grid.Row="1" Background="{DynamicResource CardBackground}"
+                    BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                    CornerRadius="10" Padding="6">
+              <ListBox ItemsSource="{Binding BundlePacks}"
+                       SelectedItem="{Binding SelectedBundlePack}"
+                       Background="Transparent">
+                <ListBox.ItemTemplate>
+                  <DataTemplate x:DataType="vm:BundlePackConfigViewModel">
+                    <Border Padding="10,8" CornerRadius="8" Background="Transparent">
+                      <Grid ColumnDefinitions="Auto,*,Auto">
+                        <!-- BIG Badge -->
+                        <Border Grid.Column="0" Background="{DynamicResource AccentBrush}"
+                                CornerRadius="4" Padding="5,2" Margin="0,0,10,0"
+                                IsVisible="{Binding Big}" VerticalAlignment="Center">
+                          <TextBlock Text="{localization:Localize Tools.ModBuilder.ConfigEditor.TagBig}" FontSize="10" FontWeight="Bold" Foreground="White"/>
+                        </Border>
+
+                        <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                          <TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold"
+                                     Foreground="{DynamicResource TextPrimary}" FontSize="13"/>
+                          <TextBlock Text="{Binding OutputFile}" FontSize="11"
+                                     Foreground="{DynamicResource TextSecondary}"
+                                     TextTrimming="CharacterEllipsis"/>
+                        </StackPanel>
+
+                        <TextBlock Grid.Column="2" Text="{Binding ItemNames.Count, StringFormat='{}{0} items'}"
+                                   FontSize="11" Foreground="{DynamicResource TextSecondary}"
+                                   VerticalAlignment="Center" Margin="8,0,0,0"/>
+                      </Grid>
+                    </Border>
+                  </DataTemplate>
+                </ListBox.ItemTemplate>
+              </ListBox>
+            </Border>
+          </Grid>
+
+          <!-- Right: Pack Detail Editor Inspector -->
+          <Border Grid.Column="2" Background="{DynamicResource CardBackground}"
+                  BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                  CornerRadius="10" Padding="18">
+            <ScrollViewer VerticalScrollBarVisibility="Auto">
+              <Panel>
+                <!-- Selected State -->
+                <StackPanel Spacing="16" IsVisible="{Binding SelectedBundlePack, Converter={x:Static ObjectConverters.IsNotNull}}">
+                  <TextBlock Text="{localization:Localize Tools.ModBuilder.ConfigEditor.BundlePackSettingsHeader}" FontSize="15" FontWeight="Bold" Foreground="{DynamicResource TextPrimary}"/>
+                  <Separator Background="{DynamicResource BorderBrush}" Height="1"/>
+
+                  <!-- Pack Name -->
+                  <StackPanel Spacing="6">
+                    <TextBlock Text="{localization:Localize Tools.ModBuilder.ConfigEditor.LabelPackName}" FontWeight="SemiBold" FontSize="12.5" Foreground="{DynamicResource TextPrimary}"/>
+                    <TextBox Text="{Binding SelectedBundlePack.Name, Mode=TwoWay}" Watermark="{localization:Localize Tools.ModBuilder.ConfigEditor.WatermarkPackName}" />
+                  </StackPanel>
+
+                  <!-- Output File -->
+                  <StackPanel Spacing="6">
+                    <TextBlock Text="{localization:Localize Tools.ModBuilder.ConfigEditor.LabelCustomOutputFile}" FontWeight="SemiBold" FontSize="12.5" Foreground="{DynamicResource TextPrimary}"/>
+                    <TextBlock Text="{localization:Localize Tools.ModBuilder.ConfigEditor.DescOutputFile}" FontSize="11" Foreground="{DynamicResource TextSecondary}"/>
+                    <TextBox Text="{Binding SelectedBundlePack.OutputFile, Mode=TwoWay}" Watermark="{localization:Localize Tools.ModBuilder.ConfigEditor.WatermarkCustomOutputFile}" />
+                  </StackPanel>
+
+                  <!-- Included Items Checklist -->
+                  <StackPanel Spacing="6">
+                    <TextBlock Text="{localization:Localize Tools.ModBuilder.ConfigEditor.LabelIncludedItems}" FontWeight="SemiBold" FontSize="12.5" Foreground="{DynamicResource TextPrimary}"/>
+                    <TextBlock Text="{localization:Localize Tools.ModBuilder.ConfigEditor.DescIncludedItems}" FontSize="11" Foreground="{DynamicResource TextSecondary}"/>
+                    <Border Background="{DynamicResource SurfaceElevatedBrush}"
+                            BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                            CornerRadius="8" Padding="10">
+                      <ItemsControl ItemsSource="{Binding PackItemSelections}">
+                        <ItemsControl.ItemTemplate>
+                          <DataTemplate x:DataType="vm:BundleItemSelectionItemViewModel">
+                            <CheckBox Content="{Binding Name}"
+                                      IsChecked="{Binding IsSelected, Mode=TwoWay}"
+                                      FontWeight="SemiBold"
+                                      Foreground="{DynamicResource TextPrimary}"
+                                      Margin="0,3"/>
+                          </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                      </ItemsControl>
+                    </Border>
+                  </StackPanel>
+
+                  <!-- Options -->
+                  <Border Background="{DynamicResource SurfaceElevatedBrush}"
+                          BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                          CornerRadius="8" Padding="14">
+                    <StackPanel Spacing="12">
+                      <TextBlock Text="{localization:Localize Tools.ModBuilder.ConfigEditor.LabelActionsTargets}" FontWeight="SemiBold" FontSize="13" Foreground="{DynamicResource TextPrimary}"/>
+
+                      <CheckBox Content="{localization:Localize Tools.ModBuilder.ConfigEditor.CheckAllowBuild}"
+                                IsChecked="{Binding SelectedBundlePack.AllowBuild, Mode=TwoWay}"
+                                FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}"/>
+                      <CheckBox Content="{localization:Localize Tools.ModBuilder.ConfigEditor.CheckAllowInstall}"
+                                IsChecked="{Binding SelectedBundlePack.AllowInstall, Mode=TwoWay}"
+                                FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}"/>
+                      <CheckBox Content="{localization:Localize Tools.ModBuilder.ConfigEditor.CheckPackIntoOneBig}"
+                                IsChecked="{Binding SelectedBundlePack.Big, Mode=TwoWay}"
+                                FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}"/>
+                    </StackPanel>
+                  </Border>
+                </StackPanel>
+
+                <!-- Empty State -->
+                <TextBlock Text="{localization:Localize Tools.ModBuilder.ConfigEditor.SelectBundlePackPrompt}"
+                           FontSize="13" Foreground="{DynamicResource TextSecondary}"
+                           HorizontalAlignment="Center" VerticalAlignment="Center"
+                           IsVisible="{Binding SelectedBundlePack, Converter={x:Static ObjectConverters.IsNull}}"/>
+              </Panel>
+            </ScrollViewer>
+          </Border>
+        </Grid>
+      </TabItem>
+    </TabControl>
+
+    <!-- Footer Actions -->
+    <Grid Grid.Row="2" ColumnDefinitions="*,Auto,Auto" Margin="0,20,0,0">
+      <Button Grid.Column="1" Command="{Binding CancelCommand}"
+              Content="{localization:Localize Common.Button.Cancel}"
+              Background="{DynamicResource SurfaceElevatedBrush}"
+              BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+              Padding="20,10" CornerRadius="8" Margin="0,0,10,0" Cursor="Hand"/>
+
+      <Button Grid.Column="2" Command="{Binding SaveCommand}"
+              Content="{localization:Localize Tools.ModBuilder.ConfigEditor.ButtonSave}"
+              Background="{DynamicResource AccentBrush}" Foreground="White"
+              FontWeight="SemiBold"
+              Padding="24,10" CornerRadius="8" Cursor="Hand"/>
+    </Grid>
+  </Grid>
+
+  <!-- Loading overlay while the configuration loads on a background thread -->
+  <Border Background="{DynamicResource WindowBackground}"
+          IsVisible="{Binding IsLoading}">
+    <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="12">
+      <ProgressBar IsIndeterminate="True" Width="240" HorizontalAlignment="Center"/>
+      <TextBlock Text="{localization:Localize Tools.ModBuilder.ConfigEditor.LoadingMessage}"
+                 FontSize="12" Foreground="{DynamicResource TextSecondary}"
+                 HorizontalAlignment="Center"/>
+    </StackPanel>
+  </Border>
+  </Panel>
+</Window>

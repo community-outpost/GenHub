@@ -70,6 +70,7 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
     private UpdateProfileRequest? _originalGameSettings; // skipcq: CS-R1137
     private int _loadContentVersion;
     private bool _isSynchronizingEnabledContent;
+    private bool _isContentReloadInProgress; // skipcq: CS-R1137
     private string? _currentProfileId;
 
     /// <summary>
@@ -227,14 +228,24 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
     /// <inheritdoc/>
     public void Receive(Core.Models.Content.ContentAcquiredMessage message)
     {
-        if (Dispatcher.UIThread.CheckAccess())
+        Dispatcher.UIThread.Post(async () =>
         {
-            _ = LoadAvailableContentAsync();
-        }
-        else
-        {
-            Dispatcher.UIThread.Post(() => _ = LoadAvailableContentAsync());
-        }
+            if (_isContentReloadInProgress)
+            {
+                return;
+            }
+
+            _isContentReloadInProgress = true;
+            try
+            {
+                await Task.Delay(75).ConfigureAwait(true);
+                await LoadAvailableContentAsync().ConfigureAwait(true);
+            }
+            finally
+            {
+                _isContentReloadInProgress = false;
+            }
+        });
     }
 
     /// <inheritdoc/>

@@ -6795,6 +6795,908 @@ GenHub передает официальный идентификатор AppID 
   <data name="GameProfiles.Content.AvailableContent" xml:space="preserve">
     <value>Доступный контент</value>
   </data>
+  <data name="Tools.ModBuilder.FileTree.TooltipExpandCollapse" xml:space="preserve">
+    <value>Развернуть или свернуть каталог</value>
+  </data>
+  <data name="Tools.ModBuilder.ProgressCard.Processed" xml:space="preserve">
+    <value>Обработано</value>
+  </data>
+  <data name="Tools.ModBuilder.ProgressCard.Speed" xml:space="preserve">
+    <value>Скорость</value>
+  </data>
+  <data name="Tools.ModBuilder.ProgressCard.Remaining" xml:space="preserve">
+    <value>Осталось</value>
+  </data>
+  <data name="Tools.ModBuilder.ProgressCard.ProcessingPrefix" xml:space="preserve">
+    <value>Обработка:</value>
+  </data>
+  <data name="Tools.ModBuilder.BuildOverlay.Title" xml:space="preserve">
+    <value>Сборка проекта</value>
+  </data>
+  <data name="Tools.ModBuilder.BuildOverlay.FilesPerSec" xml:space="preserve">
+    <value>файлов/сек</value>
+  </data>
+  <data name="Tools.ModBuilder.BuildOverlay.CacheHits" xml:space="preserve">
+    <value>Попадания в кэш</value>
+  </data>
+  <data name="Tools.ModBuilder.BuildOverlay.Elapsed" xml:space="preserve">
+    <value>Прошло времени</value>
+  </data>
+  <data name="Tools.ModBuilder.BuildOverlay.Eta" xml:space="preserve">
+    <value>Оставшееся время</value>
+  </data>
+  <data name="Tools.ModBuilder.BuildOverlay.TooltipCancel" xml:space="preserve">
+    <value>Отменить текущую сборку</value>
+  </data>
+  <data name="Tools.ModBuilder.BuildOverlay.ButtonCancel" xml:space="preserve">
+    <value>Отменить сборку</value>
+  </data>
+  <data name="Tools.ModBuilder.FileManagerDialog.Title" xml:space="preserve">
+    <value>Менеджер файлов и ресурсов игры</value>
+  </data>
+  <data name="Tools.ModBuilder.FileManagerDialog.Subtitle" xml:space="preserve">
+    <value>Просмотр файлов игры и импорт текстур, файлов INI и моделей в проект</value>
+  </data>
+  <data name="Tools.ModBuilder.FileManagerDialog.TooltipMinimize" xml:space="preserve">
+    <value>Свернуть</value>
+  </data>
+  <data name="Tools.ModBuilder.FileManagerDialog.TooltipMaximize" xml:space="preserve">
+    <value>Развернуть / Восстановить</value>
+  </data>
+  <data name="Tools.ModBuilder.FileManagerDialog.TooltipClose" xml:space="preserve">
+    <value>Закрыть</value>
+  </data>
+  <data name="Tools.ModBuilder.FileManager.GameInstallationLabel" xml:space="preserve">
+    <value>Установка игры:</value>
+  </data>
+  <data name="Tools.ModBuilder.FileManager.WatermarkSearchFiles" xml:space="preserve">
+    <value>Поиск файлов...</value>
+  </data>
+  <data name="Tools.ModBuilder.FileManager.TooltipRefreshFiles" xml:space="preserve">
+    <value>Обновить списки файлов</value>
+  </data>
+  <data name="Tools.ModBuilder.FileManager.TooltipImportBigGame" xml:space="preserve">
+    <value>Импорт архивов .BIG напрямую в папку GameFilesEdited проекта для редактирования и последующей сборки.</value>
+  </data>
+  <data name="Tools.ModBuilder.FileManager.ButtonImportBig" xml:space="preserve">
+    <value>Импорт .BIG</value>
+  </data>
+  <data name="Tools.ModBuilder.FileManager.FilesUnit" xml:space="preserve">
+    <value>файлов</value>
+  </data>
+  <data name="Tools.ModBuilder.FileManager.ModifiedUnit" xml:space="preserve">
+    <value>изменено</value>
+  </data>
+  <data name="Tools.ModBuilder.FileManager.NewUnit" xml:space="preserve">
+    <value>новые</value>
+  </data>
+  <data name="Tools.ModBuilder.FileManager.GameInstallationFilesHeader" xml:space="preserve">
+    <value>Файлы установки игры</value>
+  </data>
+  <data name="Tools.ModBuilder.FileManager.TooltipAddSelected" xml:space="preserve">
+    <value>Добавить выбранные файлы в проект</value>
+  </data>
+  <data name="Tools.ModBuilder.FileManager.ButtonAddToProject" xml:space="preserve">
+    <value>Добавить в проект</value>
+  </data>
+  <data name="Tools.ModBuilder.FileManager.ProjectFilesHeader" xml:space="preserve">
+    <value>Файлы проекта (GameFilesEdited)</value>
+  </data>
+  <data name="Tools.ModBuilder.FileManager.TooltipExtractBigProject" xml:space="preserve">
+    <value>Извлечение архивов .BIG напрямую в папку GameFilesEdited проекта для редактирования и последующей сборки.</value>
+  </data>
+  <data name="Tools.ModBuilder.FileManager.ButtonImportBigProject" xml:space="preserve">
+    <value>Импорт .BIG</value>
+  </data>
+  <data name="Tools.ModBuilder.FileManager.TooltipRemoveSelected" xml:space="preserve">
+    <value>Удалить выбранные файлы из проекта</value>
+  </data>
+  <data name="Tools.ModBuilder.FileManager.ButtonRemoveFromProject" xml:space="preserve">
+    <value>Удалить из проекта</value>
+  </data>
+  <data name="Tools.ModBuilder.BundleEditor.Title" xml:space="preserve">
+    <value>Редактор пакетов сборок</value>
+  </data>
+  <data name="Tools.ModBuilder.BundleEditor.TotalFiles" xml:space="preserve">
+    <value>Всего файлов</value>
+  </data>
+  <data name="Tools.ModBuilder.BundleEditor.WatermarkSearchFiles" xml:space="preserve">
+    <value>Поиск файлов...</value>
+  </data>
+  <data name="Tools.ModBuilder.BundleEditor.TooltipAddFiles" xml:space="preserve">
+    <value>Добавить файлы в сборку (Ctrl+A)</value>
+  </data>
+  <data name="Tools.ModBuilder.BundleEditor.ButtonAddFiles" xml:space="preserve">
+    <value>Добавить файлы</value>
+  </data>
+  <data name="Tools.ModBuilder.BundleEditor.TooltipRemoveFiles" xml:space="preserve">
+    <value>Удалить выбранные файлы (Delete)</value>
+  </data>
+  <data name="Tools.ModBuilder.BundleEditor.ButtonRemove" xml:space="preserve">
+    <value>Удалить</value>
+  </data>
+  <data name="Tools.ModBuilder.BundleEditor.TooltipMoveUp" xml:space="preserve">
+    <value>Вверх (Ctrl+Up)</value>
+  </data>
+  <data name="Tools.ModBuilder.BundleEditor.TooltipMoveDown" xml:space="preserve">
+    <value>Вниз (Ctrl+Down)</value>
+  </data>
+  <data name="Tools.ModBuilder.BundleEditor.TooltipConvertAll" xml:space="preserve">
+    <value>Преобразовать все файлы TGA в DDS</value>
+  </data>
+  <data name="Tools.ModBuilder.BundleEditor.ButtonConvertAll" xml:space="preserve">
+    <value>Преобразовать все</value>
+  </data>
+  <data name="Tools.ModBuilder.BundleEditor.TagCached" xml:space="preserve">
+    <value>В кэше</value>
+  </data>
+  <data name="Tools.ModBuilder.BundleEditor.TagModified" xml:space="preserve">
+    <value>Изменен</value>
+  </data>
+  <data name="Tools.ModBuilder.BundleEditor.FilePreviewHeader" xml:space="preserve">
+    <value>Предварительный просмотр файла</value>
+  </data>
+  <data name="Tools.ModBuilder.BundleEditor.LabelFileName" xml:space="preserve">
+    <value>Имя файла</value>
+  </data>
+  <data name="Tools.ModBuilder.BundleEditor.LabelSourcePath" xml:space="preserve">
+    <value>Путь к источнику</value>
+  </data>
+  <data name="Tools.ModBuilder.BundleEditor.LabelFileType" xml:space="preserve">
+    <value>Тип файла</value>
+  </data>
+  <data name="Tools.ModBuilder.BundleEditor.LabelFileSize" xml:space="preserve">
+    <value>Размер файла</value>
+  </data>
+  <data name="Tools.ModBuilder.BundleEditor.LabelLastModified" xml:space="preserve">
+    <value>Дата изменения</value>
+  </data>
+  <data name="Tools.ModBuilder.BundleEditor.ImagePreviewComingSoon" xml:space="preserve">
+    <value>Предпросмотр изображений скоро появится</value>
+  </data>
+  <data name="Tools.ModBuilder.BundleEditor.NoticeChangesSavedOnProjectSave" xml:space="preserve">
+    <value>* Изменения применятся при сохранении проекта</value>
+  </data>
+  <data name="Tools.ModBuilder.BundleEditor.TooltipSave" xml:space="preserve">
+    <value>Сохранить изменения пакета сборок</value>
+  </data>
+  <data name="Tools.ModBuilder.BundleEditor.ButtonSave" xml:space="preserve">
+    <value>Сохранить</value>
+  </data>
+  <data name="Tools.ModBuilder.BundleEditor.TooltipCancel" xml:space="preserve">
+    <value>Закрыть без сохранения изменений</value>
+  </data>
+  <data name="Tools.ModBuilder.BundleEditor.ButtonCancel" xml:space="preserve">
+    <value>Отмена</value>
+  </data>
+  <data name="Tools.ModBuilder.Dashboard.BrandTitle" xml:space="preserve">
+    <value>ModBuilder</value>
+  </data>
+  <data name="Tools.ModBuilder.Dashboard.BrandSubtitle" xml:space="preserve">
+    <value>Инструмент создания контента для C&amp;C Generals и Zero Hour</value>
+  </data>
+  <data name="Tools.ModBuilder.Dashboard.TooltipNewProject" xml:space="preserve">
+    <value>Создать новый проект мода (Ctrl+N)</value>
+  </data>
+  <data name="Tools.ModBuilder.Dashboard.ButtonNewProject" xml:space="preserve">
+    <value>Новый проект</value>
+  </data>
+  <data name="Tools.ModBuilder.Dashboard.TooltipOpenProject" xml:space="preserve">
+    <value>Открыть существующий проект с диска (Ctrl+O)</value>
+  </data>
+  <data name="Tools.ModBuilder.Dashboard.ButtonOpenProject" xml:space="preserve">
+    <value>Открыть проект</value>
+  </data>
+  <data name="Tools.ModBuilder.Dashboard.CardNewProjectTitle" xml:space="preserve">
+    <value>Новый проект</value>
+  </data>
+  <data name="Tools.ModBuilder.Dashboard.CardNewProjectSubtitle" xml:space="preserve">
+    <value>Начать с нуля</value>
+  </data>
+  <data name="Tools.ModBuilder.Dashboard.CardNewProjectDesc" xml:space="preserve">
+    <value>Настройка структуры папок мода с каталогами INI, графики и звуков, готовыми к работе.</value>
+  </data>
+  <data name="Tools.ModBuilder.Dashboard.CardNewProjectAction" xml:space="preserve">
+    <value>Создать проект →</value>
+  </data>
+  <data name="Tools.ModBuilder.Dashboard.CardOpenProjectTitle" xml:space="preserve">
+    <value>Открыть проект</value>
+  </data>
+  <data name="Tools.ModBuilder.Dashboard.CardOpenProjectSubtitle" xml:space="preserve">
+    <value>Выбрать на диске</value>
+  </data>
+  <data name="Tools.ModBuilder.Dashboard.CardOpenProjectDesc" xml:space="preserve">
+    <value>Открыть существующий файл проекта .mbproj или импортировать рабочую область ModBuilder.</value>
+  </data>
+  <data name="Tools.ModBuilder.Dashboard.CardOpenProjectAction" xml:space="preserve">
+    <value>Обзор файлов →</value>
+  </data>
+  <data name="Tools.ModBuilder.Dashboard.CardSampleProjectsTitle" xml:space="preserve">
+    <value>Примеры проектов</value>
+  </data>
+  <data name="Tools.ModBuilder.Dashboard.CardSampleProjectsSubtitle" xml:space="preserve">
+    <value>Обучение на примерах</value>
+  </data>
+  <data name="Tools.ModBuilder.Dashboard.CardSampleProjectsDesc" xml:space="preserve">
+    <value>Изучите примеры проектов патчей сообщества и горячих клавиш с настроенными элементами и архивами релизов.</value>
+  </data>
+  <data name="Tools.ModBuilder.Dashboard.CardSampleProjectsAction" xml:space="preserve">
+    <value>Открыть примеры →</value>
+  </data>
+  <data name="Tools.ModBuilder.Dashboard.FeaturedTemplatesTitle" xml:space="preserve">
+    <value>Популярные шаблоны сообщества</value>
+  </data>
+  <data name="Tools.ModBuilder.Dashboard.FeaturedTemplatesSubtitle" xml:space="preserve">
+    <value>Популярные дополнения сообщества с предустановленными элементами и пакетами сборок</value>
+  </data>
+  <data name="Tools.ModBuilder.Dashboard.ButtonDownloadOpenProject" xml:space="preserve">
+    <value>Скачать и открыть проект</value>
+  </data>
+  <data name="Tools.ModBuilder.Dashboard.RecentProjectsTitle" xml:space="preserve">
+    <value>Недавние проекты</value>
+  </data>
+  <data name="Tools.ModBuilder.Dashboard.NoProjectsFound" xml:space="preserve">
+    <value>Проекты не найдены</value>
+  </data>
+  <data name="Tools.ModBuilder.Dashboard.NoProjectsFoundDesc" xml:space="preserve">
+    <value>Создайте новый проект или ознакомьтесь с рекомендуемыми шаблонами</value>
+  </data>
+  <data name="Tools.ModBuilder.Dashboard.TooltipExploreTemplates" xml:space="preserve">
+    <value>Ознакомиться со встроенными примерами проектов</value>
+  </data>
+  <data name="Tools.ModBuilder.Dashboard.ButtonExploreTemplates" xml:space="preserve">
+    <value>Обзор шаблонов</value>
+  </data>
+  <data name="Tools.ModBuilder.Dashboard.TipWorkflowTitle" xml:space="preserve">
+    <value>Совет: Процесс сборки</value>
+  </data>
+  <data name="Tools.ModBuilder.Dashboard.TipWorkflowDesc" xml:space="preserve">
+    <value>Разместите исходные файлы в папке &apos;GameFilesEdited&apos;, настройте архивы в &apos;config/ModBundlePacks.json&apos; и нажмите &apos;Выполнить сборку&apos; для автоматического создания архивов .big и .zip.</value>
+  </data>
+  <data name="Tools.ModBuilder.Settings.Title" xml:space="preserve">
+    <value>Настройки ModBuilder</value>
+  </data>
+  <data name="Tools.ModBuilder.Settings.Subtitle" xml:space="preserve">
+    <value>Настройка производительности сборки, кэша и интерфейса</value>
+  </data>
+  <data name="Tools.ModBuilder.Settings.TooltipResetDefaults" xml:space="preserve">
+    <value>Сбросить все настройки по умолчанию</value>
+  </data>
+  <data name="Tools.ModBuilder.Settings.ButtonResetDefaults" xml:space="preserve">
+    <value>По умолчанию</value>
+  </data>
+  <data name="Tools.ModBuilder.Settings.CacheManagementHeader" xml:space="preserve">
+    <value>Управление кэшем</value>
+  </data>
+  <data name="Tools.ModBuilder.Settings.LabelCacheSize" xml:space="preserve">
+    <value>Размер кэша:</value>
+  </data>
+  <data name="Tools.ModBuilder.Settings.LabelCachedFiles" xml:space="preserve">
+    <value>Файлов в кэше:</value>
+  </data>
+  <data name="Tools.ModBuilder.Settings.LabelStatus" xml:space="preserve">
+    <value>Статус:</value>
+  </data>
+  <data name="Tools.ModBuilder.Settings.TooltipClearCache" xml:space="preserve">
+    <value>Очистить все кэшированные файлы сборки</value>
+  </data>
+  <data name="Tools.ModBuilder.Settings.ButtonClearCache" xml:space="preserve">
+    <value>Очистить кэш</value>
+  </data>
+  <data name="Tools.ModBuilder.Settings.TooltipRebuildIndex" xml:space="preserve">
+    <value>Перестроить индекс кэша</value>
+  </data>
+  <data name="Tools.ModBuilder.Settings.ButtonRebuildIndex" xml:space="preserve">
+    <value>Перестроить индекс</value>
+  </data>
+  <data name="Tools.ModBuilder.Settings.NoticeClearCache" xml:space="preserve">
+    <value>Очистка кэша удалит все промежуточные файлы сборки. Они будут созданы заново при следующей сборке.</value>
+  </data>
+  <data name="Tools.ModBuilder.Settings.PerformanceHeader" xml:space="preserve">
+    <value>Настройки производительности</value>
+  </data>
+  <data name="Tools.ModBuilder.Settings.LabelCompressionLevel" xml:space="preserve">
+    <value>Уровень сжатия по умолчанию</value>
+  </data>
+  <data name="Tools.ModBuilder.Settings.TooltipCompressionLevel" xml:space="preserve">
+    <value>Уровень сжатия архивов по умолчанию</value>
+  </data>
+  <data name="Tools.ModBuilder.Settings.NoticeCompression" xml:space="preserve">
+    <value>Выше сжатие = меньше размер файлов, но дольше сборка</value>
+  </data>
+  <data name="Tools.ModBuilder.Settings.LabelThreadCount" xml:space="preserve">
+    <value>Количество потоков</value>
+  </data>
+  <data name="Tools.ModBuilder.Settings.TooltipThreadCount" xml:space="preserve">
+    <value>Количество параллельных потоков для сборки</value>
+  </data>
+  <data name="Tools.ModBuilder.Settings.NoticeThreadCount" xml:space="preserve">
+    <value>Больше потоков = быстрее сборка, но выше нагрузка на процессор</value>
+  </data>
+  <data name="Tools.ModBuilder.Settings.LabelIoBufferSize" xml:space="preserve">
+    <value>Размер буфера ввода-вывода (КБ)</value>
+  </data>
+  <data name="Tools.ModBuilder.Settings.TooltipIoBufferSize" xml:space="preserve">
+    <value>Размер буфера для операций ввода-вывода файлов</value>
+  </data>
+  <data name="Tools.ModBuilder.Settings.NoticeIoBufferSize" xml:space="preserve">
+    <value>Больший буфер = выше производительность для больших файлов</value>
+  </data>
+  <data name="Tools.ModBuilder.Settings.CheckMultiProcessing" xml:space="preserve">
+    <value>Включить многопроцессорность по умолчанию</value>
+  </data>
+  <data name="Tools.ModBuilder.Settings.TooltipMultiProcessing" xml:space="preserve">
+    <value>Использовать параллельную обработку для новых проектов</value>
+  </data>
+  <data name="Tools.ModBuilder.Settings.CheckVerboseLogging" xml:space="preserve">
+    <value>Включить подробное логирование по умолчанию</value>
+  </data>
+  <data name="Tools.ModBuilder.Settings.TooltipVerboseLogging" xml:space="preserve">
+    <value>Показывать подробную информацию о сборке для новых проектов</value>
+  </data>
+  <data name="Tools.ModBuilder.Settings.UiPreferencesHeader" xml:space="preserve">
+    <value>Настройки интерфейса</value>
+  </data>
+  <data name="Tools.ModBuilder.Settings.LabelFontSize" xml:space="preserve">
+    <value>Размер шрифта вывода сборки</value>
+  </data>
+  <data name="Tools.ModBuilder.Settings.TooltipFontSize" xml:space="preserve">
+    <value>Размер шрифта для консоли вывода сборки</value>
+  </data>
+  <data name="Tools.ModBuilder.Settings.CheckEnableAnimations" xml:space="preserve">
+    <value>Включить анимации</value>
+  </data>
+  <data name="Tools.ModBuilder.Settings.TooltipEnableAnimations" xml:space="preserve">
+    <value>Включить плавные переходы и анимацию</value>
+  </data>
+  <data name="Tools.ModBuilder.Settings.CheckAutoScroll" xml:space="preserve">
+    <value>Автопрокрутка вывода сборки</value>
+  </data>
+  <data name="Tools.ModBuilder.Settings.TooltipAutoScroll" xml:space="preserve">
+    <value>Автоматически прокручивать к последнему выводу сборки</value>
+  </data>
+  <data name="Tools.ModBuilder.Settings.CheckSyntaxHighlighting" xml:space="preserve">
+    <value>Включить подсветку синтаксиса</value>
+  </data>
+  <data name="Tools.ModBuilder.Settings.TooltipSyntaxHighlighting" xml:space="preserve">
+    <value>Цветовая разметка вывода сборки по уровням логов</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.Title" xml:space="preserve">
+    <value>Редактор конфигурации</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.Subtitle" xml:space="preserve">
+    <value>Управление элементами и пакетами сборок вашего мода</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.TotalItems" xml:space="preserve">
+    <value>Всего элементов</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.PacksUnit" xml:space="preserve">
+    <value>пакетов</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.TabBundleItems" xml:space="preserve">
+    <value>Элементы сборок</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.TooltipAddItem" xml:space="preserve">
+    <value>Добавить новый элемент сборки</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.ButtonAddItem" xml:space="preserve">
+    <value>Добавить элемент</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.TooltipRemoveItem" xml:space="preserve">
+    <value>Удалить выбранный элемент сборки</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.ButtonRemoveItem" xml:space="preserve">
+    <value>Удалить</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.TagBig" xml:space="preserve">
+    <value>.BIG</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.BundleItemSettingsHeader" xml:space="preserve">
+    <value>Настройки элемента сборки</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.LabelBundleName" xml:space="preserve">
+    <value>Имя сборки</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.WatermarkBundleName" xml:space="preserve">
+    <value>напр. MyINI, MyTextures...</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.LabelSourceFiles" xml:space="preserve">
+    <value>Исходные файлы / Шаблон</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.DescSourceFiles" xml:space="preserve">
+    <value>Определяет, какие файлы из GameFilesEdited упаковываются в эту сборку</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.WatermarkSourceFiles" xml:space="preserve">
+    <value>напр. GameFilesEdited/**/*.* или GameFilesEdited/Data/INI/**/*.ini</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.QuickPresetsLabel" xml:space="preserve">
+    <value>Быстрые шаблоны:</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.PresetAllFiles" xml:space="preserve">
+    <value>Все файлы (**/*.*)</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.TooltipPresetAllFiles" xml:space="preserve">
+    <value>Выбрать все файлы в GameFilesEdited</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.PresetIniFiles" xml:space="preserve">
+    <value>Файлы INI</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.TooltipPresetIniFiles" xml:space="preserve">
+    <value>Выбрать все файлы .ini в GameFilesEdited/Data/INI</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.PresetTextures" xml:space="preserve">
+    <value>Текстуры (.tga)</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.TooltipPresetTextures" xml:space="preserve">
+    <value>Выбрать все текстуры .tga в GameFilesEdited/Art/Textures</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.PresetAudio" xml:space="preserve">
+    <value>Звуки</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.TooltipPresetAudio" xml:space="preserve">
+    <value>Выбрать все аудиофайлы в GameFilesEdited/Data/Audio</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.CheckPackAsBig" xml:space="preserve">
+    <value>Упаковать в архив .BIG</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.TooltipPackAsBig" xml:space="preserve">
+    <value>Упаковывает выбранные ресурсы в контейнер EA .big. Снимите флажок для сохранения в виде отдельных папок.</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.DescPackAsBig" xml:space="preserve">
+    <value>При включении файлы компилируются в архив .big. При отключении файлы остаются в виде папок.</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.LabelArchiveSuffix" xml:space="preserve">
+    <value>Суффикс имени архива (необязательно)</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.WatermarkArchiveSuffix" xml:space="preserve">
+    <value>напр. _01 (выведет Имя_01.big)</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.TooltipArchiveSuffix" xml:space="preserve">
+    <value>Добавляет текст к имени создаваемого файла .big</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.SelectBundleItemPrompt" xml:space="preserve">
+    <value>Выберите элемент сборки слева или нажмите &apos;Добавить элемент&apos; для настройки файлов.</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.TabBundlePacks" xml:space="preserve">
+    <value>Пакеты сборок</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.TooltipAddPack" xml:space="preserve">
+    <value>Добавить новый пакет сборок</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.ButtonAddPack" xml:space="preserve">
+    <value>Добавить пакет</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.TooltipRemovePack" xml:space="preserve">
+    <value>Удалить выбранный пакет сборок</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.ButtonRemovePack" xml:space="preserve">
+    <value>Удалить</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.TagPackBig" xml:space="preserve">
+    <value>BIG</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.TagPackBuild" xml:space="preserve">
+    <value>Сборка</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.TagPackInstall" xml:space="preserve">
+    <value>Установка</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.BundlePackSettingsHeader" xml:space="preserve">
+    <value>Настройки пакета сборок</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.LabelPackName" xml:space="preserve">
+    <value>Имя пакета</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.WatermarkPackName" xml:space="preserve">
+    <value>напр. MyMod, EnhancedEdition...</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.LabelIncludedItems" xml:space="preserve">
+    <value>Включенные элементы сборок в этот пакет</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.DescIncludedItems" xml:space="preserve">
+    <value>Отметьте элементы сборок, которые должны быть объединены при сборке этого пакета</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.LabelPackagingFormat" xml:space="preserve">
+    <value>Формат упаковки</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.CheckPackIntoOneBig" xml:space="preserve">
+    <value>Упаковать в ОДИН файл .big вместо .zip</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.TooltipPackIntoOneBig" xml:space="preserve">
+    <value>Упаковывает все входящие элементы в один архив EA BIG вместо ZIP (напр., для патчей игры).</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.LabelCustomOutputFile" xml:space="preserve">
+    <value>Пользовательский выходной файл (необязательно)</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.WatermarkCustomOutputFile" xml:space="preserve">
+    <value>напр. 500_900_CommunityPatch_CoreINI.big (оставьте пустым по умолчанию)</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.LabelActionsTargets" xml:space="preserve">
+    <value>Действия и цели</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.CheckAllowBuild" xml:space="preserve">
+    <value>Разрешить сборку (включить в релиз)</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.TooltipAllowBuild" xml:space="preserve">
+    <value>Упаковывает этот пакет в архив в папке Releases при сборке релиза.</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.CheckAllowInstall" xml:space="preserve">
+    <value>Разрешить установку (устаревшее: прямое копирование в папку)</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.TooltipAllowInstall" xml:space="preserve">
+    <value>Устаревший флаг для прямого копирования файлов в корень игры. Не требуется в GenHub благодаря изоляции через виртуальные рабочие пространства и манифесты.</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.NoticeGenHubWorkspaces" xml:space="preserve">
+    <value>GenHub использует виртуальные рабочие пространства и манифесты контента для изоляции модов. Ручная установка не требуется.</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.SelectBundlePackPrompt" xml:space="preserve">
+    <value>Выберите пакет сборки слева или нажмите &apos;Добавить пакет&apos; для настройки элементов.</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.UnsavedChangesBadge" xml:space="preserve">
+    <value>Несохраненные изменения</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.NoticeUnsavedChanges" xml:space="preserve">
+    <value>Изменения будут сохранены в файлы конфигурации</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.TooltipSave" xml:space="preserve">
+    <value>Сохранить изменения конфигурации в файлы проекта</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.ButtonSave" xml:space="preserve">
+    <value>Сохранить</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.LoadingMessage" xml:space="preserve">
+    <value>Загрузка конфигурации...</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.TooltipClose" xml:space="preserve">
+    <value>Закрыть редактор конфигурации без сохранения</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.ButtonClose" xml:space="preserve">
+    <value>Закрыть</value>
+  </data>
+  <data name="Tools.ModBuilder.ProjectItemPicker.Header" xml:space="preserve">
+    <value>Добавление файлов и каталогов в элемент пакета</value>
+  </data>
+  <data name="Tools.ModBuilder.ProjectItemPicker.Subtitle" xml:space="preserve">
+    <value>Выберите папки для создания рекурсивных шаблонов или укажите конкретные файлы.</value>
+  </data>
+  <data name="Tools.ModBuilder.ProjectItemPicker.SearchWatermark" xml:space="preserve">
+    <value>Фильтр файлов и папок...</value>
+  </data>
+  <data name="Tools.ModBuilder.ProjectItemPicker.LabelFolderGlobPattern" xml:space="preserve">
+    <value>Шаблон поиска папки:</value>
+  </data>
+  <data name="Tools.ModBuilder.ProjectItemPicker.GlobAllFiles" xml:space="preserve">
+    <value>Все файлы в каталоге (/**/*.*)</value>
+  </data>
+  <data name="Tools.ModBuilder.ProjectItemPicker.GlobIniFiles" xml:space="preserve">
+    <value>Только файлы конфигурации INI (/**/*.ini)</value>
+  </data>
+  <data name="Tools.ModBuilder.ProjectItemPicker.GlobTgaFiles" xml:space="preserve">
+    <value>Только файлы текстур TGA (/**/*.tga)</value>
+  </data>
+  <data name="Tools.ModBuilder.ProjectItemPicker.GlobWndFiles" xml:space="preserve">
+    <value>Только файлы интерфейса Window UI (/**/*.wnd)</value>
+  </data>
+  <data name="Tools.ModBuilder.ProjectItemPicker.GlobCsfFiles" xml:space="preserve">
+    <value>Только таблицы строк CSF (/**/*.csf)</value>
+  </data>
+  <data name="Tools.ModBuilder.ProjectItemPicker.GlobWavFiles" xml:space="preserve">
+    <value>Только аудиофайлы WAV (/**/*.wav)</value>
+  </data>
+  <data name="Tools.ModBuilder.ProjectItemPicker.ButtonAdd" xml:space="preserve">
+    <value>Добавить в элемент пакета</value>
+  </data>
+  <data name="Tools.ModBuilder.ProjectItemPicker.ButtonApply" xml:space="preserve">
+    <value>Применить выбор</value>
+  </data>
+  <data name="Tools.ModBuilder.ProjectItemPicker.LoadingMessage" xml:space="preserve">
+    <value>Загрузка файлов проекта...</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.TooltipClearPatterns" xml:space="preserve">
+    <value>Очистить все шаблоны источников</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.TooltipAddFolder" xml:space="preserve">
+    <value>Выбрать весь каталог из проекта (добавляет рекурсивный шаблон)</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.ButtonAddFolder" xml:space="preserve">
+    <value>Добавить папку...</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.TooltipAddFiles" xml:space="preserve">
+    <value>Выбрать один или несколько файлов из проекта</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.ButtonAddFiles" xml:space="preserve">
+    <value>Добавить файлы...</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.TooltipProjectTree" xml:space="preserve">
+    <value>Интерактивный выбор папок или файлов из дерева проекта</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.ButtonProjectTree" xml:space="preserve">
+    <value>Дерево проекта...</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.LabelConfiguredSources" xml:space="preserve">
+    <value>Настроенные источники:</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.TooltipRemovePattern" xml:space="preserve">
+    <value>Удалить шаблон</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.WatermarkAddPattern" xml:space="preserve">
+    <value>Добавить шаблон (например GameFilesEdited/Data/**/*.ini)...</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.ButtonAddPattern" xml:space="preserve">
+    <value>Добавить шаблон</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.TooltipAddPattern" xml:space="preserve">
+    <value>Добавить пользовательский шаблон в этот элемент пакета</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.PresetWindowUi" xml:space="preserve">
+    <value>Окна интерфейса</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.TooltipPresetWindowUi" xml:space="preserve">
+    <value>Сопоставить все файлы разметки .wnd</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.PresetCsfStrings" xml:space="preserve">
+    <value>Строки CSF</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.TooltipPresetCsfStrings" xml:space="preserve">
+    <value>Сопоставить все файлы строк .csf</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.HeaderRawGlobString" xml:space="preserve">
+    <value>Дополнительно: строка шаблонов поиска</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.LabelRawGlobString" xml:space="preserve">
+    <value>Шаблоны, разделенные точкой с запятой:</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.HeaderLinkedBundlePacks" xml:space="preserve">
+    <value>Связано с пакетами сборок</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.DescLinkedBundlePacks" xml:space="preserve">
+    <value>Выберите пакеты сборок, которые включают этот элемент при создании:</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.NoticeNoBundlePacks" xml:space="preserve">
+    <value>Пакеты сборок еще не созданы. Создайте пакет на вкладке 'Пакеты сборок'.</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.DescOutputFile" xml:space="preserve">
+    <value>Укажите пользовательское имя файла для выходного архива</value>
+  </data>
+  <data name="Tools.ModBuilder.View.CurrentProjectHeader" xml:space="preserve">
+    <value>ТЕКУЩИЙ ПРОЕКТ</value>
+  </data>
+  <data name="Tools.ModBuilder.View.NoProjectLoadedWatermark" xml:space="preserve">
+    <value>Проект не загружен...</value>
+  </data>
+  <data name="Tools.ModBuilder.View.LabelTarget" xml:space="preserve">
+    <value>Цель:</value>
+  </data>
+  <data name="Tools.ModBuilder.View.TooltipTargetGame" xml:space="preserve">
+    <value>Целевая игра для этого проекта и его манифестов</value>
+  </data>
+  <data name="Tools.ModBuilder.View.LabelType" xml:space="preserve">
+    <value>Тип:</value>
+  </data>
+  <data name="Tools.ModBuilder.View.TooltipContentType" xml:space="preserve">
+    <value>Тип контента для этого проекта (мод, патч, аддон и т.д.)</value>
+  </data>
+  <data name="Tools.ModBuilder.View.TooltipNewProject" xml:space="preserve">
+    <value>Создать новый проект ModBuilder</value>
+  </data>
+  <data name="Tools.ModBuilder.View.ButtonNew" xml:space="preserve">
+    <value>Создать</value>
+  </data>
+  <data name="Tools.ModBuilder.View.TooltipOpenProject" xml:space="preserve">
+    <value>Открыть существующий проект</value>
+  </data>
+  <data name="Tools.ModBuilder.View.ButtonOpen" xml:space="preserve">
+    <value>Открыть</value>
+  </data>
+  <data name="Tools.ModBuilder.View.TooltipAssetManager" xml:space="preserve">
+    <value>Просмотр ресурсов игры и импорт их в проект</value>
+  </data>
+  <data name="Tools.ModBuilder.View.ButtonAssetManager" xml:space="preserve">
+    <value>Менеджер ресурсов</value>
+  </data>
+  <data name="Tools.ModBuilder.View.TooltipImportBig" xml:space="preserve">
+    <value>Извлечение и импорт архивов .BIG напрямую в папку GameFilesEdited проекта для редактирования и пересборки.</value>
+  </data>
+  <data name="Tools.ModBuilder.View.ButtonImportBig" xml:space="preserve">
+    <value>Импорт .BIG</value>
+  </data>
+  <data name="Tools.ModBuilder.View.TooltipSaveProject" xml:space="preserve">
+    <value>Сохранить конфигурацию проекта (.mbproj)</value>
+  </data>
+  <data name="Tools.ModBuilder.View.ButtonSave" xml:space="preserve">
+    <value>Сохранить</value>
+  </data>
+  <data name="Tools.ModBuilder.View.TooltipCloseProject" xml:space="preserve">
+    <value>Закрыть проект и вернуться в панель управления</value>
+  </data>
+  <data name="Tools.ModBuilder.View.ButtonClose" xml:space="preserve">
+    <value>Закрыть</value>
+  </data>
+  <data name="Tools.ModBuilder.View.FilesInStagingHeader" xml:space="preserve">
+    <value>Файлов на этапе подготовки</value>
+  </data>
+  <data name="Tools.ModBuilder.View.TooltipRefreshCount" xml:space="preserve">
+    <value>Пересчитать файлы в каталоге GameFilesEdited</value>
+  </data>
+  <data name="Tools.ModBuilder.View.ButtonRefreshCount" xml:space="preserve">
+    <value>Обновить счетчик</value>
+  </data>
+  <data name="Tools.ModBuilder.View.QuickAccessHeader" xml:space="preserve">
+    <value>Быстрый доступ</value>
+  </data>
+  <data name="Tools.ModBuilder.View.TooltipOpenProjectFolder" xml:space="preserve">
+    <value>Открыть корневую папку проекта в проводнике</value>
+  </data>
+  <data name="Tools.ModBuilder.View.ButtonOpenProjectFolder" xml:space="preserve">
+    <value>Открыть папку проекта</value>
+  </data>
+  <data name="Tools.ModBuilder.View.TooltipOpenGameFilesEdited" xml:space="preserve">
+    <value>Открыть GameFilesEdited в проводнике</value>
+  </data>
+  <data name="Tools.ModBuilder.View.ButtonOpenGameFilesEdited" xml:space="preserve">
+    <value>Открыть GameFilesEdited</value>
+  </data>
+  <data name="Tools.ModBuilder.View.TooltipGameAssetManager" xml:space="preserve">
+    <value>Просмотр ресурсов игры и импорт их в проект</value>
+  </data>
+  <data name="Tools.ModBuilder.View.ButtonGameAssetManager" xml:space="preserve">
+    <value>Менеджер ресурсов игры</value>
+  </data>
+  <data name="Tools.ModBuilder.View.TooltipEditConfiguration" xml:space="preserve">
+    <value>Редактировать элементы, пакеты сборок и цели</value>
+  </data>
+  <data name="Tools.ModBuilder.View.ButtonEditConfiguration" xml:space="preserve">
+    <value>Настройка конфигурации</value>
+  </data>
+  <data name="Tools.ModBuilder.View.BundlePacksHeader" xml:space="preserve">
+    <value>Пакеты сборок</value>
+  </data>
+  <data name="Tools.ModBuilder.View.TooltipPackCompilesBig" xml:space="preserve">
+    <value>Этот пакет компилируется в архив .big вместо .zip</value>
+  </data>
+  <data name="Tools.ModBuilder.View.TagBigArchive" xml:space="preserve">
+    <value>.BIG</value>
+  </data>
+  <data name="Tools.ModBuilder.View.BuildActionsHeader" xml:space="preserve">
+    <value>Действия сборки</value>
+  </data>
+  <data name="Tools.ModBuilder.View.ActionClean" xml:space="preserve">
+    <value>Очистить</value>
+  </data>
+  <data name="Tools.ModBuilder.View.TooltipActionClean" xml:space="preserve">
+    <value>Удаляет выходные папки (.Build и Releases) перед началом сборки</value>
+  </data>
+  <data name="Tools.ModBuilder.View.ActionBuild" xml:space="preserve">
+    <value>Собрать</value>
+  </data>
+  <data name="Tools.ModBuilder.View.TooltipActionBuild" xml:space="preserve">
+    <value>Обрабатывает ресурсы (конвертация текстур, таблиц CSF) и собирает архивы .big в .Build/bundles</value>
+  </data>
+  <data name="Tools.ModBuilder.View.ActionRelease" xml:space="preserve">
+    <value>Релиз</value>
+  </data>
+  <data name="Tools.ModBuilder.View.TooltipActionRelease" xml:space="preserve">
+    <value>Упаковывает собранные архивы .big и отдельные ресурсы в zip-архивы в папке Releases</value>
+  </data>
+  <data name="Tools.ModBuilder.View.ActionCreateManifest" xml:space="preserve">
+    <value>Создать манифест</value>
+  </data>
+  <data name="Tools.ModBuilder.View.TooltipActionCreateManifest" xml:space="preserve">
+    <value>Генерирует manifest.json и регистрирует мод в CAS GenHub для запуска в изолированных пространствах</value>
+  </data>
+  <data name="Tools.ModBuilder.View.BuildOptionsHeader" xml:space="preserve">
+    <value>Параметры сборки</value>
+  </data>
+  <data name="Tools.ModBuilder.View.OptionSingleBigPack" xml:space="preserve">
+    <value>Один пакет .BIG</value>
+  </data>
+  <data name="Tools.ModBuilder.View.TooltipOptionSingleBigPack" xml:space="preserve">
+    <value>Упаковать все элементы сборок в ОДИН архив .big вместо файла .zip (стиль GeneralsGamePatch)</value>
+  </data>
+  <data name="Tools.ModBuilder.View.OptionVerboseLogging" xml:space="preserve">
+    <value>Подробный лог</value>
+  </data>
+  <data name="Tools.ModBuilder.View.TooltipOptionVerboseLogging" xml:space="preserve">
+    <value>Выводит подробные сообщения конвейера и конвертации в окне журнала</value>
+  </data>
+  <data name="Tools.ModBuilder.View.OptionMultiProcessing" xml:space="preserve">
+    <value>Параллельная обработка</value>
+  </data>
+  <data name="Tools.ModBuilder.View.TooltipOptionMultiProcessing" xml:space="preserve">
+    <value>Обрабатывать конвертацию ресурсов параллельно на всех ядрах процессора</value>
+  </data>
+  <data name="Tools.ModBuilder.View.OptionPrintConfig" xml:space="preserve">
+    <value>Вывести конфигурацию</value>
+  </data>
+  <data name="Tools.ModBuilder.View.TooltipOptionPrintConfig" xml:space="preserve">
+    <value>Выводит итоговую конфигурацию в журнал перед сборкой</value>
+  </data>
+  <data name="Tools.ModBuilder.View.BuildOutputHeader" xml:space="preserve">
+    <value>Вывод сборки</value>
+  </data>
+  <data name="Tools.ModBuilder.View.BuildOutputTerminal" xml:space="preserve">
+    <value>Терминал</value>
+  </data>
+  <data name="Tools.ModBuilder.View.TooltipClearOutput" xml:space="preserve">
+    <value>Очистить журнал консоли</value>
+  </data>
+  <data name="Tools.ModBuilder.View.ButtonClearOutput" xml:space="preserve">
+    <value>Очистить вывод</value>
+  </data>
+  <data name="Tools.ModBuilder.View.BuildStatusHeader" xml:space="preserve">
+    <value>Статус сборки</value>
+  </data>
+  <data name="Tools.ModBuilder.View.LabelStatus" xml:space="preserve">
+    <value>Статус:</value>
+  </data>
+  <data name="Tools.ModBuilder.View.LabelStage" xml:space="preserve">
+    <value>Этап:</value>
+  </data>
+  <data name="Tools.ModBuilder.View.LabelFile" xml:space="preserve">
+    <value>Файл:</value>
+  </data>
+  <data name="Tools.ModBuilder.View.LabelStep" xml:space="preserve">
+    <value>Шаг:</value>
+  </data>
+  <data name="Tools.ModBuilder.View.LabelProgress" xml:space="preserve">
+    <value>Прогресс:</value>
+  </data>
+  <data name="Tools.ModBuilder.View.ProjectInfoHeader" xml:space="preserve">
+    <value>Информация о проекте</value>
+  </data>
+  <data name="Tools.ModBuilder.View.LabelProjectName" xml:space="preserve">
+    <value>Имя:</value>
+  </data>
+  <data name="Tools.ModBuilder.View.LabelProjectTarget" xml:space="preserve">
+    <value>Цель:</value>
+  </data>
+  <data name="Tools.ModBuilder.View.TooltipInfoTargetGame" xml:space="preserve">
+    <value>Целевая игра для этого проекта и его манифестов</value>
+  </data>
+  <data name="Tools.ModBuilder.View.LabelProjectType" xml:space="preserve">
+    <value>Тип:</value>
+  </data>
+  <data name="Tools.ModBuilder.View.TooltipInfoContentType" xml:space="preserve">
+    <value>Тип контента для этого проекта (мод, патч, аддон и т.д.)</value>
+  </data>
+  <data name="Tools.ModBuilder.View.LabelProjectVersion" xml:space="preserve">
+    <value>Версия:</value>
+  </data>
+  <data name="Tools.ModBuilder.View.LabelProjectAuthor" xml:space="preserve">
+    <value>Автор:</value>
+  </data>
+  <data name="Tools.ModBuilder.View.LabelProjectPacks" xml:space="preserve">
+    <value>Пакеты:</value>
+  </data>
+  <data name="Tools.ModBuilder.View.TooltipExecuteBuild" xml:space="preserve">
+    <value>Выполнить выбранные действия сборки (Очистить, Собрать, Релиз, Создать манифест)</value>
+  </data>
+  <data name="Tools.ModBuilder.View.ButtonExecuteBuild" xml:space="preserve">
+    <value>Выполнить сборку</value>
+  </data>
+  <data name="Tools.ModBuilder.View.TooltipAbortBuild" xml:space="preserve">
+    <value>Отменить активный процесс сборки</value>
+  </data>
+  <data name="Tools.ModBuilder.View.ButtonAbortBuild" xml:space="preserve">
+    <value>Прервать сборку</value>
+  </data>
+  <data name="Tools.ModBuilder.View.TooltipCreateManifest" xml:space="preserve">
+    <value>Сохранить собранные пакеты в CAS и создать локальный манифест контента для профилей игры</value>
+  </data>
+  <data name="Tools.ModBuilder.View.ButtonCreateManifest" xml:space="preserve">
+    <value>Создать манифест</value>
+  </data>
+  <data name="Tools.ModBuilder.View.TooltipOpenBuildFolder" xml:space="preserve">
+    <value>Открыть промежуточную папку .Build в проводнике</value>
+  </data>
+  <data name="Tools.ModBuilder.View.ButtonOpenBuildFolder" xml:space="preserve">
+    <value>Открыть папку сборки</value>
+  </data>
+  <data name="Tools.ModBuilder.View.TooltipOpenReleaseFolder" xml:space="preserve">
+    <value>Открыть папку Releases в проводнике</value>
+  </data>
+  <data name="Tools.ModBuilder.View.ButtonOpenReleaseFolder" xml:space="preserve">
+    <value>Открыть папку релизов</value>  </data>
   <data name="Tools.ReplayManager.Action.Recovery" xml:space="preserve">
     <value>Восстановление</value>
   </data>
@@ -7697,6 +8599,130 @@ GenHub передает официальный идентификатор AppID 
   <data name="Downloads.ContentDetail.ImagePreview" xml:space="preserve">
     <value>Предварительный просмотр изображения</value>
   </data>
+  <data name="Tools.ModBuilder.ConfigEditor.BadgeBigArchive" xml:space="preserve">
+    <value>BIG</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.SourceFilesHeader" xml:space="preserve">
+    <value>Исходные файлы и папки</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.SourceFilesDescription" xml:space="preserve">
+    <value>Добавьте папки, отдельные файлы или маски для включения в этот элемент пакета</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.TooltipClearSources" xml:space="preserve">
+    <value>Очистить все шаблоны исходных файлов</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.ButtonClearSources" xml:space="preserve">
+    <value>Очистить</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.TooltipPresetIni" xml:space="preserve">
+    <value>Добавить стандартный путь к конфигурации INI</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.TooltipPresetArt" xml:space="preserve">
+    <value>Добавить стандартный путь к текстурам и графике</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.TooltipPresetWindow" xml:space="preserve">
+    <value>Добавить стандартный путь к макетам окон UI</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.TooltipPresetMaps" xml:space="preserve">
+    <value>Добавить стандартный путь к картам</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.BadgeMatchingFiles" xml:space="preserve">
+    <value>Соответствующие файлы</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.BadgeType" xml:space="preserve">
+    <value>Тип</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.TooltipRemoveSource" xml:space="preserve">
+    <value>Удалить этот шаблон источника</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.NoSourcesDefined" xml:space="preserve">
+    <value>Пути к исходным файлам еще не указаны</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.NoSourcesHint" xml:space="preserve">
+    <value>Нажмите «Добавить папку...», «Добавить файлы...» или «Дерево проекта...» выше, чтобы добавить файлы.</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.RawGlobsHeader" xml:space="preserve">
+    <value>Прямые маски файлов (дополнительно)</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.RawGlobsDescription" xml:space="preserve">
+    <value>Прямое редактирование масок файлов (по одной в строке, относительно корня проекта):</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.RawGlobsWatermark" xml:space="preserve">
+    <value>например:
+GameFilesEdited/Data/INI/**/*.ini</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.PacksContainingItemHeader" xml:space="preserve">
+    <value>Пакеты, содержащие этот элемент</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.PacksContainingItemDescription" xml:space="preserve">
+    <value>Выберите пакеты, которые должны включать этот элемент</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.TooltipTogglePackLink" xml:space="preserve">
+    <value>Включить или исключить из этого пакета</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.NoPacksDefined" xml:space="preserve">
+    <value>В этом проекте нет пакетов.</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.NoPacksHint" xml:space="preserve">
+    <value>Перейдите на вкладку «Пакеты», чтобы создать пакет.</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.UnsavedChangesIndicator" xml:space="preserve">
+    <value>Несохраненные изменения</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.LabelOutputFile" xml:space="preserve">
+    <value>Путь к выходному файлу</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.WatermarkOutputFile" xml:space="preserve">
+    <value>например: .Release/MyMod.big</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.BuildInstallOptionsHeader" xml:space="preserve">
+    <value>Параметры сборки и установки</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.CheckOutputBig" xml:space="preserve">
+    <value>Упаковать как BIG-архив</value>
+  </data>
+  <data name="Tools.ModBuilder.Picker.DialogTitle" xml:space="preserve">
+    <value>Выбор файлов и папок проекта</value>
+  </data>
+  <data name="Tools.ModBuilder.Picker.HeaderTitle" xml:space="preserve">
+    <value>Выбор файлов и папок проекта</value>
+  </data>
+  <data name="Tools.ModBuilder.Picker.HeaderSubtitle" xml:space="preserve">
+    <value>Отметьте папки или файлы, которые вы хотите включить в этот элемент</value>
+  </data>
+  <data name="Tools.ModBuilder.Picker.WatermarkSearch" xml:space="preserve">
+    <value>Поиск файлов...</value>
+  </data>
+  <data name="Tools.ModBuilder.Picker.TooltipExpandAll" xml:space="preserve">
+    <value>Развернуть все папки</value>
+  </data>
+  <data name="Tools.ModBuilder.Picker.ButtonExpandAll" xml:space="preserve">
+    <value>Развернуть все</value>
+  </data>
+  <data name="Tools.ModBuilder.Picker.TooltipCollapseAll" xml:space="preserve">
+    <value>Свернуть все папки</value>
+  </data>
+  <data name="Tools.ModBuilder.Picker.ButtonCollapseAll" xml:space="preserve">
+    <value>Свернуть все</value>
+  </data>
+  <data name="Tools.ModBuilder.Picker.TooltipDeselectAll" xml:space="preserve">
+    <value>Снять все отметки</value>
+  </data>
+  <data name="Tools.ModBuilder.Picker.ButtonDeselectAll" xml:space="preserve">
+    <value>Снять выбор</value>
+  </data>
+  <data name="Tools.ModBuilder.Picker.EmptyTitle" xml:space="preserve">
+    <value>В проекте не найдено файлов</value>
+  </data>
+  <data name="Tools.ModBuilder.Picker.EmptySubtitle" xml:space="preserve">
+    <value>Добавьте файлы в папку GameFilesEdited, чтобы выбрать их здесь.</value>
+  </data>
+  <data name="Tools.ModBuilder.Picker.SelectedItemsSuffix" xml:space="preserve">
+    <value>выбранных элементов</value>
+  </data>
+  <data name="Tools.ModBuilder.Picker.ButtonApply" xml:space="preserve">
+    <value>Применить выбор</value>
+  </data>
   <data name="Profiles.AddLocalContent.StatusCasProgressImporting" xml:space="preserve">
     <value>Импорт {0}: {1:0}% ({2}/{3} файлов)</value>
   </data>
@@ -8018,6 +9044,417 @@ GenHub передает официальный идентификатор AppID 
   <data name="ModDB.ChromiumInstallFailedMessage" xml:space="preserve">
     <value>GenHub не удалось установить управляемую среду Chromium. Проверьте сетевое подключение и повторите попытку.</value>
   </data>
+
+  <data name="Tools.ModBuilder.Project.CreatePickerTitle" xml:space="preserve">
+    <value>Создать новый проект ModBuilder</value>
+  </data>
+  <data name="Tools.ModBuilder.Project.OpenPickerTitle" xml:space="preserve">
+    <value>Открыть проект ModBuilder</value>
+  </data>
+  <data name="Tools.ModBuilder.Project.FileTypeName" xml:space="preserve">
+    <value>Проект ModBuilder</value>
+  </data>
+  <data name="Tools.ModBuilder.Project.Error.PathEmpty" xml:space="preserve">
+    <value>Путь к проекту не может быть пустым</value>
+  </data>
+  <data name="Tools.ModBuilder.Project.Error.NameEmpty" xml:space="preserve">
+    <value>Имя проекта не может быть пустым</value>
+  </data>
+  <data name="Tools.ModBuilder.Project.Error.AlreadyExists" xml:space="preserve">
+    <value>Файл проекта уже существует: {0}</value>
+  </data>
+  <data name="Tools.ModBuilder.Project.Error.InvalidPath" xml:space="preserve">
+    <value>Недопустимый путь к проекту</value>
+  </data>
+  <data name="Tools.ModBuilder.Project.Error.ProjectNull" xml:space="preserve">
+    <value>Проект не может быть null</value>
+  </data>
+  <data name="Tools.ModBuilder.Project.Error.FileNotFound" xml:space="preserve">
+    <value>Файл проекта не найден: {0}</value>
+  </data>
+  <data name="Tools.ModBuilder.Project.Error.DeserializeFailed" xml:space="preserve">
+    <value>Не удалось прочитать файл проекта</value>
+  </data>
+  <data name="Tools.ModBuilder.Project.Error.DirectoryNotFound" xml:space="preserve">
+    <value>Каталог проекта не существует: {0}</value>
+  </data>
+  <data name="Tools.ModBuilder.Project.Error.RequiredDirectoryMissing" xml:space="preserve">
+    <value>Требуемый каталог не существует: {0}</value>
+  </data>
+  <data name="Tools.ModBuilder.Project.Error.NoBigFiles" xml:space="preserve">
+    <value>Не указаны допустимые BIG-файлы для импорта</value>
+  </data>
+  <data name="Tools.ModBuilder.Project.Error.BigFileNotFound" xml:space="preserve">
+    <value>BIG-файл не найден: {0}</value>
+  </data>
+  <data name="Tools.ModBuilder.Project.Error.NoBigFilesForProject" xml:space="preserve">
+    <value>Не указаны BIG-файлы для создания проекта</value>
+  </data>
+  <data name="Tools.ModBuilder.Import.BigsPickerTitle" xml:space="preserve">
+    <value>Импортировать архивы .BIG в проект</value>
+  </data>
+  <data name="Tools.ModBuilder.Import.ModPickerTitle" xml:space="preserve">
+    <value>Выберите архивы мода .BIG для импорта</value>
+  </data>
+  <data name="Tools.ModBuilder.Import.SavePickerTitle" xml:space="preserve">
+    <value>Сохранить импортированный проект ModBuilder</value>
+  </data>
+  <data name="Tools.ModBuilder.FileType.BigArchive" xml:space="preserve">
+    <value>Архив BIG Command &amp; Conquer (*.big)</value>
+  </data>
+  <data name="Tools.ModBuilder.FileType.AllFiles" xml:space="preserve">
+    <value>Все файлы (*.*)</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.InvalidPath.Title" xml:space="preserve">
+    <value>Недопустимый путь</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.SelectValidLocation.Message" xml:space="preserve">
+    <value>Выберите допустимое расположение проекта</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.EmptyPath.Message" xml:space="preserve">
+    <value>Путь к проекту не может быть пустым</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.CreationFailed.Title" xml:space="preserve">
+    <value>Не удалось создать</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.CreationError.Title" xml:space="preserve">
+    <value>Ошибка создания</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.NoProjectOpen.Title" xml:space="preserve">
+    <value>Проект не открыт</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.NoProjectOpen.Message" xml:space="preserve">
+    <value>Сначала откройте или создайте проект, прежде чем импортировать файлы .BIG.</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.NoProject.Title" xml:space="preserve">
+    <value>Нет проекта</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.NoProject.Message" xml:space="preserve">
+    <value>Сначала загрузите или создайте проект</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.OperationInProgress.Title" xml:space="preserve">
+    <value>Операция выполняется</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.Busy.ImportFiles" xml:space="preserve">
+    <value>Невозможно импортировать файлы, пока выполняется другая операция.</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.Busy.StartBuild" xml:space="preserve">
+    <value>Невозможно начать сборку, пока выполняется другая операция.</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.Busy.CreateManifest" xml:space="preserve">
+    <value>Невозможно создать манифест, пока выполняется другая операция.</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.Busy.OpenSample" xml:space="preserve">
+    <value>Невозможно открыть пример проекта, пока выполняется другая операция.</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.ImportComplete.Title" xml:space="preserve">
+    <value>Импорт завершён</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.ImportComplete.Message" xml:space="preserve">
+    <value>Импортировано файлов: {0} из архивов .BIG ({1}) в GameFilesEdited.</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.ImportFailed.Title" xml:space="preserve">
+    <value>Не удалось импортировать</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.ImportCancelled.Title" xml:space="preserve">
+    <value>Импорт отменён</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.ImportCancelled.Message" xml:space="preserve">
+    <value>Операция импорта BIG была отменена.</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.ImportError.Title" xml:space="preserve">
+    <value>Ошибка импорта</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.BigModImported.Title" xml:space="preserve">
+    <value>Мод BIG импортирован</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.BigModImported.Message" xml:space="preserve">
+    <value>Проект «{0}» создан из архивов .BIG ({1}).
+Извлечено в GameFilesEdited, пакеты настроены.</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.ProjectNotFound.Title" xml:space="preserve">
+    <value>Проект не найден</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.ProjectNotFound.Message" xml:space="preserve">
+    <value>Не удалось найти файл проекта: {0}</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.ProjectRemoved.Title" xml:space="preserve">
+    <value>Проект удалён</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.ProjectRemoved.Message" xml:space="preserve">
+    <value>«{0}» удалён из недавних проектов.</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.DialogUnavailable.Message" xml:space="preserve">
+    <value>Служба диалогов подтверждения недоступна.</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.DeleteProject.Title" xml:space="preserve">
+    <value>Удалить проект</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.DeleteProject.Message" xml:space="preserve">
+    <value>Вы уверены, что хотите безвозвратно удалить «{0}»?
+
+Файл проекта и его каталог будут удалены с диска:
+{1}</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.ProjectDeleted.Title" xml:space="preserve">
+    <value>Проект удалён</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.ProjectDeleted.Message" xml:space="preserve">
+    <value>«{0}» успешно удалён.</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.DeleteFailed.Message" xml:space="preserve">
+    <value>Не удалось удалить проект: {0}</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.AssetAcquisitionFailed.Title" xml:space="preserve">
+    <value>Не удалось получить ресурсы</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.AssetAcquisitionFailed.Message" xml:space="preserve">
+    <value>Не удалось получить ресурсы примера: {0}</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.SampleNotFound.Title" xml:space="preserve">
+    <value>Пример не найден</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.SampleNotFound.Template.Message" xml:space="preserve">
+    <value>Не удалось найти файлы шаблона для {0}.</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.SampleNotFound.Message" xml:space="preserve">
+    <value>Пример проекта не найден.</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.LoadFailed.Title" xml:space="preserve">
+    <value>Не удалось загрузить</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.LoadSampleFailed.Message" xml:space="preserve">
+    <value>Не удалось загрузить пример проекта: {0}</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.ProjectLoaded.Title" xml:space="preserve">
+    <value>Проект загружен</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.ProjectLoaded.Message" xml:space="preserve">
+    <value>Загружено: {0}</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.FileNotFound.Title" xml:space="preserve">
+    <value>Файл не найден</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.FileNotFound.Message" xml:space="preserve">
+    <value>Файл проекта не существует: {0}</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.AccessDenied.Title" xml:space="preserve">
+    <value>Доступ запрещён</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.AccessDenied.Message" xml:space="preserve">
+    <value>Нет разрешения на доступ к этому файлу проекта</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.FileError.Title" xml:space="preserve">
+    <value>Ошибка файла</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.FileError.Message" xml:space="preserve">
+    <value>Не удалось прочитать файл проекта. Возможно, он используется другой программой.</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.LoadError.Title" xml:space="preserve">
+    <value>Ошибка загрузки</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.LoadError.Unexpected.Message" xml:space="preserve">
+    <value>Непредвиденная ошибка: {0}</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.LoadError.ProjectData.Message" xml:space="preserve">
+    <value>Не удалось загрузить данные проекта: {0}</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.ProjectSaved.Title" xml:space="preserve">
+    <value>Проект сохранён</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.ProjectSaved.Message" xml:space="preserve">
+    <value>Проект успешно сохранён</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.SaveFailed.Title" xml:space="preserve">
+    <value>Не удалось сохранить</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.SaveError.Title" xml:space="preserve">
+    <value>Ошибка сохранения</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.ConfigEditor.Title" xml:space="preserve">
+    <value>Редактор конфигурации</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.ConfigEditor.Message" xml:space="preserve">
+    <value>Не удалось открыть редактор конфигурации: {0}</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.BuildNoFiles.Title" xml:space="preserve">
+    <value>Сборка завершена (нет файлов)</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.BuildNoFiles.Message" xml:space="preserve">
+    <value>Сборка завершена, но файлы не обработаны.
+Проверьте:
+- файлы существуют в папке GameFilesEdited
+- пакеты настроены в config/ModBundleItems.json
+- пути к файлам в конфигурации соответствуют реальным файлам</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.BuildComplete.Title" xml:space="preserve">
+    <value>Сборка завершена</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.BuildComplete.Message" xml:space="preserve">
+    <value>Обработано файлов: {0}
+Создано пакетов: {1}
+Время: {2}
+Вывод: {3}</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.NoFilesToBuild.Title" xml:space="preserve">
+    <value>Нет файлов для сборки</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.NoFilesToBuild.Message" xml:space="preserve">
+    <value>Папка GameFilesEdited пуста или пакеты не настроены.
+
+Шаги:
+1. Нажмите «Open GameFilesEdited Folder»
+2. Скопируйте файлы игры в подходящие папки
+3. Отредактируйте config/ModBundleItems.json для настройки пакетов
+4. Попробуйте собрать снова</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.BuildFailed.Title" xml:space="preserve">
+    <value>Сборка не удалась</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.BuildError.Title" xml:space="preserve">
+    <value>Ошибка сборки</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.BuildCancelled.Title" xml:space="preserve">
+    <value>Сборка отменена</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.BuildCancelled.Message" xml:space="preserve">
+    <value>Операция сборки была отменена</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.ManifestCreated.Title" xml:space="preserve">
+    <value>Манифест создан</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.ManifestCreated.Message" xml:space="preserve">
+    <value>Локальный ContentManifest зарегистрирован в GenHub для «{0}». Теперь вы можете включить этот {1} в игровых профилях.</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.ManifestCreationFailed.Title" xml:space="preserve">
+    <value>Не удалось создать манифест</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.ManifestCreationFailed.Fallback" xml:space="preserve">
+    <value>Не удалось создать манифест</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.ManifestCancelled.Title" xml:space="preserve">
+    <value>Создание манифеста отменено</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.ManifestCancelled.Message" xml:space="preserve">
+    <value>Создание манифеста было отменено</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.ManifestCreationError.Title" xml:space="preserve">
+    <value>Ошибка создания манифеста</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.CleanComplete.Title" xml:space="preserve">
+    <value>Очистка завершена</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.CleanComplete.Message" xml:space="preserve">
+    <value>Каталог сборки очищен</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.CleanFailed.Title" xml:space="preserve">
+    <value>Не удалось очистить</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.CleanSkipped.Title" xml:space="preserve">
+    <value>Очистка пропущена</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.CleanSkipped.Message" xml:space="preserve">
+    <value>Пропуск очистки для небезопасного или внешнего каталога сборки: {0}</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.OpenFailed.Title" xml:space="preserve">
+    <value>Не удалось открыть</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.OpenFailed.ProjectFolder" xml:space="preserve">
+    <value>Не удалось открыть папку проекта</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.OpenFailed.GameFilesEdited" xml:space="preserve">
+    <value>Не удалось открыть папку GameFilesEdited</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.OpenFailed.BuildFolder" xml:space="preserve">
+    <value>Не удалось открыть папку сборки</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.FolderRestricted.Title" xml:space="preserve">
+    <value>Папка недоступна</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.FolderRestricted.AppDir" xml:space="preserve">
+    <value>Невозможно открыть папку внутри каталога установки приложения.</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.FolderRestricted.BuildFolder" xml:space="preserve">
+    <value>Невозможно открыть папку сборки внутри каталога установки приложения.</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.FolderRestricted.ReleaseFolder" xml:space="preserve">
+    <value>Невозможно открыть папку выпуска внутри каталога установки приложения.</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.OpenFolderFailed.Title" xml:space="preserve">
+    <value>Не удалось открыть папку</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.OpenFolderFailed.Message" xml:space="preserve">
+    <value>Не удалось открыть папку выпуска: {0}</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.ProjectCreated.Title" xml:space="preserve">
+    <value>Проект создан</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.ProjectCreated.Message" xml:space="preserve">
+    <value>Проект создан: {0}
+Структура проекта готова. Редактируйте файлы в папке GameFilesEdited.</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.DownloadFailed.Message" xml:space="preserve">
+    <value>Не удалось скачать {0}: {1}</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.Notifications.Saved.Title" xml:space="preserve">
+    <value>Конфигурация сохранена</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.Notifications.Saved.Message" xml:space="preserve">
+    <value>Изменения конфигурации успешно сохранены</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.Notifications.SaveFailed.Title" xml:space="preserve">
+    <value>Не удалось сохранить</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.Notifications.SaveFailed.Message" xml:space="preserve">
+    <value>Не удалось сохранить конфигурацию: {0}</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.AddFilesPickerTitle" xml:space="preserve">
+    <value>Выберите файлы для добавления в элемент пакета</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.AddFolderPickerTitle" xml:space="preserve">
+    <value>Выберите каталог для добавления в элемент пакета</value>
+  </data>
+  <data name="Tools.ModBuilder.Samples.GeneralsGamePatch2.Description" xml:space="preserve">
+    <value>Комплексные INI-правила баланса и исправлений для C&amp;C Generals Zero Hour. Демонстрирует INI-правила из нескольких каталогов и настройку баланса.</value>
+  </data>
+  <data name="Tools.ModBuilder.Samples.GeneralsGamePatch2.Tag" xml:space="preserve">
+    <value>Баланс и исправления</value>
+  </data>
+  <data name="Tools.ModBuilder.Samples.GeneralsGamePatch2.VariantSummary" xml:space="preserve">
+    <value>Ядро INI + карты для сетевой игры</value>
+  </data>
+  <data name="Tools.ModBuilder.Samples.ImprovedMenus.Description" xml:space="preserve">
+    <value>Переработка интерфейса под широкий экран 16:9 с 3 языковыми пакетами (английский, русский, испанский), объединяющая общие окна меню и локализованные текстуры.</value>
+  </data>
+  <data name="Tools.ModBuilder.Samples.ImprovedMenus.Tag" xml:space="preserve">
+    <value>Широкоэкранный интерфейс</value>
+  </data>
+  <data name="Tools.ModBuilder.Samples.ImprovedMenus.VariantSummary" xml:space="preserve">
+    <value>3 языковых варианта (EN, RU, ES)</value>
+  </data>
+  <data name="Tools.ModBuilder.Samples.LemonControlBar.Description" xml:space="preserve">
+    <value>Переработка командной панели под широкий экран с общими художественными ресурсами и 4 пакетами разрешений (720p, 1080p, 1440p, 4K).</value>
+  </data>
+  <data name="Tools.ModBuilder.Samples.LemonControlBar.Tag" xml:space="preserve">
+    <value>Панель управления</value>
+  </data>
+  <data name="Tools.ModBuilder.Samples.LemonControlBar.VariantSummary" xml:space="preserve">
+    <value>4 пакета разрешений (от 720p до 4K)</value>
+  </data>
+  <data name="Tools.ModBuilder.Samples.LeikezeHotkeys.Description" xml:space="preserve">
+    <value>Турнирные соревновательные таблицы строк CSF, демонстрирующие 3 пакета вариантов игры и языка (ZH английский, Generals английский, ZH немецкий).</value>
+  </data>
+  <data name="Tools.ModBuilder.Samples.LeikezeHotkeys.Tag" xml:space="preserve">
+    <value>Соревновательные горячие клавиши</value>
+  </data>
+  <data name="Tools.ModBuilder.Samples.LeikezeHotkeys.VariantSummary" xml:space="preserve">
+    <value>3 варианта раскладки (ZH EN, Gen EN, ZH DE)</value>
+  </data>
+
+  <data name="Tools.ModBuilder.Notification.FileManagerError.Title" xml:space="preserve">
+    <value>Ошибка файлового менеджера</value>
+  </data>
+
 
   <data name="Updates.Status.InstallationFailed" xml:space="preserve">
     <value>Установка не удалась</value>

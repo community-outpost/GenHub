@@ -1,0 +1,65 @@
+{
+  "BundleItems": [
+    {
+      "Name": "LemonControlBarArt",
+      "SourceFiles": [
+        "GameFilesEdited/Art/**/*.dds",
+        "GameFilesEdited/Art/**/*.tga"
+      ],
+      "OutputFormat": "RAW",
+      "NoConvert": true,
+      "Description": "Lemon Edition widescreen control bar command bar and power textures (DDS/TGA)"
+    },
+    {
+      "Name": "LemonControlBarData",
+      "SourceFiles": [
+        "GameFilesEdited/Data/**/*.ini",
+        "GameFilesEdited/GenTool/**/*",
+        "GameFilesEdited/ControlBarPro.txt"
+      ],
+      "OutputFormat": "RAW",
+      "NoConvert": true,
+      "Description": "Lemon Edition control bar scheme, mapped images, and fullviewport definitions"
+    },
+    {
+      "Name": "LemonControlBarWindows_720p",
+      "BaseDir": "GameFilesEdited/Window/720p",
+      "TargetDir": "Window",
+      "SourceFiles": [
+        "GameFilesEdited/Window/720p/**/*.wnd"
+      ],
+      "OutputFormat": "WINDOW",
+      "Description": "Lemon Edition 720p (1280x720) widescreen window layouts and menus"
+    },
+    {
+      "Name": "LemonControlBarWindows_1080p",
+      "BaseDir": "GameFilesEdited/Window/1080p",
+      "TargetDir": "Window",
+      "SourceFiles": [
+        "GameFilesEdited/Window/1080p/**/*.wnd"
+      ],
+      "OutputFormat": "WINDOW",
+      "Description": "Lemon Edition 1080p (1920x1080) widescreen window layouts and menus"
+    },
+    {
+      "Name": "LemonControlBarWindows_1440p",
+      "BaseDir": "GameFilesEdited/Window/1440p",
+      "TargetDir": "Window",
+      "SourceFiles": [
+        "GameFilesEdited/Window/1440p/**/*.wnd"
+      ],
+      "OutputFormat": "WINDOW",
+      "Description": "Lemon Edition 1440p (2560x1440) widescreen window layouts and menus"
+    },
+    {
+      "Name": "LemonControlBarWindows_4K",
+      "BaseDir": "GameFilesEdited/Window/4K",
+      "TargetDir": "Window",
+      "SourceFiles": [
+        "GameFilesEdited/Window/4K/**/*.wnd"
+      ],
+      "OutputFormat": "WINDOW",
+      "Description": "Lemon Edition 4K (3840x2160) widescreen window layouts and menus"
+    }
+  ]
+}

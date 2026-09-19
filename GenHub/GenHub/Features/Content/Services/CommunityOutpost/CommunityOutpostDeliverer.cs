@@ -739,7 +739,11 @@ public class CommunityOutpostDeliverer(
             logger.LogInformation("Converted {Converted} compressed image files to TGA", convertedCount);
         }
 
-        await BigFilePacker.PackAsync(sourceDir, destinationPath, cancellationToken);
+        var duplicateCount = await BigFilePacker.PackAsync(sourceDir, destinationPath, cancellationToken: cancellationToken).ConfigureAwait(false);
+        if (duplicateCount > 0)
+        {
+            logger.LogWarning("Dropped {Count} duplicate or colliding entries while packing {Path}", duplicateCount, destinationPath);
+        }
     }
 
     /// <summary>

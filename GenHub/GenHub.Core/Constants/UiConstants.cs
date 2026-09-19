@@ -127,6 +127,11 @@ public static class UiConstants
     public const string ContentTypeSkinColor = "#8B5CF6";
 
     /// <summary>
+    /// Default subtle background status color for tool status bars.
+    /// </summary>
+    public const string DefaultStatusBackgroundColor = "Transparent";
+
+    /// <summary>
     /// SVG path data for transparent checkmark icon.
     /// </summary>
     public const string TransparentCheckmarkIconPath = "M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z";
@@ -202,6 +207,23 @@ public static class UiConstants
     /// Display name for Modding Tool content type.
     /// </summary>
     public const string ModdingToolDisplayName = "Tools";
+
+    // Tab titles and descriptions
+
+    /// <summary>
+    /// Title for the Downloads tab.
+    /// </summary>
+    public const string DownloadsTabTitle = "Downloads";
+
+    /// <summary>
+    /// Description for the Downloads tab.
+    /// </summary>
+    public const string DownloadsTabDescription = "Manage your downloads and installations";
+
+    /// <summary>
+    /// Generic loading text displayed during async operations.
+    /// </summary>
+    public const string LoadingText = "Loading...";
 
     /// <summary>
     /// Maximum allowed length of HTML input strings to prevent regex denial of service.

@@ -10,6 +10,7 @@
         <PackageReference Include="Avalonia" />
         <PackageReference Include="CommunityToolkit.Mvvm" />
         <PackageReference Include="AngleSharp" />
+        <PackageReference Include="MessagePack" />
         <PackageReference Include="Microsoft.Playwright" />
         <PackageReference Include="Microsoft.Extensions.Logging" />
         <PackageReference Include="Microsoft.Extensions.Logging.Console" />

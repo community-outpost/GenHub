@@ -63,6 +63,11 @@ public static class UriConstants
     /// </summary>
     public const string HotkeysEditorIconUri = "avares://GenHub/Assets/Icons/hotkeyseditor-icon.png";
 
+    /// <summary>
+    /// Icon URI for ModBuilder tool.
+    /// </summary>
+    public const string ModBuilderIconUri = "avares://GenHub/Assets/Icons/modbuilder-icon.png";
+
     // Icon Path Constants
 
     /// <summary>
@@ -124,6 +129,11 @@ public static class UriConstants
     /// Filename for Hotkeys Editor icon.
     /// </summary>
     public const string HotkeysEditorIconFilename = "hotkeyseditor-icon.png";
+
+    /// <summary>
+    /// Filename for ModBuilder icon.
+    /// </summary>
+    public const string ModBuilderIconFilename = "modbuilder-icon.png";
 
     // Cover Path Constants
 

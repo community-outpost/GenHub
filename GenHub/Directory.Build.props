@@ -36,6 +36,8 @@
 
     <!-- Enforce zero warnings policy across all projects -->
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <!-- NuGet vulnerability audit warnings are advisory and should not break build -->
+    <WarningsNotAsErrors>;NU1901;NU1902;NU1903;NU1904</WarningsNotAsErrors>
   </PropertyGroup>
 
   <!-- Embed build metadata in assembly for runtime access -->

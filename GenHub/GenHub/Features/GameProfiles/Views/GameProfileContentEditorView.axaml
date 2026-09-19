@@ -138,7 +138,7 @@
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="190" MinWidth="68" MaxWidth="300" />
             <ColumnDefinition Width="4" />
-            <ColumnDefinition Width="*" MinWidth="0" />
+            <ColumnDefinition Width="*" MinWidth="250" />
         </Grid.ColumnDefinitions>
 
         <!-- Sidebar Navigation -->
