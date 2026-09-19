@@ -1,3 +1,4 @@
+using CommunityToolkit.Mvvm.Messaging;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
@@ -12,6 +13,7 @@ using GenHub.Core.Interfaces.Workspace;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameClients;
 using GenHub.Core.Models.GameProfile;
+using GenHub.Core.Models.Launching;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Storage;
@@ -21,6 +23,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
@@ -746,6 +749,107 @@ public sealed class ProfileLauncherFacadeDependencyValidationTests
         // Assert
         Assert.False(result.Success);
         Assert.Contains(result.Errors, err => err.Contains($"Missing or invalid content IDs: {missingContentId}"));
+    }
+
+    /// <summary>A stopped tool never reports success, while a live tool carries its tracked identity.</summary>
+    /// <param name="exited">Whether registration drains an early exit.</param>
+    /// <param name="exitCode">The observed exit code.</param>
+    /// <returns>The async task.</returns>
+    [Theory]
+    [InlineData(false, 0)]
+    [InlineData(true, 0)]
+    [InlineData(true, 1)]
+    public async Task CompleteToolLaunchAsync_UsesTrackedStateBeforeReportingSuccessAsync(bool exited, int exitCode)
+    {
+        using var process = Process.GetCurrentProcess();
+        var identity = Guid.NewGuid();
+        var info = new GameProcessInfo
+        {
+            ProcessId = process.Id,
+            ProcessInstanceId = identity,
+            IsRunning = true,
+        };
+        _gameProcessManagerMock.Setup(m => m.TrackProcess(process)).Returns(info);
+        GameLaunchInfo? registered = null;
+        _launchRegistryMock.Setup(m => m.RegisterLaunchAsync(It.IsAny<GameLaunchInfo>()))
+            .Callback<GameLaunchInfo>(launch =>
+            {
+                registered = launch;
+                if (exited)
+                {
+                    launch.TerminatedAt = DateTime.UtcNow;
+                    launch.ExitCode = exitCode;
+                    launch.ProcessInfo.IsRunning = false;
+                }
+            })
+            .Returns(Task.CompletedTask);
+        var recipient = new object();
+        var messages = new List<ProfileLaunchedMessage>();
+        WeakReferenceMessenger.Default.Register<ProfileLaunchedMessage>(recipient, (_, message) =>
+        {
+            if (message.ProfileId == "tool-profile")
+            {
+                messages.Add(message);
+            }
+        });
+        try
+        {
+            var result = await CreateFacade().CompleteToolLaunchAsync(
+                process, new GameProfile { Id = "tool-profile", Name = "Tool" }, "tool-workspace", "tool");
+            Assert.Equal(!exited, result.Success);
+            Assert.NotNull(registered);
+            Assert.Equal(identity, registered.ProcessInfo.ProcessInstanceId);
+            if (exited)
+            {
+                Assert.Contains($"exit code {exitCode}", result.FirstError);
+                Assert.Empty(messages);
+                _notificationServiceMock.Verify(m => m.ShowSuccess(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()), Times.Never);
+            }
+            else
+            {
+                Assert.Equal(identity, Assert.Single(messages).ProcessInstanceId);
+                Assert.Same(info, result.Data!.ProcessInfo);
+            }
+
+            _launchRegistryMock.Verify(m => m.UnregisterLaunchAsync(It.IsAny<string>()), Times.Never);
+        }
+        finally
+        {
+            WeakReferenceMessenger.Default.UnregisterAll(recipient);
+        }
+    }
+
+    /// <summary>Tools that exit before tracking retain their code and never report success.</summary>
+    /// <param name="exitCode">The tool exit code.</param>
+    /// <returns>The async task.</returns>
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    public async Task CompleteToolLaunchAsync_AlreadyExited_PreservesDiagnosticsAsync(int exitCode)
+    {
+        var startInfo = new ProcessStartInfo
+        {
+            FileName = OperatingSystem.IsWindows() ? "cmd.exe" : "/bin/sh",
+            UseShellExecute = false,
+            CreateNoWindow = true,
+        };
+        startInfo.ArgumentList.Add(OperatingSystem.IsWindows() ? "/c" : "-c");
+        startInfo.ArgumentList.Add($"exit {exitCode}");
+        using var process = Process.Start(startInfo)!;
+        await process.WaitForExitAsync();
+        _gameProcessManagerMock.Setup(m => m.TrackProcess(process)).Returns((GameProcessInfo?)null);
+        GameLaunchInfo? registered = null;
+        _launchRegistryMock.Setup(m => m.RegisterLaunchAsync(It.IsAny<GameLaunchInfo>()))
+            .Callback<GameLaunchInfo>(launch => registered = launch)
+            .Returns(Task.CompletedTask);
+        var result = await CreateFacade().CompleteToolLaunchAsync(
+            process, new GameProfile { Id = "exited-tool", Name = "Tool" }, "workspace", "tool");
+        Assert.False(result.Success);
+        Assert.NotNull(registered);
+        Assert.Equal(exitCode, registered.ExitCode);
+        Assert.Equal(exitCode != 0, registered.HasFailed);
+        Assert.False(registered.ProcessInfo.IsRunning);
+        _notificationServiceMock.Verify(m => m.ShowSuccess(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()), Times.Never);
     }
 
     private ProfileLauncherFacade CreateFacade()

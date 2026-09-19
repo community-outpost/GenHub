@@ -10378,4 +10378,10 @@ Project structure ready. Edit files in GameFilesEdited folder.</value>
   <data name="GameProfiles.Notification.UnexpectedExit.Archives" xml:space="preserve">
     <value>The game could not load these archives: {0}. Exit code: {1}.</value>
   </data>
+  <data name="GameProfiles.Notification.EarlyExit.WithCode" xml:space="preserve">
+    <value>The process exited before launch completed (exit code {0}). See the logs for details.</value>
+  </data>
+  <data name="GameProfiles.Notification.EarlyExit.UnknownCode" xml:space="preserve">
+    <value>The process exited before launch completed. See the logs for details.</value>
+  </data>
 </root>

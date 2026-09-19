@@ -1469,8 +1469,9 @@ public class GameLauncher(
             await launchRegistry.RegisterLaunchAsync(launchInfo);
             if (launchInfo.TerminatedAt.HasValue || launchInfo.HasFailed)
             {
+                // Keep the terminated entry so its exit code and diagnostics remain inspectable.
                 return LaunchOperationResult<GameLaunchInfo>.CreateFailure(
-                    launchInfo.FailureReason ?? "The game exited before launch completed.", launchId, profile.Id);
+                    LaunchExitMessages.Describe(launchInfo, localizationService), launchId, profile.Id);
             }
 
             await RecordLaunchReceiptAsync(receiptContext);

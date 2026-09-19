@@ -36,6 +36,20 @@ public class GameProcessManagerExitFinalizationTests
         Assert.Same(process, GetState(manager, "_managedProcesses")[processId]);
     }
 
+    /// <summary>External tools receive the same stable identity used by the manager's later observations.</summary>
+    /// <returns>The async task.</returns>
+    [Fact]
+    public async Task TrackProcess_ReturnsManagedIdentityAsync()
+    {
+        using var manager = new GameProcessManager(Mock.Of<ILogger<GameProcessManager>>());
+        using var process = Process.GetCurrentProcess();
+        var tracked = manager.TrackProcess(process);
+        Assert.NotNull(tracked);
+        Assert.NotEqual(Guid.Empty, tracked.ProcessInstanceId);
+        var inspected = await manager.GetProcessInfoAsync(process.Id);
+        Assert.Equal(tracked.ProcessInstanceId, inspected.Data!.ProcessInstanceId);
+    }
+
     /// <summary>Natural exits release their process after all subscribers have returned.</summary>
     /// <param name="requested">Whether the termination caller owns disposal.</param>
     [Theory]

@@ -61,5 +61,6 @@ public interface IGameProcessManager
     /// Registers an existing process for tracking.
     /// </summary>
     /// <param name="process">The process to track.</param>
-    void TrackProcess(Process process);
+    /// <returns>The tracked identity, or null if the process already exited and ownership remains with the caller.</returns>
+    GameProcessInfo? TrackProcess(Process process);
 }

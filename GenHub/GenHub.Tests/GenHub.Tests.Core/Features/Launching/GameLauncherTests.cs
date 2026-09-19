@@ -276,7 +276,8 @@ public class GameLauncherTests : IDisposable
 
         var result = await _gameLauncher.LaunchProfileAsync(profile.Id);
         Assert.False(result.Success);
-        Assert.Contains("Buffered process failure", result.FirstError);
+        Assert.Contains("exit code 1", result.FirstError);
+        _launchRegistryMock.Verify(x => x.UnregisterLaunchAsync(It.IsAny<string>()), Times.Never);
     }
 
     /// <summary>

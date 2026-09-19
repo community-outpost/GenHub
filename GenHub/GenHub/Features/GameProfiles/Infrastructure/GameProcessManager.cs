@@ -435,21 +435,23 @@ public class GameProcessManager(
     }
 
     /// <inheritdoc/>
-    public void TrackProcess(Process process)
+    public GameProcessInfo? TrackProcess(Process process)
     {
         ArgumentNullException.ThrowIfNull(process);
 
         if (process.HasExited)
         {
             logger.LogWarning("[Process] Attempted to track already exited process {ProcessId}", process.Id);
-            return;
+            return null;
         }
 
         logger.LogInformation("[Process] Registering existing process for tracking: {ProcessId} ({ProcessName})", process.Id, process.ProcessName);
 
+        var processInfo = BuildProcessInfo(process, GetProcessExecutablePath(process));
         _managedProcesses[process.Id] = process;
 
         RegisterProcessEventHandlers(process);
+        return processInfo;
     }
 
     /// <inheritdoc/>
