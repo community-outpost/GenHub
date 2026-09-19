@@ -799,7 +799,7 @@ public class ControlBarPackageProcessor(
                     Directory.Delete(tempRoot, recursive: true);
                 }
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
                 logger.LogWarning(ex, "Failed to cleanup temporary pack directory {TempRoot}", tempRoot);
             }
@@ -911,7 +911,11 @@ public class ControlBarPackageProcessor(
             repackedOutputs.Add(metadataFileName);
             logger.LogInformation("Created Control Bar metadata file {FileName} from fallback", metadataFileName);
         }
-        catch (Exception ex)
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or FormatException)
         {
             logger.LogError(ex, "Failed to create fallback Control Bar metadata file");
         }
@@ -962,7 +966,7 @@ public class ControlBarPackageProcessor(
                 }
             }
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             logger.LogWarning(ex, "Failed to clean up control bar source directories in {Directory}", extractedDirectory);
         }

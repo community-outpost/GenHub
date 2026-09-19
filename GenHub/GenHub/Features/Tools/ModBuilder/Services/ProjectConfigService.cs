@@ -301,7 +301,7 @@ public sealed class ProjectConfigService(
             // Update last modified timestamp
             project.LastModified = DateTime.UtcNow;
 
-            await AtomicWriteJsonFileAsync(projectPath, project, _jsonOptions, cancellationToken).ConfigureAwait(false);
+            await AtomicWriteJsonFileAsync(projectPath, project, _jsonOptions, logger, cancellationToken).ConfigureAwait(false);
 
             logger.LogInformation(
                 "Saved ModBuilder project '{ProjectName}' to {ProjectPath}",
@@ -1219,7 +1219,7 @@ public sealed class ProjectConfigService(
         if (!ContainsNamedItem(itemsArr, ModBuilderConstants.DefaultImportedGameFilesItemName))
         {
             itemsArr.Add(JsonNode.Parse(JsonSerializer.Serialize(defaultItem, _jsonOptions)));
-            await AtomicWriteJsonFileAsync(itemsPath, rootObj, _jsonOptions, cancellationToken).ConfigureAwait(false);
+            await AtomicWriteJsonFileAsync(itemsPath, rootObj, _jsonOptions, logger, cancellationToken).ConfigureAwait(false);
         }
 
         return true;
@@ -1234,7 +1234,7 @@ public sealed class ProjectConfigService(
         if (!ContainsNamedItem(rootArr, ModBuilderConstants.DefaultImportedGameFilesItemName))
         {
             rootArr.Add(JsonNode.Parse(JsonSerializer.Serialize(defaultItem, _jsonOptions)));
-            await AtomicWriteJsonFileAsync(itemsPath, rootArr, _jsonOptions, cancellationToken).ConfigureAwait(false);
+            await AtomicWriteJsonFileAsync(itemsPath, rootArr, _jsonOptions, logger, cancellationToken).ConfigureAwait(false);
         }
 
         return true;
@@ -1259,7 +1259,7 @@ public sealed class ProjectConfigService(
             },
         };
 
-        await AtomicWriteJsonFileAsync(itemsPath, bundleItemsConfig, _jsonOptions, cancellationToken).ConfigureAwait(false);
+        await AtomicWriteJsonFileAsync(itemsPath, bundleItemsConfig, _jsonOptions, logger, cancellationToken).ConfigureAwait(false);
         logger.LogDebug("Created ModBundleItems.json for imported BIG files at {Path}", itemsPath);
     }
 
@@ -1403,7 +1403,7 @@ public sealed class ProjectConfigService(
         {
             BundlePacks = packsToAdd.ToArray(),
         };
-        await AtomicWriteJsonFileAsync(packsPath, bundlePacksConfig, _jsonOptions, cancellationToken).ConfigureAwait(false);
+        await AtomicWriteJsonFileAsync(packsPath, bundlePacksConfig, _jsonOptions, logger, cancellationToken).ConfigureAwait(false);
         logger.LogDebug("Created ModBundlePacks.json for imported BIG files at {Path}", packsPath);
     }
 
@@ -1422,7 +1422,7 @@ public sealed class ProjectConfigService(
             if (node is JsonObject rootObj)
             {
                 AppendPacksToJsonObject(rootObj, packsToAdd);
-                await AtomicWriteJsonFileAsync(packsPath, rootObj, _jsonOptions, cancellationToken).ConfigureAwait(false);
+                await AtomicWriteJsonFileAsync(packsPath, rootObj, _jsonOptions, logger, cancellationToken).ConfigureAwait(false);
                 logger.LogDebug("Updated ModBundlePacks.json with imported BIG packs at {Path}", packsPath);
                 return OperationResult<bool>.CreateSuccess(true);
             }
@@ -1430,7 +1430,7 @@ public sealed class ProjectConfigService(
             if (node is JsonArray rootArray)
             {
                 AppendPacksToJsonArray(rootArray, packsToAdd);
-                await AtomicWriteJsonFileAsync(packsPath, rootArray, _jsonOptions, cancellationToken).ConfigureAwait(false);
+                await AtomicWriteJsonFileAsync(packsPath, rootArray, _jsonOptions, logger, cancellationToken).ConfigureAwait(false);
                 logger.LogDebug("Updated array-root ModBundlePacks.json with imported BIG packs at {Path}", packsPath);
                 return OperationResult<bool>.CreateSuccess(true);
             }
@@ -2540,13 +2540,14 @@ public sealed class ProjectConfigService(
         List<string> recentProjects,
         CancellationToken cancellationToken)
     {
-        await AtomicWriteJsonFileAsync(_recentProjectsPath, recentProjects, _jsonOptions, cancellationToken).ConfigureAwait(false);
+        await AtomicWriteJsonFileAsync(_recentProjectsPath, recentProjects, _jsonOptions, logger, cancellationToken).ConfigureAwait(false);
     }
 
-    private async Task AtomicWriteJsonFileAsync<T>(
+    internal static async Task AtomicWriteJsonFileAsync<T>(
         string filePath,
         T value,
         JsonSerializerOptions options,
+        ILogger logger,
         CancellationToken cancellationToken)
     {
         var dir = Path.GetDirectoryName(filePath);

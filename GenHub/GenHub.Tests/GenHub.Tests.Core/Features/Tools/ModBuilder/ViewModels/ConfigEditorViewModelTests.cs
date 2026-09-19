@@ -258,6 +258,9 @@ public class ConfigEditorViewModelTests
             Assert.Contains("patch.big.manifest.json", packsJson, StringComparison.Ordinal);
             Assert.Contains("Patch release", packsJson, StringComparison.Ordinal);
 
+            // Atomic saves leave no temp-file debris behind.
+            Assert.Empty(Directory.GetFiles(Path.Combine(projectDir, "config"), "*.tmp"));
+
             Assert.False(viewModel.HasChanges);
         }
         finally

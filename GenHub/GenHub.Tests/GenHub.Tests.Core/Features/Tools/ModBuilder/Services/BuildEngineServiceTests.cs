@@ -1623,6 +1623,78 @@ public sealed class BuildEngineServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task ExecuteBuildAsync_WithDuplicateItemNames_FailsWithActionableErrorAsync()
+    {
+        // Arrange: duplicates that differ only by case are ambiguous too,
+        // because pack references resolve case-insensitively.
+        var project = new ModBuilderProject
+        {
+            Name = "TestProject",
+            Directories = new ProjectDirectories
+            {
+                GameFilesEdited = _tempDirectory,
+                Build = Path.Combine(_tempDirectory, "output"),
+            },
+            BundleConfigs = new List<string>(),
+        };
+
+        var configuration = new BuildConfiguration
+        {
+            Items = new List<BundleItem>
+            {
+                new() { Name = "CoreData", IsBig = false },
+                new() { Name = "coredata", IsBig = false },
+            },
+            Packs = new List<BundlePack>(),
+        };
+
+        // Act
+        var result = await _service.ExecuteBuildAsync(project, configuration, new List<string>(), BuildStep.Build);
+
+        // Assert
+        result.Success.Should().BeFalse();
+        result.FirstError.Should().Contain("CoreData");
+        result.FirstError.Should().Contain("ModBundleItems.json");
+    }
+
+    [Fact]
+    public async Task ExecuteBuildAsync_WithDuplicatePackNames_FailsWithActionableErrorAsync()
+    {
+        // Arrange
+        var project = new ModBuilderProject
+        {
+            Name = "TestProject",
+            Directories = new ProjectDirectories
+            {
+                GameFilesEdited = _tempDirectory,
+                Build = Path.Combine(_tempDirectory, "output"),
+            },
+            BundleConfigs = new List<string>(),
+        };
+
+        var configuration = new BuildConfiguration
+        {
+            Items = new List<BundleItem>
+            {
+                new() { Name = "CoreData", IsBig = false },
+            },
+            Packs = new List<BundlePack>
+            {
+                new() { Name = "Release", ItemNames = new List<string> { "CoreData" } },
+                new() { Name = "Release", ItemNames = new List<string> { "CoreData" } },
+            },
+        };
+
+        // Act
+        var result = await _service.ExecuteBuildAsync(project, configuration, new List<string>(), BuildStep.Build);
+
+        // Assert
+        result.Success.Should().BeFalse();
+        result.FirstError.Should().Contain("Release");
+        result.FirstError.Should().Contain("ModBundlePacks.json");
+    }
+
+    [Fact]
     public async Task ExecuteBuildAsync_WithAbsoluteSelfTarget_SucceedsWithoutFailureAsync()
     {
         // Arrange: corrupted configs resolve targets onto their own source path.

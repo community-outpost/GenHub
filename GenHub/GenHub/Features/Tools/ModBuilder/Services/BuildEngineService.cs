@@ -2366,6 +2366,7 @@ public sealed class BuildEngineService(
         CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
+        ValidateUniqueEntryNames(configuration);
 
         logger.LogDebug("Resolving wildcards in configuration");
         configuration = await configurationLoaderService.ResolveWildcardsAsync(configuration, cancellationToken)
@@ -2424,6 +2425,44 @@ public sealed class BuildEngineService(
             BundlePacks = bundlePacks,
             CreatedAt = DateTime.UtcNow,
         };
+    }
+
+    private static void ValidateUniqueEntryNames(BuildConfiguration configuration)
+    {
+        // Pack references resolve by name (case-insensitive), so duplicates are
+        // ambiguous. Fail fast with an actionable message instead of the
+        // cryptic duplicate-key error from dictionary construction.
+        var duplicateItems = FindDuplicateNames(configuration.Items.Select(item => item.Name));
+        var duplicatePacks = FindDuplicateNames(configuration.Packs.Select(pack => pack.Name));
+        if (duplicateItems.Count == 0 && duplicatePacks.Count == 0)
+        {
+            return;
+        }
+
+        var details = new List<string>();
+        if (duplicateItems.Count > 0)
+        {
+            details.Add($"duplicate bundle item name(s): {string.Join(", ", duplicateItems)} (see ModBundleItems.json)");
+        }
+
+        if (duplicatePacks.Count > 0)
+        {
+            details.Add($"duplicate bundle pack name(s): {string.Join(", ", duplicatePacks)} (see ModBundlePacks.json)");
+        }
+
+        throw new InvalidOperationException(
+            $"Invalid bundle configuration with {string.Join(" and ", details)}. " +
+            "Rename or remove the duplicates so pack references resolve unambiguously.");
+    }
+
+    private static IReadOnlyList<string> FindDuplicateNames(IEnumerable<string> names)
+    {
+        return names
+            .GroupBy(name => name, StringComparer.OrdinalIgnoreCase)
+            .Where(group => group.Count() > 1)
+            .Select(group => group.Key)
+            .OrderBy(name => name, StringComparer.OrdinalIgnoreCase)
+            .ToList();
     }
 
     private Dictionary<BuildIndex, List<string>> PopulateStageFiles(

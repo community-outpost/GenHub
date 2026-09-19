@@ -2,6 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentAssertions;
@@ -611,5 +613,24 @@ public sealed class ProjectConfigServiceTests : IDisposable
         // Assert
         result.Success.Should().BeFalse();
         result.Errors.Should().ContainSingle().Which.Should().Be(localizedValue);
+    }
+
+    [Fact]
+    public async Task AtomicWriteJsonFileAsync_WritesCompleteDocumentWithoutTempLeftoversAsync()
+    {
+        // Arrange
+        var filePath = Path.Combine(_tempDirectory, "bundle.json");
+        var value = new JsonObject { ["BundleItems"] = new JsonArray { "a", "b" } };
+        var options = new JsonSerializerOptions { WriteIndented = true };
+
+        // Act
+        await ProjectConfigService.AtomicWriteJsonFileAsync(filePath, value, options, _mockLogger.Object, CancellationToken.None);
+
+        // Assert
+        File.Exists(filePath).Should().BeTrue();
+        var parsed = JsonNode.Parse(await File.ReadAllTextAsync(filePath));
+        parsed.Should().NotBeNull();
+        parsed!["BundleItems"]!.AsArray().Should().HaveCount(2);
+        Directory.GetFiles(_tempDirectory, "*.tmp").Should().BeEmpty();
     }
 }

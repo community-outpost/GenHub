@@ -963,11 +963,10 @@ public partial class ConfigEditorViewModel(
             DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull,
         };
 
-        var itemsJson = System.Text.Json.JsonSerializer.Serialize(CreateItemsDto(Configuration.Items), serializerOptions);
-        var packsJson = System.Text.Json.JsonSerializer.Serialize(CreatePacksDto(Configuration.Packs), serializerOptions);
-
-        await File.WriteAllTextAsync(itemsPath, itemsJson, cancellationToken).ConfigureAwait(false);
-        await File.WriteAllTextAsync(packsPath, packsJson, cancellationToken).ConfigureAwait(false);
+        // Atomic temp-file writes so a crash mid-save never leaves truncated
+        // JSON behind (truncated files parse as empty on next import).
+        await ProjectConfigService.AtomicWriteJsonFileAsync(itemsPath, CreateItemsDto(Configuration.Items), serializerOptions, logger, cancellationToken).ConfigureAwait(false);
+        await ProjectConfigService.AtomicWriteJsonFileAsync(packsPath, CreatePacksDto(Configuration.Packs), serializerOptions, logger, cancellationToken).ConfigureAwait(false);
 
         logger.LogInformation("Saved bundle configuration to {ItemsPath} and {PacksPath}", itemsPath, packsPath);
     }
