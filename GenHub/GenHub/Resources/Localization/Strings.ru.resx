@@ -2456,34 +2456,6 @@
     <value>Текущая версия</value>
     <comment>Label for current version.</comment>
   </data>
-  <data name="Settings.Updates.GitHubPat.CreateButton" xml:space="preserve">
-    <value>Создать PAT →</value>
-    <comment>Button to create PAT on GitHub.</comment>
-  </data>
-  <data name="Settings.Updates.GitHubPat.CreateToolTip" xml:space="preserve">
-    <value>Нажмите, чтобы открыть страницу создания PAT на GitHub</value>
-    <comment>Tooltip for create PAT button.</comment>
-  </data>
-  <data name="Settings.Updates.GitHubPat.Label" xml:space="preserve">
-    <value>Персональный токен доступа GitHub (для обновлений артефактов)</value>
-    <comment>Label for PAT.</comment>
-  </data>
-  <data name="Settings.Updates.GitHubPat.Remove" xml:space="preserve">
-    <value>Удалить PAT</value>
-    <comment>Button to remove PAT.</comment>
-  </data>
-  <data name="Settings.Updates.GitHubPat.SaveAndTest" xml:space="preserve">
-    <value>Сохранить и проверить</value>
-    <comment>Button to save and test PAT.</comment>
-  </data>
-  <data name="Settings.Updates.GitHubPat.ScopeDescription" xml:space="preserve">
-    <value>Для доступа к артефактам CI требуется PAT с областью доступа 'repo'.</value>
-    <comment>Description for PAT scope.</comment>
-  </data>
-  <data name="Settings.Updates.GitHubPat.Warning" xml:space="preserve">
-    <value>Чтобы подписаться на Pull Requests или тестировать ветки, необходимо настроить GitHub PAT выше. Это позволит GenHub скачивать сборки напрямую из GitHub CI.</value>
-    <comment>Warning about PAT necessity.</comment>
-  </data>
   <data name="Settings.Updates.ManageUpdatesButton" xml:space="preserve">
     <value>Управление обновлениями и PR</value>
     <comment>Button to open Updates window.</comment>
@@ -3094,6 +3066,10 @@
     <value>Проверка обновлений...</value>
     <comment>Status message while checking for updates</comment>
   </data>
+  <data name="Updates.Status.AuthRequiredForArtifacts" xml:space="preserve">
+    <value>Войдите в GitHub, чтобы получить доступ к сборкам веток и запросов на слияние.</value>
+    <comment>Status message when branch or PR builds require GitHub sign-in</comment>
+  </data>
   <data name="Updates.Status.NoUpdatesAvailable" xml:space="preserve">
     <value>Нет доступных обновлений</value>
     <comment>Status message when no updates are available</comment>
@@ -3383,19 +3359,13 @@
     <value>Попробуйте нажать «Обзор сборок», чтобы увидеть экспериментальные версии!</value>
   </data>
   <data name="Info.Demo.AppUpdates.CiArtifactsTitle" xml:space="preserve">
-    <value>Дополнительно: CI-артефакты и токен GitHub</value>
+    <value>Дополнительно: CI-артефакты и вход через GitHub</value>
   </data>
   <data name="Info.Demo.AppUpdates.CiArtifactsSubtitle" xml:space="preserve">
     <value>Подписывайтесь на pull request или ветки, чтобы тестировать новые возможности до их слияния.</value>
   </data>
   <data name="Info.Demo.AppUpdates.CiDescription" xml:space="preserve">
-    <value>CI-артефакты — это автоматические сборки GitHub для каждого изменения кода. Для доступа к ним требуется персональный токен (PAT).</value>
-  </data>
-  <data name="Info.Demo.AppUpdates.PatTitle" xml:space="preserve">
-    <value>Персональный токен GitHub (PAT)</value>
-  </data>
-  <data name="Info.Demo.AppUpdates.PatHint" xml:space="preserve">
-    <value>Попробуйте ввести «ghp_demo» и нажать «Сохранить и проверить», чтобы увидеть проверку в действии!</value>
+    <value>CI-артефакты — это автоматические сборки GitHub для каждого изменения кода. Для доступа к ним войдите через GitHub в настройках.</value>
   </data>
   <data name="Info.Demo.GameSettings.Title" xml:space="preserve">
     <value>Демо: Настройка Options.ini</value>
@@ -4078,33 +4048,6 @@
   <data name="Theme.Color.DarkGrey" xml:space="preserve">
     <value>Темно-серый</value>
   </data>
-  <data name="Settings.GitHubPat.Status.AuthFailed" xml:space="preserve">
-    <value>Ошибка аутентификации GitHub. Пожалуйста, убедитесь, что ваш токен действителен.</value>
-  </data>
-  <data name="Settings.GitHubPat.Status.ClientNotAvailable" xml:space="preserve">
-    <value>Клиент GitHub API недоступен</value>
-  </data>
-  <data name="Settings.GitHubPat.Status.PleaseEnter" xml:space="preserve">
-    <value>Пожалуйста, введите GitHub PAT</value>
-  </data>
-  <data name="Settings.GitHubPat.Status.Removed" xml:space="preserve">
-    <value>GitHub PAT удален</value>
-  </data>
-  <data name="Settings.GitHubPat.Status.RemovedWithEnv" xml:space="preserve">
-    <value>GitHub PAT удален (переменная среды деактивирована для этой сессии)</value>
-  </data>
-  <data name="Settings.GitHubPat.Status.StorageNotAvailable" xml:space="preserve">
-    <value>Хранилище токенов недоступно</value>
-  </data>
-  <data name="Settings.GitHubPat.Status.Testing" xml:space="preserve">
-    <value>Тестирование PAT...</value>
-  </data>
-  <data name="Settings.GitHubPat.Status.ValidatedSuccess" xml:space="preserve">
-    <value>PAT успешно проверен ✓</value>
-  </data>
-  <data name="Settings.GitHubPat.Status.SavedPending" xml:space="preserve">
-    <value>PAT сохранен (ожидает проверки)</value>
-  </data>
   <data name="Tools.Dialog.PluginFileType" xml:space="preserve">
     <value>Сборка плагина инструмента</value>
   </data>
@@ -4146,9 +4089,6 @@
   </data>
   <data name="Updates.Label.UpdatedDateFormat" xml:space="preserve">
     <value>Обновлено: {0:g}</value>
-  </data>
-  <data name="Info.Demo.AppUpdates.PatSaveTest" xml:space="preserve">
-    <value>Сохранить и проверить</value>
   </data>
   <data name="ContentType.GameInstallation" xml:space="preserve">
     <value>Установка игры</value>
@@ -4296,24 +4236,6 @@
   </data>
   <data name="Info.Section.changelogs.Description" xml:space="preserve">
     <value>Подробная история улучшений, исправлений и новых возможностей во всех версиях GenHub.</value>
-  </data>
-  <data name="Settings.GitHubPat.Status.Configured" xml:space="preserve">
-    <value>GitHub PAT настроен ✓</value>
-  </data>
-  <data name="Settings.GitHubPat.Status.EnvConfigured" xml:space="preserve">
-    <value>Настроено через переменную среды</value>
-  </data>
-  <data name="Settings.GitHubPat.Status.NotConfigured" xml:space="preserve">
-    <value>GitHub PAT не настроен</value>
-  </data>
-  <data name="Settings.GitHubPat.Status.CheckError" xml:space="preserve">
-    <value>Ошибка проверки статуса PAT</value>
-  </data>
-  <data name="Settings.GitHubPat.Status.InvalidFormat" xml:space="preserve">
-    <value>Недействительный PAT: {0}</value>
-  </data>
-  <data name="Settings.GitHubPat.Status.ErrorFormat" xml:space="preserve">
-    <value>Ошибка: {0}</value>
   </data>
   <data name="Tools.GenPatcher.Notify.CancellingFixDesc" xml:space="preserve">
     <value>Отмена применения {0}...</value>
@@ -4472,7 +4394,7 @@
     <value>Переключить сведения о выпуске</value>
   </data>
   <data name="Info.Changelog.RateLimited" xml:space="preserve">
-    <value>Превышен лимит запросов GitHub API. Настройте персональный токен доступа GitHub в Настройках или повторите попытку позже.</value>
+    <value>Превышен лимит запросов GitHub API. Войдите в GitHub в Настройках, чтобы увеличить лимит, или повторите попытку позже.</value>
   </data>
   <data name="Info.Changelog.NoReleasesFound" xml:space="preserve">
     <value>Журналы изменений выпусков не найдены.</value>
@@ -4500,21 +4422,6 @@
   </data>
   <data name="Info.WorkspaceDemo.Description" xml:space="preserve">
     <value>Этот процесс создает полную «виртуальную» установку игры за миллисекунды, используя минимум дискового пространства.</value>
-  </data>
-  <data name="GitHub.TokenDialog.TokenLabel" xml:space="preserve">
-    <value>Персональный токен доступа:</value>
-  </data>
-  <data name="GitHub.TokenDialog.NoTokenPrompt" xml:space="preserve">
-    <value>Нет персонального токена доступа?</value>
-  </data>
-  <data name="GitHub.TokenDialog.CreatePatLink" xml:space="preserve">
-    <value>Создать персональный токен доступа GitHub →</value>
-  </data>
-  <data name="GitHub.TokenDialog.CreatePatTooltip" xml:space="preserve">
-    <value>Нажмите, чтобы открыть страницу создания PAT на GitHub</value>
-  </data>
-  <data name="GitHub.TokenDialog.ValidatingToken" xml:space="preserve">
-    <value>Проверка токена...</value>
   </data>
   <data name="Downloads.Browser.Publishers" xml:space="preserve">
     <value>Издатели</value>
@@ -8994,10 +8901,6 @@ GameFilesEdited/Data/INI/**/*.ini</value>
   <data name="GameProfiles.ShareDialog.Notification.LoadProfileFailed.Message" xml:space="preserve">
     <value>Не удалось загрузить сведения о профиле.</value>
   </data>
-  <data name="GitHub.TokenDialog.Title" xml:space="preserve">
-    <value>Аутентификация GitHub</value>
-    <comment>Title for GitHub PAT dialog</comment>
-  </data>
   <data name="GenLauncher.Prefix.News" xml:space="preserve">
     <value>Новости</value>
   </data>
@@ -9476,4 +9379,87 @@ GameFilesEdited/Data/INI/**/*.ini</value>
     <value>Ошибка файлового менеджера</value>
   </data>
 
+
+  <data name="Updates.Status.InstallationFailed" xml:space="preserve">
+    <value>Установка не удалась</value>
+  </data>
+  <data name="Updates.Status.NoArtifactAvailable" xml:space="preserve">
+    <value>Артефакт недоступен</value>
+  </data>
+  <data name="Tools.GenHotkeys.Status.HotkeyAssigned" xml:space="preserve">
+    <value>Назначена горячая клавиша {0}.</value>
+  </data>
+  <data name="Tools.GenHotkeys.Notification.HotkeyAssignedTitle" xml:space="preserve">
+    <value>Горячая клавиша назначена</value>
+  </data>
+  <data name="Tools.GenHotkeys.Notification.HotkeyAssigned" xml:space="preserve">
+    <value>Назначено {0}.</value>
+  </data>
+
+  <data name="Settings.GitHubAuth.Label" xml:space="preserve">
+    <value>Аккаунт GitHub</value>
+  </data>
+  <data name="Settings.GitHubAuth.SignedOut.Description" xml:space="preserve">
+    <value>Войдите через GitHub, чтобы увеличить лимиты API и получить доступ к dev-сборкам, веткам и pull request'ам. GenHub запрашивает доступ на чтение и запись к публичным репозиториям и доступ только на чтение к вашему профилю.</value>
+  </data>
+  <data name="Settings.GitHubAuth.SignedOut.SignInButton" xml:space="preserve">
+    <value>Войти через GitHub</value>
+  </data>
+  <data name="Settings.GitHubAuth.Authorizing.Instructions" xml:space="preserve">
+    <value>Введите этот код на GitHub, чтобы авторизовать GenHub:</value>
+  </data>
+  <data name="Settings.GitHubAuth.Authorizing.CopyAndOpen" xml:space="preserve">
+    <value>Скопировать код и открыть GitHub</value>
+  </data>
+  <data name="Settings.GitHubAuth.Authorizing.Cancel" xml:space="preserve">
+    <value>Отмена</value>
+  </data>
+  <data name="Settings.GitHubAuth.Authorizing.Waiting" xml:space="preserve">
+    <value>Ожидание подтверждения в браузере...</value>
+  </data>
+  <data name="Settings.GitHubAuth.SignedIn.SignOut" xml:space="preserve">
+    <value>Выйти</value>
+  </data>
+  <data name="Settings.GitHubAuth.SignedIn.RateLimit" xml:space="preserve">
+    <value>Осталось запросов: {0} из {1}</value>
+  </data>
+  <data name="Settings.GitHubAuth.Toast.Title" xml:space="preserve">
+    <value>GitHub</value>
+  </data>
+  <data name="Settings.GitHubAuth.Toast.SignedIn" xml:space="preserve">
+    <value>Вы вошли как {0}.</value>
+  </data>
+  <data name="Settings.GitHubAuth.Toast.SignInFailed" xml:space="preserve">
+    <value>Ошибка входа: {0}</value>
+  </data>
+  <data name="Settings.GitHubAuth.Toast.SignedOut" xml:space="preserve">
+    <value>Вы вышли из GitHub.</value>
+  </data>
+  <data name="Settings.GitHubAuth.Toast.CodeCopied" xml:space="preserve">
+    <value>Код скопирован. Открываем GitHub в браузере...</value>
+  </data>
+  <data name="Settings.GitHubAuth.Toast.CodeCopyFailed" xml:space="preserve">
+    <value>Не удалось скопировать код: {0}</value>
+  </data>
+  <data name="Settings.GitHubAuth.Toast.ServiceUnavailable" xml:space="preserve">
+    <value>Аутентификация GitHub недоступна.</value>
+  </data>
+  <data name="Settings.GitHubAuth.Status.SignedIn" xml:space="preserve">
+    <value>Выполнен вход</value>
+  </data>
+  <data name="Settings.GitHubAuth.Status.SignedOut" xml:space="preserve">
+    <value>Вход не выполнен</value>
+  </data>
+  <data name="Settings.GitHubAuth.Toast.BrowserOpenFailed" xml:space="preserve">
+    <value>Код скопирован в буфер обмена, но GitHub не удалось открыть автоматически. Введите код вручную.</value>
+  </data>
+  <data name="Info.Demo.AppUpdates.AuthTitle" xml:space="preserve">
+    <value>Войти через GitHub</value>
+  </data>
+  <data name="Info.Demo.AppUpdates.AuthDescription" xml:space="preserve">
+    <value>Вместо ручных токенов GenHub использует device flow GitHub: нажмите «Войти», введите короткий код в браузере и подтвердите доступ к публичным репозиториям.</value>
+  </data>
+  <data name="Info.Demo.AppUpdates.AuthSampleCode" xml:space="preserve">
+    <value>WDAS-5678</value>
+  </data>
 </root>

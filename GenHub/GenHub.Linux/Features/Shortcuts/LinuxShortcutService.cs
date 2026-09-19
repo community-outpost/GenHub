@@ -1,4 +1,5 @@
 using GenHub.Core.Constants;
+using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Shortcuts;
 using GenHub.Core.Models.GameProfile;
 using GenHub.Core.Models.Results;
@@ -331,20 +332,8 @@ public class LinuxShortcutService(ILogger<LinuxShortcutService> logger) : IShort
     /// <summary>
     /// Sanitizes a file name by removing or replacing invalid characters.
     /// </summary>
-    private static string SanitizeFileName(string fileName)
-    {
-        var invalidChars = Path.GetInvalidFileNameChars();
-        var sanitized = new StringBuilder(fileName);
-
-        foreach (var c in invalidChars)
-        {
-            sanitized.Replace(c, '_');
-        }
-
-        sanitized.Replace(' ', '_');
-
-        return sanitized.ToString().Trim();
-    }
+    private static string SanitizeFileName(string fileName) =>
+        PathHelper.SanitizeFileName(fileName, replaceSpaces: true);
 
     /// <summary>
     /// Resolves the stable Velopack root launcher executable if running from a versioned directory.

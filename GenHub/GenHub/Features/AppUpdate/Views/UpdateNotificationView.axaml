@@ -191,20 +191,20 @@
                                 <TextBlock Text="{localization:Localize Updates.InstallationSource.Label}" FontSize="14" FontWeight="SemiBold" Foreground="White" VerticalAlignment="Center"/>
                                 <TextBlock Grid.Column="1"
                                            Text="{Binding InstalledVersionDisplay, Converter={StaticResource LocalizedFormatConverter}, ConverterParameter='Updates.Label.CurrentVersionFormat'}"
-                                           FontSize="12" Foreground="#888888" VerticalAlignment="Center"/>
+                                           FontSize="12" Foreground="{DynamicResource TextMuted}" VerticalAlignment="Center"/>
                             </Grid>
 
                             <!-- Current Source Display -->
                             <Grid ColumnDefinitions="Auto,*,Auto">
                                 <PathIcon Grid.Column="0" Data="M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2Z" Width="16" Height="16" Foreground="{DynamicResource AccentBrush}" Margin="0,0,8,0" VerticalAlignment="Center"/>
-                                <TextBlock Grid.Column="1" Text="{Binding StatusMessage}" VerticalAlignment="Center" Foreground="#DDDDDD" TextTrimming="CharacterEllipsis" Margin="0,0,8,0"/>
+                                <TextBlock Grid.Column="1" Text="{Binding StatusMessage}" VerticalAlignment="Center" Foreground="{DynamicResource TextPrimary}" TextTrimming="CharacterEllipsis" Margin="0,0,8,0"/>
                                 <Button Grid.Column="2" Content="{localization:Localize Updates.Button.Unsubscribe}" Command="{Binding UnsubscribeCommand}" IsVisible="{Binding IsSubscribedToAny}"
-                                        Background="#30FF0000" Foreground="#FF5555" FontSize="12" Padding="8,4" CornerRadius="4" VerticalAlignment="Center"/>
+                                        Background="{DynamicResource ErrorFillBrush}" Foreground="{DynamicResource ErrorTextBrush}" FontSize="12" Padding="8,4" CornerRadius="4" VerticalAlignment="Center"/>
                             </Grid>
 
                             <!-- Artifact Selection -->
                             <StackPanel Spacing="8" IsVisible="{Binding IsSubscribedToAny}">
-                                <TextBlock Text="{localization:Localize Updates.SelectVersion.Label}" FontSize="12" Foreground="#AAAAAA"/>
+                                <TextBlock Text="{localization:Localize Updates.SelectVersion.Label}" FontSize="12" Foreground="{DynamicResource TextSecondary}"/>
                                 <Grid ColumnDefinitions="*,Auto">
                                     <ComboBox Grid.Column="0" ItemsSource="{Binding AvailableVersions}" SelectedItem="{Binding SelectedVersion}"
                                               HorizontalAlignment="Stretch" PlaceholderText="{Binding VersionPlaceholderText}">

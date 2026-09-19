@@ -2456,34 +2456,6 @@
     <value>Current Version</value>
     <comment>Label for current version.</comment>
   </data>
-  <data name="Settings.Updates.GitHubPat.CreateButton" xml:space="preserve">
-    <value>Create PAT →</value>
-    <comment>Button to create PAT on GitHub.</comment>
-  </data>
-  <data name="Settings.Updates.GitHubPat.CreateToolTip" xml:space="preserve">
-    <value>Click to open GitHub PAT creation page</value>
-    <comment>Tooltip for create PAT button.</comment>
-  </data>
-  <data name="Settings.Updates.GitHubPat.Label" xml:space="preserve">
-    <value>GitHub Personal Access Token (for Artifact Updates)</value>
-    <comment>Label for PAT.</comment>
-  </data>
-  <data name="Settings.Updates.GitHubPat.Remove" xml:space="preserve">
-    <value>Remove PAT</value>
-    <comment>Button to remove PAT.</comment>
-  </data>
-  <data name="Settings.Updates.GitHubPat.SaveAndTest" xml:space="preserve">
-    <value>Save &amp; Test</value>
-    <comment>Button to save and test PAT.</comment>
-  </data>
-  <data name="Settings.Updates.GitHubPat.ScopeDescription" xml:space="preserve">
-    <value>PAT with 'repo' scope required for CI artifact access.</value>
-    <comment>Description for PAT scope.</comment>
-  </data>
-  <data name="Settings.Updates.GitHubPat.Warning" xml:space="preserve">
-    <value>To subscribe to Pull Requests or test specific Branches, you MUST configure a GitHub PAT above. This allows GenHub to download builds directly from GitHub CI.</value>
-    <comment>Warning about PAT necessity.</comment>
-  </data>
   <data name="Settings.Updates.ManageUpdatesButton" xml:space="preserve">
     <value>Manage Updates &amp; PRs</value>
     <comment>Button to open Updates window.</comment>
@@ -3094,6 +3066,10 @@
     <value>Checking for updates...</value>
     <comment>Status message while checking for updates</comment>
   </data>
+  <data name="Updates.Status.AuthRequiredForArtifacts" xml:space="preserve">
+    <value>Sign in with GitHub to access branch and PR builds.</value>
+    <comment>Status message when branch or PR builds require GitHub sign-in</comment>
+  </data>
   <data name="Updates.Status.NoUpdatesAvailable" xml:space="preserve">
     <value>No updates available</value>
     <comment>Status message when no updates are available</comment>
@@ -3383,19 +3359,13 @@ Applied: {2} / {3} applicable fixes.</value>
     <value>Try clicking 'Browse Builds' to see experimental developer versions!</value>
   </data>
   <data name="Info.Demo.AppUpdates.CiArtifactsTitle" xml:space="preserve">
-    <value>Advanced: CI Artifacts &amp; GitHub PAT</value>
+    <value>Advanced: CI Artifacts &amp; GitHub Sign-In</value>
   </data>
   <data name="Info.Demo.AppUpdates.CiArtifactsSubtitle" xml:space="preserve">
     <value>Subscribe to pull requests or specific branches to test new features before they are merged.</value>
   </data>
   <data name="Info.Demo.AppUpdates.CiDescription" xml:space="preserve">
-    <value>CI (Continuous Integration) Artifacts are automated builds created by GitHub for every code change. To access these protected resources, GenHub requires a Personal Access Token.</value>
-  </data>
-  <data name="Info.Demo.AppUpdates.PatTitle" xml:space="preserve">
-    <value>GitHub Personal Access Token</value>
-  </data>
-  <data name="Info.Demo.AppUpdates.PatHint" xml:space="preserve">
-    <value>Try entering 'ghp_demo' and clicking Save &amp; Test to see the validation in action!</value>
+    <value>CI (Continuous Integration) Artifacts are automated builds created by GitHub for every code change. To access these protected resources, sign in with GitHub in Settings.</value>
   </data>
   <data name="Info.Demo.GameSettings.Title" xml:space="preserve">
     <value>Demo: Options.ini Configuration</value>
@@ -4078,33 +4048,6 @@ Applied: {2} / {3} applicable fixes.</value>
   <data name="Theme.Color.DarkGrey" xml:space="preserve">
     <value>Dark Grey</value>
   </data>
-  <data name="Settings.GitHubPat.Status.AuthFailed" xml:space="preserve">
-    <value>GitHub authentication failed. Please verify that your token is valid.</value>
-  </data>
-  <data name="Settings.GitHubPat.Status.ClientNotAvailable" xml:space="preserve">
-    <value>GitHub API client not available</value>
-  </data>
-  <data name="Settings.GitHubPat.Status.PleaseEnter" xml:space="preserve">
-    <value>Please enter a GitHub PAT</value>
-  </data>
-  <data name="Settings.GitHubPat.Status.Removed" xml:space="preserve">
-    <value>GitHub PAT removed</value>
-  </data>
-  <data name="Settings.GitHubPat.Status.RemovedWithEnv" xml:space="preserve">
-    <value>GitHub PAT removed (env var deactivated for this session)</value>
-  </data>
-  <data name="Settings.GitHubPat.Status.StorageNotAvailable" xml:space="preserve">
-    <value>Token storage not available</value>
-  </data>
-  <data name="Settings.GitHubPat.Status.Testing" xml:space="preserve">
-    <value>Testing PAT...</value>
-  </data>
-  <data name="Settings.GitHubPat.Status.ValidatedSuccess" xml:space="preserve">
-    <value>PAT validated successfully ✓</value>
-  </data>
-  <data name="Settings.GitHubPat.Status.SavedPending" xml:space="preserve">
-    <value>PAT saved (validation pending)</value>
-  </data>
   <data name="Tools.Dialog.PluginFileType" xml:space="preserve">
     <value>Tool Plugin Assembly</value>
   </data>
@@ -4146,9 +4089,6 @@ Applied: {2} / {3} applicable fixes.</value>
   </data>
   <data name="Updates.Label.UpdatedDateFormat" xml:space="preserve">
     <value>Updated: {0:g}</value>
-  </data>
-  <data name="Info.Demo.AppUpdates.PatSaveTest" xml:space="preserve">
-    <value>Save &amp; Test</value>
   </data>
   <data name="ContentType.GameInstallation" xml:space="preserve">
     <value>Game Installation</value>
@@ -4296,24 +4236,6 @@ Applied: {2} / {3} applicable fixes.</value>
   </data>
   <data name="Info.Section.changelogs.Description" xml:space="preserve">
     <value>Detailed history of improvements, fixes, and features across all GenHub versions.</value>
-  </data>
-  <data name="Settings.GitHubPat.Status.Configured" xml:space="preserve">
-    <value>GitHub PAT configured ✓</value>
-  </data>
-  <data name="Settings.GitHubPat.Status.EnvConfigured" xml:space="preserve">
-    <value>Configured via environment variable</value>
-  </data>
-  <data name="Settings.GitHubPat.Status.NotConfigured" xml:space="preserve">
-    <value>No GitHub PAT configured</value>
-  </data>
-  <data name="Settings.GitHubPat.Status.CheckError" xml:space="preserve">
-    <value>Error checking PAT status</value>
-  </data>
-  <data name="Settings.GitHubPat.Status.InvalidFormat" xml:space="preserve">
-    <value>Invalid PAT: {0}</value>
-  </data>
-  <data name="Settings.GitHubPat.Status.ErrorFormat" xml:space="preserve">
-    <value>Error: {0}</value>
   </data>
   <data name="Tools.GenPatcher.Notify.CancellingFixDesc" xml:space="preserve">
     <value>Cancelling application of {0}...</value>
@@ -4472,7 +4394,7 @@ This will modify game files and configuration settings at:
     <value>Toggle release details</value>
   </data>
   <data name="Info.Changelog.RateLimited" xml:space="preserve">
-    <value>GitHub API rate limit exceeded. Please configure a GitHub Personal Access Token in Settings or try again later.</value>
+    <value>GitHub API rate limit exceeded. Sign in with GitHub in Settings to increase the limit, or try again later.</value>
   </data>
   <data name="Info.Changelog.NoReleasesFound" xml:space="preserve">
     <value>No release changelogs found.</value>
@@ -4500,21 +4422,6 @@ This will modify game files and configuration settings at:
   </data>
   <data name="Info.WorkspaceDemo.Description" xml:space="preserve">
     <value>This process creates a full 'virtual' game installation in milliseconds using almost zero disk space.</value>
-  </data>
-  <data name="GitHub.TokenDialog.TokenLabel" xml:space="preserve">
-    <value>Personal Access Token:</value>
-  </data>
-  <data name="GitHub.TokenDialog.NoTokenPrompt" xml:space="preserve">
-    <value>Don't have a Personal Access Token?</value>
-  </data>
-  <data name="GitHub.TokenDialog.CreatePatLink" xml:space="preserve">
-    <value>Create a GitHub Personal Access Token →</value>
-  </data>
-  <data name="GitHub.TokenDialog.CreatePatTooltip" xml:space="preserve">
-    <value>Click to open GitHub PAT creation page</value>
-  </data>
-  <data name="GitHub.TokenDialog.ValidatingToken" xml:space="preserve">
-    <value>Validating token...</value>
   </data>
   <data name="Downloads.Browser.Publishers" xml:space="preserve">
     <value>Publishers</value>
@@ -9088,10 +8995,6 @@ Do you want to download and inspect this profile package?</value>
   <data name="GameProfiles.ShareDialog.Notification.LoadProfileFailed.Message" xml:space="preserve">
     <value>Failed to load profile details.</value>
   </data>
-  <data name="GitHub.TokenDialog.Title" xml:space="preserve">
-    <value>GitHub Authentication</value>
-    <comment>Title for GitHub PAT dialog</comment>
-  </data>
   <data name="GenLauncher.Prefix.News" xml:space="preserve">
     <value>News</value>
   </data>
@@ -9200,6 +9103,21 @@ Do you want to download and inspect this profile package?</value>
   </data>
   <data name="ModDB.ChromiumInstallFailedMessage" xml:space="preserve">
     <value>GenHub could not install its managed Chromium runtime. Check your network connection and try again.</value>
+  </data>
+  <data name="Updates.Status.InstallationFailed" xml:space="preserve">
+    <value>Installation failed</value>
+  </data>
+  <data name="Updates.Status.NoArtifactAvailable" xml:space="preserve">
+    <value>No artifact available</value>
+  </data>
+  <data name="Tools.GenHotkeys.Status.HotkeyAssigned" xml:space="preserve">
+    <value>Assigned hotkey {0}.</value>
+  </data>
+  <data name="Tools.GenHotkeys.Notification.HotkeyAssignedTitle" xml:space="preserve">
+    <value>Hotkey Assigned</value>
+  </data>
+  <data name="Tools.GenHotkeys.Notification.HotkeyAssigned" xml:space="preserve">
+    <value>Assigned {0}.</value>
   </data>
 
   <data name="Tools.ModBuilder.Project.CreatePickerTitle" xml:space="preserve">
@@ -9570,4 +9488,71 @@ Project structure ready. Edit files in GameFilesEdited folder.</value>
     <value>File Manager Error</value>
   </data>
 
+
+  <data name="Settings.GitHubAuth.Label" xml:space="preserve">
+    <value>GitHub Account</value>
+  </data>
+  <data name="Settings.GitHubAuth.SignedOut.Description" xml:space="preserve">
+    <value>Sign in with GitHub to unlock higher API rate limits and access development, branch, and pull request builds. GenHub requests read/write access to public repositories and read-only access to your profile.</value>
+  </data>
+  <data name="Settings.GitHubAuth.SignedOut.SignInButton" xml:space="preserve">
+    <value>Sign in with GitHub</value>
+  </data>
+  <data name="Settings.GitHubAuth.Authorizing.Instructions" xml:space="preserve">
+    <value>Enter this code on GitHub to authorize GenHub:</value>
+  </data>
+  <data name="Settings.GitHubAuth.Authorizing.CopyAndOpen" xml:space="preserve">
+    <value>Copy Code &amp; Open GitHub</value>
+  </data>
+  <data name="Settings.GitHubAuth.Authorizing.Cancel" xml:space="preserve">
+    <value>Cancel</value>
+  </data>
+  <data name="Settings.GitHubAuth.Authorizing.Waiting" xml:space="preserve">
+    <value>Waiting for approval in your browser...</value>
+  </data>
+  <data name="Settings.GitHubAuth.SignedIn.SignOut" xml:space="preserve">
+    <value>Sign Out</value>
+  </data>
+  <data name="Settings.GitHubAuth.SignedIn.RateLimit" xml:space="preserve">
+    <value>{0} of {1} requests remaining</value>
+  </data>
+  <data name="Settings.GitHubAuth.Toast.Title" xml:space="preserve">
+    <value>GitHub</value>
+  </data>
+  <data name="Settings.GitHubAuth.Toast.SignedIn" xml:space="preserve">
+    <value>Signed in as {0}.</value>
+  </data>
+  <data name="Settings.GitHubAuth.Toast.SignInFailed" xml:space="preserve">
+    <value>Sign-in failed: {0}</value>
+  </data>
+  <data name="Settings.GitHubAuth.Toast.SignedOut" xml:space="preserve">
+    <value>Signed out of GitHub.</value>
+  </data>
+  <data name="Settings.GitHubAuth.Toast.CodeCopied" xml:space="preserve">
+    <value>Code copied. Opening GitHub in your browser...</value>
+  </data>
+  <data name="Settings.GitHubAuth.Toast.CodeCopyFailed" xml:space="preserve">
+    <value>Could not copy the code: {0}</value>
+  </data>
+  <data name="Settings.GitHubAuth.Toast.ServiceUnavailable" xml:space="preserve">
+    <value>GitHub authentication is not available.</value>
+  </data>
+  <data name="Settings.GitHubAuth.Status.SignedIn" xml:space="preserve">
+    <value>Signed in</value>
+  </data>
+  <data name="Settings.GitHubAuth.Status.SignedOut" xml:space="preserve">
+    <value>Signed out</value>
+  </data>
+  <data name="Settings.GitHubAuth.Toast.BrowserOpenFailed" xml:space="preserve">
+    <value>Code copied to clipboard, but GitHub could not be opened automatically. Enter the code manually.</value>
+  </data>
+  <data name="Info.Demo.AppUpdates.AuthTitle" xml:space="preserve">
+    <value>Sign in with GitHub</value>
+  </data>
+  <data name="Info.Demo.AppUpdates.AuthDescription" xml:space="preserve">
+    <value>Instead of manual tokens, GenHub uses GitHub's device flow: click sign in, enter the short code in your browser, and approve access to public repositories.</value>
+  </data>
+  <data name="Info.Demo.AppUpdates.AuthSampleCode" xml:space="preserve">
+    <value>WDAS-5678</value>
+  </data>
 </root>

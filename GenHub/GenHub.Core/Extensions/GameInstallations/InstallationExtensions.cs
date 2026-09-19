@@ -354,6 +354,54 @@ public static class InstallationExtensions
         };
     }
 
+    /// <summary>
+    /// Probes for the bundled base Generals assets within a Zero Hour directory (e.g. 'ZH_Generals'),
+    /// returning the path if present and containing at least one retail archive (*.big).
+    /// </summary>
+    /// <remarks>
+    /// A directory that exists but cannot be read is returned rather than treated as absent,
+    /// so launch validation reports it as unreadable and refuses to spawn instead of silently
+    /// starting Zero Hour without its base archives.
+    /// </remarks>
+    /// <param name="zeroHourPath">The Zero Hour installation path.</param>
+    /// <returns>The path to the bundled base Generals directory if present and populated, or present but unreadable; otherwise <c>null</c>.</returns>
+    public static string? GetBundledGeneralsPath(string? zeroHourPath)
+    {
+        if (string.IsNullOrWhiteSpace(zeroHourPath))
+        {
+            return null;
+        }
+
+        // The probe is the enumeration itself: Directory.Exists returns false for an
+        // unreadable directory as well as a missing one, which would report a permission
+        // problem as absent content. Only DirectoryNotFoundException means absence.
+        var bundled = Path.Combine(zeroHourPath, GameClientConstants.ZhGeneralsDirectory);
+        try
+        {
+            return Directory.EnumerateFiles(bundled, RetailArchiveConstants.ArchiveSearchPattern, RetailArchiveConstants.ArchiveSearch).Any()
+                ? bundled
+                : null;
+        }
+        catch (DirectoryNotFoundException)
+        {
+            return null;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return bundled;
+        }
+    }
+
+    /// <summary>
+    /// Resolves the effective path to base Generals retail archives, checking <paramref name="generalsPath"/> first
+    /// and falling back to <paramref name="bundledGeneralsPath"/> if present.
+    /// </summary>
+    /// <param name="generalsPath">The declared Generals path.</param>
+    /// <param name="bundledGeneralsPath">The bundled Generals path.</param>
+    /// <returns>The effective path to base Generals retail archives, or <c>null</c>.</returns>
+    public static string? GetEffectiveGeneralsArchivePath(string? generalsPath, string? bundledGeneralsPath) =>
+        !string.IsNullOrWhiteSpace(generalsPath) ? generalsPath : bundledGeneralsPath;
+
     private static bool HasValidExecutableInternal(string? directoryPath, IReadOnlyList<string> validExecutables)
     {
         if (string.IsNullOrWhiteSpace(directoryPath) || !Directory.Exists(directoryPath))

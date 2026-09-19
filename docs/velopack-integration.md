@@ -125,7 +125,7 @@ GenHub provides three update channels that users can switch between:
 - **Versions**: `0.0.X-prY` format
 - **Updates**: Specific Pull Request CI builds
 - **Recommended for**: Testing specific feature branches or bug fix pull requests
-- **Requires**: GitHub Personal Access Token (PAT) with `repo` scope
+- **Requires**: GitHub sign-in (OAuth device flow)
 
 #### Subscribing to PR Builds
 
@@ -472,7 +472,7 @@ To test updates:
 ### Update Check Fails
 
 - **GitHub Releases**: Ensure repository is public or provide authentication
-- **PR Artifacts**: Requires GitHub PAT with `repo` scope
+- **PR Artifacts**: Requires GitHub sign-in (OAuth device flow)
 - Verify GitHub Releases/Actions contain Velopack packages
 - Check network connectivity
 - Review logs for specific error messages
@@ -499,8 +499,8 @@ Common issues:
    - This is expected - versions are identical
 
 3. **Authentication errors**
-   - GitHub PAT missing or invalid
-   - PAT needs `repo` scope for private repos
+   - GitHub sign-in missing or expired
+   - Sign in again via Settings → Updates → GitHub Account
 
 ### App Doesn't Restart After Update
 
@@ -517,12 +517,12 @@ When GenHub is installed into a custom directory via `--installto <path>` or rel
 
 ## Security Considerations
 
-### GitHub Personal Access Tokens
+### GitHub Device Flow Sign-In
 
-- **Storage**: Tokens are stored in Windows Credential Manager (Windows) or Keyring (Linux)
-- **Scope**: Only `repo` scope is required
-- **Usage**: Only for downloading PR artifacts
-- **Rotation**: Users can update/remove tokens at any time
+- **Storage**: Tokens are stored encrypted at rest (DPAPI on Windows, AES-GCM encrypted file on Linux/macOS)
+- **Scope**: `public_repo` (public repository data and CI artifacts) and `read:user` (profile)
+- **Usage**: Only for downloading PR artifacts and raising API rate limits
+- **Sign-out**: Users can sign out at any time from Settings → Updates → GitHub Account
 
 ### Update Verification
 

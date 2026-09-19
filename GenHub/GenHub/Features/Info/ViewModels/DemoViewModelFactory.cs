@@ -153,8 +153,8 @@ public static class DemoViewModelFactory
             StatusMessage = "New feature update available!",
             ReleaseNotesUrl = "https://github.com/undead2146/GeneralsHub/releases",
 
-            // Enable PAT features for demo to show "Browse Builds" tab
-            HasPat = true,
+            // Enable authenticated features for demo to show "Browse Builds" tab
+            IsAuthenticated = true,
         };
 
         // Pre-load dummy data directly to ensure it appears in the demo
@@ -176,49 +176,6 @@ public static class DemoViewModelFactory
         }
 
         return vm;
-    }
-
-    /// <summary>
-    /// Creates a demo GameSettingsViewModel with mock data.
-    /// </summary>
-    /// <returns>A configured demo settings view model.</returns>
-    public static GameSettingsViewModel CreateDemoGameSettingsViewModel()
-    {
-        try
-        {
-            var mockService = new MockGameSettingsService();
-            var mockLogger = new MockLogger<GameSettingsViewModel>();
-
-            var vm = new GameSettingsViewModel(mockService, mockLogger);
-
-            // Initialize with default mock data
-            // Use fire-and-forget but safer
-            _ = Task.Run(() => vm.InitializeForProfileAsync(null, null));
-
-            // Manually populate with interesting data for the demo
-            vm.ResolutionWidth = 2560;
-            vm.ResolutionHeight = 1440;
-            vm.GoCameraMaxHeightOnlyWhenLobbyHost = 550;
-            vm.Windowed = false;
-
-            // vm.PoolSize = 1024; // Not available
-            vm.TextureQuality = GenHub.Core.Models.Enums.TextureQuality.High;
-            vm.Shadows = true;
-
-            vm.ParticleEffects = true;
-            vm.ExtraAnimations = true;
-
-            return vm;
-        }
-        catch (Exception ex)
-        {
-            System.Diagnostics.Debug.WriteLine($"Failed to create full demo game settings view model: {ex}");
-
-            // Fallback
-            var mockService = new MockGameSettingsService();
-            var mockLogger = new MockLogger<GameSettingsViewModel>();
-            return new(mockService, mockLogger);
-        }
     }
 
     /// <summary>

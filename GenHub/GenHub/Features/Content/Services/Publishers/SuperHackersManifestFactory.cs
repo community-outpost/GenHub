@@ -158,7 +158,7 @@ public class SuperHackersManifestFactory(
             Metadata = new()
             {
                 Description = SuperHackersConstants.LocalInstallDescription,
-                ReleaseDate = DateTime.Now,
+                ReleaseDate = DateTime.UtcNow,
             },
         };
 

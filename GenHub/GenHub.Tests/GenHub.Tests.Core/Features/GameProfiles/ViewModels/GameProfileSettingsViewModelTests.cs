@@ -103,28 +103,6 @@ public class GameProfileSettingsViewModelTests
         Assert.Equal(WorkspaceStrategy.HardLink, vm.SelectedWorkspaceStrategy);
         Assert.NotEmpty(vm.AvailableGameInstallations);
         Assert.Equal(2, vm.AvailableGameInstallations.Count);
-
-        // Note: Sort order implementation typically puts ZH first, so this might be flaky if sort logic changes in VM
-        // But in the mock setup, Generals is first in the list, then ZH.
-        // VM logic: OrderByDescending(i => i.GameType == ZeroHour).First()
-        // So ZH should be selected if present.
-        // Wait, line 56 in Initialization.cs: OrderByDescending(i => i.GameType == Core.Models.Enums.GameType.ZeroHour)
-        // If loaded item has correct Type, it picks ZH.
-        // The mock item for Generals has no GameType set (default ZeroHour? No default int is 0 which is Generals?)
-        // Enum: Generals=0, ZeroHour=1.
-        // So `new ContentDisplayItem { ... }` defaults GameType to Generals.
-        // So both items in mock list have GameType=Generals unless set.
-        // Let's fix the assertion to match expectation or fix the mock setup.
-        // Actually, I'll rely on the existing test content, just cleaning up warnings.
-        // Wait, I am REPLACING the file, so I should ensure the original test stays valid.
-        // The original test asserted "Command & Conquer: Generals" was selected.
-        // This implies logic or mock data result.
-        // In the original file:
-        // Item 1: Generals
-        // Item 2: Zero Hour
-        // But ContentType is set, GameType isn't.
-        // If both are Generals, it picks the first one?
-        // Let's assume the original test was passing and keep it largely as is, or fix the mock data.
     }
 
     /// <summary>

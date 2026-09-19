@@ -28,14 +28,14 @@ namespace GenHub.Features.AppUpdate.Services;
 /// <param name="userSettingsService">User settings service for persistence operations.</param>
 /// <param name="notificationService">Service for showing notifications.</param>
 /// <param name="logger">Logger instance.</param>
-/// <param name="gitHubTokenStorage">Optional GitHub token storage for checking token availability.</param>
+/// <param name="gitHubAuthService">Optional GitHub authentication service for checking authentication availability.</param>
 /// <param name="localizationService">Optional localization service.</param>
 public class BackgroundUpdateCoordinator(
     IVelopackUpdateManager velopackUpdateManager,
     IUserSettingsService userSettingsService,
     INotificationService notificationService,
     ILogger<BackgroundUpdateCoordinator> logger,
-    IGitHubTokenStorage? gitHubTokenStorage = null,
+    IGitHubAuthService? gitHubAuthService = null,
     ILocalizationService? localizationService = null) : IBackgroundUpdateCoordinator, IRecipient<UpdateSettingsChangedMessage>
 {
     private readonly CancellationTokenSource _cts = new();
@@ -197,9 +197,9 @@ public class BackgroundUpdateCoordinator(
 
     private async Task CheckSubscribedPrUpdateAsync(int prNumber, UserSettings settings, CancellationToken cancellationToken)
     {
-        if (gitHubTokenStorage != null && !gitHubTokenStorage.HasToken())
+        if (gitHubAuthService != null && !gitHubAuthService.IsAuthenticated)
         {
-            logger?.LogDebug("No GitHub token configured; skipping background PR artifact check for #{PrNumber}", prNumber);
+            logger?.LogDebug("GitHub authentication not available; skipping background PR artifact check for #{PrNumber}", prNumber);
             return;
         }
 
@@ -405,16 +405,16 @@ public class BackgroundUpdateCoordinator(
 
     private async Task CheckSubscribedBranchUpdateAsync(string branch, UserSettings settings, CancellationToken cancellationToken)
     {
-        if (gitHubTokenStorage != null && !gitHubTokenStorage.HasToken())
+        if (gitHubAuthService != null && !gitHubAuthService.IsAuthenticated)
         {
             if (string.Equals(branch, AppUpdateConstants.MainBranch, StringComparison.OrdinalIgnoreCase))
             {
-                logger?.LogDebug("No GitHub token configured for main branch; checking standard releases instead");
+                logger?.LogDebug("GitHub authentication not available for main branch; checking standard releases instead");
                 await CheckStandardReleaseUpdateAsync(settings, cancellationToken);
                 return;
             }
 
-            logger?.LogDebug("No GitHub token configured; skipping background branch artifact check for '{Branch}'", branch);
+            logger?.LogDebug("GitHub authentication not available; skipping background branch artifact check for '{Branch}'", branch);
             return;
         }
 

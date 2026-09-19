@@ -1,4 +1,5 @@
 using GenHub.Core.Constants;
+using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
@@ -7,7 +8,6 @@ using Microsoft.Extensions.Logging;
 using System;
 using System.IO;
 using System.Text.Json;
-using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -18,11 +18,7 @@ namespace GenHub.Features.Content.Services.ContentResolvers;
 /// </summary>
 public class LocalManifestResolver(ILogger<LocalManifestResolver> logger) : IContentResolver
 {
-    private static readonly JsonSerializerOptions JsonOptions = new()
-    {
-        PropertyNameCaseInsensitive = true,
-        Converters = { new JsonStringEnumConverter(), new ManifestIdJsonConverter() },
-    };
+    private const string FailedToResolveManifestLogMessage = "Failed to resolve manifest from local file: {Path}";
 
     /// <summary>
     /// Gets the resolver ID for local manifest content.
@@ -56,18 +52,18 @@ public class LocalManifestResolver(ILogger<LocalManifestResolver> logger) : ICon
         try
         {
             var manifestJson = await File.ReadAllTextAsync(manifestPath, cancellationToken);
-            var manifest = JsonSerializer.Deserialize<ContentManifest>(manifestJson, JsonOptions);
+            var manifest = JsonSerializer.Deserialize<ContentManifest>(manifestJson, ManifestJsonOptions.Default);
 
-            if (manifest == null)
+            if (manifest == null || string.IsNullOrWhiteSpace(manifest.Id.Value) || manifest.Files == null || manifest.Files.Count == 0)
             {
-                return OperationResult<ContentManifest>.CreateFailure("Failed to deserialize manifest.");
+                return OperationResult<ContentManifest>.CreateFailure("Manifest is missing required fields.");
             }
 
             return OperationResult<ContentManifest>.CreateSuccess(manifest);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is JsonException or ArgumentException or IOException or UnauthorizedAccessException)
         {
-            logger.LogError(ex, "Failed to resolve manifest from local file: {Path}", manifestPath);
+            logger.LogError(ex, FailedToResolveManifestLogMessage, manifestPath);
             return OperationResult<ContentManifest>.CreateFailure($"Failed to read or parse local manifest: {ex.Message}");
         }
     }

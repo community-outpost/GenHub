@@ -2456,34 +2456,6 @@
     <value>الإصدار الحالي</value>
     <comment>Label for current version.</comment>
   </data>
-  <data name="Settings.Updates.GitHubPat.CreateButton" xml:space="preserve">
-    <value>إنشاء رمز PAT ←</value>
-    <comment>Button to create PAT on GitHub.</comment>
-  </data>
-  <data name="Settings.Updates.GitHubPat.CreateToolTip" xml:space="preserve">
-    <value>انقر لفتح صفحة إنشاء رمز الوصول الشخصي (PAT) على GitHub</value>
-    <comment>Tooltip for create PAT button.</comment>
-  </data>
-  <data name="Settings.Updates.GitHubPat.Label" xml:space="preserve">
-    <value>رمز الوصول الشخصي لـ GitHub (لتحديثات العناصر المُنشأة)</value>
-    <comment>Label for PAT.</comment>
-  </data>
-  <data name="Settings.Updates.GitHubPat.Remove" xml:space="preserve">
-    <value>إزالة رمز PAT</value>
-    <comment>Button to remove PAT.</comment>
-  </data>
-  <data name="Settings.Updates.GitHubPat.SaveAndTest" xml:space="preserve">
-    <value>حفظ واختبار</value>
-    <comment>Button to save and test PAT.</comment>
-  </data>
-  <data name="Settings.Updates.GitHubPat.ScopeDescription" xml:space="preserve">
-    <value>يلزم توفر رمز PAT بنطاق 'repo' للوصول إلى عناصر GitHub CI.</value>
-    <comment>Description for PAT scope.</comment>
-  </data>
-  <data name="Settings.Updates.GitHubPat.Warning" xml:space="preserve">
-    <value>للاشتراك في طلبات السحب (Pull Requests) أو اختبار فروع معينة، يجب عليك تكوين رمز الوصول أعلاه. يتيح ذلك لـ GenHub تنزيل البناء مباشرة من GitHub CI.</value>
-    <comment>Warning about PAT necessity.</comment>
-  </data>
   <data name="Settings.Updates.ManageUpdatesButton" xml:space="preserve">
     <value>إدارة التحديثات وطلبات السحب</value>
     <comment>Button to open Updates window.</comment>
@@ -3094,6 +3066,10 @@
     <value>جارٍ التحقق من وجود تحديثات...</value>
     <comment>Status message while checking for updates</comment>
   </data>
+  <data name="Updates.Status.AuthRequiredForArtifacts" xml:space="preserve">
+    <value>سجّل الدخول باستخدام GitHub للوصول إلى إصدارات الفروع وطلبات السحب.</value>
+    <comment>Status message when branch or PR builds require GitHub sign-in</comment>
+  </data>
   <data name="Updates.Status.NoUpdatesAvailable" xml:space="preserve">
     <value>لا توجد تحديثات متاحة</value>
     <comment>Status message when no updates are available</comment>
@@ -3383,19 +3359,13 @@
     <value>حاول النقر على 'استعراض الإصدارات' لرؤية الإصدارات التجريبية للمطورين!</value>
   </data>
   <data name="Info.Demo.AppUpdates.CiArtifactsTitle" xml:space="preserve">
-    <value>متقدم: عناصر CI ورمز وصول GitHub</value>
+    <value>متقدم: عناصر CI وتسجيل الدخول إلى GitHub</value>
   </data>
   <data name="Info.Demo.AppUpdates.CiArtifactsSubtitle" xml:space="preserve">
     <value>اشترك في طلبات السحب أو فروع معينة لاختبار الميزات الجديدة قبل دمجها.</value>
   </data>
   <data name="Info.Demo.AppUpdates.CiDescription" xml:space="preserve">
-    <value>عناصر CI (التكامل المستمر) هي إصدارات مؤتمتة تم إنشاؤها بواسطة GitHub لكل تغيير في التعليمات البرمجية. للوصول إلى هذه الموارد المحمية، يتطلب GenHub رمز وصول شخصي.</value>
-  </data>
-  <data name="Info.Demo.AppUpdates.PatTitle" xml:space="preserve">
-    <value>رمز الوصول الشخصي لـ GitHub</value>
-  </data>
-  <data name="Info.Demo.AppUpdates.PatHint" xml:space="preserve">
-    <value>جرب إدخال 'ghp_demo' والنقر فوق حفظ واختبار لرؤية التحقق أثناء عمله!</value>
+    <value>عناصر CI (التكامل المستمر) هي إصدارات مؤتمتة تم إنشاؤها بواسطة GitHub لكل تغيير في التعليمات البرمجية. للوصول إلى هذه الموارد المحمية، سجّل الدخول باستخدام GitHub من الإعدادات.</value>
   </data>
   <data name="Info.Demo.GameSettings.Title" xml:space="preserve">
     <value>عرض توضيحي: تكوين Options.ini</value>
@@ -4078,33 +4048,6 @@
   <data name="Theme.Color.DarkGrey" xml:space="preserve">
     <value>رمادي داكن</value>
   </data>
-  <data name="Settings.GitHubPat.Status.AuthFailed" xml:space="preserve">
-    <value>فشلت مصادقة GitHub. يرجى التحقق من صحة الرمز المميز الخاص بك.</value>
-  </data>
-  <data name="Settings.GitHubPat.Status.ClientNotAvailable" xml:space="preserve">
-    <value>عميل واجهة برمجة تطبيقات GitHub غير متوفر</value>
-  </data>
-  <data name="Settings.GitHubPat.Status.PleaseEnter" xml:space="preserve">
-    <value>يرجى إدخال GitHub PAT</value>
-  </data>
-  <data name="Settings.GitHubPat.Status.Removed" xml:space="preserve">
-    <value>تمت إزالة GitHub PAT</value>
-  </data>
-  <data name="Settings.GitHubPat.Status.RemovedWithEnv" xml:space="preserve">
-    <value>تمت إزالة GitHub PAT (تم إلغاء تنشيط متغير البيئة لهذه الجلسة)</value>
-  </data>
-  <data name="Settings.GitHubPat.Status.StorageNotAvailable" xml:space="preserve">
-    <value>تخزين الرمز المميز غير متوفر</value>
-  </data>
-  <data name="Settings.GitHubPat.Status.Testing" xml:space="preserve">
-    <value>جارٍ اختبار PAT...</value>
-  </data>
-  <data name="Settings.GitHubPat.Status.ValidatedSuccess" xml:space="preserve">
-    <value>تم التحقق من PAT بنجاح ✓</value>
-  </data>
-  <data name="Settings.GitHubPat.Status.SavedPending" xml:space="preserve">
-    <value>تم حفظ رمز الوصول الشخصي (في انتظار التحقق)</value>
-  </data>
   <data name="Tools.Dialog.PluginFileType" xml:space="preserve">
     <value>تجميعة ملحقات الأدوات</value>
   </data>
@@ -4146,9 +4089,6 @@
   </data>
   <data name="Updates.Label.UpdatedDateFormat" xml:space="preserve">
     <value>تم التحديث: {0:g}</value>
-  </data>
-  <data name="Info.Demo.AppUpdates.PatSaveTest" xml:space="preserve">
-    <value>حفظ واختبار</value>
   </data>
   <data name="ContentType.GameInstallation" xml:space="preserve">
     <value>تثبيت اللعبة</value>
@@ -4296,24 +4236,6 @@
   </data>
   <data name="Info.Section.changelogs.Description" xml:space="preserve">
     <value>سجل مفصل للتحسينات والإصلاحات والميزات عبر جميع إصدارات GenHub.</value>
-  </data>
-  <data name="Settings.GitHubPat.Status.Configured" xml:space="preserve">
-    <value>تم تكوين GitHub PAT ✓</value>
-  </data>
-  <data name="Settings.GitHubPat.Status.EnvConfigured" xml:space="preserve">
-    <value>تم التكوين عبر متغير البيئة</value>
-  </data>
-  <data name="Settings.GitHubPat.Status.NotConfigured" xml:space="preserve">
-    <value>لم يتم تكوين GitHub PAT</value>
-  </data>
-  <data name="Settings.GitHubPat.Status.CheckError" xml:space="preserve">
-    <value>خطأ في التحقق من حالة PAT</value>
-  </data>
-  <data name="Settings.GitHubPat.Status.InvalidFormat" xml:space="preserve">
-    <value>PAT غير صالح: {0}</value>
-  </data>
-  <data name="Settings.GitHubPat.Status.ErrorFormat" xml:space="preserve">
-    <value>خطأ: {0}</value>
   </data>
   <data name="Tools.GenPatcher.Notify.CancellingFixDesc" xml:space="preserve">
     <value>جارٍ إلغاء تطبيق {0}...</value>
@@ -4472,7 +4394,7 @@
     <value>تبديل تفاصيل الإصدار</value>
   </data>
   <data name="Info.Changelog.RateLimited" xml:space="preserve">
-    <value>تم تجاوز حد طلبات GitHub API. يرجى تكوين رمز وصول شخصي في الإعدادات أو المحاولة مرة أخرى لاحقًا.</value>
+    <value>تم تجاوز حد طلبات GitHub API. سجّل الدخول باستخدام GitHub في الإعدادات لزيادة الحد، أو حاول مرة أخرى لاحقًا.</value>
   </data>
   <data name="Info.Changelog.NoReleasesFound" xml:space="preserve">
     <value>لم يتم العثور على سجلات تغيير للإصدارات.</value>
@@ -4500,21 +4422,6 @@
   </data>
   <data name="Info.WorkspaceDemo.Description" xml:space="preserve">
     <value>تنشئ هذه العملية تثبيت لعبة 'افتراضي' بالكامل في أجزاء من الثانية باستخدام مساحة قرص شبه معدومة.</value>
-  </data>
-  <data name="GitHub.TokenDialog.TokenLabel" xml:space="preserve">
-    <value>رمز الوصول الشخصي:</value>
-  </data>
-  <data name="GitHub.TokenDialog.NoTokenPrompt" xml:space="preserve">
-    <value>ليس لديك رمز وصول شخصي؟</value>
-  </data>
-  <data name="GitHub.TokenDialog.CreatePatLink" xml:space="preserve">
-    <value>إنشاء رمز وصول شخصي على GitHub ←</value>
-  </data>
-  <data name="GitHub.TokenDialog.CreatePatTooltip" xml:space="preserve">
-    <value>انقر لفتح صفحة إنشاء رمز PAT على GitHub</value>
-  </data>
-  <data name="GitHub.TokenDialog.ValidatingToken" xml:space="preserve">
-    <value>جارٍ التحقق من الرمز...</value>
   </data>
   <data name="Downloads.Browser.Publishers" xml:space="preserve">
     <value>الناشرون</value>
@@ -8994,10 +8901,6 @@ GameFilesEdited/Data/INI/**/*.ini</value>
   <data name="GameProfiles.ShareDialog.Notification.LoadProfileFailed.Message" xml:space="preserve">
     <value>فشل تحميل تفاصيل ملف التعريف.</value>
   </data>
-  <data name="GitHub.TokenDialog.Title" xml:space="preserve">
-    <value>مصادقة GitHub</value>
-    <comment>Title for GitHub PAT dialog</comment>
-  </data>
   <data name="GenLauncher.Prefix.News" xml:space="preserve">
     <value>الأخبار</value>
   </data>
@@ -9476,4 +9379,87 @@ GameFilesEdited/Data/INI/**/*.ini</value>
     <value>خطأ في مدير الملفات</value>
   </data>
 
+
+  <data name="Updates.Status.InstallationFailed" xml:space="preserve">
+    <value>فشل التثبيت</value>
+  </data>
+  <data name="Updates.Status.NoArtifactAvailable" xml:space="preserve">
+    <value>لا يوجد عنصر متاح</value>
+  </data>
+  <data name="Tools.GenHotkeys.Status.HotkeyAssigned" xml:space="preserve">
+    <value>تم تعيين مفتاح الاختصار {0}.</value>
+  </data>
+  <data name="Tools.GenHotkeys.Notification.HotkeyAssignedTitle" xml:space="preserve">
+    <value>تم تعيين مفتاح الاختصار</value>
+  </data>
+  <data name="Tools.GenHotkeys.Notification.HotkeyAssigned" xml:space="preserve">
+    <value>تم تعيين {0}.</value>
+  </data>
+
+  <data name="Settings.GitHubAuth.Label" xml:space="preserve">
+    <value>حساب GitHub</value>
+  </data>
+  <data name="Settings.GitHubAuth.SignedOut.Description" xml:space="preserve">
+    <value>سجّل الدخول باستخدام GitHub لفتح حدود أعلى لواجهة API والوصول إلى إصدارات التطوير والفروع وطلبات السحب. يطلب GenHub صلاحية القراءة والكتابة للمستودعات العامة وصلاحية القراءة فقط لملفك الشخصي.</value>
+  </data>
+  <data name="Settings.GitHubAuth.SignedOut.SignInButton" xml:space="preserve">
+    <value>تسجيل الدخول باستخدام GitHub</value>
+  </data>
+  <data name="Settings.GitHubAuth.Authorizing.Instructions" xml:space="preserve">
+    <value>أدخل هذا الرمز على GitHub لتفويض GenHub:</value>
+  </data>
+  <data name="Settings.GitHubAuth.Authorizing.CopyAndOpen" xml:space="preserve">
+    <value>نسخ الرمز وفتح GitHub</value>
+  </data>
+  <data name="Settings.GitHubAuth.Authorizing.Cancel" xml:space="preserve">
+    <value>إلغاء</value>
+  </data>
+  <data name="Settings.GitHubAuth.Authorizing.Waiting" xml:space="preserve">
+    <value>بانتظار الموافقة في المتصفح...</value>
+  </data>
+  <data name="Settings.GitHubAuth.SignedIn.SignOut" xml:space="preserve">
+    <value>تسجيل الخروج</value>
+  </data>
+  <data name="Settings.GitHubAuth.SignedIn.RateLimit" xml:space="preserve">
+    <value>{0} من {1} طلبات متبقية</value>
+  </data>
+  <data name="Settings.GitHubAuth.Toast.Title" xml:space="preserve">
+    <value>GitHub</value>
+  </data>
+  <data name="Settings.GitHubAuth.Toast.SignedIn" xml:space="preserve">
+    <value>تم تسجيل الدخول باسم {0}.</value>
+  </data>
+  <data name="Settings.GitHubAuth.Toast.SignInFailed" xml:space="preserve">
+    <value>فشل تسجيل الدخول: {0}</value>
+  </data>
+  <data name="Settings.GitHubAuth.Toast.SignedOut" xml:space="preserve">
+    <value>تم تسجيل الخروج من GitHub.</value>
+  </data>
+  <data name="Settings.GitHubAuth.Toast.CodeCopied" xml:space="preserve">
+    <value>تم نسخ الرمز. جارٍ فتح GitHub في المتصفح...</value>
+  </data>
+  <data name="Settings.GitHubAuth.Toast.CodeCopyFailed" xml:space="preserve">
+    <value>تعذر نسخ الرمز: {0}</value>
+  </data>
+  <data name="Settings.GitHubAuth.Toast.ServiceUnavailable" xml:space="preserve">
+    <value>مصادقة GitHub غير متاحة.</value>
+  </data>
+  <data name="Settings.GitHubAuth.Status.SignedIn" xml:space="preserve">
+    <value>تم تسجيل الدخول</value>
+  </data>
+  <data name="Settings.GitHubAuth.Status.SignedOut" xml:space="preserve">
+    <value>لم يتم تسجيل الدخول</value>
+  </data>
+  <data name="Settings.GitHubAuth.Toast.BrowserOpenFailed" xml:space="preserve">
+    <value>تم نسخ الرمز إلى الحافظة، ولكن تعذر فتح GitHub تلقائيًا. أدخل الرمز يدويًا.</value>
+  </data>
+  <data name="Info.Demo.AppUpdates.AuthTitle" xml:space="preserve">
+    <value>تسجيل الدخول باستخدام GitHub</value>
+  </data>
+  <data name="Info.Demo.AppUpdates.AuthDescription" xml:space="preserve">
+    <value>بدلاً من الرموز اليدوية، يستخدم GenHub تدفق الأجهزة من GitHub: انقر على تسجيل الدخول، وأدخل الرمز القصير في المتصفح، ووافق على الوصول إلى المستودعات العامة.</value>
+  </data>
+  <data name="Info.Demo.AppUpdates.AuthSampleCode" xml:space="preserve">
+    <value>WDAS-5678</value>
+  </data>
 </root>

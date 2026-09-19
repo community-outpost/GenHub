@@ -13,6 +13,7 @@ using GenHub.Core.Models.GameProfiles;
 using GenHub.Features.AppUpdate.Interfaces;
 using GenHub.Features.Downloads.ViewModels;
 using GenHub.Features.GameProfiles.ViewModels;
+using GenHub.Features.GitHub.Services;
 using GenHub.Features.Info.ViewModels;
 using GenHub.Features.Notifications.ViewModels;
 using GenHub.Features.Settings.ViewModels;
@@ -59,9 +60,9 @@ public static class SharedViewModelModule
             sp.GetRequiredService<IStorageMigrationService>(),
             sp.GetService<IThemeService>(),
             /* Optional dependencies that can be null if GitHub integration is not configured */
-            sp.GetService<IGitHubTokenStorage>(),
+            sp.GetService<IGitHubAuthService>(),
+            sp.GetService<GitHubRateLimitTracker>(),
             sp.GetService<IUploadHistoryService>(),
-            sp.GetService<IGitHubApiClient>(),
             sp.GetRequiredService<IPublisherSubscriptionStore>(),
             sp.GetRequiredService<IPublisherCatalogRefreshService>(),
             sp.GetService<ILocalizationService>()));

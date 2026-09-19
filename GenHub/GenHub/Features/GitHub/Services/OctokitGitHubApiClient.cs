@@ -25,15 +25,19 @@ public class OctokitGitHubApiClient(
     ILogger<OctokitGitHubApiClient> logger,
     IMemoryCache cache,
     IGitHubTokenStorage? tokenStorage = null,
-    GitHubRateLimitTracker? rateLimitTracker = null)
+    GitHubRateLimitTracker? rateLimitTracker = null,
+    IGitHubAuthService? authService = null)
     : IGitHubApiClient
 {
     private const int MaxPerPage = 100;
     private static readonly TimeSpan DefaultCacheDuration = TimeSpan.FromHours(1);
     private static readonly TimeSpan SearchCacheDuration = TimeSpan.FromHours(4);
+    private readonly object _credentialLock = new();
     private SecureString? token;
     private bool _credentialsExplicitlyCleared;
     private bool _credentialsLoaded;
+    private bool _authSubscribed;
+    private int _credentialGeneration;
 
     /// <summary>
     /// Gets a value indicating whether the client is authenticated.
@@ -47,7 +51,13 @@ public class OctokitGitHubApiClient(
                 return true;
             }
 
-            if (!_credentialsLoaded && !_credentialsExplicitlyCleared)
+            var needsLoad = false;
+            lock (_credentialLock)
+            {
+                needsLoad = !_credentialsLoaded && !_credentialsExplicitlyCleared;
+            }
+
+            if (needsLoad)
             {
                 EnsureCredentialsLoadedFast();
             }
@@ -167,12 +177,12 @@ public class OctokitGitHubApiClient(
 
                 if (!isAuth)
                 {
-                    logger.LogError("No authentication available for artifact download. Please configure a GitHub token.");
-                    throw new InvalidOperationException("GitHub authentication required for artifact downloads. Please configure a GitHub token.");
+                    logger.LogError("No authentication available for artifact download. Please sign in with GitHub in Settings.");
+                    throw new InvalidOperationException("GitHub authentication required for artifact downloads. Please sign in with GitHub in Settings.");
                 }
             }
 
-            var artifactUrl = $"https://api.github.com/repos/{owner}/{repo}/actions/artifacts/{artifact.Id}/zip";
+            var artifactUrl = string.Format(ApiConstants.GitHubApiArtifactDownloadFormat, owner, repo, artifact.Id);
             logger.LogInformation("Requesting artifact from URL: {Url}", artifactUrl);
 
             var httpClient = httpClientFactory.CreateClient("GitHubApi");
@@ -567,39 +577,12 @@ public class OctokitGitHubApiClient(
             throw new ArgumentException("Token cannot be null or empty.", nameof(token));
         }
 
-        _credentialsExplicitlyCleared = false;
-        _credentialsLoaded = true;
-
-        this.token?.Dispose();
-        this.token = token.Copy();
-        this.token.MakeReadOnly();
-
-        IntPtr tokenPtr = IntPtr.Zero;
-        try
+        lock (_credentialLock)
         {
-            tokenPtr = Marshal.SecureStringToGlobalAllocUnicode(this.token);
-            string tokenString = Marshal.PtrToStringUni(tokenPtr) ?? throw new InvalidOperationException("Failed to convert secure token to string.");
-
-            if (gitHubClient is GitHubClient concreteClient)
-            {
-                concreteClient.Credentials = new Credentials(tokenString);
-                logger.LogInformation(
-                    "GitHub authentication token set successfully. IsAuthenticated: {IsAuth}, Type: {AuthType}",
-                    concreteClient.Credentials != Credentials.Anonymous,
-                    concreteClient.Credentials.AuthenticationType);
-            }
-            else
-            {
-                logger.LogError("Failed to set GitHub token - client does not support setting credentials");
-                throw new InvalidOperationException("The GitHub client does not support setting credentials.");
-            }
-        }
-        finally
-        {
-            if (tokenPtr != IntPtr.Zero)
-            {
-                Marshal.ZeroFreeGlobalAllocUnicode(tokenPtr);
-            }
+            // An explicit set opens a new epoch so in-flight background loads
+            // cannot overwrite it with stale credentials.
+            _credentialGeneration++;
+            InstallAuthenticationToken(token);
         }
     }
 
@@ -608,14 +591,20 @@ public class OctokitGitHubApiClient(
     /// </summary>
     public void ClearAuthenticationToken()
     {
-        _credentialsExplicitlyCleared = true;
-        _credentialsLoaded = true;
-        token?.Dispose();
-        token = null;
-        if (gitHubClient is GitHubClient client)
+        lock (_credentialLock)
         {
-            client.Credentials = Credentials.Anonymous;
-            logger.LogInformation("GitHub authentication token cleared");
+            // A clear opens a new epoch so an in-flight background load that
+            // already passed its cleared check cannot resurrect these credentials.
+            _credentialGeneration++;
+            _credentialsExplicitlyCleared = true;
+            _credentialsLoaded = true;
+            token?.Dispose();
+            token = null;
+            if (gitHubClient is GitHubClient client)
+            {
+                client.Credentials = Credentials.Anonymous;
+                logger.LogInformation("GitHub authentication token cleared");
+            }
         }
     }
 
@@ -918,16 +907,100 @@ public class OctokitGitHubApiClient(
         };
     }
 
+    private void InstallAuthenticationToken(SecureString token)
+    {
+        _credentialsExplicitlyCleared = false;
+        _credentialsLoaded = true;
+
+        this.token?.Dispose();
+        this.token = token.Copy();
+        this.token.MakeReadOnly();
+
+        IntPtr tokenPtr = IntPtr.Zero;
+        try
+        {
+            tokenPtr = Marshal.SecureStringToGlobalAllocUnicode(this.token);
+            string tokenString = Marshal.PtrToStringUni(tokenPtr) ?? throw new InvalidOperationException("Failed to convert secure token to string.");
+
+            if (gitHubClient is GitHubClient concreteClient)
+            {
+                concreteClient.Credentials = new Credentials(tokenString);
+                logger.LogInformation(
+                    "GitHub authentication token set successfully. IsAuthenticated: {IsAuth}, Type: {AuthType}",
+                    concreteClient.Credentials != Credentials.Anonymous,
+                    concreteClient.Credentials.AuthenticationType);
+            }
+            else
+            {
+                logger.LogError("Failed to set GitHub token - client does not support setting credentials");
+                throw new InvalidOperationException("The GitHub client does not support setting credentials.");
+            }
+        }
+        finally
+        {
+            if (tokenPtr != IntPtr.Zero)
+            {
+                Marshal.ZeroFreeGlobalAllocUnicode(tokenPtr);
+            }
+        }
+    }
+
+    private void EnsureAuthSubscribed()
+    {
+        lock (_credentialLock)
+        {
+            if (_authSubscribed)
+            {
+                return;
+            }
+
+            _authSubscribed = true;
+        }
+
+        if (authService is { } service)
+        {
+            // Both services are singletons, so this subscription never leaks.
+            service.AuthStateChanged += OnAuthStateChanged;
+        }
+    }
+
+    private void OnAuthStateChanged(object? sender, GitHubAuthStateChangedEventArgs e)
+    {
+        if (e.IsAuthenticated)
+        {
+            lock (_credentialLock)
+            {
+                _credentialGeneration++;
+                _credentialsExplicitlyCleared = false;
+                _credentialsLoaded = false;
+            }
+
+            // The fast path only consumes already-completed reads plus environment
+            // variables, so this never blocks the event publisher on storage I/O.
+            EnsureCredentialsLoadedFast();
+        }
+        else
+        {
+            ClearAuthenticationToken();
+        }
+    }
+
     private void EnsureCredentialsLoadedFast()
     {
-        if (_credentialsLoaded || _credentialsExplicitlyCleared)
+        EnsureAuthSubscribed();
+        if (AreCredentialsSettled())
+        {
+            return;
+        }
+
+        if (!TryBeginCredentialLoad(out var generation))
         {
             return;
         }
 
         if (gitHubClient is GitHubClient client && client.Credentials != Credentials.Anonymous)
         {
-            _credentialsLoaded = true;
+            MarkCredentialsLoaded();
             return;
         }
 
@@ -939,10 +1012,8 @@ public class OctokitGitHubApiClient(
                 if (task.IsCompleted)
                 {
                     using var storedToken = task.GetAwaiter().GetResult();
-                    if (storedToken is { Length: > 0 })
+                    if (storedToken is { Length: > 0 } && TryApplyLoadedToken(storedToken, generation))
                     {
-                        SetAuthenticationToken(storedToken);
-                        _credentialsLoaded = true;
                         return;
                     }
                 }
@@ -953,20 +1024,21 @@ public class OctokitGitHubApiClient(
             }
         }
 
-        TryLoadCredentialsFromEnvironment();
-        _credentialsLoaded = true;
+        TryLoadCredentialsFromEnvironment(generation);
+        MarkCredentialsLoaded();
     }
 
     private async Task EnsureCredentialsLoadedAsync()
     {
-        if (_credentialsExplicitlyCleared)
+        EnsureAuthSubscribed();
+        if (!TryBeginCredentialLoad(out var generation))
         {
             return;
         }
 
         if (gitHubClient is GitHubClient client && client.Credentials != Credentials.Anonymous)
         {
-            _credentialsLoaded = true;
+            MarkCredentialsLoaded();
             return;
         }
 
@@ -975,10 +1047,8 @@ public class OctokitGitHubApiClient(
             try
             {
                 using var storedToken = await storage.LoadTokenAsync().ConfigureAwait(false);
-                if (storedToken is { Length: > 0 })
+                if (storedToken is { Length: > 0 } && TryApplyLoadedToken(storedToken, generation))
                 {
-                    SetAuthenticationToken(storedToken);
-                    _credentialsLoaded = true;
                     return;
                 }
             }
@@ -988,17 +1058,60 @@ public class OctokitGitHubApiClient(
             }
         }
 
-        TryLoadCredentialsFromEnvironment();
-        _credentialsLoaded = true;
+        TryLoadCredentialsFromEnvironment(generation);
+        MarkCredentialsLoaded();
     }
 
-    private void TryLoadCredentialsFromEnvironment()
+    private bool AreCredentialsSettled()
     {
-        if (_credentialsExplicitlyCleared)
+        lock (_credentialLock)
         {
-            return;
+            return _credentialsLoaded || _credentialsExplicitlyCleared || IsAuthServiceSignedOut();
         }
+    }
 
+    private bool TryBeginCredentialLoad(out int generation)
+    {
+        lock (_credentialLock)
+        {
+            generation = _credentialGeneration;
+            return !_credentialsExplicitlyCleared && !IsAuthServiceSignedOut();
+        }
+    }
+
+    private bool TryApplyLoadedToken(SecureString token, int generation)
+    {
+        lock (_credentialLock)
+        {
+            if (_credentialsExplicitlyCleared || generation != _credentialGeneration || IsAuthServiceSignedOut())
+            {
+                return false;
+            }
+
+            InstallAuthenticationToken(token);
+            return true;
+        }
+    }
+
+    private void MarkCredentialsLoaded()
+    {
+        lock (_credentialLock)
+        {
+            _credentialsLoaded = true;
+        }
+    }
+
+    private bool IsAuthServiceSignedOut()
+    {
+        // The auth service subscription is lazy, so a sign-out that happened before
+        // the first API call must also suppress credential loads. The service reports
+        // signed out only after an explicit sign-out, so this cannot misfire on a fresh
+        // process where stored or environment credentials are legitimately present.
+        return authService != null && !authService.IsAuthenticated;
+    }
+
+    private void TryLoadCredentialsFromEnvironment(int generation)
+    {
         var genHubToken = Environment.GetEnvironmentVariable(GitHubConstants.GenHubTokenEnvVar);
         if (!string.IsNullOrEmpty(genHubToken))
         {
@@ -1011,10 +1124,13 @@ public class OctokitGitHubApiClient(
                 }
 
                 secure.MakeReadOnly();
-                SetAuthenticationToken(secure);
-                logger.LogInformation(
-                    "Configured GitHub credentials from dedicated environment variable '{EnvVar}'",
-                    GitHubConstants.GenHubTokenEnvVar);
+                if (TryApplyLoadedToken(secure, generation))
+                {
+                    logger.LogInformation(
+                        "Configured GitHub credentials from dedicated environment variable '{EnvVar}'",
+                        GitHubConstants.GenHubTokenEnvVar);
+                }
+
                 return;
             }
             catch (Exception ex)
@@ -1035,12 +1151,14 @@ public class OctokitGitHubApiClient(
                 }
 
                 secure.MakeReadOnly();
-                SetAuthenticationToken(secure);
-                logger.LogWarning(
-                    "Configured GitHub credentials from generic fallback environment variable '{EnvVar}' (token length: {Length}). Prefer using '{PreferredVar}' for GenHub to avoid unintended token sharing across tools.",
-                    GitHubConstants.GitHubTokenEnvVar,
-                    fallbackToken.Length,
-                    GitHubConstants.GenHubTokenEnvVar);
+                if (TryApplyLoadedToken(secure, generation))
+                {
+                    logger.LogWarning(
+                        "Configured GitHub credentials from generic fallback environment variable '{EnvVar}' (token length: {Length}). Prefer using '{PreferredVar}' for GenHub to avoid unintended token sharing across tools.",
+                        GitHubConstants.GitHubTokenEnvVar,
+                        fallbackToken.Length,
+                        GitHubConstants.GenHubTokenEnvVar);
+                }
             }
             catch (Exception ex)
             {

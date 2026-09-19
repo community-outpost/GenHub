@@ -93,7 +93,7 @@ public class FileSystemDiscoverer : IContentDiscoverer
                     ProviderName = SourceName,
                     AuthorName = manifest.Publisher?.Name ?? "Unknown",
                     IconUrl = manifest.Metadata?.IconUrl ?? string.Empty,
-                    LastUpdated = manifest.Metadata?.ReleaseDate ?? DateTime.Now,
+                    LastUpdated = manifest.Metadata?.ReleaseDate ?? DateTime.UtcNow,
                     DownloadSize = manifest.Files?.Sum(f => f.Size) ?? 0,
 
                     Data = manifest,

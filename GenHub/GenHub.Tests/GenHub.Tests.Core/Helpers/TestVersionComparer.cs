@@ -58,10 +58,10 @@ public static class TestVersionComparer
         public ProviderDefinition? GetProvider(string providerId) =>
             definitions.FirstOrDefault(d => string.Equals(d.ProviderId, providerId, StringComparison.OrdinalIgnoreCase));
 
-        public IEnumerable<ProviderDefinition> GetAllProviders() => definitions;
+        public IReadOnlyList<ProviderDefinition> GetAllProviders() => definitions;
 
-        public IEnumerable<ProviderDefinition> GetProvidersByType(ProviderType providerType) =>
-            definitions.Where(d => d.ProviderType == providerType);
+        public IReadOnlyList<ProviderDefinition> GetProvidersByType(ProviderType providerType) =>
+            definitions.Where(d => d.ProviderType == providerType).ToList();
 
         public Task<OperationResult<bool>> ReloadProvidersAsync(CancellationToken cancellationToken = default) =>
             Task.FromResult(OperationResult<bool>.CreateSuccess(true));

@@ -37,6 +37,7 @@ using Moq;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Reactive.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -225,16 +226,50 @@ public class MainViewModelTests
         Assert.NotEqual("0.0.0", userSettings.LastSeenAppVersion);
     }
 
+    /// <summary>
+    /// Tests that InitializeAsync shows the post-update notification with the View Changelog action when a new app version is detected.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task InitializeAsync_WhenAppVersionUpgraded_ShowsChangelogNotificationAsync()
+    {
+        // Arrange
+        var userSettings = new UserSettings { LastSeenAppVersion = "0.0.0" };
+        var mockUserSettings = new Mock<IUserSettingsService>();
+        mockUserSettings.Setup(s => s.Get()).Returns(userSettings);
+        mockUserSettings.Setup(s => s.Update(It.IsAny<Action<UserSettings>>()))
+            .Callback<Action<UserSettings>>(action => action(userSettings));
+        var mockNotificationService = CreateNotificationServiceMock();
+
+        var vm = CreateMainViewModel(
+            mockUserSettings: mockUserSettings,
+            mockNotificationServiceParam: mockNotificationService);
+
+        // Act
+        await vm.InitializeAsync();
+
+        // Assert
+        // The announcement is suppressed on CI-built binaries (GitShortHash metadata
+        // present), so the expectation follows the build under test to stay
+        // deterministic for both local and CI-built test runs.
+        var expectedShows = AppConstants.IsCiBuild ? Times.Never() : Times.Once();
+        mockNotificationService.Verify(
+            x => x.Show(It.Is<NotificationMessage>(m =>
+                m.Actions.Any(a => a.Text == AppUpdateConstants.ViewChangelogAction))),
+            expectedShows);
+    }
+
     private static MainViewModel CreateMainViewModel(
         Mock<IBackgroundUpdateCoordinator>? mockBackgroundCoordinator = null,
-        Mock<IUserSettingsService>? mockUserSettings = null)
+        Mock<IUserSettingsService>? mockUserSettings = null,
+        Mock<INotificationService>? mockNotificationServiceParam = null)
     {
         var (settingsVm, userSettingsMock) = CreateSettingsVm();
         var toolsVm = CreateToolsVm();
         var configProvider = CreateConfigProviderMock();
         var coordinator = mockBackgroundCoordinator ?? new Mock<IBackgroundUpdateCoordinator>();
         var mockLogger = new Mock<ILogger<MainViewModel>>();
-        var mockNotificationService = CreateNotificationServiceMock();
+        var mockNotificationService = mockNotificationServiceParam ?? CreateNotificationServiceMock();
         var mockNotificationManager = new Mock<NotificationManagerViewModel>(
             mockNotificationService.Object,
             Mock.Of<ILogger<NotificationManagerViewModel>>(),
@@ -282,7 +317,7 @@ public class MainViewModelTests
         var mockUserDataTracker = new Mock<IUserDataTracker>();
         var mockDialogService = new Mock<IDialogService>();
         var mockStorageMigrationService = new Mock<IStorageMigrationService>();
-        var mockGitHubTokenStorage = new Mock<IGitHubTokenStorage>();
+        var mockGitHubAuthService = new Mock<IGitHubAuthService>();
 
         var settingsVm = new SettingsViewModel(
             mockUserSettings.Object,
@@ -300,7 +335,7 @@ public class MainViewModelTests
             mockDialogService.Object,
             mockStorageMigrationService.Object,
             themeService: null,
-            gitHubTokenStorage: mockGitHubTokenStorage.Object);
+            gitHubAuthService: mockGitHubAuthService.Object);
         return (settingsVm, mockUserSettings);
     }
 

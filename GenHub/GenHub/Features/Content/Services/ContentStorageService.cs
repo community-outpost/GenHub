@@ -97,6 +97,30 @@ public class ContentStorageService : IContentStorageService
         return Convert.ToHexString(hashBytes);
     }
 
+    private static bool TryCopy(string sourcePath, string targetPath)
+    {
+        try
+        {
+            if (File.Exists(targetPath))
+            {
+                File.Delete(targetPath);
+            }
+
+            // Copy semantics keep CAS objects immutable. Staging supports in-place
+            // overwrites, so a hard link here would let edits mutate shared CAS content.
+            File.Copy(sourcePath, targetPath, overwrite: false);
+            return true;
+        }
+        catch (IOException)
+        {
+            return false;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return false;
+        }
+    }
+
     /// <summary>
     /// Determines whether a path is located within a system temporary directory.
     /// </summary>
@@ -406,27 +430,11 @@ public class ContentStorageService : IContentStorageService
             // Copy files from CAS to target directory
             foreach (var file in manifest.Files)
             {
-                if (string.IsNullOrEmpty(file.Hash))
+                var materializeResult = await MaterializeManifestFileAsync(file, manifest.ContentType, targetDirectory, cancellationToken).ConfigureAwait(false);
+                if (!materializeResult.Success)
                 {
-                    _logger.LogWarning("File {RelativePath} has no hash, skipping", file.RelativePath);
-                    continue;
+                    return materializeResult;
                 }
-
-                var casPathResult = await _casService.GetContentPathAsync(file.Hash, manifest.ContentType, cancellationToken).ConfigureAwait(false);
-                if (!casPathResult.Success || string.IsNullOrEmpty(casPathResult.Data))
-                {
-                    _logger.LogWarning("File {RelativePath} not found in CAS (hash: {Hash})", file.RelativePath, file.Hash);
-                    continue;
-                }
-
-                var targetPath = Path.Combine(targetDirectory, file.RelativePath);
-                var targetDir = Path.GetDirectoryName(targetPath);
-                if (!string.IsNullOrEmpty(targetDir))
-                {
-                    Directory.CreateDirectory(targetDir);
-                }
-
-                File.Copy(casPathResult.Data, targetPath, overwrite: true);
             }
 
             _logger.LogDebug("Retrieved content for manifest {ManifestId} to {TargetDirectory}", manifestId, targetDirectory);
@@ -897,5 +905,46 @@ public class ContentStorageService : IContentStorageService
             manifest.Id);
 
         return manifest;
+    }
+
+    private async Task<OperationResult<string>> MaterializeManifestFileAsync(
+        ManifestFile file,
+        ContentType contentType,
+        string targetDirectory,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrEmpty(file.Hash))
+        {
+            _logger.LogWarning("File {RelativePath} has no hash, skipping", file.RelativePath);
+            return OperationResult<string>.CreateSuccess(string.Empty);
+        }
+
+        var casPathResult = await _casService.GetContentPathAsync(file.Hash, contentType, cancellationToken).ConfigureAwait(false);
+        if (!casPathResult.Success || string.IsNullOrEmpty(casPathResult.Data))
+        {
+            _logger.LogWarning("File {RelativePath} not found in CAS (hash: {Hash})", file.RelativePath, file.Hash);
+            return OperationResult<string>.CreateSuccess(string.Empty);
+        }
+
+        var targetPath = Path.Combine(targetDirectory, file.RelativePath);
+        if (!PathHelper.IsPathWithinDirectory(targetDirectory, targetPath))
+        {
+            return OperationResult<string>.CreateFailure(
+                $"Manifest entry escapes target directory: {file.RelativePath}");
+        }
+
+        var targetDir = Path.GetDirectoryName(targetPath);
+        if (!string.IsNullOrEmpty(targetDir))
+        {
+            Directory.CreateDirectory(targetDir);
+        }
+
+        if (!TryCopy(casPathResult.Data, targetPath))
+        {
+            return OperationResult<string>.CreateFailure(
+                $"Failed to materialize file {file.RelativePath} from CAS.");
+        }
+
+        return OperationResult<string>.CreateSuccess(targetPath);
     }
 }

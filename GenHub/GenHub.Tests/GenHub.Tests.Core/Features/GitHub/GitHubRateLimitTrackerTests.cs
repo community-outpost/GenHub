@@ -248,4 +248,42 @@ public class GitHubRateLimitTrackerTests
         Assert.NotNull(message);
         Assert.Contains("Rate limit warning", message);
     }
+
+    /// <summary>
+    /// Verifies that <see cref="GitHubRateLimitTracker.UpdateFromHeaders"/> raises the <see cref="GitHubRateLimitTracker.RateLimitUpdated"/> event.
+    /// </summary>
+    [Fact]
+    public void UpdateFromHeaders_FiresRateLimitUpdatedEvent()
+    {
+        // Arrange
+        var logger = NullLogger<GitHubRateLimitTracker>.Instance;
+        var tracker = new GitHubRateLimitTracker(logger);
+        var eventFired = false;
+        tracker.RateLimitUpdated += (sender, args) => eventFired = true;
+
+        // Act
+        tracker.UpdateFromHeaders(42, 60, DateTime.UtcNow.AddMinutes(30));
+
+        // Assert
+        Assert.True(eventFired);
+    }
+
+    /// <summary>
+    /// Verifies that <see cref="GitHubRateLimitTracker.UpdateFromException"/> raises the <see cref="GitHubRateLimitTracker.RateLimitUpdated"/> event.
+    /// </summary>
+    [Fact]
+    public void UpdateFromException_FiresRateLimitUpdatedEvent()
+    {
+        // Arrange
+        var logger = NullLogger<GitHubRateLimitTracker>.Instance;
+        var tracker = new GitHubRateLimitTracker(logger);
+        var eventFired = false;
+        tracker.RateLimitUpdated += (sender, args) => eventFired = true;
+
+        // Act
+        tracker.UpdateFromException(DateTime.UtcNow.AddMinutes(30));
+
+        // Assert
+        Assert.True(eventFired);
+    }
 }

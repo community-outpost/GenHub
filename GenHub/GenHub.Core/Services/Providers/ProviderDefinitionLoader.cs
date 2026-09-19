@@ -136,18 +136,18 @@ public class ProviderDefinitionLoader : IProviderDefinitionLoader
         }
 
         // Auto-load providers if not initialized
-        if (!this.isInitialized)
+        if (!isInitialized)
         {
-            this.EnsureProvidersLoaded();
+            EnsureProvidersLoaded();
         }
 
-        if (this.providers.TryGetValue(providerId, out var provider))
+        if (providers.TryGetValue(providerId, out var provider))
         {
             return provider;
         }
 
         var normalized = providerId.Replace("-", string.Empty);
-        if (this.providers.TryGetValue(normalized, out provider))
+        if (providers.TryGetValue(normalized, out provider))
         {
             return provider;
         }
@@ -156,28 +156,28 @@ public class ProviderDefinitionLoader : IProviderDefinitionLoader
     }
 
     /// <inheritdoc/>
-    public IEnumerable<ProviderDefinition> GetAllProviders()
+    public IReadOnlyList<ProviderDefinition> GetAllProviders()
     {
         // Auto-load providers if not initialized
-        if (!this.isInitialized)
+        if (!isInitialized)
         {
-            this.EnsureProvidersLoaded();
+            EnsureProvidersLoaded();
         }
 
-        return this.providers.Values.Where(p => p.Enabled);
+        return providers.Values.Where(p => p.Enabled).ToList();
     }
 
     /// <inheritdoc/>
-    public IEnumerable<ProviderDefinition> GetProvidersByType(ProviderType providerType)
+    public IReadOnlyList<ProviderDefinition> GetProvidersByType(ProviderType providerType)
     {
         // Auto-load providers if not initialized
-        if (!this.isInitialized)
+        if (!isInitialized)
         {
-            this.EnsureProvidersLoaded();
+            EnsureProvidersLoaded();
         }
 
-        return this.providers.Values
-            .Where(p => p.Enabled && p.ProviderType == providerType);
+        return providers.Values
+            .Where(p => p.Enabled && p.ProviderType == providerType).ToList();
     }
 
     /// <inheritdoc/>

@@ -21,11 +21,13 @@ using GenHub.Core.Models.AppUpdate;
 using GenHub.Core.Models.Common;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameInstallations;
+using GenHub.Core.Models.GitHub;
 using GenHub.Core.Models.Providers;
 using GenHub.Core.Models.Results.CAS;
 using GenHub.Core.Models.Storage;
 using GenHub.Core.Models.Theming;
 using GenHub.Features.AppUpdate.Interfaces;
+using GenHub.Features.GitHub.Services;
 using GenHub.Features.Settings.Models;
 using GenHub.Infrastructure.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -67,8 +69,8 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     private readonly IVelopackUpdateManager? _updateManager;
     private readonly INotificationService _notificationService;
     private readonly ILogger<SettingsViewModel> _logger;
-    private readonly IGitHubTokenStorage? _gitHubTokenStorage;
-    private readonly IGitHubApiClient? _gitHubApiClient;
+    private readonly IGitHubAuthService? _gitHubAuthService;
+    private readonly GitHubRateLimitTracker? _rateLimitTracker;
     private readonly IPublisherSubscriptionStore? _subscriptionStore;
     private readonly IPublisherCatalogRefreshService? _catalogRefreshService;
     private readonly Timer _memoryUpdateTimer;
@@ -220,14 +222,20 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     private string _subscribedBranchInput = string.Empty;
 
     [ObservableProperty]
-    private string _gitHubPatInput = string.Empty;
+    [NotifyPropertyChangedFor(nameof(IsGitHubSignedOut))]
+    [NotifyPropertyChangedFor(nameof(GitHubAuthStatusColor))]
+    [NotifyPropertyChangedFor(nameof(GitHubAuthStatusText))]
+    private bool _isGitHubAuthenticated;
 
     [ObservableProperty]
-    private bool _hasGitHubPat;
+    [NotifyPropertyChangedFor(nameof(IsGitHubSignedOut))]
+    private bool _isAuthenticating;
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(PatStatusColor))]
-    private bool _isPatValid;
+    private string _gitHubUserCode = string.Empty;
+
+    [ObservableProperty]
+    private string _gitHubVerificationUrl = string.Empty;
 
     [ObservableProperty]
     private bool _hasUploads;
@@ -242,10 +250,13 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     private double _uploadQuotaPercent;
 
     [ObservableProperty]
-    private bool _isTestingPat;
+    private string _gitHubUserName = string.Empty;
 
     [ObservableProperty]
-    private string _patStatusMessage = string.Empty;
+    private string _gitHubAvatarUrl = string.Empty;
+
+    [ObservableProperty]
+    private string _gitHubRateLimitText = string.Empty;
 
     [ObservableProperty]
     private string _migrationTargetPath = string.Empty;
@@ -294,9 +305,9 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     /// <param name="dialogService">Dialog service used to confirm destructive actions.</param>
     /// <param name="storageMigrationService">Storage and installation migration service.</param>
     /// <param name="themeService">Theme service for dynamic accent theming.</param>
-    /// <param name="gitHubTokenStorage">GitHub token storage.</param>
+    /// <param name="gitHubAuthService">GitHub device flow authentication service.</param>
+    /// <param name="rateLimitTracker">GitHub API rate limit tracker.</param>
     /// <param name="uploadHistoryService">Upload history service.</param>
-    /// <param name="gitHubApiClient">GitHub API client.</param>
     /// <param name="subscriptionStore">The publisher subscription store.</param>
     /// <param name="catalogRefreshService">The publisher catalog refresh service.</param>
     /// <param name="localizationService">The localization service for language management.</param>
@@ -316,9 +327,9 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         IDialogService dialogService,
         IStorageMigrationService storageMigrationService,
         IThemeService? themeService = null,
-        IGitHubTokenStorage? gitHubTokenStorage = null,
+        IGitHubAuthService? gitHubAuthService = null,
+        GitHubRateLimitTracker? rateLimitTracker = null,
         IUploadHistoryService? uploadHistoryService = null,
-        IGitHubApiClient? gitHubApiClient = null,
         IPublisherSubscriptionStore? subscriptionStore = null,
         IPublisherCatalogRefreshService? catalogRefreshService = null,
         ILocalizationService? localizationService = null)
@@ -338,9 +349,9 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         _dialogService = dialogService ?? throw new ArgumentNullException(nameof(dialogService));
         _storageMigrationService = storageMigrationService ?? throw new ArgumentNullException(nameof(storageMigrationService));
         _themeService = themeService;
-        _gitHubTokenStorage = gitHubTokenStorage;
+        _gitHubAuthService = gitHubAuthService;
+        _rateLimitTracker = rateLimitTracker;
         _uploadHistoryService = uploadHistoryService;
-        _gitHubApiClient = gitHubApiClient;
         _subscriptionStore = subscriptionStore;
         _catalogRefreshService = catalogRefreshService;
 
@@ -373,7 +384,20 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
 
         LoadSettings();
         _ = RefreshUploadsAsync();
-        _ = LoadPatStatusAsync();
+        if (_gitHubAuthService != null)
+        {
+            _gitHubAuthService.AuthStateChanged += OnGitHubAuthStateChanged;
+        }
+
+        if (_rateLimitTracker != null)
+        {
+            _rateLimitTracker.RateLimitUpdated += OnRateLimitUpdated;
+        }
+
+        // Render the cached auth state synchronously so signed-in users never see
+        // a transient signed-out card while the profile warm-up runs.
+        RefreshGitHubAuthState();
+        _ = LoadGitHubAuthStateAsync();
 
         // Initialize with default if needed
         if (string.IsNullOrWhiteSpace(_theme))
@@ -419,10 +443,24 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     public ReadOnlyObservableCollection<UploadHistoryItem> ActiveUploads { get; }
 
     /// <summary>
-    /// Gets the status color for the PAT indicator.
+    /// Gets a value indicating whether the GitHub account card shows the signed out state.
     /// </summary>
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Instance property required for Avalonia UI data binding.")]
-    public string PatStatusColor => IsPatValid ? UiConstants.StatusSuccessColor : UiConstants.StatusInactiveColor;
+    public bool IsGitHubSignedOut => !IsGitHubAuthenticated && !IsAuthenticating;
+
+    /// <summary>
+    /// Gets the status color for the GitHub authentication indicator.
+    /// </summary>
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Instance property required for Avalonia UI data binding.")]
+    public string GitHubAuthStatusColor => IsGitHubAuthenticated ? UiConstants.StatusSuccessColor : UiConstants.StatusInactiveColor;
+
+    /// <summary>
+    /// Gets the localized GitHub authentication state for tooltips and screen readers.
+    /// </summary>
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Instance property required for Avalonia UI data binding.")]
+    public string GitHubAuthStatusText => IsGitHubAuthenticated
+        ? (_localizationService?.GetString("Settings.GitHubAuth.Status.SignedIn") ?? "Signed in")
+        : (_localizationService?.GetString("Settings.GitHubAuth.Status.SignedOut") ?? "Signed out");
 
     /// <summary>
     /// Gets a value indicating whether to display the empty subscriptions state message.
@@ -581,6 +619,18 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
                     _uploadHistoryService.UploadHistoryChanged -= OnUploadHistoryChanged;
                 }
 
+                if (_gitHubAuthService != null)
+                {
+                    _gitHubAuthService.AuthStateChanged -= OnGitHubAuthStateChanged;
+                }
+
+                if (_rateLimitTracker != null)
+                {
+                    _rateLimitTracker.RateLimitUpdated -= OnRateLimitUpdated;
+                }
+
+                // Cancel any in-flight device flow sign-in; the async command owns its token.
+                SignInWithGitHubCommand.Cancel();
                 _memoryUpdateTimer?.Dispose();
                 _dangerZoneUpdateTimer?.Dispose();
                 _uploadsLock.Dispose();
@@ -729,7 +779,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             }
 
             InitializeSections();
-            _ = LoadPatStatusAsync();
+            UpdateGitHubRateLimitText();
         }
     }
 
@@ -751,6 +801,8 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             }
 
             InitializeSections();
+            UpdateGitHubRateLimitText();
+            OnPropertyChanged(nameof(GitHubAuthStatusText));
         }
     }
 
@@ -1459,42 +1511,60 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>
-    /// Loads the current PAT status from storage.
+    /// Loads the current GitHub authentication state, warming the cached user profile when signed in.
     /// </summary>
-    private async Task LoadPatStatusAsync()
+    private async Task LoadGitHubAuthStateAsync()
     {
-        try
+        if (_gitHubAuthService?.IsAuthenticated == true)
         {
-            HasGitHubPat = _gitHubTokenStorage?.HasToken() == true;
-            if (HasGitHubPat)
-            {
-                PatStatusMessage = _localizationService?.GetString("Settings.GitHubPat.Status.Configured") ?? "GitHub PAT configured ✓";
-                IsPatValid = true;
-            }
-            else
-            {
-                var isAuth = _gitHubApiClient != null && await _gitHubApiClient.EnsureAuthenticatedAsync();
-                if (isAuth)
-                {
-                    PatStatusMessage = _localizationService?.GetString("Settings.GitHubPat.Status.EnvConfigured") ?? "Configured via environment variable";
-                    IsPatValid = true;
-                }
-                else
-                {
-                    PatStatusMessage = _localizationService?.GetString("Settings.GitHubPat.Status.NotConfigured") ?? "No GitHub PAT configured";
-                    IsPatValid = false;
-                }
-            }
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to load PAT status");
-            PatStatusMessage = _localizationService?.GetString("Settings.GitHubPat.Status.CheckError") ?? "Error checking PAT status";
-            HasGitHubPat = false;
-            IsPatValid = false;
+            await _gitHubAuthService.GetCurrentUserAsync();
         }
 
-        await Task.CompletedTask;
+        RefreshGitHubAuthState();
+    }
+
+    private void OnGitHubAuthStateChanged(object? sender, GitHubAuthStateChangedEventArgs e)
+    {
+        RunOnUiSafe(RefreshGitHubAuthState);
+    }
+
+    private void OnRateLimitUpdated(object? sender, EventArgs e)
+    {
+        RunOnUiSafe(UpdateGitHubRateLimitText);
+    }
+
+    private void RefreshGitHubAuthState()
+    {
+        if (_gitHubAuthService == null)
+        {
+            IsGitHubAuthenticated = false;
+            GitHubUserName = string.Empty;
+            GitHubAvatarUrl = string.Empty;
+            GitHubRateLimitText = string.Empty;
+            return;
+        }
+
+        IsGitHubAuthenticated = _gitHubAuthService.IsAuthenticated;
+        var user = _gitHubAuthService.CurrentUser;
+        GitHubUserName = user == null ? string.Empty : $"@{user.Login}";
+        GitHubAvatarUrl = user?.AvatarUrl ?? string.Empty;
+        UpdateGitHubRateLimitText();
+    }
+
+    private void UpdateGitHubRateLimitText()
+    {
+        if (_rateLimitTracker == null || !IsGitHubAuthenticated)
+        {
+            GitHubRateLimitText = string.Empty;
+            return;
+        }
+
+        var format = _localizationService?.GetString("Settings.GitHubAuth.SignedIn.RateLimit") ?? "{0} of {1} requests remaining";
+        GitHubRateLimitText = string.Format(
+            CultureInfo.InvariantCulture,
+            format,
+            _rateLimitTracker.RemainingRequests,
+            _rateLimitTracker.TotalRequests);
     }
 
     private void StartDangerZoneUpdateTimer()
@@ -1614,149 +1684,154 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>
-    /// Tests the entered GitHub PAT by making an API call.
+    /// Starts the GitHub device flow sign-in and polls until the user approves it in the browser.
     /// </summary>
     [RelayCommand]
-    private async Task TestPatAsync(CancellationToken cancellationToken = default)
+    private async Task SignInWithGitHubAsync(CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(GitHubPatInput))
+        if (_gitHubAuthService == null)
         {
-            PatStatusMessage = _localizationService?.GetString("Settings.GitHubPat.Status.PleaseEnter") ?? "Please enter a GitHub PAT";
+            ShowGitHubErrorToast(_localizationService?.GetString("Settings.GitHubAuth.Toast.ServiceUnavailable") ?? "GitHub authentication is not available.");
             return;
         }
 
-        if (_gitHubTokenStorage == null)
-        {
-            PatStatusMessage = _localizationService?.GetString("Settings.GitHubPat.Status.StorageNotAvailable") ?? "Token storage not available";
-            return;
-        }
-
-        IsTestingPat = true;
-        PatStatusMessage = _localizationService?.GetString("Settings.GitHubPat.Status.Testing") ?? "Testing PAT...";
-
+        IsAuthenticating = true;
         try
         {
-            using var secureString = new System.Security.SecureString();
-            foreach (char c in GitHubPatInput)
+            var initiate = await _gitHubAuthService.InitiateLoginAsync(cancellationToken);
+            if (!initiate.Success || initiate.Data == null)
             {
-                secureString.AppendChar(c);
+                var detail = initiate.Errors.FirstOrDefault() ?? "Unknown error.";
+                _logger.LogWarning("GitHub sign-in failed to start: {Detail}", detail);
+                ShowSignInFailedToast(detail);
+                return;
             }
 
-            _gitHubApiClient?.SetAuthenticationToken(secureString);
+            GitHubUserCode = initiate.Data.UserCode;
+            GitHubVerificationUrl = initiate.Data.VerificationUri;
 
-            var validated = false;
-            if (_gitHubApiClient != null)
+            var authorized = await _gitHubAuthService.WaitForAuthorizationAsync(initiate.Data, cancellationToken);
+            if (!authorized.Success || authorized.Data == null)
             {
-                var user = await _gitHubApiClient.GetAuthenticatedUserAsync(cancellationToken);
-                if (user == null)
-                {
-                    await RestoreExistingTokenAsync();
-                    PatStatusMessage = _localizationService?.GetString("Settings.GitHubPat.Status.AuthFailed") ?? "GitHub authentication failed. Please verify that your token is valid.";
-                    IsPatValid = false;
-                    return;
-                }
-
-                validated = true;
+                var detail = authorized.Errors.FirstOrDefault() ?? "Unknown error.";
+                _logger.LogWarning("GitHub sign-in was not completed: {Detail}", detail);
+                ShowSignInFailedToast(detail);
+                return;
             }
 
-            await _gitHubTokenStorage.SaveTokenAsync(secureString);
-
-            PatStatusMessage = validated
-                ? _localizationService?.GetString("Settings.GitHubPat.Status.ValidatedSuccess") ?? "PAT validated successfully ✓"
-                : _localizationService?.GetString("Settings.GitHubPat.Status.SavedPending") ?? "PAT saved (validation pending)";
-            IsPatValid = validated;
-            HasGitHubPat = true;
-            GitHubPatInput = string.Empty;
+            RefreshGitHubAuthState();
+            var signedInFormat = _localizationService?.GetString("Settings.GitHubAuth.Toast.SignedIn") ?? "Signed in as {0}.";
+            ShowGitHubSuccessToast(string.Format(CultureInfo.InvariantCulture, signedInFormat, $"@{authorized.Data.Login}"));
         }
-        catch (OperationCanceledException ex) when (cancellationToken.IsCancellationRequested)
+        catch (OperationCanceledException ex)
         {
-            try
-            {
-                await RestoreExistingTokenAsync();
-            }
-            catch (Exception rollbackEx)
-            {
-                _logger.LogError(rollbackEx, "Failed to restore existing GitHub PAT after cancellation");
-                _gitHubApiClient?.ClearAuthenticationToken();
-                IsPatValid = false;
-            }
-
-            _logger.LogInformation(ex, "PAT validation was cancelled");
-            PatStatusMessage = string.Empty;
-        }
-        catch (Exception ex)
-        {
-            try
-            {
-                await RestoreExistingTokenAsync();
-            }
-            catch (Exception rollbackEx)
-            {
-                _logger.LogError(rollbackEx, "Failed to restore existing GitHub PAT after validation failure");
-                _gitHubApiClient?.ClearAuthenticationToken();
-                IsPatValid = false;
-            }
-
-            _logger.LogError(ex, "PAT validation failed");
-            var invalidFormat = _localizationService?.GetString("Settings.GitHubPat.Status.InvalidFormat") ?? "Invalid PAT: {0}";
-            PatStatusMessage = string.Format(CultureInfo.InvariantCulture, invalidFormat, ex.Message);
-            IsPatValid = false;
+            _logger.LogInformation(ex, "GitHub sign-in was cancelled");
         }
         finally
         {
-            IsTestingPat = false;
-        }
-    }
-
-    private async Task RestoreExistingTokenAsync()
-    {
-        if (_gitHubTokenStorage == null)
-        {
-            _gitHubApiClient?.ClearAuthenticationToken();
-            return;
-        }
-
-        var existingToken = await _gitHubTokenStorage.LoadTokenAsync();
-        if (existingToken != null)
-        {
-            _gitHubApiClient?.SetAuthenticationToken(existingToken);
-        }
-        else
-        {
-            _gitHubApiClient?.ClearAuthenticationToken();
+            IsAuthenticating = false;
+            GitHubUserCode = string.Empty;
+            GitHubVerificationUrl = string.Empty;
+            RefreshGitHubAuthState();
         }
     }
 
     /// <summary>
-    /// Deletes the stored GitHub PAT.
+    /// Cancels the in-progress GitHub device flow sign-in.
     /// </summary>
     [RelayCommand]
-    private async Task DeletePatAsync()
+    private void CancelSignIn()
     {
+        SignInWithGitHubCommand.Cancel();
+    }
+
+    /// <summary>
+    /// Copies the device flow user code to the clipboard and opens the GitHub verification page.
+    /// </summary>
+    [RelayCommand]
+    private async Task CopyGitHubUserCodeAsync()
+    {
+        if (string.IsNullOrEmpty(GitHubUserCode))
+        {
+            return;
+        }
+
         try
         {
-            if (_gitHubTokenStorage != null)
+            var lifetime = Application.Current?.ApplicationLifetime as Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime;
+            var mainWindow = lifetime?.MainWindow;
+            var topLevel = mainWindow != null ? TopLevel.GetTopLevel(mainWindow) : null;
+            var copied = false;
+            if (topLevel?.Clipboard != null)
             {
-                await _gitHubTokenStorage.DeleteTokenAsync();
+                await topLevel.Clipboard.SetTextAsync(GitHubUserCode);
+                copied = true;
             }
 
-            _gitHubApiClient?.ClearAuthenticationToken();
-            HasGitHubPat = false;
-            IsPatValid = false;
+            var opened = false;
+            var url = string.IsNullOrEmpty(GitHubVerificationUrl) ? GitHubConstants.DeviceVerificationUrl : GitHubVerificationUrl;
+            if (topLevel?.Launcher != null && Uri.TryCreate(url, UriKind.Absolute, out var verificationUri))
+            {
+                opened = await topLevel.Launcher.LaunchUriAsync(verificationUri);
+            }
 
-            var hasEnvToken = !string.IsNullOrEmpty(Environment.GetEnvironmentVariable(GitHubConstants.GenHubTokenEnvVar))
-                || !string.IsNullOrEmpty(Environment.GetEnvironmentVariable(GitHubConstants.GitHubTokenEnvVar));
+            if (!copied)
+            {
+                var failedFormat = _localizationService?.GetString("Settings.GitHubAuth.Toast.CodeCopyFailed") ?? "Could not copy the code: {0}";
+                ShowGitHubErrorToast(string.Format(CultureInfo.InvariantCulture, failedFormat, "Clipboard is not available"));
+                return;
+            }
 
-            PatStatusMessage = hasEnvToken
-                ? (_localizationService?.GetString("Settings.GitHubPat.Status.RemovedWithEnv") ?? "GitHub PAT removed (env var deactivated for this session)")
-                : (_localizationService?.GetString("Settings.GitHubPat.Status.Removed") ?? "GitHub PAT removed");
+            if (!opened)
+            {
+                ShowGitHubErrorToast(_localizationService?.GetString("Settings.GitHubAuth.Toast.BrowserOpenFailed") ?? "Code copied to clipboard, but GitHub could not be opened automatically. Enter the code manually.");
+                return;
+            }
+
+            ShowGitHubSuccessToast(_localizationService?.GetString("Settings.GitHubAuth.Toast.CodeCopied") ?? "Code copied. Opening GitHub in your browser...");
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to delete PAT");
-            var errorFormat = _localizationService?.GetString("Settings.GitHubPat.Status.ErrorFormat") ?? "Error: {0}";
-            PatStatusMessage = string.Format(CultureInfo.InvariantCulture, errorFormat, ex.Message);
+            // Top-level UI boundary for platform clipboard and browser APIs, matching the
+            // established notification pattern for these calls across the settings view models.
+            _logger.LogError(ex, "Failed to copy GitHub user code");
+            var failedFormat = _localizationService?.GetString("Settings.GitHubAuth.Toast.CodeCopyFailed") ?? "Could not copy the code: {0}";
+            ShowGitHubErrorToast(string.Format(CultureInfo.InvariantCulture, failedFormat, ex.Message));
         }
+    }
+
+    /// <summary>
+    /// Signs out of GitHub by clearing the stored token.
+    /// </summary>
+    [RelayCommand]
+    private async Task SignOutFromGitHubAsync()
+    {
+        if (_gitHubAuthService == null)
+        {
+            return;
+        }
+
+        await _gitHubAuthService.SignOutAsync();
+        RefreshGitHubAuthState();
+        ShowGitHubSuccessToast(_localizationService?.GetString("Settings.GitHubAuth.Toast.SignedOut") ?? "Signed out of GitHub.");
+    }
+
+    private string GitHubToastTitle => _localizationService?.GetString("Settings.GitHubAuth.Toast.Title") ?? "GitHub";
+
+    private void ShowGitHubSuccessToast(string message)
+    {
+        _notificationService.ShowSuccess(GitHubToastTitle, message, NotificationDurations.Medium);
+    }
+
+    private void ShowGitHubErrorToast(string message)
+    {
+        _notificationService.ShowError(GitHubToastTitle, message, NotificationDurations.Medium);
+    }
+
+    private void ShowSignInFailedToast(string detail)
+    {
+        var failedFormat = _localizationService?.GetString("Settings.GitHubAuth.Toast.SignInFailed") ?? "Sign-in failed: {0}";
+        ShowGitHubErrorToast(string.Format(CultureInfo.InvariantCulture, failedFormat, detail));
     }
 
     /// <summary>

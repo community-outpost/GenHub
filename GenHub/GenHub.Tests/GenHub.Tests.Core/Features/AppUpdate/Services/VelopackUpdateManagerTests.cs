@@ -15,7 +15,7 @@ public class VelopackUpdateManagerTests
 {
     private readonly Mock<ILogger<VelopackUpdateManager>> _mockLogger;
     private readonly Mock<IHttpClientFactory> _mockHttpClientFactory;
-    private readonly Mock<IGitHubTokenStorage> _mockGitHubTokenStorage;
+    private readonly Mock<IGitHubAuthService> _mockGitHubAuthService;
     private readonly Mock<IUserSettingsService> _mockUserSettingsService;
 
     /// <summary>
@@ -25,14 +25,14 @@ public class VelopackUpdateManagerTests
     {
         _mockLogger = new Mock<ILogger<VelopackUpdateManager>>();
         _mockHttpClientFactory = new Mock<IHttpClientFactory>();
-        _mockGitHubTokenStorage = new Mock<IGitHubTokenStorage>();
+        _mockGitHubAuthService = new Mock<IGitHubAuthService>();
         _mockUserSettingsService = new Mock<IUserSettingsService>();
 
         // Use the actual interface method, not the extension method
         _mockHttpClientFactory.Setup(x => x.CreateClient(It.IsAny<string>())).Returns(new HttpClient());
 
-        // Default: no PAT token available
-        _mockGitHubTokenStorage.Setup(x => x.HasToken()).Returns(false);
+        // Default: no GitHub authentication available
+        _mockGitHubAuthService.SetupGet(x => x.IsAuthenticated).Returns(false);
 
         // Default: return default settings
         _mockUserSettingsService.Setup(x => x.Get()).Returns(new GenHub.Core.Models.Common.UserSettings());
@@ -172,14 +172,14 @@ public class VelopackUpdateManagerTests
     }
 
     /// <summary>
-    /// Tests that CheckForArtifactUpdatesAsync returns null when no PAT is available.
+    /// Tests that CheckForArtifactUpdatesAsync returns null when GitHub authentication is not available.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     [Fact]
-    public async Task CheckForArtifactUpdatesAsync_WithoutPAT_ShouldReturnNullAsync()
+    public async Task CheckForArtifactUpdatesAsync_WithoutAuthentication_ShouldReturnNullAsync()
     {
         // Arrange
-        _mockGitHubTokenStorage.Setup(x => x.HasToken()).Returns(false);
+        _mockGitHubAuthService.SetupGet(x => x.IsAuthenticated).Returns(false);
         var manager = CreateManager();
 
         // Act
@@ -203,7 +203,7 @@ public class VelopackUpdateManagerTests
         var manager = new VelopackUpdateManager(
             _mockLogger.Object,
             _mockHttpClientFactory.Object,
-            _mockGitHubTokenStorage.Object,
+            _mockGitHubAuthService.Object,
             _mockUserSettingsService.Object,
             customDownloader);
 
@@ -337,5 +337,5 @@ public class VelopackUpdateManagerTests
     /// Creates a new VelopackUpdateManager instance with mocked dependencies.
     /// </summary>
     private VelopackUpdateManager CreateManager() =>
-        new(_mockLogger.Object, _mockHttpClientFactory.Object, _mockGitHubTokenStorage.Object, _mockUserSettingsService.Object);
+        new(_mockLogger.Object, _mockHttpClientFactory.Object, _mockGitHubAuthService.Object, _mockUserSettingsService.Object);
 }
