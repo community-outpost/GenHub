@@ -170,16 +170,16 @@ public class MockUploadHistoryService : IUploadHistoryService
     }
 
     /// <inheritdoc/>
-    public void RecordUpload(long fileSizeBytes, string url, string fileName, string? fileKey = null, string? deleteToken = null, string? fileHash = null, string? category = null)
+    public void RecordUpload(long fileSizeBytes, string url, string fileName, string? fileKey = null, string? deleteToken = null, string? fileHash = null, string? category = null, GameType? game = null)
     {
     }
 
     /// <inheritdoc/>
-    public Task<UploadRecord?> FindExistingUploadAsync(string fileHash) =>
-        FindExistingUploadAsync(fileHash, CancellationToken.None);
+    public Task<UploadRecord?> FindExistingUploadAsync(string fileHash, string? category = null, GameType? game = null) =>
+        FindExistingUploadAsync(fileHash, category, game, CancellationToken.None);
 
     /// <inheritdoc/>
-    public Task<UploadRecord?> FindExistingUploadAsync(string fileHash, CancellationToken cancellationToken)
+    public Task<UploadRecord?> FindExistingUploadAsync(string fileHash, string? category, GameType? game, CancellationToken cancellationToken)
     {
         return Task.FromResult<UploadRecord?>(null);
     }

@@ -1,4 +1,7 @@
+using GenHub.Common.Services;
 using GenHub.Core.Constants;
+using GenHub.Core.Helpers;
+using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Tools.MapManager;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Tools.MapManager;
@@ -25,7 +28,9 @@ public sealed class MapImportService(
     IMapDirectoryService directoryService,
     HttpClient httpClient,
     MapNameParser mapNameParser,
-    ILogger<MapImportService> logger) : IMapImportService
+    ILogger<MapImportService> logger,
+    ILocalizationService? localizationService = null,
+    IDownloadUrlValidator? downloadUrlValidator = null) : IMapImportService
 {
     private sealed record SharpCompressExtractionContext(
         string ArchivePath,
@@ -45,16 +50,51 @@ public sealed class MapImportService(
         CancellationToken ct = default)
     {
         var result = new ImportResult();
+
+        if (ToolShareLink.IsOtherToolShareUri(url, CommandLineConstants.MapCommand))
+        {
+            logger.LogWarning("Rejected cross-tool share URI in map import.");
+            result.Errors.Add(
+                localizationService?.GetString("Tools.Share.Error.CrossToolReplayLink")
+                ?? "This is a Replay Manager share link. Paste it in the Replay Manager import box instead.");
+            return result;
+        }
+
+        url = ToolShareLink.NormalizeImportUrl(url, CommandLineConstants.MapCommand);
+        if (ToolShareLink.HasShareUriScheme(url))
+        {
+            logger.LogWarning("Rejected malformed share URI in map import.");
+            result.Errors.Add(
+                localizationService?.GetString("Tools.Share.Error.InvalidShareLink")
+                ?? "This GenHub link is incomplete or malformed. Check the link and try again.");
+            return result;
+        }
+
+        var urlValidator = downloadUrlValidator ?? new DownloadUrlValidator();
+        var downloadUri = await ResolveSafeDownloadUriAsync(urlValidator, url, result, ct);
+        if (downloadUri == null)
+        {
+            return result;
+        }
+
         var tempDir = Path.Combine(Path.GetTempPath(), "GenHub", "MapImports", Guid.NewGuid().ToString("N"));
 
         try
         {
             logger.LogInformation("Importing map from URL: {Url}", url);
 
-            var response = await httpClient.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, ct);
+            var validated = await SsrfSafeHttpHelper.SendWithValidatedRedirectsAsync(
+                httpClient,
+                static uri => new HttpRequestMessage(HttpMethod.Get, uri),
+                downloadUri,
+                DownloadDefaults.MaxRedirects,
+                urlValidator,
+                ct);
+            using var response = validated.Response;
+            var finalUri = validated.FinalUri;
             response.EnsureSuccessStatusCode();
 
-            var fileName = ExtractFileName(new Uri(url), response);
+            var fileName = ExtractFileName(finalUri, response);
             Directory.CreateDirectory(tempDir);
             var tempPath = Path.Combine(tempDir, fileName);
 
@@ -900,6 +940,26 @@ public sealed class MapImportService(
         return read >= 6 &&
                buffer[0] == 0x37 && buffer[1] == 0x7A && buffer[2] == 0xBC &&
                buffer[3] == 0xAF && buffer[4] == 0x27 && buffer[5] == 0x1C;
+    }
+
+    private async Task<Uri?> ResolveSafeDownloadUriAsync(IDownloadUrlValidator urlValidator, string url, ImportResult result, CancellationToken ct)
+    {
+        if (!Uri.TryCreate(url, UriKind.Absolute, out var downloadUri))
+        {
+            result.Errors.Add($"Import failed: Invalid URL '{url}'.");
+            return null;
+        }
+
+        if (!await urlValidator.IsSafeAsync(downloadUri, ct))
+        {
+            logger.LogWarning("Blocked map import from non-public URL host: {Host}", downloadUri.Host);
+            result.Errors.Add(
+                localizationService?.GetString("Tools.Share.Error.BlockedDownloadUrl")
+                ?? "The download URL was blocked because it does not point to a public internet address.");
+            return null;
+        }
+
+        return downloadUri;
     }
 
     private bool IsArchiveFile(string filePath)

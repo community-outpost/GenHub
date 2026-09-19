@@ -36,6 +36,11 @@ public static class DownloadDefaults
     public const int MaxRetryAttempts = 3;
 
     /// <summary>
+    /// Maximum redirect hops followed when validated redirects are enabled.
+    /// </summary>
+    public const int MaxRedirects = 5;
+
+    /// <summary>
     /// Default download timeout in seconds.
     /// </summary>
     public const int TimeoutSeconds = 600; // 10 minutes

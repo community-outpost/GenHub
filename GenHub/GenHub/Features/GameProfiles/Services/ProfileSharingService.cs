@@ -2309,7 +2309,7 @@ public class ProfileSharingService(
     {
         if (uploadHistoryService != null)
         {
-            var existing = await uploadHistoryService.FindExistingUploadAsync(zipHash, cancellationToken);
+            var existing = await uploadHistoryService.FindExistingUploadAsync(zipHash, ProfileSharingConstants.UploadCategoryProfiles, null, cancellationToken);
             if (existing != null && !string.IsNullOrWhiteSpace(existing.Url))
             {
                 (logger ?? NullLogger<ProfileSharingService>.Instance).LogInformation(

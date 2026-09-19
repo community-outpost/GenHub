@@ -118,6 +118,11 @@ public sealed partial class LinuxSingleInstanceManager : ISingleInstanceCommandR
                 logger.LogInformation("Forwarding import-profile command to primary instance");
                 commandToSend = $"{IpcCommands.ImportProfilePrefix}{profileShareUri}";
             }
+            else if (BuildToolShareCommand(args) is string toolCommand)
+            {
+                logger.LogInformation("Forwarding tool import command to primary instance");
+                commandToSend = toolCommand;
+            }
             else if (!string.IsNullOrEmpty(subscriptionUrl))
             {
                 logger.LogInformation("Forwarding subscribe command to primary instance");
@@ -191,6 +196,12 @@ public sealed partial class LinuxSingleInstanceManager : ISingleInstanceCommandR
         var userBytes = Encoding.UTF8.GetBytes(rawUser);
         var hash = Convert.ToHexString(SHA256.HashData(userBytes))[..8].ToLowerInvariant();
         return $"{CommandLineConstants.SingleInstancePipePrefix}{hash}_{CommandLineConstants.SingleInstancePipeSuffix}";
+    }
+
+    private static string? BuildToolShareCommand(string[] args)
+    {
+        var toolShareUri = CommandLineParser.ExtractToolShareUri(args);
+        return ToolShareLink.BuildIpcCommand(toolShareUri);
     }
 
     [LibraryImport("libc", EntryPoint = "getsockopt", SetLastError = true)]

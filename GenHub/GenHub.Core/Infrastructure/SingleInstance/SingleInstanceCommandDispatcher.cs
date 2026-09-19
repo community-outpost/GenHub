@@ -117,6 +117,18 @@ public sealed class SingleInstanceCommandDispatcher : ISingleInstanceCommandRece
             return false;
         }
 
+        if (command.StartsWith(IpcCommands.ImportMapPrefix, StringComparison.OrdinalIgnoreCase))
+        {
+            var target = command[IpcCommands.ImportMapPrefix.Length..].Trim();
+            return IsToolShareCommand(target, CommandLineConstants.MapCommand);
+        }
+
+        if (command.StartsWith(IpcCommands.ImportReplayPrefix, StringComparison.OrdinalIgnoreCase))
+        {
+            var target = command[IpcCommands.ImportReplayPrefix.Length..].Trim();
+            return IsToolShareCommand(target, CommandLineConstants.ReplayCommand);
+        }
+
         return false;
     }
 
@@ -184,13 +196,9 @@ public sealed class SingleInstanceCommandDispatcher : ISingleInstanceCommandRece
             return;
         }
 
-        if (command.StartsWith(IpcCommands.ImportProfilePrefix, StringComparison.OrdinalIgnoreCase))
+        if (TryGetMaskedPrefix(command, out var prefix))
         {
-            _logger.LogInformation("Received IPC command: {Prefix}...", IpcCommands.ImportProfilePrefix);
-        }
-        else if (command.StartsWith(IpcCommands.SubscribePrefix, StringComparison.OrdinalIgnoreCase))
-        {
-            _logger.LogInformation("Received IPC command: {Prefix}...", IpcCommands.SubscribePrefix);
+            _logger.LogInformation(LogMessages.ReceivedMaskedIpcCommand, prefix);
         }
         else if (command.StartsWith(IpcCommands.LaunchProfilePrefix, StringComparison.OrdinalIgnoreCase))
         {
@@ -201,5 +209,42 @@ public sealed class SingleInstanceCommandDispatcher : ISingleInstanceCommandRece
         {
             _logger.LogInformation("Received IPC command: {Command}", command);
         }
+    }
+
+    private static bool IsToolShareCommand(string target, string toolCommand)
+    {
+        return ToolShareLink.TryParseShareUri(target, out var parsed) &&
+            parsed != null &&
+            parsed.ToolCommand.Equals(toolCommand, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool TryGetMaskedPrefix(string command, out string prefix)
+    {
+        if (command.StartsWith(IpcCommands.ImportProfilePrefix, StringComparison.OrdinalIgnoreCase))
+        {
+            prefix = IpcCommands.ImportProfilePrefix;
+            return true;
+        }
+
+        if (command.StartsWith(IpcCommands.ImportMapPrefix, StringComparison.OrdinalIgnoreCase))
+        {
+            prefix = IpcCommands.ImportMapPrefix;
+            return true;
+        }
+
+        if (command.StartsWith(IpcCommands.ImportReplayPrefix, StringComparison.OrdinalIgnoreCase))
+        {
+            prefix = IpcCommands.ImportReplayPrefix;
+            return true;
+        }
+
+        if (command.StartsWith(IpcCommands.SubscribePrefix, StringComparison.OrdinalIgnoreCase))
+        {
+            prefix = IpcCommands.SubscribePrefix;
+            return true;
+        }
+
+        prefix = string.Empty;
+        return false;
     }
 }

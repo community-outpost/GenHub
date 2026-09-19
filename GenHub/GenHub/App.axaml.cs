@@ -18,6 +18,9 @@ using GenHub.Core.Models.Enums;
 using GenHub.Features.Content.ViewModels.Catalog;
 using GenHub.Features.Downloads.Views;
 using GenHub.Features.GameProfiles.ViewModels;
+using GenHub.Features.Tools.MapManager.ViewModels;
+using GenHub.Features.Tools.ReplayManager.ViewModels;
+using GenHub.Features.Tools.ViewModels;
 using GenHub.Infrastructure.Converters;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -26,6 +29,7 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace GenHub;
@@ -304,6 +308,30 @@ public partial class App : Application
                (uri.IsFile && !uri.IsUnc && string.IsNullOrEmpty(uri.Host));
     }
 
+    private static async Task<object?> ActivateToolManagerAsync(ToolsViewModel toolsViewModel, string toolId, ILogger<App>? logger)
+    {
+        if (toolsViewModel.InstalledTools.Count == 0)
+        {
+            await toolsViewModel.InitializeAsync();
+        }
+
+        var plugin = toolsViewModel.InstalledTools
+            .FirstOrDefault(t => t.Metadata.Id.Equals(toolId, StringComparison.OrdinalIgnoreCase));
+        if (plugin == null)
+        {
+            logger?.LogError("Tool plugin {ToolId} is not installed.", toolId);
+            return null;
+        }
+
+        toolsViewModel.SelectedTool = plugin;
+        if (toolsViewModel.CurrentToolControl == null)
+        {
+            toolsViewModel.OnTabActivated();
+        }
+
+        return toolsViewModel.CurrentToolControl?.DataContext;
+    }
+
     private void ApplyWindowSettings(MainWindow mainWindow)
     {
         if (_configurationProvider == null)
@@ -389,6 +417,7 @@ public partial class App : Application
         await HandleLaunchProfileArgsAsync(args, mainWindow);
         await HandleSubscriptionArgsAsync(args, mainWindow);
         await HandleImportProfileArgsAsync(args, mainWindow);
+        await HandleToolImportArgsAsync(args, mainWindow);
     }
 
     private async Task HandleImportProfileArgsAsync(string[]? args, MainWindow mainWindow)
@@ -427,6 +456,25 @@ public partial class App : Application
         logger?.LogInformation("Startup profile launch request for ID: {ProfileId}", profileId);
 
         await LaunchProfileByIdAsync(profileId, mainWindow);
+    }
+
+    private async Task HandleToolImportArgsAsync(string[]? args, MainWindow mainWindow)
+    {
+        if (args == null || args.Length == 0)
+        {
+            return;
+        }
+
+        var shareUri = CommandLineParser.ExtractToolShareUri(args);
+        if (string.IsNullOrWhiteSpace(shareUri))
+        {
+            return;
+        }
+
+        var logger = _serviceProvider.GetService<ILogger<App>>();
+        logger?.LogInformation("Startup tool import request received");
+
+        await HandleToolImportUriAsync(shareUri, mainWindow);
     }
 
     private async Task HandleSubscriptionArgsAsync(string[]? args, MainWindow mainWindow)
@@ -491,6 +539,22 @@ public partial class App : Application
             // Handle profile import
             SafeFireAndForget(HandleImportProfileUriAsync(shareUri, mainWindow), nameof(HandleImportProfileUriAsync));
         }
+        else if (command.StartsWith(IpcCommands.ImportMapPrefix, StringComparison.OrdinalIgnoreCase))
+        {
+            var shareUri = command[IpcCommands.ImportMapPrefix.Length..];
+            logger?.LogInformation("Received IPC map import command");
+
+            // Handle map share import
+            SafeFireAndForget(HandleToolImportUriAsync(shareUri, mainWindow), nameof(HandleToolImportUriAsync));
+        }
+        else if (command.StartsWith(IpcCommands.ImportReplayPrefix, StringComparison.OrdinalIgnoreCase))
+        {
+            var shareUri = command[IpcCommands.ImportReplayPrefix.Length..];
+            logger?.LogInformation("Received IPC replay import command");
+
+            // Handle replay share import
+            SafeFireAndForget(HandleToolImportUriAsync(shareUri, mainWindow), nameof(HandleToolImportUriAsync));
+        }
         else if (string.Equals(command, IpcCommands.ActivateCommand, StringComparison.OrdinalIgnoreCase))
         {
             logger?.LogInformation("Received IPC activate command");
@@ -540,6 +604,47 @@ public partial class App : Application
         {
             var logger = _serviceProvider.GetService<ILogger<App>>();
             logger?.LogError("GameProfileLauncherViewModel is not available for import.");
+        }
+    }
+
+    private async Task HandleToolImportUriAsync(string shareUri, MainWindow mainWindow, CancellationToken cancellationToken = default)
+    {
+        var logger = _serviceProvider.GetService<ILogger<App>>();
+        if (!ToolShareLink.TryParseShareUri(shareUri, out var target) || target == null)
+        {
+            logger?.LogWarning("Rejected invalid tool share URI.");
+            return;
+        }
+
+        if (mainWindow?.DataContext is not MainViewModel mainViewModel)
+        {
+            logger?.LogError("MainViewModel is not available for tool import.");
+            return;
+        }
+
+        if (mainWindow.WindowState == WindowState.Minimized)
+        {
+            mainWindow.WindowState = WindowState.Normal;
+        }
+
+        mainWindow.Activate();
+        mainViewModel.SelectTab(NavigationTab.Tools);
+
+        bool isMap = target.ToolCommand.Equals(CommandLineConstants.MapCommand, StringComparison.OrdinalIgnoreCase);
+        var toolId = isMap ? MapManagerConstants.ToolId : ToolConstants.ReplayManager.Id;
+        var dataContext = await ActivateToolManagerAsync(mainViewModel.ToolsViewModel, toolId, logger);
+
+        if (isMap && dataContext is MapManagerViewModel mapViewModel)
+        {
+            await mapViewModel.ImportSharedUrlAsync(target.Url, target.Game, cancellationToken);
+        }
+        else if (!isMap && dataContext is ReplayManagerViewModel replayViewModel)
+        {
+            await replayViewModel.ImportSharedUrlAsync(target.Url, target.Game, cancellationToken);
+        }
+        else
+        {
+            logger?.LogError("Tool control for {ToolId} is not available for import.", toolId);
         }
     }
 

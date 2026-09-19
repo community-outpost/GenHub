@@ -130,13 +130,70 @@ public sealed class ReplayImportServiceTests : IDisposable
             directoryService.Object,
             urlParser.Object,
             new Mock<IZipValidationService>().Object,
-            NullLogger<ReplayImportService>.Instance);
+            NullLogger<ReplayImportService>.Instance,
+            downloadUrlValidator: CreateValidator(true).Object);
 
         var result = await service.ImportFromUrlAsync("https://strata.gamereplays.org/zh/match/3489856", GameType.ZeroHour);
 
         Assert.True(result.Success);
         Assert.Equal(2, result.FilesImported);
         Assert.Equal(2, Directory.GetFiles(_replayDirectory).Length);
+    }
+
+    /// <summary>
+    /// Verifies that ImportFromUrlAsync blocks non-public download targets before downloading.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task ImportFromUrlAsync_WithBlockedDownloadUrl_ReturnsBlockedErrorAsync()
+    {
+        var downloadService = new Mock<IDownloadService>();
+
+        var urlParser = new Mock<IUrlParserService>();
+        urlParser.Setup(u => u.IdentifySource(It.IsAny<string>())).Returns(ReplaySource.DirectLink);
+        urlParser.Setup(u => u.GetDirectDownloadUrlsAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(["http://192.168.1.9/match.rep"]);
+
+        var directoryService = new Mock<IReplayDirectoryService>();
+        directoryService.Setup(d => d.GetReplayDirectory(It.IsAny<GameType>())).Returns(_replayDirectory);
+
+        var service = new ReplayImportService(
+            downloadService.Object,
+            directoryService.Object,
+            urlParser.Object,
+            new Mock<IZipValidationService>().Object,
+            NullLogger<ReplayImportService>.Instance,
+            downloadUrlValidator: CreateValidator(false).Object);
+
+        var result = await service.ImportFromUrlAsync("http://192.168.1.9/match.rep", GameType.ZeroHour);
+
+        Assert.False(result.Success);
+        Assert.Contains(result.Errors, e => e.Contains("public internet", StringComparison.OrdinalIgnoreCase));
+        downloadService.Verify(
+            d => d.DownloadFileAsync(It.IsAny<DownloadConfiguration>(), It.IsAny<IProgress<DownloadProgress>?>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    /// <summary>
+    /// Verifies that ImportFromUrlAsync rejects share URIs targeting the map manager.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task ImportFromUrlAsync_WithMapShareUri_ReturnsCrossToolErrorAsync()
+    {
+        var result = await _service.ImportFromUrlAsync(
+            "genhub://map/import?url=https%3A%2F%2Fexample.com%2Fmaps.zip",
+            GameType.ZeroHour);
+
+        Assert.False(result.Success);
+        Assert.Contains(result.Errors, e => e.Contains("Map Manager", StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static Mock<IDownloadUrlValidator> CreateValidator(bool result)
+    {
+        var validator = new Mock<IDownloadUrlValidator>();
+        validator.Setup(v => v.IsSafeAsync(It.IsAny<Uri>(), It.IsAny<CancellationToken>())).ReturnsAsync(result);
+        return validator;
     }
 
     private static void CreateZip(string zipPath, params string[] entryNames)

@@ -16,6 +16,7 @@ using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Tools.MapManager;
 using GenHub.Core.Models.Tools.UploadThing;
+using GenHub.Features.Tools.Helpers;
 using GenHub.Features.Tools.ViewModels;
 using GenHub.Infrastructure.Imaging;
 using Microsoft.Extensions.Logging;
@@ -29,6 +30,7 @@ using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Text.Json;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace GenHub.Features.Tools.MapManager.ViewModels;
@@ -391,6 +393,25 @@ public partial class MapManagerViewModel : ObservableObject, IDisposable
         }
     }
 
+    /// <summary>
+    /// Imports a shared download URL received from a GenHub protocol link.
+    /// </summary>
+    /// <param name="url">The plain download URL to import.</param>
+    /// <param name="game">The optional target game recorded in the share link.</param>
+    /// <param name="cancellationToken">Token to monitor for cancellation requests.</param>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Mutates CommunityToolkit-generated observable properties and executes instance commands on this ViewModel.")]
+    public async Task ImportSharedUrlAsync(string url, GameType? game = null, CancellationToken cancellationToken = default)
+    {
+        await ToolShareCommands.ImportSharedUrlAsync(
+            url,
+            game,
+            selected => SelectedTab = selected,
+            importUrl => ImportUrl = importUrl,
+            ImportFromUrlAsync,
+            cancellationToken);
+    }
+
     /// <inheritdoc />
     public void Dispose()
     {
@@ -442,7 +463,7 @@ public partial class MapManagerViewModel : ObservableObject, IDisposable
     }
 
     [RelayCommand]
-    private async Task ImportFromUrlAsync()
+    private async Task ImportFromUrlAsync(CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(ImportUrl))
         {
@@ -482,7 +503,7 @@ public partial class MapManagerViewModel : ObservableObject, IDisposable
                 scope.ReportFraction(p, StatusMessage);
             });
 
-            var result = await _importService.ImportFromUrlAsync(ImportUrl, SelectedTab, progressHandler);
+            var result = await _importService.ImportFromUrlAsync(ImportUrl, SelectedTab, progressHandler, cancellationToken);
             if (result.Success)
             {
                 scope.CompleteSuccess();
@@ -687,6 +708,7 @@ public partial class MapManagerViewModel : ObservableObject, IDisposable
             return;
         }
 
+        var uploadGame = SelectedTab;
         long totalSizeBytes = ToolUploadHelper.CalculateMapsSize(SelectedMaps);
         if (!await ValidateUploadLimitsAsync(totalSizeBytes))
         {
@@ -696,7 +718,7 @@ public partial class MapManagerViewModel : ObservableObject, IDisposable
         string? fileHash = null;
         if (SelectedMaps.Count == 1 && File.Exists(SelectedMaps[0].FullPath))
         {
-            var (reused, computedHash) = await TryReuseExistingUploadAsync(SelectedMaps[0].FullPath);
+            var (reused, computedHash) = await TryReuseExistingUploadAsync(SelectedMaps[0].FullPath, uploadGame);
             if (reused)
             {
                 return;
@@ -724,7 +746,7 @@ public partial class MapManagerViewModel : ObservableObject, IDisposable
             var uploadResult = await _exportService.UploadToUploadThingAsync([.. SelectedMaps], progressHandler);
             if (uploadResult.Success)
             {
-                await HandleSuccessfulUploadAsync(uploadResult.Data, totalSizeBytes, fileHash);
+                await HandleSuccessfulUploadAsync(uploadResult.Data, totalSizeBytes, fileHash, uploadGame);
             }
             else
             {
@@ -786,7 +808,7 @@ public partial class MapManagerViewModel : ObservableObject, IDisposable
         return true;
     }
 
-    private async Task<(bool Reused, string? FileHash)> TryReuseExistingUploadAsync(string filePath)
+    private async Task<(bool Reused, string? FileHash)> TryReuseExistingUploadAsync(string filePath, GameType uploadGame)
     {
         var fileHash = await ToolUploadHelper.ComputeFileSha256Async(filePath);
         if (string.IsNullOrEmpty(fileHash))
@@ -794,7 +816,7 @@ public partial class MapManagerViewModel : ObservableObject, IDisposable
             return (false, null);
         }
 
-        var existingUpload = await _uploadHistoryService.FindExistingUploadAsync(fileHash);
+        var existingUpload = await _uploadHistoryService.FindExistingUploadAsync(fileHash, MapManagerConstants.UploadCategory, uploadGame);
         if (existingUpload?.Url != null && await ToolUploadHelper.VerifyShareUrlAliveAsync(existingUpload.Url))
         {
             var lifetime = Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime;
@@ -812,7 +834,7 @@ public partial class MapManagerViewModel : ObservableObject, IDisposable
         return (false, fileHash);
     }
 
-    private async Task HandleSuccessfulUploadAsync(UploadResult uploadResult, long totalSizeBytes, string? fileHash)
+    private async Task HandleSuccessfulUploadAsync(UploadResult uploadResult, long totalSizeBytes, string? fileHash, GameType uploadGame)
     {
         var lifetime = Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime;
         var clipboard = lifetime?.MainWindow?.Clipboard;
@@ -822,7 +844,7 @@ public partial class MapManagerViewModel : ObservableObject, IDisposable
         }
 
         var fileName = SelectedMaps.Count == 1 ? SelectedMaps[0].FileName : $"{MapManagerConstants.DefaultZipName}{Path.GetExtension(MapManagerConstants.ZipFilePattern)}";
-        _uploadHistoryService.RecordUpload(totalSizeBytes, uploadResult.PublicUrl, fileName, uploadResult.FileKey, uploadResult.DeleteToken, fileHash, MapManagerConstants.UploadCategory);
+        _uploadHistoryService.RecordUpload(totalSizeBytes, uploadResult.PublicUrl, fileName, uploadResult.FileKey, uploadResult.DeleteToken, fileHash, MapManagerConstants.UploadCategory, uploadGame);
 
         if (IsHistoryOpen)
         {
@@ -831,6 +853,14 @@ public partial class MapManagerViewModel : ObservableObject, IDisposable
 
         StatusMessage = "Uploaded! Link copied to clipboard.";
         _notificationService.ShowSuccess("Upload Complete", "Link copied to clipboard!");
+
+        await ToolSharingDialogHelper.OpenShareDialogAsync(
+            uploadResult.PublicUrl,
+            CommandLineConstants.MapCommand,
+            uploadGame,
+            _notificationService,
+            _localizationService,
+            _logger);
     }
 
     [RelayCommand]
@@ -1222,6 +1252,19 @@ public partial class MapManagerViewModel : ObservableObject, IDisposable
         {
             _logger.LogError(ex, "Failed to copy URL");
         }
+    }
+
+    [RelayCommand]
+    private async Task CopyGenHubLinkAsync(UploadHistoryItemViewModel? item)
+    {
+        await ToolShareCommands.CopyHistoryGenHubLinkAsync(
+            CommandLineConstants.MapCommand,
+            item,
+            SelectedTab,
+            () => _directoryService.GetMapDirectory(SelectedTab),
+            _notificationService,
+            _localizationService,
+            _logger);
     }
 
     [RelayCommand]

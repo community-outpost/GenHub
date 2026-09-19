@@ -9,6 +9,7 @@ using System.IO;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using System.Text;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
@@ -50,7 +51,18 @@ public sealed class UploadThingService(
             fileContent.Headers.ContentType = new MediaTypeHeaderValue(ApiConstants.MediaTypeZip);
 
             using var formContent = new MultipartFormDataContent();
-            formContent.Add(fileContent, "file", fileName);
+            formContent.Add(fileContent, ApiConstants.UploadMultipartFileFieldName, fileName);
+
+            // The gateway only recognizes quoted disposition values. .NET emits name and
+            // filename unquoted by default, which makes the gateway misclassify the file part
+            // and corrupt binary uploads, so quote both explicitly like curl does. The override
+            // is ASCII-only: serializing raw Unicode through Parse degrades to Latin-1 and
+            // mangles non-ASCII filenames, while the runtime default MIME-encodes them losslessly.
+            if (Ascii.IsValid(fileName))
+            {
+                fileContent.Headers.ContentDisposition = ContentDispositionHeaderValue.Parse(
+                    $"form-data; name=\"{ApiConstants.UploadMultipartFileFieldName}\"; filename=\"{ToHeaderSafeFileName(fileName)}\"");
+            }
 
             progress?.Report(0.88);
             using var response = await httpClient.PostAsync(ApiConstants.DefaultUploadUrl, formContent, ct);
@@ -120,5 +132,10 @@ public sealed class UploadThingService(
             logger.LogError(ex, "Exception occurred while deleting file {Key}", fileKey);
             return OperationResult<bool>.CreateFailure($"Deletion error: {ex.Message}");
         }
+    }
+
+    private static string ToHeaderSafeFileName(string fileName)
+    {
+        return fileName.Replace("\"", string.Empty).Replace("\r", string.Empty).Replace("\n", string.Empty);
     }
 }

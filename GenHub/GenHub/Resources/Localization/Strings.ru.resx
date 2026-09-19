@@ -1279,7 +1279,7 @@
     <value>Выбрано:</value>
   </data>
   <data name="Maps.Label.StorageQuotaNotice" xml:space="preserve">
-    <value>Загруженные файлы хранятся 30 дней. Максимальный размер файла: 50 МБ. Повторяющиеся файлы автоматически дедуплицируются.</value>
+    <value>Файлы хранятся до 14 дней или до заполнения хранилища. Максимальная квота 10 МБ на пользователя (3-дневный скользящий лимит). Дубликаты дедуплицируются автоматически.</value>
   </data>
   <data name="Maps.MapPack.Badge.Loaded" xml:space="preserve">
     <value>ЗАГРУЖЕНО</value>
@@ -1738,7 +1738,8 @@
 • URL Generals Online или ID матча (напр. 151553)
 • URL реплея GenTool
 • Ссылка GenHub / UploadThing
-• Прямая ссылка для скачивания (.rep/.zip)</value>
+• Прямая ссылка для скачивания (.rep/.zip)
+• Ссылка протокола GenHub (genhub://...)</value>
   </data>
   <data name="Replays.Tooltip.OpenFolder" xml:space="preserve">
     <value>Открыть папку</value>
@@ -8091,5 +8092,65 @@ GenHub передает официальный идентификатор AppID 
   </data>
   <data name="Info.Demo.AppUpdates.AuthSampleCode" xml:space="preserve">
     <value>WDAS-5678</value>
+  </data>
+  <data name="Tools.Share.Title" xml:space="preserve">
+    <value>Поделиться загрузкой</value>
+  </data>
+  <data name="Tools.Share.Subtitle" xml:space="preserve">
+    <value>Поделитесь этой загрузкой с другими с помощью любой из ссылок.</value>
+  </data>
+  <data name="Tools.Share.NormalLink.Label" xml:space="preserve">
+    <value>Ссылка на скачивание</value>
+  </data>
+  <data name="Tools.Share.NormalLink.Hint" xml:space="preserve">
+    <value>Работает везде. Получатели вставляют её в поле импорта.</value>
+  </data>
+  <data name="Tools.Share.GenHubLink.Label" xml:space="preserve">
+    <value>Ссылка GenHub</value>
+  </data>
+  <data name="Tools.Share.GenHubLink.Hint" xml:space="preserve">
+    <value>Открывает GenHub и автоматически запускает импорт.</value>
+  </data>
+  <data name="Tools.Share.Status.CopiedTitle" xml:space="preserve">
+    <value>Скопировано</value>
+  </data>
+  <data name="Tools.Share.Status.CopiedToClipboard" xml:space="preserve">
+    <value>Ссылка скопирована в буфер обмена!</value>
+  </data>
+  <data name="Tools.Share.Status.ClipboardUnavailable" xml:space="preserve">
+    <value>Буфер обмена недоступен.</value>
+  </data>
+  <data name="Tools.Share.Status.FailedToCopy" xml:space="preserve">
+    <value>Не удалось скопировать ссылку.</value>
+  </data>
+  <data name="Tools.Share.Status.ShareErrorTitle" xml:space="preserve">
+    <value>Ошибка публикации</value>
+  </data>
+  <data name="Tools.Share.Status.ShareErrorMessage" xml:space="preserve">
+    <value>Произошла ошибка при подготовке публикации: {0}</value>
+  </data>
+  <data name="Tools.Share.Error.CrossToolReplayLink" xml:space="preserve">
+    <value>Это ссылка общего доступа из менеджера повторов. Вставьте её в поле импорта в менеджере повторов.</value>
+  </data>
+  <data name="Tools.Share.Error.CrossToolMapLink" xml:space="preserve">
+    <value>Это ссылка общего доступа из менеджера карт. Вставьте её в поле импорта в менеджере карт.</value>
+  </data>
+  <data name="Tools.Share.Error.InvalidShareLink" xml:space="preserve">
+    <value>Эта ссылка GenHub неполная или повреждена. Проверьте ссылку и попробуйте снова.</value>
+  </data>
+  <data name="Tools.Share.Error.BlockedDownloadUrl" xml:space="preserve">
+    <value>URL-адрес загрузки заблокирован, так как он не ведёт на общедоступный адрес в интернете.</value>
+  </data>
+  <data name="Tools.Share.Demo.CopyGenHubLinkTitle" xml:space="preserve">
+    <value>Копировать ссылку GenHub</value>
+  </data>
+  <data name="Tools.Share.Demo.CopyGenHubLinkDesc" xml:space="preserve">
+    <value>Копирует ссылку GenHub, которая открывает GenHub и автоматически импортирует загрузку.</value>
+  </data>
+  <data name="Maps.Tooltip.CopyGenHubLink" xml:space="preserve">
+    <value>Копировать ссылку GenHub (открывает GenHub и импортирует автоматически).</value>
+  </data>
+  <data name="Replays.Tooltip.CopyGenHubLink" xml:space="preserve">
+    <value>Копировать ссылку GenHub (открывает GenHub и импортирует автоматически).</value>
   </data>
 </root>

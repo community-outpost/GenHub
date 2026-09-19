@@ -1,4 +1,6 @@
+using GenHub.Common.Services;
 using GenHub.Core.Constants;
+using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Tools.ReplayManager;
 using GenHub.Core.Models.Common;
@@ -27,7 +29,9 @@ public sealed class ReplayImportService(
     IReplayDirectoryService directoryService,
     IUrlParserService urlParserService,
     IZipValidationService zipValidationService,
-    ILogger<ReplayImportService> logger) : IReplayImportService
+    ILogger<ReplayImportService> logger,
+    ILocalizationService? localizationService = null,
+    IDownloadUrlValidator? downloadUrlValidator = null) : IReplayImportService
 {
     private sealed record ZipEntryImportContext(
         string ZipPath,
@@ -46,6 +50,22 @@ public sealed class ReplayImportService(
         CancellationToken ct = default)
     {
         logger.LogInformation("Importing replay from URL: {Url}", url);
+
+        if (ToolShareLink.IsOtherToolShareUri(url, CommandLineConstants.ReplayCommand))
+        {
+            logger.LogWarning("Rejected cross-tool share URI in replay import.");
+            return new ImportResult
+            {
+                Success = false,
+                FilesImported = 0,
+                FilesSkipped = 0,
+                Errors =
+                [
+                    localizationService?.GetString("Tools.Share.Error.CrossToolMapLink")
+                    ?? "This is a Map Manager share link. Paste it in the Map Manager import box instead.",
+                ],
+            };
+        }
 
         try
         {
@@ -443,13 +463,25 @@ public sealed class ReplayImportService(
     {
         var tempPath = Path.Combine(Path.GetTempPath(), $"{ReplayManagerConstants.TempImportFilePrefix}{Guid.NewGuid()}{FileTypes.ReplayFileExtension}");
 
+        var urlValidator = downloadUrlValidator ?? new DownloadUrlValidator();
+        if (!Uri.TryCreate(directUrl, UriKind.Absolute, out var downloadUri) ||
+            !await urlValidator.IsSafeAsync(downloadUri, ct))
+        {
+            logger.LogWarning("Blocked replay import from unsafe download target.");
+            errors.Add(
+                localizationService?.GetString("Tools.Share.Error.BlockedDownloadUrl")
+                ?? "The download URL was blocked because it does not point to a public internet address.");
+            return 1;
+        }
+
         try
         {
             var downloadConfig = new DownloadConfiguration
             {
-                Url = new Uri(directUrl),
+                Url = downloadUri,
                 DestinationPath = tempPath,
                 UserAgent = userAgent,
+                ValidateRedirectsManually = true,
             };
 
             var result = await downloadService.DownloadFileAsync(downloadConfig, progress: downloadProgress, cancellationToken: ct);

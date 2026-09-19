@@ -1279,7 +1279,7 @@
     <value>Selected:</value>
   </data>
   <data name="Maps.Label.StorageQuotaNotice" xml:space="preserve">
-    <value>Uploaded files are retained for 30 days. Max file size: 50MB. Duplicate files are automatically deduplicated.</value>
+    <value>Files are maintained for up to 14 days or until storage is full. Maximum 10MB quota per user (3-day rolling limit). Duplicate files are automatically deduplicated.</value>
   </data>
   <data name="Maps.MapPack.Badge.Loaded" xml:space="preserve">
     <value>LOADED</value>
@@ -1738,7 +1738,8 @@
 • Generals Online URL or Match ID (e.g. 151553)
 • GenTool Replay URL
 • GenHub / UploadThing Link
-• Direct download link (.rep/.zip)</value>
+• Direct download link (.rep/.zip)
+• GenHub protocol link (genhub://...)</value>
   </data>
   <data name="Replays.Tooltip.OpenFolder" xml:space="preserve">
     <value>Open folder</value>
@@ -8184,5 +8185,65 @@ Do you want to download and inspect this profile package?</value>
   </data>
   <data name="Info.Demo.AppUpdates.AuthSampleCode" xml:space="preserve">
     <value>WDAS-5678</value>
+  </data>
+  <data name="Tools.Share.Title" xml:space="preserve">
+    <value>Share Upload</value>
+  </data>
+  <data name="Tools.Share.Subtitle" xml:space="preserve">
+    <value>Share this upload with others using either link.</value>
+  </data>
+  <data name="Tools.Share.NormalLink.Label" xml:space="preserve">
+    <value>Download link</value>
+  </data>
+  <data name="Tools.Share.NormalLink.Hint" xml:space="preserve">
+    <value>Works anywhere. Recipients paste it into the import box.</value>
+  </data>
+  <data name="Tools.Share.GenHubLink.Label" xml:space="preserve">
+    <value>GenHub link</value>
+  </data>
+  <data name="Tools.Share.GenHubLink.Hint" xml:space="preserve">
+    <value>Opens GenHub and starts the import automatically.</value>
+  </data>
+  <data name="Tools.Share.Status.CopiedTitle" xml:space="preserve">
+    <value>Copied</value>
+  </data>
+  <data name="Tools.Share.Status.CopiedToClipboard" xml:space="preserve">
+    <value>Copied to clipboard!</value>
+  </data>
+  <data name="Tools.Share.Status.ClipboardUnavailable" xml:space="preserve">
+    <value>Clipboard unavailable.</value>
+  </data>
+  <data name="Tools.Share.Status.FailedToCopy" xml:space="preserve">
+    <value>Failed to copy link.</value>
+  </data>
+  <data name="Tools.Share.Status.ShareErrorTitle" xml:space="preserve">
+    <value>Share Error</value>
+  </data>
+  <data name="Tools.Share.Status.ShareErrorMessage" xml:space="preserve">
+    <value>An error occurred while preparing share: {0}</value>
+  </data>
+  <data name="Tools.Share.Error.CrossToolReplayLink" xml:space="preserve">
+    <value>This is a Replay Manager share link. Paste it in the Replay Manager import box instead.</value>
+  </data>
+  <data name="Tools.Share.Error.CrossToolMapLink" xml:space="preserve">
+    <value>This is a Map Manager share link. Paste it in the Map Manager import box instead.</value>
+  </data>
+  <data name="Tools.Share.Error.InvalidShareLink" xml:space="preserve">
+    <value>This GenHub link is incomplete or malformed. Check the link and try again.</value>
+  </data>
+  <data name="Tools.Share.Error.BlockedDownloadUrl" xml:space="preserve">
+    <value>The download URL was blocked because it does not point to a public internet address.</value>
+  </data>
+  <data name="Tools.Share.Demo.CopyGenHubLinkTitle" xml:space="preserve">
+    <value>Copy GenHub Link</value>
+  </data>
+  <data name="Tools.Share.Demo.CopyGenHubLinkDesc" xml:space="preserve">
+    <value>Copies a GenHub link that opens GenHub and imports the upload automatically.</value>
+  </data>
+  <data name="Maps.Tooltip.CopyGenHubLink" xml:space="preserve">
+    <value>Copy GenHub link (opens GenHub and imports automatically).</value>
+  </data>
+  <data name="Replays.Tooltip.CopyGenHubLink" xml:space="preserve">
+    <value>Copy GenHub link (opens GenHub and imports automatically).</value>
   </data>
 </root>

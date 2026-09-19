@@ -1,4 +1,5 @@
 using GenHub.Core.Constants;
+using GenHub.Core.Models.Enums;
 using System;
 
 namespace GenHub.Core.Models.Common;
@@ -11,12 +12,14 @@ namespace GenHub.Core.Models.Common;
 /// <param name="Url">The public URL of the upload.</param>
 /// <param name="FileName">The name of the uploaded file.</param>
 /// <param name="Category">Optional tool or file category.</param>
+/// <param name="Game">The game selected when the upload began, if recorded.</param>
 public record UploadHistoryItem(
     DateTime Timestamp,
     long SizeBytes,
     string Url,
     string FileName,
-    string? Category = null)
+    string? Category = null,
+    GameType? Game = null)
 {
     /// <summary>
     /// Gets the formatted file size string.

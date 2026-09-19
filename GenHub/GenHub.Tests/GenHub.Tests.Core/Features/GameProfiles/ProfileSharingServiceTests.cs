@@ -923,7 +923,7 @@ public class ProfileSharingServiceTests
             Assert.True(result.Success);
             Assert.NotNull(result.Data);
             uploadThingMock.Verify(u => u.UploadFileAsync(It.IsAny<string>(), It.IsAny<IProgress<double>>(), It.IsAny<CancellationToken>()), Times.Once);
-            uploadHistoryMock.Verify(h => h.RecordUpload(It.IsAny<long>(), "https://utfs.io/f/testupload.zip", It.IsAny<string>(), "key123", "token123", It.IsAny<string>(), ProfileSharingConstants.UploadCategoryProfiles), Times.Once);
+            uploadHistoryMock.Verify(h => h.RecordUpload(It.IsAny<long>(), "https://utfs.io/f/testupload.zip", It.IsAny<string>(), "key123", "token123", It.IsAny<string>(), ProfileSharingConstants.UploadCategoryProfiles, It.IsAny<GameType?>()), Times.Once);
         }
         finally
         {
@@ -1044,7 +1044,7 @@ public class ProfileSharingServiceTests
         Assert.True(result.Success);
         Assert.NotNull(result.Data);
         uploadThingMock.Verify(u => u.UploadFileAsync(It.IsAny<string>(), It.IsAny<IProgress<double>>(), It.IsAny<CancellationToken>()), Times.Never);
-        uploadHistoryMock.Verify(h => h.RecordUpload(It.IsAny<long>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()), Times.Never);
+        uploadHistoryMock.Verify(h => h.RecordUpload(It.IsAny<long>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<GameType?>()), Times.Never);
     }
 
     /// <summary>
@@ -1499,13 +1499,13 @@ public class ProfileSharingServiceTests
         var uploadHistoryMock = new Mock<IUploadHistoryService>();
         uploadHistoryMock.Setup(h => h.CanUploadAsync(It.IsAny<long>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
-        uploadHistoryMock.Setup(h => h.FindExistingUploadAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync((string hash, CancellationToken _) => savedHash != null && savedHash == hash
+        uploadHistoryMock.Setup(h => h.FindExistingUploadAsync(It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<GameType?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((string hash, string? _, GameType? _, CancellationToken _) => savedHash != null && savedHash == hash
                 ? new UploadRecord { FileHash = hash, Url = "https://utfs.io/f/defcon51.zip" }
                 : null);
 
-        uploadHistoryMock.Setup(h => h.RecordUpload(It.IsAny<long>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
-            .Callback<long, string, string, string?, string?, string?, string?>((size, url, name, key, token, hash, cat) => savedHash = hash);
+        uploadHistoryMock.Setup(h => h.RecordUpload(It.IsAny<long>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<GameType?>()))
+            .Callback<long, string, string, string?, string?, string?, string?, GameType?>((size, url, name, key, token, hash, cat, game) => savedHash = hash);
 
         _profileRepositoryMock.Setup(r => r.LoadProfileAsync("profile-1", It.IsAny<CancellationToken>()))
             .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(profile1));
@@ -1538,7 +1538,7 @@ public class ProfileSharingServiceTests
 
             // Assert: Upload was called exactly ONCE across both profile exports
             uploadThingMock.Verify(u => u.UploadFileAsync(It.IsAny<string>(), It.IsAny<IProgress<double>>(), It.IsAny<CancellationToken>()), Times.Once);
-            uploadHistoryMock.Verify(h => h.RecordUpload(It.IsAny<long>(), "https://utfs.io/f/defcon51.zip", "[BSM] Defcon 51 V3.zip", "key123", "token123", It.IsAny<string>(), ProfileSharingConstants.UploadCategoryProfiles), Times.Once);
+            uploadHistoryMock.Verify(h => h.RecordUpload(It.IsAny<long>(), "https://utfs.io/f/defcon51.zip", "[BSM] Defcon 51 V3.zip", "key123", "token123", It.IsAny<string>(), ProfileSharingConstants.UploadCategoryProfiles, It.IsAny<GameType?>()), Times.Once);
         }
         finally
         {

@@ -1,3 +1,4 @@
+using GenHub.Core.Models.Enums;
 using System.Text.Json.Serialization;
 
 namespace GenHub.Core.Models.Tools;
@@ -50,6 +51,13 @@ public sealed class UploadRecord
     /// </summary>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? Category { get; set; }
+
+    /// <summary>
+    /// Gets or sets the game selected when the upload began. Records written before game
+    /// tracking leave this unset.
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public GameType? Game { get; set; }
 
     /// <summary>
     /// Gets or sets a value indicating whether a legacy record was pending deletion.

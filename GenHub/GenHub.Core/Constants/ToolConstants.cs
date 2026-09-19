@@ -81,6 +81,12 @@ public static class ToolConstants
     public const string UnixMockPathSegment = "/Mock/";
 
     /// <summary>
+    /// Named HTTP client for tool import downloads, configured with SSRF protection and
+    /// manual redirect validation.
+    /// </summary>
+    public const string ToolImportHttpClientName = "ToolImportHttpClient";
+
+    /// <summary>
     /// Notification title for delete failure.
     /// </summary>
     public const string DeleteFailedTitle = "Delete Failed";

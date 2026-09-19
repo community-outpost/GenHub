@@ -164,6 +164,11 @@ public static class ApiConstants
     /// </summary>
     public const string DefaultUploadFileName = "upload.zip";
 
+    /// <summary>
+    /// Multipart form field name carrying the uploaded file.
+    /// </summary>
+    public const string UploadMultipartFileFieldName = "file";
+
     // GenTool
 
     /// <summary>

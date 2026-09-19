@@ -1,4 +1,5 @@
 using GenHub.Core.Constants;
+using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Models.Tools.ReplayManager;
 using GenHub.Features.Tools.ReplayManager.Services;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -45,6 +46,13 @@ public sealed class UrlParserServiceTests
     [InlineData("https://gentool.net/data/zh/replay.rep", ReplaySource.GenTool)]
     [InlineData("https://example.com/downloads/my_match.rep", ReplaySource.DirectLink)]
     [InlineData("https://example.com/downloads/replays_pack.zip", ReplaySource.DirectLink)]
+    [InlineData("genhub://replay/import?url=https%3A%2F%2Fufs.sh%2Ff%2Fkey123", ReplaySource.UploadThing)]
+    [InlineData("genhub://replay/import?url=https%3A%2F%2Fexample.com%2Freplay.rep&game=generals", ReplaySource.DirectLink)]
+    [InlineData("genhub://map/import?url=https%3A%2F%2Fexample.com%2Fmaps.zip", ReplaySource.Unknown)]
+    [InlineData("genhub://replay/import", ReplaySource.Unknown)]
+    [InlineData("genhub://replay/import?x=https://example.com/demo.rep", ReplaySource.Unknown)]
+    [InlineData("genhub://replay/import?url=not-a-url", ReplaySource.Unknown)]
+    [InlineData("genhub://subscribe?url=https://example.com/catalog.json", ReplaySource.Unknown)]
     [InlineData("https://example.com/invalid/page.html", ReplaySource.Unknown)]
     [InlineData("", ReplaySource.Unknown)]
     [InlineData("   ", ReplaySource.Unknown)]
@@ -64,6 +72,8 @@ public sealed class UrlParserServiceTests
     [InlineData("https://utfs.io/f/key123", true)]
     [InlineData("https://strata.gamereplays.org/zh/match/3489856", true)]
     [InlineData("https://example.com/replay.rep", true)]
+    [InlineData("genhub://replay/import?url=https%3A%2F%2Fexample.com%2Freplay.rep", true)]
+    [InlineData("genhub://map/import?url=https%3A%2F%2Fexample.com%2Fmaps.zip", false)]
     [InlineData("https://example.com/page.html", false)]
     public void IsValidReplayUrl_ReturnsExpectedValidity(string url, bool expectedValid)
     {
@@ -83,6 +93,43 @@ public sealed class UrlParserServiceTests
     {
         var result = await _service.GetDirectDownloadUrlAsync(url);
         Assert.Equal(url, result);
+    }
+
+    /// <summary>
+    /// Verifies that GetDirectDownloadUrlAsync unwraps GenHub share URIs to their inner download URL.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task GetDirectDownloadUrlAsync_WithGenHubShareUri_ReturnsInnerUrlAsync()
+    {
+        var result = await _service.GetDirectDownloadUrlAsync("genhub://replay/import?url=https%3A%2F%2Fexample.com%2Freplay.rep&game=generals");
+
+        Assert.Equal("https://example.com/replay.rep", result);
+    }
+
+    /// <summary>
+    /// Verifies that GetDirectDownloadUrlAsync returns null for other tools share URIs.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task GetDirectDownloadUrlAsync_WithMapShareUri_ReturnsNullAsync()
+    {
+        var result = await _service.GetDirectDownloadUrlAsync("genhub://map/import?url=https%3A%2F%2Fexample.com%2Fmaps.zip");
+
+        Assert.Null(result);
+    }
+
+    /// <summary>
+    /// Verifies that GetDirectDownloadUrlAsync returns null for malformed GenHub share URIs
+    /// instead of classifying them as legacy direct links.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task GetDirectDownloadUrlAsync_WithMalformedShareUri_ReturnsNullAsync()
+    {
+        var result = await _service.GetDirectDownloadUrlAsync("genhub://replay/import?x=https://example.com/demo.rep");
+
+        Assert.Null(result);
     }
 
     /// <summary>
@@ -115,12 +162,49 @@ public sealed class UrlParserServiceTests
             });
 
         var client = new HttpClient(mockHandler.Object);
-        var service = new UrlParserService(client, NullLogger<UrlParserService>.Instance);
+        var service = new UrlParserService(client, NullLogger<UrlParserService>.Instance, CreateValidator(true).Object);
 
         var result = await service.GetDirectDownloadUrlsAsync("https://strata.gamereplays.org/zh/match/3489856");
 
         Assert.Equal(2, result.Count);
         Assert.Contains("https://matchdata.playgenerals.online/replays/2026/8/23/match_3489856/user_1/match_3489856_user_1_replay.rep", result);
         Assert.Contains("https://matchdata.playgenerals.online/replays/2026/8/23/match_3489856/user_2/match_3489856_user_2_replay.rep", result);
+    }
+
+    /// <summary>
+    /// Verifies that blocked page fetches fail cleanly with no download URLs.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task GetDirectDownloadUrlsAsync_WithBlockedTarget_ReturnsEmptyAsync()
+    {
+        bool requested = false;
+        var mockHandler = new Mock<HttpMessageHandler>();
+        mockHandler.Protected()
+            .Setup<Task<HttpResponseMessage>>(
+                "SendAsync",
+                ItExpr.IsAny<HttpRequestMessage>(),
+                ItExpr.IsAny<CancellationToken>())
+            .Callback<HttpRequestMessage, CancellationToken>((_, _) => requested = true)
+            .ReturnsAsync(new HttpResponseMessage
+            {
+                StatusCode = HttpStatusCode.OK,
+                Content = new StringContent("<html></html>"),
+            });
+
+        var client = new HttpClient(mockHandler.Object);
+        var service = new UrlParserService(client, NullLogger<UrlParserService>.Instance, CreateValidator(false).Object);
+
+        var result = await service.GetDirectDownloadUrlsAsync("https://strata.gamereplays.org/zh/match/3489856");
+
+        Assert.Empty(result);
+        Assert.False(requested);
+    }
+
+    private static Mock<IDownloadUrlValidator> CreateValidator(bool result)
+    {
+        var validator = new Mock<IDownloadUrlValidator>();
+        validator.Setup(v => v.IsSafeAsync(It.IsAny<Uri>(), It.IsAny<CancellationToken>())).ReturnsAsync(result);
+        return validator;
     }
 }
