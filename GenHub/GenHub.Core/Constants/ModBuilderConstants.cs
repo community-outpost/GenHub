@@ -266,6 +266,61 @@ public static class ModBuilderConstants
     public const string HotkeysSampleName = "Hotkeys";
 
     /// <summary>
+    /// Bundle item name for Lemon Control Bar art textures.
+    /// </summary>
+    public const string LemonControlBarArtItemName = "LemonControlBarArt";
+
+    /// <summary>
+    /// Bundle item name for Lemon Control Bar data and configuration files.
+    /// </summary>
+    public const string LemonControlBarDataItemName = "LemonControlBarData";
+
+    /// <summary>
+    /// Bundle item name for Lemon Control Bar 720p window layouts.
+    /// </summary>
+    public const string LemonControlBarWindows720pItemName = "LemonControlBarWindows_720p";
+
+    /// <summary>
+    /// Bundle item name for Lemon Control Bar 1080p window layouts.
+    /// </summary>
+    public const string LemonControlBarWindows1080pItemName = "LemonControlBarWindows_1080p";
+
+    /// <summary>
+    /// Bundle item name for Lemon Control Bar 1440p window layouts.
+    /// </summary>
+    public const string LemonControlBarWindows1440pItemName = "LemonControlBarWindows_1440p";
+
+    /// <summary>
+    /// Bundle item name for Lemon Control Bar 4K window layouts.
+    /// </summary>
+    public const string LemonControlBarWindows4KItemName = "LemonControlBarWindows_4K";
+
+    /// <summary>
+    /// Bundle item name for Improved Menus window definitions.
+    /// </summary>
+    public const string MenuWindowsItemName = "MenuWindows";
+
+    /// <summary>
+    /// Bundle item name for Improved Menus mapped image definitions.
+    /// </summary>
+    public const string MenuMappedImagesItemName = "MenuMappedImages";
+
+    /// <summary>
+    /// Bundle item name for Improved Menus English textures.
+    /// </summary>
+    public const string MenuTexturesEnglishItemName = "MenuTexturesEnglish";
+
+    /// <summary>
+    /// Bundle item name for Improved Menus Russian textures.
+    /// </summary>
+    public const string MenuTexturesRussianItemName = "MenuTexturesRussian";
+
+    /// <summary>
+    /// Bundle item name for Improved Menus Spanish textures.
+    /// </summary>
+    public const string MenuTexturesSpanishItemName = "MenuTexturesSpanish";
+
+    /// <summary>
     /// File name for ModFolders configuration.
     /// </summary>
     public const string ModFoldersFileName = "ModFolders.json";

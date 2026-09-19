@@ -5,6 +5,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentAssertions;
+using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Models.Tools.ModBuilder;
 using GenHub.Features.Tools.ModBuilder.Services;
 using Microsoft.Extensions.Logging;
@@ -520,5 +521,50 @@ public sealed class ProjectConfigServiceTests : IDisposable
         var rooted = Path.GetFullPath(itemFile);
         var resolvedRooted = ProjectConfigService.ResolveBundleConfigPath(projectDir, "config", rooted);
         resolvedRooted.Should().Be(rooted);
+    }
+
+    [Fact]
+    public async Task GetRecentProjectsAsync_WithDirectoryEntry_RetainsIt()
+    {
+        // Arrange: isolated recent-projects file via mocked configuration provider
+        var appDataDir = Path.Combine(_tempDirectory, "appdata");
+        Directory.CreateDirectory(appDataDir);
+        var configMock = new Mock<IConfigurationProviderService>();
+        configMock.Setup(c => c.GetApplicationDataPath()).Returns(appDataDir);
+        var service = new ProjectConfigService(_mockLogger.Object, configMock.Object);
+
+        var directoryEntry = Path.Combine(_tempDirectory, "LegacyProjectDir");
+        Directory.CreateDirectory(directoryEntry);
+        await service.AddToRecentProjectsAsync(directoryEntry);
+
+        var staleFileEntry = Path.Combine(_tempDirectory, "Deleted", "Gone.mbproj");
+        await service.AddToRecentProjectsAsync(staleFileEntry);
+
+        // Act
+        var result = await service.GetRecentProjectsAsync();
+
+        // Assert
+        result.Success.Should().BeTrue();
+        result.Data.Should().Contain(directoryEntry);
+        result.Data.Should().NotContain(staleFileEntry);
+    }
+
+    [Fact]
+    public async Task CreateProjectAsync_WithLocalizationService_ReturnsLocalizedError()
+    {
+        // Arrange
+        string? localizedValue = "LOCALIZED:Tools.ModBuilder.Project.Error.NameEmpty";
+        var localizationMock = new Mock<ILocalizationService>();
+        localizationMock
+            .Setup(m => m.TryGetString("Tools.ModBuilder.Project.Error.NameEmpty", out localizedValue, It.IsAny<object?[]>()))
+            .Returns(true);
+        var service = new ProjectConfigService(_mockLogger.Object, localizationService: localizationMock.Object);
+
+        // Act
+        var result = await service.CreateProjectAsync(Path.Combine(_tempDirectory, "Localized.mbproj"), string.Empty);
+
+        // Assert
+        result.Success.Should().BeFalse();
+        result.Errors.Should().ContainSingle().Which.Should().Be(localizedValue);
     }
 }

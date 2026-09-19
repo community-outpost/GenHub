@@ -390,6 +390,52 @@ public sealed class ArchiveServiceTests : IDisposable
         thirdBytes.Should().Equal(secondBytes);
     }
 
+    [Fact]
+    public async Task CreateBigArchiveAsync_WithCorruptExplicitManifest_ReturnsSpecificFailure()
+    {
+        // Arrange
+        var sourceDir = Path.Combine(_tempDirectory, "corrupt_manifest_source");
+        Directory.CreateDirectory(sourceDir);
+        await File.WriteAllTextAsync(Path.Combine(sourceDir, "file.txt"), "content");
+
+        var manifestPath = Path.Combine(_tempDirectory, "corrupt.manifest.json");
+        await File.WriteAllTextAsync(manifestPath, "{ this is not valid json");
+
+        var targetBig = Path.Combine(_tempDirectory, "corrupt_manifest.big");
+
+        // Act
+        var result = await _service.CreateBigArchiveAsync(sourceDir, targetBig, manifestFilePath: manifestPath);
+
+        // Assert
+        result.Success.Should().BeFalse();
+        result.FirstError.Should().Contain("could not be parsed");
+        result.FirstError.Should().Contain(manifestPath);
+        File.Exists(targetBig).Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task CreateBigArchiveAsync_WithEmptyExplicitManifest_ReturnsSpecificFailure()
+    {
+        // Arrange
+        var sourceDir = Path.Combine(_tempDirectory, "empty_manifest_source");
+        Directory.CreateDirectory(sourceDir);
+        await File.WriteAllTextAsync(Path.Combine(sourceDir, "file.txt"), "content");
+
+        var manifestPath = Path.Combine(_tempDirectory, "empty.manifest.json");
+        await File.WriteAllTextAsync(manifestPath, "null");
+
+        var targetBig = Path.Combine(_tempDirectory, "empty_manifest.big");
+
+        // Act
+        var result = await _service.CreateBigArchiveAsync(sourceDir, targetBig, manifestFilePath: manifestPath);
+
+        // Assert
+        result.Success.Should().BeFalse();
+        result.FirstError.Should().Contain("could not be loaded");
+        result.FirstError.Should().Contain(manifestPath);
+        File.Exists(targetBig).Should().BeFalse();
+    }
+
     private static string? FindExtractedPatchDir()
     {
         var current = AppDomain.CurrentDomain.BaseDirectory;

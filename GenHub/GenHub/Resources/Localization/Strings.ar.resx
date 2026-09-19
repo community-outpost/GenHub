@@ -9035,6 +9035,42 @@ GenHub هو مشغل ومدير حديث لألعاب **Command &amp; Conquer: G
 
   <data name="Tools.ModBuilder.Notification.CleanSkipped.Message" xml:space="preserve">
     <value>تم تخطي التنظيف لدليل بناء خارجي أو غير آمن: {0}</value>
+  <data name="Tools.ModBuilder.Project.Error.AlreadyExists" xml:space="preserve">
+    <value>ملف المشروع موجود بالفعل في: {0}</value>
+  </data>
+  <data name="Tools.ModBuilder.Project.Error.BigFileNotFound" xml:space="preserve">
+    <value>لم يتم العثور على ملف BIG: {0}</value>
+  </data>
+  <data name="Tools.ModBuilder.Project.Error.DeserializeFailed" xml:space="preserve">
+    <value>فشل في قراءة ملف المشروع</value>
+  </data>
+  <data name="Tools.ModBuilder.Project.Error.DirectoryNotFound" xml:space="preserve">
+    <value>مجلد المشروع غير موجود: {0}</value>
+  </data>
+  <data name="Tools.ModBuilder.Project.Error.FileNotFound" xml:space="preserve">
+    <value>لم يتم العثور على ملف المشروع في: {0}</value>
+  </data>
+  <data name="Tools.ModBuilder.Project.Error.InvalidPath" xml:space="preserve">
+    <value>مسار المشروع غير صالح</value>
+  </data>
+  <data name="Tools.ModBuilder.Project.Error.NameEmpty" xml:space="preserve">
+    <value>لا يمكن أن يكون اسم المشروع فارغًا</value>
+  </data>
+  <data name="Tools.ModBuilder.Project.Error.NoBigFiles" xml:space="preserve">
+    <value>لم يتم تحديد ملفات BIG صالحة للاستيراد</value>
+  </data>
+  <data name="Tools.ModBuilder.Project.Error.NoBigFilesForProject" xml:space="preserve">
+    <value>لم يتم تحديد ملفات BIG لإنشاء المشروع منها</value>
+  </data>
+  <data name="Tools.ModBuilder.Project.Error.PathEmpty" xml:space="preserve">
+    <value>لا يمكن أن يكون مسار المشروع فارغًا</value>
+  </data>
+  <data name="Tools.ModBuilder.Project.Error.ProjectNull" xml:space="preserve">
+    <value>لا يمكن أن يكون المشروع فارغًا</value>
+  </data>
+  <data name="Tools.ModBuilder.Project.Error.RequiredDirectoryMissing" xml:space="preserve">
+    <value>المجلد المطلوب غير موجود: {0}</value>
+  </data>
   </data>
   <data name="Tools.ModBuilder.Notification.CleanSkipped.Title" xml:space="preserve">
     <value>تم تخطي التنظيف</value>

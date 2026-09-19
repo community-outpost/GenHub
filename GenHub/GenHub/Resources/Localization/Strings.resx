@@ -9144,6 +9144,42 @@ Install location:
 
   <data name="Tools.ModBuilder.Notification.CleanSkipped.Message" xml:space="preserve">
     <value>Skipping clean for unsafe or external build directory: {0}</value>
+  <data name="Tools.ModBuilder.Project.Error.AlreadyExists" xml:space="preserve">
+    <value>Project file already exists at: {0}</value>
+  </data>
+  <data name="Tools.ModBuilder.Project.Error.BigFileNotFound" xml:space="preserve">
+    <value>BIG file not found: {0}</value>
+  </data>
+  <data name="Tools.ModBuilder.Project.Error.DeserializeFailed" xml:space="preserve">
+    <value>Failed to deserialize project file</value>
+  </data>
+  <data name="Tools.ModBuilder.Project.Error.DirectoryNotFound" xml:space="preserve">
+    <value>Project directory does not exist: {0}</value>
+  </data>
+  <data name="Tools.ModBuilder.Project.Error.FileNotFound" xml:space="preserve">
+    <value>Project file not found at: {0}</value>
+  </data>
+  <data name="Tools.ModBuilder.Project.Error.InvalidPath" xml:space="preserve">
+    <value>Invalid project path</value>
+  </data>
+  <data name="Tools.ModBuilder.Project.Error.NameEmpty" xml:space="preserve">
+    <value>Project name cannot be empty</value>
+  </data>
+  <data name="Tools.ModBuilder.Project.Error.NoBigFiles" xml:space="preserve">
+    <value>No valid BIG files specified for import</value>
+  </data>
+  <data name="Tools.ModBuilder.Project.Error.NoBigFilesForProject" xml:space="preserve">
+    <value>No BIG files specified to create project from</value>
+  </data>
+  <data name="Tools.ModBuilder.Project.Error.PathEmpty" xml:space="preserve">
+    <value>Project path cannot be empty</value>
+  </data>
+  <data name="Tools.ModBuilder.Project.Error.ProjectNull" xml:space="preserve">
+    <value>Project cannot be null</value>
+  </data>
+  <data name="Tools.ModBuilder.Project.Error.RequiredDirectoryMissing" xml:space="preserve">
+    <value>Required directory does not exist: {0}</value>
+  </data>
   </data>
   <data name="Tools.ModBuilder.Notification.CleanSkipped.Title" xml:space="preserve">
     <value>Clean Skipped</value>
