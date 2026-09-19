@@ -1555,6 +1555,26 @@ public class SettingsViewModelTests
     }
 
     /// <summary>
+    /// Verifies that UpdateSectionFromScroll updates the selected section and notifies bindings.
+    /// </summary>
+    [Fact]
+    public void UpdateSectionFromScroll_UpdatesSelectedSection()
+    {
+        // Arrange
+        var viewModel = CreateViewModel();
+        var target = viewModel.Sections.Last();
+        string? notifiedProperty = null;
+        viewModel.PropertyChanged += (_, e) => notifiedProperty = e.PropertyName;
+
+        // Act
+        viewModel.UpdateSectionFromScroll(target);
+
+        // Assert
+        Assert.Same(target, viewModel.SelectedSection);
+        Assert.Equal(nameof(SettingsViewModel.SelectedSection), notifiedProperty);
+    }
+
+    /// <summary>
     /// Verifies that SaveSettingsCommand persists the selected language to UserSettings.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>

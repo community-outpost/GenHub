@@ -560,6 +560,16 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>
+    /// Updates the selected section to follow the scroll position. The view suppresses
+    /// scroll-to-section while applying this update so the sidebar highlight stays in sync.
+    /// </summary>
+    /// <param name="section">The newly visible section.</param>
+    public void UpdateSectionFromScroll(SettingsSectionItem section)
+    {
+        SelectedSection = section;
+    }
+
+    /// <summary>
     /// Loads custom game installations.
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>

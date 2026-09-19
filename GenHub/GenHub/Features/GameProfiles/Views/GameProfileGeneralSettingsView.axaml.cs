@@ -1,11 +1,9 @@
 using Avalonia;
 using Avalonia.Controls;
-using Avalonia.Input;
 using Avalonia.Interactivity;
-using Avalonia.Threading;
+using GenHub.Common.Controls;
 using GenHub.Features.GameProfiles.ViewModels;
 using System;
-using System.Collections.Generic;
 
 namespace GenHub.Features.GameProfiles.Views;
 
@@ -14,14 +12,15 @@ namespace GenHub.Features.GameProfiles.Views;
 /// </summary>
 public partial class GameProfileGeneralSettingsView : UserControl
 {
-    private static readonly TimeSpan AnimationDuration = TimeSpan.FromMilliseconds(350);
-    private readonly List<(string Name, Control Control, GeneralSettingsCategory Category)> _sections = [];
-    private ScrollViewer? _scrollViewer;
-    private bool _isScrollingProgrammatically;
-    private DispatcherTimer? _animationTimer;
-    private double _animTargetOffset;
-    private double _animStartOffset;
-    private DateTime _animStartTime;
+    private static readonly (string Name, GeneralSettingsCategory Category)[] SectionDefinitions =
+    [
+        ("IdentitySection", GeneralSettingsCategory.Identity),
+        ("AppearanceSection", GeneralSettingsCategory.Appearance),
+        ("LaunchSection", GeneralSettingsCategory.Launch),
+        ("ThemeSection", GeneralSettingsCategory.Theme),
+    ];
+
+    private SectionScrollSpy<GeneralSettingsCategory>? _scrollSpy;
     private GameProfileSettingsViewModel? _boundViewModel;
 
     /// <summary>
@@ -40,15 +39,7 @@ public partial class GameProfileGeneralSettingsView : UserControl
     {
         base.OnLoaded(e);
 
-        _scrollViewer = this.FindControl<ScrollViewer>("GeneralSettingsScrollViewer");
-        if (_scrollViewer == null)
-        {
-            return;
-        }
-
-        // Map section names to controls and categories
-        MapSections();
-
+        EnsureScrollSpy();
         if (DataContext is GameProfileSettingsViewModel vm)
         {
             _boundViewModel = vm;
@@ -81,7 +72,9 @@ public partial class GameProfileGeneralSettingsView : UserControl
     protected override void OnUnloaded(RoutedEventArgs e)
     {
         base.OnUnloaded(e);
-        StopAnimation();
+
+        _scrollSpy?.Dispose();
+        _scrollSpy = null;
 
         if (_boundViewModel != null)
         {
@@ -90,221 +83,71 @@ public partial class GameProfileGeneralSettingsView : UserControl
         }
     }
 
-    private void MapSections()
+    private static GeneralSettingsCategory? GetCategory(string sectionName)
     {
-        if (_sections.Count > 0)
+        foreach (var (name, category) in SectionDefinitions)
+        {
+            if (string.Equals(name, sectionName, StringComparison.Ordinal))
+            {
+                return category;
+            }
+        }
+
+        return null;
+    }
+
+    private void EnsureScrollSpy()
+    {
+        if (_scrollSpy != null)
         {
             return;
         }
 
-        MapSection("IdentitySection", GeneralSettingsCategory.Identity);
-        MapSection("AppearanceSection", GeneralSettingsCategory.Appearance);
-        MapSection("LaunchSection", GeneralSettingsCategory.Launch);
-        MapSection("ThemeSection", GeneralSettingsCategory.Theme);
+        var scrollViewer = this.FindControl<ScrollViewer>("GeneralSettingsScrollViewer");
+        if (scrollViewer is null)
+        {
+            return;
+        }
+
+        var spy = new SectionScrollSpy<GeneralSettingsCategory>(scrollViewer, OnSpySectionActivated);
+        foreach (var (name, category) in SectionDefinitions)
+        {
+            var control = this.FindControl<Control>(name);
+            if (control != null)
+            {
+                spy.RegisterSection(category, control);
+            }
+        }
+
+        spy.Attach();
+        _scrollSpy = spy;
     }
 
     private void AttachHandlers(GameProfileSettingsViewModel vm)
     {
         vm.ScrollToSectionRequested -= OnScrollToSectionRequested;
         vm.ScrollToSectionRequested += OnScrollToSectionRequested;
-
-        if (_scrollViewer != null)
-        {
-            _scrollViewer.ScrollChanged -= OnScrollChanged;
-            _scrollViewer.ScrollChanged += OnScrollChanged;
-            _scrollViewer.PointerWheelChanged -= OnPointerWheelChanged;
-            _scrollViewer.PointerWheelChanged += OnPointerWheelChanged;
-        }
     }
 
     private void DetachHandlers(GameProfileSettingsViewModel vm)
     {
         vm.ScrollToSectionRequested -= OnScrollToSectionRequested;
-        if (_scrollViewer != null)
-        {
-            _scrollViewer.ScrollChanged -= OnScrollChanged;
-            _scrollViewer.PointerWheelChanged -= OnPointerWheelChanged;
-        }
-    }
-
-    private void MapSection(string name, GeneralSettingsCategory category)
-    {
-        var control = this.FindControl<Control>(name);
-        if (control != null)
-        {
-            _sections.Add((name, control, category));
-        }
-    }
-
-    private void OnPointerWheelChanged(object? sender, PointerWheelEventArgs e)
-    {
-        if (_isScrollingProgrammatically)
-        {
-            StopAnimation();
-        }
     }
 
     private void OnScrollToSectionRequested(string sectionName)
     {
-        if (_scrollViewer == null)
+        var category = GetCategory(sectionName);
+        if (category.HasValue)
         {
-            return;
-        }
-
-        Control? targetControl = null;
-        foreach (var (name, control, _) in _sections)
-        {
-            if (name == sectionName)
-            {
-                targetControl = control;
-                break;
-            }
-        }
-
-        if (targetControl == null || _scrollViewer.Content is not Control content)
-        {
-            return;
-        }
-
-        var transform = targetControl.TransformToVisual(content);
-        if (!transform.HasValue)
-        {
-            return;
-        }
-
-        var pos = transform.Value.Transform(new Point(0, 0));
-        var maxScrollY = Math.Max(0, _scrollViewer.Extent.Height - _scrollViewer.Viewport.Height);
-        var targetY = Math.Clamp(pos.Y, 0, maxScrollY);
-
-        StartAnimation(targetY);
-    }
-
-    private void OnScrollChanged(object? sender, ScrollChangedEventArgs e)
-    {
-        if (_isScrollingProgrammatically || _scrollViewer == null || DataContext is not GameProfileSettingsViewModel vm)
-        {
-            return;
-        }
-
-        var maxScrollY = _scrollViewer.Extent.Height - _scrollViewer.Viewport.Height;
-        var isAtBottom = maxScrollY > 0 && _scrollViewer.Offset.Y >= (maxScrollY - 25);
-
-        if (isAtBottom && _sections.Count > 0)
-        {
-            var lastCategory = _sections[^1].Category;
-            if (vm.SelectedGeneralCategory != lastCategory)
-            {
-                vm.UpdateGeneralCategoryFromScroll(lastCategory);
-            }
-
-            return;
-        }
-
-        var threshold = Math.Max(60, _scrollViewer.Viewport.Height * 0.35);
-        GeneralSettingsCategory? activeCategory = null;
-
-        foreach (var (_, control, category) in _sections)
-        {
-            try
-            {
-                var transform = control.TransformToVisual(_scrollViewer);
-                if (!transform.HasValue)
-                {
-                    continue;
-                }
-
-                var position = transform.Value.Transform(new Point(0, 0));
-
-                if (position.Y <= threshold)
-                {
-                    activeCategory = category;
-                }
-            }
-            catch (InvalidOperationException)
-            {
-                // Ignore transformation errors
-            }
-        }
-
-        if (activeCategory.HasValue && activeCategory.Value != vm.SelectedGeneralCategory)
-        {
-            vm.UpdateGeneralCategoryFromScroll(activeCategory.Value);
-        }
-        else if (!activeCategory.HasValue && _sections.Count > 0 && vm.SelectedGeneralCategory != _sections[0].Category)
-        {
-            vm.UpdateGeneralCategoryFromScroll(_sections[0].Category);
+            _scrollSpy?.ScrollToSection(category.Value);
         }
     }
 
-    private void StartAnimation(double targetY)
+    private void OnSpySectionActivated(GeneralSettingsCategory category)
     {
-        if (_scrollViewer == null)
+        if (DataContext is GameProfileSettingsViewModel vm && vm.SelectedGeneralCategory != category)
         {
-            return;
-        }
-
-        StopAnimationTimer();
-
-        var currentY = _scrollViewer.Offset.Y;
-        if (Math.Abs(currentY - targetY) < 1.0)
-        {
-            _scrollViewer.Offset = new Vector(_scrollViewer.Offset.X, targetY);
-            _isScrollingProgrammatically = false;
-            return;
-        }
-
-        _isScrollingProgrammatically = true;
-        _animStartOffset = currentY;
-        _animTargetOffset = targetY;
-        _animStartTime = DateTime.UtcNow;
-
-        _animationTimer = new DispatcherTimer
-        {
-            Interval = TimeSpan.FromMilliseconds(16),
-        };
-        _animationTimer.Tick += OnAnimationTick;
-        _animationTimer.Start();
-    }
-
-    private void StopAnimationTimer()
-    {
-        if (_animationTimer != null)
-        {
-            _animationTimer.Tick -= OnAnimationTick;
-            _animationTimer.Stop();
-            _animationTimer = null;
-        }
-    }
-
-    private void StopAnimation()
-    {
-        StopAnimationTimer();
-        _isScrollingProgrammatically = false;
-    }
-
-    private void OnAnimationTick(object? sender, EventArgs e)
-    {
-        if (_scrollViewer == null)
-        {
-            StopAnimation();
-            return;
-        }
-
-        var elapsed = DateTime.UtcNow - _animStartTime;
-        var t = Math.Min(1.0, elapsed.TotalMilliseconds / AnimationDuration.TotalMilliseconds);
-
-        // Ease-in-out quadratic
-        var eased = t < 0.5
-            ? 2.0 * (t * t)
-            : 1.0 - (Math.Pow((-2.0 * t) + 2.0, 2) / 2.0);
-
-        var currentY = _animStartOffset + ((_animTargetOffset - _animStartOffset) * eased);
-        _scrollViewer.Offset = new Vector(_scrollViewer.Offset.X, currentY);
-
-        if (t >= 1.0)
-        {
-            StopAnimationTimer();
-            Dispatcher.UIThread.Post(() => _isScrollingProgrammatically = false, DispatcherPriority.Normal);
+            vm.UpdateGeneralCategoryFromScroll(category);
         }
     }
 }
