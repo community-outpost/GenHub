@@ -1189,6 +1189,9 @@ public class GameClientDetectorTests : IDisposable
         _hashProviderMock.Setup(x => x.ComputeFileHashAsync(executablePath, It.IsAny<CancellationToken>()))
             .ReturnsAsync(GameClientHashRegistry.ZeroHour105HashPublic);
 
+        _hashRegistryMock.Setup(x => x.GetVersionFromHash(GameClientHashRegistry.ZeroHour105HashPublic, GameType.Generals))
+            .Returns(GameClientConstants.UnknownVersion);
+
         // Setup manifest generation
         var manifestBuilderMock = new Mock<IContentManifestBuilder>();
         var manifest = new ContentManifest { Id = ManifestId.Create("1.105.retail.gameclient.zerohour") };
@@ -1210,6 +1213,7 @@ public class GameClientDetectorTests : IDisposable
 
         var generalsClient = Assert.Single(result.Items, c => string.IsNullOrEmpty(c.PublisherType) && c.GameType == GameType.Generals);
         Assert.Equal(executablePath, generalsClient.ExecutablePath);
+        Assert.Equal("1.08", generalsClient.Version);
         var standardClient = Assert.Single(result.Items, c => string.IsNullOrEmpty(c.PublisherType) && c.GameType == GameType.ZeroHour);
         Assert.Equal(GameType.ZeroHour, standardClient.GameType);
         Assert.Equal(executablePath, standardClient.ExecutablePath);

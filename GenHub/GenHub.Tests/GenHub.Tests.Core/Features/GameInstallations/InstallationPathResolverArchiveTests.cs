@@ -40,4 +40,34 @@ public class InstallationPathResolverArchiveTests
             directory.Delete(true);
         }
     }
+
+    /// <summary>Every flagged game must retain its archives before recovery can be skipped.</summary>
+    /// <param name="remainingArchive">The archive remaining after one game was removed.</param>
+    /// <returns>The async task.</returns>
+    [Theory]
+    [InlineData("INI.big")]
+    [InlineData("INIZH.big")]
+    public async Task ValidateCombinedInstallation_MissingOneGame_RequiresRecoveryAsync(string remainingArchive)
+    {
+        var directory = Directory.CreateTempSubdirectory("GenHub.Validation.");
+        try
+        {
+            await File.WriteAllTextAsync(Path.Combine(directory.FullName, remainingArchive), "archive");
+            var installation = new GameInstallation(directory.FullName, GameInstallationType.Retail)
+            {
+                HasGenerals = true,
+                HasZeroHour = true,
+                GeneralsPath = directory.FullName,
+                ZeroHourPath = directory.FullName,
+            };
+            var resolver = new InstallationPathResolver(NullLogger<InstallationPathResolver>.Instance);
+            var result = await resolver.ValidateInstallationPathAsync(installation);
+            Assert.True(result.Success);
+            Assert.False(result.Data);
+        }
+        finally
+        {
+            directory.Delete(true);
+        }
+    }
 }

@@ -864,6 +864,7 @@ public class GameInstallationServiceTests : IDisposable
         var generalsDir = Path.Combine(tempDir, "Generals");
         Directory.CreateDirectory(generalsDir);
         File.WriteAllText(Path.Combine(generalsDir, "Game.dat"), "dummy");
+        File.WriteAllText(Path.Combine(generalsDir, GameClientConstants.GeneralsIniBig), "archive");
 
         try
         {
