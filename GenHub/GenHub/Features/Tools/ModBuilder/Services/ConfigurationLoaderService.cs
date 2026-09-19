@@ -1224,10 +1224,18 @@ public class ConfigurationLoaderService(ILogger<ConfigurationLoaderService> logg
             Name = simpItem.Name!,
             IsBig = simpItem.Big ?? true,
             ManifestFile = simpItem.ManifestFile,
+            Description = !string.IsNullOrWhiteSpace(simpItem.Description) ? simpItem.Description : null,
         };
 
+        var fileParams = BuildSimplifiedFileParameters(simpItem);
+        AddSimplifiedSourceFiles(item, simpItem, projectDir, fileParams);
+        return item;
+    }
+
+    private static Dictionary<string, object>? BuildSimplifiedFileParameters(SimplifiedBundleItem simpItem)
+    {
         var fileParams = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-        if (simpItem.NoConvert)
+        if (simpItem.NoConvert || string.Equals(simpItem.OutputFormat, "RAW", StringComparison.OrdinalIgnoreCase))
         {
             fileParams["noconvert"] = "true";
         }
@@ -1235,41 +1243,46 @@ public class ConfigurationLoaderService(ILogger<ConfigurationLoaderService> logg
         if (!string.IsNullOrEmpty(simpItem.OutputFormat))
         {
             fileParams["outputformat"] = simpItem.OutputFormat;
-            if (string.Equals(simpItem.OutputFormat, "RAW", StringComparison.OrdinalIgnoreCase))
-            {
-                fileParams["noconvert"] = "true";
-            }
         }
 
-        if (simpItem.SourceFiles != null)
+        return fileParams.Count > 0 ? fileParams.ToDictionary(k => k.Key, v => (object)v.Value) : null;
+    }
+
+    private static void AddSimplifiedSourceFiles(
+        BundleItem item,
+        SimplifiedBundleItem simpItem,
+        string projectDir,
+        Dictionary<string, object>? fileParams)
+    {
+        if (simpItem.SourceFiles == null)
         {
-            var configuredTarget = !string.IsNullOrWhiteSpace(simpItem.TargetDir) ? simpItem.TargetDir : string.Empty;
-            foreach (var pattern in simpItem.SourceFiles)
-            {
-                var relTarget = configuredTarget;
-                if (string.IsNullOrEmpty(relTarget) && !ContainsWildcard(pattern))
-                {
-                    // Explicit entries bypass DetermineTargetPath, so mirror its
-                    // GameFilesEdited handling here for consistent staging targets.
-                    relTarget = StripGameFilesEditedPrefix(pattern.Replace('\\', '/'));
-                }
-
-                item.Files.Add(new BundleFile
-                {
-                    AbsSourceParent = projectDir,
-                    AbsSourceFile = pattern,
-                    RelTargetFile = relTarget,
-                    Params = fileParams.Count > 0 ? fileParams.ToDictionary(k => k.Key, v => (object)v.Value) : null,
-                });
-            }
+            return;
         }
 
-        if (!string.IsNullOrWhiteSpace(simpItem.Description))
+        var configuredTarget = !string.IsNullOrWhiteSpace(simpItem.TargetDir) ? simpItem.TargetDir : string.Empty;
+        foreach (var pattern in simpItem.SourceFiles)
         {
-            item.Description = simpItem.Description;
+            var relTarget = ResolveSimplifiedTarget(pattern, configuredTarget);
+            item.Files.Add(new BundleFile
+            {
+                AbsSourceParent = projectDir,
+                AbsSourceFile = pattern,
+                RelTargetFile = relTarget,
+                Params = fileParams,
+            });
+        }
+    }
+
+    private static string ResolveSimplifiedTarget(string pattern, string configuredTarget)
+    {
+        if (string.IsNullOrEmpty(configuredTarget) && !ContainsWildcard(pattern))
+        {
+            // Explicit entries bypass DetermineTargetPath, so mirror its
+            // GameFilesEdited handling here for consistent staging targets.
+            return StripGameFilesEditedPrefix(pattern.Replace('\\', '/'));
         }
 
-        return item;
+        return configuredTarget;
     }
 
     private static IEnumerable<BundlePack> ConvertSimplifiedBundlePacks(IEnumerable<SimplifiedBundlePack> simpPacks)

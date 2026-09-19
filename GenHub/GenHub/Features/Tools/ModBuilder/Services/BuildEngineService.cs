@@ -825,7 +825,8 @@ public sealed class BuildEngineService(
         {
             if (items != null)
             {
-                await StagePackFilesAsync(pack, items, bundlesDir, packStagingDir, buildDir, setup.ProjectDir, progress, cancellationToken).ConfigureAwait(false);
+                var stagingPaths = new PackStagingPaths(bundlesDir, packStagingDir, buildDir, setup.ProjectDir);
+                await StagePackFilesAsync(pack, items, stagingPaths, progress, cancellationToken).ConfigureAwait(false);
             }
 
             var stagedFiles = Directory.GetFiles(packStagingDir, "*", SearchOption.AllDirectories);
@@ -1069,15 +1070,15 @@ public sealed class BuildEngineService(
         }
     }
 
-    private async Task StagePackFilesAsync(BundlePack pack, IReadOnlyList<BundleItem> items, string bundlesDir, string packStagingDir, string buildDir, string? projectDir, IProgress<BuildProgress>? progress, CancellationToken cancellationToken)
+    private async Task StagePackFilesAsync(BundlePack pack, IReadOnlyList<BundleItem> items, PackStagingPaths paths, IProgress<BuildProgress>? progress, CancellationToken cancellationToken)
     {
         if (pack.IsBigPack)
         {
-            StageBigPackFiles(pack, items, packStagingDir, buildDir, progress, cancellationToken);
+            StageBigPackFiles(pack, items, paths.PackStagingDir, paths.BuildDir, progress, cancellationToken);
         }
         else
         {
-            await StageStandardPackFilesAsync(pack, items, bundlesDir, packStagingDir, buildDir, projectDir, progress, cancellationToken).ConfigureAwait(false);
+            await StageStandardPackFilesAsync(pack, items, paths, progress, cancellationToken).ConfigureAwait(false);
         }
     }
 
@@ -1266,7 +1267,7 @@ public sealed class BuildEngineService(
         logger.LogDebug("Staged file {RelPath} for BIG pack {PackName}", finalTargetRelPath, packName);
     }
 
-    private async Task StageStandardPackFilesAsync(BundlePack pack, IReadOnlyList<BundleItem> items, string bundlesDir, string packStagingDir, string buildDir, string? projectDir, IProgress<BuildProgress>? progress, CancellationToken cancellationToken)
+    private async Task StageStandardPackFilesAsync(BundlePack pack, IReadOnlyList<BundleItem> items, PackStagingPaths paths, IProgress<BuildProgress>? progress, CancellationToken cancellationToken)
     {
         var totalItems = pack.ItemNames.Count;
         var stagedItems = 0;
@@ -1281,11 +1282,11 @@ public sealed class BuildEngineService(
 
             if (item.IsBig)
             {
-                await StageBigBundleArchiveAsync(item, bundlesDir, packStagingDir, pack.Name, projectDir, progress, cancellationToken).ConfigureAwait(false);
+                await StageBigBundleArchiveAsync(item, paths.BundlesDir, paths.PackStagingDir, pack.Name, paths.ProjectDir, progress, cancellationToken).ConfigureAwait(false);
             }
             else
             {
-                StageRawBundleFiles(item, packStagingDir, pack.Name, buildDir, progress, cancellationToken);
+                StageRawBundleFiles(item, paths.PackStagingDir, pack.Name, paths.BuildDir, progress, cancellationToken);
             }
 
             stagedItems++;
@@ -2410,4 +2411,10 @@ public sealed class BuildEngineService(
         var fullCandidate = Path.GetFullPath(candidatePath);
         return fullCandidate.StartsWith(fullBase, StringComparison.OrdinalIgnoreCase);
     }
+
+    private sealed record PackStagingPaths(
+        string BundlesDir,
+        string PackStagingDir,
+        string BuildDir,
+        string? ProjectDir);
 }

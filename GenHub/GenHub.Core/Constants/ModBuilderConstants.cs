@@ -336,6 +336,21 @@ public static class ModBuilderConstants
     public const string MenuTexturesSpanishItemName = "MenuTexturesSpanish";
 
     /// <summary>
+    /// Relative manifest path for Improved Menus English BIG archive.
+    /// </summary>
+    public const string ImprovedMenusEnglishManifestPath = "config/0_ImprovedMenusEnglish.big.manifest.json";
+
+    /// <summary>
+    /// Relative manifest path for Improved Menus Russian BIG archive.
+    /// </summary>
+    public const string ImprovedMenusRussianManifestPath = "config/0_ImprovedMenusRussian.big.manifest.json";
+
+    /// <summary>
+    /// Relative manifest path for Improved Menus Spanish BIG archive.
+    /// </summary>
+    public const string ImprovedMenusSpanishManifestPath = "config/0_ImprovedMenusSpanish.big.manifest.json";
+
+    /// <summary>
     /// File name for ModFolders configuration.
     /// </summary>
     public const string ModFoldersFileName = "ModFolders.json";
