@@ -7,6 +7,7 @@ using Moq;
 using System;
 using System.IO;
 using System.IO.Compression;
+using System.Security.Cryptography;
 using System.Threading.Tasks;
 using Xunit;
 using ContentType = GenHub.Core.Models.Enums.ContentType;
@@ -881,7 +882,75 @@ public sealed class ArchivePayloadProcessorTests : IDisposable
         Assert.Equal(largePayload, extractedBytes);
     }
 
-    /// <inheritdoc />
+    /// <summary>
+    /// Symlinks are dereferenced during normalization: file links become real copies of
+    /// their targets so hashing and CAS ingestion see content, while dangling links are
+    /// removed instead of breaking the pipeline.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task NormalizeDirectoryStructureAsync_Symlinks_DereferencesAndRemovesDanglingAsync()
+    {
+        Directory.CreateDirectory(_stagingDirectory);
+        var target = Path.Combine(_stagingDirectory, "target.bin");
+        await File.WriteAllBytesAsync(target, [0x7F, 0x45, 0x4C, 0x46, 0x02, 0x01, 0x01, 0x00]);
+        var link = Path.Combine(_stagingDirectory, "link.bin");
+        var dangling = Path.Combine(_stagingDirectory, "dangling.bin");
+
+        try
+        {
+            File.CreateSymbolicLink(link, target);
+            File.CreateSymbolicLink(dangling, Path.Combine(_stagingDirectory, "absent.bin"));
+        }
+        catch (Exception ex) when (ex is UnauthorizedAccessException or PlatformNotSupportedException or IOException)
+        {
+            // Environments without symlink rights cannot exercise this path.
+            return;
+        }
+
+        var processor = CreateProcessor();
+        await processor.NormalizeDirectoryStructureAsync(_stagingDirectory, ContentType.GameClient, GameType.ZeroHour);
+
+        Assert.True(File.Exists(link));
+        Assert.False(File.GetAttributes(link).HasFlag(FileAttributes.ReparsePoint));
+        Assert.Equal(await File.ReadAllBytesAsync(target), await File.ReadAllBytesAsync(link));
+        Assert.False(File.Exists(dangling));
+    }
+
+    /// <summary>
+    /// A dereferenced symlink hashes identically to its target, so both resolve to the
+    /// same CAS object when the factory ingests the normalized payload.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task NormalizeDirectoryStructureAsync_SymlinkTargetAndLink_ShareContentHashAsync()
+    {
+        Directory.CreateDirectory(_stagingDirectory);
+        var target = Path.Combine(_stagingDirectory, "engine.bin");
+        await File.WriteAllBytesAsync(target, [0x7F, 0x45, 0x4C, 0x46, 0x02, 0x01, 0x01, 0x00]);
+        var link = Path.Combine(_stagingDirectory, "engine-link.bin");
+
+        try
+        {
+            File.CreateSymbolicLink(link, target);
+        }
+        catch (Exception ex) when (ex is UnauthorizedAccessException or PlatformNotSupportedException or IOException)
+        {
+            // Environments without symlink rights cannot exercise this path.
+            return;
+        }
+
+        var processor = CreateProcessor();
+        await processor.NormalizeDirectoryStructureAsync(_stagingDirectory, ContentType.GameClient, GameType.ZeroHour);
+
+        Assert.False(File.GetAttributes(link).HasFlag(FileAttributes.ReparsePoint));
+
+        var targetHash = Convert.ToHexString(SHA256.HashData(await File.ReadAllBytesAsync(target)));
+        var linkHash = Convert.ToHexString(SHA256.HashData(await File.ReadAllBytesAsync(link)));
+        Assert.Equal(targetHash, linkHash);
+    }
+
+    /// <inheritdoc/>
     public void Dispose()
     {
         if (Directory.Exists(_stagingDirectory))

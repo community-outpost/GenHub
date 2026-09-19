@@ -47,18 +47,10 @@ public class GameClientHashRegistry : IGameClientHashRegistry
     public GameClientHashRegistry()
     {
         _knownHashes = new ConcurrentDictionary<string, GameClientInfo>(StringComparer.OrdinalIgnoreCase);
-        _possibleExecutableNames =
-        [
 
-            GameClientConstants.SteamGameDatExecutable, // game.dat
-            GameClientConstants.GeneralsExecutable,     // generals.exe (Standard)
-
-            // Publisher clients
-            GameClientConstants.SuperHackersGeneralsExecutable,
-            GameClientConstants.SuperHackersZeroHourExecutable,
-            GameClientConstants.GeneralsOnlineEacLauncherExecutable,
-            GameClientConstants.GeneralsOnline60HzExecutable,
-        ];
+        // Candidate names come from the single game-executable list so resolver, hash
+        // registry, and installer scanning agree on what a client binary is called.
+        _possibleExecutableNames = [.. GameClientConstants.ValidGameExecutableNames];
 
         InitializeCoreHashes();
     }

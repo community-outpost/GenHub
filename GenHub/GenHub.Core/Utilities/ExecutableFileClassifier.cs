@@ -172,6 +172,87 @@ public static class ExecutableFileClassifier
 
     /// <summary>
     /// Determines whether the file at <paramref name="absolutePath"/> starts with the
+    /// magic bytes of a Unix native executable: ELF (Linux) or Mach-O (macOS), in thin
+    /// and universal flavours. Windows PE binaries are excluded; they are matched by
+    /// extension through the Windows entry path instead.
+    /// </summary>
+    /// <param name="absolutePath">The file to sniff.</param>
+    /// <returns>
+    /// <c>true</c> when the header matches ELF or Mach-O magic; <c>false</c> for any
+    /// other content and for files that are missing, too short, or unreadable.
+    /// </returns>
+    public static bool HasNativeExecutableMagicBytes(string absolutePath)
+    {
+        Span<byte> header = stackalloc byte[MagicHeaderLength];
+
+        return TryReadHeader(absolutePath, header, out var read)
+            && HasNativeExecutableMagicBytes(header[..read]);
+    }
+
+    /// <summary>
+    /// Determines whether <paramref name="header"/> starts with ELF or Mach-O magic bytes.
+    /// </summary>
+    /// <param name="header">The first bytes of a file; <see cref="MagicHeaderLength"/> suffice.</param>
+    /// <returns><c>true</c> when the header matches ELF or Mach-O magic.</returns>
+    public static bool HasNativeExecutableMagicBytes(ReadOnlySpan<byte> header)
+    {
+        if (header.Length < 4)
+        {
+            return false;
+        }
+
+        // ELF: 0x7F 'E' 'L' 'F'.
+        if (header[0] == 0x7F && header[1] == (byte)'E' && header[2] == (byte)'L' && header[3] == (byte)'F')
+        {
+            return true;
+        }
+
+        var magic = BinaryPrimitives.ReadUInt32BigEndian(header);
+
+        // Mach-O thin: MH_MAGIC / MH_MAGIC_64 and their byte-swapped forms.
+        if (magic is 0xFEEDFACE or 0xFEEDFACF or 0xCEFAEDFE or 0xCFFAEDFE)
+        {
+            return true;
+        }
+
+        // Mach-O universal (fat), 32-bit (FAT_MAGIC) and 64-bit (FAT_MAGIC_64) headers.
+        // Java class files share 0xCAFEBABE, so require the second word: a fat header's
+        // is the architecture count (tiny), a class file's is the class-file version
+        // (>= 45). The byte-swapped magics store the count byte-swapped as well.
+        if (magic is 0xCAFEBABE or 0xCAFEBABF && header.Length >= MagicHeaderLength)
+        {
+            return BinaryPrimitives.ReadUInt32BigEndian(header[4..]) < MaxPlausibleFatArchCount;
+        }
+
+        if (magic is 0xBEBAFECA or 0xBFBAFECA && header.Length >= MagicHeaderLength)
+        {
+            return BinaryPrimitives.ReadUInt32LittleEndian(header[4..]) < MaxPlausibleFatArchCount;
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Determines whether the file at <paramref name="absolutePath"/> starts with a
+    /// shebang (<c>#!</c>) line, marking it as a directly runnable Unix script.
+    /// </summary>
+    /// <param name="absolutePath">The file to sniff.</param>
+    /// <returns>
+    /// <c>true</c> when the file starts with a shebang; <c>false</c> otherwise and for
+    /// files that are missing, too short, or unreadable.
+    /// </returns>
+    public static bool HasShebangHeader(string absolutePath)
+    {
+        Span<byte> header = stackalloc byte[MagicHeaderLength];
+
+        return TryReadHeader(absolutePath, header, out var read)
+            && read >= 2
+            && header[0] == 0x23
+            && header[1] == 0x21;
+    }
+
+    /// <summary>
+    /// Determines whether the file at <paramref name="absolutePath"/> starts with the
     /// magic bytes of a native executable format. Reads at most
     /// <see cref="MagicHeaderLength"/> bytes; never loads the file.
     /// </summary>

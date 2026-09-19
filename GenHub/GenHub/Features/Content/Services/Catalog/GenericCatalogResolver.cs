@@ -7,6 +7,7 @@ using GenHub.Core.Models.Providers;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Results.Content;
 using GenHub.Core.Services.Dependencies;
+using GenHub.Core.Utilities;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
@@ -115,11 +116,18 @@ public partial class GenericCatalogResolver(
                     screenshotUrls: contentItem.Metadata?.ScreenshotUrls?.ToList(),
                     changelogUrl: contentItem.Metadata?.DocumentationUrl ?? string.Empty);
 
-            var artifactHashes = await RegisterRemoteFilesAsync(
+            var remoteFilesResult = await RegisterRemoteFilesAsync(
                 builder,
                 release,
                 contentItem,
                 primaryArtifact);
+            if (!remoteFilesResult.Success || remoteFilesResult.Data is null)
+            {
+                return OperationResult<ContentManifest>.CreateFailure(
+                    remoteFilesResult.FirstError ?? "No installable artifacts in release.");
+            }
+
+            var artifactHashes = remoteFilesResult.Data;
 
             var dependencyError = AddDependencies(logger, builder, discoveredItem, release, contentItem, resolvedTargetGame);
             if (dependencyError != null)
@@ -732,7 +740,34 @@ public partial class GenericCatalogResolver(
         }
     }
 
-    private async Task<Dictionary<string, string>> RegisterRemoteFilesAsync(
+    /// <summary>
+    /// Splits release artifacts into installable content and guided rejections, so a disk
+    /// image or container package can never become a manifest file.
+    /// </summary>
+    private static (IReadOnlyList<ReleaseArtifact> Usable, IReadOnlyList<string> Rejections) PartitionInstallableArtifacts(
+        ContentRelease release,
+        CatalogContentItem contentItem)
+    {
+        var usable = new List<ReleaseArtifact>();
+        var rejections = new List<string>();
+        foreach (var artifact in release.Artifacts ?? [])
+        {
+            var filename = SanitizeArtifactFilename(artifact, contentItem);
+            var rejection = ContentFormatPolicy.GetRejectionMessage(filename);
+            if (rejection is null)
+            {
+                usable.Add(artifact);
+            }
+            else
+            {
+                rejections.Add(rejection);
+            }
+        }
+
+        return (usable, rejections);
+    }
+
+    private async Task<OperationResult<Dictionary<string, string>>> RegisterRemoteFilesAsync(
         IContentManifestBuilder builder,
         ContentRelease release,
         CatalogContentItem contentItem,
@@ -741,9 +776,21 @@ public partial class GenericCatalogResolver(
         var artifactHashes = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         if (release.Artifacts is { Count: > 0 })
         {
+            var (usableArtifacts, rejections) = PartitionInstallableArtifacts(release, contentItem);
+            foreach (var rejection in rejections)
+            {
+                logger.LogWarning("Skipping uninstallable artifact for '{ContentName}': {Rejection}", contentItem.Name, rejection);
+            }
+
+            if (usableArtifacts.Count == 0)
+            {
+                return OperationResult<Dictionary<string, string>>.CreateFailure(
+                    $"Release {release.Version} of '{contentItem.Name}' has no installable artifacts. {string.Join(" ", rejections)}");
+            }
+
             var usedFilenames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-            foreach (var artifact in release.Artifacts)
+            foreach (var artifact in usableArtifacts)
             {
                 if (string.IsNullOrWhiteSpace(artifact.DownloadUrl))
                 {
@@ -791,6 +838,6 @@ public partial class GenericCatalogResolver(
                 contentItem.Name);
         }
 
-        return artifactHashes;
+        return OperationResult<Dictionary<string, string>>.CreateSuccess(artifactHashes);
     }
 }
