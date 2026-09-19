@@ -7604,6 +7604,9 @@ GenHub هو مشغل ومدير حديث لألعاب **Command &amp; Conquer: G
   <data name="Tools.ModBuilder.View.LabelFile" xml:space="preserve">
     <value>الملف:</value>
   </data>
+  <data name="Tools.ModBuilder.View.LabelStep" xml:space="preserve">
+    <value>الخطوة:</value>
+  </data>
   <data name="Tools.ModBuilder.View.LabelProgress" xml:space="preserve">
     <value>التقدم:</value>
   </data>

@@ -233,11 +233,11 @@ public sealed class ProjectFileSnapshot
             }
         }
 
-        public override DirectoryInfoBase? GetDirectory(string name) =>
-            _directories.GetValueOrDefault(name);
+        public override DirectoryInfoBase? GetDirectory(string path) =>
+            _directories.GetValueOrDefault(path);
 
-        public override FileInfoBase? GetFile(string name) =>
-            _files.GetValueOrDefault(name);
+        public override FileInfoBase? GetFile(string path) =>
+            _files.GetValueOrDefault(path);
     }
 
     private sealed class InMemoryFile(string name, InMemoryDirectory parent) : FileInfoBase

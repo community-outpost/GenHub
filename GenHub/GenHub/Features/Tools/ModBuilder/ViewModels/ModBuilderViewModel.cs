@@ -1414,7 +1414,11 @@ public partial class ModBuilderViewModel(
                 return true;
             }
         }
-        catch
+        catch (IOException)
+        {
+            // Ignore read errors
+        }
+        catch (UnauthorizedAccessException)
         {
             // Ignore read errors
         }
@@ -1755,7 +1759,11 @@ public partial class ModBuilderViewModel(
             {
                 Directory.Delete(dir, recursive: true);
             }
-            catch
+            catch (IOException)
+            {
+                // Ignore deletion errors on subdirectories
+            }
+            catch (UnauthorizedAccessException)
             {
                 // Ignore deletion errors on subdirectories
             }
@@ -1769,7 +1777,11 @@ public partial class ModBuilderViewModel(
                 Directory.Delete(projectDir, recursive: false);
             }
         }
-        catch
+        catch (IOException)
+        {
+            // Ignore directory deletion errors
+        }
+        catch (UnauthorizedAccessException)
         {
             // Ignore directory deletion errors
         }
@@ -2226,6 +2238,7 @@ public partial class ModBuilderViewModel(
             var configEditorViewModel = new ConfigEditorViewModel(
                 configurationLoaderService,
                 notificationService,
+                localizationService,
                 loggerFactory.CreateLogger<ConfigEditorViewModel>());
 
             await configEditorViewModel.InitializeAsync(CurrentProject).ConfigureAwait(false);

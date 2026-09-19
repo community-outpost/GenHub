@@ -176,6 +176,11 @@ public sealed class BuildEngineService(
         _cachedSourceToBundleFileMap = null;
     }
 
+    private void RecordFirstError(string message)
+    {
+        Interlocked.CompareExchange(ref _lastErrorMessage, message, null);
+    }
+
     private async Task<bool> RunAsync(
         BuildStructure buildStructure,
         IProgress<BuildProgress>? progress = null,
@@ -499,7 +504,6 @@ public sealed class BuildEngineService(
             case BuildIndex.ReleaseBundlePack:
                 await ExecuteReleaseBundlePackStageAsync(setup, progress, cancellationToken).ConfigureAwait(false);
                 break;
-            case BuildIndex.RawBundleItem:
             default:
                 var tracker = new StageProgressTracker(filesToProcess.Count);
                 await Parallel.ForEachAsync(
@@ -594,7 +598,7 @@ public sealed class BuildEngineService(
                 {
                     logger.LogWarning("File not found for BIG bundle: {FilePath}", sourceFile);
                     Interlocked.Increment(ref _filesFailed);
-                    _lastErrorMessage = $"File not found for BIG bundle: {sourceFile}";
+                    RecordFirstError($"File not found for BIG bundle: {sourceFile}");
                     return ValueTask.CompletedTask;
                 }
 
@@ -1332,8 +1336,8 @@ public sealed class BuildEngineService(
         {
             logger.LogWarning("File not found for stage {Stage}: {FilePath}", stage, filePath);
             Interlocked.Increment(ref _filesFailed);
-            _lastErrorMessage = $"File not found: {filePath}";
-            ReportStageFileProgress(progress, stage, filePath, $"Missing {Path.GetFileName(filePath)}", tracker);
+            RecordFirstError($"File not found: {filePath}");
+            ReportStageFileProgress(progress, stage, filePath, tracker);
             return;
         }
 
@@ -1347,7 +1351,7 @@ public sealed class BuildEngineService(
             var mtime = fileInfo.LastWriteTimeUtc.Subtract(DateTime.UnixEpoch).TotalSeconds;
             cacheService.AddFile(filePath, mtime, currentMd5);
             Interlocked.Increment(ref _filesSkipped);
-            ReportStageFileProgress(progress, stage, filePath, $"Skipped {Path.GetFileName(filePath)}", tracker);
+            ReportStageFileProgress(progress, stage, filePath, tracker);
             return;
         }
 
@@ -1367,13 +1371,13 @@ public sealed class BuildEngineService(
             cacheService.AddFile(filePath, mtime, currentMd5);
 
             Interlocked.Increment(ref _filesProcessed);
-            ReportStageFileProgress(progress, stage, filePath, $"Processed {Path.GetFileName(filePath)}", tracker);
+            ReportStageFileProgress(progress, stage, filePath, tracker);
         }
         else
         {
             Interlocked.Increment(ref _filesFailed);
             logger.LogError("Failed to process file: {FilePath}", filePath);
-            ReportStageFileProgress(progress, stage, filePath, $"Failed {Path.GetFileName(filePath)}", tracker);
+            ReportStageFileProgress(progress, stage, filePath, tracker);
         }
     }
 
@@ -1381,7 +1385,6 @@ public sealed class BuildEngineService(
         IProgress<BuildProgress>? progress,
         BuildIndex stage,
         string filePath,
-        string step,
         StageProgressTracker tracker)
     {
         if (progress == null)
@@ -1699,7 +1702,7 @@ public sealed class BuildEngineService(
             return false;
         }
 
-        var initialFailed = _filesFailed;
+        var initialFailed = Volatile.Read(ref _filesFailed);
         logger.LogInformation("No files found in bundles directory; preparing bundle files before creating manifest...");
         foreach (var item in setup.Bundles.Items)
         {
@@ -1719,7 +1722,7 @@ public sealed class BuildEngineService(
             }
         }
 
-        if (_filesFailed > initialFailed)
+        if (Volatile.Read(ref _filesFailed) > initialFailed)
         {
             logger.LogError("One or more files failed to stage during bundle preparation");
             return false;

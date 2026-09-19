@@ -66,6 +66,22 @@ public sealed class ProjectConfigServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task CreateProjectAsync_SetsProjectDir()
+    {
+        // Arrange
+        var projectPath = Path.Combine(_tempDirectory, "TestProject.mbproj");
+        var projectName = "TestProject";
+
+        // Act
+        var result = await _service.CreateProjectAsync(projectPath, projectName);
+
+        // Assert
+        result.Success.Should().BeTrue();
+        result.Data.Should().NotBeNull();
+        result.Data!.ProjectDir.Should().Be(Path.GetDirectoryName(projectPath));
+    }
+
+    [Fact]
     public async Task CreateProjectAsync_WithEmptyPath_ReturnsFailure()
     {
         // Arrange
