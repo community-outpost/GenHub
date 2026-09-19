@@ -421,4 +421,7 @@ public static class GitHubConstants
 
     /// <summary>Metadata key for release tag.</summary>
     public const string TagMetadataKey = "tag";
+
+    /// <summary>Metadata key pinning resolution to a single release asset filename.</summary>
+    public const string AssetNameMetadataKey = "asset-name";
 }

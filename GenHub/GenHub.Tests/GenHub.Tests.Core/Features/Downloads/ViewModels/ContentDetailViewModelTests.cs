@@ -12,6 +12,7 @@ using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameProfile;
 using GenHub.Core.Models.GeneralsOnline;
+using GenHub.Core.Models.GitHub;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Parsers;
 using GenHub.Core.Models.Providers;
@@ -898,6 +899,321 @@ public sealed class ContentDetailViewModelTests
         Assert.True(release1080.IsSelected);
         Assert.False(release720.IsSelected);
         Assert.Same(release1080, viewModel.SelectedDownloadableItem);
+    }
+
+    /// <summary>
+    /// Verifies that a GitHub card with attached release data hydrates the Releases tab from
+    /// real release assets while the About tab keeps showing the card (repository) description.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task Initialize_GitHubReleaseData_PopulatesReleasesFromAssetsAndKeepsAboutAsync()
+    {
+        // Arrange
+        const string aboutText = "Short repo about text";
+        const string releaseBody = "## Highlights\n- New units";
+        var release = new GitHubRelease
+        {
+            TagName = "v2.0.0",
+            Name = "Big Update",
+            Body = releaseBody,
+            Author = "modauthor",
+            HtmlUrl = "https://github.com/modauthor/coolmod/releases/tag/v2.0.0",
+            PublishedAt = new DateTimeOffset(2026, 1, 15, 0, 0, 0, TimeSpan.Zero),
+            CreatedAt = new DateTimeOffset(2026, 1, 14, 0, 0, 0, TimeSpan.Zero),
+            Assets =
+            [
+                new GitHubReleaseAsset { Name = "coolmod.zip", Size = 1024, BrowserDownloadUrl = "https://github.com/modauthor/coolmod/releases/download/v2.0.0/coolmod.zip" },
+                new GitHubReleaseAsset { Name = "coolmod-maps.zip", Size = 2048, BrowserDownloadUrl = "https://github.com/modauthor/coolmod/releases/download/v2.0.0/coolmod-maps.zip" },
+            ],
+        };
+
+        var searchResult = new ContentSearchResult
+        {
+            Id = "github.modauthor.coolmod.v2.0.0",
+            Name = "coolmod v2.0.0",
+            Description = aboutText,
+            Version = "2.0.0",
+            ContentType = ContentType.Mod,
+            TargetGame = GameType.ZeroHour,
+            ProviderName = "github-topics",
+            AuthorName = "modauthor",
+            RequiresResolution = true,
+            ResolverId = ContentSourceNames.GitHubResolverId,
+            SourceUrl = release.HtmlUrl,
+            LastUpdated = new DateTime(2026, 1, 15, 0, 0, 0, DateTimeKind.Utc),
+        };
+        searchResult.ResolverMetadata[GitHubConstants.OwnerMetadataKey] = "modauthor";
+        searchResult.ResolverMetadata[GitHubConstants.RepoMetadataKey] = "coolmod";
+        searchResult.ResolverMetadata[GitHubConstants.TagMetadataKey] = "v2.0.0";
+        searchResult.SetData(release);
+
+        var viewModel = CreateViewModel(searchResult, new Mock<IContentDownloadCoordinator>().Object);
+
+        // Act
+        viewModel.Initialize();
+        await viewModel.WaitForInitializationAsync();
+
+        // Assert: Releases tab lists one row per asset with direct download URLs and raw changelogs.
+        Assert.Equal(2, viewModel.Releases.Count);
+        Assert.True(viewModel.HasReleases);
+        Assert.Contains(viewModel.Releases, r =>
+            r.DownloadUrl == "https://github.com/modauthor/coolmod/releases/download/v2.0.0/coolmod.zip" && r.FileSize == 1024);
+        Assert.Contains(viewModel.Releases, r =>
+            r.DownloadUrl == "https://github.com/modauthor/coolmod/releases/download/v2.0.0/coolmod-maps.zip" && r.FileSize == 2048);
+        Assert.All(viewModel.Releases, r => Assert.Equal(releaseBody, r.FullDescription));
+        Assert.All(viewModel.Releases, r => Assert.Equal(release.HtmlUrl, r.DetailsUrl));
+
+        // Assert: About tab still shows the repository description, untouched by release notes.
+        Assert.Equal(aboutText, searchResult.Description);
+        Assert.Equal(aboutText, viewModel.Description);
+    }
+
+    /// <summary>
+    /// Verifies that an asset-pinned card hydrates a single release row for that asset only.
+    /// </summary>
+    [Fact]
+    public void PopulateGitHubReleases_WithAssetNameMetadata_SelectsPinnedAssetOnly()
+    {
+        // Arrange
+        var release = new GitHubRelease
+        {
+            TagName = "weekly-2026-01-01",
+            Body = "Weekly game code update",
+            Author = "TheSuperHackers",
+            HtmlUrl = "https://github.com/TheSuperHackers/GeneralsGameCode/releases/tag/weekly-2026-01-01",
+            PublishedAt = new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero),
+            CreatedAt = new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero),
+            Assets =
+            [
+                new GitHubReleaseAsset { Name = "Generals-Weekly.zip", Size = 1000, BrowserDownloadUrl = "https://example.test/Generals-Weekly.zip" },
+                new GitHubReleaseAsset { Name = "GeneralsZH-Weekly.zip", Size = 2000, BrowserDownloadUrl = "https://example.test/GeneralsZH-Weekly.zip" },
+            ],
+        };
+
+        var searchResult = new ContentSearchResult
+        {
+            Id = "github.thesuperhackers.generalsgamecode.weekly-2026-01-01.zerohour",
+            Name = "GeneralsGameCode weekly-2026-01-01 — Zero Hour",
+            Description = "Weekly game code update",
+            Version = "weekly-2026-01-01",
+            ContentType = ContentType.GameClient,
+            TargetGame = GameType.ZeroHour,
+            ProviderName = "thesuperhackers",
+            RequiresResolution = true,
+            ResolverId = ContentSourceNames.GitHubResolverId,
+            SourceUrl = release.HtmlUrl,
+        };
+        searchResult.ResolverMetadata[GitHubConstants.AssetNameMetadataKey] = "GeneralsZH-Weekly.zip";
+        searchResult.SetData(release);
+
+        var viewModel = CreateViewModel(searchResult, new Mock<IContentDownloadCoordinator>().Object);
+
+        // Act
+        var populated = viewModel.PopulateGitHubReleases(searchResult);
+
+        // Assert
+        Assert.True(populated);
+        var row = Assert.Single(viewModel.Releases);
+        Assert.Equal("https://example.test/GeneralsZH-Weekly.zip", row.DownloadUrl);
+        Assert.Equal(2000, row.FileSize);
+        Assert.Equal("Weekly game code update", row.FullDescription);
+    }
+
+    /// <summary>
+    /// Verifies that a single-asset artifact payload hydrates one release row with the direct URL.
+    /// </summary>
+    [Fact]
+    public void PopulateGitHubReleases_ArtifactData_PopulatesSingleRelease()
+    {
+        // Arrange
+        var artifact = new GitHubArtifact
+        {
+            Name = "coolmod-1080p.zip",
+            DownloadUrl = "https://github.com/modauthor/coolmod/releases/download/v1.0/coolmod-1080p.zip",
+            SizeInBytes = 4096,
+            IsRelease = true,
+        };
+
+        var searchResult = new ContentSearchResult
+        {
+            Id = "github.modauthor.coolmod.v1.0",
+            Name = "coolmod (1080p)",
+            Description = "Short repo about text",
+            Version = "v1.0",
+            ContentType = ContentType.Mod,
+            TargetGame = GameType.ZeroHour,
+            ProviderName = "github-topics",
+            RequiresResolution = true,
+            ResolverId = ContentSourceNames.GitHubResolverId,
+            SourceUrl = "https://github.com/modauthor/coolmod",
+        };
+        searchResult.SetData(artifact);
+
+        var viewModel = CreateViewModel(searchResult, new Mock<IContentDownloadCoordinator>().Object);
+
+        // Act
+        var populated = viewModel.PopulateGitHubReleases(searchResult);
+
+        // Assert
+        Assert.True(populated);
+        var row = Assert.Single(viewModel.Releases);
+        Assert.Equal(artifact.DownloadUrl, row.DownloadUrl);
+        Assert.Equal(4096, row.FileSize);
+    }
+
+    /// <summary>
+    /// Verifies that cards without GitHub payloads decline hydration so the legacy
+    /// source-URL fallback still applies.
+    /// </summary>
+    [Fact]
+    public void PopulateGitHubReleases_WithoutGitHubData_ReturnsFalse()
+    {
+        // Arrange
+        var searchResult = new ContentSearchResult
+        {
+            Id = "plain-card",
+            Name = "Plain Card",
+            ContentType = ContentType.Mod,
+            TargetGame = GameType.ZeroHour,
+        };
+
+        var viewModel = CreateViewModel(searchResult, new Mock<IContentDownloadCoordinator>().Object);
+
+        // Act
+        var populated = viewModel.PopulateGitHubReleases(searchResult);
+
+        // Assert
+        Assert.False(populated);
+        Assert.Empty(viewModel.Releases);
+    }
+
+    /// <summary>
+    /// Verifies that a release without assets declines hydration so the legacy single-file
+    /// fallback keeps covering repositories with no downloadable assets.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task Initialize_GitHubReleaseWithoutAssets_FallsBackToSourceUrlAsync()
+    {
+        // Arrange
+        var release = new GitHubRelease
+        {
+            TagName = "v1.0",
+            Name = "Notes only",
+            Body = "No assets attached",
+            HtmlUrl = "https://github.com/modauthor/coolmod/releases/tag/v1.0",
+            CreatedAt = new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero),
+            Assets = [],
+        };
+
+        var searchResult = new ContentSearchResult
+        {
+            Id = "github.modauthor.coolmod.v1.0",
+            Name = "coolmod v1.0",
+            Description = "Short repo about text",
+            Version = "v1.0",
+            ContentType = ContentType.Mod,
+            TargetGame = GameType.ZeroHour,
+            ProviderName = "github-topics",
+            AuthorName = "modauthor",
+            RequiresResolution = true,
+            ResolverId = ContentSourceNames.GitHubResolverId,
+            SourceUrl = release.HtmlUrl,
+            LastUpdated = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc),
+        };
+        searchResult.SetData(release);
+
+        var viewModel = CreateViewModel(searchResult, new Mock<IContentDownloadCoordinator>().Object);
+
+        // Act
+        viewModel.Initialize();
+        await viewModel.WaitForInitializationAsync();
+
+        // Assert
+        var row = Assert.Single(viewModel.Releases);
+        Assert.Equal(searchResult.SourceUrl, row.DownloadUrl);
+    }
+
+    /// <summary>
+    /// Verifies that variant siblings sharing a release resolve their pinned direct asset URLs
+    /// instead of the release page URL.
+    /// </summary>
+    [Fact]
+    public void PopulateReleasesFromVariants_GitHubSiblings_ResolvesDirectAssetUrls()
+    {
+        // Arrange
+        const string releaseBody = "# Weekly\n- fixes";
+        const string releaseUrl = "https://github.com/TheSuperHackers/GeneralsGameCode/releases/tag/weekly-2026-01-01";
+        var release = new GitHubRelease
+        {
+            TagName = "weekly-2026-01-01",
+            Name = "weekly-2026-01-01",
+            Body = releaseBody,
+            Author = "TheSuperHackers",
+            HtmlUrl = releaseUrl,
+            PublishedAt = new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero),
+            CreatedAt = new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero),
+            Assets =
+            [
+                new GitHubReleaseAsset { Name = "Generals-Weekly.zip", Size = 1000, BrowserDownloadUrl = "https://example.test/Generals-Weekly.zip" },
+                new GitHubReleaseAsset { Name = "GeneralsZH-Weekly.zip", Size = 2000, BrowserDownloadUrl = "https://example.test/GeneralsZH-Weekly.zip" },
+            ],
+        };
+
+        ContentSearchResult CreateSibling(string suffix, string assetName, GameType gameType)
+        {
+            var sibling = new ContentSearchResult
+            {
+                Id = $"github.thesuperhackers.generalsgamecode.weekly-2026-01-01.{suffix}",
+                Name = $"GeneralsGameCode weekly-2026-01-01 — {suffix}",
+                Description = "Weekly game code update",
+                Version = "weekly-2026-01-01",
+                ContentType = ContentType.GameClient,
+                TargetGame = gameType,
+                ProviderName = "thesuperhackers",
+                RequiresResolution = true,
+                ResolverId = ContentSourceNames.GitHubResolverId,
+                SourceUrl = releaseUrl,
+            };
+            sibling.ResolverMetadata[GitHubConstants.AssetNameMetadataKey] = assetName;
+            sibling.SetData(release);
+            return sibling;
+        }
+
+        var genSibling = CreateSibling("generals", "Generals-Weekly.zip", GameType.Generals);
+        var zhSibling = CreateSibling("zerohour", "GeneralsZH-Weekly.zip", GameType.ZeroHour);
+
+        var variants = new Dictionary<string, ContentSearchResult>(StringComparer.OrdinalIgnoreCase)
+        {
+            [genSibling.Id] = genSibling,
+            [zhSibling.Id] = zhSibling,
+        };
+
+        var viewModel = CreateViewModel(
+            zhSibling,
+            new Mock<IContentDownloadCoordinator>().Object,
+            variantSearchResults: variants);
+
+        viewModel.Variants =
+        [
+            new InstallableVariant { ManifestId = genSibling.Id, Name = genSibling.Name },
+            new InstallableVariant { ManifestId = zhSibling.Id, Name = zhSibling.Name },
+        ];
+
+        // Act
+        viewModel.PopulateReleasesFromVariants();
+
+        // Assert
+        Assert.Equal(2, viewModel.Releases.Count);
+        var genRow = viewModel.Releases.First(r => r.DownloadedManifestId == genSibling.Id);
+        var zhRow = viewModel.Releases.First(r => r.DownloadedManifestId == zhSibling.Id);
+        Assert.Equal("https://example.test/Generals-Weekly.zip", genRow.DownloadUrl);
+        Assert.Equal(1000, genRow.FileSize);
+        Assert.Equal("https://example.test/GeneralsZH-Weekly.zip", zhRow.DownloadUrl);
+        Assert.Equal(2000, zhRow.FileSize);
+        Assert.Equal(releaseBody, genRow.FullDescription);
+        Assert.Equal(releaseBody, zhRow.FullDescription);
     }
 
     /// <summary>

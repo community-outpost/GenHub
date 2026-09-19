@@ -63,7 +63,7 @@ public partial class GitHubResolver(
                 return OperationResult<ContentManifest>.CreateFailure("Missing required metadata for GitHub resolution");
             }
 
-            if (discoveredItem.ResolverMetadata.TryGetValue("asset-name", out var assetName) &&
+            if (discoveredItem.ResolverMetadata.TryGetValue(GitHubConstants.AssetNameMetadataKey, out var assetName) &&
                 !string.IsNullOrWhiteSpace(assetName))
             {
                 return await ResolveTargetedAssetAsync(discoveredItem, owner, repo, tag, assetName, cancellationToken);

@@ -649,7 +649,7 @@ public partial class GitHubTopicsDiscoverer(
     private static string InferVariantType(ContentSearchResult result)
     {
         var target = string.Empty;
-        if (result.ResolverMetadata.TryGetValue("asset-name", out var assetNameObj) && assetNameObj is string assetName)
+        if (result.ResolverMetadata.TryGetValue(GitHubConstants.AssetNameMetadataKey, out var assetNameObj) && assetNameObj is string assetName)
         {
             target = ExtractAssetVariant(assetName);
         }
@@ -857,7 +857,7 @@ public partial class GitHubTopicsDiscoverer(
         result.ResolverMetadata[GitHubTopicsConstants.SourceTopicMetadataKey] = sourceTopic;
         result.ResolverMetadata[GitHubTopicsConstants.StarCountMetadataKey] = repo.StargazersCount.ToString();
         result.ResolverMetadata[GitHubTopicsConstants.ForkCountMetadataKey] = repo.ForksCount.ToString();
-        result.ResolverMetadata["asset-name"] = asset.Name;
+        result.ResolverMetadata[GitHubConstants.AssetNameMetadataKey] = asset.Name;
         if (!string.IsNullOrEmpty(repo.Language))
         {
             result.ResolverMetadata[GitHubTopicsConstants.LanguageMetadataKey] = repo.Language;

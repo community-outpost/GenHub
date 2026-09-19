@@ -15,6 +15,7 @@ using GenHub.Core.Messages;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GeneralsOnline;
+using GenHub.Core.Models.GitHub;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.ModDB;
 using GenHub.Core.Models.Parsers;
@@ -1115,11 +1116,16 @@ public partial class ContentDetailViewModel(
                     .FirstOrDefault(f => string.Equals(f.Name, variant.Name, StringComparison.OrdinalIgnoreCase));
             }
 
-            var url = matchedFile?.DownloadUrl ?? sibling?.SelectedDownloadUrl ?? sibling?.SourceUrl ?? searchResult.SourceUrl ?? string.Empty;
+            var (gitHubUrl, gitHubSize) = ResolveGitHubSiblingDownload(sibling);
+            var url = matchedFile?.DownloadUrl ?? gitHubUrl ?? sibling?.SelectedDownloadUrl ?? sibling?.SourceUrl ?? searchResult.SourceUrl ?? string.Empty;
             long size = 0;
             if (matchedFile?.SizeBytes is > 0)
             {
                 size = matchedFile.SizeBytes.Value;
+            }
+            else if (gitHubSize > 0)
+            {
+                size = gitHubSize;
             }
             else if (sibling?.DownloadSize > 0)
             {
@@ -1133,7 +1139,10 @@ public partial class ContentDetailViewModel(
             var displayName = variant.Name;
             var itemVersion = matchedFile?.Version ?? sibling?.Version ?? Version;
             var itemAuthor = sibling?.AuthorName ?? searchResult.AuthorName;
-            var itemDescription = matchedFile?.Description ?? sibling?.Description ?? searchResult.Description;
+            var itemDescription = matchedFile?.Description
+                ?? ResolveGitHubSiblingDescription(sibling)
+                ?? sibling?.Description
+                ?? searchResult.Description;
             var itemContentType = sibling?.ContentType ?? searchResult.ContentType;
             var itemCategory = itemContentType.GetDisplayName();
             var itemFilename = matchedFile?.Filename ?? GetFileNameFromUrl(url) ?? displayName;
@@ -1311,6 +1320,32 @@ public partial class ContentDetailViewModel(
         }
 
         SelectInitialPreferredAddon();
+    }
+
+    /// <summary>
+    /// Populates the Releases collection from GitHub release data attached during discovery.
+    /// The card description backing the About tab is intentionally left untouched: repository
+    /// descriptions and release notes are independent and must not overwrite each other.
+    /// </summary>
+    /// <param name="result">The search result carrying the GitHub payload.</param>
+    /// <returns>True when releases were populated; false when no usable GitHub data exists.</returns>
+    public bool PopulateGitHubReleases(ContentSearchResult result)
+    {
+        var release = result.GetData<GitHubRelease>();
+        if (release != null)
+        {
+            return PopulateFromGitHubRelease(result, release);
+        }
+
+        var artifact = result.GetData<GitHubArtifact>();
+        if (artifact != null && artifact.IsRelease && !string.IsNullOrWhiteSpace(artifact.DownloadUrl))
+        {
+            Files = [CreateGitHubArtifactFile(result, artifact)];
+            PopulateReleases(Files);
+            return true;
+        }
+
+        return false;
     }
 
     /// <summary>
@@ -1649,6 +1684,59 @@ public partial class ContentDetailViewModel(
         file.DownloadCount.HasValue ||
         (file.PreviewImages is { Count: > 0 }) ||
         !string.IsNullOrEmpty(file.Description);
+
+    private static IReadOnlyList<GitHubReleaseAsset> SelectGitHubReleaseAssets(ContentSearchResult result, GitHubRelease release)
+    {
+        if (release.Assets is not { Count: > 0 })
+        {
+            return [];
+        }
+
+        if (result.ResolverMetadata.TryGetValue(GitHubConstants.AssetNameMetadataKey, out var assetName)
+            && !string.IsNullOrWhiteSpace(assetName))
+        {
+            var match = release.Assets.FirstOrDefault(asset =>
+                string.Equals(asset.Name, assetName, StringComparison.OrdinalIgnoreCase));
+            if (match != null)
+            {
+                return [match];
+            }
+        }
+
+        return release.Assets;
+    }
+
+    private static (string? Url, long Size) ResolveGitHubSiblingDownload(ContentSearchResult? sibling)
+    {
+        if (sibling == null)
+        {
+            return (null, 0);
+        }
+
+        var artifact = sibling.GetData<GitHubArtifact>();
+        if (artifact != null && !string.IsNullOrWhiteSpace(artifact.DownloadUrl))
+        {
+            return (artifact.DownloadUrl, artifact.SizeInBytes);
+        }
+
+        var release = sibling.GetData<GitHubRelease>();
+        if (release != null)
+        {
+            var assets = SelectGitHubReleaseAssets(sibling, release);
+            if (assets.Count == 1 && !string.IsNullOrWhiteSpace(assets[0].BrowserDownloadUrl))
+            {
+                return (assets[0].BrowserDownloadUrl, assets[0].Size);
+            }
+        }
+
+        return (null, 0);
+    }
+
+    private static string? ResolveGitHubSiblingDescription(ContentSearchResult? sibling)
+    {
+        var body = sibling?.GetData<GitHubRelease>()?.Body;
+        return string.IsNullOrWhiteSpace(body) ? null : body;
+    }
 
     private static ContentVariantInfo MatchVariantInfo(ContentSearchResult sibling, string key, IList<ContentVariantInfo>? primaryVariants = null)
     {
@@ -2887,30 +2975,40 @@ public partial class ContentDetailViewModel(
         var parsedPage = searchResult.ParsedPageData ?? searchResult.GetData<ParsedWebPage>();
         if (parsedPage == null)
         {
+            var hasVariants = (searchResult.Variants is { Count: > 0 })
+                || (variantSearchResults is { Count: > 0 })
+                || !string.IsNullOrEmpty(searchResult.VariantGroupId);
+
             if (searchResult.ResolverMetadata.TryGetValue(CatalogConstants.CatalogItemJsonMetadataKey, out var catalogItemJson) &&
                 !string.IsNullOrWhiteSpace(catalogItemJson))
             {
                 PopulateFromCatalogMetadata(catalogItemJson);
             }
-            else if (!((searchResult.Variants is { Count: > 0 }) || (variantSearchResults is { Count: > 0 }) || !string.IsNullOrEmpty(searchResult.VariantGroupId)) && Releases.Count == 0 && Variants.Count == 0 && !string.IsNullOrEmpty(searchResult.SourceUrl) && searchResult.RequiresResolution)
+            else if (!hasVariants)
             {
-                var portableUrl = searchResult.GetData<GeneralsOnlineRelease>()?.PortableUrl;
-                var downloadUrl = !string.IsNullOrWhiteSpace(portableUrl) ? portableUrl : searchResult.SourceUrl;
-                var fileName = GetFileNameFromUrl(downloadUrl) ?? $"{searchResult.Name}.zip";
-                var file = new DownloadableFile(
-                    Name: searchResult.Name,
-                    DownloadUrl: downloadUrl,
-                    SizeBytes: searchResult.DownloadSize > 0 ? searchResult.DownloadSize : null,
-                    UploadDate: searchResult.LastUpdated,
-                    ReleaseDate: searchResult.LastUpdated,
-                    Version: searchResult.Version,
-                    Category: searchResult.ContentType.GetDisplayName(),
-                    Uploader: searchResult.AuthorName,
-                    Filename: fileName,
-                    Description: searchResult.Description,
-                    FileSectionType: FileSectionType.Downloads);
-                Files = [file];
-                PopulateReleases(Files);
+                // Prefer attached GitHub release data so the Releases tab lists real assets with
+                // changelogs; the About tab keeps showing the card description either way.
+                if (!PopulateGitHubReleases(searchResult)
+                    && Releases.Count == 0 && Variants.Count == 0 && !string.IsNullOrEmpty(searchResult.SourceUrl) && searchResult.RequiresResolution)
+                {
+                    var portableUrl = searchResult.GetData<GeneralsOnlineRelease>()?.PortableUrl;
+                    var downloadUrl = !string.IsNullOrWhiteSpace(portableUrl) ? portableUrl : searchResult.SourceUrl;
+                    var fileName = GetFileNameFromUrl(downloadUrl) ?? $"{searchResult.Name}.zip";
+                    var file = new DownloadableFile(
+                        Name: searchResult.Name,
+                        DownloadUrl: downloadUrl,
+                        SizeBytes: searchResult.DownloadSize > 0 ? searchResult.DownloadSize : null,
+                        UploadDate: searchResult.LastUpdated,
+                        ReleaseDate: searchResult.LastUpdated,
+                        Version: searchResult.Version,
+                        Category: searchResult.ContentType.GetDisplayName(),
+                        Uploader: searchResult.AuthorName,
+                        Filename: fileName,
+                        Description: searchResult.Description,
+                        FileSectionType: FileSectionType.Downloads);
+                    Files = [file];
+                    PopulateReleases(Files);
+                }
             }
 
             return;
@@ -3200,6 +3298,61 @@ public partial class ContentDetailViewModel(
         }
 
         Images = imageList.ToObservableCollection();
+    }
+
+    private bool PopulateFromGitHubRelease(ContentSearchResult result, GitHubRelease release)
+    {
+        var assets = SelectGitHubReleaseAssets(result, release);
+        if (assets.Count == 0)
+        {
+            return false;
+        }
+
+        Files = assets
+            .Select(asset => CreateGitHubAssetFile(result, release, asset))
+            .ToObservableCollection();
+        PopulateReleases(Files);
+        return true;
+    }
+
+    private DownloadableFile CreateGitHubAssetFile(ContentSearchResult result, GitHubRelease release, GitHubReleaseAsset asset)
+    {
+        var releaseDate = release.PublishedAt?.DateTime;
+        if (releaseDate == null && release.CreatedAt != default)
+        {
+            releaseDate = release.CreatedAt.DateTime;
+        }
+
+        releaseDate ??= result.LastUpdated;
+
+        return new DownloadableFile(
+            Name: asset.Name,
+            DownloadUrl: asset.BrowserDownloadUrl,
+            SizeBytes: asset.Size > 0 ? asset.Size : null,
+            UploadDate: releaseDate,
+            ReleaseDate: releaseDate,
+            Version: result.Version,
+            Category: result.ContentType.GetDisplayName(),
+            Uploader: !string.IsNullOrWhiteSpace(release.Author) ? release.Author : result.AuthorName,
+            Filename: asset.Name,
+            Description: string.IsNullOrWhiteSpace(release.Body) ? null : release.Body,
+            DetailsUrl: release.HtmlUrl,
+            FileSectionType: FileSectionType.Downloads);
+    }
+
+    private DownloadableFile CreateGitHubArtifactFile(ContentSearchResult result, GitHubArtifact artifact)
+    {
+        return new DownloadableFile(
+            Name: artifact.Name,
+            DownloadUrl: artifact.DownloadUrl,
+            SizeBytes: artifact.SizeInBytes > 0 ? artifact.SizeInBytes : null,
+            UploadDate: result.LastUpdated,
+            ReleaseDate: result.LastUpdated,
+            Version: result.Version,
+            Category: result.ContentType.GetDisplayName(),
+            Uploader: result.AuthorName,
+            Filename: artifact.Name,
+            FileSectionType: FileSectionType.Downloads);
     }
 
     private ReleaseItemViewModel CreateCatalogReleaseItem(ContentRelease rel, CatalogContentItem catalogItem)

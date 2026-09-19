@@ -11,6 +11,7 @@ using GenHub.Core.Models.Providers;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Results.Content;
 using GenHub.Features.Content.Services.ContentProviders;
+using GenHub.Features.Content.Services.Helpers;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
@@ -262,36 +263,6 @@ public class SuperHackersProvider(
                release.Body?.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) == true;
     }
 
-    private static string? FindSuperHackersAssetName(IEnumerable<GitHubReleaseAsset>? assets, GameType gameType)
-    {
-        if (assets == null)
-        {
-            return null;
-        }
-
-        var candidates = assets
-            .Where(asset => !string.IsNullOrWhiteSpace(asset.Name))
-            .ToList();
-
-        return gameType switch
-        {
-            GameType.ZeroHour => candidates
-                .FirstOrDefault(asset => asset.Name.Contains("generalszh", StringComparison.OrdinalIgnoreCase)
-                    || asset.Name.Contains("zero-hour", StringComparison.OrdinalIgnoreCase)
-                    || asset.Name.Contains("zerohour", StringComparison.OrdinalIgnoreCase)
-                    || asset.Name.Contains("_zh", StringComparison.OrdinalIgnoreCase))
-                ?.Name,
-            GameType.Generals => candidates
-                .FirstOrDefault(asset => asset.Name.Contains("generals", StringComparison.OrdinalIgnoreCase)
-                    && !asset.Name.Contains("generalszh", StringComparison.OrdinalIgnoreCase)
-                    && !asset.Name.Contains("zero-hour", StringComparison.OrdinalIgnoreCase)
-                    && !asset.Name.Contains("zerohour", StringComparison.OrdinalIgnoreCase)
-                    && !asset.Name.Contains("_zh", StringComparison.OrdinalIgnoreCase))
-                ?.Name,
-            _ => null,
-        };
-    }
-
     private IEnumerable<ContentSearchResult> CreateGameClientCards(
         string owner,
         string repo,
@@ -381,10 +352,10 @@ public class SuperHackersProvider(
                 },
             };
 
-            var assetName = FindSuperHackersAssetName(latestRelease.Assets, gType);
+            var assetName = SuperHackersAssetMatcher.FindAssetName(latestRelease.Assets, gType);
             if (!string.IsNullOrEmpty(assetName))
             {
-                card.ResolverMetadata["asset-name"] = assetName;
+                card.ResolverMetadata[GitHubConstants.AssetNameMetadataKey] = assetName;
             }
 
             card.SetData(latestRelease);
