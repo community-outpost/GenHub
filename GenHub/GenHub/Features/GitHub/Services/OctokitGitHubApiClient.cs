@@ -792,6 +792,8 @@ public class OctokitGitHubApiClient(
             return cachedReadme;
         }
 
+        cancellationToken.ThrowIfCancellationRequested();
+
         try
         {
             await EnsureCredentialsLoadedAsync().ConfigureAwait(false);
