@@ -181,6 +181,10 @@ public class PublisherProfileOrchestrator(
 
             return OperationResult<int>.CreateSuccess(profilesCreated);
         }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
         catch (Exception ex)
         {
             logger.LogError(ex, "Error creating profiles for publisher client {ClientName}", gameClient?.Name);
@@ -370,9 +374,10 @@ public class PublisherProfileOrchestrator(
                     scope.CompleteFailure(errorMsg);
                 }
             }
-            catch (OperationCanceledException ex)
+            catch (OperationCanceledException)
             {
-                logger.LogInformation(ex, "Content acquisition canceled for {ClientName}", gameClient.Name);
+                // Cancellation is cooperative: signal it via the scope without logging,
+                // since logging and rethrowing the same exception violates S2139.
                 scope.CompleteCanceled();
                 throw;
             }

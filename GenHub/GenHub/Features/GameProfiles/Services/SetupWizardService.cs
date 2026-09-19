@@ -325,7 +325,7 @@ public class SetupWizardService(
             LatestVersion = goCleanVersion,
             Title = "Generals Online",
             MissingDescription = string.IsNullOrEmpty(goCleanVersion) ? "Download and install Generals Online." : $"Download and install Generals Online {goCleanVersion}.",
-            IconPath = "/Assets/Logos/generalsonline-logo.png",
+            IconPath = UriConstants.GeneralsOnlineLogoUri,
             Metadata = PublisherTypeConstants.GeneralsOnline,
             DefaultSelected = true,
         };
@@ -339,7 +339,7 @@ public class SetupWizardService(
             LatestVersion = shCleanVersion,
             Title = "TheSuperHackers",
             MissingDescription = string.IsNullOrEmpty(shCleanVersion) ? "Download and install TheSuperHackers." : $"Download and install TheSuperHackers {shCleanVersion}.",
-            IconPath = "/Assets/Logos/thesuperhackers-logo.png",
+            IconPath = UriConstants.SuperHackersLogoUri,
             Metadata = PublisherTypeConstants.TheSuperHackers,
             DefaultSelected = false,
         };
@@ -353,6 +353,7 @@ public class SetupWizardService(
             var wizardVm = new SetupWizardViewModel(wizardItems);
 
             var accepted = await ShowWizardDialogAsync(wizardVm);
+            result.Confirmed = accepted;
             if (accepted)
             {
                 logger.LogInformation("[SetupWizard] User accepted wizard selections");
@@ -391,6 +392,7 @@ public class SetupWizardService(
         else
         {
             logger.LogInformation("[SetupWizard] No wizard items required. All detected clients are already up to date.");
+            result.Confirmed = true;
         }
 
         return result;

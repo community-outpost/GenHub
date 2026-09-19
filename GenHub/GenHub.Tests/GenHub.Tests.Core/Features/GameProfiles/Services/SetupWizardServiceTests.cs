@@ -1,6 +1,9 @@
 using GenHub.Core.Constants;
+using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.GameProfiles;
+using GenHub.Core.Interfaces.GitHub;
 using GenHub.Core.Interfaces.Manifest;
+using GenHub.Core.Interfaces.Providers;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameClients;
@@ -99,6 +102,86 @@ public class SetupWizardServiceTests
 
         // Assert: Generals Online was recognized as up-to-date and profile already exists, so no action required
         Assert.Equal(GameClientConstants.WizardActionTypes.Decline, result.GeneralsOnlineAction);
+    }
+
+    /// <summary>
+    /// Verifies that when every component is up-to-date and profiles exist, no wizard
+    /// dialog is shown and the result is confirmed so callers proceed instead of
+    /// treating a healthy no-op run as declined.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task RunSetupWizardAsync_WhenAllComponentsUpToDateAndProfilesExist_ConfirmsWithoutDialogAsync()
+    {
+        // Arrange
+        const string cpRetailVersion = "23-07-2026";
+        const string cpNonRetVersion = "11-09-2026";
+        const string goVersion = "082826_QFE1";
+        const string shVersion = "2.0";
+
+        _cpDiscovererMock
+            .Setup(d => d.DiscoverAsync(It.IsAny<ContentSearchQuery>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentDiscoveryResult>.CreateSuccess(new ContentDiscoveryResult
+            {
+                Items =
+                [
+                    new ContentSearchResult
+                    {
+                        Id = "generalszh_11-09-2026_NonRet.zip",
+                        Name = "Community Patch 11-09-2026 (Non-Retail)",
+                        Version = cpNonRetVersion,
+                        Tags = { "nonretail" },
+                    },
+                    new ContentSearchResult
+                    {
+                        Id = "generalszh_23-07-2026.zip",
+                        Name = "Community Patch 23-07-2026",
+                        Version = cpRetailVersion,
+                    },
+                ],
+            }));
+
+        _goDiscovererMock
+            .Setup(d => d.DiscoverAsync(It.IsAny<ContentSearchQuery>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentDiscoveryResult>.CreateSuccess(new ContentDiscoveryResult
+            {
+                Items = [new ContentSearchResult { Version = goVersion }],
+            }));
+
+        var shProviderMock = CreateSuperHackersProviderMock(shVersion);
+
+        _manifestPoolMock
+            .Setup(p => p.GetAllManifestsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IEnumerable<ContentManifest>>.CreateSuccess(
+            [
+                CreateGameClientManifest("1.cp.retail.communitypatch.gameclient", "Community Patch 23-07-2026", cpRetailVersion, CommunityOutpostConstants.PublisherType),
+                CreateGameClientManifest("1.cp.nonret.communitypatch.gameclient", "Community Patch 11-09-2026 (Non-Retail)", cpNonRetVersion, CommunityOutpostConstants.PublisherType),
+                CreateGameClientManifest("1.82826.generalsonline.gameclient.60hz", "Generals Online", goVersion, PublisherTypeConstants.GeneralsOnline),
+                CreateGameClientManifest("1.2.superhackers.gameclient.zerohour", "TheSuperHackers", shVersion, PublisherTypeConstants.TheSuperHackers),
+            ]));
+
+        _profileServiceMock
+            .Setup(s => s.ProfileExistsForGameClientAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
+
+        var service = CreateService(shProviderMock.Object);
+        bool dialogShown = false;
+        service.DialogShower = _ =>
+        {
+            dialogShown = true;
+            return Task.FromResult(true);
+        };
+
+        // Act
+        var result = await service.RunSetupWizardAsync([], CancellationToken.None);
+
+        // Assert
+        Assert.False(dialogShown);
+        Assert.True(result.Confirmed);
+        Assert.Equal(GameClientConstants.WizardActionTypes.Decline, result.CommunityPatchAction);
+        Assert.Equal(GameClientConstants.WizardActionTypes.Decline, result.CommunityPatchNonRetAction);
+        Assert.Equal(GameClientConstants.WizardActionTypes.Decline, result.GeneralsOnlineAction);
+        Assert.Equal(GameClientConstants.WizardActionTypes.Decline, result.SuperHackersAction);
     }
 
     /// <summary>
@@ -306,6 +389,7 @@ public class SetupWizardServiceTests
         Assert.Equal(nonRetVersion, nonRetItem.Version);
         Assert.Contains("Not compatible with retail 1.04 zero hour", nonRetItem.Description);
         Assert.Equal(GameClientConstants.WizardActionTypes.Decline, result.CommunityPatchNonRetAction);
+        Assert.True(result.Confirmed);
     }
 
     /// <summary>
@@ -372,14 +456,51 @@ public class SetupWizardServiceTests
         Assert.Equal(GameClientConstants.WizardActionTypes.Install, result.CommunityPatchNonRetAction);
     }
 
-    private SetupWizardService CreateService()
+    private SetupWizardService CreateService(SuperHackersProvider? superHackersProvider = null)
     {
         return new SetupWizardService(
             _profileServiceMock.Object,
             _cpDiscovererMock.Object,
             _goDiscovererMock.Object,
-            null!, // superHackersProvider caught by null check / try-catch
+            superHackersProvider!, // Null is caught by null check / try-catch
             _manifestPoolMock.Object,
             NullLogger<SetupWizardService>.Instance);
+    }
+
+    private ContentManifest CreateGameClientManifest(string id, string name, string version, string publisherType)
+    {
+        return new ContentManifest
+        {
+            Id = ManifestId.Create(id),
+            Name = name,
+            Version = version,
+            ContentType = ContentType.GameClient,
+            Publisher = new PublisherInfo { PublisherType = publisherType },
+        };
+    }
+
+    private Mock<SuperHackersProvider> CreateSuperHackersProviderMock(string version)
+    {
+        var resolverMock = new Mock<IContentResolver>();
+        resolverMock.Setup(x => x.ResolverId).Returns(SuperHackersConstants.ResolverId);
+
+        var delivererMock = new Mock<IContentDeliverer>();
+        delivererMock.Setup(x => x.SourceName).Returns(ContentSourceNames.GitHubDeliverer);
+
+        var providerMock = new Mock<SuperHackersProvider>(
+            Mock.Of<IProviderDefinitionLoader>(),
+            Mock.Of<IGitHubApiClient>(),
+            new[] { resolverMock.Object },
+            new[] { delivererMock.Object },
+            Mock.Of<IContentValidator>(),
+            NullLogger<SuperHackersProvider>.Instance,
+            Mock.Of<IInstallationInstructionsService>());
+
+        providerMock
+            .Setup(p => p.SearchAsync(It.IsAny<ContentSearchQuery>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IEnumerable<ContentSearchResult>>.CreateSuccess(
+                [new ContentSearchResult { Version = version }]));
+
+        return providerMock;
     }
 }

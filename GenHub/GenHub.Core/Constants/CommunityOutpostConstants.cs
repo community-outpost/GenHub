@@ -302,14 +302,26 @@ public static class CommunityOutpostConstants
             return false;
         }
 
-        return value.Equals("10zh", System.StringComparison.OrdinalIgnoreCase) ||
-               value.Equals("10gn", System.StringComparison.OrdinalIgnoreCase) ||
-               value.EndsWith(".10zh", System.StringComparison.OrdinalIgnoreCase) ||
-               value.EndsWith(".10gn", System.StringComparison.OrdinalIgnoreCase) ||
-               value.Equals("basegame", System.StringComparison.OrdinalIgnoreCase) ||
-               value.Equals("base-game", System.StringComparison.OrdinalIgnoreCase) ||
-               value.Equals("official", System.StringComparison.OrdinalIgnoreCase) ||
-               value.Contains("Zero Hour 1.04", System.StringComparison.OrdinalIgnoreCase) ||
+        if (value.Equals("10zh", System.StringComparison.OrdinalIgnoreCase) ||
+            value.Equals("10gn", System.StringComparison.OrdinalIgnoreCase) ||
+            value.EndsWith(".10zh", System.StringComparison.OrdinalIgnoreCase) ||
+            value.EndsWith(".10gn", System.StringComparison.OrdinalIgnoreCase) ||
+            value.Equals("basegame", System.StringComparison.OrdinalIgnoreCase) ||
+            value.Equals("base-game", System.StringComparison.OrdinalIgnoreCase) ||
+            value.Equals("official", System.StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        // Version display names only identify base game content when they carry no
+        // Community Patch marker, so releases like "Zero Hour 1.04 (Community Patch)"
+        // are not misclassified as base game content.
+        if (ContainsCommunityPatchMarker(value))
+        {
+            return false;
+        }
+
+        return value.Contains("Zero Hour 1.04", System.StringComparison.OrdinalIgnoreCase) ||
                value.Contains("Generals 1.08", System.StringComparison.OrdinalIgnoreCase);
     }
 
@@ -325,10 +337,7 @@ public static class CommunityOutpostConstants
             return false;
         }
 
-        return value.Contains(CommunityPatchTag, System.StringComparison.OrdinalIgnoreCase) ||
-               value.Contains(CommunityPatchNonRetCode, System.StringComparison.OrdinalIgnoreCase) ||
-               value.Contains(ContentName, System.StringComparison.OrdinalIgnoreCase) ||
-               value.Equals("CommunityPatch", System.StringComparison.OrdinalIgnoreCase);
+        return ContainsCommunityPatchMarker(value);
     }
 
     /// <summary>
@@ -378,4 +387,10 @@ public static class CommunityOutpostConstants
                IsCommunityPatchIdentifier(manifest.Name) ||
                (manifest.Metadata?.Tags != null && manifest.Metadata.Tags.Any(IsCommunityPatchIdentifier));
     }
+
+    private static bool ContainsCommunityPatchMarker(string value) =>
+        value.Contains(CommunityPatchTag, System.StringComparison.OrdinalIgnoreCase) ||
+        value.Contains(CommunityPatchNonRetCode, System.StringComparison.OrdinalIgnoreCase) ||
+        value.Contains(ContentName, System.StringComparison.OrdinalIgnoreCase) ||
+        value.Equals("CommunityPatch", System.StringComparison.OrdinalIgnoreCase);
 }
