@@ -175,4 +175,35 @@ public class GameVersionHelperTests
         Assert.Equal(expectedSuccess, success);
         Assert.Equal(expectedNumeric, result);
     }
+
+    /// <summary>
+    /// Verifies that IsDefaultVersion correctly classifies default and non-default versions.
+    /// </summary>
+    /// <param name="version">The version string.</param>
+    /// <param name="expected">Whether the version is considered a default version.</param>
+    [Theory]
+    [InlineData(null, true)]
+    [InlineData("", true)]
+    [InlineData("   ", true)]
+    [InlineData("0", true)]
+    [InlineData("0.0", true)]
+    [InlineData("0.00", true)]
+    [InlineData("0.000", true)]
+    [InlineData("0.0.0", true)]
+    [InlineData("0.0.0.0", true)]
+    [InlineData("1", true)]
+    [InlineData("1.0", true)]
+    [InlineData("1.00", true)]
+    [InlineData("1.000", true)]
+    [InlineData("1.0.0", true)]
+    [InlineData("v1.0", true)]
+    [InlineData("V1.00", true)]
+    [InlineData("1.04", false)]
+    [InlineData("1.06", false)]
+    [InlineData("v2.0", false)]
+    [InlineData("20260821", false)]
+    public void IsDefaultVersion_CorrectlyIdentifiesDefaultVersions(string? version, bool expected)
+    {
+        Assert.Equal(expected, GameVersionHelper.IsDefaultVersion(version));
+    }
 }

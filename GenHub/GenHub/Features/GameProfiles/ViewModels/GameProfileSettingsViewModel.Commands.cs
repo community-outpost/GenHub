@@ -107,7 +107,7 @@ public partial class GameProfileSettingsViewModel
                 AvailableContent.Add(item);
             }
 
-            StatusMessage = $"Loaded {AvailableContent.Count} {SelectedContentType} items";
+            StatusMessage = string.Empty;
             _logger?.LogInformation("Loaded {Count} content items for content type {ContentType}", AvailableContent.Count, SelectedContentType);
         }
         catch (Exception ex)

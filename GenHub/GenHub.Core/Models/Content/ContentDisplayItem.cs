@@ -44,6 +44,40 @@ public class ContentDisplayItem
     }
 
     /// <summary>
+    /// Gets the formatted version for display in badges, or null if it shouldn't be displayed.
+    /// </summary>
+    public string? DisplayVersion
+    {
+        get
+        {
+            if (string.IsNullOrWhiteSpace(Version) ||
+                GameVersionHelper.IsDefaultVersion(Version) ||
+                GameVersionHelper.IsUnknownVersion(Version))
+            {
+                return null;
+            }
+
+            var trimmed = Version.Trim();
+            if (trimmed.StartsWith("v", StringComparison.OrdinalIgnoreCase) && trimmed.Length > 1 && char.IsDigit(trimmed[1]))
+            {
+                return trimmed;
+            }
+
+            if (char.IsDigit(trimmed[0]))
+            {
+                return $"v{trimmed}";
+            }
+
+            return trimmed;
+        }
+    }
+
+    /// <summary>
+    /// Gets a value indicating whether this item has a displayable version badge.
+    /// </summary>
+    public bool HasDisplayVersion => !string.IsNullOrEmpty(DisplayVersion);
+
+    /// <summary>
     /// Gets or sets the content type (Mod, Patch, Addon, etc.).
     /// </summary>
     public ContentType ContentType { get; set; }

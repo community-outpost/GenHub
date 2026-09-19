@@ -130,7 +130,7 @@ public static partial class GameVersionHelper
 
     /// <summary>
     /// Checks if a version string is a "default" version that shouldn't be displayed.
-    /// Matches "0", "0.0", "0.0.0", "1.0", "1.0.0", etc.
+    /// Matches "0", "0.0", "0.00", "0.0.0", "1", "1.0", "1.00", "1.0.0", etc.
     /// </summary>
     /// <param name="version">The version string to check.</param>
     /// <returns>True if it is a default version, false otherwise.</returns>
@@ -150,7 +150,7 @@ public static partial class GameVersionHelper
         }
 
         // Common default versions
-        string[] defaultVersions = { "0", "0.0", "0.0.0", "0.0.0.0", "1.0", "1.0.0", "1.0.0.0", "1" };
+        string[] defaultVersions = { "0", "0.0", "0.00", "0.000", "0.0.0", "0.0.0.0", "1", "1.0", "1.00", "1.000", "1.0.0", "1.0.0.0" };
 
         return defaultVersions.Contains(normalized);
     }
