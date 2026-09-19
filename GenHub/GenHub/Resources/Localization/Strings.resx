@@ -7467,6 +7467,9 @@ GenHub supports four file linking strategies under **Settings -&gt; Game Configu
   <data name="Tools.ModBuilder.ConfigEditor.ButtonSave" xml:space="preserve">
     <value>Save</value>
   </data>
+  <data name="Tools.ModBuilder.ConfigEditor.LoadingMessage" xml:space="preserve">
+    <value>Loading configuration...</value>
+  </data>
   <data name="Tools.ModBuilder.ConfigEditor.TooltipClose" xml:space="preserve">
     <value>Close configuration editor without saving</value>
   </data>
@@ -7508,6 +7511,9 @@ GenHub supports four file linking strategies under **Settings -&gt; Game Configu
   </data>
   <data name="Tools.ModBuilder.ProjectItemPicker.ButtonApply" xml:space="preserve">
     <value>Apply Selection</value>
+  </data>
+  <data name="Tools.ModBuilder.ProjectItemPicker.LoadingMessage" xml:space="preserve">
+    <value>Loading project files...</value>
   </data>
   <data name="Tools.ModBuilder.ConfigEditor.TooltipClearPatterns" xml:space="preserve">
     <value>Clear all source patterns</value>

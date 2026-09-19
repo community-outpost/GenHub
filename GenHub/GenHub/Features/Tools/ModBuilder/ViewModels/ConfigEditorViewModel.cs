@@ -82,6 +82,12 @@ public partial class ConfigEditorViewModel(
     [ObservableProperty]
     private bool _hasChanges;
 
+    /// <summary>
+    /// Gets or sets a value indicating whether the configuration is still loading.
+    /// </summary>
+    [ObservableProperty]
+    private bool _isLoading = true;
+
     private ProjectFileSnapshot? _fileSnapshot;
 
     /// <summary>
@@ -101,7 +107,26 @@ public partial class ConfigEditorViewModel(
             project.Configuration = Configuration;
         }
 
-        await LoadConfigurationAsync().ConfigureAwait(false);
+        try
+        {
+            await LoadConfigurationAsync().ConfigureAwait(false);
+        }
+        finally
+        {
+            await RunOnUIThreadAsync(() => IsLoading = false).ConfigureAwait(false);
+        }
+    }
+
+    private static async Task RunOnUIThreadAsync(Action action)
+    {
+        if (Application.Current == null || Dispatcher.UIThread.CheckAccess())
+        {
+            action();
+        }
+        else
+        {
+            await Dispatcher.UIThread.InvokeAsync(action);
+        }
     }
 
     /// <summary>
@@ -409,6 +434,8 @@ public partial class ConfigEditorViewModel(
         {
             return;
         }
+
+        var relativePaths = new List<string>();
         foreach (var file in files)
         {
             var localPath = file.TryGetLocalPath();
@@ -417,10 +444,10 @@ public partial class ConfigEditorViewModel(
                 continue;
             }
 
-            var rel = Path.GetRelativePath(projectDir, localPath).Replace('\\', '/');
-            SelectedBundleItem.AddPattern(rel, projectDir, _fileSnapshot);
+            relativePaths.Add(Path.GetRelativePath(projectDir, localPath).Replace('\\', '/'));
         }
 
+        SelectedBundleItem.AddPatterns(relativePaths, projectDir, _fileSnapshot);
         HasChanges = true;
     }
 
@@ -484,8 +511,26 @@ public partial class ConfigEditorViewModel(
         var pickerVm = new ProjectItemPickerViewModel(CurrentProject.ProjectDir, existingPatterns, _fileSnapshot);
         var dialog = new Views.ProjectItemPickerDialog(pickerVm);
         var parentWindow = owner ?? GetActiveWindow();
+        if (parentWindow == null)
+        {
+            return;
+        }
 
-        var confirmed = parentWindow != null && await dialog.ShowDialog<bool>(parentWindow).ConfigureAwait(false);
+        // Show the window first with a loading state, then build the tree in the background.
+        using var cancellationTokenSource = new CancellationTokenSource();
+        dialog.Closed += (_, _) => cancellationTokenSource.Cancel();
+        var initializeTask = pickerVm.InitializeAsync(cancellationTokenSource.Token);
+
+        var confirmed = await dialog.ShowDialog<bool>(parentWindow).ConfigureAwait(false);
+
+        try
+        {
+            await initializeTask.ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+            return;
+        }
 
         if (confirmed)
         {

@@ -42,43 +42,58 @@
     </Grid>
 
     <!-- Project Tree View -->
-    <Border Grid.Row="1" Background="{DynamicResource CardBackground}"
-            BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
-            CornerRadius="8" Padding="6">
-      <TreeView ItemsSource="{Binding Nodes}">
-        <TreeView.Styles>
-          <Style Selector="TreeViewItem" x:DataType="models:FileTreeNode">
-            <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}"/>
-          </Style>
-        </TreeView.Styles>
-        <TreeView.ItemTemplate>
-          <TreeDataTemplate ItemsSource="{Binding Children}" x:DataType="models:FileTreeNode">
-            <Grid ColumnDefinitions="Auto,Auto,*,Auto" Margin="0,2">
-              <CheckBox Grid.Column="0" IsChecked="{Binding IsSelected, Mode=TwoWay}"
-                        VerticalAlignment="Center" Margin="0,0,6,0"/>
-              <!-- Icon -->
-              <Path Grid.Column="1" Width="14" Height="14" Stretch="Uniform" VerticalAlignment="Center" Margin="0,0,8,0"
-                    Fill="{DynamicResource AccentBrush}"
-                    Data="{StaticResource IconOpenFolder}"
-                    IsVisible="{Binding IsDirectory}"/>
-              <Path Grid.Column="1" Width="14" Height="14" Stretch="Uniform" VerticalAlignment="Center" Margin="0,0,8,0"
-                    Fill="{DynamicResource TextSecondary}"
-                    Data="{StaticResource IconTextFile}"
-                    IsVisible="{Binding !IsDirectory}"/>
-              <!-- Label -->
-              <TextBlock Grid.Column="2" Text="{Binding Name}" VerticalAlignment="Center"
-                         FontSize="12.5" Foreground="{DynamicResource TextPrimary}"/>
-              <!-- Relative path hint badge -->
-              <Border Grid.Column="3" Background="{DynamicResource SurfaceElevatedBrush}"
-                      BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
-                      CornerRadius="4" Padding="6,1" Margin="12,0,4,0" VerticalAlignment="Center">
-                <TextBlock Text="{Binding RelativePath}" FontSize="10.5" Foreground="{DynamicResource TextTertiary}"/>
-              </Border>
-            </Grid>
-          </TreeDataTemplate>
-        </TreeView.ItemTemplate>
-      </TreeView>
-    </Border>
+    <Grid Grid.Row="1">
+      <Border Background="{DynamicResource CardBackground}"
+              BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+              CornerRadius="8" Padding="6">
+        <TreeView ItemsSource="{Binding Nodes}">
+          <TreeView.ItemsPanel>
+            <ItemsPanelTemplate>
+              <VirtualizingStackPanel/>
+            </ItemsPanelTemplate>
+          </TreeView.ItemsPanel>
+          <TreeView.Styles>
+            <Style Selector="TreeViewItem" x:DataType="models:FileTreeNode">
+              <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}"/>
+            </Style>
+          </TreeView.Styles>
+          <TreeView.ItemTemplate>
+            <TreeDataTemplate ItemsSource="{Binding Children}" x:DataType="models:FileTreeNode">
+              <Grid ColumnDefinitions="Auto,Auto,*" Margin="0,2">
+                <CheckBox Grid.Column="0" IsChecked="{Binding IsSelected, Mode=TwoWay}"
+                          VerticalAlignment="Center" Margin="0,0,6,0"/>
+                <!-- Icon -->
+                <Path Grid.Column="1" Width="14" Height="14" Stretch="Uniform" VerticalAlignment="Center" Margin="0,0,8,0"
+                      Fill="{DynamicResource AccentBrush}"
+                      Data="{StaticResource IconOpenFolder}"
+                      IsVisible="{Binding IsDirectory}"/>
+                <Path Grid.Column="1" Width="14" Height="14" Stretch="Uniform" VerticalAlignment="Center" Margin="0,0,8,0"
+                      Fill="{DynamicResource TextSecondary}"
+                      Data="{StaticResource IconTextFile}"
+                      IsVisible="{Binding !IsDirectory}"/>
+                <!-- Label -->
+                <TextBlock Grid.Column="2" Text="{Binding Name}" VerticalAlignment="Center"
+                           FontSize="12.5" Foreground="{DynamicResource TextPrimary}"
+                           ToolTip.Tip="{Binding RelativePath}"/>
+              </Grid>
+            </TreeDataTemplate>
+          </TreeView.ItemTemplate>
+        </TreeView>
+      </Border>
+
+      <!-- Loading overlay while the tree builds on a background thread -->
+      <Border Background="{DynamicResource CardBackground}"
+              BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+              CornerRadius="8" Padding="6"
+              IsVisible="{Binding IsLoading}">
+        <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="12">
+          <ProgressBar IsIndeterminate="True" Width="220" HorizontalAlignment="Center"/>
+          <TextBlock Text="{localization:Localize Tools.ModBuilder.ProjectItemPicker.LoadingMessage}"
+                     FontSize="12" Foreground="{DynamicResource TextSecondary}"
+                     HorizontalAlignment="Center"/>
+        </StackPanel>
+      </Border>
+    </Grid>
 
     <!-- Folder Glob Options -->
     <Border Grid.Row="2" Background="{DynamicResource SurfaceElevatedBrush}"
@@ -113,6 +128,7 @@
               Padding="16,8" CornerRadius="8" Margin="0,0,8,0" Cursor="Hand"/>
 
       <Button Grid.Column="2" Content="{localization:Localize Tools.ModBuilder.ProjectItemPicker.ButtonApply}" Click="OnConfirmClick"
+              IsEnabled="{Binding !IsLoading}"
               Background="{DynamicResource AccentBrush}" Foreground="White"
               FontWeight="SemiBold"
               Padding="16,8" CornerRadius="8" Cursor="Hand"/>

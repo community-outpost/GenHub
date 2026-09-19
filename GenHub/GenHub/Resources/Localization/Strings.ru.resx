@@ -7373,6 +7373,9 @@ GenHub передает официальный идентификатор AppID 
   <data name="Tools.ModBuilder.ConfigEditor.ButtonSave" xml:space="preserve">
     <value>Сохранить</value>
   </data>
+  <data name="Tools.ModBuilder.ConfigEditor.LoadingMessage" xml:space="preserve">
+    <value>Загрузка конфигурации...</value>
+  </data>
   <data name="Tools.ModBuilder.ConfigEditor.TooltipClose" xml:space="preserve">
     <value>Закрыть редактор конфигурации без сохранения</value>
   </data>
@@ -7414,6 +7417,9 @@ GenHub передает официальный идентификатор AppID 
   </data>
   <data name="Tools.ModBuilder.ProjectItemPicker.ButtonApply" xml:space="preserve">
     <value>Применить выбор</value>
+  </data>
+  <data name="Tools.ModBuilder.ProjectItemPicker.LoadingMessage" xml:space="preserve">
+    <value>Загрузка файлов проекта...</value>
   </data>
   <data name="Tools.ModBuilder.ConfigEditor.TooltipClearPatterns" xml:space="preserve">
     <value>Очистить все шаблоны источников</value>

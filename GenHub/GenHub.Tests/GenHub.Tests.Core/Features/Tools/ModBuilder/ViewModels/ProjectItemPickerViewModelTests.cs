@@ -8,6 +8,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
 using GenHub.Features.Tools.ModBuilder.Models;
 using GenHub.Features.Tools.ModBuilder.ViewModels;
 using Xunit;
@@ -32,10 +33,22 @@ public sealed class ProjectItemPickerViewModelTests : IDisposable
     }
 
     [Fact]
-    public void Constructor_ExtensionGlob_PreselectsMatchingFiles()
+    public void Constructor_DoesNotBuildTreeSynchronously()
     {
         var viewModel = new ProjectItemPickerViewModel(_tempDirectory, ["GameFilesEdited/Data/INI/**/*.ini"]);
 
+        Assert.True(viewModel.IsLoading);
+        Assert.Empty(viewModel.Nodes);
+    }
+
+    [Fact]
+    public async Task InitializeAsync_ExtensionGlob_PreselectsMatchingFilesAsync()
+    {
+        var viewModel = new ProjectItemPickerViewModel(_tempDirectory, ["GameFilesEdited/Data/INI/**/*.ini"]);
+
+        await viewModel.InitializeAsync();
+
+        Assert.False(viewModel.IsLoading);
         Assert.True(FindNode(viewModel, "GameFilesEdited/Data/INI/a.ini")!.IsSelected);
         Assert.True(FindNode(viewModel, "GameFilesEdited/Data/INI/b.ini")!.IsSelected);
         Assert.False(FindNode(viewModel, "GameFilesEdited/Data/English/c.csf")!.IsSelected);
@@ -44,9 +57,11 @@ public sealed class ProjectItemPickerViewModelTests : IDisposable
     }
 
     [Fact]
-    public void Constructor_ExtensionGlob_ExpandsAncestorsOfMatches()
+    public async Task InitializeAsync_ExtensionGlob_ExpandsAncestorsOfMatchesAsync()
     {
         var viewModel = new ProjectItemPickerViewModel(_tempDirectory, ["GameFilesEdited/Data/INI/**/*.ini"]);
+
+        await viewModel.InitializeAsync();
 
         Assert.True(FindNode(viewModel, "GameFilesEdited")!.IsExpanded);
         Assert.True(FindNode(viewModel, "GameFilesEdited/Data")!.IsExpanded);
@@ -54,9 +69,11 @@ public sealed class ProjectItemPickerViewModelTests : IDisposable
     }
 
     [Fact]
-    public void Constructor_DirectoryGlob_PreselectsAndExpandsDirectory()
+    public async Task InitializeAsync_DirectoryGlob_PreselectsAndExpandsDirectoryAsync()
     {
         var viewModel = new ProjectItemPickerViewModel(_tempDirectory, ["GameFilesEdited/Art/Textures/**/*.*"]);
+
+        await viewModel.InitializeAsync();
 
         var dirNode = FindNode(viewModel, "GameFilesEdited/Art/Textures")!;
         Assert.True(dirNode.IsSelected);
@@ -66,9 +83,11 @@ public sealed class ProjectItemPickerViewModelTests : IDisposable
     }
 
     [Fact]
-    public void Constructor_WholeProjectGlob_PreselectsRootAndAllFiles()
+    public async Task InitializeAsync_WholeProjectGlob_PreselectsRootAndAllFilesAsync()
     {
         var viewModel = new ProjectItemPickerViewModel(_tempDirectory, ["GameFilesEdited/**/*"]);
+
+        await viewModel.InitializeAsync();
 
         Assert.True(FindNode(viewModel, "GameFilesEdited")!.IsSelected);
         Assert.True(FindNode(viewModel, "GameFilesEdited/Data/INI/a.ini")!.IsSelected);
@@ -77,9 +96,11 @@ public sealed class ProjectItemPickerViewModelTests : IDisposable
     }
 
     [Fact]
-    public void Constructor_NoPatterns_SelectsNothing()
+    public async Task InitializeAsync_NoPatterns_SelectsNothingAsync()
     {
         var viewModel = new ProjectItemPickerViewModel(_tempDirectory);
+
+        await viewModel.InitializeAsync();
 
         Assert.False(viewModel.HasSelection);
         Assert.Equal("No items selected", viewModel.SelectionSummary);
@@ -87,21 +108,23 @@ public sealed class ProjectItemPickerViewModelTests : IDisposable
     }
 
     [Fact]
-    public void GetGeneratedPatterns_UnchangedSelection_ReturnsOriginalPatterns()
+    public async Task GetGeneratedPatterns_UnchangedSelection_ReturnsOriginalPatternsAsync()
     {
         var original = new List<string> { "GameFilesEdited/Data/INI/**/*.ini", "GameFilesEdited/Art/Textures/d.tga" };
         var viewModel = new ProjectItemPickerViewModel(_tempDirectory, original);
 
+        await viewModel.InitializeAsync();
         var generated = viewModel.GetGeneratedPatterns();
 
         Assert.Equal(original, generated);
     }
 
     [Fact]
-    public void GetGeneratedPatterns_UncheckedFile_ExplodesDirectoryGlob()
+    public async Task GetGeneratedPatterns_UncheckedFile_ExplodesDirectoryGlobAsync()
     {
         var viewModel = new ProjectItemPickerViewModel(_tempDirectory, ["GameFilesEdited/Data/INI/**/*.*"]);
 
+        await viewModel.InitializeAsync();
         FindNode(viewModel, "GameFilesEdited/Data/INI/a.ini")!.IsSelected = false;
 
         var generated = viewModel.GetGeneratedPatterns();
@@ -112,9 +135,11 @@ public sealed class ProjectItemPickerViewModelTests : IDisposable
     }
 
     [Fact]
-    public void GetGeneratedPatterns_UncheckedDirectory_RemovesItsGlob()
+    public async Task GetGeneratedPatterns_UncheckedDirectory_RemovesItsGlobAsync()
     {
         var viewModel = new ProjectItemPickerViewModel(_tempDirectory, ["GameFilesEdited/Art/Textures/**/*.*"]);
+
+        await viewModel.InitializeAsync();
         FindNode(viewModel, "GameFilesEdited/Art/Textures")!.IsSelected = false;
         FindNode(viewModel, "GameFilesEdited/Art/Textures/d.tga")!.IsSelected = false;
 
@@ -124,10 +149,11 @@ public sealed class ProjectItemPickerViewModelTests : IDisposable
     }
 
     [Fact]
-    public void GetGeneratedPatterns_PureDirectorySelection_EmitsDirectoryGlob()
+    public async Task GetGeneratedPatterns_PureDirectorySelection_EmitsDirectoryGlobAsync()
     {
         var viewModel = new ProjectItemPickerViewModel(_tempDirectory);
 
+        await viewModel.InitializeAsync();
         FindNode(viewModel, "GameFilesEdited/Data/INI")!.IsSelected = true;
 
         var generated = viewModel.GetGeneratedPatterns();
@@ -136,12 +162,13 @@ public sealed class ProjectItemPickerViewModelTests : IDisposable
     }
 
     [Fact]
-    public void GetGeneratedPatterns_OutOfTreePattern_IsPreservedThroughEdits()
+    public async Task GetGeneratedPatterns_OutOfTreePattern_IsPreservedThroughEditsAsync()
     {
         var viewModel = new ProjectItemPickerViewModel(
             _tempDirectory,
             ["GameFilesEdited/Data/INI/**/*.ini", "config/ModBundleItems.json"]);
 
+        await viewModel.InitializeAsync();
         FindNode(viewModel, "GameFilesEdited/Data/INI/a.ini")!.IsSelected = false;
 
         var generated = viewModel.GetGeneratedPatterns();

@@ -69,11 +69,6 @@ public partial class BundleItemEditorViewModel : ObservableObject
     private string _sourcePattern = string.Empty;
 
     /// <summary>
-    /// Gets the list of individual source patterns and paths.
-    /// </summary>
-    public ObservableCollection<SourcePathItemViewModel> SourcePatternsList { get; } = [];
-
-    /// <summary>
     /// Gets the list of bundle pack links.
     /// </summary>
     public ObservableCollection<BundlePackLinkItemViewModel> PackLinks { get; } = [];
@@ -103,6 +98,13 @@ public partial class BundleItemEditorViewModel : ObservableObject
     private string _customPatternInput = string.Empty;
 
     /// <summary>
+    /// Gets or sets the list of individual source patterns and paths.
+    /// Replaced as a whole on bulk updates so large pattern sets raise a single notification.
+    /// </summary>
+    [ObservableProperty]
+    private ObservableCollection<SourcePathItemViewModel> _sourcePatternsList = [];
+
+    /// <summary>
     /// Gets the display name for the bundle item.
     /// </summary>
     public string DisplayName => $"{NamePrefix}{Name}{NameSuffix}";
@@ -125,21 +127,7 @@ public partial class BundleItemEditorViewModel : ObservableObject
     /// <param name="snapshot">Optional shared file snapshot to match against instead of walking the disk.</param>
     public void SetPatterns(IEnumerable<string> patterns, string? projectDir = null, ProjectFileSnapshot? snapshot = null)
     {
-        SourcePatternsList.Clear();
-        foreach (var pattern in patterns)
-        {
-            if (string.IsNullOrWhiteSpace(pattern))
-            {
-                continue;
-            }
-
-            var normalized = pattern.Trim().Replace("\\", "/");
-            if (!SourcePatternsList.Any(p => p.Pattern.Equals(normalized, StringComparison.OrdinalIgnoreCase)))
-            {
-                SourcePatternsList.Add(new SourcePathItemViewModel(normalized));
-            }
-        }
-
+        SourcePatternsList = BuildPatternList(patterns);
         SyncTextFromList();
         RecalculateMatches(projectDir, snapshot);
     }
@@ -160,9 +148,7 @@ public partial class BundleItemEditorViewModel : ObservableObject
         var normalized = pattern.Trim().Replace('\\', '/');
 
         // If the list only contains the generic default wildcard, replace it with specific pattern
-        if (SourcePatternsList.Count == 1 &&
-            (SourcePatternsList[0].Pattern.Equals(ModBuilderConstants.GameFilesEditedAllFilesGlob, StringComparison.OrdinalIgnoreCase) ||
-             SourcePatternsList[0].Pattern.Equals("**/*.*", StringComparison.OrdinalIgnoreCase)))
+        if (SourcePatternsList.Count == 1 && IsDefaultWildcardPattern(SourcePatternsList[0].Pattern))
         {
             SourcePatternsList.Clear();
         }
@@ -173,6 +159,58 @@ public partial class BundleItemEditorViewModel : ObservableObject
             SyncTextFromList();
             RecalculateMatches(projectDir, snapshot);
         }
+    }
+
+    /// <summary>
+    /// Adds multiple patterns to this bundle item with a single list refresh and match recalculation.
+    /// </summary>
+    /// <param name="patterns">The patterns or relative file paths to add.</param>
+    /// <param name="projectDir">Optional project root directory to recalculate matches.</param>
+    /// <param name="snapshot">Optional shared file snapshot to match against instead of walking the disk.</param>
+    public void AddPatterns(IEnumerable<string> patterns, string? projectDir = null, ProjectFileSnapshot? snapshot = null)
+    {
+        var normalized = patterns
+            .Where(p => !string.IsNullOrWhiteSpace(p))
+            .Select(p => p.Trim().Replace('\\', '/'))
+            .ToList();
+        if (normalized.Count == 0)
+        {
+            return;
+        }
+
+        // If the list only contains the generic default wildcard, replace it with specific patterns
+        IEnumerable<string> existing = SourcePatternsList.Count == 1 && IsDefaultWildcardPattern(SourcePatternsList[0].Pattern)
+            ? []
+            : SourcePatternsList.Select(p => p.Pattern);
+
+        SourcePatternsList = BuildPatternList(existing.Concat(normalized));
+        SyncTextFromList();
+        RecalculateMatches(projectDir, snapshot);
+    }
+
+    private static bool IsDefaultWildcardPattern(string pattern) =>
+        pattern.Equals(ModBuilderConstants.GameFilesEditedAllFilesGlob, StringComparison.OrdinalIgnoreCase) ||
+        pattern.Equals("**/*.*", StringComparison.OrdinalIgnoreCase);
+
+    private static ObservableCollection<SourcePathItemViewModel> BuildPatternList(IEnumerable<string> patterns)
+    {
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var items = new ObservableCollection<SourcePathItemViewModel>();
+        foreach (var pattern in patterns)
+        {
+            if (string.IsNullOrWhiteSpace(pattern))
+            {
+                continue;
+            }
+
+            var normalized = pattern.Trim().Replace('\\', '/');
+            if (seen.Add(normalized))
+            {
+                items.Add(new SourcePathItemViewModel(normalized));
+            }
+        }
+
+        return items;
     }
 
     /// <summary>
@@ -197,7 +235,7 @@ public partial class BundleItemEditorViewModel : ObservableObject
     /// <param name="snapshot">Optional shared file snapshot to match against instead of walking the disk.</param>
     public void ClearPatterns(string? projectDir = null, ProjectFileSnapshot? snapshot = null)
     {
-        SourcePatternsList.Clear();
+        SourcePatternsList = [];
         SyncTextFromList();
         RecalculateMatches(projectDir, snapshot);
     }
@@ -242,17 +280,20 @@ public partial class BundleItemEditorViewModel : ObservableObject
         _isUpdatingInternally = true;
         try
         {
-            SourcePatternsList.Clear();
             if (string.IsNullOrWhiteSpace(text))
             {
+                SourcePatternsList = [];
                 return;
             }
 
             var entries = text.Split(new[] { ';', '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            var items = new ObservableCollection<SourcePathItemViewModel>();
             foreach (var entry in entries.Where(e => !string.IsNullOrWhiteSpace(e)))
             {
-                SourcePatternsList.Add(new SourcePathItemViewModel(entry));
+                items.Add(new SourcePathItemViewModel(entry));
             }
+
+            SourcePatternsList = items;
         }
         finally
         {
