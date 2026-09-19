@@ -411,6 +411,47 @@ public class CommunityOutpostManifestFactoryTests : IDisposable
     }
 
     /// <summary>
+    /// Verifies that a file inside the manifest directory whose name starts with dots
+    /// (e.g. ..notes.txt) is still mapped relative to the manifest directory instead
+    /// of being misclassified as outside-base content.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task CreateManifestsFromExtractedContentAsync_WithDotPrefixedFileInManifestDirectory_MapsRelativeToManifestDirectoryAsync()
+    {
+        // Arrange: EZH/..notes.txt must map to "..notes.txt", not "EZH/..notes.txt"
+        var ezhDir = Path.Combine(_tempDir, "EZH");
+        Directory.CreateDirectory(ezhDir);
+        var dotFilePath = Path.Combine(ezhDir, "..notes.txt");
+        await File.WriteAllTextAsync(dotFilePath, "mock notes content");
+
+        var originalManifest = new ContentManifest
+        {
+            Id = ManifestId.Create("1.0.communityoutpost.addon.crzh"),
+            Name = "Camera Mod - Zero Hour",
+            ContentType = GenHub.Core.Models.Enums.ContentType.Addon,
+            TargetGame = GameType.ZeroHour,
+            Publisher = new PublisherInfo { PublisherType = "communityoutpost" },
+            Metadata = new ContentMetadata
+            {
+                Tags = ["contentCode:crzh"],
+            },
+        };
+
+        // Act
+        var result = await _factory.CreateManifestsFromExtractedContentAsync(originalManifest, _tempDir);
+
+        // Assert
+        Assert.True(result.Success);
+        var manifests = result.Data!;
+        Assert.Single(manifests);
+        var manifest = manifests[0];
+        Assert.Single(manifest.Files);
+        Assert.Equal("..notes.txt", manifest.Files[0].RelativePath);
+        Assert.Equal(dotFilePath, manifest.Files[0].SourcePath);
+    }
+
+    /// <summary>
     /// Verifies that non-variant content inside a language subdirectory (e.g. EZH) also
     /// preserves files from sibling subdirectories and the extraction root, keeping the
     /// sibling subpath relative to the extraction root so content installs in place.

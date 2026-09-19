@@ -341,19 +341,17 @@ public class CommunityOutpostManifestFactory(
     /// <returns>The manifest-relative path for the file.</returns>
     private static string ResolveManifestRelativePath(string fullPath, string baseDirectory, string extractedDirectory)
     {
-        var relativePath = Path.GetRelativePath(baseDirectory, fullPath);
-        if (!relativePath.StartsWith("..", StringComparison.Ordinal))
+        if (PathHelper.IsPathWithinDirectory(baseDirectory, fullPath))
         {
-            return relativePath;
+            return Path.GetRelativePath(baseDirectory, fullPath);
         }
 
-        var rootRelativePath = Path.GetRelativePath(extractedDirectory, fullPath);
-        if (rootRelativePath.StartsWith("..", StringComparison.Ordinal))
+        if (PathHelper.IsPathWithinDirectory(extractedDirectory, fullPath))
         {
-            return Path.GetFileName(fullPath);
+            return Path.GetRelativePath(extractedDirectory, fullPath);
         }
 
-        return rootRelativePath;
+        return Path.GetFileName(fullPath);
     }
 
     private async Task<OperationResult<List<ContentManifest>>> CreateVariantManifestsAsync(
