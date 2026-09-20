@@ -75,10 +75,6 @@ public sealed class OnlineNetworkService(
                 cancellationToken) ?? [];
             return OperationResult<IReadOnlyList<OnlineNetworkSummary>>.CreateSuccess(networks);
         }
-        catch (OperationCanceledException)
-        {
-            throw;
-        }
         catch (HttpRequestException ex)
         {
             logger.LogWarning(ex, "Online directory unreachable.");
@@ -100,7 +96,7 @@ public sealed class OnlineNetworkService(
         try
         {
             using var client = await CreateAuthenticatedClientAsync(cancellationToken);
-            var url = ApiConstants.OnlineNetworksEndpoint + "/" + Uri.EscapeDataString(networkId);
+            var url = string.Format(ApiConstants.OnlineNetworkByIdFormat, Uri.EscapeDataString(networkId));
             using var response = await client.GetAsync(url, cancellationToken);
             if (!response.IsSuccessStatusCode)
             {
@@ -115,10 +111,6 @@ public sealed class OnlineNetworkService(
             }
 
             return OperationResult<OnlineNetworkDetail>.CreateSuccess(detail);
-        }
-        catch (OperationCanceledException)
-        {
-            throw;
         }
         catch (HttpRequestException ex)
         {
@@ -147,10 +139,6 @@ public sealed class OnlineNetworkService(
             using var response = await client.PostAsJsonAsync(
                 ApiConstants.OnlineNetworksEndpoint, request with { Endpoint = endpoint }, cancellationToken);
             return await ActivateJoinFromResponseAsync(response, cancellationToken);
-        }
-        catch (OperationCanceledException)
-        {
-            throw;
         }
         catch (HttpRequestException ex)
         {
@@ -195,10 +183,6 @@ public sealed class OnlineNetworkService(
 
             return await ActivateJoinFromResponseAsync(response, cancellationToken);
         }
-        catch (OperationCanceledException)
-        {
-            throw;
-        }
         catch (HttpRequestException ex)
         {
             logger.LogWarning(ex, "Online join request failed.");
@@ -233,7 +217,7 @@ public sealed class OnlineNetworkService(
     }
 
     /// <inheritdoc/>
-    public async Task<OperationResult<bool>> UpdateNetworkAsync(
+    public Task<OperationResult<bool>> UpdateNetworkAsync(
         string? description,
         string? expectedProfileId,
         CancellationToken cancellationToken = default)
@@ -241,38 +225,15 @@ public sealed class OnlineNetworkService(
         var join = CurrentJoin;
         if (join is null)
         {
-            return OperationResult<bool>.CreateFailure(OnlineConstants.ErrorServiceUnavailable);
+            return Task.FromResult(OperationResult<bool>.CreateFailure(OnlineConstants.ErrorServiceUnavailable));
         }
 
-        try
-        {
-            using var client = CreateGrantClient(join.Grant);
-            var url = ApiConstants.OnlineNetworksEndpoint + "/" + Uri.EscapeDataString(join.NetworkId);
-            using var request = new HttpRequestMessage(HttpMethod.Patch, url)
-            {
-                Content = JsonContent.Create(new { description, expectedProfileId }),
-            };
-            using var response = await client.SendAsync(request, cancellationToken);
-            if (!response.IsSuccessStatusCode)
-            {
-                return OperationResult<bool>.CreateFailure(await ReadErrorAsync(response, cancellationToken));
-            }
-
-            return OperationResult<bool>.CreateSuccess(true);
-        }
-        catch (OperationCanceledException)
-        {
-            throw;
-        }
-        catch (HttpRequestException ex)
-        {
-            logger.LogWarning(ex, "Online network update failed.");
-            return OperationResult<bool>.CreateFailure(OnlineConstants.ErrorServiceUnavailable);
-        }
+        var url = string.Format(ApiConstants.OnlineNetworkByIdFormat, Uri.EscapeDataString(join.NetworkId));
+        return SendGrantMutationAsync(join.Grant, url, HttpMethod.Patch, new { description, expectedProfileId }, cancellationToken);
     }
 
     /// <inheritdoc/>
-    public async Task<OperationResult<bool>> ReportMemberAsync(
+    public Task<OperationResult<bool>> ReportMemberAsync(
         string overlayIp,
         string reason,
         CancellationToken cancellationToken = default)
@@ -280,66 +241,26 @@ public sealed class OnlineNetworkService(
         var join = CurrentJoin;
         if (join is null || string.IsNullOrWhiteSpace(overlayIp) || string.IsNullOrWhiteSpace(reason))
         {
-            return OperationResult<bool>.CreateFailure(OnlineConstants.ErrorServiceUnavailable);
+            return Task.FromResult(OperationResult<bool>.CreateFailure(OnlineConstants.ErrorServiceUnavailable));
         }
 
-        try
-        {
-            using var client = CreateGrantClient(join.Grant);
-            var url = string.Format(ApiConstants.OnlineReportFormat, Uri.EscapeDataString(join.NetworkId));
-            using var response = await client.PostAsJsonAsync(
-                url, new { targetIp = overlayIp, reason }, cancellationToken);
-            if (!response.IsSuccessStatusCode)
-            {
-                return OperationResult<bool>.CreateFailure(await ReadErrorAsync(response, cancellationToken));
-            }
-
-            return OperationResult<bool>.CreateSuccess(true);
-        }
-        catch (OperationCanceledException)
-        {
-            throw;
-        }
-        catch (HttpRequestException ex)
-        {
-            logger.LogWarning(ex, "Online member report failed.");
-            return OperationResult<bool>.CreateFailure(OnlineConstants.ErrorServiceUnavailable);
-        }
+        var url = string.Format(ApiConstants.OnlineReportFormat, Uri.EscapeDataString(join.NetworkId));
+        return SendGrantMutationAsync(join.Grant, url, HttpMethod.Post, new { targetIp = overlayIp, reason }, cancellationToken);
     }
 
     /// <inheritdoc/>
-    public async Task<OperationResult<bool>> BanMemberAsync(
+    public Task<OperationResult<bool>> BanMemberAsync(
         string overlayIp,
         CancellationToken cancellationToken = default)
     {
         var join = CurrentJoin;
         if (join is null || string.IsNullOrWhiteSpace(overlayIp))
         {
-            return OperationResult<bool>.CreateFailure(OnlineConstants.ErrorServiceUnavailable);
+            return Task.FromResult(OperationResult<bool>.CreateFailure(OnlineConstants.ErrorServiceUnavailable));
         }
 
-        try
-        {
-            using var client = CreateGrantClient(join.Grant);
-            var url = string.Format(ApiConstants.OnlineBanFormat, Uri.EscapeDataString(join.NetworkId));
-            using var response = await client.PostAsJsonAsync(
-                url, new { targetIp = overlayIp }, cancellationToken);
-            if (!response.IsSuccessStatusCode)
-            {
-                return OperationResult<bool>.CreateFailure(await ReadErrorAsync(response, cancellationToken));
-            }
-
-            return OperationResult<bool>.CreateSuccess(true);
-        }
-        catch (OperationCanceledException)
-        {
-            throw;
-        }
-        catch (HttpRequestException ex)
-        {
-            logger.LogWarning(ex, "Online member ban failed.");
-            return OperationResult<bool>.CreateFailure(OnlineConstants.ErrorServiceUnavailable);
-        }
+        var url = string.Format(ApiConstants.OnlineBanFormat, Uri.EscapeDataString(join.NetworkId));
+        return SendGrantMutationAsync(join.Grant, url, HttpMethod.Post, new { targetIp = overlayIp }, cancellationToken);
     }
 
     private static OperationResult<bool> ValidateCreateRequest(OnlineCreateNetworkRequest request)
@@ -555,10 +476,6 @@ public sealed class OnlineNetworkService(
             LocalEndpoint = endpoints.Data.Public.ToString();
             return LocalEndpoint;
         }
-        catch (OperationCanceledException)
-        {
-            throw;
-        }
         catch (Exception ex) when (ex is System.Net.Sockets.SocketException or TimeoutException)
         {
             logger.LogWarning("Endpoint discovery failed; joining without a published endpoint.");
@@ -587,13 +504,38 @@ public sealed class OnlineNetworkService(
                 logger.LogWarning("Server leave returned {Status}.", (int)response.StatusCode);
             }
         }
-        catch (OperationCanceledException)
-        {
-            throw;
-        }
         catch (HttpRequestException ex)
         {
             logger.LogWarning(ex, "Server leave notification failed.");
+        }
+    }
+
+    private async Task<OperationResult<bool>> SendGrantMutationAsync(
+        string grant,
+        string url,
+        HttpMethod method,
+        object payload,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            using var client = CreateGrantClient(grant);
+            using var request = new HttpRequestMessage(method, url)
+            {
+                Content = JsonContent.Create(payload),
+            };
+            using var response = await client.SendAsync(request, cancellationToken);
+            if (!response.IsSuccessStatusCode)
+            {
+                return OperationResult<bool>.CreateFailure(await ReadErrorAsync(response, cancellationToken));
+            }
+
+            return OperationResult<bool>.CreateSuccess(true);
+        }
+        catch (HttpRequestException ex)
+        {
+            logger.LogWarning(ex, "Online network mutation failed.");
+            return OperationResult<bool>.CreateFailure(OnlineConstants.ErrorServiceUnavailable);
         }
     }
 }

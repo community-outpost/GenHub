@@ -31,7 +31,12 @@ const base64UrlEncode = (bytes: Uint8Array): string => {
   bytes.forEach((b) => {
     binary += String.fromCodePoint(b);
   });
-  return btoa(binary).replaceAll("+", "-").replaceAll("/", "_").replace(/=+$/, "");
+  const encoded = btoa(binary).replaceAll("+", "-").replaceAll("/", "_");
+  let end = encoded.length;
+  while (end > 0 && encoded.charAt(end - 1) === "=") {
+    end -= 1;
+  }
+  return encoded.substring(0, end);
 };
 
 const base64UrlDecode = (text: string): Uint8Array | null => {

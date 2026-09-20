@@ -54,7 +54,7 @@ export const verifyPassword = async (password: string, verifier: string, pepper:
   }
   const salt = fromHex(parts[1] ?? "");
   const expected = fromHex(parts[2] ?? "");
-  if (salt === null || expected === null || expected.length !== HASH_BITS / 8) {
+  if (salt === null || expected?.length !== HASH_BITS / 8) {
     return false;
   }
 

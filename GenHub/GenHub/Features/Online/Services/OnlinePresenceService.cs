@@ -76,10 +76,6 @@ public sealed class OnlinePresenceService(ILogger<OnlinePresenceService> logger)
             _loopTask = RunLoopAsync(_loopCts.Token);
             return OperationResult<bool>.CreateSuccess(true);
         }
-        catch (OperationCanceledException)
-        {
-            throw;
-        }
         finally
         {
             _stateLock.Release();
@@ -94,10 +90,6 @@ public sealed class OnlinePresenceService(ILogger<OnlinePresenceService> logger)
         {
             await StopLoopAsync();
             return OperationResult<bool>.CreateSuccess(true);
-        }
-        catch (OperationCanceledException)
-        {
-            throw;
         }
         finally
         {
@@ -174,6 +166,11 @@ public sealed class OnlinePresenceService(ILogger<OnlinePresenceService> logger)
             OnlineConstants.ReconnectInitialDelaySeconds * (1 << Math.Min(attempt, 5)),
             OnlineConstants.ReconnectMaxDelaySeconds);
         return TimeSpan.FromSeconds(seconds);
+    }
+
+    private static bool IsTerminalClose(WebSocketCloseStatus? status)
+    {
+        return status is not null and not WebSocketCloseStatus.NormalClosure and not WebSocketCloseStatus.Empty;
     }
 
     private async Task RunLoopAsync(CancellationToken cancellationToken)
@@ -321,11 +318,6 @@ public sealed class OnlinePresenceService(ILogger<OnlinePresenceService> logger)
             logger.LogWarning("Presence channel closed by server: {Status}", result.CloseStatus);
             ConnectionLost?.Invoke(this, EventArgs.Empty);
         }
-    }
-
-    private bool IsTerminalClose(WebSocketCloseStatus? status)
-    {
-        return status is not null and not WebSocketCloseStatus.NormalClosure and not WebSocketCloseStatus.Empty;
     }
 
     private async Task StopLoopAsync()
