@@ -953,7 +953,7 @@ public sealed partial class OnlineViewModel(
             {
                 // Superseded by newer keystrokes.
             }
-        });
+        }, token);
     }
 
     partial void OnSelectedMemberChanged(OnlineMember? value)

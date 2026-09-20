@@ -1,7 +1,5 @@
-using GenHub.Core.Constants;
-using GenHub.Core.Interfaces.Online;
+using GenHub.Core.Services.Online;
 using System;
-using System.IO;
 using System.Runtime.Versioning;
 
 namespace GenHub.MacOS.Features.Online;
@@ -11,25 +9,11 @@ namespace GenHub.MacOS.Features.Online;
 /// selection ships an installer, only the override is honored.
 /// </summary>
 [SupportedOSPlatform("macos")]
-public sealed class MacOSOverlaySidecarLocator : IOverlaySidecarLocator
+public sealed class MacOSOverlaySidecarLocator : OverlaySidecarLocatorBase
 {
     /// <inheritdoc/>
-    public string? LocateBinary()
-    {
-        var overridePath = Environment.GetEnvironmentVariable(OnlineConstants.OverlayBinaryEnvVar);
-        if (!string.IsNullOrWhiteSpace(overridePath) && File.Exists(overridePath))
-        {
-            return overridePath;
-        }
-
-        var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-        var candidate = Path.Combine(home, "Library", "Application Support", "GenHub", "overlay", "genhub-overlay");
-        return File.Exists(candidate) ? candidate : null;
-    }
+    protected override Environment.SpecialFolder BaseFolder => Environment.SpecialFolder.UserProfile;
 
     /// <inheritdoc/>
-    public string BuildArguments(string configPath)
-    {
-        return $"--config \"{configPath}\"";
-    }
+    protected override string[] CandidateSegments => ["Library", "Application Support", "GenHub", "overlay", "genhub-overlay"];
 }

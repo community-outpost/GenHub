@@ -143,19 +143,7 @@ public sealed class OnlineNetworkService(
             using var client = await CreateAuthenticatedClientAsync(cancellationToken);
             using var response = await client.PostAsJsonAsync(
                 ApiConstants.OnlineNetworksEndpoint, request with { Endpoint = endpoint }, cancellationToken);
-            if (!response.IsSuccessStatusCode)
-            {
-                return OperationResult<OnlineJoinResult>.CreateFailure(
-                    await ReadErrorAsync(response, cancellationToken));
-            }
-
-            var join = await response.Content.ReadFromJsonAsync<OnlineJoinResult>(cancellationToken);
-            if (join is null)
-            {
-                return OperationResult<OnlineJoinResult>.CreateFailure(OnlineConstants.ErrorServiceUnavailable);
-            }
-
-            return await ActivateJoinAsync(join, cancellationToken);
+            return await ActivateJoinFromResponseAsync(response, cancellationToken);
         }
         catch (OperationCanceledException)
         {
@@ -202,19 +190,7 @@ public sealed class OnlineNetworkService(
                 return OperationResult<OnlineJoinResult>.CreateFailure(OnlineConstants.ErrorNetworkBanned);
             }
 
-            if (!response.IsSuccessStatusCode)
-            {
-                return OperationResult<OnlineJoinResult>.CreateFailure(
-                    await ReadErrorAsync(response, cancellationToken));
-            }
-
-            var join = await response.Content.ReadFromJsonAsync<OnlineJoinResult>(cancellationToken);
-            if (join is null)
-            {
-                return OperationResult<OnlineJoinResult>.CreateFailure(OnlineConstants.ErrorServiceUnavailable);
-            }
-
-            return await ActivateJoinAsync(join, cancellationToken);
+            return await ActivateJoinFromResponseAsync(response, cancellationToken);
         }
         catch (OperationCanceledException)
         {
@@ -459,6 +435,25 @@ public sealed class OnlineNetworkService(
         {
             _sessionLock.Release();
         }
+    }
+
+    private async Task<OperationResult<OnlineJoinResult>> ActivateJoinFromResponseAsync(
+        HttpResponseMessage response,
+        CancellationToken cancellationToken)
+    {
+        if (!response.IsSuccessStatusCode)
+        {
+            return OperationResult<OnlineJoinResult>.CreateFailure(
+                await ReadErrorAsync(response, cancellationToken));
+        }
+
+        var join = await response.Content.ReadFromJsonAsync<OnlineJoinResult>(cancellationToken);
+        if (join is null)
+        {
+            return OperationResult<OnlineJoinResult>.CreateFailure(OnlineConstants.ErrorServiceUnavailable);
+        }
+
+        return await ActivateJoinAsync(join, cancellationToken);
     }
 
     private async Task<OperationResult<OnlineJoinResult>> ActivateJoinAsync(

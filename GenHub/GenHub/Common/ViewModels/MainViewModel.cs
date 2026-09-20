@@ -439,7 +439,7 @@ public partial class MainViewModel(
         }
         else if (value == NavigationTab.Online)
         {
-            _ = OnlineViewModel.RefreshNetworksAsync();
+            _ = OnlineViewModel.RefreshNetworksAsync(_initializationCts.Token);
         }
 
         SaveSelectedTab(value);
