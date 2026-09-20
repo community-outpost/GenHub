@@ -12649,6 +12649,18 @@ Project structure ready. Edit files in GameFilesEdited folder.</value>
   <data name="Tools.PublisherStudio.Publish.PublishAllPartialFormat" xml:space="preserve">
     <value>Published {0} of {1} catalogs.</value>
   </data>
+  <data name="Tools.PublisherStudio.Publish.PublishAllPartialWithDefinitionErrorFormat" xml:space="preserve">
+    <value>Published {0} of {1} catalogs. Provider definition failed: {2}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.UploadAlreadyInProgress" xml:space="preserve">
+    <value>An upload is already in progress.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.CatalogPublishedFormat" xml:space="preserve">
+    <value>Catalog '{0}' published successfully.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.CatalogPublishFailed" xml:space="preserve">
+    <value>Failed to publish catalog.</value>
+  </data>
   <data name="Tools.PublisherStudio.Publish.ConnectProviderFirst" xml:space="preserve">
     <value>Please connect to your hosting provider first.</value>
   </data>
@@ -12827,7 +12839,19 @@ Project structure ready. Edit files in GameFilesEdited folder.</value>
     <value>Validation error</value>
   </data>
   <data name="Tools.PublisherStudio.Hosting.GoogleDriveApiNotEnabled" xml:space="preserve">
-    <value>The Google Drive API is not enabled for your Google Cloud project. Enable it at https://console.developers.google.com/apis/api/drive.googleapis.com, wait a few minutes for the change to propagate, then retry.</value>
+    <value>The Google Drive API is not enabled for your Google Cloud project. Enable it at {0}, wait a few minutes for the change to propagate, then retry.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.PublisherFolderFailed" xml:space="preserve">
+    <value>Failed to get publisher folder</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.PublisherFolderFailedFormat" xml:space="preserve">
+    <value>Failed to get publisher folder: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DropboxOAuthCompleteTitle" xml:space="preserve">
+    <value>GenHub connected to Dropbox</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DropboxOAuthCompleteMessage" xml:space="preserve">
+    <value>You can close this tab and return to GenHub.</value>
   </data>
   <data name="Tools.PublisherStudio.Publish.EnterDropboxAppKey" xml:space="preserve">
     <value>Please enter your Dropbox app key. Create an app in the Dropbox App Console to get one.</value>
@@ -12879,6 +12903,9 @@ Project structure ready. Edit files in GameFilesEdited folder.</value>
   </data>
   <data name="Downloads.Browser.Catalog" xml:space="preserve">
     <value>Catalog</value>
+  </data>
+  <data name="Downloads.Browser.LoadingCatalogs" xml:space="preserve">
+    <value>Loading catalogs...</value>
   </data>
   <data name="Downloads.Browser.CurrentCatalog" xml:space="preserve">
     <value>Current catalog</value>

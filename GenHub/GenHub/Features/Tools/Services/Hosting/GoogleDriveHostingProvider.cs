@@ -209,13 +209,13 @@ public class GoogleDriveHostingProvider(
             var folderResult = await GetOrCreatePublisherFolderAsync(cancellationToken);
             if (!folderResult.Success || string.IsNullOrEmpty(folderResult.Data))
             {
-                var error = folderResult.FirstError ?? "Failed to get publisher folder";
-                if (!error.Contains("Google Drive API is not enabled", StringComparison.OrdinalIgnoreCase))
+                var error = folderResult.FirstError;
+                if (IsApiNotEnabledMessage(error))
                 {
-                    error = $"Failed to get publisher folder: {error}";
+                    return OperationResult<HostingUploadResult>.CreateFailure(error!);
                 }
 
-                return OperationResult<HostingUploadResult>.CreateFailure(error);
+                return OperationResult<HostingUploadResult>.CreateFailure(GetPublisherFolderFailedMessage(error));
             }
 
             var folderId = folderResult.Data;
@@ -239,17 +239,7 @@ public class GoogleDriveHostingProvider(
             var insertRequest = _driveService.Files.Create(fileMetadata, fileStream, mimeType);
             insertRequest.Fields = "id, name, size, webViewLink, webContentLink";
 
-            if (progress != null)
-            {
-                insertRequest.ProgressChanged += uploadProgress =>
-                {
-                    if (uploadProgress.Status == UploadStatus.Uploading && fileStream.CanSeek && fileStream.Length > 0)
-                    {
-                        var percentage = (int)((double)uploadProgress.BytesSent / fileStream.Length * 100);
-                        progress.Report(percentage);
-                    }
-                };
-            }
+            AttachUploadProgress(insertRequest, fileStream, progress);
 
             var uploadResult = await insertRequest.UploadAsync(cancellationToken);
 
@@ -626,33 +616,102 @@ public class GoogleDriveHostingProvider(
         return match.Success ? match.Groups[1].Value : null;
     }
 
-    private string GetNotAuthenticatedMessage() =>
-        localizationService != null && localizationService.TryGetString("Tools.PublisherStudio.Hosting.GoogleDriveNotAuthenticated", out var localized)
-            ? localized
-            : HostingConstants.GoogleDriveNotAuthenticated;
+    private static void AttachUploadProgress(
+        Google.Apis.Upload.ResumableUpload<Google.Apis.Drive.v3.Data.File> insertRequest,
+        Stream fileStream,
+        IProgress<int>? progress)
+    {
+        if (progress == null)
+        {
+            return;
+        }
+
+        insertRequest.ProgressChanged += uploadProgress =>
+        {
+            if (uploadProgress.Status == UploadStatus.Uploading && fileStream.CanSeek && fileStream.Length > 0)
+            {
+                var percentage = (int)((double)uploadProgress.BytesSent / fileStream.Length * 100);
+                progress.Report(percentage);
+            }
+        };
+    }
 
     private string GetUserFacingApiErrorMessage(Exception ex, string operationFallback)
     {
-        var msg = ex.Message ?? string.Empty;
-        var isApiDisabled = (ex is Google.GoogleApiException apiEx &&
-            apiEx.HttpStatusCode == HttpStatusCode.Forbidden &&
-            apiEx.Error?.Errors != null &&
-            apiEx.Error.Errors.Any(e => string.Equals(e.Reason, "accessNotConfigured", StringComparison.OrdinalIgnoreCase))) ||
-            msg.Contains("drive.googleapis.com", StringComparison.OrdinalIgnoreCase) ||
-            (msg.Contains("Google Drive API", StringComparison.OrdinalIgnoreCase) &&
-             (msg.Contains("disabled", StringComparison.OrdinalIgnoreCase) || msg.Contains("not been used", StringComparison.OrdinalIgnoreCase)));
-
-        if (isApiDisabled)
+        if (IsApiDisabledError(ex))
         {
+            var msg = ex.Message ?? string.Empty;
             var match = GoogleConsoleUrlRegex.Match(msg);
             var consoleUrl = match.Success
                 ? match.Value.TrimEnd('.', ',', ';', ')')
-                : "https://console.developers.google.com/apis/api/drive.googleapis.com";
+                : HostingConstants.GoogleDriveApiEnablementUrl;
+
+            if (localizationService != null &&
+                localizationService.TryGetString("Tools.PublisherStudio.Hosting.GoogleDriveApiNotEnabled", out var localized, consoleUrl))
+            {
+                return localized;
+            }
 
             return $"The Google Drive API is not enabled for your Google Cloud project. Enable it at {consoleUrl}, wait a few minutes for the change to propagate, then retry.";
         }
 
         return $"{operationFallback}: {ex.Message}";
+    }
+
+    private static bool IsApiDisabledError(Exception ex)
+    {
+        if (ex is Google.GoogleApiException apiEx &&
+            apiEx.HttpStatusCode == HttpStatusCode.Forbidden &&
+            apiEx.Error?.Errors != null &&
+            apiEx.Error.Errors.Any(e => string.Equals(e.Reason, "accessNotConfigured", StringComparison.OrdinalIgnoreCase)))
+        {
+            return true;
+        }
+
+        var msg = ex.Message ?? string.Empty;
+        var mentionsDriveApi = msg.Contains("Google Drive API", StringComparison.OrdinalIgnoreCase) ||
+            msg.Contains("drive.googleapis.com", StringComparison.OrdinalIgnoreCase);
+        return mentionsDriveApi &&
+            (msg.Contains("disabled", StringComparison.OrdinalIgnoreCase) ||
+             msg.Contains("not been used", StringComparison.OrdinalIgnoreCase) ||
+             msg.Contains("accessNotConfigured", StringComparison.OrdinalIgnoreCase));
+    }
+
+    /// <summary>
+    /// Detects API-disabled failures from their message using the locale-invariant console URL,
+    /// so callers can recognize them without matching untranslated text.
+    /// </summary>
+    /// <param name="message">The failure message to inspect.</param>
+    /// <returns><c>true</c> when the message is an API-disabled failure; otherwise, <c>false</c>.</returns>
+    private static bool IsApiNotEnabledMessage(string? message)
+    {
+        return !string.IsNullOrEmpty(message) &&
+            (message.Contains(HostingConstants.GoogleDriveApiEnablementUrl, StringComparison.OrdinalIgnoreCase) ||
+             GoogleConsoleUrlRegex.IsMatch(message));
+    }
+
+    private string GetNotAuthenticatedMessage() =>
+        localizationService != null && localizationService.TryGetString("Tools.PublisherStudio.Hosting.GoogleDriveNotAuthenticated", out var localized)
+            ? localized
+            : HostingConstants.GoogleDriveNotAuthenticated;
+
+    private string GetPublisherFolderFailedMessage(string? error)
+    {
+        var folderFailed = localizationService?.TryGetString("Tools.PublisherStudio.Hosting.PublisherFolderFailed", out var folderFailedMessage) == true
+            ? folderFailedMessage
+            : "Failed to get publisher folder";
+        if (error == null)
+        {
+            return folderFailed;
+        }
+
+        if (localizationService != null &&
+            localizationService.TryGetString("Tools.PublisherStudio.Hosting.PublisherFolderFailedFormat", out var folderFailedFormat, error))
+        {
+            return folderFailedFormat;
+        }
+
+        return $"{folderFailed}: {error}";
     }
 
     private IDataStore CreateTokenDataStore()

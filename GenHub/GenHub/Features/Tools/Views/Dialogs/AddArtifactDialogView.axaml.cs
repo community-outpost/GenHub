@@ -2,7 +2,7 @@ using Avalonia.Controls;
 using Avalonia.Input;
 using GenHub.Features.Tools.ViewModels.Dialogs;
 using System;
-using System.Diagnostics;
+using System.IO;
 using System.Linq;
 
 namespace GenHub.Features.Tools.Views.Dialogs;
@@ -64,9 +64,10 @@ public partial class AddArtifactDialogView : UserControl
                 await vm.PopulateFromDroppedPathAsync(path);
                 e.Handled = true;
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException)
             {
-                Debug.WriteLine($"Failed to handle dropped path in Add Artifact dialog: {ex}");
+                vm.ValidationError = ex.Message;
+                e.Handled = true;
             }
         }
     }

@@ -1333,11 +1333,11 @@ public sealed partial class DownloadsBrowserViewModel(
 
             discoverer.Configure(subscription);
             Interlocked.Increment(ref _activeRequestId);
-            if (_searchCts != null)
+            var searchCts = Interlocked.Exchange(ref _searchCts, null);
+            if (searchCts != null)
             {
-                await _searchCts.CancelAsync();
-                _searchCts.Dispose();
-                _searchCts = null;
+                await searchCts.CancelAsync();
+                searchCts.Dispose();
             }
 
             SelectedContent?.Dispose();
@@ -1349,13 +1349,10 @@ public sealed partial class DownloadsBrowserViewModel(
             _lastPopulatedPublisherId = publisherId;
             await RefreshContentAsync();
         }
-        catch (OperationCanceledException) when (_vmCts.IsCancellationRequested)
-        {
-            throw;
-        }
         catch (OperationCanceledException)
         {
-            // Superseded by disposal.
+            // Superseded by another selection or disposal. This method only runs as
+            // fire-and-forget work, so cancellation is swallowed rather than rethrown.
         }
         catch (Exception ex)
         {
@@ -2683,9 +2680,11 @@ public sealed partial class DownloadsBrowserViewModel(
 
                 if (SelectedPublisher?.PublisherId == item.PublisherId)
                 {
-                    if (_searchCts != null)
+                    var searchCts = Interlocked.Exchange(ref _searchCts, null);
+                    if (searchCts != null)
                     {
-                        await _searchCts.CancelAsync();
+                        await searchCts.CancelAsync();
+                        searchCts.Dispose();
                     }
 
                     foreach (var contentItem in ContentItems)
@@ -3209,42 +3208,6 @@ public sealed partial class DownloadsBrowserViewModel(
                 "Error Adding to Profile",
                 $"An unexpected error occurred: {ex.Message}");
             logger.LogError(ex, "Exception adding content '{ContentName}' to profile", item.Name);
-        }
-    }
-
-    /// <summary>
-    /// Opens the manifests storage directory in the file explorer.
-    /// </summary>
-    [RelayCommand]
-    private void OpenManifestsFolder()
-    {
-        try
-        {
-            var configProvider = serviceProvider.GetRequiredService<IConfigurationProviderService>();
-            var path = configProvider.GetManifestsPath();
-
-            logger.LogInformation("Opening manifests directory: {Path}", path);
-
-            if (!System.IO.Directory.Exists(path))
-            {
-                logger.LogWarning("Manifests directory not found at {Path}, creating it", path);
-                System.IO.Directory.CreateDirectory(path);
-            }
-
-            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
-            {
-                FileName = path,
-                UseShellExecute = true,
-                Verb = "open",
-            });
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Failed to open manifests directory");
-            notificationService.ShowError(
-                localizationService?.GetString("Downloads.ImportSubscription.ManifestsErrorTitle") ?? "Error",
-                localizationService?.GetString("Downloads.ImportSubscription.ManifestsErrorBody", ex.Message) ?? $"Failed to open manifests directory: {ex.Message}",
-                5000);
         }
     }
 

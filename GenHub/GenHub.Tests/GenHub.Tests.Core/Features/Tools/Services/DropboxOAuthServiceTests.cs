@@ -12,12 +12,12 @@ public sealed class DropboxOAuthServiceTests
 {
     /// <summary>
     /// The authorize URL must carry the fixed redirect URI, offline access (refresh tokens),
-    /// and the exact permission scopes the setup guide tells users to enable.
+    /// the exact permission scopes the setup guide tells users to enable, and the OAuth state.
     /// </summary>
     [Fact]
     public void BuildAuthorizeUrl_IncludesRedirectScopeAndOfflineAccess()
     {
-        var url = DropboxOAuthService.BuildAuthorizeUrl("test-app-key", "test-challenge", HostingConstants.DropboxOAuthRedirectUri);
+        var url = DropboxOAuthService.BuildAuthorizeUrl("test-app-key", "test-challenge", HostingConstants.DropboxOAuthRedirectUri, "test-state");
 
         Assert.StartsWith(HostingConstants.DropboxOAuthAuthorizeUrl, url, StringComparison.Ordinal);
         Assert.Contains("response_type=code", url, StringComparison.Ordinal);
@@ -27,6 +27,20 @@ public sealed class DropboxOAuthServiceTests
         Assert.Contains("code_challenge_method=S256", url, StringComparison.Ordinal);
         Assert.Contains("token_access_type=offline", url, StringComparison.Ordinal);
         Assert.Contains(Uri.EscapeDataString(HostingConstants.DropboxOAuthScopes), url, StringComparison.Ordinal);
+        Assert.Contains("state=test-state", url, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// OAuth state tokens must be unique per call so callbacks cannot be replayed.
+    /// </summary>
+    [Fact]
+    public void CreateOAuthState_ReturnsUniqueTokens()
+    {
+        var first = DropboxOAuthService.CreateOAuthState();
+        var second = DropboxOAuthService.CreateOAuthState();
+
+        Assert.False(string.IsNullOrWhiteSpace(first));
+        Assert.NotEqual(first, second);
     }
 
     /// <summary>
@@ -61,20 +75,22 @@ public sealed class DropboxOAuthServiceTests
     }
 
     /// <summary>
-    /// Authorization codes are extracted from the loopback callback query string.
+    /// Authorization codes and echoed state are extracted from the loopback callback query string.
     /// </summary>
     [Fact]
     public void ExtractAuthorizationCode_ParsesCodeAndError()
     {
-        var (code, error) = DropboxOAuthService.ExtractAuthorizationCode(new Uri("http://localhost:51239/?code=auth-code-123"));
+        var (code, error, state) = DropboxOAuthService.ExtractAuthorizationCode(new Uri("http://localhost:51239/?code=auth-code-123&state=state-abc"));
 
         Assert.Equal("auth-code-123", code);
         Assert.Null(error);
+        Assert.Equal("state-abc", state);
 
-        var (deniedCode, deniedError) = DropboxOAuthService.ExtractAuthorizationCode(new Uri("http://localhost:51239/?error=access_denied"));
+        var (deniedCode, deniedError, deniedState) = DropboxOAuthService.ExtractAuthorizationCode(new Uri("http://localhost:51239/?error=access_denied&state=state-abc"));
 
         Assert.Null(deniedCode);
         Assert.Equal("access_denied", deniedError);
+        Assert.Equal("state-abc", deniedState);
     }
 
     /// <summary>
@@ -103,6 +119,22 @@ public sealed class DropboxOAuthServiceTests
     public void TryParseCredential_RejectsLegacyToken()
     {
         var parsed = DropboxOAuthService.TryParseCredential("sl.legacy-token", out var credential);
+
+        Assert.False(parsed);
+        Assert.Null(credential);
+    }
+
+    /// <summary>
+    /// Corrupt payloads with a non-numeric version return false instead of throwing.
+    /// </summary>
+    /// <param name="payload">The corrupt credential payload.</param>
+    [Theory]
+    [InlineData("{\"v\": \"1\", \"appKey\": \"k\", \"access\": \"a\"}")]
+    [InlineData("{\"v\": 9999999999999999999, \"appKey\": \"k\", \"access\": \"a\"}")]
+    [InlineData("{\"v\": true, \"appKey\": \"k\", \"access\": \"a\"}")]
+    public void TryParseCredential_RejectsMalformedVersion(string payload)
+    {
+        var parsed = DropboxOAuthService.TryParseCredential(payload, out var credential);
 
         Assert.False(parsed);
         Assert.Null(credential);

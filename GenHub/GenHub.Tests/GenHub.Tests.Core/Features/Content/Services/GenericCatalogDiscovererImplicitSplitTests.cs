@@ -10,8 +10,12 @@ using GenHub.Features.Content.Services.Catalog;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using Moq.Protected;
+using System;
+using System.Collections.Generic;
 using System.Linq;
+using System.Net;
 using System.Net.Http;
+using System.Text;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
@@ -51,6 +55,29 @@ public sealed class GenericCatalogDiscovererImplicitSplitTests
         Assert.Contains("online-client.exe", items[1].Name);
         Assert.Equal(7110000, items[0].DownloadSize);
         Assert.Equal(7400000, items[1].DownloadSize);
+    }
+
+    /// <summary>
+    /// Reordering the files of a multi-file release keeps the same sibling identity set,
+    /// so users who installed the previous IDs see no orphaned or duplicated entries.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task DiscoverAsync_ReorderedFiles_KeepsStableSiblingIdsAsync()
+    {
+        var first = new ReleaseArtifact { Filename = "recovery-tool.exe", DownloadUrl = "https://cdn.example.com/recovery-tool.exe", Size = 7110000 };
+        var second = new ReleaseArtifact { Filename = "online-client.exe", DownloadUrl = "https://cdn.example.com/online-client.exe", Size = 7400000 };
+        var ordered = await DiscoverAsync(CreateCatalogWithRelease([first, second]));
+        var reordered = await DiscoverAsync(CreateCatalogWithRelease([second, first]));
+
+        Assert.True(ordered.Success, ordered.FirstError);
+        Assert.True(reordered.Success, reordered.FirstError);
+        Assert.NotNull(ordered.Data);
+        Assert.NotNull(reordered.Data);
+        var orderedIds = ordered.Data.Items.Select(i => i.Id).OrderBy(id => id).ToList();
+        var reorderedIds = reordered.Data.Items.Select(i => i.Id).OrderBy(id => id).ToList();
+
+        Assert.Equal(orderedIds, reorderedIds);
     }
 
     /// <summary>
@@ -116,7 +143,7 @@ public sealed class GenericCatalogDiscovererImplicitSplitTests
         return await discoverer.DiscoverAsync(new ContentSearchQuery());
     }
 
-    private static PublisherCatalog CreateCatalogWithRelease(System.Collections.Generic.List<ReleaseArtifact> artifacts)
+    private static PublisherCatalog CreateCatalogWithRelease(IReadOnlyList<ReleaseArtifact> artifacts)
     {
         return new PublisherCatalog
         {
@@ -136,8 +163,8 @@ public sealed class GenericCatalogDiscovererImplicitSplitTests
                         {
                             Version = "1.0.0",
                             IsLatest = true,
-                            ReleaseDate = new System.DateTime(2026, 9, 19, 0, 0, 0, System.DateTimeKind.Utc),
-                            Artifacts = artifacts,
+                            ReleaseDate = new DateTime(2026, 9, 19, 0, 0, 0, DateTimeKind.Utc),
+                            Artifacts = [.. artifacts],
                         },
                     ],
                 },
@@ -156,8 +183,8 @@ public sealed class GenericCatalogDiscovererImplicitSplitTests
                 ItExpr.IsAny<CancellationToken>())
             .ReturnsAsync(new HttpResponseMessage
             {
-                StatusCode = System.Net.HttpStatusCode.OK,
-                Content = new StringContent(responseJson, System.Text.Encoding.UTF8, "application/json"),
+                StatusCode = HttpStatusCode.OK,
+                Content = new StringContent(responseJson, Encoding.UTF8, "application/json"),
             });
 
         var httpClient = new HttpClient(mockHandler.Object);

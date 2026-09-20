@@ -74,6 +74,7 @@ public sealed partial class ToolsViewModel(
 
     private IToolPlugin? _lastOpenedTool;
     private System.Threading.CancellationTokenSource? _statusHideCts;
+    private bool _activateOnLoadComplete;
 
     /// <summary>
     /// Gets the most recently opened tool plugin, remembered across tab switches.
@@ -136,6 +137,14 @@ public sealed partial class ToolsViewModel(
                     _lastOpenedTool = InstalledTools[0];
                 }
 
+                if (_activateOnLoadComplete)
+                {
+                    // The Tools tab was opened while tools were still loading and the
+                    // earlier activation found an empty list; run it now that tools exist.
+                    _activateOnLoadComplete = false;
+                    OnTabActivated();
+                }
+
                 logger.LogInformation("Loaded {Count} tool plugins", InstalledTools.Count);
             }
             else
@@ -162,6 +171,12 @@ public sealed partial class ToolsViewModel(
     /// </summary>
     public void OnTabActivated()
     {
+        if (IsLoading)
+        {
+            _activateOnLoadComplete = true;
+            return;
+        }
+
         if (SelectedTool == null && _lastOpenedTool != null)
         {
             var matchingTool = InstalledTools.FirstOrDefault(t =>

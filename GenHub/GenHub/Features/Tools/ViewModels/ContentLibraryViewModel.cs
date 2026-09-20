@@ -235,12 +235,9 @@ public partial class ContentLibraryViewModel(
             return;
         }
 
-        var publishShare = parentViewModel?.PublishShareViewModel;
+        var publishShare = GetPublishShareOrWarn();
         if (publishShare == null)
         {
-            var title = GetLocalizedString("Tools.PublisherStudio.Publish.ProviderNotConnected", "Provider Not Connected");
-            var message = GetLocalizedString("Tools.PublisherStudio.Hosting.ConnectBeforeUpload", "Connect to your hosting provider before uploading files.");
-            notificationService?.ShowWarning(title, message);
             return;
         }
 
@@ -266,16 +263,27 @@ public partial class ContentLibraryViewModel(
     [RelayCommand]
     private async Task UploadActiveCatalogAsync()
     {
-        var publishShare = parentViewModel?.PublishShareViewModel;
+        var publishShare = GetPublishShareOrWarn();
         if (publishShare == null)
         {
-            var title = GetLocalizedString("Tools.PublisherStudio.Publish.ProviderNotConnected", "Provider Not Connected");
-            var message = GetLocalizedString("Tools.PublisherStudio.Hosting.ConnectBeforeUpload", "Connect to your hosting provider before uploading files.");
-            notificationService?.ShowWarning(title, message);
             return;
         }
 
         await publishShare.PublishCatalogByIdCommand.ExecuteAsync(activeCatalog.Id);
+    }
+
+    private PublishShareViewModel? GetPublishShareOrWarn()
+    {
+        var publishShare = parentViewModel?.PublishShareViewModel;
+        if (publishShare != null)
+        {
+            return publishShare;
+        }
+
+        var title = GetLocalizedString("Tools.PublisherStudio.Publish.ProviderNotConnected", "Provider Not Connected");
+        var message = GetLocalizedString("Tools.PublisherStudio.Hosting.ConnectBeforeUpload", "Connect to your hosting provider before uploading files.");
+        notificationService?.ShowWarning(title, message);
+        return null;
     }
 
     /// <summary>

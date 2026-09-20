@@ -12551,6 +12551,18 @@ GameFilesEdited/Data/INI/**/*.ini</value>
   <data name="Tools.PublisherStudio.Publish.PublishAllPartialFormat" xml:space="preserve">
     <value>تم نشر {0} من {1} من الكتالوجات.</value>
   </data>
+  <data name="Tools.PublisherStudio.Publish.PublishAllPartialWithDefinitionErrorFormat" xml:space="preserve">
+    <value>تم نشر {0} من {1} من الكتالوجات. فشل رفع تعريف المزود: {2}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.UploadAlreadyInProgress" xml:space="preserve">
+    <value>هناك رفع جارٍ بالفعل.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.CatalogPublishedFormat" xml:space="preserve">
+    <value>تم نشر الكتالوج '{0}' بنجاح.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.CatalogPublishFailed" xml:space="preserve">
+    <value>فشل نشر الكتالوج.</value>
+  </data>
   <data name="Tools.PublisherStudio.Publish.ConnectProviderFirst" xml:space="preserve">
     <value>يرجى الاتصال بموفر الاستضافة أولًا.</value>
   </data>
@@ -12729,7 +12741,19 @@ GameFilesEdited/Data/INI/**/*.ini</value>
     <value>خطأ في التحقق</value>
   </data>
   <data name="Tools.PublisherStudio.Hosting.GoogleDriveApiNotEnabled" xml:space="preserve">
-    <value>لم يتم تفعيل Google Drive API لمشروع Google Cloud الخاص بك. فعّله عبر https://console.developers.google.com/apis/api/drive.googleapis.com، وانتظر بضع دقائق حتى يسري التغيير، ثم أعد المحاولة.</value>
+    <value>لم يتم تفعيل Google Drive API لمشروع Google Cloud الخاص بك. فعّله عبر {0}، وانتظر بضع دقائق حتى يسري التغيير، ثم أعد المحاولة.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.PublisherFolderFailed" xml:space="preserve">
+    <value>تعذر الوصول إلى مجلد الناشر</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.PublisherFolderFailedFormat" xml:space="preserve">
+    <value>تعذر الوصول إلى مجلد الناشر: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DropboxOAuthCompleteTitle" xml:space="preserve">
+    <value>تم توصيل GenHub بـ Dropbox</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DropboxOAuthCompleteMessage" xml:space="preserve">
+    <value>يمكنك إغلاق هذا التبويب والعودة إلى GenHub.</value>
   </data>
   <data name="Tools.PublisherStudio.Publish.EnterDropboxAppKey" xml:space="preserve">
     <value>يرجى إدخال مفتاح تطبيق Dropbox الخاص بك. أنشئ تطبيقًا في وحدة تحكم تطبيقات Dropbox للحصول على واحد.</value>
@@ -12781,6 +12805,9 @@ GameFilesEdited/Data/INI/**/*.ini</value>
   </data>
   <data name="Downloads.Browser.Catalog" xml:space="preserve">
     <value>الكتالوج</value>
+  </data>
+  <data name="Downloads.Browser.LoadingCatalogs" xml:space="preserve">
+    <value>جارٍ تحميل الكتالوجات...</value>
   </data>
   <data name="Downloads.Browser.CurrentCatalog" xml:space="preserve">
     <value>الكتالوج الحالي</value>

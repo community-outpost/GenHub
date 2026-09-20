@@ -140,9 +140,7 @@
 
                 <!-- Header Info -->
                 <Grid Grid.Row="1" ColumnDefinitions="Auto,*" Margin="0,0,0,24">
-                    <Border Grid.Column="0" CornerRadius="12" Width="80" Height="80" ClipToBounds="True" Background="{DynamicResource CardBackground}"
-                            BorderBrush="{Binding AccentColor, Converter={StaticResource ColorToBrushConverter}}"
-                            BorderThickness="2">
+                    <Border Grid.Column="0" CornerRadius="12" Width="80" Height="80" ClipToBounds="True" Background="{DynamicResource CardBackground}">
                         <Panel>
                             <Image Source="{Binding IconBitmap}"
                                    Stretch="UniformToFill"
@@ -152,6 +150,14 @@
                                        HorizontalAlignment="Center"
                                        VerticalAlignment="Center"
                                        IsVisible="{Binding IconBitmap, Converter={x:Static ObjectConverters.IsNull}}" />
+                            <!-- Accent ring only when the publisher defines an accent color,
+                                 so content without one keeps the full icon area. -->
+                            <Border CornerRadius="12"
+                                    BorderBrush="{Binding AccentColor, Converter={StaticResource ColorToBrushConverter}}"
+                                    BorderThickness="2"
+                                    Background="Transparent"
+                                    IsHitTestVisible="False"
+                                    IsVisible="{Binding HasAccentColor}" />
                         </Panel>
                     </Border>
                     <StackPanel Grid.Column="1" Margin="16,0,0,0" VerticalAlignment="Center" Spacing="6">

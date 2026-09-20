@@ -572,7 +572,7 @@ public partial class AddContentDialogViewModel(
             return;
         }
 
-        var filePath = await dialogService.ShowFilePickerAsync(
+        var filePath = await dialogService.ShowImagePickerAsync(
             GetLocalizedString("Tools.PublisherStudio.Content.SelectArtworkTitle", "Select Artwork Image"));
         if (string.IsNullOrEmpty(filePath) || !File.Exists(filePath))
         {
@@ -858,7 +858,7 @@ public partial class AddContentDialogViewModel(
             BannerUrl = banner,
             BackdropUrl = backdrop,
             AccentColor = accent,
-            ScreenshotUrls = source != null ? [.. source.ScreenshotUrls] : [],
+            ScreenshotUrls = source?.ScreenshotUrls is { } shots ? [.. shots] : [],
             VideoUrl = source?.VideoUrl,
             DocumentationUrl = source?.DocumentationUrl,
             Author = source?.Author,

@@ -17,6 +17,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using System.Threading;
@@ -352,25 +353,7 @@ public class GenericCatalogDiscoverer(
 
     private static bool HasMultipleDownloadableArtifacts(ContentRelease release)
     {
-        if (release.Artifacts == null)
-        {
-            return false;
-        }
-
-        var downloadableCount = 0;
-        foreach (var artifact in release.Artifacts)
-        {
-            if (!string.IsNullOrWhiteSpace(artifact.DownloadUrl))
-            {
-                downloadableCount++;
-                if (downloadableCount > 1)
-                {
-                    return true;
-                }
-            }
-        }
-
-        return false;
+        return release.Artifacts != null && release.Artifacts.Count(artifact => !string.IsNullOrWhiteSpace(artifact.DownloadUrl)) > 1;
     }
 
     private static string ImplicitFileVariantLabel(ReleaseArtifact artifact, int siblingIndex)
@@ -389,19 +372,79 @@ public class GenericCatalogDiscoverer(
             }
         }
 
+        // Prefer order-independent values so sibling identity survives catalog reordering.
+        if (!string.IsNullOrWhiteSpace(artifact.DownloadUrl))
+        {
+            return artifact.DownloadUrl.Trim();
+        }
+
         return $"File {siblingIndex + 1}";
     }
 
-    private static string SanitizeFileVariantId(string variantLabel, int siblingIndex)
+    private static string SanitizeFileVariantId(string variantLabel)
     {
-        var builder = new StringBuilder(variantLabel.Length + 4);
-        builder.Append(siblingIndex).Append('-');
+        var builder = new StringBuilder(variantLabel.Length);
         foreach (var c in variantLabel)
         {
             builder.Append(char.IsLetterOrDigit(c) || c is '.' or '-' or '_' ? c : '-');
         }
 
         return builder.ToString().Trim('-', '.');
+    }
+
+    private static string StableUrlHash(string? downloadUrl, string? filename)
+    {
+        var key = $"{downloadUrl?.Trim() ?? string.Empty}\n{filename?.Trim() ?? string.Empty}";
+        return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(key)))[..8].ToLowerInvariant();
+    }
+
+    private static string[] ResolveSiblingIdLabels(IReadOnlyList<ReleaseArtifact> variantArtifacts, bool implicitFileSplit)
+    {
+        var idLabels = new string[variantArtifacts.Count];
+        for (var index = 0; index < variantArtifacts.Count; index++)
+        {
+            var artifact = variantArtifacts[index];
+            var label = artifact.Variant?.Trim() ?? string.Empty;
+            if (implicitFileSplit && string.IsNullOrEmpty(label))
+            {
+                label = ImplicitFileVariantLabel(artifact, index);
+            }
+
+            idLabels[index] = implicitFileSplit ? SanitizeFileVariantId(label) : label;
+        }
+
+        if (implicitFileSplit)
+        {
+            DisambiguateDuplicateFileIds(idLabels, variantArtifacts);
+        }
+
+        return idLabels;
+    }
+
+    private static void DisambiguateDuplicateFileIds(string[] idLabels, IReadOnlyList<ReleaseArtifact> variantArtifacts)
+    {
+        var usedIds = new HashSet<string>(StringComparer.Ordinal);
+        for (var index = 0; index < idLabels.Length; index++)
+        {
+            var artifact = variantArtifacts[index];
+            var baseId = string.IsNullOrEmpty(idLabels[index])
+                ? $"file-{StableUrlHash(artifact.DownloadUrl, artifact.Filename)}"
+                : idLabels[index];
+            var id = baseId;
+            if (!usedIds.Add(id))
+            {
+                var hash = StableUrlHash(artifact.DownloadUrl, artifact.Filename);
+                id = $"{baseId}-{hash}";
+                var duplicateSuffix = 2;
+                while (!usedIds.Add(id))
+                {
+                    duplicateSuffix++;
+                    id = $"{baseId}-{hash}-{duplicateSuffix}";
+                }
+            }
+
+            idLabels[index] = id;
+        }
     }
 
     private static List<ReleaseArtifact> BuildSiblingArtifacts(ReleaseArtifact artifact, ContentRelease resolvedRelease, bool includeSharedArtifacts = true)
@@ -879,7 +922,7 @@ public class GenericCatalogDiscoverer(
                 var implicitFileSplit = variantAxes.Count == 0 && HasMultipleDownloadableArtifacts(release);
                 if (implicitFileSplit)
                 {
-                    variantAxes = release.Artifacts!
+                    variantAxes = release.Artifacts
                         .Where(a => !string.IsNullOrWhiteSpace(a.DownloadUrl))
                         .OrderByDescending(a => a.IsPrimary)
                         .ToList();
@@ -998,6 +1041,7 @@ public class GenericCatalogDiscoverer(
             declaredPublisher,
             implicitFileSplit);
 
+        var idLabels = ResolveSiblingIdLabels(variantArtifacts, implicitFileSplit);
         var siblings = new List<(ContentSearchResult Result, ContentVariantInfo Info, ReleaseArtifact Artifact)>(variantArtifacts.Count);
         for (var index = 0; index < variantArtifacts.Count; index++)
         {
@@ -1006,7 +1050,8 @@ public class GenericCatalogDiscoverer(
                 contentItem,
                 variantArtifacts[index],
                 siblingContext,
-                index));
+                index,
+                idLabels[index]));
         }
 
         // Ensure exactly one default — prefer an author-declared IsDefaultVariant, else 1080p,
@@ -1029,7 +1074,8 @@ public class GenericCatalogDiscoverer(
         CatalogContentItem contentItem,
         ReleaseArtifact artifact,
         VariantSiblingContext context,
-        int siblingIndex)
+        int siblingIndex,
+        string idLabel)
     {
         var variantLabel = artifact.Variant?.Trim() ?? string.Empty;
         var axis = artifact.VariantAxis?.Trim() ?? string.Empty;
@@ -1039,7 +1085,6 @@ public class GenericCatalogDiscoverer(
         }
 
         var siblingTargetGame = ResolveSiblingTargetGame(contentItem.TargetGame, axis, variantLabel);
-        var idLabel = context.ImplicitFileSplit ? SanitizeFileVariantId(variantLabel, siblingIndex) : variantLabel;
 
         var sibling = new ContentSearchResult
         {

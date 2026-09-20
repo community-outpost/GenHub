@@ -34,7 +34,7 @@ public class HostingProviderFactory : IHostingProviderFactory
         {
             new GoogleDriveHostingProvider(loggerFactory.CreateLogger<GoogleDriveHostingProvider>(), configurationProvider, localizationService, credentialStore),
             new GitHubHostingProvider(loggerFactory.CreateLogger<GitHubHostingProvider>()),
-            new DropboxHostingProvider(loggerFactory.CreateLogger<DropboxHostingProvider>(), httpClientFactory),
+            new DropboxHostingProvider(loggerFactory.CreateLogger<DropboxHostingProvider>(), httpClientFactory, localizationService),
             new ManualHostingProvider(),
         };
     }

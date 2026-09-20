@@ -12551,6 +12551,18 @@ GameFilesEdited/Data/INI/**/*.ini</value>
   <data name="Tools.PublisherStudio.Publish.PublishAllPartialFormat" xml:space="preserve">
     <value>Опубликовано {0} из {1} каталогов.</value>
   </data>
+  <data name="Tools.PublisherStudio.Publish.PublishAllPartialWithDefinitionErrorFormat" xml:space="preserve">
+    <value>Опубликовано {0} из {1} каталогов. Не удалось загрузить определение поставщика: {2}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.UploadAlreadyInProgress" xml:space="preserve">
+    <value>Загрузка уже выполняется.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.CatalogPublishedFormat" xml:space="preserve">
+    <value>Каталог «{0}» успешно опубликован.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.CatalogPublishFailed" xml:space="preserve">
+    <value>Не удалось опубликовать каталог.</value>
+  </data>
   <data name="Tools.PublisherStudio.Publish.ConnectProviderFirst" xml:space="preserve">
     <value>Сначала подключитесь к хостинг-провайдеру.</value>
   </data>
@@ -12729,7 +12741,19 @@ GameFilesEdited/Data/INI/**/*.ini</value>
     <value>Ошибка проверки</value>
   </data>
   <data name="Tools.PublisherStudio.Hosting.GoogleDriveApiNotEnabled" xml:space="preserve">
-    <value>API Google Диска не включен для вашего проекта Google Cloud. Включите его на странице https://console.developers.google.com/apis/api/drive.googleapis.com, подождите несколько минут, затем повторите попытку.</value>
+    <value>API Google Диска не включен для вашего проекта Google Cloud. Включите его на странице {0}, подождите несколько минут, затем повторите попытку.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.PublisherFolderFailed" xml:space="preserve">
+    <value>Не удалось получить папку издателя</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.PublisherFolderFailedFormat" xml:space="preserve">
+    <value>Не удалось получить папку издателя: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DropboxOAuthCompleteTitle" xml:space="preserve">
+    <value>GenHub подключен к Dropbox</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DropboxOAuthCompleteMessage" xml:space="preserve">
+    <value>Вы можете закрыть эту вкладку и вернуться в GenHub.</value>
   </data>
   <data name="Tools.PublisherStudio.Publish.EnterDropboxAppKey" xml:space="preserve">
     <value>Введите ключ приложения Dropbox. Создайте приложение в консоли приложений Dropbox, чтобы получить его.</value>
@@ -12781,6 +12805,9 @@ GameFilesEdited/Data/INI/**/*.ini</value>
   </data>
   <data name="Downloads.Browser.Catalog" xml:space="preserve">
     <value>Каталог</value>
+  </data>
+  <data name="Downloads.Browser.LoadingCatalogs" xml:space="preserve">
+    <value>Загрузка каталогов...</value>
   </data>
   <data name="Downloads.Browser.CurrentCatalog" xml:space="preserve">
     <value>Текущий каталог</value>

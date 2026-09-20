@@ -1,5 +1,3 @@
-using System.Linq;
-
 namespace GenHub.Core.Constants;
 
 /// <summary>
@@ -68,6 +66,12 @@ public static class HostingConstants
     public const string GoogleCloudConsoleCredentialsUrl = "https://console.cloud.google.com/apis/credentials";
 
     /// <summary>
+    /// Fallback URL to Google Cloud Console API enablement page for Google Drive API.
+    /// </summary>
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Minor Code Smell", "S1075:URIs should not be hardcoded", Justification = "Official Google Drive API enablement console URL")]
+    public const string GoogleDriveApiEnablementUrl = "https://console.developers.google.com/apis/api/drive.googleapis.com";
+
+    /// <summary>
     /// URL to Dropbox Developer App Console for managing apps.
     /// </summary>
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Minor Code Smell", "S1075:URIs should not be hardcoded", Justification = "Official Dropbox developer console URL")]
@@ -130,13 +134,6 @@ public static class HostingConstants
     public const int DropboxOAuthLoopbackPort = 51239;
 
     /// <summary>
-    /// Exact redirect URI GenHub sends to Dropbox during OAuth sign-in.
-    /// Users must register this exact string in their Dropbox application console.
-    /// </summary>
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Minor Code Smell", "S1075:URIs should not be hardcoded", Justification = "Fixed loopback redirect required by Dropbox exact-match registration")]
-    public const string DropboxOAuthRedirectUri = "http://localhost:51239/";
-
-    /// <summary>
     /// Space-delimited Dropbox permission scopes requested during OAuth sign-in.
     /// Users must enable the same permissions on their Dropbox application:
     /// account lookup, file listing/deletion, file upload, and shared-link management.
@@ -147,6 +144,17 @@ public static class HostingConstants
     /// Length in bytes of the PKCE code verifier before base64url encoding.
     /// </summary>
     public const int OAuthPkceVerifierByteLength = 32;
+
+    /// <summary>
+    /// Length in bytes of the OAuth state token before base64url encoding.
+    /// </summary>
+    public const int OAuthStateByteLength = 32;
+
+    /// <summary>
+    /// Default Dropbox access-token lifetime in seconds when the token endpoint
+    /// omits expires_in. Dropbox short-lived tokens last four hours.
+    /// </summary>
+    public const long DropboxDefaultTokenLifetimeSeconds = 14400;
 
     /// <summary>
     /// Refresh short-lived access tokens this many minutes before they expire.
@@ -310,18 +318,13 @@ public static class HostingConstants
     public const string StatusLiveOnline = "Live / Online";
 
     /// <summary>
-    /// Host patterns considered first-party cloud provider hosts.
+    /// Exact redirect URI GenHub sends to Dropbox during OAuth sign-in.
+    /// Users must register this exact string in their Dropbox application console.
+    /// Composed from <see cref="OAuthLoopbackHost"/> and <see cref="DropboxOAuthLoopbackPort"/>
+    /// so the parts cannot drift.
     /// </summary>
-    public static readonly string[] CloudProviderHostPatterns =
-    [
-        "drive.google.com",
-        "docs.google.com",
-        "googleusercontent.com",
-        "github.com",
-        "githubusercontent.com",
-        "dropbox.com",
-        "dropboxusercontent.com",
-    ];
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Minor Code Smell", "S1075:URIs should not be hardcoded", Justification = "Fixed loopback redirect required by Dropbox exact-match registration")]
+    public static readonly string DropboxOAuthRedirectUri = $"http://{OAuthLoopbackHost}:{DropboxOAuthLoopbackPort}/";
 
     private static readonly (string Pattern, string ProviderId)[] CloudProviderHostOwners =
     [
@@ -341,14 +344,7 @@ public static class HostingConstants
     /// <returns><c>true</c> if the host is a recognized cloud provider; otherwise, <c>false</c>.</returns>
     public static bool IsCloudProviderHost(string? host)
     {
-        if (string.IsNullOrWhiteSpace(host))
-        {
-            return false;
-        }
-
-        return CloudProviderHostPatterns.Any(pattern =>
-            string.Equals(host, pattern, System.StringComparison.OrdinalIgnoreCase) ||
-            host.EndsWith("." + pattern, System.StringComparison.OrdinalIgnoreCase));
+        return GetProviderIdForHost(host) != null;
     }
 
     /// <summary>

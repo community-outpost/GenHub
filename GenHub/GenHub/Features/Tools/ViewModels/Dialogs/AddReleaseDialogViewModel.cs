@@ -327,7 +327,7 @@ public partial class AddReleaseDialogViewModel(
         };
     }
 
-    private async Task<ReleaseArtifact> BuildFolderArtifactAsync(string path, CancellationToken cancellationToken)
+    private async Task<ReleaseArtifact?> BuildFolderArtifactAsync(string path, CancellationToken cancellationToken)
     {
         var folderName = new DirectoryInfo(path).Name;
         var filename = folderName.EndsWith(".zip", StringComparison.OrdinalIgnoreCase)
@@ -353,7 +353,7 @@ public partial class AddReleaseDialogViewModel(
         }
         catch (OperationCanceledException)
         {
-            totalBytes = 0;
+            return null;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {

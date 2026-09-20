@@ -1,4 +1,5 @@
 using GenHub.Core.Constants;
+using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Models.Publishers;
 using GenHub.Core.Models.Results;
 using GenHub.Features.Tools.Interfaces;
@@ -27,7 +28,7 @@ namespace GenHub.Features.Tools.Services.Hosting;
 /// - Want simple, reliable hosting with direct download links.
 /// - Need more storage than GitHub gists allow.
 /// </remarks>
-public class DropboxHostingProvider(ILogger<DropboxHostingProvider> logger, IHttpClientFactory httpClientFactory) : IHostingProvider, IDisposable
+public class DropboxHostingProvider(ILogger<DropboxHostingProvider> logger, IHttpClientFactory httpClientFactory, ILocalizationService? localizationService = null) : IHostingProvider, IDisposable
 {
     private const string DropboxApiUrl = HostingConstants.DropboxApiUrl;
     private const string DropboxContentUrl = HostingConstants.DropboxContentUrl;
@@ -151,6 +152,7 @@ public class DropboxHostingProvider(ILogger<DropboxHostingProvider> logger, IHtt
 
         var service = GetOAuthService();
         var (verifier, challenge) = DropboxOAuthService.CreatePkcePair();
+        var state = DropboxOAuthService.CreateOAuthState();
         var listenerResult = StartOAuthListener();
         if (!listenerResult.Success)
         {
@@ -160,13 +162,13 @@ public class DropboxHostingProvider(ILogger<DropboxHostingProvider> logger, IHtt
         using var listener = listenerResult.Data.Listener;
         var redirectUri = listenerResult.Data.RedirectUri;
 
-        var authorizeUrl = DropboxOAuthService.BuildAuthorizeUrl(appKey.Trim(), challenge, redirectUri);
+        var authorizeUrl = DropboxOAuthService.BuildAuthorizeUrl(appKey.Trim(), challenge, redirectUri, state);
         if (!service.TryOpenBrowser(authorizeUrl))
         {
             return OperationResult<bool>.CreateFailure($"Could not open the browser. Please visit this URL to connect Dropbox: {authorizeUrl}");
         }
 
-        var codeResult = await service.WaitForAuthorizationCodeAsync(listener, cancellationToken);
+        var codeResult = await service.WaitForAuthorizationCodeAsync(listener, state, cancellationToken);
         if (!codeResult.Success || string.IsNullOrEmpty(codeResult.Data))
         {
             return OperationResult<bool>.CreateFailure(codeResult);
@@ -789,7 +791,7 @@ public class DropboxHostingProvider(ILogger<DropboxHostingProvider> logger, IHtt
 
     private DropboxOAuthService GetOAuthService()
     {
-        _oauthService ??= new DropboxOAuthService(_httpClient, logger);
+        _oauthService ??= new DropboxOAuthService(_httpClient, logger, localizationService);
         return _oauthService;
     }
 
@@ -813,15 +815,19 @@ public class DropboxHostingProvider(ILogger<DropboxHostingProvider> logger, IHtt
         DropboxTokenResult tokens,
         CancellationToken cancellationToken)
     {
-        _appKey = appKey;
-        _refreshToken = tokens.RefreshToken;
-        _accessTokenExpiresAtUtc = DateTime.UtcNow.AddSeconds(Math.Max(tokens.ExpiresInSeconds, 0));
         var verifyResult = await AuthenticateWithTokenAsync(tokens.AccessToken, cancellationToken);
-        if (verifyResult.Success)
+        if (!verifyResult.Success)
         {
-            _accessTokenExpiresAtUtc = DateTime.UtcNow.AddSeconds(Math.Max(tokens.ExpiresInSeconds, 0));
+            return verifyResult;
         }
 
+        _appKey = appKey;
+        if (!string.IsNullOrWhiteSpace(tokens.RefreshToken))
+        {
+            _refreshToken = tokens.RefreshToken;
+        }
+
+        _accessTokenExpiresAtUtc = DateTime.UtcNow.AddSeconds(Math.Max(tokens.ExpiresInSeconds, 0));
         return verifyResult;
     }
 

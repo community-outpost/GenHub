@@ -1,4 +1,5 @@
 using GenHub.Core.Constants;
+using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Models.Results;
 using Microsoft.Extensions.Logging;
 using System;
@@ -20,7 +21,7 @@ namespace GenHub.Features.Tools.Services.Hosting;
 /// Performs Dropbox OAuth 2.0 authorization-code flow with PKCE over a loopback redirect,
 /// plus refresh-grant calls that keep short-lived access tokens alive without user interaction.
 /// </summary>
-public class DropboxOAuthService(HttpClient httpClient, ILogger logger)
+public class DropboxOAuthService(HttpClient httpClient, ILogger logger, ILocalizationService? localizationService = null)
 {
     private const string ExpiredAccessTokenTag = "expired_access_token";
 
@@ -47,13 +48,23 @@ public class DropboxOAuthService(HttpClient httpClient, ILogger logger)
     }
 
     /// <summary>
+    /// Creates a cryptographically random OAuth state token (RFC 6749 CSRF defense).
+    /// </summary>
+    /// <returns>The base64url-encoded state token.</returns>
+    public static string CreateOAuthState()
+    {
+        return Base64UrlEncode(RandomNumberGenerator.GetBytes(HostingConstants.OAuthStateByteLength));
+    }
+
+    /// <summary>
     /// Builds the Dropbox authorization URL the user visits in a browser.
     /// </summary>
     /// <param name="appKey">The Dropbox application key.</param>
     /// <param name="challenge">The PKCE code challenge.</param>
     /// <param name="redirectUri">The loopback redirect URI.</param>
+    /// <param name="state">The OAuth state token echoed back by the callback.</param>
     /// <returns>The authorization URL.</returns>
-    public static string BuildAuthorizeUrl(string appKey, string challenge, string redirectUri)
+    public static string BuildAuthorizeUrl(string appKey, string challenge, string redirectUri, string state)
     {
         var query = new StringBuilder();
         query.Append("response_type=code");
@@ -63,6 +74,7 @@ public class DropboxOAuthService(HttpClient httpClient, ILogger logger)
         query.Append("&code_challenge_method=S256");
         query.Append("&token_access_type=offline");
         query.Append("&scope=").Append(Uri.EscapeDataString(HostingConstants.DropboxOAuthScopes));
+        query.Append("&state=").Append(Uri.EscapeDataString(state));
         return $"{HostingConstants.DropboxOAuthAuthorizeUrl}?{query}";
     }
 
@@ -70,17 +82,18 @@ public class DropboxOAuthService(HttpClient httpClient, ILogger logger)
     /// Extracts the authorization code (or provider error) from a loopback callback URI.
     /// </summary>
     /// <param name="callbackUri">The URI the browser was redirected to.</param>
-    /// <returns>The code and error, if any.</returns>
-    public static (string? Code, string? Error) ExtractAuthorizationCode(Uri callbackUri)
+    /// <returns>The code, error, and echoed state, if any.</returns>
+    public static (string? Code, string? Error, string? State) ExtractAuthorizationCode(Uri callbackUri)
     {
         var query = callbackUri.Query;
         if (string.IsNullOrEmpty(query))
         {
-            return (null, null);
+            return (null, null, null);
         }
 
         string? code = null;
         string? error = null;
+        string? state = null;
         var pairs = query.TrimStart('?').Split('&', StringSplitOptions.RemoveEmptyEntries);
         foreach (var pair in pairs)
         {
@@ -95,9 +108,13 @@ public class DropboxOAuthService(HttpClient httpClient, ILogger logger)
             {
                 error = value;
             }
+            else if (string.Equals(name, "state", StringComparison.OrdinalIgnoreCase))
+            {
+                state = value;
+            }
         }
 
-        return (code, error);
+        return (code, error, state);
     }
 
     /// <summary>
@@ -142,7 +159,8 @@ public class DropboxOAuthService(HttpClient httpClient, ILogger logger)
             var root = doc.RootElement;
             if (root.ValueKind != JsonValueKind.Object ||
                 !root.TryGetProperty("v", out var version) ||
-                version.GetInt32() != HostingConstants.DropboxCredentialPayloadVersion)
+                !version.TryGetInt32(out var payloadVersion) ||
+                payloadVersion != HostingConstants.DropboxCredentialPayloadVersion)
             {
                 return false;
             }
@@ -216,10 +234,12 @@ public class DropboxOAuthService(HttpClient httpClient, ILogger logger)
     /// Waits for the browser to redirect back with an authorization code.
     /// </summary>
     /// <param name="listener">The running loopback listener.</param>
+    /// <param name="expectedState">The OAuth state token the callback must echo.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>The authorization code, or a failure describing the outcome.</returns>
     public async Task<OperationResult<string>> WaitForAuthorizationCodeAsync(
         HttpListener listener,
+        string expectedState,
         CancellationToken cancellationToken = default)
     {
         using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(HostingConstants.BrowserAuthTimeoutSeconds));
@@ -227,13 +247,21 @@ public class DropboxOAuthService(HttpClient httpClient, ILogger logger)
         try
         {
             var context = await listener.GetContextAsync().WaitAsync(linkedCts.Token);
-            await RespondToBrowserAsync(context.Response, linkedCts.Token);
-            if (context.Request.Url == null)
+
+            // Extract the code from the in-memory request before writing the response,
+            // so a response-write failure cannot discard an already-issued code.
+            var callback = context.Request.Url == null
+                ? (Code: (string?)null, Error: (string?)null, State: (string?)null)
+                : ExtractAuthorizationCode(context.Request.Url);
+            await TryRespondToBrowserAsync(context.Response, linkedCts.Token);
+            var (code, error, state) = callback;
+
+            if (!string.Equals(state, expectedState, StringComparison.Ordinal))
             {
-                return OperationResult<string>.CreateFailure("Dropbox sign-in returned an empty response. Please try again.");
+                logger.LogWarning("Dropbox OAuth callback state mismatch; rejecting the response.");
+                return OperationResult<string>.CreateFailure("Dropbox sign-in response did not match this request. Please try again.");
             }
 
-            var (code, error) = ExtractAuthorizationCode(context.Request.Url);
             if (!string.IsNullOrEmpty(code))
             {
                 return OperationResult<string>.CreateSuccess(code);
@@ -341,15 +369,45 @@ public class DropboxOAuthService(HttpClient httpClient, ILogger logger)
             : null;
     }
 
-    private static async Task RespondToBrowserAsync(HttpListenerResponse response, CancellationToken cancellationToken)
+    private static string? TryExtractOAuthError(string body)
     {
-        const string page = "<html><body style=\"font-family:sans-serif;text-align:center;padding-top:60px\">" +
-            "<h2>GenHub connected to Dropbox</h2><p>You can close this tab and return to GenHub.</p></body></html>";
-        var bytes = Encoding.UTF8.GetBytes(page);
-        response.ContentType = "text/html";
-        response.ContentLength64 = bytes.Length;
-        await response.OutputStream.WriteAsync(bytes, cancellationToken);
-        response.Close();
+        try
+        {
+            using var doc = JsonDocument.Parse(body);
+            var error = GetStringProperty(doc.RootElement, "error");
+            if (string.IsNullOrWhiteSpace(error))
+            {
+                return null;
+            }
+
+            var description = GetStringProperty(doc.RootElement, "error_description");
+            return string.IsNullOrWhiteSpace(description) ? error.Trim() : $"{error.Trim()}: {description.Trim()}";
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
+    }
+
+    private async Task TryRespondToBrowserAsync(HttpListenerResponse response, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var title = localizationService?.GetString("Tools.PublisherStudio.Hosting.DropboxOAuthCompleteTitle") ?? "GenHub connected to Dropbox";
+            var message = localizationService?.GetString("Tools.PublisherStudio.Hosting.DropboxOAuthCompleteMessage") ?? "You can close this tab and return to GenHub.";
+            var page = "<html><body style=\"font-family:sans-serif;text-align:center;padding-top:60px\">" +
+                $"<h2>{WebUtility.HtmlEncode(title)}</h2><p>{WebUtility.HtmlEncode(message)}</p></body></html>";
+            var bytes = Encoding.UTF8.GetBytes(page);
+            response.ContentType = "text/html";
+            response.ContentLength64 = bytes.Length;
+            await response.OutputStream.WriteAsync(bytes, cancellationToken);
+            response.Close();
+        }
+        catch (Exception ex) when (ex is HttpListenerException or IOException or ObjectDisposedException or InvalidOperationException)
+        {
+            // The code was already extracted; a broken browser connection must not fail sign-in.
+            logger.LogDebug(ex, "Failed to write the Dropbox OAuth completion page to the browser.");
+        }
     }
 
     private async Task<OperationResult<DropboxTokenResult>> RequestTokensAsync(
@@ -364,8 +422,10 @@ public class DropboxOAuthService(HttpClient httpClient, ILogger logger)
             if (!response.IsSuccessStatusCode)
             {
                 logger.LogWarning("Dropbox {Operation} failed: {Status} {Body}", operation, response.StatusCode, body);
+                var providerError = TryExtractOAuthError(body);
+                var errorDetail = string.IsNullOrEmpty(providerError) ? response.StatusCode.ToString() : $"{response.StatusCode}, {providerError}";
                 return OperationResult<DropboxTokenResult>.CreateFailure(
-                    $"Dropbox sign-in failed during {operation} ({response.StatusCode}). Please try connecting again.");
+                    $"Dropbox sign-in failed during {operation} ({errorDetail}). Please try connecting again.");
             }
 
             return ParseTokenResponse(body, operation);
@@ -401,7 +461,7 @@ public class DropboxOAuthService(HttpClient httpClient, ILogger logger)
             var refreshToken = GetStringProperty(root, "refresh_token");
             var expiresIn = root.TryGetProperty("expires_in", out var expiresElement) && expiresElement.TryGetInt64(out var seconds)
                 ? seconds
-                : 14400L;
+                : HostingConstants.DropboxDefaultTokenLifetimeSeconds;
             return OperationResult<DropboxTokenResult>.CreateSuccess(new DropboxTokenResult(accessToken, refreshToken, expiresIn));
         }
         catch (JsonException ex)

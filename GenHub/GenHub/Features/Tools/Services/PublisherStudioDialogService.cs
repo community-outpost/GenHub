@@ -161,14 +161,8 @@ public class PublisherStudioDialogService(
     /// <inheritdoc/>
     public async Task<string?> ShowFilePickerAsync(string title)
     {
-        var mainWindow = GetMainWindow();
-        if (mainWindow == null) return null;
-
-        var options = new Avalonia.Platform.Storage.FilePickerOpenOptions
-        {
-            Title = title,
-            AllowMultiple = false,
-            FileTypeFilter =
+        return await ShowOpenPickerAsync(
+            title,
             [
                 new Avalonia.Platform.Storage.FilePickerFileType("Supported Content Archives (*.zip, *.7z, *.rar, *.tar.gz, *.big)")
                 {
@@ -178,7 +172,38 @@ public class PublisherStudioDialogService(
                 {
                     Patterns = ["*.*"],
                 },
-            ],
+            ]);
+    }
+
+    /// <inheritdoc/>
+    public async Task<string?> ShowImagePickerAsync(string title)
+    {
+        return await ShowOpenPickerAsync(
+            title,
+            [
+                new Avalonia.Platform.Storage.FilePickerFileType("Image Files (*.png, *.jpg, *.jpeg, *.webp)")
+                {
+                    Patterns = ["*.png", "*.jpg", "*.jpeg", "*.webp"],
+                },
+                new Avalonia.Platform.Storage.FilePickerFileType("All Files")
+                {
+                    Patterns = ["*.*"],
+                },
+            ]);
+    }
+
+    private async Task<string?> ShowOpenPickerAsync(
+        string title,
+        IReadOnlyList<Avalonia.Platform.Storage.FilePickerFileType> fileTypeFilter)
+    {
+        var mainWindow = GetMainWindow();
+        if (mainWindow == null) return null;
+
+        var options = new Avalonia.Platform.Storage.FilePickerOpenOptions
+        {
+            Title = title,
+            AllowMultiple = false,
+            FileTypeFilter = fileTypeFilter,
         };
 
         var files = await mainWindow.StorageProvider.OpenFilePickerAsync(options);
