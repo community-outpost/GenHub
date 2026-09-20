@@ -15,9 +15,12 @@ interface AbuseReport {
 }
 
 const MAX_REPORTS = 50;
+const MAX_OVERLAY_SLOT = 16 * 254;
 const DEFAULT_PRESENCE_TIMEOUT = 90;
 const DEFAULT_JOIN_LIMIT = 10;
 const DEFAULT_JOIN_WINDOW = 600;
+const DEFAULT_REPORT_LIMIT = 5;
+const DEFAULT_REPORT_WINDOW = 600;
 
 // Overlay allocation inside 10.42.0.0/20: slot -> 10.42.<high>.<low>.
 const allocateIp = (slot: number): string => {
@@ -44,6 +47,26 @@ const aggregateQuality = (members: RoomMember[]): number => {
 const json = (data: unknown, status = 200): Response =>
   new Response(JSON.stringify(data), { status, headers: { "Content-Type": "application/json" } });
 
+// Malformed internal bodies are caller errors (400), never room errors (500).
+const parseJsonBody = async <T>(request: Request): Promise<T | null> => {
+  try {
+    return (await request.json()) as T;
+  } catch {
+    return null;
+  }
+};
+
+const pruneCounters = (counters: Record<string, RateCounter>, nowSeconds: number, windowSeconds: number): void => {
+  for (const [key, entry] of Object.entries(counters)) {
+    if (nowSeconds - entry.windowStart >= windowSeconds) {
+      delete counters[key];
+    }
+  }
+};
+
+// The "unknown" fallback carries no identity; banning it would ban everyone.
+const bannableIp = (ip: string): string => (ip.length > 0 && ip !== "unknown" ? ip : "");
+
 // Relay members publish nothing: their endpoint is dropped even if sent.
 const storedEndpoint = (preferRelay: boolean, raw: unknown): string => {
   if (preferRelay || typeof raw !== "string") {
@@ -52,14 +75,33 @@ const storedEndpoint = (preferRelay: boolean, raw: unknown): string => {
   return raw.substring(0, 64);
 };
 
+export const DEFAULT_EMPTY_TTL_SECONDS = 300;
+
+// An unstamped room (emptiedUtc 0) never expires; stamping starts the grace window.
+export const emptyRoomExpired = (emptiedUtcMs: number, nowMs: number, ttlSeconds: number): boolean =>
+  emptiedUtcMs > 0 && nowMs - emptiedUtcMs >= ttlSeconds * 1000;
+
 export class PresenceRoom {
   private readonly state: DurableObjectState;
   private readonly env: OnlineEnv;
   private readonly sessions: Map<WebSocket, string> = new Map();
+  private mutex: Promise<void> = Promise.resolve();
 
   constructor(state: DurableObjectState, env: OnlineEnv) {
     this.state = state;
     this.env = env;
+  }
+
+  // Durable Objects interleave awaits across concurrent requests, so a
+  // heartbeat's load-modify-save can overwrite a just-committed join or ban.
+  // Every storage-mutating entry point runs through this single chain.
+  private async withLock<T>(fn: () => Promise<T>): Promise<T> {
+    const run = this.mutex.then(fn);
+    this.mutex = run.then(
+      () => undefined,
+      () => undefined
+    );
+    return run;
   }
 
   async fetch(request: Request): Promise<Response> {
@@ -68,49 +110,113 @@ export class PresenceRoom {
       return this.handlePresenceSocket(request, url);
     }
 
-    try {
-      switch (`${request.method} ${url.pathname}`) {
-        case "POST /internal/init":
-          return await this.handleInit(request);
-        case "POST /internal/join":
-          return await this.handleJoin(request);
-        case "POST /internal/leave":
-          return await this.handleLeave(request);
-        case "POST /internal/heartbeat":
-          return await this.handleHeartbeat(request);
-        case "GET /internal/detail":
-          return await this.handleDetail();
-        case "GET /internal/members":
-          return await this.handleMembers(url);
-        case "POST /internal/report":
-          return await this.handleReport(request);
-        case "POST /internal/ban":
-          return await this.handleBan(request);
-        case "PATCH /internal/meta":
-          return await this.handleMetaPatch(request);
-        default:
-          return json({ error: "Unknown room endpoint" }, 404);
+    return this.withLock(async () => {
+      try {
+        switch (`${request.method} ${url.pathname}`) {
+          case "POST /internal/init":
+            return await this.handleInit(request);
+          case "POST /internal/join":
+            return await this.handleJoin(request);
+          case "POST /internal/leave":
+            return await this.handleLeave(request);
+          case "POST /internal/heartbeat":
+            return await this.handleHeartbeat(request);
+          case "GET /internal/detail":
+            return await this.handleDetail();
+          case "GET /internal/members":
+            return await this.handleMembers(url);
+          case "GET /internal/membership":
+            return await this.handleMembership(url);
+          case "POST /internal/report":
+            return await this.handleReport(request);
+          case "POST /internal/ban":
+            return await this.handleBan(request);
+          case "PATCH /internal/meta":
+            return await this.handleMetaPatch(request);
+          default:
+            return json({ error: "Unknown room endpoint" }, 404);
+        }
+      } catch (err) {
+        console.error("Room error:", err instanceof Error ? err.message : String(err));
+        return json({ error: "Room error" }, 500);
       }
-    } catch (err) {
-      console.error("Room error:", err instanceof Error ? err.message : String(err));
-      return json({ error: "Room error" }, 500);
-    }
+    });
   }
 
   async alarm(): Promise<void> {
-    const evicted = await this.evictStale();
-    if (evicted) {
-      await this.broadcastRoster();
-    }
-    const members = await this.loadMembers();
-    if (members.length > 0) {
+    await this.withLock(async () => {
+      const evicted = await this.evictStale();
+      const meta = await this.loadMeta();
+      const members = await this.loadMembers();
+      if (members.length === 0) {
+        await this.handleEmptyRoom(meta);
+        return;
+      }
+      if (evicted && meta !== null) {
+        await this.broadcastRoster();
+        await this.upsertDirectory(meta, members);
+      }
+      if (meta !== null && (meta.emptiedUtc ?? 0) !== 0) {
+        await this.state.storage.put("meta", { ...meta, emptiedUtc: 0 });
+      }
       await this.scheduleAlarm();
+    });
+  }
+
+  private async handleEmptyRoom(meta: RoomMeta | null): Promise<void> {
+    if (meta === null) {
+      await this.destroyRoom(this.state.id.name);
+      return;
     }
+    const stamped = meta.emptiedUtc ?? 0;
+    if (emptyRoomExpired(stamped, Date.now(), this.emptyTtl())) {
+      await this.destroyRoom(meta.id);
+      return;
+    }
+    const emptiedUtc = stamped !== 0 ? stamped : Date.now();
+    if (stamped === 0) {
+      await this.state.storage.put("meta", { ...meta, emptiedUtc });
+    }
+    await this.upsertDirectory(meta, []);
+    await this.state.storage.setAlarm(emptiedUtc + this.emptyTtl() * 1000);
+  }
+
+  private async destroyRoom(networkId: string | undefined): Promise<void> {
+    for (const socket of this.sessions.keys()) {
+      try {
+        socket.close(4000, "Network deleted");
+      } catch {
+        // Already closed.
+      }
+    }
+    this.sessions.clear();
+    if (networkId !== undefined) {
+      const stub = this.env.DIRECTORY_INDEX.get(this.env.DIRECTORY_INDEX.idFromName("directory"));
+      await stub.fetch("https://directory/internal/remove", {
+        method: "POST",
+        body: JSON.stringify({ id: networkId }),
+      });
+    }
+    await this.state.storage.deleteAll();
+    await this.state.storage.deleteAlarm();
+  }
+
+  private async upsertDirectory(meta: RoomMeta, members: RoomMember[]): Promise<void> {
+    const stub = this.env.DIRECTORY_INDEX.get(this.env.DIRECTORY_INDEX.idFromName("directory"));
+    await stub.fetch("https://directory/internal/upsert", {
+      method: "POST",
+      body: JSON.stringify(await this.summary(meta, members)),
+    });
   }
 
   private presenceTimeout(): number {
     const raw = Number.parseInt(this.env.PRESENCE_TIMEOUT_SECONDS ?? "", 10);
     return Number.isSafeInteger(raw) && raw > 0 ? raw : DEFAULT_PRESENCE_TIMEOUT;
+  }
+
+  private emptyTtl(): number {
+    const raw = Number.parseInt(this.env.EMPTY_NETWORK_TTL_SECONDS ?? "", 10);
+    return Number.isSafeInteger(raw) && raw > 0 ? raw : DEFAULT_EMPTY_TTL_SECONDS;
   }
 
   private joinLimit(): { limit: number; window: number } {
@@ -163,6 +269,12 @@ export class PresenceRoom {
       }
     }
     await this.saveMembers(kept);
+    if (kept.length === 0) {
+      const meta = await this.loadMeta();
+      if (meta !== null && (meta.emptiedUtc ?? 0) === 0) {
+        await this.state.storage.put("meta", { ...meta, emptiedUtc: Date.now() });
+      }
+    }
     return true;
   }
 
@@ -220,10 +332,35 @@ export class PresenceRoom {
 
   private async checkJoinRate(ip: string): Promise<boolean> {
     const { limit, window } = this.joinLimit();
+    const now = Math.floor(Date.now() / 1000);
     const attempts = (await this.state.storage.get<Record<string, RateCounter>>("attempts")) ?? {};
-    const allowed = allowRequest(attempts, ip, Math.floor(Date.now() / 1000), limit, window);
+    pruneCounters(attempts, now, window);
+    const allowed = allowRequest(attempts, ip, now, limit, window);
     await this.state.storage.put("attempts", attempts);
     return allowed;
+  }
+
+  private reportLimit(): { limit: number; window: number } {
+    const limit = Number.parseInt(this.env.REPORT_RATE_LIMIT ?? "", 10);
+    const window = Number.parseInt(this.env.REPORT_RATE_WINDOW_SECONDS ?? "", 10);
+    return {
+      limit: Number.isSafeInteger(limit) && limit > 0 ? limit : DEFAULT_REPORT_LIMIT,
+      window: Number.isSafeInteger(window) && window > 0 ? window : DEFAULT_REPORT_WINDOW,
+    };
+  }
+
+  private async checkReportRate(sub: string): Promise<boolean> {
+    const { limit, window } = this.reportLimit();
+    const now = Math.floor(Date.now() / 1000);
+    const attempts = (await this.state.storage.get<Record<string, RateCounter>>("reportAttempts")) ?? {};
+    pruneCounters(attempts, now, window);
+    const allowed = allowRequest(attempts, sub, now, limit, window);
+    await this.state.storage.put("reportAttempts", attempts);
+    return allowed;
+  }
+
+  private async loadBannedIps(): Promise<string[]> {
+    return (await this.state.storage.get<string[]>("bannedIps")) ?? [];
   }
 
   private async handleInit(request: Request): Promise<Response> {
@@ -231,13 +368,17 @@ export class PresenceRoom {
     if (existing !== null) {
       return json({ error: "Room already exists" }, 409);
     }
-    const body = (await request.json()) as {
+    const body = await parseJsonBody<{
       meta: RoomMeta;
       creatorSub: string;
       displayName: string;
       preferRelay?: boolean;
       endpoint: string;
-    };
+      ip?: string;
+    }>(request);
+    if (body === null) {
+      return json({ error: "Invalid request body" }, 400);
+    }
     const now = Date.now();
     const displayName = sanitizeText(body.displayName).substring(0, 32);
     const relayHost = body.preferRelay === true;
@@ -249,6 +390,7 @@ export class PresenceRoom {
       quality: relayHost ? QUALITY_RELAY : QUALITY_DIRECT,
       isHost: true,
       lastSeen: now,
+      lastIp: typeof body.ip === "string" ? body.ip : "",
     };
     await this.state.storage.put("meta", { ...body.meta, nextSlot: body.meta.nextSlot + 1 });
     await this.saveMembers([host]);
@@ -262,14 +404,17 @@ export class PresenceRoom {
     if (meta === null) {
       return json({ error: "Network not found", code: "online.network-not-found" }, 404);
     }
-    const body = (await request.json()) as {
+    const body = await parseJsonBody<{
       sub: string;
       password: string;
       displayName: string;
       preferRelay: boolean;
       ip: string;
       endpoint: string;
-    };
+    }>(request);
+    if (body === null) {
+      return json({ error: "Invalid request body" }, 400);
+    }
 
     const allowed = await this.checkJoinRate(body.ip);
     if (!allowed) {
@@ -277,14 +422,17 @@ export class PresenceRoom {
     }
 
     const bans = await this.loadBans();
-    if (bans.includes(body.sub)) {
+    const bannedIps = await this.loadBannedIps();
+    if (bans.includes(body.sub) || (bannableIp(body.ip).length > 0 && bannedIps.includes(body.ip))) {
       return json({ error: "Banned", code: "online.network-banned" }, 403);
     }
 
     await this.evictStale();
     const members = await this.loadMembers();
     const returning = members.find((m) => m.sub === body.sub);
-    if (returning === undefined && members.length >= meta.slotsMax) {
+    // Slots never wrap: past 16 * 254 the /20 is exhausted, so refuse joins
+    // instead of reassigning overlay IPs that members still hold.
+    if (returning === undefined && (members.length >= meta.slotsMax || meta.nextSlot >= MAX_OVERLAY_SLOT)) {
       return json({ error: "Network full", code: "online.network-full" }, 409);
     }
     if (meta.verifier.length > 0 && !(await verifyPassword(body.password, meta.verifier, this.env.PASSWORD_PEPPER))) {
@@ -299,6 +447,7 @@ export class PresenceRoom {
       returning.displayName = displayName;
       returning.quality = body.preferRelay ? QUALITY_RELAY : QUALITY_DIRECT;
       returning.endpoint = endpoint;
+      returning.lastIp = body.ip;
       member = returning;
     } else {
       member = {
@@ -309,12 +458,20 @@ export class PresenceRoom {
         quality: body.preferRelay ? QUALITY_RELAY : QUALITY_DIRECT,
         isHost: false,
         lastSeen: Date.now(),
+        lastIp: body.ip,
       };
       members.push(member);
       meta.nextSlot += 1;
+      if (!members.some((m) => m.isHost)) {
+        member.isHost = true;
+        meta.hostDisplayName = displayName;
+      }
       await this.state.storage.put("meta", meta);
     }
     await this.saveMembers(members);
+    if ((meta.emptiedUtc ?? 0) !== 0) {
+      await this.state.storage.put("meta", { ...meta, emptiedUtc: 0 });
+    }
     await this.scheduleAlarm();
     await this.broadcastRoster();
 
@@ -332,7 +489,10 @@ export class PresenceRoom {
     if (meta === null) {
       return json({ success: true, empty: true });
     }
-    const body = (await request.json()) as { sub: string };
+    const body = await parseJsonBody<{ sub: string }>(request);
+    if (body === null) {
+      return json({ error: "Invalid request body" }, 400);
+    }
     this.closeSocketsFor(body.sub, 4000, "Left network");
     const members = (await this.loadMembers()).filter((m) => m.sub !== body.sub);
     if (!members.some((m) => m.isHost) && members.length > 0) {
@@ -344,8 +504,10 @@ export class PresenceRoom {
     await this.saveMembers(members);
     await this.broadcastRoster();
     if (members.length === 0) {
-      await this.state.storage.deleteAll();
-      return json({ success: true, empty: true });
+      const stamped: RoomMeta = { ...meta, emptiedUtc: Date.now() };
+      await this.state.storage.put("meta", stamped);
+      await this.state.storage.setAlarm(stamped.emptiedUtc + this.emptyTtl() * 1000);
+      return json({ success: true, empty: true, summary: await this.summary(stamped, members) });
     }
     return json({ success: true, empty: false, summary: await this.summary(meta, members) });
   }
@@ -355,7 +517,10 @@ export class PresenceRoom {
     if (meta === null) {
       return json({ error: "Network not found" }, 404);
     }
-    const body = (await request.json()) as { sub: string; endpoint?: string };
+    const body = await parseJsonBody<{ sub: string; endpoint?: string; ip?: string }>(request);
+    if (body === null) {
+      return json({ error: "Invalid request body" }, 400);
+    }
     const changed = await this.evictStale();
     const members = await this.loadMembers();
     const member = members.find((m) => m.sub === body.sub);
@@ -363,6 +528,9 @@ export class PresenceRoom {
       return json({ error: "Not a member", code: "online.not-member" }, 403);
     }
     member.lastSeen = Date.now();
+    if (typeof body.ip === "string" && body.ip.length > 0) {
+      member.lastIp = body.ip;
+    }
     if (member.quality !== QUALITY_RELAY && typeof body.endpoint === "string" && body.endpoint.length > 0) {
       member.endpoint = body.endpoint.substring(0, 64);
     }
@@ -411,11 +579,27 @@ export class PresenceRoom {
     return json({ members: members.map(toPublic) });
   }
 
+  private async handleMembership(url: URL): Promise<Response> {
+    const sub = url.searchParams.get("sub") ?? "";
+    const members = await this.loadMembers();
+    const member = members.find((m) => m.sub === sub);
+    if (member === undefined) {
+      return json({ error: "Not a member", code: "online.not-member" }, 403);
+    }
+    return json({ isMember: true, overlayIp: member.overlayIp, isHost: member.isHost });
+  }
+
   private async handleReport(request: Request): Promise<Response> {
     const members = await this.loadMembers();
-    const body = (await request.json()) as { sub: string; targetIp: string; reason: string };
+    const body = await parseJsonBody<{ sub: string; targetIp: string; reason: string }>(request);
+    if (body === null) {
+      return json({ error: "Invalid request body" }, 400);
+    }
     if (!members.some((m) => m.sub === body.sub)) {
       return json({ error: "Not a member" }, 403);
+    }
+    if (!(await this.checkReportRate(body.sub))) {
+      return json({ error: "Too many reports", code: "online.rate-limited" }, 429);
     }
     const target = members.find((m) => m.overlayIp === body.targetIp);
     if (target === undefined) {
@@ -433,7 +617,10 @@ export class PresenceRoom {
     if (meta === null) {
       return json({ error: "Network not found" }, 404);
     }
-    const body = (await request.json()) as { sub: string; targetIp: string };
+    const body = await parseJsonBody<{ sub: string; targetIp: string }>(request);
+    if (body === null) {
+      return json({ error: "Invalid request body" }, 400);
+    }
     const members = await this.loadMembers();
     const caller = members.find((m) => m.sub === body.sub);
     if (caller?.isHost !== true) {
@@ -446,6 +633,16 @@ export class PresenceRoom {
     const bans = await this.loadBans();
     bans.push(target.sub);
     await this.state.storage.put("bans", bans);
+    // Sessions are anonymous, so a bare sub ban is one fresh session away
+    // from bypass. Bind the ban to the last known client IP as well.
+    const bannedIp = bannableIp(target.lastIp ?? "");
+    if (bannedIp.length > 0) {
+      const bannedIps = await this.loadBannedIps();
+      if (!bannedIps.includes(bannedIp)) {
+        bannedIps.push(bannedIp);
+        await this.state.storage.put("bannedIps", bannedIps);
+      }
+    }
     this.closeSocketsFor(target.sub, 4001, "Banned from network");
     await this.saveMembers(members.filter((m) => m.sub !== target.sub));
     await this.broadcastRoster();
@@ -457,7 +654,10 @@ export class PresenceRoom {
     if (meta === null) {
       return json({ error: "Network not found" }, 404);
     }
-    const body = (await request.json()) as { sub: string; description?: string; expectedProfileId?: string };
+    const body = await parseJsonBody<{ sub: string; description?: string; expectedProfileId?: string }>(request);
+    if (body === null) {
+      return json({ error: "Invalid request body" }, 400);
+    }
     const members = await this.loadMembers();
     const caller = members.find((m) => m.sub === body.sub);
     if (caller?.isHost !== true) {
@@ -503,7 +703,12 @@ export class PresenceRoom {
     });
     server.addEventListener("message", (event) => {
       if (typeof event.data === "string" && event.data.includes("heartbeat")) {
-        void this.touchMember(owner);
+        // Serialized with every other roster write; a storage failure here
+        // must not surface as an unhandled rejection on the socket.
+        void this.withLock(() => this.touchMember(owner)).then(
+          () => undefined,
+          () => undefined
+        );
       }
     });
 

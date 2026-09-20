@@ -23,7 +23,7 @@ const DEFAULT_SESSION_TTL = 3600;
 const DEFAULT_GRANT_TTL = 600;
 const DEFAULT_TURN_TTL = 1800;
 const DEFAULT_MAX_PER_IP = 10;
-const DEFAULT_SUBNET = "10.42.0.0/20";
+const DEFAULT_SUBNET = "10.42.0.0/20"; // NOSONAR - private overlay range, never a routable target
 const DEFAULT_DIRECTORY_PER_MIN = 600;
 const MAX_JSON_BODY_BYTES = 8192;
 
@@ -54,12 +54,36 @@ const bodyTooLarge = (request: Request): boolean => {
   return Number.isSafeInteger(declared) && declared > MAX_JSON_BODY_BYTES;
 };
 
-const readJsonBody = async (request: Request): Promise<{ body?: unknown; error?: Response }> => {
+type BoundedBody = { kind: "ok"; text: string } | { kind: "too-large" } | { kind: "unreadable" };
+
+// Chunked requests carry no content-length, so the header pre-check alone
+// cannot bound buffering. Measure the actual bytes instead.
+const readBoundedText = async (request: Request): Promise<BoundedBody> => {
   if (bodyTooLarge(request)) {
+    return { kind: "too-large" };
+  }
+  let buffer: ArrayBuffer;
+  try {
+    buffer = await request.arrayBuffer();
+  } catch {
+    return { kind: "unreadable" };
+  }
+  if (buffer.byteLength > MAX_JSON_BODY_BYTES) {
+    return { kind: "too-large" };
+  }
+  return { kind: "ok", text: new TextDecoder().decode(buffer) };
+};
+
+const readJsonBody = async (request: Request): Promise<{ body?: unknown; error?: Response }> => {
+  const read = await readBoundedText(request);
+  if (read.kind === "too-large") {
     return { error: error("Request body too large", 413, "online.invalid-request") };
   }
+  if (read.kind === "unreadable") {
+    return { error: error("Invalid JSON body", 400, "online.invalid-request") };
+  }
   try {
-    return { body: (await request.json()) as unknown };
+    return { body: JSON.parse(read.text) as unknown };
   } catch {
     return { error: error("Invalid JSON body", 400, "online.invalid-request") };
   }
@@ -108,14 +132,52 @@ const directoryStub = (env: OnlineEnv) => env.DIRECTORY_INDEX.get(env.DIRECTORY_
 
 const syncDirectory = async (env: OnlineEnv, summary: NetworkSummary | null, networkId: string): Promise<void> => {
   const stub = directoryStub(env);
-  if (summary === null) {
-    await stub.fetch("https://directory/internal/remove", {
-      method: "POST",
-      body: JSON.stringify({ id: networkId }),
-    });
-  } else {
-    await stub.fetch("https://directory/internal/upsert", { method: "POST", body: JSON.stringify(summary) });
+  const res =
+    summary === null
+      ? await stub.fetch("https://directory/internal/remove", {
+          method: "POST",
+          body: JSON.stringify({ id: networkId }),
+        })
+      : await stub.fetch("https://directory/internal/upsert", {
+          method: "POST",
+          body: JSON.stringify(summary),
+        });
+  if (!res.ok) {
+    console.warn(`Directory sync failed for ${networkId}: ${res.status}`);
   }
+};
+
+// A failed create must not burn one of the caller's hourly creation slots.
+const releaseCreation = async (env: OnlineEnv, ip: string): Promise<void> => {
+  try {
+    await directoryStub(env).fetch("https://directory/internal/release-creation", {
+      method: "POST",
+      body: JSON.stringify({ ip }),
+    });
+  } catch {
+    // Best effort: the hourly window bounds the damage of a lost release.
+  }
+};
+
+// Live roster lookup for refresh-style endpoints. Grant claims alone cannot
+// prove membership: a removed or banned member's grant stays valid until it
+// expires, and the host flag goes stale on host migration.
+const roomMembership = async (
+  env: OnlineEnv,
+  networkId: string,
+  sub: string
+): Promise<{ overlayIp: string; isHost: boolean } | null> => {
+  const res = await roomStub(env, networkId).fetch(
+    `https://room/internal/membership?sub=${encodeURIComponent(sub)}`
+  );
+  if (!res.ok) {
+    return null;
+  }
+  const payload = (await res.json()) as { overlayIp?: unknown; isHost?: unknown };
+  if (typeof payload.overlayIp !== "string") {
+    return null;
+  }
+  return { overlayIp: payload.overlayIp, isHost: payload.isHost === true };
 };
 
 export const buildAdapterConfig = async (
@@ -181,8 +243,11 @@ const handleCreate = async (request: Request, env: OnlineEnv): Promise<Response>
     method: "POST",
     body: JSON.stringify({ ip: clientIp(request), maxPerIp: numVar(env.MAX_NETWORKS_PER_IP, DEFAULT_MAX_PER_IP) }),
   });
-  const cap = (await capRes.json()) as { allowed: boolean };
-  if (!cap.allowed) {
+  const cap = capRes.ok ? ((await capRes.json()) as { allowed?: unknown }) : null;
+  if (cap === null) {
+    return error("Directory unavailable", 503, "online.service-unavailable");
+  }
+  if (cap.allowed !== true) {
     return error("Too many networks", 429, "online.rate-limited");
   }
 
@@ -205,14 +270,17 @@ const handleCreate = async (request: Request, env: OnlineEnv): Promise<Response>
         verifier,
         nextSlot: 1,
         createdAt: new Date().toISOString(),
+        emptiedUtc: 0,
       },
       creatorSub: session.sub,
       displayName,
       preferRelay: input.preferRelay,
       endpoint: input.endpoint,
+      ip: clientIp(request),
     }),
   });
   if (!initRes.ok) {
+    await releaseCreation(env, clientIp(request));
     return error("Failed to create network", 500, "online.service-unavailable");
   }
   const init = (await initRes.json()) as { member: PublicMember; members: PublicMember[]; summary: NetworkSummary };
@@ -311,7 +379,7 @@ const handleLeave = async (request: Request, env: OnlineEnv, networkId: string):
     body: JSON.stringify({ sub: grant.sub }),
   });
   const payload = (await res.json()) as { empty?: boolean; summary?: NetworkSummary };
-  await syncDirectory(env, payload.empty === true ? null : (payload.summary ?? null), networkId);
+  await syncDirectory(env, payload.summary ?? null, networkId);
   return json({ success: true });
 };
 
@@ -321,15 +389,17 @@ const handleHeartbeat = async (request: Request, env: OnlineEnv, networkId: stri
     return grant;
   }
   let endpoint = "";
-  try {
-    const heartbeatBody = (await request.clone().json()) as { endpoint?: unknown };
-    endpoint = parseEndpoint(heartbeatBody.endpoint);
-  } catch {
-    endpoint = "";
+  const beat = await readBoundedText(request.clone());
+  if (beat.kind === "ok" && beat.text.length > 0) {
+    try {
+      endpoint = parseEndpoint((JSON.parse(beat.text) as { endpoint?: unknown }).endpoint);
+    } catch {
+      endpoint = "";
+    }
   }
   const res = await roomStub(env, networkId).fetch("https://room/internal/heartbeat", {
     method: "POST",
-    body: JSON.stringify({ sub: grant.sub, endpoint }),
+    body: JSON.stringify({ sub: grant.sub, endpoint, ip: clientIp(request) }),
   });
   const payload = (await res.json()) as { members?: PublicMember[]; summary?: NetworkSummary; error?: string; code?: string };
   if (!res.ok) {
@@ -425,17 +495,20 @@ const handleBan = async (request: Request, env: OnlineEnv, networkId: string): P
   return json({ success: true });
 };
 
-const handleTurn = async (request: Request, env: OnlineEnv): Promise<Response> => {
-  const session = await requireSession(request, env);
-  if (session instanceof Response) {
-    return session;
+const handleTurn = async (request: Request, env: OnlineEnv, networkId: string): Promise<Response> => {
+  const grant = await requireGrant(request, env, networkId);
+  if (grant instanceof Response) {
+    return grant;
+  }
+  if ((await roomMembership(env, networkId, grant.sub)) === null) {
+    return error("Not a member", 403, "online.not-member");
   }
   const uris = parseTurnUris(env.TURN_URIS);
   const coturnSecret = secretOrEmpty(env.COTURN_SECRET);
   if (coturnSecret.length === 0 || uris.length === 0) {
     return error("TURN unconfigured", 503, "online.service-unavailable");
   }
-  return json(await mintTurnCredentials(session.sub, numVar(env.TURN_TTL_SECONDS, DEFAULT_TURN_TTL), coturnSecret, uris));
+  return json(await mintTurnCredentials(grant.sub, numVar(env.TURN_TTL_SECONDS, DEFAULT_TURN_TTL), coturnSecret, uris));
 };
 
 const handleOverlayCert = async (request: Request, env: OnlineEnv, networkId: string): Promise<Response> => {
@@ -443,8 +516,22 @@ const handleOverlayCert = async (request: Request, env: OnlineEnv, networkId: st
   if (grant instanceof Response) {
     return grant;
   }
+  // A removed or banned member's grant stays valid until expiry; never
+  // re-mint from its claims alone. The live roster is also the source of
+  // truth for the overlay IP and host flag.
+  const membership = await roomMembership(env, networkId, grant.sub);
+  if (membership === null) {
+    return error("Not a member", 403, "online.not-member");
+  }
   const grantTtl = numVar(env.JOIN_GRANT_TTL_SECONDS, DEFAULT_GRANT_TTL);
-  const refreshed = await mintJoinGrant(grant.sub, networkId, grant.ip, grant.host, grantTtl, env.JWT_SIGNING_SECRET);
+  const refreshed = await mintJoinGrant(
+    grant.sub,
+    networkId,
+    membership.overlayIp,
+    membership.isHost,
+    grantTtl,
+    env.JWT_SIGNING_SECRET
+  );
   return json({
     grant: refreshed,
     grantExpiresUtc: new Date(Date.now() + grantTtl * 1000).toISOString(),
@@ -472,7 +559,7 @@ const handleCorsPreflight = (): Response =>
   });
 
 const matchNetworkRoute = (pathname: string): { id: string; action: string } | null => {
-  const match = /^\/v1\/networks\/([^/]+)(?:\/(join|leave|heartbeat|members|report|ban|presence|cert))?$/.exec(pathname);
+  const match = /^\/v1\/networks\/([^/]+)(?:\/(join|leave|heartbeat|members|report|ban|presence|cert|turn))?$/.exec(pathname);
   const [, id, action] = match ?? [];
   if (id === undefined) {
     return null;
@@ -506,6 +593,8 @@ const dispatchNetworkRoute = async (
       return await handlePresence(request, env, route.id);
     case "GET /cert":
       return await handleOverlayCert(request, env, route.id);
+    case "GET /turn":
+      return await handleTurn(request, env, route.id);
     default:
       return null;
   }
@@ -524,9 +613,6 @@ const dispatchAuthedTopLevelRoute = async (
   }
   if (request.method === "POST" && pathname === "/v1/networks") {
     return await handleCreate(request, env);
-  }
-  if (request.method === "POST" && pathname === "/v1/turn/credentials") {
-    return await handleTurn(request, env);
   }
   return null;
 };

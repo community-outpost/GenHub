@@ -1,4 +1,3 @@
-using System.Collections.Generic;
 using System.Text.Json.Serialization;
 
 namespace GenHub.Core.Models.Online;
@@ -26,12 +25,6 @@ public sealed record OnlineCreateNetworkRequest
     /// </summary>
     [JsonPropertyName("slotsMax")]
     public int SlotsMax { get; init; }
-
-    /// <summary>
-    /// Gets the game and mod tags describing the expected profile.
-    /// </summary>
-    [JsonPropertyName("tags")]
-    public IReadOnlyList<string> Tags { get; init; } = [];
 
     /// <summary>
     /// Gets a value indicating whether the network is publicly listed.

@@ -214,7 +214,11 @@ public partial class MainViewModel(
         await DownloadsBrowserViewModel.InitializeAsync();
         await ToolsViewModel.InitializeAsync();
         await InfoViewModel.InitializeAsync();
-        OnlineViewModel.Initialize();
+        if (OnlineConstants.IsOnlineEnabled)
+        {
+            OnlineViewModel.Initialize();
+        }
+
         logger?.LogInformation("MainViewModel initialized");
 
         // Ensure the initial tab's activation logic runs (triggers lazy loading)
@@ -258,6 +262,11 @@ public partial class MainViewModel(
         {
             var tab = configurationProvider.GetLastSelectedTab();
             if (tab == NavigationTab.Tools)
+            {
+                tab = NavigationTab.GameProfiles;
+            }
+
+            if (tab == NavigationTab.Online && !OnlineConstants.IsOnlineEnabled)
             {
                 tab = NavigationTab.GameProfiles;
             }
@@ -492,7 +501,7 @@ public partial class MainViewModel(
         {
             InfoViewModel.IsPaneOpen = true;
         }
-        else if (value == NavigationTab.Online)
+        else if (value == NavigationTab.Online && OnlineConstants.IsOnlineEnabled)
         {
             _ = OnlineViewModel.RefreshNetworksAsync(_initializationCts.Token);
         }

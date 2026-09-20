@@ -20,7 +20,7 @@ namespace GenHub.Features.Online.Services;
 /// terminal and surface as <see cref="ConnectionLost"/>.
 /// </summary>
 /// <param name="logger">The logger.</param>
-public sealed class OnlinePresenceService(ILogger<OnlinePresenceService> logger) : IOnlinePresenceService, IDisposable
+public sealed class OnlinePresenceService(ILogger<OnlinePresenceService> logger) : IOnlinePresenceService, IDisposable, IAsyncDisposable
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
@@ -110,9 +110,26 @@ public sealed class OnlinePresenceService(ILogger<OnlinePresenceService> logger)
             _disposed = true;
         }
 
-        _loopCts?.Cancel();
-        _socket?.Dispose();
-        _loopCts?.Dispose();
+        // Join the loop before tearing down the socket so a running
+        // receive never observes a disposed socket or semaphore.
+        StopLoopAsync().GetAwaiter().GetResult();
+        _stateLock.Dispose();
+    }
+
+    /// <inheritdoc/>
+    public async ValueTask DisposeAsync()
+    {
+        lock (_syncLock)
+        {
+            if (_disposed)
+            {
+                return;
+            }
+
+            _disposed = true;
+        }
+
+        await StopLoopAsync();
         _stateLock.Dispose();
     }
 
@@ -170,7 +187,10 @@ public sealed class OnlinePresenceService(ILogger<OnlinePresenceService> logger)
 
     private static bool IsTerminalClose(WebSocketCloseStatus? status)
     {
-        return status is not null and not WebSocketCloseStatus.NormalClosure and not WebSocketCloseStatus.Empty;
+        // Only the server's explicit membership terminations end the session.
+        // Transient closes (1001 GoingAway during restarts, network drops)
+        // must reconnect with backoff instead of auto-leaving the network.
+        return status is (WebSocketCloseStatus)4000 or (WebSocketCloseStatus)4001;
     }
 
     private async Task RunLoopAsync(CancellationToken cancellationToken)
@@ -311,6 +331,11 @@ public sealed class OnlinePresenceService(ILogger<OnlinePresenceService> logger)
         catch (WebSocketException)
         {
             // Socket already gone; nothing to acknowledge.
+        }
+        catch (InvalidOperationException)
+        {
+            // A heartbeat send holds the single outstanding-send slot;
+            // the close handshake is best effort.
         }
 
         if (IsTerminalClose(result.CloseStatus))

@@ -21,7 +21,7 @@ game traffic — gameplay stays on the P2P overlay.
 | POST | `/v1/networks/{id}/report` | grant | Report a member (abuse) |
 | POST | `/v1/networks/{id}/ban` | host grant | Ban member, revoke slot |
 | GET | `/v1/networks/{id}/cert` | grant | Refresh grant + TURN credentials |
-| POST | `/v1/turn/credentials` | session | Ephemeral coturn REST credentials |
+| GET | `/v1/networks/{id}/turn` | grant | Ephemeral coturn REST credentials |
 | WS | `/v1/networks/{id}/presence?ticket=` | grant | Roster fan-out socket |
 
 ## Deploy
@@ -58,6 +58,9 @@ directory reads per minute, overlay subnet, TURN URIs.
   on create/join/heartbeat. Endpoints are visible only to grant holders via
   the roster; the directory and pre-join detail never carry them. Relay-mode
   members publish nothing, and the edge drops any endpoint they send.
+- Networks empty for longer than `EMPTY_NETWORK_TTL_SECONDS` (5 minutes) are
+  deleted automatically: the room drops its state and directory entry.
+  Rejoining during the grace window revives the room.
 
 ## Develop and test
 

@@ -5,6 +5,10 @@ export default defineWorkersConfig({
     poolOptions: {
       workers: {
         main: "./src/index.ts",
+        // Stays false: vitest-pool-workers 0.8 aborts with "Isolated storage
+        // failed" when DO storage stacks between suites. Tests share one IP
+        // inside the file, so the creation cap stays above the file's total
+        // creates; join attempts are per-room and run at the production limit.
         isolatedStorage: false,
         miniflare: {
           compatibilityDate: "2025-01-01",
@@ -21,10 +25,10 @@ export default defineWorkersConfig({
             JOIN_GRANT_TTL_SECONDS: "600",
             TURN_TTL_SECONDS: "1800",
             PRESENCE_TIMEOUT_SECONDS: "90",
-            JOIN_RATE_LIMIT: "100",
+            JOIN_RATE_LIMIT: "10",
             JOIN_RATE_WINDOW_SECONDS: "600",
             MAX_NETWORKS_PER_IP: "100",
-            OVERLAY_SUBNET: "10.42.0.0/20",
+            OVERLAY_SUBNET: "10.42.0.0/20", // NOSONAR - private test overlay range
             TURN_URIS: "turn:turn.example.invalid:3478",
           },
         },

@@ -23,9 +23,13 @@ Three layers, each independently testable:
 ## Feature flag
 
 The Online tab is enabled by default so downloaded builds can connect out of
-the box. Set `GENHUB_ONLINE_ENABLED=0` to hide the tab and deactivate its
-services; the launch path is then byte-identical. Until the edge is deployed,
-the tab shows its failed state with a retry action instead of failing silently.
+the box. Set `GENHUB_ONLINE_ENABLED=0` (or `false`, any casing) to hide the
+tab: the nav button disappears, a persisted Online selection falls back to
+Game Profiles, `OnlineViewModel` is never initialized, and directory refreshes
+short-circuit before any HTTP call, so the launch path is byte-identical. The
+services stay registered for DI but receive no calls while disabled. Until the
+edge is deployed, the tab shows its failed state with a retry action instead
+of failing silently.
 
 ## Environment overrides
 
@@ -71,6 +75,14 @@ by a relay member on create, join, and heartbeat. Logs, toasts, and
 diagnostics scrub IPs via `OnlineLogScrubber`; toasts show overlay IPs or
 direct/relay state only.
 
+## Lifecycle
+
+A network with zero members gets a 5-minute grace window (`EMPTY_NETWORK_TTL_SECONDS`)
+so accidental leaves can rejoin; rejoining revives the room and the first
+member back becomes host. After the window the room deletes itself and drops
+its directory entry. Idle members are evicted after the presence timeout, so
+abandoned lobbies drain and then expire on their own.
+
 ## Abuse
 
 Members can be reported (`POST .../report`, host is notified over presence);
@@ -78,10 +90,11 @@ hosts can ban (`POST .../ban`), which adds a deny entry, evicts the slot, and
 closes the member socket. Join attempts are rate-limited per network + IP,
 directory reads per IP per minute, creation per IP per hour.
 
-Known limitation: sessions are anonymous, so a ban binds to the session
-identity, not the human. A banned player who mints a fresh session can return
-under a new identity. Treat Edge bans as friction, not identity enforcement,
-until an optional account layer exists.
+Bans bind to both the session identity and the last known client IP, so a
+banned player who mints a fresh session from the same address stays banned.
+Sessions are still anonymous, so a determined player on a new address can
+return under a new identity. Treat edge bans as strong friction, not identity
+enforcement, until an optional account layer exists.
 
 ## Password policy
 

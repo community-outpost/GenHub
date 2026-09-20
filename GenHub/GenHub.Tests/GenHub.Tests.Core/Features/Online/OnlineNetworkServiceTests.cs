@@ -38,15 +38,44 @@ public sealed class OnlineNetworkServiceTests
     [Fact]
     public void DirectoryContract_ShouldContainNoEndpointFields()
     {
-        // Arrange
-        using var document = JsonDocument.Parse(DirectoryJson);
+        // Arrange: serialize the real DTOs with web defaults, as the edge serves them,
+        // so a future endpoint-bearing property fails this test instead of a fixture.
+        var options = new JsonSerializerOptions(JsonSerializerDefaults.Web);
+        var summary = new OnlineNetworkSummary
+        {
+            Id = "net-1",
+            Name = "Zero Hour EU",
+            Tags = ["zerohour"],
+            SlotsUsed = 3,
+            SlotsMax = 8,
+            Region = "EU",
+            HostDisplayName = "Commander",
+            Quality = OnlineConnectionQuality.Direct,
+            RequiresPassword = true,
+            LastHeartbeatUtc = new DateTime(2026, 9, 20, 0, 0, 0, DateTimeKind.Utc),
+        };
+        var detail = new OnlineNetworkDetail
+        {
+            Id = "net-1",
+            Name = "Zero Hour EU",
+            Description = "House rules",
+            Tags = ["zerohour"],
+            SlotsUsed = 3,
+            SlotsMax = 8,
+            ExpectedProfileId = "zh-1.04",
+            RequiresPassword = true,
+            HostPresent = true,
+        };
         var forbidden = new[] { "endpoint", "candidate", "publicip", "underlay", "reflexive" };
 
         // Act
-        var keys = document.RootElement.EnumerateArray()
-            .SelectMany(entry => entry.EnumerateObject().Select(property => property.Name))
-            .Select(name => name.ToLowerInvariant())
-            .ToList();
+        var payloads = new[] { JsonSerializer.Serialize(summary, options), JsonSerializer.Serialize(detail, options) };
+        var keys = new List<string>();
+        foreach (var payload in payloads)
+        {
+            using var document = JsonDocument.Parse(payload);
+            keys.AddRange(document.RootElement.EnumerateObject().Select(property => property.Name.ToLowerInvariant()));
+        }
 
         // Assert
         Assert.NotEmpty(keys);

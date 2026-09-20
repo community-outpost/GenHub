@@ -47,6 +47,7 @@ public sealed class P2PConnectionService(ILogger<P2PConnectionService> logger) :
             return Task.FromResult(OperationResult<IPEndPoint>.CreateFailure("Port is out of range."));
         }
 
+        IPEndPoint endpoint;
         lock (_syncLock)
         {
             ThrowIfDisposed();
@@ -54,9 +55,7 @@ public sealed class P2PConnectionService(ILogger<P2PConnectionService> logger) :
             {
                 _listener?.Close();
                 _listener = new UdpClient(port);
-                var endpoint = (IPEndPoint)_listener.Client.LocalEndPoint!;
-                SetQuality(OnlineConnectionQuality.Connecting);
-                return Task.FromResult(OperationResult<IPEndPoint>.CreateSuccess(endpoint));
+                endpoint = (IPEndPoint)_listener.Client.LocalEndPoint!;
             }
             catch (SocketException ex)
             {
@@ -64,6 +63,9 @@ public sealed class P2PConnectionService(ILogger<P2PConnectionService> logger) :
                 return Task.FromResult(OperationResult<IPEndPoint>.CreateFailure("Failed to bind local port."));
             }
         }
+
+        SetQuality(OnlineConnectionQuality.Connecting);
+        return Task.FromResult(OperationResult<IPEndPoint>.CreateSuccess(endpoint));
     }
 
     /// <inheritdoc/>
@@ -92,14 +94,16 @@ public sealed class P2PConnectionService(ILogger<P2PConnectionService> logger) :
         try
         {
             var target = new IPEndPoint(address, port);
-            var punch = new byte[] { 0x47, 0x48, 0x50, 0x31 };
+            var punch = OnlineConstants.PunchMagic;
             for (var i = 0; i < PunchPacketCount; i++)
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 await listener.SendAsync(punch, target, cancellationToken);
             }
 
-            SetQuality(OnlineConnectionQuality.Direct);
+            // Sends are unacknowledged; stay in Connecting until inbound
+            // traffic confirms the peer is reachable.
+            SetQuality(OnlineConnectionQuality.Connecting);
             return OperationResult<bool>.CreateSuccess(true);
         }
         catch (SocketException ex)
@@ -145,9 +149,10 @@ public sealed class P2PConnectionService(ILogger<P2PConnectionService> logger) :
         {
             _listener?.Close();
             _listener = null;
-            SetQuality(OnlineConnectionQuality.Unknown);
-            return Task.FromResult(OperationResult<bool>.CreateSuccess(true));
         }
+
+        SetQuality(OnlineConnectionQuality.Unknown);
+        return Task.FromResult(OperationResult<bool>.CreateSuccess(true));
     }
 
     /// <inheritdoc/>
@@ -288,7 +293,12 @@ public sealed class P2PConnectionService(ILogger<P2PConnectionService> logger) :
 
     private void SetQuality(OnlineConnectionQuality quality)
     {
-        CurrentQuality = quality;
+        lock (_syncLock)
+        {
+            CurrentQuality = quality;
+        }
+
+        // Invoke outside the lock: subscriber code must never run under it.
         ConnectionStatusChanged?.Invoke(this, quality);
     }
 

@@ -6,7 +6,8 @@ namespace GenHub.Infrastructure.DependencyInjection;
 
 /// <summary>
 /// Infrastructure module for the Online (virtual LAN) feature.
-/// Platform hosts replace <see cref="IVirtualLanAdapter"/> with their own bring-up.
+/// Platform hosts replace <see cref="IVirtualLanAdapter"/> with the shared
+/// sidecar-backed adapter and register their own sidecar locator.
 /// </summary>
 public static class OnlineModule
 {

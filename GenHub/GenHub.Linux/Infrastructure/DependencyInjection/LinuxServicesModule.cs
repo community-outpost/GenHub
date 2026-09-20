@@ -10,6 +10,7 @@ using GenHub.Core.Interfaces.Workspace;
 using GenHub.Core.Models.Launching;
 using GenHub.Features.GameSettings;
 using GenHub.Features.Launching;
+using GenHub.Features.Online.Services;
 using GenHub.Features.Workspace;
 using GenHub.Infrastructure.DependencyInjection;
 using GenHub.Linux.Features.GitHub.Services;
@@ -53,7 +54,7 @@ public static class LinuxServicesModule
 
         // Online virtual LAN adapter (supersedes the shared null fallback)
         services.AddSingleton<IOverlaySidecarLocator, LinuxOverlaySidecarLocator>();
-        services.Replace(ServiceDescriptor.Singleton<IVirtualLanAdapter, LinuxVirtualLanAdapter>());
+        services.Replace(ServiceDescriptor.Singleton<IVirtualLanAdapter, SharedVirtualLanAdapter>());
 
         return services;
     }

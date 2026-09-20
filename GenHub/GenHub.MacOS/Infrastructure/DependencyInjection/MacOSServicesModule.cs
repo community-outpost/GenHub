@@ -13,6 +13,7 @@ using GenHub.Features.AppUpdate.Interfaces;
 using GenHub.Features.AppUpdate.Services;
 using GenHub.Features.GameSettings;
 using GenHub.Features.Launching;
+using GenHub.Features.Online.Services;
 using GenHub.Features.Workspace;
 using GenHub.Infrastructure.DependencyInjection;
 using GenHub.MacOS.Features.GitHub.Services;
@@ -61,7 +62,7 @@ public static class MacOSServicesModule
 
         // Online virtual LAN adapter (supersedes the shared null fallback)
         services.AddSingleton<IOverlaySidecarLocator, MacOSOverlaySidecarLocator>();
-        services.Replace(ServiceDescriptor.Singleton<IVirtualLanAdapter, MacOSVirtualLanAdapter>());
+        services.Replace(ServiceDescriptor.Singleton<IVirtualLanAdapter, SharedVirtualLanAdapter>());
 
         return services;
     }

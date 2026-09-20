@@ -1,6 +1,7 @@
 using GenHub.Core.Constants;
 using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Online;
+using GenHub.Core.Models.Online;
 using GenHub.Core.Models.Results;
 using Microsoft.Extensions.Logging;
 using System;
@@ -127,6 +128,8 @@ public sealed class OverlaySidecarHost(ILogger<OverlaySidecarHost> logger) : IOv
     /// <inheritdoc/>
     public void Dispose()
     {
+        Process? process;
+        string? configPath;
         lock (_syncLock)
         {
             if (_disposed)
@@ -135,10 +138,34 @@ public sealed class OverlaySidecarHost(ILogger<OverlaySidecarHost> logger) : IOv
             }
 
             _disposed = true;
-            _process?.Dispose();
+            process = _process;
+            configPath = _configPath;
             _process = null;
+            _configPath = null;
         }
 
+        // DI container disposal only calls Dispose: terminate the sidecar
+        // here so it never outlives the host with staged TURN credentials.
+        if (process is not null)
+        {
+            try
+            {
+                if (!process.HasExited)
+                {
+                    process.Kill(true);
+                }
+            }
+            catch (InvalidOperationException)
+            {
+                // Already exited.
+            }
+            finally
+            {
+                process.Dispose();
+            }
+        }
+
+        DeleteConfig(configPath);
         _stateLock.Dispose();
     }
 
@@ -186,9 +213,9 @@ public sealed class OverlaySidecarHost(ILogger<OverlaySidecarHost> logger) : IOv
 
     private static async Task<string> StageConfigAsync(string configContents, CancellationToken cancellationToken)
     {
-        var directory = Path.Combine(Path.GetTempPath(), "genhub-online");
+        var directory = Path.Combine(Path.GetTempPath(), OnlineConstants.SidecarConfigDirectory);
         Directory.CreateDirectory(directory);
-        var path = Path.Combine(directory, $"overlay-{Guid.NewGuid():N}.json");
+        var path = Path.Combine(directory, $"{OnlineConstants.SidecarConfigPrefix}{Guid.NewGuid():N}.json");
         await File.WriteAllTextAsync(path, configContents, Encoding.UTF8, cancellationToken);
 
         // The staged config carries TURN credentials; restrict it to the owner on Unix.

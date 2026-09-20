@@ -8,20 +8,23 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace GenHub.Core.Services.Online;
+namespace GenHub.Features.Online.Services;
 
 /// <summary>
 /// Shared virtual LAN adapter orchestration backed by the overlay sidecar host.
-/// Platform adapters only supply the platform locator through this base.
+/// Platform modules compose this class with their own sidecar locator.
 /// </summary>
 /// <param name="host">The overlay sidecar host.</param>
 /// <param name="locator">The platform sidecar locator.</param>
 /// <param name="logger">The logger.</param>
-public abstract class VirtualLanAdapterBase(
+public sealed class SharedVirtualLanAdapter(
     IOverlaySidecarHost host,
     IOverlaySidecarLocator locator,
-    ILogger logger) : IVirtualLanAdapter
+    ILogger<SharedVirtualLanAdapter> logger) : IVirtualLanAdapter, IDisposable
 {
+    private readonly SemaphoreSlim _lifecycleLock = new(1, 1);
+    private bool _disposed;
+
     /// <inheritdoc/>
     public OnlineAdapterState State { get; private set; } = OnlineAdapterState.Down;
 
@@ -43,27 +46,55 @@ public abstract class VirtualLanAdapterBase(
             return Fail("Virtual LAN overlay is not available yet.");
         }
 
-        SetState(OnlineAdapterState.Starting);
-        var start = await host.StartAsync(adapterConfig, locator, cancellationToken);
-        if (!start.Success)
+        await _lifecycleLock.WaitAsync(cancellationToken);
+        try
         {
-            logger.LogWarning("Sidecar start failed.");
-            return Fail(start.Errors.Count > 0 ? start.Errors[0] : "Sidecar start failed.");
-        }
+            SetState(OnlineAdapterState.Starting);
+            var start = await host.StartAsync(adapterConfig, locator, cancellationToken);
+            if (!start.Success)
+            {
+                logger.LogWarning("Sidecar start failed.");
+                return Fail(start.Errors.Count > 0 ? start.Errors[0] : "Sidecar start failed.");
+            }
 
-        OverlayIp = overlayIp;
-        SetState(OnlineAdapterState.Up);
-        return OperationResult<bool>.CreateSuccess(true);
+            OverlayIp = overlayIp;
+            SetState(OnlineAdapterState.Up);
+            return OperationResult<bool>.CreateSuccess(true);
+        }
+        finally
+        {
+            _lifecycleLock.Release();
+        }
     }
 
     /// <inheritdoc/>
     public async Task<OperationResult<bool>> TearDownAsync(CancellationToken cancellationToken = default)
     {
-        SetState(OnlineAdapterState.Stopping);
-        await host.StopAsync(cancellationToken);
-        OverlayIp = null;
-        SetState(OnlineAdapterState.Down);
-        return OperationResult<bool>.CreateSuccess(true);
+        await _lifecycleLock.WaitAsync(cancellationToken);
+        try
+        {
+            SetState(OnlineAdapterState.Stopping);
+            await host.StopAsync(cancellationToken);
+            OverlayIp = null;
+            SetState(OnlineAdapterState.Down);
+            return OperationResult<bool>.CreateSuccess(true);
+        }
+        finally
+        {
+            _lifecycleLock.Release();
+        }
+    }
+
+    /// <inheritdoc/>
+    public void Dispose()
+    {
+        if (_disposed)
+        {
+            return;
+        }
+
+        _disposed = true;
+        _lifecycleLock.Dispose();
     }
 
     private OperationResult<bool> Fail(string message)
