@@ -337,7 +337,7 @@ public sealed class ProjectStructureGenerator(
             FileMode.Create,
             FileAccess.Write,
             FileShare.None,
-            IoConstants.DefaultFileBufferSize,
+            ModBuilderConstants.BuildFileBufferSize,
             useAsync: true);
 
         await JsonSerializer.SerializeAsync(stream, data, options, cancellationToken).ConfigureAwait(false);

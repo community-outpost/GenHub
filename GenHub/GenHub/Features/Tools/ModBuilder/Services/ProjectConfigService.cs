@@ -211,7 +211,7 @@ public sealed class ProjectConfigService(
                 FileMode.Open,
                 FileAccess.Read,
                 FileShare.Read,
-                IoConstants.DefaultFileBufferSize,
+                ModBuilderConstants.BuildFileBufferSize,
                 FileOptions.Asynchronous | FileOptions.SequentialScan);
 
             var project = await JsonSerializer.DeserializeAsync<ModBuilderProject>(
@@ -2479,7 +2479,7 @@ public sealed class ProjectConfigService(
                 FileMode.Open,
                 FileAccess.Read,
                 FileShare.ReadWrite | FileShare.Delete,
-                IoConstants.DefaultFileBufferSize,
+                ModBuilderConstants.BuildFileBufferSize,
                 FileOptions.Asynchronous | FileOptions.SequentialScan))
             {
                 recentProjects = await JsonSerializer.DeserializeAsync<List<string>>(
@@ -2564,7 +2564,7 @@ public sealed class ProjectConfigService(
                 FileMode.CreateNew,
                 FileAccess.Write,
                 FileShare.None,
-                IoConstants.DefaultFileBufferSize,
+                ModBuilderConstants.BuildFileBufferSize,
                 FileOptions.Asynchronous | FileOptions.SequentialScan))
             {
                 await JsonSerializer.SerializeAsync(stream, value, options, cancellationToken)

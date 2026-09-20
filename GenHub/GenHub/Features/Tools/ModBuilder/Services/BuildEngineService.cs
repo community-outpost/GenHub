@@ -53,6 +53,24 @@ public sealed class BuildEngineService(
         public int IncrementDone() => Interlocked.Increment(ref _filesDone);
     }
 
+    private sealed record PackStagingPaths(
+        string BundlesDir,
+        string PackStagingDir,
+        string BuildDir,
+        string? ProjectDir);
+
+    private sealed record ManifestStageDirs(
+        string BundlesDir,
+        string BuildDir,
+        string? ReleaseDir,
+        string StagingRootDir);
+
+    private sealed record ManifestPlanEntry(
+        string Name,
+        string Version,
+        string? Publisher,
+        IReadOnlyList<BundlePack> Packs);
+
     private readonly SemaphoreSlim _buildLock = new(1, 1);
     private readonly object _abortLock = new();
 
@@ -107,6 +125,14 @@ public sealed class BuildEngineService(
             _filesSkipped = 0;
             _filesFailed = 0;
             _lastErrorMessage = null;
+
+            var duplicateNamesError = TryGetDuplicateEntryNamesError(configuration);
+            if (duplicateNamesError != null)
+            {
+                logger.LogError("Invalid bundle configuration: {Error}", duplicateNamesError);
+                sw.Stop();
+                return BuildOperationResult.CreateFailure(duplicateNamesError, 0, 0, 0, sw.Elapsed);
+            }
 
             // get or create cached build structure
             var buildStructure = await GetOrCreateBuildStructureAsync(project, configuration, buildSteps, cancellationToken)
@@ -1679,8 +1705,8 @@ public sealed class BuildEngineService(
                 Directory.CreateDirectory(targetDir);
             }
 
-            await using var sourceStream = new FileStream(sourcePath, FileMode.Open, FileAccess.Read, FileShare.Read, IoConstants.DefaultFileBufferSize, FileOptions.Asynchronous | FileOptions.SequentialScan);
-            await using var targetStream = new FileStream(targetPath, FileMode.Create, FileAccess.Write, FileShare.None, IoConstants.DefaultFileBufferSize, FileOptions.Asynchronous | FileOptions.SequentialScan);
+            await using var sourceStream = new FileStream(sourcePath, FileMode.Open, FileAccess.Read, FileShare.Read, ModBuilderConstants.BuildFileBufferSize, FileOptions.Asynchronous | FileOptions.SequentialScan);
+            await using var targetStream = new FileStream(targetPath, FileMode.Create, FileAccess.Write, FileShare.None, ModBuilderConstants.BuildFileBufferSize, FileOptions.Asynchronous | FileOptions.SequentialScan);
             await sourceStream.CopyToAsync(targetStream, cancellationToken).ConfigureAwait(false);
             return true;
         }
@@ -2638,7 +2664,6 @@ public sealed class BuildEngineService(
         CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        ValidateUniqueEntryNames(configuration);
 
         logger.LogDebug("Resolving wildcards in configuration");
         configuration = await configurationLoaderService.ResolveWildcardsAsync(configuration, cancellationToken)
@@ -2699,7 +2724,7 @@ public sealed class BuildEngineService(
         };
     }
 
-    private static void ValidateUniqueEntryNames(BuildConfiguration configuration)
+    private static string? TryGetDuplicateEntryNamesError(BuildConfiguration configuration)
     {
         // Pack references resolve by name (case-insensitive), so duplicates are
         // ambiguous. Fail fast with an actionable message instead of the
@@ -2708,7 +2733,7 @@ public sealed class BuildEngineService(
         var duplicatePacks = FindDuplicateNames(configuration.Packs.Select(pack => pack.Name));
         if (duplicateItems.Count == 0 && duplicatePacks.Count == 0)
         {
-            return;
+            return null;
         }
 
         var details = new List<string>();
@@ -2722,9 +2747,8 @@ public sealed class BuildEngineService(
             details.Add($"duplicate bundle pack name(s): {string.Join(", ", duplicatePacks)} (see ModBundlePacks.json)");
         }
 
-        throw new InvalidOperationException(
-            $"Invalid bundle configuration with {string.Join(" and ", details)}. " +
-            "Rename or remove the duplicates so pack references resolve unambiguously.");
+        return $"Invalid bundle configuration with {string.Join(" and ", details)}. " +
+            "Rename or remove the duplicates so pack references resolve unambiguously.";
     }
 
     private static IReadOnlyList<string> FindDuplicateNames(IEnumerable<string> names)
@@ -2824,22 +2848,4 @@ public sealed class BuildEngineService(
         var fullCandidate = Path.GetFullPath(candidatePath);
         return fullCandidate.StartsWith(fullBase, StringComparison.OrdinalIgnoreCase);
     }
-
-    private sealed record PackStagingPaths(
-        string BundlesDir,
-        string PackStagingDir,
-        string BuildDir,
-        string? ProjectDir);
-
-    private sealed record ManifestStageDirs(
-        string BundlesDir,
-        string BuildDir,
-        string? ReleaseDir,
-        string StagingRootDir);
-
-    private sealed record ManifestPlanEntry(
-        string Name,
-        string Version,
-        string? Publisher,
-        IReadOnlyList<BundlePack> Packs);
 }

@@ -1750,6 +1750,7 @@ public sealed class BuildEngineServiceTests : IDisposable
         result.Success.Should().BeFalse();
         result.FirstError.Should().Contain("CoreData");
         result.FirstError.Should().Contain("ModBundleItems.json");
+        result.FirstError.Should().StartWith("Invalid bundle configuration");
     }
 
     [Fact]
@@ -1787,6 +1788,7 @@ public sealed class BuildEngineServiceTests : IDisposable
         result.Success.Should().BeFalse();
         result.FirstError.Should().Contain("Release");
         result.FirstError.Should().Contain("ModBundlePacks.json");
+        result.FirstError.Should().StartWith("Invalid bundle configuration");
     }
 
     [Fact]

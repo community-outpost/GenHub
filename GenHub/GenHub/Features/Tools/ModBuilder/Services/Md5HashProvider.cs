@@ -30,7 +30,7 @@ public sealed class Md5HashProvider : IMd5HashProvider
             FileMode.Open,
             FileAccess.Read,
             FileShare.Read,
-            IoConstants.DefaultFileBufferSize,
+            ModBuilderConstants.BuildFileBufferSize,
             useAsync: true);
 
         using var md5 = MD5.Create();

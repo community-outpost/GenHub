@@ -271,7 +271,7 @@ public sealed class FileConversionService(
             FileMode.Open,
             FileAccess.Read,
             FileShare.Read,
-            IoConstants.DefaultFileBufferSize,
+            ModBuilderConstants.BuildFileBufferSize,
             useAsync: true);
 
         await using var destStream = new FileStream(
@@ -279,10 +279,10 @@ public sealed class FileConversionService(
             FileMode.Create,
             FileAccess.Write,
             FileShare.None,
-            IoConstants.DefaultFileBufferSize,
+            ModBuilderConstants.BuildFileBufferSize,
             useAsync: true);
 
-        await sourceStream.CopyToAsync(destStream, IoConstants.DefaultFileBufferSize, cancellationToken)
+        await sourceStream.CopyToAsync(destStream, ModBuilderConstants.BuildFileBufferSize, cancellationToken)
             .ConfigureAwait(false);
 
         progress?.Report(1.0);

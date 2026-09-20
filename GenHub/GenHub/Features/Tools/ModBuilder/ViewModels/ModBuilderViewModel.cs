@@ -85,6 +85,9 @@ public partial class ModBuilderViewModel(
     private bool _isPopulatingBundles;
     private bool _disposed;
     private bool _cultureSubscribed;
+    private long _lastProgressTick;
+    private string? _lastLoggedStage;
+    private int _lastLoggedPercentBucket = -1;
 
     /// <summary>
     /// Gets the file manager view model.
@@ -238,10 +241,6 @@ public partial class ModBuilderViewModel(
     /// </summary>
     [ObservableProperty]
     private string _gameDirectory = string.Empty;
-
-    private long _lastProgressTick;
-    private string? _lastLoggedStage;
-    private int _lastLoggedPercentBucket = -1;
 
     /// <summary>
     /// Gets the list of bundles.

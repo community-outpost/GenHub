@@ -411,6 +411,13 @@ public static class ModBuilderConstants
     public const string DefaultImportedGameFilesItemName = "ImportedGameFiles";
 
     /// <summary>
+    /// Buffer size for ModBuilder build-pipeline file I/O (64KB).
+    /// Scoped to the build pipeline so shared consumers of <see cref="IoConstants.DefaultFileBufferSize"/>
+    /// keep the application-wide default.
+    /// </summary>
+    public const int BuildFileBufferSize = 65536;
+
+    /// <summary>
     /// Default streaming threshold size in bytes (10MB).
     /// </summary>
     public const long DefaultStreamingThresholdBytes = 10 * 1024 * 1024;

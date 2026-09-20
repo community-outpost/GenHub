@@ -372,7 +372,7 @@ public sealed class ArchiveService(
                     FileMode.Create,
                     FileAccess.Write,
                     FileShare.None,
-                    IoConstants.DefaultFileBufferSize,
+                    ModBuilderConstants.BuildFileBufferSize,
                     useAsync: true))
                 using (var archive = new ZipArchive(zipStream, ZipArchiveMode.Create, leaveOpen: false))
                 {
@@ -390,7 +390,7 @@ public sealed class ArchiveService(
                             FileMode.Open,
                             FileAccess.Read,
                             FileShare.Read,
-                            IoConstants.DefaultFileBufferSize,
+                            ModBuilderConstants.BuildFileBufferSize,
                             useAsync: true))
                         {
                             await fileStream.CopyToAsync(entryStream, cancellationToken).ConfigureAwait(false);
@@ -480,7 +480,7 @@ public sealed class ArchiveService(
                     FileMode.Create,
                     FileAccess.Write,
                     FileShare.None,
-                    IoConstants.DefaultFileBufferSize,
+                    ModBuilderConstants.BuildFileBufferSize,
                     useAsync: true))
                 {
                     using var writer = new TarWriter(stream, new TarWriterOptions(CompressionType.None, true));
@@ -497,7 +497,7 @@ public sealed class ArchiveService(
                             FileMode.Open,
                             FileAccess.Read,
                             FileShare.Read,
-                            IoConstants.DefaultFileBufferSize,
+                            ModBuilderConstants.BuildFileBufferSize,
                             useAsync: true))
                         {
                             writer.Write(relativePath, sourceStream, fileInfo.LastWriteTimeUtc);
@@ -587,7 +587,7 @@ public sealed class ArchiveService(
                     FileMode.Create,
                     FileAccess.Write,
                     FileShare.None,
-                    IoConstants.DefaultFileBufferSize,
+                    ModBuilderConstants.BuildFileBufferSize,
                     useAsync: true))
                 {
                     using var writer = new TarWriter(stream, new TarWriterOptions(CompressionType.GZip, true));
@@ -604,7 +604,7 @@ public sealed class ArchiveService(
                             FileMode.Open,
                             FileAccess.Read,
                             FileShare.Read,
-                            IoConstants.DefaultFileBufferSize,
+                            ModBuilderConstants.BuildFileBufferSize,
                             useAsync: true))
                         {
                             writer.Write(relativePath, sourceStream, fileInfo.LastWriteTimeUtc);
