@@ -1924,6 +1924,9 @@
   <data name="Online.Error.PasswordTooShort" xml:space="preserve">
     <value>Пароль должен содержать минимум 4 символа.</value>
   </data>
+  <data name="Online.Error.AlreadyJoined" xml:space="preserve">
+    <value>Покиньте текущую сеть, прежде чем создавать новую.</value>
+  </data>
   <data name="Online.Error.PasswordTooLong" xml:space="preserve">
     <value>Пароль должен содержать не более 128 символов.</value>
   </data>

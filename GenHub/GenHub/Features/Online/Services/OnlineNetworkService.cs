@@ -246,7 +246,13 @@ public sealed class OnlineNetworkService(
 
             if (response.StatusCode == HttpStatusCode.Unauthorized)
             {
-                return OperationResult<OnlineJoinResult>.CreateFailure(OnlineConstants.ErrorWrongPassword);
+                // A second consecutive session rejection (retry exhausted)
+                // must not surface as a wrong password.
+                var code = await ReadUnauthorizedCodeAsync(response, cancellationToken);
+                var error = string.Equals(code, OnlineConstants.ErrorSessionRequired, StringComparison.Ordinal)
+                    ? OnlineConstants.ErrorServiceUnavailable
+                    : OnlineConstants.ErrorWrongPassword;
+                return OperationResult<OnlineJoinResult>.CreateFailure(error);
             }
 
             if (response.StatusCode == HttpStatusCode.Conflict)

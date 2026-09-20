@@ -206,6 +206,48 @@ public sealed class OnlineNetworkServiceTests
     }
 
     /// <summary>
+    /// Tests that a twice-rejected session surfaces as unavailable, not wrong password.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task JoinNetworkAsync_WithRepeatedSessionRejection_ShouldReturnServiceUnavailableAsync()
+    {
+        // Arrange
+        var joinCalls = 0;
+        var service = CreateService(CreateFactory(responder: request =>
+        {
+            var path = request.RequestUri?.AbsolutePath ?? string.Empty;
+            if (request.Method == HttpMethod.Post && path.EndsWith("/v1/sessions/anonymous", StringComparison.Ordinal))
+            {
+                return JsonResponse(SessionJson);
+            }
+
+            if (request.Method == HttpMethod.Post && path.EndsWith("/join", StringComparison.Ordinal))
+            {
+                joinCalls++;
+                return new HttpResponseMessage(HttpStatusCode.Unauthorized)
+                {
+                    Content = new StringContent(
+                        """{"error":"Invalid session","code":"online.session-required"}""",
+                        Encoding.UTF8,
+                        "application/json"),
+                };
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.NotFound);
+        }));
+
+        // Act
+        var result = await service.JoinNetworkAsync("net-1", "secret-password");
+
+        // Assert
+        Assert.False(result.Success);
+        Assert.Equal(2, joinCalls);
+        Assert.Contains(OnlineConstants.ErrorServiceUnavailable, result.Errors);
+        Assert.DoesNotContain(OnlineConstants.ErrorWrongPassword, result.Errors);
+    }
+
+    /// <summary>
     /// Tests that a blank network id fails without HTTP traffic.
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>

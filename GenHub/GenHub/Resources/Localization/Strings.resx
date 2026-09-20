@@ -1928,6 +1928,9 @@
   <data name="Online.Error.PasswordTooShort" xml:space="preserve">
     <value>Password must be at least 4 characters.</value>
   </data>
+  <data name="Online.Error.AlreadyJoined" xml:space="preserve">
+    <value>Leave the current network before creating a new one.</value>
+  </data>
   <data name="Online.Error.PasswordTooLong" xml:space="preserve">
     <value>Password must be at most 128 characters.</value>
   </data>

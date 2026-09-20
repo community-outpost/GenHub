@@ -1924,6 +1924,9 @@
   <data name="Online.Error.PasswordTooShort" xml:space="preserve">
     <value>يجب أن تكون كلمة المرور 4 أحرف على الأقل.</value>
   </data>
+  <data name="Online.Error.AlreadyJoined" xml:space="preserve">
+    <value>غادر الشبكة الحالية قبل إنشاء شبكة جديدة.</value>
+  </data>
   <data name="Online.Error.PasswordTooLong" xml:space="preserve">
     <value>يجب ألا تتجاوز كلمة المرور 128 حرفًا.</value>
   </data>
