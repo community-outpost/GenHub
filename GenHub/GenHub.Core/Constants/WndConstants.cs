@@ -84,6 +84,15 @@ public static class WndConstants
 
         /// <summary>Combo box control.</summary>
         public const string ComboBox = "COMBOBOX";
+
+        /// <summary>Command button control.</summary>
+        public const string CommandButton = "COMMANDBUTTON";
+
+        /// <summary>Tab control.</summary>
+        public const string TabControl = "TABCONTROL";
+
+        /// <summary>Tab pane control.</summary>
+        public const string TabPane = "TABPANE";
     }
 
     /// <summary>
@@ -132,5 +141,41 @@ public static class WndConstants
 
         /// <summary>Indentation unit for canonical output.</summary>
         public const string Indent = "  ";
+
+        /// <summary>Double quote delimiting string literals preserved verbatim.</summary>
+        public const char Quote = '"';
+    }
+
+    /// <summary>
+    /// Editor canvas and default content constants.
+    /// </summary>
+    public static class Editor
+    {
+        /// <summary>Minimum canvas zoom factor.</summary>
+        public const double MinZoom = 0.25;
+
+        /// <summary>Maximum canvas zoom factor.</summary>
+        public const double MaxZoom = 2.0;
+
+        /// <summary>Default canvas zoom factor.</summary>
+        public const double DefaultZoom = 1.0;
+
+        /// <summary>Minimum canvas width in game units.</summary>
+        public const double MinCanvasWidth = 800.0;
+
+        /// <summary>Minimum canvas height in game units.</summary>
+        public const double MinCanvasHeight = 600.0;
+
+        /// <summary>Default width for newly created windows.</summary>
+        public const int DefaultNewWindowWidth = 100;
+
+        /// <summary>Default height for newly created windows.</summary>
+        public const int DefaultNewWindowHeight = 100;
+
+        /// <summary>Default control type for newly created windows.</summary>
+        public const string DefaultNewWindowType = ControlTypes.User;
+
+        /// <summary>Default name for newly created windows.</summary>
+        public const string DefaultNewWindowName = "NewWindow";
     }
 }

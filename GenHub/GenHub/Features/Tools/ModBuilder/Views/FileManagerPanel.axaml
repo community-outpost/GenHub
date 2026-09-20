@@ -241,6 +241,17 @@
                   <TextBlock Text="{localization:Localize Tools.ModBuilder.FileManager.ButtonFormatWnd}" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center"/>
                 </StackPanel>
               </Button>
+              <Button Command="{Binding EditWndFileCommand}"
+                      Padding="8,4"
+                      Background="{DynamicResource SurfaceElevatedBrush}"
+                      BorderBrush="{DynamicResource BorderBrush}"
+                      BorderThickness="1" CornerRadius="6"
+                      VerticalContentAlignment="Center" HorizontalContentAlignment="Center"
+                      ToolTip.Tip="{localization:Localize Tools.ModBuilder.FileManager.TooltipEditWnd}">
+                <StackPanel Orientation="Horizontal" Spacing="5" VerticalAlignment="Center">
+                  <TextBlock Text="{localization:Localize Tools.ModBuilder.FileManager.ButtonEditWnd}" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                </StackPanel>
+              </Button>
               <Button Command="{Binding ImportBigFilesCommand}"
                       Padding="8,4"
                       Background="{DynamicResource SurfaceElevatedBrush}"

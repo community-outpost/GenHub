@@ -17,7 +17,6 @@ namespace GenHub.Features.Tools.WndEditor.Services;
 
 /// <summary>
 /// Service for parsing, writing, formatting, and validating window definition (.wnd) documents.
-/// Format behavior is verified against original Generals and Zero Hour game files.
 /// </summary>
 public sealed class WndDocumentService(ILogger<WndDocumentService> logger) : IWndDocumentService
 {
@@ -166,6 +165,11 @@ public sealed class WndDocumentService(ILogger<WndDocumentService> logger) : IWn
             logger.LogInformation("Formatted window definition file {Path}", filePath);
             return OperationResult<bool>.CreateSuccess(true, stopwatch.Elapsed);
         }
+        catch (OperationCanceledException)
+        {
+            DeleteTempFile(tempPath);
+            throw;
+        }
         catch (IOException ex)
         {
             logger.LogError(ex, "Failed to format window definition file {Path}", filePath);
@@ -253,53 +257,65 @@ public sealed class WndDocumentService(ILogger<WndDocumentService> logger) : IWn
     {
         while (state.HasMore && state.Errors.Count == 0)
         {
-            var line = state.PeekTrimmed();
-            if (line.Length == 0)
+            if (!ProcessTopLevelLine(state, document))
             {
-                state.Advance();
-                continue;
-            }
-
-            if (string.Equals(line, WndConstants.BlockTags.StartLayoutBlock, StringComparison.Ordinal))
-            {
-                state.Advance();
-                ParseLayoutBlock(state, document);
-                continue;
-            }
-
-            if (string.Equals(line, WndConstants.BlockTags.Window, StringComparison.Ordinal))
-            {
-                var window = ParseWindow(state);
-                if (window != null)
-                {
-                    document.Windows.Add(window);
-                }
-
-                continue;
-            }
-
-            if (IsBlockTag(line))
-            {
-                state.AddError($"Unexpected block tag '{line}' outside a window.");
-                return;
-            }
-
-            var property = ReadStatement(state);
-            if (property == null)
-            {
-                return;
-            }
-
-            if (string.Equals(property.Key, WndConstants.PropertyKeys.FileVersion, StringComparison.Ordinal))
-            {
-                document.FileVersion = property.Value;
-            }
-            else
-            {
-                state.AddError($"Unexpected top-level property '{property.Key}'.");
                 return;
             }
         }
+    }
+
+    private static bool ProcessTopLevelLine(ParserState state, WndDocument document)
+    {
+        var line = state.PeekTrimmed();
+        if (line.Length == 0)
+        {
+            state.Advance();
+            return true;
+        }
+
+        if (string.Equals(line, WndConstants.BlockTags.StartLayoutBlock, StringComparison.Ordinal))
+        {
+            state.Advance();
+            ParseLayoutBlock(state, document);
+            return state.Errors.Count == 0;
+        }
+
+        if (string.Equals(line, WndConstants.BlockTags.Window, StringComparison.Ordinal))
+        {
+            var window = ParseWindow(state);
+            if (window != null)
+            {
+                document.Windows.Add(window);
+            }
+
+            return state.Errors.Count == 0;
+        }
+
+        if (IsBlockTag(line))
+        {
+            state.AddError($"Unexpected block tag '{line}' outside a window.");
+            return false;
+        }
+
+        return ProcessTopLevelProperty(state, document);
+    }
+
+    private static bool ProcessTopLevelProperty(ParserState state, WndDocument document)
+    {
+        var property = ReadStatement(state);
+        if (property == null)
+        {
+            return false;
+        }
+
+        if (!string.Equals(property.Key, WndConstants.PropertyKeys.FileVersion, StringComparison.Ordinal))
+        {
+            state.AddError($"Unexpected top-level property '{property.Key}'.");
+            return false;
+        }
+
+        document.FileVersion = property.Value;
+        return true;
     }
 
     private static void ParseLayoutBlock(ParserState state, WndDocument document)
@@ -348,58 +364,16 @@ public sealed class WndDocumentService(ILogger<WndDocumentService> logger) : IWn
 
         while (state.HasMore && state.Errors.Count == 0)
         {
-            var line = state.PeekTrimmed();
-            if (line.Length == 0)
+            if (!ProcessWindowLine(state, window, ref childrenClosed, out var finished))
             {
-                state.Advance();
-                continue;
+                return null;
             }
 
-            if (string.Equals(line, WndConstants.BlockTags.End, StringComparison.Ordinal))
+            if (finished)
             {
-                state.Advance();
                 ApplyWindowType(window);
                 return window;
             }
-
-            if (string.Equals(line, WndConstants.BlockTags.Child, StringComparison.Ordinal))
-            {
-                if (childrenClosed)
-                {
-                    state.AddError("Unexpected 'CHILD' after 'ENDALLCHILDREN'.");
-                    return null;
-                }
-
-                var child = ParseChild(state);
-                if (child == null)
-                {
-                    return null;
-                }
-
-                window.Children.Add(child);
-                continue;
-            }
-
-            if (string.Equals(line, WndConstants.BlockTags.EndAllChildren, StringComparison.Ordinal))
-            {
-                state.Advance();
-                childrenClosed = true;
-                continue;
-            }
-
-            if (IsBlockTag(line))
-            {
-                state.AddError($"Unexpected block tag '{line}' inside a window.");
-                return null;
-            }
-
-            var property = ReadStatement(state);
-            if (property == null)
-            {
-                return null;
-            }
-
-            window.Properties.Add(property);
         }
 
         if (state.Errors.Count == 0)
@@ -408,6 +382,99 @@ public sealed class WndDocumentService(ILogger<WndDocumentService> logger) : IWn
         }
 
         return null;
+    }
+
+    private static bool ProcessWindowLine(ParserState state, WndWindow window, ref bool childrenClosed, out bool finished)
+    {
+        finished = false;
+        var line = state.PeekTrimmed();
+        if (line.Length == 0)
+        {
+            state.Advance();
+            return true;
+        }
+
+        if (string.Equals(line, WndConstants.BlockTags.End, StringComparison.Ordinal))
+        {
+            state.Advance();
+            finished = true;
+            return true;
+        }
+
+        if (TryParseNestedChild(state, window, line, ref childrenClosed))
+        {
+            return state.Errors.Count == 0;
+        }
+
+        if (TryCloseChildren(state, line, ref childrenClosed))
+        {
+            return true;
+        }
+
+        return TryParseWindowProperty(state, window, line);
+    }
+
+    private static bool TryParseNestedChild(ParserState state, WndWindow window, string line, ref bool childrenClosed)
+    {
+        if (string.Equals(line, WndConstants.BlockTags.Child, StringComparison.Ordinal))
+        {
+            if (childrenClosed)
+            {
+                state.AddError("Unexpected 'CHILD' after 'ENDALLCHILDREN'.");
+                return true;
+            }
+
+            var child = ParseChild(state);
+            if (child != null)
+            {
+                window.Children.Add(child);
+            }
+
+            return true;
+        }
+
+        if (string.Equals(line, WndConstants.BlockTags.Window, StringComparison.Ordinal))
+        {
+            var nested = ParseWindow(state);
+            if (nested != null)
+            {
+                window.Children.Add(nested);
+            }
+
+            return true;
+        }
+
+        return false;
+    }
+
+    private static bool TryCloseChildren(ParserState state, string line, ref bool childrenClosed)
+    {
+        if (!string.Equals(line, WndConstants.BlockTags.EndAllChildren, StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        state.Advance();
+        childrenClosed = true;
+        return true;
+    }
+
+    private static bool TryParseWindowProperty(ParserState state, WndWindow window, string line)
+    {
+        if (IsBlockTag(line))
+        {
+            state.AddError($"Unexpected block tag '{line}' inside a window.");
+            return false;
+        }
+
+        var property = ReadStatement(state);
+        if (property == null)
+        {
+            return false;
+        }
+
+        window.Properties.Add(property);
+        return true;
     }
 
     private static WndWindow? ParseChild(ParserState state)
@@ -551,24 +618,43 @@ public sealed class WndDocumentService(ILogger<WndDocumentService> logger) : IWn
     {
         var builder = new StringBuilder(value.Length);
         var pendingSpace = false;
+        var inQuotes = false;
         foreach (var ch in value)
         {
+            if (ch == WndConstants.Syntax.Quote)
+            {
+                AppendPendingSpace(builder, ref pendingSpace);
+                inQuotes = !inQuotes;
+                builder.Append(ch);
+                continue;
+            }
+
+            if (inQuotes)
+            {
+                builder.Append(ch);
+                continue;
+            }
+
             if (char.IsWhiteSpace(ch))
             {
                 pendingSpace = builder.Length > 0;
                 continue;
             }
 
-            if (pendingSpace)
-            {
-                builder.Append(' ');
-                pendingSpace = false;
-            }
-
+            AppendPendingSpace(builder, ref pendingSpace);
             builder.Append(ch);
         }
 
         return builder.ToString();
+    }
+
+    private static void AppendPendingSpace(StringBuilder builder, ref bool pendingSpace)
+    {
+        if (pendingSpace)
+        {
+            builder.Append(' ');
+            pendingSpace = false;
+        }
     }
 
     private static void ValidateWindow(WndWindow window, string path, string targetPath, List<ValidationIssue> issues)

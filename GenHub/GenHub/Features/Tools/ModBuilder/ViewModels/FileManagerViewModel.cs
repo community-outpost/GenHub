@@ -2,11 +2,13 @@ using Avalonia;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using CommunityToolkit.Mvvm.Messaging;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Interfaces.Tools.WndEditor;
+using GenHub.Core.Messages;
 using GenHub.Core.Models.GameInstallations;
 using GenHub.Features.Tools.ModBuilder.Models;
 using Microsoft.Extensions.Logging;
@@ -32,6 +34,12 @@ public partial class FileManagerViewModel(
     ILocalizationService localizationService,
     ILogger<FileManagerViewModel> logger) : ObservableObject, IDisposable
 {
+    private enum WndFileOperation
+    {
+        Validate,
+        Format,
+    }
+
     private readonly ConcurrentDictionary<string, (long Length, DateTime LastWriteTimeUtc, string Hash)> _fileHashCache = new(StringComparer.OrdinalIgnoreCase);
     private readonly SemaphoreSlim _loadLock = new(1, 1);
     private CancellationTokenSource? _reloadCts;
@@ -877,15 +885,7 @@ public partial class FileManagerViewModel(
     [RelayCommand]
     private async Task ValidateWndFilesAsync(CancellationToken cancellationToken = default)
     {
-        await RunWndFileOperationAsync(
-            ValidateSingleWndFileAsync,
-            "Tools.ModBuilder.Wnd.ProgressValidating",
-            "Tools.ModBuilder.Wnd.ValidateSuccessTitle",
-            "Tools.ModBuilder.Wnd.ValidateSuccessMessage",
-            "Tools.ModBuilder.Wnd.ValidateIssuesTitle",
-            "Tools.ModBuilder.Wnd.ValidateIssuesMessage",
-            refreshAfter: false,
-            cancellationToken).ConfigureAwait(false);
+        await RunWndFileOperationAsync(WndFileOperation.Validate, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -894,27 +894,30 @@ public partial class FileManagerViewModel(
     [RelayCommand]
     private async Task FormatWndFilesAsync(CancellationToken cancellationToken = default)
     {
-        await RunWndFileOperationAsync(
-            FormatSingleWndFileAsync,
-            "Tools.ModBuilder.Wnd.ProgressFormatting",
-            "Tools.ModBuilder.Wnd.FormatSuccessTitle",
-            "Tools.ModBuilder.Wnd.FormatSuccessMessage",
-            "Tools.ModBuilder.Wnd.FormatIssuesTitle",
-            "Tools.ModBuilder.Wnd.FormatIssuesMessage",
-            refreshAfter: true,
-            cancellationToken).ConfigureAwait(false);
+        await RunWndFileOperationAsync(WndFileOperation.Format, cancellationToken).ConfigureAwait(false);
     }
 
-    private async Task RunWndFileOperationAsync(
-        Func<string, CancellationToken, Task<(bool Succeeded, string? Problem)>> operateAsync,
-        string progressKey,
-        string successTitleKey,
-        string successMessageKey,
-        string issuesTitleKey,
-        string issuesMessageKey,
-        bool refreshAfter,
-        CancellationToken cancellationToken)
+    private async Task RunWndFileOperationAsync(WndFileOperation operation, CancellationToken cancellationToken)
     {
+        var keys = operation switch
+        {
+            WndFileOperation.Validate => (
+                Progress: "Tools.ModBuilder.Wnd.ProgressValidating",
+                SuccessTitle: "Tools.ModBuilder.Wnd.ValidateSuccessTitle",
+                SuccessMessage: "Tools.ModBuilder.Wnd.ValidateSuccessMessage",
+                IssuesTitle: "Tools.ModBuilder.Wnd.ValidateIssuesTitle",
+                IssuesMessage: "Tools.ModBuilder.Wnd.ValidateIssuesMessage",
+                RefreshAfter: false),
+            WndFileOperation.Format => (
+                Progress: "Tools.ModBuilder.Wnd.ProgressFormatting",
+                SuccessTitle: "Tools.ModBuilder.Wnd.FormatSuccessTitle",
+                SuccessMessage: "Tools.ModBuilder.Wnd.FormatSuccessMessage",
+                IssuesTitle: "Tools.ModBuilder.Wnd.FormatIssuesTitle",
+                IssuesMessage: "Tools.ModBuilder.Wnd.FormatIssuesMessage",
+                RefreshAfter: true),
+            _ => throw new ArgumentOutOfRangeException(nameof(operation)),
+        };
+
         var wndFiles = CollectSelectedWndFiles();
         if (wndFiles.Count == 0)
         {
@@ -936,7 +939,9 @@ public partial class FileManagerViewModel(
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 var file = wndFiles[i];
-                var outcome = await operateAsync(file, cancellationToken).ConfigureAwait(false);
+                var outcome = operation == WndFileOperation.Validate
+                    ? await ValidateSingleWndFileAsync(file, cancellationToken).ConfigureAwait(false)
+                    : await FormatSingleWndFileAsync(file, cancellationToken).ConfigureAwait(false);
                 if (outcome.Succeeded)
                 {
                     succeededCount++;
@@ -948,28 +953,28 @@ public partial class FileManagerViewModel(
 
                 var current = i + 1;
                 var percent = (current / (double)total) * 100.0;
-                ReportWndProgress(percent, progressKey, current, total, file);
+                ReportWndProgress(percent, keys.Progress, current, total, file);
             }
 
-            if (refreshAfter)
+            if (keys.RefreshAfter)
             {
                 await LoadProjectFilesAsync(cancellationToken).ConfigureAwait(false);
             }
 
             if (succeededCount == total)
             {
-                var message = localizationService.GetString(successMessageKey, succeededCount, total);
+                var message = localizationService.GetString(keys.SuccessMessage, succeededCount, total);
                 notificationService.ShowSuccess(
-                    localizationService.GetString(successTitleKey),
+                    localizationService.GetString(keys.SuccessTitle),
                     message,
                     NotificationDurations.Medium);
                 StatusMessage = message;
             }
             else
             {
-                var message = localizationService.GetString(issuesMessageKey, succeededCount, total, firstProblem ?? string.Empty);
+                var message = localizationService.GetString(keys.IssuesMessage, succeededCount, total, firstProblem ?? string.Empty);
                 notificationService.ShowWarning(
-                    localizationService.GetString(issuesTitleKey),
+                    localizationService.GetString(keys.IssuesTitle),
                     message,
                     NotificationDurations.Long);
                 StatusMessage = message;
@@ -1021,6 +1026,25 @@ public partial class FileManagerViewModel(
     {
         var result = await wndDocumentService.FormatFileAsync(file, cancellationToken).ConfigureAwait(false);
         return (result.Success, result.FirstError);
+    }
+
+    /// <summary>
+    /// Opens the first selected window definition (.wnd) file in the WND editor tool.
+    /// </summary>
+    [RelayCommand]
+    private void EditWndFile()
+    {
+        var wndFiles = CollectSelectedWndFiles();
+        if (wndFiles.Count == 0)
+        {
+            notificationService.ShowInfo(
+                localizationService.GetString("Tools.ModBuilder.Wnd.NoSelectionTitle"),
+                localizationService.GetString("Tools.ModBuilder.Wnd.NoSelectionMessage"),
+                NotificationDurations.Short);
+            return;
+        }
+
+        WeakReferenceMessenger.Default.Send(new OpenFileInToolMessage(ToolConstants.WndEditor.Id, wndFiles[0]));
     }
 
     private List<string> CollectSelectedWndFiles()

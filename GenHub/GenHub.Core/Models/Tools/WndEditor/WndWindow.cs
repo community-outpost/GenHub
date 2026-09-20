@@ -65,6 +65,9 @@ public sealed class WndWindow
             WndConstants.ControlTypes.VertSlider => WndControlType.VertSlider,
             WndConstants.ControlTypes.ScrollListBox => WndControlType.ScrollListBox,
             WndConstants.ControlTypes.ComboBox => WndControlType.ComboBox,
+            WndConstants.ControlTypes.CommandButton => WndControlType.CommandButton,
+            WndConstants.ControlTypes.TabControl => WndControlType.TabControl,
+            WndConstants.ControlTypes.TabPane => WndControlType.TabPane,
             _ => WndControlType.Unknown,
         };
     }
@@ -95,6 +98,16 @@ public sealed class WndWindow
         {
             Properties.Add(new WndProperty(key, value));
         }
+    }
+
+    /// <summary>
+    /// Removes all properties with the given key.
+    /// </summary>
+    /// <param name="key">The property key.</param>
+    /// <returns>True when at least one property was removed.</returns>
+    public bool RemoveProperty(string key)
+    {
+        return Properties.RemoveAll(p => string.Equals(p.Key, key, StringComparison.Ordinal)) > 0;
     }
 
     /// <summary>

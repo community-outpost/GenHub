@@ -64,4 +64,19 @@ public enum WndControlType
     /// Combo box control.
     /// </summary>
     ComboBox,
+
+    /// <summary>
+    /// Command button control.
+    /// </summary>
+    CommandButton,
+
+    /// <summary>
+    /// Tab control.
+    /// </summary>
+    TabControl,
+
+    /// <summary>
+    /// Tab pane control.
+    /// </summary>
+    TabPane,
 }

@@ -7147,6 +7147,171 @@ GenHub هو مشغل ومدير حديث لألعاب **Command &amp; Conquer: G
   <data name="Tools.ModBuilder.Wnd.ProgressFormatting" xml:space="preserve">
     <value>جارٍ التنسيق ({0}/{1}): {2}</value>
   </data>
+  <data name="Tools.Plugin.genhub.tools.wndeditor.Name" xml:space="preserve">
+    <value>محرر WND</value>
+  </data>
+  <data name="Tools.Plugin.genhub.tools.wndeditor.Description" xml:space="preserve">
+    <value>محرر مرئي لملفات تعريف النوافذ (.wnd). تصفح التسلسل الهرمي، وحرر الخصائص، وعاين الهندسة، واحفظ بالتنسيق الأصلي.</value>
+  </data>
+  <data name="Tools.ModBuilder.FileManager.ButtonEditWnd" xml:space="preserve">
+    <value>تحرير في محرر WND</value>
+  </data>
+  <data name="Tools.ModBuilder.FileManager.TooltipEditWnd" xml:space="preserve">
+    <value>افتح ملف .wnd المحدد في محرر WND</value>
+  </data>
+  <data name="Tools.WndEditor.Toolbar.New" xml:space="preserve">
+    <value>جديد</value>
+  </data>
+  <data name="Tools.WndEditor.Toolbar.Open" xml:space="preserve">
+    <value>فتح</value>
+  </data>
+  <data name="Tools.WndEditor.Toolbar.Save" xml:space="preserve">
+    <value>حفظ</value>
+  </data>
+  <data name="Tools.WndEditor.Toolbar.SaveAs" xml:space="preserve">
+    <value>حفظ باسم</value>
+  </data>
+  <data name="Tools.WndEditor.Toolbar.Undo" xml:space="preserve">
+    <value>تراجع</value>
+  </data>
+  <data name="Tools.WndEditor.Toolbar.Redo" xml:space="preserve">
+    <value>إعادة</value>
+  </data>
+  <data name="Tools.WndEditor.Toolbar.Validate" xml:space="preserve">
+    <value>التحقق</value>
+  </data>
+  <data name="Tools.WndEditor.Pane.Windows" xml:space="preserve">
+    <value>النوافذ</value>
+  </data>
+  <data name="Tools.WndEditor.Pane.Preview" xml:space="preserve">
+    <value>معاينة</value>
+  </data>
+  <data name="Tools.WndEditor.Pane.Properties" xml:space="preserve">
+    <value>الخصائص</value>
+  </data>
+  <data name="Tools.WndEditor.Tree.AddChild" xml:space="preserve">
+    <value>إضافة فرع</value>
+  </data>
+  <data name="Tools.WndEditor.Tree.Delete" xml:space="preserve">
+    <value>حذف</value>
+  </data>
+  <data name="Tools.WndEditor.Canvas.Zoom" xml:space="preserve">
+    <value>تكبير</value>
+  </data>
+  <data name="Tools.WndEditor.Canvas.ZoomTooltip" xml:space="preserve">
+    <value>تكبير لوحة المعاينة</value>
+  </data>
+  <data name="Tools.WndEditor.Properties.Delete" xml:space="preserve">
+    <value>حذف</value>
+  </data>
+  <data name="Tools.WndEditor.Properties.KeyWatermark" xml:space="preserve">
+    <value>المفتاح</value>
+  </data>
+  <data name="Tools.WndEditor.Properties.ValueWatermark" xml:space="preserve">
+    <value>القيمة</value>
+  </data>
+  <data name="Tools.WndEditor.Properties.Add" xml:space="preserve">
+    <value>إضافة</value>
+  </data>
+  <data name="Tools.WndEditor.Document.Untitled" xml:space="preserve">
+    <value>بدون عنوان</value>
+  </data>
+  <data name="Tools.WndEditor.Empty.Title" xml:space="preserve">
+    <value>لا يوجد مستند مفتوح</value>
+  </data>
+  <data name="Tools.WndEditor.Empty.Message" xml:space="preserve">
+    <value>افتح ملف .wnd أو أنشئ مستندًا جديدًا لبدء التحرير.</value>
+  </data>
+  <data name="Tools.WndEditor.Empty.OpenButton" xml:space="preserve">
+    <value>فتح ملف</value>
+  </data>
+  <data name="Tools.WndEditor.Empty.NewButton" xml:space="preserve">
+    <value>مستند جديد</value>
+  </data>
+  <data name="Tools.WndEditor.FileDialog.OpenTitle" xml:space="preserve">
+    <value>فتح ملف تعريف النوافذ</value>
+  </data>
+  <data name="Tools.WndEditor.FileDialog.SaveTitle" xml:space="preserve">
+    <value>حفظ ملف تعريف النوافذ</value>
+  </data>
+  <data name="Tools.WndEditor.FileDialog.FilterName" xml:space="preserve">
+    <value>ملفات تخطيط WND</value>
+  </data>
+  <data name="Tools.WndEditor.Validate.SuccessTitle" xml:space="preserve">
+    <value>المستند صالح</value>
+  </data>
+  <data name="Tools.WndEditor.Validate.SuccessMessage" xml:space="preserve">
+    <value>اجتاز المستند المفتوح التحقق.</value>
+  </data>
+  <data name="Tools.WndEditor.Validate.IssuesTitle" xml:space="preserve">
+    <value>عثر التحقق على مشكلات</value>
+  </data>
+  <data name="Tools.WndEditor.Validate.IssuesMessage" xml:space="preserve">
+    <value>{0} خطأ، {1} تحذير. أول مشكلة: {2}</value>
+  </data>
+  <data name="Tools.WndEditor.Save.SuccessTitle" xml:space="preserve">
+    <value>تم حفظ الملف</value>
+  </data>
+  <data name="Tools.WndEditor.Save.SuccessMessage" xml:space="preserve">
+    <value>تم حفظ {0}.</value>
+  </data>
+  <data name="Tools.WndEditor.Save.FailureTitle" xml:space="preserve">
+    <value>فشل الحفظ</value>
+  </data>
+  <data name="Tools.WndEditor.Save.FailureMessage" xml:space="preserve">
+    <value>تعذر حفظ الملف: {0}</value>
+  </data>
+  <data name="Tools.WndEditor.Open.FailureTitle" xml:space="preserve">
+    <value>فشل الفتح</value>
+  </data>
+  <data name="Tools.WndEditor.Open.FailureMessage" xml:space="preserve">
+    <value>تعذر فتح الملف: {0}</value>
+  </data>
+  <data name="Tools.WndEditor.UnsavedChanges.Title" xml:space="preserve">
+    <value>تغييرات غير محفوظة</value>
+  </data>
+  <data name="Tools.WndEditor.UnsavedChanges.Message" xml:space="preserve">
+    <value>يحتوي المستند المفتوح على تغييرات غير محفوظة. هل تريد تجاهلها؟</value>
+  </data>
+  <data name="Tools.WndEditor.UnsavedChanges.Discard" xml:space="preserve">
+    <value>تجاهل</value>
+  </data>
+  <data name="Tools.WndEditor.UnsavedChanges.Cancel" xml:space="preserve">
+    <value>إلغاء</value>
+  </data>
+  <data name="Tools.WndEditor.History.AddWindow" xml:space="preserve">
+    <value>إضافة نافذة</value>
+  </data>
+  <data name="Tools.WndEditor.History.DeleteWindow" xml:space="preserve">
+    <value>حذف نافذة</value>
+  </data>
+  <data name="Tools.WndEditor.History.AddProperty" xml:space="preserve">
+    <value>إضافة الخاصية {0}</value>
+  </data>
+  <data name="Tools.WndEditor.History.DeleteProperty" xml:space="preserve">
+    <value>حذف الخاصية {0}</value>
+  </data>
+  <data name="Tools.WndEditor.History.EditProperty" xml:space="preserve">
+    <value>تحرير الخاصية {0}</value>
+  </data>
+  <data name="Tools.WndEditor.History.MoveWindow" xml:space="preserve">
+    <value>نقل النافذة</value>
+  </data>
+  <data name="Tools.WndEditor.Property.EmptyKeyTitle" xml:space="preserve">
+    <value>مفتاح الخاصية فارغ</value>
+  </data>
+  <data name="Tools.WndEditor.Property.EmptyKeyMessage" xml:space="preserve">
+    <value>أدخل مفتاح الخاصية قبل الإضافة.</value>
+  </data>
+  <data name="Tools.WndEditor.Property.DuplicateKeyTitle" xml:space="preserve">
+    <value>مفتاح الخاصية مكرر</value>
+  </data>
+  <data name="Tools.WndEditor.Property.DuplicateKeyMessage" xml:space="preserve">
+    <value>النافذة المحددة تحتوي بالفعل على خاصية باسم {0}.</value>
+  </data>
+  <data name="Tools.WndEditor.Error.LoadFailed" xml:space="preserve">
+    <value>خطأ في تحميل محرر WND</value>
+  </data>
   <data name="Tools.ModBuilder.BundleEditor.Title" xml:space="preserve">
     <value>محرر حزم الحزم</value>
   </data>

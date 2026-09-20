@@ -7245,6 +7245,171 @@ GenHub supports four file linking strategies under **Settings -&gt; Game Configu
   <data name="Tools.ModBuilder.Wnd.ProgressFormatting" xml:space="preserve">
     <value>Formatting ({0}/{1}): {2}</value>
   </data>
+  <data name="Tools.Plugin.genhub.tools.wndeditor.Name" xml:space="preserve">
+    <value>WND Editor</value>
+  </data>
+  <data name="Tools.Plugin.genhub.tools.wndeditor.Description" xml:space="preserve">
+    <value>Visual editor for window definition (.wnd) menu layouts. Browse the hierarchy, edit properties, preview geometry, and save back to the game format.</value>
+  </data>
+  <data name="Tools.ModBuilder.FileManager.ButtonEditWnd" xml:space="preserve">
+    <value>Edit in WND Editor</value>
+  </data>
+  <data name="Tools.ModBuilder.FileManager.TooltipEditWnd" xml:space="preserve">
+    <value>Open the selected .wnd file in the WND editor</value>
+  </data>
+  <data name="Tools.WndEditor.Toolbar.New" xml:space="preserve">
+    <value>New</value>
+  </data>
+  <data name="Tools.WndEditor.Toolbar.Open" xml:space="preserve">
+    <value>Open</value>
+  </data>
+  <data name="Tools.WndEditor.Toolbar.Save" xml:space="preserve">
+    <value>Save</value>
+  </data>
+  <data name="Tools.WndEditor.Toolbar.SaveAs" xml:space="preserve">
+    <value>Save As</value>
+  </data>
+  <data name="Tools.WndEditor.Toolbar.Undo" xml:space="preserve">
+    <value>Undo</value>
+  </data>
+  <data name="Tools.WndEditor.Toolbar.Redo" xml:space="preserve">
+    <value>Redo</value>
+  </data>
+  <data name="Tools.WndEditor.Toolbar.Validate" xml:space="preserve">
+    <value>Validate</value>
+  </data>
+  <data name="Tools.WndEditor.Pane.Windows" xml:space="preserve">
+    <value>Windows</value>
+  </data>
+  <data name="Tools.WndEditor.Pane.Preview" xml:space="preserve">
+    <value>Preview</value>
+  </data>
+  <data name="Tools.WndEditor.Pane.Properties" xml:space="preserve">
+    <value>Properties</value>
+  </data>
+  <data name="Tools.WndEditor.Tree.AddChild" xml:space="preserve">
+    <value>Add Child</value>
+  </data>
+  <data name="Tools.WndEditor.Tree.Delete" xml:space="preserve">
+    <value>Delete</value>
+  </data>
+  <data name="Tools.WndEditor.Canvas.Zoom" xml:space="preserve">
+    <value>Zoom</value>
+  </data>
+  <data name="Tools.WndEditor.Canvas.ZoomTooltip" xml:space="preserve">
+    <value>Zoom the preview canvas</value>
+  </data>
+  <data name="Tools.WndEditor.Properties.Delete" xml:space="preserve">
+    <value>Delete</value>
+  </data>
+  <data name="Tools.WndEditor.Properties.KeyWatermark" xml:space="preserve">
+    <value>Key</value>
+  </data>
+  <data name="Tools.WndEditor.Properties.ValueWatermark" xml:space="preserve">
+    <value>Value</value>
+  </data>
+  <data name="Tools.WndEditor.Properties.Add" xml:space="preserve">
+    <value>Add</value>
+  </data>
+  <data name="Tools.WndEditor.Document.Untitled" xml:space="preserve">
+    <value>Untitled</value>
+  </data>
+  <data name="Tools.WndEditor.Empty.Title" xml:space="preserve">
+    <value>No document open</value>
+  </data>
+  <data name="Tools.WndEditor.Empty.Message" xml:space="preserve">
+    <value>Open a .wnd file or create a new document to begin editing.</value>
+  </data>
+  <data name="Tools.WndEditor.Empty.OpenButton" xml:space="preserve">
+    <value>Open File</value>
+  </data>
+  <data name="Tools.WndEditor.Empty.NewButton" xml:space="preserve">
+    <value>New Document</value>
+  </data>
+  <data name="Tools.WndEditor.FileDialog.OpenTitle" xml:space="preserve">
+    <value>Open window definition file</value>
+  </data>
+  <data name="Tools.WndEditor.FileDialog.SaveTitle" xml:space="preserve">
+    <value>Save window definition file</value>
+  </data>
+  <data name="Tools.WndEditor.FileDialog.FilterName" xml:space="preserve">
+    <value>WND layout files</value>
+  </data>
+  <data name="Tools.WndEditor.Validate.SuccessTitle" xml:space="preserve">
+    <value>Document is valid</value>
+  </data>
+  <data name="Tools.WndEditor.Validate.SuccessMessage" xml:space="preserve">
+    <value>The open document passed validation.</value>
+  </data>
+  <data name="Tools.WndEditor.Validate.IssuesTitle" xml:space="preserve">
+    <value>Validation found issues</value>
+  </data>
+  <data name="Tools.WndEditor.Validate.IssuesMessage" xml:space="preserve">
+    <value>{0} error(s), {1} warning(s). First issue: {2}</value>
+  </data>
+  <data name="Tools.WndEditor.Save.SuccessTitle" xml:space="preserve">
+    <value>File saved</value>
+  </data>
+  <data name="Tools.WndEditor.Save.SuccessMessage" xml:space="preserve">
+    <value>Saved {0}.</value>
+  </data>
+  <data name="Tools.WndEditor.Save.FailureTitle" xml:space="preserve">
+    <value>Save failed</value>
+  </data>
+  <data name="Tools.WndEditor.Save.FailureMessage" xml:space="preserve">
+    <value>Could not save the file: {0}</value>
+  </data>
+  <data name="Tools.WndEditor.Open.FailureTitle" xml:space="preserve">
+    <value>Open failed</value>
+  </data>
+  <data name="Tools.WndEditor.Open.FailureMessage" xml:space="preserve">
+    <value>Could not open the file: {0}</value>
+  </data>
+  <data name="Tools.WndEditor.UnsavedChanges.Title" xml:space="preserve">
+    <value>Unsaved changes</value>
+  </data>
+  <data name="Tools.WndEditor.UnsavedChanges.Message" xml:space="preserve">
+    <value>The open document has unsaved changes. Discard them?</value>
+  </data>
+  <data name="Tools.WndEditor.UnsavedChanges.Discard" xml:space="preserve">
+    <value>Discard</value>
+  </data>
+  <data name="Tools.WndEditor.UnsavedChanges.Cancel" xml:space="preserve">
+    <value>Cancel</value>
+  </data>
+  <data name="Tools.WndEditor.History.AddWindow" xml:space="preserve">
+    <value>Add window</value>
+  </data>
+  <data name="Tools.WndEditor.History.DeleteWindow" xml:space="preserve">
+    <value>Delete window</value>
+  </data>
+  <data name="Tools.WndEditor.History.AddProperty" xml:space="preserve">
+    <value>Add property {0}</value>
+  </data>
+  <data name="Tools.WndEditor.History.DeleteProperty" xml:space="preserve">
+    <value>Delete property {0}</value>
+  </data>
+  <data name="Tools.WndEditor.History.EditProperty" xml:space="preserve">
+    <value>Edit property {0}</value>
+  </data>
+  <data name="Tools.WndEditor.History.MoveWindow" xml:space="preserve">
+    <value>Move window</value>
+  </data>
+  <data name="Tools.WndEditor.Property.EmptyKeyTitle" xml:space="preserve">
+    <value>Empty property key</value>
+  </data>
+  <data name="Tools.WndEditor.Property.EmptyKeyMessage" xml:space="preserve">
+    <value>Enter a property key before adding.</value>
+  </data>
+  <data name="Tools.WndEditor.Property.DuplicateKeyTitle" xml:space="preserve">
+    <value>Duplicate property key</value>
+  </data>
+  <data name="Tools.WndEditor.Property.DuplicateKeyMessage" xml:space="preserve">
+    <value>The selected window already has a property named {0}.</value>
+  </data>
+  <data name="Tools.WndEditor.Error.LoadFailed" xml:space="preserve">
+    <value>Error loading WND Editor</value>
+  </data>
   <data name="Tools.ModBuilder.BundleEditor.Title" xml:space="preserve">
     <value>Bundle Pack Editor</value>
   </data>

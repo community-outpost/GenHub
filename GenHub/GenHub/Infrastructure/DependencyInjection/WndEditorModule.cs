@@ -1,5 +1,8 @@
+using GenHub.Core.Interfaces.Tools;
 using GenHub.Core.Interfaces.Tools.WndEditor;
+using GenHub.Features.Tools.WndEditor;
 using GenHub.Features.Tools.WndEditor.Services;
+using GenHub.Features.Tools.WndEditor.ViewModels;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace GenHub.Infrastructure.DependencyInjection;
@@ -17,6 +20,8 @@ public static class WndEditorModule
     public static IServiceCollection AddWndEditor(this IServiceCollection services)
     {
         services.AddSingleton<IWndDocumentService, WndDocumentService>();
+        services.AddTransient<WndEditorViewModel>();
+        services.AddSingleton<IToolPlugin, WndEditorToolPlugin>();
 
         return services;
     }

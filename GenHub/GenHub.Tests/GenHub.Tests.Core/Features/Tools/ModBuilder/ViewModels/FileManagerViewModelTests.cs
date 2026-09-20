@@ -9,11 +9,13 @@ using System.Collections.Generic;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
+using CommunityToolkit.Mvvm.Messaging;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Interfaces.Tools.WndEditor;
+using GenHub.Core.Messages;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameInstallations;
 using GenHub.Core.Models.Results;
@@ -201,5 +203,51 @@ public class FileManagerViewModelTests : IDisposable
             wndService,
             _mockLocalizationService.Object,
             _mockLogger.Object);
+    }
+
+    [Fact]
+    public async Task EditWndFileCommand_WithWndSelected_SendsOpenMessage()
+    {
+        var wndPath = Path.Combine(_projectDir, "GameFilesEdited", "Edit.wnd");
+        await File.WriteAllTextAsync(wndPath, "WINDOW\n  WINDOWTYPE = USER;\nEND\n");
+
+        var recipient = new OpenFileMessageRecipient();
+        try
+        {
+            WeakReferenceMessenger.Default.Register<OpenFileInToolMessage>(recipient);
+
+            var viewModel = CreateViewModelWithRealWndService();
+            viewModel.SelectedProjectFile = new FileTreeNode { Name = "Edit.wnd", FullPath = wndPath, IsDirectory = false };
+            viewModel.EditWndFileCommand.Execute(null);
+
+            Assert.Single(recipient.Received);
+            Assert.Equal(ToolConstants.WndEditor.Id, recipient.Received[0].ToolId);
+            Assert.Equal(wndPath, recipient.Received[0].FilePath);
+        }
+        finally
+        {
+            WeakReferenceMessenger.Default.UnregisterAll(recipient);
+        }
+    }
+
+    [Fact]
+    public void EditWndFileCommand_WithNoSelection_ShowsInfo()
+    {
+        var viewModel = CreateViewModelWithRealWndService();
+        viewModel.EditWndFileCommand.Execute(null);
+
+        _mockNotificationService.Verify(
+            n => n.ShowInfo(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
+            Times.Once);
+    }
+
+    internal sealed class OpenFileMessageRecipient : IRecipient<OpenFileInToolMessage>
+    {
+        public List<OpenFileInToolMessage> Received { get; } = [];
+
+        public void Receive(OpenFileInToolMessage message)
+        {
+            Received.Add(message);
+        }
     }
 }

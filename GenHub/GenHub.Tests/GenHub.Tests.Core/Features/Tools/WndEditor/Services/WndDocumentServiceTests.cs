@@ -8,6 +8,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace GenHub.Tests.Core.Features.Tools.WndEditor.Services;
@@ -387,6 +388,81 @@ public sealed class WndDocumentServiceTests : IDisposable
         // Assert
         result.Success.Should().BeFalse();
         result.Issues.Should().ContainSingle().Which.Severity.Should().Be(ValidationSeverity.Critical);
+    }
+
+    /// <summary>
+    /// Tests that a bare window token inside a window body parses as a nested child.
+    /// </summary>
+    [Fact]
+    public void ParseText_BareWindowInBody_ParsesAsNestedChild()
+    {
+        // Arrange
+        var content = "WINDOW\n  WINDOWTYPE = USER;\n  WINDOW\n    WINDOWTYPE = PUSHBUTTON;\n  END\nEND\n";
+
+        // Act
+        var result = _service.ParseText(content);
+
+        // Assert
+        result.Success.Should().BeTrue();
+        var child = result.Data!.Windows.Should().ContainSingle().Which.Children.Should().ContainSingle().Which;
+        child.ControlType.Should().Be(WndControlType.PushButton);
+    }
+
+    /// <summary>
+    /// Tests that formatting preserves whitespace inside quoted values.
+    /// </summary>
+    [Fact]
+    public void WriteDocument_PreservesWhitespaceInsideQuotedValues()
+    {
+        // Arrange
+        var document = _service.ParseText("WINDOW\n  WINDOWTYPE = STATICTEXT;\n  TEXT = \"Start  Screen\";\nEND\n").Data!;
+
+        // Act
+        var text = _service.WriteDocument(document);
+
+        // Assert
+        text.Should().Contain("TEXT = \"Start  Screen\";");
+        _service.ParseText(text).Success.Should().BeTrue();
+    }
+
+    /// <summary>
+    /// Tests that extended control types map to their enum values.
+    /// </summary>
+    /// <param name="typeName">The declared control type name.</param>
+    /// <param name="expected">The expected control type.</param>
+    [Theory]
+    [InlineData("COMMANDBUTTON", WndControlType.CommandButton)]
+    [InlineData("TABCONTROL", WndControlType.TabControl)]
+    [InlineData("TABPANE", WndControlType.TabPane)]
+    public void ParseText_ExtendedControlTypes_MapToEnumValues(string typeName, WndControlType expected)
+    {
+        // Act
+        var result = _service.ParseText($"WINDOW\n  WINDOWTYPE = {typeName};\nEND\n");
+
+        // Assert
+        result.Success.Should().BeTrue();
+        result.Data!.Windows.Should().ContainSingle().Which.ControlType.Should().Be(expected);
+    }
+
+    /// <summary>
+    /// Tests that a cancelled format propagates cancellation without leaving files behind.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task FormatFileAsync_WhenCancelled_ThrowsAndLeavesNoTempFiles()
+    {
+        // Arrange
+        var path = Path.Combine(_tempDirectory, "Cancel.wnd");
+        await File.WriteAllTextAsync(path, "WINDOW\n  WINDOWTYPE = USER;\nEND\n");
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+
+        // Act
+        var act = async () => await _service.FormatFileAsync(path, cts.Token);
+
+        // Assert
+        await act.Should().ThrowAsync<OperationCanceledException>();
+        Directory.GetFiles(_tempDirectory).Should().ContainSingle();
     }
 
     private static bool DocumentsEqual(WndDocument first, WndDocument second)
