@@ -8411,4 +8411,24 @@ Do you want to download and inspect this profile package?</value>
   <data name="Settings.Manifests.ScrubFailed.EnumerationMessage" xml:space="preserve">
     <value>The profile list could not be loaded, so deleted manifests may still be referenced by profiles. Those profiles may fail to launch until updated.</value>
   </data>
+  <data name="Storage.DuplicateInstallation.Title" xml:space="preserve">
+    <value>Duplicate Installation Detected</value>
+    <comment>Duplicate installation notification title.</comment>
+  </data>
+  <data name="Storage.DuplicateInstallation.AdoptedMessage" xml:space="preserve">
+    <value>GenHub is running from the default folder, but a previous installation was found at '{0}'. Your settings, profiles, and game manifests were copied to this installation.</value>
+    <comment>Duplicate installation message when user data was adopted. {0} is the detected custom installation path.</comment>
+  </data>
+  <data name="Storage.DuplicateInstallation.DetectedMessage" xml:space="preserve">
+    <value>GenHub is running from the default folder, but an existing installation was found at '{0}'.</value>
+    <comment>Duplicate installation message when user data was not adopted. {0} is the detected custom installation path.</comment>
+  </data>
+  <data name="Storage.DuplicateInstallation.WindowsReinstallGuidance" xml:space="preserve">
+    <value>To update the previous location instead, first uninstall this duplicate copy via Add or Remove Programs, then reinstall with --installto "{0}".</value>
+    <comment>Windows-only guidance appended to the duplicate installation message. {0} is the detected custom installation path.</comment>
+  </data>
+  <data name="Storage.DuplicateInstallation.GenericReinstallGuidance" xml:space="preserve">
+    <value>To keep a single installation, reinstall over the previous location or move this install in Settings &gt; Migrate Installation, then remove the remaining duplicate copy.</value>
+    <comment>Cross-platform guidance appended to the duplicate installation message on non-Windows hosts.</comment>
+  </data>
 </root>

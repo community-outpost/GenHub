@@ -1,4 +1,5 @@
 using GenHub.Core.Constants;
+using System;
 using Xunit;
 
 namespace GenHub.Tests.Core.Constants;
@@ -69,6 +70,39 @@ public class StorageMigrationConstantsTests
             Assert.Contains("duplicate copy", StorageMigrationConstants.DuplicateInstallationWindowsReinstallGuidanceFormat);
             Assert.Contains("Migrate Installation", StorageMigrationConstants.DuplicateInstallationGenericReinstallGuidance);
             Assert.Contains("duplicate copy", StorageMigrationConstants.DuplicateInstallationGenericReinstallGuidance);
+        });
+    }
+
+    /// <summary>
+    /// Verifies that the Windows reinstall guidance instructs uninstalling the duplicate copy
+    /// before reinstalling. Both copies share one Velopack uninstall entry pointing at the most
+    /// recently installed location, so reinstalling first would retarget Add or Remove Programs
+    /// at the kept install.
+    /// </summary>
+    [Fact]
+    public void StorageMigrationConstants_WindowsReinstallGuidance_UninstallsDuplicateBeforeReinstalling()
+    {
+        var guidance = StorageMigrationConstants.DuplicateInstallationWindowsReinstallGuidanceFormat;
+
+        Assert.True(
+            guidance.IndexOf("uninstall", StringComparison.OrdinalIgnoreCase) >= 0 &&
+            guidance.IndexOf("uninstall", StringComparison.OrdinalIgnoreCase) < guidance.IndexOf("--installto", StringComparison.Ordinal),
+            "Windows guidance must instruct uninstalling the duplicate copy before reinstalling with --installto.");
+    }
+
+    /// <summary>
+    /// Verifies that the duplicate installation localization keys use the expected hierarchical names.
+    /// </summary>
+    [Fact]
+    public void StorageMigrationConstants_DuplicateInstallationKeys_HaveExpectedValues()
+    {
+        Assert.Multiple(() =>
+        {
+            Assert.Equal("Storage.DuplicateInstallation.Title", StorageMigrationConstants.DuplicateInstallationDetectedTitleKey);
+            Assert.Equal("Storage.DuplicateInstallation.AdoptedMessage", StorageMigrationConstants.DuplicateInstallationAdoptedMessageKey);
+            Assert.Equal("Storage.DuplicateInstallation.DetectedMessage", StorageMigrationConstants.DuplicateInstallationDetectedMessageKey);
+            Assert.Equal("Storage.DuplicateInstallation.WindowsReinstallGuidance", StorageMigrationConstants.DuplicateInstallationWindowsReinstallGuidanceKey);
+            Assert.Equal("Storage.DuplicateInstallation.GenericReinstallGuidance", StorageMigrationConstants.DuplicateInstallationGenericReinstallGuidanceKey);
         });
     }
 }

@@ -8318,4 +8318,24 @@ GenHub هو مشغل ومدير حديث لألعاب **Command &amp; Conquer: G
   <data name="Settings.Manifests.ScrubFailed.EnumerationMessage" xml:space="preserve">
     <value>تعذر تحميل قائمة الملفات الشخصية، لذلك قد تظل البيانات المحذوفة مشارًا إليها من الملفات الشخصية. قد تفشل هذه الملفات في التشغيل حتى يتم تحديثها.</value>
   </data>
+  <data name="Storage.DuplicateInstallation.Title" xml:space="preserve">
+    <value>تم اكتشاف تثبيت مكرر</value>
+    <comment>Duplicate installation notification title.</comment>
+  </data>
+  <data name="Storage.DuplicateInstallation.AdoptedMessage" xml:space="preserve">
+    <value>يعمل GenHub من المجلد الافتراضي، ولكن تم العثور على تثبيت سابق في '{0}'. تم نسخ إعداداتك وملفات التعريف وبيانات الألعاب إلى هذا التثبيت.</value>
+    <comment>Duplicate installation message when user data was adopted. {0} is the detected custom installation path.</comment>
+  </data>
+  <data name="Storage.DuplicateInstallation.DetectedMessage" xml:space="preserve">
+    <value>يعمل GenHub من المجلد الافتراضي، ولكن تم العثور على تثبيت موجود في '{0}'.</value>
+    <comment>Duplicate installation message when user data was not adopted. {0} is the detected custom installation path.</comment>
+  </data>
+  <data name="Storage.DuplicateInstallation.WindowsReinstallGuidance" xml:space="preserve">
+    <value>لتحديث الموقع السابق بدلاً من ذلك، قم أولاً بإلغاء تثبيت هذه النسخة المكررة عبر إضافة أو إزالة البرامج، ثم أعد التثبيت باستخدام --installto "{0}".</value>
+    <comment>Windows-only guidance appended to the duplicate installation message. {0} is the detected custom installation path.</comment>
+  </data>
+  <data name="Storage.DuplicateInstallation.GenericReinstallGuidance" xml:space="preserve">
+    <value>للاحتفاظ بتثبيت واحد، أعد التثبيت فوق الموقع السابق أو انقل هذا التثبيت في الإعدادات &gt; نقل التثبيت، ثم أزل النسخة المكررة المتبقية.</value>
+    <comment>Cross-platform guidance appended to the duplicate installation message on non-Windows hosts.</comment>
+  </data>
 </root>

@@ -136,6 +136,11 @@ public static class StorageMigrationConstants
     public const string DuplicateInstallationDetectedTitle = "Duplicate Installation Detected";
 
     /// <summary>
+    /// Resource key for the duplicate installation detected notification title.
+    /// </summary>
+    public const string DuplicateInstallationDetectedTitleKey = "Storage.DuplicateInstallation.Title";
+
+    /// <summary>
     /// Auto-dismiss duration in milliseconds for the duplicate installation notification (12 seconds).
     /// </summary>
     public const int DuplicateInstallationNotificationAutoDismissMs = 12000;
@@ -188,6 +193,12 @@ public static class StorageMigrationConstants
         "GenHub is running from the default folder, but a previous installation was found at '{0}'. Your settings, profiles, and game manifests were copied to this installation.";
 
     /// <summary>
+    /// Resource key for the duplicate installation adopted-data message format.
+    /// {0} is the detected custom installation path.
+    /// </summary>
+    public const string DuplicateInstallationAdoptedMessageKey = "Storage.DuplicateInstallation.AdoptedMessage";
+
+    /// <summary>
     /// Notification message format when a duplicate installation exists but data was not adopted.
     /// {0} is the detected custom installation path.
     /// </summary>
@@ -195,15 +206,33 @@ public static class StorageMigrationConstants
         "GenHub is running from the default folder, but an existing installation was found at '{0}'.";
 
     /// <summary>
-    /// Windows guidance appended to duplicate installation notifications, telling the user how to
-    /// reinstall over the previous location. {0} is the detected custom installation path.
+    /// Resource key for the duplicate installation detected message format.
+    /// {0} is the detected custom installation path.
+    /// </summary>
+    public const string DuplicateInstallationDetectedMessageKey = "Storage.DuplicateInstallation.DetectedMessage";
+
+    /// <summary>
+    /// Windows guidance appended to duplicate installation notifications, telling the user to uninstall
+    /// the duplicate copy first and then reinstall over the previous location.
+    /// {0} is the detected custom installation path.
     /// </summary>
     public const string DuplicateInstallationWindowsReinstallGuidanceFormat =
-        "To update the previous location instead, reinstall with --installto \"{0}\", then uninstall this duplicate copy.";
+        "To update the previous location instead, first uninstall this duplicate copy via Add or Remove Programs, then reinstall with --installto \"{0}\".";
+
+    /// <summary>
+    /// Resource key for the Windows reinstall guidance.
+    /// {0} is the detected custom installation path.
+    /// </summary>
+    public const string DuplicateInstallationWindowsReinstallGuidanceKey = "Storage.DuplicateInstallation.WindowsReinstallGuidance";
 
     /// <summary>
     /// Cross-platform guidance appended to duplicate installation notifications on non-Windows hosts.
     /// </summary>
     public const string DuplicateInstallationGenericReinstallGuidance =
         "To keep a single installation, reinstall over the previous location or move this install in Settings > Migrate Installation, then remove the remaining duplicate copy.";
+
+    /// <summary>
+    /// Resource key for the cross-platform reinstall guidance on non-Windows hosts.
+    /// </summary>
+    public const string DuplicateInstallationGenericReinstallGuidanceKey = "Storage.DuplicateInstallation.GenericReinstallGuidance";
 }

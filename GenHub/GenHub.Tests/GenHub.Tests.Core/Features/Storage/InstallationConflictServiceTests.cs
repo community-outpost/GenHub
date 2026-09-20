@@ -423,6 +423,101 @@ public class InstallationConflictServiceTests : System.IDisposable
     }
 
     /// <summary>
+    /// Verifies that when a localization service is provided, the adopted-data notification
+    /// resolves its title, message, and guidance from localized resources.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task CheckAndResolveConflictsAsync_WhenLocalizationServiceProvided_UsesLocalizedAdoptedNotification()
+    {
+        StorageMigrationService.SetCustomInstallRootOverrideForTesting(false);
+
+        var customDir = CreateCustomInstallStub("CustomInstallLocalized");
+        _mockTracker.Setup(t => t.GetRegisteredCustomInstallPath()).Returns(customDir);
+
+        var mockLocalizationService = CreateLocalizationMock();
+        var service = CreateServiceWithLocalization(mockLocalizationService);
+
+        await service.CheckAndResolveConflictsAsync();
+
+        var expectedGuidanceKey = GetExpectedGuidanceKey();
+        _mockNotificationService.Verify(
+            n => n.ShowWarning(
+                $"[{StorageMigrationConstants.DuplicateInstallationDetectedTitleKey}]",
+                It.Is<string>(msg =>
+                    msg.Contains($"[{StorageMigrationConstants.DuplicateInstallationAdoptedMessageKey}:") &&
+                    msg.Contains(customDir) &&
+                    msg.Contains($"[{expectedGuidanceKey}")),
+                StorageMigrationConstants.DuplicateInstallationNotificationAutoDismissMs,
+                true),
+            Times.Once);
+        mockLocalizationService.Verify(
+            l => l.GetString(StorageMigrationConstants.DuplicateInstallationAdoptedMessageKey, It.IsAny<object?[]>()),
+            Times.Once);
+    }
+
+    /// <summary>
+    /// Verifies that when a localization service is provided, the detected (non-adopted)
+    /// notification resolves its message from localized resources.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task CheckAndResolveConflictsAsync_WhenLocalizationServiceProvided_UsesLocalizedDetectedNotification()
+    {
+        StorageMigrationService.SetCustomInstallRootOverrideForTesting(false);
+
+        var customDir = CreateCustomInstallStub("CustomInstallLocalizedDeclined");
+        File.WriteAllText(Path.Combine(_defaultRoot, FileTypes.SettingsFileName), "{\"default\":true}");
+
+        _mockTracker.Setup(t => t.GetRegisteredCustomInstallPath()).Returns(customDir);
+
+        var mockLocalizationService = CreateLocalizationMock();
+        var service = CreateServiceWithLocalization(mockLocalizationService);
+
+        await service.CheckAndResolveConflictsAsync();
+
+        var expectedGuidanceKey = GetExpectedGuidanceKey();
+        _mockNotificationService.Verify(
+            n => n.ShowWarning(
+                $"[{StorageMigrationConstants.DuplicateInstallationDetectedTitleKey}]",
+                It.Is<string>(msg =>
+                    msg.Contains($"[{StorageMigrationConstants.DuplicateInstallationDetectedMessageKey}:") &&
+                    !msg.Contains($"[{StorageMigrationConstants.DuplicateInstallationAdoptedMessageKey}:") &&
+                    msg.Contains(customDir) &&
+                    msg.Contains($"[{expectedGuidanceKey}")),
+                StorageMigrationConstants.DuplicateInstallationNotificationAutoDismissMs,
+                true),
+            Times.Once);
+        mockLocalizationService.Verify(
+            l => l.GetString(StorageMigrationConstants.DuplicateInstallationDetectedMessageKey, It.IsAny<object?[]>()),
+            Times.Once);
+    }
+
+    /// <summary>
+    /// Creates a localization mock that echoes the requested resource key and first argument.
+    /// </summary>
+    /// <returns>The configured localization mock.</returns>
+    private static Mock<ILocalizationService> CreateLocalizationMock()
+    {
+        var mockLocalizationService = new Mock<ILocalizationService>();
+        mockLocalizationService
+            .Setup(l => l.GetString(It.IsAny<string>(), It.IsAny<object?[]>()))
+            .Returns((string key, object?[] arguments) => arguments.Length == 0 ? $"[{key}]" : $"[{key}:{arguments[0]}]");
+        return mockLocalizationService;
+    }
+
+    /// <summary>
+    /// Gets the platform-appropriate reinstall guidance resource key.
+    /// </summary>
+    /// <returns>The expected guidance key for the current platform.</returns>
+    private static string GetExpectedGuidanceKey()
+    {
+        return OperatingSystem.IsWindows()
+            ? StorageMigrationConstants.DuplicateInstallationWindowsReinstallGuidanceKey
+            : StorageMigrationConstants.DuplicateInstallationGenericReinstallGuidanceKey;
+    }
+
+    /// <summary>
     /// Verifies that the notification message contains the platform-appropriate reinstall guidance.
     /// </summary>
     /// <param name="message">The notification message.</param>
@@ -433,5 +528,34 @@ public class InstallationConflictServiceTests : System.IDisposable
             ? message.Contains("--installto")
             : message.Contains("Migrate Installation")) &&
             message.Contains("duplicate copy");
+    }
+
+    /// <summary>
+    /// Creates a stub custom installation directory containing Velopack and settings markers.
+    /// </summary>
+    /// <param name="directoryName">The stub directory name.</param>
+    /// <returns>The created custom installation path.</returns>
+    private string CreateCustomInstallStub(string directoryName)
+    {
+        var customDir = Path.Combine(_tempRoot, directoryName);
+        Directory.CreateDirectory(customDir);
+        File.WriteAllText(Path.Combine(customDir, StorageMigrationConstants.VelopackUpdateExe), "stub");
+        File.WriteAllText(Path.Combine(customDir, FileTypes.SettingsFileName), "{\"custom\":true}");
+        return customDir;
+    }
+
+    /// <summary>
+    /// Creates the conflict service with notification, settings, and localization dependencies.
+    /// </summary>
+    /// <param name="mockLocalizationService">The localization mock.</param>
+    /// <returns>The configured service.</returns>
+    private InstallationConflictService CreateServiceWithLocalization(Mock<ILocalizationService> mockLocalizationService)
+    {
+        return new InstallationConflictService(
+            _mockTracker.Object,
+            _mockNotificationService.Object,
+            _mockUserSettingsService.Object,
+            null,
+            mockLocalizationService.Object);
     }
 }
