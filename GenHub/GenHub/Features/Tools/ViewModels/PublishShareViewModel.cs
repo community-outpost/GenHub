@@ -49,6 +49,16 @@ public partial class PublishShareViewModel(
     IHostingCredentialStore? credentialStore = null,
     Action<string>? browserLauncher = null) : ObservableObject, IDisposable
 {
+    /// <summary>
+    /// Artwork slots that can reference local image files in content metadata.
+    /// </summary>
+    private enum ArtworkSlot
+    {
+        Icon,
+        Banner,
+        Backdrop,
+    }
+
     private const string SuccessLiteral = "Success";
     private const string WarningLiteral = "Warning";
     private const string CommonNotificationSuccessKey = "Common.Notification.Success";
@@ -114,6 +124,9 @@ public partial class PublishShareViewModel(
 
     [ObservableProperty]
     private string _dropboxAccessToken = string.Empty;
+
+    [ObservableProperty]
+    private string _dropboxAppKey = string.Empty;
 
     [ObservableProperty]
     private string _googleClientId = string.Empty;
@@ -352,6 +365,86 @@ public partial class PublishShareViewModel(
     /// Wired by the parent studio view model to a silent project save.
     /// </summary>
     public Func<Task>? SaveProjectCallback { get; set; }
+
+    /// <summary>
+    /// Gets or sets the callback used to refresh the Content Library display after uploads mutate artifacts.
+    /// Wired by the parent studio view model so pending badges and hints update without switching tabs.
+    /// </summary>
+    public Action? LibraryRefreshCallback { get; set; }
+
+    /// <summary>
+    /// Gets or sets the callback invoked after the provider definition uploads successfully.
+    /// Wired by the parent studio view model to clear definition change tracking.
+    /// </summary>
+    public Action? DefinitionUploadedCallback { get; set; }
+
+    /// <summary>
+    /// Gets a value indicating whether the provider definition has been published before.
+    /// </summary>
+    public bool IsDefinitionPublished => !string.IsNullOrEmpty(_currentHostingState?.Definition?.Url);
+
+    /// <summary>
+    /// Uploads a single artifact chosen from the Content Library tab.
+    /// Applies the same guards and notifications as hosted-asset uploads.
+    /// </summary>
+    /// <param name="artifact">The artifact to upload.</param>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    public async Task UploadArtifactFromLibraryAsync(ReleaseArtifact? artifact)
+    {
+        if (artifact == null)
+        {
+            return;
+        }
+
+        if (IsUploading)
+        {
+            notificationService?.ShowWarning(
+                GetLocalizedString("Tools.PublisherStudio.Publish.UploadInProgressTitle", "Upload In Progress"),
+                GetLocalizedString("Tools.PublisherStudio.Hosting.UploadInProgress", "Another upload is already in progress."));
+            return;
+        }
+
+        var provider = SelectedHostingProvider;
+        if (provider == null || NeedsAuthentication)
+        {
+            notificationService?.ShowWarning(
+                GetLocalizedString("Tools.PublisherStudio.Publish.ProviderNotConnected", "Provider Not Connected"),
+                GetLocalizedString("Tools.PublisherStudio.Hosting.ConnectBeforeUpload", "Connect to your hosting provider before uploading files."));
+            return;
+        }
+
+        var located = FindArtifactOwner(artifact);
+        if (located.ContentId == null || located.Version == null)
+        {
+            return;
+        }
+
+        await ExecuteLocatedArtifactUploadAsync(provider, artifact, located.ContentId, located.Version);
+    }
+
+    /// <summary>
+    /// Uploads the provider definition to the selected hosting provider.
+    /// Public so the studio shell can trigger definition uploads from its header button.
+    /// </summary>
+    /// <returns>The upload result.</returns>
+    [RelayCommand]
+    public async Task<OperationResult<HostingUploadResult>> UploadProviderDefinitionAsync()
+    {
+        if (IsUploading)
+        {
+            return OperationResult<HostingUploadResult>.CreateFailure("An upload is already in progress.");
+        }
+
+        _uploadCts?.Dispose();
+        _uploadCts = new CancellationTokenSource();
+        var cancellationToken = _uploadCts.Token;
+        notificationService?.ShowInfo(
+            GetLocalizedString("Tools.PublisherStudio.Publish.UploadStartedTitle", "Uploading"),
+            GetLocalizedString("Tools.PublisherStudio.Publish.DefinitionUploadStarted", "Uploading provider definition..."),
+            autoDismissMs: NotificationDurations.Short);
+
+        return await UploadProviderDefinitionCoreAsync(cancellationToken, manageUploadingState: true);
+    }
 
     private string PleaseSelectHostingProviderMessage => GetLocalizedString("Tools.PublisherStudio.Publish.SelectHostingProvider", "Please select a hosting provider");
 
@@ -966,6 +1059,34 @@ public partial class PublishShareViewModel(
             return;
         }
 
+        await RunAuthenticationFlowAsync(ExecuteAuthenticationByProviderTypeAsync);
+    }
+
+    /// <summary>
+    /// Connects Dropbox using the interactive OAuth 2.0 browser flow.
+    /// Stores a refresh token so the session survives short-lived access-token expiry.
+    /// </summary>
+    [RelayCommand]
+    private async Task ConnectDropboxOAuthAsync()
+    {
+        if (SelectedHostingProvider is not DropboxHostingProvider dropboxProvider)
+        {
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(DropboxAppKey))
+        {
+            AuthenticationStatusMessage = GetLocalizedString("Tools.PublisherStudio.Publish.EnterDropboxAppKey", "Please enter your Dropbox app key. Create an app in the Dropbox App Console to get one.");
+            return;
+        }
+
+        var appKey = DropboxAppKey.Trim();
+        await RunAuthenticationFlowAsync(async cancellationToken =>
+            (OperationResult<bool>?)await dropboxProvider.AuthenticateWithOAuthAsync(appKey, cancellationToken));
+    }
+
+    private async Task RunAuthenticationFlowAsync(Func<System.Threading.CancellationToken, Task<OperationResult<bool>?>> attempt)
+    {
         if (_authCts != null)
         {
             await _authCts.CancelAsync();
@@ -979,7 +1100,7 @@ public partial class PublishShareViewModel(
 
         try
         {
-            var result = await ExecuteAuthenticationByProviderTypeAsync(_authCts.Token);
+            var result = await attempt(_authCts.Token);
             if (result == null)
             {
                 return;
@@ -988,7 +1109,7 @@ public partial class PublishShareViewModel(
             if (result.Success)
             {
                 await HandleAuthenticationSuccessAsync();
-                if (SelectedHostingProvider.SupportsCatalogHosting)
+                if (SelectedHostingProvider?.SupportsCatalogHosting == true)
                 {
                     _ = ScanCloudStorageSilentlyAsync();
                 }
@@ -1003,13 +1124,13 @@ public partial class PublishShareViewModel(
         catch (OperationCanceledException ex)
         {
             AuthenticationStatusMessage = GetLocalizedString("Tools.PublisherStudio.Publish.AuthCanceledDriveHelp", "Authentication was canceled or timed out. For Google Drive, ensure you selected 'Desktop app' (not 'Web application') in Google Cloud Console.");
-            logger.LogInformation(ex, "Authentication canceled or timed out for {Provider}", SelectedHostingProvider.DisplayName);
+            logger.LogInformation(ex, "Authentication canceled or timed out for {Provider}", SelectedHostingProvider?.DisplayName);
             notificationService?.ShowWarning(GetLocalizedString("Tools.PublisherStudio.Publish.AuthCanceledTitle", "Authentication Canceled"), GetLocalizedString("Tools.PublisherStudio.Publish.AuthCanceledTimeout", "Authentication timed out or was canceled."));
         }
         catch (Exception ex)
         {
             AuthenticationStatusMessage = FormatLocalizedString("Tools.PublisherStudio.Publish.AuthenticationErrorFormat", "Authentication error: {0}", ex.Message);
-            logger.LogError(ex, "Authentication error for {Provider}", SelectedHostingProvider.DisplayName);
+            logger.LogError(ex, "Authentication error for {Provider}", SelectedHostingProvider?.DisplayName);
         }
         finally
         {
@@ -1507,6 +1628,12 @@ public partial class PublishShareViewModel(
                 return OperationResult<HostingUploadResult>.CreateFailure(UploadStatusMessage);
             }
 
+            // 1b. Upload Pending Artwork (local image files referenced by content metadata)
+            if (!await UploadPendingArtworkAsync(SelectedHostingProvider, cancellationToken))
+            {
+                return OperationResult<HostingUploadResult>.CreateFailure(UploadStatusMessage);
+            }
+
             // 2. Export Active Catalog (Now includes new URLs)
             CurrentPublishStep = 2;
             if (ActiveCatalog == null)
@@ -1632,6 +1759,8 @@ public partial class PublishShareViewModel(
 
         await SaveHostingStateAsync(data.FileId, data.DirectDownloadUrl, data.FileSize, cancellationToken);
         await PersistProjectAfterPublishAsync();
+        PersistCurrentDropboxCredential();
+        NotifyLibraryRefresh();
 
         // 4. Generate and upload provider definition
         CurrentPublishStep = 4;
@@ -1699,6 +1828,7 @@ public partial class PublishShareViewModel(
             }
 
             RefreshHostedAssets();
+            NotifyDefinitionUploaded();
             return defUploadResult;
         }
 
@@ -1746,6 +1876,182 @@ public partial class PublishShareViewModel(
         }
 
         return true;
+    }
+
+    private async Task<bool> UploadPendingArtworkAsync(IHostingProvider provider, CancellationToken cancellationToken)
+    {
+        if (ActiveCatalog == null)
+        {
+            return true;
+        }
+
+        var pending = CollectPendingArtwork(ActiveCatalog);
+        if (pending.Count == 0)
+        {
+            return true;
+        }
+
+        if (!provider.SupportsArtifactHosting)
+        {
+            UploadStatusMessage = GetLocalizedString(
+                "Tools.PublisherStudio.Publish.ArtworkHostingNotSupported",
+                "Provider does not support artwork hosting. Use direct image URLs or switch providers.");
+            notificationService?.ShowError(
+                GetLocalizedString("Tools.PublisherStudio.Publish.IncompatibleProvider", "Incompatible Provider"),
+                UploadStatusMessage);
+            return false;
+        }
+
+        int total = pending.Count;
+        int current = 0;
+        foreach (var (content, slot, localPath) in pending)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            current++;
+            if (!await UploadSingleArtworkAsync(provider, content, slot, localPath, current, total, cancellationToken))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private List<(CatalogContentItem Content, ArtworkSlot Slot, string LocalPath)> CollectPendingArtwork(
+        NamedCatalog catalog)
+    {
+        var pending = new List<(CatalogContentItem Content, ArtworkSlot Slot, string LocalPath)>();
+        foreach (var content in catalog.Catalog.Content)
+        {
+            var metadata = content.Metadata;
+            if (metadata == null)
+            {
+                continue;
+            }
+
+            AddPendingArtwork(pending, content, ArtworkSlot.Icon, metadata.IconUrl);
+            AddPendingArtwork(pending, content, ArtworkSlot.Banner, metadata.BannerUrl);
+            AddPendingArtwork(pending, content, ArtworkSlot.Backdrop, metadata.BackdropUrl);
+        }
+
+        return pending;
+    }
+
+    private void AddPendingArtwork(
+        List<(CatalogContentItem Content, ArtworkSlot Slot, string LocalPath)> pending,
+        CatalogContentItem content,
+        ArtworkSlot slot,
+        string? value)
+    {
+        if (IsPendingArtworkPath(value))
+        {
+            pending.Add((content, slot, value!.Trim()));
+        }
+    }
+
+    private bool IsPendingArtworkPath(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return false;
+        }
+
+        return !Uri.TryCreate(value.Trim(), UriKind.Absolute, out var uri)
+            || (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps);
+    }
+
+    private void ApplyArtworkUrl(CatalogContentItem content, ArtworkSlot slot, string url)
+    {
+        content.Metadata ??= new ContentRichMetadata();
+        switch (slot)
+        {
+            case ArtworkSlot.Icon:
+                content.Metadata.IconUrl = url;
+                break;
+            case ArtworkSlot.Banner:
+                content.Metadata.BannerUrl = url;
+                break;
+            case ArtworkSlot.Backdrop:
+                content.Metadata.BackdropUrl = url;
+                break;
+            default:
+                break;
+        }
+    }
+
+    private async Task<bool> UploadSingleArtworkAsync(
+        IHostingProvider provider,
+        CatalogContentItem content,
+        ArtworkSlot slot,
+        string localPath,
+        int current,
+        int total,
+        CancellationToken cancellationToken)
+    {
+        var displayName = Path.GetFileName(localPath);
+        UploadStatusMessage = FormatLocalizedString(
+            "Tools.PublisherStudio.Publish.UploadingArtworkFormat",
+            "Uploading artwork {0}/{1}: {2}",
+            current,
+            total,
+            displayName);
+
+        if (!File.Exists(localPath))
+        {
+            return FailArtworkUpload(FormatLocalizedString(
+                "Tools.PublisherStudio.Publish.ArtworkFileMissingFormat",
+                "Artwork file not found: {0}",
+                localPath));
+        }
+
+        OperationResult<HostingUploadResult> result;
+        try
+        {
+            await using var stream = File.OpenRead(localPath);
+            var progress = new Progress<int>(p =>
+            {
+                UploadProgress = (int)(((double)(current - 1) / total * 80) + ((double)p / total * 80.0 / 100.0));
+            });
+            var uploadFileName = $"{content.Id}-{slot.ToString().ToLowerInvariant()}-{displayName}";
+            result = await provider.UploadFileAsync(stream, uploadFileName, null, progress, cancellationToken);
+        }
+        catch (IOException ex)
+        {
+            logger.LogWarning(ex, "Failed to read artwork file {Path}", localPath);
+            return FailArtworkUpload(FormatLocalizedString(
+                "Tools.PublisherStudio.Publish.ArtworkFileMissingFormat",
+                "Artwork file not found: {0}",
+                localPath));
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            logger.LogWarning(ex, "Access denied reading artwork file {Path}", localPath);
+            return FailArtworkUpload(FormatLocalizedString(
+                "Tools.PublisherStudio.Publish.ArtworkFileMissingFormat",
+                "Artwork file not found: {0}",
+                localPath));
+        }
+
+        if (!result.Success || result.Data == null || string.IsNullOrWhiteSpace(result.Data.DirectDownloadUrl))
+        {
+            return FailArtworkUpload(FormatLocalizedString(
+                "Tools.PublisherStudio.Publish.ArtworkUploadFailedFormat",
+                "Failed to upload artwork {0}: {1}",
+                displayName,
+                result.FirstError));
+        }
+
+        ApplyArtworkUrl(content, slot, result.Data.DirectDownloadUrl);
+        return true;
+    }
+
+    private bool FailArtworkUpload(string message)
+    {
+        UploadStatusMessage = message;
+        notificationService?.ShowError(
+            GetLocalizedString("Tools.PublisherStudio.Publish.ArtworkUploadFailedTitle", "Artwork Upload Failed"),
+            message);
+        return false;
     }
 
     private void BuildUploadQueue(List<ReleaseArtifact> pendingArtifacts)
@@ -2074,7 +2380,7 @@ public partial class PublishShareViewModel(
         }
         else if (SelectedHostingProvider.ProviderId == HostingConstants.Dropbox)
         {
-            tokenToStore = DropboxAccessToken;
+            tokenToStore = (SelectedHostingProvider as DropboxHostingProvider)?.ExportCredentialPayload() ?? DropboxAccessToken;
         }
 
         if (credentialStore != null && !string.IsNullOrEmpty(tokenToStore))
@@ -2182,15 +2488,19 @@ public partial class PublishShareViewModel(
             }
             else if (provider.ProviderId == HostingConstants.Dropbox)
             {
-                DropboxAccessToken = token;
                 if (provider is DropboxHostingProvider dropboxProvider)
                 {
-                    var result = await dropboxProvider.AuthenticateWithTokenAsync(token, CancellationToken.None);
-                    if (result.Success)
-                    {
-                        AuthenticationStatusMessage = GetLocalizedString("Tools.PublisherStudio.Publish.RestoredConnection", "Restored connection");
-                        logger.LogInformation("Restored Dropbox authentication from secure credential store");
-                    }
+                    await RestoreDropboxAuthenticationAsync(dropboxProvider, token);
+                }
+                else if (DropboxOAuthService.TryParseCredential(token, out var parsedCredential) && parsedCredential != null)
+                {
+                    // Custom provider implementations: surface the stored OAuth access token without verification.
+                    DropboxAppKey = parsedCredential.AppKey;
+                    DropboxAccessToken = parsedCredential.AccessToken;
+                }
+                else
+                {
+                    DropboxAccessToken = token;
                 }
             }
 
@@ -2200,6 +2510,54 @@ public partial class PublishShareViewModel(
         {
             logger.LogWarning(ex, "Failed to restore authentication");
         }
+    }
+
+    private async Task RestoreDropboxAuthenticationAsync(DropboxHostingProvider dropboxProvider, string token)
+    {
+        if (DropboxOAuthService.TryParseCredential(token, out var credential) && credential != null)
+        {
+            DropboxAppKey = credential.AppKey;
+            DropboxAccessToken = credential.AccessToken;
+            dropboxProvider.SetOAuthCredentials(credential);
+            var result = await dropboxProvider.AuthenticateAsync(CancellationToken.None);
+            if (result.Success)
+            {
+                PersistCurrentDropboxCredential();
+                AuthenticationStatusMessage = GetLocalizedString("Tools.PublisherStudio.Publish.RestoredConnection", "Restored connection");
+                logger.LogInformation("Restored Dropbox OAuth session from secure credential store");
+            }
+
+            return;
+        }
+
+        DropboxAccessToken = token;
+        var legacyResult = await dropboxProvider.AuthenticateWithTokenAsync(token, CancellationToken.None);
+        if (legacyResult.Success)
+        {
+            AuthenticationStatusMessage = GetLocalizedString("Tools.PublisherStudio.Publish.RestoredConnection", "Restored connection");
+            logger.LogInformation("Restored Dropbox authentication from secure credential store");
+        }
+    }
+
+    private void PersistCurrentDropboxCredential()
+    {
+        if (credentialStore == null || SelectedHostingProvider is not DropboxHostingProvider dropboxProvider)
+        {
+            return;
+        }
+
+        if (!dropboxProvider.HasOAuthCredentials)
+        {
+            return;
+        }
+
+        var payload = dropboxProvider.ExportCredentialPayload();
+        if (string.IsNullOrEmpty(payload))
+        {
+            return;
+        }
+
+        _ = credentialStore.SaveCredentialAsync(dropboxProvider.ProviderId, payload, CancellationToken.None);
     }
 
     private void NotifyAuthenticationPropertiesChanged()
@@ -2324,30 +2682,13 @@ public partial class PublishShareViewModel(
         GenerateSubscriptionUrl(); // Regenerate based on new definition URL
         RefreshUploadHierarchy();
         RefreshHostedAssets();
+        NotifyDefinitionUploaded();
         UploadStatusMessage = GetLocalizedString("Tools.PublisherStudio.Publish.ProviderDefinitionUploaded", "Provider definition uploaded successfully.");
         logger.LogInformation("Uploaded provider definition to {Url}", ProviderDefinitionUrl);
         notificationService?.ShowSuccess(
             GetLocalizedString(PublishSuccessTitleKey, SuccessLiteral),
             GetLocalizedString("Tools.PublisherStudio.Publish.ProviderDefinitionUploadedMessage", "Provider definition uploaded successfully."),
             autoDismissMs: 4000);
-    }
-
-    /// <summary>
-    /// Uploads the provider definition to the selected hosting provider.
-    /// </summary>
-    [RelayCommand]
-    private async Task<OperationResult<HostingUploadResult>> UploadProviderDefinitionAsync()
-    {
-        if (IsUploading)
-        {
-            return OperationResult<HostingUploadResult>.CreateFailure("An upload is already in progress.");
-        }
-
-        _uploadCts?.Dispose();
-        _uploadCts = new CancellationTokenSource();
-        var cancellationToken = _uploadCts.Token;
-
-        return await UploadProviderDefinitionCoreAsync(cancellationToken, manageUploadingState: true);
     }
 
     private async Task<OperationResult<HostingUploadResult>> UploadProviderDefinitionCoreAsync(
@@ -2655,6 +2996,13 @@ public partial class PublishShareViewModel(
         // Set as active catalog temporarily
         var previousActive = ActiveCatalog;
         ActiveCatalog = catalog;
+        notificationService?.ShowInfo(
+            GetLocalizedString("Tools.PublisherStudio.Publish.PublishStartedTitle", "Publishing"),
+            FormatLocalizedString(
+                "Tools.PublisherStudio.Publish.PublishCatalogStartedFormat",
+                "Publishing catalog '{0}'...",
+                catalog.Name),
+            autoDismissMs: NotificationDurations.Short);
 
         try
         {
@@ -2759,6 +3107,14 @@ public partial class PublishShareViewModel(
         PublishCompleted = false;
         var publishedAny = false;
         var succeededCount = 0;
+        notificationService?.ShowInfo(
+            GetLocalizedString("Tools.PublisherStudio.Publish.PublishStartedTitle", "Publishing"),
+            FormatLocalizedString(
+                "Tools.PublisherStudio.Publish.PublishAllStartedFormat",
+                "Publishing {0} catalog(s) to {1}...",
+                project.Catalogs.Count,
+                SelectedHostingProvider?.DisplayName ?? string.Empty),
+            autoDismissMs: NotificationDurations.Short);
 
         try
         {
@@ -3353,7 +3709,31 @@ public partial class PublishShareViewModel(
             return;
         }
 
-        var artifact = located.Artifact;
+        await ExecuteLocatedArtifactUploadAsync(provider, located.Artifact, located.ContentId, located.Version);
+    }
+
+    private (string? ContentId, string? Version) FindArtifactOwner(ReleaseArtifact artifact)
+    {
+        foreach (var catalog in project.Catalogs)
+        {
+            var content = catalog.Catalog.Content.FirstOrDefault(c =>
+                c.Releases.Any(r => r.Artifacts.Contains(artifact)));
+            var release = content?.Releases.FirstOrDefault(r => r.Artifacts.Contains(artifact));
+            if (content != null && release != null)
+            {
+                return (content.Id, release.Version);
+            }
+        }
+
+        return (null, null);
+    }
+
+    private async Task ExecuteLocatedArtifactUploadAsync(
+        IHostingProvider provider,
+        ReleaseArtifact artifact,
+        string contentId,
+        string version)
+    {
         if (string.IsNullOrEmpty(artifact.LocalFilePath) ||
             (!File.Exists(artifact.LocalFilePath) && !Directory.Exists(artifact.LocalFilePath)))
         {
@@ -3372,12 +3752,19 @@ public partial class PublishShareViewModel(
         var cancellationToken = _uploadCts.Token;
 
         IsUploading = true;
+        notificationService?.ShowInfo(
+            GetLocalizedString("Tools.PublisherStudio.Publish.UploadStartedTitle", "Uploading"),
+            FormatLocalizedString(
+                "Tools.PublisherStudio.Hosting.SingleUploadStartedFormat",
+                "Uploading {0}...",
+                artifact.Filename),
+            autoDismissMs: NotificationDurations.Short);
         try
         {
             var task = new ArtifactUploadTask
             {
-                ContentId = located.ContentId,
-                Version = located.Version,
+                ContentId = contentId,
+                Version = version,
                 Artifact = artifact,
                 Status = UploadStatus.Pending,
                 LocalizationService = localizationService,
@@ -3388,6 +3775,8 @@ public partial class PublishShareViewModel(
                 RefreshUploadHierarchy();
                 RefreshArtifactStatuses();
                 await PersistProjectAfterPublishAsync();
+                PersistCurrentDropboxCredential();
+                NotifyLibraryRefresh();
                 notificationService?.ShowSuccess(
                     GetLocalizedString(PublishSuccessTitleKey, "Published"),
                     FormatLocalizedString(
@@ -3416,6 +3805,30 @@ public partial class PublishShareViewModel(
             IsUploading = false;
             _uploadCts?.Dispose();
             _uploadCts = null;
+        }
+    }
+
+    private void NotifyLibraryRefresh()
+    {
+        try
+        {
+            LibraryRefreshCallback?.Invoke();
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Library refresh callback failed after artifact upload");
+        }
+    }
+
+    private void NotifyDefinitionUploaded()
+    {
+        try
+        {
+            DefinitionUploadedCallback?.Invoke();
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Definition uploaded callback failed");
         }
     }
 

@@ -392,8 +392,22 @@
                                     </Button>
                                 </WrapPanel>
 
+                                <!-- Dropbox OAuth Connect (recommended: stays signed in via refresh tokens) -->
+                                <StackPanel Spacing="4" Margin="0,6,0,0">
+                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.DropboxOAuthTitle}" FontWeight="SemiBold" FontSize="12" Foreground="{DynamicResource TextPrimary}"/>
+                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.DropboxOAuthDescription}" FontSize="11" Foreground="{DynamicResource TextSecondary}" TextWrapping="Wrap"/>
+                                    <TextBox Text="{Binding DropboxAppKey}" Watermark="{localization:Localize Tools.PublisherStudio.Hosting.DropboxAppKeyPlaceholder}" FontSize="12"/>
+                                    <Button Command="{Binding ConnectDropboxOAuthCommand}" Classes="small-glass-btn" IsEnabled="{Binding !IsAuthenticating}" HorizontalAlignment="Left">
+                                        <StackPanel Orientation="Horizontal" Spacing="6">
+                                            <PathIcon Data="{StaticResource ExternalLinkIcon}" Width="12" Height="12" Foreground="{DynamicResource AccentColorBrush}"/>
+                                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.ConnectWithDropbox}" Foreground="{DynamicResource AccentColorBrush}" FontSize="12" FontWeight="SemiBold"/>
+                                        </StackPanel>
+                                    </Button>
+                                </StackPanel>
+
                                 <!-- Dropbox Token Input -->
                                 <StackPanel Spacing="4" Margin="0,6,0,0">
+                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.DropboxManualTokenTitle}" FontWeight="SemiBold" FontSize="12" Foreground="{DynamicResource TextPrimary}"/>
                                     <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.DropboxTokenPrompt}" FontSize="12" Foreground="{DynamicResource TextSecondary}"/>
                                     <TextBox Text="{Binding DropboxAccessToken}" Watermark="{localization:Localize Tools.PublisherStudio.Hosting.DropboxFullTokenPlaceholder}" PasswordChar="●" RevealPassword="True" FontSize="12"/>
                                 </StackPanel>

@@ -35,8 +35,13 @@ public class DropboxHostingProvider(ILogger<DropboxHostingProvider> logger, IHtt
     private const string MissingScopeTag = "missing_scope";
 
     private readonly HttpClient _httpClient = InitializeHttpClient(httpClientFactory);
+    private readonly SemaphoreSlim _refreshLock = new(1, 1);
 
     private string? _accessToken;
+    private string? _appKey;
+    private string? _refreshToken;
+    private DateTime _accessTokenExpiresAtUtc = DateTime.MinValue;
+    private DropboxOAuthService? _oauthService;
     private bool _disposed;
 
     /// <summary>
@@ -73,17 +78,104 @@ public class DropboxHostingProvider(ILogger<DropboxHostingProvider> logger, IHtt
 
     /// <summary>
     /// Authenticates with Dropbox using the stored access token.
+    /// OAuth credentials refresh the token first when it is expired or close to expiry.
     /// </summary>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>Operation result indicating success.</returns>
-    public Task<OperationResult<bool>> AuthenticateAsync(CancellationToken cancellationToken = default)
+    public async Task<OperationResult<bool>> AuthenticateAsync(CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(_accessToken))
+        if (HasOAuthCredentials)
         {
-            return Task.FromResult(OperationResult<bool>.CreateFailure("Dropbox access token is required. Generate a token from the Dropbox Developer App Console."));
+            await EnsureFreshAccessTokenAsync(cancellationToken);
         }
 
-        return AuthenticateWithTokenAsync(_accessToken, cancellationToken);
+        if (string.IsNullOrWhiteSpace(_accessToken))
+        {
+            return OperationResult<bool>.CreateFailure("Dropbox access token is required. Generate a token from the Dropbox Developer App Console.");
+        }
+
+        return await AuthenticateWithTokenAsync(_accessToken, cancellationToken);
+    }
+
+    /// <summary>
+    /// Gets a value indicating whether OAuth credentials (app key plus refresh token) are stored.
+    /// </summary>
+    public bool HasOAuthCredentials => !string.IsNullOrWhiteSpace(_appKey) && !string.IsNullOrWhiteSpace(_refreshToken);
+
+    /// <summary>
+    /// Restores previously stored OAuth credentials without contacting Dropbox.
+    /// The next operation refreshes the access token when it is expired or close to expiry.
+    /// </summary>
+    /// <param name="credential">The stored OAuth credential.</param>
+    public void SetOAuthCredentials(DropboxOAuthCredential credential)
+    {
+        ArgumentNullException.ThrowIfNull(credential);
+        _appKey = credential.AppKey;
+        _accessToken = credential.AccessToken;
+        _refreshToken = credential.RefreshToken;
+        _accessTokenExpiresAtUtc = credential.ExpiresAtUtc;
+    }
+
+    /// <summary>
+    /// Exports the current OAuth credential set for the secure credential store.
+    /// </summary>
+    /// <returns>The serialized payload, or null when no OAuth credentials exist.</returns>
+    public string? ExportCredentialPayload()
+    {
+        if (string.IsNullOrWhiteSpace(_appKey) || string.IsNullOrWhiteSpace(_accessToken))
+        {
+            return null;
+        }
+
+        return DropboxOAuthService.SerializeCredential(new DropboxOAuthCredential(
+            _appKey,
+            _accessToken,
+            _refreshToken,
+            _accessTokenExpiresAtUtc));
+    }
+
+    /// <summary>
+    /// Authenticates with Dropbox using the interactive OAuth 2.0 authorization-code flow with PKCE.
+    /// Opens the system browser; the resulting refresh token keeps the session alive without
+    /// pasting new tokens every few hours.
+    /// </summary>
+    /// <param name="appKey">The Dropbox application key from the user's own Dropbox app.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>Operation result indicating success.</returns>
+    public async Task<OperationResult<bool>> AuthenticateWithOAuthAsync(string appKey, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(appKey))
+        {
+            return OperationResult<bool>.CreateFailure("A Dropbox app key is required. Create an app in the Dropbox Developer App Console and paste its app key.");
+        }
+
+        var service = GetOAuthService();
+        var (verifier, challenge) = DropboxOAuthService.CreatePkcePair();
+        using var listener = StartOAuthListener(service, out var redirectUri);
+        if (listener == null || string.IsNullOrEmpty(redirectUri))
+        {
+            return OperationResult<bool>.CreateFailure("Could not listen for the Dropbox sign-in response on this machine.");
+        }
+
+        var authorizeUrl = DropboxOAuthService.BuildAuthorizeUrl(appKey.Trim(), challenge, redirectUri);
+        if (!service.TryOpenBrowser(authorizeUrl))
+        {
+            return OperationResult<bool>.CreateFailure($"Could not open the browser. Please visit this URL to connect Dropbox: {authorizeUrl}");
+        }
+
+        var codeResult = await service.WaitForAuthorizationCodeAsync(listener, cancellationToken);
+        if (!codeResult.Success || string.IsNullOrEmpty(codeResult.Data))
+        {
+            return OperationResult<bool>.CreateFailure(codeResult);
+        }
+
+        var tokenResult = await service.ExchangeCodeForTokensAsync(appKey.Trim(), codeResult.Data, verifier, redirectUri, cancellationToken);
+        if (!tokenResult.Success || tokenResult.Data == null)
+        {
+            return OperationResult<bool>.CreateFailure(tokenResult);
+        }
+
+        return await ApplyOAuthTokensAsync(appKey.Trim(), tokenResult.Data, cancellationToken);
     }
 
     /// <summary>
@@ -170,6 +262,9 @@ public class DropboxHostingProvider(ILogger<DropboxHostingProvider> logger, IHtt
     public Task SignOutAsync()
     {
         _accessToken = null;
+        _appKey = null;
+        _refreshToken = null;
+        _accessTokenExpiresAtUtc = DateTime.MinValue;
         return Task.CompletedTask;
     }
 
@@ -193,6 +288,8 @@ public class DropboxHostingProvider(ILogger<DropboxHostingProvider> logger, IHtt
                 return OperationResult<HostingUploadResult>.CreateFailure(
                     $"File '{fileName}' is {fileStream.Length / (1024 * 1024)} MB, which exceeds Dropbox's 150 MB single-request upload limit.");
             }
+
+            await EnsureFreshAccessTokenAsync(cancellationToken);
 
             folderPath ??= PublisherFolderPath;
             var safeFileName = SanitizeFileName(fileName);
@@ -229,8 +326,22 @@ public class DropboxHostingProvider(ILogger<DropboxHostingProvider> logger, IHtt
             if (!response.IsSuccessStatusCode)
             {
                 var errorContent = await response.Content.ReadAsStringAsync(cancellationToken);
-                logger.LogError("Dropbox upload failed for {File}: {Status} {Error}", safeFileName, response.StatusCode, errorContent);
-                return OperationResult<HostingUploadResult>.CreateFailure($"Upload failed ({response.StatusCode}): {errorContent}");
+                if (DropboxOAuthService.IsExpiredTokenError(response.StatusCode, errorContent))
+                {
+                    (response, errorContent) = await TryRetryUploadAfterRefreshAsync(
+                        response,
+                        errorContent,
+                        uploadArgs,
+                        fileStream,
+                        safeFileName,
+                        cancellationToken);
+                }
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    logger.LogError("Dropbox upload failed for {File}: {Status} {Error}", safeFileName, response.StatusCode, errorContent);
+                    return OperationResult<HostingUploadResult>.CreateFailure($"Upload failed ({response.StatusCode}): {errorContent}");
+                }
             }
 
             var responseJson = await response.Content.ReadAsStringAsync(cancellationToken);
@@ -311,6 +422,8 @@ public class DropboxHostingProvider(ILogger<DropboxHostingProvider> logger, IHtt
 
         try
         {
+            await EnsureFreshAccessTokenAsync(cancellationToken);
+
             // Dropbox file IDs (id:...) are accepted anywhere a path is expected
             var deleteArgs = new { path = fileId.Trim() };
             using var request = CreateAuthorizedRequest(HttpMethod.Post, $"{DropboxApiUrl}/files/delete_v2", _accessToken);
@@ -365,6 +478,8 @@ public class DropboxHostingProvider(ILogger<DropboxHostingProvider> logger, IHtt
 
         try
         {
+            await EnsureFreshAccessTokenAsync(cancellationToken);
+
             logger.LogInformation("Scanning Dropbox folder {Folder} for existing files...", PublisherFolderPath);
 
             var listArgs = new
@@ -493,6 +608,7 @@ public class DropboxHostingProvider(ILogger<DropboxHostingProvider> logger, IHtt
             // Note: _httpClient was created by IHttpClientFactory, which manages the lifecycle
             // and handler pooling. Disposing the factory-managed client is skipped to prevent
             // ObjectDisposedException on shared handlers.
+            _refreshLock.Dispose();
             _disposed = true;
         }
     }
@@ -640,6 +756,171 @@ public class DropboxHostingProvider(ILogger<DropboxHostingProvider> logger, IHtt
         }
 
         return null;
+    }
+
+    private static bool TryRewindUploadStream(Stream stream)
+    {
+        if (!stream.CanSeek)
+        {
+            return false;
+        }
+
+        try
+        {
+            stream.Position = 0;
+            return true;
+        }
+        catch (IOException)
+        {
+            return false;
+        }
+        catch (ObjectDisposedException)
+        {
+            return false;
+        }
+        catch (NotSupportedException)
+        {
+            return false;
+        }
+    }
+
+    private DropboxOAuthService GetOAuthService()
+    {
+        _oauthService ??= new DropboxOAuthService(_httpClient, logger);
+        return _oauthService;
+    }
+
+    private System.Net.HttpListener? StartOAuthListener(DropboxOAuthService service, out string? redirectUri)
+    {
+        redirectUri = null;
+        try
+        {
+            var started = service.StartLoopbackListener();
+            redirectUri = started.RedirectUri;
+            return started.Listener;
+        }
+        catch (System.Net.HttpListenerException ex)
+        {
+            logger.LogWarning(ex, "Dropbox OAuth loopback listener failed to start");
+            return null;
+        }
+        catch (System.Net.Sockets.SocketException ex)
+        {
+            logger.LogWarning(ex, "Dropbox OAuth loopback listener failed to start");
+            return null;
+        }
+    }
+
+    private async Task<OperationResult<bool>> ApplyOAuthTokensAsync(
+        string appKey,
+        DropboxTokenResult tokens,
+        CancellationToken cancellationToken)
+    {
+        _appKey = appKey;
+        _refreshToken = tokens.RefreshToken;
+        _accessTokenExpiresAtUtc = DateTime.UtcNow.AddSeconds(Math.Max(tokens.ExpiresInSeconds, 0));
+        var verifyResult = await AuthenticateWithTokenAsync(tokens.AccessToken, cancellationToken);
+        if (verifyResult.Success)
+        {
+            _accessTokenExpiresAtUtc = DateTime.UtcNow.AddSeconds(Math.Max(tokens.ExpiresInSeconds, 0));
+        }
+
+        return verifyResult;
+    }
+
+    private async Task EnsureFreshAccessTokenAsync(CancellationToken cancellationToken)
+    {
+        if (!HasOAuthCredentials)
+        {
+            return;
+        }
+
+        var refreshAt = _accessTokenExpiresAtUtc.AddMinutes(-HostingConstants.OAuthRefreshBeforeExpiryMinutes);
+        if (DateTime.UtcNow < refreshAt && !string.IsNullOrWhiteSpace(_accessToken))
+        {
+            return;
+        }
+
+        await TryRefreshAccessTokenAsync(cancellationToken);
+    }
+
+    private async Task<bool> TryRefreshAccessTokenAsync(CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(_appKey) || string.IsNullOrWhiteSpace(_refreshToken))
+        {
+            return false;
+        }
+
+        await _refreshLock.WaitAsync(cancellationToken);
+        try
+        {
+            var result = await GetOAuthService().RefreshAccessTokenAsync(_appKey, _refreshToken, cancellationToken);
+            if (!result.Success || result.Data == null)
+            {
+                logger.LogWarning("Dropbox token refresh failed: {Error}", result.FirstError);
+                if (result.FirstError?.Contains("invalid_grant", StringComparison.OrdinalIgnoreCase) == true)
+                {
+                    _refreshToken = null;
+                    _accessToken = null;
+                }
+
+                return false;
+            }
+
+            _accessToken = result.Data.AccessToken;
+            if (!string.IsNullOrWhiteSpace(result.Data.RefreshToken))
+            {
+                _refreshToken = result.Data.RefreshToken;
+            }
+
+            _accessTokenExpiresAtUtc = DateTime.UtcNow.AddSeconds(Math.Max(result.Data.ExpiresInSeconds, 0));
+            logger.LogInformation("Refreshed Dropbox access token");
+            return true;
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (HttpRequestException ex)
+        {
+            logger.LogWarning(ex, "Dropbox token refresh request failed");
+            return false;
+        }
+        catch (ObjectDisposedException ex)
+        {
+            logger.LogWarning(ex, "Dropbox token refresh overlapped provider disposal");
+            return false;
+        }
+        finally
+        {
+            _refreshLock.Release();
+        }
+    }
+
+    private async Task<(HttpResponseMessage Response, string ErrorContent)> TryRetryUploadAfterRefreshAsync(
+        HttpResponseMessage failedResponse,
+        string errorContent,
+        object uploadArgs,
+        Stream fileStream,
+        string safeFileName,
+        CancellationToken cancellationToken)
+    {
+        if (!await TryRefreshAccessTokenAsync(cancellationToken) || !TryRewindUploadStream(fileStream))
+        {
+            return (failedResponse, errorContent);
+        }
+
+        failedResponse.Dispose();
+        logger.LogInformation("Retrying Dropbox upload of {File} after token refresh", safeFileName);
+        using var retryRequest = CreateAuthorizedRequest(HttpMethod.Post, $"{DropboxContentUrl}/files/upload", _accessToken);
+        retryRequest.Headers.Add("Dropbox-API-Arg", JsonSerializer.Serialize(uploadArgs));
+        retryRequest.Content = new StreamContent(fileStream, HostingConstants.StreamCopyBufferSize);
+        retryRequest.Content.Headers.ContentType = new MediaTypeHeaderValue(HostingConstants.BinaryContentType);
+        var response = await _httpClient.SendAsync(retryRequest, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+        var retryError = response.IsSuccessStatusCode
+            ? string.Empty
+            : await response.Content.ReadAsStringAsync(cancellationToken);
+        return (response, retryError);
     }
 
     private async Task FetchRemainingPagesAsync(string initialCursor, HostingState state, CancellationToken cancellationToken)

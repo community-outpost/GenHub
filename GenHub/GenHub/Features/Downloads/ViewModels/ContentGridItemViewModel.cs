@@ -333,6 +333,16 @@ public sealed partial class ContentGridItemViewModel(
     public string? ThumbnailUrl => ContentCardBadgeHelper.GetThumbnailUrl(SearchResult);
 
     /// <summary>
+    /// Gets the publisher-defined accent color hex for this content, if any.
+    /// </summary>
+    public string? AccentColor => SearchResult.AccentColor;
+
+    /// <summary>
+    /// Gets a value indicating whether a valid accent color is available for card highlights.
+    /// </summary>
+    public bool HasAccentColor => ContentCardBadgeHelper.IsValidAccentColor(SearchResult.AccentColor);
+
+    /// <summary>
     /// Gets the source URL for viewing more details.
     /// </summary>
     public string? SourceUrl => SearchResult.SourceUrl;
@@ -1268,6 +1278,8 @@ public sealed partial class ContentGridItemViewModel(
         OnPropertyChanged(nameof(Id));
         OnPropertyChanged(nameof(IconUrl));
         OnPropertyChanged(nameof(ThumbnailUrl));
+        OnPropertyChanged(nameof(AccentColor));
+        OnPropertyChanged(nameof(HasAccentColor));
         OnPropertyChanged(nameof(IncludesSummary));
         OnPropertyChanged(nameof(HasIncludesSummary));
         OnPropertyChanged(nameof(ShortDescription));

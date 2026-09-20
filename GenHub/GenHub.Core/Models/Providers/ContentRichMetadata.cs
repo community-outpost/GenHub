@@ -14,6 +14,27 @@ public class ContentRichMetadata
     public string? BannerUrl { get; set; }
 
     /// <summary>
+    /// Gets or sets the per-content icon URL shown on cards and detail headers.
+    /// Falls back to the publisher avatar when omitted.
+    /// </summary>
+    [JsonPropertyName("iconUrl")]
+    public string? IconUrl { get; set; }
+
+    /// <summary>
+    /// Gets or sets the wide backdrop/cover image URL for content detail headers.
+    /// Falls back to the banner image when omitted.
+    /// </summary>
+    [JsonPropertyName("backdropUrl")]
+    public string? BackdropUrl { get; set; }
+
+    /// <summary>
+    /// Gets or sets the accent color for this content as a hex string (e.g. "#7C3AED").
+    /// Used for card stripes and detail highlights. Ignored when invalid or omitted.
+    /// </summary>
+    [JsonPropertyName("accentColor")]
+    public string? AccentColor { get; set; }
+
+    /// <summary>
     /// Gets or sets a collection of screenshot URLs.
     /// </summary>
     [JsonPropertyName("screenshotUrls")]

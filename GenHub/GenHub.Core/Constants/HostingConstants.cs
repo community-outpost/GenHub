@@ -97,6 +97,45 @@ public static class HostingConstants
     public const string DropboxDefaultPublisherFolder = "/GenHub_Publisher";
 
     /// <summary>
+    /// Dropbox OAuth 2.0 authorization endpoint (browser redirect target).
+    /// </summary>
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Minor Code Smell", "S1075:URIs should not be hardcoded", Justification = "Standard Dropbox OAuth endpoint")]
+    public const string DropboxOAuthAuthorizeUrl = "https://www.dropbox.com/oauth2/authorize";
+
+    /// <summary>
+    /// Dropbox OAuth 2.0 token endpoint (code exchange and refresh grants).
+    /// </summary>
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Minor Code Smell", "S1075:URIs should not be hardcoded", Justification = "Standard Dropbox OAuth endpoint")]
+    public const string DropboxOAuthTokenUrl = "https://api.dropbox.com/oauth2/token";
+
+    /// <summary>
+    /// Loopback host used for desktop OAuth redirect URIs.
+    /// Dropbox implicitly allows localhost redirects for desktop apps.
+    /// </summary>
+    public const string OAuthLoopbackHost = "localhost";
+
+    /// <summary>
+    /// IPv4 loopback alias bound alongside <see cref="OAuthLoopbackHost"/> so the
+    /// OAuth callback is received regardless of how localhost resolves.
+    /// </summary>
+    public const string OAuthLoopbackIpv4Host = "127.0.0.1";
+
+    /// <summary>
+    /// Length in bytes of the PKCE code verifier before base64url encoding.
+    /// </summary>
+    public const int OAuthPkceVerifierByteLength = 32;
+
+    /// <summary>
+    /// Refresh short-lived access tokens this many minutes before they expire.
+    /// </summary>
+    public const int OAuthRefreshBeforeExpiryMinutes = 5;
+
+    /// <summary>
+    /// Version stamp for serialized Dropbox OAuth credential payloads.
+    /// </summary>
+    public const int DropboxCredentialPayloadVersion = 1;
+
+    /// <summary>
     /// Default publisher folder name on Google Drive.
     /// </summary>
     public const string GoogleDriveDefaultPublisherFolder = "GenHub_Publisher";

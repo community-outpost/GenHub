@@ -195,6 +195,82 @@
                         </ComboBox>
                     </Grid>
 
+                    <!-- Publish Now Panel: destination summary, progress, and publish action.
+                         Shown once the provider is ready; the connection guides below collapse automatically. -->
+                    <StackPanel IsVisible="{Binding !NeedsAuthentication}" Spacing="12">
+                        <Border Background="{DynamicResource GlassFillSubtleBrush}" BorderBrush="{DynamicResource GlassBorderBrush}" BorderThickness="1" CornerRadius="6" Padding="12">
+                            <StackPanel Spacing="10">
+                                <Grid ColumnDefinitions="Auto,*">
+                                    <PathIcon Data="{StaticResource LinkIcon}" Width="16" Height="16" Foreground="{DynamicResource AccentColorBrush}" Margin="0,0,10,0" VerticalAlignment="Center"/>
+                                    <StackPanel Grid.Column="1">
+                                        <TextBlock Text="{localization:Localize Tools.PublisherStudio.Publish.TargetDestination}" FontSize="11" Foreground="{DynamicResource TextSecondary}"/>
+                                        <TextBlock Text="{Binding TargetDestinationDescription}" FontSize="13" FontWeight="SemiBold" Foreground="White" TextWrapping="Wrap"/>
+                                    </StackPanel>
+                                </Grid>
+
+                                <!-- Incompatible provider warning -->
+                                <Border Background="{DynamicResource StatusErrorBadgeBackgroundBrush}" BorderBrush="{DynamicResource StatusErrorBrush}" BorderThickness="1" CornerRadius="4" Padding="10"
+                                        IsVisible="{Binding HasIncompatibleArtifactsForProvider}">
+                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                        <PathIcon Data="{StaticResource ErrorIcon}" Width="14" Height="14" Foreground="{DynamicResource StatusErrorBrush}" VerticalAlignment="Center"/>
+                                        <TextBlock Text="{Binding IncompatibleArtifactsWarningMessage}" FontSize="11" Foreground="{DynamicResource TextPrimary}" TextWrapping="Wrap" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </Border>
+
+                                <!-- Breakdown counters -->
+                                <Grid ColumnDefinitions="*,*,*">
+                                    <Border Grid.Column="0" Background="{DynamicResource GlassFillSubtleBrush}" CornerRadius="4" Padding="8,6" Margin="0,0,4,0">
+                                        <StackPanel>
+                                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Publish.LocalFilesToUpload}" FontSize="10" Foreground="{DynamicResource TextSecondary}"/>
+                                            <TextBlock Text="{Binding PendingArtifactsCount}" FontSize="14" FontWeight="Bold" Foreground="{DynamicResource WarningHighlightBrush}"/>
+                                        </StackPanel>
+                                    </Border>
+                                    <Border Grid.Column="1" Background="{DynamicResource GlassFillSubtleBrush}" CornerRadius="4" Padding="8,6" Margin="2,0,2,0">
+                                        <StackPanel>
+                                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Publish.ExternalCdnPreserved}" FontSize="10" Foreground="{DynamicResource TextSecondary}"/>
+                                            <TextBlock Text="{Binding ExternalCdnArtifactsCount}" FontSize="14" FontWeight="Bold" Foreground="{DynamicResource StatusInfoBrush}"/>
+                                        </StackPanel>
+                                    </Border>
+                                    <Border Grid.Column="2" Background="{DynamicResource GlassFillSubtleBrush}" CornerRadius="4" Padding="8,6" Margin="4,0,0,0">
+                                        <StackPanel>
+                                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Publish.CatalogsAndDefinition}" FontSize="10" Foreground="{DynamicResource TextSecondary}"/>
+                                            <TextBlock Text="{Binding CatalogStatusesCountText}" FontSize="14" FontWeight="Bold" Foreground="{DynamicResource StatusSuccessBrush}"/>
+                                        </StackPanel>
+                                    </Border>
+                                </Grid>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Progress Bar & Cancel -->
+                        <StackPanel Spacing="6" IsVisible="{Binding IsUploading}">
+                            <ProgressBar Value="{Binding UploadProgress}"
+                                         Maximum="100"/>
+                            <Button Command="{Binding CancelUploadCommand}"
+                                    Content="{localization:Localize Tools.PublisherStudio.Publish.CancelUpload}"
+                                    Classes="glass-btn"
+                                    Padding="10,4"
+                                    FontSize="11"
+                                    HorizontalAlignment="Right"/>
+                        </StackPanel>
+
+                        <TextBlock Text="{Binding UploadStatusMessage}"
+                                   FontSize="12"
+                                   Foreground="{DynamicResource TextSecondary}"
+                                   TextWrapping="Wrap"
+                                   IsVisible="{Binding UploadStatusMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+
+                        <!-- Publish Button -->
+                        <Button Command="{Binding PublishAllCatalogsCommand}"
+                                Classes="primary-btn"
+                                IsEnabled="{Binding !IsUploading}"
+                                HorizontalAlignment="Stretch">
+                            <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
+                                <PathIcon Data="{StaticResource PublishIcon}" Width="16" Height="16" Foreground="White"/>
+                                <TextBlock Text="{Binding PublishButtonText}" FontSize="14" FontWeight="SemiBold"/>
+                            </StackPanel>
+                        </Button>
+                    </StackPanel>
+
                     <!-- Google Drive OAuth Section -->
                     <StackPanel IsVisible="{Binding ShowGoogleOAuthButton}" Spacing="10">
                         <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.GoogleDriveDescription}"
@@ -349,6 +425,21 @@
                             </StackPanel>
                         </Button>
 
+                        <!-- Dropbox OAuth Connect (recommended: stays signed in via refresh tokens) -->
+                        <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.DropboxOAuthTitle}" FontWeight="SemiBold" FontSize="12" Foreground="White"/>
+                        <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.DropboxOAuthDescription}" FontSize="11" Foreground="{DynamicResource TextSecondary}" TextWrapping="Wrap"/>
+                        <TextBox Text="{Binding DropboxAppKey}" Watermark="{localization:Localize Tools.PublisherStudio.Hosting.DropboxAppKeyPlaceholder}"/>
+                        <Button Command="{Binding ConnectDropboxOAuthCommand}"
+                                Classes="glass-btn"
+                                IsEnabled="{Binding !IsAuthenticating}"
+                                HorizontalAlignment="Left">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <PathIcon Data="{StaticResource LinkIcon}" Width="12" Height="12" Foreground="{DynamicResource AccentColorBrush}"/>
+                                <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.ConnectWithDropbox}" Foreground="{DynamicResource AccentColorBrush}" FontWeight="SemiBold" FontSize="12"/>
+                            </StackPanel>
+                        </Button>
+
+                        <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.DropboxManualTokenTitle}" FontWeight="SemiBold" FontSize="12" Foreground="White"/>
                         <TextBox Text="{Binding DropboxAccessToken}" Watermark="{localization:Localize Tools.PublisherStudio.Hosting.DropboxTokenPlaceholder}" PasswordChar="●" RevealPassword="True"/>
                     </StackPanel>
 
@@ -378,7 +469,8 @@
             </Border>
 
             <!-- Card 2: Uploads & Distribution Hierarchy (1. Definition / 2. Catalogs / 3. Content Items & Releases) -->
-            <Border Classes="step-card">
+            <!-- Hidden until the provider is ready so first-time publishers focus on connecting above. -->
+            <Border Classes="step-card" IsVisible="{Binding !NeedsAuthentication}">
                 <StackPanel Spacing="20">
                     <StackPanel>
                         <TextBlock Classes="step-header" Text="{localization:Localize Tools.PublisherStudio.Publish.HierarchyTitle}" Margin="0,0,0,4"/>
@@ -704,65 +796,6 @@
                                        Foreground="{DynamicResource TextSecondary}"
                                        IsVisible="{Binding UploadStatusMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
 
-                            <!-- Pre-Publish Destination & Routing Summary Card -->
-                            <Border Background="{DynamicResource SurfaceCardBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="6" Padding="14">
-                                <StackPanel Spacing="10">
-                                    <Grid ColumnDefinitions="Auto,*">
-                                        <PathIcon Data="{StaticResource LinkIcon}" Width="16" Height="16" Foreground="{DynamicResource AccentColorBrush}" Margin="0,0,10,0" VerticalAlignment="Center"/>
-                                        <StackPanel Grid.Column="1">
-                                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Publish.TargetDestination}" FontSize="11" Foreground="{DynamicResource TextSecondary}"/>
-                                            <TextBlock Text="{Binding TargetDestinationDescription}" FontSize="13" FontWeight="SemiBold" Foreground="White"/>
-                                        </StackPanel>
-                                    </Grid>
-
-                                    <!-- Incompatible provider warning -->
-                                    <Border Background="{DynamicResource StatusErrorBadgeBackgroundBrush}" BorderBrush="{DynamicResource StatusErrorBrush}" BorderThickness="1" CornerRadius="4" Padding="10"
-                                            IsVisible="{Binding HasIncompatibleArtifactsForProvider}">
-                                        <StackPanel Orientation="Horizontal" Spacing="8">
-                                            <PathIcon Data="{StaticResource ErrorIcon}" Width="14" Height="14" Foreground="{DynamicResource StatusErrorBrush}" VerticalAlignment="Center"/>
-                                            <TextBlock Text="{Binding IncompatibleArtifactsWarningMessage}" FontSize="11" Foreground="{DynamicResource TextPrimary}" TextWrapping="Wrap" VerticalAlignment="Center"/>
-                                        </StackPanel>
-                                    </Border>
-
-                                    <!-- Breakdown counters -->
-                                    <Grid ColumnDefinitions="*,*,*">
-                                        <!-- Pending local uploads -->
-                                        <Border Grid.Column="0" Background="{DynamicResource GlassFillSubtleBrush}" CornerRadius="4" Padding="8,6" Margin="0,0,4,0">
-                                            <StackPanel>
-                                                <TextBlock Text="{localization:Localize Tools.PublisherStudio.Publish.LocalFilesToUpload}" FontSize="10" Foreground="{DynamicResource TextSecondary}"/>
-                                                <TextBlock Text="{Binding PendingArtifactsCount}" FontSize="14" FontWeight="Bold" Foreground="{DynamicResource WarningHighlightBrush}"/>
-                                            </StackPanel>
-                                        </Border>
-
-                                        <!-- External CDN / Direct URLs -->
-                                        <Border Grid.Column="1" Background="{DynamicResource GlassFillSubtleBrush}" CornerRadius="4" Padding="8,6" Margin="2,0,2,0">
-                                            <StackPanel>
-                                                <TextBlock Text="{localization:Localize Tools.PublisherStudio.Publish.ExternalCdnPreserved}" FontSize="10" Foreground="{DynamicResource TextSecondary}"/>
-                                                <TextBlock Text="{Binding ExternalCdnArtifactsCount}" FontSize="14" FontWeight="Bold" Foreground="{DynamicResource StatusInfoBrush}"/>
-                                            </StackPanel>
-                                        </Border>
-
-                                        <!-- Catalog Manifests -->
-                                        <Border Grid.Column="2" Background="{DynamicResource GlassFillSubtleBrush}" CornerRadius="4" Padding="8,6" Margin="4,0,0,0">
-                                            <StackPanel>
-                                                <TextBlock Text="{localization:Localize Tools.PublisherStudio.Publish.CatalogsAndDefinition}" FontSize="10" Foreground="{DynamicResource TextSecondary}"/>
-                                                <TextBlock Text="{Binding CatalogStatusesCountText}" FontSize="14" FontWeight="Bold" Foreground="{DynamicResource StatusSuccessBrush}"/>
-                                            </StackPanel>
-                                        </Border>
-                                    </Grid>
-                                </StackPanel>
-                            </Border>
-
-                            <!-- Publish Button -->
-                            <Button Command="{Binding PublishAllCatalogsCommand}"
-                                    Classes="primary-btn"
-                                    IsEnabled="{Binding !IsUploading}"
-                                    HorizontalAlignment="Stretch">
-                                <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
-                                    <PathIcon Data="{StaticResource PublishIcon}" Width="16" Height="16" Foreground="White"/>
-                                    <TextBlock Text="{Binding PublishButtonText}" FontSize="14" FontWeight="SemiBold"/>
-                                </StackPanel>
-                            </Button>
                         </StackPanel>
                     </Border>
                 </StackPanel>

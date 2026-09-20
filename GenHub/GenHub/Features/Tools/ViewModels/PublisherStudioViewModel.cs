@@ -73,6 +73,9 @@ public partial class PublisherStudioViewModel(
     private bool _hasUnsavedChanges;
 
     [ObservableProperty]
+    private bool _hasDefinitionChanges = true;
+
+    [ObservableProperty]
     private string _statusMessage = string.Empty;
 
     [ObservableProperty]
@@ -136,6 +139,8 @@ public partial class PublisherStudioViewModel(
 
     /// <summary>
     /// Marks the current project as dirty (having unsaved changes).
+    /// Any project edit may affect the published provider definition, so definition
+    /// change tracking is raised together with the unsaved flag.
     /// </summary>
     public void MarkDirty()
     {
@@ -143,6 +148,7 @@ public partial class PublisherStudioViewModel(
         {
             CurrentProject.IsDirty = true;
             HasUnsavedChanges = true;
+            HasDefinitionChanges = true;
             RefreshSetupState();
         }
     }
@@ -177,6 +183,32 @@ public partial class PublisherStudioViewModel(
         {
             _saveLock.Release();
         }
+    }
+
+    /// <summary>
+    /// Uploads the provider definition to the connected hosting provider.
+    /// Bound to the header action button; enabled only when definition changes are pending.
+    /// The project is saved silently first so the uploaded definition always matches disk.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [RelayCommand]
+    public async Task UploadDefinitionAsync()
+    {
+        if (CurrentProject == null || PublishShareViewModel == null)
+        {
+            return;
+        }
+
+        if (PublishShareViewModel.IsUploading)
+        {
+            var busyTitle = localizationService?.GetString("Tools.PublisherStudio.Publish.UploadInProgressTitle") ?? "Upload In Progress";
+            var busyMessage = localizationService?.GetString("Tools.PublisherStudio.Hosting.UploadInProgress") ?? "Another upload is already in progress.";
+            notificationService?.ShowWarning(busyTitle, busyMessage, NotificationDurations.Medium);
+            return;
+        }
+
+        await SaveProjectSilentAsync();
+        await PublishShareViewModel.UploadProviderDefinitionAsync();
     }
 
     /// <summary>
@@ -239,14 +271,14 @@ public partial class PublisherStudioViewModel(
             var lastPath = await LoadLastProjectPathAsync();
             if (!string.IsNullOrEmpty(lastPath) && File.Exists(lastPath))
             {
-                await LoadProjectFromPathAsync(lastPath);
+                await LoadProjectFromPathAsync(lastPath, announce: false);
                 return;
             }
 
             var defaultPath = GetDefaultProjectPath();
             if (File.Exists(defaultPath))
             {
-                await LoadProjectFromPathAsync(defaultPath);
+                await LoadProjectFromPathAsync(defaultPath, announce: false);
                 return;
             }
 
@@ -506,7 +538,7 @@ public partial class PublisherStudioViewModel(
         }
     }
 
-    private async Task LoadProjectFromPathAsync(string filePath)
+    private async Task LoadProjectFromPathAsync(string filePath, bool announce = true)
     {
         try
         {
@@ -519,7 +551,11 @@ public partial class PublisherStudioViewModel(
                 await SaveLastProjectPathAsync(filePath);
                 HasUnsavedChanges = false;
                 StatusMessage = GetStatusString("Tools.PublisherStudio.Studio.ProjectLoadedFormat", "Project loaded: {0}", CurrentProject.ProjectName);
-                notificationService?.ShowSuccess(StudioNotificationTitle, StatusMessage, NotificationDurations.Short);
+                if (announce)
+                {
+                    notificationService?.ShowSuccess(StudioNotificationTitle, StatusMessage, NotificationDurations.Short);
+                }
+
                 logger.LogInformation("Loaded publisher project from {Path}", filePath);
             }
             else
@@ -861,7 +897,10 @@ public partial class PublisherStudioViewModel(
         PublishShareViewModel?.Dispose();
         PublishShareViewModel = new GenHub.Features.Tools.ViewModels.PublishShareViewModel(CurrentProject, publisherStudioService, logger, hostingProviderFactory, hostingStateManager, notificationService, localizationService, credentialStore);
         PublishShareViewModel.SaveProjectCallback = SaveProjectAfterPublishAsync;
+        PublishShareViewModel.LibraryRefreshCallback = () => ContentLibraryViewModel?.RefreshContentDisplay();
+        PublishShareViewModel.DefinitionUploadedCallback = () => HasDefinitionChanges = false;
         await PublishShareViewModel.InitializeAsync();
+        HasDefinitionChanges = !PublishShareViewModel.IsDefinitionPublished;
         ReferralsViewModel = new GenHub.Features.Tools.ViewModels.ReferralsViewModel(CurrentProject, this, logger, dialogService, notificationService, localizationService);
 
         // Check for hosting state recovery

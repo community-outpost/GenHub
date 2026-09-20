@@ -2,6 +2,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using GenHub.Common.Validation;
 using GenHub.Core.Helpers;
+using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Providers;
 using GenHub.Features.Tools.Interfaces;
@@ -25,6 +26,21 @@ public partial class AddContentDialogViewModel(
     IPublisherStudioDialogService? dialogService = null,
     GenHub.Core.Interfaces.Common.ILocalizationService? localizationService = null) : ObservableValidator, IDisposable
 {
+    /// <summary>
+    /// Artwork browse target for the content icon.
+    /// </summary>
+    public const string ArtworkTargetIcon = "Icon";
+
+    /// <summary>
+    /// Artwork browse target for the content banner.
+    /// </summary>
+    public const string ArtworkTargetBanner = "Banner";
+
+    /// <summary>
+    /// Artwork browse target for the content backdrop cover.
+    /// </summary>
+    public const string ArtworkTargetBackdrop = "Backdrop";
+
     private readonly CatalogContentItem? _existingItem;
     private CancellationTokenSource? _computationCts;
 
@@ -63,6 +79,18 @@ public partial class AddContentDialogViewModel(
 
     [ObservableProperty]
     private string? _extendsContentId;
+
+    [ObservableProperty]
+    private string? _iconArtwork;
+
+    [ObservableProperty]
+    private string? _bannerArtwork;
+
+    [ObservableProperty]
+    private string? _backdropArtwork;
+
+    [ObservableProperty]
+    private string? _accentColor;
 
     [ObservableProperty]
     private bool _isValid;
@@ -126,6 +154,10 @@ public partial class AddContentDialogViewModel(
         SelectedTargetGame = existing.TargetGame;
         TagsInput = string.Join(", ", existing.Tags);
         ExtendsContentId = existing.ExtendsContentId;
+        IconArtwork = existing.Metadata?.IconUrl;
+        BannerArtwork = existing.Metadata?.BannerUrl;
+        BackdropArtwork = existing.Metadata?.BackdropUrl;
+        AccentColor = existing.Metadata?.AccentColor;
     }
 
     /// <summary>
@@ -527,6 +559,42 @@ public partial class AddContentDialogViewModel(
         }
     }
 
+    /// <summary>
+    /// Browses for a local artwork image and assigns it to the requested artwork slot.
+    /// Local files are uploaded to the hosting provider during catalog publish.
+    /// </summary>
+    /// <param name="target">One of the <c>ArtworkTarget*</c> slot names.</param>
+    [RelayCommand]
+    private async Task BrowseArtworkAsync(string? target)
+    {
+        if (dialogService == null || string.IsNullOrEmpty(target))
+        {
+            return;
+        }
+
+        var filePath = await dialogService.ShowFilePickerAsync(
+            GetLocalizedString("Tools.PublisherStudio.Content.SelectArtworkTitle", "Select Artwork Image"));
+        if (string.IsNullOrEmpty(filePath) || !File.Exists(filePath))
+        {
+            return;
+        }
+
+        switch (target)
+        {
+            case ArtworkTargetIcon:
+                IconArtwork = filePath;
+                break;
+            case ArtworkTargetBanner:
+                BannerArtwork = filePath;
+                break;
+            case ArtworkTargetBackdrop:
+                BackdropArtwork = filePath;
+                break;
+            default:
+                break;
+        }
+    }
+
     private async Task ComputeFolderSizeAsync(string folderPath, CancellationToken ct)
     {
         try
@@ -645,6 +713,11 @@ public partial class AddContentDialogViewModel(
             return;
         }
 
+        if (!ValidateArtwork())
+        {
+            return;
+        }
+
         var tags = ParseTags(TagsInput);
 
         var contentItem = new CatalogContentItem
@@ -656,6 +729,7 @@ public partial class AddContentDialogViewModel(
             TargetGame = SelectedTargetGame,
             Tags = [.. tags],
             ExtendsContentId = SelectedContentType == ContentType.Addon ? ExtendsContentId : null,
+            Metadata = MergeArtworkMetadata(),
         };
 
         if (!IsEditMode && IncludeInitialRelease)
@@ -712,6 +786,86 @@ public partial class AddContentDialogViewModel(
         }
 
         return true;
+    }
+
+    private bool IsRemoteArtworkUrl(string value)
+    {
+        return Uri.TryCreate(value.Trim(), UriKind.Absolute, out var uri)
+            && (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps);
+    }
+
+    private string? NormalizeArtworkValue(string? value)
+    {
+        return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+    }
+
+    private bool ValidateArtwork()
+    {
+        var slots = new (string? Value, string Name)[]
+        {
+            (IconArtwork, GetLocalizedString("Tools.PublisherStudio.Content.IconArtwork", "Icon")),
+            (BannerArtwork, GetLocalizedString("Tools.PublisherStudio.Content.BannerArtwork", "Banner")),
+            (BackdropArtwork, GetLocalizedString("Tools.PublisherStudio.Content.BackdropArtwork", "Backdrop cover")),
+        };
+
+        foreach (var (value, name) in slots)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                continue;
+            }
+
+            if (!IsRemoteArtworkUrl(value) && !File.Exists(value))
+            {
+                ValidationError = string.Format(
+                    GetLocalizedString(
+                        "Tools.PublisherStudio.Validation.ArtworkPathInvalidFormat",
+                        "{0} must be an HTTPS URL or an existing local image file."),
+                    name);
+                IsValid = false;
+                return false;
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(AccentColor) && !ContentCardBadgeHelper.IsValidAccentColor(AccentColor))
+        {
+            ValidationError = GetLocalizedString(
+                "Tools.PublisherStudio.Validation.AccentColorInvalid",
+                "Accent color must be a hex color like #7C3AED.");
+            IsValid = false;
+            return false;
+        }
+
+        return true;
+    }
+
+    private ContentRichMetadata? MergeArtworkMetadata()
+    {
+        var icon = NormalizeArtworkValue(IconArtwork);
+        var banner = NormalizeArtworkValue(BannerArtwork);
+        var backdrop = NormalizeArtworkValue(BackdropArtwork);
+        var accent = NormalizeArtworkValue(AccentColor);
+        var source = _existingItem?.Metadata;
+
+        if (icon == null && banner == null && backdrop == null && accent == null && source == null)
+        {
+            return null;
+        }
+
+        return new ContentRichMetadata
+        {
+            IconUrl = icon,
+            BannerUrl = banner,
+            BackdropUrl = backdrop,
+            AccentColor = accent,
+            ScreenshotUrls = source != null ? [.. source.ScreenshotUrls] : [],
+            VideoUrl = source?.VideoUrl,
+            DocumentationUrl = source?.DocumentationUrl,
+            Author = source?.Author,
+            License = source?.License,
+            Category = source?.Category,
+            PlayerCount = source?.PlayerCount,
+        };
     }
 
     private void AttachInitialRelease(CatalogContentItem contentItem)

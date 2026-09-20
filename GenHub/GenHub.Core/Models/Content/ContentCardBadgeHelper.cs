@@ -240,6 +240,42 @@ public static partial class ContentCardBadgeHelper
     }
 
     /// <summary>
+    /// Determines whether an accent color value is a usable hex color (#RGB, #RRGGBB, or #AARRGGBB).
+    /// </summary>
+    /// <param name="value">The candidate accent color value.</param>
+    /// <returns>True when the value parses as a hex color; otherwise, false.</returns>
+    public static bool IsValidAccentColor(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return false;
+        }
+
+        var span = value.Trim();
+        if (span.Length == 0 || span[0] != '#')
+        {
+            return false;
+        }
+
+        span = span[1..];
+        if (span.Length is not (3 or 6 or 8))
+        {
+            return false;
+        }
+
+        foreach (var c in span)
+        {
+            var isHexDigit = (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F');
+            if (!isHexDigit)
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /// <summary>
     /// Filters out unusable or expired image URLs (such as Discord CDN attachment links) and returns a clean URL or null.
     /// </summary>
     /// <param name="rawUrl">The candidate image URL.</param>

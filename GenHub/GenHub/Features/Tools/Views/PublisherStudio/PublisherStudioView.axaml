@@ -121,8 +121,8 @@
                      Fill="{DynamicResource AccentBrush}"/>
         </Canvas>
 
-        <!-- Main Studio Shell: 3-row layout (Header, Content View Host, Status Bar) -->
-        <Grid RowDefinitions="Auto,*,Auto" Margin="24,16,24,16">
+        <!-- Main Studio Shell: 2-row layout (Header, Content View Host) -->
+        <Grid RowDefinitions="Auto,*" Margin="24,16,24,16">
 
             <!-- ==================== TOP NAVIGATION HEADER ==================== -->
             <Border Grid.Row="0" Classes="studio-header-panel" Padding="14,10" Margin="0,0,0,16">
@@ -261,12 +261,12 @@
                                       Foreground="{DynamicResource TextSecondary}"/>
                         </Button>
 
-                        <!-- Save Button -->
+                        <!-- Upload Definition Button (saves silently, then uploads when changes are pending) -->
                         <Button Classes="glass-btn-icon"
-                                Command="{Binding SaveProjectCommand}"
-                                IsEnabled="{Binding HasUnsavedChanges}"
-                                ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Studio.SaveProjectTooltip}">
-                            <PathIcon Data="{StaticResource SaveIcon}"
+                                Command="{Binding UploadDefinitionCommand}"
+                                IsEnabled="{Binding HasDefinitionChanges}"
+                                ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Studio.UploadDefinitionTooltip}">
+                            <PathIcon Data="{StaticResource PublishIcon}"
                                       Width="14" Height="14"
                                       Foreground="{DynamicResource TextSecondary}"/>
                         </Button>
@@ -355,50 +355,6 @@
                 </Border>
             </Grid>
 
-            <!-- ==================== BOTTOM STATUS BAR ==================== -->
-            <Border Grid.Row="2"
-                    Background="{DynamicResource CardBackground}"
-                    CornerRadius="8,8,0,0"
-                    Padding="16,8"
-                    Margin="0,8,0,0"
-                    BorderThickness="1,1,1,0"
-                    BorderBrush="{DynamicResource BorderBrush}">
-                <Grid ColumnDefinitions="*,Auto,*">
-                    <!-- Left: Project Info -->
-                    <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
-                        <Panel Width="8" Height="8">
-                            <!-- Green dot: shown when saved -->
-                            <Border Width="8" Height="8"
-                                    CornerRadius="4"
-                                    Background="{DynamicResource StatusSuccessBrush}"
-                                    IsVisible="{Binding !HasUnsavedChanges}"/>
-                            <!-- Yellow dot: shown when unsaved -->
-                            <Border Width="8" Height="8"
-                                    CornerRadius="4"
-                                    Background="{DynamicResource WarningHighlightBrush}"
-                                    IsVisible="{Binding HasUnsavedChanges}"/>
-                        </Panel>
-                        <TextBlock Text="{Binding ProjectStatusText}"
-                                   FontSize="11"
-                                   FontWeight="Medium"
-                                   Foreground="{DynamicResource TextPrimary}"/>
-                    </StackPanel>
-
-                    <!-- Center: Catalog Summary -->
-                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="16" HorizontalAlignment="Center">
-                        <StackPanel Orientation="Horizontal" Spacing="6">
-                            <PathIcon Data="{StaticResource ContentIcon}"
-                                      Width="12" Height="12"
-                                      Foreground="{DynamicResource TextMuted}"/>
-                            <TextBlock Text="{Binding CatalogSummaryText}"
-                                       FontSize="11"
-                                       Foreground="{DynamicResource TextSecondary}"/>
-                        </StackPanel>
-                    </StackPanel>
-
-
-                </Grid>
-            </Border>
         </Grid>
     </Grid>
 </UserControl>

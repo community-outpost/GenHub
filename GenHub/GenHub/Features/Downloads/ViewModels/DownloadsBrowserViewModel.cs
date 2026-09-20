@@ -13,6 +13,7 @@ using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Interfaces.Parsers;
 using GenHub.Core.Interfaces.Providers;
+using GenHub.Core.Interfaces.Publishers;
 using GenHub.Core.Interfaces.Tools;
 using GenHub.Core.Messages;
 using GenHub.Core.Models.CommunityOutpost;
@@ -20,6 +21,7 @@ using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameProfile;
 using GenHub.Core.Models.Manifest;
+using GenHub.Core.Models.Providers;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Results.Content;
 using GenHub.Features.Content.Services;
@@ -145,10 +147,13 @@ public sealed partial class DownloadsBrowserViewModel(
 
     private readonly CancellationTokenSource _vmCts = new();
     private CancellationTokenSource? _searchCts;
+    private CancellationTokenSource? _catalogsCts;
     private int _activeRequestId;
     private string? _lastPopulatedPublisherId;
+    private string? _lastCatalogPublisherId;
     private bool _hasCustomQuery;
     private bool _suppressPublisherChangedRefresh;
+    private bool _suppressCatalogChanged;
     private bool _disposed;
     private bool _builtInPublishersInitialized;
     private ILocalizationService? _localizationService;
@@ -184,6 +189,15 @@ public sealed partial class DownloadsBrowserViewModel(
 
     [ObservableProperty]
     private ObservableCollection<ContentGridItemViewModel> _contentItems = [];
+
+    [ObservableProperty]
+    private ObservableCollection<CatalogEntry> _availableCatalogs = [];
+
+    [ObservableProperty]
+    private CatalogEntry? _selectedCatalog;
+
+    [ObservableProperty]
+    private bool _isLoadingCatalogs;
 
     [ObservableProperty]
     private int _currentPage = 1;
@@ -239,6 +253,12 @@ public sealed partial class DownloadsBrowserViewModel(
     /// Gets a value indicating whether search or filter UI controls are available for the current publisher.
     /// </summary>
     public bool CanSearchOrFilter => CanSearch || CanShowFilters;
+
+    /// <summary>
+    /// Gets a value indicating whether the selected publisher offers more than one catalog.
+    /// Drives the catalog switcher visibility in the toolbar.
+    /// </summary>
+    public bool HasMultipleCatalogs => AvailableCatalogs.Count > 1;
 
     /// <summary>
     /// Gets a value indicating whether the detail view is currently visible.
@@ -339,6 +359,9 @@ public sealed partial class DownloadsBrowserViewModel(
 
             _searchCts?.Cancel();
             _searchCts?.Dispose();
+
+            _catalogsCts?.Cancel();
+            _catalogsCts?.Dispose();
 
             lock (_cacheLock)
             {
@@ -957,10 +980,12 @@ public sealed partial class DownloadsBrowserViewModel(
             _searchCts?.Cancel();
             _searchCts?.Dispose();
             _searchCts = null;
+            ClearCatalogSelection();
             return;
         }
 
         Interlocked.Increment(ref _activeRequestId);
+        BeginLoadCatalogsForPublisher(value);
 
         // Cancel any active custom search query
         _searchCts?.Cancel();
@@ -1090,6 +1115,269 @@ public sealed partial class DownloadsBrowserViewModel(
                 };
             }
         }
+    }
+
+    partial void OnSelectedCatalogChanged(CatalogEntry? value)
+    {
+        if (_suppressCatalogChanged || value == null || SelectedPublisher == null)
+        {
+            return;
+        }
+
+        _ = ApplySelectedCatalogAsync(SelectedPublisher.PublisherId, value);
+    }
+
+    private void BeginLoadCatalogsForPublisher(PublisherItemViewModel publisher)
+    {
+        _catalogsCts?.Cancel();
+        _catalogsCts?.Dispose();
+        _catalogsCts = null;
+        ClearCatalogSelection();
+
+        if (!publisher.PublisherType.Equals(CatalogConstants.SubscribedPublisherCategory, StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        _lastCatalogPublisherId = publisher.PublisherId;
+        _catalogsCts = CancellationTokenSource.CreateLinkedTokenSource(_vmCts.Token);
+        _ = LoadAvailableCatalogsAsync(publisher.PublisherId, _catalogsCts.Token);
+    }
+
+    private void ClearCatalogSelection()
+    {
+        _lastCatalogPublisherId = null;
+        _suppressCatalogChanged = true;
+        try
+        {
+            AvailableCatalogs.Clear();
+            SelectedCatalog = null;
+            IsLoadingCatalogs = false;
+        }
+        finally
+        {
+            _suppressCatalogChanged = false;
+        }
+
+        OnPropertyChanged(nameof(HasMultipleCatalogs));
+    }
+
+    private CatalogEntry? FindMatchingCatalogEntry(
+        IReadOnlyList<CatalogEntry> catalogs,
+        Core.Models.Providers.PublisherSubscription subscription)
+    {
+        if (!string.IsNullOrWhiteSpace(subscription.SelectedCatalogId))
+        {
+            var byId = catalogs.FirstOrDefault(c =>
+                c.Id.Equals(subscription.SelectedCatalogId, StringComparison.OrdinalIgnoreCase));
+            if (byId != null)
+            {
+                return byId;
+            }
+        }
+
+        return catalogs.FirstOrDefault(c =>
+            c.Url.Equals(subscription.CatalogUrl, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private async Task LoadAvailableCatalogsAsync(string publisherId, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var subscriptionResult = await subscriptionStore.GetSubscriptionAsync(publisherId, cancellationToken);
+            var subscription = subscriptionResult.Success ? subscriptionResult.Data : null;
+            if (subscription == null || string.IsNullOrWhiteSpace(subscription.DefinitionUrl))
+            {
+                return;
+            }
+
+            var definitionService = serviceProvider.GetService<IPublisherDefinitionService>();
+            if (definitionService == null)
+            {
+                return;
+            }
+
+            RunOnUi(() =>
+            {
+                if (string.Equals(_lastCatalogPublisherId, publisherId, StringComparison.OrdinalIgnoreCase))
+                {
+                    IsLoadingCatalogs = true;
+                }
+            });
+
+            var definitionResult = await definitionService.FetchDefinitionAsync(subscription.DefinitionUrl, cancellationToken);
+            var catalogs = definitionResult.Success
+                ? definitionResult.Data?.Catalogs.Where(c => !string.IsNullOrWhiteSpace(c.Url)).ToList()
+                : null;
+            if (cancellationToken.IsCancellationRequested
+                || !string.Equals(_lastCatalogPublisherId, publisherId, StringComparison.OrdinalIgnoreCase))
+            {
+                return;
+            }
+
+            if (catalogs == null || catalogs.Count == 0)
+            {
+                logger.LogDebug(
+                    "No browsable catalogs in definition for subscribed publisher {PublisherId}",
+                    publisherId);
+                return;
+            }
+
+            RunOnUi(() => PopulateCatalogs(publisherId, subscription, catalogs));
+        }
+        catch (OperationCanceledException)
+        {
+            // Superseded by another publisher selection or disposal.
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Failed to load catalogs for subscribed publisher {PublisherId}", publisherId);
+        }
+        finally
+        {
+            RunOnUi(() =>
+            {
+                if (string.Equals(_lastCatalogPublisherId, publisherId, StringComparison.OrdinalIgnoreCase))
+                {
+                    IsLoadingCatalogs = false;
+                }
+            });
+        }
+    }
+
+    private void PopulateCatalogs(
+        string publisherId,
+        Core.Models.Providers.PublisherSubscription subscription,
+        List<CatalogEntry> catalogs)
+    {
+        if (!string.Equals(_lastCatalogPublisherId, publisherId, StringComparison.OrdinalIgnoreCase)
+            || !string.Equals(SelectedPublisher?.PublisherId, publisherId, StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        _suppressCatalogChanged = true;
+        try
+        {
+            AvailableCatalogs.Clear();
+            foreach (var catalog in catalogs)
+            {
+                AvailableCatalogs.Add(catalog);
+            }
+
+            var match = FindMatchingCatalogEntry(catalogs, subscription);
+            if (match == null && !string.IsNullOrWhiteSpace(subscription.CatalogUrl))
+            {
+                match = new CatalogEntry
+                {
+                    Id = CatalogConstants.CurrentCatalogEntryId,
+                    Name = _localizationService?.GetString("Downloads.Browser.CurrentCatalog") ?? "Current catalog",
+                    Url = subscription.CatalogUrl,
+                };
+                AvailableCatalogs.Insert(0, match);
+            }
+
+            SelectedCatalog = match ?? catalogs[0];
+            OnPropertyChanged(nameof(HasMultipleCatalogs));
+        }
+        finally
+        {
+            _suppressCatalogChanged = false;
+        }
+    }
+
+    private async Task ApplySelectedCatalogAsync(string publisherId, CatalogEntry catalog)
+    {
+        try
+        {
+            if (!_subscribedDiscoverers.TryGetValue(publisherId, out var discoverer))
+            {
+                return;
+            }
+
+            var subscriptionResult = await subscriptionStore.GetSubscriptionAsync(publisherId, _vmCts.Token);
+            var subscription = subscriptionResult.Success ? subscriptionResult.Data : null;
+            if (subscription == null)
+            {
+                return;
+            }
+
+            if (string.Equals(subscription.CatalogUrl, catalog.Url, StringComparison.OrdinalIgnoreCase))
+            {
+                if (!string.Equals(subscription.SelectedCatalogId, catalog.Id, StringComparison.Ordinal))
+                {
+                    subscription.SelectedCatalogId = catalog.Id;
+                    await subscriptionStore.UpdateSubscriptionAsync(subscription, _vmCts.Token);
+                }
+
+                return;
+            }
+
+            subscription.CatalogUrl = catalog.Url;
+            subscription.SelectedCatalogId = catalog.Id;
+            subscription.CachedCatalogHash = null;
+            subscription.LastFetched = null;
+            var updateResult = await subscriptionStore.UpdateSubscriptionAsync(subscription, _vmCts.Token);
+            if (!updateResult.Success)
+            {
+                logger.LogWarning(
+                    "Failed to persist catalog switch for {PublisherId}: {Errors}",
+                    publisherId,
+                    string.Join("; ", updateResult.Errors));
+                notificationService.ShowWarning(
+                    _localizationService?.GetString("Downloads.Browser.SwitchCatalogFailedTitle") ?? "Could Not Switch Catalogs",
+                    _localizationService?.GetString("Downloads.Browser.SwitchCatalogFailedMessage") ?? "The catalog selection could not be saved. Please try again.");
+                await RevertCatalogSelectionAsync(publisherId);
+                return;
+            }
+
+            discoverer.Configure(subscription);
+            Interlocked.Increment(ref _activeRequestId);
+            _searchCts?.Cancel();
+            _searchCts?.Dispose();
+            _searchCts = null;
+            SelectedContent?.Dispose();
+            SelectedContent = null;
+            _hasCustomQuery = false;
+            SearchTerm = string.Empty;
+            CurrentPage = 1;
+            CanLoadMore = false;
+            _lastPopulatedPublisherId = publisherId;
+            await RefreshContentAsync();
+        }
+        catch (OperationCanceledException) when (_vmCts.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (OperationCanceledException)
+        {
+            // Superseded by disposal.
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to switch catalogs for publisher {PublisherId}", publisherId);
+        }
+    }
+
+    private async Task RevertCatalogSelectionAsync(string publisherId)
+    {
+        var freshResult = await subscriptionStore.GetSubscriptionAsync(publisherId, _vmCts.Token);
+        var freshSubscription = freshResult.Success ? freshResult.Data : null;
+        RunOnUi(() =>
+        {
+            _suppressCatalogChanged = true;
+            try
+            {
+                if (freshSubscription != null)
+                {
+                    SelectedCatalog = FindMatchingCatalogEntry([.. AvailableCatalogs], freshSubscription) ?? SelectedCatalog;
+                }
+            }
+            finally
+            {
+                _suppressCatalogChanged = false;
+            }
+        });
     }
 
     private void SwitchFilterPanel(string publisherId)

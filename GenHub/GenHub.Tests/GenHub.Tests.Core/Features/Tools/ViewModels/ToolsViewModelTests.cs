@@ -219,8 +219,11 @@ public class ToolsViewModelTests
         Assert.Contains(plugin1, _viewModel.InstalledTools);
         Assert.Contains(plugin2, _viewModel.InstalledTools);
         Assert.True(_viewModel.HasTools);
-        Assert.Equal(plugin1, _viewModel.SelectedTool); // First tool selected by default
-        Assert.Equal(plugin1, _viewModel.LastOpenedTool);
+        Assert.Null(_viewModel.SelectedTool); // Deferred until the Tools tab is actually opened
+        Assert.Equal(plugin1, _viewModel.LastOpenedTool); // Remembered for first tab activation
+        Assert.Null(_viewModel.CurrentToolControl); // No tool control created at startup
+        Assert.False(plugin1.IsActivated);
+        Assert.False(plugin2.IsActivated);
         Assert.False(_viewModel.IsLoading);
     }
 

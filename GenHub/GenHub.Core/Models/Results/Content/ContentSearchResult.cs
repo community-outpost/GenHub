@@ -43,6 +43,12 @@ public class ContentSearchResult
     /// <summary>Gets or sets the URL for the content's banner image (optional).</summary>
     public string? BannerUrl { get; set; }
 
+    /// <summary>Gets or sets the URL for the content's backdrop/cover image (optional).</summary>
+    public string? BackdropUrl { get; set; }
+
+    /// <summary>Gets or sets the content's accent color as a hex string (optional, e.g. "#7C3AED").</summary>
+    public string? AccentColor { get; set; }
+
     /// <summary>Gets a list of screenshot URLs.</summary>
     public IList<string> ScreenshotUrls { get; } = [];
 

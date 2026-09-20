@@ -12730,6 +12730,114 @@ GameFilesEdited/Data/INI/**/*.ini</value>
   <data name="Tools.PublisherStudio.Hosting.GoogleDriveApiNotEnabled" xml:space="preserve">
     <value>API Google Диска не включен для вашего проекта Google Cloud. Включите его на странице https://console.developers.google.com/apis/api/drive.googleapis.com, подождите несколько минут, затем повторите попытку.</value>
   </data>
+  <data name="Tools.PublisherStudio.Publish.EnterDropboxAppKey" xml:space="preserve">
+    <value>Введите ключ приложения Dropbox. Создайте приложение в консоли приложений Dropbox, чтобы получить его.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.UploadStartedTitle" xml:space="preserve">
+    <value>Загрузка</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.DefinitionUploadStarted" xml:space="preserve">
+    <value>Загрузка определения провайдера...</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.PublishStartedTitle" xml:space="preserve">
+    <value>Публикация</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.PublishCatalogStartedFormat" xml:space="preserve">
+    <value>Публикация каталога «{0}»...</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.PublishAllStartedFormat" xml:space="preserve">
+    <value>Публикация каталогов ({0}) в {1}...</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.SingleUploadStartedFormat" xml:space="preserve">
+    <value>Загрузка {0}...</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DropboxOAuthTitle" xml:space="preserve">
+    <value>Войти через Dropbox (рекомендуется)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DropboxOAuthDescription" xml:space="preserve">
+    <value>Войдите через своё приложение Dropbox, чтобы оставаться на связи. GenHub безопасно хранит токен обновления, поэтому не придётся вставлять новый токен каждые несколько часов.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DropboxAppKeyPlaceholder" xml:space="preserve">
+    <value>Ключ приложения Dropbox</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.ConnectWithDropbox" xml:space="preserve">
+    <value>Войти через Dropbox</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DropboxManualTokenTitle" xml:space="preserve">
+    <value>Или вставьте токен доступа вручную</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.UploadArtifactTooltip" xml:space="preserve">
+    <value>Загрузить этот файл к подключённому хостинг-провайдеру</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.UploadButton" xml:space="preserve">
+    <value>Загрузить</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.UploadCatalogTooltip" xml:space="preserve">
+    <value>Загрузить этот каталог к подключённому хостинг-провайдеру</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.UploadDefinitionTooltip" xml:space="preserve">
+    <value>Загрузить определение провайдера (сначала сохраняет проект)</value>
+  </data>
+  <data name="Downloads.Browser.Catalog" xml:space="preserve">
+    <value>Каталог</value>
+  </data>
+  <data name="Downloads.Browser.CurrentCatalog" xml:space="preserve">
+    <value>Текущий каталог</value>
+  </data>
+  <data name="Downloads.Browser.SwitchCatalogFailedTitle" xml:space="preserve">
+    <value>Не удалось переключить каталог</value>
+  </data>
+  <data name="Downloads.Browser.SwitchCatalogFailedMessage" xml:space="preserve">
+    <value>Не удалось сохранить выбор каталога. Попробуйте ещё раз.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.ArtworkTitle" xml:space="preserve">
+    <value>Оформление</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.ArtworkHint" xml:space="preserve">
+    <value>Вставьте ссылку на изображение или выберите локальный файл. Локальные файлы загружаются к хостинг-провайдеру при публикации каталога.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.IconArtwork" xml:space="preserve">
+    <value>Значок</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.BannerArtwork" xml:space="preserve">
+    <value>Баннер</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.BackdropArtwork" xml:space="preserve">
+    <value>Фоновая обложка</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.AccentColor" xml:space="preserve">
+    <value>Акцентный цвет</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.ArtworkUrlPlaceholder" xml:space="preserve">
+    <value>https://... или локальный файл</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.AccentColorPlaceholder" xml:space="preserve">
+    <value>#7C3AED</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.SelectArtworkTitle" xml:space="preserve">
+    <value>Выберите изображение</value>
+  </data>
+  <data name="Tools.PublisherStudio.Validation.ArtworkPathInvalidFormat" xml:space="preserve">
+    <value>{0} должен быть HTTPS-ссылкой или существующим локальным файлом изображения.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Validation.AccentColorInvalid" xml:space="preserve">
+    <value>Акцентный цвет должен быть hex-цветом, например #7C3AED.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.UploadingArtworkFormat" xml:space="preserve">
+    <value>Загрузка оформления {0}/{1}: {2}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ArtworkFileMissingFormat" xml:space="preserve">
+    <value>Файл оформления не найден: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ArtworkUploadFailedFormat" xml:space="preserve">
+    <value>Не удалось загрузить оформление {0}: {1}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ArtworkUploadFailedTitle" xml:space="preserve">
+    <value>Ошибка загрузки оформления</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ArtworkHostingNotSupported" xml:space="preserve">
+    <value>Провайдер не поддерживает хостинг оформления. Используйте прямые ссылки на изображения или смените провайдера.</value>
+  </data>
   <data name="GameProfiles.Notification.UnexpectedExit.Title" xml:space="preserve">
     <value>Игра неожиданно завершилась</value>
   </data>

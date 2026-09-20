@@ -12730,6 +12730,114 @@ GameFilesEdited/Data/INI/**/*.ini</value>
   <data name="Tools.PublisherStudio.Hosting.GoogleDriveApiNotEnabled" xml:space="preserve">
     <value>لم يتم تفعيل Google Drive API لمشروع Google Cloud الخاص بك. فعّله عبر https://console.developers.google.com/apis/api/drive.googleapis.com، وانتظر بضع دقائق حتى يسري التغيير، ثم أعد المحاولة.</value>
   </data>
+  <data name="Tools.PublisherStudio.Publish.EnterDropboxAppKey" xml:space="preserve">
+    <value>يرجى إدخال مفتاح تطبيق Dropbox الخاص بك. أنشئ تطبيقًا في وحدة تحكم تطبيقات Dropbox للحصول على واحد.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.UploadStartedTitle" xml:space="preserve">
+    <value>جارٍ الرفع</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.DefinitionUploadStarted" xml:space="preserve">
+    <value>جارٍ رفع تعريف المزود...</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.PublishStartedTitle" xml:space="preserve">
+    <value>جارٍ النشر</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.PublishCatalogStartedFormat" xml:space="preserve">
+    <value>جارٍ نشر الكتالوج '{0}'...</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.PublishAllStartedFormat" xml:space="preserve">
+    <value>جارٍ نشر {0} من الكتالوجات إلى {1}...</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.SingleUploadStartedFormat" xml:space="preserve">
+    <value>جارٍ رفع {0}...</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DropboxOAuthTitle" xml:space="preserve">
+    <value>الاتصال عبر Dropbox (مُوصى به)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DropboxOAuthDescription" xml:space="preserve">
+    <value>سجّل الدخول باستخدام تطبيق Dropbox الخاص بك للبقاء متصلاً. يخزّن GenHub رمز التحديث بأمان حتى لا تضطر إلى لصق رمز جديد كل بضع ساعات.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DropboxAppKeyPlaceholder" xml:space="preserve">
+    <value>مفتاح تطبيق Dropbox</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.ConnectWithDropbox" xml:space="preserve">
+    <value>الاتصال عبر Dropbox</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DropboxManualTokenTitle" xml:space="preserve">
+    <value>أو الصق رمز الوصول يدويًا</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.UploadArtifactTooltip" xml:space="preserve">
+    <value>ارفع هذا الملف إلى مزود الاستضافة المتصل</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.UploadButton" xml:space="preserve">
+    <value>رفع</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.UploadCatalogTooltip" xml:space="preserve">
+    <value>ارفع هذا الكتالوج إلى مزود الاستضافة المتصل</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.UploadDefinitionTooltip" xml:space="preserve">
+    <value>رفع تعريف المزود (يحفظ المشروع أولاً)</value>
+  </data>
+  <data name="Downloads.Browser.Catalog" xml:space="preserve">
+    <value>الكتالوج</value>
+  </data>
+  <data name="Downloads.Browser.CurrentCatalog" xml:space="preserve">
+    <value>الكتالوج الحالي</value>
+  </data>
+  <data name="Downloads.Browser.SwitchCatalogFailedTitle" xml:space="preserve">
+    <value>تعذّر التبديل بين الكتالوجات</value>
+  </data>
+  <data name="Downloads.Browser.SwitchCatalogFailedMessage" xml:space="preserve">
+    <value>تعذّر حفظ اختيار الكتالوج. يرجى المحاولة مرة أخرى.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.ArtworkTitle" xml:space="preserve">
+    <value>الصور والرسوم</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.ArtworkHint" xml:space="preserve">
+    <value>الصق رابط صورة أو اختر ملفًا محليًا. تُرفع الملفات المحلية إلى مزود الاستضافة عند نشر الكتالوج.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.IconArtwork" xml:space="preserve">
+    <value>أيقونة</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.BannerArtwork" xml:space="preserve">
+    <value>بانر</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.BackdropArtwork" xml:space="preserve">
+    <value>صورة الغلاف الخلفية</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.AccentColor" xml:space="preserve">
+    <value>لون التمييز</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.ArtworkUrlPlaceholder" xml:space="preserve">
+    <value>رابط https://... أو ملف صورة محلي</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.AccentColorPlaceholder" xml:space="preserve">
+    <value>#7C3AED</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.SelectArtworkTitle" xml:space="preserve">
+    <value>اختر صورة</value>
+  </data>
+  <data name="Tools.PublisherStudio.Validation.ArtworkPathInvalidFormat" xml:space="preserve">
+    <value>يجب أن يكون {0} رابط HTTPS أو ملف صورة محليًا موجودًا.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Validation.AccentColorInvalid" xml:space="preserve">
+    <value>يجب أن يكون لون التمييز لونًا ست عشريًا مثل #7C3AED.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.UploadingArtworkFormat" xml:space="preserve">
+    <value>جارٍ رفع الصور {0}/{1}: {2}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ArtworkFileMissingFormat" xml:space="preserve">
+    <value>لم يتم العثور على ملف الصورة: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ArtworkUploadFailedFormat" xml:space="preserve">
+    <value>فشل رفع الصورة {0}: {1}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ArtworkUploadFailedTitle" xml:space="preserve">
+    <value>فشل رفع الصورة</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ArtworkHostingNotSupported" xml:space="preserve">
+    <value>المزود لا يدعم استضافة الصور. استخدم روابط صور مباشرة أو بدّل المزود.</value>
+  </data>
   <data name="GameProfiles.Notification.UnexpectedExit.Title" xml:space="preserve">
     <value>خرجت اللعبة بشكل غير متوقع</value>
   </data>

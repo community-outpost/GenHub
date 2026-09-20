@@ -129,8 +129,11 @@ public sealed partial class ToolsViewModel(
 
                 if (HasTools)
                 {
-                    // Select the first tool by default
-                    SelectedTool = InstalledTools[0];
+                    // Remember the first tool without selecting it. Selecting would activate
+                    // the tool immediately (loading its ViewModel, views, and data at app
+                    // startup). Activation is deferred until the Tools tab is actually opened,
+                    // where OnTabActivated restores this remembered tool.
+                    _lastOpenedTool = InstalledTools[0];
                 }
 
                 logger.LogInformation("Loaded {Count} tool plugins", InstalledTools.Count);

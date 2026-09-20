@@ -213,6 +213,41 @@ public partial class ContentLibraryViewModel(
     }
 
     /// <summary>
+    /// Rebuilds the content detail display after artifact uploads mutate models in place.
+    /// Invoked from the publish pipeline so pending badges and hints update without switching tabs.
+    /// </summary>
+    public void RefreshContentDisplay()
+    {
+        RefreshSelectedContent();
+        OnPropertyChanged(nameof(CatalogSummaryText));
+    }
+
+    /// <summary>
+    /// Uploads a single artifact directly from the Content Library pending list.
+    /// </summary>
+    /// <param name="artifact">The artifact to upload.</param>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [RelayCommand]
+    private async Task UploadArtifactAsync(ReleaseArtifact? artifact)
+    {
+        if (artifact == null)
+        {
+            return;
+        }
+
+        var publishShare = parentViewModel?.PublishShareViewModel;
+        if (publishShare == null)
+        {
+            var title = GetLocalizedString("Tools.PublisherStudio.Publish.ProviderNotConnected", "Provider Not Connected");
+            var message = GetLocalizedString("Tools.PublisherStudio.Hosting.ConnectBeforeUpload", "Connect to your hosting provider before uploading files.");
+            notificationService?.ShowWarning(title, message);
+            return;
+        }
+
+        await publishShare.UploadArtifactFromLibraryAsync(artifact);
+    }
+
+    /// <summary>
     /// Navigates to the Hosting &amp; Cloud Storage tab.
     /// </summary>
     [RelayCommand]
@@ -222,6 +257,25 @@ public partial class ContentLibraryViewModel(
         {
             parentViewModel.SelectedTabIndex = PublisherStudioViewModel.TabHostingStorage;
         }
+    }
+
+    /// <summary>
+    /// Uploads the active catalog to the connected hosting provider.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [RelayCommand]
+    private async Task UploadActiveCatalogAsync()
+    {
+        var publishShare = parentViewModel?.PublishShareViewModel;
+        if (publishShare == null)
+        {
+            var title = GetLocalizedString("Tools.PublisherStudio.Publish.ProviderNotConnected", "Provider Not Connected");
+            var message = GetLocalizedString("Tools.PublisherStudio.Hosting.ConnectBeforeUpload", "Connect to your hosting provider before uploading files.");
+            notificationService?.ShowWarning(title, message);
+            return;
+        }
+
+        await publishShare.PublishCatalogByIdCommand.ExecuteAsync(activeCatalog.Id);
     }
 
     /// <summary>
@@ -265,6 +319,7 @@ public partial class ContentLibraryViewModel(
             SelectedContent.TargetGame = edited.TargetGame;
             SelectedContent.Tags = edited.Tags;
             SelectedContent.ExtendsContentId = edited.ExtendsContentId;
+            SelectedContent.Metadata = edited.Metadata;
 
             // Trigger UI update
             RefreshSelectedContent();

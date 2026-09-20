@@ -12828,6 +12828,114 @@ Project structure ready. Edit files in GameFilesEdited folder.</value>
   <data name="Tools.PublisherStudio.Hosting.GoogleDriveApiNotEnabled" xml:space="preserve">
     <value>The Google Drive API is not enabled for your Google Cloud project. Enable it at https://console.developers.google.com/apis/api/drive.googleapis.com, wait a few minutes for the change to propagate, then retry.</value>
   </data>
+  <data name="Tools.PublisherStudio.Publish.EnterDropboxAppKey" xml:space="preserve">
+    <value>Please enter your Dropbox app key. Create an app in the Dropbox App Console to get one.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.UploadStartedTitle" xml:space="preserve">
+    <value>Uploading</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.DefinitionUploadStarted" xml:space="preserve">
+    <value>Uploading provider definition...</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.PublishStartedTitle" xml:space="preserve">
+    <value>Publishing</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.PublishCatalogStartedFormat" xml:space="preserve">
+    <value>Publishing catalog '{0}'...</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.PublishAllStartedFormat" xml:space="preserve">
+    <value>Publishing {0} catalog(s) to {1}...</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.SingleUploadStartedFormat" xml:space="preserve">
+    <value>Uploading {0}...</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DropboxOAuthTitle" xml:space="preserve">
+    <value>Connect with Dropbox (Recommended)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DropboxOAuthDescription" xml:space="preserve">
+    <value>Sign in with your Dropbox app to stay connected. GenHub securely stores a refresh token so you don't have to paste a new token every few hours.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DropboxAppKeyPlaceholder" xml:space="preserve">
+    <value>Dropbox app key</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.ConnectWithDropbox" xml:space="preserve">
+    <value>Connect with Dropbox</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DropboxManualTokenTitle" xml:space="preserve">
+    <value>Or paste an access token manually</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.UploadArtifactTooltip" xml:space="preserve">
+    <value>Upload this file to the connected hosting provider</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.UploadButton" xml:space="preserve">
+    <value>Upload</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.UploadCatalogTooltip" xml:space="preserve">
+    <value>Upload this catalog to the connected hosting provider</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.UploadDefinitionTooltip" xml:space="preserve">
+    <value>Upload provider definition (saves the project first)</value>
+  </data>
+  <data name="Downloads.Browser.Catalog" xml:space="preserve">
+    <value>Catalog</value>
+  </data>
+  <data name="Downloads.Browser.CurrentCatalog" xml:space="preserve">
+    <value>Current catalog</value>
+  </data>
+  <data name="Downloads.Browser.SwitchCatalogFailedTitle" xml:space="preserve">
+    <value>Could Not Switch Catalogs</value>
+  </data>
+  <data name="Downloads.Browser.SwitchCatalogFailedMessage" xml:space="preserve">
+    <value>The catalog selection could not be saved. Please try again.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.ArtworkTitle" xml:space="preserve">
+    <value>Artwork</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.ArtworkHint" xml:space="preserve">
+    <value>Paste an image URL or pick a local file. Local files are uploaded to your hosting provider when you publish the catalog.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.IconArtwork" xml:space="preserve">
+    <value>Icon</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.BannerArtwork" xml:space="preserve">
+    <value>Banner</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.BackdropArtwork" xml:space="preserve">
+    <value>Backdrop cover</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.AccentColor" xml:space="preserve">
+    <value>Accent color</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.ArtworkUrlPlaceholder" xml:space="preserve">
+    <value>https://... or local image file</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.AccentColorPlaceholder" xml:space="preserve">
+    <value>#7C3AED</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.SelectArtworkTitle" xml:space="preserve">
+    <value>Select Artwork Image</value>
+  </data>
+  <data name="Tools.PublisherStudio.Validation.ArtworkPathInvalidFormat" xml:space="preserve">
+    <value>{0} must be an HTTPS URL or an existing local image file.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Validation.AccentColorInvalid" xml:space="preserve">
+    <value>Accent color must be a hex color like #7C3AED.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.UploadingArtworkFormat" xml:space="preserve">
+    <value>Uploading artwork {0}/{1}: {2}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ArtworkFileMissingFormat" xml:space="preserve">
+    <value>Artwork file not found: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ArtworkUploadFailedFormat" xml:space="preserve">
+    <value>Failed to upload artwork {0}: {1}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ArtworkUploadFailedTitle" xml:space="preserve">
+    <value>Artwork Upload Failed</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ArtworkHostingNotSupported" xml:space="preserve">
+    <value>Provider does not support artwork hosting. Use direct image URLs or switch providers.</value>
+  </data>
   <data name="GameProfiles.Notification.UnexpectedExit.Title" xml:space="preserve">
     <value>Game Exited Unexpectedly</value>
   </data>

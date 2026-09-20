@@ -20,6 +20,7 @@
     <UserControl.Resources>
         <converters:FileSizeConverter x:Key="FileSizeConverter" />
         <converters:StringToImageConverter x:Key="StringToImageConverter" />
+        <converters:ColorToBrushConverter x:Key="ColorToBrushConverter" />
         <converters:BoolToExpandTextConverter x:Key="BoolToExpandTextConverter" />
         <converters:ContentStateToPathDataConverter x:Key="ContentStateToPathDataConverter" />
         <converters:ContentStateToBrushConverter x:Key="ContentStateToBrushConverter" />
@@ -120,11 +121,28 @@
         <Grid Grid.Row="1" ColumnDefinitions="*, 320">
             <!-- Main Content (Left) -->
             <Grid Grid.Column="0" RowDefinitions="Auto,Auto,*" Margin="0,0,24,0">
-                <!-- Banner Image (Removed) -->
+                <!-- Backdrop cover (publisher artwork; hidden when the content has none) -->
+                <Border Grid.Row="0" CornerRadius="12" Height="180" ClipToBounds="True" Margin="0,0,0,16"
+                        Background="{DynamicResource CardBackground}"
+                        IsVisible="{Binding BackdropBitmap, Converter={x:Static ObjectConverters.IsNotNull}}">
+                    <Panel>
+                        <Image Source="{Binding BackdropBitmap}" Stretch="UniformToFill" />
+                        <Border VerticalAlignment="Bottom" Height="64" IsHitTestVisible="False">
+                            <Border.Background>
+                                <LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,100%">
+                                    <GradientStop Offset="0" Color="Transparent" />
+                                    <GradientStop Offset="1" Color="{DynamicResource SurfaceBackgroundDark}" />
+                                </LinearGradientBrush>
+                            </Border.Background>
+                        </Border>
+                    </Panel>
+                </Border>
 
                 <!-- Header Info -->
                 <Grid Grid.Row="1" ColumnDefinitions="Auto,*" Margin="0,0,0,24">
-                    <Border Grid.Column="0" CornerRadius="12" Width="80" Height="80" ClipToBounds="True" Background="{DynamicResource CardBackground}">
+                    <Border Grid.Column="0" CornerRadius="12" Width="80" Height="80" ClipToBounds="True" Background="{DynamicResource CardBackground}"
+                            BorderBrush="{Binding AccentColor, Converter={StaticResource ColorToBrushConverter}}"
+                            BorderThickness="2">
                         <Panel>
                             <Image Source="{Binding IconBitmap}"
                                    Stretch="UniformToFill"

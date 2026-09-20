@@ -150,6 +150,7 @@ public partial class ContentDetailViewModel(
     private bool _basicContentLoaded;
     private Task? _basicContentLoadTask;
     private int _iconLoadVersion;
+    private int _backdropLoadVersion;
     private Task? _initialStateTask;
     private Task? _iconTask;
     private Task? _customTabsTask;
@@ -173,6 +174,9 @@ public partial class ContentDetailViewModel(
 
     [ObservableProperty]
     private Avalonia.Media.Imaging.Bitmap? _iconBitmap;
+
+    [ObservableProperty]
+    private Avalonia.Media.Imaging.Bitmap? _backdropBitmap;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ShowDownloadButton))]
@@ -671,6 +675,24 @@ public partial class ContentDetailViewModel(
             : ContentCardBadgeHelper.GetThumbnailUrl(searchResult) ?? IconUrl;
 
     /// <summary>
+    /// Gets the wide backdrop/cover URL for the detail header (backdrop preferred, banner fallback).
+    /// </summary>
+    public string? BackdropUrl =>
+        !string.IsNullOrWhiteSpace(searchResult.BackdropUrl)
+            ? searchResult.BackdropUrl
+            : searchResult.BannerUrl;
+
+    /// <summary>
+    /// Gets the publisher-defined accent color hex for this content, if any.
+    /// </summary>
+    public string? AccentColor => searchResult.AccentColor;
+
+    /// <summary>
+    /// Gets a value indicating whether a valid accent color is available for detail highlights.
+    /// </summary>
+    public bool HasAccentColor => ContentCardBadgeHelper.IsValidAccentColor(searchResult.AccentColor);
+
+    /// <summary>
     /// Gets a comma-separated includes summary for bundles / multi-content packages.
     /// Prefers the post-download required-dependency list when available.
     /// </summary>
@@ -961,7 +983,7 @@ public partial class ContentDetailViewModel(
         // Load icon and parsed data asynchronously
         // Note: Full details are loaded eagerly for ModDB and similar content
         // that requires page parsing to show releases, addons, etc.
-        _iconTask = LoadIconAsync();
+        _iconTask = LoadHeaderImagesAsync();
         _ = LoadBasicParsedDataAsync();
         _customTabsTask = LoadCustomTabsAsync();
         _variantsTask = InitializeVariantsAsync();
@@ -1509,6 +1531,7 @@ public partial class ContentDetailViewModel(
                 }
 
                 IconBitmap = null;
+                BackdropBitmap = null;
             }
 
             _disposed = true;
@@ -2395,11 +2418,14 @@ public partial class ContentDetailViewModel(
             OnPropertyChanged(nameof(ShowUpdateButton));
             OnPropertyChanged(nameof(IconUrl));
             OnPropertyChanged(nameof(ThumbnailUrl));
+            OnPropertyChanged(nameof(BackdropUrl));
+            OnPropertyChanged(nameof(AccentColor));
+            OnPropertyChanged(nameof(HasAccentColor));
             OnPropertyChanged(nameof(IncludesSummary));
             OnPropertyChanged(nameof(HasIncludesSummary));
             OnPropertyChanged(nameof(IncludesSectionTitle));
 
-            _ = LoadIconAsync();
+            _ = LoadHeaderImagesAsync();
             _ = LoadInitialStateAsync();
         }
         else
@@ -2949,6 +2975,44 @@ public partial class ContentDetailViewModel(
         catch (Exception ex)
         {
             logger.LogWarning(ex, "Failed to open browser for {Url}", url);
+        }
+    }
+
+    private async Task LoadHeaderImagesAsync()
+    {
+        await LoadIconAsync();
+        await LoadBackdropAsync();
+    }
+
+    private async Task LoadBackdropAsync()
+    {
+        var backdropUrl = BackdropUrl;
+        if (string.IsNullOrWhiteSpace(backdropUrl))
+        {
+            BackdropBitmap = null;
+            return;
+        }
+
+        var currentVersion = ++_backdropLoadVersion;
+        try
+        {
+            var loadedBitmap = await ImageCacheService.Instance.GetBitmapAsync(backdropUrl, _cts.Token);
+            if (currentVersion == _backdropLoadVersion && loadedBitmap != null)
+            {
+                BackdropBitmap = loadedBitmap;
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // Disposed or superseded during fetch
+        }
+        catch (ObjectDisposedException)
+        {
+            // Disposed during fetch
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Failed to load backdrop from {BackdropUrl} for content: {Name}", backdropUrl, Name);
         }
     }
 

@@ -145,6 +145,81 @@
                     <TextBox Text="{Binding TagsInput}" Watermark="{localization:Localize Tools.PublisherStudio.Content.TagsPlaceholder}"/>
                 </StackPanel>
 
+                <!-- ==================== ARTWORK (Browser cards & detail headers) ==================== -->
+                <Border Background="{DynamicResource GlassFillSubtleBrush}"
+                        BorderBrush="{DynamicResource GlassStrongBrush}"
+                        BorderThickness="1"
+                        CornerRadius="8"
+                        Padding="16">
+                    <StackPanel Spacing="12">
+                        <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.ArtworkTitle}" Classes="label"/>
+                        <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.ArtworkHint}" Classes="hint" TextWrapping="Wrap"/>
+
+                        <!-- Icon -->
+                        <StackPanel Spacing="4">
+                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.IconArtwork}" Classes="label"/>
+                            <Grid ColumnDefinitions="*,Auto">
+                                <TextBox Text="{Binding IconArtwork, Mode=TwoWay}"
+                                         Watermark="{localization:Localize Tools.PublisherStudio.Content.ArtworkUrlPlaceholder}"/>
+                                <Button Grid.Column="1"
+                                        Content="{localization:Localize Tools.PublisherStudio.Content.BrowseFile}"
+                                        Command="{Binding BrowseArtworkCommand}"
+                                        CommandParameter="{x:Static vm:AddContentDialogViewModel.ArtworkTargetIcon}"
+                                        Padding="12,8"
+                                        Margin="8,0,0,0"
+                                        Background="{DynamicResource GlassStrongBrush}"
+                                        CornerRadius="6"
+                                        Foreground="{DynamicResource TextPrimary}"/>
+                            </Grid>
+                        </StackPanel>
+
+                        <!-- Banner -->
+                        <StackPanel Spacing="4">
+                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.BannerArtwork}" Classes="label"/>
+                            <Grid ColumnDefinitions="*,Auto">
+                                <TextBox Text="{Binding BannerArtwork, Mode=TwoWay}"
+                                         Watermark="{localization:Localize Tools.PublisherStudio.Content.ArtworkUrlPlaceholder}"/>
+                                <Button Grid.Column="1"
+                                        Content="{localization:Localize Tools.PublisherStudio.Content.BrowseFile}"
+                                        Command="{Binding BrowseArtworkCommand}"
+                                        CommandParameter="{x:Static vm:AddContentDialogViewModel.ArtworkTargetBanner}"
+                                        Padding="12,8"
+                                        Margin="8,0,0,0"
+                                        Background="{DynamicResource GlassStrongBrush}"
+                                        CornerRadius="6"
+                                        Foreground="{DynamicResource TextPrimary}"/>
+                            </Grid>
+                        </StackPanel>
+
+                        <!-- Backdrop cover -->
+                        <StackPanel Spacing="4">
+                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.BackdropArtwork}" Classes="label"/>
+                            <Grid ColumnDefinitions="*,Auto">
+                                <TextBox Text="{Binding BackdropArtwork, Mode=TwoWay}"
+                                         Watermark="{localization:Localize Tools.PublisherStudio.Content.ArtworkUrlPlaceholder}"/>
+                                <Button Grid.Column="1"
+                                        Content="{localization:Localize Tools.PublisherStudio.Content.BrowseFile}"
+                                        Command="{Binding BrowseArtworkCommand}"
+                                        CommandParameter="{x:Static vm:AddContentDialogViewModel.ArtworkTargetBackdrop}"
+                                        Padding="12,8"
+                                        Margin="8,0,0,0"
+                                        Background="{DynamicResource GlassStrongBrush}"
+                                        CornerRadius="6"
+                                        Foreground="{DynamicResource TextPrimary}"/>
+                            </Grid>
+                        </StackPanel>
+
+                        <!-- Accent color -->
+                        <StackPanel Spacing="4">
+                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.AccentColor}" Classes="label"/>
+                            <TextBox Text="{Binding AccentColor, Mode=TwoWay}"
+                                     Watermark="{localization:Localize Tools.PublisherStudio.Content.AccentColorPlaceholder}"
+                                     MaxWidth="200"
+                                     HorizontalAlignment="Left"/>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+
                 <!-- ==================== INITIAL RELEASE & ARTIFACT (Create Mode Only) ==================== -->
                 <Border Background="{DynamicResource GlassFillSubtleBrush}"
                         BorderBrush="{DynamicResource GlassStrongBrush}"

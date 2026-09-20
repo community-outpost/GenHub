@@ -217,10 +217,15 @@
                             Background="{DynamicResource SurfaceElevatedBrush}"
                             ClipToBounds="True">
                         <Panel>
-                            <!-- Top ContentType Accent Stripe -->
+                            <!-- Top Accent Stripe: publisher color wins, content-type color is the fallback -->
                             <Border Height="3" VerticalAlignment="Top" HorizontalAlignment="Stretch"
                                     Background="{Binding ContentType, Converter={StaticResource ContentTypeToBrushConverter}}"
-                                    CornerRadius="12,12,0,0" ZIndex="5" />
+                                    CornerRadius="12,12,0,0" ZIndex="5"
+                                    IsVisible="{Binding !HasAccentColor}" />
+                            <Border Height="3" VerticalAlignment="Top" HorizontalAlignment="Stretch"
+                                    Background="{Binding AccentColor, Converter={StaticResource ColorToBrushConverter}}"
+                                    CornerRadius="12,12,0,0" ZIndex="5"
+                                    IsVisible="{Binding HasAccentColor}" />
 
                             <!-- Thumbnail image (banner / screenshot preferred over publisher avatar) -->
                             <Image Source="{Binding IconBitmap}"

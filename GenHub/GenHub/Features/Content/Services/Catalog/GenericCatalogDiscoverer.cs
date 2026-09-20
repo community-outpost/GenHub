@@ -875,8 +875,10 @@ public class GenericCatalogDiscoverer(
             ProviderName = catalog.Publisher.Name,
             AuthorName = !string.IsNullOrWhiteSpace(contentItem.Metadata?.Author) ? contentItem.Metadata.Author : catalog.Publisher.Name,
             ResolverId = ResolverId,
-            IconUrl = catalog.Publisher.AvatarUrl, // Default to publisher avatar
+            IconUrl = contentItem.Metadata?.IconUrl ?? catalog.Publisher.AvatarUrl,
             BannerUrl = contentItem.Metadata?.BannerUrl,
+            BackdropUrl = contentItem.Metadata?.BackdropUrl,
+            AccentColor = contentItem.Metadata?.AccentColor,
             LastUpdated = release.ReleaseDate,
             RequiresResolution = true,
         };
@@ -974,8 +976,10 @@ public class GenericCatalogDiscoverer(
             ProviderName = catalog.Publisher.Name,
             AuthorName = !string.IsNullOrWhiteSpace(contentItem.Metadata?.Author) ? contentItem.Metadata.Author : catalog.Publisher.Name,
             ResolverId = ResolverId,
-            IconUrl = catalog.Publisher.AvatarUrl,
+            IconUrl = contentItem.Metadata?.IconUrl ?? catalog.Publisher.AvatarUrl,
             BannerUrl = contentItem.Metadata?.BannerUrl,
+            BackdropUrl = contentItem.Metadata?.BackdropUrl,
+            AccentColor = contentItem.Metadata?.AccentColor,
             LastUpdated = context.ResolvedRelease.ReleaseDate,
             RequiresResolution = true,
             DownloadSize = artifact.Size,

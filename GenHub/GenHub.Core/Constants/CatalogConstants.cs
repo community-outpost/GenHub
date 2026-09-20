@@ -54,6 +54,13 @@ public static class CatalogConstants
     public const string SubscribedPublisherCategory = "subscribed";
 
     /// <summary>
+    /// Synthetic catalog entry ID used when a subscription's active catalog URL no longer
+    /// matches any catalog listed in the publisher definition. Keeps the current feed
+    /// selectable in the catalog switcher instead of silently jumping to another catalog.
+    /// </summary>
+    public const string CurrentCatalogEntryId = "current";
+
+    /// <summary>
     /// Resolver / pipeline ID for the generic catalog pipeline (any GenHub-schema catalog).
     /// </summary>
     public const string GenericCatalogResolverId = "generic-catalog";

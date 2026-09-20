@@ -285,6 +285,7 @@ public class PublisherSubscriptionStore(
             PublisherName = source.PublisherName,
             CatalogUrl = source.CatalogUrl,
             DefinitionUrl = source.DefinitionUrl,
+            SelectedCatalogId = source.SelectedCatalogId,
             Added = source.Added,
             TrustLevel = source.TrustLevel,
             AutoUpdate = source.AutoUpdate,
