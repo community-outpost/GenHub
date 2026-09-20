@@ -23,6 +23,42 @@ public sealed class MarkdownLinkFormatterTests
     }
 
     /// <summary>
+    /// Verifies that HTML image tags become markdown images so the viewer renders them.
+    /// </summary>
+    [Fact]
+    public void FormatLinks_HtmlImage_ConvertsToMarkdownImage()
+    {
+        var input = "<p><img src=\"https://example.test/shot.png\" width=\"1920\" alt=\"Menu\" /></p>";
+        var result = MarkdownLinkFormatter.FormatLinks(input);
+
+        Assert.Equal("<p>![Menu](https://example.test/shot.png)</p>", result);
+    }
+
+    /// <summary>
+    /// Verifies that HTML images with relative sources degrade to their alt text.
+    /// </summary>
+    [Fact]
+    public void FormatLinks_HtmlImageWithRelativeSource_FallsBackToAltText()
+    {
+        var input = "<img src=\"docs/shot.png\" alt=\"Menu\" />";
+        var result = MarkdownLinkFormatter.FormatLinks(input);
+
+        Assert.Equal("Menu", result);
+    }
+
+    /// <summary>
+    /// Verifies that bare URLs inside HTML tag attributes are left untouched.
+    /// </summary>
+    [Fact]
+    public void FormatLinks_BareUrlInsideHtmlTag_PreservesTag()
+    {
+        var input = "<a href=\"https://example.test/docs\">docs</a> and https://example.test/plain";
+        var result = MarkdownLinkFormatter.FormatLinks(input);
+
+        Assert.Equal("<a href=\"https://example.test/docs\">docs</a> and [https://example.test/plain](https://example.test/plain)", result);
+    }
+
+    /// <summary>
     /// Verifies that GitHub pull request URLs are converted into short [#109](url) links.
     /// </summary>
     [Fact]

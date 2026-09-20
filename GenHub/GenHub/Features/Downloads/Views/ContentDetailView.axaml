@@ -85,6 +85,14 @@
             <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
             <Setter Property="RenderTransform" Value="scale(1.02)" />
         </Style>
+        <!-- Cap images rendered inside markdown viewers (README, release notes) so
+             oversized screenshots and explicit width attributes cannot blow out the layout. -->
+        <Style Selector="md|MarkdownScrollViewer Image">
+            <Setter Property="MaxWidth" Value="800" />
+            <Setter Property="MaxHeight" Value="600" />
+            <Setter Property="Stretch" Value="Uniform" />
+            <Setter Property="HorizontalAlignment" Value="Left" />
+        </Style>
     </UserControl.Styles>
 
     <Panel>

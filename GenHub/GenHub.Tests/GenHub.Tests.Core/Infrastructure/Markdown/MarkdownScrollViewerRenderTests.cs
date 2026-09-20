@@ -1,9 +1,12 @@
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
 using Avalonia.VisualTree;
-using AvaloniaEdit;
 using GenHub.Infrastructure.Markdown;
 using Markdown.Avalonia;
+using System;
+using System.Collections;
+using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -18,6 +21,8 @@ namespace GenHub.Tests.Core.Infrastructure.Markdown;
 /// </summary>
 public sealed class MarkdownScrollViewerRenderTests
 {
+    private static readonly string[] ChildPropertyNames = ["Content", "Inlines", "Children", "Document"];
+
     /// <summary>
     /// Verifies that GitHub-style markdown with inline code, fenced blocks,
     /// lists, and links attaches and renders its text.
@@ -28,80 +33,99 @@ public sealed class MarkdownScrollViewerRenderTests
     {
         // Arrange
         const string markdown = "## HeadingMarker\n\nParagraph with `InlineCodeMarker` and **bold** text.\n\n- ListMarkerOne\n- ListMarkerTwo\n\n```bash\nFenceBodyMarker\n```\n\n[LinkMarker](https://example.com/docs)\n";
-        var viewer = new MarkdownScrollViewer { Width = 900, Height = 1200 };
-        viewer.Plugins = new MdAvPlugins
-        {
-            HyperlinkCommand = new SafeMarkdownHyperlinkCommand(),
-            PathResolver = new SafeMarkdownPathResolver(),
-        };
+        string[] markers = ["HeadingMarker", "InlineCodeMarker", "ListMarkerOne", "FenceBodyMarker", "LinkMarker"];
+        var viewer = CreateViewer();
         viewer.Markdown = markdown;
         var window = new Window { Content = viewer, Width = 900, Height = 1200 };
 
         // Act
         window.Show();
         window.UpdateLayout();
-        await Task.Delay(500);
-        var rendered = ExtractRenderedText(viewer);
+        var rendered = await WaitForRenderedTextAsync(viewer, markers, TimeSpan.FromSeconds(15));
         window.Close();
 
         // Assert
-        Assert.Contains("HeadingMarker", rendered);
-        Assert.Contains("InlineCodeMarker", rendered);
-        Assert.Contains("ListMarkerOne", rendered);
-        Assert.Contains("FenceBodyMarker", rendered);
-        Assert.Contains("LinkMarker", rendered);
+        foreach (var marker in markers)
+        {
+            Assert.Contains(marker, rendered);
+        }
+    }
+
+    private static MarkdownScrollViewer CreateViewer()
+    {
+        var viewer = new MarkdownScrollViewer { Width = 900, Height = 1200 };
+        viewer.Plugins = new MdAvPlugins
+        {
+            HyperlinkCommand = new SafeMarkdownHyperlinkCommand(),
+            PathResolver = new SafeMarkdownPathResolver(),
+        };
+        return viewer;
+    }
+
+    private static async Task<string> WaitForRenderedTextAsync(MarkdownScrollViewer viewer, string[] markers, TimeSpan timeout)
+    {
+        var deadline = DateTime.UtcNow + timeout;
+        var rendered = string.Empty;
+        while (DateTime.UtcNow < deadline)
+        {
+            rendered = ExtractRenderedText(viewer);
+            if (markers.All(rendered.Contains))
+            {
+                return rendered;
+            }
+
+            await Task.Delay(50);
+        }
+
+        return rendered;
     }
 
     private static string ExtractRenderedText(MarkdownScrollViewer viewer)
     {
         var sb = new StringBuilder();
+        var visited = new HashSet<object>(ReferenceEqualityComparer.Instance);
         foreach (var visual in viewer.GetVisualDescendants())
         {
-            var type = visual.GetType();
-            if (type.Name == "CTextBlock")
-            {
-                if (type.GetProperty("Content")?.GetValue(visual) is System.Collections.IEnumerable items)
-                {
-                    foreach (var item in items)
-                    {
-                        if (item != null)
-                        {
-                            AppendContentItemText(item, sb);
-                        }
-                    }
-                }
-            }
-
-            if (visual is TextBlock textBlock)
-            {
-                sb.Append(textBlock.Text);
-            }
-
-            if (visual is TextEditor editor)
-            {
-                sb.Append(editor.Document?.Text);
-            }
+            AppendNodeText(visual, sb, visited);
         }
 
         return sb.ToString();
     }
 
-    private static void AppendContentItemText(object item, StringBuilder sb)
+    private static void AppendNodeText(object node, StringBuilder sb, HashSet<object> visited)
     {
-        var type = item.GetType();
-        sb.Append(type.GetProperty("Text")?.GetValue(item) as string);
-
-        foreach (var prop in type.GetProperties().Where(p => p.Name is "Content" or "Inlines"))
+        if (!visited.Add(node))
         {
-            if (prop.GetValue(item) is System.Collections.IEnumerable children)
+            return;
+        }
+
+        var type = node.GetType();
+        if (type.GetProperty("Text")?.GetValue(node) is string text)
+        {
+            sb.Append(text);
+        }
+
+        foreach (var name in ChildPropertyNames)
+        {
+            var value = type.GetProperty(name)?.GetValue(node);
+            if (value is string || value is Visual)
             {
-                foreach (var child in children)
+                continue;
+            }
+
+            if (value is IEnumerable items)
+            {
+                foreach (var child in items)
                 {
                     if (child != null)
                     {
-                        AppendContentItemText(child, sb);
+                        AppendNodeText(child, sb, visited);
                     }
                 }
+            }
+            else if (value != null)
+            {
+                AppendNodeText(value, sb, visited);
             }
         }
     }

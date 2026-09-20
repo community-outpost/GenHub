@@ -116,7 +116,7 @@ public partial class ContentDetailViewModel(
     private readonly CancellationTokenSource _cts = new();
     private readonly List<Task> _pendingRowStateTasks = [];
     private readonly object _gitHubNotesLock = new();
-    private readonly List<(ReleaseItemViewModel Row, string Owner, string Repo, string Tag)> _pendingGitHubNotes = [];
+    private readonly List<(ReleaseItemViewModel Row, string Owner, string Repo, string Tag, string? Placeholder)> _pendingGitHubNotes = [];
     private readonly ConcurrentDictionary<string, string?> _gitHubNotesCache = new(StringComparer.OrdinalIgnoreCase);
     private ContentSearchResult? _updateTargetSearchResult = updateTargetSearchResult;
     private bool _initialIsUpdateAvailable = isUpdateAvailable ?? (updateTargetSearchResult != null);
@@ -1186,10 +1186,12 @@ public partial class ContentDetailViewModel(
             var displayName = variant.Name;
             var itemVersion = matchedFile?.Version ?? sibling?.Version ?? Version;
             var itemAuthor = sibling?.AuthorName ?? searchResult.AuthorName;
+            var gitHubBody = ResolveGitHubSiblingDescription(sibling);
             var itemDescription = matchedFile?.Description
-                ?? ResolveGitHubSiblingDescription(sibling)
+                ?? gitHubBody
                 ?? sibling?.Description
                 ?? searchResult.Description;
+            var notesPlaceholder = matchedFile?.Description == null && gitHubBody == null ? itemDescription : null;
             var itemContentType = sibling?.ContentType ?? searchResult.ContentType;
             var itemCategory = itemContentType.GetDisplayName();
             var itemFilename = matchedFile?.Filename ?? GetFileNameFromUrl(url) ?? displayName;
@@ -1287,6 +1289,7 @@ public partial class ContentDetailViewModel(
 
             Releases.Add(releaseItem);
             TrackRowStateResolution(ResolveRowStateAsync(releaseItem, file));
+            EnqueueGitHubNotesRequest(releaseItem, sibling ?? searchResult, notesPlaceholder);
         }
 
         var initialRelease = (SelectedVariant != null
@@ -1391,7 +1394,7 @@ public partial class ContentDetailViewModel(
             PopulateReleases(Files);
             foreach (var row in Releases)
             {
-                EnqueueGitHubNotesRequest(row, result);
+                EnqueueGitHubNotesRequest(row, result, result.Description);
             }
 
             return true;
@@ -1829,6 +1832,12 @@ public partial class ContentDetailViewModel(
 
         tag = tagValue;
         return true;
+    }
+
+    private static bool IsNotesRefreshable((ReleaseItemViewModel Row, string Owner, string Repo, string Tag, string? Placeholder) item)
+    {
+        return string.IsNullOrWhiteSpace(item.Row.FullDescription)
+            || (item.Placeholder != null && string.Equals(item.Row.FullDescription, item.Placeholder, StringComparison.Ordinal));
     }
 
     private static ContentVariantInfo MatchVariantInfo(ContentSearchResult sibling, string key, IList<ContentVariantInfo>? primaryVariants = null)
@@ -3433,9 +3442,16 @@ public partial class ContentDetailViewModel(
         }
     }
 
-    private void EnqueueGitHubNotesRequest(ReleaseItemViewModel row, ContentSearchResult source)
+    private void EnqueueGitHubNotesRequest(ReleaseItemViewModel row, ContentSearchResult source, string? placeholderDescription = null)
     {
-        if (gitHubApiClient == null || !string.IsNullOrWhiteSpace(row.FullDescription))
+        if (gitHubApiClient == null)
+        {
+            return;
+        }
+
+        var isPlaceholder = !string.IsNullOrWhiteSpace(placeholderDescription)
+            && string.Equals(row.FullDescription, placeholderDescription, StringComparison.Ordinal);
+        if (!string.IsNullOrWhiteSpace(row.FullDescription) && !isPlaceholder)
         {
             return;
         }
@@ -3448,7 +3464,7 @@ public partial class ContentDetailViewModel(
         bool startHydration;
         lock (_gitHubNotesLock)
         {
-            _pendingGitHubNotes.Add((row, owner, repo, tag));
+            _pendingGitHubNotes.Add((row, owner, repo, tag, isPlaceholder ? placeholderDescription : null));
             startHydration = !_gitHubHydrationRunning;
             if (startHydration)
             {
@@ -3468,7 +3484,7 @@ public partial class ContentDetailViewModel(
         {
             while (true)
             {
-                List<(ReleaseItemViewModel Row, string Owner, string Repo, string Tag)> pending;
+                List<(ReleaseItemViewModel Row, string Owner, string Repo, string Tag, string? Placeholder)> pending;
                 lock (_gitHubNotesLock)
                 {
                     if (_disposed || gitHubApiClient == null || _pendingGitHubNotes.Count == 0)
@@ -3490,14 +3506,32 @@ public partial class ContentDetailViewModel(
                 foreach (var group in pending.GroupBy(item => $"{item.Owner}/{item.Repo}@{item.Tag}"))
                 {
                     _cts.Token.ThrowIfCancellationRequested();
-                    var first = group.First();
-                    var body = await GetGitHubReleaseNotesAsync(gitHubApiClient, first.Owner, first.Repo, first.Tag);
+                    string? body;
+                    try
+                    {
+                        var first = group.First();
+                        body = await GetGitHubReleaseNotesAsync(gitHubApiClient, first.Owner, first.Repo, first.Tag);
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        throw;
+                    }
+                    catch (ObjectDisposedException)
+                    {
+                        throw;
+                    }
+                    catch (Exception ex)
+                    {
+                        logger.LogWarning(ex, "Failed to hydrate GitHub release notes for {Release}", group.Key);
+                        continue;
+                    }
+
                     if (string.IsNullOrWhiteSpace(body) || _disposed)
                     {
                         continue;
                     }
 
-                    foreach (var item in group.Where(item => string.IsNullOrWhiteSpace(item.Row.FullDescription)))
+                    foreach (var item in group.Where(IsNotesRefreshable))
                     {
                         updates.Add((item.Row, body));
                     }
@@ -3535,7 +3569,10 @@ public partial class ContentDetailViewModel(
         catch (Exception ex)
         {
             logger.LogWarning(ex, "Failed to hydrate GitHub release notes");
-            ResetGitHubHydrationState();
+            lock (_gitHubNotesLock)
+            {
+                _gitHubHydrationRunning = false;
+            }
         }
     }
 
@@ -3557,7 +3594,12 @@ public partial class ContentDetailViewModel(
         }
 
         var release = await client.GetReleaseByTagAsync(owner, repo, tag, _cts.Token);
-        var body = string.IsNullOrWhiteSpace(release?.Body) ? null : release.Body;
+        if (release == null)
+        {
+            return null;
+        }
+
+        var body = string.IsNullOrWhiteSpace(release.Body) ? null : release.Body;
         _gitHubNotesCache[cacheKey] = body;
         return body;
     }
@@ -3629,6 +3671,7 @@ public partial class ContentDetailViewModel(
             Category: result.ContentType.GetDisplayName(),
             Uploader: result.AuthorName,
             Filename: artifact.Name,
+            Description: result.Description,
             FileSectionType: FileSectionType.Downloads);
     }
 
