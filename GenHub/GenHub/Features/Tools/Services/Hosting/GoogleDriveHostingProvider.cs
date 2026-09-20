@@ -41,6 +41,11 @@ public class GoogleDriveHostingProvider(
         RegexOptions.Compiled | RegexOptions.IgnoreCase,
         TimeSpan.FromSeconds(1));
 
+    private static readonly Regex GoogleConsoleUrlRegex = new(
+        @"https?://console\.(?:developers|cloud)\.google\.com[^\s]+",
+        RegexOptions.Compiled | RegexOptions.IgnoreCase,
+        TimeSpan.FromSeconds(1));
+
     private DriveService? _driveService;
 
     /// <summary>
@@ -204,8 +209,13 @@ public class GoogleDriveHostingProvider(
             var folderResult = await GetOrCreatePublisherFolderAsync(cancellationToken);
             if (!folderResult.Success || string.IsNullOrEmpty(folderResult.Data))
             {
-                return OperationResult<HostingUploadResult>.CreateFailure(
-                    $"Failed to get publisher folder: {folderResult.FirstError}");
+                var error = folderResult.FirstError ?? "Failed to get publisher folder";
+                if (!error.Contains("Google Drive API is not enabled", StringComparison.OrdinalIgnoreCase))
+                {
+                    error = $"Failed to get publisher folder: {error}";
+                }
+
+                return OperationResult<HostingUploadResult>.CreateFailure(error);
             }
 
             var folderId = folderResult.Data;
@@ -409,7 +419,7 @@ public class GoogleDriveHostingProvider(
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to delete Google Drive file {FileId}", fileId);
-            return OperationResult<bool>.CreateFailure($"Google Drive delete error: {ex.Message}");
+            return OperationResult<bool>.CreateFailure(GetUserFacingApiErrorMessage(ex, "Google Drive delete error"));
         }
     }
 
@@ -465,7 +475,7 @@ public class GoogleDriveHostingProvider(
         catch (Exception ex)
         {
             logger.LogError(ex, "Error getting or creating Google Drive folder");
-            return OperationResult<string>.CreateFailure($"Folder operation failed: {ex.Message}");
+            return OperationResult<string>.CreateFailure(GetUserFacingApiErrorMessage(ex, "Folder operation failed"));
         }
     }
 
@@ -623,17 +633,23 @@ public class GoogleDriveHostingProvider(
 
     private string GetUserFacingApiErrorMessage(Exception ex, string operationFallback)
     {
-        if (ex is Google.GoogleApiException apiEx &&
+        var msg = ex.Message ?? string.Empty;
+        var isApiDisabled = (ex is Google.GoogleApiException apiEx &&
             apiEx.HttpStatusCode == HttpStatusCode.Forbidden &&
             apiEx.Error?.Errors != null &&
-            apiEx.Error.Errors.Any(e => string.Equals(e.Reason, "accessNotConfigured", StringComparison.OrdinalIgnoreCase)))
-        {
-            if (localizationService != null && localizationService.TryGetString("Tools.PublisherStudio.Hosting.GoogleDriveApiNotEnabled", out var localized))
-            {
-                return localized;
-            }
+            apiEx.Error.Errors.Any(e => string.Equals(e.Reason, "accessNotConfigured", StringComparison.OrdinalIgnoreCase))) ||
+            msg.Contains("drive.googleapis.com", StringComparison.OrdinalIgnoreCase) ||
+            (msg.Contains("Google Drive API", StringComparison.OrdinalIgnoreCase) &&
+             (msg.Contains("disabled", StringComparison.OrdinalIgnoreCase) || msg.Contains("not been used", StringComparison.OrdinalIgnoreCase)));
 
-            return "The Google Drive API is not enabled for your Google Cloud project. Enable it at https://console.developers.google.com/apis/api/drive.googleapis.com, wait a few minutes for the change to propagate, then retry.";
+        if (isApiDisabled)
+        {
+            var match = GoogleConsoleUrlRegex.Match(msg);
+            var consoleUrl = match.Success
+                ? match.Value.TrimEnd('.', ',', ';', ')')
+                : "https://console.developers.google.com/apis/api/drive.googleapis.com";
+
+            return $"The Google Drive API is not enabled for your Google Cloud project. Enable it at {consoleUrl}, wait a few minutes for the change to propagate, then retry.";
         }
 
         return $"{operationFallback}: {ex.Message}";
@@ -725,7 +741,7 @@ public class GoogleDriveHostingProvider(
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to set public permission for {FileId}", fileId);
-            return OperationResult<bool>.CreateFailure($"Failed to set public permission: {ex.Message}");
+            return OperationResult<bool>.CreateFailure(GetUserFacingApiErrorMessage(ex, "Failed to set public permission"));
         }
     }
 

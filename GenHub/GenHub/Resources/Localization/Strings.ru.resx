@@ -9754,28 +9754,29 @@ GenHub передает официальный идентификатор AppID 
     <value>Руководство по настройке и токену Dropbox (без проекта в облаке)</value>
   </data>
   <data name="Tools.PublisherStudio.Hosting.DBStep1Desc" xml:space="preserve">
-    <value>Нажмите кнопку №1 ниже («1. Create Dropbox App»). Выберите «Scoped access», «Full Dropbox» (или «App folder»), введите имя (например: «GenHubPublisher») и нажмите «Create app».</value>
+    <value>Нажмите кнопку №1 ниже («1. Create Dropbox App»). Выберите «Scoped access», «Full Dropbox» (или «App folder»), введите имя (например: «GenHubPublisher») и нажмите «Create app». Ключ приложения (App key) показан вверху вкладки Settings на той же странице — вставьте его в GenHub ниже. Секрет приложения (App secret) не нужен: GenHub входит через PKCE, который никогда его не использует.</value>
   </data>
   <data name="Tools.PublisherStudio.Hosting.DBStep1Title" xml:space="preserve">
     <value>Шаг 1: Создание приложения Scoped App</value>
   </data>
   <data name="Tools.PublisherStudio.Hosting.DBStep2Desc" xml:space="preserve">
     <value>Перейдите на вкладку «Permissions» вверху страницы приложения Dropbox. Включите ВСЕ следующие разрешения:
-• files.content.write
-• files.content.read
-• sharing.write
-• sharing.read
 • account_info.read
-Затем нажмите кнопку «Submit» внизу! (Если разрешения не сохранить, создание ссылок завершится ошибкой HTTP 400).</value>
+• files.metadata.read
+• files.metadata.write
+• files.content.write
+• sharing.read
+• sharing.write
+Затем нажмите «Submit» внизу страницы! (GenHub запрашивает именно эти scopes; вход не удастся, если чего-то не хватает.)</value>
   </data>
   <data name="Tools.PublisherStudio.Hosting.DBStep2Title" xml:space="preserve">
     <value>Шаг 2: Включение разрешений в консоли Dropbox [ВАЖНО: предотвращает ошибку 400 Bad Request]</value>
   </data>
   <data name="Tools.PublisherStudio.Hosting.DBStep3Desc" xml:space="preserve">
-    <value>Перейдите на вкладку «Settings» на странице приложения Dropbox. Прокрутите вниз до «Generated access token» и нажмите «Generate». Скопируйте токен и вставьте его ниже.</value>
+    <value>На вкладке Settings приложения найдите «Redirect URIs», нажмите «Add» и вставьте точный redirect URI, показанный ниже (кнопкой «Копировать» — совпадение должно быть посимвольным, включая порт и завершающий слэш). Без этого Dropbox отклонит вход с ошибкой «Invalid redirect_uri».</value>
   </data>
   <data name="Tools.PublisherStudio.Hosting.DBStep3Title" xml:space="preserve">
-    <value>Шаг 3: Генерация токена доступа</value>
+    <value>Шаг 3: Зарегистрируйте Redirect URI (обязательно)</value>
   </data>
   <data name="Tools.PublisherStudio.Hosting.Disconnect" xml:space="preserve">
     <value>Отключить</value>
@@ -12840,6 +12841,21 @@ GameFilesEdited/Data/INI/**/*.ini</value>
   </data>
   <data name="Tools.PublisherStudio.Artifact.DropFileUnreadableFormat" xml:space="preserve">
     <value>Не удалось прочитать перетащенный файл: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DBStep4Title" xml:space="preserve">
+    <value>Шаг 4: Подключитесь из GenHub</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DBStep4Desc" xml:space="preserve">
+    <value>Вставьте App key ниже и нажмите «Connect with Dropbox». Браузер откроется для подтверждения и автоматически вернётся в GenHub — вход сохраняется благодаря refresh-токенам.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DropboxRedirectUriLabel" xml:space="preserve">
+    <value>Redirect URI (зарегистрируйте эту строку в приложении Dropbox)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.CopyRedirectUriTooltip" xml:space="preserve">
+    <value>Скопировать redirect URI в буфер обмена</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.RedirectUriCopied" xml:space="preserve">
+    <value>Redirect URI скопирован. Вставьте его в список Redirect URIs вашего приложения Dropbox.</value>
   </data>
   <data name="GameProfiles.Notification.UnexpectedExit.Title" xml:space="preserve">
     <value>Игра неожиданно завершилась</value>

@@ -20,6 +20,24 @@ public interface IHostingStateManager
     Task<OperationResult<HostingState?>> LoadStateAsync(string projectPath, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Loads per-provider hosting states from the hosting_state.json file alongside a project.
+    /// Legacy single-provider files are migrated into the container in memory.
+    /// </summary>
+    /// <param name="projectPath">Path to the .genhub-project file.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The loaded states (empty when no state file exists).</returns>
+    Task<OperationResult<PublisherHostingStates>> LoadStatesAsync(string projectPath, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Saves per-provider hosting states to the hosting_state.json file alongside a project.
+    /// </summary>
+    /// <param name="projectPath">Path to the .genhub-project file.</param>
+    /// <param name="states">The states to save.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>An operation result indicating whether the states were successfully saved.</returns>
+    Task<OperationResult<bool>> SaveStatesAsync(string projectPath, PublisherHostingStates states, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Saves hosting state to the hosting_state.json file alongside a project.
     /// </summary>
     /// <param name="projectPath">Path to the .genhub-project file.</param>

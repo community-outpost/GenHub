@@ -3914,7 +3914,9 @@ public partial class ContentDetailViewModel(
 
     private ReleaseItemViewModel CreateCatalogReleaseItem(ContentRelease rel, CatalogContentItem catalogItem)
     {
-        var primaryArtifact = rel.Artifacts.FirstOrDefault(a => a.IsPrimary) ?? rel.Artifacts.FirstOrDefault();
+        var primaryArtifact = rel.Artifacts.FirstOrDefault(a => a.IsPrimary && !string.IsNullOrWhiteSpace(a.DownloadUrl))
+            ?? rel.Artifacts.FirstOrDefault(a => !string.IsNullOrWhiteSpace(a.DownloadUrl))
+            ?? rel.Artifacts.FirstOrDefault();
         var downloadUrl = primaryArtifact?.DownloadUrl ?? string.Empty;
         var fileSize = primaryArtifact?.Size ?? 0;
         var filename = primaryArtifact?.Filename ?? GetFileNameFromUrl(downloadUrl) ?? $"{catalogItem.Name} v{rel.Version}";

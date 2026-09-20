@@ -17,6 +17,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
+using System.Text;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
@@ -46,7 +47,8 @@ public class GenericCatalogDiscoverer(
         ContentRelease ResolvedRelease,
         string GroupId,
         string FamilyName,
-        string DeclaredPublisher);
+        string DeclaredPublisher,
+        bool ImplicitFileSplit);
 
     private static readonly ConcurrentDictionary<string, (GitHubRelease Release, DateTime CachedAt)> ReleaseCache = new(StringComparer.OrdinalIgnoreCase);
     private static readonly ConcurrentDictionary<string, Task<GitHubRelease?>> PendingReleaseFetches = new(StringComparer.OrdinalIgnoreCase);
@@ -348,7 +350,61 @@ public class GenericCatalogDiscoverer(
         return defaultTargetGame;
     }
 
-    private static List<ReleaseArtifact> BuildSiblingArtifacts(ReleaseArtifact artifact, ContentRelease resolvedRelease)
+    private static bool HasMultipleDownloadableArtifacts(ContentRelease release)
+    {
+        if (release.Artifacts == null)
+        {
+            return false;
+        }
+
+        var downloadableCount = 0;
+        foreach (var artifact in release.Artifacts)
+        {
+            if (!string.IsNullOrWhiteSpace(artifact.DownloadUrl))
+            {
+                downloadableCount++;
+                if (downloadableCount > 1)
+                {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    private static string ImplicitFileVariantLabel(ReleaseArtifact artifact, int siblingIndex)
+    {
+        if (!string.IsNullOrWhiteSpace(artifact.Filename))
+        {
+            return artifact.Filename.Trim();
+        }
+
+        if (Uri.TryCreate(artifact.DownloadUrl?.Trim(), UriKind.Absolute, out var uri))
+        {
+            var lastSegment = uri.Segments.LastOrDefault()?.Trim('/');
+            if (!string.IsNullOrWhiteSpace(lastSegment))
+            {
+                return Uri.UnescapeDataString(lastSegment);
+            }
+        }
+
+        return $"File {siblingIndex + 1}";
+    }
+
+    private static string SanitizeFileVariantId(string variantLabel, int siblingIndex)
+    {
+        var builder = new StringBuilder(variantLabel.Length + 4);
+        builder.Append(siblingIndex).Append('-');
+        foreach (var c in variantLabel)
+        {
+            builder.Append(char.IsLetterOrDigit(c) || c is '.' or '-' or '_' ? c : '-');
+        }
+
+        return builder.ToString().Trim('-', '.');
+    }
+
+    private static List<ReleaseArtifact> BuildSiblingArtifacts(ReleaseArtifact artifact, ContentRelease resolvedRelease, bool includeSharedArtifacts = true)
     {
         var siblingArtifacts = new List<ReleaseArtifact>
         {
@@ -365,6 +421,11 @@ public class GenericCatalogDiscoverer(
                 IsDefaultVariant = artifact.IsDefaultVariant,
             },
         };
+
+        if (!includeSharedArtifacts)
+        {
+            return siblingArtifacts;
+        }
 
         if (resolvedRelease.Artifacts != null)
         {
@@ -809,14 +870,25 @@ public class GenericCatalogDiscoverer(
                 // A release whose artifacts carry per-artifact variant hints (e.g. resolution) is
                 // split into sibling cards sharing one VariantGroupId, so the downloads browser
                 // collapses them into a single card with a variant picker — mirroring how the
-                // GitHub topics discoverer handles multi-asset releases. Single-artifact and
-                // non-variant releases take the original one-card path unchanged.
+                // GitHub topics discoverer handles multi-asset releases. A release with several
+                // plain downloadable files and no variant hints is split the same way (one
+                // sibling per file, labeled by filename); otherwise only the first file would
+                // ever be visible or downloadable. Single-file releases take the original
+                // one-card path unchanged.
                 var variantAxes = GetVariantArtifacts(release);
+                var implicitFileSplit = variantAxes.Count == 0 && HasMultipleDownloadableArtifacts(release);
+                if (implicitFileSplit)
+                {
+                    variantAxes = release.Artifacts!
+                        .Where(a => !string.IsNullOrWhiteSpace(a.DownloadUrl))
+                        .OrderByDescending(a => a.IsPrimary)
+                        .ToList();
+                }
 
                 if (variantAxes.Count > 0)
                 {
                     var groupResults = CreateVariantGroupSearchResults(
-                        catalog, contentItem, release, variantAxes, catalogItemsById);
+                        catalog, contentItem, release, variantAxes, catalogItemsById, implicitFileSplit);
 
                     if (query.TargetGame.HasValue)
                     {
@@ -907,7 +979,8 @@ public class GenericCatalogDiscoverer(
         CatalogContentItem contentItem,
         ContentRelease release,
         IReadOnlyList<ReleaseArtifact> variantArtifacts,
-        IReadOnlyDictionary<string, CatalogContentItem> catalogItemsById)
+        IReadOnlyDictionary<string, CatalogContentItem> catalogItemsById,
+        bool implicitFileSplit = false)
     {
         var groupId = $"catalog.{catalog.Publisher.Id}.{contentItem.Id}.{release.Version}";
         var familyName = contentItem.Name;
@@ -922,16 +995,18 @@ public class GenericCatalogDiscoverer(
             resolvedRelease,
             groupId,
             familyName,
-            declaredPublisher);
+            declaredPublisher,
+            implicitFileSplit);
 
         var siblings = new List<(ContentSearchResult Result, ContentVariantInfo Info, ReleaseArtifact Artifact)>(variantArtifacts.Count);
-        foreach (var artifact in variantArtifacts)
+        for (var index = 0; index < variantArtifacts.Count; index++)
         {
             siblings.Add(BuildSingleVariantSibling(
                 catalog,
                 contentItem,
-                artifact,
-                siblingContext));
+                variantArtifacts[index],
+                siblingContext,
+                index));
         }
 
         // Ensure exactly one default — prefer an author-declared IsDefaultVariant, else 1080p,
@@ -953,11 +1028,18 @@ public class GenericCatalogDiscoverer(
         PublisherCatalog catalog,
         CatalogContentItem contentItem,
         ReleaseArtifact artifact,
-        VariantSiblingContext context)
+        VariantSiblingContext context,
+        int siblingIndex)
     {
         var variantLabel = artifact.Variant?.Trim() ?? string.Empty;
         var axis = artifact.VariantAxis?.Trim() ?? string.Empty;
+        if (context.ImplicitFileSplit && string.IsNullOrEmpty(variantLabel))
+        {
+            variantLabel = ImplicitFileVariantLabel(artifact, siblingIndex);
+        }
+
         var siblingTargetGame = ResolveSiblingTargetGame(contentItem.TargetGame, axis, variantLabel);
+        var idLabel = context.ImplicitFileSplit ? SanitizeFileVariantId(variantLabel, siblingIndex) : variantLabel;
 
         var sibling = new ContentSearchResult
         {
@@ -965,7 +1047,7 @@ public class GenericCatalogDiscoverer(
                 context.DeclaredPublisher,
                 contentItem.ContentType,
                 contentItem.Id,
-                variantLabel,
+                idLabel,
                 context.ResolvedRelease.Version,
                 axis),
             Name = $"{contentItem.Name} ({variantLabel})",
@@ -989,7 +1071,7 @@ public class GenericCatalogDiscoverer(
 
         PopulatePresentation(sibling, contentItem, context.ResolvedRelease, contentNamesById: null);
 
-        var siblingArtifacts = BuildSiblingArtifacts(artifact, context.ResolvedRelease);
+        var siblingArtifacts = BuildSiblingArtifacts(artifact, context.ResolvedRelease, includeSharedArtifacts: !context.ImplicitFileSplit);
         sibling.DownloadSize = siblingArtifacts.Sum(a => a.Size);
 
         var singleArtifactRelease = new ContentRelease
@@ -1045,7 +1127,7 @@ public class GenericCatalogDiscoverer(
 
         var info = new ContentVariantInfo
         {
-            Id = $"{axis}:{variantLabel}",
+            Id = $"{axis}:{idLabel}",
             Name = variantLabel,
             VariantType = axis,
             ManifestId = sibling.Id,

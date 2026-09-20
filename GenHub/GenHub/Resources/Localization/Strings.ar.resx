@@ -9754,28 +9754,29 @@ GenHub هو مشغل ومدير حديث لألعاب **Command &amp; Conquer: G
     <value>دليل إعداد ورمز Dropbox (لا يلزم مشروع سحابي)</value>
   </data>
   <data name="Tools.PublisherStudio.Hosting.DBStep1Desc" xml:space="preserve">
-    <value>انقر فوق الزر رقم 1 أدناه ('1. إنشاء تطبيق Dropbox'). حدد 'Scoped access'، واختر 'Full Dropbox' (أو 'App folder')، وأدخل اسم التطبيق (مثلاً: 'GenHubPublisher')، وانقر فوق 'Create app'.</value>
+    <value>انقر فوق الزر رقم 1 أدناه ('1. إنشاء تطبيق Dropbox'). حدد 'Scoped access'، واختر 'Full Dropbox' (أو 'App folder')، وأدخل اسم التطبيق (مثلاً: 'GenHubPublisher')، وانقر فوق 'Create app'. يظهر مفتاح التطبيق أعلى علامة التبويب Settings في نفس الصفحة — الصقه في GenHub أدناه. المفتاح السري للتطبيق غير مطلوب: يسجّل GenHub الدخول عبر PKCE الذي لا يستخدم السر أبدًا.</value>
   </data>
   <data name="Tools.PublisherStudio.Hosting.DBStep1Title" xml:space="preserve">
     <value>الخطوة 1: إنشاء تطبيق بنطاق محدد</value>
   </data>
   <data name="Tools.PublisherStudio.Hosting.DBStep2Desc" xml:space="preserve">
     <value>انتقل إلى علامة التبويب 'Permissions' في الجزء العلوي من صفحة تطبيق Dropbox الخاصة بك. قم بتمكين جميع الأذونات التالية:
-• files.content.write
-• files.content.read
-• sharing.write
-• sharing.read
 • account_info.read
-ثم انقر فوق الزر 'Submit' في أسفل الصفحة! (إذا لم يتم حفظ الأذونات، فستفشل عملية إنشاء الرابط مع HTTP 400).</value>
+• files.metadata.read
+• files.metadata.write
+• files.content.write
+• sharing.read
+• sharing.write
+ثم انقر فوق الزر 'Submit' أسفل الصفحة! (يطلب GenHub هذه النطاقات بالضبط؛ سيفشل تسجيل الدخول إذا كان أي منها مفقودًا.)</value>
   </data>
   <data name="Tools.PublisherStudio.Hosting.DBStep2Title" xml:space="preserve">
     <value>الخطوة 2: تفعيل الأذونات في وحدة تحكم Dropbox  [حاسم: يمنع خطأ 400 Bad Request]</value>
   </data>
   <data name="Tools.PublisherStudio.Hosting.DBStep3Desc" xml:space="preserve">
-    <value>انقر فوق علامة التبويب 'Settings' في صفحة تطبيق Dropbox الخاصة بك. قم بالتمرير لأسفل إلى 'Generated access token' وانقر فوق 'Generate'. انسخ الرمز والصقه أدناه.</value>
+    <value>في علامة التبويب Settings بالتطبيق، ابحث عن 'Redirect URIs'، وانقر فوق 'Add'، والصق عنوان إعادة التوجيه الدقيق الموضح أدناه (استخدم زر النسخ — يجب أن يتطابق حرفًا بحرف، بما في ذلك المنفذ والشرطة المائلة في النهاية). بدون ذلك، يرفض Dropbox تسجيل الدخول مع 'Invalid redirect_uri'.</value>
   </data>
   <data name="Tools.PublisherStudio.Hosting.DBStep3Title" xml:space="preserve">
-    <value>الخطوة 3: إنشاء رمز الوصول</value>
+    <value>الخطوة 3: سجّل عنوان إعادة التوجيه (مطلوب)</value>
   </data>
   <data name="Tools.PublisherStudio.Hosting.Disconnect" xml:space="preserve">
     <value>قطع الاتصال</value>
@@ -12840,6 +12841,21 @@ GameFilesEdited/Data/INI/**/*.ini</value>
   </data>
   <data name="Tools.PublisherStudio.Artifact.DropFileUnreadableFormat" xml:space="preserve">
     <value>تعذّر قراءة الملف المُسقط: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DBStep4Title" xml:space="preserve">
+    <value>الخطوة 4: الاتصال من GenHub</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DBStep4Desc" xml:space="preserve">
+    <value>الصق مفتاح التطبيق أدناه وانقر فوق 'Connect with Dropbox'. سيفتح المتصفح للموافقة ثم يعود إلى GenHub تلقائيًا — ويبقى GenHub مسجلاً الدخول عبر رموز التحديث.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DropboxRedirectUriLabel" xml:space="preserve">
+    <value>عنوان إعادة التوجيه (سجّل هذه السلسلة بالضبط في تطبيق Dropbox الخاص بك)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.CopyRedirectUriTooltip" xml:space="preserve">
+    <value>نسخ عنوان إعادة التوجيه إلى الحافظة</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.RedirectUriCopied" xml:space="preserve">
+    <value>تم نسخ عنوان إعادة التوجيه. الصقه في قائمة Redirect URIs بتطبيق Dropbox الخاص بك.</value>
   </data>
   <data name="GameProfiles.Notification.UnexpectedExit.Title" xml:space="preserve">
     <value>خرجت اللعبة بشكل غير متوقع</value>

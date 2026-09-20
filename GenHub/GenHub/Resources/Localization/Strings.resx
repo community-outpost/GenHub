@@ -9852,28 +9852,29 @@ Install location:
     <value>Dropbox Setup &amp; Token Guide (No Cloud Project Needed)</value>
   </data>
   <data name="Tools.PublisherStudio.Hosting.DBStep1Desc" xml:space="preserve">
-    <value>Click button #1 below ('1. Create Dropbox App'). Select 'Scoped access', choose 'Full Dropbox' (or 'App folder'), enter an App name (e.g. 'GenHubPublisher'), and click 'Create app'.</value>
+    <value>Click button #1 below ('1. Create Dropbox App'). Select 'Scoped access', choose 'Full Dropbox' (or 'App folder'), enter an App name (e.g. 'GenHubPublisher'), and click 'Create app'. Your App key is shown at the top of the app's Settings tab on that same page — paste it into GenHub below. The App secret is not needed: GenHub signs in with PKCE, which never uses the secret.</value>
   </data>
   <data name="Tools.PublisherStudio.Hosting.DBStep1Title" xml:space="preserve">
     <value>Step 1: Create a Scoped App</value>
   </data>
   <data name="Tools.PublisherStudio.Hosting.DBStep2Desc" xml:space="preserve">
     <value>Switch to the 'Permissions' tab at the top of your Dropbox app page. Enable ALL of the following permissions:
-• files.content.write
-• files.content.read
-• sharing.write
-• sharing.read
 • account_info.read
-Then click the 'Submit' button at the bottom of the page! (If permissions are not saved, link creation will fail with HTTP 400).</value>
+• files.metadata.read
+• files.metadata.write
+• files.content.write
+• sharing.read
+• sharing.write
+Then click the 'Submit' button at the bottom of the page! (GenHub requests exactly these scopes; sign-in fails if any is missing.)</value>
   </data>
   <data name="Tools.PublisherStudio.Hosting.DBStep2Title" xml:space="preserve">
     <value>Step 2: Enable Permissions in Dropbox Console  [CRITICAL: Prevents 400 Bad Request]</value>
   </data>
   <data name="Tools.PublisherStudio.Hosting.DBStep3Desc" xml:space="preserve">
-    <value>Click the 'Settings' tab on your Dropbox app page. Scroll down to 'Generated access token' and click 'Generate'. Copy the token and paste it below.</value>
+    <value>On the app's Settings tab, find 'Redirect URIs', click 'Add', and paste the exact redirect URI shown below (use the Copy button — it must match character for character, including the port and trailing slash). Without this, Dropbox rejects the sign-in with 'Invalid redirect_uri'.</value>
   </data>
   <data name="Tools.PublisherStudio.Hosting.DBStep3Title" xml:space="preserve">
-    <value>Step 3: Generate Access Token</value>
+    <value>Step 3: Register the Redirect URI (Required)</value>
   </data>
   <data name="Tools.PublisherStudio.Hosting.Disconnect" xml:space="preserve">
     <value>Disconnect</value>
@@ -12938,6 +12939,21 @@ Project structure ready. Edit files in GameFilesEdited folder.</value>
   </data>
   <data name="Tools.PublisherStudio.Artifact.DropFileUnreadableFormat" xml:space="preserve">
     <value>Could not read the dropped file: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DBStep4Title" xml:space="preserve">
+    <value>Step 4: Connect from GenHub</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DBStep4Desc" xml:space="preserve">
+    <value>Paste your App key below and click 'Connect with Dropbox'. Your browser opens for approval and returns to GenHub automatically — GenHub stays signed in via refresh tokens.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DropboxRedirectUriLabel" xml:space="preserve">
+    <value>Redirect URI (register this exact string in your Dropbox app)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.CopyRedirectUriTooltip" xml:space="preserve">
+    <value>Copy the redirect URI to the clipboard</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.RedirectUriCopied" xml:space="preserve">
+    <value>Redirect URI copied. Paste it into your Dropbox app's Redirect URIs list.</value>
   </data>
   <data name="GameProfiles.Notification.UnexpectedExit.Title" xml:space="preserve">
     <value>Game Exited Unexpectedly</value>

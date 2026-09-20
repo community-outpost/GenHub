@@ -62,6 +62,7 @@ public class DropboxOAuthService(HttpClient httpClient, ILogger logger)
         query.Append("&code_challenge=").Append(Uri.EscapeDataString(challenge));
         query.Append("&code_challenge_method=S256");
         query.Append("&token_access_type=offline");
+        query.Append("&scope=").Append(Uri.EscapeDataString(HostingConstants.DropboxOAuthScopes));
         return $"{HostingConstants.DropboxOAuthAuthorizeUrl}?{query}";
     }
 
@@ -185,19 +186,29 @@ public class DropboxOAuthService(HttpClient httpClient, ILogger logger)
     }
 
     /// <summary>
-    /// Starts a loopback listener on an ephemeral port for the OAuth redirect.
+    /// Starts a loopback listener on the fixed OAuth redirect port.
     /// The caller owns the listener and must dispose it.
     /// </summary>
     /// <returns>The listener and its redirect URI.</returns>
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Security", "S5332:Using http protocol is insecure", Justification = "OAuth 2.0 desktop loopback redirects require plain http; traffic never leaves the machine.")]
     public static (HttpListener Listener, string RedirectUri) StartLoopbackListener()
     {
-        var port = FindFreeLoopbackPort();
         var listener = new HttpListener();
-        var redirectUri = $"http://{HostingConstants.OAuthLoopbackHost}:{port}/";
+        var redirectUri = HostingConstants.DropboxOAuthRedirectUri;
         listener.Prefixes.Add(redirectUri);
-        listener.Prefixes.Add($"http://{HostingConstants.OAuthLoopbackIpv4Host}:{port}/");
-        listener.Start();
+        listener.Prefixes.Add($"http://{HostingConstants.OAuthLoopbackIpv4Host}:{HostingConstants.DropboxOAuthLoopbackPort}/");
+        try
+        {
+            listener.Start();
+        }
+        catch (Exception ex) when (ex is HttpListenerException or SocketException)
+        {
+            listener.Close();
+            throw new InvalidOperationException(
+                $"GenHub could not listen on {redirectUri} because port {HostingConstants.DropboxOAuthLoopbackPort} is already in use. Close the app using that port and try again.",
+                ex);
+        }
+
         return (listener, redirectUri);
     }
 
@@ -328,20 +339,6 @@ public class DropboxOAuthService(HttpClient httpClient, ILogger logger)
         return root.TryGetProperty(name, out var element) && element.ValueKind == JsonValueKind.String
             ? element.GetString()
             : null;
-    }
-
-    private static int FindFreeLoopbackPort()
-    {
-        var listener = new TcpListener(IPAddress.Loopback, 0);
-        try
-        {
-            listener.Start();
-            return ((IPEndPoint)listener.LocalEndpoint).Port;
-        }
-        finally
-        {
-            listener.Stop();
-        }
     }
 
     private static async Task RespondToBrowserAsync(HttpListenerResponse response, CancellationToken cancellationToken)

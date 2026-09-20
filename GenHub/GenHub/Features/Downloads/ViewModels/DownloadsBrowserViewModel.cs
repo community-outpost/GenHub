@@ -3225,10 +3225,10 @@ public sealed partial class DownloadsBrowserViewModel(
 
             logger.LogInformation("Opening manifests directory: {Path}", path);
 
-            if (!Directory.Exists(path))
+            if (!System.IO.Directory.Exists(path))
             {
                 logger.LogWarning("Manifests directory not found at {Path}, creating it", path);
-                Directory.CreateDirectory(path);
+                System.IO.Directory.CreateDirectory(path);
             }
 
             System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo

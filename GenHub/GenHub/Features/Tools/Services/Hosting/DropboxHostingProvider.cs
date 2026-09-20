@@ -151,11 +151,14 @@ public class DropboxHostingProvider(ILogger<DropboxHostingProvider> logger, IHtt
 
         var service = GetOAuthService();
         var (verifier, challenge) = DropboxOAuthService.CreatePkcePair();
-        using var listener = StartOAuthListener(out var redirectUri);
-        if (listener == null || string.IsNullOrEmpty(redirectUri))
+        var listenerResult = StartOAuthListener();
+        if (!listenerResult.Success)
         {
-            return OperationResult<bool>.CreateFailure("Could not listen for the Dropbox sign-in response on this machine.");
+            return OperationResult<bool>.CreateFailure(listenerResult);
         }
+
+        using var listener = listenerResult.Data.Listener;
+        var redirectUri = listenerResult.Data.RedirectUri;
 
         var authorizeUrl = DropboxOAuthService.BuildAuthorizeUrl(appKey.Trim(), challenge, redirectUri);
         if (!service.TryOpenBrowser(authorizeUrl))
@@ -790,24 +793,18 @@ public class DropboxHostingProvider(ILogger<DropboxHostingProvider> logger, IHtt
         return _oauthService;
     }
 
-    private System.Net.HttpListener? StartOAuthListener(out string? redirectUri)
+    private OperationResult<(System.Net.HttpListener Listener, string RedirectUri)> StartOAuthListener()
     {
-        redirectUri = null;
         try
         {
             var started = DropboxOAuthService.StartLoopbackListener();
-            redirectUri = started.RedirectUri;
-            return started.Listener;
+            return OperationResult<(System.Net.HttpListener Listener, string RedirectUri)>.CreateSuccess((started.Listener, started.RedirectUri));
         }
-        catch (System.Net.HttpListenerException ex)
+        catch (Exception ex) when (ex is System.Net.HttpListenerException or System.Net.Sockets.SocketException or InvalidOperationException)
         {
             logger.LogWarning(ex, "Dropbox OAuth loopback listener failed to start");
-            return null;
-        }
-        catch (System.Net.Sockets.SocketException ex)
-        {
-            logger.LogWarning(ex, "Dropbox OAuth loopback listener failed to start");
-            return null;
+            return OperationResult<(System.Net.HttpListener Listener, string RedirectUri)>.CreateFailure(
+                ex is InvalidOperationException ? ex.Message : "Could not listen for the Dropbox sign-in response on this machine.");
         }
     }
 

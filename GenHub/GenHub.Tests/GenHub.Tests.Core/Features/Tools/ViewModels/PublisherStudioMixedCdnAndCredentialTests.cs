@@ -369,9 +369,14 @@ public class PublisherStudioMixedCdnAndCredentialTests
             ],
         };
 
-        _mockHostingStateManager.Setup(m => m.LoadStateAsync("/test/path/project.json", It.IsAny<System.Threading.CancellationToken>()))
-            .ReturnsAsync(OperationResult<HostingState?>.CreateSuccess(hostingState));
-        _mockHostingStateManager.Setup(m => m.SaveStateAsync("/test/path/project.json", It.IsAny<HostingState>(), It.IsAny<System.Threading.CancellationToken>()))
+        var container = new PublisherHostingStates
+        {
+            States = { [HostingConstants.GoogleDrive] = hostingState },
+        };
+
+        _mockHostingStateManager.Setup(m => m.LoadStatesAsync("/test/path/project.json", It.IsAny<System.Threading.CancellationToken>()))
+            .ReturnsAsync(OperationResult<PublisherHostingStates>.CreateSuccess(container));
+        _mockHostingStateManager.Setup(m => m.SaveStatesAsync("/test/path/project.json", It.IsAny<PublisherHostingStates>(), It.IsAny<System.Threading.CancellationToken>()))
             .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
 
         var vm = new PublishShareViewModel(
@@ -393,7 +398,7 @@ public class PublisherStudioMixedCdnAndCredentialTests
         Assert.NotNull(unaffected);
         Assert.Equal("Other Name", unaffected.CatalogName);
 
-        _mockHostingStateManager.Verify(m => m.SaveStateAsync("/test/path/project.json", It.IsAny<HostingState>(), It.IsAny<System.Threading.CancellationToken>()), Times.Once);
+        _mockHostingStateManager.Verify(m => m.SaveStatesAsync("/test/path/project.json", It.IsAny<PublisherHostingStates>(), It.IsAny<System.Threading.CancellationToken>()), Times.Once);
     }
 
     /// <summary>
@@ -432,8 +437,13 @@ public class PublisherStudioMixedCdnAndCredentialTests
             ProviderId = HostingConstants.Dropbox,
         };
 
-        _mockHostingStateManager.Setup(m => m.LoadStateAsync("/test/path/project.json", It.IsAny<System.Threading.CancellationToken>()))
-            .ReturnsAsync(OperationResult<HostingState?>.CreateSuccess(hostingState));
+        var dropboxContainer = new PublisherHostingStates
+        {
+            States = { [HostingConstants.Dropbox] = hostingState },
+        };
+
+        _mockHostingStateManager.Setup(m => m.LoadStatesAsync("/test/path/project.json", It.IsAny<System.Threading.CancellationToken>()))
+            .ReturnsAsync(OperationResult<PublisherHostingStates>.CreateSuccess(dropboxContainer));
 
         var googleMock = new Mock<IHostingProvider>();
         googleMock.Setup(p => p.ProviderId).Returns(HostingConstants.GoogleDrive);
@@ -495,8 +505,13 @@ public class PublisherStudioMixedCdnAndCredentialTests
             ],
         };
 
-        _mockHostingStateManager.Setup(m => m.LoadStateAsync("/test/path/project.json", It.IsAny<System.Threading.CancellationToken>()))
-            .ReturnsAsync(OperationResult<HostingState?>.CreateSuccess(hostingState));
+        var switchContainer = new PublisherHostingStates
+        {
+            States = { [HostingConstants.Dropbox] = hostingState },
+        };
+
+        _mockHostingStateManager.Setup(m => m.LoadStatesAsync("/test/path/project.json", It.IsAny<System.Threading.CancellationToken>()))
+            .ReturnsAsync(OperationResult<PublisherHostingStates>.CreateSuccess(switchContainer));
 
         var googleMock = new Mock<IHostingProvider>();
         googleMock.Setup(p => p.ProviderId).Returns(HostingConstants.GoogleDrive);

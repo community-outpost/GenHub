@@ -374,6 +374,23 @@
 
                                     <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.DBStep3Title}" FontWeight="SemiBold" FontSize="12" Foreground="{DynamicResource StatusInfoBrush}"/>
                                     <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.DBStep3Desc}" FontSize="11" Foreground="{DynamicResource TextSecondary}" TextWrapping="Wrap"/>
+
+                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.DBStep4Title}" FontWeight="SemiBold" FontSize="12" Foreground="{DynamicResource StatusInfoBrush}"/>
+                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.DBStep4Desc}" FontSize="11" Foreground="{DynamicResource TextSecondary}" TextWrapping="Wrap"/>
+                                </StackPanel>
+
+                                <!-- Exact redirect URI to register (must match character for character) -->
+                                <StackPanel Spacing="4" Margin="0,2,0,0">
+                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.DropboxRedirectUriLabel}" FontSize="11" Foreground="{DynamicResource TextSecondary}"/>
+                                    <Grid ColumnDefinitions="*,Auto">
+                                        <TextBox Text="{Binding DropboxRedirectUri, Mode=OneWay}" IsReadOnly="True" FontSize="11" FontFamily="Consolas,Menlo,monospace"/>
+                                        <Button Grid.Column="1" Command="{Binding CopyDropboxRedirectUriCommand}" Classes="small-glass-btn" Margin="8,0,0,0" ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Hosting.CopyRedirectUriTooltip}">
+                                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                                <PathIcon Data="{StaticResource CopyIcon}" Width="12" Height="12" Foreground="{DynamicResource AccentColorBrush}"/>
+                                                <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.Copy}" Foreground="{DynamicResource AccentColorBrush}" FontSize="12" FontWeight="SemiBold"/>
+                                            </StackPanel>
+                                        </Button>
+                                    </Grid>
                                 </StackPanel>
 
                                 <!-- Action button to Dropbox console -->

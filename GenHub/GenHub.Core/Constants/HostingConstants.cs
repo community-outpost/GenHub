@@ -110,7 +110,9 @@ public static class HostingConstants
 
     /// <summary>
     /// Loopback host used for desktop OAuth redirect URIs.
-    /// Dropbox implicitly allows localhost redirects for desktop apps.
+    /// Dropbox only accepts redirect URIs that exactly match a URI pre-registered
+    /// in the application console, so GenHub uses a fixed port (see below) and
+    /// shows the exact string for users to register.
     /// </summary>
     public const string OAuthLoopbackHost = "localhost";
 
@@ -119,6 +121,27 @@ public static class HostingConstants
     /// OAuth callback is received regardless of how localhost resolves.
     /// </summary>
     public const string OAuthLoopbackIpv4Host = "127.0.0.1";
+
+    /// <summary>
+    /// Fixed loopback port for the Dropbox OAuth redirect URI.
+    /// Ephemeral ports cannot be used because Dropbox requires an exact,
+    /// pre-registered redirect URI match (host, port, and path).
+    /// </summary>
+    public const int DropboxOAuthLoopbackPort = 51239;
+
+    /// <summary>
+    /// Exact redirect URI GenHub sends to Dropbox during OAuth sign-in.
+    /// Users must register this exact string in their Dropbox application console.
+    /// </summary>
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Minor Code Smell", "S1075:URIs should not be hardcoded", Justification = "Fixed loopback redirect required by Dropbox exact-match registration")]
+    public const string DropboxOAuthRedirectUri = "http://localhost:51239/";
+
+    /// <summary>
+    /// Space-delimited Dropbox permission scopes requested during OAuth sign-in.
+    /// Users must enable the same permissions on their Dropbox application:
+    /// account lookup, file listing/deletion, file upload, and shared-link management.
+    /// </summary>
+    public const string DropboxOAuthScopes = "account_info.read files.metadata.read files.metadata.write files.content.write sharing.read sharing.write";
 
     /// <summary>
     /// Length in bytes of the PKCE code verifier before base64url encoding.
@@ -300,6 +323,17 @@ public static class HostingConstants
         "dropboxusercontent.com",
     ];
 
+    private static readonly (string Pattern, string ProviderId)[] CloudProviderHostOwners =
+    [
+        ("drive.google.com", GoogleDrive),
+        ("docs.google.com", GoogleDrive),
+        ("googleusercontent.com", GoogleDrive),
+        ("github.com", GitHub),
+        ("githubusercontent.com", GitHub),
+        ("dropbox.com", Dropbox),
+        ("dropboxusercontent.com", Dropbox),
+    ];
+
     /// <summary>
     /// Checks whether the given host matches any recognized cloud provider domain.
     /// </summary>
@@ -315,5 +349,31 @@ public static class HostingConstants
         return CloudProviderHostPatterns.Any(pattern =>
             string.Equals(host, pattern, System.StringComparison.OrdinalIgnoreCase) ||
             host.EndsWith("." + pattern, System.StringComparison.OrdinalIgnoreCase));
+    }
+
+    /// <summary>
+    /// Resolves which hosting provider owns a download URL's host, if it is a recognized
+    /// first-party cloud host. Used to label intermixed assets with their actual provider
+    /// instead of the currently selected one.
+    /// </summary>
+    /// <param name="host">The URL host name to resolve.</param>
+    /// <returns>The provider ID, or null when the host is not a recognized cloud provider.</returns>
+    public static string? GetProviderIdForHost(string? host)
+    {
+        if (string.IsNullOrWhiteSpace(host))
+        {
+            return null;
+        }
+
+        foreach (var (pattern, providerId) in CloudProviderHostOwners)
+        {
+            if (string.Equals(host, pattern, System.StringComparison.OrdinalIgnoreCase) ||
+                host.EndsWith("." + pattern, System.StringComparison.OrdinalIgnoreCase))
+            {
+                return providerId;
+            }
+        }
+
+        return null;
     }
 }
