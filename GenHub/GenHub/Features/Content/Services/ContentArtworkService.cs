@@ -174,6 +174,14 @@ public sealed class ContentArtworkService(
             return;
         }
 
+        var directory = GetManifestArtworkDirectory(manifest.Id.Value);
+        if (string.IsNullOrEmpty(directory))
+        {
+            failures.Add($"Artwork storage unavailable for '{manifest.Id.Value}'.");
+            return;
+        }
+
+        string? tempPath = null;
         try
         {
             var bytes = await DownloadArtworkBytesAsync(httpClient, remoteUrl, cancellationToken);
@@ -183,15 +191,13 @@ public sealed class ContentArtworkService(
                 return;
             }
 
-            var directory = GetManifestArtworkDirectory(manifest.Id.Value);
-            if (string.IsNullOrEmpty(directory))
-            {
-                failures.Add($"Artwork storage unavailable for '{manifest.Id.Value}'.");
-                return;
-            }
-
             Directory.CreateDirectory(directory);
-            await File.WriteAllBytesAsync(Path.Combine(directory, GetSlotName(kind) + ResolveExtension(remoteUrl)), bytes, cancellationToken);
+            var targetPath = Path.Combine(directory, GetSlotName(kind) + ResolveExtension(remoteUrl));
+            tempPath = Path.Combine(directory, $"{ContentArtworkConstants.TempFilePrefix}{Guid.NewGuid():N}");
+
+            await File.WriteAllBytesAsync(tempPath, bytes, cancellationToken);
+            File.Move(tempPath, targetPath, overwrite: true);
+            tempPath = null;
             logger.LogDebug("Persisted {Kind} artwork for {ManifestId}", kind, manifest.Id.Value);
         }
         catch (HttpRequestException ex)
@@ -205,6 +211,20 @@ public sealed class ContentArtworkService(
         catch (UnauthorizedAccessException ex)
         {
             PersistFailure(manifest, kind, failures, ex);
+        }
+        finally
+        {
+            if (tempPath != null && File.Exists(tempPath))
+            {
+                try
+                {
+                    File.Delete(tempPath);
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                {
+                    logger.LogDebug(ex, "Could not clean up temporary artwork file {TempPath}", tempPath);
+                }
+            }
         }
     }
 

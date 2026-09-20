@@ -1,3 +1,4 @@
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
@@ -20,6 +21,57 @@ namespace GenHub.Tests.Core.Features.Content.Services;
 /// </summary>
 public sealed class ContentArtworkServiceTests
 {
+    private sealed class CancelingHttpHandler(CancellationTokenSource cts, byte[] payload) : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            var stream = new CancelOnDisposeStream(new MemoryStream(payload), cts);
+            var content = new StreamContent(stream);
+            content.Headers.ContentLength = payload.Length;
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK) { Content = content });
+        }
+    }
+
+    private sealed class CancelOnDisposeStream(Stream inner, CancellationTokenSource cts) : Stream
+    {
+        public override bool CanRead => inner.CanRead;
+
+        public override bool CanSeek => inner.CanSeek;
+
+        public override bool CanWrite => inner.CanWrite;
+
+        public override long Length => inner.Length;
+
+        public override long Position { get => inner.Position; set => inner.Position = value; }
+
+        public override void Flush() => inner.Flush();
+
+        public override int Read(byte[] buffer, int offset, int count) => inner.Read(buffer, offset, count);
+
+        public override long Seek(long offset, SeekOrigin origin) => inner.Seek(offset, origin);
+
+        public override void SetLength(long value) => inner.SetLength(value);
+
+        public override void Write(byte[] buffer, int offset, int count) => inner.Write(buffer, offset, count);
+
+        public override Task<int> ReadAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken) =>
+            inner.ReadAsync(buffer, offset, count, cancellationToken);
+
+        public override ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default) =>
+            inner.ReadAsync(buffer, cancellationToken);
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                cts.Cancel();
+                inner.Dispose();
+            }
+
+            base.Dispose(disposing);
+        }
+    }
+
     private sealed class StubHttpHandler : HttpMessageHandler
     {
         private readonly byte[] _bytes;
@@ -153,7 +205,7 @@ public sealed class ContentArtworkServiceTests
 
             Assert.True(result.Success);
             Assert.Null(service.GetLocalArtworkPath("1.20260101.test.mod.alpha", ContentArtworkKind.Icon));
-            Assert.False(Directory.Exists(Path.Combine(root, "Artwork", "1.20260101.test.mod.alpha")));
+            Assert.False(Directory.Exists(Path.Combine(root, ContentArtworkConstants.ArtworkDirectoryName, "1.20260101.test.mod.alpha")));
         }
         finally
         {
@@ -183,7 +235,76 @@ public sealed class ContentArtworkServiceTests
         }
     }
 
-    private static ContentArtworkService CreateService(string appDataPath, StubHttpHandler handler)
+    /// <summary>
+    /// Verifies that if downloading artwork is cancelled, no temporary or partial files remain in storage.
+    /// </summary>
+    /// <returns>A task that represents the asynchronous test.</returns>
+    [Fact]
+    public async Task PrefetchArtworkAsync_WhenCancelled_CleansUpTempFilesAsync()
+    {
+        var root = CreateTempDir();
+        try
+        {
+            var cts = new CancellationTokenSource();
+            var handler = new CancelingHttpHandler(cts, [1, 2, 3, 4]);
+            var service = CreateService(root, handler);
+
+            var manifest = CreateManifest();
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(async () =>
+            {
+                await service.PrefetchArtworkAsync(manifest, cts.Token);
+            });
+
+            var manifestDir = Path.Combine(root, ContentArtworkConstants.ArtworkDirectoryName, manifest.Id.Value);
+            if (Directory.Exists(manifestDir))
+            {
+                var files = Directory.GetFiles(manifestDir, "*.*", SearchOption.AllDirectories);
+                Assert.Empty(files);
+            }
+        }
+        finally
+        {
+            DeleteTempDir(root);
+        }
+    }
+
+    /// <summary>
+    /// Verifies that if committing the downloaded artwork to its final destination fails,
+    /// the temporary in-flight file written to disk is deleted by cleanup logic.
+    /// </summary>
+    /// <returns>A task that represents the asynchronous test.</returns>
+    [Fact]
+    public async Task PrefetchArtworkAsync_WhenCommitFails_CleansUpTempFilesAsync()
+    {
+        var root = CreateTempDir();
+        try
+        {
+            var payload = new byte[] { 1, 2, 3, 4 };
+            var handler = new StubHttpHandler(payload);
+            var service = CreateService(root, handler);
+
+            var manifest = CreateManifest();
+            var manifestDir = Path.Combine(root, ContentArtworkConstants.ArtworkDirectoryName, manifest.Id.Value);
+            Directory.CreateDirectory(manifestDir);
+
+            // Create target slot path as a directory so File.Move fails with IOException after temp file is written to disk
+            var targetIconPath = Path.Combine(manifestDir, "icon.png");
+            Directory.CreateDirectory(targetIconPath);
+
+            var result = await service.PrefetchArtworkAsync(manifest);
+            Assert.False(result.Success);
+
+            // Temp files matching TempFilePrefix should have been cleaned up by the finally block
+            var tempFiles = Directory.GetFiles(manifestDir, $"{ContentArtworkConstants.TempFilePrefix}*", SearchOption.AllDirectories);
+            Assert.Empty(tempFiles);
+        }
+        finally
+        {
+            DeleteTempDir(root);
+        }
+    }
+
+    private static ContentArtworkService CreateService(string appDataPath, HttpMessageHandler handler)
     {
         var configuration = new Mock<IConfigurationProviderService>();
         configuration.Setup(config => config.GetApplicationDataPath()).Returns(appDataPath);

@@ -17,10 +17,12 @@ namespace GenHub.Features.Downloads.ViewModels.Filters;
 /// Filter view model for the offline downloaded-content library ("My Downloads").
 /// Provides content-type and target-game filtering over locally stored manifests.
 /// </summary>
-public sealed partial class DownloadedContentFilterViewModel : FilterPanelViewModelBase, IDisposable
+/// <param name="localizationService">Optional localization service for filter labels.</param>
+public sealed partial class DownloadedContentFilterViewModel(ILocalizationService? localizationService = null) : FilterPanelViewModelBase, IDisposable
 {
-    private readonly ILocalizationService? _localizationService;
     private bool _disposed;
+    private bool _isInitialized;
+    private ObservableCollection<ContentTypeFilterItem> _contentTypeFilters = [];
 
     [ObservableProperty]
     private ContentType? _selectedContentType;
@@ -28,21 +30,17 @@ public sealed partial class DownloadedContentFilterViewModel : FilterPanelViewMo
     [ObservableProperty]
     private GameType? _selectedGame;
 
-    [ObservableProperty]
-    private ObservableCollection<ContentTypeFilterItem> _contentTypeFilters = [];
-
     /// <summary>
-    /// Initializes a new instance of the <see cref="DownloadedContentFilterViewModel"/> class.
+    /// Gets or sets the collection of content type filter items.
     /// </summary>
-    /// <param name="localizationService">Optional localization service for filter labels.</param>
-    public DownloadedContentFilterViewModel(ILocalizationService? localizationService = null)
+    public ObservableCollection<ContentTypeFilterItem> ContentTypeFilters
     {
-        _localizationService = localizationService;
-        ContentTypeFilters = CreateContentTypeFilters();
-        if (_localizationService != null)
+        get
         {
-            _localizationService.PropertyChanged += OnLocalizationChanged;
+            EnsureInitialized();
+            return _contentTypeFilters;
         }
+        set => SetProperty(ref _contentTypeFilters, value);
     }
 
     /// <inheritdoc />
@@ -74,6 +72,7 @@ public sealed partial class DownloadedContentFilterViewModel : FilterPanelViewMo
     {
         ArgumentNullException.ThrowIfNull(baseQuery);
 
+        EnsureInitialized();
         baseQuery.ContentType = SelectedContentType;
 
         // The browser seeds TargetGame with the default game; an unset game filter
@@ -86,6 +85,7 @@ public sealed partial class DownloadedContentFilterViewModel : FilterPanelViewMo
     /// <inheritdoc />
     public override void ClearFilters()
     {
+        EnsureInitialized();
         SelectedContentType = null;
         SelectedGame = null;
         foreach (var filter in ContentTypeFilters)
@@ -102,6 +102,7 @@ public sealed partial class DownloadedContentFilterViewModel : FilterPanelViewMo
     /// <inheritdoc />
     public override IEnumerable<string> GetActiveFilterSummary()
     {
+        EnsureInitialized();
         if (SelectedContentType.HasValue)
         {
             yield return $"{ResolveLabel("Downloads.Filter.ContentType", "Content Type")}: {ResolveContentTypeName(SelectedContentType.Value)}";
@@ -127,12 +128,27 @@ public sealed partial class DownloadedContentFilterViewModel : FilterPanelViewMo
             return;
         }
 
-        if (disposing && _localizationService != null)
+        if (disposing && _isInitialized && localizationService != null)
         {
-            _localizationService.PropertyChanged -= OnLocalizationChanged;
+            localizationService.PropertyChanged -= OnLocalizationChanged;
         }
 
         _disposed = true;
+    }
+
+    private void EnsureInitialized()
+    {
+        if (_isInitialized)
+        {
+            return;
+        }
+
+        _isInitialized = true;
+        _contentTypeFilters = CreateContentTypeFilters();
+        if (localizationService != null)
+        {
+            localizationService.PropertyChanged += OnLocalizationChanged;
+        }
     }
 
     private ObservableCollection<ContentTypeFilterItem> CreateContentTypeFilters()
@@ -154,7 +170,7 @@ public sealed partial class DownloadedContentFilterViewModel : FilterPanelViewMo
 
     private string ResolveContentTypeName(ContentType contentType)
     {
-        if (_localizationService != null && _localizationService.TryGetString($"ContentType.{contentType}", out var localized))
+        if (localizationService != null && localizationService.TryGetString($"ContentType.{contentType}", out var localized))
         {
             return localized;
         }
@@ -171,7 +187,7 @@ public sealed partial class DownloadedContentFilterViewModel : FilterPanelViewMo
             _ => null,
         };
 
-        if (key != null && _localizationService != null && _localizationService.TryGetString(key, out var localized))
+        if (key != null && localizationService != null && localizationService.TryGetString(key, out var localized))
         {
             return localized;
         }
@@ -181,7 +197,7 @@ public sealed partial class DownloadedContentFilterViewModel : FilterPanelViewMo
 
     private string ResolveLabel(string key, string fallback)
     {
-        if (_localizationService != null && _localizationService.TryGetString(key, out var localized))
+        if (localizationService != null && localizationService.TryGetString(key, out var localized))
         {
             return localized;
         }
@@ -230,6 +246,8 @@ public sealed partial class DownloadedContentFilterViewModel : FilterPanelViewMo
     [RelayCommand]
     private void ToggleContentType(ContentTypeFilterItem item)
     {
+        EnsureInitialized();
+
         // Derive from the selection, not the toggle state: the IsSelected binding
         // updates before the command runs, so item.IsSelected already reflects the click.
         if (SelectedContentType == item.ContentType)

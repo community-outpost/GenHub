@@ -1898,6 +1898,124 @@ public sealed class ContentDetailViewModelTests
     }
 
     /// <summary>
+    /// Verifies that a manifest lookup failure aborts the delete with an error instead of
+    /// proceeding or throwing an unhandled exception.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task DeleteDownloadCommand_WhenManifestLookupFails_AbortsDeleteAndReportsErrorAsync()
+    {
+        // Arrange
+        const string manifestId = "1.20260901.custom.mod.test";
+        var searchResult = new ContentSearchResult
+        {
+            Id = manifestId,
+            Name = "Custom Mod",
+            ProviderName = "custom",
+            ContentType = ContentType.Mod,
+            TargetGame = GameType.ZeroHour,
+        };
+
+        var manifestPool = new Mock<IContentManifestPool>();
+        manifestPool
+            .Setup(pool => pool.GetManifestAsync(It.IsAny<ManifestId>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentManifest?>.CreateFailure("Manifest pool read error"));
+
+        var dialogService = new Mock<IDialogService>();
+        var notifications = new Mock<INotificationService>();
+        var viewModel = CreateViewModel(
+            searchResult,
+            new Mock<IContentDownloadCoordinator>().Object,
+            manifestPool: manifestPool.Object,
+            notificationService: notifications.Object,
+            dialogService: dialogService.Object);
+        viewModel.IsDownloaded = true;
+
+        // Act
+        await viewModel.DeleteDownloadCommand.ExecuteAsync(null);
+
+        // Assert
+        manifestPool.Verify(
+            pool => pool.RemoveManifestAsync(It.IsAny<ManifestId>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+        dialogService.Verify(
+            dialog => dialog.ShowConfirmationAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string?>()),
+            Times.Never);
+        notifications.Verify(
+            n => n.ShowError(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
+            Times.Once);
+    }
+
+    /// <summary>
+    /// Verifies that a type dependents enumeration failure aborts the delete with an error instead of
+    /// proceeding or throwing an unhandled exception.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task DeleteDownloadCommand_WhenTypeDependentsLookupFails_AbortsDeleteAndReportsErrorAsync()
+    {
+        // Arrange
+        const string manifestId = "1.20260901.custom.mod.test";
+        var searchResult = new ContentSearchResult
+        {
+            Id = manifestId,
+            Name = "Custom Mod",
+            ProviderName = "custom",
+            ContentType = ContentType.Mod,
+            TargetGame = GameType.ZeroHour,
+        };
+
+        var doomedManifest = CreateDownloadedManifest(manifestId, "Custom Mod", ContentType.Mod);
+        var manifestPool = new Mock<IContentManifestPool>();
+        manifestPool
+            .Setup(pool => pool.GetManifestAsync(It.IsAny<ManifestId>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentManifest?>.CreateSuccess(doomedManifest));
+        manifestPool
+            .Setup(pool => pool.GetAllManifestsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IEnumerable<ContentManifest>>.CreateFailure("Stored content enumeration failed"));
+
+        var profileManager = new Mock<IGameProfileManager>();
+        profileManager
+            .Setup(manager => manager.GetAllProfilesAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<IReadOnlyList<GameProfile>>.CreateSuccess([]));
+
+        var dialogService = new Mock<IDialogService>();
+        var notifications = new Mock<INotificationService>();
+        var viewModel = CreateViewModel(
+            searchResult,
+            new Mock<IContentDownloadCoordinator>().Object,
+            manifestPool: manifestPool.Object,
+            profileManager: profileManager.Object,
+            notificationService: notifications.Object,
+            dialogService: dialogService.Object);
+        viewModel.IsDownloaded = true;
+
+        // Act
+        await viewModel.DeleteDownloadCommand.ExecuteAsync(null);
+
+        // Assert
+        manifestPool.Verify(
+            pool => pool.RemoveManifestAsync(It.IsAny<ManifestId>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+        dialogService.Verify(
+            dialog => dialog.ShowConfirmationAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string?>()),
+            Times.Never);
+        notifications.Verify(
+            n => n.ShowError(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
+            Times.Once);
+    }
+
+    /// <summary>
     /// Verifies that launcher-managed installation manifests cannot be deleted.
     /// </summary>
     /// <returns>A task representing the asynchronous unit test.</returns>
