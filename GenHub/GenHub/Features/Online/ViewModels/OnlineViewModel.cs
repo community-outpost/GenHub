@@ -219,6 +219,11 @@ public sealed partial class OnlineViewModel(
             return;
         }
 
+        if (IsJoined)
+        {
+            return;
+        }
+
         // The Join button stays enabled for the whole round-trip; a second
         // activation while one is in flight would mint a second membership
         // the client never tracks.
@@ -310,6 +315,14 @@ public sealed partial class OnlineViewModel(
     [RelayCommand]
     public async Task CreateNetworkAsync(CancellationToken cancellationToken = default)
     {
+        // Creating while joined would orphan the active network: the second
+        // bring-up fails and its teardown kills the live sidecar.
+        if (IsJoined)
+        {
+            ShowErrorToast(CreateErrorTitleKey, GetString("Online.Error.AlreadyJoined"));
+            return;
+        }
+
         if (CreateName.Length < OnlineConstants.MinNetworkNameLength ||
             CreateName.Length > OnlineConstants.MaxNetworkNameLength)
         {

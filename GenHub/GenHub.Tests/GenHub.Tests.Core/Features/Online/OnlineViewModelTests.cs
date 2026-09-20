@@ -206,6 +206,59 @@ public class OnlineViewModelTests
     }
 
     /// <summary>
+    /// Tests that joining while already joined issues no extra request.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task JoinNetworkAsync_WhenJoined_ShouldNotCallServiceAsync()
+    {
+        // Arrange
+        var network = new Mock<IOnlineNetworkService>(MockBehavior.Strict);
+        var vm = CreateViewModel(network.Object);
+        vm.Networks = new ObservableCollection<OnlineNetworkSummary>(
+        [
+            new OnlineNetworkSummary { Id = "net-1", Name = "Lobby" },
+        ]);
+        vm.SelectedNetwork = vm.Networks[0];
+        vm.IsJoined = true;
+
+        // Act
+        await vm.JoinNetworkAsync();
+
+        // Assert
+        network.Verify(
+            n => n.JoinNetworkAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    /// <summary>
+    /// Tests that creating while joined toasts and issues no request.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task CreateNetworkAsync_WhenJoined_ShouldToastAndNotCallServiceAsync()
+    {
+        // Arrange
+        var network = new Mock<IOnlineNetworkService>(MockBehavior.Strict);
+        var notifications = new Mock<INotificationService>();
+        var vm = CreateViewModel(network.Object, notifications.Object);
+        vm.IsJoined = true;
+        vm.CreateName = "Lobby";
+        vm.CreatePassword = "secret-password";
+
+        // Act
+        await vm.CreateNetworkAsync();
+
+        // Assert
+        network.Verify(
+            n => n.CreateNetworkAsync(It.IsAny<OnlineCreateNetworkRequest>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+        notifications.Verify(
+            n => n.ShowError(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
+            Times.Once);
+    }
+
+    /// <summary>
     /// Tests that play with a missing profile shows the download-prompt warning.
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>

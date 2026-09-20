@@ -42,32 +42,47 @@ const isStaleEntry = (summary: NetworkSummary, nowMs: number): boolean => {
 
 export class DirectoryIndex {
   private readonly state: DurableObjectState;
+  private mutex: Promise<void> = Promise.resolve();
 
   constructor(state: DurableObjectState, _env: OnlineEnv) {
     this.state = state;
   }
 
+  // Same interleave hazard as PresenceRoom: concurrent upserts (rooms
+  // re-sync on every heartbeat) or an upsert racing the list prune can
+  // drop entries between loadIndex() and put(). Serialize everything.
+  private async withLock<T>(fn: () => Promise<T>): Promise<T> {
+    const run = this.mutex.then(fn);
+    this.mutex = run.then(
+      () => undefined,
+      () => undefined
+    );
+    return run;
+  }
+
   async fetch(request: Request): Promise<Response> {
-    try {
-      const url = new URL(request.url);
-      switch (`${request.method} ${url.pathname}`) {
-        case "GET /internal/list":
-          return await this.handleList(url);
-        case "POST /internal/upsert":
-          return await this.handleUpsert(request);
-        case "POST /internal/remove":
-          return await this.handleRemove(request);
-        case "POST /internal/check-creation":
-          return await this.handleCheckCreation(request);
-        case "POST /internal/release-creation":
-          return await this.handleReleaseCreation(request);
-        default:
-          return json({ error: "Unknown directory endpoint" }, 404);
+    return this.withLock(async () => {
+      try {
+        const url = new URL(request.url);
+        switch (`${request.method} ${url.pathname}`) {
+          case "GET /internal/list":
+            return await this.handleList(url);
+          case "POST /internal/upsert":
+            return await this.handleUpsert(request);
+          case "POST /internal/remove":
+            return await this.handleRemove(request);
+          case "POST /internal/check-creation":
+            return await this.handleCheckCreation(request);
+          case "POST /internal/release-creation":
+            return await this.handleReleaseCreation(request);
+          default:
+            return json({ error: "Unknown directory endpoint" }, 404);
+        }
+      } catch (err) {
+        console.error("Directory error:", err instanceof Error ? err.message : String(err));
+        return json({ error: "Directory error" }, 500);
       }
-    } catch (err) {
-      console.error("Directory error:", err instanceof Error ? err.message : String(err));
-      return json({ error: "Directory error" }, 500);
-    }
+    });
   }
 
   private async loadIndex(): Promise<Record<string, NetworkSummary>> {
