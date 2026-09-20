@@ -46,6 +46,9 @@ public sealed class OnlineNetworkService(
     public event EventHandler? ConnectionLost;
 
     /// <inheritdoc/>
+    public event EventHandler<OnlineExpectedProfile>? ExpectedProfileChanged;
+
+    /// <inheritdoc/>
     public OnlineJoinResult? CurrentJoin
     {
         get
@@ -224,6 +227,8 @@ public sealed class OnlineNetworkService(
         string networkId,
         string password,
         bool preferRelay = true,
+        string profileFingerprint = "",
+        string profileName = "",
         CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(networkId))
@@ -237,7 +242,7 @@ public sealed class OnlineNetworkService(
             var url = string.Format(ApiConstants.OnlineNetworkJoinFormat, Uri.EscapeDataString(networkId));
             using var response = await SendWithSessionRetryAsync(
                 (client, ct) => client.PostAsJsonAsync(
-                    url, new { password, preferRelay, endpoint }, ct),
+                    url, new { password, preferRelay, endpoint, profileFingerprint, profileName }, ct),
                 cancellationToken);
             if (response is null)
             {
@@ -312,7 +317,7 @@ public sealed class OnlineNetworkService(
     /// <inheritdoc/>
     public Task<OperationResult<bool>> UpdateNetworkAsync(
         string? description,
-        string? expectedProfileId,
+        OnlineExpectedProfile? expectedProfile,
         CancellationToken cancellationToken = default)
     {
         var join = CurrentJoin;
@@ -322,7 +327,24 @@ public sealed class OnlineNetworkService(
         }
 
         var url = string.Format(ApiConstants.OnlineNetworkByIdFormat, Uri.EscapeDataString(join.NetworkId));
-        return SendGrantMutationAsync(join.Grant, url, HttpMethod.Patch, new { description, expectedProfileId }, cancellationToken);
+        object payload = expectedProfile is null
+            ? new { description }
+            : new
+            {
+                description,
+                expectedProfileId = expectedProfile.ExpectedProfileId,
+                expectedProfileFingerprint = expectedProfile.ExpectedProfileFingerprint,
+                expectedProfileName = expectedProfile.ExpectedProfileName,
+                expectedGameClientId = expectedProfile.ExpectedGameClientId,
+                expectedContentIds = expectedProfile.ExpectedContentIds,
+            };
+        return SendGrantMutationAsync(join.Grant, url, HttpMethod.Patch, payload, cancellationToken);
+    }
+
+    /// <inheritdoc/>
+    public void SetLocalProfileAdvertisement(string fingerprint, string profileName)
+    {
+        presence.UpdateAdvertisedProfile(fingerprint, profileName);
     }
 
     /// <inheritdoc/>
@@ -634,6 +656,7 @@ public sealed class OnlineNetworkService(
         presence.RosterUpdated += OnPresenceRoster;
         presence.ConnectionLost += OnPresenceLost;
         presence.GrantRefreshed += OnGrantRefreshed;
+        presence.ExpectedProfileChanged += OnExpectedProfileChanged;
     }
 
     private void UnsubscribePresence()
@@ -647,6 +670,7 @@ public sealed class OnlineNetworkService(
         presence.RosterUpdated -= OnPresenceRoster;
         presence.ConnectionLost -= OnPresenceLost;
         presence.GrantRefreshed -= OnGrantRefreshed;
+        presence.ExpectedProfileChanged -= OnExpectedProfileChanged;
     }
 
     private void OnPresenceRoster(object? sender, IReadOnlyList<OnlineMember> members)
@@ -661,6 +685,24 @@ public sealed class OnlineNetworkService(
         {
             CurrentJoin = join with { Grant = grant };
         }
+    }
+
+    private void OnExpectedProfileChanged(object? sender, OnlineExpectedProfile expected)
+    {
+        var join = CurrentJoin;
+        if (join is not null)
+        {
+            CurrentJoin = join with
+            {
+                ExpectedProfileId = expected.ExpectedProfileId,
+                ExpectedProfileFingerprint = expected.ExpectedProfileFingerprint,
+                ExpectedProfileName = expected.ExpectedProfileName,
+                ExpectedGameClientId = expected.ExpectedGameClientId,
+                ExpectedContentIds = expected.ExpectedContentIds,
+            };
+        }
+
+        ExpectedProfileChanged?.Invoke(this, expected);
     }
 
     private async void OnPresenceLost(object? sender, EventArgs e)
@@ -708,7 +750,7 @@ public sealed class OnlineNetworkService(
         }
         catch (Exception ex) when (ex is System.Net.Sockets.SocketException or TimeoutException)
         {
-            logger.LogWarning("Endpoint discovery failed; joining without a published endpoint.");
+            logger.LogWarning(ex, "Endpoint discovery failed; joining without a published endpoint.");
             return string.Empty;
         }
     }

@@ -184,6 +184,21 @@ public static class OnlineConstants
     public const string OverlayUnixBinary = "genhub-overlay";
 
     /// <summary>
+    /// Version prefix for online profile fingerprints.
+    /// </summary>
+    public const string ProfileFingerprintPrefix = "opf1";
+
+    /// <summary>
+    /// Separator between fingerprint segments.
+    /// </summary>
+    public const string FingerprintSeparator = "|";
+
+    /// <summary>
+    /// Separator between content ids inside a fingerprint.
+    /// </summary>
+    public const string FingerprintListSeparator = ",";
+
+    /// <summary>
     /// Wire-protocol magic ("GHP1") for UDP hole-punch packets.
     /// </summary>
     public static readonly byte[] PunchMagic = [0x47, 0x48, 0x50, 0x31];

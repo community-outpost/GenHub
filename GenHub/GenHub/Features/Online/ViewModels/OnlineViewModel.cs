@@ -13,26 +13,27 @@ using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Interfaces.Online;
 using GenHub.Core.Models.Dialogs;
 using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.GameProfile;
 using GenHub.Core.Models.Online;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
-using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
 
 namespace GenHub.Features.Online.ViewModels;
 
 /// <summary>
-/// ViewModel for the Online tab: browse networks, create password-protected
-/// networks, join them, and share one virtual LAN for in-game LAN lobbies.
+/// ViewModel for the Online tab: browse networks, create lobbies, join them,
+/// and share one virtual LAN for in-game LAN lobbies. Anyone can join any
+/// lobby; profile match state only tells members whose setup fits the game.
 /// </summary>
 /// <param name="networkService">The online network service.</param>
 /// <param name="launchService">The online launch service.</param>
-/// <param name="profileManager">The game profile manager for expected-profile lookup.</param>
-/// <param name="p2pService">The P2P connection service for reachability checks.</param>
+/// <param name="profileManager">The game profile manager for profile lookup.</param>
 /// <param name="notificationService">The notification service for toasts.</param>
 /// <param name="dialogService">The dialog service for confirmations.</param>
 /// <param name="logger">The logger.</param>
@@ -41,7 +42,6 @@ public sealed partial class OnlineViewModel(
     IOnlineNetworkService networkService,
     IOnlineLaunchService launchService,
     IGameProfileManager profileManager,
-    IP2PConnectionService p2pService,
     INotificationService notificationService,
     IDialogService dialogService,
     ILogger<OnlineViewModel> logger,
@@ -51,10 +51,14 @@ public sealed partial class OnlineViewModel(
     private const string CreateErrorTitleKey = "Online.Error.CreateTitle";
 
     private readonly SemaphoreSlim _refreshLock = new(1, 1);
+    private readonly SemaphoreSlim _profileLock = new(1, 1);
+    private readonly Dictionary<string, IReadOnlyDictionary<string, ContentType>> _contentTypeCache = new(StringComparer.Ordinal);
     private CancellationTokenSource? _searchCts;
     private CancellationTokenSource? _detailCts;
     private bool _disposed;
     private bool _joinInFlight;
+    private bool _profilesLoaded;
+    private IReadOnlyList<string> _expectedContentIds = [];
 
     [ObservableProperty]
     private ObservableCollection<OnlineNetworkSummary> _networks = [];
@@ -74,7 +78,25 @@ public sealed partial class OnlineViewModel(
     private string _expectedProfileName = string.Empty;
 
     [ObservableProperty]
-    private bool _expectedProfileInstalled;
+    private string _expectedProfileFingerprint = string.Empty;
+
+    [ObservableProperty]
+    private string _expectedGameClientId = string.Empty;
+
+    [ObservableProperty]
+    private OnlineProfileMatch _profileMatchState = OnlineProfileMatch.Unknown;
+
+    [ObservableProperty]
+    private ObservableCollection<GameProfile> _availableProfiles = [];
+
+    [ObservableProperty]
+    private GameProfile? _selectedCreateProfile;
+
+    [ObservableProperty]
+    private GameProfile? _selectedHostProfile;
+
+    [ObservableProperty]
+    private GameProfile? _selectedPlayProfile;
 
     [ObservableProperty]
     private ObservableCollection<OnlineMember> _members = [];
@@ -113,9 +135,6 @@ public sealed partial class OnlineViewModel(
     private OnlineConnectionQuality _connectionQuality = OnlineConnectionQuality.Unknown;
 
     [ObservableProperty]
-    private bool _preferRelay = true;
-
-    [ObservableProperty]
     private string _joinPassword = string.Empty;
 
     [ObservableProperty]
@@ -140,15 +159,13 @@ public sealed partial class OnlineViewModel(
     private string _hostDescription = string.Empty;
 
     [ObservableProperty]
-    private string _hostExpectedProfileId = string.Empty;
-
-    [ObservableProperty]
     private bool _isHostPanelOpen;
 
     /// <summary>
     /// Gets a value indicating whether the detail card is visible: a loaded
     /// detail, or the loading state while one is being fetched.
     /// </summary>
+    [SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Reads generated MVVM properties Sonar cannot see; bound from XAML as an instance property.")]
     public bool IsDetailVisible => SelectedDetail is not null || DetailLoading;
 
     /// <summary>
@@ -158,6 +175,7 @@ public sealed partial class OnlineViewModel(
     {
         networkService.RosterChanged += OnRosterChanged;
         networkService.ConnectionLost += OnConnectionLost;
+        networkService.ExpectedProfileChanged += OnExpectedProfileChanged;
     }
 
     /// <summary>
@@ -207,7 +225,8 @@ public sealed partial class OnlineViewModel(
     }
 
     /// <summary>
-    /// Joins the selected network with the entered password.
+    /// Joins the selected network with the entered password. Profile setup
+    /// never gates joining; it only advertises match state to the roster.
     /// </summary>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
@@ -236,21 +255,24 @@ public sealed partial class OnlineViewModel(
         try
         {
             IsLoading = true;
+            var advertisement = await ResolveAdvertisementAsync(cancellationToken);
+
+            // Relay is always on: the endpoint stays hidden from members.
             var result = await networkService.JoinNetworkAsync(
-                SelectedNetwork.Id, JoinPassword, PreferRelay, cancellationToken);
+                SelectedNetwork.Id, JoinPassword, true, advertisement.Fingerprint, advertisement.Name, cancellationToken);
             if (!result.Success)
             {
                 ShowJoinErrorToast(result.Errors.FirstOrDefault());
                 return;
             }
 
-            ApplyJoin(result.Data);
+            await ApplyJoinAsync(result.Data, cancellationToken);
             JoinPassword = string.Empty;
             notificationService.ShowSuccess(
                 GetString("Online.Join.SuccessTitle"),
                 GetString("Online.Join.SuccessMessage", result.Data.OverlayIp),
                 NotificationDurations.Long);
-            WarnWhenAdapterDown();
+            NotifyAdapterState();
         }
         catch (OperationCanceledException)
         {
@@ -330,15 +352,17 @@ public sealed partial class OnlineViewModel(
             return;
         }
 
-        if (CreateIsPublic && CreatePassword.Length < OnlineConstants.MinPasswordLength)
-        {
-            ShowErrorToast(CreateErrorTitleKey, GetString("Online.Error.PasswordRequired"));
-            return;
-        }
-
+        // Passwords are optional, even for public lobbies; only a
+        // present-but-short password is rejected.
         if (CreatePassword.Length > 0 && CreatePassword.Length < OnlineConstants.MinPasswordLength)
         {
             ShowErrorToast(CreateErrorTitleKey, GetString("Online.Error.PasswordTooShort"));
+            return;
+        }
+
+        if (CreatePassword.Length > OnlineConstants.MaxPasswordLength)
+        {
+            ShowErrorToast(CreateErrorTitleKey, GetString("Online.Error.PasswordTooLong"));
             return;
         }
 
@@ -353,6 +377,8 @@ public sealed partial class OnlineViewModel(
         try
         {
             IsLoading = true;
+            await EnsureProfilesLoadedAsync(cancellationToken);
+            var setup = await DescribeProfileAsync(SelectedCreateProfile, cancellationToken);
             var request = new OnlineCreateNetworkRequest
             {
                 Name = CreateName.Trim(),
@@ -360,7 +386,14 @@ public sealed partial class OnlineViewModel(
                 SlotsMax = Math.Clamp(CreateSlots, 2, OnlineConstants.MaxSlotCap),
                 IsPublic = CreateIsPublic,
                 Description = CreateDescription.Trim(),
-                PreferRelay = PreferRelay,
+                PreferRelay = true,
+                ExpectedProfileId = SelectedCreateProfile?.Id ?? string.Empty,
+                ExpectedProfileFingerprint = setup.Fingerprint,
+                ExpectedProfileName = SelectedCreateProfile?.Name ?? string.Empty,
+                ExpectedGameClientId = setup.ClientKey,
+                ExpectedContentIds = setup.GameplayContentIds,
+                ProfileFingerprint = setup.Fingerprint,
+                ProfileName = SelectedCreateProfile?.Name ?? string.Empty,
             };
 
             var result = await networkService.CreateNetworkAsync(request, cancellationToken);
@@ -370,7 +403,8 @@ public sealed partial class OnlineViewModel(
                 return;
             }
 
-            ApplyJoin(result.Data);
+            SelectedPlayProfile = SelectedCreateProfile;
+            await ApplyJoinAsync(result.Data, cancellationToken);
             CreateName = string.Empty;
             CreatePassword = string.Empty;
             CreateDescription = string.Empty;
@@ -379,7 +413,7 @@ public sealed partial class OnlineViewModel(
                 GetString("Online.Create.SuccessTitle"),
                 GetString("Online.Create.SuccessMessage", result.Data.OverlayIp),
                 NotificationDurations.Long);
-            WarnWhenAdapterDown();
+            NotifyAdapterState();
         }
         catch (OperationCanceledException)
         {
@@ -398,7 +432,8 @@ public sealed partial class OnlineViewModel(
     }
 
     /// <summary>
-    /// Launches the expected game profile for the joined network.
+    /// Launches the matched local profile for the joined network, preselecting
+    /// the lobby IP so no manual adapter choice is needed.
     /// </summary>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
@@ -408,12 +443,27 @@ public sealed partial class OnlineViewModel(
         try
         {
             IsLoading = true;
+            var profileId = SelectedPlayProfile?.Id;
+            if (string.IsNullOrEmpty(profileId))
+            {
+                profileId = await ResolveHostProfileIdAsync(cancellationToken);
+            }
+
+            if (string.IsNullOrEmpty(profileId))
+            {
+                notificationService.ShowWarning(
+                    GetString("Online.Play.NoProfileTitle"),
+                    GetString("Online.Play.NoProfileMessage"),
+                    NotificationDurations.Long);
+                return;
+            }
+
             notificationService.ShowInfo(
                 GetString("Online.Play.LaunchingTitle"),
                 GetString("Online.Play.LaunchingMessage", CurrentNetworkName),
                 NotificationDurations.Medium);
 
-            var result = await launchService.PlayAsync(ExpectedProfileId, CurrentNetworkName, cancellationToken);
+            var result = await launchService.PlayAsync(profileId, CurrentNetworkName, OverlayIp, cancellationToken);
             if (!result.Success)
             {
                 if (result.Errors.Any(e => e == OnlineConstants.ErrorProfileMissing))
@@ -433,7 +483,7 @@ public sealed partial class OnlineViewModel(
                 GetString("Online.Play.SuccessTitle"),
                 GetString("Online.Play.SuccessMessage", CurrentNetworkName),
                 NotificationDurations.Long);
-            WarnWhenAdapterDown();
+            NotifyAdapterState();
         }
         catch (OperationCanceledException)
         {
@@ -591,6 +641,7 @@ public sealed partial class OnlineViewModel(
 
     /// <summary>
     /// Saves the host network settings (description and expected profile).
+    /// Members are notified about profile switches over presence.
     /// </summary>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
@@ -600,15 +651,26 @@ public sealed partial class OnlineViewModel(
         try
         {
             IsLoading = true;
-            var result = await networkService.UpdateNetworkAsync(
-                HostDescription, HostExpectedProfileId, cancellationToken);
+            await EnsureProfilesLoadedAsync(cancellationToken);
+            var setup = await DescribeProfileAsync(SelectedHostProfile, cancellationToken);
+            var expected = new OnlineExpectedProfile
+            {
+                ExpectedProfileId = SelectedHostProfile?.Id ?? string.Empty,
+                ExpectedProfileFingerprint = setup.Fingerprint,
+                ExpectedProfileName = SelectedHostProfile?.Name ?? string.Empty,
+                ExpectedGameClientId = setup.ClientKey,
+                ExpectedContentIds = setup.GameplayContentIds,
+            };
+            var result = await networkService.UpdateNetworkAsync(HostDescription, expected, cancellationToken);
             if (!result.Success)
             {
                 ShowErrorToast("Online.Error.UpdateTitle", GetString("Online.Error.UpdateFailed"));
                 return;
             }
 
-            ExpectedProfileId = HostExpectedProfileId;
+            ApplyExpectedProfile(expected);
+            SelectedPlayProfile = SelectedHostProfile;
+            await AdvertiseSelectedProfileAsync(cancellationToken);
             IsHostPanelOpen = false;
             notificationService.ShowSuccess(
                 GetString("Online.Host.SuccessTitle"),
@@ -631,55 +693,17 @@ public sealed partial class OnlineViewModel(
     }
 
     /// <summary>
-    /// Tests direct UDP reachability to the selected member.
-    /// </summary>
-    /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>A task representing the asynchronous operation.</returns>
-    [RelayCommand(CanExecute = nameof(CanTest))]
-    public async Task TestConnectionAsync(CancellationToken cancellationToken = default)
-    {
-        if (SelectedMember is null || !TryParseEndpoint(SelectedMember.Endpoint, out var ip, out var port))
-        {
-            return;
-        }
-
-        try
-        {
-            IsLoading = true;
-            var result = await p2pService.ConnectToPeerAsync(ip, port, cancellationToken);
-            if (!result.Success)
-            {
-                ShowErrorToast("Online.Error.TestTitle", GetString("Online.Error.TestFailed", SelectedMember.DisplayName));
-                return;
-            }
-
-            notificationService.ShowSuccess(
-                GetString("Online.Test.SuccessTitle"),
-                GetString("Online.Test.SuccessMessage", SelectedMember.DisplayName),
-                NotificationDurations.Medium);
-        }
-        catch (OperationCanceledException)
-        {
-            throw;
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Failed to test peer connection.");
-            ShowErrorToast("Online.Error.TestTitle", null);
-        }
-        finally
-        {
-            IsLoading = false;
-        }
-    }
-
-    /// <summary>
-    /// Toggles the create-network panel.
+    /// Toggles the create-network panel, loading the profile picker entries.
     /// </summary>
     [RelayCommand]
     public void ToggleCreatePanel()
     {
         IsCreatePanelOpen = !IsCreatePanelOpen;
+        if (IsCreatePanelOpen)
+        {
+            // Safe to detach: the loader reports its own errors.
+            _ = EnsureProfilesLoadedAsync();
+        }
     }
 
     /// <summary>
@@ -702,11 +726,13 @@ public sealed partial class OnlineViewModel(
         _disposed = true;
         networkService.RosterChanged -= OnRosterChanged;
         networkService.ConnectionLost -= OnConnectionLost;
+        networkService.ExpectedProfileChanged -= OnExpectedProfileChanged;
         _searchCts?.Cancel();
         _searchCts?.Dispose();
         _detailCts?.Cancel();
         _detailCts?.Dispose();
         _refreshLock.Dispose();
+        _profileLock.Dispose();
     }
 
     private static TopLevel? GetMainWindowTopLevel()
@@ -719,31 +745,10 @@ public sealed partial class OnlineViewModel(
         return null;
     }
 
-    private static bool TryParseEndpoint(string endpoint, out string ip, out int port)
-    {
-        ip = string.Empty;
-        port = 0;
-        if (string.IsNullOrWhiteSpace(endpoint))
-        {
-            return false;
-        }
-
-        var separator = endpoint.LastIndexOf(':');
-        if (separator <= 0 || separator == endpoint.Length - 1)
-        {
-            return false;
-        }
-
-        ip = endpoint.Substring(0, separator).Trim('[', ']', ' ');
-        return IPAddress.TryParse(ip, out _) && int.TryParse(endpoint.Substring(separator + 1), out port) && port is >= 1 and <= 65535;
-    }
-
+    [SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Reads generated MVVM properties Sonar cannot see; wired as an instance CanExecute predicate.")]
     private bool CanJoin() => !IsJoined && SelectedNetwork is not null;
 
-    private bool CanTest() =>
-        IsJoined && SelectedMember is not null && TryParseEndpoint(SelectedMember.Endpoint, out _, out _)
-        && SelectedMember.Endpoint != networkService.LocalEndpoint;
-
+    [SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Reads generated MVVM properties Sonar cannot see; wired as an instance CanExecute predicate.")]
     private bool CanModerate() => IsJoined && SelectedMember is not null && SelectedMember.OverlayIp != OverlayIp;
 
     private bool CanBan() => CanModerate() && IsCurrentUserHost;
@@ -769,6 +774,36 @@ public sealed partial class OnlineViewModel(
             NotificationDurations.Long);
     }
 
+    private void OnExpectedProfileChanged(object? sender, OnlineExpectedProfile expected)
+    {
+        if (Dispatcher.UIThread.CheckAccess())
+        {
+            _ = HandleExpectedProfileChangedAsync(expected);
+        }
+        else
+        {
+            Dispatcher.UIThread.Post(() => _ = HandleExpectedProfileChangedAsync(expected));
+        }
+    }
+
+    private async Task HandleExpectedProfileChangedAsync(OnlineExpectedProfile expected)
+    {
+        if (!IsJoined)
+        {
+            return;
+        }
+
+        ApplyExpectedProfile(expected);
+        await UpdateMatchAndAdvertiseAsync();
+        var message = string.IsNullOrWhiteSpace(expected.ExpectedProfileName)
+            ? GetString("Online.Profile.SwitchedClearedMessage")
+            : GetString("Online.Profile.SwitchedMessage", expected.ExpectedProfileName);
+        notificationService.ShowInfo(
+            GetString("Online.Profile.SwitchedTitle"),
+            message,
+            NotificationDurations.Long);
+    }
+
     private void OnRosterChanged(object? sender, IReadOnlyList<OnlineMember> members)
     {
         if (Dispatcher.UIThread.CheckAccess())
@@ -787,15 +822,20 @@ public sealed partial class OnlineViewModel(
         RefreshHostState();
         ReportMemberCommand.NotifyCanExecuteChanged();
         BanMemberCommand.NotifyCanExecuteChanged();
-        TestConnectionCommand.NotifyCanExecuteChanged();
     }
 
-    private void ApplyJoin(OnlineJoinResult join)
+    private async Task ApplyJoinAsync(OnlineJoinResult join, CancellationToken cancellationToken)
     {
         IsJoined = true;
         CurrentNetworkName = Networks.FirstOrDefault(n => n.Id == join.NetworkId)?.Name ?? join.NetworkId;
-        ExpectedProfileId = join.ExpectedProfileId;
-        HostExpectedProfileId = join.ExpectedProfileId;
+        ApplyExpectedProfile(new OnlineExpectedProfile
+        {
+            ExpectedProfileId = join.ExpectedProfileId,
+            ExpectedProfileFingerprint = join.ExpectedProfileFingerprint,
+            ExpectedProfileName = join.ExpectedProfileName,
+            ExpectedGameClientId = join.ExpectedGameClientId,
+            ExpectedContentIds = join.ExpectedContentIds,
+        });
         OverlayIp = join.OverlayIp;
         Members = new ObservableCollection<OnlineMember>(join.Members);
         RefreshHostState();
@@ -805,36 +845,54 @@ public sealed partial class OnlineViewModel(
         CopyOverlayIpCommand.NotifyCanExecuteChanged();
         ReportMemberCommand.NotifyCanExecuteChanged();
         BanMemberCommand.NotifyCanExecuteChanged();
-        TestConnectionCommand.NotifyCanExecuteChanged();
         SaveNetworkCommand.NotifyCanExecuteChanged();
         ToggleHostPanelCommand.NotifyCanExecuteChanged();
+
+        if (IsCurrentUserHost)
+        {
+            SelectedHostProfile = SelectedPlayProfile;
+            HostDescription = SelectedDetail?.Description ?? string.Empty;
+        }
+
+        await UpdateMatchAndAdvertiseAsync(cancellationToken);
     }
 
+    // Only generated MVVM members are touched, so Sonar cannot see the
+    // instance usage; the property sets must stay instance for bindings.
+    [SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Resets instance-bound MVVM state and refreshes instance commands.")]
     private void ClearJoin()
     {
         IsJoined = false;
         IsCurrentUserHost = false;
         CurrentNetworkName = string.Empty;
         ExpectedProfileId = string.Empty;
+        ExpectedProfileName = string.Empty;
+        ExpectedProfileFingerprint = string.Empty;
+        ExpectedGameClientId = string.Empty;
+        ProfileMatchState = OnlineProfileMatch.Unknown;
+        SelectedPlayProfile = null;
+        SelectedHostProfile = null;
         HostDescription = string.Empty;
-        HostExpectedProfileId = string.Empty;
         IsHostPanelOpen = false;
         OverlayIp = string.Empty;
         JoinPassword = string.Empty;
         ConnectionQuality = OnlineConnectionQuality.Unknown;
         Members = [];
         SelectedMember = null;
+        networkService.SetLocalProfileAdvertisement(string.Empty, string.Empty);
         JoinNetworkCommand.NotifyCanExecuteChanged();
         LeaveNetworkCommand.NotifyCanExecuteChanged();
         PlayCommand.NotifyCanExecuteChanged();
         CopyOverlayIpCommand.NotifyCanExecuteChanged();
         ReportMemberCommand.NotifyCanExecuteChanged();
         BanMemberCommand.NotifyCanExecuteChanged();
-        TestConnectionCommand.NotifyCanExecuteChanged();
         SaveNetworkCommand.NotifyCanExecuteChanged();
         ToggleHostPanelCommand.NotifyCanExecuteChanged();
     }
 
+    // Only generated MVVM members are touched, so Sonar cannot see the
+    // instance usage; the property sets must stay instance for bindings.
+    [SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Derives instance-bound host state and refreshes instance commands.")]
     private void RefreshHostState()
     {
         IsCurrentUserHost = Members.Any(m => m.OverlayIp == OverlayIp && m.IsHost);
@@ -842,7 +900,6 @@ public sealed partial class OnlineViewModel(
         SaveNetworkCommand.NotifyCanExecuteChanged();
         ToggleHostPanelCommand.NotifyCanExecuteChanged();
         BanMemberCommand.NotifyCanExecuteChanged();
-        TestConnectionCommand.NotifyCanExecuteChanged();
     }
 
     private void ShowJoinErrorToast(string? errorCode)
@@ -878,10 +935,26 @@ public sealed partial class OnlineViewModel(
         notificationService.ShowError(GetString(titleKey), detailText, NotificationDurations.Long);
     }
 
-    private void WarnWhenAdapterDown()
+    private bool IsOverlayPending()
+    {
+        var config = networkService.CurrentJoin?.AdapterConfig ?? string.Empty;
+        return OverlayConfigInspector.TryGetOverlayName(config) == OnlineConstants.OverlayPendingSelection;
+    }
+
+    private void NotifyAdapterState()
     {
         if (networkService.AdapterState == OnlineAdapterState.Up)
         {
+            return;
+        }
+
+        if (IsOverlayPending())
+        {
+            // Expected pre-overlay state: lobby works, tunneling waits.
+            notificationService.ShowInfo(
+                GetString("Online.Adapter.PendingTitle"),
+                GetString("Online.Adapter.PendingMessage"),
+                NotificationDurations.Long);
             return;
         }
 
@@ -931,8 +1004,9 @@ public sealed partial class OnlineViewModel(
         {
             DetailLoading = true;
             SelectedDetail = null;
-            ExpectedProfileName = string.Empty;
-            ExpectedProfileInstalled = false;
+            ApplyExpectedProfile(null);
+            ProfileMatchState = OnlineProfileMatch.Unknown;
+            SelectedPlayProfile = null;
 
             var result = await networkService.GetNetworkDetailAsync(network.Id, cancellationToken);
             if (cancellationToken.IsCancellationRequested)
@@ -946,10 +1020,15 @@ public sealed partial class OnlineViewModel(
             }
 
             SelectedDetail = result.Data;
-            if (!string.IsNullOrWhiteSpace(result.Data.ExpectedProfileId))
+            ApplyExpectedProfile(new OnlineExpectedProfile
             {
-                await ResolveExpectedProfileAsync(result.Data.ExpectedProfileId, cancellationToken);
-            }
+                ExpectedProfileId = result.Data.ExpectedProfileId,
+                ExpectedProfileFingerprint = result.Data.ExpectedProfileFingerprint,
+                ExpectedProfileName = result.Data.ExpectedProfileName,
+                ExpectedGameClientId = result.Data.ExpectedGameClientId,
+                ExpectedContentIds = result.Data.ExpectedContentIds,
+            });
+            await AutoMatchProfileAsync(cancellationToken);
         }
         catch (OperationCanceledException)
         {
@@ -969,38 +1048,249 @@ public sealed partial class OnlineViewModel(
         }
     }
 
-    private async Task ResolveExpectedProfileAsync(string profileId, CancellationToken cancellationToken)
+    private void ApplyExpectedProfile(OnlineExpectedProfile? expected)
+    {
+        ExpectedProfileId = expected?.ExpectedProfileId ?? string.Empty;
+        ExpectedProfileFingerprint = expected?.ExpectedProfileFingerprint ?? string.Empty;
+        ExpectedProfileName = expected?.ExpectedProfileName ?? string.Empty;
+        ExpectedGameClientId = expected?.ExpectedGameClientId ?? string.Empty;
+        _expectedContentIds = expected?.ExpectedContentIds ?? [];
+    }
+
+    private async Task AutoMatchProfileAsync(CancellationToken cancellationToken = default)
+    {
+        SelectedPlayProfile = null;
+        ProfileMatchState = OnlineProfileMatch.Unknown;
+        if (string.IsNullOrEmpty(ExpectedProfileFingerprint))
+        {
+            return;
+        }
+
+        try
+        {
+            await EnsureProfilesLoadedAsync(cancellationToken);
+            GameProfile? best = null;
+            var bestOverlap = -1;
+            string? bestFingerprint = null;
+            foreach (var profile in AvailableProfiles)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                var setup = await DescribeProfileAsync(profile, cancellationToken);
+                if (string.Equals(setup.Fingerprint, ExpectedProfileFingerprint, StringComparison.Ordinal))
+                {
+                    SelectedPlayProfile = profile;
+                    ProfileMatchState = OnlineProfileMatch.Exact;
+                    return;
+                }
+
+                if (!string.Equals(setup.ClientKey, ExpectedGameClientId, StringComparison.Ordinal) ||
+                    string.IsNullOrEmpty(setup.ClientKey))
+                {
+                    continue;
+                }
+
+                var overlap = OnlineProfileMatcher.ScoreOverlap(_expectedContentIds, setup.GameplayContentIds);
+                if (best is null || overlap > bestOverlap)
+                {
+                    best = profile;
+                    bestOverlap = overlap;
+                    bestFingerprint = setup.Fingerprint;
+                }
+            }
+
+            if (best is not null)
+            {
+                SelectedPlayProfile = best;
+                ProfileMatchState = OnlineProfileMatcher.Compare(
+                    ExpectedProfileFingerprint,
+                    ExpectedGameClientId,
+                    bestFingerprint ?? string.Empty,
+                    OnlineProfileMatcher.GetGameClientKey(best));
+            }
+            else if (AvailableProfiles.Count > 0)
+            {
+                ProfileMatchState = OnlineProfileMatch.Mismatch;
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Failed to auto-match a local profile.");
+        }
+    }
+
+    private async Task UpdateMatchAndAdvertiseAsync(CancellationToken cancellationToken = default)
+    {
+        if (SelectedPlayProfile is null)
+        {
+            await AutoMatchProfileAsync(cancellationToken);
+        }
+        else
+        {
+            var setup = await DescribeProfileAsync(SelectedPlayProfile, cancellationToken);
+            ProfileMatchState = OnlineProfileMatcher.Compare(
+                ExpectedProfileFingerprint,
+                ExpectedGameClientId,
+                setup.Fingerprint,
+                setup.ClientKey);
+        }
+
+        await AdvertiseSelectedProfileAsync(cancellationToken);
+    }
+
+    private async Task AdvertiseSelectedProfileAsync(CancellationToken cancellationToken = default)
+    {
+        if (SelectedPlayProfile is null)
+        {
+            networkService.SetLocalProfileAdvertisement(string.Empty, string.Empty);
+            return;
+        }
+
+        // Same map-aware fingerprint the join body carries, so heartbeats
+        // never flap between two advertisements for one profile.
+        var setup = await DescribeProfileAsync(SelectedPlayProfile, cancellationToken);
+        networkService.SetLocalProfileAdvertisement(setup.Fingerprint, SelectedPlayProfile.Name);
+    }
+
+    private async Task<(string Fingerprint, string Name)> ResolveAdvertisementAsync(CancellationToken cancellationToken)
     {
         try
         {
-            var profile = await profileManager.GetProfileAsync(profileId, cancellationToken);
+            if (SelectedPlayProfile is null && SelectedDetail is not null)
+            {
+                await AutoMatchProfileAsync(cancellationToken);
+            }
+
+            if (SelectedPlayProfile is null)
+            {
+                return (string.Empty, string.Empty);
+            }
+
+            var setup = await DescribeProfileAsync(SelectedPlayProfile, cancellationToken);
+            networkService.SetLocalProfileAdvertisement(setup.Fingerprint, SelectedPlayProfile.Name);
+            return (setup.Fingerprint, SelectedPlayProfile.Name);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Failed to resolve the join advertisement; joining unadvertised.");
+            return (string.Empty, string.Empty);
+        }
+    }
+
+    private async Task<string?> ResolveHostProfileIdAsync(CancellationToken cancellationToken)
+    {
+        if (!IsCurrentUserHost || string.IsNullOrWhiteSpace(ExpectedProfileId))
+        {
+            return null;
+        }
+
+        // Profile ids are machine-local, so only the host can resolve the id.
+        var profile = await profileManager.GetProfileAsync(ExpectedProfileId, cancellationToken);
+        return profile.Success && profile.Data is not null ? profile.Data.Id : null;
+    }
+
+    private async Task EnsureProfilesLoadedAsync(CancellationToken cancellationToken = default)
+    {
+        if (_profilesLoaded)
+        {
+            return;
+        }
+
+        await _profileLock.WaitAsync(cancellationToken);
+        try
+        {
+            if (_profilesLoaded)
+            {
+                return;
+            }
+
+            var profiles = await profileManager.GetAllProfilesAsync(cancellationToken);
             if (cancellationToken.IsCancellationRequested)
             {
                 return;
             }
 
-            if (profile.Success && profile.Data is not null)
+            if (profiles.Success && profiles.Data is not null)
             {
-                ExpectedProfileName = profile.Data.Name;
-                ExpectedProfileInstalled = true;
+                AvailableProfiles = new ObservableCollection<GameProfile>(
+                    profiles.Data.Where(p => !p.IsToolProfile).OrderBy(p => p.Name, StringComparer.OrdinalIgnoreCase));
             }
             else
             {
-                ExpectedProfileName = profileId;
-                ExpectedProfileInstalled = false;
+                logger.LogWarning("Failed to load game profiles for the Online tab.");
             }
+
+            _profilesLoaded = true;
         }
         catch (OperationCanceledException)
         {
-            // Superseded by a newer selection.
+            throw;
         }
         catch (Exception ex)
         {
-            logger.LogWarning(ex, "Failed to resolve expected profile.");
-            ExpectedProfileName = profileId;
-            ExpectedProfileInstalled = false;
+            logger.LogWarning(ex, "Failed to load game profiles for the Online tab.");
+            _profilesLoaded = true;
+        }
+        finally
+        {
+            _profileLock.Release();
         }
     }
+
+    private async Task<OnlineProfileSetup> DescribeProfileAsync(GameProfile? profile, CancellationToken cancellationToken)
+    {
+        if (profile is null)
+        {
+            return new OnlineProfileSetup(string.Empty, string.Empty, []);
+        }
+
+        var map = await GetContentTypeMapAsync(profile, cancellationToken);
+        return new OnlineProfileSetup(
+            OnlineProfileMatcher.ComputeFingerprint(profile, map),
+            OnlineProfileMatcher.GetGameClientKey(profile),
+            OnlineProfileMatcher.GetGameplayContentIds(profile, map));
+    }
+
+    private async Task<IReadOnlyDictionary<string, ContentType>?> GetContentTypeMapAsync(
+        GameProfile profile,
+        CancellationToken cancellationToken)
+    {
+        var client = profile.GameClient;
+        if (client is null)
+        {
+            return null;
+        }
+
+        var cacheKey = OnlineProfileMatcher.GetGameClientKey(profile);
+        if (_contentTypeCache.TryGetValue(cacheKey, out var cached))
+        {
+            return cached;
+        }
+
+        var available = await profileManager.GetAvailableContentAsync(client, cancellationToken);
+        if (!available.Success || available.Data is null)
+        {
+            return null;
+        }
+
+        IReadOnlyDictionary<string, ContentType> map = available.Data
+            .GroupBy(m => m.Id.ToString(), StringComparer.Ordinal)
+            .ToDictionary(g => g.Key, g => g.First().ContentType, StringComparer.Ordinal);
+        _contentTypeCache[cacheKey] = map;
+        return map;
+    }
+
+    private sealed record OnlineProfileSetup(
+        string Fingerprint,
+        string ClientKey,
+        IReadOnlyList<string> GameplayContentIds);
 
     partial void OnSelectedNetworkChanged(OnlineNetworkSummary? value)
     {
@@ -1043,7 +1333,6 @@ public sealed partial class OnlineViewModel(
     {
         ReportMemberCommand.NotifyCanExecuteChanged();
         BanMemberCommand.NotifyCanExecuteChanged();
-        TestConnectionCommand.NotifyCanExecuteChanged();
     }
 
     partial void OnIsJoinedChanged(bool value)
@@ -1054,7 +1343,6 @@ public sealed partial class OnlineViewModel(
         CopyOverlayIpCommand.NotifyCanExecuteChanged();
         ReportMemberCommand.NotifyCanExecuteChanged();
         BanMemberCommand.NotifyCanExecuteChanged();
-        TestConnectionCommand.NotifyCanExecuteChanged();
     }
 
     partial void OnIsCurrentUserHostChanged(bool value)
@@ -1062,6 +1350,5 @@ public sealed partial class OnlineViewModel(
         SaveNetworkCommand.NotifyCanExecuteChanged();
         ToggleHostPanelCommand.NotifyCanExecuteChanged();
         BanMemberCommand.NotifyCanExecuteChanged();
-        TestConnectionCommand.NotifyCanExecuteChanged();
     }
 }

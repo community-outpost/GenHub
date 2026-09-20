@@ -14,6 +14,17 @@ interface AbuseReport {
   at: string;
 }
 
+interface JoinBody {
+  sub: string;
+  password: string;
+  displayName: string;
+  preferRelay: boolean;
+  ip: string;
+  endpoint: string;
+  profileFingerprint?: string;
+  profileName?: string;
+}
+
 const MAX_REPORTS = 50;
 const MAX_OVERLAY_SLOT = 16 * 254;
 const DEFAULT_PRESENCE_TIMEOUT = 90;
@@ -35,7 +46,39 @@ const toPublic = (member: RoomMember): PublicMember => ({
   quality: member.quality,
   isHost: member.isHost,
   endpoint: member.endpoint,
+  profileFingerprint: member.profileFingerprint ?? "",
+  profileName: member.profileName ?? "",
 });
+
+interface HeartbeatAdvertisement {
+  profileFingerprint: string;
+  profileName: string;
+}
+
+// Legacy clients send {"type":"heartbeat"} with no advertisement; newer ones
+// attach the selected profile fingerprint so the roster can show per-member
+// match state. Anything else on the socket is ignored.
+const parseHeartbeat = (data: unknown): HeartbeatAdvertisement | null => {
+  if (typeof data !== "string") {
+    return null;
+  }
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(data) as unknown;
+  } catch {
+    return data.includes("heartbeat") ? { profileFingerprint: "", profileName: "" } : null;
+  }
+  if (parsed === null || typeof parsed !== "object") {
+    return null;
+  }
+  const raw = parsed as Record<string, unknown>;
+  if (raw.type !== "heartbeat") {
+    return null;
+  }
+  const fingerprint = typeof raw.profileFingerprint === "string" ? raw.profileFingerprint.substring(0, 256) : "";
+  const name = typeof raw.profileName === "string" ? sanitizeText(raw.profileName).substring(0, 64) : "";
+  return { profileFingerprint: fingerprint, profileName: name };
+};
 
 const aggregateQuality = (members: RoomMember[]): number => {
   if (members.length === 0) {
@@ -363,6 +406,22 @@ export class PresenceRoom {
     return (await this.state.storage.get<string[]>("bannedIps")) ?? [];
   }
 
+  private expectedProfile(meta: RoomMeta): {
+    expectedProfileId: string;
+    expectedProfileFingerprint: string;
+    expectedProfileName: string;
+    expectedGameClientId: string;
+    expectedContentIds: string[];
+  } {
+    return {
+      expectedProfileId: meta.expectedProfileId ?? "",
+      expectedProfileFingerprint: meta.expectedProfileFingerprint ?? "",
+      expectedProfileName: meta.expectedProfileName ?? "",
+      expectedGameClientId: meta.expectedGameClientId ?? "",
+      expectedContentIds: meta.expectedContentIds ?? [],
+    };
+  }
+
   private async handleInit(request: Request): Promise<Response> {
     const existing = await this.loadMeta();
     if (existing !== null) {
@@ -374,6 +433,8 @@ export class PresenceRoom {
       displayName: string;
       preferRelay?: boolean;
       endpoint: string;
+      profileFingerprint?: string;
+      profileName?: string;
       ip?: string;
     }>(request);
     if (body === null) {
@@ -391,12 +452,19 @@ export class PresenceRoom {
       isHost: true,
       lastSeen: now,
       lastIp: typeof body.ip === "string" ? body.ip : "",
+      profileFingerprint: typeof body.profileFingerprint === "string" ? body.profileFingerprint.substring(0, 256) : "",
+      profileName: typeof body.profileName === "string" ? sanitizeText(body.profileName).substring(0, 64) : "",
     };
     await this.state.storage.put("meta", { ...body.meta, nextSlot: body.meta.nextSlot + 1 });
     await this.saveMembers([host]);
     await this.scheduleAlarm();
     const meta = (await this.loadMeta()) as RoomMeta;
-    return json({ member: toPublic(host), members: [toPublic(host)], summary: await this.summary(meta, [host]) });
+    return json({
+      member: toPublic(host),
+      members: [toPublic(host)],
+      summary: await this.summary(meta, [host]),
+      expectedProfile: this.expectedProfile(meta),
+    });
   }
 
   private async handleJoin(request: Request): Promise<Response> {
@@ -404,43 +472,59 @@ export class PresenceRoom {
     if (meta === null) {
       return json({ error: "Network not found", code: "online.network-not-found" }, 404);
     }
-    const body = await parseJsonBody<{
-      sub: string;
-      password: string;
-      displayName: string;
-      preferRelay: boolean;
-      ip: string;
-      endpoint: string;
-    }>(request);
+    const body = await parseJsonBody<JoinBody>(request);
     if (body === null) {
       return json({ error: "Invalid request body" }, 400);
     }
 
-    const allowed = await this.checkJoinRate(body.ip);
-    if (!allowed) {
+    if (!(await this.checkJoinRate(body.ip))) {
       return json({ error: "Too many join attempts", code: "online.rate-limited" }, 429);
     }
 
+    await this.evictStale();
+    const members = await this.loadMembers();
+    const rejection = await this.rejectJoin(meta, members, body);
+    if (rejection !== null) {
+      return rejection;
+    }
+
+    const member = await this.commitJoin(meta, members, body);
+    return json({
+      member: toPublic(member),
+      members: members.map(toPublic),
+      summary: await this.summary(meta, members),
+      expectedProfile: this.expectedProfile(meta),
+      isHost: member.isHost,
+    });
+  }
+
+  // Ban, capacity, and password gates. Returning members bypass the capacity
+  // gate (they already hold a slot) but never the ban or password gates.
+  private async rejectJoin(meta: RoomMeta, members: RoomMember[], body: JoinBody): Promise<Response | null> {
     const bans = await this.loadBans();
     const bannedIps = await this.loadBannedIps();
     if (bans.includes(body.sub) || (bannableIp(body.ip).length > 0 && bannedIps.includes(body.ip))) {
       return json({ error: "Banned", code: "online.network-banned" }, 403);
     }
 
-    await this.evictStale();
-    const members = await this.loadMembers();
-    const returning = members.find((m) => m.sub === body.sub);
+    const returning = members.some((m) => m.sub === body.sub);
     // Slots never wrap: past 16 * 254 the /20 is exhausted, so refuse joins
     // instead of reassigning overlay IPs that members still hold.
-    if (returning === undefined && (members.length >= meta.slotsMax || meta.nextSlot >= MAX_OVERLAY_SLOT)) {
+    if (!returning && (members.length >= meta.slotsMax || meta.nextSlot >= MAX_OVERLAY_SLOT)) {
       return json({ error: "Network full", code: "online.network-full" }, 409);
     }
     if (meta.verifier.length > 0 && !(await verifyPassword(body.password, meta.verifier, this.env.PASSWORD_PEPPER))) {
       return json({ error: "Wrong password", code: "online.wrong-password" }, 401);
     }
+    return null;
+  }
 
+  private async commitJoin(meta: RoomMeta, members: RoomMember[], body: JoinBody): Promise<RoomMember> {
     const displayName = sanitizeText(body.displayName).substring(0, 32);
     const endpoint = storedEndpoint(body.preferRelay === true, body.endpoint);
+    const profileFingerprint = typeof body.profileFingerprint === "string" ? body.profileFingerprint.substring(0, 256) : "";
+    const profileName = typeof body.profileName === "string" ? sanitizeText(body.profileName).substring(0, 64) : "";
+    const returning = members.find((m) => m.sub === body.sub);
     let member: RoomMember;
     if (returning !== undefined) {
       returning.lastSeen = Date.now();
@@ -448,6 +532,8 @@ export class PresenceRoom {
       returning.quality = body.preferRelay ? QUALITY_RELAY : QUALITY_DIRECT;
       returning.endpoint = endpoint;
       returning.lastIp = body.ip;
+      returning.profileFingerprint = profileFingerprint;
+      returning.profileName = profileName;
       member = returning;
     } else {
       member = {
@@ -459,6 +545,8 @@ export class PresenceRoom {
         isHost: false,
         lastSeen: Date.now(),
         lastIp: body.ip,
+        profileFingerprint,
+        profileName,
       };
       members.push(member);
       meta.nextSlot += 1;
@@ -474,14 +562,7 @@ export class PresenceRoom {
     }
     await this.scheduleAlarm();
     await this.broadcastRoster();
-
-    return json({
-      member: toPublic(member),
-      members: members.map(toPublic),
-      summary: await this.summary(meta, members),
-      expectedProfileId: meta.expectedProfileId,
-      isHost: member.isHost,
-    });
+    return member;
   }
 
   private async handleLeave(request: Request): Promise<Response> {
@@ -559,7 +640,7 @@ export class PresenceRoom {
       tags: meta.tags,
       slotsUsed: members.length,
       slotsMax: meta.slotsMax,
-      expectedProfileId: meta.expectedProfileId,
+      ...this.expectedProfile(meta),
       requiresPassword: meta.verifier.length > 0,
       hostPresent: members.some((m) => m.isHost),
     };
@@ -654,7 +735,15 @@ export class PresenceRoom {
     if (meta === null) {
       return json({ error: "Network not found" }, 404);
     }
-    const body = await parseJsonBody<{ sub: string; description?: string; expectedProfileId?: string }>(request);
+    const body = await parseJsonBody<{
+      sub: string;
+      description?: string;
+      expectedProfileId?: string;
+      expectedProfileFingerprint?: string;
+      expectedProfileName?: string;
+      expectedGameClientId?: string;
+      expectedContentIds?: string[];
+    }>(request);
     if (body === null) {
       return json({ error: "Invalid request body" }, 400);
     }
@@ -666,10 +755,30 @@ export class PresenceRoom {
     if (typeof body.description === "string") {
       meta.description = sanitizeText(body.description).substring(0, 1024);
     }
+    const before = this.expectedProfile(meta);
     if (typeof body.expectedProfileId === "string") {
       meta.expectedProfileId = sanitizeText(body.expectedProfileId).substring(0, 128);
     }
+    if (typeof body.expectedProfileFingerprint === "string") {
+      meta.expectedProfileFingerprint = body.expectedProfileFingerprint.substring(0, 256);
+    }
+    if (typeof body.expectedProfileName === "string") {
+      meta.expectedProfileName = sanitizeText(body.expectedProfileName).substring(0, 64);
+    }
+    if (typeof body.expectedGameClientId === "string") {
+      meta.expectedGameClientId = sanitizeText(body.expectedGameClientId).substring(0, 128);
+    }
+    if (Array.isArray(body.expectedContentIds)) {
+      meta.expectedContentIds = body.expectedContentIds
+        .filter((entry): entry is string => typeof entry === "string")
+        .map((entry) => sanitizeText(entry).substring(0, 128))
+        .slice(0, 32);
+    }
     await this.state.storage.put("meta", meta);
+    const after = this.expectedProfile(meta);
+    if (before.expectedProfileFingerprint !== after.expectedProfileFingerprint || before.expectedProfileId !== after.expectedProfileId) {
+      await this.broadcastEvent("profile-changed", after);
+    }
     return json({ success: true, summary: await this.summary(meta, members) });
   }
 
@@ -702,26 +811,43 @@ export class PresenceRoom {
       this.sessions.delete(server);
     });
     server.addEventListener("message", (event) => {
-      if (typeof event.data === "string" && event.data.includes("heartbeat")) {
-        // Serialized with every other roster write; a storage failure here
-        // must not surface as an unhandled rejection on the socket.
-        void this.withLock(() => this.touchMember(owner)).then(
-          () => undefined,
-          () => undefined
-        );
+      const heartbeat = parseHeartbeat(event.data);
+      if (heartbeat === null) {
+        return;
       }
+      // Serialized with every other roster write; a storage failure here
+      // must not surface as an unhandled rejection on the socket.
+      void this.withLock(() => this.touchMember(owner, heartbeat)).then(
+        () => undefined,
+        () => undefined
+      );
     });
 
     server.send(JSON.stringify({ type: "roster", members: members.map(toPublic) }));
     return new Response(null, { status: 101, webSocket: client });
   }
 
-  private async touchMember(sub: string): Promise<void> {
+  private async touchMember(sub: string, advertisement?: HeartbeatAdvertisement): Promise<void> {
     const members = await this.loadMembers();
     const member = members.find((m) => m.sub === sub);
-    if (member !== undefined) {
-      member.lastSeen = Date.now();
-      await this.saveMembers(members);
+    if (member === undefined) {
+      return;
+    }
+    member.lastSeen = Date.now();
+    // Advertisement refreshes only rebroadcast when the visible roster
+    // actually changed; every heartbeat rewriting the roster would fan out
+    // a roster storm on every interval for every member.
+    const changed =
+      advertisement !== undefined &&
+      (member.profileFingerprint !== advertisement.profileFingerprint ||
+        member.profileName !== advertisement.profileName);
+    if (changed && advertisement !== undefined) {
+      member.profileFingerprint = advertisement.profileFingerprint;
+      member.profileName = advertisement.profileName;
+    }
+    await this.saveMembers(members);
+    if (changed) {
+      await this.broadcastRoster();
     }
   }
 }

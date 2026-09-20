@@ -51,4 +51,28 @@ public sealed record OnlineJoinResult
     /// </summary>
     [JsonPropertyName("expectedProfileId")]
     public string ExpectedProfileId { get; init; } = string.Empty;
+
+    /// <summary>
+    /// Gets the cross-machine fingerprint of the expected profile.
+    /// </summary>
+    [JsonPropertyName("expectedProfileFingerprint")]
+    public string ExpectedProfileFingerprint { get; init; } = string.Empty;
+
+    /// <summary>
+    /// Gets the display name of the expected profile.
+    /// </summary>
+    [JsonPropertyName("expectedProfileName")]
+    public string ExpectedProfileName { get; init; } = string.Empty;
+
+    /// <summary>
+    /// Gets the game client key of the expected profile.
+    /// </summary>
+    [JsonPropertyName("expectedGameClientId")]
+    public string ExpectedGameClientId { get; init; } = string.Empty;
+
+    /// <summary>
+    /// Gets the gameplay content ids of the expected profile.
+    /// </summary>
+    [JsonPropertyName("expectedContentIds")]
+    public IReadOnlyList<string> ExpectedContentIds { get; init; } = [];
 }

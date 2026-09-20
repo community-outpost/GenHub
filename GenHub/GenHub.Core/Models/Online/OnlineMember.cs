@@ -38,4 +38,17 @@ public sealed record OnlineMember
     /// </summary>
     [JsonPropertyName("endpoint")]
     public string Endpoint { get; init; } = string.Empty;
+
+    /// <summary>
+    /// Gets the fingerprint of the member's selected game profile
+    /// (game client plus gameplay content). Empty when unadvertised.
+    /// </summary>
+    [JsonPropertyName("profileFingerprint")]
+    public string ProfileFingerprint { get; init; } = string.Empty;
+
+    /// <summary>
+    /// Gets the display name of the member's selected game profile.
+    /// </summary>
+    [JsonPropertyName("profileName")]
+    public string ProfileName { get; init; } = string.Empty;
 }

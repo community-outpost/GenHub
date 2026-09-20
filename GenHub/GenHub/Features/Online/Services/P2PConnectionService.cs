@@ -138,7 +138,7 @@ public sealed class P2PConnectionService(ILogger<P2PConnectionService> logger) :
         }
         catch (Exception ex) when (ex is SocketException or TimeoutException)
         {
-            logger.LogWarning("STUN query failed: {Message}", OnlineLogScrubber.Scrub(ex.Message));
+            logger.LogWarning(ex, "STUN query failed: {Message}", OnlineLogScrubber.Scrub(ex.Message));
             return OperationResult<P2PEndpoints>.CreateSuccess(new P2PEndpoints(local, null));
         }
     }

@@ -30,6 +30,8 @@ export interface RoomMember {
   lastSeen: number;
   endpoint: string;
   lastIp: string;
+  profileFingerprint: string;
+  profileName: string;
 }
 
 export interface PublicMember {
@@ -38,6 +40,8 @@ export interface PublicMember {
   quality: number;
   isHost: boolean;
   endpoint: string;
+  profileFingerprint: string;
+  profileName: string;
 }
 
 export interface NetworkSummary {
@@ -61,6 +65,10 @@ export interface NetworkDetail {
   slotsUsed: number;
   slotsMax: number;
   expectedProfileId: string;
+  expectedProfileFingerprint: string;
+  expectedProfileName: string;
+  expectedGameClientId: string;
+  expectedContentIds: string[];
   requiresPassword: boolean;
   hostPresent: boolean;
 }
@@ -75,6 +83,10 @@ export interface RoomMeta {
   region: string;
   hostDisplayName: string;
   expectedProfileId: string;
+  expectedProfileFingerprint: string;
+  expectedProfileName: string;
+  expectedGameClientId: string;
+  expectedContentIds: string[];
   verifier: string;
   nextSlot: number;
   createdAt: string;

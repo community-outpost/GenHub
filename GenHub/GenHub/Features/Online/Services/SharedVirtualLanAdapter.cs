@@ -42,8 +42,10 @@ public sealed class SharedVirtualLanAdapter(
     {
         if (OverlayConfigInspector.TryGetOverlayName(adapterConfig) == OnlineConstants.OverlayPendingSelection)
         {
-            logger.LogWarning("Overlay selection is pending; bring-up unavailable.");
-            return Fail("Virtual LAN overlay is not available yet.");
+            // Expected pre-overlay state, not an error: the lobby (roster and
+            // presence) works while tunneling waits for the overlay selection.
+            logger.LogInformation("Overlay selection is pending; joined without tunneling.");
+            return OperationResult<bool>.CreateSuccess(true);
         }
 
         await _lifecycleLock.WaitAsync(cancellationToken);

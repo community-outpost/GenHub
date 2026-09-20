@@ -42,6 +42,8 @@ public sealed class OnlinePresenceService(
     private string _networkId = string.Empty;
     private string _grant = string.Empty;
     private DateTime _grantExpiresUtc;
+    private string _advertisedFingerprint = string.Empty;
+    private string _advertisedProfileName = string.Empty;
     private bool _disposed;
 
     /// <inheritdoc/>
@@ -52,6 +54,9 @@ public sealed class OnlinePresenceService(
 
     /// <inheritdoc/>
     public event EventHandler<string>? GrantRefreshed;
+
+    /// <inheritdoc/>
+    public event EventHandler<OnlineExpectedProfile>? ExpectedProfileChanged;
 
     /// <inheritdoc/>
     public bool IsConnected
@@ -110,6 +115,16 @@ public sealed class OnlinePresenceService(
         finally
         {
             _stateLock.Release();
+        }
+    }
+
+    /// <inheritdoc/>
+    public void UpdateAdvertisedProfile(string fingerprint, string profileName)
+    {
+        lock (_syncLock)
+        {
+            _advertisedFingerprint = fingerprint ?? string.Empty;
+            _advertisedProfileName = profileName ?? string.Empty;
         }
     }
 
@@ -215,6 +230,33 @@ public sealed class OnlinePresenceService(
     }
 
     /// <summary>
+    /// Parses a profile-changed event payload, or null when not one.
+    /// </summary>
+    /// <param name="message">The raw socket message.</param>
+    /// <returns>The expected profile, or null.</returns>
+    internal static OnlineExpectedProfile? ParseProfileChangedMessage(string message)
+    {
+        try
+        {
+            using var document = JsonDocument.Parse(message);
+            if (!document.RootElement.TryGetProperty("type", out var type) ||
+                type.GetString() != "event" ||
+                !document.RootElement.TryGetProperty("event", out var name) ||
+                name.GetString() != "profile-changed" ||
+                !document.RootElement.TryGetProperty("data", out var data))
+            {
+                return null;
+            }
+
+            return JsonSerializer.Deserialize<OnlineExpectedProfile>(data.GetRawText(), JsonOptions);
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
+    }
+
+    /// <summary>
     /// Determines whether the join grant must be re-minted before connecting.
     /// </summary>
     /// <param name="grantExpiresUtc">The grant expiry, or default when unknown.</param>
@@ -293,7 +335,7 @@ public sealed class OnlinePresenceService(
             }
             catch (WebSocketException ex)
             {
-                logger.LogWarning("Presence connection failed: {Message}", OnlineLogScrubber.Scrub(ex.Message));
+                logger.LogWarning(ex, "Presence connection failed: {Message}", OnlineLogScrubber.Scrub(ex.Message));
             }
 
             attempt++;
@@ -407,11 +449,19 @@ public sealed class OnlinePresenceService(
                     continue;
                 }
 
-                var roster = ParseRosterMessage(message.ToString());
+                var text = message.ToString();
                 message.Clear();
+                var roster = ParseRosterMessage(text);
                 if (roster is not null)
                 {
                     RosterUpdated?.Invoke(this, roster);
+                    continue;
+                }
+
+                var expected = ParseProfileChangedMessage(text);
+                if (expected is not null)
+                {
+                    ExpectedProfileChanged?.Invoke(this, expected);
                 }
             }
 
@@ -423,7 +473,7 @@ public sealed class OnlinePresenceService(
         }
         catch (WebSocketException ex)
         {
-            logger.LogWarning("Presence receive failed: {Message}", OnlineLogScrubber.Scrub(ex.Message));
+            logger.LogWarning(ex, "Presence receive failed: {Message}", OnlineLogScrubber.Scrub(ex.Message));
             return false;
         }
         finally
@@ -442,7 +492,6 @@ public sealed class OnlinePresenceService(
 
     private async Task SendHeartbeatsAsync(ClientWebSocket socket, CancellationToken cancellationToken)
     {
-        var payload = Encoding.UTF8.GetBytes("""{"type":"heartbeat"}""");
         try
         {
             while (socket.State == WebSocketState.Open && !cancellationToken.IsCancellationRequested)
@@ -450,6 +499,8 @@ public sealed class OnlinePresenceService(
                 await Task.Delay(TimeSpan.FromSeconds(OnlineConstants.PresenceHeartbeatSeconds), cancellationToken).ConfigureAwait(false);
                 if (socket.State == WebSocketState.Open)
                 {
+                    // Rebuilt every beat: the selected profile can change while joined.
+                    var payload = BuildHeartbeatPayload();
                     await socket.SendAsync(payload, WebSocketMessageType.Text, true, cancellationToken).ConfigureAwait(false);
                 }
             }
@@ -460,8 +511,29 @@ public sealed class OnlinePresenceService(
         }
         catch (WebSocketException ex)
         {
-            logger.LogWarning("Presence heartbeat failed: {Message}", OnlineLogScrubber.Scrub(ex.Message));
+            logger.LogWarning(ex, "Presence heartbeat failed: {Message}", OnlineLogScrubber.Scrub(ex.Message));
         }
+    }
+
+    private byte[] BuildHeartbeatPayload()
+    {
+        string fingerprint;
+        string profileName;
+        lock (_syncLock)
+        {
+            fingerprint = _advertisedFingerprint;
+            profileName = _advertisedProfileName;
+        }
+
+        if (string.IsNullOrEmpty(fingerprint) && string.IsNullOrEmpty(profileName))
+        {
+            return Encoding.UTF8.GetBytes("""{"type":"heartbeat"}""");
+        }
+
+        var payload = JsonSerializer.Serialize(
+            new { type = "heartbeat", profileFingerprint = fingerprint, profileName },
+            JsonOptions);
+        return Encoding.UTF8.GetBytes(payload);
     }
 
     private async Task HandleCloseAsync(
@@ -483,8 +555,8 @@ public sealed class OnlinePresenceService(
         }
         catch (InvalidOperationException)
         {
-            // A heartbeat send holds the single outstanding-send slot;
-            // the close handshake is best effort.
+            // A heartbeat send may still hold the socket send slot, so the
+            // close handshake stays best effort here.
         }
 
         if (IsTerminalClose(result.CloseStatus))

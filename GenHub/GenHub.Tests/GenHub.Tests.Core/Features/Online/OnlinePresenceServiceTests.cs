@@ -102,6 +102,50 @@ public sealed class OnlinePresenceServiceTests : IDisposable
     }
 
     /// <summary>
+    /// Tests that a profile-changed event parses into the expected profile.
+    /// </summary>
+    [Fact]
+    public void ParseProfileChangedMessage_WithEvent_ShouldReturnExpected()
+    {
+        // Arrange
+        const string message = """
+            {"type":"event","event":"profile-changed","data":{
+              "expectedProfileId":"p1",
+              "expectedProfileFingerprint":"opf1|zh|mod-a",
+              "expectedProfileName":"Zero Hour Plus",
+              "expectedGameClientId":"zh",
+              "expectedContentIds":["mod-a"]
+            }}
+            """;
+
+        // Act
+        var expected = OnlinePresenceService.ParseProfileChangedMessage(message);
+
+        // Assert
+        Assert.NotNull(expected);
+        Assert.Equal("opf1|zh|mod-a", expected.ExpectedProfileFingerprint);
+        Assert.Equal("Zero Hour Plus", expected.ExpectedProfileName);
+        Assert.Equal(["mod-a"], expected.ExpectedContentIds);
+    }
+
+    /// <summary>
+    /// Tests that other events and rosters return null.
+    /// </summary>
+    /// <param name="message">The non-profile-changed message.</param>
+    [Theory]
+    [InlineData("""{"type":"event","event":"report"}""")]
+    [InlineData("""{"type":"roster","members":[]}""")]
+    [InlineData("not json")]
+    public void ParseProfileChangedMessage_WithoutProfileChanged_ShouldReturnNull(string message)
+    {
+        // Act
+        var expected = OnlinePresenceService.ParseProfileChangedMessage(message);
+
+        // Assert
+        Assert.Null(expected);
+    }
+
+    /// <summary>
     /// Tests that a fresh grant needs no refresh on first connect.
     /// </summary>
     [Fact]
