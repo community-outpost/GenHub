@@ -50,4 +50,11 @@ public sealed record OnlineCreateNetworkRequest
     /// </summary>
     [JsonPropertyName("endpoint")]
     public string Endpoint { get; init; } = string.Empty;
+
+    /// <summary>
+    /// Gets a value indicating whether the host prefers relayed traffic.
+    /// Relayed members publish no endpoint, hiding the public IP from peers.
+    /// </summary>
+    [JsonPropertyName("preferRelay")]
+    public bool PreferRelay { get; init; } = true;
 }

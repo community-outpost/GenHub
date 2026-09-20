@@ -48,6 +48,9 @@ public sealed class OnlineNetworkService(
     public string LocalEndpoint { get; private set; } = string.Empty;
 
     /// <inheritdoc/>
+    public OnlineAdapterState AdapterState => adapter.State;
+
+    /// <inheritdoc/>
     public async Task<OperationResult<IReadOnlyList<OnlineNetworkSummary>>> GetNetworksAsync(
         string? search = null,
         CancellationToken cancellationToken = default)
@@ -139,7 +142,7 @@ public sealed class OnlineNetworkService(
 
         try
         {
-            var endpoint = await ResolvePublicEndpointAsync(false, cancellationToken);
+            var endpoint = await ResolvePublicEndpointAsync(request.PreferRelay, cancellationToken);
             using var client = await CreateAuthenticatedClientAsync(cancellationToken);
             using var response = await client.PostAsJsonAsync(
                 ApiConstants.OnlineNetworksEndpoint, request with { Endpoint = endpoint }, cancellationToken);
@@ -160,7 +163,7 @@ public sealed class OnlineNetworkService(
     public async Task<OperationResult<OnlineJoinResult>> JoinNetworkAsync(
         string networkId,
         string password,
-        bool preferRelay = false,
+        bool preferRelay = true,
         CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(networkId))
@@ -463,9 +466,8 @@ public sealed class OnlineNetworkService(
         var bringUp = await adapter.BringUpAsync(join.AdapterConfig, join.OverlayIp, cancellationToken);
         if (!bringUp.Success)
         {
-            logger.LogWarning("Adapter bring-up failed for network {NetworkId}.", join.NetworkId);
+            logger.LogWarning("Adapter bring-up failed for network {NetworkId}; staying joined without tunneling.", join.NetworkId);
             await adapter.TearDownAsync(cancellationToken);
-            return OperationResult<OnlineJoinResult>.CreateFailure(OnlineConstants.ErrorAdapterFailed);
         }
 
         CurrentJoin = join;

@@ -1861,6 +1861,18 @@
   <data name="Online.Create.DescriptionWatermark" xml:space="preserve">
     <value>Описание и правила (необязательно)</value>
   </data>
+  <data name="Online.Create.PreferRelay" xml:space="preserve">
+    <value>Через релей (скрыть мой адрес)</value>
+  </data>
+  <data name="Online.Create.PreferRelayTooltip" xml:space="preserve">
+    <value>Направлять трафик через релей вместо прямого соединения. Медленнее, но скрывает ваш публичный адрес от других участников.</value>
+  </data>
+  <data name="Online.Adapter.UnavailableTitle" xml:space="preserve">
+    <value>Туннелирование для сетевой игры недоступно</value>
+  </data>
+  <data name="Online.Adapter.UnavailableMessage" xml:space="preserve">
+    <value>Виртуальный LAN-адаптер не запущен, поэтому участники лобби пока не появятся в игре. Список участников и присутствие работают.</value>
+  </data>
   <data name="Online.Detail.DescriptionLabel" xml:space="preserve">
     <value>Описание</value>
   </data>
@@ -2033,7 +2045,7 @@
     <value>Направлять трафик через релей вместо прямого соединения. Медленнее, но скрывает ваш публичный адрес от других участников.</value>
   </data>
   <data name="Online.Join.PrivacyNotice" xml:space="preserve">
-    <value>Подключение раскрывает ваш публичный адрес участникам комнаты для прямого соединения, как в Hamachi.</value>
+    <value>Режим релея (включён по умолчанию) скрывает ваш публичный адрес от участников комнаты. Отключите его для прямого соединения, которое раскрывает ваш адрес, как в Hamachi.</value>
   </data>
   <data name="Online.Join.SuccessMessage" xml:space="preserve">
     <value>Подключено с IP оверлея {0}. Откройте LAN-лобби в игре.</value>

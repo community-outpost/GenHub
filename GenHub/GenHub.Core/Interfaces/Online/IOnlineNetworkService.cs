@@ -34,6 +34,12 @@ public interface IOnlineNetworkService
     string LocalEndpoint { get; }
 
     /// <summary>
+    /// Gets the current virtual LAN adapter state. The lobby stays usable
+    /// (roster, presence) while the adapter is down; only tunneling waits.
+    /// </summary>
+    OnlineAdapterState AdapterState { get; }
+
+    /// <summary>
     /// Gets the public network directory (metadata only, no endpoints).
     /// </summary>
     /// <param name="search">Optional server-side metadata search text.</param>
@@ -68,13 +74,13 @@ public interface IOnlineNetworkService
     /// </summary>
     /// <param name="networkId">The network identifier.</param>
     /// <param name="password">The network password.</param>
-    /// <param name="preferRelay">When true, offer only relay candidates (hide direct endpoint).</param>
+    /// <param name="preferRelay">When true, offer only relay candidates (hide direct endpoint). Defaults to relay for privacy.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>The join outcome.</returns>
     Task<OperationResult<OnlineJoinResult>> JoinNetworkAsync(
         string networkId,
         string password,
-        bool preferRelay = false,
+        bool preferRelay = true,
         CancellationToken cancellationToken = default);
 
     /// <summary>

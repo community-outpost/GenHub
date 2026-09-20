@@ -242,6 +242,63 @@ describe("online edge", () => {
     expect(roster.members.find((m) => m.overlayIp === joined.overlayIp)?.endpoint).toBe("");
   });
 
+  it("marks relay hosts and stores no endpoint on create", async () => {
+    const host = await session();
+    const created = await createNetwork(host, { preferRelay: true, endpoint: "203.0.113.9:4321" });
+    expect(created.members.find((m) => m.overlayIp === created.overlayIp)?.quality).toBe(2);
+    const members = await SELF.fetch(`${BASE}/v1/networks/${created.networkId}/members`, {
+      headers: auth(created.grant),
+    });
+    const roster = (await members.json()) as { members: { overlayIp: string; endpoint: string; quality: number }[] };
+    const stored = roster.members.find((m) => m.overlayIp === created.overlayIp);
+    expect(stored?.endpoint).toBe("");
+    expect(stored?.quality).toBe(2);
+  });
+
+  it("drops endpoints for relay joins", async () => {
+    const host = await session();
+    const created = await createNetwork(host);
+    const guest = await session();
+    const joinRes = await SELF.fetch(`${BASE}/v1/networks/${created.networkId}/join`, {
+      method: "POST",
+      headers: { ...auth(guest), "Content-Type": "application/json" },
+      body: JSON.stringify({ password: "secret-password", preferRelay: true, endpoint: "203.0.113.7:4321" }),
+    });
+    expect(joinRes.status).toBe(200);
+    const joined = (await joinRes.json()) as JoinResult;
+    const members = await SELF.fetch(`${BASE}/v1/networks/${created.networkId}/members`, {
+      headers: auth(created.grant),
+    });
+    const roster = (await members.json()) as { members: { overlayIp: string; endpoint: string; quality: number }[] };
+    const stored = roster.members.find((m) => m.overlayIp === joined.overlayIp);
+    expect(stored?.endpoint).toBe("");
+    expect(stored?.quality).toBe(2);
+  });
+
+  it("ignores heartbeat endpoints for relay members", async () => {
+    const host = await session();
+    const created = await createNetwork(host);
+    const guest = await session();
+    const joinRes = await SELF.fetch(`${BASE}/v1/networks/${created.networkId}/join`, {
+      method: "POST",
+      headers: { ...auth(guest), "Content-Type": "application/json" },
+      body: JSON.stringify({ password: "secret-password", preferRelay: true }),
+    });
+    expect(joinRes.status).toBe(200);
+    const joined = (await joinRes.json()) as JoinResult;
+    const beat = await SELF.fetch(`${BASE}/v1/networks/${created.networkId}/heartbeat`, {
+      method: "POST",
+      headers: { ...auth(joined.grant), "Content-Type": "application/json" },
+      body: JSON.stringify({ endpoint: "203.0.113.7:4321" }),
+    });
+    expect(beat.status).toBe(200);
+    const members = await SELF.fetch(`${BASE}/v1/networks/${created.networkId}/members`, {
+      headers: auth(created.grant),
+    });
+    const roster = (await members.json()) as { members: { overlayIp: string; endpoint: string }[] };
+    expect(roster.members.find((m) => m.overlayIp === joined.overlayIp)?.endpoint).toBe("");
+  });
+
   it("rejects joins to a full network", async () => {
     const host = await session();
     const created = await createNetwork(host, { slotsMax: 2 });

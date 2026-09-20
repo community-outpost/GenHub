@@ -1865,6 +1865,18 @@
   <data name="Online.Create.DescriptionWatermark" xml:space="preserve">
     <value>Description and house rules (optional)</value>
   </data>
+  <data name="Online.Create.PreferRelay" xml:space="preserve">
+    <value>Prefer relay (hide my endpoint)</value>
+  </data>
+  <data name="Online.Create.PreferRelayTooltip" xml:space="preserve">
+    <value>Route traffic through a relay instead of connecting directly. Slower, but hides your public endpoint from peers.</value>
+  </data>
+  <data name="Online.Adapter.UnavailableTitle" xml:space="preserve">
+    <value>Multiplayer tunneling unavailable</value>
+  </data>
+  <data name="Online.Adapter.UnavailableMessage" xml:space="preserve">
+    <value>The virtual LAN adapter isn't up, so lobby members won't appear in-game yet. Roster and presence still work.</value>
+  </data>
   <data name="Online.Detail.DescriptionLabel" xml:space="preserve">
     <value>Description</value>
   </data>
@@ -2037,7 +2049,7 @@
     <value>Route traffic through a relay instead of connecting directly. Slower, but hides your public endpoint from peers.</value>
   </data>
   <data name="Online.Join.PrivacyNotice" xml:space="preserve">
-    <value>Joining shares your public endpoint with room members for direct connection, like Hamachi.</value>
+    <value>Relay mode (on by default) hides your public endpoint from room members. Turn it off to connect directly, which shares your endpoint like Hamachi.</value>
   </data>
   <data name="Online.Join.SuccessMessage" xml:space="preserve">
     <value>Connected with overlay IP {0}. Open the in-game LAN lobby to play.</value>

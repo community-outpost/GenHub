@@ -209,6 +209,7 @@ const handleCreate = async (request: Request, env: OnlineEnv): Promise<Response>
       },
       creatorSub: session.sub,
       displayName,
+      preferRelay: input.preferRelay,
       endpoint: input.endpoint,
     }),
   });

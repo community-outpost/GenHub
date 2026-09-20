@@ -2,6 +2,8 @@ using GenHub.Core.Models.Online;
 using GenHub.Features.Online.Services;
 using Microsoft.Extensions.Logging;
 using Moq;
+using System.Net;
+using System.Net.Sockets;
 
 namespace GenHub.Tests.Core.Features.Online;
 
@@ -49,6 +51,25 @@ public sealed class P2PConnectionServiceTests : IDisposable
 
         // Assert
         Assert.False(result.Success);
+    }
+
+    /// <summary>
+    /// Tests that STUN candidates try IPv4 before IPv6.
+    /// </summary>
+    [Fact]
+    public void OrderStunCandidates_WithMixedFamilies_ShouldPreferIpv4()
+    {
+        // Arrange
+        var addresses = new[] { IPAddress.IPv6Loopback, IPAddress.Parse("203.0.113.7"), IPAddress.Loopback };
+
+        // Act
+        var ordered = P2PConnectionService.OrderStunCandidates(addresses);
+
+        // Assert
+        Assert.Equal(3, ordered.Count);
+        Assert.Equal(AddressFamily.InterNetwork, ordered[0].AddressFamily);
+        Assert.Equal(AddressFamily.InterNetwork, ordered[1].AddressFamily);
+        Assert.Equal(AddressFamily.InterNetworkV6, ordered[2].AddressFamily);
     }
 
     /// <summary>

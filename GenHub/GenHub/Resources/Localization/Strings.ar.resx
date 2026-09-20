@@ -1861,6 +1861,18 @@
   <data name="Online.Create.DescriptionWatermark" xml:space="preserve">
     <value>الوصف وقواعد الغرفة (اختياري)</value>
   </data>
+  <data name="Online.Create.PreferRelay" xml:space="preserve">
+    <value>تفضيل الترحيل (إخفاء عنواني)</value>
+  </data>
+  <data name="Online.Create.PreferRelayTooltip" xml:space="preserve">
+    <value>توجيه الحركة عبر مرحّل بدلاً من الاتصال المباشر. أبطأ، لكنه يخفي عنوانك العام عن الأقران.</value>
+  </data>
+  <data name="Online.Adapter.UnavailableTitle" xml:space="preserve">
+    <value>الاتصال النفقي متعدد اللاعبين غير متاح</value>
+  </data>
+  <data name="Online.Adapter.UnavailableMessage" xml:space="preserve">
+    <value>المحول الافتراضي للشبكة المحلية غير مشغّل، لذا لن يظهر أعضاء الردهة داخل اللعبة بعد. قائمة الأعضاء والحضور ما زالا يعملان.</value>
+  </data>
   <data name="Online.Detail.DescriptionLabel" xml:space="preserve">
     <value>الوصف</value>
   </data>
@@ -2033,7 +2045,7 @@
     <value>توجيه الحركة عبر مرحّل بدلاً من الاتصال المباشر. أبطأ، لكنه يخفي عنوانك العام عن الأقران.</value>
   </data>
   <data name="Online.Join.PrivacyNotice" xml:space="preserve">
-    <value>يشارك الانضمام عنوانك العام مع أعضاء الغرفة للاتصال المباشر، مثل Hamachi.</value>
+    <value>يخفي وضع الترحيل (مفعّل افتراضيًا) عنوانك العام عن أعضاء الغرفة. أوقف تشغيله للاتصال المباشر، الذي يشارك عنوانك مثل Hamachi.</value>
   </data>
   <data name="Online.Join.SuccessMessage" xml:space="preserve">
     <value>تم الاتصال باستخدام IP الافتراضي {0}. افتح ردهة LAN داخل اللعبة للعب.</value>
