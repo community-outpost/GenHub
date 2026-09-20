@@ -441,6 +441,7 @@ public partial class PublisherStudioViewModel(
             OnPropertyChanged(nameof(ProjectStatusText));
             OnPropertyChanged(nameof(CatalogSummaryText));
             ContentLibraryViewModel?.RefreshLocalizedText();
+            PublishShareViewModel?.RefreshLocalizedText();
         }
     }
 

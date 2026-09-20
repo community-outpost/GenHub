@@ -17,8 +17,6 @@ namespace GenHub.Features.Tools;
 /// </summary>
 public class PublisherStudioTool(ILogger<PublisherStudioTool> logger) : IToolPlugin
 {
-    private const int AutoSaveFlushTimeoutSeconds = 5;
-
     private PublisherStudioViewModel? _viewModel;
     private PublisherStudioView? _view;
     private Task? _autoSaveTask;
@@ -91,24 +89,53 @@ public class PublisherStudioTool(ILogger<PublisherStudioTool> logger) : IToolPlu
     /// <inheritdoc/>
     public void Dispose()
     {
-        if (_autoSaveTask is { IsCompleted: false } pendingSave)
+        var viewModel = Interlocked.Exchange(ref _viewModel, null);
+        _view = null;
+        var pendingSave = Interlocked.Exchange(ref _autoSaveTask, null);
+        if (viewModel == null)
         {
-            try
-            {
-                if (!pendingSave.Wait(TimeSpan.FromSeconds(AutoSaveFlushTimeoutSeconds)))
-                {
-                    logger.LogWarning("Publisher Studio auto-save did not complete before tool disposal.");
-                }
-            }
-            catch (AggregateException ex)
-            {
-                logger.LogError(ex, "Publisher Studio auto-save failed before tool disposal.");
-            }
+            return;
         }
 
-        _autoSaveTask = null;
-        _view = null;
-        _viewModel?.Dispose();
-        _viewModel = null;
+        if (pendingSave is { IsCompleted: false })
+        {
+            // Never block the UI thread here: the in-flight save marshals its
+            // continuations back to the UI context, so waiting would deadlock
+            // until timeout and freeze the UI. Dispose the view model after
+            // the save finishes instead, keeping _saveLock alive meanwhile.
+            _ = pendingSave.ContinueWith(
+                _ => RunOnUiThread(() => DisposeViewModel(viewModel)),
+                CancellationToken.None,
+                TaskContinuationOptions.ExecuteSynchronously,
+                TaskScheduler.Default);
+        }
+        else
+        {
+            viewModel.Dispose();
+        }
+    }
+
+    private static void RunOnUiThread(Action action)
+    {
+        if (Avalonia.Threading.Dispatcher.UIThread.CheckAccess() || Avalonia.Application.Current == null)
+        {
+            action();
+        }
+        else
+        {
+            Avalonia.Threading.Dispatcher.UIThread.Post(action);
+        }
+    }
+
+    private void DisposeViewModel(PublisherStudioViewModel viewModel)
+    {
+        try
+        {
+            viewModel.Dispose();
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Publisher Studio disposal after auto-save failed.");
+        }
     }
 }

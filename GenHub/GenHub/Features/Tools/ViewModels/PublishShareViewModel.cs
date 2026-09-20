@@ -446,6 +446,22 @@ public partial class PublishShareViewModel(
         return await UploadProviderDefinitionCoreAsync(cancellationToken, manageUploadingState: true);
     }
 
+    /// <summary>
+    /// Refreshes localized display text after a culture change.
+    /// </summary>
+    public void RefreshLocalizedText()
+    {
+        UpdateHostingFolderPath();
+        RefreshUploadHierarchy();
+        RefreshHostedAssets();
+        OnPropertyChanged(nameof(ConnectButtonText));
+        OnPropertyChanged(nameof(PublishButtonText));
+        OnPropertyChanged(nameof(TargetDestinationDescription));
+        OnPropertyChanged(nameof(IncompatibleArtifactsWarningMessage));
+        OnPropertyChanged(nameof(HostedAssetsCountText));
+        OnPropertyChanged(nameof(CatalogStatusesCountText));
+    }
+
     private string PleaseSelectHostingProviderMessage => GetLocalizedString("Tools.PublisherStudio.Publish.SelectHostingProvider", "Please select a hosting provider");
 
     /// <summary>
@@ -579,6 +595,7 @@ public partial class PublishShareViewModel(
     /// </summary>
     public void RefreshHostedAssets()
     {
+        UpdateHostingFolderPath();
         HostedAssets.Clear();
         long totalBytes = 0;
         var defCount = 0;
@@ -789,6 +806,17 @@ public partial class PublishShareViewModel(
         return string.Format(defaultValueFormat, args);
     }
 
+    private void UpdateHostingFolderPath()
+    {
+        HostingFolderPath = SelectedHostingProvider?.ProviderId switch
+        {
+            HostingConstants.Dropbox => HostingConstants.DropboxDefaultPublisherFolder,
+            HostingConstants.GoogleDrive => HostingConstants.GoogleDriveDefaultPublisherFolder,
+            HostingConstants.GitHub => GetLocalizedString("Tools.PublisherStudio.Hosting.DestinationGitHubGists", HostingConstants.GitHubGistsDestinationLabel),
+            _ => GetLocalizedString("Tools.PublisherStudio.Hosting.DestinationRemoteCloud", HostingConstants.RemoteCloudDestinationLabel),
+        };
+    }
+
     private void PopulatePublisherDefinitionAsset(string providerName, ref long totalBytes, ref int defCount)
     {
         var defUrl = ProviderDefinitionUrl;
@@ -813,7 +841,7 @@ public partial class PublishShareViewModel(
             CanUpload = !isDefHosted && SelectedHostingProvider != null && SelectedHostingProvider.SupportsCatalogHosting,
             Name = project.ProviderDefinitionFileName ?? HostingConstants.DefaultDefinitionFileName,
             Category = GetLocalizedString("Tools.PublisherStudio.Hosting.AssetCategoryDefinition", "Publisher Definition"),
-            Location = isDefHosted ? $"{providerName} ({HostingConstants.DropboxDefaultPublisherFolder})" : GetLocalizedString("Tools.PublisherStudio.Hosting.AssetLocationLocalOnly", "Local only"),
+            Location = isDefHosted ? $"{providerName} ({HostingFolderPath})" : GetLocalizedString("Tools.PublisherStudio.Hosting.AssetLocationLocalOnly", "Local only"),
             FileSize = defSize,
             Url = defUrl ?? string.Empty,
             Status = isDefHosted
@@ -848,7 +876,7 @@ public partial class PublishShareViewModel(
                 CanUpload = !isCatHosted && SelectedHostingProvider != null && SelectedHostingProvider.SupportsCatalogHosting,
                 Name = catalog.FileName,
                 Category = FormatLocalizedString("Tools.PublisherStudio.Hosting.AssetCategoryCatalogFormat", "Catalog Manifest ({0})", catalog.Name),
-                Location = isCatHosted ? $"{providerName} ({HostingConstants.DropboxDefaultPublisherFolder})" : GetLocalizedString("Tools.PublisherStudio.Hosting.AssetLocationLocalOnly", "Local only"),
+                Location = isCatHosted ? $"{providerName} ({HostingFolderPath})" : GetLocalizedString("Tools.PublisherStudio.Hosting.AssetLocationLocalOnly", "Local only"),
                 FileSize = catSize,
                 Url = catUrl,
                 Status = isCatHosted
@@ -895,7 +923,7 @@ public partial class PublishShareViewModel(
         {
             artCount++;
             totalBytes += artSize;
-            location = $"{providerName} ({HostingConstants.DropboxDefaultPublisherFolder})";
+            location = $"{providerName} ({HostingFolderPath})";
             status = GetLocalizedString("Tools.PublisherStudio.Hosting.StatusLiveOnline", HostingConstants.StatusLiveOnline);
         }
         else if (isExternal)
@@ -955,7 +983,7 @@ public partial class PublishShareViewModel(
                 CanUpload = false,
                 Name = string.IsNullOrEmpty(cloudCat.FileName) ? $"catalog-{cloudCat.CatalogId}.json" : cloudCat.FileName,
                 Category = FormatLocalizedString("Tools.PublisherStudio.Hosting.AssetCategoryCloudCatalogFormat", "Cloud Catalog ({0})", cloudCat.CatalogId),
-                Location = $"{providerName} ({HostingConstants.DropboxDefaultPublisherFolder})",
+                Location = $"{providerName} ({HostingFolderPath})",
                 FileSize = cloudCat.FileSize,
                 Url = cloudCat.Url,
                 Status = HostingConstants.StatusLiveOnline,
@@ -978,7 +1006,7 @@ public partial class PublishShareViewModel(
                 CanUpload = false,
                 Name = cloudArt.FileName,
                 Category = GetLocalizedString("Tools.PublisherStudio.Hosting.AssetCategoryCloudArtifact", "Cloud Artifact"),
-                Location = $"{providerName} ({HostingConstants.DropboxDefaultPublisherFolder})",
+                Location = $"{providerName} ({HostingFolderPath})",
                 FileSize = cloudArt.FileSize,
                 Url = cloudArt.Url,
                 Status = HostingConstants.StatusLiveOnline,
@@ -1017,13 +1045,7 @@ public partial class PublishShareViewModel(
         OnPropertyChanged(nameof(HasIncompatibleArtifactsForProvider));
         OnPropertyChanged(nameof(IncompatibleArtifactsWarningMessage));
 
-        HostingFolderPath = value?.ProviderId switch
-        {
-            HostingConstants.Dropbox => HostingConstants.DropboxDefaultPublisherFolder,
-            HostingConstants.GoogleDrive => HostingConstants.GoogleDriveDefaultPublisherFolder,
-            HostingConstants.GitHub => GetLocalizedString("Tools.PublisherStudio.Hosting.DestinationGitHubGists", HostingConstants.GitHubGistsDestinationLabel),
-            _ => GetLocalizedString("Tools.PublisherStudio.Hosting.DestinationRemoteCloud", HostingConstants.RemoteCloudDestinationLabel),
-        };
+        UpdateHostingFolderPath();
 
         if (_currentHostingState != null && value != null &&
             !string.Equals(_currentHostingState.ProviderId, value.ProviderId, StringComparison.Ordinal))
@@ -1109,7 +1131,7 @@ public partial class PublishShareViewModel(
             if (result.Success)
             {
                 await HandleAuthenticationSuccessAsync();
-                if (SelectedHostingProvider?.SupportsCatalogHosting == true)
+                if (SelectedHostingProvider is { SupportsCatalogHosting: true })
                 {
                     _ = ScanCloudStorageSilentlyAsync();
                 }
@@ -1621,17 +1643,12 @@ public partial class PublishShareViewModel(
                 return OperationResult<HostingUploadResult>.CreateFailure(UploadStatusMessage);
             }
 
-            // 1. Upload Pending Artifacts
+            // 1. Upload Pending Artifacts and Artwork
             CurrentPublishStep = 1;
-            if (!await UploadPendingArtifactsAsync(SelectedHostingProvider, cancellationToken))
+            var pendingUploadResult = await UploadPendingContentAsync(SelectedHostingProvider, cancellationToken);
+            if (pendingUploadResult != null)
             {
-                return OperationResult<HostingUploadResult>.CreateFailure(UploadStatusMessage);
-            }
-
-            // 1b. Upload Pending Artwork (local image files referenced by content metadata)
-            if (!await UploadPendingArtworkAsync(SelectedHostingProvider, cancellationToken))
-            {
-                return OperationResult<HostingUploadResult>.CreateFailure(UploadStatusMessage);
+                return pendingUploadResult;
             }
 
             // 2. Export Active Catalog (Now includes new URLs)
@@ -1834,6 +1851,24 @@ public partial class PublishShareViewModel(
 
         logger.LogWarning("Provider definition upload failed: {Error}", defUploadResult.FirstError);
         return defUploadResult;
+    }
+
+    private async Task<OperationResult<HostingUploadResult>?> UploadPendingContentAsync(
+        IHostingProvider provider,
+        CancellationToken cancellationToken)
+    {
+        if (!await UploadPendingArtifactsAsync(provider, cancellationToken))
+        {
+            return OperationResult<HostingUploadResult>.CreateFailure(UploadStatusMessage);
+        }
+
+        // 1b. Upload Pending Artwork (local image files referenced by content metadata)
+        if (!await UploadPendingArtworkAsync(provider, cancellationToken))
+        {
+            return OperationResult<HostingUploadResult>.CreateFailure(UploadStatusMessage);
+        }
+
+        return null;
     }
 
     private async Task<bool> UploadPendingArtifactsAsync(IHostingProvider provider, CancellationToken cancellationToken = default)

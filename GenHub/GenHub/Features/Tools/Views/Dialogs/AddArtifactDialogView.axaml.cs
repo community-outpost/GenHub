@@ -1,6 +1,8 @@
 using Avalonia.Controls;
 using Avalonia.Input;
 using GenHub.Features.Tools.ViewModels.Dialogs;
+using System;
+using System.Diagnostics;
 using System.Linq;
 
 namespace GenHub.Features.Tools.Views.Dialogs;
@@ -57,8 +59,15 @@ public partial class AddArtifactDialogView : UserControl
         var first = files.FirstOrDefault();
         if (first?.Path?.LocalPath is { } path)
         {
-            await vm.PopulateFromDroppedPathAsync(path);
-            e.Handled = true;
+            try
+            {
+                await vm.PopulateFromDroppedPathAsync(path);
+                e.Handled = true;
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Failed to handle dropped path in Add Artifact dialog: {ex}");
+            }
         }
     }
 }

@@ -3,6 +3,7 @@ using GenHub.Core.Models.Results;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using System.Net;
 using System.Net.Http;
@@ -157,7 +158,7 @@ public class DropboxOAuthService(HttpClient httpClient, ILogger logger)
             var expiresAt = DateTime.MinValue;
             if (!string.IsNullOrWhiteSpace(expiresRaw))
             {
-                DateTime.TryParse(expiresRaw, null, System.Globalization.DateTimeStyles.AdjustToUniversal, out expiresAt);
+                DateTime.TryParse(expiresRaw, CultureInfo.InvariantCulture, DateTimeStyles.AdjustToUniversal, out expiresAt);
             }
 
             credential = new DropboxOAuthCredential(appKey, access, refresh, expiresAt);
@@ -188,7 +189,8 @@ public class DropboxOAuthService(HttpClient httpClient, ILogger logger)
     /// The caller owns the listener and must dispose it.
     /// </summary>
     /// <returns>The listener and its redirect URI.</returns>
-    public (HttpListener Listener, string RedirectUri) StartLoopbackListener()
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Security", "S5332:Using http protocol is insecure", Justification = "OAuth 2.0 desktop loopback redirects require plain http; traffic never leaves the machine.")]
+    public static (HttpListener Listener, string RedirectUri) StartLoopbackListener()
     {
         var port = FindFreeLoopbackPort();
         var listener = new HttpListener();
@@ -215,7 +217,12 @@ public class DropboxOAuthService(HttpClient httpClient, ILogger logger)
         {
             var context = await listener.GetContextAsync().WaitAsync(linkedCts.Token);
             await RespondToBrowserAsync(context.Response, linkedCts.Token);
-            var (code, error) = ExtractAuthorizationCode(context.Request.Url ?? new Uri("http://localhost/"));
+            if (context.Request.Url == null)
+            {
+                return OperationResult<string>.CreateFailure("Dropbox sign-in returned an empty response. Please try again.");
+            }
+
+            var (code, error) = ExtractAuthorizationCode(context.Request.Url);
             if (!string.IsNullOrEmpty(code))
             {
                 return OperationResult<string>.CreateSuccess(code);

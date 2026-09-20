@@ -1333,9 +1333,13 @@ public sealed partial class DownloadsBrowserViewModel(
 
             discoverer.Configure(subscription);
             Interlocked.Increment(ref _activeRequestId);
-            _searchCts?.Cancel();
-            _searchCts?.Dispose();
-            _searchCts = null;
+            if (_searchCts != null)
+            {
+                await _searchCts.CancelAsync();
+                _searchCts.Dispose();
+                _searchCts = null;
+            }
+
             SelectedContent?.Dispose();
             SelectedContent = null;
             _hasCustomQuery = false;

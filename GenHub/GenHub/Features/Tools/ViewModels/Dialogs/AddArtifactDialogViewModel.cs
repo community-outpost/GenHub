@@ -442,8 +442,21 @@ public partial class AddArtifactDialogViewModel(Action<ReleaseArtifact> onArtifa
         LocalFilePath = path;
         Filename = Path.GetFileName(path);
 
-        var fileInfo = new FileInfo(path);
-        FileSize = fileInfo.Length;
+        try
+        {
+            var fileInfo = new FileInfo(path);
+            FileSize = fileInfo.Length;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            ValidationError = string.Format(
+                GetLocalizedString(
+                    "Tools.PublisherStudio.Artifact.DropFileUnreadableFormat",
+                    "Could not read the dropped file: {0}"),
+                path);
+            return;
+        }
+
         FileSizeDisplay = FormatFileSize(FileSize);
         _suppressFileSizeParsing = true;
         try
@@ -521,6 +534,17 @@ public partial class AddArtifactDialogViewModel(Action<ReleaseArtifact> onArtifa
         catch (OperationCanceledException)
         {
             // Superseded by a newer selection or dialog close
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            if (!hashCt.IsCancellationRequested && LocalFilePath == path)
+            {
+                ValidationError = string.Format(
+                    GetLocalizedString(
+                        "Tools.PublisherStudio.Artifact.DropFileUnreadableFormat",
+                        "Could not read the dropped file: {0}"),
+                    path);
+            }
         }
         finally
         {

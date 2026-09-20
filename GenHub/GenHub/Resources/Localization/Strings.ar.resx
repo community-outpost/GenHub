@@ -12838,6 +12838,9 @@ GameFilesEdited/Data/INI/**/*.ini</value>
   <data name="Tools.PublisherStudio.Publish.ArtworkHostingNotSupported" xml:space="preserve">
     <value>المزود لا يدعم استضافة الصور. استخدم روابط صور مباشرة أو بدّل المزود.</value>
   </data>
+  <data name="Tools.PublisherStudio.Artifact.DropFileUnreadableFormat" xml:space="preserve">
+    <value>تعذّر قراءة الملف المُسقط: {0}</value>
+  </data>
   <data name="GameProfiles.Notification.UnexpectedExit.Title" xml:space="preserve">
     <value>خرجت اللعبة بشكل غير متوقع</value>
   </data>

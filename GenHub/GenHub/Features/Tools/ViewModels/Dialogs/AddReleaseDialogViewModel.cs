@@ -168,7 +168,7 @@ public partial class AddReleaseDialogViewModel(
             }
             else if (Directory.Exists(path))
             {
-                artifact = BuildFolderArtifact(path);
+                artifact = await BuildFolderArtifactAsync(path, CancellationToken.None);
             }
 
             if (artifact == null)
@@ -327,7 +327,7 @@ public partial class AddReleaseDialogViewModel(
         };
     }
 
-    private ReleaseArtifact BuildFolderArtifact(string path)
+    private async Task<ReleaseArtifact> BuildFolderArtifactAsync(string path, CancellationToken cancellationToken)
     {
         var folderName = new DirectoryInfo(path).Name;
         var filename = folderName.EndsWith(".zip", StringComparison.OrdinalIgnoreCase)
@@ -337,10 +337,23 @@ public partial class AddReleaseDialogViewModel(
         long totalBytes = 0;
         try
         {
-            foreach (var file in new DirectoryInfo(path).EnumerateFiles("*", SearchOption.AllDirectories))
-            {
-                totalBytes += file.Length;
-            }
+            totalBytes = await Task.Run(
+                () =>
+                {
+                    long sum = 0;
+                    foreach (var file in new DirectoryInfo(path).EnumerateFiles("*", SearchOption.AllDirectories))
+                    {
+                        cancellationToken.ThrowIfCancellationRequested();
+                        sum += file.Length;
+                    }
+
+                    return sum;
+                },
+                cancellationToken);
+        }
+        catch (OperationCanceledException)
+        {
+            totalBytes = 0;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {

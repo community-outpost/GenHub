@@ -151,7 +151,7 @@ public class DropboxHostingProvider(ILogger<DropboxHostingProvider> logger, IHtt
 
         var service = GetOAuthService();
         var (verifier, challenge) = DropboxOAuthService.CreatePkcePair();
-        using var listener = StartOAuthListener(service, out var redirectUri);
+        using var listener = StartOAuthListener(out var redirectUri);
         if (listener == null || string.IsNullOrEmpty(redirectUri))
         {
             return OperationResult<bool>.CreateFailure("Could not listen for the Dropbox sign-in response on this machine.");
@@ -790,12 +790,12 @@ public class DropboxHostingProvider(ILogger<DropboxHostingProvider> logger, IHtt
         return _oauthService;
     }
 
-    private System.Net.HttpListener? StartOAuthListener(DropboxOAuthService service, out string? redirectUri)
+    private System.Net.HttpListener? StartOAuthListener(out string? redirectUri)
     {
         redirectUri = null;
         try
         {
-            var started = service.StartLoopbackListener();
+            var started = DropboxOAuthService.StartLoopbackListener();
             redirectUri = started.RedirectUri;
             return started.Listener;
         }

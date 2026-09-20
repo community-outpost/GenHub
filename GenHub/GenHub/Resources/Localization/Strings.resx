@@ -12936,6 +12936,9 @@ Project structure ready. Edit files in GameFilesEdited folder.</value>
   <data name="Tools.PublisherStudio.Publish.ArtworkHostingNotSupported" xml:space="preserve">
     <value>Provider does not support artwork hosting. Use direct image URLs or switch providers.</value>
   </data>
+  <data name="Tools.PublisherStudio.Artifact.DropFileUnreadableFormat" xml:space="preserve">
+    <value>Could not read the dropped file: {0}</value>
+  </data>
   <data name="GameProfiles.Notification.UnexpectedExit.Title" xml:space="preserve">
     <value>Game Exited Unexpectedly</value>
   </data>

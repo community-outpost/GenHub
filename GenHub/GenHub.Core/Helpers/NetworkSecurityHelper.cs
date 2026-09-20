@@ -18,12 +18,6 @@ public static class NetworkSecurityHelper
     private const string UnresolvableHostMessage = "The URL host name could not be resolved to a safe address.";
 
     /// <summary>
-    /// Gets or sets a value indicating whether DNS resolution failures (SocketException)
-    /// should be permitted (e.g. for mock test hosts or offline testing environments).
-    /// </summary>
-    internal static bool AllowUnresolvableDnsForTesting { get; set; }
-
-    /// <summary>
     /// Validates whether a URL is a safe external HTTPS URL (not loopback, private, or local network).
     /// Plain HTTP is rejected to match the HTTPS-only remote catalog policy enforced at fetch time.
     /// Host names that fail DNS resolution are rejected; callers must still fetch through an
@@ -67,11 +61,8 @@ public static class NetworkSecurityHelper
         }
         catch (SocketException)
         {
-            if (!AllowUnresolvableDnsForTesting)
-            {
-                failureReason = UnresolvableHostMessage;
-                return false;
-            }
+            failureReason = UnresolvableHostMessage;
+            return false;
         }
 
         return true;
@@ -119,10 +110,7 @@ public static class NetworkSecurityHelper
         }
         catch (SocketException)
         {
-            if (!AllowUnresolvableDnsForTesting)
-            {
-                return (false, UnresolvableHostMessage);
-            }
+            return (false, UnresolvableHostMessage);
         }
 
         return (true, null);
