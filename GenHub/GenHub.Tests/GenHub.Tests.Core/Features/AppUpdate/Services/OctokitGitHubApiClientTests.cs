@@ -284,6 +284,47 @@ public class OctokitGitHubApiClientTests
     }
 
     /// <summary>
+    /// Verifies that GetReadmeAsync stops awaiting when cancellation fires mid-flight.
+    /// Octokit exposes no CancellationToken overload for GetReadme, so the client bounds
+    /// the wait instead of leaving the caller parked on a slow request.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task GetReadmeAsync_WhenCancelledDuringFetch_ThrowsPromptlyAsync()
+    {
+        // Arrange: an API call that never completes on its own.
+        var gate = new TaskCompletionSource<Octokit.Readme>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var contentsClientMock = new Mock<Octokit.IRepositoryContentsClient>();
+        contentsClientMock
+            .Setup(x => x.GetReadme(It.IsAny<string>(), It.IsAny<string>()))
+            .Returns(gate.Task);
+
+        var repositoriesClientMock = new Mock<Octokit.IRepositoriesClient>();
+        repositoriesClientMock
+            .SetupGet(x => x.Content)
+            .Returns(contentsClientMock.Object);
+
+        var gitHubClientMock = new Mock<Octokit.IGitHubClient>();
+        gitHubClientMock.SetupGet(x => x.Repository).Returns(repositoriesClientMock.Object);
+
+        var api = new OctokitGitHubApiClient(
+            gitHubClientMock.Object,
+            Mock.Of<IHttpClientFactory>(),
+            Mock.Of<ILogger<OctokitGitHubApiClient>>(),
+            new MemoryCache(new MemoryCacheOptions()));
+
+        using var cts = new CancellationTokenSource();
+        var pending = api.GetReadmeAsync("owner", "repo", cts.Token);
+
+        // Act
+        cts.Cancel();
+
+        // Assert: cancellation releases the awaiter. The timeout only bounds a
+        // regression to a fast failure instead of a hanging test.
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => pending.WaitAsync(TimeSpan.FromSeconds(5)));
+    }
+
+    /// <summary>
     /// Verifies that GetReadmeAsync base64-decodes the raw API payload.
     /// Octokit's Readme DTO carries the encoded content verbatim.
     /// </summary>

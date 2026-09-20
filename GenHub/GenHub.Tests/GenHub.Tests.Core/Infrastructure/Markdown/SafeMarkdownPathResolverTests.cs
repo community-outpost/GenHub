@@ -169,6 +169,58 @@ public sealed class SafeMarkdownPathResolverTests
     }
 
     /// <summary>
+    /// Verifies that a redirect followed transparently by the handler to an unsafe
+    /// destination is rejected. The final URI is exposed via RequestMessage.
+    /// </summary>
+    /// <param name="finalUrl">The unsafe final destination.</param>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
+    [Theory]
+    [InlineData("http://10.0.0.5/secret.png")]
+    [InlineData("http://169.254.169.254/latest/meta-data")]
+    public async Task ResolveImageResource_AutoRedirectedToUnsafeDestination_ReturnsNullAsync(string finalUrl)
+    {
+        // Arrange: simulate a handler with automatic redirection enabled that already
+        // followed a 302 from a safe URL without surfacing the 3xx.
+        var payload = Encoding.UTF8.GetBytes("should-not-be-returned");
+        using var httpClient = new HttpClient(new StubHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new ByteArrayContent(payload),
+            RequestMessage = new HttpRequestMessage(HttpMethod.Get, new Uri(finalUrl, UriKind.Absolute)),
+        }));
+        var resolver = new SafeMarkdownPathResolver(httpClient);
+
+        // Act
+        var stream = await resolver.ResolveImageResource("https://example.test/redirect.png")!;
+
+        // Assert
+        Assert.Null(stream);
+    }
+
+    /// <summary>
+    /// Verifies that a redirect followed transparently by the handler that downgrades
+    /// from HTTPS to HTTP is rejected.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task ResolveImageResource_AutoRedirectedDowngrade_ReturnsNullAsync()
+    {
+        // Arrange: as above, but the transparent hop downgrades the scheme.
+        var payload = Encoding.UTF8.GetBytes("should-not-be-returned");
+        using var httpClient = new HttpClient(new StubHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new ByteArrayContent(payload),
+            RequestMessage = new HttpRequestMessage(HttpMethod.Get, new Uri("http://example.test/img.png", UriKind.Absolute)),
+        }));
+        var resolver = new SafeMarkdownPathResolver(httpClient);
+
+        // Act
+        var stream = await resolver.ResolveImageResource("https://example.test/redirect.png")!;
+
+        // Assert
+        Assert.Null(stream);
+    }
+
+    /// <summary>
     /// Verifies that redirects to safe destinations are followed and resolve to exact bytes.
     /// </summary>
     /// <param name="location">The redirect location, absolute or relative.</param>
