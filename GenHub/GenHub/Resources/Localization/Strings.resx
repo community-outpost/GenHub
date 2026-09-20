@@ -4475,9 +4475,6 @@ This will modify game files and configuration settings at:
   <data name="Downloads.Browser.Publishers" xml:space="preserve">
     <value>Publishers</value>
   </data>
-  <data name="Downloads.Browser.OpenManifestsFolder" xml:space="preserve">
-    <value>Open Manifests Folder in File Explorer</value>
-  </data>
   <data name="Downloads.Browser.SearchWatermark" xml:space="preserve">
     <value>Search content...</value>
   </data>
@@ -5149,9 +5146,6 @@ This will modify game files and configuration settings at:
   </data>
   <data name="Downloads.LoadingDetails" xml:space="preserve">
     <value>Loading content details...</value>
-  </data>
-  <data name="Downloads.ManifestsFolder" xml:space="preserve">
-    <value>Open Manifests Folder</value>
   </data>
   <data name="Downloads.ProfileSelection.Add" xml:space="preserve">
     <value>Add</value>
