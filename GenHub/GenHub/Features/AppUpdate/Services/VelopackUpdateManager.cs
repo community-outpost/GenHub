@@ -201,6 +201,16 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
             return _cachedUpdateInfo;
         }
 
+        if (IsLocalDevelopmentBuild)
+        {
+            _logger.LogInformation(
+                "Skipping release update check for local development build (Current={Current})",
+                CurrentAppVersion);
+            _cachedUpdateInfo = null;
+            _lastUpdateCheckTime = DateTime.UtcNow;
+            return null;
+        }
+
         _logger.LogInformation("Starting GitHub update check for repository: {Url}", AppConstants.GitHubRepositoryUrl);
 
         try
@@ -250,17 +260,6 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
             if (latestVersion <= currentVersion)
             {
                 _logger.LogInformation("No update available. Current version {Current} is up to date", currentVersion);
-                _cachedUpdateInfo = null;
-                _lastUpdateCheckTime = DateTime.UtcNow;
-                return null;
-            }
-
-            if (IsLocalDevelopmentBuild)
-            {
-                _logger.LogInformation(
-                    "Update available on GitHub ({Latest}), but suppressing notification for local development build (Current={Current})",
-                    latestVersion,
-                    currentVersion);
                 _cachedUpdateInfo = null;
                 _lastUpdateCheckTime = DateTime.UtcNow;
                 return null;
@@ -438,6 +437,18 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
         {
             _logger.LogInformation("Returning cached artifact update info (checked {TimeLess} ago)", (DateTime.UtcNow - _lastArtifactCheckTime).ToString(@"mm\:ss"));
             return _cachedArtifactUpdateInfo;
+        }
+
+        if (IsLocalDevelopmentBuild)
+        {
+            _logger.LogInformation(
+                "Skipping artifact update check for local development build (Current={Current})",
+                CurrentAppVersion);
+            _cachedArtifactUpdateInfo = null;
+            _cachedArtifactSubscribedPrNumber = targetPrNumber;
+            _cachedArtifactSubscribedBranch = targetBranch;
+            _lastArtifactCheckTime = DateTime.UtcNow;
+            return null;
         }
 
         _logger.LogInformation("Checking for artifact updates from GitHub Actions CI builds");

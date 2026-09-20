@@ -182,6 +182,7 @@ public class AppConstantsTests
 
     /// <summary>
     /// Tests that build metadata properties reflect local development defaults in the test runner environment.
+    /// Assumes the test runner executes against assemblies built without CI metadata property overrides.
     /// </summary>
     [Fact]
     public void AppConstants_BuildMetadata_ShouldReflectLocalDevelopmentDefaults()
