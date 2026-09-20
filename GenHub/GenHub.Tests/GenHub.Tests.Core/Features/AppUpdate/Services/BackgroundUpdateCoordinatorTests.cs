@@ -132,6 +132,71 @@ public class BackgroundUpdateCoordinatorTests
     }
 
     /// <summary>
+    /// Verifies that when a subscribed PR is merged or closed and no development artifact exists, update checking falls back to the GitHub API release.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task CheckForUpdatesAsync_WhenPrIsMergedAndNoDevArtifact_FallsBackToGitHubApiReleaseAsync()
+    {
+        var notificationShownTcs = new TaskCompletionSource<NotificationMessage>();
+
+        var userSettings = new UserSettings
+        {
+            SubscribedPrNumber = 265,
+            DismissedUpdateVersion = null,
+        };
+
+        var mockUserSettings = new Mock<IUserSettingsService>();
+        mockUserSettings.Setup(x => x.Get()).Returns(userSettings);
+
+        var mockVelopack = new Mock<IVelopackUpdateManager>();
+        mockVelopack.SetupProperty(x => x.SubscribedPrNumber, 265);
+        mockVelopack.SetupProperty(x => x.SubscribedBranch, null);
+
+        mockVelopack.Setup(x => x.CheckForArtifactUpdatesAsync(It.IsAny<CancellationToken>()))
+            .Returns<CancellationToken>(_ =>
+            {
+                if (mockVelopack.Object.SubscribedPrNumber == 265)
+                {
+                    mockVelopack.SetupGet(x => x.IsPrMergedOrClosed).Returns(true);
+                }
+
+                return Task.FromResult<ArtifactUpdateInfo?>(null);
+            });
+
+        mockVelopack.Setup(x => x.CheckForUpdatesAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync((Velopack.UpdateInfo?)null);
+        mockVelopack.SetupGet(x => x.HasUpdateAvailableFromGitHub).Returns(true);
+        mockVelopack.SetupGet(x => x.LatestVersionFromGitHub).Returns("0.3.0");
+
+        var mockNotificationService = CreateNotificationServiceMock();
+        mockNotificationService.Setup(x => x.Show(It.IsAny<NotificationMessage>()))
+            .Callback<NotificationMessage>(msg =>
+            {
+                if (msg.Title == AppUpdateConstants.PrMergedUpdateAvailableNotificationTitle)
+                {
+                    notificationShownTcs.TrySetResult(msg);
+                }
+            });
+
+        var mockLogger = new Mock<ILogger<BackgroundUpdateCoordinator>>();
+
+        using var coordinator = new BackgroundUpdateCoordinator(
+            mockVelopack.Object,
+            mockUserSettings.Object,
+            mockNotificationService.Object,
+            mockLogger.Object);
+
+        await coordinator.CheckForUpdatesAsync();
+        var updateNotification = await notificationShownTcs.Task.WaitAsync(TimeSpan.FromSeconds(5));
+
+        Assert.NotNull(updateNotification);
+        Assert.Equal(AppUpdateConstants.PrMergedUpdateAvailableNotificationTitle, updateNotification.Title);
+        Assert.Contains("0.3.0", updateNotification.Message);
+        Assert.Contains("265", updateNotification.Message);
+    }
+
+    /// <summary>
     /// Verifies that when a subscribed custom branch has no artifacts, update checking falls back to the development branch artifact.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
