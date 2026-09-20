@@ -1,7 +1,10 @@
 import { SELF } from "cloudflare:test";
 import { describe, expect, it } from "vitest";
+import { emptyRoomExpired } from "../src/room";
+import { mintJoinGrant, mintSessionToken } from "../src/tokens";
 
 const BASE = "https://edge.test";
+const TEST_JWT_SECRET = "test-jwt-signing-secret";
 
 interface JoinResult {
   networkId: string;
@@ -338,6 +341,53 @@ describe("online edge", () => {
     expect(roster.members).toHaveLength(1);
   });
 
+  it("expires empty rooms only after the TTL", () => {
+    expect(emptyRoomExpired(0, 1_000_000, 300)).toBe(false);
+    expect(emptyRoomExpired(1_000_000, 1_000_000 + 299_999, 300)).toBe(false);
+    expect(emptyRoomExpired(1_000_000, 1_000_000 + 300_000, 300)).toBe(true);
+  });
+
+  it("keeps empty networks listed during the grace window", async () => {
+    const host = await session();
+    const created = await createNetwork(host, { name: "grace-window-probe" });
+    const leave = await SELF.fetch(`${BASE}/v1/networks/${created.networkId}/leave`, {
+      method: "POST",
+      headers: auth(created.grant),
+    });
+    expect(leave.status).toBe(200);
+
+    const guest = await session();
+    const dir = await SELF.fetch(`${BASE}/v1/networks`, { headers: auth(guest) });
+    const entries = (await dir.json()) as { name: string; slotsUsed: number }[];
+    expect(entries.find((e) => e.name === "grace-window-probe")?.slotsUsed).toBe(0);
+
+    const detail = await SELF.fetch(`${BASE}/v1/networks/${created.networkId}`, { headers: auth(guest) });
+    expect(detail.status).toBe(200);
+  });
+
+  it("revives empty networks on rejoin and crowns the joiner host", async () => {
+    const host = await session();
+    const created = await createNetwork(host, { name: "revive-probe" });
+    await SELF.fetch(`${BASE}/v1/networks/${created.networkId}/leave`, {
+      method: "POST",
+      headers: auth(created.grant),
+    });
+
+    const guest = await session();
+    const joinRes = await SELF.fetch(`${BASE}/v1/networks/${created.networkId}/join`, {
+      method: "POST",
+      headers: { ...auth(guest), "Content-Type": "application/json" },
+      body: JSON.stringify({ password: "secret-password" }),
+    });
+    expect(joinRes.status).toBe(200);
+    const joined = (await joinRes.json()) as JoinResult;
+    expect(joined.members.find((m) => m.overlayIp === joined.overlayIp)?.isHost).toBe(true);
+
+    const dir = await SELF.fetch(`${BASE}/v1/networks`, { headers: auth(guest) });
+    const entries = (await dir.json()) as { name: string; slotsUsed: number }[];
+    expect(entries.find((e) => e.name === "revive-probe")?.slotsUsed).toBe(1);
+  });
+
   it("frees the slot on leave", async () => {
     const host = await session();
     const created = await createNetwork(host);
@@ -392,17 +442,185 @@ describe("online edge", () => {
     expect(((await rejoin.json()) as { code: string }).code).toBe("online.network-banned");
   });
 
-  it("mints ephemeral TURN credentials", async () => {
-    const token = await session();
-    const res = await SELF.fetch(`${BASE}/v1/turn/credentials`, {
+  it("mints ephemeral TURN credentials for members only", async () => {
+    const gone = await SELF.fetch(`${BASE}/v1/turn/credentials`, {
       method: "POST",
-      headers: auth(token),
+      headers: auth(await session()),
+    });
+    expect(gone.status).toBe(404);
+
+    const host = await session();
+    const created = await createNetwork(host);
+    const denied = await SELF.fetch(`${BASE}/v1/networks/${created.networkId}/turn`, {
+      headers: auth(host),
+    });
+    expect(denied.status).toBe(403);
+
+    const res = await SELF.fetch(`${BASE}/v1/networks/${created.networkId}/turn`, {
+      headers: auth(created.grant),
     });
     expect(res.status).toBe(200);
     const creds = (await res.json()) as { username: string; password: string; ttl: number; uris: string[] };
     expect(creds.username).toContain(":");
     expect(creds.password.length).toBeGreaterThan(0);
     expect(creds.uris.length).toBeGreaterThan(0);
+  });
+
+  it("rejects expired sessions and grants", async () => {
+    const expiredSession = await mintSessionToken("ghost", -3600, TEST_JWT_SECRET);
+    const directory = await SELF.fetch(`${BASE}/v1/networks`, { headers: auth(expiredSession) });
+    expect(directory.status).toBe(401);
+
+    const host = await session();
+    const created = await createNetwork(host);
+    const expiredGrant = await mintJoinGrant("ghost", created.networkId, created.overlayIp, false, -3600, TEST_JWT_SECRET);
+    const probes: [string, string][] = [
+      ["GET", "members"],
+      ["POST", "heartbeat"],
+      ["GET", "cert"],
+    ];
+    for (const [method, action] of probes) {
+      const res = await SELF.fetch(`${BASE}/v1/networks/${created.networkId}/${action}`, {
+        method,
+        headers: auth(expiredGrant),
+      });
+      expect(res.status).toBe(403);
+    }
+  });
+
+  it("rate-limits joins per network and IP", async () => {
+    const host = await session();
+    const created = await createNetwork(host, { slotsMax: 16 });
+    let limited = 0;
+    for (let i = 0; i < 12; i++) {
+      const guest = await session();
+      const res = await SELF.fetch(`${BASE}/v1/networks/${created.networkId}/join`, {
+        method: "POST",
+        headers: { ...auth(guest), "Content-Type": "application/json" },
+        body: JSON.stringify({ password: "secret-password" }),
+      });
+      if (res.status === 429) {
+        limited += 1;
+        expect(((await res.json()) as { code: string }).code).toBe("online.rate-limited");
+      } else {
+        expect(res.status).toBe(200);
+      }
+    }
+    expect(limited).toBe(2);
+  });
+
+  it("refuses cert refresh after leaving", async () => {
+    const host = await session();
+    const created = await createNetwork(host);
+    const guest = await session();
+    const joinRes = await SELF.fetch(`${BASE}/v1/networks/${created.networkId}/join`, {
+      method: "POST",
+      headers: { ...auth(guest), "Content-Type": "application/json" },
+      body: JSON.stringify({ password: "secret-password" }),
+    });
+    const joined = (await joinRes.json()) as JoinResult;
+
+    const fresh = await SELF.fetch(`${BASE}/v1/networks/${created.networkId}/cert`, {
+      headers: auth(joined.grant),
+    });
+    expect(fresh.status).toBe(200);
+
+    await SELF.fetch(`${BASE}/v1/networks/${created.networkId}/leave`, {
+      method: "POST",
+      headers: auth(joined.grant),
+    });
+    const stale = await SELF.fetch(`${BASE}/v1/networks/${created.networkId}/cert`, {
+      headers: auth(joined.grant),
+    });
+    expect(stale.status).toBe(403);
+  });
+
+  it("refuses cert refresh for banned members", async () => {
+    const host = await session();
+    const created = await createNetwork(host);
+    const guest = await session();
+    const joinRes = await SELF.fetch(`${BASE}/v1/networks/${created.networkId}/join`, {
+      method: "POST",
+      headers: { ...auth(guest), "Content-Type": "application/json" },
+      body: JSON.stringify({ password: "secret-password" }),
+    });
+    const joined = (await joinRes.json()) as JoinResult;
+
+    const ban = await SELF.fetch(`${BASE}/v1/networks/${created.networkId}/ban`, {
+      method: "POST",
+      headers: { ...auth(created.grant), "Content-Type": "application/json" },
+      body: JSON.stringify({ targetIp: joined.overlayIp }),
+    });
+    expect(ban.status).toBe(200);
+
+    const stale = await SELF.fetch(`${BASE}/v1/networks/${created.networkId}/cert`, {
+      headers: auth(joined.grant),
+    });
+    expect(stale.status).toBe(403);
+  });
+
+  it("keeps IP bans scoped to the banned address", async () => {
+    const host = await session();
+    const created = await createNetwork(host);
+    const guest = await session();
+    const joinRes = await SELF.fetch(`${BASE}/v1/networks/${created.networkId}/join`, {
+      method: "POST",
+      headers: { ...auth(guest), "Content-Type": "application/json", "CF-Connecting-IP": "203.0.113.77" },
+      body: JSON.stringify({ password: "secret-password" }),
+    });
+    const joined = (await joinRes.json()) as JoinResult;
+
+    const ban = await SELF.fetch(`${BASE}/v1/networks/${created.networkId}/ban`, {
+      method: "POST",
+      headers: { ...auth(created.grant), "Content-Type": "application/json" },
+      body: JSON.stringify({ targetIp: joined.overlayIp }),
+    });
+    expect(ban.status).toBe(200);
+
+    const sameAddress = await session();
+    const blocked = await SELF.fetch(`${BASE}/v1/networks/${created.networkId}/join`, {
+      method: "POST",
+      headers: { ...auth(sameAddress), "Content-Type": "application/json", "CF-Connecting-IP": "203.0.113.77" },
+      body: JSON.stringify({ password: "secret-password" }),
+    });
+    expect(blocked.status).toBe(403);
+    expect(((await blocked.json()) as { code: string }).code).toBe("online.network-banned");
+
+    const otherAddress = await session();
+    const allowed = await SELF.fetch(`${BASE}/v1/networks/${created.networkId}/join`, {
+      method: "POST",
+      headers: { ...auth(otherAddress), "Content-Type": "application/json", "CF-Connecting-IP": "203.0.113.78" },
+      body: JSON.stringify({ password: "secret-password" }),
+    });
+    expect(allowed.status).toBe(200);
+  });
+
+  it("rate-limits abuse reports", async () => {
+    const host = await session();
+    const created = await createNetwork(host);
+    const guest = await session();
+    const joinRes = await SELF.fetch(`${BASE}/v1/networks/${created.networkId}/join`, {
+      method: "POST",
+      headers: { ...auth(guest), "Content-Type": "application/json" },
+      body: JSON.stringify({ password: "secret-password" }),
+    });
+    const joined = (await joinRes.json()) as JoinResult;
+
+    for (let i = 0; i < 5; i++) {
+      const report = await SELF.fetch(`${BASE}/v1/networks/${created.networkId}/report`, {
+        method: "POST",
+        headers: { ...auth(joined.grant), "Content-Type": "application/json" },
+        body: JSON.stringify({ targetIp: created.overlayIp, reason: "griefing" }),
+      });
+      expect(report.status).toBe(200);
+    }
+    const limited = await SELF.fetch(`${BASE}/v1/networks/${created.networkId}/report`, {
+      method: "POST",
+      headers: { ...auth(joined.grant), "Content-Type": "application/json" },
+      body: JSON.stringify({ targetIp: created.overlayIp, reason: "griefing" }),
+    });
+    expect(limited.status).toBe(429);
+    expect(((await limited.json()) as { code: string }).code).toBe("online.rate-limited");
   });
 
   it("rejects presence upgrades with a bad ticket", async () => {

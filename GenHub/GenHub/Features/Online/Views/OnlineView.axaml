@@ -77,7 +77,7 @@
 
         <Style Selector="Button.primary-btn">
             <Setter Property="Background" Value="{DynamicResource AccentBrush}" />
-            <Setter Property="Foreground" Value="White" />
+            <Setter Property="Foreground" Value="{DynamicResource PrimaryButtonForeground}" />
             <Setter Property="BorderThickness" Value="0" />
             <Setter Property="CornerRadius" Value="8" />
             <Setter Property="Padding" Value="16,8" />

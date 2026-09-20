@@ -1,3 +1,4 @@
+using GenHub.Core.Constants;
 using GenHub.Core.Services.Online;
 using System;
 
@@ -13,5 +14,6 @@ public sealed class WindowsOverlaySidecarLocator : OverlaySidecarLocatorBase
     protected override Environment.SpecialFolder BaseFolder => Environment.SpecialFolder.LocalApplicationData;
 
     /// <inheritdoc/>
-    protected override string[] CandidateSegments => ["GenHub", "overlay", "genhub-overlay.exe"];
+    protected override string[] CandidateSegments =>
+        [OnlineConstants.OverlayInstallDir, OnlineConstants.OverlaySubDir, OnlineConstants.OverlayWindowsBinary];
 }

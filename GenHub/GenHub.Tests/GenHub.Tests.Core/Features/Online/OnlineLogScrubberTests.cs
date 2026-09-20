@@ -66,6 +66,9 @@ public class OnlineLogScrubberTests
     [InlineData("Authorization: Bearer abcdef123456")]
     [InlineData("grant: secret-grant-token")]
     [InlineData("password= hunter2 value")]
+    [InlineData("{\"password\":\"super-secret\"}")]
+    [InlineData("{\"grant\":\"eyJleHAiOjEyMw\"}")]
+    [InlineData("wss://edge/v1/networks/net-1/presence?ticket=secret-grant")]
     public void Scrub_WithCredential_ShouldRedact(string input)
     {
         // Act
@@ -73,6 +76,39 @@ public class OnlineLogScrubberTests
 
         // Assert
         Assert.Contains(OnlineLogScrubber.RedactedCredential, result);
+    }
+
+    /// <summary>
+    /// Tests that full IPv6 addresses without compression are redacted.
+    /// </summary>
+    [Fact]
+    public void Scrub_WithFullIpv6_ShouldRedact()
+    {
+        // Arrange
+        const string input = "Peer 2001:0db8:85a3:0000:0000:8a2e:0370:7334 timed out.";
+
+        // Act
+        var result = OnlineLogScrubber.Scrub(input);
+
+        // Assert
+        Assert.DoesNotContain("2001:0db8", result);
+        Assert.Contains(OnlineLogScrubber.RedactedIp, result);
+    }
+
+    /// <summary>
+    /// Tests that timestamps are not mistaken for IPv6 addresses.
+    /// </summary>
+    [Fact]
+    public void Scrub_WithTimestamp_ShouldPreserve()
+    {
+        // Arrange
+        const string input = "Last seen at 12:34:56 today.";
+
+        // Act
+        var result = OnlineLogScrubber.Scrub(input);
+
+        // Assert
+        Assert.Equal(input, result);
     }
 
     /// <summary>

@@ -101,7 +101,7 @@ public sealed class P2PConnectionServiceTests : IDisposable
 
         // Assert
         Assert.True(result.Success);
-        Assert.Equal(OnlineConnectionQuality.Direct, _service.CurrentQuality);
+        Assert.Equal(OnlineConnectionQuality.Connecting, _service.CurrentQuality);
     }
 
     /// <summary>

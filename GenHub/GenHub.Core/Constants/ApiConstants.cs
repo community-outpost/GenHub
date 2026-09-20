@@ -238,6 +238,11 @@ public static class ApiConstants
     public const string OnlineNetworksEndpoint = "/v1/networks";
 
     /// <summary>
+    /// Format string for the directory search query (escaped search text).
+    /// </summary>
+    public const string OnlineNetworksSearchFormat = "?search={0}";
+
+    /// <summary>
     /// Format string for the single-network endpoint used by detail and update (network id).
     /// </summary>
     public const string OnlineNetworkByIdFormat = "/v1/networks/{0}";

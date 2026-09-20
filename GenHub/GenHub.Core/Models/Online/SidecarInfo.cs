@@ -1,4 +1,4 @@
-namespace GenHub.Core.Interfaces.Online;
+namespace GenHub.Core.Models.Online;
 
 /// <summary>
 /// Information about a running overlay sidecar.

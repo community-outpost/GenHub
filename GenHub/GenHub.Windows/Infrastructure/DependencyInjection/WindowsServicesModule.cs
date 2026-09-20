@@ -10,6 +10,7 @@ using GenHub.Core.Interfaces.Tools;
 using GenHub.Core.Interfaces.Workspace;
 using GenHub.Features.GameSettings;
 using GenHub.Features.Launching;
+using GenHub.Features.Online.Services;
 using GenHub.Features.Workspace;
 using GenHub.Windows.Features.ActionSets;
 using GenHub.Windows.Features.ActionSets.Fixes;
@@ -115,7 +116,7 @@ public static class WindowsServicesModule
 
         // Online virtual LAN adapter (supersedes the shared null fallback)
         services.AddSingleton<IOverlaySidecarLocator, WindowsOverlaySidecarLocator>();
-        services.Replace(ServiceDescriptor.Singleton<IVirtualLanAdapter, WindowsVirtualLanAdapter>());
+        services.Replace(ServiceDescriptor.Singleton<IVirtualLanAdapter, SharedVirtualLanAdapter>());
 
         return services;
     }

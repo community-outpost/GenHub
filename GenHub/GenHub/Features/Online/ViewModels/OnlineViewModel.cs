@@ -159,6 +159,11 @@ public sealed partial class OnlineViewModel(
     [RelayCommand]
     public async Task RefreshNetworksAsync(CancellationToken cancellationToken = default)
     {
+        if (!OnlineConstants.IsOnlineEnabled)
+        {
+            return;
+        }
+
         await _refreshLock.WaitAsync(cancellationToken);
         try
         {
@@ -320,7 +325,7 @@ public sealed partial class OnlineViewModel(
             var result = await networkService.CreateNetworkAsync(request, cancellationToken);
             if (!result.Success)
             {
-                ShowErrorToast(CreateErrorTitleKey, result.Errors.FirstOrDefault());
+                ShowCreateErrorToast(result.Errors.FirstOrDefault());
                 return;
             }
 
@@ -811,6 +816,18 @@ public sealed partial class OnlineViewModel(
         ShowErrorToast("Online.Error.JoinTitle", GetString(messageKey));
     }
 
+    private void ShowCreateErrorToast(string? errorCode)
+    {
+        var messageKey = errorCode switch
+        {
+            OnlineConstants.ErrorInvalidName => "Online.Error.NameLength",
+            OnlineConstants.ErrorInvalidSlots => "Online.Error.SlotsRange",
+            OnlineConstants.ErrorPasswordTooLong => "Online.Error.PasswordTooLong",
+            _ => null,
+        };
+        ShowErrorToast(CreateErrorTitleKey, messageKey is null ? errorCode : GetString(messageKey));
+    }
+
     private void ShowErrorToast(string titleKey, string? detail)
     {
         var detailText = string.IsNullOrWhiteSpace(detail) || detail.StartsWith("online.", StringComparison.Ordinal)
@@ -902,7 +919,11 @@ public sealed partial class OnlineViewModel(
         }
         finally
         {
-            DetailLoading = false;
+            // A superseded load must not hide the newer load's progress.
+            if (!cancellationToken.IsCancellationRequested)
+            {
+                DetailLoading = false;
+            }
         }
     }
 
@@ -942,11 +963,14 @@ public sealed partial class OnlineViewModel(
     partial void OnSelectedNetworkChanged(OnlineNetworkSummary? value)
     {
         JoinNetworkCommand.NotifyCanExecuteChanged();
+
+        // Cancel without disposing: the superseded load may still register on
+        // the token, and a CTS without timers holds no native resources.
         _detailCts?.Cancel();
-        _detailCts?.Dispose();
         if (value is null)
         {
             SelectedDetail = null;
+            DetailLoading = false;
             return;
         }
 
@@ -957,7 +981,6 @@ public sealed partial class OnlineViewModel(
     partial void OnSearchTextChanged(string value)
     {
         _searchCts?.Cancel();
-        _searchCts?.Dispose();
         _searchCts = new CancellationTokenSource();
         var token = _searchCts.Token;
         _ = Task.Run(async () =>

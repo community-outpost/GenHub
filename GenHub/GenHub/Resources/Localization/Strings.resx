@@ -1928,6 +1928,9 @@
   <data name="Online.Error.PasswordTooShort" xml:space="preserve">
     <value>Password must be at least 4 characters.</value>
   </data>
+  <data name="Online.Error.PasswordTooLong" xml:space="preserve">
+    <value>Password must be at most 128 characters.</value>
+  </data>
   <data name="Online.Error.ReportFailed" xml:space="preserve">
     <value>Report failed. Please try again.</value>
   </data>
@@ -2035,6 +2038,9 @@
   </data>
   <data name="Online.Error.NetworkFull" xml:space="preserve">
     <value>This network is full.</value>
+  </data>
+  <data name="Online.Error.SlotsRange" xml:space="preserve">
+    <value>Slot count must be between 2 and 16.</value>
   </data>
   <data name="Online.Error.WrongPassword" xml:space="preserve">
     <value>Wrong password for this network.</value>

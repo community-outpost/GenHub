@@ -94,14 +94,24 @@ public static class OnlineConstants
     public const string ErrorServiceUnavailable = "online.service-unavailable";
 
     /// <summary>
-    /// Error code for a lost presence channel.
-    /// </summary>
-    public const string ErrorPresenceLost = "online.presence-lost";
-
-    /// <summary>
     /// Error code for a missing game profile on play.
     /// </summary>
     public const string ErrorProfileMissing = "online.profile-missing";
+
+    /// <summary>
+    /// Error code for an invalid network name length.
+    /// </summary>
+    public const string ErrorInvalidName = "online.invalid-name";
+
+    /// <summary>
+    /// Error code for an out-of-range slot cap.
+    /// </summary>
+    public const string ErrorInvalidSlots = "online.invalid-slots";
+
+    /// <summary>
+    /// Error code for an overlong network password.
+    /// </summary>
+    public const string ErrorPasswordTooLong = "online.password-too-long";
 
     /// <summary>
     /// Error code for a failed game launch from the Online tab.
@@ -129,18 +139,43 @@ public static class OnlineConstants
     public const string OverlayPendingSelection = "pending-selection";
 
     /// <summary>
-    /// UDP ports used by Generals and Zero Hour LAN discovery and gameplay.
+    /// Directory name under the system temp path for staged sidecar configs.
     /// </summary>
-    public static readonly int[] LanUdpPorts = [4321, 27900];
+    public const string SidecarConfigDirectory = "genhub-online";
 
     /// <summary>
-    /// TCP ports used by legacy Generals online services.
+    /// Filename prefix for staged sidecar configuration files.
     /// </summary>
-    public static readonly int[] LegacyOnlineTcpPorts = [6667, 28910, 29900, 29920];
+    public const string SidecarConfigPrefix = "overlay-";
+
+    /// <summary>
+    /// Product directory name for the installed overlay sidecar.
+    /// </summary>
+    public const string OverlayInstallDir = "GenHub";
+
+    /// <summary>
+    /// Subdirectory name for the installed overlay sidecar.
+    /// </summary>
+    public const string OverlaySubDir = "overlay";
+
+    /// <summary>
+    /// Windows overlay sidecar executable name.
+    /// </summary>
+    public const string OverlayWindowsBinary = "genhub-overlay.exe";
+
+    /// <summary>
+    /// Unix overlay sidecar executable name.
+    /// </summary>
+    public const string OverlayUnixBinary = "genhub-overlay";
+
+    /// <summary>
+    /// Wire-protocol magic ("GHP1") for UDP hole-punch packets.
+    /// </summary>
+    public static readonly byte[] PunchMagic = [0x47, 0x48, 0x50, 0x31];
 
     /// <summary>
     /// Gets a value indicating whether the Online feature is enabled.
     /// </summary>
     public static bool IsOnlineEnabled =>
-        Environment.GetEnvironmentVariable(EnabledEnvVar) is not "0" and not "false" and not "False" and not "FALSE";
+        Environment.GetEnvironmentVariable(EnabledEnvVar)?.Trim().ToLowerInvariant() is not ("0" or "false");
 }

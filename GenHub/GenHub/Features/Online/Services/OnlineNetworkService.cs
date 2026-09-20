@@ -32,8 +32,10 @@ public sealed class OnlineNetworkService(
     ILogger<OnlineNetworkService> logger) : IOnlineNetworkService
 {
     private readonly SemaphoreSlim _sessionLock = new(1, 1);
+    private readonly object _joinLock = new();
     private string? _sessionToken;
     private bool _presenceSubscribed;
+    private OnlineJoinResult? _currentJoin;
 
     /// <inheritdoc/>
     public event EventHandler<IReadOnlyList<OnlineMember>>? RosterChanged;
@@ -42,7 +44,24 @@ public sealed class OnlineNetworkService(
     public event EventHandler? ConnectionLost;
 
     /// <inheritdoc/>
-    public OnlineJoinResult? CurrentJoin { get; private set; }
+    public OnlineJoinResult? CurrentJoin
+    {
+        get
+        {
+            lock (_joinLock)
+            {
+                return _currentJoin;
+            }
+        }
+
+        private set
+        {
+            lock (_joinLock)
+            {
+                _currentJoin = value;
+            }
+        }
+    }
 
     /// <inheritdoc/>
     public string LocalEndpoint { get; private set; } = string.Empty;
@@ -58,10 +77,16 @@ public sealed class OnlineNetworkService(
         try
         {
             using var client = await CreateAuthenticatedClientAsync(cancellationToken);
+            if (client is null)
+            {
+                return OperationResult<IReadOnlyList<OnlineNetworkSummary>>.CreateFailure(
+                    OnlineConstants.ErrorServiceUnavailable);
+            }
+
             var url = ApiConstants.OnlineNetworksEndpoint;
             if (!string.IsNullOrWhiteSpace(search))
             {
-                url += "?search=" + Uri.EscapeDataString(search.Trim());
+                url += string.Format(ApiConstants.OnlineNetworksSearchFormat, Uri.EscapeDataString(search.Trim()));
             }
 
             using var response = await client.GetAsync(url, cancellationToken);
@@ -96,6 +121,11 @@ public sealed class OnlineNetworkService(
         try
         {
             using var client = await CreateAuthenticatedClientAsync(cancellationToken);
+            if (client is null)
+            {
+                return OperationResult<OnlineNetworkDetail>.CreateFailure(OnlineConstants.ErrorServiceUnavailable);
+            }
+
             var url = string.Format(ApiConstants.OnlineNetworkByIdFormat, Uri.EscapeDataString(networkId));
             using var response = await client.GetAsync(url, cancellationToken);
             if (!response.IsSuccessStatusCode)
@@ -136,6 +166,11 @@ public sealed class OnlineNetworkService(
         {
             var endpoint = await ResolvePublicEndpointAsync(request.PreferRelay, cancellationToken);
             using var client = await CreateAuthenticatedClientAsync(cancellationToken);
+            if (client is null)
+            {
+                return OperationResult<OnlineJoinResult>.CreateFailure(OnlineConstants.ErrorServiceUnavailable);
+            }
+
             using var response = await client.PostAsJsonAsync(
                 ApiConstants.OnlineNetworksEndpoint, request with { Endpoint = endpoint }, cancellationToken);
             return await ActivateJoinFromResponseAsync(response, cancellationToken);
@@ -163,6 +198,11 @@ public sealed class OnlineNetworkService(
         {
             var endpoint = await ResolvePublicEndpointAsync(preferRelay, cancellationToken);
             using var client = await CreateAuthenticatedClientAsync(cancellationToken);
+            if (client is null)
+            {
+                return OperationResult<OnlineJoinResult>.CreateFailure(OnlineConstants.ErrorServiceUnavailable);
+            }
+
             var url = string.Format(ApiConstants.OnlineNetworkJoinFormat, Uri.EscapeDataString(networkId));
             using var response = await client.PostAsJsonAsync(
                 url, new { password, preferRelay, endpoint }, cancellationToken);
@@ -193,8 +233,7 @@ public sealed class OnlineNetworkService(
     /// <inheritdoc/>
     public async Task<OperationResult<bool>> LeaveNetworkAsync(CancellationToken cancellationToken = default)
     {
-        var join = CurrentJoin;
-        CurrentJoin = null;
+        var join = TakeJoin();
         LocalEndpoint = string.Empty;
 
         if (join is not null)
@@ -268,17 +307,17 @@ public sealed class OnlineNetworkService(
         if (request.Name.Length < OnlineConstants.MinNetworkNameLength ||
             request.Name.Length > OnlineConstants.MaxNetworkNameLength)
         {
-            return OperationResult<bool>.CreateFailure("Network name has an invalid length.");
+            return OperationResult<bool>.CreateFailure(OnlineConstants.ErrorInvalidName);
         }
 
         if (request.SlotsMax < 2 || request.SlotsMax > OnlineConstants.MaxSlotCap)
         {
-            return OperationResult<bool>.CreateFailure("Slot cap is out of range.");
+            return OperationResult<bool>.CreateFailure(OnlineConstants.ErrorInvalidSlots);
         }
 
         if (request.Password.Length > OnlineConstants.MaxPasswordLength)
         {
-            return OperationResult<bool>.CreateFailure("Password is too long.");
+            return OperationResult<bool>.CreateFailure(OnlineConstants.ErrorPasswordTooLong);
         }
 
         return OperationResult<bool>.CreateSuccess(true);
@@ -315,9 +354,14 @@ public sealed class OnlineNetworkService(
         return OnlineConstants.ErrorServiceUnavailable;
     }
 
-    private async Task<HttpClient> CreateAuthenticatedClientAsync(CancellationToken cancellationToken)
+    private async Task<HttpClient?> CreateAuthenticatedClientAsync(CancellationToken cancellationToken)
     {
         var token = await EnsureSessionAsync(cancellationToken);
+        if (token is null)
+        {
+            return null;
+        }
+
         var client = httpClientFactory.CreateClient(nameof(OnlineNetworkService));
         client.BaseAddress = new Uri(ApiConstants.OnlineEdgeBaseUrl);
         client.Timeout = TimeSpan.FromSeconds(OnlineConstants.HttpTimeoutSeconds);
@@ -325,7 +369,7 @@ public sealed class OnlineNetworkService(
         return client;
     }
 
-    private async Task<string> EnsureSessionAsync(CancellationToken cancellationToken)
+    private async Task<string?> EnsureSessionAsync(CancellationToken cancellationToken)
     {
         if (!string.IsNullOrEmpty(_sessionToken))
         {
@@ -349,7 +393,8 @@ public sealed class OnlineNetworkService(
             var session = await response.Content.ReadFromJsonAsync<Dictionary<string, string>>(cancellationToken);
             if (session is null || !session.TryGetValue("token", out var token) || string.IsNullOrWhiteSpace(token))
             {
-                throw new HttpRequestException("Session issuance returned no token.");
+                logger.LogWarning("Session issuance returned no token.");
+                return null;
             }
 
             _sessionToken = token;
@@ -402,6 +447,16 @@ public sealed class OnlineNetworkService(
         }
 
         return OperationResult<OnlineJoinResult>.CreateSuccess(join);
+    }
+
+    private OnlineJoinResult? TakeJoin()
+    {
+        lock (_joinLock)
+        {
+            var join = _currentJoin;
+            _currentJoin = null;
+            return join;
+        }
     }
 
     private void SubscribePresence()

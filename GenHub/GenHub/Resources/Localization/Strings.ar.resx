@@ -1924,6 +1924,9 @@
   <data name="Online.Error.PasswordTooShort" xml:space="preserve">
     <value>يجب أن تكون كلمة المرور 4 أحرف على الأقل.</value>
   </data>
+  <data name="Online.Error.PasswordTooLong" xml:space="preserve">
+    <value>يجب ألا تتجاوز كلمة المرور 128 حرفًا.</value>
+  </data>
   <data name="Online.Error.ReportFailed" xml:space="preserve">
     <value>فشل البلاغ. يرجى المحاولة مرة أخرى.</value>
   </data>
@@ -2031,6 +2034,9 @@
   </data>
   <data name="Online.Error.NetworkFull" xml:space="preserve">
     <value>هذه الشبكة ممتلئة.</value>
+  </data>
+  <data name="Online.Error.SlotsRange" xml:space="preserve">
+    <value>يجب أن يكون عدد الخانات بين 2 و 16.</value>
   </data>
   <data name="Online.Error.WrongPassword" xml:space="preserve">
     <value>كلمة مرور خاطئة لهذه الشبكة.</value>

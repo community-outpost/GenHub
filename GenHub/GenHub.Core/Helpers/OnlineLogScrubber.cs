@@ -39,9 +39,9 @@ public static partial class OnlineLogScrubber
     [GeneratedRegex(@"\b(?:\d{1,3}\.){3}\d{1,3}(?::\d{1,5})?\b", RegexOptions.Compiled)]
     private static partial Regex Ipv4Regex();
 
-    [GeneratedRegex(@"\b(?:[0-9A-Fa-f]{0,4}:){2,}[0-9A-Fa-f:.]+\b", RegexOptions.Compiled)]
+    [GeneratedRegex(@"\b(?:[0-9A-Fa-f:.]*::[0-9A-Fa-f:.]+|(?:[0-9A-Fa-f]{1,4}:){3,}[0-9A-Fa-f:.]+)\b", RegexOptions.Compiled)]
     private static partial Regex Ipv6Regex();
 
-    [GeneratedRegex(@"(?i)(bearer\s+|grant\s*[:=]\s*|password\s*[:=]\s*)[^\s;,""]+", RegexOptions.Compiled)]
+    [GeneratedRegex(@"(?i)(bearer\s+|(?:grant|password|ticket)\s*[""']?\s*[:=]\s*[""']?)[^\s;,""']+", RegexOptions.Compiled)]
     private static partial Regex BearerRegex();
 }

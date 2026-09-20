@@ -1,5 +1,7 @@
+using GenHub.Core.Constants;
 using GenHub.Core.Services.Online;
 using System;
+using System.IO;
 using System.Runtime.Versioning;
 
 namespace GenHub.Linux.Features.Online;
@@ -15,5 +17,12 @@ public sealed class LinuxOverlaySidecarLocator : OverlaySidecarLocatorBase
     protected override Environment.SpecialFolder BaseFolder => Environment.SpecialFolder.UserProfile;
 
     /// <inheritdoc/>
-    protected override string[] CandidateSegments => [".local", "share", "GenHub", "overlay", "genhub-overlay"];
+    protected override string[] CandidateSegments =>
+        [".local", "share", OnlineConstants.OverlayInstallDir, OnlineConstants.OverlaySubDir, OnlineConstants.OverlayUnixBinary];
+
+    /// <inheritdoc/>
+    protected override bool IsValidCandidate(string path)
+    {
+        return File.Exists(path) && HasExecutePermission(path);
+    }
 }

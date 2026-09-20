@@ -1,6 +1,6 @@
 using System.Net;
 
-namespace GenHub.Core.Interfaces.Online;
+namespace GenHub.Core.Models.Online;
 
 /// <summary>
 /// Local and STUN-resolved public endpoints for a P2P session.

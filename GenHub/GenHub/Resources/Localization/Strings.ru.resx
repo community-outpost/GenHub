@@ -1924,6 +1924,9 @@
   <data name="Online.Error.PasswordTooShort" xml:space="preserve">
     <value>Пароль должен содержать минимум 4 символа.</value>
   </data>
+  <data name="Online.Error.PasswordTooLong" xml:space="preserve">
+    <value>Пароль должен содержать не более 128 символов.</value>
+  </data>
   <data name="Online.Error.ReportFailed" xml:space="preserve">
     <value>Не удалось отправить жалобу. Попробуйте снова.</value>
   </data>
@@ -2031,6 +2034,9 @@
   </data>
   <data name="Online.Error.NetworkFull" xml:space="preserve">
     <value>В сети нет свободных мест.</value>
+  </data>
+  <data name="Online.Error.SlotsRange" xml:space="preserve">
+    <value>Число слотов должно быть от 2 до 16.</value>
   </data>
   <data name="Online.Error.WrongPassword" xml:space="preserve">
     <value>Неверный пароль сети.</value>

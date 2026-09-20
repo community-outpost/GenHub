@@ -10,10 +10,13 @@ export interface OnlineEnv {
   JOIN_GRANT_TTL_SECONDS?: string;
   TURN_TTL_SECONDS?: string;
   PRESENCE_TIMEOUT_SECONDS?: string;
+  EMPTY_NETWORK_TTL_SECONDS?: string;
   JOIN_RATE_LIMIT?: string;
   JOIN_RATE_WINDOW_SECONDS?: string;
   MAX_NETWORKS_PER_IP?: string;
   DIRECTORY_RATE_PER_MIN?: string;
+  REPORT_RATE_LIMIT?: string;
+  REPORT_RATE_WINDOW_SECONDS?: string;
   OVERLAY_SUBNET?: string;
   TURN_URIS?: string;
 }
@@ -26,6 +29,7 @@ export interface RoomMember {
   isHost: boolean;
   lastSeen: number;
   endpoint: string;
+  lastIp: string;
 }
 
 export interface PublicMember {
@@ -74,6 +78,7 @@ export interface RoomMeta {
   verifier: string;
   nextSlot: number;
   createdAt: string;
+  emptiedUtc: number;
 }
 
 export const QUALITY_UNKNOWN = 0;

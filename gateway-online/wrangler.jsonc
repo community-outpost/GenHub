@@ -2,7 +2,8 @@
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "genhub-online-edge",
   "main": "src/index.ts",
-  "compatibility_date": "2026-08-01",
+  // Keep in sync with vitest.config.ts and the pinned workers-types version.
+  "compatibility_date": "2025-01-01",
   "compatibility_flags": ["nodejs_compat"],
   "observability": {
     "enabled": true
@@ -25,6 +26,7 @@
     "JOIN_RATE_WINDOW_SECONDS": "600",
     "MAX_NETWORKS_PER_IP": "10",
     "DIRECTORY_RATE_PER_MIN": "600",
+    "EMPTY_NETWORK_TTL_SECONDS": "300",
     "OVERLAY_SUBNET": "10.42.0.0/20",
     "TURN_URIS": "turn:turn.example.invalid:3478"
   }
