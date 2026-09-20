@@ -1990,14 +1990,11 @@ public sealed class BuildEngineService(
         IReadOnlyList<BundlePack> projectPacks,
         IReadOnlyList<BundlePack> effectivePacks)
     {
-        var seenNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var definition in definitions)
+        var duplicateNames = FindDuplicateNames(definitions.Select(definition => definition.Name));
+        if (duplicateNames.Count > 0)
         {
-            if (!seenNames.Add(definition.Name))
-            {
-                return OperationResult<IReadOnlyList<ManifestPlanEntry>>.CreateFailure(
-                    $"Duplicate bundle manifest name: '{definition.Name}'. Manifest names must be unique.");
-            }
+            return OperationResult<IReadOnlyList<ManifestPlanEntry>>.CreateFailure(
+                $"Duplicate bundle manifest name: '{duplicateNames[0]}'. Manifest names must be unique.");
         }
 
         var packsByName = projectPacks.ToDictionary(p => p.Name, p => p, StringComparer.OrdinalIgnoreCase);

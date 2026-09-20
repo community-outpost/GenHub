@@ -804,20 +804,9 @@ public class ConfigurationLoaderService(ILogger<ConfigurationLoaderService> logg
             var bundlePacksPath = Path.Combine(configDir, ModBuilderConstants.BundlePacksConfigFileName);
             var bundleManifestsPath = Path.Combine(configDir, ModBuilderConstants.BundleManifestsConfigFileName);
 
-            if (File.Exists(bundleItemsPath) && !configFiles.Contains(bundleItemsPath, StringComparer.OrdinalIgnoreCase))
-            {
-                configFiles.Add(bundleItemsPath);
-            }
-
-            if (File.Exists(bundlePacksPath) && !configFiles.Contains(bundlePacksPath, StringComparer.OrdinalIgnoreCase))
-            {
-                configFiles.Add(bundlePacksPath);
-            }
-
-            if (File.Exists(bundleManifestsPath) && !configFiles.Contains(bundleManifestsPath, StringComparer.OrdinalIgnoreCase))
-            {
-                configFiles.Add(bundleManifestsPath);
-            }
+            AddConfigFileIfExists(configFiles, bundleItemsPath);
+            AddConfigFileIfExists(configFiles, bundlePacksPath);
+            AddConfigFileIfExists(configFiles, bundleManifestsPath);
 
             if (configFiles.Count == 0)
             {
@@ -832,6 +821,14 @@ public class ConfigurationLoaderService(ILogger<ConfigurationLoaderService> logg
             {
                 break;
             }
+        }
+    }
+
+    private static void AddConfigFileIfExists(List<string> configFiles, string path)
+    {
+        if (File.Exists(path) && !configFiles.Contains(path, StringComparer.OrdinalIgnoreCase))
+        {
+            configFiles.Add(path);
         }
     }
 
