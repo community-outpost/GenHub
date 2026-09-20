@@ -2166,6 +2166,123 @@ public class ContentStateServiceTests
         Assert.Null(unacquiredManifestId);
     }
 
+    /// <summary>
+    /// Verifies that a ModDB release row matches its own stored manifest after a restart even
+    /// though the row carries a display version ("1.85") while the manifest carries a release
+    /// date version ("20150401") and post-extraction manifest files carry no download URLs.
+    /// Linkage goes through the per-file detail URL both sides share.
+    /// </summary>
+    /// <returns>A completed task.</returns>
+    [Fact]
+    public async Task GetStateAsync_ModDbFileRow_AfterRestart_MatchesOwnManifestByDetailUrlAsync()
+    {
+        const string detailUrl185 = "https://www.moddb.com/mods/rise-of-the-reds/downloads/rise-of-the-reds-version-185";
+        var storedManifest = new ContentManifest
+        {
+            Id = ManifestId.Create("1.20150401.moddb.map.rise-of-the-reds-version-185"),
+            Name = "Rise of the Reds Version 1.85",
+            Version = "20150401",
+            ContentType = ContentType.Map,
+            TargetGame = GameType.ZeroHour,
+            OriginalProviderName = ModDBConstants.DiscovererSourceName,
+            OriginalContentId = detailUrl185,
+            Publisher = new PublisherInfo
+            {
+                Name = "ModDB",
+                PublisherType = ModDBConstants.PublisherType,
+            },
+            Files =
+            [
+                new ManifestFile
+                {
+                    RelativePath = "rotr185.gib",
+                    SourceType = ContentSourceType.ExtractedPackage,
+                },
+            ],
+        };
+
+        var pool = new Mock<IContentManifestPool>();
+        pool.Setup(p => p.GetAllManifestsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<System.Collections.Generic.IEnumerable<ContentManifest>>.CreateSuccess([storedManifest]));
+        pool.Setup(p => p.IsManifestAcquiredAsync(It.Is<ManifestId>(m => m.Value == storedManifest.Id.Value), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+        pool.Setup(p => p.IsManifestAcquiredAsync(It.Is<ManifestId>(m => m.Value != storedManifest.Id.Value), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(false));
+
+        var service = new ContentStateService(pool.Object, NullLogger<ContentStateService>.Instance);
+
+        var row185 = new ContentSearchResult
+        {
+            Id = ContentConstants.FileContentIdPrefix + detailUrl185,
+            Name = "Rise of the Reds Version 1.85",
+            Version = "1.85",
+            ProviderName = ModDBConstants.PublisherType,
+            ContentType = ContentType.Map,
+            TargetGame = GameType.ZeroHour,
+            SourceUrl = detailUrl185,
+            SelectedDownloadUrl = "https://www.moddb.com/downloads/start/185",
+        };
+        row185.ResolverMetadata[ContentConstants.ParentContentIdMetadataKey] = "moddb-rise-of-the-reds";
+
+        Assert.Equal(ContentState.Downloaded, await service.GetStateAsync(row185));
+        Assert.Equal(storedManifest.Id.Value, await service.GetLocalManifestIdAsync(row185));
+    }
+
+    /// <summary>
+    /// Verifies that installing one ModDB release does not mark its sibling releases as
+    /// installed: a sibling row with a different detail URL resolves to NotDownloaded with no
+    /// manifest, so Add to Profile can never target the wrong release.
+    /// </summary>
+    /// <returns>A completed task.</returns>
+    [Fact]
+    public async Task GetStateAsync_ModDbSiblingRow_DoesNotMatchOtherReleaseManifestAsync()
+    {
+        const string detailUrl185 = "https://www.moddb.com/mods/rise-of-the-reds/downloads/rise-of-the-reds-version-185";
+        var storedManifest = new ContentManifest
+        {
+            Id = ManifestId.Create("1.20150401.moddb.map.rise-of-the-reds-version-185"),
+            Name = "Rise of the Reds Version 1.85",
+            Version = "20150401",
+            ContentType = ContentType.Map,
+            TargetGame = GameType.ZeroHour,
+            OriginalProviderName = ModDBConstants.DiscovererSourceName,
+            OriginalContentId = detailUrl185,
+            Files =
+            [
+                new ManifestFile
+                {
+                    RelativePath = "rotr185.gib",
+                    SourceType = ContentSourceType.ExtractedPackage,
+                },
+            ],
+        };
+
+        var pool = new Mock<IContentManifestPool>();
+        pool.Setup(p => p.GetAllManifestsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<System.Collections.Generic.IEnumerable<ContentManifest>>.CreateSuccess([storedManifest]));
+        pool.Setup(p => p.IsManifestAcquiredAsync(It.IsAny<ManifestId>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(false));
+
+        var service = new ContentStateService(pool.Object, NullLogger<ContentStateService>.Instance);
+
+        const string detailUrl172 = "https://www.moddb.com/mods/rise-of-the-reds/downloads/rise-of-the-reds-version-172";
+        var row172 = new ContentSearchResult
+        {
+            Id = ContentConstants.FileContentIdPrefix + detailUrl172,
+            Name = "Rise of the Reds Version 1.72",
+            Version = "1.72",
+            ProviderName = ModDBConstants.PublisherType,
+            ContentType = ContentType.Map,
+            TargetGame = GameType.ZeroHour,
+            SourceUrl = detailUrl172,
+            SelectedDownloadUrl = "https://www.moddb.com/downloads/start/172",
+        };
+        row172.ResolverMetadata[ContentConstants.ParentContentIdMetadataKey] = "moddb-rise-of-the-reds";
+
+        Assert.Equal(ContentState.NotDownloaded, await service.GetStateAsync(row172));
+        Assert.Null(await service.GetLocalManifestIdAsync(row172));
+    }
+
     private static ContentSearchResult CreateSuperHackersCard(GameType gameType)
     {
         var item = new ContentSearchResult

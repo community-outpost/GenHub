@@ -589,10 +589,11 @@ public class ContentOrchestrator : IContentOrchestrator
             }
             finally
             {
-                // Cleanup staging directory
+                // Cleanup staging directory off the calling thread: deleting a large extracted
+                // tree synchronously janks the UI when acquisition resumes on it.
                 try
                 {
-                    FileOperationsService.DeleteDirectoryIfExists(stagingDir);
+                    await Task.Run(() => FileOperationsService.DeleteDirectoryIfExists(stagingDir));
                 }
                 catch (Exception ex)
                 {

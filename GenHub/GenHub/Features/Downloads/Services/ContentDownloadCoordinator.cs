@@ -1,4 +1,4 @@
-﻿using CommunityToolkit.Mvvm.Messaging;
+using CommunityToolkit.Mvvm.Messaging;
 using GenHub.Core.Constants;
 using GenHub.Core.Extensions;
 using GenHub.Core.Helpers;
@@ -372,6 +372,10 @@ public sealed class ContentDownloadCoordinator(
         ContentSearchResult searchResult,
         string key)
     {
+        // Extraction and hashing report per file; throttle the UI-bound fan-out so a large
+        // archive cannot saturate the UI thread and freeze the app. Bookkeeping below stays
+        // exact so late joiners still read the latest percentage.
+        var throttle = new DownloadProgressThrottle();
         return new Progress<ContentAcquisitionProgress>(p =>
         {
             var status = p.FormatProgressStatus();
@@ -384,6 +388,11 @@ public sealed class ContentDownloadCoordinator(
                 inFlight.LastStatusMessage = status;
                 callbacks = inFlight.ProgressCallbacks;
                 scope = inFlight.NotificationScope;
+            }
+
+            if (!throttle.ShouldForward(p.Phase, clampedPercentage))
+            {
+                return;
             }
 
             callbacks?.Invoke(p);

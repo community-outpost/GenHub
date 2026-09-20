@@ -1443,6 +1443,26 @@ public sealed partial class ContentStateService(
         return false;
     }
 
+    private static bool NamesAgree(string? itemName, string? manifestName)
+    {
+        return !string.IsNullOrWhiteSpace(itemName) &&
+            !string.IsNullOrWhiteSpace(manifestName) &&
+            string.Equals(itemName, manifestName, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool VersionsAgree(string? itemVersion, string? manifestVersion)
+    {
+        if (string.IsNullOrWhiteSpace(itemVersion) || string.IsNullOrWhiteSpace(manifestVersion))
+        {
+            return false;
+        }
+
+        return string.Equals(
+            itemVersion.Trim().TrimStart('v', 'V'),
+            manifestVersion.Trim().TrimStart('v', 'V'),
+            StringComparison.OrdinalIgnoreCase);
+    }
+
     private static bool FileRowMatchesManifest(ContentManifest manifest, ContentSearchResult item)
     {
         var checkUrl = !string.IsNullOrWhiteSpace(item.SelectedDownloadUrl) ? item.SelectedDownloadUrl : item.SourceUrl;
@@ -1451,6 +1471,21 @@ public sealed partial class ContentStateService(
                                        string.Equals(f.DownloadUrl, checkUrl, StringComparison.OrdinalIgnoreCase)) == true) ||
              (!string.IsNullOrWhiteSpace(manifest.Publisher?.ContentIndexUrl) &&
               string.Equals(manifest.Publisher.ContentIndexUrl, checkUrl, StringComparison.OrdinalIgnoreCase))))
+        {
+            return true;
+        }
+
+        // ModDB release rows resolve per-file detail URLs into per-release manifests whose
+        // OriginalContentId is the resolve-time SourceUrl. Link them exactly, but only when the
+        // row and manifest also agree on name or version so sibling releases sharing a parent
+        // page URL can never match each other.
+        if (!string.IsNullOrWhiteSpace(item.SourceUrl) &&
+            !string.IsNullOrWhiteSpace(manifest.OriginalContentId) &&
+            string.Equals(
+                manifest.OriginalContentId.TrimEnd('/'),
+                item.SourceUrl.TrimEnd('/'),
+                StringComparison.OrdinalIgnoreCase) &&
+            (NamesAgree(item.Name, manifest.Name) || VersionsAgree(item.Version, manifest.Version)))
         {
             return true;
         }
@@ -1768,6 +1803,9 @@ public sealed partial class ContentStateService(
                 string.Equals(manifest.OriginalContentId, item.Id, StringComparison.OrdinalIgnoreCase) ||
                 (item.ResolverMetadata?.TryGetValue(ContentConstants.ParentContentIdMetadataKey, out var parentId) == true &&
                  string.Equals(manifest.OriginalContentId, parentId, StringComparison.OrdinalIgnoreCase) &&
+                 FileRowMatchesManifest(manifest, item)) ||
+                (!string.IsNullOrWhiteSpace(item.SourceUrl) &&
+                 string.Equals(manifest.OriginalContentId.TrimEnd('/'), item.SourceUrl.TrimEnd('/'), StringComparison.OrdinalIgnoreCase) &&
                  FileRowMatchesManifest(manifest, item)))) ||
             (!string.IsNullOrWhiteSpace(item.SelectedDownloadUrl) && (
                 (manifest.Files?.Any(file =>
@@ -2152,6 +2190,17 @@ public sealed partial class ContentStateService(
         if (persistedManifest == null)
         {
             return null;
+        }
+
+        // File rows (release/addon rows) already matched at file level; exact provenance
+        // linkage identifies the row's own manifest regardless of version-string schemes,
+        // which differ per publisher (ModDB rows carry display versions like "1.85" while
+        // manifests carry dates). Version heuristics below must not veto that linkage.
+        var isFileRow = (!string.IsNullOrEmpty(item.Id) && item.Id.StartsWith(FileSchemePrefix, StringComparison.OrdinalIgnoreCase)) ||
+            !string.IsNullOrWhiteSpace(item.SelectedDownloadUrl);
+        if (isFileRow && IsSameContentSource(persistedManifest, item))
+        {
+            return persistedManifest.Id.Value;
         }
 
         bool canCompareVersion = (hasRealDate && releaseDate > DateTime.MinValue) ||

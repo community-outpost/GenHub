@@ -937,6 +937,9 @@ public sealed class PlaywrightService(
         System.Diagnostics.Stopwatch stopwatch,
         CancellationToken cancellationToken)
     {
+        // Snapshot before the page is created: a fresh context launch already notifies via
+        // "Opening ModDB Browser", so the per-download toast must not stack on top of it.
+        var contextAlreadyAlive = !usePersistentModDbProfile || IsPersistentContextAlive();
         var page = usePersistentModDbProfile
             ? await CreatePersistentPageAsync(ModDBConstants.BrowserProfileName, cancellationToken)
             : await CreatePageAsync(cancellationToken: cancellationToken);
@@ -959,12 +962,16 @@ public sealed class PlaywrightService(
                 await page.SetExtraHTTPHeadersAsync(requestHeaders);
             }
 
-            if (usePersistentModDbProfile)
+            if (usePersistentModDbProfile && contextAlreadyAlive)
             {
                 logger.LogInformation("Using persistent ModDB browser profile for protected download {Url}", configuration.Url);
                 NotifyBrowserWindowOpening(
                     "ModDB download starting",
                     "A browser window is opening to download this file. Wait for the download to finish and do not click anything in that window.");
+            }
+            else if (usePersistentModDbProfile)
+            {
+                logger.LogInformation("Using persistent ModDB browser profile for protected download {Url}", configuration.Url);
             }
 
             // ModDB frequently hands the actual binary off to a new tab/popup rather than the page

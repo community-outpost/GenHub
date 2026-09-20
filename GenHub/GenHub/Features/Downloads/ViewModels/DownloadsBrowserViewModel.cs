@@ -2154,8 +2154,11 @@ public sealed partial class DownloadsBrowserViewModel(
 
             var selectedVariantId = item.SelectedVariant?.ManifestId ?? item.SelectedVariant?.Name;
 
+            // Pass a snapshot: the card keeps swapping its live result on variant changes and
+            // the detail view rewrites IDs during downloads. Sharing one instance corrupts the
+            // Releases tab (parsed page data lost) and the card's selected variant.
             var vm = new ContentDetailViewModel(
-                item.SearchResult,
+                VariantSwap.Clone(item.SearchResult),
                 parsers,
                 profileContentService,
                 profileManager,

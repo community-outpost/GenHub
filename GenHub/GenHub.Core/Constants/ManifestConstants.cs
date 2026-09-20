@@ -57,6 +57,14 @@ public static class ManifestConstants
     public const int NotificationUpdateThrottleMs = 500;
 
     /// <summary>
+    /// Minimum interval in milliseconds between download progress fan-outs (toast updates,
+    /// progress callbacks, messenger broadcasts) from the download coordinator. Extraction and
+    /// hashing report per file; without throttling a large archive floods the UI thread and the
+    /// app appears frozen. Phase changes and completion always bypass the throttle.
+    /// </summary>
+    public const int DownloadProgressBroadcastThrottleMs = 150;
+
+    /// <summary>
     /// Maximum number of missing required files to list in warning notifications before truncating.
     /// </summary>
     public const int MaxMissingFilesNotificationDisplayCount = 5;

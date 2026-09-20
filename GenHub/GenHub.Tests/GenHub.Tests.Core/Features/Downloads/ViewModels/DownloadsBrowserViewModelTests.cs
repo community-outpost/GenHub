@@ -1683,11 +1683,14 @@ public class DownloadsBrowserViewModelTests
             TargetGame = GameType.ZeroHour,
         };
 
+        // Match by catalog id: the detail view receives a snapshot of the card's search
+        // result (so variant swaps and id rewrites cannot corrupt the card), and state
+        // resolution is value-based, so reference-identity matching would miss it.
         stateServiceMock
-            .Setup(s => s.GetStateAsync(sr, It.IsAny<CancellationToken>()))
+            .Setup(s => s.GetStateAsync(It.Is<ContentSearchResult>(r => r.Id == prospectiveCatalogId), It.IsAny<CancellationToken>()))
             .ReturnsAsync(ContentState.UpdateAvailable);
         stateServiceMock
-            .Setup(s => s.GetLocalManifestIdAsync(sr, It.IsAny<CancellationToken>()))
+            .Setup(s => s.GetLocalManifestIdAsync(It.Is<ContentSearchResult>(r => r.Id == prospectiveCatalogId), It.IsAny<CancellationToken>()))
             .ReturnsAsync(oldLocalManifestId);
 
         var item = new ContentGridItemViewModel(sr, stateServiceMock.Object, new Mock<ILogger<ContentGridItemViewModel>>().Object)

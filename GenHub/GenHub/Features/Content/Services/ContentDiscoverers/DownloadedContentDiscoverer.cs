@@ -7,6 +7,7 @@ using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Results.Content;
+using GenHub.Features.Content.Services.GeneralsOnline;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
@@ -87,9 +88,23 @@ public sealed class DownloadedContentDiscoverer(
 
         PrefetchPageArtwork(pageItems, cancellationToken);
 
+        // Map defensively: one malformed manifest must not fail the whole library page.
+        var items = new List<ContentSearchResult>(pageItems.Count);
+        foreach (var manifest in pageItems)
+        {
+            try
+            {
+                items.Add(ToSearchResult(manifest));
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Skipping downloaded manifest {ManifestId} that failed to map to a search result", manifest.Id.Value);
+            }
+        }
+
         return OperationResult<ContentDiscoveryResult>.CreateSuccess(new ContentDiscoveryResult
         {
-            Items = pageItems.Select(ToSearchResult).ToList(),
+            Items = items,
             HasMoreItems = skip + pageItems.Count < total,
             TotalItems = total,
         });
@@ -161,6 +176,39 @@ public sealed class DownloadedContentDiscoverer(
             manifest.Id.Value));
     }
 
+    private static string? ResolveVariantGroupId(ContentManifest manifest)
+    {
+        if (!string.IsNullOrWhiteSpace(manifest.Metadata?.VariantGroupId))
+        {
+            return manifest.Metadata.VariantGroupId;
+        }
+
+        // Legacy GeneralsOnline pool entries predate version grouping; derive it so the game
+        // client, game data patch, and mappack of one release collapse into one card. Other
+        // publishers are untouched: coincidental version equality must never merge them.
+        if (GeneralsOnlineVariantGrouping.IsGeneralsOnlineManifest(manifest))
+        {
+            return GeneralsOnlineVariantGrouping.BuildVariantGroupId(manifest.Version);
+        }
+
+        return null;
+    }
+
+    private static string? ResolveVariantFamilyName(ContentManifest manifest)
+    {
+        if (!string.IsNullOrWhiteSpace(manifest.Metadata?.VariantFamilyName))
+        {
+            return manifest.Metadata.VariantFamilyName;
+        }
+
+        if (GeneralsOnlineVariantGrouping.IsGeneralsOnlineManifest(manifest))
+        {
+            return GeneralsOnlineVariantGrouping.BuildVariantFamilyName(manifest.Version);
+        }
+
+        return null;
+    }
+
     private static string? ResolveCoverFallback(ContentManifest manifest)
     {
         if (manifest.ContentType == ContentType.GameClient)
@@ -228,8 +276,8 @@ public sealed class DownloadedContentDiscoverer(
             Data = manifest,
             RequiresResolution = false,
             SourceUrl = manifest.SourcePath,
-            VariantGroupId = manifest.Metadata?.VariantGroupId,
-            VariantFamilyName = manifest.Metadata?.VariantFamilyName,
+            VariantGroupId = ResolveVariantGroupId(manifest),
+            VariantFamilyName = ResolveVariantFamilyName(manifest),
         };
 
         if (manifest.Metadata?.ScreenshotUrls is { Count: > 0 } screenshots)

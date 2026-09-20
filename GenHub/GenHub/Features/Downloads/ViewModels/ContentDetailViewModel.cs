@@ -2360,21 +2360,31 @@ public partial class ContentDetailViewModel(
                     (!string.IsNullOrEmpty(value.ManifestId) && string.Equals(match.DownloadedManifestId, value.ManifestId, StringComparison.OrdinalIgnoreCase)) ||
                     string.Equals(match.Name, value.Name, StringComparison.OrdinalIgnoreCase);
 
+                // Only an exact manifest or name match may flip row state: fuzzy
+                // substring matches routinely pick a sibling release and would show
+                // "Add to Profile" on the wrong row. The row's own async state probe
+                // corrects display state; selection below is still harmless.
                 if (value.CurrentState == ContentState.Downloaded)
                 {
-                    match.IsDownloaded = true;
-                    if (isExactManifestOrNameMatch && !string.IsNullOrEmpty(value.ManifestId) && ManifestIdValidator.IsValid(value.ManifestId, out _))
+                    if (isExactManifestOrNameMatch)
                     {
-                        match.DownloadedManifestId = value.ManifestId;
+                        match.IsDownloaded = true;
+                        if (!string.IsNullOrEmpty(value.ManifestId) && ManifestIdValidator.IsValid(value.ManifestId, out _))
+                        {
+                            match.DownloadedManifestId = value.ManifestId;
+                        }
                     }
                 }
                 else if (value.CurrentState == ContentState.UpdateAvailable)
                 {
-                    match.IsDownloaded = true;
-                    match.IsUpdateAvailable = true;
-                    if (isExactManifestOrNameMatch && !string.IsNullOrEmpty(value.ManifestId) && ManifestIdValidator.IsValid(value.ManifestId, out _))
+                    if (isExactManifestOrNameMatch)
                     {
-                        match.DownloadedManifestId = value.ManifestId;
+                        match.IsDownloaded = true;
+                        match.IsUpdateAvailable = true;
+                        if (!string.IsNullOrEmpty(value.ManifestId) && ManifestIdValidator.IsValid(value.ManifestId, out _))
+                        {
+                            match.DownloadedManifestId = value.ManifestId;
+                        }
                     }
                 }
 
@@ -2729,27 +2739,46 @@ public partial class ContentDetailViewModel(
 
                 if (IsDownloaded && Releases.Count > 0)
                 {
-                    var matchingRelease = Releases.Count == 1 &&
+                    var isSingleExactRelease = Releases.Count == 1 &&
                         (string.Equals(Releases[0].Name, searchResult.Name, StringComparison.OrdinalIgnoreCase) ||
-                         string.Equals(Releases[0].Version, searchResult.Version, StringComparison.OrdinalIgnoreCase))
+                         string.Equals(Releases[0].Version, searchResult.Version, StringComparison.OrdinalIgnoreCase));
+                    var matchingRelease = isSingleExactRelease
                         ? Releases[0]
                         : Releases.FirstOrDefault(r =>
-                            (!string.IsNullOrEmpty(localManifestId) && string.Equals(r.DownloadedManifestId, localManifestId, StringComparison.OrdinalIgnoreCase)) ||
-                            (!string.IsNullOrEmpty(searchResult.Version) && string.Equals(r.Version, searchResult.Version, StringComparison.OrdinalIgnoreCase)) ||
-                            (!string.IsNullOrEmpty(searchResult.Name) && string.Equals(r.Name, searchResult.Name, StringComparison.OrdinalIgnoreCase)));
+                            !string.IsNullOrEmpty(localManifestId) && string.Equals(r.DownloadedManifestId, localManifestId, StringComparison.OrdinalIgnoreCase))
+                        ?? Releases.FirstOrDefault(r =>
+                            !string.IsNullOrEmpty(searchResult.Version) && string.Equals(r.Version, searchResult.Version, StringComparison.OrdinalIgnoreCase))
+                        ?? Releases.FirstOrDefault(r =>
+                            !string.IsNullOrEmpty(searchResult.Name) && string.Equals(r.Name, searchResult.Name, StringComparison.OrdinalIgnoreCase));
 
                     if (matchingRelease != null)
                     {
                         matchingRelease.IsDownloaded = true;
                         matchingRelease.IsUpdateAvailable = IsUpdateAvailable;
+
+                        // Bind the on-disk manifest only on exact identity: a single exact release,
+                        // a row already resolved to this manifest, or (when the parent itself is
+                        // downloaded with no update pending, so the local manifest IS this release)
+                        // a row whose version exactly matches the parent. A loose name match, or any
+                        // match while an update is pending (local manifest is the older release),
+                        // must never point Add to Profile at another release's manifest.
+                        var matchedByExactVersion = !string.IsNullOrEmpty(searchResult.Version) &&
+                            string.Equals(matchingRelease.Version, searchResult.Version, StringComparison.OrdinalIgnoreCase);
+                        var isExactIdentity = isSingleExactRelease ||
+                            (state == ContentState.Downloaded && matchedByExactVersion) ||
+                            (!string.IsNullOrEmpty(localManifestId) &&
+                             string.Equals(matchingRelease.DownloadedManifestId, localManifestId, StringComparison.OrdinalIgnoreCase));
                         string? manifestIdForRelease = null;
-                        if (!string.IsNullOrEmpty(localManifestId) && ManifestIdValidator.IsValid(localManifestId, out _))
+                        if (isExactIdentity)
                         {
-                            manifestIdForRelease = localManifestId;
-                        }
-                        else if (!string.IsNullOrEmpty(searchResult.Id) && ManifestIdValidator.IsValid(searchResult.Id, out _))
-                        {
-                            manifestIdForRelease = searchResult.Id;
+                            if (!string.IsNullOrEmpty(localManifestId) && ManifestIdValidator.IsValid(localManifestId, out _))
+                            {
+                                manifestIdForRelease = localManifestId;
+                            }
+                            else if (!string.IsNullOrEmpty(searchResult.Id) && ManifestIdValidator.IsValid(searchResult.Id, out _))
+                            {
+                                manifestIdForRelease = searchResult.Id;
+                            }
                         }
 
                         if (!string.IsNullOrEmpty(manifestIdForRelease))
@@ -4496,15 +4525,9 @@ public partial class ContentDetailViewModel(
             DownloadProgress = 0;
             DownloadStatusMessage = ContentConstants.StartingDownloadStatusMessage;
 
-            if (ContentCardBadgeHelper.IsModDb(targetContent))
-            {
-                notificationService.ShowInfo(
-                    GetLocalizedString("Downloads.ContentDetail.ModDbDownloadStartingTitle", "ModDB download starting"),
-                    GetLocalizedString(
-                        "Downloads.ContentDetail.ModDbDownloadStartingMessage",
-                        "A browser window will open to fetch this file. Wait for the download to finish and do not click anything in that window."),
-                    autoDismissMs: NotificationDurations.VeryLong);
-            }
+            // No pre-download toast here: the coordinator owns the pinned "Downloading ..."
+            // notification and Playwright announces its own browser window. An extra toast from
+            // this view stacked 3-4 ModDB notifications for a single download.
 
             // Use the ContentDownloadCoordinator to properly acquire content. Coalesce progress
             // updates so the bar never moves backward and the status text does not churn on every

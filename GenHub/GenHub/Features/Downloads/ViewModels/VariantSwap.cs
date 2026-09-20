@@ -180,8 +180,20 @@ public static class VariantSwap
         target.SourceUrl = source.SourceUrl;
         target.DownloadSize = source.DownloadSize;
         target.LastUpdated = source.LastUpdated;
-        target.ParsedPageData = source.ParsedPageData;
-        target.Data = source.Data;
+
+        // Only overwrite aggregated payloads when the variant carries its own. GenLauncher
+        // child variants (patches/addons) have no page data; the parent's aggregated file
+        // list must survive variant selection so the detail Releases tab keeps working.
+        if (source.ParsedPageData != null)
+        {
+            target.ParsedPageData = source.ParsedPageData;
+        }
+
+        if (source.Data != null)
+        {
+            target.Data = source.Data;
+        }
+
         target.RequiresResolution = source.RequiresResolution;
         target.ResolverId = source.ResolverId;
         target.ProviderName = source.ProviderName;
