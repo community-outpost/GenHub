@@ -26,8 +26,12 @@ public class GitHubAuthService(
     ILogger<GitHubAuthService> logger) : IGitHubAuthService
 {
     private readonly object _syncLock = new();
+    private readonly SemaphoreSlim _credentialGate = new(1, 1);
     private GitHubUserProfile? _currentUser;
     private bool _sessionSignedOut;
+    private bool _sessionExpired;
+    private bool _credentialUnusable;
+    private volatile int _credentialGeneration;
 
     /// <inheritdoc />
     public bool IsAuthenticated
@@ -36,7 +40,7 @@ public class GitHubAuthService(
         {
             lock (_syncLock)
             {
-                if (_sessionSignedOut)
+                if (_sessionSignedOut || _sessionExpired || _credentialUnusable)
                 {
                     return false;
                 }
@@ -53,7 +57,19 @@ public class GitHubAuthService(
         {
             lock (_syncLock)
             {
-                return _sessionSignedOut ? null : _currentUser;
+                return _sessionSignedOut || _sessionExpired || _credentialUnusable ? null : _currentUser;
+            }
+        }
+    }
+
+    /// <inheritdoc />
+    public bool IsSessionExpired
+    {
+        get
+        {
+            lock (_syncLock)
+            {
+                return _sessionExpired;
             }
         }
     }
@@ -160,6 +176,7 @@ public class GitHubAuthService(
                 return OperationResult<GitHubUserProfile>.CreateFailure(persistError);
             }
 
+            ClearSessionErrorState();
             SetCurrentUser(profile);
             RaiseAuthStateChanged(true, profile);
             logger.LogInformation("Signed in to GitHub as {Login}", profile.Login);
@@ -224,7 +241,7 @@ public class GitHubAuthService(
         _ = cancellationToken;
         lock (_syncLock)
         {
-            if (_sessionSignedOut)
+            if (_sessionSignedOut || _sessionExpired || _credentialUnusable)
             {
                 return Task.FromResult<SecureString?>(null);
             }
@@ -240,6 +257,8 @@ public class GitHubAuthService(
         lock (_syncLock)
         {
             _sessionSignedOut = true;
+            _sessionExpired = false;
+            _credentialUnusable = false;
             _currentUser = null;
         }
 
@@ -308,38 +327,53 @@ public class GitHubAuthService(
             return "GitHub sign-in was cancelled.";
         }
 
-        using var secureToken = SecureStringHelper.ToSecureString(accessToken);
-        if (tokenStorage != null)
+        // Hold the gate from the save through the generation bump so a concurrent
+        // rejected-token cleanup either finishes before this save or observes the new
+        // generation and leaves the fresh token alone.
+        await _credentialGate.WaitAsync().ConfigureAwait(false);
+        try
         {
-            try
+            using var secureToken = SecureStringHelper.ToSecureString(accessToken);
+            if (tokenStorage != null)
             {
-                await tokenStorage.SaveTokenAsync(secureToken).ConfigureAwait(false);
+                try
+                {
+                    await tokenStorage.SaveTokenAsync(secureToken).ConfigureAwait(false);
+                }
+                catch (IOException ex)
+                {
+                    logger.LogWarning(ex, "Failed to save GitHub token after device authorization");
+                    return $"GitHub sign-in succeeded, but the token could not be saved: {ex.Message}";
+                }
+                catch (UnauthorizedAccessException ex)
+                {
+                    logger.LogWarning(ex, "Failed to save GitHub token after device authorization");
+                    return $"GitHub sign-in succeeded, but the token could not be saved: {ex.Message}";
+                }
             }
-            catch (IOException ex)
+            else
             {
-                logger.LogWarning(ex, "Failed to save GitHub token after device authorization");
-                return $"GitHub sign-in succeeded, but the token could not be saved: {ex.Message}";
+                logger.LogWarning("No token storage available; GitHub login lasts for this session only");
             }
-            catch (UnauthorizedAccessException ex)
-            {
-                logger.LogWarning(ex, "Failed to save GitHub token after device authorization");
-                return $"GitHub sign-in succeeded, but the token could not be saved: {ex.Message}";
-            }
-        }
-        else
-        {
-            logger.LogWarning("No token storage available; GitHub login lasts for this session only");
-        }
 
-        if (IsSessionSignedOut())
-        {
-            // Sign-out ran while the save was in flight. Remove the file this attempt
-            // just wrote so a later launch does not resurrect a signed-out session.
-            await DeleteStoredTokenBestEffortAsync().ConfigureAwait(false);
-            return "GitHub sign-in was cancelled.";
-        }
+            if (IsSessionSignedOut())
+            {
+                // Sign-out ran while the save was in flight. Remove the file this attempt
+                // just wrote so a later launch does not resurrect a signed-out session.
+                await DeleteStoredTokenBestEffortAsync().ConfigureAwait(false);
+                return "GitHub sign-in was cancelled.";
+            }
 
-        return null;
+            // A fresh credential supersedes any in-flight profile fetch: a late rejection
+            // for the previous credential must neither re-latch an error state nor delete
+            // the token just saved.
+            Interlocked.Increment(ref _credentialGeneration);
+            return null;
+        }
+        finally
+        {
+            _credentialGate.Release();
+        }
     }
 
     private async Task DeleteStoredTokenBestEffortAsync()
@@ -431,15 +465,27 @@ public class GitHubAuthService(
     private async Task<GitHubUserProfile?> FetchUserProfileAsync(CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
+        var credentialGeneration = _credentialGeneration;
+        var hasCredential = false;
         try
         {
-            await EnsureClientCredentialsAsync().ConfigureAwait(false);
+            hasCredential = await EnsureClientCredentialsAsync().ConfigureAwait(false);
             var user = await gitHubClient.User.Current().ConfigureAwait(false);
             return new GitHubUserProfile(user.Login, user.Id, user.Name, user.AvatarUrl, user.HtmlUrl);
         }
         catch (AuthorizationException ex)
         {
-            logger.LogWarning(ex, "GitHub token was rejected while loading the user profile");
+            if (hasCredential)
+            {
+                logger.LogWarning(ex, "GitHub token was rejected while loading the user profile");
+                await MarkSessionExpiredAsync(credentialGeneration).ConfigureAwait(false);
+            }
+            else
+            {
+                logger.LogWarning(ex, "GitHub profile lookup was rejected without a credential to present");
+                MarkCredentialUnusable(credentialGeneration);
+            }
+
             return null;
         }
         catch (ApiException ex)
@@ -461,6 +507,9 @@ public class GitHubAuthService(
 
     private void BeginLoginAttempt()
     {
+        // An abandoned login attempt must not clear the expired flag: only a successful
+        // sign-in or an explicit sign-out does, so the UI keeps reporting the rejected
+        // session instead of flipping back to a signed in state it cannot honor.
         lock (_syncLock)
         {
             _sessionSignedOut = false;
@@ -475,18 +524,89 @@ public class GitHubAuthService(
         }
     }
 
-    private async Task EnsureClientCredentialsAsync()
+    private async Task MarkSessionExpiredAsync(int credentialGeneration)
+    {
+        // Hold the gate across the check and the cleanup so a concurrent sign-in either
+        // persists fully before this check (and is then left alone) or only after this
+        // cleanup has finished (and then survives it).
+        await _credentialGate.WaitAsync().ConfigureAwait(false);
+        try
+        {
+            lock (_syncLock)
+            {
+                // An explicit sign-out always wins: a slow in-flight profile fetch must not
+                // re-latch the expired flag after the user has deliberately signed out.
+                // A rejection is also ignored once a newer credential was saved, so a stale
+                // failure can neither resurrect the expired state nor delete the fresh token.
+                if (_sessionExpired || _sessionSignedOut || credentialGeneration != _credentialGeneration)
+                {
+                    return;
+                }
+
+                _sessionExpired = true;
+                _currentUser = null;
+            }
+
+            // Drop the rejected credential from the shared client so later API calls fail fast
+            // as anonymous instead of replaying a token GitHub already refused.
+            SetClientCredentials(Credentials.Anonymous);
+
+            // Remove the rejected token from storage so the next launch does not reload and
+            // re-reject the same known-bad credential, showing the expired state every time.
+            await DeleteStoredTokenBestEffortAsync().ConfigureAwait(false);
+            RaiseAuthStateChanged(false, null);
+        }
+        finally
+        {
+            _credentialGate.Release();
+        }
+    }
+
+    private void MarkCredentialUnusable(int credentialGeneration)
+    {
+        lock (_syncLock)
+        {
+            // A stored credential exists but could not be loaded, and no credential was
+            // presented: report signed out without deleting a file that was never rejected
+            // and without raising the expired state reserved for refused credentials.
+            // Stale failures and post-sign-out failures stay silent; sign-out and the
+            // first failure already notified consumers.
+            if (_credentialUnusable || _sessionExpired || _sessionSignedOut || credentialGeneration != _credentialGeneration)
+            {
+                return;
+            }
+
+            _credentialUnusable = true;
+            _currentUser = null;
+        }
+
+        RaiseAuthStateChanged(false, null);
+    }
+
+    private void ClearSessionErrorState()
+    {
+        lock (_syncLock)
+        {
+            _sessionExpired = false;
+            _credentialUnusable = false;
+        }
+    }
+
+    private async Task<bool> EnsureClientCredentialsAsync()
     {
         if (HasClientCredentials())
         {
-            return;
+            return true;
         }
 
         using var token = await LoadAccessTokenAsync().ConfigureAwait(false);
         if (token is { Length: > 0 })
         {
             SetClientCredentials(new Credentials(SecureStringHelper.ToUnsecureString(token)));
+            return true;
         }
+
+        return false;
     }
 
     private void SetCurrentUser(GitHubUserProfile profile)

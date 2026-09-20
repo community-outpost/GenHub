@@ -512,6 +512,108 @@ public class FileOperationsServiceTests : IDisposable
     }
 
     /// <summary>
+    /// Tests that WriteAllBytesAtomicAsync lands the exact bytes while leaving no temporary files behind.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task WriteAllBytesAtomicAsync_WritesContentWithoutTempLeftoversAsync()
+    {
+        var filePath = Path.Combine(_tempDir, "atomic.bin");
+        var content = new byte[] { 1, 2, 3, 4 };
+
+        await FileOperationsService.WriteAllBytesAtomicAsync(filePath, content);
+
+        Assert.Equal(content, await File.ReadAllBytesAsync(filePath));
+        Assert.Single(Directory.GetFiles(_tempDir));
+    }
+
+    /// <summary>
+    /// Tests that WriteAllBytesAtomicAsync overwrites an existing file.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task WriteAllBytesAtomicAsync_OverwritesExistingFileAsync()
+    {
+        var filePath = Path.Combine(_tempDir, "atomic-overwrite.bin");
+        await File.WriteAllTextAsync(filePath, "stale content");
+        var content = new byte[] { 9, 8, 7 };
+
+        await FileOperationsService.WriteAllBytesAtomicAsync(filePath, content);
+
+        Assert.Equal(content, await File.ReadAllBytesAsync(filePath));
+        Assert.Single(Directory.GetFiles(_tempDir));
+    }
+
+    /// <summary>
+    /// Tests that a rename blocked by a momentary open handle succeeds once the handle is released.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task MoveFileWithRetryAsync_WithTransientLock_RetriesAndSucceedsAsync()
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            // POSIX rename succeeds over open files; the retry only engages on Windows.
+            return;
+        }
+
+        var sourcePath = Path.Combine(_tempDir, "retry-source.bin");
+        var destinationPath = Path.Combine(_tempDir, "retry-destination.bin");
+        await File.WriteAllTextAsync(sourcePath, "new");
+        await File.WriteAllTextAsync(destinationPath, "old");
+
+        // Hold the destination open the way a concurrent reader does, then release it
+        // well before the first retry delay elapses so the first attempt deterministically
+        // fails and the retry deterministically succeeds.
+        var holder = new FileStream(destinationPath, System.IO.FileMode.Open, System.IO.FileAccess.Read, System.IO.FileShare.Read);
+        try
+        {
+            var releaser = Task.Run(async () =>
+            {
+                await Task.Delay(20);
+                await holder.DisposeAsync();
+            });
+
+            await FileOperationsService.MoveFileWithRetryAsync(sourcePath, destinationPath);
+            await releaser;
+
+            Assert.Equal("new", await File.ReadAllTextAsync(destinationPath));
+            Assert.False(File.Exists(sourcePath));
+        }
+        finally
+        {
+            holder.Dispose();
+        }
+    }
+
+    /// <summary>
+    /// Tests that a rename blocked for the whole retry budget surfaces the original error
+    /// with neither file half-moved.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task MoveFileWithRetryAsync_WithPersistentLock_ThrowsOriginalExceptionAsync()
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            // POSIX rename succeeds over open files; the retry only engages on Windows.
+            return;
+        }
+
+        var sourcePath = Path.Combine(_tempDir, "blocked-source.bin");
+        var destinationPath = Path.Combine(_tempDir, "blocked-destination.bin");
+        await File.WriteAllTextAsync(sourcePath, "new");
+        await File.WriteAllTextAsync(destinationPath, "old");
+        using var holder = new FileStream(destinationPath, System.IO.FileMode.Open, System.IO.FileAccess.Read, System.IO.FileShare.Read);
+
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(
+            () => FileOperationsService.MoveFileWithRetryAsync(sourcePath, destinationPath));
+
+        Assert.True(File.Exists(sourcePath));
+        Assert.Equal("old", await File.ReadAllTextAsync(destinationPath));
+    }
+
+    /// <summary>
     /// Performs cleanup by disposing of temporary resources.
     /// </summary>
     public void Dispose()

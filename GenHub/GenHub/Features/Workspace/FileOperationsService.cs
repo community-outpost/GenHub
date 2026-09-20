@@ -137,6 +137,38 @@ public class FileOperationsService(
     }
 
     /// <summary>
+    /// Writes bytes to a file atomically by writing to a temporary file in the same directory
+    /// and renaming it into place, so a concurrent or crashing reader never observes a truncated file.
+    /// </summary>
+    /// <param name="destinationPath">The destination file path.</param>
+    /// <param name="content">The bytes to write.</param>
+    /// <param name="cancellationToken">A cancellation token.</param>
+    /// <returns>A task representing the asynchronous write operation.</returns>
+    public static async Task WriteAllBytesAtomicAsync(
+        string destinationPath,
+        byte[] content,
+        CancellationToken cancellationToken = default)
+    {
+        EnsureDirectoryExists(destinationPath);
+        var directory = Path.GetDirectoryName(destinationPath) ?? string.Empty;
+        var tempPath = Path.Combine(directory, $"{Path.GetFileName(destinationPath)}.{Guid.NewGuid():N}.tmp");
+        var moved = false;
+        try
+        {
+            await File.WriteAllBytesAsync(tempPath, content, cancellationToken).ConfigureAwait(false);
+            await MoveFileWithRetryAsync(tempPath, destinationPath, cancellationToken).ConfigureAwait(false);
+            moved = true;
+        }
+        finally
+        {
+            if (!moved)
+            {
+                DeleteFileIfExists(tempPath);
+            }
+        }
+    }
+
+    /// <summary>
     /// Checks if two paths are on the same volume/drive.
     /// </summary>
     /// <param name="path1">First path to compare.</param>
@@ -699,6 +731,42 @@ public class FileOperationsService(
         {
             logger.LogError(ex, "Exception opening CAS content stream for hash {Hash}", hash);
             return null;
+        }
+    }
+
+    /// <summary>
+    /// Moves a file over an existing destination, retrying transient lock failures with backoff.
+    /// On Windows the atomic rename fails while the destination is open without delete sharing,
+    /// for example a concurrent reader, so a single attempt would turn a momentary lock into a
+    /// failed save. The original exception surfaces unchanged once retries are exhausted.
+    /// </summary>
+    /// <param name="sourcePath">The file to move.</param>
+    /// <param name="destinationPath">The destination path, replaced when it exists.</param>
+    /// <param name="cancellationToken">A cancellation token.</param>
+    /// <returns>A task representing the asynchronous move operation.</returns>
+    internal static async Task MoveFileWithRetryAsync(
+        string sourcePath,
+        string destinationPath,
+        CancellationToken cancellationToken = default)
+    {
+        const int MaxRetries = 3;
+        const int InitialDelayMs = 50;
+
+        for (var attempt = 0; attempt <= MaxRetries; attempt++)
+        {
+            try
+            {
+                File.Move(sourcePath, destinationPath, overwrite: true);
+                return;
+            }
+            catch (IOException ex) when (attempt < MaxRetries && IsFileLockException(ex))
+            {
+                await Task.Delay(InitialDelayMs * (int)Math.Pow(2, attempt), cancellationToken).ConfigureAwait(false);
+            }
+            catch (UnauthorizedAccessException) when (attempt < MaxRetries)
+            {
+                await Task.Delay(InitialDelayMs * (int)Math.Pow(2, attempt), cancellationToken).ConfigureAwait(false);
+            }
         }
     }
 

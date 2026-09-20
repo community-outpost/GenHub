@@ -79,6 +79,29 @@ public static class PathHelper
     }
 
     /// <summary>
+    /// Determines whether two paths point at the same physical filesystem location,
+    /// following symbolic links and junctions before comparing.
+    /// </summary>
+    /// <param name="first">The first path.</param>
+    /// <param name="second">The second path.</param>
+    /// <returns><see langword="true"/> when both paths resolve to the same physical location.</returns>
+    public static bool AreSamePhysicalPath(string first, string second)
+    {
+        try
+        {
+            return AreSamePath(FollowLinks(first), FollowLinks(second));
+        }
+        catch (ArgumentException)
+        {
+            return AreSamePath(first, second);
+        }
+        catch (NotSupportedException)
+        {
+            return AreSamePath(first, second);
+        }
+    }
+
+    /// <summary>
     /// Validates whether a path is a non-UNC, locally-rooted directory path, sanitizing surrounding quotes and whitespace.
     /// </summary>
     /// <param name="path">The path to validate.</param>

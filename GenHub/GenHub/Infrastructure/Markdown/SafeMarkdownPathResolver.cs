@@ -88,6 +88,9 @@ public sealed class SafeMarkdownPathResolver : IPathResolver
 
     private static HttpClient CreateSharedHttpClient()
     {
+        // Per-hop redirect validation in SendWithRedirectsAsync requires a handler that
+        // does not follow redirects itself. The SSRF-safe handler disables automatic
+        // redirection and blocks unsafe IPs at the socket level as a second layer.
         var handler = ImageCacheService.CreateSsrfSafeSocketsHttpHandler();
         return new HttpClient(handler)
         {
@@ -128,6 +131,30 @@ public sealed class SafeMarkdownPathResolver : IPathResolver
         }
 
         return true;
+    }
+
+    /// <summary>
+    /// Detects a redirect that the HTTP handler followed transparently, bypassing the
+    /// per-hop validation because no 3xx was ever surfaced. The final destination is
+    /// exposed via <see cref="HttpResponseMessage.RequestMessage"/>.
+    /// </summary>
+    /// <param name="response">The received response.</param>
+    /// <param name="requestUri">The URI that was requested.</param>
+    /// <returns><c>true</c> when the handler landed on an unsafe or downgraded URI.</returns>
+    private static bool IsTransparentRedirectToUnsafeTarget(HttpResponseMessage response, Uri requestUri)
+    {
+        var finalUri = response.RequestMessage?.RequestUri;
+        if (finalUri == null || finalUri.AbsoluteUri == requestUri.AbsoluteUri)
+        {
+            return false;
+        }
+
+        if (!ImageCacheService.IsSafeRemoteUrl(finalUri.AbsoluteUri, out _))
+        {
+            return true;
+        }
+
+        return requestUri.Scheme == Uri.UriSchemeHttps && finalUri.Scheme == Uri.UriSchemeHttp;
     }
 
     private static async Task<MemoryStream?> ReadCappedStreamAsync(Stream stream, CancellationToken cancellationToken)
@@ -176,6 +203,12 @@ public sealed class SafeMarkdownPathResolver : IPathResolver
             var response = await httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
             if (!TryGetRedirectTarget(response, safeUri, out var nextUri, out var isBlocked))
             {
+                if (IsTransparentRedirectToUnsafeTarget(response, safeUri))
+                {
+                    response.Dispose();
+                    return null;
+                }
+
                 return response;
             }
 

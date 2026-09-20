@@ -8113,6 +8113,12 @@ GenHub передает официальный идентификатор AppID 
   <data name="Settings.GitHubAuth.SignedOut.SignInButton" xml:space="preserve">
     <value>Войти через GitHub</value>
   </data>
+  <data name="Settings.GitHubAuth.SessionExpired.Description" xml:space="preserve">
+    <value>Ваша сессия GitHub больше недействительна. Войдите снова, чтобы повторно привязать учётную запись.</value>
+  </data>
+  <data name="Settings.GitHubAuth.SessionExpired.SignInButton" xml:space="preserve">
+    <value>Войти снова</value>
+  </data>
   <data name="Settings.GitHubAuth.Authorizing.Instructions" xml:space="preserve">
     <value>Введите этот код на GitHub, чтобы авторизовать GenHub:</value>
   </data>
@@ -8134,6 +8140,9 @@ GenHub передает официальный идентификатор AppID 
   <data name="Settings.GitHubAuth.Toast.Title" xml:space="preserve">
     <value>GitHub</value>
   </data>
+  <data name="Settings.GitHubAuth.Toast.SessionExpired" xml:space="preserve">
+    <value>Срок действия вашей сессии GitHub истёк. Пожалуйста, войдите снова.</value>
+  </data>
   <data name="Settings.GitHubAuth.Toast.SignedIn" xml:space="preserve">
     <value>Вы вошли как {0}.</value>
   </data>
@@ -8151,6 +8160,9 @@ GenHub передает официальный идентификатор AppID 
   </data>
   <data name="Settings.GitHubAuth.Toast.ServiceUnavailable" xml:space="preserve">
     <value>Аутентификация GitHub недоступна.</value>
+  </data>
+  <data name="Settings.GitHubAuth.Status.SessionExpired" xml:space="preserve">
+    <value>Сессия истекла</value>
   </data>
   <data name="Settings.GitHubAuth.Status.SignedIn" xml:space="preserve">
     <value>Выполнен вход</value>

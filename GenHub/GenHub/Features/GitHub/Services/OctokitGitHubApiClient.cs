@@ -797,7 +797,11 @@ public class OctokitGitHubApiClient(
         try
         {
             await EnsureCredentialsLoadedAsync().ConfigureAwait(false);
-            var readme = await gitHubClient.Repository.Content.GetReadme(owner, repo).ConfigureAwait(false);
+
+            // Octokit exposes no CancellationToken overload for GetReadme, so bound the
+            // wait instead. A cancelled caller stops awaiting rather than hanging on a
+            // slow request, for example a disposed detail view awaiting initialization.
+            var readme = await gitHubClient.Repository.Content.GetReadme(owner, repo).WaitAsync(cancellationToken).ConfigureAwait(false);
             UpdateRateLimitFromLastApiInfo();
             var markdown = DecodeReadmeContent(readme.Content);
             cache.Set(cacheKey, markdown, DefaultCacheDuration);
@@ -815,7 +819,7 @@ public class OctokitGitHubApiClient(
             logger.LogWarning(ex, "Rate limit exceeded when getting README for {Owner}/{Repo}. Reset at: {ResetTime}", owner, repo, ex.Reset);
             return null;
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             logger.LogError(ex, "Failed to get README for {Owner}/{Repo}", owner, repo);
             return null;

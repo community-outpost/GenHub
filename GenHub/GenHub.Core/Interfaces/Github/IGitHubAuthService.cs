@@ -25,6 +25,13 @@ public interface IGitHubAuthService
     GitHubUserProfile? CurrentUser { get; }
 
     /// <summary>
+    /// Gets a value indicating whether GitHub rejected the stored credential with an
+    /// authorization failure (expired or revoked token). While set, <see cref="IsAuthenticated"/>
+    /// returns false until the next successful sign-in or an explicit sign-out.
+    /// </summary>
+    bool IsSessionExpired { get; }
+
+    /// <summary>
     /// Occurs when the authentication state changes through sign-in or sign-out.
     /// </summary>
     event EventHandler<GitHubAuthStateChangedEventArgs>? AuthStateChanged;

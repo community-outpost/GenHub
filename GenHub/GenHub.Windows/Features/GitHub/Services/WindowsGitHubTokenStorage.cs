@@ -1,6 +1,7 @@
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GitHub;
+using GenHub.Features.GitHub.Services;
 using GenHub.Features.Workspace;
 using System;
 using System.IO;
@@ -18,6 +19,7 @@ namespace GenHub.Windows.Features.GitHub.Services;
 public class WindowsGitHubTokenStorage : IGitHubTokenStorage
 {
     private readonly string _tokenFilePath;
+    private readonly string? _fallbackTokenFilePath;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="WindowsGitHubTokenStorage"/> class.
@@ -28,7 +30,8 @@ public class WindowsGitHubTokenStorage : IGitHubTokenStorage
         var appData = configurationProvider?.GetApplicationDataPath()
             ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), AppConstants.AppName);
         Directory.CreateDirectory(appData);
-        _tokenFilePath = Path.Combine(appData, AppConstants.TokenFileName);
+        _tokenFilePath = GitHubTokenPathResolver.GetPrimaryTokenFilePath(appData);
+        _fallbackTokenFilePath = GitHubTokenPathResolver.GetFallbackTokenFilePath(appData);
 
         try
         {
@@ -77,8 +80,11 @@ public class WindowsGitHubTokenStorage : IGitHubTokenStorage
             var plainBytes = Encoding.UTF8.GetBytes(plainText);
             var encryptedBytes = ProtectedData.Protect(plainBytes, null, DataProtectionScope.CurrentUser);
 
-            // Save to file
-            await File.WriteAllBytesAsync(_tokenFilePath, encryptedBytes);
+            // Save to file atomically so a crash mid-write never leaves a truncated
+            // token file behind that the next launch would mistake for corruption.
+            await FileOperationsService.WriteAllBytesAtomicAsync(_tokenFilePath, encryptedBytes).ConfigureAwait(false);
+
+            GitHubTokenPathResolver.DeleteFallbackCopyBestEffort(_fallbackTokenFilePath);
         }
         finally
         {
@@ -94,6 +100,11 @@ public class WindowsGitHubTokenStorage : IGitHubTokenStorage
     public Task DeleteTokenAsync()
     {
         FileOperationsService.DeleteFileIfExists(_tokenFilePath);
+        if (_fallbackTokenFilePath != null)
+        {
+            FileOperationsService.DeleteFileIfExists(_fallbackTokenFilePath);
+        }
+
         return Task.CompletedTask;
     }
 
@@ -103,7 +114,7 @@ public class WindowsGitHubTokenStorage : IGitHubTokenStorage
     /// <returns>True if a token is stored, otherwise false.</returns>
     public bool HasToken()
     {
-        return File.Exists(_tokenFilePath);
+        return GitHubTokenPathResolver.ResolveActiveTokenFilePath(_tokenFilePath, _fallbackTokenFilePath) != null;
     }
 
     /// <summary>
@@ -112,34 +123,41 @@ public class WindowsGitHubTokenStorage : IGitHubTokenStorage
     /// <returns>The secure string token if available, otherwise null.</returns>
     public async Task<SecureString?> LoadTokenAsync()
     {
-        if (!File.Exists(_tokenFilePath))
+        // Try the primary copy first, then the fallback copy, so a corrupt primary
+        // does not hide a valid fallback until the next load.
+        foreach (var candidate in GitHubTokenPathResolver.GetExistingTokenFilePaths(_tokenFilePath, _fallbackTokenFilePath))
         {
-            return null;
+            try
+            {
+                return await LoadTokenFromFileAsync(candidate);
+            }
+            catch (CryptographicException)
+            {
+                // The copy was encrypted for a different user or machine. Drop only
+                // that copy and try the next candidate, if any.
+                FileOperationsService.DeleteFileIfExists(candidate);
+            }
         }
 
-        try
-        {
-            // Read encrypted bytes
-            var encryptedBytes = await File.ReadAllBytesAsync(_tokenFilePath);
+        return null;
+    }
 
-            // Decrypt using DPAPI
-            var plainBytes = ProtectedData.Unprotect(encryptedBytes, null, DataProtectionScope.CurrentUser);
-            var plainText = Encoding.UTF8.GetString(plainBytes);
+    private static async Task<SecureString> LoadTokenFromFileAsync(string tokenFilePath)
+    {
+        // Read encrypted bytes
+        var encryptedBytes = await File.ReadAllBytesAsync(tokenFilePath);
 
-            // Convert to SecureString
-            var secureString = StringToSecureString(plainText);
+        // Decrypt using DPAPI
+        var plainBytes = ProtectedData.Unprotect(encryptedBytes, null, DataProtectionScope.CurrentUser);
+        var plainText = Encoding.UTF8.GetString(plainBytes);
 
-            // Clear plain text
-            Array.Clear(plainBytes, 0, plainBytes.Length);
+        // Convert to SecureString
+        var secureString = StringToSecureString(plainText);
 
-            return secureString;
-        }
-        catch (CryptographicException)
-        {
-            // Token was encrypted by different user or machine - delete it
-            await DeleteTokenAsync();
-            return null;
-        }
+        // Clear plain text
+        Array.Clear(plainBytes, 0, plainBytes.Length);
+
+        return secureString;
     }
 
     private static string SecureStringToString(SecureString secureString)

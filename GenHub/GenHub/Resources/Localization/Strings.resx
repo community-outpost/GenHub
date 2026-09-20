@@ -8206,6 +8206,12 @@ Do you want to download and inspect this profile package?</value>
   <data name="Settings.GitHubAuth.SignedOut.SignInButton" xml:space="preserve">
     <value>Sign in with GitHub</value>
   </data>
+  <data name="Settings.GitHubAuth.SessionExpired.Description" xml:space="preserve">
+    <value>Your GitHub session is no longer valid. Sign in again to re-link your account.</value>
+  </data>
+  <data name="Settings.GitHubAuth.SessionExpired.SignInButton" xml:space="preserve">
+    <value>Sign in again</value>
+  </data>
   <data name="Settings.GitHubAuth.Authorizing.Instructions" xml:space="preserve">
     <value>Enter this code on GitHub to authorize GenHub:</value>
   </data>
@@ -8227,6 +8233,9 @@ Do you want to download and inspect this profile package?</value>
   <data name="Settings.GitHubAuth.Toast.Title" xml:space="preserve">
     <value>GitHub</value>
   </data>
+  <data name="Settings.GitHubAuth.Toast.SessionExpired" xml:space="preserve">
+    <value>Your GitHub session expired. Please sign in again.</value>
+  </data>
   <data name="Settings.GitHubAuth.Toast.SignedIn" xml:space="preserve">
     <value>Signed in as {0}.</value>
   </data>
@@ -8244,6 +8253,9 @@ Do you want to download and inspect this profile package?</value>
   </data>
   <data name="Settings.GitHubAuth.Toast.ServiceUnavailable" xml:space="preserve">
     <value>GitHub authentication is not available.</value>
+  </data>
+  <data name="Settings.GitHubAuth.Status.SessionExpired" xml:space="preserve">
+    <value>Session expired</value>
   </data>
   <data name="Settings.GitHubAuth.Status.SignedIn" xml:space="preserve">
     <value>Signed in</value>

@@ -856,6 +856,17 @@
                           Padding="20,8" FontWeight="SemiBold" HorizontalAlignment="Left" />
                 </StackPanel>
 
+                <!-- Session Expired -->
+                <StackPanel Spacing="12" IsVisible="{Binding IsGitHubSessionExpiredVisible}">
+                  <TextBlock Text="{localization:Localize Settings.GitHubAuth.SessionExpired.Description}"
+                             Classes="setting-description" TextWrapping="Wrap" />
+                  <Button Content="{localization:Localize Settings.GitHubAuth.SessionExpired.SignInButton}"
+                          Command="{Binding SignInWithGitHubCommand}"
+                          Background="{DynamicResource AccentBrush}"
+                          Foreground="{DynamicResource PrimaryButtonForeground}"
+                          Padding="20,8" FontWeight="SemiBold" HorizontalAlignment="Left" />
+                </StackPanel>
+
                 <!-- Authorizing -->
                 <StackPanel Spacing="12" IsVisible="{Binding IsAuthenticating}">
                   <TextBlock Text="{localization:Localize Settings.GitHubAuth.Authorizing.Instructions}"
