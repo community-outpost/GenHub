@@ -1734,6 +1734,9 @@
     <value>Notifications</value>
     <comment>Navigation tooltip for notifications</comment>
   </data>
+  <data name="Navigation.Online" xml:space="preserve">
+    <value>Online</value>
+  </data>
   <data name="Navigation.Settings" xml:space="preserve">
     <value>Settings</value>
     <comment>Settings navigation tab.</comment>
@@ -1798,6 +1801,330 @@
   </data>
   <data name="Notifications.Tooltip.Options" xml:space="preserve">
     <value>Notification options</value>
+  </data>
+  <data name="Online.Action.Create" xml:space="preserve">
+    <value>Create</value>
+  </data>
+  <data name="Online.Action.Join" xml:space="preserve">
+    <value>Join</value>
+  </data>
+  <data name="Online.Action.Leave" xml:space="preserve">
+    <value>Leave</value>
+  </data>
+  <data name="Online.Action.Play" xml:space="preserve">
+    <value>Play</value>
+  </data>
+  <data name="Online.Action.Ban" xml:space="preserve">
+    <value>Ban</value>
+  </data>
+  <data name="Online.Action.CopyIp" xml:space="preserve">
+    <value>Copy IP</value>
+  </data>
+  <data name="Online.Action.Report" xml:space="preserve">
+    <value>Report</value>
+  </data>
+  <data name="Online.Action.Retry" xml:space="preserve">
+    <value>Retry</value>
+  </data>
+  <data name="Online.Action.Save" xml:space="preserve">
+    <value>Save</value>
+  </data>
+  <data name="Online.Action.Test" xml:space="preserve">
+    <value>Test</value>
+  </data>
+  <data name="Online.Action.Refresh" xml:space="preserve">
+    <value>Refresh</value>
+  </data>
+  <data name="Online.Create.NameWatermark" xml:space="preserve">
+    <value>Network name</value>
+  </data>
+  <data name="Online.Create.PasswordWatermark" xml:space="preserve">
+    <value>Password (optional for private)</value>
+  </data>
+  <data name="Online.Create.PasswordHint" xml:space="preserve">
+    <value>Required for public networks (min 4 characters).</value>
+  </data>
+  <data name="Online.Create.PublicLabel" xml:space="preserve">
+    <value>List publicly</value>
+  </data>
+  <data name="Online.Create.SlotsLabel" xml:space="preserve">
+    <value>Slots:</value>
+  </data>
+  <data name="Online.Create.Submit" xml:space="preserve">
+    <value>Create and join</value>
+  </data>
+  <data name="Online.Create.SuccessMessage" xml:space="preserve">
+    <value>Joined with overlay IP {0}.</value>
+  </data>
+  <data name="Online.Create.SuccessTitle" xml:space="preserve">
+    <value>Network created</value>
+  </data>
+  <data name="Online.Create.Title" xml:space="preserve">
+    <value>Create network</value>
+  </data>
+  <data name="Online.Create.DescriptionWatermark" xml:space="preserve">
+    <value>Description and house rules (optional)</value>
+  </data>
+  <data name="Online.Detail.DescriptionLabel" xml:space="preserve">
+    <value>Description</value>
+  </data>
+  <data name="Online.Detail.ExpectedProfileLabel" xml:space="preserve">
+    <value>Expected profile</value>
+  </data>
+  <data name="Online.Detail.HostLabel" xml:space="preserve">
+    <value>Host</value>
+  </data>
+  <data name="Online.Detail.HostOffline" xml:space="preserve">
+    <value>offline</value>
+  </data>
+  <data name="Online.Detail.HostOnline" xml:space="preserve">
+    <value>online</value>
+  </data>
+  <data name="Online.Detail.NoDescription" xml:space="preserve">
+    <value>No description.</value>
+  </data>
+  <data name="Online.Detail.ProfileInstalled" xml:space="preserve">
+    <value>installed</value>
+  </data>
+  <data name="Online.Detail.ProfileMissing" xml:space="preserve">
+    <value>not installed</value>
+  </data>
+  <data name="Online.Detail.SlotsLabel" xml:space="preserve">
+    <value>Slots</value>
+  </data>
+  <data name="Online.Detail.TagsLabel" xml:space="preserve">
+    <value>Tags</value>
+  </data>
+  <data name="Online.Detail.Title" xml:space="preserve">
+    <value>Network details</value>
+  </data>
+  <data name="Online.Error.BanFailed" xml:space="preserve">
+    <value>Ban failed. Only the host can ban members.</value>
+  </data>
+  <data name="Online.Error.BanTitle" xml:space="preserve">
+    <value>Could not ban member</value>
+  </data>
+  <data name="Online.Error.CopyTitle" xml:space="preserve">
+    <value>Could not copy</value>
+  </data>
+  <data name="Online.Error.CopyUnavailable" xml:space="preserve">
+    <value>Clipboard is not available.</value>
+  </data>
+  <data name="Online.Error.PasswordRequired" xml:space="preserve">
+    <value>Public networks require a password of at least 4 characters.</value>
+  </data>
+  <data name="Online.Error.PasswordTooShort" xml:space="preserve">
+    <value>Password must be at least 4 characters.</value>
+  </data>
+  <data name="Online.Error.ReportFailed" xml:space="preserve">
+    <value>Report failed. Please try again.</value>
+  </data>
+  <data name="Online.Error.ReportTitle" xml:space="preserve">
+    <value>Could not send report</value>
+  </data>
+  <data name="Online.Error.UpdateFailed" xml:space="preserve">
+    <value>Save failed. Only the host can change network settings.</value>
+  </data>
+  <data name="Online.Error.UpdateTitle" xml:space="preserve">
+    <value>Could not save settings</value>
+  </data>
+  <data name="Online.Host.DescriptionWatermark" xml:space="preserve">
+    <value>Description and house rules</value>
+  </data>
+  <data name="Online.Host.ProfileWatermark" xml:space="preserve">
+    <value>Expected game profile id</value>
+  </data>
+  <data name="Online.Host.SuccessMessage" xml:space="preserve">
+    <value>Network settings updated.</value>
+  </data>
+  <data name="Online.Host.SuccessTitle" xml:space="preserve">
+    <value>Settings saved</value>
+  </data>
+  <data name="Online.Host.Title" xml:space="preserve">
+    <value>Host settings</value>
+  </data>
+  <data name="Online.Joined.QualityLabel" xml:space="preserve">
+    <value>Connection</value>
+  </data>
+  <data name="Online.Connection.LostMessage" xml:space="preserve">
+    <value>Presence with the network was lost. You were returned to the directory.</value>
+  </data>
+  <data name="Online.Connection.LostTitle" xml:space="preserve">
+    <value>Connection lost</value>
+  </data>
+  <data name="Online.Ban.ConfirmMessage" xml:space="preserve">
+    <value>Ban {0} from this network? They will lose their slot immediately.</value>
+  </data>
+  <data name="Online.Ban.ConfirmTitle" xml:space="preserve">
+    <value>Ban member</value>
+  </data>
+  <data name="Online.Ban.SuccessMessage" xml:space="preserve">
+    <value>The member was removed and banned.</value>
+  </data>
+  <data name="Online.Ban.SuccessTitle" xml:space="preserve">
+    <value>Member banned</value>
+  </data>
+  <data name="Online.Copy.SuccessMessage" xml:space="preserve">
+    <value>Overlay IP {0} copied to clipboard.</value>
+  </data>
+  <data name="Online.Copy.SuccessTitle" xml:space="preserve">
+    <value>Copied</value>
+  </data>
+  <data name="Online.Error.LaunchFailed" xml:space="preserve">
+    <value>Game launch failed. Check the profile and try again.</value>
+  </data>
+  <data name="Online.Error.LaunchTitle" xml:space="preserve">
+    <value>Could not launch</value>
+  </data>
+  <data name="Online.Play.LaunchingMessage" xml:space="preserve">
+    <value>Preparing workspace and launching {0}.</value>
+  </data>
+  <data name="Online.Play.LaunchingTitle" xml:space="preserve">
+    <value>Launching</value>
+  </data>
+  <data name="Online.Play.NoProfileMessage" xml:space="preserve">
+    <value>This network expects a game profile you do not have yet. Download or create it first.</value>
+  </data>
+  <data name="Online.Play.NoProfileTitle" xml:space="preserve">
+    <value>Profile not found</value>
+  </data>
+  <data name="Online.Play.SuccessMessage" xml:space="preserve">
+    <value>Open the in-game LAN lobby to play with {0}.</value>
+  </data>
+  <data name="Online.Play.SuccessTitle" xml:space="preserve">
+    <value>Launched</value>
+  </data>
+  <data name="Online.Error.AdapterFailed" xml:space="preserve">
+    <value>Virtual adapter failed to start on this device.</value>
+  </data>
+  <data name="Online.Error.CreateTitle" xml:space="preserve">
+    <value>Could not create network</value>
+  </data>
+  <data name="Online.Error.DirectoryTitle" xml:space="preserve">
+    <value>Could not load networks</value>
+  </data>
+  <data name="Online.Error.GenericDetail" xml:space="preserve">
+    <value>Please check your connection and try again.</value>
+  </data>
+  <data name="Online.Error.JoinFailed" xml:space="preserve">
+    <value>Join failed. Please try again.</value>
+  </data>
+  <data name="Online.Error.JoinTitle" xml:space="preserve">
+    <value>Could not join network</value>
+  </data>
+  <data name="Online.Error.LeaveTitle" xml:space="preserve">
+    <value>Could not leave network</value>
+  </data>
+  <data name="Online.Error.NameLength" xml:space="preserve">
+    <value>Network name must be between 3 and 64 characters.</value>
+  </data>
+  <data name="Online.Error.NetworkBanned" xml:space="preserve">
+    <value>You are banned from this network.</value>
+  </data>
+  <data name="Online.Error.NetworkFull" xml:space="preserve">
+    <value>This network is full.</value>
+  </data>
+  <data name="Online.Error.WrongPassword" xml:space="preserve">
+    <value>Wrong password for this network.</value>
+  </data>
+  <data name="Online.Join.PasswordWatermark" xml:space="preserve">
+    <value>Network password</value>
+  </data>
+  <data name="Online.Join.PreferRelay" xml:space="preserve">
+    <value>Prefer relay (hide my endpoint)</value>
+  </data>
+  <data name="Online.Join.PreferRelayTooltip" xml:space="preserve">
+    <value>Route traffic through a relay instead of connecting directly. Slower, but hides your public endpoint from peers.</value>
+  </data>
+  <data name="Online.Join.PrivacyNotice" xml:space="preserve">
+    <value>Joining shares your public endpoint with room members for direct connection, like Hamachi.</value>
+  </data>
+  <data name="Online.Join.SuccessMessage" xml:space="preserve">
+    <value>Connected with overlay IP {0}. Open the in-game LAN lobby to play.</value>
+  </data>
+  <data name="Online.Join.SuccessTitle" xml:space="preserve">
+    <value>Joined network</value>
+  </data>
+  <data name="Online.Join.Title" xml:space="preserve">
+    <value>Join network</value>
+  </data>
+  <data name="Online.List.Empty" xml:space="preserve">
+    <value>No networks found. Create one to get started.</value>
+  </data>
+  <data name="Online.List.Failed" xml:space="preserve">
+    <value>Could not load networks.</value>
+  </data>
+  <data name="Online.Member.HostBadge" xml:space="preserve">
+    <value>Host</value>
+  </data>
+  <data name="Online.Joined.OverlayIpLabel" xml:space="preserve">
+    <value>Your overlay IP:</value>
+  </data>
+  <data name="Online.Leave.SuccessMessage" xml:space="preserve">
+    <value>Overlay adapter shut down.</value>
+  </data>
+  <data name="Online.Leave.SuccessTitle" xml:space="preserve">
+    <value>Left network</value>
+  </data>
+  <data name="Online.Quality.Connecting" xml:space="preserve">
+    <value>Connecting</value>
+  </data>
+  <data name="Online.Quality.Direct" xml:space="preserve">
+    <value>Direct</value>
+  </data>
+  <data name="Online.Quality.Relay" xml:space="preserve">
+    <value>Relay</value>
+  </data>
+  <data name="Online.Quality.Unknown" xml:space="preserve">
+    <value>Unknown</value>
+  </data>
+  <data name="Online.Report.DialogMessage" xml:space="preserve">
+    <value>Why are you reporting {0}?</value>
+  </data>
+  <data name="Online.Report.DialogTitle" xml:space="preserve">
+    <value>Report member</value>
+  </data>
+  <data name="Online.Report.Reason.Cheating" xml:space="preserve">
+    <value>Cheating</value>
+  </data>
+  <data name="Online.Report.Reason.Griefing" xml:space="preserve">
+    <value>Griefing</value>
+  </data>
+  <data name="Online.Report.Reason.Harassment" xml:space="preserve">
+    <value>Harassment</value>
+  </data>
+  <data name="Online.Report.SuccessMessage" xml:space="preserve">
+    <value>The host was notified about {0}.</value>
+  </data>
+  <data name="Online.Report.SuccessTitle" xml:space="preserve">
+    <value>Report sent</value>
+  </data>
+  <data name="Online.Error.TestFailed" xml:space="preserve">
+    <value>Could not reach {0} directly. A relay may be required.</value>
+  </data>
+  <data name="Online.Error.TestTitle" xml:space="preserve">
+    <value>Connection test failed</value>
+  </data>
+  <data name="Online.Test.SuccessMessage" xml:space="preserve">
+    <value>You can reach {0} directly.</value>
+  </data>
+  <data name="Online.Test.SuccessTitle" xml:space="preserve">
+    <value>Direct connection works</value>
+  </data>
+  <data name="Online.List.Title" xml:space="preserve">
+    <value>Networks</value>
+  </data>
+  <data name="Online.Roster.Title" xml:space="preserve">
+    <value>Members</value>
+  </data>
+  <data name="Online.Search.Watermark" xml:space="preserve">
+    <value>Search networks...</value>
+  </data>
+  <data name="Online.Subtitle" xml:space="preserve">
+    <value>Join a virtual LAN network, then open the in-game LAN lobby to play with members.</value>
+  </data>
+  <data name="Online.Title" xml:space="preserve">
+    <value>Online</value>
   </data>
   <data name="Replays.Button.ClearAllHistory" xml:space="preserve">
     <value>Clear All History</value>

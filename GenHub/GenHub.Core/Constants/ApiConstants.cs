@@ -207,6 +207,84 @@ public static class ApiConstants
     /// </summary>
     public const string YouTubeWatchUrlPrefix = "https://www.youtube.com/watch?v=";
 
+    // Online (virtual LAN) edge
+
+    /// <summary>
+    /// Environment variable name for overriding the Online edge base URL.
+    /// </summary>
+    public const string OnlineEdgeBaseUrlEnvVar = "GENHUB_ONLINE_EDGE_URL";
+
+    /// <summary>
+    /// Default base URL for the GenHub Online edge (control plane only, never game traffic).
+    /// </summary>
+    public const string DefaultOnlineEdgeBaseUrl = "https://genhub-online-edge.mustafa2146.workers.dev";
+
+    /// <summary>
+    /// Gets the active base URL for the Online edge, checking environment variable overrides first.
+    /// </summary>
+    public static string OnlineEdgeBaseUrl =>
+        Environment.GetEnvironmentVariable(OnlineEdgeBaseUrlEnvVar) is { Length: > 0 } customUrl
+            ? customUrl.TrimEnd('/')
+            : DefaultOnlineEdgeBaseUrl;
+
+    /// <summary>
+    /// Endpoint path for anonymous session issuance.
+    /// </summary>
+    public const string OnlineSessionsEndpoint = "/v1/sessions/anonymous";
+
+    /// <summary>
+    /// Endpoint path for the public network directory.
+    /// </summary>
+    public const string OnlineNetworksEndpoint = "/v1/networks";
+
+    /// <summary>
+    /// Format string for the network join endpoint (network id).
+    /// </summary>
+    public const string OnlineNetworkJoinFormat = "/v1/networks/{0}/join";
+
+    /// <summary>
+    /// Format string for the network presence socket endpoint (network id).
+    /// </summary>
+    public const string OnlinePresenceFormat = "/v1/networks/{0}/presence";
+
+    /// <summary>
+    /// Format string for the network heartbeat endpoint (network id).
+    /// </summary>
+    public const string OnlineHeartbeatFormat = "/v1/networks/{0}/heartbeat";
+
+    /// <summary>
+    /// Format string for the network leave endpoint (network id).
+    /// </summary>
+    public const string OnlineLeaveFormat = "/v1/networks/{0}/leave";
+
+    /// <summary>
+    /// Format string for the member report endpoint (network id).
+    /// </summary>
+    public const string OnlineReportFormat = "/v1/networks/{0}/report";
+
+    /// <summary>
+    /// Format string for the member ban endpoint (network id).
+    /// </summary>
+    public const string OnlineBanFormat = "/v1/networks/{0}/ban";
+
+    /// <summary>
+    /// Environment variable name for overriding the STUN hostname.
+    /// </summary>
+    public const string OnlineStunHostEnvVar = "GENHUB_ONLINE_STUN_HOST";
+
+    /// <summary>
+    /// Default STUN hostname for reflexive endpoint discovery.
+    /// </summary>
+    public const string DefaultOnlineStunHost = "stun.cloudflare.com";
+
+    /// <summary>
+    /// Gets the active STUN hostname, checking environment variable overrides first.
+    /// </summary>
+    public static string OnlineStunHost =>
+        Environment.GetEnvironmentVariable(OnlineStunHostEnvVar) is { Length: > 0 } customHost
+            ? customHost
+            : DefaultOnlineStunHost;
+
     // User agents
 
     /// <summary>

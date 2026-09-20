@@ -3,6 +3,7 @@ using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Interfaces.GameSettings;
 using GenHub.Core.Interfaces.GitHub;
 using GenHub.Core.Interfaces.Launching;
+using GenHub.Core.Interfaces.Online;
 using GenHub.Core.Interfaces.Shortcuts;
 using GenHub.Core.Interfaces.Storage;
 using GenHub.Core.Interfaces.Workspace;
@@ -12,6 +13,7 @@ using GenHub.Features.Launching;
 using GenHub.Features.Workspace;
 using GenHub.Infrastructure.DependencyInjection;
 using GenHub.Linux.Features.GitHub.Services;
+using GenHub.Linux.Features.Online;
 using GenHub.Linux.Features.Shortcuts;
 using GenHub.Linux.Features.Storage;
 using GenHub.Linux.GameInstallations;
@@ -48,6 +50,10 @@ public static class LinuxServicesModule
             provider.GetRequiredService<ILogger<WineRunner>>())));
 
         services.AddUnixFileOperations();
+
+        // Online virtual LAN adapter (supersedes the shared null fallback)
+        services.AddSingleton<IOverlaySidecarLocator, LinuxOverlaySidecarLocator>();
+        services.Replace(ServiceDescriptor.Singleton<IVirtualLanAdapter, LinuxVirtualLanAdapter>());
 
         return services;
     }

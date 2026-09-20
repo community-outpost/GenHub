@@ -23,6 +23,11 @@ package-lock.json
 npm-debug.log*
 pnpm-debug.log*
 
+# Cloudflare local secrets (never commit)
+/gateway/.dev.vars
+/gateway-online/.dev.vars
+.wrangler/
+
 # VitePress / site build
 docs/.vitepress/dist/
 docs/.vitepress/cache/

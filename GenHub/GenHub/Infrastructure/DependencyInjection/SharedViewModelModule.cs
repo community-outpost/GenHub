@@ -16,6 +16,7 @@ using GenHub.Features.GameProfiles.ViewModels;
 using GenHub.Features.GitHub.Services;
 using GenHub.Features.Info.ViewModels;
 using GenHub.Features.Notifications.ViewModels;
+using GenHub.Features.Online.ViewModels;
 using GenHub.Features.Settings.ViewModels;
 using GenHub.Features.Tools.ViewModels;
 using Microsoft.Extensions.DependencyInjection;
@@ -42,6 +43,7 @@ public static class SharedViewModelModule
         services.AddSingleton<DownloadsBrowserViewModel>();
         services.AddSingleton<ToolsViewModel>();
         services.AddSingleton<InfoViewModel>();
+        services.AddSingleton<OnlineViewModel>();
         services.AddSingleton<NotificationManagerViewModel>();
         services.AddSingleton<SettingsViewModel>(sp => new SettingsViewModel(
             sp.GetRequiredService<IUserSettingsService>(),

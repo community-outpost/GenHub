@@ -133,6 +133,14 @@ GenHub uses a shared [resource-based localization system](./localization.md) wit
 
 ---
 
+### Online (virtual LAN)
+
+The [Online feature](./online.md) provides the virtual LAN tab: edge control
+plane sessions and join grants, presence fan-out, overlay sidecar lifecycle,
+and launch integration for LAN lobbies.
+
+---
+
 ### Logging
 
 Structured logging is provided via `Microsoft.Extensions.Logging`:

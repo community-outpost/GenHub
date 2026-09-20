@@ -1,0 +1,25 @@
+{
+  "name": "genhub-online-edge",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "GenHub Online edge control plane: anonymous sessions, network directory, join grants, presence fan-out. Trust and control only, never game traffic.",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "types": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@cloudflare/vitest-pool-workers": "^0.8.0",
+    "@cloudflare/workers-types": "^4.20240729.0",
+    "typescript": "^5.5.4",
+    "vitest": "^2.1.0",
+    "wrangler": "^3.70.0"
+  },
+  "overrides": {
+    "@vitest/runner": "2.1.9",
+    "@vitest/snapshot": "2.1.9",
+    "@vitest/expect": "2.1.9",
+    "@vitest/spy": "2.1.9"
+  }
+}
