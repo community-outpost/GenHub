@@ -23,7 +23,8 @@ public sealed class MarkdownLinkFormatterTests
     }
 
     /// <summary>
-    /// Verifies that HTML image tags become markdown images so the viewer renders them.
+    /// Verifies that HTML image tags become markdown images and paragraph wrappers are
+    /// unwrapped so the viewer parses the image instead of treating it as raw HTML.
     /// </summary>
     [Fact]
     public void FormatLinks_HtmlImage_ConvertsToMarkdownImage()
@@ -31,7 +32,44 @@ public sealed class MarkdownLinkFormatterTests
         var input = "<p><img src=\"https://example.test/shot.png\" width=\"1920\" alt=\"Menu\" /></p>";
         var result = MarkdownLinkFormatter.FormatLinks(input);
 
-        Assert.Equal("<p>![Menu](https://example.test/shot.png)</p>", result);
+        Assert.Equal("\n\n![Menu](https://example.test/shot.png)\n\n", result);
+    }
+
+    /// <summary>
+    /// Verifies that a multiline paragraph-wrapped screenshot (the common GitHub README
+    /// screenshots shape) unwraps to a standalone markdown image.
+    /// </summary>
+    [Fact]
+    public void FormatLinks_PWrappedScreenshot_UnwrapsWrapperAndKeepsImage()
+    {
+        var input = "<p float=\"left\">\n  <img src=\"https://example.test/shot.png\" width=\"1920\" />\n\n</p>";
+        var result = MarkdownLinkFormatter.FormatLinks(input);
+
+        Assert.Equal("\n\n\n  ![](https://example.test/shot.png)\n\n\n\n", result);
+    }
+
+    /// <summary>
+    /// Verifies that division-wrapped images unwrap to a standalone markdown image.
+    /// </summary>
+    [Fact]
+    public void FormatLinks_DivWrappedImage_UnwrapsWrapperAndKeepsImage()
+    {
+        var input = "<div align=\"center\"><img src=\"https://example.test/a.png\" alt=\"A\" /></div>";
+        var result = MarkdownLinkFormatter.FormatLinks(input);
+
+        Assert.Equal("\n\n![A](https://example.test/a.png)\n\n", result);
+    }
+
+    /// <summary>
+    /// Verifies that unwrapping a paragraph preserves inner text and inline markup.
+    /// </summary>
+    [Fact]
+    public void FormatLinks_ParagraphText_PreservesInnerContent()
+    {
+        var input = "<p>Hello <b>world</b></p>";
+        var result = MarkdownLinkFormatter.FormatLinks(input);
+
+        Assert.Equal("\n\nHello <b>world</b>\n\n", result);
     }
 
     /// <summary>
@@ -44,6 +82,32 @@ public sealed class MarkdownLinkFormatterTests
         var result = MarkdownLinkFormatter.FormatLinks(input);
 
         Assert.Equal("Menu", result);
+    }
+
+    /// <summary>
+    /// Verifies that whitespace in an HTML image source is percent-encoded so the emitted
+    /// markdown destination stays a single matchable token.
+    /// </summary>
+    [Fact]
+    public void FormatLinks_HtmlImage_WithWhitespaceInSource_EncodesDestination()
+    {
+        var input = "<img src=\"https://example.test/my image.png\" alt=\"Shot\" />";
+        var result = MarkdownLinkFormatter.FormatLinks(input);
+
+        Assert.Equal("![Shot](https://example.test/my%20image.png)", result);
+    }
+
+    /// <summary>
+    /// Verifies that an HTML image with a dangerous scheme and whitespace still sanitizes
+    /// to its alt text once the destination is encoded into a matchable token.
+    /// </summary>
+    [Fact]
+    public void FormatLinks_HtmlImage_DangerousSchemeWithWhitespace_FallsBackToAltText()
+    {
+        var input = "<img src=\"javascript:alert (1)\" alt=\"X\" />";
+        var result = MarkdownLinkFormatter.FormatLinks(input);
+
+        Assert.Equal("X", result);
     }
 
     /// <summary>

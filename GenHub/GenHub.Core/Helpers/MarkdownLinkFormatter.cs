@@ -28,6 +28,7 @@ public static partial class MarkdownLinkFormatter
         var (owner, repo) = ExtractGitHubOwnerRepo(sourceUrl, text);
 
         var result = ConvertHtmlImagesToMarkdown(text);
+        result = UnwrapHtmlBlockWrappers(result);
         result = SanitizeMarkdownLinksAndImages(result);
         result = TransformOutsideHtmlTags(result, TransformGitHubUrls);
         result = TransformOutsideHtmlTags(result, segment => TransformIssueReferences(segment, owner, repo));
@@ -80,8 +81,41 @@ public static partial class MarkdownLinkFormatter
                 return alt;
             }
 
-            return $"![{alt}]({url})";
+            return $"![{alt}]({EncodeMarkdownDestination(url)})";
         });
+    }
+
+    private static string EncodeMarkdownDestination(string url)
+    {
+        var builder = new StringBuilder(url.Length);
+        foreach (var character in url)
+        {
+            if (char.IsWhiteSpace(character) || char.IsControl(character))
+            {
+                foreach (var b in Encoding.UTF8.GetBytes(character.ToString()))
+                {
+                    builder.Append('%');
+                    builder.Append(b.ToString("X2"));
+                }
+            }
+            else
+            {
+                builder.Append(character);
+            }
+        }
+
+        return builder.ToString();
+    }
+
+    /// <summary>
+    /// Replaces HTML paragraph and division wrappers with blank lines so markdown inside
+    /// them (such as converted images) is parsed instead of treated as raw HTML.
+    /// </summary>
+    /// <param name="text">The text to unwrap.</param>
+    /// <returns>The text with block wrappers replaced by blank lines.</returns>
+    private static string UnwrapHtmlBlockWrappers(string text)
+    {
+        return HtmlBlockWrapperRegex().Replace(text, "\n\n");
     }
 
     private static string TransformOutsideHtmlTags(string text, Func<string, string> transform)
@@ -297,6 +331,9 @@ public static partial class MarkdownLinkFormatter
 
     [GeneratedRegex(@"\balt\s*=\s*(?:""(?<alt>[^""]*)""|'(?<alt>[^']*)')", RegexOptions.IgnoreCase)]
     private static partial Regex HtmlAltAttributeRegex();
+
+    [GeneratedRegex(@"</?(?:p|div)\b[^<>]*>", RegexOptions.IgnoreCase)]
+    private static partial Regex HtmlBlockWrapperRegex();
 
     [GeneratedRegex(@"(?<!\!)\[(?<text>(?:[^\[\]]|\[[^\]]*\])*)\]\(\s*(?<url>(?:[^\s()]|\([^\s()]*\))+)(?:\s+[""'][^""']*[""'])?\s*\)")]
     private static partial Regex MarkdownHyperlinkRegex();

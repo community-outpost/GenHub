@@ -1,3 +1,5 @@
+using GenHub.Core.Constants;
+using GenHub.Infrastructure.Services;
 using Markdown.Avalonia.Utils;
 using System;
 using System.Collections.Generic;
@@ -10,16 +12,36 @@ namespace GenHub.Infrastructure.Markdown;
 
 /// <summary>
 /// A restricted path resolver for Markdown viewers rendering untrusted content.
-/// Restricts image loading strictly to HTTP and HTTPS URLs, preventing unauthorized local file or asset access.
+/// Restricts image loading strictly to safe remote HTTP and HTTPS URLs, blocking loopback,
+/// private, and link-local destinations as well as unsafe redirects.
 /// </summary>
 public sealed class SafeMarkdownPathResolver : IPathResolver
 {
     private const int MaxImageSizeBytes = 10 * 1024 * 1024; // 10 MB cap
+    private const int RequestTimeoutSeconds = 10;
 
-    private static readonly HttpClient HttpClient = new()
+    private static readonly HttpClient SharedHttpClient = CreateSharedHttpClient();
+
+    private readonly HttpClient httpClient;
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="SafeMarkdownPathResolver"/> class
+    /// using the shared SSRF-safe HTTP client.
+    /// </summary>
+    public SafeMarkdownPathResolver()
+        : this(SharedHttpClient)
     {
-        Timeout = TimeSpan.FromSeconds(10),
-    };
+    }
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="SafeMarkdownPathResolver"/> class with an explicit HTTP client.
+    /// Internal constructor for test isolation.
+    /// </summary>
+    /// <param name="client">The <see cref="HttpClient"/> used to fetch remote images.</param>
+    internal SafeMarkdownPathResolver(HttpClient client)
+    {
+        httpClient = client ?? throw new ArgumentNullException(nameof(client));
+    }
 
     /// <inheritdoc/>
     public string? AssetPathRoot { get; set; }
@@ -30,19 +52,19 @@ public sealed class SafeMarkdownPathResolver : IPathResolver
     /// <inheritdoc/>
     public async Task<Stream?>? ResolveImageResource(string relativeOrAbsolutePath)
     {
-        // Only permit http and https schemes for images in untrusted content.
-        // Reject local files (file:), application assets (avares:), UNC, and relative paths.
-        if (!Uri.TryCreate(relativeOrAbsolutePath, UriKind.Absolute, out var uri) ||
-            (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
+        // Only permit safe remote http and https destinations for images in untrusted content.
+        // Reject local files (file:), application assets (avares:), UNC, relative paths,
+        // and loopback, private, or link-local network destinations.
+        if (!ImageCacheService.IsSafeRemoteUrl(relativeOrAbsolutePath, out var initialUri))
         {
             return null;
         }
 
         try
         {
-            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
-            using var response = await HttpClient.GetAsync(uri, HttpCompletionOption.ResponseHeadersRead, cts.Token).ConfigureAwait(false);
-            if (!response.IsSuccessStatusCode || response.Content.Headers.ContentLength > MaxImageSizeBytes)
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(RequestTimeoutSeconds));
+            using var response = await SendWithRedirectsAsync(initialUri, cts.Token).ConfigureAwait(false);
+            if (response == null || !response.IsSuccessStatusCode || response.Content.Headers.ContentLength > MaxImageSizeBytes)
             {
                 return null;
             }
@@ -62,6 +84,50 @@ public sealed class SafeMarkdownPathResolver : IPathResolver
         {
             return null;
         }
+    }
+
+    private static HttpClient CreateSharedHttpClient()
+    {
+        var handler = ImageCacheService.CreateSsrfSafeSocketsHttpHandler();
+        return new HttpClient(handler)
+        {
+            Timeout = TimeSpan.FromSeconds(RequestTimeoutSeconds),
+        };
+    }
+
+    private static bool TryGetRedirectTarget(
+        HttpResponseMessage response,
+        Uri currentUri,
+        out Uri? nextUri,
+        out bool isBlocked)
+    {
+        nextUri = null;
+        isBlocked = false;
+
+        if ((int)response.StatusCode is not (>= 300 and <= 399) || response.Headers.Location == null)
+        {
+            return false;
+        }
+
+        var location = response.Headers.Location;
+        try
+        {
+            nextUri = location.IsAbsoluteUri ? location : new Uri(currentUri, location);
+        }
+        catch (UriFormatException)
+        {
+            isBlocked = true;
+            return false;
+        }
+
+        if (currentUri.Scheme == Uri.UriSchemeHttps && nextUri.Scheme == Uri.UriSchemeHttp)
+        {
+            nextUri = null;
+            isBlocked = true;
+            return false;
+        }
+
+        return true;
     }
 
     private static async Task<MemoryStream?> ReadCappedStreamAsync(Stream stream, CancellationToken cancellationToken)
@@ -92,5 +158,36 @@ public sealed class SafeMarkdownPathResolver : IPathResolver
             await memoryStream.DisposeAsync().ConfigureAwait(false);
             throw;
         }
+    }
+
+    private async Task<HttpResponseMessage?> SendWithRedirectsAsync(Uri initialUri, CancellationToken cancellationToken)
+    {
+        var currentUri = initialUri;
+        for (var hop = 0; hop <= ImageCacheConstants.MaxRedirects; hop++)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            if (!ImageCacheService.IsSafeRemoteUrl(currentUri.AbsoluteUri, out var safeUri))
+            {
+                return null;
+            }
+
+            using var request = new HttpRequestMessage(HttpMethod.Get, safeUri);
+            var response = await httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
+            if (!TryGetRedirectTarget(response, safeUri, out var nextUri, out var isBlocked))
+            {
+                return response;
+            }
+
+            response.Dispose();
+            if (isBlocked || nextUri == null)
+            {
+                return null;
+            }
+
+            currentUri = nextUri;
+        }
+
+        return null;
     }
 }
