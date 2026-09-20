@@ -1,5 +1,6 @@
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Tools.ModBuilder;
+using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Results.ModBuilder;
 using GenHub.Core.Models.Tools.ModBuilder;
 using Microsoft.Extensions.FileSystemGlobbing;
@@ -1279,9 +1280,31 @@ public class ConfigurationLoaderService(ILogger<ConfigurationLoaderService> logg
                 Version = string.IsNullOrWhiteSpace(simpManifest.Version) ? ModBuilderConstants.DefaultManifestVersion : simpManifest.Version,
                 Publisher = simpManifest.Publisher ?? string.Empty,
                 Description = simpManifest.Description ?? string.Empty,
+                ContentType = ParseContentType(simpManifest.ContentType),
+                TargetGame = ParseTargetGame(simpManifest.TargetGame),
                 PackNames = simpManifest.Packs?.Where(p => !string.IsNullOrWhiteSpace(p)).ToList() ?? [],
             };
         }
+    }
+
+    private static ContentType? ParseContentType(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return null;
+        }
+
+        return Enum.TryParse<ContentType>(value.Trim(), true, out var parsed) ? parsed : null;
+    }
+
+    private static GameType? ParseTargetGame(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return null;
+        }
+
+        return Enum.TryParse<GameType>(value.Trim(), true, out var parsed) ? parsed : null;
     }
 
     private static IEnumerable<BundleItem> ConvertSimplifiedBundleItems(IEnumerable<SimplifiedBundleItem> simpItems, string projectDir)

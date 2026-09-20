@@ -10048,7 +10048,7 @@ GameFilesEdited/Data/INI/**/*.ini</value>
     <value>إزالة بيان الحزمة المحدد</value>
   </data>
   <data name="Tools.ModBuilder.ConfigEditor.DescManifestsDefault" xml:space="preserve">
-    <value>يجمع كل بيان حزم التجميع في عنصر مكتبة واحد. بدون تعريف بيانات، يتم إنشاء بيان واحد لكل حزمة تجميع.</value>
+    <value>يجمع كل بيان حزم التجميع في عنصر مكتبة واحد. بدون تعريف بيانات، يتم استخدام بيان افتراضي يجمع كل حزم التجميع.</value>
   </data>
   <data name="Tools.ModBuilder.ConfigEditor.BundleManifestSettingsHeader" xml:space="preserve">
     <value>إعدادات بيان الحزمة</value>
@@ -10079,6 +10079,12 @@ GameFilesEdited/Data/INI/**/*.ini</value>
   </data>
   <data name="Tools.ModBuilder.ConfigEditor.WatermarkManifestDescription" xml:space="preserve">
     <value>مثال: يجمع حزم الدقة العالية</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.LabelManifestContentType" xml:space="preserve">
+    <value>نوع المحتوى</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.LabelManifestTargetGame" xml:space="preserve">
+    <value>اللعبة المستهدفة</value>
   </data>
   <data name="Tools.ModBuilder.ConfigEditor.LabelLinkedPacks" xml:space="preserve">
     <value>حزم التجميع المرتبطة</value>

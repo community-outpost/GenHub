@@ -10048,7 +10048,7 @@ GameFilesEdited/Data/INI/**/*.ini</value>
     <value>Удалить выбранный манифест пакетов</value>
   </data>
   <data name="Tools.ModBuilder.ConfigEditor.DescManifestsDefault" xml:space="preserve">
-    <value>Каждый манифест объединяет пакеты сборок в одну запись библиотеки. Без определённых манифестов создаётся один манифест на пакет сборок.</value>
+    <value>Каждый манифест объединяет пакеты сборок в одну запись библиотеки. Без определённых манифестов используется манифест по умолчанию, объединяющий все пакеты сборок.</value>
   </data>
   <data name="Tools.ModBuilder.ConfigEditor.BundleManifestSettingsHeader" xml:space="preserve">
     <value>Настройки манифеста пакетов</value>
@@ -10079,6 +10079,12 @@ GameFilesEdited/Data/INI/**/*.ini</value>
   </data>
   <data name="Tools.ModBuilder.ConfigEditor.WatermarkManifestDescription" xml:space="preserve">
     <value>например, объединяет HD-пакеты текстур</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.LabelManifestContentType" xml:space="preserve">
+    <value>Тип контента</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.LabelManifestTargetGame" xml:space="preserve">
+    <value>Целевая игра</value>
   </data>
   <data name="Tools.ModBuilder.ConfigEditor.LabelLinkedPacks" xml:space="preserve">
     <value>Связанные пакеты сборок</value>

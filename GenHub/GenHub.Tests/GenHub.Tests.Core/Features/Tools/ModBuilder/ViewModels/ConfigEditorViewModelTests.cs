@@ -14,6 +14,7 @@ using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Interfaces.Tools.ModBuilder;
+using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Tools.ModBuilder;
 using GenHub.Features.Tools.ModBuilder.ViewModels;
 using Microsoft.Extensions.Logging;
@@ -262,6 +263,114 @@ public class ConfigEditorViewModelTests
             Assert.Empty(Directory.GetFiles(Path.Combine(projectDir, "config"), "*.tmp"));
 
             Assert.False(viewModel.HasChanges);
+        }
+        finally
+        {
+            Directory.Delete(projectDir, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task InitializeAsync_WithPacksAndNoManifests_CreatesDefaultManifestFromProjectInfoAsync()
+    {
+        var project = new ModBuilderProject
+        {
+            Name = "TestMod",
+            Version = "2.1.0",
+            Description = "Project description",
+            ContentType = ContentType.Patch,
+            TargetGame = GameType.Generals,
+            Configuration = new BuildConfiguration
+            {
+                Packs =
+                [
+                    new BundlePack { Name = "PackA", ItemNames = ["ItemA"] },
+                    new BundlePack { Name = "PackB", ItemNames = ["ItemB"] },
+                ],
+            },
+        };
+
+        var viewModel = CreateViewModel();
+
+        await viewModel.InitializeAsync(project);
+
+        var manifest = Assert.Single(viewModel.BundleManifests);
+        Assert.Equal("TestMod", manifest.Name);
+        Assert.Equal("2.1.0", manifest.Version);
+        Assert.Equal("Project description", manifest.Description);
+        Assert.Equal(ContentType.Patch, manifest.ContentType);
+        Assert.Equal(GameType.Generals, manifest.TargetGame);
+        Assert.Equal(["PackA", "PackB"], manifest.PackNames);
+        Assert.Same(manifest, viewModel.SelectedBundleManifest);
+        Assert.False(viewModel.HasChanges);
+    }
+
+    [Fact]
+    public async Task AddBundleManifest_CopiesProjectInfoForVariantAsync()
+    {
+        var project = new ModBuilderProject
+        {
+            Name = "TestMod",
+            Version = "2.1.0",
+            ContentType = ContentType.Patch,
+            TargetGame = GameType.Generals,
+            Configuration = new BuildConfiguration
+            {
+                Packs = [new BundlePack { Name = "PackA", ItemNames = ["ItemA"] }],
+            },
+        };
+
+        var viewModel = CreateViewModel();
+
+        await viewModel.InitializeAsync(project);
+        viewModel.AddBundleManifestCommand.Execute(null);
+
+        Assert.Equal(2, viewModel.BundleManifests.Count);
+        var variant = viewModel.BundleManifests[1];
+        Assert.Equal("NewManifest2", variant.Name);
+        Assert.Equal("2.1.0", variant.Version);
+        Assert.Equal(ContentType.Patch, variant.ContentType);
+        Assert.Equal(GameType.Generals, variant.TargetGame);
+        Assert.Empty(variant.PackNames);
+        Assert.True(viewModel.HasChanges);
+    }
+
+    [Fact]
+    public async Task SaveAsync_PersistsDefaultManifestWithProjectInfoAsync()
+    {
+        var projectDir = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        Directory.CreateDirectory(projectDir);
+        try
+        {
+            var project = new ModBuilderProject
+            {
+                Name = "TestMod",
+                Version = "2.1.0",
+                Description = "Project description",
+                ContentType = ContentType.Patch,
+                TargetGame = GameType.Generals,
+                ProjectDir = projectDir,
+                Configuration = new BuildConfiguration
+                {
+                    Packs = [new BundlePack { Name = "PackA", ItemNames = ["ItemA"] }],
+                },
+            };
+
+            var viewModel = CreateViewModel();
+
+            await viewModel.InitializeAsync(project);
+            await viewModel.SaveCommand.ExecuteAsync(null);
+
+            var savedManifest = Assert.Single(project.Configuration.Manifests);
+            Assert.Equal("TestMod", savedManifest.Name);
+            Assert.Equal("2.1.0", savedManifest.Version);
+            Assert.Equal(ContentType.Patch, savedManifest.ContentType);
+            Assert.Equal(GameType.Generals, savedManifest.TargetGame);
+            Assert.Equal(["PackA"], savedManifest.PackNames);
+
+            var manifestsJson = await File.ReadAllTextAsync(Path.Combine(projectDir, "config", "ModBundleManifests.json"));
+            Assert.Contains("\"ContentType\": \"Patch\"", manifestsJson, StringComparison.Ordinal);
+            Assert.Contains("\"TargetGame\": \"Generals\"", manifestsJson, StringComparison.Ordinal);
         }
         finally
         {

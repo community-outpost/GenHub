@@ -454,6 +454,20 @@ public sealed class SimplifiedBundleManifest
     public string? Description { get; set; }
 
     /// <summary>
+    /// Gets or sets the content type name (for example "Mod" or "Patch").
+    /// Null or empty inherits the project content type.
+    /// </summary>
+    [JsonPropertyName("ContentType")]
+    public string? ContentType { get; set; }
+
+    /// <summary>
+    /// Gets or sets the target game name (for example "Generals" or "ZeroHour").
+    /// Null or empty inherits the project target game.
+    /// </summary>
+    [JsonPropertyName("TargetGame")]
+    public string? TargetGame { get; set; }
+
+    /// <summary>
     /// Gets or sets the names of the bundle packs linked into this manifest.
     /// </summary>
     [JsonPropertyName("Packs")]

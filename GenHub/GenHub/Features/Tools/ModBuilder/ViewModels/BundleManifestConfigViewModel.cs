@@ -1,5 +1,6 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using GenHub.Core.Constants;
+using GenHub.Core.Models.Enums;
 using System.Collections.ObjectModel;
 
 namespace GenHub.Features.Tools.ModBuilder.ViewModels;
@@ -34,6 +35,18 @@ public partial class BundleManifestConfigViewModel : ObservableObject
     /// </summary>
     [ObservableProperty]
     private string _description = string.Empty;
+
+    /// <summary>
+    /// Gets or sets the content type for the created manifest.
+    /// </summary>
+    [ObservableProperty]
+    private ContentType _contentType = ContentType.Mod;
+
+    /// <summary>
+    /// Gets or sets the target game for the created manifest.
+    /// </summary>
+    [ObservableProperty]
+    private GameType _targetGame = GameType.ZeroHour;
 
     /// <summary>
     /// Gets the names of the bundle packs linked into this manifest.

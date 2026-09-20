@@ -104,7 +104,7 @@ public partial class ModBuilderViewModel(
     /// <summary>
     /// Gets the available target game options.
     /// </summary>
-    public IReadOnlyList<GameType> AvailableTargetGames { get; } = [GameType.ZeroHour, GameType.Generals];
+    public IReadOnlyList<GameType> AvailableTargetGames { get; } = ModBuilderConstants.AvailableTargetGames;
 
     /// <summary>
     /// Gets or sets the target game for the current project.
@@ -124,15 +124,7 @@ public partial class ModBuilderViewModel(
     /// <summary>
     /// Gets the available content type options (e.g. Mod, Patch, Addon).
     /// </summary>
-    public IReadOnlyList<ContentType> AvailableContentTypes { get; } =
-    [
-        ContentType.Mod,
-        ContentType.Patch,
-        ContentType.Addon,
-        ContentType.MapPack,
-        ContentType.LanguagePack,
-        ContentType.ModdingTool,
-    ];
+    public IReadOnlyList<ContentType> AvailableContentTypes { get; } = ModBuilderConstants.AvailableContentTypes;
 
     /// <summary>
     /// Gets or sets the content type for the current project.

@@ -1,3 +1,4 @@
+using GenHub.Core.Models.Enums;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
@@ -579,6 +580,28 @@ public static class ModBuilderConstants
         LemonControlBarSampleName,
         LeikezeHotkeysSampleName,
         HotkeysSampleName
+    ];
+
+    /// <summary>
+    /// Content types selectable for ModBuilder projects and bundle manifests.
+    /// </summary>
+    public static readonly IReadOnlyList<ContentType> AvailableContentTypes =
+    [
+        ContentType.Mod,
+        ContentType.Patch,
+        ContentType.Addon,
+        ContentType.MapPack,
+        ContentType.LanguagePack,
+        ContentType.ModdingTool,
+    ];
+
+    /// <summary>
+    /// Target games selectable for ModBuilder projects and bundle manifests.
+    /// </summary>
+    public static readonly IReadOnlyList<GameType> AvailableTargetGames =
+    [
+        GameType.ZeroHour,
+        GameType.Generals,
     ];
 
     /// <summary>

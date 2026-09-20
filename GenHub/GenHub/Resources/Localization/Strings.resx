@@ -10141,7 +10141,7 @@ Project structure ready. Edit files in GameFilesEdited folder.</value>
     <value>Remove the selected bundle manifest</value>
   </data>
   <data name="Tools.ModBuilder.ConfigEditor.DescManifestsDefault" xml:space="preserve">
-    <value>Each manifest groups bundle packs into one library entry. With no manifests defined, one manifest is created per bundle pack.</value>
+    <value>Each manifest groups bundle packs into one library entry. With no manifests defined, a default manifest combining all bundle packs is used.</value>
   </data>
   <data name="Tools.ModBuilder.ConfigEditor.BundleManifestSettingsHeader" xml:space="preserve">
     <value>Bundle Manifest Settings</value>
@@ -10172,6 +10172,12 @@ Project structure ready. Edit files in GameFilesEdited folder.</value>
   </data>
   <data name="Tools.ModBuilder.ConfigEditor.WatermarkManifestDescription" xml:space="preserve">
     <value>e.g. Groups the HD texture packs</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.LabelManifestContentType" xml:space="preserve">
+    <value>Content Type</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.LabelManifestTargetGame" xml:space="preserve">
+    <value>Target Game</value>
   </data>
   <data name="Tools.ModBuilder.ConfigEditor.LabelLinkedPacks" xml:space="preserve">
     <value>Linked Bundle Packs</value>

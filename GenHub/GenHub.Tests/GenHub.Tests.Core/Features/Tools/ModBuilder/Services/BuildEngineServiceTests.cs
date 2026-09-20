@@ -720,7 +720,7 @@ public sealed class BuildEngineServiceTests : IDisposable
         _mockLocalContentService.Verify(
             x => x.CreateLocalContentManifestAsync(
                 It.IsAny<string>(),
-                "ManifestProject-TestBundle",
+                "ManifestProject",
                 GenHub.Core.Models.Enums.ContentType.Mod,
                 GameType.Generals,
                 bundlesDir,
@@ -757,7 +757,7 @@ public sealed class BuildEngineServiceTests : IDisposable
         _mockLocalContentService.Verify(
             x => x.CreateLocalContentManifestAsync(
                 It.IsAny<string>(),
-                "PatchManifestProject-TestBundle",
+                "PatchManifestProject",
                 GenHub.Core.Models.Enums.ContentType.Patch,
                 GameType.Generals,
                 bundlesDir,
@@ -770,7 +770,7 @@ public sealed class BuildEngineServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task ExecuteBuildAsync_WithMultiplePacks_CreatesOneManifestPerPack()
+    public async Task ExecuteBuildAsync_WithMultiplePacksAndNoDefinitions_CombinesAllPacksIntoSingleManifest()
     {
         // Arrange
         var fixture = CreateManifestFixture("MultiPackProject", ["PackA", "PackB"]);
@@ -787,7 +787,7 @@ public sealed class BuildEngineServiceTests : IDisposable
         _mockLocalContentService.Verify(
             x => x.CreateLocalContentManifestAsync(
                 It.IsAny<string>(),
-                "MultiPackProject-PackA",
+                "MultiPackProject",
                 GenHub.Core.Models.Enums.ContentType.Mod,
                 GameType.Generals,
                 It.IsAny<string?>(),
@@ -797,12 +797,30 @@ public sealed class BuildEngineServiceTests : IDisposable
                 It.IsAny<string?>(),
                 It.IsAny<string?>()),
             Times.Once);
+        File.Exists(Path.Combine(fixture.BuildDir, ModBuilderConstants.ManifestFileName)).Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task ExecuteBuildAsync_WithPackSharingProjectName_DoesNotDuplicateManifestName()
+    {
+        // Arrange
+        var fixture = CreateManifestFixture("GeneralsGamePatch2", ["GeneralsGamePatch2"]);
+
+        // Act
+        var result = await _service.ExecuteBuildAsync(
+            fixture.Project,
+            fixture.Configuration,
+            ["GeneralsGamePatch2"],
+            BuildStep.CreateManifest);
+
+        // Assert
+        result.Success.Should().BeTrue(result.FirstError);
         _mockLocalContentService.Verify(
             x => x.CreateLocalContentManifestAsync(
                 It.IsAny<string>(),
-                "MultiPackProject-PackB",
-                GenHub.Core.Models.Enums.ContentType.Mod,
-                GameType.Generals,
+                "GeneralsGamePatch2",
+                It.IsAny<GenHub.Core.Models.Enums.ContentType>(),
+                It.IsAny<GameType>(),
                 It.IsAny<string?>(),
                 It.IsAny<IProgress<ContentStorageProgress>?>(),
                 It.IsAny<CancellationToken>(),
@@ -810,10 +828,6 @@ public sealed class BuildEngineServiceTests : IDisposable
                 It.IsAny<string?>(),
                 It.IsAny<string?>()),
             Times.Once);
-        var manifestPattern = Path.GetFileNameWithoutExtension(ModBuilderConstants.ManifestFileName)
-            + "-*"
-            + Path.GetExtension(ModBuilderConstants.ManifestFileName);
-        Directory.GetFiles(fixture.BuildDir, manifestPattern).Should().HaveCount(2);
     }
 
     [Fact]
@@ -856,6 +870,47 @@ public sealed class BuildEngineServiceTests : IDisposable
                 "2.5.0"),
             Times.Once);
         File.Exists(Path.Combine(fixture.BuildDir, ModBuilderConstants.ManifestFileName)).Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task ExecuteBuildAsync_WithManifestDefinitionOverrides_UsesDefinitionContentTypeAndTargetGame()
+    {
+        // Arrange
+        var fixture = CreateManifestFixture("OverrideProject", ["PackA", "PackB"]);
+        fixture.Configuration.Manifests =
+        [
+            new()
+            {
+                Name = "RussianEdition",
+                Version = "3.1.0",
+                ContentType = GenHub.Core.Models.Enums.ContentType.LanguagePack,
+                TargetGame = GameType.ZeroHour,
+                PackNames = ["PackA"],
+            },
+        ];
+
+        // Act
+        var result = await _service.ExecuteBuildAsync(
+            fixture.Project,
+            fixture.Configuration,
+            ["PackA"],
+            BuildStep.CreateManifest);
+
+        // Assert
+        result.Success.Should().BeTrue(result.FirstError);
+        _mockLocalContentService.Verify(
+            x => x.CreateLocalContentManifestAsync(
+                It.IsAny<string>(),
+                "RussianEdition",
+                GenHub.Core.Models.Enums.ContentType.LanguagePack,
+                GameType.ZeroHour,
+                It.IsAny<string?>(),
+                It.IsAny<IProgress<ContentStorageProgress>?>(),
+                It.IsAny<CancellationToken>(),
+                It.IsAny<string?>(),
+                It.IsAny<string?>(),
+                "3.1.0"),
+            Times.Once);
     }
 
     [Fact]

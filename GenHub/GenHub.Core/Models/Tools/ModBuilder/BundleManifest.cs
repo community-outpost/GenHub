@@ -1,4 +1,5 @@
 using GenHub.Core.Constants;
+using GenHub.Core.Models.Enums;
 using System.Collections.Generic;
 using System.Text.Json.Serialization;
 
@@ -34,6 +35,22 @@ public class BundleManifest
     /// </summary>
     [JsonPropertyName("description")]
     public string Description { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Gets or sets the content type for the created manifest.
+    /// Null inherits the project content type.
+    /// </summary>
+    [JsonPropertyName("contentType")]
+    [JsonConverter(typeof(JsonStringEnumConverter))]
+    public ContentType? ContentType { get; set; }
+
+    /// <summary>
+    /// Gets or sets the target game for the created manifest.
+    /// Null inherits the project target game.
+    /// </summary>
+    [JsonPropertyName("targetGame")]
+    [JsonConverter(typeof(JsonStringEnumConverter))]
+    public GameType? TargetGame { get; set; }
 
     /// <summary>
     /// Gets or sets the names of the bundle packs linked into this manifest.

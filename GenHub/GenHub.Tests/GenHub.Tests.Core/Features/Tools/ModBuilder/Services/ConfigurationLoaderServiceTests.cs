@@ -829,7 +829,13 @@ public sealed class ConfigurationLoaderServiceTests : IDisposable
                     ""Version"": ""2.5.0"",
                     ""Publisher"": ""acme"",
                     ""Description"": ""Groups the HD packs"",
+                    ""ContentType"": ""Patch"",
+                    ""TargetGame"": ""Generals"",
                     ""Packs"": [""PackA"", ""PackB""]
+                },
+                {
+                    ""Name"": ""InheritedEdition"",
+                    ""Packs"": [""PackA""]
                 }
             ]
         }";
@@ -840,13 +846,17 @@ public sealed class ConfigurationLoaderServiceTests : IDisposable
 
         // Assert
         result.Should().NotBeNull();
-        result.Manifests.Should().HaveCount(1);
+        result.Manifests.Should().HaveCount(2);
         var manifest = result.Manifests[0];
         manifest.Name.Should().Be("HdEdition");
         manifest.Version.Should().Be("2.5.0");
         manifest.Publisher.Should().Be("acme");
         manifest.Description.Should().Be("Groups the HD packs");
+        manifest.ContentType.Should().Be(GenHub.Core.Models.Enums.ContentType.Patch);
+        manifest.TargetGame.Should().Be(GenHub.Core.Models.Enums.GameType.Generals);
         manifest.PackNames.Should().ContainInOrder("PackA", "PackB");
+        result.Manifests[1].ContentType.Should().BeNull();
+        result.Manifests[1].TargetGame.Should().BeNull();
     }
 
     [Fact]

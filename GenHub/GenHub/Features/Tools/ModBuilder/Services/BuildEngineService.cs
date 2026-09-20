@@ -69,6 +69,8 @@ public sealed class BuildEngineService(
         string Name,
         string Version,
         string? Publisher,
+        ContentType ContentType,
+        GameType TargetGame,
         IReadOnlyList<BundlePack> Packs);
 
     private readonly SemaphoreSlim _buildLock = new(1, 1);
@@ -1998,16 +2000,23 @@ public sealed class BuildEngineService(
         if (definitions.Count == 0)
         {
             return OperationResult<IReadOnlyList<ManifestPlanEntry>>.CreateSuccess(
-                effectivePacks.Select(pack => CreateDefaultPlanEntry(buildStructure.Project, pack)).ToList());
+                [CreateDefaultPlanEntry(buildStructure.Project, effectivePacks)]);
         }
 
         return ResolveDefinedManifestPlan(buildStructure.Project, definitions, projectPacks, effectivePacks);
     }
 
-    private static ManifestPlanEntry CreateDefaultPlanEntry(ModBuilderProject project, BundlePack pack)
+    private static ManifestPlanEntry CreateDefaultPlanEntry(ModBuilderProject project, IReadOnlyList<BundlePack> packs)
     {
         var version = ResolveManifestVersion(null, project.Version);
-        return new ManifestPlanEntry($"{project.Name}-{pack.Name}", version, null, [pack]);
+        var name = string.IsNullOrWhiteSpace(project.Name) ? packs[0].Name : project.Name;
+        return new ManifestPlanEntry(
+            name,
+            version,
+            null,
+            ResolveProjectContentType(project.ContentType),
+            ResolveProjectTargetGame(project.TargetGame),
+            packs);
     }
 
     private OperationResult<IReadOnlyList<ManifestPlanEntry>> ResolveDefinedManifestPlan(
@@ -2046,7 +2055,9 @@ public sealed class BuildEngineService(
 
             var version = ResolveManifestVersion(definition.Version, project.Version);
             var publisher = string.IsNullOrWhiteSpace(definition.Publisher) ? null : definition.Publisher;
-            entries.Add(new ManifestPlanEntry(definition.Name, version, publisher, packs));
+            var contentType = ResolveManifestContentType(definition.ContentType, project.ContentType);
+            var targetGame = ResolveManifestTargetGame(definition.TargetGame, project.TargetGame);
+            entries.Add(new ManifestPlanEntry(definition.Name, version, publisher, contentType, targetGame, packs));
         }
 
         if (entries.Count == 0)
@@ -2056,6 +2067,26 @@ public sealed class BuildEngineService(
         }
 
         return OperationResult<IReadOnlyList<ManifestPlanEntry>>.CreateSuccess(entries);
+    }
+
+    private static ContentType ResolveManifestContentType(ContentType? definitionValue, ContentType projectValue)
+    {
+        if (definitionValue is { } contentType && contentType != ContentType.UnknownContentType)
+        {
+            return contentType;
+        }
+
+        return ResolveProjectContentType(projectValue);
+    }
+
+    private static GameType ResolveManifestTargetGame(GameType? definitionValue, GameType projectValue)
+    {
+        if (definitionValue is { } targetGame && targetGame != GameType.Unknown)
+        {
+            return targetGame;
+        }
+
+        return ResolveProjectTargetGame(projectValue);
     }
 
     private static string ResolveManifestVersion(string? definitionVersion, string? projectVersion)
@@ -2292,7 +2323,6 @@ public sealed class BuildEngineService(
 
         try
         {
-            var contentType = ResolveProjectContentType(buildStructure.Project.ContentType);
             var storageProgress = progress == null
                 ? null
                 : CreateManifestStorageProgress(progress, entry.Name);
@@ -2300,8 +2330,8 @@ public sealed class BuildEngineService(
             var manifestResult = await localContentService.CreateLocalContentManifestAsync(
                 entryStagingDir,
                 entry.Name,
-                contentType,
-                buildStructure.Project.TargetGame,
+                entry.ContentType,
+                entry.TargetGame,
                 sourcePath: dirs.BundlesDir,
                 progress: storageProgress,
                 cancellationToken: cancellationToken,
@@ -2362,6 +2392,9 @@ public sealed class BuildEngineService(
 
     private static ContentType ResolveProjectContentType(ContentType contentType) =>
         contentType != ContentType.UnknownContentType ? contentType : ContentType.Mod;
+
+    private static GameType ResolveProjectTargetGame(GameType targetGame) =>
+        targetGame != GameType.Unknown ? targetGame : GameType.ZeroHour;
 
     private async Task PersistManifestOutputsAsync(
         ContentManifest manifest,

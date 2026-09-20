@@ -24,7 +24,7 @@ public class BuildConfiguration
 
     /// <summary>
     /// Gets or sets the content manifest definitions grouping packs for manifest creation.
-    /// Empty selects the default one-manifest-per-pack behavior.
+    /// Empty selects the default single manifest combining all enabled packs.
     /// </summary>
     [JsonPropertyName("manifests")]
     public List<BundleManifest> Manifests { get; set; } = new();

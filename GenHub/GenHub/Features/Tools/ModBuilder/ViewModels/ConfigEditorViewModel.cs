@@ -9,6 +9,7 @@ using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Interfaces.Tools.ModBuilder;
+using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Tools.ModBuilder;
 using GenHub.Features.Tools.ModBuilder.Services;
 using Microsoft.Extensions.Logging;
@@ -67,6 +68,16 @@ public partial class ConfigEditorViewModel(
     /// Gets the list of selectable bundle packs for the currently selected bundle manifest.
     /// </summary>
     public ObservableCollection<BundleItemSelectionItemViewModel> ManifestPackSelections { get; } = [];
+
+    /// <summary>
+    /// Gets the available content type options for bundle manifests.
+    /// </summary>
+    public IReadOnlyList<ContentType> AvailableContentTypes { get; } = ModBuilderConstants.AvailableContentTypes;
+
+    /// <summary>
+    /// Gets the available target game options for bundle manifests.
+    /// </summary>
+    public IReadOnlyList<GameType> AvailableTargetGames { get; } = ModBuilderConstants.AvailableTargetGames;
 
     /// <summary>
     /// Gets or sets the selected bundle item.
@@ -517,20 +528,91 @@ public partial class ConfigEditorViewModel(
     {
         foreach (var manifest in configuration.Manifests)
         {
-            var viewModel = new BundleManifestConfigViewModel
-            {
-                Name = manifest.Name,
-                Version = manifest.Version,
-                Publisher = manifest.Publisher,
-                Description = manifest.Description,
-            };
-            foreach (var packName in manifest.PackNames)
-            {
-                viewModel.PackNames.Add(packName);
-            }
-
-            BundleManifests.Add(viewModel);
+            BundleManifests.Add(CreateManifestConfigViewModel(manifest));
         }
+
+        if (BundleManifests.Count == 0 && BundlePacks.Count > 0)
+        {
+            BundleManifests.Add(CreateDefaultManifestConfigViewModel());
+        }
+    }
+
+    private BundleManifestConfigViewModel CreateManifestConfigViewModel(BundleManifest manifest)
+    {
+        var viewModel = new BundleManifestConfigViewModel
+        {
+            Name = manifest.Name,
+            Version = manifest.Version,
+            Publisher = manifest.Publisher,
+            Description = manifest.Description,
+            ContentType = ResolveEditorContentType(manifest.ContentType),
+            TargetGame = ResolveEditorTargetGame(manifest.TargetGame),
+        };
+        foreach (var packName in manifest.PackNames)
+        {
+            viewModel.PackNames.Add(packName);
+        }
+
+        return viewModel;
+    }
+
+    private BundleManifestConfigViewModel CreateDefaultManifestConfigViewModel()
+    {
+        var viewModel = new BundleManifestConfigViewModel
+        {
+            Name = ResolveDefaultManifestName(),
+            Version = ResolveProjectVersion(),
+            Publisher = string.Empty,
+            Description = CurrentProject?.Description ?? string.Empty,
+            ContentType = ResolveEditorContentType(null),
+            TargetGame = ResolveEditorTargetGame(null),
+        };
+        foreach (var pack in BundlePacks.Where(pack => !string.IsNullOrEmpty(pack.Name)))
+        {
+            viewModel.PackNames.Add(pack.Name);
+        }
+
+        return viewModel;
+    }
+
+    private string ResolveDefaultManifestName()
+    {
+        var projectName = CurrentProject?.Name;
+        if (!string.IsNullOrWhiteSpace(projectName))
+        {
+            return projectName;
+        }
+
+        var firstPack = BundlePacks.FirstOrDefault(pack => !string.IsNullOrEmpty(pack.Name));
+        return firstPack?.Name ?? $"NewManifest{BundleManifests.Count + 1}";
+    }
+
+    private string ResolveProjectVersion()
+    {
+        var projectVersion = CurrentProject?.Version;
+        return !string.IsNullOrWhiteSpace(projectVersion) ? projectVersion : ModBuilderConstants.DefaultManifestVersion;
+    }
+
+    private ContentType ResolveEditorContentType(ContentType? manifestValue)
+    {
+        if (manifestValue is { } contentType && contentType != ContentType.UnknownContentType)
+        {
+            return contentType;
+        }
+
+        var projectValue = CurrentProject?.ContentType ?? ContentType.Mod;
+        return projectValue != ContentType.UnknownContentType ? projectValue : ContentType.Mod;
+    }
+
+    private GameType ResolveEditorTargetGame(GameType? manifestValue)
+    {
+        if (manifestValue is { } targetGame && targetGame != GameType.Unknown)
+        {
+            return targetGame;
+        }
+
+        var projectValue = CurrentProject?.TargetGame ?? GameType.ZeroHour;
+        return projectValue != GameType.Unknown ? projectValue : GameType.ZeroHour;
     }
 
     /// <summary>
@@ -875,9 +957,11 @@ public partial class ConfigEditorViewModel(
         var newManifest = new BundleManifestConfigViewModel
         {
             Name = $"NewManifest{BundleManifests.Count + 1}",
-            Version = ModBuilderConstants.DefaultManifestVersion,
+            Version = ResolveProjectVersion(),
             Publisher = string.Empty,
             Description = string.Empty,
+            ContentType = ResolveEditorContentType(null),
+            TargetGame = ResolveEditorTargetGame(null),
         };
 
         foreach (var pack in BundlePacks.Where(pack => !string.IsNullOrEmpty(pack.Name) && !coveredPacks.Contains(pack.Name)))
@@ -980,6 +1064,8 @@ public partial class ConfigEditorViewModel(
                     Version = string.IsNullOrWhiteSpace(manifestVm.Version) ? ModBuilderConstants.DefaultManifestVersion : manifestVm.Version.Trim(),
                     Publisher = manifestVm.Publisher.Trim(),
                     Description = manifestVm.Description.Trim(),
+                    ContentType = manifestVm.ContentType,
+                    TargetGame = manifestVm.TargetGame,
                     PackNames = manifestVm.PackNames.Where(p => !string.IsNullOrWhiteSpace(p)).ToList(),
                 });
             }
@@ -1116,6 +1202,8 @@ public partial class ConfigEditorViewModel(
                 manifest.Version,
                 Publisher = NullIfEmpty(manifest.Publisher),
                 Description = NullIfEmpty(manifest.Description),
+                ContentType = manifest.ContentType?.ToString(),
+                TargetGame = manifest.TargetGame?.ToString(),
                 Packs = manifest.PackNames.ToArray(),
             }).ToArray(),
         };
