@@ -67,7 +67,7 @@ public class EncryptedFileGitHubTokenStorage : IGitHubTokenStorage
                 var moved = false;
                 try
                 {
-                    File.Move(tempPath, _tokenFilePath, overwrite: true);
+                    await FileOperationsService.MoveFileWithRetryAsync(tempPath, _tokenFilePath).ConfigureAwait(false);
                     moved = true;
                     RestrictFilePermissions(_tokenFilePath);
                     GitHubTokenPathResolver.DeleteFallbackCopyBestEffort(_fallbackTokenFilePath);

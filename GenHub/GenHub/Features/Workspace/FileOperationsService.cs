@@ -156,7 +156,7 @@ public class FileOperationsService(
         try
         {
             await File.WriteAllBytesAsync(tempPath, content, cancellationToken).ConfigureAwait(false);
-            File.Move(tempPath, destinationPath, overwrite: true);
+            await MoveFileWithRetryAsync(tempPath, destinationPath, cancellationToken).ConfigureAwait(false);
             moved = true;
         }
         finally
@@ -731,6 +731,42 @@ public class FileOperationsService(
         {
             logger.LogError(ex, "Exception opening CAS content stream for hash {Hash}", hash);
             return null;
+        }
+    }
+
+    /// <summary>
+    /// Moves a file over an existing destination, retrying transient lock failures with backoff.
+    /// On Windows the atomic rename fails while the destination is open without delete sharing,
+    /// for example a concurrent reader, so a single attempt would turn a momentary lock into a
+    /// failed save. The original exception surfaces unchanged once retries are exhausted.
+    /// </summary>
+    /// <param name="sourcePath">The file to move.</param>
+    /// <param name="destinationPath">The destination path, replaced when it exists.</param>
+    /// <param name="cancellationToken">A cancellation token.</param>
+    /// <returns>A task representing the asynchronous move operation.</returns>
+    internal static async Task MoveFileWithRetryAsync(
+        string sourcePath,
+        string destinationPath,
+        CancellationToken cancellationToken = default)
+    {
+        const int MaxRetries = 3;
+        const int InitialDelayMs = 50;
+
+        for (var attempt = 0; attempt <= MaxRetries; attempt++)
+        {
+            try
+            {
+                File.Move(sourcePath, destinationPath, overwrite: true);
+                return;
+            }
+            catch (IOException ex) when (attempt < MaxRetries && IsFileLockException(ex))
+            {
+                await Task.Delay(InitialDelayMs * (int)Math.Pow(2, attempt), cancellationToken).ConfigureAwait(false);
+            }
+            catch (UnauthorizedAccessException) when (attempt < MaxRetries)
+            {
+                await Task.Delay(InitialDelayMs * (int)Math.Pow(2, attempt), cancellationToken).ConfigureAwait(false);
+            }
         }
     }
 
