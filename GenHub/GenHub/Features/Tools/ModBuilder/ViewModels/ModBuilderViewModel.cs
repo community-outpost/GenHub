@@ -28,6 +28,7 @@ using System.Text;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using BuildStageEnum = GenHub.Core.Models.Tools.ModBuilder.BuildStage;
 
 namespace GenHub.Features.Tools.ModBuilder.ViewModels;
 
@@ -3479,7 +3480,7 @@ public partial class ModBuilderViewModel(
 
         _lastProgressTick = now;
 
-        var stageName = progress.CurrentStage.ToString();
+        var stageName = GetLocalizedStageName(progress.CurrentStage);
         var percentBucket = (int)(progress.PercentComplete / 10);
         var shouldLog = isMilestone ||
             !string.Equals(stageName, _lastLoggedStage, StringComparison.Ordinal) ||
@@ -3509,10 +3510,32 @@ public partial class ModBuilderViewModel(
                 }
                 else if (!string.IsNullOrEmpty(progress.CurrentFile))
                 {
-                    AppendBuildLog($"{progress.CurrentStage}: {progress.CurrentFile}");
+                    AppendBuildLog($"{stageName}: {progress.CurrentFile}");
                 }
             }
         });
+    }
+
+    /// <summary>
+    /// Gets the localized display name for a build stage.
+    /// </summary>
+    private string GetLocalizedStageName(BuildStageEnum stage)
+    {
+        return stage switch
+        {
+            BuildStageEnum.Loading => localizationService.GetString("Tools.ModBuilder.BuildStage.Loading"),
+            BuildStageEnum.Processing => localizationService.GetString("Tools.ModBuilder.BuildStage.Processing"),
+            BuildStageEnum.Converting => localizationService.GetString("Tools.ModBuilder.BuildStage.Converting"),
+            BuildStageEnum.Staging => localizationService.GetString("Tools.ModBuilder.BuildStage.Staging"),
+            BuildStageEnum.Packing => localizationService.GetString("Tools.ModBuilder.BuildStage.Packing"),
+            BuildStageEnum.Compressing => localizationService.GetString("Tools.ModBuilder.BuildStage.Compressing"),
+            BuildStageEnum.Archiving => localizationService.GetString("Tools.ModBuilder.BuildStage.Archiving"),
+            BuildStageEnum.Verifying => localizationService.GetString("Tools.ModBuilder.BuildStage.Verifying"),
+            BuildStageEnum.Hashing => localizationService.GetString("Tools.ModBuilder.BuildStage.Hashing"),
+            BuildStageEnum.Storing => localizationService.GetString("Tools.ModBuilder.BuildStage.Storing"),
+            BuildStageEnum.Complete => localizationService.GetString("Tools.ModBuilder.BuildStage.Complete"),
+            _ => stage.ToString(),
+        };
     }
 
     partial void OnIsBuildRunningChanged(bool value)

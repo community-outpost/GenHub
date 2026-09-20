@@ -279,6 +279,7 @@ public class ManifestGenerationService(
     /// <param name="manifestVersion">Manifest version (e.g., 1, 2, 20). Defaults to 0 for first version.</param>
     /// <param name="contentType">Type of content (Mod, Patch, Addon, etc).</param>
     /// <param name="targetGame">Target game type.</param>
+    /// <param name="progress">Optional progress reporter receiving file hashing progress updates.</param>
     /// <param name="dependencies">Dependencies for this content.</param>
     /// <returns>A <see cref="Task"/> that returns a configured manifest builder.</returns>
     public Task<IContentManifestBuilder> CreateContentManifestAsync(
@@ -288,9 +289,10 @@ public class ManifestGenerationService(
         int manifestVersion = 0,
         ContentType contentType = ContentType.Mod,
         GameType targetGame = GameType.Generals,
+        IProgress<ContentStorageProgress>? progress = null,
         params ContentDependency[] dependencies)
     {
-        return CreateContentManifestAsync(contentDirectory, publisherId, contentName, manifestVersion.ToString(), contentType, targetGame, dependencies);
+        return CreateContentManifestAsync(contentDirectory, publisherId, contentName, manifestVersion.ToString(), contentType, targetGame, progress, dependencies);
     }
 
     /// <inheritdoc />
@@ -301,16 +303,16 @@ public class ManifestGenerationService(
         string? manifestVersion,
         ContentType contentType = ContentType.Mod,
         GameType targetGame = GameType.Generals,
+        IProgress<ContentStorageProgress>? progress = null,
         params ContentDependency[] dependencies)
     {
         try
         {
-            logger.LogDebug(
-                "Creating {ContentType} manifest for {ContentName} at {ContentDirectory} (Publisher: {PublisherId})",
+            logger.LogInformation(
+                "Hashing content directory for {ContentType} manifest '{ContentName}' at {ContentDirectory}",
                 contentType,
                 contentName,
-                contentDirectory,
-                publisherId);
+                contentDirectory);
 
             var builderLogger = NullLogger<ContentManifestBuilder>.Instance;
             var builder = new ContentManifestBuilder(builderLogger, hashProvider, manifestIdService, downloadService, configurationProvider)
@@ -330,12 +332,17 @@ public class ManifestGenerationService(
             // Add files from content directory
             if (!string.IsNullOrEmpty(contentDirectory) && Directory.Exists(contentDirectory))
             {
-                await builder.AddFilesFromDirectoryAsync(contentDirectory, ContentSourceType.ContentAddressable);
+                await builder.AddFilesFromDirectoryAsync(contentDirectory, ContentSourceType.ContentAddressable, progress: progress);
             }
             else
             {
                 logger.LogWarning("Content directory {ContentDirectory} not found or empty. Manifest will have no files.", contentDirectory);
             }
+
+            logger.LogInformation(
+                "Finished hashing content directory for {ContentType} manifest '{ContentName}'",
+                contentType,
+                contentName);
 
             return builder;
         }

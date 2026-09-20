@@ -233,7 +233,6 @@ public sealed class InstallationCasPoolServiceTests : IDisposable
         var manager = new CasPoolManager(
             resolver,
             Options.Create(new CasConfiguration { CasRootPath = primaryPath }),
-            new Mock<IFileHashProvider>().Object,
             NullLoggerFactory.Instance,
             _writabilityProbe.Object,
             NullLogger<CasPoolManager>.Instance);
@@ -277,7 +276,6 @@ public sealed class InstallationCasPoolServiceTests : IDisposable
         var manager = new CasPoolManager(
             resolver,
             Options.Create(configuration),
-            new Mock<IFileHashProvider>().Object,
             NullLoggerFactory.Instance,
             _writabilityProbe.Object,
             NullLogger<CasPoolManager>.Instance);
@@ -311,7 +309,6 @@ public sealed class InstallationCasPoolServiceTests : IDisposable
         var manager = new CasPoolManager(
             resolver,
             Options.Create(configuration),
-            new Mock<IFileHashProvider>().Object,
             NullLoggerFactory.Instance,
             _writabilityProbe.Object,
             NullLogger<CasPoolManager>.Instance);
@@ -333,8 +330,7 @@ public sealed class InstallationCasPoolServiceTests : IDisposable
         await File.WriteAllTextAsync(Path.Combine(objectDirectory, hash), "content");
         var storage = new CasStorage(
             Options.Create(new CasConfiguration { CasRootPath = rootPath }),
-            NullLogger<CasStorage>.Instance,
-            new Mock<IFileHashProvider>().Object);
+            NullLogger<CasStorage>.Instance);
 
         Assert.True(await storage.ObjectExistsAsync(hash));
         Assert.False(Directory.Exists(Path.Combine(rootPath, "temp")));
@@ -374,7 +370,6 @@ public sealed class InstallationCasPoolServiceTests : IDisposable
         var manager = new CasPoolManager(
             resolver,
             Options.Create(configuration),
-            fileHashProvider.Object,
             NullLoggerFactory.Instance,
             _writabilityProbe.Object,
             NullLogger<CasPoolManager>.Instance);
@@ -417,7 +412,6 @@ public sealed class InstallationCasPoolServiceTests : IDisposable
         var manager = new CasPoolManager(
             resolver,
             Options.Create(configuration),
-            new Mock<IFileHashProvider>().Object,
             NullLoggerFactory.Instance,
             _writabilityProbe.Object,
             NullLogger<CasPoolManager>.Instance);
@@ -447,7 +441,6 @@ public sealed class InstallationCasPoolServiceTests : IDisposable
         var manager = new CasPoolManager(
             resolver.Object,
             Options.Create(configuration),
-            new Mock<IFileHashProvider>().Object,
             NullLoggerFactory.Instance,
             _writabilityProbe.Object,
             NullLogger<CasPoolManager>.Instance);
@@ -547,7 +540,6 @@ public sealed class InstallationCasPoolServiceTests : IDisposable
         var manager = new CasPoolManager(
             resolver,
             Options.Create(configuration),
-            new Mock<IFileHashProvider>().Object,
             NullLoggerFactory.Instance,
             _writabilityProbe.Object,
             NullLogger<CasPoolManager>.Instance);

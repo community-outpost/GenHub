@@ -83,6 +83,22 @@ public interface ICasService
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Stores content from a file path in the appropriate CAS pool using a pre-computed hash.
+    /// Unlike the file-path StoreContentAsync overload, the source file is not re-hashed:
+    /// integrity is still verified while the bytes are copied into CAS.
+    /// </summary>
+    /// <param name="sourcePath">The path to the source file.</param>
+    /// <param name="knownHash">The pre-computed content hash of the source file.</param>
+    /// <param name="contentType">The content type for pool routing.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The content hash if successful.</returns>
+    Task<OperationResult<string>> StoreContentWithKnownHashAsync(
+        string sourcePath,
+        string knownHash,
+        ContentType contentType,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Stores content from a stream in the appropriate CAS pool based on content type.
     /// </summary>
     /// <param name="contentStream">The content stream.</param>

@@ -70,7 +70,7 @@ public class CasService(
                 return OperationResult<string>.CreateFailure("Failed to store content in CAS");
             }
 
-            logger.LogInformation("Stored content in CAS: {Hash} from {SourcePath}", hash, sourcePath);
+            logger.LogDebug("Stored content in CAS: {Hash} from {SourcePath}", hash, sourcePath);
             return OperationResult<string>.CreateSuccess(hash);
         }
         catch (Exception ex)
@@ -390,8 +390,62 @@ public class CasService(
                 return OperationResult<string>.CreateFailure("Failed to store content in CAS pool");
             }
 
-            logger.LogInformation("Stored content in CAS pool ({ContentType}): {Hash} from {SourcePath}", contentType, hash, sourcePath);
+            logger.LogDebug("Stored content in CAS pool ({ContentType}): {Hash} from {SourcePath}", contentType, hash, sourcePath);
             return OperationResult<string>.CreateSuccess(hash);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to store content in CAS pool ({ContentType}) from {SourcePath}", contentType, sourcePath);
+            return OperationResult<string>.CreateFailure($"Storage failed: {ex.Message}");
+        }
+    }
+
+    /// <inheritdoc/>
+    public async Task<OperationResult<string>> StoreContentWithKnownHashAsync(
+        string sourcePath,
+        string knownHash,
+        ContentType contentType,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            if (poolManager == null)
+            {
+                return await StoreContentAsync(sourcePath, knownHash, cancellationToken);
+            }
+
+            if (!File.Exists(sourcePath))
+            {
+                return OperationResult<string>.CreateFailure($"Source file not found: {sourcePath}");
+            }
+
+            // Ensure all pools are properly initialized
+            poolManager.EnsureAllPoolsInitialized();
+
+            var casStorage = poolManager.GetStorage(contentType);
+
+            // Check if content already exists in the pool
+            if (await casStorage.ObjectExistsAsync(knownHash, cancellationToken))
+            {
+                logger.LogDebug("Content already exists in CAS pool ({ContentType}): {Hash}", contentType, knownHash);
+                return OperationResult<string>.CreateSuccess(knownHash);
+            }
+
+            // Store without re-hashing the source: the bytes are verified against
+            // the known hash while they are copied into CAS.
+            await using var sourceStream = File.OpenRead(sourcePath);
+            var storedPath = await casStorage.StoreObjectAsync(sourceStream, knownHash, cancellationToken);
+
+            if (storedPath == null)
+            {
+                // The source may have changed after its hash was computed. Fall back
+                // to the re-hashing path so the new content is stored under its own hash.
+                logger.LogDebug("Known-hash CAS store failed for {SourcePath}, retrying with a fresh hash", sourcePath);
+                return await StoreContentAsync(sourcePath, contentType, null, cancellationToken);
+            }
+
+            logger.LogDebug("Stored content in CAS pool ({ContentType}): {Hash} from {SourcePath}", contentType, knownHash, sourcePath);
+            return OperationResult<string>.CreateSuccess(knownHash);
         }
         catch (Exception ex)
         {
@@ -464,7 +518,7 @@ public class CasService(
                 return OperationResult<string>.CreateFailure("Failed to store content in CAS pool");
             }
 
-            logger.LogInformation("Stored content in CAS pool ({ContentType}): {Hash}", contentType, hash);
+            logger.LogDebug("Stored content in CAS pool ({ContentType}): {Hash}", contentType, hash);
             return OperationResult<string>.CreateSuccess(hash);
         }
         catch (Exception ex)

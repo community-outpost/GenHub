@@ -23,9 +23,39 @@ public enum BuildStage
     Converting,
 
     /// <summary>
+    /// Staging files into temporary build directories.
+    /// </summary>
+    Staging,
+
+    /// <summary>
+    /// Packing staged files into an archive payload.
+    /// </summary>
+    Packing,
+
+    /// <summary>
+    /// Compressing an archive payload into its final file (.big, .zip).
+    /// </summary>
+    Compressing,
+
+    /// <summary>
     /// Creating archive files (.big, .zip).
     /// </summary>
     Archiving,
+
+    /// <summary>
+    /// Verifying archive integrity against expected hashes.
+    /// </summary>
+    Verifying,
+
+    /// <summary>
+    /// Hashing files while generating the content manifest.
+    /// </summary>
+    Hashing,
+
+    /// <summary>
+    /// Storing manifest content in CAS.
+    /// </summary>
+    Storing,
 
     /// <summary>
     /// Build completed successfully.

@@ -6860,6 +6860,39 @@ GenHub передает официальный идентификатор AppID 
   <data name="Tools.ModBuilder.BuildOverlay.ButtonCancel" xml:space="preserve">
     <value>Отменить сборку</value>
   </data>
+  <data name="Tools.ModBuilder.BuildStage.Loading" xml:space="preserve">
+    <value>Загрузка</value>
+  </data>
+  <data name="Tools.ModBuilder.BuildStage.Processing" xml:space="preserve">
+    <value>Обработка</value>
+  </data>
+  <data name="Tools.ModBuilder.BuildStage.Converting" xml:space="preserve">
+    <value>Преобразование</value>
+  </data>
+  <data name="Tools.ModBuilder.BuildStage.Staging" xml:space="preserve">
+    <value>Подготовка</value>
+  </data>
+  <data name="Tools.ModBuilder.BuildStage.Packing" xml:space="preserve">
+    <value>Упаковка</value>
+  </data>
+  <data name="Tools.ModBuilder.BuildStage.Compressing" xml:space="preserve">
+    <value>Сжатие</value>
+  </data>
+  <data name="Tools.ModBuilder.BuildStage.Archiving" xml:space="preserve">
+    <value>Архивация</value>
+  </data>
+  <data name="Tools.ModBuilder.BuildStage.Verifying" xml:space="preserve">
+    <value>Проверка</value>
+  </data>
+  <data name="Tools.ModBuilder.BuildStage.Hashing" xml:space="preserve">
+    <value>Хеширование</value>
+  </data>
+  <data name="Tools.ModBuilder.BuildStage.Storing" xml:space="preserve">
+    <value>Сохранение</value>
+  </data>
+  <data name="Tools.ModBuilder.BuildStage.Complete" xml:space="preserve">
+    <value>Готово</value>
+  </data>
   <data name="Tools.ModBuilder.FileManagerDialog.Title" xml:space="preserve">
     <value>Менеджер файлов и ресурсов игры</value>
   </data>

@@ -142,7 +142,8 @@ public class LocalContentService(
                 contentName: name,
                 manifestVersion: options?.ManifestVersion,
                 contentType: contentType,
-                targetGame: targetGame);
+                targetGame: targetGame,
+                progress: progress);
 
             var manifest = builder.Build();
             manifest.SourcePath = !string.IsNullOrEmpty(sourcePath) ? sourcePath : directoryPath;

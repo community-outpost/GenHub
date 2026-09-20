@@ -701,7 +701,7 @@ public sealed class BuildEngineService(
 
                     progress?.Report(new BuildProgress
                     {
-                        CurrentStage = BuildStage.Archiving,
+                        CurrentStage = BuildStage.Packing,
                         CurrentFile = Path.GetFileName(sourceFile),
                         CurrentIndex = BuildIndex.BigBundleItem,
                         CurrentStep = $"Packing {item.Name} ({processed}/{totalFiles}): {Path.GetFileName(sourceFile)}",
@@ -720,7 +720,7 @@ public sealed class BuildEngineService(
                 var overallProgress = ((currentItem - 1) + p) / totalBigItems;
                 progress?.Report(new BuildProgress
                 {
-                    CurrentStage = BuildStage.Archiving,
+                    CurrentStage = BuildStage.Compressing,
                     CurrentFile = $"{item.Name}.big",
                     CurrentIndex = BuildIndex.BigBundleItem,
                     CurrentStep = $"Compressing {item.Name}.big ({p:P0})",
@@ -938,7 +938,7 @@ public sealed class BuildEngineService(
 
             progress?.Report(new BuildProgress
             {
-                CurrentStage = BuildStage.Archiving,
+                CurrentStage = BuildStage.Packing,
                 CurrentFile = pack.Name,
                 CurrentIndex = BuildIndex.ReleaseBundlePack,
                 CurrentStep = $"Packaging release {pack.Name}",
@@ -1019,7 +1019,7 @@ public sealed class BuildEngineService(
             var percent = p * 100;
             progress?.Report(new BuildProgress
             {
-                CurrentStage = BuildStage.Archiving,
+                CurrentStage = BuildStage.Packing,
                 CurrentFile = packFileName,
                 CurrentIndex = BuildIndex.ReleaseBundlePack,
                 CurrentStep = $"Packing {packFileName} ({p:P0})",
@@ -1090,7 +1090,7 @@ public sealed class BuildEngineService(
             }
             progress?.Report(new BuildProgress
             {
-                CurrentStage = BuildStage.Archiving,
+                CurrentStage = BuildStage.Verifying,
                 CurrentFile = packFileName,
                 CurrentIndex = BuildIndex.ReleaseBundlePack,
                 CurrentStep = $"Verifying SHA256 integrity for {packFileName}...",
@@ -1224,7 +1224,7 @@ public sealed class BuildEngineService(
         var stagedCount = 0;
         progress?.Report(new BuildProgress
         {
-            CurrentStage = BuildStage.Archiving,
+            CurrentStage = BuildStage.Staging,
             CurrentIndex = BuildIndex.ReleaseBundlePack,
             CurrentStep = $"Staging release {pack.Name} (0/{totalFiles} files)",
             ProcessedFiles = 0,
@@ -1248,7 +1248,7 @@ public sealed class BuildEngineService(
                 var percent = totalFiles > 0 ? (double)staged / totalFiles * 100 : 100;
                 progress?.Report(new BuildProgress
                 {
-                    CurrentStage = BuildStage.Archiving,
+                    CurrentStage = BuildStage.Staging,
                     CurrentFile = Path.GetFileName(pair.File.AbsSourceFile),
                     CurrentIndex = BuildIndex.ReleaseBundlePack,
                     CurrentStep = $"Staging release {pack.Name} ({staged}/{totalFiles} files)",
@@ -1404,7 +1404,7 @@ public sealed class BuildEngineService(
             var percent = totalItems > 0 ? (double)stagedItems / totalItems * 100 : 100;
             progress?.Report(new BuildProgress
             {
-                CurrentStage = BuildStage.Archiving,
+                CurrentStage = BuildStage.Staging,
                 CurrentIndex = BuildIndex.ReleaseBundlePack,
                 CurrentStep = $"Staging release {pack.Name} ({stagedItems}/{totalItems} items)",
                 ProcessedFiles = stagedItems,
@@ -1492,7 +1492,7 @@ public sealed class BuildEngineService(
                 var percent = totalFiles > 0 ? (double)stagedCount / totalFiles * 100 : 100;
                 progress?.Report(new BuildProgress
                 {
-                    CurrentStage = BuildStage.Archiving,
+                    CurrentStage = BuildStage.Staging,
                     CurrentFile = Path.GetFileName(sourcePath),
                     CurrentIndex = BuildIndex.ReleaseBundlePack,
                     CurrentStep = $"Staging {item.Name} for release {packName} ({stagedCount}/{totalFiles} files)",
@@ -1881,7 +1881,7 @@ public sealed class BuildEngineService(
         logger.LogInformation("CreateManifest stage started");
         progress?.Report(new BuildProgress
         {
-            CurrentStage = BuildStage.Archiving,
+            CurrentStage = BuildStage.Hashing,
             CurrentIndex = BuildIndex.CreateManifest,
             CurrentStep = "Creating local ContentManifest and storing in CAS",
         });
@@ -2145,6 +2145,36 @@ public sealed class BuildEngineService(
         return stagedCount > 0 ? stagingDir : bundlesDir;
     }
 
+    /// <summary>
+    /// Adapts CAS storage progress (hashing and storing phases) to build progress reports
+    /// so the manifest creation ending stays visible in the build terminal.
+    /// </summary>
+    /// <param name="progress">The build progress reporter.</param>
+    /// <param name="manifestName">The manifest display name used in step descriptions.</param>
+    /// <returns>A storage progress reporter forwarding to the build progress.</returns>
+    private static IProgress<ContentStorageProgress> CreateManifestStorageProgress(
+        IProgress<BuildProgress> progress,
+        string manifestName)
+    {
+        return new Progress<ContentStorageProgress>(storageProgress =>
+        {
+            var isHashing = storageProgress.Phase == ContentStoragePhase.Hashing;
+            progress.Report(new BuildProgress
+            {
+                CurrentStage = isHashing ? BuildStage.Hashing : BuildStage.Storing,
+                CurrentIndex = BuildIndex.CreateManifest,
+                CurrentFile = storageProgress.CurrentFileName ?? string.Empty,
+                CurrentStep = isHashing
+                    ? $"Hashing {manifestName} ({storageProgress.ProcessedCount}/{storageProgress.TotalCount})"
+                    : $"Storing {manifestName} in CAS ({storageProgress.ProcessedCount}/{storageProgress.TotalCount})",
+                ProcessedFiles = storageProgress.ProcessedCount,
+                TotalFiles = storageProgress.TotalCount,
+                PercentComplete = storageProgress.Percentage,
+                Percentage = storageProgress.Percentage / 100,
+            });
+        });
+    }
+
     private async Task<bool> ExecuteCreateLocalManifestAsync(
         BuildStructure buildStructure,
         string manifestContentDir,
@@ -2163,12 +2193,17 @@ public sealed class BuildEngineService(
             var targetGame = buildStructure.Project.TargetGame;
             var contentType = ResolveProjectContentType(buildStructure.Project.ContentType);
 
+            var storageProgress = progress == null
+                ? null
+                : CreateManifestStorageProgress(progress, projectName);
+
             var manifestResult = await localContentService.CreateLocalContentManifestAsync(
                 manifestContentDir,
                 projectName,
                 contentType,
                 targetGame,
                 sourcePath: bundlesDir,
+                progress: storageProgress,
                 cancellationToken: cancellationToken).ConfigureAwait(false);
 
             if (!manifestResult.Success)
@@ -2258,12 +2293,17 @@ public sealed class BuildEngineService(
         try
         {
             var contentType = ResolveProjectContentType(buildStructure.Project.ContentType);
+            var storageProgress = progress == null
+                ? null
+                : CreateManifestStorageProgress(progress, entry.Name);
+
             var manifestResult = await localContentService.CreateLocalContentManifestAsync(
                 entryStagingDir,
                 entry.Name,
                 contentType,
                 buildStructure.Project.TargetGame,
                 sourcePath: dirs.BundlesDir,
+                progress: storageProgress,
                 cancellationToken: cancellationToken,
                 publisherId: entry.Publisher,
                 manifestVersion: entry.Version).ConfigureAwait(false);

@@ -1,8 +1,11 @@
 using GenHub.Core.Constants;
+using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace GenHub.Core.Interfaces.Manifest;
@@ -206,8 +209,16 @@ public interface IContentManifestBuilder
     /// <param name="sourceType">How these files should be handled during workspace preparation.</param>
     /// <param name="fileFilter">Optional file filter (e.g., "*.dll", "*.exe").</param>
     /// <param name="isExecutable">Whether files should be marked as executable.</param>
+    /// <param name="progress">Optional progress reporter receiving file hashing progress updates.</param>
+    /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
     /// <returns>A task that yields the <see cref="IContentManifestBuilder"/> instance for chaining upon completion.</returns>
-    Task<IContentManifestBuilder> AddFilesFromDirectoryAsync(string sourceDirectory, ContentSourceType sourceType = ContentSourceType.ContentAddressable, string fileFilter = "*", bool isExecutable = false);
+    Task<IContentManifestBuilder> AddFilesFromDirectoryAsync(
+        string sourceDirectory,
+        ContentSourceType sourceType = ContentSourceType.ContentAddressable,
+        string fileFilter = "*",
+        bool isExecutable = false,
+        IProgress<ContentStorageProgress>? progress = null,
+        CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Adds a local file from the filesystem.

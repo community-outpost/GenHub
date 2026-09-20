@@ -6954,6 +6954,39 @@ GenHub supports four file linking strategies under **Settings -&gt; Game Configu
   <data name="Tools.ModBuilder.BuildOverlay.ButtonCancel" xml:space="preserve">
     <value>Cancel Build</value>
   </data>
+  <data name="Tools.ModBuilder.BuildStage.Loading" xml:space="preserve">
+    <value>Loading</value>
+  </data>
+  <data name="Tools.ModBuilder.BuildStage.Processing" xml:space="preserve">
+    <value>Processing</value>
+  </data>
+  <data name="Tools.ModBuilder.BuildStage.Converting" xml:space="preserve">
+    <value>Converting</value>
+  </data>
+  <data name="Tools.ModBuilder.BuildStage.Staging" xml:space="preserve">
+    <value>Staging</value>
+  </data>
+  <data name="Tools.ModBuilder.BuildStage.Packing" xml:space="preserve">
+    <value>Packing</value>
+  </data>
+  <data name="Tools.ModBuilder.BuildStage.Compressing" xml:space="preserve">
+    <value>Compressing</value>
+  </data>
+  <data name="Tools.ModBuilder.BuildStage.Archiving" xml:space="preserve">
+    <value>Archiving</value>
+  </data>
+  <data name="Tools.ModBuilder.BuildStage.Verifying" xml:space="preserve">
+    <value>Verifying</value>
+  </data>
+  <data name="Tools.ModBuilder.BuildStage.Hashing" xml:space="preserve">
+    <value>Hashing</value>
+  </data>
+  <data name="Tools.ModBuilder.BuildStage.Storing" xml:space="preserve">
+    <value>Storing</value>
+  </data>
+  <data name="Tools.ModBuilder.BuildStage.Complete" xml:space="preserve">
+    <value>Complete</value>
+  </data>
   <data name="Tools.ModBuilder.FileManagerDialog.Title" xml:space="preserve">
     <value>Game Asset &amp; File Manager</value>
   </data>

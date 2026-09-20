@@ -1,3 +1,4 @@
+using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Validation;
@@ -96,6 +97,7 @@ public interface IManifestGenerationService
     /// <param name="manifestVersion">Manifest version (e.g., 1, 2, 20). Defaults to 0 for first version.</param>
     /// <param name="contentType">Type of content (Mod, Patch, Addon, etc).</param>
     /// <param name="targetGame">Target game type.</param>
+    /// <param name="progress">Optional progress reporter receiving file hashing progress updates.</param>
     /// <param name="dependencies">Dependencies for this content.</param>
     /// <returns>A <see cref="Task"/> that returns a configured manifest builder.</returns>
     Task<IContentManifestBuilder> CreateContentManifestAsync(
@@ -105,6 +107,7 @@ public interface IManifestGenerationService
         int manifestVersion = 0,
         ContentType contentType = ContentType.Mod,
         GameType targetGame = GameType.Generals,
+        IProgress<ContentStorageProgress>? progress = null,
         params ContentDependency[] dependencies);
 
     /// <summary>
@@ -116,6 +119,7 @@ public interface IManifestGenerationService
     /// <param name="manifestVersion">The manifest version string (for example "1.0.0").</param>
     /// <param name="contentType">The content type.</param>
     /// <param name="targetGame">The target game.</param>
+    /// <param name="progress">Optional progress reporter receiving file hashing progress updates.</param>
     /// <param name="dependencies">The content dependencies.</param>
     /// <returns>The manifest builder for the discovered content.</returns>
     Task<IContentManifestBuilder> CreateContentManifestAsync(
@@ -125,6 +129,7 @@ public interface IManifestGenerationService
         string? manifestVersion,
         ContentType contentType = ContentType.Mod,
         GameType targetGame = GameType.Generals,
+        IProgress<ContentStorageProgress>? progress = null,
         params ContentDependency[] dependencies);
 
     /// <summary>

@@ -8,6 +8,7 @@ using Microsoft.Extensions.Options;
 using System;
 using System.IO;
 using System.Linq;
+using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -19,8 +20,7 @@ namespace GenHub.Features.Storage.Services;
 /// </summary>
 public class CasStorage(
     IOptions<CasConfiguration> config,
-    ILogger<CasStorage> logger,
-    IFileHashProvider hashProvider) : ICasStorage
+    ILogger<CasStorage> logger) : ICasStorage
 {
     private readonly CasConfiguration _config = config.Value;
     private readonly string _objectsDirectory = Path.Combine(config.Value.CasRootPath, "objects");
@@ -97,19 +97,17 @@ public class CasStorage(
                         content.Position = 0;
                     }
 
-                    await content.CopyToAsync(tempStream, cancellationToken);
+                    if (_config.VerifyIntegrity)
+                    {
+                        await CopyAndVerifyContentAsync(content, tempStream, hash, cancellationToken);
+                    }
+                    else
+                    {
+                        await content.CopyToAsync(tempStream, cancellationToken);
+                    }
+
                     await tempStream.FlushAsync(cancellationToken);
                 } // tempStream is disposed here
-
-                // Verify integrity if enabled
-                if (_config.VerifyIntegrity)
-                {
-                    var actualHash = await hashProvider.ComputeFileHashAsync(tempPath, cancellationToken);
-                    if (!string.Equals(actualHash, hash, StringComparison.OrdinalIgnoreCase))
-                    {
-                        throw new InvalidDataException($"Hash mismatch: expected {hash}, got {actualHash}");
-                    }
-                }
 
                 // Ensure target directory exists
                 var targetDirectory = Path.GetDirectoryName(objectPath)!;
@@ -263,6 +261,30 @@ public class CasStorage(
     private static bool IsValidHash(string hash)
     {
         return hash.Length == 64 && hash.All(c => char.IsAsciiHexDigit(c));
+    }
+
+    /// <summary>
+    /// Copies content into the temporary CAS file while computing its hash, then verifies the hash.
+    /// Hashing during the copy avoids re-reading the temporary file afterwards.
+    /// </summary>
+    /// <param name="content">The content stream to copy.</param>
+    /// <param name="tempStream">The temporary destination stream.</param>
+    /// <param name="expectedHash">The expected content hash.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>A task representing the asynchronous copy operation.</returns>
+    private static async Task CopyAndVerifyContentAsync(Stream content, Stream tempStream, string expectedHash, CancellationToken cancellationToken)
+    {
+        using var sha256 = SHA256.Create();
+        await using var hashingStream = new CryptoStream(tempStream, sha256, CryptoStreamMode.Write, leaveOpen: true);
+        await content.CopyToAsync(hashingStream, cancellationToken);
+        hashingStream.FlushFinalBlock();
+
+        var hashBytes = sha256.Hash ?? throw new InvalidOperationException("Hash computation did not produce a digest.");
+        var actualHash = Convert.ToHexString(hashBytes).ToLowerInvariant();
+        if (!string.Equals(actualHash, expectedHash, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidDataException($"Hash mismatch: expected {expectedHash}, got {actualHash}");
+        }
     }
 
     private static async Task<CasLock> AcquireLockAsync(string lockPath, CancellationToken cancellationToken)

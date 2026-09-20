@@ -2,6 +2,7 @@ using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Interfaces.Tools;
+using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameInstallations;
 using GenHub.Core.Models.Manifest;
@@ -12,6 +13,7 @@ using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace GenHub.Features.Manifest;
@@ -482,12 +484,16 @@ public partial class ContentManifestBuilder(
     /// <param name="sourceType">Source type.</param>
     /// <param name="fileFilter">File filter.</param>
     /// <param name="isExecutable">Is executable.</param>
+    /// <param name="progress">Optional progress reporter receiving file hashing progress updates.</param>
+    /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
     /// <returns>A task that yields the <see cref="IContentManifestBuilder"/> instance for chaining upon completion.</returns>
     public async Task<IContentManifestBuilder> AddFilesFromDirectoryAsync(
         string sourceDirectory,
         ContentSourceType sourceType = ContentSourceType.ContentAddressable,
         string fileFilter = "*",
-        bool isExecutable = false)
+        bool isExecutable = false,
+        IProgress<ContentStorageProgress>? progress = null,
+        CancellationToken cancellationToken = default)
     {
         if (!Directory.Exists(sourceDirectory))
         {
@@ -504,39 +510,42 @@ public partial class ContentManifestBuilder(
 
         logger.LogDebug("Adding files from directory: {Directory} (ComputeHash: {ComputeHash})", sourceDirectory, shouldComputeHash);
         var searchPattern = fileFilter == "*" ? "*.*" : fileFilter;
-        var files = Directory.EnumerateFiles(sourceDirectory, searchPattern, SearchOption.AllDirectories);
+        var files = Directory.EnumerateFiles(sourceDirectory, searchPattern, SearchOption.AllDirectories).ToList();
 
-        foreach (var filePath in files)
+        var slots = new ManifestFile[files.Count];
+        var hashedCount = 0;
+        var parallelOptions = new ParallelOptions
         {
-            var relativePath = Path.GetRelativePath(sourceDirectory, filePath);
-            var fileInfo = new FileInfo(filePath);
+            MaxDegreeOfParallelism = CasDefaults.MaxConcurrentOperations,
+            CancellationToken = cancellationToken,
+        };
 
-            // Skip hash computation for GameInstallation files to improve performance
-            // Hash will be null for these files, which is acceptable since we'll use CSV authority in the future
-            string? hash = null;
-            if (shouldComputeHash)
+        await Parallel.ForEachAsync(
+            files.Select((path, index) => (path, index)),
+            parallelOptions,
+            async (item, ct) =>
             {
-                hash = await _hashProvider.ComputeFileHashAsync(filePath);
-            }
+                var manifestFile = await CreateDirectoryManifestFileAsync(
+                    item.path,
+                    sourceDirectory,
+                    sourceType,
+                    isExecutable,
+                    shouldComputeHash,
+                    ct).ConfigureAwait(false);
+                slots[item.index] = manifestFile;
 
-            var installTarget = DetermineInstallTarget(relativePath);
-
-            var manifestFile = new ManifestFile
-            {
-                RelativePath = relativePath,
-                Size = fileInfo.Length,
-                Hash = hash ?? string.Empty, // Empty for GameInstallation files (CSV authority planned)
-                SourceType = sourceType,
-                SourcePath = sourceDirectory, // Set the source directory path for workspace preparation
-                InstallTarget = installTarget,
-                IsExecutable = isExecutable || IsExecutableFile(filePath),
-                Permissions = new FilePermissions
+                var processed = Interlocked.Increment(ref hashedCount);
+                progress?.Report(new ContentStorageProgress
                 {
-                    IsReadOnly = fileInfo.IsReadOnly,
-                    UnixPermissions = isExecutable ? "755" : "644",
-                },
-            };
+                    ProcessedCount = processed,
+                    TotalCount = files.Count,
+                    CurrentFileName = manifestFile.RelativePath,
+                    Phase = ContentStoragePhase.Hashing,
+                });
+            }).ConfigureAwait(false);
 
+        foreach (var manifestFile in slots)
+        {
             _manifest.Files.Add(manifestFile);
         }
 
@@ -963,6 +972,54 @@ public partial class ContentManifestBuilder(
 
     [System.Text.RegularExpressions.GeneratedRegex("[^a-z0-9]")]
     private static partial System.Text.RegularExpressions.Regex PublisherIdRegex();
+
+    /// <summary>
+    /// Creates a manifest file entry for a single directory file, hashing its content when required.
+    /// </summary>
+    /// <param name="filePath">The absolute path of the file.</param>
+    /// <param name="sourceDirectory">The directory being scanned.</param>
+    /// <param name="sourceType">How the file should be handled during workspace preparation.</param>
+    /// <param name="isExecutable">Whether the file should be marked as executable.</param>
+    /// <param name="shouldComputeHash">Whether to compute the content hash.</param>
+    /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
+    /// <returns>The created manifest file entry.</returns>
+    private async Task<ManifestFile> CreateDirectoryManifestFileAsync(
+        string filePath,
+        string sourceDirectory,
+        ContentSourceType sourceType,
+        bool isExecutable,
+        bool shouldComputeHash,
+        CancellationToken cancellationToken)
+    {
+        var relativePath = Path.GetRelativePath(sourceDirectory, filePath);
+        var fileInfo = new FileInfo(filePath);
+
+        // Skip hash computation for GameInstallation files to improve performance
+        // Hash will be null for these files, which is acceptable since we'll use CSV authority in the future
+        string? hash = null;
+        if (shouldComputeHash)
+        {
+            hash = await _hashProvider.ComputeFileHashAsync(filePath, cancellationToken).ConfigureAwait(false);
+        }
+
+        var installTarget = DetermineInstallTarget(relativePath);
+
+        return new ManifestFile
+        {
+            RelativePath = relativePath,
+            Size = fileInfo.Length,
+            Hash = hash ?? string.Empty, // Empty for GameInstallation files (CSV authority planned)
+            SourceType = sourceType,
+            SourcePath = sourceDirectory, // Set the source directory path for workspace preparation
+            InstallTarget = installTarget,
+            IsExecutable = isExecutable || IsExecutableFile(filePath),
+            Permissions = new FilePermissions
+            {
+                IsReadOnly = fileInfo.IsReadOnly,
+                UnixPermissions = isExecutable ? "755" : "644",
+            },
+        };
+    }
 
     /// <summary>
     /// Determines the installation target based on file extension or path.
