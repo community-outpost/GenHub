@@ -4475,9 +4475,6 @@
   <data name="Downloads.Browser.Publishers" xml:space="preserve">
     <value>Издатели</value>
   </data>
-  <data name="Downloads.Browser.OpenManifestsFolder" xml:space="preserve">
-    <value>Открыть папку манифестов в проводнике</value>
-  </data>
   <data name="Downloads.Browser.SearchWatermark" xml:space="preserve">
     <value>Поиск контента...</value>
   </data>
@@ -5152,9 +5149,6 @@
   </data>
   <data name="Downloads.LoadingDetails" xml:space="preserve">
     <value>Загрузка сведений о контенте...</value>
-  </data>
-  <data name="Downloads.ManifestsFolder" xml:space="preserve">
-    <value>Открыть папку манифестов</value>
   </data>
   <data name="Downloads.ProfileSelection.Add" xml:space="preserve">
     <value>Добавить</value>
