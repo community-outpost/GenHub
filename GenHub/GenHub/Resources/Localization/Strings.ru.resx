@@ -3196,6 +3196,10 @@
     <value>Закрыть</value>
     <comment>Close window.</comment>
   </data>
+  <data name="Window.Maximize" xml:space="preserve">
+    <value>Развернуть</value>
+    <comment>Maximize window.</comment>
+  </data>
   <data name="Window.MaximizeRestore" xml:space="preserve">
     <value>Развернуть или восстановить</value>
     <comment>Maximize or restore window.</comment>
