@@ -229,18 +229,7 @@ public class WorkspaceReconcilerSupplementalTests : IDisposable
     public async Task AnalyzeWorkspaceDelta_LargeSameSizeFile_TrustedWithoutComparisonAsync()
     {
         // Arrange
-        var supplementalRoot = Path.Combine(_testDirectory, "generals");
-        Directory.CreateDirectory(supplementalRoot);
-        await File.WriteAllBytesAsync(Path.Combine(supplementalRoot, "Textures.big"), new byte[6 * 1024 * 1024]);
-
-        var workspacePath = Path.Combine(_testDirectory, "ws8");
-        Directory.CreateDirectory(workspacePath);
-        File.WriteAllText(Path.Combine(workspacePath, "game.dat"), "game binary");
-        var workspaceBytes = new byte[6 * 1024 * 1024];
-        workspaceBytes[0] = 1;
-        await File.WriteAllBytesAsync(Path.Combine(workspacePath, "Textures.big"), workspaceBytes);
-
-        var (workspaceInfo, config) = CreateWorkspace("ws8", workspacePath, supplementalRoot);
+        var (workspaceInfo, config) = await CreateLargeSameSizeWorkspaceAsync("ws8");
 
         // Act
         var result = await _reconciler.AnalyzeWorkspaceDeltaAsync(workspaceInfo, config);
@@ -248,6 +237,100 @@ public class WorkspaceReconcilerSupplementalTests : IDisposable
         // Assert
         var removeDeltas = result.FindAll(d => d.Operation == WorkspaceDeltaOperation.Remove);
         Assert.Empty(removeDeltas);
+    }
+
+    /// <summary>
+    /// Verifies that a workspace copy whose supplemental source disappeared (e.g. the base
+    /// install was uninstalled) is flagged for removal so the workspace self-strips content
+    /// it can no longer verify.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task AnalyzeWorkspaceDelta_MissingSupplementalSource_RemovesWorkspaceCopyAsync()
+    {
+        // Arrange
+        var supplementalRoot = Path.Combine(_testDirectory, "generals");
+        Directory.CreateDirectory(supplementalRoot);
+        var sourceArchive = Path.Combine(supplementalRoot, "Textures.big");
+        File.WriteAllText(sourceArchive, "generals textures");
+
+        var workspacePath = Path.Combine(_testDirectory, "ws9");
+        Directory.CreateDirectory(workspacePath);
+        File.WriteAllText(Path.Combine(workspacePath, "game.dat"), "game binary");
+        File.WriteAllText(Path.Combine(workspacePath, "Textures.big"), "generals textures");
+
+        var (workspaceInfo, config) = CreateWorkspace("ws9", workspacePath, supplementalRoot);
+        File.Delete(sourceArchive);
+
+        // Act
+        var result = await _reconciler.AnalyzeWorkspaceDeltaAsync(workspaceInfo, config);
+
+        // Assert
+        var removeDeltas = result.FindAll(d => d.Operation == WorkspaceDeltaOperation.Remove);
+        Assert.Contains(removeDeltas, d => string.Equals(Path.GetFileName(d.WorkspacePath), "Textures.big", StringComparison.OrdinalIgnoreCase));
+    }
+
+    /// <summary>
+    /// Verifies that a forced full verification byte-compares even large supplemental copies
+    /// instead of trusting size alone, mirroring the manifest staleness standard.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task AnalyzeWorkspaceDelta_LargeSameSizeFileWithFullVerification_StillRemovedAsync()
+    {
+        // Arrange
+        var (workspaceInfo, config) = await CreateLargeSameSizeWorkspaceAsync("ws10");
+
+        // Act
+        var result = await _reconciler.AnalyzeWorkspaceDeltaAsync(workspaceInfo, config, forceFullVerification: true);
+
+        // Assert
+        var removeDeltas = result.FindAll(d => d.Operation == WorkspaceDeltaOperation.Remove);
+        Assert.Contains(removeDeltas, d => string.Equals(Path.GetFileName(d.WorkspacePath), "Textures.big", StringComparison.OrdinalIgnoreCase));
+    }
+
+    /// <summary>
+    /// Verifies that an unreadable supplemental root degrades to treating linked archives as
+    /// orphans, forcing one workspace recreation rather than silently keeping content that
+    /// can no longer be verified.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task AnalyzeWorkspaceDelta_UnreadableSupplementalRoot_TreatsLinkedArchivesAsOrphansAsync()
+    {
+        if (OperatingSystem.IsWindows() || Environment.UserName == "root")
+        {
+            return;
+        }
+
+        // Arrange
+        var parent = Directory.CreateDirectory(Path.Combine(_testDirectory, "locked")).FullName;
+        var supplementalRoot = Directory.CreateDirectory(Path.Combine(parent, "generals")).FullName;
+        File.WriteAllText(Path.Combine(supplementalRoot, "Textures.big"), "generals textures");
+
+        var workspacePath = Path.Combine(_testDirectory, "ws11");
+        Directory.CreateDirectory(workspacePath);
+        File.WriteAllText(Path.Combine(workspacePath, "game.dat"), "game binary");
+        File.WriteAllText(Path.Combine(workspacePath, "Textures.big"), "generals textures");
+
+        var (workspaceInfo, config) = CreateWorkspace("ws11", workspacePath, supplementalRoot);
+        File.SetUnixFileMode(parent, UnixFileMode.UserWrite);
+
+        try
+        {
+            // Act
+            var result = await _reconciler.AnalyzeWorkspaceDeltaAsync(workspaceInfo, config);
+
+            // Assert
+            var removeDeltas = result.FindAll(d => d.Operation == WorkspaceDeltaOperation.Remove);
+            Assert.Contains(removeDeltas, d => string.Equals(Path.GetFileName(d.WorkspacePath), "Textures.big", StringComparison.OrdinalIgnoreCase));
+        }
+        finally
+        {
+            File.SetUnixFileMode(
+                parent,
+                UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+        }
     }
 
     /// <summary>
@@ -328,5 +411,21 @@ public class WorkspaceReconcilerSupplementalTests : IDisposable
         };
 
         return (workspaceInfo, config);
+    }
+
+    private async Task<(WorkspaceInfo WorkspaceInfo, WorkspaceConfiguration Config)> CreateLargeSameSizeWorkspaceAsync(string id)
+    {
+        var supplementalRoot = Path.Combine(_testDirectory, "generals");
+        Directory.CreateDirectory(supplementalRoot);
+        await File.WriteAllBytesAsync(Path.Combine(supplementalRoot, "Textures.big"), new byte[6 * 1024 * 1024]);
+
+        var workspacePath = Path.Combine(_testDirectory, id);
+        Directory.CreateDirectory(workspacePath);
+        File.WriteAllText(Path.Combine(workspacePath, "game.dat"), "game binary");
+        var workspaceBytes = new byte[6 * 1024 * 1024];
+        workspaceBytes[0] = 1;
+        await File.WriteAllBytesAsync(Path.Combine(workspacePath, "Textures.big"), workspaceBytes);
+
+        return CreateWorkspace(id, workspacePath, supplementalRoot);
     }
 }

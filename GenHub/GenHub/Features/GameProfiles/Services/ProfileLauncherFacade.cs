@@ -323,8 +323,9 @@ public class ProfileLauncherFacade(
                 ManifestSourcePaths = manifestSourcePaths,
             };
 
-            // Use resolved installation path and workspace root
-            if (resolvedInstallation == null || string.IsNullOrEmpty(resolvedInstallation.InstallationPath))
+            // Use resolved installation path and workspace root. Null was already rejected
+            // above, so only an empty installation path remains to guard here.
+            if (string.IsNullOrEmpty(resolvedInstallation.InstallationPath))
             {
                 return ProfileOperationResult<WorkspaceInfo>.CreateFailure("Resolved installation has no valid installation path");
             }

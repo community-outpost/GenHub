@@ -215,7 +215,7 @@ public class WorkspaceReconciler(ILogger<WorkspaceReconciler> logger, IFileOpera
                     continue;
                 }
 
-                if (await IsSupplementalArchiveFileAsync(workspacePath, relativePath, configuration.SupplementalArchiveRoot, supplementalArchives, cancellationToken))
+                if (await IsSupplementalArchiveFileAsync(workspacePath, relativePath, configuration.SupplementalArchiveRoot, supplementalArchives, forceFullVerification, cancellationToken))
                 {
                     continue;
                 }
@@ -266,6 +266,7 @@ public class WorkspaceReconciler(ILogger<WorkspaceReconciler> logger, IFileOpera
         string relativePath,
         string? supplementalRoot,
         IReadOnlyDictionary<string, string> supplementalArchives,
+        bool forceFullVerification,
         CancellationToken cancellationToken)
     {
         if (supplementalArchives.Count == 0 || string.IsNullOrWhiteSpace(supplementalRoot))
@@ -296,10 +297,14 @@ public class WorkspaceReconciler(ILogger<WorkspaceReconciler> logger, IFileOpera
         // A regular file or hardlink carrying a supplemental name is only expected when it still
         // matches its source: anything else is a stale orphan (e.g. a disabled mod's override)
         // that must be removed rather than shadow the base archive indefinitely.
-        return await SupplementalCopyMatchesAsync(workspaceFile, sourcePath, cancellationToken);
+        return await SupplementalCopyMatchesAsync(workspaceFile, sourcePath, forceFullVerification, cancellationToken);
     }
 
-    private async Task<bool> SupplementalCopyMatchesAsync(string workspaceFile, string sourcePath, CancellationToken cancellationToken)
+    private async Task<bool> SupplementalCopyMatchesAsync(
+        string workspaceFile,
+        string sourcePath,
+        bool forceFullVerification,
+        CancellationToken cancellationToken)
     {
         try
         {
@@ -312,8 +317,9 @@ public class WorkspaceReconciler(ILogger<WorkspaceReconciler> logger, IFileOpera
 
             // Mirror FileNeedsUpdateAsync: hashing every reconciliation is too expensive for
             // multi-hundred-megabyte archives, so size-matching large files are trusted while
-            // small ones are compared byte for byte.
-            if (workspaceInfo.Length >= SmallFileThreshold)
+            // small ones are compared byte for byte. A forced full verification compares
+            // everything instead, since there is no manifest hash to check against.
+            if (workspaceInfo.Length >= SmallFileThreshold && !forceFullVerification)
             {
                 return true;
             }
@@ -324,7 +330,7 @@ public class WorkspaceReconciler(ILogger<WorkspaceReconciler> logger, IFileOpera
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            logger.LogDebug(ex, "Failed to compare supplemental file {WorkspaceFile} with {Source}", workspaceFile, sourcePath);
+            logger.LogWarning(ex, "Failed to compare supplemental file {WorkspaceFile} with {Source}; it will be treated as stale for this run", workspaceFile, sourcePath);
             return false;
         }
     }

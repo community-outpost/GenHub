@@ -812,4 +812,35 @@ public class WorkspaceCompatibilityHelperTests : IDisposable
                 UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
         }
     }
+
+    /// <summary>
+    /// Verifies that case-variant duplicates in the root resolve to a deterministic canonical
+    /// source instead of whichever entry the filesystem enumerates first.
+    /// </summary>
+    [Fact]
+    public void TryGetSupplementalArchives_WithCaseVariantDuplicates_ResolvesDeterministically()
+    {
+        // Arrange
+        var root = Directory.CreateDirectory(Path.Combine(_tempDir, "duplicates")).FullName;
+        File.WriteAllText(Path.Combine(root, "textures.big"), "lowercase");
+        File.WriteAllText(Path.Combine(root, "Textures.big"), "capitalized");
+
+        if (Directory.GetFiles(root).Length != 2)
+        {
+            // A case-insensitive volume cannot hold both variants, so the scenario is unreachable here.
+            return;
+        }
+
+        // Act
+        var first = WorkspaceCompatibilityHelper.TryGetSupplementalArchives(root, out var firstArchives);
+        var second = WorkspaceCompatibilityHelper.TryGetSupplementalArchives(root, out var secondArchives);
+
+        // Assert
+        first.Should().BeTrue();
+        second.Should().BeTrue();
+        firstArchives.Count.Should().Be(1);
+        secondArchives.Count.Should().Be(1);
+        firstArchives["textures.big"].Should().Be(secondArchives["textures.big"]);
+        Path.GetFileName(firstArchives["textures.big"]).Should().Be("Textures.big");
+    }
 }

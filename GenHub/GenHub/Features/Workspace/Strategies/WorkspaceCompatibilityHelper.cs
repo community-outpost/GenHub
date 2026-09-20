@@ -124,7 +124,12 @@ public static class WorkspaceCompatibilityHelper
 
         try
         {
-            foreach (var path in Directory.EnumerateFiles(supplementalRoot, RetailArchiveConstants.ArchiveSearchPattern, RetailArchiveConstants.ArchiveSearch))
+            // Enumerate deterministically: on a case-sensitive filesystem the root may hold
+            // both "Textures.big" and "textures.big", and TryAdd keeps whichever arrives
+            // first. Ordering pins the same canonical source for the linker and the
+            // reconciler on every run instead of churning on enumeration order.
+            foreach (var path in Directory.EnumerateFiles(supplementalRoot, RetailArchiveConstants.ArchiveSearchPattern, RetailArchiveConstants.ArchiveSearch)
+                .OrderBy(candidate => candidate, StringComparer.Ordinal))
             {
                 names.TryAdd(Path.GetFileName(path), path);
             }
@@ -248,7 +253,10 @@ public static class WorkspaceCompatibilityHelper
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            logger.LogDebug(ex, "Failed to enumerate workspace root for supplemental linking: {Workspace}", workspacePath);
+            logger.LogWarning(ex, "Failed to enumerate workspace root for supplemental linking: {Workspace}", workspacePath);
+            workspaceInfo.ValidationIssues.Add(new ValidationIssue(
+                $"Failed to enumerate workspace root for supplemental linking: {workspacePath}",
+                ValidationSeverity.Warning));
             return 0;
         }
 

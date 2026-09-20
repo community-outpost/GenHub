@@ -793,6 +793,15 @@ public class GameLauncher(
             return null;
         }
 
+        // A relative root is never coherent: GenHub resolves it against its own working
+        // directory while the engine resolves it against the workspace, so one of the two
+        // always reads the wrong directory. Refuse loudly instead of mounting nothing.
+        if (!Path.IsPathRooted(root))
+        {
+            return $"The retail archive root for {variableName} must be an absolute path: {root}. " +
+                   "A relative path resolves against a different directory for the launcher and the engine, so the game would mount nothing.";
+        }
+
         // The probe is the enumeration itself: Directory.Exists returns false for an
         // unreadable root as well as a missing one, which would report a permission
         // problem as missing content. Only DirectoryNotFoundException means absence.
@@ -808,7 +817,7 @@ public class GameLauncher(
             return $"The retail archive root for {variableName} does not exist: {root}. " +
                    "The engine would abort during initialisation with a generic crash naming nothing, so the launch was stopped.";
         }
-        catch (Exception ex) when (ex is UnauthorizedAccessException or IOException)
+        catch (Exception ex) when (ex is UnauthorizedAccessException or IOException or ArgumentException)
         {
             return $"The retail archive root for {variableName} could not be read: {root} ({ex.Message}).";
         }
