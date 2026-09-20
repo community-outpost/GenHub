@@ -182,13 +182,28 @@ public static class StorageMigrationConstants
 
     /// <summary>
     /// Notification message format when user data has been successfully adopted from a custom installation.
+    /// {0} is the detected custom installation path.
     /// </summary>
     public const string DuplicateInstallationAdoptedMessageFormat =
-        "GenHub detected a custom installation at '{0}'. Your settings, profiles, and game manifests have been preserved in this installation.";
+        "GenHub is running from the default folder, but a previous installation was found at '{0}'. Your settings, profiles, and game manifests were copied to this installation.";
 
     /// <summary>
     /// Notification message format when a duplicate installation exists but data was not adopted.
+    /// {0} is the detected custom installation path.
     /// </summary>
     public const string DuplicateInstallationDetectedMessageFormat =
-        "GenHub is running from the default directory, but an existing installation was detected at '{0}'.";
+        "GenHub is running from the default folder, but an existing installation was found at '{0}'.";
+
+    /// <summary>
+    /// Windows guidance appended to duplicate installation notifications, telling the user how to
+    /// reinstall over the previous location. {0} is the detected custom installation path.
+    /// </summary>
+    public const string DuplicateInstallationWindowsReinstallGuidanceFormat =
+        "To update the previous location instead, re-run the installer with --installto \"{0}\".";
+
+    /// <summary>
+    /// Cross-platform guidance appended to duplicate installation notifications on non-Windows hosts.
+    /// </summary>
+    public const string DuplicateInstallationGenericReinstallGuidance =
+        "To keep a single installation, reinstall over the previous location or move this install in Settings > Migrate Installation.";
 }

@@ -334,7 +334,7 @@ Existing installations on `C:` can also be migrated to a new location at any tim
 > If you installed GenHub to a custom path (e.g. `D:\Games\GenHub`):
 > - **In-App Updates (Preferred)**: GenHub updates seamlessly in-place within the custom directory without running `Setup.exe`.
 > - **Manual Re-installation / Upgrades via Installer**: You must specify `--installto "<custom-path>"` again when running `Setup.exe`.
-> - **Collision Resolution**: If `Setup.exe` is run without arguments, creating a duplicate install in `%LOCALAPPDATA%\GenHub`, GenHub's startup diagnostics detect the collision, record/preserve custom installation roots across platforms (the registry value `CustomInstallPath` under `HKCU\Software\GenHub` on Windows, and `~/.genhub/install-location` across platforms), conditionally adopt existing user settings and profiles into the new install when the default location has no conflicting user data (preserving derived CAS and workspaces to be cleanly rebuilt), and notify the user of the duplicate installation.
+> - **Collision Resolution**: If `Setup.exe` is run without arguments, creating a duplicate install in `%LOCALAPPDATA%\GenHub`, GenHub's startup diagnostics detect the collision, record/preserve custom installation roots across platforms (the registry value `CustomInstallPath` under `HKCU\Software\GenHub` on Windows, and `~/.genhub/install-location` across platforms), conditionally adopt existing user settings and profiles into the new install when the default location has no conflicting user data (preserving derived CAS and workspaces to be cleanly rebuilt), and notify the user of the duplicate installation, including how to reinstall over the previous location with `--installto`.
 
 ### Linux Installation
 

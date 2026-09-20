@@ -154,7 +154,7 @@ public class InstallationConflictServiceTests : System.IDisposable
         _mockNotificationService.Verify(
             n => n.ShowWarning(
                 StorageMigrationConstants.DuplicateInstallationDetectedTitle,
-                It.Is<string>(msg => msg.Contains("preserved") && msg.Contains(customDir)),
+                It.Is<string>(msg => msg.Contains("copied to this installation") && msg.Contains(customDir) && HasExpectedReinstallGuidance(msg)),
                 It.IsAny<int?>(),
                 true),
             Times.Once);
@@ -164,11 +164,11 @@ public class InstallationConflictServiceTests : System.IDisposable
     }
 
     /// <summary>
-    /// Verifies that when WasEarlyAdopted is true, the notification displays preserved message and badge is true.
+    /// Verifies that when WasEarlyAdopted is true, the notification displays the adopted-data message and badge is true.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task CheckAndResolveConflictsAsync_WhenWasEarlyAdopted_ShowsPreservedNotificationWithBadge()
+    public async Task CheckAndResolveConflictsAsync_WhenWasEarlyAdopted_ShowsAdoptedNotificationWithBadge()
     {
         StorageMigrationService.SetCustomInstallRootOverrideForTesting(false);
         StorageMigrationService.WasEarlyAdopted = true;
@@ -191,7 +191,7 @@ public class InstallationConflictServiceTests : System.IDisposable
         _mockNotificationService.Verify(
             n => n.ShowWarning(
                 StorageMigrationConstants.DuplicateInstallationDetectedTitle,
-                It.Is<string>(msg => msg.Contains("preserved") && msg.Contains(customDir)),
+                It.Is<string>(msg => msg.Contains("copied to this installation") && msg.Contains(customDir) && HasExpectedReinstallGuidance(msg)),
                 StorageMigrationConstants.DuplicateInstallationNotificationAutoDismissMs,
                 true),
             Times.Once);
@@ -232,7 +232,7 @@ public class InstallationConflictServiceTests : System.IDisposable
         _mockNotificationService.Verify(
             n => n.ShowWarning(
                 StorageMigrationConstants.DuplicateInstallationDetectedTitle,
-                It.Is<string>(msg => !msg.Contains("preserved") && msg.Contains(customDir)),
+                It.Is<string>(msg => !msg.Contains("copied to this installation") && msg.Contains(customDir) && HasExpectedReinstallGuidance(msg)),
                 StorageMigrationConstants.DuplicateInstallationNotificationAutoDismissMs,
                 true),
             Times.Once);
@@ -296,7 +296,7 @@ public class InstallationConflictServiceTests : System.IDisposable
             _mockNotificationService.Verify(
                 n => n.ShowWarning(
                     StorageMigrationConstants.DuplicateInstallationDetectedTitle,
-                    It.Is<string>(msg => !msg.Contains("preserved") && msg.Contains(customDir)),
+                    It.Is<string>(msg => !msg.Contains("copied to this installation") && msg.Contains(customDir) && HasExpectedReinstallGuidance(msg)),
                     StorageMigrationConstants.DuplicateInstallationNotificationAutoDismissMs,
                     true),
                 Times.Once);
@@ -412,7 +412,7 @@ public class InstallationConflictServiceTests : System.IDisposable
         _mockNotificationService.Verify(
             n => n.ShowWarning(
                 StorageMigrationConstants.DuplicateInstallationDetectedTitle,
-                It.Is<string>(msg => msg.Contains("preserved") && msg.Contains(customDir)),
+                It.Is<string>(msg => msg.Contains("copied to this installation") && msg.Contains(customDir) && HasExpectedReinstallGuidance(msg)),
                 It.IsAny<int?>(),
                 true),
             Times.Once);
@@ -420,5 +420,17 @@ public class InstallationConflictServiceTests : System.IDisposable
         _mockUserSettingsService.Verify(s => s.Reload(), Times.Once);
         _mockTracker.Verify(t => t.ClearCustomInstallPath(), Times.Once);
         Assert.False(File.Exists(_markerPath));
+    }
+
+    /// <summary>
+    /// Verifies that the notification message contains the platform-appropriate reinstall guidance.
+    /// </summary>
+    /// <param name="message">The notification message.</param>
+    /// <returns><see langword="true"/> when the expected guidance is present; otherwise, <see langword="false"/>.</returns>
+    private static bool HasExpectedReinstallGuidance(string message)
+    {
+        return OperatingSystem.IsWindows()
+            ? message.Contains("--installto")
+            : message.Contains("Migrate Installation");
     }
 }
