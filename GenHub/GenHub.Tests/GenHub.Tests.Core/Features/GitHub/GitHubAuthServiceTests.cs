@@ -572,6 +572,39 @@ public class GitHubAuthServiceTests : IDisposable
         Assert.Null(harness.Service.CurrentUser);
     }
 
+    /// <summary>
+    /// Verifies that a sign-out completing while a profile fetch is in flight wins over the late authorization failure.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task GetCurrentUserAsync_WhenSignOutDuringFetch_DoesNotMarkExpiredAsync()
+    {
+        // Arrange
+        SetGitHubEnvironment(clientId: "test-client-id", genHubToken: "rejected-token-value");
+        var harness = new AuthHarness();
+        using var entered = new ManualResetEventSlim(false);
+        var profileFetch = new TaskCompletionSource<User>();
+        harness.UserClient
+            .Setup(x => x.Current())
+            .Callback(() => entered.Set())
+            .Returns(profileFetch.Task);
+        var raisedCount = 0;
+        harness.Service.AuthStateChanged += (_, _) => raisedCount++;
+        var fetchTask = harness.Service.GetCurrentUserAsync();
+        Assert.True(entered.Wait(TimeSpan.FromSeconds(5)));
+
+        // Act
+        await harness.Service.SignOutAsync();
+        profileFetch.SetException(new AuthorizationException(Mock.Of<IResponse>()));
+
+        // Assert
+        Assert.Null(await fetchTask);
+        Assert.False(harness.Service.IsSessionExpired);
+        Assert.False(harness.Service.IsAuthenticated);
+        Assert.Null(harness.Service.CurrentUser);
+        Assert.Equal(1, raisedCount);
+    }
+
     private static void SetGitHubEnvironment(string? clientId, string? genHubToken = null, string? gitHubToken = null)
     {
         Environment.SetEnvironmentVariable(GitHubConstants.OAuthClientIdEnvVar, clientId);

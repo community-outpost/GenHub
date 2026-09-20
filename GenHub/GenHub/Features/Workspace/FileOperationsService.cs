@@ -152,10 +152,10 @@ public class FileOperationsService(
         EnsureDirectoryExists(destinationPath);
         var directory = Path.GetDirectoryName(destinationPath) ?? string.Empty;
         var tempPath = Path.Combine(directory, $"{Path.GetFileName(destinationPath)}.{Guid.NewGuid():N}.tmp");
-        await File.WriteAllBytesAsync(tempPath, content, cancellationToken).ConfigureAwait(false);
         var moved = false;
         try
         {
+            await File.WriteAllBytesAsync(tempPath, content, cancellationToken).ConfigureAwait(false);
             File.Move(tempPath, destinationPath, overwrite: true);
             moved = true;
         }

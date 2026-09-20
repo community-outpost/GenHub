@@ -507,7 +507,9 @@ public class GitHubAuthService(
     {
         lock (_syncLock)
         {
-            if (_sessionExpired)
+            // An explicit sign-out always wins: a slow in-flight profile fetch must not
+            // re-latch the expired flag after the user has deliberately signed out.
+            if (_sessionExpired || _sessionSignedOut)
             {
                 return;
             }
