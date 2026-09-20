@@ -102,10 +102,6 @@ public sealed class P2PConnectionService(ILogger<P2PConnectionService> logger) :
             SetQuality(OnlineConnectionQuality.Direct);
             return OperationResult<bool>.CreateSuccess(true);
         }
-        catch (OperationCanceledException)
-        {
-            throw;
-        }
         catch (SocketException ex)
         {
             logger.LogWarning(ex, "Punch packets failed.");
@@ -134,10 +130,6 @@ public sealed class P2PConnectionService(ILogger<P2PConnectionService> logger) :
         {
             var publicEndpoint = await QueryStunAsync(cancellationToken);
             return OperationResult<P2PEndpoints>.CreateSuccess(new P2PEndpoints(local, publicEndpoint));
-        }
-        catch (OperationCanceledException)
-        {
-            throw;
         }
         catch (Exception ex) when (ex is SocketException or TimeoutException)
         {
@@ -267,7 +259,7 @@ public sealed class P2PConnectionService(ILogger<P2PConnectionService> logger) :
         }
     }
 
-    private async Task<IPEndPoint?> QueryStunAsync(CancellationToken cancellationToken)
+    private static async Task<IPEndPoint?> QueryStunAsync(CancellationToken cancellationToken)
     {
         using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         timeoutCts.CancelAfter(TimeSpan.FromSeconds(StunTimeoutSeconds));

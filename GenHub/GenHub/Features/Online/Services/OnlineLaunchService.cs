@@ -4,7 +4,6 @@ using GenHub.Core.Interfaces.Online;
 using GenHub.Core.Models.Online;
 using GenHub.Core.Models.Results;
 using Microsoft.Extensions.Logging;
-using System;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -34,29 +33,22 @@ public sealed class OnlineLaunchService(
             return OperationResult<OnlinePlayResult>.CreateFailure(OnlineConstants.ErrorProfileMissing);
         }
 
-        try
+        var profile = await profileManager.GetProfileAsync(expectedProfileId, cancellationToken);
+        if (!profile.Success || profile.Data is null)
         {
-            var profile = await profileManager.GetProfileAsync(expectedProfileId, cancellationToken);
-            if (!profile.Success || profile.Data is null)
-            {
-                logger.LogWarning("Online play found no profile {ProfileId}.", expectedProfileId);
-                return OperationResult<OnlinePlayResult>.CreateFailure(OnlineConstants.ErrorProfileMissing);
-            }
-
-            var launch = await launcherFacade.LaunchProfileAsync(profile.Data.Id, false, cancellationToken);
-            if (!launch.Success)
-            {
-                logger.LogWarning("Online play launch failed for profile {ProfileId}.", profile.Data.Id);
-                return OperationResult<OnlinePlayResult>.CreateFailure(
-                    [OnlineConstants.ErrorLaunchFailed, .. launch.Errors]);
-            }
-
-            return OperationResult<OnlinePlayResult>.CreateSuccess(
-                new OnlinePlayResult(profile.Data.Id, profile.Data.Name, networkName));
+            logger.LogWarning("Online play found no profile {ProfileId}.", expectedProfileId);
+            return OperationResult<OnlinePlayResult>.CreateFailure(OnlineConstants.ErrorProfileMissing);
         }
-        catch (OperationCanceledException)
+
+        var launch = await launcherFacade.LaunchProfileAsync(profile.Data.Id, false, cancellationToken);
+        if (!launch.Success)
         {
-            throw;
+            logger.LogWarning("Online play launch failed for profile {ProfileId}.", profile.Data.Id);
+            return OperationResult<OnlinePlayResult>.CreateFailure(
+                [OnlineConstants.ErrorLaunchFailed, .. launch.Errors]);
         }
+
+        return OperationResult<OnlinePlayResult>.CreateSuccess(
+            new OnlinePlayResult(profile.Data.Id, profile.Data.Name, networkName));
     }
 }

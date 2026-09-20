@@ -69,18 +69,18 @@ public sealed class OverlaySidecarHost(ILogger<OverlaySidecarHost> logger) : IOv
 
             var configPath = await StageConfigAsync(configContents, cancellationToken);
             var process = CreateProcess(binary, locator.BuildArguments(configPath));
+            var started = false;
             try
             {
-                if (!process.Start())
-                {
-                    process.Dispose();
-                    DeleteConfig(configPath);
-                    return OperationResult<SidecarInfo>.CreateFailure("Overlay sidecar failed to start.");
-                }
+                started = process.Start();
             }
             catch (Exception ex) when (ex is InvalidOperationException or System.ComponentModel.Win32Exception)
             {
                 logger.LogWarning(ex, "Overlay sidecar spawn failed.");
+            }
+
+            if (!started)
+            {
                 process.Dispose();
                 DeleteConfig(configPath);
                 return OperationResult<SidecarInfo>.CreateFailure("Overlay sidecar failed to start.");
@@ -103,10 +103,6 @@ public sealed class OverlaySidecarHost(ILogger<OverlaySidecarHost> logger) : IOv
 
             return OperationResult<SidecarInfo>.CreateSuccess(new SidecarInfo(process.Id, configPath));
         }
-        catch (OperationCanceledException)
-        {
-            throw;
-        }
         finally
         {
             _stateLock.Release();
@@ -121,10 +117,6 @@ public sealed class OverlaySidecarHost(ILogger<OverlaySidecarHost> logger) : IOv
         {
             await StopInternalAsync();
             return OperationResult<bool>.CreateSuccess(true);
-        }
-        catch (OperationCanceledException)
-        {
-            throw;
         }
         finally
         {
@@ -287,6 +279,20 @@ public sealed class OverlaySidecarHost(ILogger<OverlaySidecarHost> logger) : IOv
         registration.Unregister();
     }
 
+    private static async Task<bool> WaitForStartupAsync(Process process, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await Task.Delay(OnlineConstants.SidecarStartupGraceMs, cancellationToken);
+        }
+        catch (OperationCanceledException)
+        {
+            return false;
+        }
+
+        return !process.HasExited;
+    }
+
     private void DrainOutput(Process process)
     {
         process.OutputDataReceived += (_, e) =>
@@ -313,20 +319,6 @@ public sealed class OverlaySidecarHost(ILogger<OverlaySidecarHost> logger) : IOv
         {
             // Process already exited; startup check reports it.
         }
-    }
-
-    private async Task<bool> WaitForStartupAsync(Process process, CancellationToken cancellationToken)
-    {
-        try
-        {
-            await Task.Delay(OnlineConstants.SidecarStartupGraceMs, cancellationToken);
-        }
-        catch (OperationCanceledException)
-        {
-            return false;
-        }
-
-        return !process.HasExited;
     }
 
     private async Task StopInternalAsync()

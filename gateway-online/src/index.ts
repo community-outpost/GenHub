@@ -1,7 +1,5 @@
-import { DirectoryIndex } from "./directory";
 import type { NetworkSummary, OnlineEnv, PublicMember } from "./env";
 import { createVerifier } from "./passwords";
-import { PresenceRoom } from "./room";
 import { bearerToken, mintJoinGrant, mintSessionToken, verifyToken } from "./tokens";
 import type { JoinGrantClaims, SessionClaims } from "./tokens";
 import { mintTurnCredentials, parseTurnUris } from "./turn";
@@ -13,7 +11,8 @@ import {
   parseJoinBody,
 } from "./validation";
 
-export { DirectoryIndex, PresenceRoom };
+export { DirectoryIndex } from "./directory";
+export { PresenceRoom } from "./room";
 
 const CORS_HEADERS: Record<string, string> = {
   "Access-Control-Allow-Origin": "*",
@@ -474,10 +473,62 @@ const handleCorsPreflight = (): Response =>
 
 const matchNetworkRoute = (pathname: string): { id: string; action: string } | null => {
   const match = /^\/v1\/networks\/([^/]+)(?:\/(join|leave|heartbeat|members|report|ban|presence|cert))?$/.exec(pathname);
-  if (match === null || match[1] === undefined) {
+  const [, id, action] = match ?? [];
+  if (id === undefined) {
     return null;
   }
-  return { id: decodeURIComponent(match[1]), action: match[2] ?? "" };
+  return { id: decodeURIComponent(id), action: action ?? "" };
+};
+
+const dispatchNetworkRoute = async (
+  request: Request,
+  env: OnlineEnv,
+  route: { id: string; action: string }
+): Promise<Response | null> => {
+  switch (`${request.method} /${route.action}`) {
+    case "GET /":
+      return await handleDetail(request, env, route.id);
+    case "POST /join":
+      return await handleJoin(request, env, route.id);
+    case "POST /leave":
+      return await handleLeave(request, env, route.id);
+    case "POST /heartbeat":
+      return await handleHeartbeat(request, env, route.id);
+    case "GET /members":
+      return await handleMembers(request, env, route.id);
+    case "PATCH /":
+      return await handleMetaPatch(request, env, route.id);
+    case "POST /report":
+      return await handleReport(request, env, route.id);
+    case "POST /ban":
+      return await handleBan(request, env, route.id);
+    case "GET /presence":
+      return await handlePresence(request, env, route.id);
+    case "GET /cert":
+      return await handleOverlayCert(request, env, route.id);
+    default:
+      return null;
+  }
+};
+
+const dispatchAuthedTopLevelRoute = async (
+  request: Request,
+  env: OnlineEnv,
+  pathname: string
+): Promise<Response | null> => {
+  if (request.method === "POST" && pathname === "/v1/sessions/anonymous") {
+    return await handleSession(env);
+  }
+  if (request.method === "GET" && pathname === "/v1/networks") {
+    return await handleDirectory(request, env);
+  }
+  if (request.method === "POST" && pathname === "/v1/networks") {
+    return await handleCreate(request, env);
+  }
+  if (request.method === "POST" && pathname === "/v1/turn/credentials") {
+    return await handleTurn(request, env);
+  }
+  return null;
 };
 
 export default {
@@ -497,45 +548,14 @@ export default {
         return secrets;
       }
 
-      if (request.method === "POST" && pathname === "/v1/sessions/anonymous") {
-        return await handleSession(env);
-      }
-      if (request.method === "GET" && pathname === "/v1/networks") {
-        return await handleDirectory(request, env);
-      }
-      if (request.method === "POST" && pathname === "/v1/networks") {
-        return await handleCreate(request, env);
-      }
-      if (request.method === "POST" && pathname === "/v1/turn/credentials") {
-        return await handleTurn(request, env);
+      const authed = await dispatchAuthedTopLevelRoute(request, env, pathname);
+      if (authed !== null) {
+        return authed;
       }
 
       const route = matchNetworkRoute(pathname);
       if (route !== null) {
-        switch (`${request.method} /${route.action}`) {
-          case "GET /":
-            return await handleDetail(request, env, route.id);
-          case "POST /join":
-            return await handleJoin(request, env, route.id);
-          case "POST /leave":
-            return await handleLeave(request, env, route.id);
-          case "POST /heartbeat":
-            return await handleHeartbeat(request, env, route.id);
-          case "GET /members":
-            return await handleMembers(request, env, route.id);
-          case "PATCH /":
-            return await handleMetaPatch(request, env, route.id);
-          case "POST /report":
-            return await handleReport(request, env, route.id);
-          case "POST /ban":
-            return await handleBan(request, env, route.id);
-          case "GET /presence":
-            return await handlePresence(request, env, route.id);
-          case "GET /cert":
-            return await handleOverlayCert(request, env, route.id);
-          default:
-            return error("Endpoint not found", 404);
-        }
+        return (await dispatchNetworkRoute(request, env, route)) ?? error("Endpoint not found", 404);
       }
     } catch (err: unknown) {
       console.error("Internal error:", err instanceof Error ? err.message : String(err));

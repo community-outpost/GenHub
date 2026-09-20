@@ -436,7 +436,7 @@ export class PresenceRoom {
     const body = (await request.json()) as { sub: string; targetIp: string };
     const members = await this.loadMembers();
     const caller = members.find((m) => m.sub === body.sub);
-    if (caller === undefined || !caller.isHost) {
+    if (caller?.isHost !== true) {
       return json({ error: "Host only" }, 403);
     }
     const target = members.find((m) => m.overlayIp === body.targetIp);
@@ -460,7 +460,7 @@ export class PresenceRoom {
     const body = (await request.json()) as { sub: string; description?: string; expectedProfileId?: string };
     const members = await this.loadMembers();
     const caller = members.find((m) => m.sub === body.sub);
-    if (caller === undefined || !caller.isHost) {
+    if (caller?.isHost !== true) {
       return json({ error: "Host only" }, 403);
     }
     if (typeof body.description === "string") {

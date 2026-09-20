@@ -48,6 +48,7 @@ public sealed partial class OnlineViewModel(
     ILocalizationService? localizationService = null) : ViewModelBase, IDisposable
 {
     private const int SearchDebounceMs = 350;
+    private const string CreateErrorTitleKey = "Online.Error.CreateTitle";
 
     private readonly SemaphoreSlim _refreshLock = new(1, 1);
     private CancellationTokenSource? _searchCts;
@@ -287,19 +288,19 @@ public sealed partial class OnlineViewModel(
         if (CreateName.Length < OnlineConstants.MinNetworkNameLength ||
             CreateName.Length > OnlineConstants.MaxNetworkNameLength)
         {
-            ShowErrorToast("Online.Error.CreateTitle", GetString("Online.Error.NameLength"));
+            ShowErrorToast(CreateErrorTitleKey, GetString("Online.Error.NameLength"));
             return;
         }
 
         if (CreateIsPublic && CreatePassword.Length < OnlineConstants.MinPasswordLength)
         {
-            ShowErrorToast("Online.Error.CreateTitle", GetString("Online.Error.PasswordRequired"));
+            ShowErrorToast(CreateErrorTitleKey, GetString("Online.Error.PasswordRequired"));
             return;
         }
 
         if (CreatePassword.Length > 0 && CreatePassword.Length < OnlineConstants.MinPasswordLength)
         {
-            ShowErrorToast("Online.Error.CreateTitle", GetString("Online.Error.PasswordTooShort"));
+            ShowErrorToast(CreateErrorTitleKey, GetString("Online.Error.PasswordTooShort"));
             return;
         }
 
@@ -319,7 +320,7 @@ public sealed partial class OnlineViewModel(
             var result = await networkService.CreateNetworkAsync(request, cancellationToken);
             if (!result.Success)
             {
-                ShowErrorToast("Online.Error.CreateTitle", result.Errors.FirstOrDefault());
+                ShowErrorToast(CreateErrorTitleKey, result.Errors.FirstOrDefault());
                 return;
             }
 
@@ -341,7 +342,7 @@ public sealed partial class OnlineViewModel(
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to create online network.");
-            ShowErrorToast("Online.Error.CreateTitle", null);
+            ShowErrorToast(CreateErrorTitleKey, null);
         }
         finally
         {
