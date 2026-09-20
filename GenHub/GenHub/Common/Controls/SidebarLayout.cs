@@ -217,6 +217,19 @@ public class SidebarLayout : ContentControl
     /// </summary>
     public IRelayCommand TogglePaneCommand { get; }
 
+    /// <summary>
+    /// Sanitizes pane length bounds so hosting views can clamp to the same limits as the control.
+    /// </summary>
+    /// <param name="min">The requested minimum pane length.</param>
+    /// <param name="max">The requested maximum pane length.</param>
+    /// <returns>A tuple with the resolved minimum and maximum pane lengths.</returns>
+    internal static (double Min, double Max) GetSanitizedBounds(double min, double max)
+    {
+        var resolvedMin = double.IsNaN(min) || double.IsInfinity(min) || min < 0 ? SidebarConstants.MinPaneLength : min;
+        var resolvedMax = double.IsNaN(max) || double.IsInfinity(max) || max < resolvedMin ? Math.Max(resolvedMin, SidebarConstants.MaxPaneLength) : max;
+        return (resolvedMin, resolvedMax);
+    }
+
     /// <inheritdoc/>
     protected override void OnApplyTemplate(TemplateAppliedEventArgs e)
     {
@@ -261,13 +274,6 @@ public class SidebarLayout : ContentControl
         {
             OpenPaneLength = ClampPaneLength(_sidebarColumn.Width.Value, MinPaneLength, MaxPaneLength);
         }
-    }
-
-    private static (double Min, double Max) GetSanitizedBounds(double min, double max)
-    {
-        var resolvedMin = double.IsNaN(min) || double.IsInfinity(min) || min < 0 ? SidebarConstants.MinPaneLength : min;
-        var resolvedMax = double.IsNaN(max) || double.IsInfinity(max) || max < resolvedMin ? Math.Max(resolvedMin, SidebarConstants.MaxPaneLength) : max;
-        return (resolvedMin, resolvedMax);
     }
 
     private static double ClampPaneLength(double value, double min, double max)

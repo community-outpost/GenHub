@@ -9,6 +9,7 @@ using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Providers;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Results.Content;
+using GenHub.Features.Content.Services.Helpers;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Concurrent;
@@ -456,18 +457,8 @@ public class GenericCatalogDiscoverer(
         }
 
         var cleanTag = latestRelease.TagName.TrimStart('v', 'V');
-        var zhAsset = latestRelease.Assets?.FirstOrDefault(a =>
-            a.Name.Contains("generalszh", StringComparison.OrdinalIgnoreCase) ||
-            a.Name.Contains("zerohour", StringComparison.OrdinalIgnoreCase) ||
-            a.Name.Contains("zero-hour", StringComparison.OrdinalIgnoreCase) ||
-            a.Name.Contains("_zh", StringComparison.OrdinalIgnoreCase));
-
-        var genAsset = latestRelease.Assets?.FirstOrDefault(a =>
-            a.Name.Contains(CatalogConstants.GeneralsContentId, StringComparison.OrdinalIgnoreCase) &&
-            !a.Name.Contains("generalszh", StringComparison.OrdinalIgnoreCase) &&
-            !a.Name.Contains(CatalogConstants.ZeroHourContentId, StringComparison.OrdinalIgnoreCase) &&
-            !a.Name.Contains("zero-hour", StringComparison.OrdinalIgnoreCase) &&
-            !a.Name.Contains("_zh", StringComparison.OrdinalIgnoreCase));
+        var zhAsset = SuperHackersAssetMatcher.FindAsset(latestRelease.Assets, GameType.ZeroHour);
+        var genAsset = SuperHackersAssetMatcher.FindAsset(latestRelease.Assets, GameType.Generals);
 
         var hydratedItemIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 

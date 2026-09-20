@@ -239,13 +239,16 @@ public partial class SettingsView : UserControl
             return;
         }
 
+        var wasExpanded = expander.IsExpanded;
         expander.IsExpanded = true;
-        if (expander.IsMeasureValid)
+        if (wasExpanded && expander.IsMeasureValid)
         {
             _scrollSpy.ScrollToSection(section.Id);
             return;
         }
 
+        // Expanding changes the scrollable extent, so scrolling synchronously would clamp
+        // against stale measurements and leave bottom sections only partly visible.
         ScrollAfterLayout(expander, section.Id);
     }
 

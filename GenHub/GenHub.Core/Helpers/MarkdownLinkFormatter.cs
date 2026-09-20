@@ -1,4 +1,5 @@
 using System;
+using System.Text;
 using System.Text.RegularExpressions;
 
 namespace GenHub.Core.Helpers;
@@ -26,11 +27,13 @@ public static partial class MarkdownLinkFormatter
 
         var (owner, repo) = ExtractGitHubOwnerRepo(sourceUrl, text);
 
-        var result = SanitizeMarkdownLinksAndImages(text);
-        result = TransformGitHubUrls(result);
-        result = TransformIssueReferences(result, owner, repo);
-        result = TransformGitHubMentions(result);
-        result = TransformBareUrls(result);
+        var result = ConvertHtmlImagesToMarkdown(text);
+        result = UnwrapHtmlBlockWrappers(result);
+        result = SanitizeMarkdownLinksAndImages(result);
+        result = TransformOutsideHtmlTags(result, TransformGitHubUrls);
+        result = TransformOutsideHtmlTags(result, segment => TransformIssueReferences(segment, owner, repo));
+        result = TransformOutsideHtmlTags(result, TransformGitHubMentions);
+        result = TransformOutsideHtmlTags(result, TransformBareUrls);
         result = NormalizeBulletLists(result);
 
         return result;
@@ -63,6 +66,77 @@ public static partial class MarkdownLinkFormatter
         }
 
         return (null, null);
+    }
+
+    private static string ConvertHtmlImagesToMarkdown(string text)
+    {
+        return HtmlImageRegex().Replace(text, m =>
+        {
+            var url = HtmlSrcAttributeRegex().Match(m.Value).Groups["url"].Value.Trim();
+            var alt = HtmlAltAttributeRegex().Match(m.Value).Groups["alt"].Value.Trim()
+                .Replace("[", string.Empty)
+                .Replace("]", string.Empty);
+            if (string.IsNullOrWhiteSpace(url))
+            {
+                return alt;
+            }
+
+            return $"![{alt}]({EncodeMarkdownDestination(url)})";
+        });
+    }
+
+    private static string EncodeMarkdownDestination(string url)
+    {
+        var builder = new StringBuilder(url.Length);
+        foreach (var character in url)
+        {
+            if (char.IsWhiteSpace(character) || char.IsControl(character))
+            {
+                foreach (var b in Encoding.UTF8.GetBytes(character.ToString()))
+                {
+                    builder.Append('%');
+                    builder.Append(b.ToString("X2"));
+                }
+            }
+            else
+            {
+                builder.Append(character);
+            }
+        }
+
+        return builder.ToString();
+    }
+
+    /// <summary>
+    /// Replaces HTML paragraph and division wrappers with blank lines so markdown inside
+    /// them (such as converted images) is parsed instead of treated as raw HTML.
+    /// </summary>
+    /// <param name="text">The text to unwrap.</param>
+    /// <returns>The text with block wrappers replaced by blank lines.</returns>
+    private static string UnwrapHtmlBlockWrappers(string text)
+    {
+        return HtmlBlockWrapperRegex().Replace(text, "\n\n");
+    }
+
+    private static string TransformOutsideHtmlTags(string text, Func<string, string> transform)
+    {
+        var matches = HtmlTagRegex().Matches(text);
+        if (matches.Count == 0)
+        {
+            return transform(text);
+        }
+
+        var builder = new StringBuilder(text.Length);
+        var position = 0;
+        foreach (Match match in matches)
+        {
+            builder.Append(transform(text[position..match.Index]));
+            builder.Append(match.Value);
+            position = match.Index + match.Length;
+        }
+
+        builder.Append(transform(text[position..]));
+        return builder.ToString();
     }
 
     private static string SanitizeMarkdownLinksAndImages(string text)
@@ -245,6 +319,21 @@ public static partial class MarkdownLinkFormatter
 
     [GeneratedRegex(@"!\[(?<alt>[^\]]*)\]\(\s*(?<url>(?:[^\s()]|\([^\s()]*\))+)(?:\s+[""'][^""']*[""'])?\s*\)")]
     private static partial Regex MarkdownImageRegex();
+
+    [GeneratedRegex(@"<[^<>]*>")]
+    private static partial Regex HtmlTagRegex();
+
+    [GeneratedRegex(@"<img\b[^<>]*>", RegexOptions.IgnoreCase)]
+    private static partial Regex HtmlImageRegex();
+
+    [GeneratedRegex(@"\bsrc\s*=\s*(?:""(?<url>[^""]*)""|'(?<url>[^']*)')", RegexOptions.IgnoreCase)]
+    private static partial Regex HtmlSrcAttributeRegex();
+
+    [GeneratedRegex(@"\balt\s*=\s*(?:""(?<alt>[^""]*)""|'(?<alt>[^']*)')", RegexOptions.IgnoreCase)]
+    private static partial Regex HtmlAltAttributeRegex();
+
+    [GeneratedRegex(@"</?(?:p|div)\b[^<>]*>", RegexOptions.IgnoreCase)]
+    private static partial Regex HtmlBlockWrapperRegex();
 
     [GeneratedRegex(@"(?<!\!)\[(?<text>(?:[^\[\]]|\[[^\]]*\])*)\]\(\s*(?<url>(?:[^\s()]|\([^\s()]*\))+)(?:\s+[""'][^""']*[""'])?\s*\)")]
     private static partial Regex MarkdownHyperlinkRegex();

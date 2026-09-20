@@ -4475,9 +4475,6 @@
   <data name="Downloads.Browser.Publishers" xml:space="preserve">
     <value>Издатели</value>
   </data>
-  <data name="Downloads.Browser.OpenManifestsFolder" xml:space="preserve">
-    <value>Открыть папку манифестов в проводнике</value>
-  </data>
   <data name="Downloads.Browser.SearchWatermark" xml:space="preserve">
     <value>Поиск контента...</value>
   </data>
@@ -5036,6 +5033,9 @@
   <data name="Downloads.ContentDetail.PublisherDisclaimer" xml:space="preserve">
     <value>Контент предоставлен сторонними издателями. GenHub не гарантирует совместимость.</value>
   </data>
+  <data name="Downloads.ContentDetail.Readme" xml:space="preserve">
+    <value>Readme</value>
+  </data>
   <data name="Downloads.ContentDetail.ReadmeReleaseNotes" xml:space="preserve">
     <value>Readme и примечания к выпуску</value>
   </data>
@@ -5149,9 +5149,6 @@
   </data>
   <data name="Downloads.LoadingDetails" xml:space="preserve">
     <value>Загрузка сведений о контенте...</value>
-  </data>
-  <data name="Downloads.ManifestsFolder" xml:space="preserve">
-    <value>Открыть папку манифестов</value>
   </data>
   <data name="Downloads.ProfileSelection.Add" xml:space="preserve">
     <value>Добавить</value>

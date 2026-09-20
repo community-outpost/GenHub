@@ -49,6 +49,31 @@ public static class SuperHackersConstants
     public const string GeneralsThemeColor = "#FFA500";
 
     /// <summary>
+    /// Filename marker identifying Generals (non-Zero Hour) release archives.
+    /// </summary>
+    public const string GeneralsAssetMarker = "generals";
+
+    /// <summary>
+    /// Filename marker identifying Zero Hour release archives.
+    /// </summary>
+    public const string GeneralsZhAssetMarker = "generalszh";
+
+    /// <summary>
+    /// Filename marker identifying Zero Hour release archives.
+    /// </summary>
+    public const string ZeroHourAssetMarker = "zerohour";
+
+    /// <summary>
+    /// Filename marker identifying Zero Hour release archives.
+    /// </summary>
+    public const string ZeroHourHyphenAssetMarker = "zero-hour";
+
+    /// <summary>
+    /// Filename marker identifying Zero Hour release archives.
+    /// </summary>
+    public const string ZeroHourShortAssetMarker = "_zh";
+
+    /// <summary>
     /// The resolver ID used for GitHub releases.
     /// </summary>
     public const string ResolverId = "GitHubRelease";

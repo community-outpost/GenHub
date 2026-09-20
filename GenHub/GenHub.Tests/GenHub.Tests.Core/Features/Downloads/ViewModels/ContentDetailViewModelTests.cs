@@ -4,6 +4,7 @@ using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.GameProfiles;
+using GenHub.Core.Interfaces.GitHub;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Interfaces.Parsers;
@@ -12,6 +13,7 @@ using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameProfile;
 using GenHub.Core.Models.GeneralsOnline;
+using GenHub.Core.Models.GitHub;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Parsers;
 using GenHub.Core.Models.Providers;
@@ -24,6 +26,7 @@ using Moq;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
@@ -898,6 +901,842 @@ public sealed class ContentDetailViewModelTests
         Assert.True(release1080.IsSelected);
         Assert.False(release720.IsSelected);
         Assert.Same(release1080, viewModel.SelectedDownloadableItem);
+    }
+
+    /// <summary>
+    /// Verifies that a GitHub card with attached release data hydrates the Releases tab from
+    /// real release assets while the About tab keeps showing the card (repository) description.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task Initialize_GitHubReleaseData_PopulatesReleasesFromAssetsAndKeepsAboutAsync()
+    {
+        // Arrange
+        const string aboutText = "Short repo about text";
+        const string releaseBody = "## Highlights\n- New units";
+        var release = new GitHubRelease
+        {
+            TagName = "v2.0.0",
+            Name = "Big Update",
+            Body = releaseBody,
+            Author = "modauthor",
+            HtmlUrl = "https://github.com/modauthor/coolmod/releases/tag/v2.0.0",
+            PublishedAt = new DateTimeOffset(2026, 1, 15, 0, 0, 0, TimeSpan.Zero),
+            CreatedAt = new DateTimeOffset(2026, 1, 14, 0, 0, 0, TimeSpan.Zero),
+            Assets =
+            [
+                new GitHubReleaseAsset { Name = "coolmod.zip", Size = 1024, BrowserDownloadUrl = "https://github.com/modauthor/coolmod/releases/download/v2.0.0/coolmod.zip" },
+                new GitHubReleaseAsset { Name = "coolmod-maps.zip", Size = 2048, BrowserDownloadUrl = "https://github.com/modauthor/coolmod/releases/download/v2.0.0/coolmod-maps.zip" },
+            ],
+        };
+
+        var searchResult = new ContentSearchResult
+        {
+            Id = "github.modauthor.coolmod.v2.0.0",
+            Name = "coolmod v2.0.0",
+            Description = aboutText,
+            Version = "2.0.0",
+            ContentType = ContentType.Mod,
+            TargetGame = GameType.ZeroHour,
+            ProviderName = "github-topics",
+            AuthorName = "modauthor",
+            RequiresResolution = true,
+            ResolverId = ContentSourceNames.GitHubResolverId,
+            SourceUrl = release.HtmlUrl,
+            LastUpdated = new DateTime(2026, 1, 15, 0, 0, 0, DateTimeKind.Utc),
+        };
+        searchResult.ResolverMetadata[GitHubConstants.OwnerMetadataKey] = "modauthor";
+        searchResult.ResolverMetadata[GitHubConstants.RepoMetadataKey] = "coolmod";
+        searchResult.ResolverMetadata[GitHubConstants.TagMetadataKey] = "v2.0.0";
+        searchResult.SetData(release);
+
+        var viewModel = CreateViewModel(searchResult, new Mock<IContentDownloadCoordinator>().Object);
+
+        // Act
+        viewModel.Initialize();
+        await viewModel.WaitForInitializationAsync();
+
+        // Assert: Releases tab lists one row per asset with direct download URLs and raw changelogs.
+        Assert.Equal(2, viewModel.Releases.Count);
+        Assert.True(viewModel.HasReleases);
+        Assert.Contains(viewModel.Releases, r =>
+            r.DownloadUrl == "https://github.com/modauthor/coolmod/releases/download/v2.0.0/coolmod.zip" && r.FileSize == 1024);
+        Assert.Contains(viewModel.Releases, r =>
+            r.DownloadUrl == "https://github.com/modauthor/coolmod/releases/download/v2.0.0/coolmod-maps.zip" && r.FileSize == 2048);
+        Assert.All(viewModel.Releases, r => Assert.Equal(releaseBody, r.FullDescription));
+        Assert.All(viewModel.Releases, r => Assert.Equal(release.HtmlUrl, r.DetailsUrl));
+
+        // Assert: About tab still shows the repository description, untouched by release notes.
+        Assert.Equal(aboutText, searchResult.Description);
+        Assert.Equal(aboutText, viewModel.Description);
+    }
+
+    /// <summary>
+    /// Verifies that an asset-pinned card hydrates a single release row for that asset only.
+    /// </summary>
+    [Fact]
+    public void PopulateGitHubReleases_WithAssetNameMetadata_SelectsPinnedAssetOnly()
+    {
+        // Arrange
+        var release = new GitHubRelease
+        {
+            TagName = "weekly-2026-01-01",
+            Body = "Weekly game code update",
+            Author = "TheSuperHackers",
+            HtmlUrl = "https://github.com/TheSuperHackers/GeneralsGameCode/releases/tag/weekly-2026-01-01",
+            PublishedAt = new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero),
+            CreatedAt = new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero),
+            Assets =
+            [
+                new GitHubReleaseAsset { Name = "Generals-Weekly.zip", Size = 1000, BrowserDownloadUrl = "https://example.test/Generals-Weekly.zip" },
+                new GitHubReleaseAsset { Name = "GeneralsZH-Weekly.zip", Size = 2000, BrowserDownloadUrl = "https://example.test/GeneralsZH-Weekly.zip" },
+            ],
+        };
+
+        var searchResult = new ContentSearchResult
+        {
+            Id = "github.thesuperhackers.generalsgamecode.weekly-2026-01-01.zerohour",
+            Name = "GeneralsGameCode weekly-2026-01-01 — Zero Hour",
+            Description = "Weekly game code update",
+            Version = "weekly-2026-01-01",
+            ContentType = ContentType.GameClient,
+            TargetGame = GameType.ZeroHour,
+            ProviderName = "thesuperhackers",
+            RequiresResolution = true,
+            ResolverId = ContentSourceNames.GitHubResolverId,
+            SourceUrl = release.HtmlUrl,
+        };
+        searchResult.ResolverMetadata[GitHubConstants.AssetNameMetadataKey] = "GeneralsZH-Weekly.zip";
+        searchResult.SetData(release);
+
+        var viewModel = CreateViewModel(searchResult, new Mock<IContentDownloadCoordinator>().Object);
+
+        // Act
+        var populated = viewModel.PopulateGitHubReleases(searchResult);
+
+        // Assert
+        Assert.True(populated);
+        var row = Assert.Single(viewModel.Releases);
+        Assert.Equal("https://example.test/GeneralsZH-Weekly.zip", row.DownloadUrl);
+        Assert.Equal(2000, row.FileSize);
+        Assert.Equal("Weekly game code update", row.FullDescription);
+    }
+
+    /// <summary>
+    /// Verifies that a single-asset artifact payload hydrates one release row with the direct URL.
+    /// </summary>
+    [Fact]
+    public void PopulateGitHubReleases_ArtifactData_PopulatesSingleRelease()
+    {
+        // Arrange
+        var artifact = new GitHubArtifact
+        {
+            Name = "coolmod-1080p.zip",
+            DownloadUrl = "https://github.com/modauthor/coolmod/releases/download/v1.0/coolmod-1080p.zip",
+            SizeInBytes = 4096,
+            IsRelease = true,
+        };
+
+        var searchResult = new ContentSearchResult
+        {
+            Id = "github.modauthor.coolmod.v1.0",
+            Name = "coolmod (1080p)",
+            Description = "Short repo about text",
+            Version = "v1.0",
+            ContentType = ContentType.Mod,
+            TargetGame = GameType.ZeroHour,
+            ProviderName = "github-topics",
+            RequiresResolution = true,
+            ResolverId = ContentSourceNames.GitHubResolverId,
+            SourceUrl = "https://github.com/modauthor/coolmod",
+        };
+        searchResult.SetData(artifact);
+
+        var viewModel = CreateViewModel(searchResult, new Mock<IContentDownloadCoordinator>().Object);
+
+        // Act
+        var populated = viewModel.PopulateGitHubReleases(searchResult);
+
+        // Assert
+        Assert.True(populated);
+        var row = Assert.Single(viewModel.Releases);
+        Assert.Equal(artifact.DownloadUrl, row.DownloadUrl);
+        Assert.Equal(4096, row.FileSize);
+        Assert.Equal("Short repo about text", row.FullDescription);
+    }
+
+    /// <summary>
+    /// Verifies that cards without GitHub payloads decline hydration so the legacy
+    /// source-URL fallback still applies.
+    /// </summary>
+    [Fact]
+    public void PopulateGitHubReleases_WithoutGitHubData_ReturnsFalse()
+    {
+        // Arrange
+        var searchResult = new ContentSearchResult
+        {
+            Id = "plain-card",
+            Name = "Plain Card",
+            ContentType = ContentType.Mod,
+            TargetGame = GameType.ZeroHour,
+        };
+
+        var viewModel = CreateViewModel(searchResult, new Mock<IContentDownloadCoordinator>().Object);
+
+        // Act
+        var populated = viewModel.PopulateGitHubReleases(searchResult);
+
+        // Assert
+        Assert.False(populated);
+        Assert.Empty(viewModel.Releases);
+    }
+
+    /// <summary>
+    /// Verifies that a release without assets declines hydration so the legacy single-file
+    /// fallback keeps covering repositories with no downloadable assets.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task Initialize_GitHubReleaseWithoutAssets_FallsBackToSourceUrlAsync()
+    {
+        // Arrange
+        var release = new GitHubRelease
+        {
+            TagName = "v1.0",
+            Name = "Notes only",
+            Body = "No assets attached",
+            HtmlUrl = "https://github.com/modauthor/coolmod/releases/tag/v1.0",
+            CreatedAt = new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero),
+            Assets = [],
+        };
+
+        var searchResult = new ContentSearchResult
+        {
+            Id = "github.modauthor.coolmod.v1.0",
+            Name = "coolmod v1.0",
+            Description = "Short repo about text",
+            Version = "v1.0",
+            ContentType = ContentType.Mod,
+            TargetGame = GameType.ZeroHour,
+            ProviderName = "github-topics",
+            AuthorName = "modauthor",
+            RequiresResolution = true,
+            ResolverId = ContentSourceNames.GitHubResolverId,
+            SourceUrl = release.HtmlUrl,
+            LastUpdated = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc),
+        };
+        searchResult.SetData(release);
+
+        var viewModel = CreateViewModel(searchResult, new Mock<IContentDownloadCoordinator>().Object);
+
+        // Act
+        viewModel.Initialize();
+        await viewModel.WaitForInitializationAsync();
+
+        // Assert
+        var row = Assert.Single(viewModel.Releases);
+        Assert.Equal(searchResult.SourceUrl, row.DownloadUrl);
+    }
+
+    /// <summary>
+    /// Verifies that variant siblings sharing a release resolve their pinned direct asset URLs
+    /// instead of the release page URL.
+    /// </summary>
+    [Fact]
+    public void PopulateReleasesFromVariants_GitHubSiblings_ResolvesDirectAssetUrls()
+    {
+        // Arrange
+        const string releaseBody = "# Weekly\n- fixes";
+        const string releaseUrl = "https://github.com/TheSuperHackers/GeneralsGameCode/releases/tag/weekly-2026-01-01";
+        var release = new GitHubRelease
+        {
+            TagName = "weekly-2026-01-01",
+            Name = "weekly-2026-01-01",
+            Body = releaseBody,
+            Author = "TheSuperHackers",
+            HtmlUrl = releaseUrl,
+            PublishedAt = new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero),
+            CreatedAt = new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero),
+            Assets =
+            [
+                new GitHubReleaseAsset { Name = "Generals-Weekly.zip", Size = 1000, BrowserDownloadUrl = "https://example.test/Generals-Weekly.zip" },
+                new GitHubReleaseAsset { Name = "GeneralsZH-Weekly.zip", Size = 2000, BrowserDownloadUrl = "https://example.test/GeneralsZH-Weekly.zip" },
+            ],
+        };
+
+        ContentSearchResult CreateSibling(string suffix, string assetName, GameType gameType)
+        {
+            var sibling = new ContentSearchResult
+            {
+                Id = $"github.thesuperhackers.generalsgamecode.weekly-2026-01-01.{suffix}",
+                Name = $"GeneralsGameCode weekly-2026-01-01 — {suffix}",
+                Description = "Weekly game code update",
+                Version = "weekly-2026-01-01",
+                ContentType = ContentType.GameClient,
+                TargetGame = gameType,
+                ProviderName = "thesuperhackers",
+                RequiresResolution = true,
+                ResolverId = ContentSourceNames.GitHubResolverId,
+                SourceUrl = releaseUrl,
+            };
+            sibling.ResolverMetadata[GitHubConstants.AssetNameMetadataKey] = assetName;
+            sibling.SetData(release);
+            return sibling;
+        }
+
+        var genSibling = CreateSibling("generals", "Generals-Weekly.zip", GameType.Generals);
+        var zhSibling = CreateSibling("zerohour", "GeneralsZH-Weekly.zip", GameType.ZeroHour);
+
+        var variants = new Dictionary<string, ContentSearchResult>(StringComparer.OrdinalIgnoreCase)
+        {
+            [genSibling.Id] = genSibling,
+            [zhSibling.Id] = zhSibling,
+        };
+
+        var viewModel = CreateViewModel(
+            zhSibling,
+            new Mock<IContentDownloadCoordinator>().Object,
+            variantSearchResults: variants);
+
+        viewModel.Variants =
+        [
+            new InstallableVariant { ManifestId = genSibling.Id, Name = genSibling.Name },
+            new InstallableVariant { ManifestId = zhSibling.Id, Name = zhSibling.Name },
+        ];
+
+        // Act
+        viewModel.PopulateReleasesFromVariants();
+
+        // Assert
+        Assert.Equal(2, viewModel.Releases.Count);
+        var genRow = viewModel.Releases.First(r => r.DownloadedManifestId == genSibling.Id);
+        var zhRow = viewModel.Releases.First(r => r.DownloadedManifestId == zhSibling.Id);
+        Assert.Equal("https://example.test/Generals-Weekly.zip", genRow.DownloadUrl);
+        Assert.Equal(1000, genRow.FileSize);
+        Assert.Equal("https://example.test/GeneralsZH-Weekly.zip", zhRow.DownloadUrl);
+        Assert.Equal(2000, zhRow.FileSize);
+        Assert.Equal(releaseBody, genRow.FullDescription);
+        Assert.Equal(releaseBody, zhRow.FullDescription);
+    }
+
+    /// <summary>
+    /// Verifies that opening a GitHub card loads the repository README into the summary section.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task Initialize_GitHubCard_LoadsReadmeIntoSummaryAsync()
+    {
+        // Arrange
+        const string readme = "# coolmod\nA great mod.";
+        var gitHubMock = new Mock<IGitHubApiClient>();
+        gitHubMock
+            .Setup(c => c.GetReadmeAsync("modauthor", "coolmod", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(readme);
+
+        var searchResult = new ContentSearchResult
+        {
+            Id = "github.modauthor.coolmod.v2.0.0",
+            Name = "coolmod v2.0.0",
+            Description = "Short repo about text",
+            ContentType = ContentType.Mod,
+            TargetGame = GameType.ZeroHour,
+            ProviderName = "github-topics",
+            RequiresResolution = true,
+            ResolverId = ContentSourceNames.GitHubResolverId,
+            SourceUrl = "https://github.com/modauthor/coolmod",
+        };
+        searchResult.ResolverMetadata[GitHubConstants.OwnerMetadataKey] = "modauthor";
+        searchResult.ResolverMetadata[GitHubConstants.RepoMetadataKey] = "coolmod";
+
+        var viewModel = CreateViewModel(
+            searchResult,
+            new Mock<IContentDownloadCoordinator>().Object,
+            gitHubApiClient: gitHubMock.Object);
+
+        // Act
+        viewModel.Initialize();
+        await viewModel.WaitForInitializationAsync();
+
+        // Assert
+        Assert.True(viewModel.HasReadme);
+        Assert.Equal(readme, viewModel.ReadmeMarkdown);
+        Assert.Contains("coolmod", viewModel.FormattedReadme);
+    }
+
+    /// <summary>
+    /// Verifies that cards without GitHub repository metadata skip the README fetch.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task Initialize_CardWithoutRepositoryMetadata_SkipsReadmeFetchAsync()
+    {
+        // Arrange
+        var gitHubMock = new Mock<IGitHubApiClient>();
+        var searchResult = new ContentSearchResult
+        {
+            Id = "plain-card",
+            Name = "Plain Card",
+            Description = "No repository metadata",
+            ContentType = ContentType.Mod,
+            TargetGame = GameType.ZeroHour,
+            SourceUrl = "https://example.test/plain",
+        };
+
+        var viewModel = CreateViewModel(
+            searchResult,
+            new Mock<IContentDownloadCoordinator>().Object,
+            gitHubApiClient: gitHubMock.Object);
+
+        // Act
+        viewModel.Initialize();
+        await viewModel.WaitForInitializationAsync();
+
+        // Assert
+        Assert.False(viewModel.HasReadme);
+        Assert.Null(viewModel.ReadmeMarkdown);
+        gitHubMock.Verify(
+            c => c.GetReadmeAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    /// <summary>
+    /// Verifies that release rows without changelogs hydrate their notes from the GitHub API
+    /// with a single grouped request per release.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task Initialize_GitHubReleaseWithoutBody_HydratesNotesFromApiAsync()
+    {
+        // Arrange
+        const string releaseBody = "## Highlights\n- New units";
+        var attachedRelease = new GitHubRelease
+        {
+            TagName = "v2.0.0",
+            Name = "Big Update",
+            Body = string.Empty,
+            Author = "modauthor",
+            HtmlUrl = "https://github.com/modauthor/coolmod/releases/tag/v2.0.0",
+            PublishedAt = new DateTimeOffset(2026, 1, 15, 0, 0, 0, TimeSpan.Zero),
+            CreatedAt = new DateTimeOffset(2026, 1, 14, 0, 0, 0, TimeSpan.Zero),
+            Assets =
+            [
+                new GitHubReleaseAsset { Name = "coolmod.zip", Size = 1024, BrowserDownloadUrl = "https://github.com/modauthor/coolmod/releases/download/v2.0.0/coolmod.zip" },
+                new GitHubReleaseAsset { Name = "coolmod-maps.zip", Size = 2048, BrowserDownloadUrl = "https://github.com/modauthor/coolmod/releases/download/v2.0.0/coolmod-maps.zip" },
+            ],
+        };
+
+        var searchResult = new ContentSearchResult
+        {
+            Id = "github.modauthor.coolmod.v2.0.0",
+            Name = "coolmod v2.0.0",
+            Description = "Short repo about text",
+            Version = "2.0.0",
+            ContentType = ContentType.Mod,
+            TargetGame = GameType.ZeroHour,
+            ProviderName = "github-topics",
+            AuthorName = "modauthor",
+            RequiresResolution = true,
+            ResolverId = ContentSourceNames.GitHubResolverId,
+            SourceUrl = attachedRelease.HtmlUrl,
+            LastUpdated = new DateTime(2026, 1, 15, 0, 0, 0, DateTimeKind.Utc),
+        };
+        searchResult.ResolverMetadata[GitHubConstants.OwnerMetadataKey] = "modauthor";
+        searchResult.ResolverMetadata[GitHubConstants.RepoMetadataKey] = "coolmod";
+        searchResult.ResolverMetadata[GitHubConstants.TagMetadataKey] = "v2.0.0";
+        searchResult.SetData(attachedRelease);
+
+        var gitHubMock = new Mock<IGitHubApiClient>();
+        gitHubMock
+            .Setup(c => c.GetReleaseByTagAsync("modauthor", "coolmod", "v2.0.0", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new GitHubRelease { TagName = "v2.0.0", Body = releaseBody });
+
+        var viewModel = CreateViewModel(
+            searchResult,
+            new Mock<IContentDownloadCoordinator>().Object,
+            gitHubApiClient: gitHubMock.Object);
+
+        // Act
+        viewModel.Initialize();
+        await viewModel.WaitForInitializationAsync();
+
+        // Assert
+        Assert.Equal(2, viewModel.Releases.Count);
+        Assert.All(viewModel.Releases, r => Assert.Equal(releaseBody, r.FullDescription));
+        Assert.All(viewModel.Releases, r => Assert.Equal(releaseBody, r.File!.Description));
+        gitHubMock.Verify(
+            c => c.GetReleaseByTagAsync("modauthor", "coolmod", "v2.0.0", It.IsAny<CancellationToken>()),
+            Times.Once);
+    }
+
+    /// <summary>
+    /// Verifies that variant rows seeded with the repository description hydrate the actual
+    /// release notes from the GitHub API with a single grouped request per tag.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task PopulateReleasesFromVariants_PlaceholderDescription_HydratesNotesFromApiAsync()
+    {
+        // Arrange
+        const string repoDescription = "Short repo about text";
+        const string releaseBody = "## Highlights\n- New units";
+        var viewModel = CreateGitHubVariantViewModel(repoDescription, "v2.0.0", "v2.0.0", out var gitHubMock);
+        var releaseRequested = new TaskCompletionSource<GitHubRelease>(TaskCreationOptions.RunContinuationsAsynchronously);
+        gitHubMock
+            .Setup(c => c.GetReleaseByTagAsync("modauthor", "coolmod", "v2.0.0", It.IsAny<CancellationToken>()))
+            .Returns(releaseRequested.Task);
+
+        // Act
+        viewModel.PopulateReleasesFromVariants();
+        Assert.All(viewModel.Releases, r => Assert.Equal(repoDescription, r.FullDescription));
+        releaseRequested.SetResult(new GitHubRelease { TagName = "v2.0.0", Body = releaseBody });
+        await viewModel.WaitForInitializationAsync();
+
+        // Assert
+        Assert.Equal(2, viewModel.Releases.Count);
+        Assert.All(viewModel.Releases, r => Assert.Equal(releaseBody, r.FullDescription));
+        Assert.All(viewModel.Releases, r => Assert.Equal(releaseBody, r.File!.Description));
+        gitHubMock.Verify(
+            c => c.GetReleaseByTagAsync("modauthor", "coolmod", "v2.0.0", It.IsAny<CancellationToken>()),
+            Times.Once);
+    }
+
+    /// <summary>
+    /// Verifies that variant rows already carrying release notes never trigger an API fetch.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task PopulateReleasesFromVariants_AttachedReleaseBody_SkipsNotesFetchAsync()
+    {
+        // Arrange
+        const string releaseBody = "# Weekly\n- fixes";
+        var release = new GitHubRelease
+        {
+            TagName = "weekly-2026-01-01",
+            Name = "weekly-2026-01-01",
+            Body = releaseBody,
+            Assets =
+            [
+                new GitHubReleaseAsset { Name = "Generals-Weekly.zip", Size = 1000, BrowserDownloadUrl = "https://example.test/Generals-Weekly.zip" },
+            ],
+        };
+
+        var sibling = new ContentSearchResult
+        {
+            Id = "github.owner.repo.weekly.generals",
+            Name = "repo (generals)",
+            Description = "Short repo about text",
+            Version = "weekly-2026-01-01",
+            ContentType = ContentType.GameClient,
+            TargetGame = GameType.Generals,
+            ProviderName = "github-topics",
+            RequiresResolution = true,
+            ResolverId = ContentSourceNames.GitHubResolverId,
+            SourceUrl = "https://github.com/owner/repo",
+        };
+        sibling.ResolverMetadata[GitHubConstants.OwnerMetadataKey] = "owner";
+        sibling.ResolverMetadata[GitHubConstants.RepoMetadataKey] = "repo";
+        sibling.ResolverMetadata[GitHubConstants.TagMetadataKey] = "weekly-2026-01-01";
+        sibling.SetData(release);
+
+        var gitHubMock = new Mock<IGitHubApiClient>();
+        var viewModel = CreateViewModel(
+            sibling,
+            new Mock<IContentDownloadCoordinator>().Object,
+            variantSearchResults: new Dictionary<string, ContentSearchResult>(StringComparer.OrdinalIgnoreCase)
+            {
+                [sibling.Id] = sibling,
+            },
+            gitHubApiClient: gitHubMock.Object);
+        viewModel.Variants = [new InstallableVariant { ManifestId = sibling.Id, Name = sibling.Name }];
+
+        // Act
+        viewModel.PopulateReleasesFromVariants();
+        await viewModel.WaitForInitializationAsync();
+
+        // Assert
+        var row = Assert.Single(viewModel.Releases);
+        Assert.Equal(releaseBody, row.FullDescription);
+        gitHubMock.Verify(
+            c => c.GetReleaseByTagAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    /// <summary>
+    /// Verifies that failed release-notes fetches are not cached, so a later pass retries them.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task PopulateReleasesFromVariants_FailedFetch_RetriesOnNextPassAsync()
+    {
+        // Arrange
+        const string repoDescription = "Short repo about text";
+        var viewModel = CreateGitHubVariantViewModel(repoDescription, "v2.0.0", "v2.0.0", out var gitHubMock);
+        var firstFetch = new TaskCompletionSource<GitHubRelease>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var secondFetch = new TaskCompletionSource<GitHubRelease>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var calls = 0;
+        gitHubMock
+            .Setup(c => c.GetReleaseByTagAsync("modauthor", "coolmod", "v2.0.0", It.IsAny<CancellationToken>()))
+            .Returns(() =>
+            {
+                calls++;
+                return calls == 1 ? firstFetch.Task : secondFetch.Task;
+            });
+
+        // Act: a single variant per round keeps each drain to exactly one fetch.
+        viewModel.Variants = [viewModel.Variants[0]];
+        viewModel.PopulateReleasesFromVariants();
+        firstFetch.SetResult(null!);
+        await viewModel.WaitForInitializationAsync();
+        viewModel.PopulateReleasesFromVariants();
+        secondFetch.SetResult(null!);
+        await viewModel.WaitForInitializationAsync();
+
+        // Assert
+        Assert.All(viewModel.Releases, r => Assert.Equal(repoDescription, r.FullDescription));
+        gitHubMock.Verify(
+            c => c.GetReleaseByTagAsync("modauthor", "coolmod", "v2.0.0", It.IsAny<CancellationToken>()),
+            Times.Exactly(2));
+    }
+
+    /// <summary>
+    /// Verifies that a failing notes group does not discard the remaining pending groups.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task PopulateReleasesFromVariants_SingleGroupFailure_KeepsOtherGroupsAsync()
+    {
+        // Arrange
+        const string repoDescription = "Short repo about text";
+        const string releaseBody = "## Highlights\n- New units";
+        var viewModel = CreateGitHubVariantViewModel(repoDescription, "v1.0.0", "v2.0.0", out var gitHubMock);
+        gitHubMock
+            .Setup(c => c.GetReleaseByTagAsync("modauthor", "coolmod", "v1.0.0", It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new HttpRequestException("Transient network failure"));
+        gitHubMock
+            .Setup(c => c.GetReleaseByTagAsync("modauthor", "coolmod", "v2.0.0", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new GitHubRelease { TagName = "v2.0.0", Body = releaseBody });
+
+        // Act
+        viewModel.PopulateReleasesFromVariants();
+        await viewModel.WaitForInitializationAsync();
+
+        // Assert
+        Assert.Equal(2, viewModel.Releases.Count);
+        var failedRow = viewModel.Releases.First(r => r.DownloadedManifestId!.EndsWith(".v1", StringComparison.Ordinal));
+        var hydratedRow = viewModel.Releases.First(r => r.DownloadedManifestId!.EndsWith(".v2", StringComparison.Ordinal));
+        Assert.Equal(repoDescription, failedRow.FullDescription);
+        Assert.Equal(releaseBody, hydratedRow.FullDescription);
+    }
+
+    /// <summary>
+    /// Verifies that downloading a row of an unpinned multi-asset GitHub card pins the
+    /// clicked asset so acquisition downloads only that file.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task ReleaseRowDownload_GitHubMultiAsset_StampsClickedAssetPinAsync()
+    {
+        // Arrange
+        var release = new GitHubRelease
+        {
+            TagName = "v2.0.0",
+            Name = "Big Update",
+            Body = "## Highlights\n- New units",
+            HtmlUrl = "https://github.com/modauthor/coolmod/releases/tag/v2.0.0",
+            PublishedAt = new DateTimeOffset(2026, 1, 15, 0, 0, 0, TimeSpan.Zero),
+            CreatedAt = new DateTimeOffset(2026, 1, 14, 0, 0, 0, TimeSpan.Zero),
+            Assets =
+            [
+                new GitHubReleaseAsset { Name = "coolmod.zip", Size = 1024, BrowserDownloadUrl = "https://github.com/modauthor/coolmod/releases/download/v2.0.0/coolmod.zip" },
+                new GitHubReleaseAsset { Name = "coolmod-maps.zip", Size = 2048, BrowserDownloadUrl = "https://github.com/modauthor/coolmod/releases/download/v2.0.0/coolmod-maps.zip" },
+            ],
+        };
+
+        var parent = new ContentSearchResult
+        {
+            Id = "github.modauthor.coolmod.v2.0.0",
+            Name = "coolmod v2.0.0",
+            Description = "Short repo about text",
+            Version = "2.0.0",
+            ContentType = ContentType.Mod,
+            TargetGame = GameType.ZeroHour,
+            ProviderName = "github-topics",
+            RequiresResolution = true,
+            ResolverId = ContentSourceNames.GitHubResolverId,
+            SourceUrl = release.HtmlUrl,
+        };
+        parent.ResolverMetadata[GitHubConstants.OwnerMetadataKey] = "modauthor";
+        parent.ResolverMetadata[GitHubConstants.RepoMetadataKey] = "coolmod";
+        parent.ResolverMetadata[GitHubConstants.TagMetadataKey] = "v2.0.0";
+        parent.SetData(release);
+
+        ContentSearchResult? coordinatorInput = null;
+        var coordinator = new Mock<IContentDownloadCoordinator>();
+        coordinator
+            .Setup(c => c.DownloadContentAsync(
+                It.IsAny<ContentSearchResult>(),
+                It.IsAny<IProgress<ContentAcquisitionProgress>>(),
+                It.IsAny<CancellationToken>(),
+                It.IsAny<bool>()))
+            .Callback<ContentSearchResult, IProgress<ContentAcquisitionProgress>?, CancellationToken, bool>(
+                (content, _, _, _) => coordinatorInput = content)
+            .ReturnsAsync(OperationResult<ContentManifest>.CreateSuccess(new ContentManifest
+            {
+                Id = ManifestId.Create("1.20260115.github.mod.coolmodmaps"),
+                Name = "coolmod-maps",
+                ContentType = ContentType.Mod,
+            }));
+
+        var viewModel = CreateViewModel(parent, coordinator.Object);
+        Assert.True(viewModel.PopulateGitHubReleases(parent));
+        var mapsRow = viewModel.Releases.First(r => r.DownloadUrl == "https://github.com/modauthor/coolmod/releases/download/v2.0.0/coolmod-maps.zip");
+
+        // Act
+        await Assert.IsAssignableFrom<IAsyncRelayCommand>(mapsRow.DownloadCommand).ExecuteAsync(null);
+
+        // Assert
+        Assert.NotNull(coordinatorInput);
+        Assert.True(coordinatorInput.ResolverMetadata.TryGetValue(GitHubConstants.AssetNameMetadataKey, out var pin));
+        Assert.Equal("coolmod-maps.zip", pin);
+    }
+
+    /// <summary>
+    /// Verifies that downloading the legacy fallback row of an asset-less GitHub release
+    /// carries no asset pin, so resolution keeps using the source-URL fallback.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task ReleaseRowDownload_GitHubReleaseWithoutAssets_FallbackRowCarriesNoPinAsync()
+    {
+        // Arrange
+        var release = new GitHubRelease
+        {
+            TagName = "v1.0",
+            Name = "Notes only",
+            Body = "No assets attached",
+            HtmlUrl = "https://github.com/modauthor/coolmod/releases/tag/v1.0",
+            CreatedAt = new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero),
+            Assets = [],
+        };
+
+        var parent = new ContentSearchResult
+        {
+            Id = "github.modauthor.coolmod.v1.0",
+            Name = "coolmod v1.0",
+            Description = "Short repo about text",
+            Version = "v1.0",
+            ContentType = ContentType.Mod,
+            TargetGame = GameType.ZeroHour,
+            ProviderName = "github-topics",
+            AuthorName = "modauthor",
+            RequiresResolution = true,
+            ResolverId = ContentSourceNames.GitHubResolverId,
+            SourceUrl = release.HtmlUrl,
+            LastUpdated = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc),
+        };
+        parent.ResolverMetadata[GitHubConstants.OwnerMetadataKey] = "modauthor";
+        parent.ResolverMetadata[GitHubConstants.RepoMetadataKey] = "coolmod";
+        parent.ResolverMetadata[GitHubConstants.TagMetadataKey] = "v1.0";
+        parent.SetData(release);
+
+        ContentSearchResult? coordinatorInput = null;
+        var coordinator = new Mock<IContentDownloadCoordinator>();
+        coordinator
+            .Setup(c => c.DownloadContentAsync(
+                It.IsAny<ContentSearchResult>(),
+                It.IsAny<IProgress<ContentAcquisitionProgress>>(),
+                It.IsAny<CancellationToken>(),
+                It.IsAny<bool>()))
+            .Callback<ContentSearchResult, IProgress<ContentAcquisitionProgress>?, CancellationToken, bool>(
+                (content, _, _, _) => coordinatorInput = content)
+            .ReturnsAsync(OperationResult<ContentManifest>.CreateSuccess(new ContentManifest
+            {
+                Id = ManifestId.Create("1.20260101.github.mod.coolmod"),
+                Name = "coolmod",
+                ContentType = ContentType.Mod,
+            }));
+
+        var viewModel = CreateViewModel(parent, coordinator.Object);
+        viewModel.Initialize();
+        await viewModel.WaitForInitializationAsync();
+        var row = Assert.Single(viewModel.Releases);
+
+        // Act
+        await Assert.IsAssignableFrom<IAsyncRelayCommand>(row.DownloadCommand).ExecuteAsync(null);
+
+        // Assert
+        Assert.NotNull(coordinatorInput);
+        Assert.False(coordinatorInput.ResolverMetadata.ContainsKey(GitHubConstants.AssetNameMetadataKey));
+        Assert.Equal(parent.SourceUrl, coordinatorInput.SelectedDownloadUrl);
+    }
+
+    /// <summary>
+    /// Verifies that downloading a row of an asset-pinned GitHub card keeps the existing pin.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task ReleaseRowDownload_GitHubPinnedCard_KeepsExistingPinAsync()
+    {
+        // Arrange
+        const string pinnedAsset = "GeneralsZH-Weekly.zip";
+        var release = new GitHubRelease
+        {
+            TagName = "weekly-2026-01-01",
+            Body = "Weekly game code update",
+            HtmlUrl = "https://github.com/TheSuperHackers/GeneralsGameCode/releases/tag/weekly-2026-01-01",
+            PublishedAt = new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero),
+            CreatedAt = new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero),
+            Assets =
+            [
+                new GitHubReleaseAsset { Name = "Generals-Weekly.zip", Size = 1000, BrowserDownloadUrl = "https://example.test/Generals-Weekly.zip" },
+                new GitHubReleaseAsset { Name = pinnedAsset, Size = 2000, BrowserDownloadUrl = "https://example.test/GeneralsZH-Weekly.zip" },
+            ],
+        };
+
+        var parent = new ContentSearchResult
+        {
+            Id = "github.thesuperhackers.generalsgamecode.weekly-2026-01-01.zerohour",
+            Name = "GeneralsGameCode weekly-2026-01-01 — Zero Hour",
+            Description = "Weekly game code update",
+            Version = "weekly-2026-01-01",
+            ContentType = ContentType.GameClient,
+            TargetGame = GameType.ZeroHour,
+            ProviderName = "thesuperhackers",
+            RequiresResolution = true,
+            ResolverId = ContentSourceNames.GitHubResolverId,
+            SourceUrl = release.HtmlUrl,
+        };
+        parent.ResolverMetadata[GitHubConstants.AssetNameMetadataKey] = pinnedAsset;
+        parent.SetData(release);
+
+        ContentSearchResult? coordinatorInput = null;
+        var coordinator = new Mock<IContentDownloadCoordinator>();
+        coordinator
+            .Setup(c => c.DownloadContentAsync(
+                It.IsAny<ContentSearchResult>(),
+                It.IsAny<IProgress<ContentAcquisitionProgress>>(),
+                It.IsAny<CancellationToken>(),
+                It.IsAny<bool>()))
+            .Callback<ContentSearchResult, IProgress<ContentAcquisitionProgress>?, CancellationToken, bool>(
+                (content, _, _, _) => coordinatorInput = content)
+            .ReturnsAsync(OperationResult<ContentManifest>.CreateSuccess(new ContentManifest
+            {
+                Id = ManifestId.Create("1.20260101.thesuperhackers.gameclient.zerohour"),
+                Name = "GeneralsGameCode Zero Hour",
+                ContentType = ContentType.GameClient,
+            }));
+
+        var viewModel = CreateViewModel(parent, coordinator.Object);
+        Assert.True(viewModel.PopulateGitHubReleases(parent));
+        var row = Assert.Single(viewModel.Releases);
+
+        // Act
+        await Assert.IsAssignableFrom<IAsyncRelayCommand>(row.DownloadCommand).ExecuteAsync(null);
+
+        // Assert
+        Assert.NotNull(coordinatorInput);
+        Assert.True(coordinatorInput.ResolverMetadata.TryGetValue(GitHubConstants.AssetNameMetadataKey, out var pin));
+        Assert.Equal(pinnedAsset, pin);
     }
 
     /// <summary>
@@ -2241,6 +3080,64 @@ public sealed class ContentDetailViewModelTests
         };
     }
 
+    private static CapturingContentDetailViewModel CreateGitHubVariantViewModel(
+        string repoDescription,
+        string firstTag,
+        string secondTag,
+        out Mock<IGitHubApiClient> gitHubMock)
+    {
+        ContentSearchResult CreateSibling(string suffix, string tag, string assetName)
+        {
+            var sibling = new ContentSearchResult
+            {
+                Id = $"github.modauthor.coolmod.{suffix}",
+                Name = $"coolmod ({suffix})",
+                Description = repoDescription,
+                Version = tag,
+                ContentType = ContentType.Mod,
+                TargetGame = GameType.ZeroHour,
+                ProviderName = "github-topics",
+                AuthorName = "modauthor",
+                RequiresResolution = true,
+                ResolverId = ContentSourceNames.GitHubResolverId,
+                SourceUrl = "https://github.com/modauthor/coolmod",
+                LastUpdated = new DateTime(2026, 1, 15, 0, 0, 0, DateTimeKind.Utc),
+                DownloadSize = 1024,
+            };
+            sibling.ResolverMetadata[GitHubConstants.OwnerMetadataKey] = "modauthor";
+            sibling.ResolverMetadata[GitHubConstants.RepoMetadataKey] = "coolmod";
+            sibling.ResolverMetadata[GitHubConstants.TagMetadataKey] = tag;
+            sibling.ResolverMetadata[GitHubConstants.AssetNameMetadataKey] = assetName;
+            sibling.SetData(new GitHubArtifact
+            {
+                Name = assetName,
+                DownloadUrl = $"https://github.com/modauthor/coolmod/releases/download/{tag}/{assetName}",
+                SizeInBytes = 1024,
+                IsRelease = true,
+            });
+            return sibling;
+        }
+
+        var first = CreateSibling("v1", firstTag, "coolmod-v1.zip");
+        var second = CreateSibling("v2", secondTag, "coolmod-v2.zip");
+        gitHubMock = new Mock<IGitHubApiClient>();
+        var viewModel = CreateViewModel(
+            second,
+            new Mock<IContentDownloadCoordinator>().Object,
+            variantSearchResults: new Dictionary<string, ContentSearchResult>(StringComparer.OrdinalIgnoreCase)
+            {
+                [first.Id] = first,
+                [second.Id] = second,
+            },
+            gitHubApiClient: gitHubMock.Object);
+        viewModel.Variants =
+        [
+            new InstallableVariant { ManifestId = first.Id, Name = first.Name },
+            new InstallableVariant { ManifestId = second.Id, Name = second.Name },
+        ];
+        return viewModel;
+    }
+
     private static CapturingContentDetailViewModel CreateViewModel(
         ContentSearchResult searchResult,
         IContentDownloadCoordinator downloadCoordinator,
@@ -2256,7 +3153,8 @@ public sealed class ContentDetailViewModelTests
         IGameProfileManager? profileManager = null,
         IDialogService? dialogService = null,
         Func<string, Task>? deletedAction = null,
-        IContentArtworkService? artworkService = null)
+        IContentArtworkService? artworkService = null,
+        IGitHubApiClient? gitHubApiClient = null)
     {
         if (contentStateService == null)
         {
@@ -2289,7 +3187,8 @@ public sealed class ContentDetailViewModelTests
             initialVariantManifestId: initialVariantManifestId,
             dialogService: dialogService,
             deletedAction: deletedAction,
-            artworkService: artworkService);
+            artworkService: artworkService,
+            gitHubApiClient: gitHubApiClient);
     }
 
     private sealed class CapturingContentDetailViewModel(
@@ -2311,7 +3210,8 @@ public sealed class ContentDetailViewModelTests
         string? initialVariantManifestId = null,
         IDialogService? dialogService = null,
         Func<string, Task>? deletedAction = null,
-        IContentArtworkService? artworkService = null)
+        IContentArtworkService? artworkService = null,
+        IGitHubApiClient? gitHubApiClient = null)
         : ContentDetailViewModel(
             searchResult,
             parsers,
@@ -2331,7 +3231,8 @@ public sealed class ContentDetailViewModelTests
             initialVariantManifestId: initialVariantManifestId,
             dialogService: dialogService,
             deletedAction: deletedAction,
-            artworkService: artworkService)
+            artworkService: artworkService,
+            gitHubApiClient: gitHubApiClient)
     {
         /// <summary>
         /// Gets the manifest ID sent to the profile selection flow.

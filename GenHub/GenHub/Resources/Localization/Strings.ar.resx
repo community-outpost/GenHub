@@ -4475,9 +4475,6 @@
   <data name="Downloads.Browser.Publishers" xml:space="preserve">
     <value>الناشرون</value>
   </data>
-  <data name="Downloads.Browser.OpenManifestsFolder" xml:space="preserve">
-    <value>فتح مجلد البيانات في مستكشف الملفات</value>
-  </data>
   <data name="Downloads.Browser.SearchWatermark" xml:space="preserve">
     <value>البحث في المحتوى...</value>
   </data>
@@ -5036,6 +5033,9 @@
   <data name="Downloads.ContentDetail.PublisherDisclaimer" xml:space="preserve">
     <value>المحتوى مقدم من ناشرين خارجيين. GenHub لا يضمن التوافق.</value>
   </data>
+  <data name="Downloads.ContentDetail.Readme" xml:space="preserve">
+    <value>ملف التعليمات</value>
+  </data>
   <data name="Downloads.ContentDetail.ReadmeReleaseNotes" xml:space="preserve">
     <value>ملف التعليمات وملاحظات الإصدار</value>
   </data>
@@ -5149,9 +5149,6 @@
   </data>
   <data name="Downloads.LoadingDetails" xml:space="preserve">
     <value>جارٍ تحميل تفاصيل المحتوى...</value>
-  </data>
-  <data name="Downloads.ManifestsFolder" xml:space="preserve">
-    <value>فتح مجلد البيانات التعاريفية</value>
   </data>
   <data name="Downloads.ProfileSelection.Add" xml:space="preserve">
     <value>إضافة</value>
