@@ -277,6 +277,33 @@ public class EncryptedFileGitHubTokenStorageTests : IDisposable
     }
 
     /// <summary>
+    /// Verifies that saving a primary token deletes an obsolete fallback token copy.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task SaveToken_WithFallbackCopy_DeletesFallbackCopyAsync()
+    {
+        // Arrange
+        var fallbackWriter = CreateStorage("machine-secret-cleanup", appDataDir: _defaultRootDir);
+        using var fallbackToken = SecureStringHelper.ToSecureString("fallback-token-value");
+        await fallbackWriter.SaveTokenAsync(fallbackToken);
+        Assert.True(File.Exists(TokenFilePath(_defaultRootDir)));
+
+        var primaryWriter = CreateStorage("machine-secret-cleanup");
+        using var primaryToken = SecureStringHelper.ToSecureString("primary-token-value");
+
+        // Act
+        await primaryWriter.SaveTokenAsync(primaryToken);
+
+        // Assert
+        Assert.True(File.Exists(TokenFilePath()));
+        Assert.False(File.Exists(TokenFilePath(_defaultRootDir)));
+        using var loaded = await primaryWriter.LoadTokenAsync();
+        Assert.NotNull(loaded);
+        Assert.Equal("primary-token-value", SecureStringHelper.ToUnsecureString(loaded));
+    }
+
+    /// <summary>
     /// Verifies that the primary token copy wins when both the primary and fallback copies exist.
     /// </summary>
     /// <returns>A task representing the asynchronous unit test.</returns>
@@ -284,12 +311,12 @@ public class EncryptedFileGitHubTokenStorageTests : IDisposable
     public async Task LoadToken_WithBothCopies_PrefersPrimaryAsync()
     {
         // Arrange
-        var fallbackWriter = CreateStorage("machine-secret-precedence", appDataDir: _defaultRootDir);
-        using var fallbackToken = SecureStringHelper.ToSecureString("fallback-token-value");
-        await fallbackWriter.SaveTokenAsync(fallbackToken);
         var primaryWriter = CreateStorage("machine-secret-precedence");
         using var primaryToken = SecureStringHelper.ToSecureString("primary-token-value");
         await primaryWriter.SaveTokenAsync(primaryToken);
+        var fallbackWriter = CreateStorage("machine-secret-precedence", appDataDir: _defaultRootDir);
+        using var fallbackToken = SecureStringHelper.ToSecureString("fallback-token-value");
+        await fallbackWriter.SaveTokenAsync(fallbackToken);
 
         // Act
         using var loaded = await primaryWriter.LoadTokenAsync();
@@ -307,12 +334,12 @@ public class EncryptedFileGitHubTokenStorageTests : IDisposable
     public async Task DeleteToken_WithBothCopies_RemovesBothAsync()
     {
         // Arrange
-        var fallbackWriter = CreateStorage("machine-secret-dual-delete", appDataDir: _defaultRootDir);
-        using var fallbackToken = SecureStringHelper.ToSecureString("fallback-token-value");
-        await fallbackWriter.SaveTokenAsync(fallbackToken);
         var primaryWriter = CreateStorage("machine-secret-dual-delete");
         using var primaryToken = SecureStringHelper.ToSecureString("primary-token-value");
         await primaryWriter.SaveTokenAsync(primaryToken);
+        var fallbackWriter = CreateStorage("machine-secret-dual-delete", appDataDir: _defaultRootDir);
+        using var fallbackToken = SecureStringHelper.ToSecureString("fallback-token-value");
+        await fallbackWriter.SaveTokenAsync(fallbackToken);
 
         // Act
         await primaryWriter.DeleteTokenAsync();

@@ -138,6 +138,33 @@ public class WindowsGitHubTokenStorageTests : IDisposable
     }
 
     /// <summary>
+    /// Verifies that saving a primary token deletes an obsolete fallback token copy.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task SaveToken_WithFallbackCopy_DeletesFallbackCopyAsync()
+    {
+        // Arrange
+        var fallbackWriter = CreateStorage(_environment.AppDataPath);
+        using var fallbackToken = SecureStringHelper.ToSecureString("fallback-token-value");
+        await fallbackWriter.SaveTokenAsync(fallbackToken);
+        Assert.True(File.Exists(TokenFilePath(_environment.AppDataPath)));
+
+        var storage = CreateStorage(_tempDir);
+        using var primaryToken = SecureStringHelper.ToSecureString("primary-token-value");
+
+        // Act
+        await storage.SaveTokenAsync(primaryToken);
+
+        // Assert
+        Assert.True(File.Exists(TokenFilePath(_tempDir)));
+        Assert.False(File.Exists(TokenFilePath(_environment.AppDataPath)));
+        using var loaded = await storage.LoadTokenAsync();
+        Assert.NotNull(loaded);
+        Assert.Equal("primary-token-value", SecureStringHelper.ToUnsecureString(loaded));
+    }
+
+    /// <summary>
     /// Verifies that deleting removes both the primary and fallback token copies.
     /// </summary>
     /// <returns>A task representing the asynchronous unit test.</returns>
@@ -145,12 +172,12 @@ public class WindowsGitHubTokenStorageTests : IDisposable
     public async Task DeleteToken_WithBothCopies_RemovesBothAsync()
     {
         // Arrange
-        var fallbackWriter = CreateStorage(_environment.AppDataPath);
-        using var fallbackToken = SecureStringHelper.ToSecureString("fallback-token-value");
-        await fallbackWriter.SaveTokenAsync(fallbackToken);
         var storage = CreateStorage(_tempDir);
         using var primaryToken = SecureStringHelper.ToSecureString("primary-token-value");
         await storage.SaveTokenAsync(primaryToken);
+        var fallbackWriter = CreateStorage(_environment.AppDataPath);
+        using var fallbackToken = SecureStringHelper.ToSecureString("fallback-token-value");
+        await fallbackWriter.SaveTokenAsync(fallbackToken);
 
         // Act
         await storage.DeleteTokenAsync();

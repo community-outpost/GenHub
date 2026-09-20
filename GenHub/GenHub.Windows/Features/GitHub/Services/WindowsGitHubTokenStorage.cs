@@ -83,6 +83,11 @@ public class WindowsGitHubTokenStorage : IGitHubTokenStorage
             // Save to file atomically so a crash mid-write never leaves a truncated
             // token file behind that the next launch would mistake for corruption.
             await FileOperationsService.WriteAllBytesAtomicAsync(_tokenFilePath, encryptedBytes).ConfigureAwait(false);
+
+            if (_fallbackTokenFilePath != null)
+            {
+                FileOperationsService.DeleteFileIfExists(_fallbackTokenFilePath);
+            }
         }
         finally
         {

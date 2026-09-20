@@ -70,6 +70,11 @@ public class EncryptedFileGitHubTokenStorage : IGitHubTokenStorage
                     File.Move(tempPath, _tokenFilePath, overwrite: true);
                     moved = true;
                     RestrictFilePermissions(_tokenFilePath);
+
+                    if (_fallbackTokenFilePath != null)
+                    {
+                        DeleteTokenFile(_fallbackTokenFilePath);
+                    }
                 }
                 finally
                 {

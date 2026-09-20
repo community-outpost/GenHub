@@ -12,7 +12,8 @@ namespace GenHub.Features.GitHub.Services;
 /// The token lives inside the application data directory, which the user can relocate. When the
 /// current directory holds no token, the default data root is consulted as a fallback so a data
 /// directory change does not silently sign the user out. Reads fall back while saves always target
-/// the primary path so credentials consolidate forward, and sign-out removes both copies.
+/// the primary path and remove obsolete fallback credentials so credentials consolidate forward,
+/// and sign-out removes both copies.
 /// </remarks>
 public static class GitHubTokenPathResolver
 {
