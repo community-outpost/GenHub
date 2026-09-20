@@ -60,6 +60,8 @@ public sealed class BuildEngineServiceTests : IDisposable
                 It.IsAny<string?>(),
                 It.IsAny<IProgress<ContentStorageProgress>?>(),
                 It.IsAny<CancellationToken>(),
+                It.IsAny<string?>(),
+                It.IsAny<string?>(),
                 It.IsAny<string?>()))
             .ReturnsAsync(GenHub.Core.Models.Results.OperationResult<GenHub.Core.Models.Manifest.ContentManifest>.CreateSuccess(
                 new GenHub.Core.Models.Manifest.ContentManifest
@@ -702,53 +704,14 @@ public sealed class BuildEngineServiceTests : IDisposable
     public async Task ExecuteBuildAsync_WithCreateManifest_CreatesLocalContentManifest()
     {
         // Arrange
-        var projectDir = Path.Combine(_tempDirectory, "ManifestProject");
-        Directory.CreateDirectory(projectDir);
-        var buildDir = Path.Combine(projectDir, ".Build");
-        var bundlesDir = Path.Combine(buildDir, ModBuilderConstants.BundlesSubdir);
-        Directory.CreateDirectory(bundlesDir);
-
-        // Place a mock .big bundle in the bundles folder
-        var bundleFile = Path.Combine(bundlesDir, "TestBundle.big");
-        await File.WriteAllBytesAsync(bundleFile, [1, 2, 3, 4]);
-
-        var project = new ModBuilderProject
-        {
-            Name = "ManifestProject",
-            Version = "1.0.0",
-            Description = "Manifest test description",
-            ProjectDir = projectDir,
-            TargetGame = GameType.Generals,
-            Directories = new ProjectDirectories
-            {
-                Build = ".Build",
-                Release = ".Release",
-                GameFilesEdited = "GameFilesEdited",
-            },
-            BundleConfigs = [],
-        };
-
-        var configuration = new BuildConfiguration
-        {
-            Items = [],
-            Packs =
-            [
-                new()
-                {
-                    Name = "TestBundle",
-                    Items = [],
-                },
-            ],
-            Folders = new FolderConfiguration
-            {
-                AbsBuildDir = buildDir,
-            },
-        };
+        var fixture = CreateManifestFixture("ManifestProject", ["TestBundle"]);
+        fixture.Project.Description = "Manifest test description";
+        var bundlesDir = Path.Combine(fixture.BuildDir, ModBuilderConstants.BundlesSubdir);
 
         // Act
         var result = await _service.ExecuteBuildAsync(
-            project,
-            configuration,
+            fixture.Project,
+            fixture.Configuration,
             ["TestBundle"],
             BuildStep.CreateManifest);
 
@@ -757,67 +720,35 @@ public sealed class BuildEngineServiceTests : IDisposable
         _mockLocalContentService.Verify(
             x => x.CreateLocalContentManifestAsync(
                 It.IsAny<string>(),
-                "ManifestProject",
+                "ManifestProject-TestBundle",
                 GenHub.Core.Models.Enums.ContentType.Mod,
                 GameType.Generals,
                 bundlesDir,
                 It.IsAny<IProgress<ContentStorageProgress>?>(),
                 It.IsAny<CancellationToken>(),
-                It.IsAny<string?>()),
+                It.IsAny<string?>(),
+                It.IsAny<string?>(),
+                "1.0.0"),
             Times.Once);
+        File.Exists(Path.Combine(fixture.BuildDir, ModBuilderConstants.ManifestFileName)).Should().BeTrue();
     }
 
     [Fact]
     public async Task ExecuteBuildAsync_WithCustomContentType_PassesContentTypeToManifestCreation()
     {
         // Arrange
-        var projectDir = Path.Combine(_tempDirectory, "PatchManifestProject");
-        Directory.CreateDirectory(projectDir);
-        var buildDir = Path.Combine(projectDir, ".Build");
-        var bundlesDir = Path.Combine(buildDir, ModBuilderConstants.BundlesSubdir);
-        Directory.CreateDirectory(bundlesDir);
-
-        var bundleFile = Path.Combine(bundlesDir, "TestBundle.big");
-        await File.WriteAllBytesAsync(bundleFile, [1, 2, 3, 4]);
-
-        var project = new ModBuilderProject
-        {
-            Name = "PatchManifestProject",
-            Version = "2.0.0",
-            Description = "Patch test description",
-            ProjectDir = projectDir,
-            TargetGame = GameType.Generals,
-            ContentType = GenHub.Core.Models.Enums.ContentType.Patch,
-            Directories = new ProjectDirectories
-            {
-                Build = ".Build",
-                Release = ".Release",
-                GameFilesEdited = "GameFilesEdited",
-            },
-            BundleConfigs = [],
-        };
-
-        var configuration = new BuildConfiguration
-        {
-            Items = [],
-            Packs =
-            [
-                new()
-                {
-                    Name = "TestBundle",
-                    Items = [],
-                },
-            ],
-            Folders = new FolderConfiguration
-            {
-                AbsBuildDir = buildDir,
-            },
-        };
+        var fixture = CreateManifestFixture(
+            "PatchManifestProject",
+            ["TestBundle"],
+            "2.0.0",
+            GenHub.Core.Models.Enums.ContentType.Patch);
+        fixture.Project.Description = "Patch test description";
+        var bundlesDir = Path.Combine(fixture.BuildDir, ModBuilderConstants.BundlesSubdir);
 
         // Act
         var result = await _service.ExecuteBuildAsync(
-            project,
-            configuration,
+            fixture.Project,
+            fixture.Configuration,
             ["TestBundle"],
             BuildStep.CreateManifest);
 
@@ -826,14 +757,178 @@ public sealed class BuildEngineServiceTests : IDisposable
         _mockLocalContentService.Verify(
             x => x.CreateLocalContentManifestAsync(
                 It.IsAny<string>(),
-                "PatchManifestProject",
+                "PatchManifestProject-TestBundle",
                 GenHub.Core.Models.Enums.ContentType.Patch,
                 GameType.Generals,
                 bundlesDir,
                 It.IsAny<IProgress<ContentStorageProgress>?>(),
                 It.IsAny<CancellationToken>(),
+                It.IsAny<string?>(),
+                It.IsAny<string?>(),
+                "2.0.0"),
+            Times.Once);
+    }
+
+    [Fact]
+    public async Task ExecuteBuildAsync_WithMultiplePacks_CreatesOneManifestPerPack()
+    {
+        // Arrange
+        var fixture = CreateManifestFixture("MultiPackProject", ["PackA", "PackB"]);
+
+        // Act
+        var result = await _service.ExecuteBuildAsync(
+            fixture.Project,
+            fixture.Configuration,
+            ["PackA", "PackB"],
+            BuildStep.CreateManifest);
+
+        // Assert
+        result.Success.Should().BeTrue(result.FirstError);
+        _mockLocalContentService.Verify(
+            x => x.CreateLocalContentManifestAsync(
+                It.IsAny<string>(),
+                "MultiPackProject-PackA",
+                GenHub.Core.Models.Enums.ContentType.Mod,
+                GameType.Generals,
+                It.IsAny<string?>(),
+                It.IsAny<IProgress<ContentStorageProgress>?>(),
+                It.IsAny<CancellationToken>(),
+                It.IsAny<string?>(),
+                It.IsAny<string?>(),
                 It.IsAny<string?>()),
             Times.Once);
+        _mockLocalContentService.Verify(
+            x => x.CreateLocalContentManifestAsync(
+                It.IsAny<string>(),
+                "MultiPackProject-PackB",
+                GenHub.Core.Models.Enums.ContentType.Mod,
+                GameType.Generals,
+                It.IsAny<string?>(),
+                It.IsAny<IProgress<ContentStorageProgress>?>(),
+                It.IsAny<CancellationToken>(),
+                It.IsAny<string?>(),
+                It.IsAny<string?>(),
+                It.IsAny<string?>()),
+            Times.Once);
+        var manifestPattern = Path.GetFileNameWithoutExtension(ModBuilderConstants.ManifestFileName)
+            + "-*"
+            + Path.GetExtension(ModBuilderConstants.ManifestFileName);
+        Directory.GetFiles(fixture.BuildDir, manifestPattern).Should().HaveCount(2);
+    }
+
+    [Fact]
+    public async Task ExecuteBuildAsync_WithManifestDefinition_CombinesLinkedPacksIntoSingleManifest()
+    {
+        // Arrange
+        var fixture = CreateManifestFixture("CombinedProject", ["PackA", "PackB"]);
+        fixture.Configuration.Manifests =
+        [
+            new()
+            {
+                Name = "Combined",
+                Version = "2.5.0",
+                Publisher = "acme",
+                Description = "Groups both packs",
+                PackNames = ["PackA", "PackB"],
+            },
+        ];
+
+        // Act
+        var result = await _service.ExecuteBuildAsync(
+            fixture.Project,
+            fixture.Configuration,
+            ["PackA", "PackB"],
+            BuildStep.CreateManifest);
+
+        // Assert
+        result.Success.Should().BeTrue(result.FirstError);
+        _mockLocalContentService.Verify(
+            x => x.CreateLocalContentManifestAsync(
+                It.IsAny<string>(),
+                "Combined",
+                GenHub.Core.Models.Enums.ContentType.Mod,
+                GameType.Generals,
+                It.IsAny<string?>(),
+                It.IsAny<IProgress<ContentStorageProgress>?>(),
+                It.IsAny<CancellationToken>(),
+                It.IsAny<string?>(),
+                "acme",
+                "2.5.0"),
+            Times.Once);
+        File.Exists(Path.Combine(fixture.BuildDir, ModBuilderConstants.ManifestFileName)).Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task ExecuteBuildAsync_WithManifestDefinitionReferencingUnknownPack_ReturnsFailure()
+    {
+        // Arrange
+        var fixture = CreateManifestFixture("UnknownPackProject", ["PackA"]);
+        fixture.Configuration.Manifests =
+        [
+            new()
+            {
+                Name = "Broken",
+                PackNames = ["Nope"],
+            },
+        ];
+
+        // Act
+        var result = await _service.ExecuteBuildAsync(
+            fixture.Project,
+            fixture.Configuration,
+            ["PackA"],
+            BuildStep.CreateManifest);
+
+        // Assert
+        result.Success.Should().BeFalse();
+        _mockLocalContentService.Verify(
+            x => x.CreateLocalContentManifestAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<GenHub.Core.Models.Enums.ContentType>(),
+                It.IsAny<GameType>(),
+                It.IsAny<string?>(),
+                It.IsAny<IProgress<ContentStorageProgress>?>(),
+                It.IsAny<CancellationToken>(),
+                It.IsAny<string?>(),
+                It.IsAny<string?>(),
+                It.IsAny<string?>()),
+            Times.Never);
+    }
+
+    [Fact]
+    public async Task ExecuteBuildAsync_WithDuplicateManifestNames_ReturnsFailure()
+    {
+        // Arrange
+        var fixture = CreateManifestFixture("DuplicateManifestProject", ["PackA"]);
+        fixture.Configuration.Manifests =
+        [
+            new() { Name = "Same", PackNames = ["PackA"] },
+            new() { Name = "Same", PackNames = ["PackA"] },
+        ];
+
+        // Act
+        var result = await _service.ExecuteBuildAsync(
+            fixture.Project,
+            fixture.Configuration,
+            ["PackA"],
+            BuildStep.CreateManifest);
+
+        // Assert
+        result.Success.Should().BeFalse();
+        _mockLocalContentService.Verify(
+            x => x.CreateLocalContentManifestAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<GenHub.Core.Models.Enums.ContentType>(),
+                It.IsAny<GameType>(),
+                It.IsAny<string?>(),
+                It.IsAny<IProgress<ContentStorageProgress>?>(),
+                It.IsAny<CancellationToken>(),
+                It.IsAny<string?>(),
+                It.IsAny<string?>(),
+                It.IsAny<string?>()),
+            Times.Never);
     }
 
     [Fact]
@@ -1738,5 +1833,69 @@ public sealed class BuildEngineServiceTests : IDisposable
         // Assert
         result.Success.Should().BeTrue(result.FirstError);
         result.FilesFailed.Should().Be(0);
+    }
+
+    private (ModBuilderProject Project, BuildConfiguration Configuration, string BuildDir) CreateManifestFixture(
+        string projectName,
+        string[] packNames,
+        string projectVersion = "1.0.0",
+        GenHub.Core.Models.Enums.ContentType contentType = GenHub.Core.Models.Enums.ContentType.Mod)
+    {
+        var projectDir = Path.Combine(_tempDirectory, projectName);
+        Directory.CreateDirectory(projectDir);
+        var buildDir = Path.Combine(projectDir, ".Build");
+        var bundlesDir = Path.Combine(buildDir, ModBuilderConstants.BundlesSubdir);
+        Directory.CreateDirectory(bundlesDir);
+
+        var items = new List<BundleItem>();
+        var packs = new List<BundlePack>();
+        foreach (var packName in packNames)
+        {
+            var itemName = $"{packName}Item";
+            var sourceFile = Path.Combine(projectDir, $"{itemName}.txt");
+            File.WriteAllText(sourceFile, "content");
+            items.Add(new BundleItem
+            {
+                Name = itemName,
+                Files = new List<BundleFile>
+                {
+                    new()
+                    {
+                        AbsSourceParent = projectDir,
+                        AbsSourceFile = sourceFile,
+                        RelTargetFile = $"{itemName}.txt",
+                    },
+                },
+            });
+            packs.Add(new BundlePack { Name = packName, ItemNames = new List<string> { itemName } });
+        }
+
+        var project = new ModBuilderProject
+        {
+            Name = projectName,
+            Version = projectVersion,
+            ProjectDir = projectDir,
+            TargetGame = GameType.Generals,
+            ContentType = contentType,
+            Directories = new ProjectDirectories
+            {
+                Build = ".Build",
+                Release = ".Release",
+                GameFilesEdited = "GameFilesEdited",
+            },
+            BundleConfigs = new List<string>(),
+        };
+
+        var configuration = new BuildConfiguration
+        {
+            Items = items,
+            Packs = packs,
+            Folders = new FolderConfiguration
+            {
+                AbsBuildDir = buildDir,
+            },
+        };
+
+        return (project, configuration, buildDir);
     }
 }

@@ -7572,7 +7572,7 @@ GenHub هو مشغل ومدير حديث لألعاب **Command &amp; Conquer: G
     <value>مدير أصول اللعبة</value>
   </data>
   <data name="Tools.ModBuilder.View.TooltipEditConfiguration" xml:space="preserve">
-    <value>تحرير عناصر وحزم التجميع وأهداف البناء</value>
+    <value>تحرير عناصر وحزم التجميع وبيانات المحتوى وأهداف البناء</value>
   </data>
   <data name="Tools.ModBuilder.View.ButtonEditConfiguration" xml:space="preserve">
     <value>تعديل التكوين</value>
@@ -9998,6 +9998,69 @@ GameFilesEdited/Data/INI/**/*.ini</value>
   </data>
   <data name="Tools.ModBuilder.Samples.LemonControlBar.VariantSummary" xml:space="preserve">
     <value>4 حزم دقة (من 720p إلى 4K)</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.TabManifests" xml:space="preserve">
+    <value>بيانات المحتوى</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.ButtonAddManifest" xml:space="preserve">
+    <value>إضافة بيان</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.TooltipAddManifest" xml:space="preserve">
+    <value>إضافة بيان حزمة جديد</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.ButtonRemoveManifest" xml:space="preserve">
+    <value>إزالة</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.TooltipRemoveManifest" xml:space="preserve">
+    <value>إزالة بيان الحزمة المحدد</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.DescManifestsDefault" xml:space="preserve">
+    <value>يجمع كل بيان حزم التجميع في عنصر مكتبة واحد. بدون تعريف بيانات، يتم إنشاء بيان واحد لكل حزمة تجميع.</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.BundleManifestSettingsHeader" xml:space="preserve">
+    <value>إعدادات بيان الحزمة</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.LabelManifestName" xml:space="preserve">
+    <value>اسم البيان</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.WatermarkManifestName" xml:space="preserve">
+    <value>مثال: MyMod HD Edition</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.LabelManifestVersion" xml:space="preserve">
+    <value>الإصدار</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.WatermarkManifestVersion" xml:space="preserve">
+    <value>مثال: 1.0.0</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.LabelManifestPublisher" xml:space="preserve">
+    <value>الناشر</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.WatermarkManifestPublisher" xml:space="preserve">
+    <value>local</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.DescManifestPublisher" xml:space="preserve">
+    <value>تركه فارغاً يستخدم الناشر المحلي الافتراضي</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.LabelManifestDescription" xml:space="preserve">
+    <value>الوصف</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.WatermarkManifestDescription" xml:space="preserve">
+    <value>مثال: يجمع حزم الدقة العالية</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.LabelLinkedPacks" xml:space="preserve">
+    <value>حزم التجميع المرتبطة</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.DescLinkedPacks" xml:space="preserve">
+    <value>حدد حزم التجميع التي يجب دمجها في هذا البيان</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.SelectManifestPrompt" xml:space="preserve">
+    <value>حدد بيان حزمة على اليسار أو انقر "إضافة بيان" لتجميع الحزم في عنصر مكتبة.</value>
+  </data>
+  <data name="Tools.ModBuilder.View.ButtonManifests" xml:space="preserve">
+    <value>البيانات</value>
+  </data>
+  <data name="Tools.ModBuilder.View.TooltipManifests" xml:space="preserve">
+    <value>تعريف بيانات المحتوى التي تجمع حزم التجميع</value>
   </data>
   <data name="GameProfiles.Notification.LaunchChanged.Title" xml:space="preserve">
     <value>تم تغيير إعدادات التشغيل</value>

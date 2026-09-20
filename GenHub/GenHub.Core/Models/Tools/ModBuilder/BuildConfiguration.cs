@@ -23,6 +23,13 @@ public class BuildConfiguration
     public List<BundlePack> Packs { get; set; } = new();
 
     /// <summary>
+    /// Gets or sets the content manifest definitions grouping packs for manifest creation.
+    /// Empty selects the default one-manifest-per-pack behavior.
+    /// </summary>
+    [JsonPropertyName("manifests")]
+    public List<BundleManifest> Manifests { get; set; } = new();
+
+    /// <summary>
     /// Gets or sets the folder configuration for build outputs.
     /// </summary>
     [JsonPropertyName("folders")]

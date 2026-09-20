@@ -7572,7 +7572,7 @@ GenHub передает официальный идентификатор AppID 
     <value>Менеджер ресурсов игры</value>
   </data>
   <data name="Tools.ModBuilder.View.TooltipEditConfiguration" xml:space="preserve">
-    <value>Редактировать элементы, пакеты сборок и цели</value>
+    <value>Редактировать элементы, пакеты сборок, манифесты и цели</value>
   </data>
   <data name="Tools.ModBuilder.View.ButtonEditConfiguration" xml:space="preserve">
     <value>Настройка конфигурации</value>
@@ -9998,6 +9998,69 @@ GameFilesEdited/Data/INI/**/*.ini</value>
   </data>
   <data name="Tools.ModBuilder.Samples.LemonControlBar.VariantSummary" xml:space="preserve">
     <value>4 пакета разрешений (от 720p до 4K)</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.TabManifests" xml:space="preserve">
+    <value>Манифесты</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.ButtonAddManifest" xml:space="preserve">
+    <value>Добавить манифест</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.TooltipAddManifest" xml:space="preserve">
+    <value>Добавить новый манифест пакетов</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.ButtonRemoveManifest" xml:space="preserve">
+    <value>Удалить</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.TooltipRemoveManifest" xml:space="preserve">
+    <value>Удалить выбранный манифест пакетов</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.DescManifestsDefault" xml:space="preserve">
+    <value>Каждый манифест объединяет пакеты сборок в одну запись библиотеки. Без определённых манифестов создаётся один манифест на пакет сборок.</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.BundleManifestSettingsHeader" xml:space="preserve">
+    <value>Настройки манифеста пакетов</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.LabelManifestName" xml:space="preserve">
+    <value>Имя манифеста</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.WatermarkManifestName" xml:space="preserve">
+    <value>например, MyMod HD Edition</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.LabelManifestVersion" xml:space="preserve">
+    <value>Версия</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.WatermarkManifestVersion" xml:space="preserve">
+    <value>например, 1.0.0</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.LabelManifestPublisher" xml:space="preserve">
+    <value>Издатель</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.WatermarkManifestPublisher" xml:space="preserve">
+    <value>local</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.DescManifestPublisher" xml:space="preserve">
+    <value>Пустое значение использует локального издателя по умолчанию</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.LabelManifestDescription" xml:space="preserve">
+    <value>Описание</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.WatermarkManifestDescription" xml:space="preserve">
+    <value>например, объединяет HD-пакеты текстур</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.LabelLinkedPacks" xml:space="preserve">
+    <value>Связанные пакеты сборок</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.DescLinkedPacks" xml:space="preserve">
+    <value>Отметьте пакеты сборок, которые должны быть объединены в этот манифест</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.SelectManifestPrompt" xml:space="preserve">
+    <value>Выберите манифест пакетов слева или нажмите «Добавить манифест», чтобы сгруппировать пакеты в запись библиотеки.</value>
+  </data>
+  <data name="Tools.ModBuilder.View.ButtonManifests" xml:space="preserve">
+    <value>Манифесты</value>
+  </data>
+  <data name="Tools.ModBuilder.View.TooltipManifests" xml:space="preserve">
+    <value>Определить манифесты контента, группирующие пакеты сборок</value>
   </data>
   <data name="GameProfiles.Notification.LaunchChanged.Title" xml:space="preserve">
     <value>Конфигурация запуска изменена</value>

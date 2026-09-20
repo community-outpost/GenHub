@@ -59,7 +59,9 @@ public class LocalContentService(
         string? sourcePath = null,
         IProgress<ContentStorageProgress>? progress = null,
         CancellationToken cancellationToken = default,
-        string? entryPoint = null)
+        string? entryPoint = null,
+        string? publisherId = null,
+        string? manifestVersion = null)
     {
         return CreateLocalContentManifestAsync(
             directoryPath,
@@ -73,6 +75,8 @@ public class LocalContentService(
                 CancellationToken = cancellationToken,
                 EntryPoint = entryPoint,
                 NormalizeInactiveArchives = true,
+                PublisherId = publisherId,
+                ManifestVersion = manifestVersion,
             });
     }
 
@@ -134,9 +138,9 @@ public class LocalContentService(
             // Use the existing manifest generation service
             var builder = await manifestGenerationService.CreateContentManifestAsync(
                 contentDirectory: directoryPath,
-                publisherId: LocalPublisherType,
+                publisherId: options?.PublisherId ?? LocalPublisherType,
                 contentName: name,
-                manifestVersion: 0,
+                manifestVersion: options?.ManifestVersion,
                 contentType: contentType,
                 targetGame: targetGame);
 

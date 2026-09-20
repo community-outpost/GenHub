@@ -724,8 +724,8 @@ public class MockLocalContentService : ILocalContentService
     }
 
     /// <inheritdoc/>
-    public Task<OperationResult<ContentManifest>> CreateLocalContentManifestAsync(string directoryPath, string name, ContentType contentType, GameType targetGame, string? sourcePath = null, IProgress<ContentStorageProgress>? progress = null, CancellationToken cancellationToken = default, string? entryPoint = null)
-        => CreateLocalContentManifestAsync(directoryPath, name, contentType, targetGame, new LocalContentOptions { SourcePath = sourcePath, Progress = progress, CancellationToken = cancellationToken, EntryPoint = entryPoint });
+    public Task<OperationResult<ContentManifest>> CreateLocalContentManifestAsync(string directoryPath, string name, ContentType contentType, GameType targetGame, string? sourcePath = null, IProgress<ContentStorageProgress>? progress = null, CancellationToken cancellationToken = default, string? entryPoint = null, string? publisherId = null, string? manifestVersion = null)
+        => CreateLocalContentManifestAsync(directoryPath, name, contentType, targetGame, new LocalContentOptions { SourcePath = sourcePath, Progress = progress, CancellationToken = cancellationToken, EntryPoint = entryPoint, PublisherId = publisherId, ManifestVersion = manifestVersion });
 
     /// <inheritdoc/>
     public Task<OperationResult<ContentManifest>> CreateLocalContentManifestAsync(string directoryPath, string name, ContentType contentType, GameType targetGame, LocalContentOptions? options)

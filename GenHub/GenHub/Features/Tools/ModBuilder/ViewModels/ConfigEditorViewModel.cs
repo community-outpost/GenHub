@@ -54,9 +54,19 @@ public partial class ConfigEditorViewModel(
     public ObservableCollection<BundlePackConfigViewModel> BundlePacks { get; } = [];
 
     /// <summary>
+    /// Gets the list of bundle manifest definitions.
+    /// </summary>
+    public ObservableCollection<BundleManifestConfigViewModel> BundleManifests { get; } = [];
+
+    /// <summary>
     /// Gets the list of selectable bundle items for the currently selected bundle pack.
     /// </summary>
     public ObservableCollection<BundleItemSelectionItemViewModel> PackItemSelections { get; } = [];
+
+    /// <summary>
+    /// Gets the list of selectable bundle packs for the currently selected bundle manifest.
+    /// </summary>
+    public ObservableCollection<BundleItemSelectionItemViewModel> ManifestPackSelections { get; } = [];
 
     /// <summary>
     /// Gets or sets the selected bundle item.
@@ -71,10 +81,21 @@ public partial class ConfigEditorViewModel(
     private BundlePackConfigViewModel? _selectedBundlePack;
 
     /// <summary>
-    /// Gets or sets the active tab index (0 = Items, 1 = Packs).
+    /// Gets or sets the selected bundle manifest.
+    /// </summary>
+    [ObservableProperty]
+    private BundleManifestConfigViewModel? _selectedBundleManifest;
+
+    /// <summary>
+    /// Gets or sets the active tab index (0 = Items, 1 = Packs, 2 = Manifests).
     /// </summary>
     [ObservableProperty]
     private int _activeTabIndex;
+
+    /// <summary>
+    /// Tab index of the bundle manifests screen.
+    /// </summary>
+    public const int ManifestsTabIndex = 2;
 
     /// <summary>
     /// Gets or sets a value indicating whether changes have been made.
@@ -144,6 +165,12 @@ public partial class ConfigEditorViewModel(
     {
         UpdateBundleItemPackLinks();
         RemoveBundleItemCommand.NotifyCanExecuteChanged();
+    }
+
+    partial void OnSelectedBundleManifestChanged(BundleManifestConfigViewModel? value)
+    {
+        UpdateManifestPackSelections();
+        RemoveBundleManifestCommand.NotifyCanExecuteChanged();
     }
 
     private void UpdatePackItemSelections()
@@ -260,6 +287,57 @@ public partial class ConfigEditorViewModel(
         }
     }
 
+    private void UpdateManifestPackSelections()
+    {
+        if (SelectedBundleManifest == null)
+        {
+            ManifestPackSelections.Clear();
+            return;
+        }
+
+        if (ManifestPackSelections.Count == BundlePacks.Count &&
+            ManifestPackSelections.Select(p => p.Name).SequenceEqual(BundlePacks.Select(b => b.Name), StringComparer.OrdinalIgnoreCase))
+        {
+            foreach (var selection in ManifestPackSelections)
+            {
+                selection.IsSelected = SelectedBundleManifest.PackNames.Contains(selection.Name, StringComparer.OrdinalIgnoreCase);
+            }
+
+            return;
+        }
+
+        ManifestPackSelections.Clear();
+        foreach (var pack in BundlePacks)
+        {
+            var packName = pack.Name;
+            var isSelected = SelectedBundleManifest.PackNames.Contains(packName, StringComparer.OrdinalIgnoreCase);
+            var selectionVm = new BundleItemSelectionItemViewModel(
+                packName,
+                isSelected,
+                selected => OnManifestPackSelectedChanged(this, packName, selected));
+            ManifestPackSelections.Add(selectionVm);
+        }
+    }
+
+    private static void OnManifestPackSelectedChanged(ConfigEditorViewModel vm, string packName, bool selected)
+    {
+        if (vm.SelectedBundleManifest == null)
+        {
+            return;
+        }
+
+        if (selected)
+        {
+            AddPackItem(vm.SelectedBundleManifest.PackNames, packName);
+        }
+        else
+        {
+            RemovePackItem(vm.SelectedBundleManifest.PackNames, packName);
+        }
+
+        vm.HasChanges = true;
+    }
+
     private static List<BundleItemEditorViewModel> PrecalculateBundleItems(
         IEnumerable<BundleItem>? items,
         string? projectDir,
@@ -372,6 +450,7 @@ public partial class ConfigEditorViewModel(
         {
             BundleItems.Clear();
             BundlePacks.Clear();
+            BundleManifests.Clear();
 
             foreach (var itemVm in precalculatedItems)
             {
@@ -379,9 +458,11 @@ public partial class ConfigEditorViewModel(
             }
 
             PopulateBundlePacks(configuration);
+            PopulateBundleManifests(configuration);
 
             SelectedBundleItem = BundleItems.FirstOrDefault();
             SelectedBundlePack = BundlePacks.FirstOrDefault();
+            SelectedBundleManifest = BundleManifests.FirstOrDefault();
 
             UpdateBundleItemPackLinks();
 
@@ -429,6 +510,26 @@ public partial class ConfigEditorViewModel(
             }
 
             BundlePacks.Add(viewModel);
+        }
+    }
+
+    private void PopulateBundleManifests(BuildConfiguration configuration)
+    {
+        foreach (var manifest in configuration.Manifests)
+        {
+            var viewModel = new BundleManifestConfigViewModel
+            {
+                Name = manifest.Name,
+                Version = manifest.Version,
+                Publisher = manifest.Publisher,
+                Description = manifest.Description,
+            };
+            foreach (var packName in manifest.PackNames)
+            {
+                viewModel.PackNames.Add(packName);
+            }
+
+            BundleManifests.Add(viewModel);
         }
     }
 
@@ -737,6 +838,7 @@ public partial class ConfigEditorViewModel(
         SelectedBundlePack = newPack;
         HasChanges = true;
         UpdateBundleItemPackLinks();
+        UpdateManifestPackSelections();
     }
 
     /// <summary>
@@ -754,10 +856,58 @@ public partial class ConfigEditorViewModel(
         SelectedBundlePack = null;
         HasChanges = true;
         UpdateBundleItemPackLinks();
+        UpdateManifestPackSelections();
     }
 
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "RelayCommand CanExecute callback")]
     private bool CanRemoveBundlePack() => SelectedBundlePack != null;
+
+    /// <summary>
+    /// Adds a new bundle manifest definition.
+    /// </summary>
+    [RelayCommand]
+    private void AddBundleManifest()
+    {
+        var coveredPacks = new HashSet<string>(
+            BundleManifests.SelectMany(m => m.PackNames),
+            StringComparer.OrdinalIgnoreCase);
+
+        var newManifest = new BundleManifestConfigViewModel
+        {
+            Name = $"NewManifest{BundleManifests.Count + 1}",
+            Version = ModBuilderConstants.DefaultManifestVersion,
+            Publisher = string.Empty,
+            Description = string.Empty,
+        };
+
+        foreach (var pack in BundlePacks.Where(pack => !string.IsNullOrEmpty(pack.Name) && !coveredPacks.Contains(pack.Name)))
+        {
+            newManifest.PackNames.Add(pack.Name);
+        }
+
+        BundleManifests.Add(newManifest);
+        SelectedBundleManifest = newManifest;
+        HasChanges = true;
+    }
+
+    /// <summary>
+    /// Removes the selected bundle manifest definition.
+    /// </summary>
+    [RelayCommand(CanExecute = nameof(CanRemoveBundleManifest))]
+    private void RemoveBundleManifest()
+    {
+        if (SelectedBundleManifest == null)
+        {
+            return;
+        }
+
+        BundleManifests.Remove(SelectedBundleManifest);
+        SelectedBundleManifest = null;
+        HasChanges = true;
+    }
+
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "RelayCommand CanExecute callback")]
+    private bool CanRemoveBundleManifest() => SelectedBundleManifest != null;
 
     /// <summary>
     /// Saves the configuration changes.
@@ -818,6 +968,19 @@ public partial class ConfigEditorViewModel(
                     ManifestFile = packVm.ManifestFile,
                     Description = packVm.Description,
                     ItemNames = packVm.ItemNames.ToList(),
+                });
+            }
+
+            Configuration.Manifests.Clear();
+            foreach (var manifestVm in BundleManifests.Where(m => !string.IsNullOrWhiteSpace(m.Name)))
+            {
+                Configuration.Manifests.Add(new BundleManifest
+                {
+                    Name = manifestVm.Name.Trim(),
+                    Version = string.IsNullOrWhiteSpace(manifestVm.Version) ? ModBuilderConstants.DefaultManifestVersion : manifestVm.Version.Trim(),
+                    Publisher = manifestVm.Publisher.Trim(),
+                    Description = manifestVm.Description.Trim(),
+                    PackNames = manifestVm.PackNames.Where(p => !string.IsNullOrWhiteSpace(p)).ToList(),
                 });
             }
 
@@ -944,6 +1107,19 @@ public partial class ConfigEditorViewModel(
             }).ToArray(),
         };
 
+    private static object CreateManifestsDto(IEnumerable<BundleManifest> manifests) =>
+        new
+        {
+            BundleManifests = manifests.Select(manifest => new
+            {
+                manifest.Name,
+                manifest.Version,
+                Publisher = NullIfEmpty(manifest.Publisher),
+                Description = NullIfEmpty(manifest.Description),
+                Packs = manifest.PackNames.ToArray(),
+            }).ToArray(),
+        };
+
     private async Task PersistConfigurationToDiskAsync(string projectDir, CancellationToken cancellationToken)
     {
         if (Configuration == null)
@@ -956,6 +1132,7 @@ public partial class ConfigEditorViewModel(
 
         var itemsPath = Path.Combine(configDir, ModBuilderConstants.BundleItemsConfigFileName);
         var packsPath = Path.Combine(configDir, ModBuilderConstants.BundlePacksConfigFileName);
+        var manifestsPath = Path.Combine(configDir, ModBuilderConstants.BundleManifestsConfigFileName);
 
         var serializerOptions = new System.Text.Json.JsonSerializerOptions
         {
@@ -967,6 +1144,15 @@ public partial class ConfigEditorViewModel(
         // JSON behind (truncated files parse as empty on next import).
         await ProjectConfigService.AtomicWriteJsonFileAsync(itemsPath, CreateItemsDto(Configuration.Items), serializerOptions, logger, cancellationToken).ConfigureAwait(false);
         await ProjectConfigService.AtomicWriteJsonFileAsync(packsPath, CreatePacksDto(Configuration.Packs), serializerOptions, logger, cancellationToken).ConfigureAwait(false);
+
+        if (Configuration.Manifests.Count > 0)
+        {
+            await ProjectConfigService.AtomicWriteJsonFileAsync(manifestsPath, CreateManifestsDto(Configuration.Manifests), serializerOptions, logger, cancellationToken).ConfigureAwait(false);
+        }
+        else if (File.Exists(manifestsPath))
+        {
+            File.Delete(manifestsPath);
+        }
 
         logger.LogInformation("Saved bundle configuration to {ItemsPath} and {PacksPath}", itemsPath, packsPath);
     }

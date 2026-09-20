@@ -545,6 +545,147 @@
           </Border>
         </Grid>
       </TabItem>
+
+      <TabItem Header="{localization:Localize Tools.ModBuilder.ConfigEditor.TabManifests}">
+        <Grid ColumnDefinitions="380,12,*" Margin="0,12,0,0">
+          <!-- Left: Manifests List & Actions -->
+          <Grid Grid.Column="0" RowDefinitions="Auto,Auto,*">
+            <!-- Toolbar -->
+            <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="8" Margin="0,0,0,10">
+              <Button Command="{Binding AddBundleManifestCommand}"
+                      Background="{DynamicResource AccentBrush}"
+                      Foreground="White" BorderThickness="0"
+                      Padding="14,8" CornerRadius="8" Cursor="Hand"
+                      ToolTip.Tip="{localization:Localize Tools.ModBuilder.ConfigEditor.TooltipAddManifest}">
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                  <Path Data="{StaticResource IconAdd}" Fill="White" Width="13" Height="13" Stretch="Uniform"/>
+                  <TextBlock Text="{localization:Localize Tools.ModBuilder.ConfigEditor.ButtonAddManifest}" FontWeight="SemiBold"/>
+                </StackPanel>
+              </Button>
+
+              <Button Command="{Binding RemoveBundleManifestCommand}"
+                      Background="{DynamicResource SurfaceElevatedBrush}"
+                      BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                      Foreground="{DynamicResource ErrorBrush}"
+                      Padding="14,8" CornerRadius="8" Cursor="Hand"
+                      ToolTip.Tip="{localization:Localize Tools.ModBuilder.ConfigEditor.TooltipRemoveManifest}">
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                  <Path Data="{StaticResource IconRemove}" Fill="{DynamicResource ErrorBrush}" Width="13" Height="13" Stretch="Uniform"/>
+                  <TextBlock Text="{localization:Localize Tools.ModBuilder.ConfigEditor.ButtonRemoveManifest}"/>
+                </StackPanel>
+              </Button>
+            </StackPanel>
+
+            <!-- Default behavior hint -->
+            <TextBlock Grid.Row="1" Text="{localization:Localize Tools.ModBuilder.ConfigEditor.DescManifestsDefault}"
+                       FontSize="11" Foreground="{DynamicResource TextSecondary}"
+                       TextWrapping="Wrap" Margin="0,0,0,10"/>
+
+            <!-- Manifests List -->
+            <Border Grid.Row="2" Background="{DynamicResource CardBackground}"
+                    BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                    CornerRadius="10" Padding="6">
+              <ListBox ItemsSource="{Binding BundleManifests}"
+                       SelectedItem="{Binding SelectedBundleManifest}"
+                       Background="Transparent">
+                <ListBox.ItemTemplate>
+                  <DataTemplate x:DataType="vm:BundleManifestConfigViewModel">
+                    <Border Padding="10,8" CornerRadius="8" Background="Transparent">
+                      <Grid ColumnDefinitions="Auto,*,Auto">
+                        <!-- Version Badge -->
+                        <Border Grid.Column="0" Background="{DynamicResource AccentBrush}"
+                                CornerRadius="4" Padding="5,2" Margin="0,0,10,0"
+                                VerticalAlignment="Center">
+                          <TextBlock Text="{Binding Version}" FontSize="10" FontWeight="Bold" Foreground="White"/>
+                        </Border>
+
+                        <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                          <TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold"
+                                     Foreground="{DynamicResource TextPrimary}" FontSize="13"/>
+                          <TextBlock Text="{Binding Description}" FontSize="11"
+                                     Foreground="{DynamicResource TextSecondary}"
+                                     TextTrimming="CharacterEllipsis"/>
+                        </StackPanel>
+
+                        <TextBlock Grid.Column="2" Text="{Binding PackNames.Count}"
+                                   FontSize="11" Foreground="{DynamicResource TextSecondary}"
+                                   VerticalAlignment="Center" Margin="8,0,0,0"/>
+                      </Grid>
+                    </Border>
+                  </DataTemplate>
+                </ListBox.ItemTemplate>
+              </ListBox>
+            </Border>
+          </Grid>
+
+          <!-- Right: Manifest Detail Editor Inspector -->
+          <Border Grid.Column="2" Background="{DynamicResource CardBackground}"
+                  BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                  CornerRadius="10" Padding="18">
+            <ScrollViewer VerticalScrollBarVisibility="Auto">
+              <Panel>
+                <!-- Selected State -->
+                <StackPanel Spacing="16" IsVisible="{Binding SelectedBundleManifest, Converter={x:Static ObjectConverters.IsNotNull}}">
+                  <TextBlock Text="{localization:Localize Tools.ModBuilder.ConfigEditor.BundleManifestSettingsHeader}" FontSize="15" FontWeight="Bold" Foreground="{DynamicResource TextPrimary}"/>
+                  <Separator Background="{DynamicResource BorderBrush}" Height="1"/>
+
+                  <!-- Manifest Name -->
+                  <StackPanel Spacing="6">
+                    <TextBlock Text="{localization:Localize Tools.ModBuilder.ConfigEditor.LabelManifestName}" FontWeight="SemiBold" FontSize="12.5" Foreground="{DynamicResource TextPrimary}"/>
+                    <TextBox Text="{Binding SelectedBundleManifest.Name, Mode=TwoWay}" Watermark="{localization:Localize Tools.ModBuilder.ConfigEditor.WatermarkManifestName}" />
+                  </StackPanel>
+
+                  <!-- Version + Publisher -->
+                  <Grid ColumnDefinitions="*,12,*">
+                    <StackPanel Grid.Column="0" Spacing="6">
+                      <TextBlock Text="{localization:Localize Tools.ModBuilder.ConfigEditor.LabelManifestVersion}" FontWeight="SemiBold" FontSize="12.5" Foreground="{DynamicResource TextPrimary}"/>
+                      <TextBox Text="{Binding SelectedBundleManifest.Version, Mode=TwoWay}" Watermark="{localization:Localize Tools.ModBuilder.ConfigEditor.WatermarkManifestVersion}" />
+                    </StackPanel>
+                    <StackPanel Grid.Column="2" Spacing="6">
+                      <TextBlock Text="{localization:Localize Tools.ModBuilder.ConfigEditor.LabelManifestPublisher}" FontWeight="SemiBold" FontSize="12.5" Foreground="{DynamicResource TextPrimary}"/>
+                      <TextBox Text="{Binding SelectedBundleManifest.Publisher, Mode=TwoWay}" Watermark="{localization:Localize Tools.ModBuilder.ConfigEditor.WatermarkManifestPublisher}" />
+                    </StackPanel>
+                  </Grid>
+                  <TextBlock Text="{localization:Localize Tools.ModBuilder.ConfigEditor.DescManifestPublisher}" FontSize="11" Foreground="{DynamicResource TextSecondary}"/>
+
+                  <!-- Description -->
+                  <StackPanel Spacing="6">
+                    <TextBlock Text="{localization:Localize Tools.ModBuilder.ConfigEditor.LabelManifestDescription}" FontWeight="SemiBold" FontSize="12.5" Foreground="{DynamicResource TextPrimary}"/>
+                    <TextBox Text="{Binding SelectedBundleManifest.Description, Mode=TwoWay}" Watermark="{localization:Localize Tools.ModBuilder.ConfigEditor.WatermarkManifestDescription}" />
+                  </StackPanel>
+
+                  <!-- Linked Packs Checklist -->
+                  <StackPanel Spacing="6">
+                    <TextBlock Text="{localization:Localize Tools.ModBuilder.ConfigEditor.LabelLinkedPacks}" FontWeight="SemiBold" FontSize="12.5" Foreground="{DynamicResource TextPrimary}"/>
+                    <TextBlock Text="{localization:Localize Tools.ModBuilder.ConfigEditor.DescLinkedPacks}" FontSize="11" Foreground="{DynamicResource TextSecondary}"/>
+                    <Border Background="{DynamicResource SurfaceElevatedBrush}"
+                            BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                            CornerRadius="8" Padding="10">
+                      <ItemsControl ItemsSource="{Binding ManifestPackSelections}">
+                        <ItemsControl.ItemTemplate>
+                          <DataTemplate x:DataType="vm:BundleItemSelectionItemViewModel">
+                            <CheckBox Content="{Binding Name}"
+                                      IsChecked="{Binding IsSelected, Mode=TwoWay}"
+                                      FontWeight="SemiBold"
+                                      Foreground="{DynamicResource TextPrimary}"
+                                      Margin="0,3"/>
+                          </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                      </ItemsControl>
+                    </Border>
+                  </StackPanel>
+                </StackPanel>
+
+                <!-- Empty State -->
+                <TextBlock Text="{localization:Localize Tools.ModBuilder.ConfigEditor.SelectManifestPrompt}"
+                           FontSize="13" Foreground="{DynamicResource TextSecondary}"
+                           HorizontalAlignment="Center" VerticalAlignment="Center"
+                           IsVisible="{Binding SelectedBundleManifest, Converter={x:Static ObjectConverters.IsNull}}"/>
+              </Panel>
+            </ScrollViewer>
+          </Border>
+        </Grid>
+      </TabItem>
     </TabControl>
 
     <!-- Footer Actions -->

@@ -152,6 +152,7 @@ public class ConfigurationLoaderService(ILogger<ConfigurationLoaderService> logg
         var itemNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         ValidateBundleItems(configuration.Items, itemNames, errors);
         ValidateBundlePacks(configuration.Packs, itemNames, errors);
+        ValidateBundleManifests(configuration.Manifests, configuration.Packs, errors);
         ValidateDirectoriesAndTools(configuration);
 
         if (errors.Count > 0)
@@ -194,6 +195,7 @@ public class ConfigurationLoaderService(ILogger<ConfigurationLoaderService> logg
         {
             Items = new List<BundleItem>(baseConfig.Items),
             Packs = new List<BundlePack>(baseConfig.Packs),
+            Manifests = new List<BundleManifest>(baseConfig.Manifests),
             Folders = MergeFolderConfig(baseConfig.Folders, overrideConfig.Folders),
             Runner = MergeRunnerConfig(baseConfig.Runner, overrideConfig.Runner),
             Tools = new Dictionary<string, ToolConfiguration>(baseConfig.Tools),
@@ -202,6 +204,7 @@ public class ConfigurationLoaderService(ILogger<ConfigurationLoaderService> logg
 
         MergeItems(merged, overrideConfig.Items);
         MergePacks(merged, overrideConfig.Packs);
+        MergeManifests(merged, overrideConfig.Manifests);
 
         foreach (var tool in overrideConfig.Tools)
         {
@@ -305,7 +308,8 @@ public class ConfigurationLoaderService(ILogger<ConfigurationLoaderService> logg
     {
         config = null;
         if (!json.Contains("\"BundleItems\"", StringComparison.OrdinalIgnoreCase) &&
-            !json.Contains("\"BundlePacks\"", StringComparison.OrdinalIgnoreCase))
+            !json.Contains("\"BundlePacks\"", StringComparison.OrdinalIgnoreCase) &&
+            !json.Contains("\"BundleManifests\"", StringComparison.OrdinalIgnoreCase))
         {
             return false;
         }
@@ -314,16 +318,18 @@ public class ConfigurationLoaderService(ILogger<ConfigurationLoaderService> logg
         {
             var simplified = JsonSerializer.Deserialize<SimplifiedConfigRoot>(json, _jsonOptions);
             if ((simplified?.BundleItems != null && simplified.BundleItems.Count > 0) ||
-                (simplified?.BundlePacks != null && simplified.BundlePacks.Count > 0))
+                (simplified?.BundlePacks != null && simplified.BundlePacks.Count > 0) ||
+                (simplified?.BundleManifests != null && simplified.BundleManifests.Count > 0))
             {
                 logger.LogInformation("Detected simplified config format, converting...");
                 var projectDir = ResolveProjectDirFromConfig(configPath);
                 config = ConvertSimplifiedConfig(simplified, projectDir);
                 config.LoadedConfigFiles.Add(configPath);
                 logger.LogInformation(
-                    "Loaded {ItemCount} bundle items and {PackCount} bundle packs from simplified format",
+                    "Loaded {ItemCount} bundle items, {PackCount} bundle packs and {ManifestCount} bundle manifests from simplified format",
                     config.Items.Count,
-                    config.Packs.Count);
+                    config.Packs.Count,
+                    config.Manifests.Count);
                 return true;
             }
         }
@@ -512,6 +518,24 @@ public class ConfigurationLoaderService(ILogger<ConfigurationLoaderService> logg
         }
     }
 
+    private static void ValidateBundleManifests(IEnumerable<BundleManifest> manifests, IEnumerable<BundlePack> packs, List<string> errors)
+    {
+        var packNames = new HashSet<string>(packs.Select(p => p.Name), StringComparer.OrdinalIgnoreCase);
+        foreach (var manifest in manifests)
+        {
+            if (string.IsNullOrWhiteSpace(manifest.Name))
+            {
+                errors.Add("Bundle manifest has empty name");
+                continue;
+            }
+
+            foreach (var packName in manifest.PackNames.Where(packName => !packNames.Contains(packName)))
+            {
+                errors.Add($"Bundle manifest '{manifest.Name}' references unknown pack: {packName}");
+            }
+        }
+    }
+
     private void ValidateDirectoriesAndTools(BuildConfiguration configuration)
     {
         if (!string.IsNullOrEmpty(configuration.Folders.AbsBuildDir) && !Directory.Exists(configuration.Folders.AbsBuildDir))
@@ -579,6 +603,22 @@ public class ConfigurationLoaderService(ILogger<ConfigurationLoaderService> logg
             else
             {
                 logger.LogWarning("Skipping duplicate pack during merge: {PackName}", pack.Name);
+            }
+        }
+    }
+
+    private void MergeManifests(BuildConfiguration merged, IEnumerable<BundleManifest> overrideManifests)
+    {
+        var existingNames = new HashSet<string>(merged.Manifests.Select(m => m.Name), StringComparer.OrdinalIgnoreCase);
+        foreach (var manifest in overrideManifests)
+        {
+            if (existingNames.Add(manifest.Name))
+            {
+                merged.Manifests.Add(manifest);
+            }
+            else
+            {
+                logger.LogWarning("Skipping duplicate manifest during merge: {ManifestName}", manifest.Name);
             }
         }
     }
@@ -762,6 +802,7 @@ public class ConfigurationLoaderService(ILogger<ConfigurationLoaderService> logg
         {
             var bundleItemsPath = Path.Combine(configDir, ModBuilderConstants.BundleItemsConfigFileName);
             var bundlePacksPath = Path.Combine(configDir, ModBuilderConstants.BundlePacksConfigFileName);
+            var bundleManifestsPath = Path.Combine(configDir, ModBuilderConstants.BundleManifestsConfigFileName);
 
             if (File.Exists(bundleItemsPath) && !configFiles.Contains(bundleItemsPath, StringComparer.OrdinalIgnoreCase))
             {
@@ -771,6 +812,11 @@ public class ConfigurationLoaderService(ILogger<ConfigurationLoaderService> logg
             if (File.Exists(bundlePacksPath) && !configFiles.Contains(bundlePacksPath, StringComparer.OrdinalIgnoreCase))
             {
                 configFiles.Add(bundlePacksPath);
+            }
+
+            if (File.Exists(bundleManifestsPath) && !configFiles.Contains(bundleManifestsPath, StringComparer.OrdinalIgnoreCase))
+            {
+                configFiles.Add(bundleManifestsPath);
             }
 
             if (configFiles.Count == 0)
@@ -808,7 +854,7 @@ public class ConfigurationLoaderService(ILogger<ConfigurationLoaderService> logg
                     continue;
                 }
 
-                if (fileName.Contains("bundle") && (fileName.Contains("items") || fileName.Contains("packs")))
+                if (fileName.Contains("bundle") && (fileName.Contains("items") || fileName.Contains("packs") || fileName.Contains("manifests")))
                 {
                     configFiles.Add(file);
                 }
@@ -1218,7 +1264,27 @@ public class ConfigurationLoaderService(ILogger<ConfigurationLoaderService> logg
             config.Packs.AddRange(ConvertSimplifiedBundlePacks(simplifiedConfig.BundlePacks));
         }
 
+        if (simplifiedConfig.BundleManifests != null)
+        {
+            config.Manifests.AddRange(ConvertSimplifiedBundleManifests(simplifiedConfig.BundleManifests));
+        }
+
         return config;
+    }
+
+    private static IEnumerable<BundleManifest> ConvertSimplifiedBundleManifests(IEnumerable<SimplifiedBundleManifest> simpManifests)
+    {
+        foreach (var simpManifest in simpManifests.Where(m => !string.IsNullOrWhiteSpace(m.Name)))
+        {
+            yield return new BundleManifest
+            {
+                Name = simpManifest.Name!,
+                Version = string.IsNullOrWhiteSpace(simpManifest.Version) ? ModBuilderConstants.DefaultManifestVersion : simpManifest.Version,
+                Publisher = simpManifest.Publisher ?? string.Empty,
+                Description = simpManifest.Description ?? string.Empty,
+                PackNames = simpManifest.Packs?.Where(p => !string.IsNullOrWhiteSpace(p)).ToList() ?? [],
+            };
+        }
     }
 
     private static IEnumerable<BundleItem> ConvertSimplifiedBundleItems(IEnumerable<SimplifiedBundleItem> simpItems, string projectDir)

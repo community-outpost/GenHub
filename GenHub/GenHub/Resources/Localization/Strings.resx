@@ -7666,7 +7666,7 @@ GenHub supports four file linking strategies under **Settings -&gt; Game Configu
     <value>Game Asset Manager</value>
   </data>
   <data name="Tools.ModBuilder.View.TooltipEditConfiguration" xml:space="preserve">
-    <value>Edit bundle items, packs, and build targets</value>
+    <value>Edit bundle items, packs, manifests, and build targets</value>
   </data>
   <data name="Tools.ModBuilder.View.ButtonEditConfiguration" xml:space="preserve">
     <value>Edit Configuration</value>
@@ -10091,6 +10091,69 @@ Project structure ready. Edit files in GameFilesEdited folder.</value>
   </data>
   <data name="Tools.ModBuilder.Samples.LemonControlBar.VariantSummary" xml:space="preserve">
     <value>4 Resolution Packs (720p to 4K)</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.TabManifests" xml:space="preserve">
+    <value>Manifests</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.ButtonAddManifest" xml:space="preserve">
+    <value>Add Manifest</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.TooltipAddManifest" xml:space="preserve">
+    <value>Add a new bundle manifest</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.ButtonRemoveManifest" xml:space="preserve">
+    <value>Remove</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.TooltipRemoveManifest" xml:space="preserve">
+    <value>Remove the selected bundle manifest</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.DescManifestsDefault" xml:space="preserve">
+    <value>Each manifest groups bundle packs into one library entry. With no manifests defined, one manifest is created per bundle pack.</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.BundleManifestSettingsHeader" xml:space="preserve">
+    <value>Bundle Manifest Settings</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.LabelManifestName" xml:space="preserve">
+    <value>Manifest Name</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.WatermarkManifestName" xml:space="preserve">
+    <value>e.g. MyMod HD Edition</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.LabelManifestVersion" xml:space="preserve">
+    <value>Version</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.WatermarkManifestVersion" xml:space="preserve">
+    <value>e.g. 1.0.0</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.LabelManifestPublisher" xml:space="preserve">
+    <value>Publisher</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.WatermarkManifestPublisher" xml:space="preserve">
+    <value>local</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.DescManifestPublisher" xml:space="preserve">
+    <value>Empty uses the default local publisher</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.LabelManifestDescription" xml:space="preserve">
+    <value>Description</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.WatermarkManifestDescription" xml:space="preserve">
+    <value>e.g. Groups the HD texture packs</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.LabelLinkedPacks" xml:space="preserve">
+    <value>Linked Bundle Packs</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.DescLinkedPacks" xml:space="preserve">
+    <value>Check which bundle packs should be combined into this manifest</value>
+  </data>
+  <data name="Tools.ModBuilder.ConfigEditor.SelectManifestPrompt" xml:space="preserve">
+    <value>Select a bundle manifest on the left or click 'Add Manifest' to group packs into a library entry.</value>
+  </data>
+  <data name="Tools.ModBuilder.View.ButtonManifests" xml:space="preserve">
+    <value>Manifests</value>
+  </data>
+  <data name="Tools.ModBuilder.View.TooltipManifests" xml:space="preserve">
+    <value>Define content manifests that group bundle packs</value>
   </data>
   <data name="GameProfiles.Notification.LaunchChanged.Title" xml:space="preserve">
     <value>Launch Configuration Changed</value>

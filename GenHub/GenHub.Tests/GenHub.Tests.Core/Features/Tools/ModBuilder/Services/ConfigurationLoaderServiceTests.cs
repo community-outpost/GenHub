@@ -816,4 +816,92 @@ public sealed class ConfigurationLoaderServiceTests : IDisposable
         // Assert
         result.Should().Be("GameFilesEdited/Data/*.ini");
     }
+
+    [Fact]
+    public async Task LoadConfigurationResultAsync_WithSimplifiedBundleManifests_MapsManifests()
+    {
+        // Arrange
+        var configPath = Path.Combine(_tempDirectory, "ModBundleManifests.json");
+        var json = @"{
+            ""BundleManifests"": [
+                {
+                    ""Name"": ""HdEdition"",
+                    ""Version"": ""2.5.0"",
+                    ""Publisher"": ""acme"",
+                    ""Description"": ""Groups the HD packs"",
+                    ""Packs"": [""PackA"", ""PackB""]
+                }
+            ]
+        }";
+        await File.WriteAllTextAsync(configPath, json);
+
+        // Act
+        var result = (await _service.LoadConfigurationResultAsync(configPath)).Data!;
+
+        // Assert
+        result.Should().NotBeNull();
+        result.Manifests.Should().HaveCount(1);
+        var manifest = result.Manifests[0];
+        manifest.Name.Should().Be("HdEdition");
+        manifest.Version.Should().Be("2.5.0");
+        manifest.Publisher.Should().Be("acme");
+        manifest.Description.Should().Be("Groups the HD packs");
+        manifest.PackNames.Should().ContainInOrder("PackA", "PackB");
+    }
+
+    [Fact]
+    public void MergeConfigurations_WithManifests_MergesAndSkipsDuplicates()
+    {
+        // Arrange
+        var baseConfig = new BuildConfiguration
+        {
+            Manifests =
+            [
+                new() { Name = "Edition", Version = "1.0.0", PackNames = ["PackA"] },
+            ],
+        };
+        var overrideConfig = new BuildConfiguration
+        {
+            Manifests =
+            [
+                new() { Name = "Edition", Version = "2.0.0", PackNames = ["PackB"] },
+                new() { Name = "Extra", PackNames = ["PackB"] },
+            ],
+        };
+
+        // Act
+        var merged = _service.MergeConfigurations(baseConfig, overrideConfig);
+
+        // Assert
+        merged.Manifests.Should().HaveCount(2);
+        merged.Manifests.Select(m => m.Name).Should().ContainInOrder("Edition", "Extra");
+        merged.Manifests[0].Version.Should().Be("1.0.0");
+    }
+
+    [Fact]
+    public void ValidateConfiguration_WithManifestReferencingUnknownPack_ReturnsError()
+    {
+        // Arrange
+        var configuration = new BuildConfiguration
+        {
+            Items =
+            [
+                new() { Name = "ItemA", Files = [new BundleFile()] },
+            ],
+            Packs =
+            [
+                new() { Name = "PackA", ItemNames = ["ItemA"] },
+            ],
+            Manifests =
+            [
+                new() { Name = "Broken", PackNames = ["PackA", "Nope"] },
+            ],
+        };
+
+        // Act
+        var errors = _service.ValidateConfiguration(configuration);
+
+        // Assert
+        errors.Should().ContainSingle(e => e.Contains("Broken", StringComparison.Ordinal) && e.Contains("Nope", StringComparison.Ordinal));
+    }
 }

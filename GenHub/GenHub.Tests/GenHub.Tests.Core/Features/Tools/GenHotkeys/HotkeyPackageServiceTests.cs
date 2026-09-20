@@ -102,6 +102,8 @@ public class HotkeyPackageServiceTests
                 It.IsAny<string?>(),
                 It.IsAny<IProgress<ContentStorageProgress>?>(),
                 It.IsAny<CancellationToken>(),
+                It.IsAny<string?>(),
+                It.IsAny<string?>(),
                 It.IsAny<string?>()))
             .ReturnsAsync(OperationResult<ContentManifest>.CreateSuccess(expectedManifest));
 
@@ -134,6 +136,8 @@ public class HotkeyPackageServiceTests
                 It.IsAny<string?>(),
                 It.IsAny<IProgress<ContentStorageProgress>?>(),
                 It.IsAny<CancellationToken>(),
+                It.IsAny<string?>(),
+                It.IsAny<string?>(),
                 It.IsAny<string?>()))
             .ReturnsAsync(OperationResult<ContentManifest>.CreateFailure("Storage full"));
 
@@ -201,6 +205,8 @@ public class HotkeyPackageServiceTests
                 It.IsAny<string?>(),
                 It.IsAny<IProgress<ContentStorageProgress>?>(),
                 It.IsAny<CancellationToken>(),
+                It.IsAny<string?>(),
+                It.IsAny<string?>(),
                 It.IsAny<string?>()))
             .ReturnsAsync(OperationResult<ContentManifest>.CreateSuccess(new ContentManifest
             {
@@ -248,8 +254,10 @@ public class HotkeyPackageServiceTests
                 It.IsAny<string?>(),
                 It.IsAny<IProgress<ContentStorageProgress>?>(),
                 It.IsAny<CancellationToken>(),
+                It.IsAny<string?>(),
+                It.IsAny<string?>(),
                 It.IsAny<string?>()))
-            .Callback<string, string, ContentType, GameType, string?, IProgress<ContentStorageProgress>?, CancellationToken, string?>((packageDir, _, _, _, _, _, _, _) =>
+            .Callback<string, string, ContentType, GameType, string?, IProgress<ContentStorageProgress>?, CancellationToken, string?, string?, string?>((packageDir, _, _, _, _, _, _, _, _, _) =>
             {
                 var bigFiles = Directory.GetFiles(packageDir, "*.big");
                 if (bigFiles.Length > 0)
@@ -349,8 +357,10 @@ public class HotkeyPackageServiceTests
                 It.IsAny<string?>(),
                 It.IsAny<IProgress<ContentStorageProgress>?>(),
                 It.IsAny<CancellationToken>(),
+                It.IsAny<string?>(),
+                It.IsAny<string?>(),
                 It.IsAny<string?>()))
-            .Callback<string, string, ContentType, GameType, string?, IProgress<ContentStorageProgress>?, CancellationToken, string?>((packageDir, _, _, _, _, _, _, _) =>
+            .Callback<string, string, ContentType, GameType, string?, IProgress<ContentStorageProgress>?, CancellationToken, string?, string?, string?>((packageDir, _, _, _, _, _, _, _, _, _) =>
             {
                 var bigFiles = Directory.GetFiles(packageDir, "*.big");
                 if (bigFiles.Length > 0)
@@ -410,8 +420,10 @@ public class HotkeyPackageServiceTests
                 It.IsAny<string?>(),
                 It.IsAny<IProgress<ContentStorageProgress>?>(),
                 It.IsAny<CancellationToken>(),
+                It.IsAny<string?>(),
+                It.IsAny<string?>(),
                 It.IsAny<string?>()))
-            .Callback<string, string, ContentType, GameType, string?, IProgress<ContentStorageProgress>?, CancellationToken, string?>((packageDir, _, _, _, _, _, _, _) =>
+            .Callback<string, string, ContentType, GameType, string?, IProgress<ContentStorageProgress>?, CancellationToken, string?, string?, string?>((packageDir, _, _, _, _, _, _, _, _, _) =>
             {
                 var bigFiles = Directory.GetFiles(packageDir, "*.big");
                 if (bigFiles.Length > 0)
@@ -512,8 +524,10 @@ public class HotkeyPackageServiceTests
                 It.IsAny<string?>(),
                 It.IsAny<IProgress<ContentStorageProgress>?>(),
                 It.IsAny<CancellationToken>(),
+                It.IsAny<string?>(),
+                It.IsAny<string?>(),
                 It.IsAny<string?>()))
-            .Callback<string, string, ContentType, GameType, string?, IProgress<ContentStorageProgress>?, CancellationToken, string?>((packageDir, _, _, _, _, _, _, _) =>
+            .Callback<string, string, ContentType, GameType, string?, IProgress<ContentStorageProgress>?, CancellationToken, string?, string?, string?>((packageDir, _, _, _, _, _, _, _, _, _) =>
             {
                 var bigFiles = Directory.GetFiles(packageDir, "*.big");
                 if (bigFiles.Length > 0)

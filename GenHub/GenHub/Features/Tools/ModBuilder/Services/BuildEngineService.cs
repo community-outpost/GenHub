@@ -851,14 +851,7 @@ public sealed class BuildEngineService(
             Directory.CreateDirectory(releaseDir);
         }
 
-        var packs = candidatePacks.Where(p => p.AllowBuild).ToList();
-        if (setup.SelectedPacks is { Count: > 0 })
-        {
-            var selectedFiltered = packs.Where(p =>
-                setup.SelectedPacks.Contains(p.Name, StringComparer.OrdinalIgnoreCase) ||
-                p.ItemNames.Any(item => setup.SelectedPacks.Contains(item, StringComparer.OrdinalIgnoreCase))).ToList();
-            packs = selectedFiltered;
-        }
+        var packs = FilterSelectedPacks(candidatePacks.Where(p => p.AllowBuild), setup.SelectedPacks);
 
         if (packs.Count == 0)
         {
@@ -1883,16 +1876,15 @@ public sealed class BuildEngineService(
         }
 
         var stagingDir = Path.Combine(buildDir, ModBuilderConstants.StagingManifestPrefix);
-        var manifestContentDir = PrepareManifestContentDirectory(setup, bundlesDir, stagingDir);
 
         try
         {
-            return await ExecuteCreateLocalManifestAsync(
+            return await ExecuteCreateManifestsAsync(
                 buildStructure,
-                manifestContentDir,
                 bundlesDir,
                 buildDir,
                 setup.Folders?.AbsReleaseDir,
+                stagingDir,
                 progress,
                 cancellationToken).ConfigureAwait(false);
         }
@@ -1900,6 +1892,175 @@ public sealed class BuildEngineService(
         {
             CleanupStagingDirectory(stagingDir);
         }
+    }
+
+    private async Task<bool> ExecuteCreateManifestsAsync(
+        BuildStructure buildStructure,
+        string bundlesDir,
+        string buildDir,
+        string? releaseDir,
+        string stagingDir,
+        IProgress<BuildProgress>? progress,
+        CancellationToken cancellationToken)
+    {
+        var planResult = ResolveManifestPlan(buildStructure);
+        if (!planResult.Success || planResult.Data == null)
+        {
+            logger.LogError("Failed to resolve manifest plan: {Error}", planResult.FirstError);
+            _lastErrorMessage = planResult.FirstError ?? "Failed to resolve manifest plan.";
+            return false;
+        }
+
+        if (planResult.Data.Count == 0)
+        {
+            var manifestContentDir = PrepareManifestContentDirectory(buildStructure.Setup, bundlesDir, stagingDir);
+            return await ExecuteCreateLocalManifestAsync(
+                buildStructure,
+                manifestContentDir,
+                bundlesDir,
+                buildDir,
+                releaseDir,
+                progress,
+                cancellationToken).ConfigureAwait(false);
+        }
+
+        var entries = planResult.Data;
+        var dirs = new ManifestStageDirs(bundlesDir, buildDir, releaseDir, stagingDir);
+        var failures = 0;
+        for (var i = 0; i < entries.Count; i++)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var created = await ExecuteManifestPlanEntryAsync(
+                buildStructure,
+                entries[i],
+                i,
+                entries.Count,
+                dirs,
+                progress,
+                cancellationToken).ConfigureAwait(false);
+            if (!created)
+            {
+                failures++;
+            }
+        }
+
+        if (failures > 0)
+        {
+            _lastErrorMessage ??= $"Failed to create {failures} of {entries.Count} content manifests.";
+            return false;
+        }
+
+        return true;
+    }
+
+    private OperationResult<IReadOnlyList<ManifestPlanEntry>> ResolveManifestPlan(BuildStructure buildStructure)
+    {
+        var projectPacks = buildStructure.Setup.Bundles?.Packs ?? [];
+        if (projectPacks.Count == 0)
+        {
+            return OperationResult<IReadOnlyList<ManifestPlanEntry>>.CreateSuccess([]);
+        }
+
+        var effectivePacks = FilterSelectedPacks(projectPacks.Where(p => p.AllowBuild), buildStructure.Setup.SelectedPacks);
+        if (effectivePacks.Count == 0)
+        {
+            return OperationResult<IReadOnlyList<ManifestPlanEntry>>.CreateFailure(
+                "No bundle packs are enabled or selected for manifest creation. Check 'Allow Build' in Bundle Pack settings.");
+        }
+
+        var definitions = buildStructure.Configuration.Manifests.Where(m => !string.IsNullOrWhiteSpace(m.Name)).ToList();
+        if (definitions.Count == 0)
+        {
+            return OperationResult<IReadOnlyList<ManifestPlanEntry>>.CreateSuccess(
+                effectivePacks.Select(pack => CreateDefaultPlanEntry(buildStructure.Project, pack)).ToList());
+        }
+
+        return ResolveDefinedManifestPlan(buildStructure.Project, definitions, projectPacks, effectivePacks);
+    }
+
+    private static ManifestPlanEntry CreateDefaultPlanEntry(ModBuilderProject project, BundlePack pack)
+    {
+        var version = ResolveManifestVersion(null, project.Version);
+        return new ManifestPlanEntry($"{project.Name}-{pack.Name}", version, null, [pack]);
+    }
+
+    private OperationResult<IReadOnlyList<ManifestPlanEntry>> ResolveDefinedManifestPlan(
+        ModBuilderProject project,
+        IReadOnlyList<BundleManifest> definitions,
+        IReadOnlyList<BundlePack> projectPacks,
+        IReadOnlyList<BundlePack> effectivePacks)
+    {
+        var seenNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var definition in definitions)
+        {
+            if (!seenNames.Add(definition.Name))
+            {
+                return OperationResult<IReadOnlyList<ManifestPlanEntry>>.CreateFailure(
+                    $"Duplicate bundle manifest name: '{definition.Name}'. Manifest names must be unique.");
+            }
+        }
+
+        var packsByName = projectPacks.ToDictionary(p => p.Name, p => p, StringComparer.OrdinalIgnoreCase);
+        var effectiveNames = new HashSet<string>(effectivePacks.Select(p => p.Name), StringComparer.OrdinalIgnoreCase);
+        var entries = new List<ManifestPlanEntry>();
+        foreach (var definition in definitions)
+        {
+            var unknown = definition.PackNames.Where(name => !packsByName.ContainsKey(name)).ToList();
+            if (unknown.Count > 0)
+            {
+                return OperationResult<IReadOnlyList<ManifestPlanEntry>>.CreateFailure(
+                    $"Bundle manifest '{definition.Name}' references unknown pack(s): {string.Join(", ", unknown)}.");
+            }
+
+            var packs = definition.PackNames.Where(name => effectiveNames.Contains(name)).Select(name => packsByName[name]).ToList();
+            if (packs.Count == 0)
+            {
+                logger.LogWarning(
+                    "Skipping bundle manifest '{ManifestName}': none of its packs are enabled or selected.",
+                    definition.Name);
+                continue;
+            }
+
+            var version = ResolveManifestVersion(definition.Version, project.Version);
+            var publisher = string.IsNullOrWhiteSpace(definition.Publisher) ? null : definition.Publisher;
+            entries.Add(new ManifestPlanEntry(definition.Name, version, publisher, packs));
+        }
+
+        if (entries.Count == 0)
+        {
+            return OperationResult<IReadOnlyList<ManifestPlanEntry>>.CreateFailure(
+                "All bundle manifest definitions were skipped because none of their packs are enabled or selected.");
+        }
+
+        return OperationResult<IReadOnlyList<ManifestPlanEntry>>.CreateSuccess(entries);
+    }
+
+    private static string ResolveManifestVersion(string? definitionVersion, string? projectVersion)
+    {
+        if (!string.IsNullOrWhiteSpace(definitionVersion))
+        {
+            return definitionVersion;
+        }
+
+        if (!string.IsNullOrWhiteSpace(projectVersion))
+        {
+            return projectVersion;
+        }
+
+        return ModBuilderConstants.DefaultManifestVersion;
+    }
+
+    private static List<BundlePack> FilterSelectedPacks(IEnumerable<BundlePack> packs, IReadOnlyList<string>? selectedPacks)
+    {
+        var filtered = packs.ToList();
+        if (selectedPacks is { Count: > 0 })
+        {
+            filtered = filtered.Where(p =>
+                selectedPacks.Contains(p.Name, StringComparer.OrdinalIgnoreCase) ||
+                p.ItemNames.Any(item => selectedPacks.Contains(item, StringComparer.OrdinalIgnoreCase))).ToList();
+        }
+
+        return filtered;
     }
 
     private async Task<bool> EnsureBundlesPreparedAsync(
@@ -2026,6 +2187,116 @@ public sealed class BuildEngineService(
         }
     }
 
+    private async Task<bool> ExecuteManifestPlanEntryAsync(
+        BuildStructure buildStructure,
+        ManifestPlanEntry entry,
+        int entryIndex,
+        int entryCount,
+        ManifestStageDirs dirs,
+        IProgress<BuildProgress>? progress,
+        CancellationToken cancellationToken)
+    {
+        var safeName = PathHelper.SanitizeFileName(entry.Name);
+        if (string.IsNullOrEmpty(safeName))
+        {
+            logger.LogError("Bundle manifest name '{ManifestName}' is not usable as a file name.", entry.Name);
+            _lastErrorMessage = $"Bundle manifest name '{entry.Name}' is not usable as a file name.";
+            return false;
+        }
+
+        var entryStagingDir = Path.Combine(dirs.StagingRootDir, safeName);
+        if (Directory.Exists(entryStagingDir))
+        {
+            Directory.Delete(entryStagingDir, true);
+        }
+
+        Directory.CreateDirectory(entryStagingDir);
+
+        var items = buildStructure.Setup.Bundles?.Items ?? [];
+        var stagingPaths = new PackStagingPaths(dirs.BundlesDir, entryStagingDir, dirs.BuildDir, buildStructure.Setup.ProjectDir);
+        foreach (var pack in entry.Packs)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            await StagePackFilesAsync(pack, items, stagingPaths, progress, cancellationToken).ConfigureAwait(false);
+        }
+
+        var stagedFiles = Directory.GetFiles(entryStagingDir, "*", SearchOption.AllDirectories);
+        if (stagedFiles.Length == 0)
+        {
+            Interlocked.Increment(ref _filesFailed);
+            logger.LogError("No files were staged for bundle manifest '{ManifestName}'.", entry.Name);
+            _lastErrorMessage = $"No files were staged for bundle manifest '{entry.Name}'.";
+            return false;
+        }
+
+        using var scope = serviceScopeFactory.CreateScope();
+        var localContentService = scope.ServiceProvider.GetRequiredService<ILocalContentService>();
+
+        try
+        {
+            var contentType = ResolveProjectContentType(buildStructure.Project.ContentType);
+            var manifestResult = await localContentService.CreateLocalContentManifestAsync(
+                entryStagingDir,
+                entry.Name,
+                contentType,
+                buildStructure.Project.TargetGame,
+                sourcePath: dirs.BundlesDir,
+                cancellationToken: cancellationToken,
+                publisherId: entry.Publisher,
+                manifestVersion: entry.Version).ConfigureAwait(false);
+
+            if (!manifestResult.Success || manifestResult.Data == null)
+            {
+                logger.LogError("Failed to create bundle manifest '{ManifestName}': {Error}", entry.Name, manifestResult.FirstError);
+                _lastErrorMessage = $"Failed to create manifest '{entry.Name}': {manifestResult.FirstError}";
+                return false;
+            }
+
+            var manifest = manifestResult.Data;
+            var fileName = ResolveManifestOutputFileName(entry.Name, entryCount);
+            await PersistManifestOutputsAsync(manifest, dirs.BuildDir, dirs.ReleaseDir, cancellationToken, fileName).ConfigureAwait(false);
+
+            logger.LogInformation(
+                "Successfully created local ContentManifest '{ManifestId}' for '{ManifestName}' ({Index}/{Count}) in CAS",
+                manifest.Id,
+                entry.Name,
+                entryIndex + 1,
+                entryCount);
+
+            progress?.Report(new BuildProgress
+            {
+                CurrentStage = BuildStage.Complete,
+                CurrentIndex = BuildIndex.CreateManifest,
+                CurrentStep = $"Local manifest {manifest.Id} ({entryIndex + 1}/{entryCount}) created and saved to {fileName}",
+            });
+
+            return true;
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Exception while creating bundle manifest '{ManifestName}'", entry.Name);
+            _lastErrorMessage = $"Failed to create manifest '{entry.Name}': {ex.Message}";
+            return false;
+        }
+    }
+
+    private static string ResolveManifestOutputFileName(string manifestName, int entryCount)
+    {
+        if (entryCount == 1)
+        {
+            return ModBuilderConstants.ManifestFileName;
+        }
+
+        var safeName = PathHelper.SanitizeFileName(manifestName);
+        var baseName = Path.GetFileNameWithoutExtension(ModBuilderConstants.ManifestFileName);
+        var extension = Path.GetExtension(ModBuilderConstants.ManifestFileName);
+        return $"{baseName}-{safeName}{extension}";
+    }
+
     private static ContentType ResolveProjectContentType(ContentType contentType) =>
         contentType != ContentType.UnknownContentType ? contentType : ContentType.Mod;
 
@@ -2033,7 +2304,8 @@ public sealed class BuildEngineService(
         ContentManifest manifest,
         string buildDir,
         string? releaseDir,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        string? fileName = null)
     {
         PublishContentAcquiredSafely(manifest);
 
@@ -2043,14 +2315,15 @@ public sealed class BuildEngineService(
             Converters = { new JsonStringEnumConverter() },
         };
         var manifestJson = JsonSerializer.Serialize(manifest, options);
-        var buildManifestPath = Path.Combine(buildDir, ModBuilderConstants.ManifestFileName);
+        var outputFileName = fileName ?? ModBuilderConstants.ManifestFileName;
+        var buildManifestPath = Path.Combine(buildDir, outputFileName);
         await File.WriteAllTextAsync(buildManifestPath, manifestJson, cancellationToken).ConfigureAwait(false);
         logger.LogInformation("Saved manifest file to {Path}", buildManifestPath);
 
         if (!string.IsNullOrEmpty(releaseDir))
         {
             Directory.CreateDirectory(releaseDir);
-            var releaseManifestPath = Path.Combine(releaseDir, ModBuilderConstants.ManifestFileName);
+            var releaseManifestPath = Path.Combine(releaseDir, outputFileName);
             await File.WriteAllTextAsync(releaseManifestPath, manifestJson, cancellationToken).ConfigureAwait(false);
             logger.LogInformation("Saved manifest file to {Path}", releaseManifestPath);
         }
@@ -2560,4 +2833,16 @@ public sealed class BuildEngineService(
         string PackStagingDir,
         string BuildDir,
         string? ProjectDir);
+
+    private sealed record ManifestStageDirs(
+        string BundlesDir,
+        string BuildDir,
+        string? ReleaseDir,
+        string StagingRootDir);
+
+    private sealed record ManifestPlanEntry(
+        string Name,
+        string Version,
+        string? Publisher,
+        IReadOnlyList<BundlePack> Packs);
 }

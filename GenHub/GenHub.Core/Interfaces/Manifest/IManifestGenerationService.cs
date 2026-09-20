@@ -108,6 +108,26 @@ public interface IManifestGenerationService
         params ContentDependency[] dependencies);
 
     /// <summary>
+    /// Creates a manifest builder for the specified content with a free-form version string.
+    /// </summary>
+    /// <param name="contentDirectory">The content directory to scan and hash.</param>
+    /// <param name="publisherId">The publisher identifier.</param>
+    /// <param name="contentName">The content name.</param>
+    /// <param name="manifestVersion">The manifest version string (for example "1.0.0").</param>
+    /// <param name="contentType">The content type.</param>
+    /// <param name="targetGame">The target game.</param>
+    /// <param name="dependencies">The content dependencies.</param>
+    /// <returns>The manifest builder for the discovered content.</returns>
+    Task<IContentManifestBuilder> CreateContentManifestAsync(
+        string contentDirectory,
+        string publisherId,
+        string contentName,
+        string? manifestVersion,
+        ContentType contentType = ContentType.Mod,
+        GameType targetGame = GameType.Generals,
+        params ContentDependency[] dependencies);
+
+    /// <summary>
     /// Creates a manifest builder for a game client.
     /// </summary>
     /// <param name="installationPath">Path to the game client installation.</param>

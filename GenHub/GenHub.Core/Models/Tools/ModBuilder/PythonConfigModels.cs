@@ -416,6 +416,48 @@ public sealed class SimplifiedConfigRoot
     /// </summary>
     [JsonPropertyName("BundlePacks")]
     public List<SimplifiedBundlePack>? BundlePacks { get; set; }
+
+    /// <summary>
+    /// Gets or sets the list of simplified bundle manifest definitions.
+    /// </summary>
+    [JsonPropertyName("BundleManifests")]
+    public List<SimplifiedBundleManifest>? BundleManifests { get; set; }
+}
+
+/// <summary>
+/// Simplified bundle manifest definition grouping packs into one content manifest.
+/// </summary>
+public sealed class SimplifiedBundleManifest
+{
+    /// <summary>
+    /// Gets or sets the manifest name.
+    /// </summary>
+    [JsonPropertyName("Name")]
+    public string? Name { get; set; }
+
+    /// <summary>
+    /// Gets or sets the manifest version string.
+    /// </summary>
+    [JsonPropertyName("Version")]
+    public string? Version { get; set; }
+
+    /// <summary>
+    /// Gets or sets the publisher identifier.
+    /// </summary>
+    [JsonPropertyName("Publisher")]
+    public string? Publisher { get; set; }
+
+    /// <summary>
+    /// Gets or sets the manifest description.
+    /// </summary>
+    [JsonPropertyName("Description")]
+    public string? Description { get; set; }
+
+    /// <summary>
+    /// Gets or sets the names of the bundle packs linked into this manifest.
+    /// </summary>
+    [JsonPropertyName("Packs")]
+    public List<string>? Packs { get; set; }
 }
 
 /// <summary>

@@ -281,11 +281,24 @@ public class ManifestGenerationService(
     /// <param name="targetGame">Target game type.</param>
     /// <param name="dependencies">Dependencies for this content.</param>
     /// <returns>A <see cref="Task"/> that returns a configured manifest builder.</returns>
-    public async Task<IContentManifestBuilder> CreateContentManifestAsync(
+    public Task<IContentManifestBuilder> CreateContentManifestAsync(
         string contentDirectory,
         string publisherId,
         string contentName,
         int manifestVersion = 0,
+        ContentType contentType = ContentType.Mod,
+        GameType targetGame = GameType.Generals,
+        params ContentDependency[] dependencies)
+    {
+        return CreateContentManifestAsync(contentDirectory, publisherId, contentName, manifestVersion.ToString(), contentType, targetGame, dependencies);
+    }
+
+    /// <inheritdoc />
+    public async Task<IContentManifestBuilder> CreateContentManifestAsync(
+        string contentDirectory,
+        string publisherId,
+        string contentName,
+        string? manifestVersion,
         ContentType contentType = ContentType.Mod,
         GameType targetGame = GameType.Generals,
         params ContentDependency[] dependencies)
@@ -301,7 +314,7 @@ public class ManifestGenerationService(
 
             var builderLogger = NullLogger<ContentManifestBuilder>.Instance;
             var builder = new ContentManifestBuilder(builderLogger, hashProvider, manifestIdService, downloadService, configurationProvider)
-                .WithBasicInfo(publisherId, contentName, manifestVersion.ToString())
+                .WithBasicInfo(publisherId, contentName, manifestVersion)
                 .WithContentType(contentType, targetGame);
 
             // Add dependencies

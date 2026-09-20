@@ -381,6 +381,16 @@ public static class ModBuilderConstants
     public const string BundlePacksConfigFileName = "ModBundlePacks.json";
 
     /// <summary>
+    /// File name for bundle manifest definitions configuration.
+    /// </summary>
+    public const string BundleManifestsConfigFileName = "ModBundleManifests.json";
+
+    /// <summary>
+    /// Default version string for ModBuilder-created content manifests.
+    /// </summary>
+    public const string DefaultManifestVersion = "1.0.0";
+
+    /// <summary>
     /// Directory name for uncompressed release files.
     /// </summary>
     public const string ReleaseFilesDir = "ReleaseFiles";

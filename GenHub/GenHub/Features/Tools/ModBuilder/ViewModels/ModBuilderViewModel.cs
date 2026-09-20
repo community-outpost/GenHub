@@ -2414,6 +2414,17 @@ public partial class ModBuilderViewModel(
     [RelayCommand(CanExecute = nameof(CanOpenConfigEditor))]
     private async Task OpenConfigEditorAsync()
     {
+        await OpenConfigEditorOnTabAsync(0).ConfigureAwait(false);
+    }
+
+    [RelayCommand(CanExecute = nameof(CanOpenConfigEditor))]
+    private async Task OpenManifestsAsync()
+    {
+        await OpenConfigEditorOnTabAsync(ConfigEditorViewModel.ManifestsTabIndex).ConfigureAwait(false);
+    }
+
+    private async Task OpenConfigEditorOnTabAsync(int tabIndex)
+    {
         if (CurrentProject == null)
         {
             notificationService.ShowWarning(localizationService.GetString(NoProjectTitleKey), localizationService.GetString(NoProjectMessageKey));
@@ -2426,7 +2437,10 @@ public partial class ModBuilderViewModel(
                 configurationLoaderService,
                 notificationService,
                 localizationService,
-                loggerFactory.CreateLogger<ConfigEditorViewModel>());
+                loggerFactory.CreateLogger<ConfigEditorViewModel>())
+            {
+                ActiveTabIndex = tabIndex,
+            };
 
             // Start loading in the background and show the window immediately with a loading state.
             var initializeTask = configEditorViewModel.InitializeAsync(CurrentProject);
@@ -3510,6 +3524,7 @@ public partial class ModBuilderViewModel(
         {
             OpenFileManagerCommand.NotifyCanExecuteChanged();
             OpenConfigEditorCommand.NotifyCanExecuteChanged();
+            OpenManifestsCommand.NotifyCanExecuteChanged();
             SaveProjectCommand.NotifyCanExecuteChanged();
             BuildCommand.NotifyCanExecuteChanged();
             CleanCommand.NotifyCanExecuteChanged();
@@ -3562,6 +3577,7 @@ public partial class ModBuilderViewModel(
         {
             OpenFileManagerCommand.NotifyCanExecuteChanged();
             OpenConfigEditorCommand.NotifyCanExecuteChanged();
+            OpenManifestsCommand.NotifyCanExecuteChanged();
             SaveProjectCommand.NotifyCanExecuteChanged();
             CloseProjectCommand.NotifyCanExecuteChanged();
             BuildCommand.NotifyCanExecuteChanged();

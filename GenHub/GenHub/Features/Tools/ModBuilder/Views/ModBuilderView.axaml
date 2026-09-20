@@ -280,6 +280,12 @@
                     <TextBlock Text="{localization:Localize Tools.ModBuilder.View.ButtonEditConfiguration}" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" VerticalAlignment="Center"/>
                   </StackPanel>
                 </Button>
+                <Button Command="{Binding OpenManifestsCommand}" Classes="quick-nav-btn" ToolTip.Tip="{localization:Localize Tools.ModBuilder.View.TooltipManifests}">
+                  <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                    <Path Width="14" Height="14" Fill="{DynamicResource AccentBrush}" Data="{StaticResource IconArchiveFile}" Stretch="Uniform" VerticalAlignment="Center"/>
+                    <TextBlock Text="{localization:Localize Tools.ModBuilder.View.ButtonManifests}" FontWeight="Medium" Foreground="{DynamicResource TextPrimary}" VerticalAlignment="Center"/>
+                  </StackPanel>
+                </Button>
               </StackPanel>
             </Border>
 
