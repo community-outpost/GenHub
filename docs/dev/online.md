@@ -1,9 +1,11 @@
 # Online (virtual LAN)
 
-The Online tab lets players browse networks, create password-protected networks,
-join them, and share one virtual LAN so Generals / Zero Hour LAN lobbies work
-without manual port forwarding. It replaces the RadminVPN/Hamachi + GameRanger
-combination with one integrated flow.
+The Online tab lets players browse lobbies, create lobbies (with an optional
+password and an optional game profile), join them, and share one virtual LAN
+so Generals / Zero Hour LAN lobbies work without manual port forwarding. It
+replaces the RadminVPN/Hamachi + GameRanger combination with one integrated
+flow. Anyone can join any lobby; profile setup only controls match badges,
+never access.
 
 ## Architecture
 
@@ -57,28 +59,43 @@ of failing silently.
 1. `POST /v1/sessions/anonymous` mints a short-lived session (no user database).
 2. `GET /v1/networks` returns metadata only: no member lists, no endpoints.
    Non-members can never learn underlay IPs from the directory.
-3. `POST /v1/networks/{id}/join` checks the password (PBKDF2 verifier + pepper),
-   slots, and bans, then returns a grant, an overlay IP, an opaque adapter
-   config, and the initial roster.
-4. The client brings the platform adapter up, opens the grant-scoped presence
-   socket (`/v1/networks/{id}/presence?ticket=`), and shows live roster updates.
+3. `POST /v1/networks/{id}/join` checks the password (PBKDF2 verifier + pepper,
+   when the lobby has one), slots, and bans, then returns a grant, an overlay
+   IP, an opaque adapter config, the initial roster, and the expected profile
+   block. Joiners advertise their own profile fingerprint with the join.
+4. The client brings the platform adapter up (skipped while the edge reports
+   `overlay: "pending-selection"`; the lobby stays usable without tunneling),
+   opens the grant-scoped presence socket
+   (`/v1/networks/{id}/presence?ticket=`), and shows live roster updates.
    Reconnect uses exponential backoff; eviction/ban closes the socket (code
    4001) and the client auto-leaves with a toast. Credentials renew
    transparently: sessions retry once after a 401 and grants re-mint via
    `/cert` ahead of expiry, so long sessions never decay into ghost joins.
-5. Play resolves the grant `expectedProfileId` through `IGameProfileManager`
-   and launches via `IProfileLauncherFacade` (existing reconciliation). A
-   missing profile shows a download prompt instead of failing silently.
+5. Play launches the locally matched profile via `IProfileLauncherFacade`
+   (existing reconciliation) after preselecting the member overlay IP in
+   `options.ini` (`GameSpyIPAddress`), so no manual adapter choice is needed.
+   With no usable local profile, a warning shows instead of failing silently.
+
+## Profile matching
+
+Profile ids are machine-local, so lobbies match on the fingerprint
+(`OnlineProfileMatcher`): game client plus gameplay content (mods, patches).
+Cosmetics (UI addons, skins, maps, media) never affect the match, mirroring
+the exe/ini inputs that decide whether two setups can share a game. The host
+picks a profile from their own library; joiners auto-match the closest local
+profile (exact, then same-client overlap) and advertise it on join and on
+every presence heartbeat, so the roster shows per-member match badges. When
+the host switches profile, the room broadcasts `profile-changed` and every
+member gets a toast plus a re-match.
 
 ## Privacy model
 
-Everyone sees servers; only joined members exchange packets. Relay mode is on
-by default, so members publish no public endpoint and no STUN traffic runs.
-Turning relay off shares the public endpoint with room members for direct
-hole-punching (disclosed in the join dialog). The edge drops any endpoint sent
-by a relay member on create, join, and heartbeat. Logs, toasts, and
+Everyone sees servers; only joined members exchange packets. Relay is always
+on: members publish no public endpoint and no STUN traffic runs, so the real
+IP address is never shared with lobby members. The edge drops any endpoint
+sent by a relay member on create, join, and heartbeat. Logs, toasts, and
 diagnostics scrub IPs via `OnlineLogScrubber`; toasts show overlay IPs or
-direct/relay state only.
+relay state only.
 
 ## Lifecycle
 
@@ -103,9 +120,10 @@ enforcement, until an optional account layer exists.
 
 ## Password policy
 
-Public networks require a password of at least 4 characters; private networks
-may be password-less and are joined by invite (unlisted). Display strings are
-control-character sanitized; JSON bodies are capped at 8 KiB.
+Passwords are optional everywhere: public lobbies may run open, and private
+lobbies stay unlisted. A password that is set must be at least 4 characters.
+Display strings are control-character sanitized; JSON bodies are capped at
+8 KiB.
 
 ## Local development
 
@@ -125,8 +143,9 @@ GENHUB_ONLINE_ENABLED=1 GENHUB_ONLINE_EDGE_URL=http://127.0.0.1:8787 \
 ## What is still gated
 
 - **OQ1/D3**: the overlay spike (two machines, real NATs, packet capture) picks
-  the sidecar. `IOverlaySidecarLocator` returns null until then, so joins fail
-  with a clear "overlay not available yet" toast.
+  the sidecar. Until then the edge reports `overlay: "pending-selection"`,
+  joins succeed lobby-only (roster + presence, no tunneling), and the UI says
+  so instead of warning.
 - **OQ4**: production hosting + TURN/relay funding and secret provisioning
   (one `wrangler secret put [KEY]` per secret: `JWT_SIGNING_SECRET`,
   `PASSWORD_PEPPER`, `COTURN_SECRET`).

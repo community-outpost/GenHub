@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Text.Json.Serialization;
 
 namespace GenHub.Core.Models.Online;
@@ -50,4 +51,46 @@ public sealed record OnlineCreateNetworkRequest
     /// </summary>
     [JsonPropertyName("preferRelay")]
     public bool PreferRelay { get; init; } = true;
+
+    /// <summary>
+    /// Gets the host-local id of the expected game profile.
+    /// </summary>
+    [JsonPropertyName("expectedProfileId")]
+    public string ExpectedProfileId { get; init; } = string.Empty;
+
+    /// <summary>
+    /// Gets the cross-machine fingerprint of the expected profile.
+    /// </summary>
+    [JsonPropertyName("expectedProfileFingerprint")]
+    public string ExpectedProfileFingerprint { get; init; } = string.Empty;
+
+    /// <summary>
+    /// Gets the display name of the expected profile.
+    /// </summary>
+    [JsonPropertyName("expectedProfileName")]
+    public string ExpectedProfileName { get; init; } = string.Empty;
+
+    /// <summary>
+    /// Gets the game client key of the expected profile.
+    /// </summary>
+    [JsonPropertyName("expectedGameClientId")]
+    public string ExpectedGameClientId { get; init; } = string.Empty;
+
+    /// <summary>
+    /// Gets the gameplay content ids of the expected profile.
+    /// </summary>
+    [JsonPropertyName("expectedContentIds")]
+    public IReadOnlyList<string> ExpectedContentIds { get; init; } = [];
+
+    /// <summary>
+    /// Gets the host's own advertised profile fingerprint.
+    /// </summary>
+    [JsonPropertyName("profileFingerprint")]
+    public string ProfileFingerprint { get; init; } = string.Empty;
+
+    /// <summary>
+    /// Gets the host's own advertised profile name.
+    /// </summary>
+    [JsonPropertyName("profileName")]
+    public string ProfileName { get; init; } = string.Empty;
 }

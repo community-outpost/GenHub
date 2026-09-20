@@ -24,6 +24,11 @@ public interface IOnlineNetworkService
     event EventHandler? ConnectionLost;
 
     /// <summary>
+    /// Occurs when the host switches the lobby's expected profile.
+    /// </summary>
+    event EventHandler<OnlineExpectedProfile>? ExpectedProfileChanged;
+
+    /// <summary>
     /// Gets the currently joined network, or null when not joined.
     /// </summary>
     OnlineJoinResult? CurrentJoin { get; }
@@ -75,12 +80,16 @@ public interface IOnlineNetworkService
     /// <param name="networkId">The network identifier.</param>
     /// <param name="password">The network password.</param>
     /// <param name="preferRelay">When true, offer only relay candidates (hide direct endpoint). Defaults to relay for privacy.</param>
+    /// <param name="profileFingerprint">The local profile fingerprint advertised to the roster.</param>
+    /// <param name="profileName">The local profile display name advertised to the roster.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>The join outcome.</returns>
     Task<OperationResult<OnlineJoinResult>> JoinNetworkAsync(
         string networkId,
         string password,
         bool preferRelay = true,
+        string profileFingerprint = "",
+        string profileName = "",
         CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -94,13 +103,20 @@ public interface IOnlineNetworkService
     /// Updates the joined network description and expected profile (host only).
     /// </summary>
     /// <param name="description">The new description, or null to keep it.</param>
-    /// <param name="expectedProfileId">The new expected profile id, or null to keep it.</param>
+    /// <param name="expectedProfile">The new expected profile, or null to keep it.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>The result of the update operation.</returns>
     Task<OperationResult<bool>> UpdateNetworkAsync(
         string? description,
-        string? expectedProfileId,
+        OnlineExpectedProfile? expectedProfile,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Sets the local profile advertisement attached to presence heartbeats.
+    /// </summary>
+    /// <param name="fingerprint">The local profile fingerprint.</param>
+    /// <param name="profileName">The local profile display name.</param>
+    void SetLocalProfileAdvertisement(string fingerprint, string profileName);
 
     /// <summary>
     /// Reports a joined member for abuse.

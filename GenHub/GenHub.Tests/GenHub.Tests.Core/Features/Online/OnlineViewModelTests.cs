@@ -3,6 +3,7 @@ using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Interfaces.Online;
+using GenHub.Core.Models.GameProfile;
 using GenHub.Core.Models.Online;
 using GenHub.Core.Models.Results;
 using GenHub.Features.Online.ViewModels;
@@ -91,15 +92,27 @@ public class OnlineViewModelTests
     }
 
     /// <summary>
-    /// Tests that creating a public network without a password never calls the service.
+    /// Tests that creating a public network without a password calls the service.
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Fact]
-    public async Task CreateNetworkAsync_PublicWithoutPassword_ShouldNotCallServiceAsync()
+    public async Task CreateNetworkAsync_PublicWithoutPassword_ShouldCallServiceAsync()
     {
         // Arrange
-        var network = new Mock<IOnlineNetworkService>(MockBehavior.Strict);
-        var vm = CreateViewModel(network.Object);
+        var join = new OnlineJoinResult
+        {
+            NetworkId = "net-1",
+            Grant = "grant-token",
+            OverlayIp = "10.42.0.7",
+        };
+        var network = new Mock<IOnlineNetworkService>();
+        network.Setup(n => n.CreateNetworkAsync(It.IsAny<OnlineCreateNetworkRequest>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<OnlineJoinResult>.CreateSuccess(join));
+        network.SetupGet(n => n.AdapterState).Returns(OnlineAdapterState.Up);
+        var profiles = new Mock<IGameProfileManager>();
+        profiles.Setup(p => p.GetAllProfilesAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<IReadOnlyList<GameProfile>>.CreateSuccess([]));
+        var vm = CreateViewModel(network.Object, profiles: profiles.Object);
         vm.CreateName = "Lobby";
         vm.CreatePassword = string.Empty;
         vm.CreateIsPublic = true;
@@ -108,23 +121,56 @@ public class OnlineViewModelTests
         await vm.CreateNetworkAsync();
 
         // Assert
-        Assert.False(vm.IsJoined);
+        Assert.True(vm.IsJoined);
+        network.Verify(
+            n => n.CreateNetworkAsync(It.Is<OnlineCreateNetworkRequest>(r => r.Password == string.Empty), It.IsAny<CancellationToken>()),
+            Times.Once);
     }
 
     /// <summary>
-    /// Tests that relay mode is on by default to protect public endpoints.
+    /// Tests that joins always request relay mode to protect public endpoints.
     /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
     [Fact]
-    public void PreferRelay_ShouldDefaultToTrue()
+    public async Task JoinNetworkAsync_ShouldAlwaysPreferRelayAsync()
     {
         // Arrange
-        var vm = CreateViewModel();
+        var join = new OnlineJoinResult
+        {
+            NetworkId = "net-1",
+            Grant = "grant-token",
+            OverlayIp = "10.42.0.7",
+        };
+        var network = new Mock<IOnlineNetworkService>();
+        network.Setup(n => n.JoinNetworkAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<bool>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<OnlineJoinResult>.CreateSuccess(join));
+        network.SetupGet(n => n.AdapterState).Returns(OnlineAdapterState.Up);
+        var vm = CreateViewModel(network.Object);
+        vm.Networks = new ObservableCollection<OnlineNetworkSummary>(
+        [
+            new OnlineNetworkSummary { Id = "net-1", Name = "Lobby" },
+        ]);
+        vm.SelectedNetwork = vm.Networks[0];
 
         // Act
-        var preferRelay = vm.PreferRelay;
+        await vm.JoinNetworkAsync();
 
         // Assert
-        Assert.True(preferRelay);
+        network.Verify(
+            n => n.JoinNetworkAsync(
+                "net-1",
+                It.IsAny<string>(),
+                true,
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<CancellationToken>()),
+            Times.Once);
     }
 
     /// <summary>
@@ -142,7 +188,13 @@ public class OnlineViewModelTests
             OverlayIp = "10.42.0.7",
         };
         var network = new Mock<IOnlineNetworkService>();
-        network.Setup(n => n.JoinNetworkAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
+        network.Setup(n => n.JoinNetworkAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<bool>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult<OnlineJoinResult>.CreateSuccess(join));
         network.SetupGet(n => n.AdapterState).Returns(OnlineAdapterState.Down);
         var notifications = new Mock<INotificationService>();
@@ -167,6 +219,55 @@ public class OnlineViewModelTests
     }
 
     /// <summary>
+    /// Tests that a join while the overlay selection is pending shows info, not a warning.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task JoinNetworkAsync_WithPendingOverlay_ShouldShowInfoAsync()
+    {
+        // Arrange
+        var pendingConfig = Convert.ToBase64String(
+            System.Text.Encoding.UTF8.GetBytes("""{"v":0,"overlay":"pending-selection"}"""));
+        var join = new OnlineJoinResult
+        {
+            NetworkId = "net-1",
+            Grant = "grant-token",
+            OverlayIp = "10.42.0.7",
+            AdapterConfig = pendingConfig,
+        };
+        var network = new Mock<IOnlineNetworkService>();
+        network.Setup(n => n.JoinNetworkAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<bool>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<OnlineJoinResult>.CreateSuccess(join));
+        network.SetupGet(n => n.AdapterState).Returns(OnlineAdapterState.Down);
+        network.SetupGet(n => n.CurrentJoin).Returns(join);
+        var notifications = new Mock<INotificationService>();
+        var vm = CreateViewModel(network.Object, notifications.Object);
+        vm.Networks = new ObservableCollection<OnlineNetworkSummary>(
+        [
+            new OnlineNetworkSummary { Id = "net-1", Name = "Lobby" },
+        ]);
+        vm.SelectedNetwork = vm.Networks[0];
+
+        // Act
+        await vm.JoinNetworkAsync();
+
+        // Assert
+        Assert.True(vm.IsJoined);
+        notifications.Verify(
+            n => n.ShowInfo(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
+            Times.Once);
+        notifications.Verify(
+            n => n.ShowWarning(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
+            Times.Never);
+    }
+
+    /// <summary>
     /// Tests that a second join while one is in flight issues no extra request.
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
@@ -182,7 +283,13 @@ public class OnlineViewModelTests
         };
         var gate = new TaskCompletionSource<OperationResult<OnlineJoinResult>>();
         var network = new Mock<IOnlineNetworkService>();
-        network.Setup(n => n.JoinNetworkAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
+        network.Setup(n => n.JoinNetworkAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<bool>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<CancellationToken>()))
             .Returns(gate.Task);
         network.SetupGet(n => n.AdapterState).Returns(OnlineAdapterState.Up);
         var vm = CreateViewModel(network.Object);
@@ -200,7 +307,13 @@ public class OnlineViewModelTests
 
         // Assert
         network.Verify(
-            n => n.JoinNetworkAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()),
+            n => n.JoinNetworkAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<bool>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<CancellationToken>()),
             Times.Once);
         Assert.True(vm.IsJoined);
     }
@@ -227,7 +340,13 @@ public class OnlineViewModelTests
 
         // Assert
         network.Verify(
-            n => n.JoinNetworkAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()),
+            n => n.JoinNetworkAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<bool>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<CancellationToken>()),
             Times.Never);
     }
 
@@ -259,16 +378,14 @@ public class OnlineViewModelTests
     }
 
     /// <summary>
-    /// Tests that play with a missing profile shows the download-prompt warning.
+    /// Tests that play without a matched profile warns and never launches.
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Fact]
-    public async Task PlayAsync_WithMissingProfile_ShouldWarnAsync()
+    public async Task PlayAsync_WithoutMatchedProfile_ShouldWarnAsync()
     {
         // Arrange
-        var launch = new Mock<IOnlineLaunchService>();
-        launch.Setup(l => l.PlayAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(OperationResult<OnlinePlayResult>.CreateFailure(OnlineConstants.ErrorProfileMissing));
+        var launch = new Mock<IOnlineLaunchService>(MockBehavior.Strict);
         var notifications = new Mock<INotificationService>();
         var vm = CreateViewModel(launchService: launch.Object, notifications: notifications.Object);
 
@@ -278,6 +395,44 @@ public class OnlineViewModelTests
         // Assert
         notifications.Verify(n => n.ShowWarning(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()), Times.Once);
         notifications.Verify(n => n.ShowSuccess(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()), Times.Never);
+    }
+
+    /// <summary>
+    /// Tests that saving host settings publishes the picked profile setup.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task SaveNetworkAsync_WithPickedProfile_ShouldPublishExpectedAsync()
+    {
+        // Arrange
+        var profile = new GameProfile { Id = "profile-1", Name = "Zero Hour" };
+        var profiles = new Mock<IGameProfileManager>();
+        profiles.Setup(p => p.GetAllProfilesAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<IReadOnlyList<GameProfile>>.CreateSuccess([profile]));
+        var network = new Mock<IOnlineNetworkService>();
+        network.Setup(n => n.UpdateNetworkAsync(
+                It.IsAny<string>(),
+                It.IsAny<OnlineExpectedProfile>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+        var vm = CreateViewModel(network.Object, profiles: profiles.Object);
+        vm.IsCurrentUserHost = true;
+        vm.SelectedHostProfile = profile;
+
+        // Act
+        await vm.SaveNetworkAsync();
+
+        // Assert
+        network.Verify(
+            n => n.UpdateNetworkAsync(
+                It.IsAny<string>(),
+                It.Is<OnlineExpectedProfile>(e =>
+                    e.ExpectedProfileId == "profile-1" &&
+                    e.ExpectedProfileName == "Zero Hour" &&
+                    e.ExpectedProfileFingerprint.Length > 0),
+                It.IsAny<CancellationToken>()),
+            Times.Once);
+        Assert.Equal("profile-1", vm.ExpectedProfileId);
     }
 
     /// <summary>
@@ -320,60 +475,17 @@ public class OnlineViewModelTests
         Assert.NotNull(vm.SelectedMember);
     }
 
-    /// <summary>
-    /// Tests that a successful connection test toasts success.
-    /// </summary>
-    /// <returns>A task representing the asynchronous operation.</returns>
-    [Fact]
-    public async Task TestConnectionAsync_OnSuccess_ShouldToastAsync()
-    {
-        // Arrange
-        var p2p = new Mock<IP2PConnectionService>();
-        p2p.Setup(p => p.ConnectToPeerAsync(It.IsAny<string>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
-        var notifications = new Mock<INotificationService>();
-        var vm = CreateViewModel(notifications: notifications.Object, p2pService: p2p.Object);
-        vm.SelectedMember = new OnlineMember { DisplayName = "Guest", OverlayIp = "10.42.0.3", Endpoint = "203.0.113.7:4321" };
-
-        // Act
-        await vm.TestConnectionAsync();
-
-        // Assert
-        p2p.Verify(p => p.ConnectToPeerAsync("203.0.113.7", 4321, It.IsAny<CancellationToken>()), Times.Once);
-        notifications.Verify(n => n.ShowSuccess(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()), Times.Once);
-    }
-
-    /// <summary>
-    /// Tests that a member without an endpoint never dials.
-    /// </summary>
-    /// <returns>A task representing the asynchronous operation.</returns>
-    [Fact]
-    public async Task TestConnectionAsync_WithoutEndpoint_ShouldNotDialAsync()
-    {
-        // Arrange
-        var p2p = new Mock<IP2PConnectionService>(MockBehavior.Strict);
-        var vm = CreateViewModel(p2pService: p2p.Object);
-        vm.SelectedMember = new OnlineMember { DisplayName = "Relay", OverlayIp = "10.42.0.4", Endpoint = string.Empty };
-
-        // Act
-        await vm.TestConnectionAsync();
-
-        // Assert
-        Assert.NotNull(vm.SelectedMember);
-    }
-
     private static OnlineViewModel CreateViewModel(
         IOnlineNetworkService? network = null,
         INotificationService? notifications = null,
         IOnlineLaunchService? launchService = null,
         IDialogService? dialogs = null,
-        IP2PConnectionService? p2pService = null)
+        IGameProfileManager? profiles = null)
     {
         return new OnlineViewModel(
             network ?? Mock.Of<IOnlineNetworkService>(),
             launchService ?? Mock.Of<IOnlineLaunchService>(),
-            Mock.Of<IGameProfileManager>(),
-            p2pService ?? Mock.Of<IP2PConnectionService>(),
+            profiles ?? Mock.Of<IGameProfileManager>(),
             notifications ?? Mock.Of<INotificationService>(),
             dialogs ?? Mock.Of<IDialogService>(),
             Mock.Of<ILogger<OnlineViewModel>>());

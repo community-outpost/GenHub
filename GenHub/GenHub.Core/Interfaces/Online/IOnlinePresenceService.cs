@@ -29,9 +29,22 @@ public interface IOnlinePresenceService
     event EventHandler<string>? GrantRefreshed;
 
     /// <summary>
+    /// Occurs when the host switches the lobby's expected profile.
+    /// </summary>
+    event EventHandler<OnlineExpectedProfile>? ExpectedProfileChanged;
+
+    /// <summary>
     /// Gets a value indicating whether the presence channel is connected.
     /// </summary>
     bool IsConnected { get; }
+
+    /// <summary>
+    /// Sets the local profile advertisement attached to heartbeats so the
+    /// roster shows per-member setup match state.
+    /// </summary>
+    /// <param name="fingerprint">The local profile fingerprint.</param>
+    /// <param name="profileName">The local profile display name.</param>
+    void UpdateAdvertisedProfile(string fingerprint, string profileName);
 
     /// <summary>
     /// Connects the presence channel for a joined network.

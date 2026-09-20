@@ -465,7 +465,6 @@ public class MainViewModelTests
             Mock.Of<IOnlineNetworkService>(),
             Mock.Of<IOnlineLaunchService>(),
             Mock.Of<IGameProfileManager>(),
-            Mock.Of<IP2PConnectionService>(),
             Mock.Of<INotificationService>(),
             Mock.Of<IDialogService>(),
             Mock.Of<ILogger<OnlineViewModel>>());

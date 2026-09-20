@@ -1825,9 +1825,6 @@
   <data name="Online.Action.Save" xml:space="preserve">
     <value>Сохранить</value>
   </data>
-  <data name="Online.Action.Test" xml:space="preserve">
-    <value>Проверить</value>
-  </data>
   <data name="Online.Action.Refresh" xml:space="preserve">
     <value>Обновить</value>
   </data>
@@ -1838,7 +1835,7 @@
     <value>Пароль (необязателен для частной)</value>
   </data>
   <data name="Online.Create.PasswordHint" xml:space="preserve">
-    <value>Обязателен для публичных сетей (мин. 4 символа).</value>
+    <value>Необязательно. Оставьте пустым для открытого лобби (минимум 4 символа, если задано).</value>
   </data>
   <data name="Online.Create.PublicLabel" xml:space="preserve">
     <value>Публичный список</value>
@@ -1860,12 +1857,6 @@
   </data>
   <data name="Online.Create.DescriptionWatermark" xml:space="preserve">
     <value>Описание и правила (необязательно)</value>
-  </data>
-  <data name="Online.Create.PreferRelay" xml:space="preserve">
-    <value>Через ретранслятор (скрыть мой адрес)</value>
-  </data>
-  <data name="Online.Create.PreferRelayTooltip" xml:space="preserve">
-    <value>Направлять трафик через ретранслятор вместо прямого соединения. Медленнее, но скрывает ваш публичный адрес от других участников.</value>
   </data>
   <data name="Online.Adapter.UnavailableTitle" xml:space="preserve">
     <value>Туннелирование для сетевой игры недоступно</value>
@@ -1891,12 +1882,6 @@
   <data name="Online.Detail.NoDescription" xml:space="preserve">
     <value>Без описания.</value>
   </data>
-  <data name="Online.Detail.ProfileInstalled" xml:space="preserve">
-    <value>установлен</value>
-  </data>
-  <data name="Online.Detail.ProfileMissing" xml:space="preserve">
-    <value>не установлен</value>
-  </data>
   <data name="Online.Detail.SlotsLabel" xml:space="preserve">
     <value>Места</value>
   </data>
@@ -1917,9 +1902,6 @@
   </data>
   <data name="Online.Error.CopyUnavailable" xml:space="preserve">
     <value>Буфер обмена недоступен.</value>
-  </data>
-  <data name="Online.Error.PasswordRequired" xml:space="preserve">
-    <value>Для публичных сетей нужен пароль минимум из 4 символов.</value>
   </data>
   <data name="Online.Error.PasswordTooShort" xml:space="preserve">
     <value>Пароль должен содержать минимум 4 символа.</value>
@@ -1944,9 +1926,6 @@
   </data>
   <data name="Online.Host.DescriptionWatermark" xml:space="preserve">
     <value>Описание и правила комнаты</value>
-  </data>
-  <data name="Online.Host.ProfileWatermark" xml:space="preserve">
-    <value>ID ожидаемого профиля</value>
   </data>
   <data name="Online.Host.SuccessMessage" xml:space="preserve">
     <value>Настройки сети обновлены.</value>
@@ -2047,14 +2026,8 @@
   <data name="Online.Join.PasswordWatermark" xml:space="preserve">
     <value>Пароль сети</value>
   </data>
-  <data name="Online.Join.PreferRelay" xml:space="preserve">
-    <value>Через ретранслятор (скрыть мой адрес)</value>
-  </data>
-  <data name="Online.Join.PreferRelayTooltip" xml:space="preserve">
-    <value>Направлять трафик через ретранслятор вместо прямого соединения. Медленнее, но скрывает ваш публичный адрес от других участников.</value>
-  </data>
   <data name="Online.Join.PrivacyNotice" xml:space="preserve">
-    <value>Режим ретранслятора (включён по умолчанию) скрывает ваш публичный адрес от участников комнаты. Отключите его для прямого соединения, которое раскрывает ваш адрес, как в Hamachi.</value>
+    <value>Трафик всегда идёт через ретранслятор: ваш реальный IP-адрес никогда не передаётся участникам лобби.</value>
   </data>
   <data name="Online.Join.SuccessMessage" xml:space="preserve">
     <value>Подключено с IP оверлея {0}. Откройте LAN-лобби в игре.</value>
@@ -2115,18 +2088,6 @@
   </data>
   <data name="Online.Report.SuccessTitle" xml:space="preserve">
     <value>Жалоба отправлена</value>
-  </data>
-  <data name="Online.Error.TestFailed" xml:space="preserve">
-    <value>Не удалось связаться с {0} напрямую. Возможно, нужен ретранслятор.</value>
-  </data>
-  <data name="Online.Error.TestTitle" xml:space="preserve">
-    <value>Проверка не удалась</value>
-  </data>
-  <data name="Online.Test.SuccessMessage" xml:space="preserve">
-    <value>Вы можете напрямую связаться с {0}.</value>
-  </data>
-  <data name="Online.Test.SuccessTitle" xml:space="preserve">
-    <value>Прямое соединение работает</value>
   </data>
   <data name="Online.List.Title" xml:space="preserve">
     <value>Сети</value>
@@ -11511,6 +11472,54 @@ GenHub передает официальный идентификатор AppID 
   <data name="Storage.DuplicateInstallation.GenericReinstallGuidance" xml:space="preserve">
     <value>Чтобы сохранить одну установку, переустановите поверх предыдущего расположения или переместите эту установку в разделе Настройки &gt; Перенос установки, затем удалите оставшийся дубликат.</value>
     <comment>Cross-platform guidance appended to the duplicate installation message on non-Windows hosts.</comment>
+  </data>
+  <data name="Online.Create.ProfileLabel" xml:space="preserve">
+    <value>Игровой профиль</value>
+  </data>
+  <data name="Online.Create.ProfilePlaceholder" xml:space="preserve">
+    <value>Без профиля (любая сборка)</value>
+  </data>
+  <data name="Online.Create.ProfileHint" xml:space="preserve">
+    <value>Участники автоматически сверяются с этой сборкой. Войти может каждый; несовпадения только отображаются.</value>
+  </data>
+  <data name="Online.Detail.MatchLabel" xml:space="preserve">
+    <value>Ваша сборка</value>
+  </data>
+  <data name="Online.Detail.PlayProfileLabel" xml:space="preserve">
+    <value>Играть с</value>
+  </data>
+  <data name="Online.Match.Exact" xml:space="preserve">
+    <value>Совпадает</value>
+  </data>
+  <data name="Online.Match.SameClient" xml:space="preserve">
+    <value>Та же игра, другие моды</value>
+  </data>
+  <data name="Online.Match.Mismatch" xml:space="preserve">
+    <value>Другая игра</value>
+  </data>
+  <data name="Online.Match.Unknown" xml:space="preserve">
+    <value>Неизвестно</value>
+  </data>
+  <data name="Online.Profile.SwitchedTitle" xml:space="preserve">
+    <value>Игра лобби изменена</value>
+  </data>
+  <data name="Online.Profile.SwitchedMessage" xml:space="preserve">
+    <value>Хост переключил лобби на «{0}».</value>
+  </data>
+  <data name="Online.Profile.SwitchedClearedMessage" xml:space="preserve">
+    <value>Хост убрал игру лобби.</value>
+  </data>
+  <data name="Online.Adapter.PendingTitle" xml:space="preserve">
+    <value>Только лобби</value>
+  </data>
+  <data name="Online.Adapter.PendingMessage" xml:space="preserve">
+    <value>Туннелирование пока недоступно: участники не появятся в игре. Список и присутствие работают.</value>
+  </data>
+  <data name="Online.Host.ProfileLabel" xml:space="preserve">
+    <value>Игровой профиль</value>
+  </data>
+  <data name="Online.Host.ProfilePlaceholder" xml:space="preserve">
+    <value>Без профиля (любая сборка)</value>
   </data>
   <data name="GameSettings.Video.ResolutionToolTip" xml:space="preserve">
     <value>Задает разрешение экрана в игре.</value>

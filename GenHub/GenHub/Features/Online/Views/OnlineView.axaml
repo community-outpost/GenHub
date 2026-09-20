@@ -4,6 +4,7 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:vm="clr-namespace:GenHub.Features.Online.ViewModels"
              xmlns:models="clr-namespace:GenHub.Core.Models.Online;assembly=GenHub.Core"
+             xmlns:profiles="clr-namespace:GenHub.Core.Models.GameProfile;assembly=GenHub.Core"
              xmlns:conv="clr-namespace:GenHub.Infrastructure.Converters;assembly=GenHub"
              xmlns:material="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
              xmlns:localization="clr-namespace:GenHub.Common.Markup;assembly=GenHub"
@@ -16,6 +17,10 @@
         <conv:NullToVisibilityConverter x:Key="NullToVisibilityConverter" />
         <conv:OnlineQualityTextConverter x:Key="OnlineQualityTextConverter" />
         <conv:OnlineQualityBrushConverter x:Key="OnlineQualityBrushConverter" />
+        <conv:OnlineMatchTextConverter x:Key="OnlineMatchTextConverter" />
+        <conv:OnlineMatchBrushConverter x:Key="OnlineMatchBrushConverter" />
+        <conv:OnlineProfileMatchTextConverter x:Key="OnlineProfileMatchTextConverter" />
+        <conv:OnlineProfileMatchBrushConverter x:Key="OnlineProfileMatchBrushConverter" />
     </UserControl.Resources>
 
     <UserControl.Styles>
@@ -214,6 +219,19 @@
                              Text="{Binding CreateDescription, Mode=TwoWay}"
                              Watermark="{localization:Localize Online.Create.DescriptionWatermark}"
                              MaxLength="1024" />
+                    <TextBlock Classes="field-label" Text="{localization:Localize Online.Create.ProfileLabel}" />
+                    <ComboBox ItemsSource="{Binding AvailableProfiles}"
+                              SelectedItem="{Binding SelectedCreateProfile, Mode=TwoWay}"
+                              PlaceholderText="{localization:Localize Online.Create.ProfilePlaceholder}"
+                              HorizontalAlignment="Stretch"
+                              AutomationProperties.Name="{localization:Localize Online.Create.ProfileLabel}">
+                        <ComboBox.ItemTemplate>
+                            <DataTemplate x:DataType="profiles:GameProfile">
+                                <TextBlock Text="{Binding Name}" />
+                            </DataTemplate>
+                        </ComboBox.ItemTemplate>
+                    </ComboBox>
+                    <TextBlock Classes="helper-text" Text="{localization:Localize Online.Create.ProfileHint}" />
                     <StackPanel Orientation="Horizontal" Spacing="12">
                         <TextBlock Text="{localization:Localize Online.Create.SlotsLabel}"
                                    Foreground="{DynamicResource TextSecondary}"
@@ -224,10 +242,6 @@
                                   IsChecked="{Binding CreateIsPublic, Mode=TwoWay}"
                                   Foreground="{DynamicResource TextPrimary}" />
                     </StackPanel>
-                    <CheckBox Content="{localization:Localize Online.Create.PreferRelay}"
-                              ToolTip.Tip="{localization:Localize Online.Create.PreferRelayTooltip}"
-                              IsChecked="{Binding PreferRelay, Mode=TwoWay}"
-                              Foreground="{DynamicResource TextPrimary}" />
                     <Button Classes="primary-btn"
                             Content="{localization:Localize Online.Create.Submit}"
                             Command="{Binding CreateNetworkCommand}"
@@ -320,11 +334,24 @@
                                            Foreground="{DynamicResource TextMuted}" />
                                 <TextBlock Text="{Binding ExpectedProfileName}"
                                            Foreground="{DynamicResource TextPrimary}" />
-                                <Border Classes="badge" IsVisible="{Binding ExpectedProfileInstalled}">
-                                    <TextBlock Text="{localization:Localize Online.Detail.ProfileInstalled}"
-                                               FontSize="11"
-                                               Foreground="{DynamicResource TextSecondary}" />
-                                </Border>
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <TextBlock Text="{localization:Localize Online.Detail.MatchLabel}"
+                                           Foreground="{DynamicResource TextMuted}"
+                                           VerticalAlignment="Center" />
+                                <Ellipse Width="8" Height="8"
+                                         VerticalAlignment="Center"
+                                         Fill="{Binding ProfileMatchState, Converter={StaticResource OnlineProfileMatchBrushConverter}}" />
+                                <TextBlock Text="{Binding ProfileMatchState, Converter={StaticResource OnlineProfileMatchTextConverter}}"
+                                           Foreground="{DynamicResource TextPrimary}"
+                                           VerticalAlignment="Center" />
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal" Spacing="8"
+                                        IsVisible="{Binding SelectedPlayProfile, Converter={StaticResource NullToVisibilityConverter}}">
+                                <TextBlock Text="{localization:Localize Online.Detail.PlayProfileLabel}"
+                                           Foreground="{DynamicResource TextMuted}" />
+                                <TextBlock Text="{Binding SelectedPlayProfile.Name}"
+                                           Foreground="{DynamicResource TextPrimary}" />
                             </StackPanel>
                         </StackPanel>
                     </Border>
@@ -332,16 +359,14 @@
                     <Border Classes="card" IsVisible="{Binding !IsJoined}">
                         <StackPanel Spacing="8">
                             <TextBlock Classes="section-title" Text="{localization:Localize Online.Join.Title}" />
-                            <TextBlock Classes="field-label" Text="{localization:Localize Online.Join.PasswordWatermark}" />
-                            <TextBox Classes="field"
-                                     Text="{Binding JoinPassword, Mode=TwoWay}"
-                                     PasswordChar="•"
-                                     Watermark="{localization:Localize Online.Join.PasswordWatermark}"
-                                     MaxLength="128" />
-                            <CheckBox Content="{localization:Localize Online.Join.PreferRelay}"
-                                      ToolTip.Tip="{localization:Localize Online.Join.PreferRelayTooltip}"
-                                      IsChecked="{Binding PreferRelay, Mode=TwoWay}"
-                                      Foreground="{DynamicResource TextPrimary}" />
+                            <StackPanel Spacing="8" IsVisible="{Binding SelectedDetail.RequiresPassword, FallbackValue=True}">
+                                <TextBlock Classes="field-label" Text="{localization:Localize Online.Join.PasswordWatermark}" />
+                                <TextBox Classes="field"
+                                         Text="{Binding JoinPassword, Mode=TwoWay}"
+                                         PasswordChar="•"
+                                         Watermark="{localization:Localize Online.Join.PasswordWatermark}"
+                                         MaxLength="128" />
+                            </StackPanel>
                             <TextBlock Classes="helper-text" Text="{localization:Localize Online.Join.PrivacyNotice}" />
                             <Button Classes="primary-btn"
                                     Content="{localization:Localize Online.Action.Join}"
@@ -381,15 +406,31 @@
                                             <TextBlock Text="{Binding Quality, Converter={StaticResource OnlineQualityTextConverter}}"
                                                        Foreground="{DynamicResource TextMuted}"
                                                        VerticalAlignment="Center" />
+                                            <Ellipse Width="8" Height="8"
+                                                     VerticalAlignment="Center">
+                                                <Ellipse.Fill>
+                                                    <MultiBinding Converter="{StaticResource OnlineMatchBrushConverter}">
+                                                        <Binding Path="ProfileFingerprint" />
+                                                        <Binding Path="$parent[UserControl].((vm:OnlineViewModel)DataContext).ExpectedProfileFingerprint" />
+                                                        <Binding Path="$parent[UserControl].((vm:OnlineViewModel)DataContext).ExpectedGameClientId" />
+                                                    </MultiBinding>
+                                                </Ellipse.Fill>
+                                            </Ellipse>
+                                            <TextBlock Foreground="{DynamicResource TextMuted}"
+                                                       VerticalAlignment="Center">
+                                                <TextBlock.Text>
+                                                    <MultiBinding Converter="{StaticResource OnlineMatchTextConverter}">
+                                                        <Binding Path="ProfileFingerprint" />
+                                                        <Binding Path="$parent[UserControl].((vm:OnlineViewModel)DataContext).ExpectedProfileFingerprint" />
+                                                        <Binding Path="$parent[UserControl].((vm:OnlineViewModel)DataContext).ExpectedGameClientId" />
+                                                    </MultiBinding>
+                                                </TextBlock.Text>
+                                            </TextBlock>
                                         </StackPanel>
                                     </DataTemplate>
                                 </ListBox.ItemTemplate>
                             </ListBox>
                             <StackPanel Orientation="Horizontal" Spacing="8">
-                                <Button Classes="toolbar-btn"
-                                        Content="{localization:Localize Online.Action.Test}"
-                                        Command="{Binding TestConnectionCommand}"
-                                        AutomationProperties.Name="{localization:Localize Online.Action.Test}" />
                                 <Button Classes="toolbar-btn"
                                         Content="{localization:Localize Online.Action.Report}"
                                         Command="{Binding ReportMemberCommand}"
@@ -416,11 +457,18 @@
                                      Text="{Binding HostDescription, Mode=TwoWay}"
                                      Watermark="{localization:Localize Online.Host.DescriptionWatermark}"
                                      MaxLength="1024" />
-                            <TextBlock Classes="field-label" Text="{localization:Localize Online.Host.ProfileWatermark}" />
-                            <TextBox Classes="field"
-                                     Text="{Binding HostExpectedProfileId, Mode=TwoWay}"
-                                     Watermark="{localization:Localize Online.Host.ProfileWatermark}"
-                                     MaxLength="128" />
+                            <TextBlock Classes="field-label" Text="{localization:Localize Online.Host.ProfileLabel}" />
+                            <ComboBox ItemsSource="{Binding AvailableProfiles}"
+                                      SelectedItem="{Binding SelectedHostProfile, Mode=TwoWay}"
+                                      PlaceholderText="{localization:Localize Online.Host.ProfilePlaceholder}"
+                                      HorizontalAlignment="Stretch"
+                                      AutomationProperties.Name="{localization:Localize Online.Host.ProfileLabel}">
+                                <ComboBox.ItemTemplate>
+                                    <DataTemplate x:DataType="profiles:GameProfile">
+                                        <TextBlock Text="{Binding Name}" />
+                                    </DataTemplate>
+                                </ComboBox.ItemTemplate>
+                            </ComboBox>
                             <Button Classes="primary-btn"
                                     Content="{localization:Localize Online.Action.Save}"
                                     Command="{Binding SaveNetworkCommand}"

@@ -10,6 +10,10 @@ export const MAX_TAGS = 8;
 export const MAX_TAG_LENGTH = 32;
 export const MAX_DESCRIPTION_LENGTH = 1024;
 export const MAX_DISPLAY_NAME_LENGTH = 32;
+export const MAX_PROFILE_NAME_LENGTH = 64;
+export const MAX_FINGERPRINT_LENGTH = 256;
+export const MAX_CONTENT_IDS = 32;
+export const MAX_CONTENT_ID_LENGTH = 128;
 
 export interface CreateNetworkInput {
   name: string;
@@ -20,6 +24,12 @@ export interface CreateNetworkInput {
   description: string;
   displayName: string;
   expectedProfileId: string;
+  expectedProfileFingerprint: string;
+  expectedProfileName: string;
+  expectedGameClientId: string;
+  expectedContentIds: string[];
+  profileFingerprint: string;
+  profileName: string;
   preferRelay: boolean;
   endpoint: string;
 }
@@ -57,6 +67,31 @@ const asStringList = (value: unknown): string[] | null => {
   return tags;
 };
 
+const asBoundedString = (value: unknown, maxLength: number): string | null => {
+  if (value === undefined) {
+    return "";
+  }
+  return asString(value, maxLength);
+};
+
+const asContentIdList = (value: unknown): string[] | null => {
+  if (value === undefined) {
+    return [];
+  }
+  if (!Array.isArray(value) || value.length > MAX_CONTENT_IDS) {
+    return null;
+  }
+  const ids: string[] = [];
+  for (const entry of value) {
+    const id = asString(entry, MAX_CONTENT_ID_LENGTH);
+    if (id === null || id.length === 0) {
+      return null;
+    }
+    ids.push(id);
+  }
+  return ids;
+};
+
 export const parseCreateNetwork = (body: unknown): CreateNetworkInput | null => {
   if (body === null || typeof body !== "object") {
     return null;
@@ -85,8 +120,22 @@ export const parseCreateNetwork = (body: unknown): CreateNetworkInput | null => 
   if (displayName === null) {
     return null;
   }
-  const expectedProfileId = raw.expectedProfileId === undefined ? "" : asString(raw.expectedProfileId, 128);
-  if (expectedProfileId === null) {
+  const expectedProfileId = asBoundedString(raw.expectedProfileId, MAX_CONTENT_ID_LENGTH);
+  const expectedProfileFingerprint = asBoundedString(raw.expectedProfileFingerprint, MAX_FINGERPRINT_LENGTH);
+  const expectedProfileName = asBoundedString(raw.expectedProfileName, MAX_PROFILE_NAME_LENGTH);
+  const expectedGameClientId = asBoundedString(raw.expectedGameClientId, MAX_CONTENT_ID_LENGTH);
+  const expectedContentIds = asContentIdList(raw.expectedContentIds);
+  const profileFingerprint = asBoundedString(raw.profileFingerprint, MAX_FINGERPRINT_LENGTH);
+  const profileName = asBoundedString(raw.profileName, MAX_PROFILE_NAME_LENGTH);
+  if (
+    expectedProfileId === null ||
+    expectedProfileFingerprint === null ||
+    expectedProfileName === null ||
+    expectedGameClientId === null ||
+    expectedContentIds === null ||
+    profileFingerprint === null ||
+    profileName === null
+  ) {
     return null;
   }
 
@@ -99,6 +148,12 @@ export const parseCreateNetwork = (body: unknown): CreateNetworkInput | null => 
     description,
     displayName,
     expectedProfileId,
+    expectedProfileFingerprint,
+    expectedProfileName,
+    expectedGameClientId,
+    expectedContentIds,
+    profileFingerprint,
+    profileName,
     preferRelay: raw.preferRelay === true,
     endpoint: parseEndpoint(raw.endpoint),
   };
@@ -106,7 +161,14 @@ export const parseCreateNetwork = (body: unknown): CreateNetworkInput | null => 
 
 export const parseJoinBody = (
   body: unknown
-): { password: string; preferRelay: boolean; displayName: string; endpoint: string } | null => {
+): {
+  password: string;
+  preferRelay: boolean;
+  displayName: string;
+  endpoint: string;
+  profileFingerprint: string;
+  profileName: string;
+} | null => {
   if (body === null || typeof body !== "object") {
     return null;
   }
@@ -118,11 +180,18 @@ export const parseJoinBody = (
   if (displayName === null) {
     return null;
   }
+  const profileFingerprint = asBoundedString(raw.profileFingerprint, MAX_FINGERPRINT_LENGTH);
+  const profileName = asBoundedString(raw.profileName, MAX_PROFILE_NAME_LENGTH);
+  if (profileFingerprint === null || profileName === null) {
+    return null;
+  }
   return {
     password: raw.password,
     preferRelay: raw.preferRelay === true,
     displayName,
     endpoint: parseEndpoint(raw.endpoint),
+    profileFingerprint,
+    profileName,
   };
 };
 

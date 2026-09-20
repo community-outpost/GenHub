@@ -12,14 +12,17 @@ namespace GenHub.Core.Interfaces.Online;
 public interface IOnlineLaunchService
 {
     /// <summary>
-    /// Resolves the network expected profile and launches it.
+    /// Resolves the selected local profile, preselects the overlay IP for it,
+    /// and launches it.
     /// </summary>
-    /// <param name="expectedProfileId">The expected profile identifier from the join grant.</param>
+    /// <param name="profileId">The local profile identifier to launch.</param>
     /// <param name="networkName">The joined network display name, for user feedback.</param>
+    /// <param name="overlayIp">The member overlay IP to preselect in the game network settings.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>The play outcome.</returns>
     Task<OperationResult<OnlinePlayResult>> PlayAsync(
-        string expectedProfileId,
+        string profileId,
         string networkName,
+        string overlayIp = "",
         CancellationToken cancellationToken = default);
 }

@@ -12,8 +12,19 @@ interface JoinResult {
   grantExpiresUtc: string;
   overlayIp: string;
   adapterConfig: string;
-  members: { displayName: string; overlayIp: string; quality: number; isHost: boolean }[];
+  members: {
+    displayName: string;
+    overlayIp: string;
+    quality: number;
+    isHost: boolean;
+    profileFingerprint: string;
+    profileName: string;
+  }[];
   expectedProfileId: string;
+  expectedProfileFingerprint: string;
+  expectedProfileName: string;
+  expectedGameClientId: string;
+  expectedContentIds: string[];
 }
 
 const session = async (): Promise<string> => {
@@ -111,15 +122,24 @@ describe("online edge", () => {
     expect(detail).toMatchObject({ slotsUsed: 1, requiresPassword: true, hostPresent: true });
   });
 
-  it("requires a password for public networks", async () => {
+  it("allows public networks without a password", async () => {
     const token = await session();
     const res = await SELF.fetch(`${BASE}/v1/networks`, {
       method: "POST",
       headers: { ...auth(token), "Content-Type": "application/json" },
       body: JSON.stringify({ name: "Open Lobby", password: "", slotsMax: 4, isPublic: true }),
     });
-    expect(res.status).toBe(400);
-    expect(((await res.json()) as { code: string }).code).toBe("online.password-required");
+    expect(res.status).toBe(200);
+    const created = (await res.json()) as JoinResult;
+    expect(created.networkId.length).toBeGreaterThan(0);
+
+    const joiner = await session();
+    const joined = await SELF.fetch(`${BASE}/v1/networks/${created.networkId}/join`, {
+      method: "POST",
+      headers: { ...auth(joiner), "Content-Type": "application/json" },
+      body: JSON.stringify({ password: "", preferRelay: true }),
+    });
+    expect(joined.status).toBe(200);
   });
 
   it("rejects short passwords", async () => {
@@ -703,6 +723,114 @@ describe("online edge", () => {
     const payload = JSON.parse(first) as { type: string; members: unknown[] };
     expect(payload.type).toBe("roster");
     expect(payload.members).toHaveLength(1);
+    socket?.close();
+  });
+
+  it("round-trips the expected profile and member fingerprints", async () => {
+    const host = await session();
+    const created = await createNetwork(host, {
+      expectedProfileFingerprint: "opf1|zh-104|mod-a",
+      expectedProfileName: "Zero Hour Plus",
+      expectedGameClientId: "zh-104",
+      expectedContentIds: ["mod-a"],
+      profileFingerprint: "opf1|zh-104|mod-a",
+      profileName: "My Plus Setup",
+    });
+    expect(created).toMatchObject({
+      expectedProfileFingerprint: "opf1|zh-104|mod-a",
+      expectedProfileName: "Zero Hour Plus",
+      expectedGameClientId: "zh-104",
+    });
+
+    const detail = (await (
+      await SELF.fetch(`${BASE}/v1/networks/${created.networkId}`, { headers: auth(host) })
+    ).json()) as Record<string, unknown>;
+    expect(detail).toMatchObject({
+      expectedProfileFingerprint: "opf1|zh-104|mod-a",
+      expectedProfileName: "Zero Hour Plus",
+      expectedGameClientId: "zh-104",
+      expectedContentIds: ["mod-a"],
+    });
+
+    const guest = await session();
+    const joinRes = await SELF.fetch(`${BASE}/v1/networks/${created.networkId}/join`, {
+      method: "POST",
+      headers: { ...auth(guest), "Content-Type": "application/json" },
+      body: JSON.stringify({
+        password: "secret-password",
+        profileFingerprint: "opf1|zh-104|mod-b",
+        profileName: "Other Setup",
+      }),
+    });
+    expect(joinRes.status).toBe(200);
+    const joined = (await joinRes.json()) as JoinResult;
+    expect(joined.members.map((m) => m.profileFingerprint).sort()).toEqual([
+      "opf1|zh-104|mod-a",
+      "opf1|zh-104|mod-b",
+    ]);
+  });
+
+  it("broadcasts profile-changed when the host switches profile", async () => {
+    const host = await session();
+    const created = await createNetwork(host);
+    const res = await SELF.fetch(`${BASE}/v1/networks/${created.networkId}/presence?ticket=${created.grant}`, {
+      headers: { Upgrade: "websocket" },
+    });
+    expect(res.status).toBe(101);
+    const socket = res.webSocket;
+    expect(socket).not.toBeNull();
+    socket?.accept();
+    const messages: string[] = [];
+    socket?.addEventListener("message", (event: MessageEvent) => {
+      messages.push(String(event.data));
+    });
+    // Drain the opening roster before patching.
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
+    const patch = await SELF.fetch(`${BASE}/v1/networks/${created.networkId}`, {
+      method: "PATCH",
+      headers: { ...auth(created.grant), "Content-Type": "application/json" },
+      body: JSON.stringify({
+        expectedProfileFingerprint: "opf1|zh-104|mod-c",
+        expectedProfileName: "Switched Setup",
+      }),
+    });
+    expect(patch.status).toBe(200);
+
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    const events = messages
+      .map((raw) => JSON.parse(raw) as { type: string; event?: string; data?: Record<string, unknown> })
+      .filter((msg) => msg.type === "event" && msg.event === "profile-changed");
+    expect(events).toHaveLength(1);
+    expect(events[0].data).toMatchObject({
+      expectedProfileFingerprint: "opf1|zh-104|mod-c",
+      expectedProfileName: "Switched Setup",
+    });
+    socket?.close();
+  });
+
+  it("updates member fingerprints from heartbeat advertisements", async () => {
+    const host = await session();
+    const created = await createNetwork(host);
+    const res = await SELF.fetch(`${BASE}/v1/networks/${created.networkId}/presence?ticket=${created.grant}`, {
+      headers: { Upgrade: "websocket" },
+    });
+    expect(res.status).toBe(101);
+    const socket = res.webSocket;
+    expect(socket).not.toBeNull();
+    socket?.accept();
+    const rosters: { profileFingerprint: string }[][] = [];
+    socket?.addEventListener("message", (event: MessageEvent) => {
+      const parsed = JSON.parse(String(event.data)) as { type: string; members?: { profileFingerprint: string }[] };
+      if (parsed.type === "roster" && parsed.members !== undefined) {
+        rosters.push(parsed.members);
+      }
+    });
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    socket?.send(JSON.stringify({ type: "heartbeat", profileFingerprint: "opf1|later", profileName: "Later" }));
+    await new Promise((resolve) => setTimeout(resolve, 150));
+    expect(rosters.length).toBeGreaterThanOrEqual(2);
+    expect(rosters[rosters.length - 1][0].profileFingerprint).toBe("opf1|later");
     socket?.close();
   });
 });

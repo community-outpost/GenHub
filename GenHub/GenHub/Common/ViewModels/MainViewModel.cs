@@ -94,6 +94,7 @@ public partial class MainViewModel(
     /// <summary>
     /// Gets a value indicating whether the Online tab is enabled via feature flag.
     /// </summary>
+    [SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Bound as an instance property from MainView.axaml; making it static would break the binding.")]
     public bool IsOnlineEnabled => OnlineConstants.IsOnlineEnabled;
 
     /// <summary>

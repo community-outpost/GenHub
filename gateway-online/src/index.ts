@@ -159,6 +159,25 @@ const releaseCreation = async (env: OnlineEnv, ip: string): Promise<void> => {
   }
 };
 
+interface ExpectedProfilePayload {
+  expectedProfileId?: unknown;
+  expectedProfileFingerprint?: unknown;
+  expectedProfileName?: unknown;
+  expectedGameClientId?: unknown;
+  expectedContentIds?: unknown;
+}
+
+const expectedProfileResponse = (payload: ExpectedProfilePayload | undefined) => ({
+  expectedProfileId: typeof payload?.expectedProfileId === "string" ? payload.expectedProfileId : "",
+  expectedProfileFingerprint:
+    typeof payload?.expectedProfileFingerprint === "string" ? payload.expectedProfileFingerprint : "",
+  expectedProfileName: typeof payload?.expectedProfileName === "string" ? payload.expectedProfileName : "",
+  expectedGameClientId: typeof payload?.expectedGameClientId === "string" ? payload.expectedGameClientId : "",
+  expectedContentIds: Array.isArray(payload?.expectedContentIds)
+    ? (payload.expectedContentIds as unknown[]).filter((entry): entry is string => typeof entry === "string")
+    : [],
+});
+
 // Live roster lookup for refresh-style endpoints. Grant claims alone cannot
 // prove membership: a removed or banned member's grant stays valid until it
 // expires, and the host flag goes stale on host migration.
@@ -232,9 +251,8 @@ const handleCreate = async (request: Request, env: OnlineEnv): Promise<Response>
   if (input === null) {
     return error("Invalid network fields", 400, "online.invalid-request");
   }
-  if (input.isPublic && input.password.length === 0) {
-    return error("Public networks require a password", 400, "online.password-required");
-  }
+  // Passwords are optional everywhere: public lobbies may run open, and
+  // private lobbies stay unlisted. Only a present-but-short password fails.
   if (input.password.length > 0 && input.password.length < MIN_PASSWORD_LENGTH) {
     return error("Password too short", 400, "online.password-too-short");
   }
@@ -267,6 +285,10 @@ const handleCreate = async (request: Request, env: OnlineEnv): Promise<Response>
         region: clientRegion(request),
         hostDisplayName: displayName,
         expectedProfileId: input.expectedProfileId,
+        expectedProfileFingerprint: input.expectedProfileFingerprint,
+        expectedProfileName: input.expectedProfileName,
+        expectedGameClientId: input.expectedGameClientId,
+        expectedContentIds: input.expectedContentIds,
         verifier,
         nextSlot: 1,
         createdAt: new Date().toISOString(),
@@ -276,6 +298,8 @@ const handleCreate = async (request: Request, env: OnlineEnv): Promise<Response>
       displayName,
       preferRelay: input.preferRelay,
       endpoint: input.endpoint,
+      profileFingerprint: input.profileFingerprint,
+      profileName: input.profileName,
       ip: clientIp(request),
     }),
   });
@@ -283,7 +307,12 @@ const handleCreate = async (request: Request, env: OnlineEnv): Promise<Response>
     await releaseCreation(env, clientIp(request));
     return error("Failed to create network", 500, "online.service-unavailable");
   }
-  const init = (await initRes.json()) as { member: PublicMember; members: PublicMember[]; summary: NetworkSummary };
+  const init = (await initRes.json()) as {
+    member: PublicMember;
+    members: PublicMember[];
+    summary: NetworkSummary;
+    expectedProfile: ExpectedProfilePayload;
+  };
   if (input.isPublic) {
     await syncDirectory(env, init.summary, networkId);
   }
@@ -297,7 +326,7 @@ const handleCreate = async (request: Request, env: OnlineEnv): Promise<Response>
     overlayIp: init.member.overlayIp,
     adapterConfig: await buildAdapterConfig(env, networkId, session.sub),
     members: init.members,
-    expectedProfileId: input.expectedProfileId,
+    ...expectedProfileResponse(init.expectedProfile),
   });
 };
 
@@ -333,13 +362,15 @@ const handleJoin = async (request: Request, env: OnlineEnv, networkId: string): 
       preferRelay: input.preferRelay,
       ip: clientIp(request),
       endpoint: input.endpoint,
+      profileFingerprint: input.profileFingerprint,
+      profileName: input.profileName,
     }),
   });
   const payload = (await res.json()) as {
     member?: PublicMember;
     members?: PublicMember[];
     summary?: NetworkSummary;
-    expectedProfileId?: string;
+    expectedProfile?: ExpectedProfilePayload;
     isHost?: boolean;
     error?: string;
     code?: string;
@@ -365,7 +396,7 @@ const handleJoin = async (request: Request, env: OnlineEnv, networkId: string): 
     overlayIp: payload.member.overlayIp,
     adapterConfig: await buildAdapterConfig(env, networkId, session.sub),
     members: payload.members ?? [],
-    expectedProfileId: payload.expectedProfileId ?? "",
+    ...expectedProfileResponse(payload.expectedProfile),
   });
 };
 
@@ -433,12 +464,19 @@ const handleMetaPatch = async (request: Request, env: OnlineEnv, networkId: stri
     return error("Invalid request body", 400, "online.invalid-request");
   }
   const raw = read.body as Record<string, unknown>;
+  const str = (value: unknown): string | undefined => (typeof value === "string" ? value : undefined);
+  const strList = (value: unknown): string[] | undefined =>
+    Array.isArray(value) && value.every((entry): entry is string => typeof entry === "string") ? value : undefined;
   const res = await roomStub(env, networkId).fetch("https://room/internal/meta", {
     method: "PATCH",
     body: JSON.stringify({
       sub: grant.sub,
-      description: typeof raw.description === "string" ? raw.description : undefined,
-      expectedProfileId: typeof raw.expectedProfileId === "string" ? raw.expectedProfileId : undefined,
+      description: str(raw.description),
+      expectedProfileId: str(raw.expectedProfileId),
+      expectedProfileFingerprint: str(raw.expectedProfileFingerprint),
+      expectedProfileName: str(raw.expectedProfileName),
+      expectedGameClientId: str(raw.expectedGameClientId),
+      expectedContentIds: strList(raw.expectedContentIds),
     }),
   });
   const payload = (await res.json()) as { summary?: NetworkSummary; error?: string };

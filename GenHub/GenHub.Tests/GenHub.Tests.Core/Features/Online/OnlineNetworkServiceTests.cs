@@ -435,7 +435,7 @@ public sealed class OnlineNetworkServiceTests
         // Act
         var report = await service.ReportMemberAsync("10.42.0.8", "Cheating");
         var ban = await service.BanMemberAsync("10.42.0.8");
-        var update = await service.UpdateNetworkAsync("New desc", "zh-1.04");
+        var update = await service.UpdateNetworkAsync("New desc", new OnlineExpectedProfile { ExpectedProfileId = "zh-1.04" });
 
         // Assert
         Assert.True(report.Success);

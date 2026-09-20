@@ -376,9 +376,9 @@ public sealed class OverlaySidecarHost(ILogger<OverlaySidecarHost> logger) : IOv
                 {
                     await WaitForExitAsync(process, timeout.Token);
                 }
-                catch (OperationCanceledException)
+                catch (OperationCanceledException ex)
                 {
-                    logger.LogWarning("Overlay sidecar did not exit in time.");
+                    logger.LogWarning(ex, "Overlay sidecar did not exit in time.");
                 }
             }
         }

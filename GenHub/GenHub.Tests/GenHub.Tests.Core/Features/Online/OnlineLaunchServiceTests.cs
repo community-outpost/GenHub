@@ -1,6 +1,9 @@
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.GameProfiles;
+using GenHub.Core.Interfaces.GameSettings;
+using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameProfile;
+using GenHub.Core.Models.GameSettings;
 using GenHub.Core.Models.Launching;
 using GenHub.Core.Models.Results;
 using GenHub.Features.Online.Services;
@@ -15,7 +18,7 @@ namespace GenHub.Tests.Core.Features.Online;
 public class OnlineLaunchServiceTests
 {
     /// <summary>
-    /// Tests that a blank expected profile id fails without touching launch services.
+    /// Tests that a blank profile id fails without touching launch services.
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Fact]
@@ -24,7 +27,8 @@ public class OnlineLaunchServiceTests
         // Arrange
         var manager = new Mock<IGameProfileManager>(MockBehavior.Strict);
         var facade = new Mock<IProfileLauncherFacade>(MockBehavior.Strict);
-        var service = new OnlineLaunchService(manager.Object, facade.Object, Mock.Of<ILogger<OnlineLaunchService>>());
+        var settings = new Mock<IGameSettingsService>(MockBehavior.Strict);
+        var service = new OnlineLaunchService(manager.Object, facade.Object, settings.Object, Mock.Of<ILogger<OnlineLaunchService>>());
 
         // Act
         var result = await service.PlayAsync("  ", "Net");
@@ -48,6 +52,7 @@ public class OnlineLaunchServiceTests
         var service = new OnlineLaunchService(
             manager.Object,
             Mock.Of<IProfileLauncherFacade>(),
+            Mock.Of<IGameSettingsService>(),
             Mock.Of<ILogger<OnlineLaunchService>>());
 
         // Act
@@ -72,7 +77,11 @@ public class OnlineLaunchServiceTests
         var facade = new Mock<IProfileLauncherFacade>();
         facade.Setup(f => f.LaunchProfileAsync(It.IsAny<string>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(ProfileOperationResult<GameLaunchInfo>.CreateFailure("No game"));
-        var service = new OnlineLaunchService(manager.Object, facade.Object, Mock.Of<ILogger<OnlineLaunchService>>());
+        var service = new OnlineLaunchService(
+            manager.Object,
+            facade.Object,
+            Mock.Of<IGameSettingsService>(),
+            Mock.Of<ILogger<OnlineLaunchService>>());
 
         // Act
         var result = await service.PlayAsync("p1", "Net");
@@ -83,11 +92,11 @@ public class OnlineLaunchServiceTests
     }
 
     /// <summary>
-    /// Tests that a successful launch returns the play outcome.
+    /// Tests that a successful launch returns the play outcome and preselects the lobby IP.
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Fact]
-    public async Task PlayAsync_OnSuccess_ShouldReturnOutcomeAsync()
+    public async Task PlayAsync_OnSuccess_ShouldPreselectLobbyIpAsync()
     {
         // Arrange
         var manager = new Mock<IGameProfileManager>();
@@ -97,15 +106,79 @@ public class OnlineLaunchServiceTests
         facade.Setup(f => f.LaunchProfileAsync(It.IsAny<string>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(ProfileOperationResult<GameLaunchInfo>.CreateSuccess(
                 new GameLaunchInfo { LaunchId = "l1", ProfileId = "p1", WorkspaceId = "w1", ProcessInfo = new GameProcessInfo() }));
-        var service = new OnlineLaunchService(manager.Object, facade.Object, Mock.Of<ILogger<OnlineLaunchService>>());
+        var settings = new Mock<IGameSettingsService>();
+        settings.Setup(s => s.LoadOptionsAsync(It.IsAny<GameType>()))
+            .ReturnsAsync(OperationResult<IniOptions>.CreateSuccess(new IniOptions()));
+        settings.Setup(s => s.SaveOptionsAsync(It.IsAny<GameType>(), It.IsAny<IniOptions>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+        var service = new OnlineLaunchService(manager.Object, facade.Object, settings.Object, Mock.Of<ILogger<OnlineLaunchService>>());
 
         // Act
-        var result = await service.PlayAsync("p1", "Net");
+        var result = await service.PlayAsync("p1", "Net", "10.42.0.7");
 
         // Assert
         Assert.True(result.Success);
         Assert.Equal("p1", result.Data.ProfileId);
         Assert.Equal("ZH", result.Data.ProfileName);
+        facade.Verify(f => f.LaunchProfileAsync("p1", false, It.IsAny<CancellationToken>()), Times.Once);
+        settings.Verify(
+            s => s.SaveOptionsAsync(GameType.ZeroHour, It.Is<IniOptions>(o => o.Network.GameSpyIPAddress == "10.42.0.7")),
+            Times.Once);
+    }
+
+    /// <summary>
+    /// Tests that an invalid overlay IP never touches the game settings.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task PlayAsync_WithInvalidOverlayIp_ShouldNotWriteSettingsAsync()
+    {
+        // Arrange
+        var manager = new Mock<IGameProfileManager>();
+        manager.Setup(m => m.GetProfileAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(new GameProfile { Id = "p1", Name = "ZH" }));
+        var facade = new Mock<IProfileLauncherFacade>();
+        facade.Setup(f => f.LaunchProfileAsync(It.IsAny<string>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameLaunchInfo>.CreateSuccess(
+                new GameLaunchInfo { LaunchId = "l1", ProfileId = "p1", WorkspaceId = "w1", ProcessInfo = new GameProcessInfo() }));
+        var settings = new Mock<IGameSettingsService>(MockBehavior.Strict);
+        var service = new OnlineLaunchService(manager.Object, facade.Object, settings.Object, Mock.Of<ILogger<OnlineLaunchService>>());
+
+        // Act
+        var result = await service.PlayAsync("p1", "Net", "not-an-ip");
+
+        // Assert
+        Assert.True(result.Success);
+        settings.Verify(s => s.SaveOptionsAsync(It.IsAny<GameType>(), It.IsAny<IniOptions>()), Times.Never);
+    }
+
+    /// <summary>
+    /// Tests that a settings write failure never blocks the launch.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task PlayAsync_WhenSettingsWriteFails_ShouldStillLaunchAsync()
+    {
+        // Arrange
+        var manager = new Mock<IGameProfileManager>();
+        manager.Setup(m => m.GetProfileAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(new GameProfile { Id = "p1", Name = "ZH" }));
+        var facade = new Mock<IProfileLauncherFacade>();
+        facade.Setup(f => f.LaunchProfileAsync(It.IsAny<string>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameLaunchInfo>.CreateSuccess(
+                new GameLaunchInfo { LaunchId = "l1", ProfileId = "p1", WorkspaceId = "w1", ProcessInfo = new GameProcessInfo() }));
+        var settings = new Mock<IGameSettingsService>();
+        settings.Setup(s => s.LoadOptionsAsync(It.IsAny<GameType>()))
+            .ReturnsAsync(OperationResult<IniOptions>.CreateFailure("locked"));
+        settings.Setup(s => s.SaveOptionsAsync(It.IsAny<GameType>(), It.IsAny<IniOptions>()))
+            .ReturnsAsync(OperationResult<bool>.CreateFailure("locked"));
+        var service = new OnlineLaunchService(manager.Object, facade.Object, settings.Object, Mock.Of<ILogger<OnlineLaunchService>>());
+
+        // Act
+        var result = await service.PlayAsync("p1", "Net", "10.42.0.7");
+
+        // Assert
+        Assert.True(result.Success);
         facade.Verify(f => f.LaunchProfileAsync("p1", false, It.IsAny<CancellationToken>()), Times.Once);
     }
 }

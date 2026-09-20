@@ -1829,9 +1829,6 @@
   <data name="Online.Action.Save" xml:space="preserve">
     <value>Save</value>
   </data>
-  <data name="Online.Action.Test" xml:space="preserve">
-    <value>Test</value>
-  </data>
   <data name="Online.Action.Refresh" xml:space="preserve">
     <value>Refresh</value>
   </data>
@@ -1842,7 +1839,7 @@
     <value>Password (optional for private)</value>
   </data>
   <data name="Online.Create.PasswordHint" xml:space="preserve">
-    <value>Required for public networks (min 4 characters).</value>
+    <value>Optional. Leave empty for an open lobby (min 4 characters when set).</value>
   </data>
   <data name="Online.Create.PublicLabel" xml:space="preserve">
     <value>List publicly</value>
@@ -1864,12 +1861,6 @@
   </data>
   <data name="Online.Create.DescriptionWatermark" xml:space="preserve">
     <value>Description and house rules (optional)</value>
-  </data>
-  <data name="Online.Create.PreferRelay" xml:space="preserve">
-    <value>Prefer relay (hide my endpoint)</value>
-  </data>
-  <data name="Online.Create.PreferRelayTooltip" xml:space="preserve">
-    <value>Route traffic through a relay instead of connecting directly. Slower, but hides your public endpoint from peers.</value>
   </data>
   <data name="Online.Adapter.UnavailableTitle" xml:space="preserve">
     <value>Multiplayer tunneling unavailable</value>
@@ -1895,12 +1886,6 @@
   <data name="Online.Detail.NoDescription" xml:space="preserve">
     <value>No description.</value>
   </data>
-  <data name="Online.Detail.ProfileInstalled" xml:space="preserve">
-    <value>installed</value>
-  </data>
-  <data name="Online.Detail.ProfileMissing" xml:space="preserve">
-    <value>not installed</value>
-  </data>
   <data name="Online.Detail.SlotsLabel" xml:space="preserve">
     <value>Slots</value>
   </data>
@@ -1921,9 +1906,6 @@
   </data>
   <data name="Online.Error.CopyUnavailable" xml:space="preserve">
     <value>Clipboard is not available.</value>
-  </data>
-  <data name="Online.Error.PasswordRequired" xml:space="preserve">
-    <value>Public networks require a password of at least 4 characters.</value>
   </data>
   <data name="Online.Error.PasswordTooShort" xml:space="preserve">
     <value>Password must be at least 4 characters.</value>
@@ -1948,9 +1930,6 @@
   </data>
   <data name="Online.Host.DescriptionWatermark" xml:space="preserve">
     <value>Description and house rules</value>
-  </data>
-  <data name="Online.Host.ProfileWatermark" xml:space="preserve">
-    <value>Expected game profile id</value>
   </data>
   <data name="Online.Host.SuccessMessage" xml:space="preserve">
     <value>Network settings updated.</value>
@@ -2051,14 +2030,8 @@
   <data name="Online.Join.PasswordWatermark" xml:space="preserve">
     <value>Network password</value>
   </data>
-  <data name="Online.Join.PreferRelay" xml:space="preserve">
-    <value>Prefer relay (hide my endpoint)</value>
-  </data>
-  <data name="Online.Join.PreferRelayTooltip" xml:space="preserve">
-    <value>Route traffic through a relay instead of connecting directly. Slower, but hides your public endpoint from peers.</value>
-  </data>
   <data name="Online.Join.PrivacyNotice" xml:space="preserve">
-    <value>Relay mode (on by default) hides your public endpoint from room members. Turn it off to connect directly, which shares your endpoint like Hamachi.</value>
+    <value>Traffic is always relayed: your real IP address is never shared with lobby members.</value>
   </data>
   <data name="Online.Join.SuccessMessage" xml:space="preserve">
     <value>Connected with overlay IP {0}. Open the in-game LAN lobby to play.</value>
@@ -2119,18 +2092,6 @@
   </data>
   <data name="Online.Report.SuccessTitle" xml:space="preserve">
     <value>Report sent</value>
-  </data>
-  <data name="Online.Error.TestFailed" xml:space="preserve">
-    <value>Could not reach {0} directly. A relay may be required.</value>
-  </data>
-  <data name="Online.Error.TestTitle" xml:space="preserve">
-    <value>Connection test failed</value>
-  </data>
-  <data name="Online.Test.SuccessMessage" xml:space="preserve">
-    <value>You can reach {0} directly.</value>
-  </data>
-  <data name="Online.Test.SuccessTitle" xml:space="preserve">
-    <value>Direct connection works</value>
   </data>
   <data name="Online.List.Title" xml:space="preserve">
     <value>Networks</value>
@@ -11609,6 +11570,54 @@ Then click the 'Submit' button at the bottom of the page! (GenHub requests exact
   <data name="Storage.DuplicateInstallation.GenericReinstallGuidance" xml:space="preserve">
     <value>To keep a single installation, reinstall over the previous location or move this install in Settings &gt; Migrate Installation, then remove the remaining duplicate copy.</value>
     <comment>Cross-platform guidance appended to the duplicate installation message on non-Windows hosts.</comment>
+  </data>
+  <data name="Online.Create.ProfileLabel" xml:space="preserve">
+    <value>Game profile</value>
+  </data>
+  <data name="Online.Create.ProfilePlaceholder" xml:space="preserve">
+    <value>No profile (any setup)</value>
+  </data>
+  <data name="Online.Create.ProfileHint" xml:space="preserve">
+    <value>Members auto-match this setup. Anyone can still join; mismatches are only shown.</value>
+  </data>
+  <data name="Online.Detail.MatchLabel" xml:space="preserve">
+    <value>Your setup</value>
+  </data>
+  <data name="Online.Detail.PlayProfileLabel" xml:space="preserve">
+    <value>Plays with</value>
+  </data>
+  <data name="Online.Match.Exact" xml:space="preserve">
+    <value>Matches</value>
+  </data>
+  <data name="Online.Match.SameClient" xml:space="preserve">
+    <value>Same game, different mods</value>
+  </data>
+  <data name="Online.Match.Mismatch" xml:space="preserve">
+    <value>Different game</value>
+  </data>
+  <data name="Online.Match.Unknown" xml:space="preserve">
+    <value>Unknown</value>
+  </data>
+  <data name="Online.Profile.SwitchedTitle" xml:space="preserve">
+    <value>Lobby game changed</value>
+  </data>
+  <data name="Online.Profile.SwitchedMessage" xml:space="preserve">
+    <value>The host switched the lobby to {0}.</value>
+  </data>
+  <data name="Online.Profile.SwitchedClearedMessage" xml:space="preserve">
+    <value>The host cleared the lobby game.</value>
+  </data>
+  <data name="Online.Adapter.PendingTitle" xml:space="preserve">
+    <value>Lobby only</value>
+  </data>
+  <data name="Online.Adapter.PendingMessage" xml:space="preserve">
+    <value>Tunneling isn't available yet, so members won't appear in-game. Roster and presence work.</value>
+  </data>
+  <data name="Online.Host.ProfileLabel" xml:space="preserve">
+    <value>Game profile</value>
+  </data>
+  <data name="Online.Host.ProfilePlaceholder" xml:space="preserve">
+    <value>No profile (any setup)</value>
   </data>
   <data name="GameSettings.Video.ResolutionToolTip" xml:space="preserve">
     <value>Sets the display resolution for the game.</value>
