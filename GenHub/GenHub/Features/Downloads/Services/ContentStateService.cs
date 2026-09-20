@@ -1406,7 +1406,7 @@ public sealed partial class ContentStateService(
 
         if (IsGitHubUrl(cleanSource) &&
             !cleanSource.Contains("/releases/tag/", StringComparison.OrdinalIgnoreCase) &&
-            !cleanSource.Contains("/releases/download/", StringComparison.OrdinalIgnoreCase))
+            !cleanSource.Contains(GitHubConstants.ReleaseAssetUrlMarker, StringComparison.OrdinalIgnoreCase))
         {
             return false;
         }

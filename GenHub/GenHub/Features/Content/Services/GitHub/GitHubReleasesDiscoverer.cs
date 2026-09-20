@@ -209,38 +209,6 @@ public partial class GitHubReleasesDiscoverer(IGitHubApiClient gitHubClient, ILo
         string ProviderName,
         string IconUrl);
 
-    private static string? FindSuperHackersAssetName(
-        IEnumerable<GitHubReleaseAsset>? assets,
-        GameType gameType)
-    {
-        if (assets == null)
-        {
-            return null;
-        }
-
-        var candidates = assets
-            .Where(asset => !string.IsNullOrWhiteSpace(asset.Name))
-            .ToList();
-
-        return gameType switch
-        {
-            GameType.ZeroHour => candidates
-                .FirstOrDefault(asset => asset.Name.Contains("generalszh", StringComparison.OrdinalIgnoreCase)
-                    || asset.Name.Contains("zero-hour", StringComparison.OrdinalIgnoreCase)
-                    || asset.Name.Contains("zerohour", StringComparison.OrdinalIgnoreCase)
-                    || asset.Name.Contains("_zh", StringComparison.OrdinalIgnoreCase))
-                ?.Name,
-            GameType.Generals => candidates
-                .FirstOrDefault(asset => asset.Name.Contains("generals", StringComparison.OrdinalIgnoreCase)
-                    && !asset.Name.Contains("generalszh", StringComparison.OrdinalIgnoreCase)
-                    && !asset.Name.Contains("zero-hour", StringComparison.OrdinalIgnoreCase)
-                    && !asset.Name.Contains("zerohour", StringComparison.OrdinalIgnoreCase)
-                    && !asset.Name.Contains("_zh", StringComparison.OrdinalIgnoreCase))
-                ?.Name,
-            _ => null,
-        };
-    }
-
     /// <summary>
     /// Builds a single SuperHackers game-client variant card.
     /// </summary>
@@ -281,12 +249,16 @@ public partial class GitHubReleasesDiscoverer(IGitHubApiClient gitHubClient, ILo
             },
         };
 
+        // Attach the fetched release so the detail view can hydrate the Releases tab and
+        // the resolver can reuse the asset list without an extra GitHub API call.
+        result.SetData(request.Release);
+
         // A release can contain a separate archive for each game. Record the exact asset on
         // the card so resolving a single variant never downloads its siblings.
-        var assetName = FindSuperHackersAssetName(request.Release.Assets, request.GameType);
+        var assetName = SuperHackersAssetMatcher.FindAssetName(request.Release.Assets, request.GameType);
         if (!string.IsNullOrEmpty(assetName))
         {
-            result.ResolverMetadata["asset-name"] = assetName;
+            result.ResolverMetadata[GitHubConstants.AssetNameMetadataKey] = assetName;
             var matchingAsset = request.Release.Assets?.FirstOrDefault(a =>
                 string.Equals(a.Name, assetName, StringComparison.OrdinalIgnoreCase));
             if (matchingAsset?.Size > 0)
@@ -373,7 +345,7 @@ public partial class GitHubReleasesDiscoverer(IGitHubApiClient gitHubClient, ILo
 
     private static ContentSearchResult BuildStandardSearchResult(StandardSearchResultRequest request)
     {
-        return new ContentSearchResult
+        var result = new ContentSearchResult
         {
             Id = $"github.{request.Owner}.{request.Repo}.{request.Release.TagName}",
             Name = request.BaseName,
@@ -400,6 +372,12 @@ public partial class GitHubReleasesDiscoverer(IGitHubApiClient gitHubClient, ILo
                 ["VariantCount"] = request.VariantCount.ToString(),
             },
         };
+
+        // Attach the fetched release so the detail view can hydrate the Releases tab and
+        // the resolver can reuse the asset list without an extra GitHub API call.
+        result.SetData(request.Release);
+
+        return result;
     }
 
     [GeneratedRegex(@"\b(\d{4})[-.](\d{2})[-.](\d{2})\b", RegexOptions.CultureInvariant)]

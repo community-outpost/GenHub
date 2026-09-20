@@ -5,6 +5,8 @@ using Microsoft.Extensions.Logging;
 using Moq;
 using System.Net;
 using System.Security;
+using System.Text;
+using System.Threading;
 
 namespace GenHub.Tests.Core.Features.AppUpdate.Services;
 
@@ -245,5 +247,83 @@ public class OctokitGitHubApiClientTests
         result.Should().BeNull();
         api.IsRateLimited.Should().BeTrue();
         tracker.IsAtLimit.Should().BeTrue();
+    }
+
+    /// <summary>
+    /// Verifies that GetReadmeAsync honors cancellation before issuing the API call.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task GetReadmeAsync_WhenCancelled_ThrowsBeforeApiCallAsync()
+    {
+        // Arrange
+        var contentsClientMock = new Mock<Octokit.IRepositoryContentsClient>();
+
+        var repositoriesClientMock = new Mock<Octokit.IRepositoriesClient>();
+        repositoriesClientMock
+            .SetupGet(x => x.Content)
+            .Returns(contentsClientMock.Object);
+
+        var gitHubClientMock = new Mock<Octokit.IGitHubClient>();
+        gitHubClientMock.SetupGet(x => x.Repository).Returns(repositoriesClientMock.Object);
+
+        var api = new OctokitGitHubApiClient(
+            gitHubClientMock.Object,
+            Mock.Of<IHttpClientFactory>(),
+            Mock.Of<ILogger<OctokitGitHubApiClient>>(),
+            new MemoryCache(new MemoryCacheOptions()));
+
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+
+        // Act & Assert
+        await Assert.ThrowsAsync<OperationCanceledException>(() => api.GetReadmeAsync("owner", "repo", cts.Token));
+        contentsClientMock.Verify(
+            x => x.GetReadme(It.IsAny<string>(), It.IsAny<string>()),
+            Times.Never);
+    }
+
+    /// <summary>
+    /// Verifies that GetReadmeAsync base64-decodes the raw API payload.
+    /// Octokit's Readme DTO carries the encoded content verbatim.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task GetReadmeAsync_DecodesBase64ReadmeContentAsync()
+    {
+        // Arrange
+        const string markdown = "# coolmod\nA great mod.";
+        var encoded = Convert.ToBase64String(Encoding.UTF8.GetBytes(markdown));
+        var readme = new Octokit.Readme(
+            new Lazy<Task<string>>(() => Task.FromResult(string.Empty)),
+            encoded,
+            "README.md",
+            "https://github.com/owner/repo",
+            "https://api.github.com/repos/owner/repo/readme");
+
+        var contentsClientMock = new Mock<Octokit.IRepositoryContentsClient>();
+        contentsClientMock
+            .Setup(x => x.GetReadme(It.IsAny<string>(), It.IsAny<string>()))
+            .ReturnsAsync(readme);
+
+        var repositoriesClientMock = new Mock<Octokit.IRepositoriesClient>();
+        repositoriesClientMock
+            .SetupGet(x => x.Content)
+            .Returns(contentsClientMock.Object);
+
+        var gitHubClientMock = new Mock<Octokit.IGitHubClient>();
+        gitHubClientMock.SetupGet(x => x.Repository).Returns(repositoriesClientMock.Object);
+
+        var api = new OctokitGitHubApiClient(
+            gitHubClientMock.Object,
+            Mock.Of<IHttpClientFactory>(),
+            Mock.Of<ILogger<OctokitGitHubApiClient>>(),
+            new MemoryCache(new MemoryCacheOptions()));
+
+        // Act
+        var result = await api.GetReadmeAsync("owner", "repo");
+
+        // Assert
+        result.Should().Be(markdown);
     }
 }

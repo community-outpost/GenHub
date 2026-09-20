@@ -85,6 +85,14 @@
             <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
             <Setter Property="RenderTransform" Value="scale(1.02)" />
         </Style>
+        <!-- Cap images rendered inside markdown viewers (README, release notes) so
+             oversized screenshots and explicit width attributes cannot blow out the layout. -->
+        <Style Selector="md|MarkdownScrollViewer Image">
+            <Setter Property="MaxWidth" Value="800" />
+            <Setter Property="MaxHeight" Value="600" />
+            <Setter Property="Stretch" Value="Uniform" />
+            <Setter Property="HorizontalAlignment" Value="Left" />
+        </Style>
     </UserControl.Styles>
 
     <Panel>
@@ -270,6 +278,25 @@
                                 <StackPanel Spacing="12">
                                     <TextBlock Text="{localization:Localize Downloads.ContentDetail.About}" FontSize="20" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" />
                                     <md:MarkdownScrollViewer Markdown="{Binding FormattedDescription}">
+                                        <md:MarkdownScrollViewer.Plugins>
+                                            <md:MdAvPlugins HyperlinkCommand="{StaticResource SafeMarkdownHyperlinkCommand}"
+                                                            PathResolver="{StaticResource SafeMarkdownPathResolver}" />
+                                        </md:MarkdownScrollViewer.Plugins>
+                                        <md:MarkdownScrollViewer.Styles>
+                                            <Style Selector="TextBlock">
+                                                <Setter Property="Foreground" Value="{DynamicResource TextSecondary}"/>
+                                                <Setter Property="FontSize" Value="15"/>
+                                                <Setter Property="LineHeight" Value="24"/>
+                                                <Setter Property="TextWrapping" Value="Wrap"/>
+                                            </Style>
+                                        </md:MarkdownScrollViewer.Styles>
+                                    </md:MarkdownScrollViewer>
+                                </StackPanel>
+
+                                <!-- Repository README (GitHub items) -->
+                                <StackPanel Spacing="12" IsVisible="{Binding HasReadme}">
+                                    <TextBlock Text="{localization:Localize Downloads.ContentDetail.Readme}" FontSize="20" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" />
+                                    <md:MarkdownScrollViewer Markdown="{Binding FormattedReadme}">
                                         <md:MarkdownScrollViewer.Plugins>
                                             <md:MdAvPlugins HyperlinkCommand="{StaticResource SafeMarkdownHyperlinkCommand}"
                                                             PathResolver="{StaticResource SafeMarkdownPathResolver}" />

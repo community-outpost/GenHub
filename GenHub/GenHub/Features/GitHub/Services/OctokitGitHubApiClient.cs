@@ -11,6 +11,7 @@ using System.Linq;
 using System.Net.Http;
 using System.Runtime.InteropServices;
 using System.Security;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -770,6 +771,75 @@ public class OctokitGitHubApiClient(
         {
             logger.LogError(ex, "Failed to get repository {Owner}/{Repo}", owner, repo);
             return null;
+        }
+    }
+
+    /// <summary>
+    /// Gets the repository README decoded as markdown.
+    /// </summary>
+    /// <param name="owner">The repository owner.</param>
+    /// <param name="repo">The repository name.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The README markdown, or null when the repository has no README.</returns>
+    public async Task<string?> GetReadmeAsync(
+        string owner,
+        string repo,
+        CancellationToken cancellationToken = default)
+    {
+        var cacheKey = $"GitHub_Readme_{owner}_{repo}";
+        if (cache.TryGetValue(cacheKey, out string? cachedReadme))
+        {
+            return cachedReadme;
+        }
+
+        cancellationToken.ThrowIfCancellationRequested();
+
+        try
+        {
+            await EnsureCredentialsLoadedAsync().ConfigureAwait(false);
+            var readme = await gitHubClient.Repository.Content.GetReadme(owner, repo).ConfigureAwait(false);
+            UpdateRateLimitFromLastApiInfo();
+            var markdown = DecodeReadmeContent(readme.Content);
+            cache.Set(cacheKey, markdown, DefaultCacheDuration);
+            return markdown;
+        }
+        catch (NotFoundException ex)
+        {
+            logger.LogDebug(ex, "Repository {Owner}/{Repo} has no README", owner, repo);
+            cache.Set<string?>(cacheKey, null, DefaultCacheDuration);
+            return null;
+        }
+        catch (RateLimitExceededException ex)
+        {
+            rateLimitTracker?.UpdateFromException(ex.Reset.UtcDateTime);
+            logger.LogWarning(ex, "Rate limit exceeded when getting README for {Owner}/{Repo}. Reset at: {ResetTime}", owner, repo, ex.Reset);
+            return null;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to get README for {Owner}/{Repo}", owner, repo);
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Decodes base64 README content, falling back to the raw text when it is not encoded.
+    /// </summary>
+    private static string? DecodeReadmeContent(string? content)
+    {
+        if (string.IsNullOrWhiteSpace(content))
+        {
+            return null;
+        }
+
+        try
+        {
+            var bytes = Convert.FromBase64String(content);
+            return Encoding.UTF8.GetString(bytes);
+        }
+        catch (FormatException)
+        {
+            return content;
         }
     }
 
