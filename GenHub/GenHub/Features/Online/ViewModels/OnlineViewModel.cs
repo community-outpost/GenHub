@@ -54,6 +54,7 @@ public sealed partial class OnlineViewModel(
     private CancellationTokenSource? _searchCts;
     private CancellationTokenSource? _detailCts;
     private bool _disposed;
+    private bool _joinInFlight;
 
     [ObservableProperty]
     private ObservableCollection<OnlineNetworkSummary> _networks = [];
@@ -218,6 +219,15 @@ public sealed partial class OnlineViewModel(
             return;
         }
 
+        // The Join button stays enabled for the whole round-trip; a second
+        // activation while one is in flight would mint a second membership
+        // the client never tracks.
+        if (_joinInFlight)
+        {
+            return;
+        }
+
+        _joinInFlight = true;
         try
         {
             IsLoading = true;
@@ -249,6 +259,7 @@ public sealed partial class OnlineViewModel(
         finally
         {
             IsLoading = false;
+            _joinInFlight = false;
         }
     }
 
@@ -318,6 +329,14 @@ public sealed partial class OnlineViewModel(
             return;
         }
 
+        // Shares the join guard: creating while a join is in flight would
+        // mint two memberships the client cannot track.
+        if (_joinInFlight)
+        {
+            return;
+        }
+
+        _joinInFlight = true;
         try
         {
             IsLoading = true;
@@ -361,6 +380,7 @@ public sealed partial class OnlineViewModel(
         finally
         {
             IsLoading = false;
+            _joinInFlight = false;
         }
     }
 
