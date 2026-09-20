@@ -110,9 +110,6 @@ public static class PublisherTypeConstants
     /// <summary>GenHub internal system content publisher.</summary>
     public const string GenHubInternal = "genhub";
 
-    /// <summary>CSV registry publisher for base game manifests.</summary>
-    public const string CsvRegistry = "csvregistry";
-
     /// <summary>
     /// Set of known curated or platform publisher identifiers that must not be registered via untrusted direct package imports.
     /// </summary>

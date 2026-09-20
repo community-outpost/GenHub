@@ -1,6 +1,6 @@
+using CommunityToolkit.Mvvm.ComponentModel;
 using System;
 using System.IO;
-using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace GenHub.Features.Tools.ModBuilder.ViewModels;
 

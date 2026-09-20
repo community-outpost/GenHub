@@ -1,5 +1,5 @@
-using System.Collections.Generic;
 using MessagePack;
+using System.Collections.Generic;
 
 namespace GenHub.Core.Models.Tools.ModBuilder;
 

@@ -1,13 +1,9 @@
-// <copyright file="ActiveBorderConverter.cs" company="Enowx Labs">
-// Copyright (c) Enowx Labs. All rights reserved.
-// </copyright>
-
-namespace GenHub.Infrastructure.Converters;
-
-using System;
-using System.Globalization;
 using Avalonia.Data.Converters;
 using Avalonia.Media;
+using System;
+using System.Globalization;
+
+namespace GenHub.Infrastructure.Converters;
 
 /// <summary>
 /// Converts a boolean active state to an active border brush or transparent/default border brush.

@@ -1,6 +1,6 @@
-using System;
 using Avalonia.Media;
 using CommunityToolkit.Mvvm.ComponentModel;
+using System;
 
 namespace GenHub.Features.Tools.ModBuilder.ViewModels;
 

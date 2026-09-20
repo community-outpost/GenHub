@@ -1,7 +1,7 @@
-using System.Collections.Generic;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 using GenHub.Features.Tools.ModBuilder.ViewModels;
+using System.Collections.Generic;
 
 namespace GenHub.Features.Tools.ModBuilder.Views;
 

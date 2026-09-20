@@ -971,113 +971,6 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
         _logger.LogInformation("Update manager cache cleared");
     }
 
-    /// <summary>
-    /// Cleans stray mutable build artifacts (.Build, .Release, .modbuilder_cache, etc.)
-    /// from the application directory prior to applying an update.
-    /// This prevents Windows file-lock (ERROR_ACCESS_DENIED) errors during Velopack package replacement.
-    /// </summary>
-    internal void CleanStrayAppDirectoryArtifacts()
-    {
-        try
-        {
-            var baseDir = AppDomain.CurrentDomain.BaseDirectory;
-            var sampleProjectsDir = Path.Combine(baseDir, ModBuilderConstants.SampleProjectsDirectoryName);
-            if (Directory.Exists(sampleProjectsDir))
-            {
-                CleanSampleProjectArtifacts(sampleProjectsDir);
-            }
-
-            CleanStrayMsgpackFiles(baseDir);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "Error during pre-update app directory cleanup");
-        }
-    }
-
-    private void CleanSampleProjectArtifacts(string sampleProjectsDir)
-    {
-        var options = new EnumerationOptions
-        {
-            RecurseSubdirectories = true,
-            IgnoreInaccessible = true,
-            MatchCasing = MatchCasing.CaseInsensitive,
-            AttributesToSkip = FileAttributes.None,
-        };
-
-        try
-        {
-            var strayDirs = Directory.EnumerateDirectories(sampleProjectsDir, "*", options)
-                         .Where(d => IsStrayArtifactDirectory(Path.GetFileName(d)))
-                         .ToList();
-
-            foreach (var dir in strayDirs)
-            {
-                TryDeleteStrayDirectory(dir);
-            }
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-        {
-            _logger.LogWarning(ex, "Error enumerating sample projects directory: {Dir}", sampleProjectsDir);
-        }
-    }
-
-    private static bool IsStrayArtifactDirectory(string dirName) =>
-        dirName.Equals(ModBuilderConstants.DefaultBuildDir, StringComparison.OrdinalIgnoreCase) ||
-        dirName.Equals(ModBuilderConstants.DefaultReleaseDir, StringComparison.OrdinalIgnoreCase) ||
-        dirName.StartsWith(ModBuilderConstants.StagingDirectoryPrefix, StringComparison.OrdinalIgnoreCase) ||
-        dirName.Equals(ModBuilderConstants.CacheDirectoryName, StringComparison.OrdinalIgnoreCase);
-
-    private void TryDeleteStrayDirectory(string dir)
-    {
-        try
-        {
-            if (!Directory.Exists(dir))
-            {
-                return;
-            }
-
-            var parentDir = Path.GetDirectoryName(dir);
-            if (IsProjectDirectory(parentDir))
-            {
-                Directory.Delete(dir, recursive: true);
-                _logger.LogInformation("Pre-update cleanup removed stray directory: {Dir}", dir);
-            }
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-        {
-            _logger.LogWarning(ex, "Pre-update cleanup could not delete directory: {Dir}", dir);
-        }
-    }
-
-    private static bool IsProjectDirectory(string? parentDir)
-    {
-        if (parentDir == null)
-        {
-            return false;
-        }
-
-        return Directory.GetFiles(parentDir, ModBuilderConstants.ProjectFilePattern).Length > 0 ||
-               Directory.Exists(Path.Combine(parentDir, ModBuilderConstants.LowercaseConfigDir)) ||
-               Directory.Exists(Path.Combine(parentDir, ModBuilderConstants.ConfigDir));
-    }
-
-    private void CleanStrayMsgpackFiles(string baseDir)
-    {
-        foreach (var file in Directory.GetFiles(baseDir, "*.msgpack", SearchOption.TopDirectoryOnly))
-        {
-            try
-            {
-                File.Delete(file);
-                _logger.LogInformation("Pre-update cleanup removed stray file: {File}", file);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "Pre-update cleanup could not delete file: {File}", file);
-            }
-        }
-    }
-
     /// <inheritdoc/>
     [System.Diagnostics.CodeAnalysis.SuppressMessage("DeepSource", "CS-W1005", Justification = "Explicit application termination required after launching uninstaller.")]
     public void Uninstall()
@@ -1197,6 +1090,30 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
         }
 
         return true;
+    }
+
+    /// <summary>
+    /// Cleans stray mutable build artifacts (.Build, .Release, .modbuilder_cache, etc.)
+    /// from the application directory prior to applying an update.
+    /// This prevents Windows file-lock (ERROR_ACCESS_DENIED) errors during Velopack package replacement.
+    /// </summary>
+    internal void CleanStrayAppDirectoryArtifacts()
+    {
+        try
+        {
+            var baseDir = AppDomain.CurrentDomain.BaseDirectory;
+            var sampleProjectsDir = Path.Combine(baseDir, ModBuilderConstants.SampleProjectsDirectoryName);
+            if (Directory.Exists(sampleProjectsDir))
+            {
+                CleanSampleProjectArtifacts(sampleProjectsDir);
+            }
+
+            CleanStrayMsgpackFiles(baseDir);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Error during pre-update app directory cleanup");
+        }
     }
 
     private static bool MatchesPullRequestCriteria(JsonElement run, int prNumber, string? actualBranch, string? branchName)
@@ -1328,6 +1245,126 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
         var port = ((System.Net.IPEndPoint)listener.LocalEndpoint).Port;
         listener.Stop();
         return port;
+    }
+
+    private static bool IsStrayArtifactDirectory(string dirName) =>
+        dirName.Equals(ModBuilderConstants.DefaultBuildDir, StringComparison.OrdinalIgnoreCase) ||
+        dirName.Equals(ModBuilderConstants.DefaultReleaseDir, StringComparison.OrdinalIgnoreCase) ||
+        dirName.StartsWith(ModBuilderConstants.StagingDirectoryPrefix, StringComparison.OrdinalIgnoreCase) ||
+        dirName.Equals(ModBuilderConstants.CacheDirectoryName, StringComparison.OrdinalIgnoreCase);
+
+    private static bool IsProjectDirectory(string? parentDir)
+    {
+        if (parentDir == null)
+        {
+            return false;
+        }
+
+        return Directory.GetFiles(parentDir, ModBuilderConstants.ProjectFilePattern).Length > 0 ||
+               Directory.Exists(Path.Combine(parentDir, ModBuilderConstants.LowercaseConfigDir)) ||
+               Directory.Exists(Path.Combine(parentDir, ModBuilderConstants.ConfigDir));
+    }
+
+    private static bool IsMatchingBranchRun(JsonElement run, string? branch, out string actualBranch, out string eventType)
+    {
+        eventType = run.TryGetProperty("event", out var e) ? e.GetString() ?? "unknown" : "unknown";
+        actualBranch = run.TryGetProperty("head_branch", out var b) ? b.GetString() ?? branch ?? "unknown" : branch ?? "unknown";
+
+        if (!string.IsNullOrEmpty(branch) && !string.Equals(actualBranch, branch, StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        if (!string.IsNullOrEmpty(branch) &&
+            !string.Equals(eventType, "push", StringComparison.OrdinalIgnoreCase) &&
+            !string.Equals(eventType, "workflow_dispatch", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        return true;
+    }
+
+    private static DateTime ParseRunCreatedAt(JsonElement run)
+    {
+        if (run.TryGetProperty("created_at", out var catProp))
+        {
+            try
+            {
+                return catProp.GetDateTime();
+            }
+            catch (FormatException)
+            {
+                return DateTime.MinValue;
+            }
+        }
+
+        return DateTime.MinValue;
+    }
+
+    private void CleanSampleProjectArtifacts(string sampleProjectsDir)
+    {
+        var options = new EnumerationOptions
+        {
+            RecurseSubdirectories = true,
+            IgnoreInaccessible = true,
+            MatchCasing = MatchCasing.CaseInsensitive,
+            AttributesToSkip = FileAttributes.None,
+        };
+
+        try
+        {
+            var strayDirs = Directory.EnumerateDirectories(sampleProjectsDir, "*", options)
+                         .Where(d => IsStrayArtifactDirectory(Path.GetFileName(d)))
+                         .ToList();
+
+            foreach (var dir in strayDirs)
+            {
+                TryDeleteStrayDirectory(dir);
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            _logger.LogWarning(ex, "Error enumerating sample projects directory: {Dir}", sampleProjectsDir);
+        }
+    }
+
+    private void TryDeleteStrayDirectory(string dir)
+    {
+        try
+        {
+            if (!Directory.Exists(dir))
+            {
+                return;
+            }
+
+            var parentDir = Path.GetDirectoryName(dir);
+            if (IsProjectDirectory(parentDir))
+            {
+                Directory.Delete(dir, recursive: true);
+                _logger.LogInformation("Pre-update cleanup removed stray directory: {Dir}", dir);
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            _logger.LogWarning(ex, "Pre-update cleanup could not delete directory: {Dir}", dir);
+        }
+    }
+
+    private void CleanStrayMsgpackFiles(string baseDir)
+    {
+        foreach (var file in Directory.GetFiles(baseDir, "*.msgpack", SearchOption.TopDirectoryOnly))
+        {
+            try
+            {
+                File.Delete(file);
+                _logger.LogInformation("Pre-update cleanup removed stray file: {File}", file);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Pre-update cleanup could not delete file: {File}", file);
+            }
+        }
     }
 
     /// <summary>
@@ -1824,43 +1861,6 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
             _logger.LogWarning(ex, "Failed to find latest artifact for branch {Branch}", branch ?? "any");
             return null;
         }
-    }
-
-    private static bool IsMatchingBranchRun(JsonElement run, string? branch, out string actualBranch, out string eventType)
-    {
-        eventType = run.TryGetProperty("event", out var e) ? e.GetString() ?? "unknown" : "unknown";
-        actualBranch = run.TryGetProperty("head_branch", out var b) ? b.GetString() ?? branch ?? "unknown" : branch ?? "unknown";
-
-        if (!string.IsNullOrEmpty(branch) && !string.Equals(actualBranch, branch, StringComparison.Ordinal))
-        {
-            return false;
-        }
-
-        if (!string.IsNullOrEmpty(branch) &&
-            !string.Equals(eventType, "push", StringComparison.OrdinalIgnoreCase) &&
-            !string.Equals(eventType, "workflow_dispatch", StringComparison.OrdinalIgnoreCase))
-        {
-            return false;
-        }
-
-        return true;
-    }
-
-    private static DateTime ParseRunCreatedAt(JsonElement run)
-    {
-        if (run.TryGetProperty("created_at", out var catProp))
-        {
-            try
-            {
-                return catProp.GetDateTime();
-            }
-            catch (FormatException)
-            {
-                return DateTime.MinValue;
-            }
-        }
-
-        return DateTime.MinValue;
     }
 
     private async Task<ArtifactUpdateInfo?> CheckRunForLatestArtifactAsync(

@@ -303,6 +303,9 @@ public class VelopackUpdateManagerTests
         Assert.False(manager.IsUpdatePendingRestart);
     }
 
+    /// <summary>
+    /// Tests that CleanStrayAppDirectoryArtifacts cleans build and release directories in sample projects.
+    /// </summary>
     [Fact]
     public void CleanStrayAppDirectoryArtifacts_CleansBuildAndReleaseDirsInSampleProjects()
     {
@@ -333,7 +336,16 @@ public class VelopackUpdateManagerTests
         {
             if (Directory.Exists(sampleDir))
             {
-                try { Directory.Delete(sampleDir, recursive: true); } catch (IOException) { } catch (UnauthorizedAccessException) { }
+                try
+                {
+                    Directory.Delete(sampleDir, recursive: true);
+                }
+                catch (IOException)
+                {
+                }
+                catch (UnauthorizedAccessException)
+                {
+                }
             }
         }
     }

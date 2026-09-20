@@ -1,6 +1,6 @@
+using GenHub.Core.Models.Results;
 using System;
 using System.Collections.Generic;
-using GenHub.Core.Models.Results;
 
 namespace GenHub.Core.Models.Results.ModBuilder;
 

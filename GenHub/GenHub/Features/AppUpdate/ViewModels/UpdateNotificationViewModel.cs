@@ -397,6 +397,30 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
         });
     }
 
+    private static void RunOnUi(Action action)
+    {
+        if (Avalonia.Application.Current == null || Dispatcher.UIThread.CheckAccess())
+        {
+            action();
+        }
+        else
+        {
+            Dispatcher.UIThread.Post(action);
+        }
+    }
+
+    private static async Task RunOnUiAsync(Action action)
+    {
+        if (Avalonia.Application.Current == null || Dispatcher.UIThread.CheckAccess())
+        {
+            action();
+        }
+        else
+        {
+            await Dispatcher.UIThread.InvokeAsync(action);
+        }
+    }
+
     private async Task LoadArtifactsForSubscribedItemAsync()
     {
         await CancelPreviousArtifactLoadAsync();
@@ -1370,30 +1394,6 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
         HasError = false;
         ErrorMessage = string.Empty;
         LatestVersion = string.Empty;
-    }
-
-    private static void RunOnUi(Action action)
-    {
-        if (Avalonia.Application.Current == null || Dispatcher.UIThread.CheckAccess())
-        {
-            action();
-        }
-        else
-        {
-            Dispatcher.UIThread.Post(action);
-        }
-    }
-
-    private static async Task RunOnUiAsync(Action action)
-    {
-        if (Avalonia.Application.Current == null || Dispatcher.UIThread.CheckAccess())
-        {
-            action();
-        }
-        else
-        {
-            await Dispatcher.UIThread.InvokeAsync(action);
-        }
     }
 
     partial void OnIsCheckingChanged(bool value)
