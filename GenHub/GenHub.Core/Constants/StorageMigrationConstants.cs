@@ -199,11 +199,11 @@ public static class StorageMigrationConstants
     /// reinstall over the previous location. {0} is the detected custom installation path.
     /// </summary>
     public const string DuplicateInstallationWindowsReinstallGuidanceFormat =
-        "To update the previous location instead, re-run the installer with --installto \"{0}\".";
+        "To update the previous location instead, reinstall with --installto \"{0}\", then uninstall this duplicate copy.";
 
     /// <summary>
     /// Cross-platform guidance appended to duplicate installation notifications on non-Windows hosts.
     /// </summary>
     public const string DuplicateInstallationGenericReinstallGuidance =
-        "To keep a single installation, reinstall over the previous location or move this install in Settings > Migrate Installation.";
+        "To keep a single installation, reinstall over the previous location or move this install in Settings > Migrate Installation, then remove the remaining duplicate copy.";
 }

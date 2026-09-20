@@ -66,7 +66,9 @@ public class StorageMigrationConstantsTests
             Assert.Contains("default folder", StorageMigrationConstants.DuplicateInstallationDetectedMessageFormat);
             Assert.Contains("{0}", StorageMigrationConstants.DuplicateInstallationWindowsReinstallGuidanceFormat);
             Assert.Contains("--installto", StorageMigrationConstants.DuplicateInstallationWindowsReinstallGuidanceFormat);
+            Assert.Contains("duplicate copy", StorageMigrationConstants.DuplicateInstallationWindowsReinstallGuidanceFormat);
             Assert.Contains("Migrate Installation", StorageMigrationConstants.DuplicateInstallationGenericReinstallGuidance);
+            Assert.Contains("duplicate copy", StorageMigrationConstants.DuplicateInstallationGenericReinstallGuidance);
         });
     }
 }

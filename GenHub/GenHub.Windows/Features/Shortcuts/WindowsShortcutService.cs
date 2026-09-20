@@ -1,8 +1,10 @@
+using GenHub.Common.Services;
 using GenHub.Core.Constants;
 using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Shortcuts;
 using GenHub.Core.Models.GameProfile;
 using GenHub.Core.Models.Results;
+using GenHub.Windows.Features.Storage;
 using Microsoft.Extensions.Logging;
 using System;
 using System.IO;
@@ -255,7 +257,7 @@ public class WindowsShortcutService(ILogger<WindowsShortcutService> logger) : IS
 
         try
         {
-            var launcherPath = ResolveLauncherExecutable(executablePath);
+            var launcherPath = ResolveCanonicalLauncherPath(executablePath, logger);
             var workingDirectory = Path.GetDirectoryName(launcherPath) ?? string.Empty;
             var locations = new[]
             {
@@ -277,6 +279,19 @@ public class WindowsShortcutService(ILogger<WindowsShortcutService> logger) : IS
             logger.LogWarning(ex, "Failed to repair application shortcuts");
             return Task.FromResult(OperationResult<bool>.CreateFailure($"Failed to repair application shortcuts: {ex.Message}"));
         }
+    }
+
+    /// <summary>
+    /// Resolves the launcher path that application shortcuts should target. When a duplicate
+    /// installation conflict is active, shortcuts are repointed at the registered custom
+    /// installation so an accidental default-location copy can never hijack OS links.
+    /// </summary>
+    private static string ResolveCanonicalLauncherPath(string executablePath, ILogger? logger)
+    {
+        var registeredCustomPath = WindowsInstallationTracker.GetRegisteredCustomInstallPathStatic(logger);
+        var linkRoot = StorageMigrationService.ResolveLinkInstallRoot(registeredCustomPath);
+        var linkExecutablePath = StorageMigrationService.ResolveLinkExecutablePath(linkRoot, executablePath);
+        return ResolveLauncherExecutable(linkExecutablePath ?? executablePath);
     }
 
     /// <summary>

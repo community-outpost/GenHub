@@ -575,6 +575,52 @@ public class StorageMigrationService(
     }
 
     /// <summary>
+    /// Resolves the installation root that operating system entry points (application shortcuts,
+    /// URI scheme handlers) should target. When a duplicate installation conflict is active, the
+    /// registered custom installation is canonical so an accidental default-location copy can never
+    /// hijack OS links; otherwise the running installation root is returned.
+    /// </summary>
+    /// <param name="registeredCustomPath">The registered custom installation path, if any.</param>
+    /// <returns>The canonical installation root for OS links.</returns>
+    internal static string ResolveLinkInstallRoot(string? registeredCustomPath)
+    {
+        if (HasDuplicateInstallationConflict(registeredCustomPath, out var detectedCustomPath) &&
+            !string.IsNullOrWhiteSpace(detectedCustomPath))
+        {
+            return detectedCustomPath;
+        }
+
+        return GetSourceRootDirectory();
+    }
+
+    /// <summary>
+    /// Resolves the launcher executable inside an installation root, preferring the root-level
+    /// launcher matching the current executable file name so links stay stable across updates.
+    /// </summary>
+    /// <param name="linkRoot">The installation root that OS links should target.</param>
+    /// <param name="currentExePath">The running executable path, used for its file name and as fallback.</param>
+    /// <returns>The launcher path when it can be determined; otherwise, <see langword="null"/>.</returns>
+    internal static string? ResolveLinkExecutablePath(string linkRoot, string? currentExePath)
+    {
+        if (string.IsNullOrWhiteSpace(currentExePath))
+        {
+            return null;
+        }
+
+        var fileName = Path.GetFileName(currentExePath);
+        if (!string.IsNullOrWhiteSpace(fileName))
+        {
+            var candidate = Path.Combine(linkRoot, fileName);
+            if (File.Exists(candidate))
+            {
+                return candidate;
+            }
+        }
+
+        return currentExePath;
+    }
+
+    /// <summary>
     /// Checks if the specified root directory contains existing user configuration, game profiles, or manifests.
     /// </summary>
     /// <param name="rootPath">The root directory to inspect.</param>

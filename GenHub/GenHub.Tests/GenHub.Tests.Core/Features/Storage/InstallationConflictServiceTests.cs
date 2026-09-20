@@ -429,8 +429,9 @@ public class InstallationConflictServiceTests : System.IDisposable
     /// <returns><see langword="true"/> when the expected guidance is present; otherwise, <see langword="false"/>.</returns>
     private static bool HasExpectedReinstallGuidance(string message)
     {
-        return OperatingSystem.IsWindows()
+        return (OperatingSystem.IsWindows()
             ? message.Contains("--installto")
-            : message.Contains("Migrate Installation");
+            : message.Contains("Migrate Installation")) &&
+            message.Contains("duplicate copy");
     }
 }

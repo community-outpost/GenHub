@@ -1,3 +1,5 @@
+using GenHub.Common.Services;
+using GenHub.Core.Constants;
 using GenHub.Windows.Features.Shortcuts;
 using Microsoft.Win32;
 using System;
@@ -72,6 +74,87 @@ public sealed class UriSchemeRegistrarTests(ITestOutputHelper testOutputHelper) 
 
         // Assert
         Assert.Null(ex);
+    }
+
+    /// <summary>
+    /// Verifies that Register points the scheme at the registered custom installation launcher
+    /// when a duplicate installation conflict is active, instead of the running copy.
+    /// </summary>
+    [Fact]
+    public void Register_PointsAtCanonicalInstall_WhenDuplicateDetected()
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        var customDir = Path.Combine(Path.GetTempPath(), "GenHubLinkTests_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(customDir);
+        File.WriteAllText(Path.Combine(customDir, StorageMigrationConstants.VelopackUpdateExe), "stub");
+        var exeName = Path.GetFileName(Environment.ProcessPath);
+        Assert.False(string.IsNullOrEmpty(exeName));
+        File.WriteAllText(Path.Combine(customDir, exeName!), "stub");
+
+        StorageMigrationService.SetCustomInstallRootOverrideForTesting(false);
+        StorageMigrationService.SetDefaultInstallRootOverrideForTesting(true);
+
+        object? priorValue = null;
+        var hadPriorValue = false;
+        RegistryValueKind priorKind = RegistryValueKind.String;
+        try
+        {
+            using (var key = Registry.CurrentUser.CreateSubKey(RegistryConstants.GenHubSubKey, writable: true))
+            {
+                Assert.NotNull(key);
+                priorValue = key.GetValue(RegistryConstants.CustomInstallPathValueName);
+                hadPriorValue = priorValue != null;
+                if (hadPriorValue)
+                {
+                    priorKind = key.GetValueKind(RegistryConstants.CustomInstallPathValueName);
+                }
+
+                key.SetValue(RegistryConstants.CustomInstallPathValueName, customDir);
+            }
+
+            UriSchemeRegistrar.Register();
+
+            using var commandKey = Registry.CurrentUser.OpenSubKey($@"{TargetKeyPath}\shell\open\command");
+            Assert.NotNull(commandKey);
+            var command = commandKey.GetValue(string.Empty) as string;
+            Assert.NotNull(command);
+            Assert.Contains(customDir, command, StringComparison.OrdinalIgnoreCase);
+        }
+        finally
+        {
+            try
+            {
+                using var key = Registry.CurrentUser.CreateSubKey(RegistryConstants.GenHubSubKey, writable: true);
+                if (hadPriorValue)
+                {
+                    key?.SetValue(RegistryConstants.CustomInstallPathValueName, priorValue!, priorKind);
+                }
+                else
+                {
+                    key?.DeleteValue(RegistryConstants.CustomInstallPathValueName, throwOnMissingValue: false);
+                }
+            }
+            catch (Exception ex)
+            {
+                testOutputHelper.WriteLine($"Failed to restore install tracker registry value: {ex.Message}");
+            }
+
+            StorageMigrationService.SetCustomInstallRootOverrideForTesting(null);
+            StorageMigrationService.SetDefaultInstallRootOverrideForTesting(null);
+
+            try
+            {
+                Directory.Delete(customDir, recursive: true);
+            }
+            catch (IOException ex)
+            {
+                testOutputHelper.WriteLine($"Failed to delete stub custom install: {ex.Message}");
+            }
+        }
     }
 
     /// <inheritdoc/>

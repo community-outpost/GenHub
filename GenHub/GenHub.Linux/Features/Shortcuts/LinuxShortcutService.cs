@@ -1,8 +1,10 @@
+using GenHub.Common.Services;
 using GenHub.Core.Constants;
 using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Shortcuts;
 using GenHub.Core.Models.GameProfile;
 using GenHub.Core.Models.Results;
+using GenHub.Linux.Features.Storage;
 using Microsoft.Extensions.Logging;
 using System;
 using System.IO;
@@ -187,7 +189,7 @@ public class LinuxShortcutService(ILogger<LinuxShortcutService> logger) : IShort
 
         try
         {
-            var executablePath = ResolveLauncherExecutable(processPath);
+            var executablePath = ResolveCanonicalLauncherPath(processPath, logger);
             var workingDirectory = Path.GetDirectoryName(executablePath) ?? string.Empty;
             var dataHome = Environment.GetEnvironmentVariable("XDG_DATA_HOME");
             if (string.IsNullOrWhiteSpace(dataHome))
@@ -216,6 +218,19 @@ public class LinuxShortcutService(ILogger<LinuxShortcutService> logger) : IShort
             logger.LogWarning(ex, "Failed to repair application shortcuts");
             return Task.FromResult(OperationResult<bool>.CreateFailure($"Failed to repair application shortcuts: {ex.Message}"));
         }
+    }
+
+    /// <summary>
+    /// Resolves the launcher path that application shortcuts should target. When a duplicate
+    /// installation conflict is active, shortcuts are repointed at the registered custom
+    /// installation so an accidental default-location copy can never hijack OS links.
+    /// </summary>
+    private static string ResolveCanonicalLauncherPath(string executablePath, ILogger? logger)
+    {
+        var registeredCustomPath = LinuxInstallationTracker.GetRegisteredCustomInstallPathStatic(logger);
+        var linkRoot = StorageMigrationService.ResolveLinkInstallRoot(registeredCustomPath);
+        var linkExecutablePath = StorageMigrationService.ResolveLinkExecutablePath(linkRoot, executablePath);
+        return ResolveLauncherExecutable(linkExecutablePath ?? executablePath);
     }
 
     /// <summary>
