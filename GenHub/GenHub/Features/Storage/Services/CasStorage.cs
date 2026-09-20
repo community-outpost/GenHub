@@ -277,7 +277,7 @@ public class CasStorage(
         using var sha256 = SHA256.Create();
         await using var hashingStream = new CryptoStream(tempStream, sha256, CryptoStreamMode.Write, leaveOpen: true);
         await content.CopyToAsync(hashingStream, cancellationToken);
-        hashingStream.FlushFinalBlock();
+        await hashingStream.FlushFinalBlockAsync(cancellationToken).ConfigureAwait(false);
 
         var hashBytes = sha256.Hash ?? throw new InvalidOperationException("Hash computation did not produce a digest.");
         var actualHash = Convert.ToHexString(hashBytes).ToLowerInvariant();

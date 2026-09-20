@@ -3,6 +3,7 @@ using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Validation;
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Threading;
 
 namespace GenHub.Core.Interfaces.Manifest;
@@ -100,6 +101,7 @@ public interface IManifestGenerationService
     /// <param name="progress">Optional progress reporter receiving file hashing progress updates.</param>
     /// <param name="dependencies">Dependencies for this content.</param>
     /// <returns>A <see cref="Task"/> that returns a configured manifest builder.</returns>
+    [SuppressMessage("Major Code Smell", "S107:Methods should not have too many parameters", Justification = "Manifest generation overloads preserve parameter parity across int/string version forms including the optional hashing progress reporter.")]
     Task<IContentManifestBuilder> CreateContentManifestAsync(
         string contentDirectory,
         string publisherId,
@@ -122,6 +124,7 @@ public interface IManifestGenerationService
     /// <param name="progress">Optional progress reporter receiving file hashing progress updates.</param>
     /// <param name="dependencies">The content dependencies.</param>
     /// <returns>The manifest builder for the discovered content.</returns>
+    [SuppressMessage("Major Code Smell", "S107:Methods should not have too many parameters", Justification = "Manifest generation overloads preserve parameter parity across int/string version forms including the optional hashing progress reporter.")]
     Task<IContentManifestBuilder> CreateContentManifestAsync(
         string contentDirectory,
         string publisherId,

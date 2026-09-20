@@ -282,6 +282,7 @@ public class ManifestGenerationService(
     /// <param name="progress">Optional progress reporter receiving file hashing progress updates.</param>
     /// <param name="dependencies">Dependencies for this content.</param>
     /// <returns>A <see cref="Task"/> that returns a configured manifest builder.</returns>
+    [SuppressMessage("Major Code Smell", "S107:Methods should not have too many parameters", Justification = "Manifest generation overloads preserve parameter parity across int/string version forms including the optional hashing progress reporter.")]
     public Task<IContentManifestBuilder> CreateContentManifestAsync(
         string contentDirectory,
         string publisherId,
@@ -296,6 +297,7 @@ public class ManifestGenerationService(
     }
 
     /// <inheritdoc />
+    [SuppressMessage("Major Code Smell", "S107:Methods should not have too many parameters", Justification = "Manifest generation overloads preserve parameter parity across int/string version forms including the optional hashing progress reporter.")]
     public async Task<IContentManifestBuilder> CreateContentManifestAsync(
         string contentDirectory,
         string publisherId,

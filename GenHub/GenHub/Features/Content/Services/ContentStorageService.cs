@@ -988,13 +988,7 @@ public class ContentStorageService : IContentStorageService
         }
 
         var updatedFiles = new List<ManifestFile>(totalFiles);
-        foreach (var slot in slots)
-        {
-            if (slot != null)
-            {
-                updatedFiles.Add(slot);
-            }
-        }
+        updatedFiles.AddRange(slots.OfType<ManifestFile>());
 
         return OperationResult<List<ManifestFile>>.CreateSuccess(updatedFiles);
     }
