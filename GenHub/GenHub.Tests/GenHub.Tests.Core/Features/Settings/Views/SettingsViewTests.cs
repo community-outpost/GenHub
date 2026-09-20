@@ -53,8 +53,7 @@ public class SettingsViewTests
 
             viewModel.SelectedSection = updates;
 
-            await Task.Delay(800);
-            Dispatcher.UIThread.RunJobs();
+            await WaitForScrollToSettleAsync(scrollViewer, expander);
 
             Assert.True(expander.IsExpanded);
             var content = Assert.IsAssignableFrom<Control>(scrollViewer.Content);
@@ -69,6 +68,40 @@ public class SettingsViewTests
         {
             window.Close();
         }
+    }
+
+    /// <summary>
+    /// Polls the dispatcher until the scroll offset converges on the expanded section target
+    /// and holds there, instead of sleeping a fixed delay that can race slow CI agents.
+    /// </summary>
+    /// <param name="scrollViewer">The settings scroll viewer.</param>
+    /// <param name="expander">The expanded section anchor.</param>
+    /// <returns>A task representing the asynchronous wait operation.</returns>
+    private static async Task WaitForScrollToSettleAsync(ScrollViewer scrollViewer, Expander expander)
+    {
+        var content = Assert.IsAssignableFrom<Control>(scrollViewer.Content);
+        var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(10);
+        var settledPolls = 0;
+        while (DateTime.UtcNow < deadline)
+        {
+            Dispatcher.UIThread.RunJobs();
+            var transform = expander.TransformToVisual(content);
+            if (transform.HasValue)
+            {
+                var position = transform.Value.Transform(new Point(0, 0));
+                var maxScrollY = Math.Max(0, scrollViewer.Extent.Height - scrollViewer.Viewport.Height);
+                var expected = Math.Clamp(position.Y, 0, maxScrollY);
+                settledPolls = Math.Abs(scrollViewer.Offset.Y - expected) <= 2 ? settledPolls + 1 : 0;
+                if (settledPolls >= 3)
+                {
+                    return;
+                }
+            }
+
+            await Task.Delay(50);
+        }
+
+        Dispatcher.UIThread.RunJobs();
     }
 
     private static SettingsViewModel CreateViewModel()
