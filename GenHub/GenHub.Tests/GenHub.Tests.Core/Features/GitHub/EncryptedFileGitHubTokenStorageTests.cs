@@ -1,7 +1,9 @@
+using GenHub.Common.Services;
 using GenHub.Core.Constants;
 using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Features.GitHub.Services;
+using GenHub.Tests.Core.Collections;
 using Moq;
 using System;
 using System.IO;
@@ -16,9 +18,11 @@ namespace GenHub.Tests.Core.Features.GitHub;
 /// <summary>
 /// Contains unit tests for <see cref="EncryptedFileGitHubTokenStorage"/>.
 /// </summary>
+[Collection(StorageMigrationStaticStateCollection.Name)]
 public class EncryptedFileGitHubTokenStorageTests : IDisposable
 {
     private readonly string _tempDir;
+    private readonly string _defaultRootDir;
     private bool _disposed;
 
     /// <summary>
@@ -28,6 +32,9 @@ public class EncryptedFileGitHubTokenStorageTests : IDisposable
     {
         _tempDir = Path.Combine(Path.GetTempPath(), "GenHubTokenStorageTests", Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(_tempDir);
+        _defaultRootDir = Path.Combine(Path.GetTempPath(), "GenHubTokenStorageDefaultRootTests", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(_defaultRootDir);
+        StorageMigrationService.SetDefaultDataRootOverrideForTesting(_defaultRootDir);
     }
 
     /// <inheritdoc />
@@ -39,19 +46,9 @@ public class EncryptedFileGitHubTokenStorageTests : IDisposable
         }
 
         _disposed = true;
-        try
-        {
-            Directory.Delete(_tempDir, recursive: true);
-        }
-        catch (IOException)
-        {
-            // Best effort cleanup of the temp directory.
-        }
-        catch (UnauthorizedAccessException)
-        {
-            // Best effort cleanup of the temp directory.
-        }
-
+        StorageMigrationService.SetDefaultDataRootOverrideForTesting(null);
+        DeleteDirectoryBestEffort(_tempDir);
+        DeleteDirectoryBestEffort(_defaultRootDir);
         GC.SuppressFinalize(this);
     }
 
@@ -235,16 +232,123 @@ public class EncryptedFileGitHubTokenStorageTests : IDisposable
         await Assert.ThrowsAsync<ArgumentException>(() => storage.SaveTokenAsync(empty));
     }
 
-    private EncryptedFileGitHubTokenStorage CreateStorage(string machineSecret, bool fromPrimarySource = true)
+    /// <summary>
+    /// Verifies that a token saved under the fallback secret loads once the primary source resolves.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task LoadToken_SavedUnderFallbackSecret_LoadsWhenPrimaryResolvesAsync()
+    {
+        // Arrange
+        var writer = CreateStorage(EncryptedFileGitHubTokenStorage.GetFallbackMachineSecret(), fromPrimarySource: false);
+        using var token = SecureStringHelper.ToSecureString("oauth-token-value");
+        await writer.SaveTokenAsync(token);
+        var reader = CreateStorage("primary-machine-secret");
+
+        // Act
+        using var loaded = await reader.LoadTokenAsync();
+
+        // Assert
+        Assert.NotNull(loaded);
+        Assert.Equal("oauth-token-value", SecureStringHelper.ToUnsecureString(loaded));
+        Assert.True(reader.HasToken());
+    }
+
+    /// <summary>
+    /// Verifies that a token stored only in the default data root is found from a relocated data directory.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task LoadToken_WithOnlyFallbackCopy_LoadsFromFallbackAsync()
+    {
+        // Arrange
+        var writer = CreateStorage("machine-secret-fallback", appDataDir: _defaultRootDir);
+        using var token = SecureStringHelper.ToSecureString("oauth-token-value");
+        await writer.SaveTokenAsync(token);
+        var reader = CreateStorage("machine-secret-fallback");
+
+        // Act
+        using var loaded = await reader.LoadTokenAsync();
+
+        // Assert
+        Assert.True(reader.HasToken());
+        Assert.NotNull(loaded);
+        Assert.Equal("oauth-token-value", SecureStringHelper.ToUnsecureString(loaded));
+    }
+
+    /// <summary>
+    /// Verifies that the primary token copy wins when both the primary and fallback copies exist.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task LoadToken_WithBothCopies_PrefersPrimaryAsync()
+    {
+        // Arrange
+        var fallbackWriter = CreateStorage("machine-secret-precedence", appDataDir: _defaultRootDir);
+        using var fallbackToken = SecureStringHelper.ToSecureString("fallback-token-value");
+        await fallbackWriter.SaveTokenAsync(fallbackToken);
+        var primaryWriter = CreateStorage("machine-secret-precedence");
+        using var primaryToken = SecureStringHelper.ToSecureString("primary-token-value");
+        await primaryWriter.SaveTokenAsync(primaryToken);
+
+        // Act
+        using var loaded = await primaryWriter.LoadTokenAsync();
+
+        // Assert
+        Assert.NotNull(loaded);
+        Assert.Equal("primary-token-value", SecureStringHelper.ToUnsecureString(loaded));
+    }
+
+    /// <summary>
+    /// Verifies that deleting removes both the primary and fallback token copies.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task DeleteToken_WithBothCopies_RemovesBothAsync()
+    {
+        // Arrange
+        var fallbackWriter = CreateStorage("machine-secret-dual-delete", appDataDir: _defaultRootDir);
+        using var fallbackToken = SecureStringHelper.ToSecureString("fallback-token-value");
+        await fallbackWriter.SaveTokenAsync(fallbackToken);
+        var primaryWriter = CreateStorage("machine-secret-dual-delete");
+        using var primaryToken = SecureStringHelper.ToSecureString("primary-token-value");
+        await primaryWriter.SaveTokenAsync(primaryToken);
+
+        // Act
+        await primaryWriter.DeleteTokenAsync();
+
+        // Assert
+        Assert.False(primaryWriter.HasToken());
+        Assert.False(File.Exists(TokenFilePath()));
+        Assert.False(File.Exists(TokenFilePath(_defaultRootDir)));
+    }
+
+    private static void DeleteDirectoryBestEffort(string directory)
+    {
+        try
+        {
+            Directory.Delete(directory, recursive: true);
+        }
+        catch (IOException)
+        {
+            // Best effort cleanup of the temp directory.
+        }
+        catch (UnauthorizedAccessException)
+        {
+            // Best effort cleanup of the temp directory.
+        }
+    }
+
+    private EncryptedFileGitHubTokenStorage CreateStorage(string machineSecret, bool fromPrimarySource = true, string? appDataDir = null)
     {
         var configuration = new Mock<IConfigurationProviderService>();
-        configuration.Setup(x => x.GetApplicationDataPath()).Returns(_tempDir);
+        configuration.Setup(x => x.GetApplicationDataPath()).Returns(appDataDir ?? _tempDir);
         return new TestStorage(configuration.Object, machineSecret, fromPrimarySource);
     }
 
-    private string TokenFilePath()
+    private string TokenFilePath(string? appDataDir = null)
     {
-        return Path.Combine(_tempDir, AppConstants.TokenFileName);
+        return Path.Combine(appDataDir ?? _tempDir, AppConstants.TokenFileName);
     }
 
     private sealed class TestStorage(IConfigurationProviderService configurationProvider, string machineSecret, bool fromPrimarySource = true)

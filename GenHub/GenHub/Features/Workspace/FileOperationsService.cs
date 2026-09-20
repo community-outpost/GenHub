@@ -137,6 +137,38 @@ public class FileOperationsService(
     }
 
     /// <summary>
+    /// Writes bytes to a file atomically by writing to a temporary file in the same directory
+    /// and renaming it into place, so a concurrent or crashing reader never observes a truncated file.
+    /// </summary>
+    /// <param name="destinationPath">The destination file path.</param>
+    /// <param name="content">The bytes to write.</param>
+    /// <param name="cancellationToken">A cancellation token.</param>
+    /// <returns>A task representing the asynchronous write operation.</returns>
+    public static async Task WriteAllBytesAtomicAsync(
+        string destinationPath,
+        byte[] content,
+        CancellationToken cancellationToken = default)
+    {
+        EnsureDirectoryExists(destinationPath);
+        var directory = Path.GetDirectoryName(destinationPath) ?? string.Empty;
+        var tempPath = Path.Combine(directory, $"{Path.GetFileName(destinationPath)}.{Guid.NewGuid():N}.tmp");
+        await File.WriteAllBytesAsync(tempPath, content, cancellationToken).ConfigureAwait(false);
+        var moved = false;
+        try
+        {
+            File.Move(tempPath, destinationPath, overwrite: true);
+            moved = true;
+        }
+        finally
+        {
+            if (!moved)
+            {
+                DeleteFileIfExists(tempPath);
+            }
+        }
+    }
+
+    /// <summary>
     /// Checks if two paths are on the same volume/drive.
     /// </summary>
     /// <param name="path1">First path to compare.</param>

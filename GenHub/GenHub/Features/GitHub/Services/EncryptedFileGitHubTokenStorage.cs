@@ -23,6 +23,7 @@ namespace GenHub.Features.GitHub.Services;
 public class EncryptedFileGitHubTokenStorage : IGitHubTokenStorage
 {
     private readonly string _tokenFilePath;
+    private readonly string? _fallbackTokenFilePath;
     private readonly SemaphoreSlim _fileLock = new(1, 1);
 
     /// <summary>
@@ -34,7 +35,8 @@ public class EncryptedFileGitHubTokenStorage : IGitHubTokenStorage
         var appData = configurationProvider?.GetApplicationDataPath()
             ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), AppConstants.AppName);
         Directory.CreateDirectory(appData);
-        _tokenFilePath = Path.Combine(appData, AppConstants.TokenFileName);
+        _tokenFilePath = GitHubTokenPathResolver.GetPrimaryTokenFilePath(appData);
+        _fallbackTokenFilePath = GitHubTokenPathResolver.GetFallbackTokenFilePath(appData);
     }
 
     /// <inheritdoc />
@@ -95,43 +97,46 @@ public class EncryptedFileGitHubTokenStorage : IGitHubTokenStorage
         await _fileLock.WaitAsync();
         try
         {
-            if (!File.Exists(_tokenFilePath))
+            var activePath = GitHubTokenPathResolver.ResolveActiveTokenFilePath(_tokenFilePath, _fallbackTokenFilePath);
+            if (activePath == null)
             {
                 return null;
             }
 
-            var fileBytes = await File.ReadAllBytesAsync(_tokenFilePath);
+            var fileBytes = await File.ReadAllBytesAsync(activePath);
             var (secret, fromPrimarySource) = ResolveMachineSecret();
-            var key = DeriveKeyFromSecret(secret);
+            byte[]? plainBytes = null;
+            var decrypted = TryDecryptWithSecret(fileBytes, secret, out plainBytes);
+            if (!decrypted && fromPrimarySource)
+            {
+                // The token may have been saved while the primary source was unavailable and the
+                // fallback secret was used instead. Retry with the fallback secret before treating
+                // the file as corrupt, so a transient save-time lookup failure cannot destroy it.
+                decrypted = TryDecryptWithSecret(fileBytes, GetFallbackMachineSecret(), out plainBytes);
+            }
+
+            if (!decrypted || plainBytes == null)
+            {
+                // Only drop the file when the secret came from its primary source. A fallback
+                // secret may indicate a transient lookup failure, in which case deleting would
+                // destroy a healthy token and force an avoidable re-authentication.
+                // The lock serializes this delete against concurrent saves, so a racing
+                // truncate-then-write can never be mistaken for corruption.
+                if (fromPrimarySource)
+                {
+                    DeleteTokenFile(activePath);
+                }
+
+                return null;
+            }
+
             try
             {
-                if (!TryDecryptFileBytes(fileBytes, key, out var plainBytes) || plainBytes == null)
-                {
-                    // Only drop the file when the secret came from its primary source. A fallback
-                    // secret may indicate a transient lookup failure, in which case deleting would
-                    // destroy a healthy token and force an avoidable re-authentication.
-                    // The lock serializes this delete against concurrent saves, so a racing
-                    // truncate-then-write can never be mistaken for corruption.
-                    if (fromPrimarySource)
-                    {
-                        DeleteTokenFile(_tokenFilePath);
-                    }
-
-                    return null;
-                }
-
-                try
-                {
-                    return SecureStringHelper.ToSecureString(Encoding.UTF8.GetString(plainBytes));
-                }
-                finally
-                {
-                    CryptographicOperations.ZeroMemory(plainBytes);
-                }
+                return SecureStringHelper.ToSecureString(Encoding.UTF8.GetString(plainBytes));
             }
             finally
             {
-                CryptographicOperations.ZeroMemory(key);
+                CryptographicOperations.ZeroMemory(plainBytes);
             }
         }
         finally
@@ -147,6 +152,10 @@ public class EncryptedFileGitHubTokenStorage : IGitHubTokenStorage
         try
         {
             DeleteTokenFile(_tokenFilePath);
+            if (_fallbackTokenFilePath != null)
+            {
+                DeleteTokenFile(_fallbackTokenFilePath);
+            }
         }
         finally
         {
@@ -157,7 +166,16 @@ public class EncryptedFileGitHubTokenStorage : IGitHubTokenStorage
     /// <inheritdoc />
     public bool HasToken()
     {
-        return File.Exists(_tokenFilePath);
+        return GitHubTokenPathResolver.ResolveActiveTokenFilePath(_tokenFilePath, _fallbackTokenFilePath) != null;
+    }
+
+    /// <summary>
+    /// Gets the fallback machine secret used when the primary platform source is unavailable.
+    /// </summary>
+    /// <returns>The machine and user name based fallback secret.</returns>
+    internal static string GetFallbackMachineSecret()
+    {
+        return $"{Environment.MachineName}:{Environment.UserName}";
     }
 
     /// <summary>
@@ -184,7 +202,7 @@ public class EncryptedFileGitHubTokenStorage : IGitHubTokenStorage
             }
         }
 
-        return ($"{Environment.MachineName}:{Environment.UserName}", false);
+        return (GetFallbackMachineSecret(), false);
     }
 
     private static void DeleteTokenFile(string tokenFilePath)
@@ -209,6 +227,19 @@ public class EncryptedFileGitHubTokenStorage : IGitHubTokenStorage
         Buffer.BlockCopy(tag, 0, fileBytes, 1 + nonce.Length, tag.Length);
         Buffer.BlockCopy(cipherBytes, 0, fileBytes, headerLength, cipherBytes.Length);
         return fileBytes;
+    }
+
+    private static bool TryDecryptWithSecret(byte[] fileBytes, string secret, out byte[]? plainBytes)
+    {
+        var key = DeriveKeyFromSecret(secret);
+        try
+        {
+            return TryDecryptFileBytes(fileBytes, key, out plainBytes);
+        }
+        finally
+        {
+            CryptographicOperations.ZeroMemory(key);
+        }
     }
 
     private static bool TryDecryptFileBytes(byte[] fileBytes, byte[] key, out byte[]? plainBytes)

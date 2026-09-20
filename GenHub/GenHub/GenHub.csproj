@@ -12,6 +12,7 @@
         <InternalsVisibleTo Include="GenHub.MacOS" />
         <InternalsVisibleTo Include="GenHub.Tests.Core" />
         <InternalsVisibleTo Include="GenHub.Tests.Linux" />
+        <InternalsVisibleTo Include="GenHub.Tests.Windows" />
         <InternalsVisibleTo Include="GenHub.Windows" />
     </ItemGroup>
 

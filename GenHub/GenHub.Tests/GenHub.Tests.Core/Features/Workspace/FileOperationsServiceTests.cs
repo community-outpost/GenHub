@@ -512,6 +512,39 @@ public class FileOperationsServiceTests : IDisposable
     }
 
     /// <summary>
+    /// Tests that WriteAllBytesAtomicAsync lands the exact bytes while leaving no temporary files behind.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task WriteAllBytesAtomicAsync_WritesContentWithoutTempLeftoversAsync()
+    {
+        var filePath = Path.Combine(_tempDir, "atomic.bin");
+        var content = new byte[] { 1, 2, 3, 4 };
+
+        await FileOperationsService.WriteAllBytesAtomicAsync(filePath, content);
+
+        Assert.Equal(content, await File.ReadAllBytesAsync(filePath));
+        Assert.Single(Directory.GetFiles(_tempDir));
+    }
+
+    /// <summary>
+    /// Tests that WriteAllBytesAtomicAsync overwrites an existing file.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task WriteAllBytesAtomicAsync_OverwritesExistingFileAsync()
+    {
+        var filePath = Path.Combine(_tempDir, "atomic-overwrite.bin");
+        await File.WriteAllTextAsync(filePath, "stale content");
+        var content = new byte[] { 9, 8, 7 };
+
+        await FileOperationsService.WriteAllBytesAtomicAsync(filePath, content);
+
+        Assert.Equal(content, await File.ReadAllBytesAsync(filePath));
+        Assert.Single(Directory.GetFiles(_tempDir));
+    }
+
+    /// <summary>
     /// Performs cleanup by disposing of temporary resources.
     /// </summary>
     public void Dispose()
