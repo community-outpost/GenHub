@@ -3200,10 +3200,6 @@
     <value>تكبير</value>
     <comment>Maximize window.</comment>
   </data>
-  <data name="Window.MaximizeRestore" xml:space="preserve">
-    <value>تكبير أو استعادة</value>
-    <comment>Maximize or restore window.</comment>
-  </data>
   <data name="Window.Minimize" xml:space="preserve">
     <value>تصغير</value>
     <comment>Minimize window.</comment>
