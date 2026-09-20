@@ -65,13 +65,6 @@ public partial class DownloadsBrowserView : UserControl
         }
     }
 
-    private static (double Min, double Max) GetSanitizedBounds(double min, double max)
-    {
-        var resolvedMin = double.IsNaN(min) || double.IsInfinity(min) || min < 0 ? SidebarConstants.MinPaneLength : min;
-        var resolvedMax = double.IsNaN(max) || double.IsInfinity(max) || max < resolvedMin ? Math.Max(resolvedMin, SidebarConstants.MaxPaneLength) : max;
-        return (resolvedMin, resolvedMax);
-    }
-
     private void HookViewModel(DownloadsBrowserViewModel vm)
     {
         if (ReferenceEquals(_boundViewModel, vm))
@@ -218,7 +211,7 @@ public partial class DownloadsBrowserView : UserControl
             required += SidebarConstants.DownloadsPaneBadgeAllowance;
         }
 
-        var (min, max) = GetSanitizedBounds(GetPaneMinLength(), GetPaneMaxLength());
+        var (min, max) = SidebarLayout.GetSanitizedBounds(GetPaneMinLength(), GetPaneMaxLength());
         required = Math.Clamp(required, min, max);
         if (required > vm.OpenPaneLength)
         {
