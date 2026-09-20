@@ -114,6 +114,12 @@ public class WineRunner(
                 .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
             .Any(key => string.Equals(key, WineConstants.Direct3D8DllName, StringComparison.OrdinalIgnoreCase));
 
+    private static bool IsExcludedPrefixUser(string dirName) =>
+        dirName.Equals("Public", StringComparison.OrdinalIgnoreCase)
+        || dirName.Equals("Default", StringComparison.OrdinalIgnoreCase)
+        || dirName.Equals("Default User", StringComparison.OrdinalIgnoreCase)
+        || dirName.Equals("All Users", StringComparison.OrdinalIgnoreCase);
+
     private void ConfigureDirect3DOverride(GameLaunchConfiguration configuration, Dictionary<string, string> environment)
     {
         var workingDir = configuration.WorkingDirectory ?? Path.GetDirectoryName(configuration.ExecutablePath);
@@ -195,7 +201,30 @@ public class WineRunner(
         var sourcePath = configuration.NativeOptionsIniPath;
         if (!File.Exists(sourcePath))
         {
-            return;
+            try
+            {
+                var dir = Path.GetDirectoryName(sourcePath);
+                if (!string.IsNullOrEmpty(dir))
+                {
+                    Directory.CreateDirectory(dir);
+                }
+
+                var resolutionLine = "Resolution = 1024 768";
+                if (configuration.Arguments is { Count: > 0 } args
+                    && args.TryGetValue("-xres", out var xres) && !string.IsNullOrWhiteSpace(xres)
+                    && args.TryGetValue("-yres", out var yres) && !string.IsNullOrWhiteSpace(yres))
+                {
+                    resolutionLine = $"Resolution = {xres} {yres}";
+                }
+
+                File.WriteAllText(sourcePath, $"{resolutionLine}\r\nIdealStaticGameLOD = Low\r\n");
+                logger.LogInformation("Bootstrapped baseline Options.ini at {SourcePath}", sourcePath);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
+            {
+                logger.LogDebug(ex, "Could not bootstrap missing native Options.ini at {SourcePath}", sourcePath);
+                return;
+            }
         }
 
         try
@@ -203,11 +232,35 @@ public class WineRunner(
             var dataDirectoryName = configuration.GameType == GameType.ZeroHour
                 ? MapManagerConstants.ZeroHourDataDirectoryName
                 : MapManagerConstants.GeneralsDataDirectoryName;
-            var userDirectory = Path.Combine(
+
+            var usersRoot = Path.Combine(
                 options.PrefixPath,
                 WineConstants.DriveCDirectoryName,
-                WineConstants.PrefixUsersDirectoryName,
-                SanitizeUserName(Environment.UserName));
+                WineConstants.PrefixUsersDirectoryName);
+
+            var candidateUsernames = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            {
+                SanitizeUserName(Environment.UserName),
+            };
+
+            if (Directory.Exists(usersRoot))
+            {
+                foreach (var dir in Directory.EnumerateDirectories(usersRoot))
+                {
+                    var dirName = Path.GetFileName(dir);
+                    if (!string.IsNullOrWhiteSpace(dirName) && !IsExcludedPrefixUser(dirName))
+                    {
+                        candidateUsernames.Add(dirName);
+                    }
+                }
+            }
+
+            if (Directory.Exists(Path.Combine(usersRoot, WineConstants.ProtonUserName))
+                || options.PrefixPath.Contains("compatdata", StringComparison.OrdinalIgnoreCase)
+                || File.Exists(Path.Combine(options.PrefixPath, "tracked_files")))
+            {
+                candidateUsernames.Add(WineConstants.ProtonUserName);
+            }
 
             // Plain Wine resolves the personal shell folder to "My Documents" while Proton
             // uses "Documents", and on a fresh managed prefix neither directory exists yet to
@@ -217,9 +270,13 @@ public class WineRunner(
             // directory itself. Mirror into both: the game reads exactly one, and the other
             // copy stays inert.
             var mirroredAny = false;
-            foreach (var documentsDirectoryName in new[] { WineConstants.DocumentsDirectoryName, WineConstants.MyDocumentsDirectoryName })
+            foreach (var userName in candidateUsernames)
             {
-                mirroredAny |= MirrorOptionsIniToShellFolder(sourcePath, userDirectory, documentsDirectoryName, dataDirectoryName);
+                var userDirectory = Path.Combine(usersRoot, userName);
+                foreach (var documentsDirectoryName in new[] { WineConstants.DocumentsDirectoryName, WineConstants.MyDocumentsDirectoryName })
+                {
+                    mirroredAny |= MirrorOptionsIniToShellFolder(sourcePath, userDirectory, documentsDirectoryName, dataDirectoryName);
+                }
             }
 
             if (mirroredAny)

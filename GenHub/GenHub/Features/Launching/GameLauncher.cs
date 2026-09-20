@@ -27,6 +27,7 @@ using System.Buffers;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -954,6 +955,38 @@ public class GameLauncher(
         return $"{key} {formattedValue}";
     }
 
+    private static (int Width, int Height) TryReadResolutionFromOptionsIni(string filePath)
+    {
+        try
+        {
+            foreach (var line in File.ReadLines(filePath))
+            {
+                var trimmed = line.Trim();
+                if (trimmed.StartsWith("Resolution", StringComparison.OrdinalIgnoreCase))
+                {
+                    var parts = trimmed.Split('=', 2);
+                    if (parts.Length == 2)
+                    {
+                        var dims = parts[1].Trim().Split(new[] { ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries);
+                        if (dims.Length >= 2 &&
+                            int.TryParse(dims[0], NumberStyles.Integer, CultureInfo.InvariantCulture, out var width) &&
+                            int.TryParse(dims[1], NumberStyles.Integer, CultureInfo.InvariantCulture, out var height) &&
+                            width > 0 && height > 0)
+                        {
+                            return (width, height);
+                        }
+                    }
+                }
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
+        {
+            // Non-critical: gracefully fall back
+        }
+
+        return (0, 0);
+    }
+
     private async Task<LaunchOperationResult<GameLaunchInfo>> LaunchProfileAsync(GameProfile profile, bool skipUserDataCleanup, IReadOnlyDictionary<string, string>? additionalArguments, IProgress<LaunchProgress>? progress, string launchId, CancellationToken cancellationToken)
     {
         IDisposable? steamInstallationLock = null;
@@ -1192,6 +1225,26 @@ public class GameLauncher(
         }
 
         var arguments = argsResult.Data;
+        if (!arguments.ContainsKey("-xres") || !arguments.ContainsKey("-yres"))
+        {
+            var nativeOptionsPath = TryGetNativeOptionsIniPath(profile.GameClient?.GameType);
+            if (!string.IsNullOrEmpty(nativeOptionsPath) && File.Exists(nativeOptionsPath))
+            {
+                var (width, height) = TryReadResolutionFromOptionsIni(nativeOptionsPath);
+                if (width > 0 && !arguments.ContainsKey("-xres"))
+                {
+                    arguments["-xres"] = width.ToString(CultureInfo.InvariantCulture);
+                    logger.LogInformation("[GameLauncher] Added -xres argument from Options.ini: {Width}", width);
+                }
+
+                if (height > 0 && !arguments.ContainsKey("-yres"))
+                {
+                    arguments["-yres"] = height.ToString(CultureInfo.InvariantCulture);
+                    logger.LogInformation("[GameLauncher] Added -yres argument from Options.ini: {Height}", height);
+                }
+            }
+        }
+
         SteamLaunchPrepResult? steamPrep = null;
         string? steamAppId = null;
 
@@ -1688,6 +1741,18 @@ public class GameLauncher(
         {
             arguments["-win"] = string.Empty;
             logger.LogInformation("[GameLauncher] Added -win argument for windowed mode");
+        }
+
+        if (profile.VideoResolutionWidth > 0 && !arguments.ContainsKey("-xres"))
+        {
+            arguments["-xres"] = profile.VideoResolutionWidth.Value.ToString(CultureInfo.InvariantCulture);
+            logger.LogInformation("[GameLauncher] Added -xres argument: {Width}", profile.VideoResolutionWidth.Value);
+        }
+
+        if (profile.VideoResolutionHeight > 0 && !arguments.ContainsKey("-yres"))
+        {
+            arguments["-yres"] = profile.VideoResolutionHeight.Value.ToString(CultureInfo.InvariantCulture);
+            logger.LogInformation("[GameLauncher] Added -yres argument: {Height}", profile.VideoResolutionHeight.Value);
         }
 
         return OperationResult<Dictionary<string, string>>.CreateSuccess(arguments);

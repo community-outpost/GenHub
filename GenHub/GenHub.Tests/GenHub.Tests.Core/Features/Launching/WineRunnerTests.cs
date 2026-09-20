@@ -360,6 +360,94 @@ public sealed class WineRunnerTests : IDisposable
     }
 
     /// <summary>
+    /// Verifies that in a Proton prefix (e.g. Steam compatdata), Options.ini is mirrored
+    /// into steamuser's Documents and My Documents folders.
+    /// </summary>
+    [Fact]
+    public void ResolveCommand_WithProtonPrefix_MirrorsIntoSteamUserDocumentsFolders()
+    {
+        // Arrange
+        var binDirectory = CreateDirectory("bin");
+        File.WriteAllText(Path.Combine(binDirectory, "wine"), "fake wine");
+        var prefixPath = Path.Combine(_tempDirectory, "steamapps", "compatdata", "1273270", "pfx");
+        var runner = CreateRunner([binDirectory], prefixPath);
+        var nativeOptionsPath = Path.Combine(CreateDirectory("userdata-proton"), "Options.ini");
+        File.WriteAllText(nativeOptionsPath, "proton-settings");
+        var configuration = new GameLaunchConfiguration
+        {
+            ExecutablePath = Path.Combine(_tempDirectory, "game", "generals.exe"),
+            GameType = GameType.ZeroHour,
+            NativeOptionsIniPath = nativeOptionsPath,
+        };
+
+        // Act
+        var result = runner.ResolveCommand(configuration);
+
+        // Assert
+        Assert.True(result.Success, result.AllErrors);
+        var steamUserDocs = Path.Combine(
+            prefixPath,
+            WineConstants.DriveCDirectoryName,
+            WineConstants.PrefixUsersDirectoryName,
+            WineConstants.ProtonUserName,
+            WineConstants.DocumentsDirectoryName,
+            MapManagerConstants.ZeroHourDataDirectoryName,
+            "Options.ini");
+        var steamUserMyDocs = Path.Combine(
+            prefixPath,
+            WineConstants.DriveCDirectoryName,
+            WineConstants.PrefixUsersDirectoryName,
+            WineConstants.ProtonUserName,
+            WineConstants.MyDocumentsDirectoryName,
+            MapManagerConstants.ZeroHourDataDirectoryName,
+            "Options.ini");
+
+        Assert.True(File.Exists(steamUserDocs));
+        Assert.True(File.Exists(steamUserMyDocs));
+        Assert.Equal("proton-settings", File.ReadAllText(steamUserDocs));
+        Assert.Equal("proton-settings", File.ReadAllText(steamUserMyDocs));
+    }
+
+    /// <summary>
+    /// Verifies that if the native Options.ini does not exist on disk, a baseline Options.ini
+    /// is bootstrapped using the configured resolution arguments and mirrored into the prefix.
+    /// </summary>
+    [Fact]
+    public void ResolveCommand_WithMissingNativeOptionsIni_BootstrapsBaselineOptionsIni()
+    {
+        // Arrange
+        var binDirectory = CreateDirectory("bin");
+        File.WriteAllText(Path.Combine(binDirectory, "wine"), "fake wine");
+        var prefixPath = Path.Combine(_tempDirectory, "prefix-bootstrap");
+        var runner = CreateRunner([binDirectory], prefixPath);
+        var nativeOptionsPath = Path.Combine(CreateDirectory("userdata-bootstrap"), "Options.ini");
+        var configuration = new GameLaunchConfiguration
+        {
+            ExecutablePath = Path.Combine(_tempDirectory, "game", "generals.exe"),
+            GameType = GameType.ZeroHour,
+            NativeOptionsIniPath = nativeOptionsPath,
+            Arguments = new Dictionary<string, string>
+            {
+                ["-xres"] = "1920",
+                ["-yres"] = "1080",
+            },
+        };
+
+        // Act
+        var result = runner.ResolveCommand(configuration);
+
+        // Assert
+        Assert.True(result.Success, result.AllErrors);
+        Assert.True(File.Exists(nativeOptionsPath));
+        var content = File.ReadAllText(nativeOptionsPath);
+        Assert.Contains("Resolution = 1920 1080", content);
+
+        var mirrored = Directory.GetFiles(prefixPath, "Options.ini", SearchOption.AllDirectories);
+        Assert.NotEmpty(mirrored);
+        Assert.All(mirrored, path => Assert.Contains("Resolution = 1920 1080", File.ReadAllText(path)));
+    }
+
+    /// <summary>
     /// Verifies that configuration environment variables are forwarded to the resolved Wine command.
     /// </summary>
     [Fact]

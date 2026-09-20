@@ -41,6 +41,9 @@ public static class WineConstants
     /// <summary>Legacy Windows Documents folder name inside older Wine prefixes ("My Documents").</summary>
     public const string MyDocumentsDirectoryName = "My Documents";
 
+    /// <summary>Standard user profile directory name used in Proton prefixes ("steamuser").</summary>
+    public const string ProtonUserName = "steamuser";
+
     /// <summary>Fallback prefix user name when the login name is unusable as a directory name.</summary>
     public const string FallbackPrefixUserName = "user";
 

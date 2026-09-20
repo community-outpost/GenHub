@@ -204,6 +204,62 @@ public class GameLauncherTests : IDisposable
     }
 
     /// <summary>
+    /// Launches a profile with resolution settings and asserts -xres and -yres arguments are forwarded.
+    /// </summary>
+    /// <returns>The async task.</returns>
+    [Fact]
+    public async Task LaunchProfileAsync_WithResolutionConfigured_PassesResolutionArgumentsAsync()
+    {
+        // Arrange
+        var profile = CreateTestProfile();
+        profile.VideoResolutionWidth = 1920;
+        profile.VideoResolutionHeight = 1080;
+
+        var workspaceInfo = new WorkspaceInfo
+        {
+            Id = profile.Id,
+            WorkspacePath = @"C:\workspace",
+            ExecutablePath = @"C:\workspace\generals.exe",
+        };
+        var processInfo = new GameProcessInfo { ProcessId = 123, ProcessName = "generals.exe" };
+        var manifest = new ContentManifest { Id = "1.0.genhub.mod.test", Name = "Test Content" };
+
+        _profileManagerMock.Setup(x => x.GetProfileAsync(profile.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(profile));
+
+        _manifestPoolMock.Setup(x => x.GetManifestAsync("1.0.genhub.mod.test", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentManifest?>.CreateSuccess(manifest));
+
+        _dependencyResolverMock.Setup(x => x.ResolveDependenciesWithManifestsAsync(
+                It.Is<IEnumerable<string>>(ids => ids.SequenceEqual(TestContentIds)),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(DependencyResolutionResult.CreateSuccess(
+                TestContentIds,
+                [manifest],
+                []));
+
+        _workspaceManagerMock.Setup(x => x.PrepareWorkspaceAsync(It.IsAny<WorkspaceConfiguration>(), It.IsAny<IProgress<WorkspacePreparationProgress>>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<WorkspaceInfo>.CreateSuccess(workspaceInfo));
+
+        _processManagerMock.Setup(x => x.StartProcessAsync(It.IsAny<GameLaunchConfiguration>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<GameProcessInfo>.CreateSuccess(processInfo));
+
+        // Act
+        var result = await _gameLauncher.LaunchProfileAsync(profile.Id);
+
+        // Assert
+        Assert.True(result.Success);
+        _processManagerMock.Verify(
+            x => x.StartProcessAsync(
+                It.Is<GameLaunchConfiguration>(cfg =>
+                    cfg.Arguments != null &&
+                    cfg.Arguments["-xres"] == "1920" &&
+                    cfg.Arguments["-yres"] == "1080"),
+                It.IsAny<CancellationToken>()),
+            Times.Once);
+    }
+
+    /// <summary>
     /// Launches a profile asynchronously with a non-existent profile and asserts failure.
     /// </summary>
     /// <returns>The async task.</returns>
