@@ -20,6 +20,15 @@ namespace GenHub.Tests.Core.Features.Content.Services;
 /// </summary>
 public sealed class ContentArtworkServiceTests
 {
+    private sealed class CancelingHttpHandler(CancellationTokenSource cts) : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            cts.Cancel();
+            throw new OperationCanceledException(cts.Token);
+        }
+    }
+
     private sealed class StubHttpHandler : HttpMessageHandler
     {
         private readonly byte[] _bytes;
@@ -183,7 +192,40 @@ public sealed class ContentArtworkServiceTests
         }
     }
 
-    private static ContentArtworkService CreateService(string appDataPath, StubHttpHandler handler)
+    /// <summary>
+    /// Verifies that if downloading artwork is cancelled, no temporary or partial files remain in storage.
+    /// </summary>
+    /// <returns>A task that represents the asynchronous test.</returns>
+    [Fact]
+    public async Task PrefetchArtworkAsync_WhenCancelled_CleansUpTempFilesAsync()
+    {
+        var root = CreateTempDir();
+        try
+        {
+            var cts = new CancellationTokenSource();
+            var handler = new CancelingHttpHandler(cts);
+            var service = CreateService(root, handler);
+
+            var manifest = CreateManifest();
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(async () =>
+            {
+                await service.PrefetchArtworkAsync(manifest, cts.Token);
+            });
+
+            var manifestDir = Path.Combine(root, "Artwork", manifest.Id.Value);
+            if (Directory.Exists(manifestDir))
+            {
+                var files = Directory.GetFiles(manifestDir, "*.*", SearchOption.AllDirectories);
+                Assert.Empty(files);
+            }
+        }
+        finally
+        {
+            DeleteTempDir(root);
+        }
+    }
+
+    private static ContentArtworkService CreateService(string appDataPath, HttpMessageHandler handler)
     {
         var configuration = new Mock<IConfigurationProviderService>();
         configuration.Setup(config => config.GetApplicationDataPath()).Returns(appDataPath);

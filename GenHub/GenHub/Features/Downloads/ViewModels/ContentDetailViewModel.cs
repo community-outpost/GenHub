@@ -19,6 +19,7 @@ using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.ModDB;
 using GenHub.Core.Models.Parsers;
 using GenHub.Core.Models.Providers;
+using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Results.Content;
 using GenHub.Features.Content.Services;
 using GenHub.Features.Content.Services.ContentDiscoverers;
@@ -4892,11 +4893,20 @@ public partial class ContentDetailViewModel(
             return;
         }
 
-        IReadOnlyList<string> usingProfiles;
-        IReadOnlyList<string> typeDependents;
         try
         {
-            var manifest = await GetDownloadedManifestAsync(manifestId);
+            var manifestResult = await GetDownloadedManifestAsync(manifestId);
+            if (!manifestResult.Success)
+            {
+                logger.LogWarning("Cannot delete {ManifestId}: unable to check content usage: {Error}", manifestId, manifestResult.FirstError);
+                notificationService.ShowError(
+                    GetLocalizedString("Downloads.ContentDetail.DeleteFailedTitle", "Delete Failed"),
+                    FormatLocalizedString("Downloads.ContentDetail.DeleteFailedMessage", "Could not delete '{0}': {1}", Name, manifestResult.FirstError ?? string.Empty),
+                    NotificationDurations.Long);
+                return;
+            }
+
+            var manifest = manifestResult.Data;
             if (ManifestHelper.IsLauncherManagedManifest(manifest))
             {
                 logger.LogWarning("Cannot delete {ManifestId}: installation manifests are launcher-managed", manifestId);
@@ -4910,79 +4920,89 @@ public partial class ContentDetailViewModel(
                 return;
             }
 
-            usingProfiles = await FindProfilesUsingManifestAsync(manifestId);
-            typeDependents = await FindTypeDependentsAsync(manifest);
+            var profilesResult = await FindProfilesUsingManifestAsync(manifestId);
+            if (!profilesResult.Success)
+            {
+                logger.LogWarning("Cannot delete {ManifestId}: unable to check content usage: {Error}", manifestId, profilesResult.FirstError);
+                notificationService.ShowError(
+                    GetLocalizedString("Downloads.ContentDetail.DeleteFailedTitle", "Delete Failed"),
+                    FormatLocalizedString("Downloads.ContentDetail.DeleteFailedMessage", "Could not delete '{0}': {1}", Name, profilesResult.FirstError ?? string.Empty),
+                    NotificationDurations.Long);
+                return;
+            }
+
+            var dependentsResult = await FindTypeDependentsAsync(manifest);
+            if (!dependentsResult.Success)
+            {
+                logger.LogWarning("Cannot delete {ManifestId}: unable to check content usage: {Error}", manifestId, dependentsResult.FirstError);
+                notificationService.ShowError(
+                    GetLocalizedString("Downloads.ContentDetail.DeleteFailedTitle", "Delete Failed"),
+                    FormatLocalizedString("Downloads.ContentDetail.DeleteFailedMessage", "Could not delete '{0}': {1}", Name, dependentsResult.FirstError ?? string.Empty),
+                    NotificationDurations.Long);
+                return;
+            }
+
+            var usingProfiles = profilesResult.Data ?? [];
+            var typeDependents = dependentsResult.Data ?? [];
+
+            if (!await ConfirmDeleteAsync(usingProfiles, typeDependents))
+            {
+                return;
+            }
+
+            await ExecuteDeleteAsync(manifestId);
         }
         catch (OperationCanceledException ex)
         {
             logger.LogInformation(ex, "Delete cancelled while checking usage for {ManifestId}", manifestId);
-            return;
         }
-        catch (Exception ex)
-        {
-            logger.LogWarning(ex, "Cannot delete {ManifestId}: unable to check content usage", manifestId);
-            notificationService.ShowError(
-                GetLocalizedString("Downloads.ContentDetail.DeleteFailedTitle", "Delete Failed"),
-                FormatLocalizedString("Downloads.ContentDetail.DeleteFailedMessage", "Could not delete '{0}': {1}", Name, ex.Message),
-                NotificationDurations.Long);
-            return;
-        }
-
-        if (!await ConfirmDeleteAsync(usingProfiles, typeDependents))
-        {
-            return;
-        }
-
-        await ExecuteDeleteAsync(manifestId);
     }
 
-    private async Task<ContentManifest?> GetDownloadedManifestAsync(string manifestId)
+    private async Task<OperationResult<ContentManifest?>> GetDownloadedManifestAsync(string manifestId)
     {
-        var manifestResult = await manifestPool.GetManifestAsync(ManifestId.Create(manifestId), _cts.Token);
-        if (!manifestResult.Success)
-        {
-            throw new InvalidOperationException(manifestResult.FirstError ?? "Unable to read the stored manifest.");
-        }
-
-        return manifestResult.Data;
+        return await manifestPool.GetManifestAsync(ManifestId.Create(manifestId), _cts.Token);
     }
 
-    private async Task<IReadOnlyList<string>> FindProfilesUsingManifestAsync(string manifestId)
+    private async Task<OperationResult<IReadOnlyList<string>>> FindProfilesUsingManifestAsync(string manifestId)
     {
         var profilesResult = await profileManager.GetAllProfilesAsync(_cts.Token);
         if (!profilesResult.Success || profilesResult.Data is null)
         {
-            throw new InvalidOperationException(profilesResult.FirstError ?? "Unable to enumerate game profiles.");
+            return OperationResult<IReadOnlyList<string>>.CreateFailure(profilesResult.FirstError ?? "Unable to enumerate game profiles.");
         }
 
-        return profilesResult.Data
+        var usingProfiles = profilesResult.Data
             .Where(profile => profile.EnabledContentIds?.Any(id =>
                 string.Equals(id, manifestId, StringComparison.OrdinalIgnoreCase)) == true)
             .Select(profile => profile.Name)
             .Where(name => !string.IsNullOrWhiteSpace(name))
             .ToList();
+
+        return OperationResult<IReadOnlyList<string>>.CreateSuccess(usingProfiles);
     }
 
-    private async Task<IReadOnlyList<string>> FindTypeDependentsAsync(ContentManifest? manifest)
+    private async Task<OperationResult<IReadOnlyList<string>>> FindTypeDependentsAsync(ContentManifest? manifest)
     {
         if (manifest == null)
         {
-            return [];
+            return OperationResult<IReadOnlyList<string>>.CreateSuccess([]);
         }
 
         var allResult = await manifestPool.GetAllManifestsAsync(_cts.Token);
         if (!allResult.Success || allResult.Data is null)
         {
-            throw new InvalidOperationException(allResult.FirstError ?? "Unable to enumerate stored content.");
+            return OperationResult<IReadOnlyList<string>>.CreateFailure(allResult.FirstError ?? "Unable to enumerate stored content.");
         }
 
-        return allResult.Data
+        var dependents = allResult.Data
             .Where(candidate => !string.Equals(candidate.Id.Value, manifest.Id.Value, StringComparison.OrdinalIgnoreCase)
                 && DependsOnContentType(candidate, manifest))
             .Select(candidate => candidate.Name)
             .Where(name => !string.IsNullOrWhiteSpace(name))
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
+
+        return OperationResult<IReadOnlyList<string>>.CreateSuccess(dependents);
     }
 
     private bool DependsOnContentType(ContentManifest candidate, ContentManifest target)
