@@ -130,7 +130,8 @@ public sealed class OnlinePresenceService(
         // must finish before the loop is torn down and the semaphore is
         // disposed. Every await below uses ConfigureAwait(false), so blocking
         // here cannot deadlock against a captured UI context at shutdown.
-        _stateLock.Wait();
+        // Disposal is never cancellable, hence CancellationToken.None.
+        _stateLock.Wait(CancellationToken.None);
         try
         {
             StopLoopAsync().GetAwaiter().GetResult();
@@ -156,7 +157,7 @@ public sealed class OnlinePresenceService(
             _disposed = true;
         }
 
-        await _stateLock.WaitAsync().ConfigureAwait(false);
+        await _stateLock.WaitAsync(CancellationToken.None).ConfigureAwait(false);
         try
         {
             await StopLoopAsync().ConfigureAwait(false);
