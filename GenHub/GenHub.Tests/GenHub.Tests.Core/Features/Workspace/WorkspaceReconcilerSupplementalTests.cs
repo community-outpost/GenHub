@@ -290,6 +290,46 @@ public class WorkspaceReconcilerSupplementalTests : IDisposable
     }
 
     /// <summary>
+    /// Verifies that a forced full verification accepts a large supplemental copy whose
+    /// content is identical, streaming the comparison instead of loading both archives
+    /// fully into memory.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task AnalyzeWorkspaceDelta_LargeIdenticalFileWithFullVerification_ProducesNoRemoveDeltaAsync()
+    {
+        // Arrange
+        var (workspaceInfo, config) = await CreateLargeWorkspaceAsync("ws12", null);
+
+        // Act
+        var result = await _reconciler.AnalyzeWorkspaceDeltaAsync(workspaceInfo, config, forceFullVerification: true);
+
+        // Assert
+        var removeDeltas = result.FindAll(d => d.Operation == WorkspaceDeltaOperation.Remove);
+        Assert.Empty(removeDeltas);
+    }
+
+    /// <summary>
+    /// Verifies that a forced full verification still detects a difference past the first
+    /// comparison chunk: the streaming comparison must read to the end rather than trust
+    /// an early prefix.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task AnalyzeWorkspaceDelta_LargeFileDifferingAtEndWithFullVerification_StillRemovedAsync()
+    {
+        // Arrange
+        var (workspaceInfo, config) = await CreateLargeWorkspaceAsync("ws13", bytes => bytes[bytes.Length - 1] = 1);
+
+        // Act
+        var result = await _reconciler.AnalyzeWorkspaceDeltaAsync(workspaceInfo, config, forceFullVerification: true);
+
+        // Assert
+        var removeDeltas = result.FindAll(d => d.Operation == WorkspaceDeltaOperation.Remove);
+        Assert.Contains(removeDeltas, d => string.Equals(Path.GetFileName(d.WorkspacePath), "Textures.big", StringComparison.OrdinalIgnoreCase));
+    }
+
+    /// <summary>
     /// Verifies that an unreadable supplemental root degrades to treating linked archives as
     /// orphans, forcing one workspace recreation rather than silently keeping content that
     /// can no longer be verified.
@@ -415,6 +455,13 @@ public class WorkspaceReconcilerSupplementalTests : IDisposable
 
     private async Task<(WorkspaceInfo WorkspaceInfo, WorkspaceConfiguration Config)> CreateLargeSameSizeWorkspaceAsync(string id)
     {
+        return await CreateLargeWorkspaceAsync(id, bytes => bytes[0] = 1);
+    }
+
+    private async Task<(WorkspaceInfo WorkspaceInfo, WorkspaceConfiguration Config)> CreateLargeWorkspaceAsync(
+        string id,
+        Action<byte[]>? mutateWorkspaceBytes)
+    {
         var supplementalRoot = Path.Combine(_testDirectory, "generals");
         Directory.CreateDirectory(supplementalRoot);
         await File.WriteAllBytesAsync(Path.Combine(supplementalRoot, "Textures.big"), new byte[6 * 1024 * 1024]);
@@ -423,7 +470,7 @@ public class WorkspaceReconcilerSupplementalTests : IDisposable
         Directory.CreateDirectory(workspacePath);
         File.WriteAllText(Path.Combine(workspacePath, "game.dat"), "game binary");
         var workspaceBytes = new byte[6 * 1024 * 1024];
-        workspaceBytes[0] = 1;
+        mutateWorkspaceBytes?.Invoke(workspaceBytes);
         await File.WriteAllBytesAsync(Path.Combine(workspacePath, "Textures.big"), workspaceBytes);
 
         return CreateWorkspace(id, workspacePath, supplementalRoot);

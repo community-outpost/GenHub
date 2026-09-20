@@ -576,7 +576,7 @@ public static class WorkspaceCompatibilityHelper
 
             logger.LogInformation("Copied {Directory} directory files from {Source} to {Target} as fallback", GameClientConstants.CoreDirectory, sourcePath, targetPath);
         }
-        catch (Exception copyEx)
+        catch (Exception copyEx) when (copyEx is IOException or UnauthorizedAccessException)
         {
             logger.LogWarning(copyEx, "Failed to copy {Directory} directory from {Source} to {Target} as fallback", GameClientConstants.CoreDirectory, sourcePath, targetPath);
             workspaceInfo.ValidationIssues.Add(new ValidationIssue(

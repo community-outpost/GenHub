@@ -261,6 +261,54 @@ public class WorkspaceReconciler(ILogger<WorkspaceReconciler> logger, IFileOpera
                string.Equals(fileName, WorkspaceConstants.ReleaseCrashInfoFile, StringComparison.OrdinalIgnoreCase);
     }
 
+    /// <summary>
+    /// Compares two files chunk by chunk so arbitrarily large archives are never loaded
+    /// fully into memory, mirroring the manifest path's streaming hash verification.
+    /// </summary>
+    /// <param name="firstPath">The first file to compare.</param>
+    /// <param name="secondPath">The second file to compare.</param>
+    /// <param name="cancellationToken">A cancellation token.</param>
+    /// <returns><c>true</c> when both files have identical contents; otherwise, <c>false</c>.</returns>
+    private static async Task<bool> FilesHaveIdenticalContentAsync(
+        string firstPath,
+        string secondPath,
+        CancellationToken cancellationToken)
+    {
+        var options = new FileStreamOptions
+        {
+            Mode = FileMode.Open,
+            Access = FileAccess.Read,
+            Share = FileShare.Read,
+            BufferSize = IoConstants.FileHashBufferSize,
+            Options = FileOptions.Asynchronous | FileOptions.SequentialScan,
+        };
+
+        await using var first = new FileStream(firstPath, options);
+        await using var second = new FileStream(secondPath, options);
+        var firstBuffer = new byte[IoConstants.FileHashBufferSize];
+        var secondBuffer = new byte[IoConstants.FileHashBufferSize];
+
+        while (true)
+        {
+            var firstRead = await first.ReadAsync(firstBuffer, cancellationToken);
+            var secondRead = await second.ReadAsync(secondBuffer, cancellationToken);
+            if (firstRead != secondRead)
+            {
+                return false;
+            }
+
+            if (firstRead == 0)
+            {
+                return true;
+            }
+
+            if (!firstBuffer.AsSpan(0, firstRead).SequenceEqual(secondBuffer.AsSpan(0, secondRead)))
+            {
+                return false;
+            }
+        }
+    }
+
     private async Task<bool> IsSupplementalArchiveFileAsync(
         string workspacePath,
         string relativePath,
@@ -324,9 +372,7 @@ public class WorkspaceReconciler(ILogger<WorkspaceReconciler> logger, IFileOpera
                 return true;
             }
 
-            var workspaceBytes = await File.ReadAllBytesAsync(workspaceFile, cancellationToken);
-            var sourceBytes = await File.ReadAllBytesAsync(sourcePath, cancellationToken);
-            return workspaceBytes.SequenceEqual(sourceBytes);
+            return await FilesHaveIdenticalContentAsync(workspaceFile, sourcePath, cancellationToken);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
