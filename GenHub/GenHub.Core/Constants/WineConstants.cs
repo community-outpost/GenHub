@@ -14,6 +14,12 @@ public static class WineConstants
     /// <summary>Environment variable selecting the Wine prefix.</summary>
     public const string PrefixEnvironmentVariable = "WINEPREFIX";
 
+    /// <summary>Environment variable configuring Wine DLL overrides.</summary>
+    public const string DllOverridesEnvironmentVariable = "WINEDLLOVERRIDES";
+
+    /// <summary>Default DLL override for Direct3D 8 wrappers (native, then builtin).</summary>
+    public const string Direct3D8DllOverride = "d3d8=n,b";
+
     /// <summary>Process PATH environment variable used for binary lookup.</summary>
     public const string PathEnvironmentVariable = "PATH";
 

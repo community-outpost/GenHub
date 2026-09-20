@@ -55,10 +55,12 @@ public class WineRunner(
         MirrorOptionsIni(configuration);
 
         logger.LogInformation("Launching {ExecutablePath} through Wine ({WineBinary})", configuration.ExecutablePath, wineBinary);
-        var environment = new Dictionary<string, string>
+        var environment = new Dictionary<string, string>(configuration.EnvironmentVariables)
         {
             [WineConstants.PrefixEnvironmentVariable] = options.PrefixPath,
         };
+
+        ConfigureDirect3DOverride(configuration, environment);
 
         return OperationResult<RunnerCommand>.CreateSuccess(
             new RunnerCommand(wineBinary, CommandLineHelper.QuoteArgument(configuration.ExecutablePath), environment));
@@ -71,6 +73,29 @@ public class WineRunner(
             .ToHashSet();
         var clean = new string(userName.Where(c => !invalidChars.Contains(c)).ToArray()).Trim();
         return string.IsNullOrEmpty(clean) ? WineConstants.FallbackPrefixUserName : clean;
+    }
+
+    private void ConfigureDirect3DOverride(GameLaunchConfiguration configuration, Dictionary<string, string> environment)
+    {
+        var workingDir = configuration.WorkingDirectory ?? Path.GetDirectoryName(configuration.ExecutablePath);
+        if (string.IsNullOrEmpty(workingDir) || !File.Exists(Path.Combine(workingDir, GameClientConstants.Direct3D8WrapperDll)))
+        {
+            return;
+        }
+
+        if (environment.TryGetValue(WineConstants.DllOverridesEnvironmentVariable, out var existingOverrides))
+        {
+            if (!existingOverrides.Contains("d3d8", StringComparison.OrdinalIgnoreCase))
+            {
+                environment[WineConstants.DllOverridesEnvironmentVariable] = $"{existingOverrides};{WineConstants.Direct3D8DllOverride}";
+                logger.LogInformation("Configured Wine DLL override for {Dll} (appended to existing overrides)", GameClientConstants.Direct3D8WrapperDll);
+            }
+        }
+        else
+        {
+            environment[WineConstants.DllOverridesEnvironmentVariable] = WineConstants.Direct3D8DllOverride;
+            logger.LogInformation("Configured Wine DLL override for {Dll}", GameClientConstants.Direct3D8WrapperDll);
+        }
     }
 
     private bool TryFindWineBinary([NotNullWhen(true)] out string? wineBinary)

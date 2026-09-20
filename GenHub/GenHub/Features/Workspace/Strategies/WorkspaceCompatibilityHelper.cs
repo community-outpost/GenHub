@@ -36,7 +36,7 @@ public static class WorkspaceCompatibilityHelper
         // existing callers are unaffected.
         EnsureSupplementalArchives(workspaceInfo, configuration, logger);
 
-        if (!OperatingSystem.IsWindows())
+        if (!IsWindowsTarget(workspaceInfo, configuration))
         {
             return;
         }
@@ -99,6 +99,61 @@ public static class WorkspaceCompatibilityHelper
     }
 
     /// <summary>
+    /// Determines whether a base Generals archive is safe to link as a supplemental asset archive for Zero Hour.
+    /// Excludes archives that contain game logic, patches, INIs, window definitions, shaders, or copy protection
+    /// which would override or conflict with Zero Hour's own definitions and cause engine crashes.
+    /// </summary>
+    /// <param name="fileName">The archive file name.</param>
+    /// <returns><c>true</c> if the archive is safe to mount in Zero Hour; otherwise <c>false</c>.</returns>
+    public static bool IsSafeSupplementalArchive(string? fileName)
+    {
+        if (string.IsNullOrWhiteSpace(fileName))
+        {
+            return false;
+        }
+
+        var name = Path.GetFileName(fileName);
+
+        // Never link Zero Hour archives from a supplemental root
+        if (name.EndsWith(GameClientConstants.ZeroHourArchiveExtensionSuffix, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        // Unsafe: INI archives (INI.big, PatchINI.big) contain base Generals balance and game definitions
+        if (name.Contains("ini", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        // Unsafe: Patch archives (Patch.big, PatchData.big, PatchWindow.big, etc.) contain base Generals patch overrides
+        if (name.Contains("patch", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        // Unsafe: UI Window archives (Window.big, PatchWindow.big) contain base Generals window layouts
+        if (name.Contains("window", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        // Unsafe: Shaders (shaders.big) contain base Generals legacy DirectX 8 shaders
+        if (name.Contains("shader", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        // Unsafe: SafeDisc copy protection (gensec.big) triggers base Generals CD-ROM check
+        if (name.Contains("gensec", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        return true;
+    }
+
+    /// <summary>
     /// Enumerates the top-level retail archives a supplemental root provides, matched the same way
     /// the engine mounts them: <c>*.big</c>, case-insensitive, non-recursive.
     /// </summary>
@@ -131,7 +186,11 @@ public static class WorkspaceCompatibilityHelper
             foreach (var path in Directory.EnumerateFiles(supplementalRoot, RetailArchiveConstants.ArchiveSearchPattern, RetailArchiveConstants.ArchiveSearch)
                 .OrderBy(candidate => candidate, StringComparer.Ordinal))
             {
-                names.TryAdd(Path.GetFileName(path), path);
+                var fileName = Path.GetFileName(path);
+                if (IsSafeSupplementalArchive(fileName))
+                {
+                    names.TryAdd(fileName, path);
+                }
             }
 
             archives = names;
@@ -169,6 +228,31 @@ public static class WorkspaceCompatibilityHelper
             NormalizeLinkPath(Path.GetDirectoryName(linkTarget)),
             NormalizeLinkPath(root),
             PathHelper.PathComparison);
+    }
+
+    /// <summary>
+    /// Determines whether the workspace is targeting a Windows executable either via direct host OS or compatibility runner.
+    /// </summary>
+    private static bool IsWindowsTarget(WorkspaceInfo workspaceInfo, WorkspaceConfiguration configuration)
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            return true;
+        }
+
+        var launchExecutable = !string.IsNullOrWhiteSpace(workspaceInfo.ExecutablePath)
+            ? workspaceInfo.ExecutablePath
+            : configuration.GameClient?.ExecutablePath;
+
+        if (string.IsNullOrWhiteSpace(launchExecutable))
+        {
+            launchExecutable = configuration.Manifests
+                .SelectMany(m => m.Files ?? [])
+                .Select(f => f.RelativePath)
+                .FirstOrDefault(CommandLineHelper.IsWindowsExecutable);
+        }
+
+        return CommandLineHelper.IsWindowsExecutable(launchExecutable);
     }
 
     /// <summary>
@@ -248,14 +332,18 @@ public static class WorkspaceCompatibilityHelper
             existingNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             foreach (var entry in Directory.EnumerateFileSystemEntries(workspacePath, "*", SearchOption.TopDirectoryOnly))
             {
-                existingNames.Add(Path.GetFileName(entry));
+                var name = Path.GetFileName(entry);
+                if (!string.IsNullOrEmpty(name))
+                {
+                    existingNames.Add(name);
+                }
             }
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            logger.LogWarning(ex, "Failed to enumerate workspace root for supplemental linking: {Workspace}", workspacePath);
+            logger.LogWarning(ex, "Failed to enumerate workspace root {Workspace} for supplemental archives", workspacePath);
             workspaceInfo.ValidationIssues.Add(new ValidationIssue(
-                $"Failed to enumerate workspace root for supplemental linking: {workspacePath}",
+                $"Failed to enumerate workspace root {workspacePath} for supplemental archives: {ex.Message}",
                 ValidationSeverity.Warning));
             return 0;
         }
@@ -276,9 +364,9 @@ public static class WorkspaceCompatibilityHelper
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
-                logger.LogWarning(ex, "Failed to link supplemental archive {Archive} to {Target}", name, targetPath);
+                logger.LogWarning(ex, "Failed to materialize supplemental archive {Name} from {Source} to {Target}", name, sourcePath, targetPath);
                 workspaceInfo.ValidationIssues.Add(new ValidationIssue(
-                    $"Failed to link supplemental archive {name} to workspace: {ex.Message}",
+                    $"Failed to materialize supplemental archive {name}: {ex.Message}",
                     ValidationSeverity.Warning));
             }
         }
@@ -454,49 +542,45 @@ public static class WorkspaceCompatibilityHelper
 
         if (string.Equals(directoryName, GameClientConstants.CoreDirectory, StringComparison.OrdinalIgnoreCase))
         {
-            CopyCoreDirectoryFallback(workspaceInfo, directoryName, sourcePath, targetPath, logger);
+            CopyCoreDirectoryFallback(workspaceInfo, sourcePath, targetPath, logger);
+            return;
         }
-        else
-        {
-            logger.LogWarning("Failed to create symbolic link or junction for {Directory} directory at {Target}; skipping materialization to avoid freezing UI with large directory copy", directoryName, targetPath);
-            workspaceInfo.ValidationIssues.Add(new ValidationIssue(
-                $"Failed to create symbolic link or junction for {directoryName} directory at {targetPath}",
-                ValidationSeverity.Warning));
-        }
+
+        logger.LogWarning("Failed to link {Directory} directory from {Source} to {Target}", directoryName, sourcePath, targetPath);
+        workspaceInfo.ValidationIssues.Add(new ValidationIssue(
+            $"Failed to link {directoryName} directory to workspace",
+            ValidationSeverity.Warning));
     }
 
     private static void CopyCoreDirectoryFallback(
         WorkspaceInfo workspaceInfo,
-        string directoryName,
         string sourcePath,
         string targetPath,
         ILogger logger)
     {
-        // Core contains critical DRM and activation libraries (Activation.dll, ~2MB total).
-        // If symlink and junction fail, copy files directly so retail/EA/Steam client does not crash with 0xC0000135.
         try
         {
             Directory.CreateDirectory(targetPath);
-            foreach (var file in Directory.GetFiles(sourcePath, "*", SearchOption.AllDirectories))
+            foreach (var file in Directory.EnumerateFiles(sourcePath, "*", SearchOption.AllDirectories))
             {
-                var relativeFile = Path.GetRelativePath(sourcePath, file);
-                var destFile = Path.Combine(targetPath, relativeFile);
-                var destDir = Path.GetDirectoryName(destFile);
+                var relative = Path.GetRelativePath(sourcePath, file);
+                var dest = Path.Combine(targetPath, relative);
+                var destDir = Path.GetDirectoryName(dest);
                 if (!string.IsNullOrEmpty(destDir))
                 {
                     Directory.CreateDirectory(destDir);
                 }
 
-                File.Copy(file, destFile, overwrite: true);
+                File.Copy(file, dest, overwrite: true);
             }
 
-            logger.LogInformation("Copied {Directory} directory contents from {Source} to {Target} as fallback", directoryName, sourcePath, targetPath);
+            logger.LogInformation("Copied {Directory} directory files from {Source} to {Target} as fallback", GameClientConstants.CoreDirectory, sourcePath, targetPath);
         }
-        catch (Exception copyEx) when (copyEx is IOException or UnauthorizedAccessException)
+        catch (Exception copyEx)
         {
-            logger.LogWarning(copyEx, "Failed to copy {Directory} directory to {Target}", directoryName, targetPath);
+            logger.LogWarning(copyEx, "Failed to copy {Directory} directory from {Source} to {Target} as fallback", GameClientConstants.CoreDirectory, sourcePath, targetPath);
             workspaceInfo.ValidationIssues.Add(new ValidationIssue(
-                $"Failed to copy fallback {directoryName} directory contents to {targetPath}: {copyEx.Message}",
+                $"Failed to copy {GameClientConstants.CoreDirectory} directory to workspace: {copyEx.Message}",
                 ValidationSeverity.Warning));
         }
     }

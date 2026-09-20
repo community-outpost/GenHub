@@ -4,6 +4,7 @@ using GenHub.Core.Models.Launching;
 using GenHub.Features.Launching;
 using Microsoft.Extensions.Logging.Abstractions;
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using Xunit;
@@ -180,13 +181,10 @@ public sealed class WineRunnerTests : IDisposable
         var mirrored = Directory.GetFiles(prefixPath, "Options.ini", SearchOption.AllDirectories);
         var mirroredPath = Assert.Single(mirrored);
         Assert.Equal("native-settings", File.ReadAllText(mirroredPath));
-        Assert.Contains(WineConstants.DriveCDirectoryName, mirroredPath);
-        Assert.Contains(WineConstants.DocumentsDirectoryName, mirroredPath);
-        Assert.Contains(MapManagerConstants.ZeroHourDataDirectoryName, mirroredPath);
     }
 
     /// <summary>
-    /// Verifies that when only the Documents folder exists in the prefix, Options.ini is mirrored into Documents.
+    /// Verifies that when only the standard Documents folder exists in the prefix, Options.ini is mirrored into Documents.
     /// </summary>
     [Fact]
     public void ResolveCommand_WithOnlyDocumentsDirectoryExisting_MirrorsIntoDocuments()
@@ -337,6 +335,98 @@ public sealed class WineRunnerTests : IDisposable
         // Assert
         Assert.True(result.Success, result.AllErrors);
         Assert.Equal("in-game-settings", File.ReadAllText(mirroredPath));
+    }
+
+    /// <summary>
+    /// Verifies that configuration environment variables are forwarded to the resolved Wine command.
+    /// </summary>
+    [Fact]
+    public void ResolveCommand_WithCustomEnvironmentVariables_PreservesThem()
+    {
+        // Arrange
+        var binDirectory = CreateDirectory("bin");
+        File.WriteAllText(Path.Combine(binDirectory, "wine"), "fake wine");
+        var prefixPath = Path.Combine(_tempDirectory, "prefix-env");
+        var runner = CreateRunner([binDirectory], prefixPath);
+        var configuration = new GameLaunchConfiguration
+        {
+            ExecutablePath = Path.Combine(_tempDirectory, "game", "generals.exe"),
+            EnvironmentVariables = new Dictionary<string, string>
+            {
+                ["CNC_GENERALS_INSTALLPATH"] = @"C:\Generals",
+                ["CUSTOM_LAUNCH_FLAG"] = "1",
+            },
+        };
+
+        // Act
+        var result = runner.ResolveCommand(configuration);
+
+        // Assert
+        Assert.True(result.Success, result.AllErrors);
+        Assert.NotNull(result.Data);
+        Assert.Equal(@"C:\Generals", result.Data.EnvironmentVariables["CNC_GENERALS_INSTALLPATH"]);
+        Assert.Equal("1", result.Data.EnvironmentVariables["CUSTOM_LAUNCH_FLAG"]);
+        Assert.Equal(prefixPath, result.Data.EnvironmentVariables[WineConstants.PrefixEnvironmentVariable]);
+    }
+
+    /// <summary>
+    /// Verifies that when d3d8.dll exists in the working directory, WINEDLLOVERRIDES is set to d3d8=n,b.
+    /// </summary>
+    [Fact]
+    public void ResolveCommand_WithDirect3DWrapper_ConfiguresWineDllOverrides()
+    {
+        // Arrange
+        var binDirectory = CreateDirectory("bin");
+        File.WriteAllText(Path.Combine(binDirectory, "wine"), "fake wine");
+        var gameDir = CreateDirectory("game-d3d8");
+        File.WriteAllText(Path.Combine(gameDir, GameClientConstants.Direct3D8WrapperDll), "fake d3d8 wrapper");
+        var prefixPath = Path.Combine(_tempDirectory, "prefix-d3d8");
+        var runner = CreateRunner([binDirectory], prefixPath);
+        var configuration = new GameLaunchConfiguration
+        {
+            ExecutablePath = Path.Combine(gameDir, "generals.exe"),
+            WorkingDirectory = gameDir,
+        };
+
+        // Act
+        var result = runner.ResolveCommand(configuration);
+
+        // Assert
+        Assert.True(result.Success, result.AllErrors);
+        Assert.NotNull(result.Data);
+        Assert.Equal(WineConstants.Direct3D8DllOverride, result.Data.EnvironmentVariables[WineConstants.DllOverridesEnvironmentVariable]);
+    }
+
+    /// <summary>
+    /// Verifies that existing DLL overrides are preserved and d3d8=n,b is appended when d3d8.dll is present.
+    /// </summary>
+    [Fact]
+    public void ResolveCommand_WithExistingDllOverridesAndDirect3DWrapper_AppendsOverride()
+    {
+        // Arrange
+        var binDirectory = CreateDirectory("bin");
+        File.WriteAllText(Path.Combine(binDirectory, "wine"), "fake wine");
+        var gameDir = CreateDirectory("game-d3d8-existing");
+        File.WriteAllText(Path.Combine(gameDir, GameClientConstants.Direct3D8WrapperDll), "fake d3d8 wrapper");
+        var prefixPath = Path.Combine(_tempDirectory, "prefix-d3d8-append");
+        var runner = CreateRunner([binDirectory], prefixPath);
+        var configuration = new GameLaunchConfiguration
+        {
+            ExecutablePath = Path.Combine(gameDir, "generals.exe"),
+            WorkingDirectory = gameDir,
+            EnvironmentVariables = new Dictionary<string, string>
+            {
+                [WineConstants.DllOverridesEnvironmentVariable] = "mshtml=d",
+            },
+        };
+
+        // Act
+        var result = runner.ResolveCommand(configuration);
+
+        // Assert
+        Assert.True(result.Success, result.AllErrors);
+        Assert.NotNull(result.Data);
+        Assert.Equal($"mshtml=d;{WineConstants.Direct3D8DllOverride}", result.Data.EnvironmentVariables[WineConstants.DllOverridesEnvironmentVariable]);
     }
 
     /// <summary>

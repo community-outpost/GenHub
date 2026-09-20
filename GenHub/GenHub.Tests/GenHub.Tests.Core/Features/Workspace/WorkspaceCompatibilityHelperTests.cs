@@ -843,4 +843,125 @@ public class WorkspaceCompatibilityHelperTests : IDisposable
         firstArchives["textures.big"].Should().Be(secondArchives["textures.big"]);
         Path.GetFileName(firstArchives["textures.big"]).Should().Be("Textures.big");
     }
+
+    /// <summary>
+    /// Verifies that conflicting base Generals archives (INI, Patch, Window, Shader, SafeDisc gensec, ZH)
+    /// are excluded from supplemental archives to prevent breaking Zero Hour game data and crashing the engine.
+    /// </summary>
+    [Fact]
+    public void TryGetSupplementalArchives_ExcludesConflictingArchives()
+    {
+        // Arrange
+        var supplementalRoot = Path.Combine(_tempDir, "generals-conflicts");
+        Directory.CreateDirectory(supplementalRoot);
+        File.WriteAllText(Path.Combine(supplementalRoot, "Textures.big"), "safe");
+        File.WriteAllText(Path.Combine(supplementalRoot, "W3D.big"), "safe");
+        File.WriteAllText(Path.Combine(supplementalRoot, "Terrain.big"), "safe");
+        File.WriteAllText(Path.Combine(supplementalRoot, "AudioEnglish.big"), "safe");
+        File.WriteAllText(Path.Combine(supplementalRoot, "SpeechEnglish.big"), "safe");
+        File.WriteAllText(Path.Combine(supplementalRoot, "maps.big"), "safe");
+        File.WriteAllText(Path.Combine(supplementalRoot, "English.big"), "safe");
+        File.WriteAllText(Path.Combine(supplementalRoot, "INI.big"), "unsafe");
+        File.WriteAllText(Path.Combine(supplementalRoot, "PatchINI.big"), "unsafe");
+        File.WriteAllText(Path.Combine(supplementalRoot, "Patch.big"), "unsafe");
+        File.WriteAllText(Path.Combine(supplementalRoot, "PatchData.big"), "unsafe");
+        File.WriteAllText(Path.Combine(supplementalRoot, "PatchWindow.big"), "unsafe");
+        File.WriteAllText(Path.Combine(supplementalRoot, "Window.big"), "unsafe");
+        File.WriteAllText(Path.Combine(supplementalRoot, "shaders.big"), "unsafe");
+        File.WriteAllText(Path.Combine(supplementalRoot, "gensec.big"), "unsafe");
+        File.WriteAllText(Path.Combine(supplementalRoot, "GeneralsZH.big"), "unsafe");
+
+        // Act
+        var result = WorkspaceCompatibilityHelper.TryGetSupplementalArchives(supplementalRoot, out var archives);
+
+        // Assert
+        result.Should().BeTrue();
+        archives.Keys.Should().BeEquivalentTo(
+            "Textures.big",
+            "W3D.big",
+            "Terrain.big",
+            "AudioEnglish.big",
+            "SpeechEnglish.big",
+            "maps.big",
+            "English.big");
+    }
+
+    /// <summary>
+    /// Verifies that previously linked conflicting archives (like PatchINI.big or gensec.big)
+    /// are purged as stale links during reconciliation.
+    /// </summary>
+    [Fact]
+    public void EnsureDrmAndAssetCompatibility_PurgesConflictingSupplementalLinks()
+    {
+        // Arrange
+        var supplementalRoot = Path.Combine(_tempDir, "generals-purge");
+        Directory.CreateDirectory(supplementalRoot);
+        File.WriteAllText(Path.Combine(supplementalRoot, "Textures.big"), "safe textures");
+        File.WriteAllText(Path.Combine(supplementalRoot, "PatchINI.big"), "unsafe patch ini");
+        File.WriteAllText(Path.Combine(supplementalRoot, "gensec.big"), "unsafe gensec");
+
+        var patchIniLink = Path.Combine(_workspaceDir, "PatchINI.big");
+        var gensecLink = Path.Combine(_workspaceDir, "gensec.big");
+        if (!SymlinkTestHelper.TryCreateFileSymlink(patchIniLink, Path.Combine(supplementalRoot, "PatchINI.big")) ||
+            !SymlinkTestHelper.TryCreateFileSymlink(gensecLink, Path.Combine(supplementalRoot, "gensec.big")))
+        {
+            return;
+        }
+
+        var workspaceInfo = new WorkspaceInfo
+        {
+            Id = "test-workspace",
+            WorkspacePath = _workspaceDir,
+            ExecutablePath = Path.Combine(_workspaceDir, "generals.exe"),
+        };
+
+        var config = new WorkspaceConfiguration
+        {
+            Id = "test-workspace",
+            BaseInstallationPath = _gameInstallDir,
+            Manifests = [],
+            SupplementalArchiveRoot = supplementalRoot,
+        };
+
+        // Act
+        WorkspaceCompatibilityHelper.EnsureDrmAndAssetCompatibility(workspaceInfo, config, NullLogger.Instance);
+
+        // Assert
+        File.Exists(patchIniLink).Should().BeFalse();
+        File.Exists(gensecLink).Should().BeFalse();
+        File.Exists(Path.Combine(_workspaceDir, "Textures.big")).Should().BeTrue();
+    }
+
+    /// <summary>
+    /// Verifies that Steam DRM marker directory is created in workspace parent folder when targeting Windows executable.
+    /// </summary>
+    [Fact]
+    public void EnsureDrmAndAssetCompatibility_WithWindowsExecutableTarget_CreatesDrmMarker()
+    {
+        // Arrange
+        var workspaceInfo = new WorkspaceInfo
+        {
+            Id = "test-workspace",
+            WorkspacePath = _workspaceDir,
+            ExecutablePath = Path.Combine(_workspaceDir, "generals.exe"),
+        };
+
+        var config = new WorkspaceConfiguration
+        {
+            Id = "test-workspace",
+            BaseInstallationPath = _gameInstallDir,
+            Manifests = [],
+        };
+
+        // Act
+        WorkspaceCompatibilityHelper.EnsureDrmAndAssetCompatibility(
+            workspaceInfo,
+            config,
+            NullLogger.Instance);
+
+        // Assert
+        var parentDir = Path.GetDirectoryName(_workspaceDir)!;
+        var installerDir = Path.Combine(parentDir, GameClientConstants.SteamDrmMarkerDirectory);
+        Directory.Exists(installerDir).Should().BeTrue();
+    }
 }
