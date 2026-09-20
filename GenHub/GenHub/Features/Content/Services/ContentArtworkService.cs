@@ -193,7 +193,7 @@ public sealed class ContentArtworkService(
 
             Directory.CreateDirectory(directory);
             var targetPath = Path.Combine(directory, GetSlotName(kind) + ResolveExtension(remoteUrl));
-            tempPath = Path.Combine(directory, $".tmp_{Guid.NewGuid():N}");
+            tempPath = Path.Combine(directory, $"{ContentArtworkConstants.TempFilePrefix}{Guid.NewGuid():N}");
 
             await File.WriteAllBytesAsync(tempPath, bytes, cancellationToken);
             File.Move(tempPath, targetPath, overwrite: true);

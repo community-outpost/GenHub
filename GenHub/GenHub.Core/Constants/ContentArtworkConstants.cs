@@ -19,4 +19,9 @@ public static class ContentArtworkConstants
     /// Gets the bundled fallback cover for Zero Hour game clients without artwork.
     /// </summary>
     public const string ZeroHourCoverSource = "/Assets/Covers/zerohour-cover.png";
+
+    /// <summary>
+    /// Gets the filename prefix used for in-flight temporary artwork files before atomic commit.
+    /// </summary>
+    public const string TempFilePrefix = ".tmp_";
 }

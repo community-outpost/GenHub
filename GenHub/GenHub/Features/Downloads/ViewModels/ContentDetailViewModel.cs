@@ -94,6 +94,10 @@ public partial class ContentDetailViewModel(
 {
     // ===== Constants =====
     private const string UnknownValue = "Unknown";
+    private const string DeleteFailedTitleKey = "Downloads.ContentDetail.DeleteFailedTitle";
+    private const string DeleteFailedTitleFallback = "Delete Failed";
+    private const string DeleteFailedMessageKey = "Downloads.ContentDetail.DeleteFailedMessage";
+    private const string DeleteFailedMessageFallback = "Could not delete '{0}': {1}";
 
     // ===== Static Fields =====
     // The SSRF-safe handler disables auto-redirect (required so the size probe validates
@@ -4869,6 +4873,14 @@ public partial class ContentDetailViewModel(
     /// Removes the manifest from the pool; the pool untracks CAS references so storage is
     /// reclaimed when no remaining manifest references the content.
     /// </summary>
+    private void ShowDeleteFailedNotification(string? errorMessage)
+    {
+        notificationService.ShowError(
+            GetLocalizedString(DeleteFailedTitleKey, DeleteFailedTitleFallback),
+            FormatLocalizedString(DeleteFailedMessageKey, DeleteFailedMessageFallback, Name, errorMessage ?? string.Empty),
+            NotificationDurations.Long);
+    }
+
     [RelayCommand]
     private async Task DeleteDownloadAsync()
     {
@@ -4899,10 +4911,7 @@ public partial class ContentDetailViewModel(
             if (!manifestResult.Success)
             {
                 logger.LogWarning("Cannot delete {ManifestId}: unable to check content usage: {Error}", manifestId, manifestResult.FirstError);
-                notificationService.ShowError(
-                    GetLocalizedString("Downloads.ContentDetail.DeleteFailedTitle", "Delete Failed"),
-                    FormatLocalizedString("Downloads.ContentDetail.DeleteFailedMessage", "Could not delete '{0}': {1}", Name, manifestResult.FirstError ?? string.Empty),
-                    NotificationDurations.Long);
+                ShowDeleteFailedNotification(manifestResult.FirstError);
                 return;
             }
 
@@ -4924,10 +4933,7 @@ public partial class ContentDetailViewModel(
             if (!profilesResult.Success)
             {
                 logger.LogWarning("Cannot delete {ManifestId}: unable to check content usage: {Error}", manifestId, profilesResult.FirstError);
-                notificationService.ShowError(
-                    GetLocalizedString("Downloads.ContentDetail.DeleteFailedTitle", "Delete Failed"),
-                    FormatLocalizedString("Downloads.ContentDetail.DeleteFailedMessage", "Could not delete '{0}': {1}", Name, profilesResult.FirstError ?? string.Empty),
-                    NotificationDurations.Long);
+                ShowDeleteFailedNotification(profilesResult.FirstError);
                 return;
             }
 
@@ -4935,10 +4941,7 @@ public partial class ContentDetailViewModel(
             if (!dependentsResult.Success)
             {
                 logger.LogWarning("Cannot delete {ManifestId}: unable to check content usage: {Error}", manifestId, dependentsResult.FirstError);
-                notificationService.ShowError(
-                    GetLocalizedString("Downloads.ContentDetail.DeleteFailedTitle", "Delete Failed"),
-                    FormatLocalizedString("Downloads.ContentDetail.DeleteFailedMessage", "Could not delete '{0}': {1}", Name, dependentsResult.FirstError ?? string.Empty),
-                    NotificationDurations.Long);
+                ShowDeleteFailedNotification(dependentsResult.FirstError);
                 return;
             }
 
@@ -5060,10 +5063,7 @@ public partial class ContentDetailViewModel(
             if (!removeResult.Success)
             {
                 logger.LogWarning("Failed to delete downloaded content {ManifestId}: {Error}", manifestId, removeResult.FirstError);
-                notificationService.ShowError(
-                    GetLocalizedString("Downloads.ContentDetail.DeleteFailedTitle", "Delete Failed"),
-                    FormatLocalizedString("Downloads.ContentDetail.DeleteFailedMessage", "Could not delete '{0}': {1}", Name, removeResult.FirstError ?? string.Empty),
-                    NotificationDurations.Long);
+                ShowDeleteFailedNotification(removeResult.FirstError);
                 return;
             }
 
@@ -5098,10 +5098,7 @@ public partial class ContentDetailViewModel(
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to delete downloaded content {ManifestId}", manifestId);
-            notificationService.ShowError(
-                GetLocalizedString("Downloads.ContentDetail.DeleteFailedTitle", "Delete Failed"),
-                FormatLocalizedString("Downloads.ContentDetail.DeleteFailedMessage", "Could not delete '{0}': {1}", Name, ex.Message),
-                NotificationDurations.Long);
+            ShowDeleteFailedNotification(ex.Message);
         }
         finally
         {
