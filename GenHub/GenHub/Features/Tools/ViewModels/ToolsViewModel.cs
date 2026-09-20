@@ -141,7 +141,10 @@ public sealed partial class ToolsViewModel(
                 {
                     // The Tools tab was opened while tools were still loading and the
                     // earlier activation found an empty list; run it now that tools exist.
+                    // IsLoading is still true until the finally block runs, so clear it
+                    // first or the re-entrant activation would defer again instead of selecting.
                     _activateOnLoadComplete = false;
+                    IsLoading = false;
                     OnTabActivated();
                 }
 

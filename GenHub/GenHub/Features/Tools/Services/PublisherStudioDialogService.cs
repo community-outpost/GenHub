@@ -192,24 +192,6 @@ public class PublisherStudioDialogService(
             ]);
     }
 
-    private async Task<string?> ShowOpenPickerAsync(
-        string title,
-        IReadOnlyList<Avalonia.Platform.Storage.FilePickerFileType> fileTypeFilter)
-    {
-        var mainWindow = GetMainWindow();
-        if (mainWindow == null) return null;
-
-        var options = new Avalonia.Platform.Storage.FilePickerOpenOptions
-        {
-            Title = title,
-            AllowMultiple = false,
-            FileTypeFilter = fileTypeFilter,
-        };
-
-        var files = await mainWindow.StorageProvider.OpenFilePickerAsync(options);
-        return files.Count > 0 ? files[0].Path.LocalPath : null;
-    }
-
     /// <inheritdoc/>
     public async Task<string?> ShowFolderPickerAsync(string title)
     {
@@ -333,5 +315,23 @@ public class PublisherStudioDialogService(
         }
 
         return null;
+    }
+
+    private async Task<string?> ShowOpenPickerAsync(
+        string title,
+        IReadOnlyList<Avalonia.Platform.Storage.FilePickerFileType> fileTypeFilter)
+    {
+        var mainWindow = GetMainWindow();
+        if (mainWindow == null) return null;
+
+        var options = new Avalonia.Platform.Storage.FilePickerOpenOptions
+        {
+            Title = title,
+            AllowMultiple = false,
+            FileTypeFilter = fileTypeFilter,
+        };
+
+        var files = await mainWindow.StorageProvider.OpenFilePickerAsync(options);
+        return files.Count > 0 ? files[0].Path.LocalPath : null;
     }
 }

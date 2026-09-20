@@ -159,6 +159,7 @@ public class DropboxOAuthService(HttpClient httpClient, ILogger logger, ILocaliz
             var root = doc.RootElement;
             if (root.ValueKind != JsonValueKind.Object ||
                 !root.TryGetProperty("v", out var version) ||
+                version.ValueKind != JsonValueKind.Number ||
                 !version.TryGetInt32(out var payloadVersion) ||
                 payloadVersion != HostingConstants.DropboxCredentialPayloadVersion)
             {

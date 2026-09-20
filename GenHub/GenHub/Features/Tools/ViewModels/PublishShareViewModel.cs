@@ -2178,7 +2178,7 @@ public partial class PublishShareViewModel(
             return;
         }
 
-        UploadProgress = (int)((completedItems + itemPercent / 100.0) / totalItems * PendingUploadProgressBand);
+        UploadProgress = (int)(((completedItems + (itemPercent / 100.0)) / totalItems) * PendingUploadProgressBand);
     }
 
     private async Task<bool> UploadSingleArtworkAsync(

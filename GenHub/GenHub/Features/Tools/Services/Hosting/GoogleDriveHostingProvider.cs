@@ -636,28 +636,6 @@ public class GoogleDriveHostingProvider(
         };
     }
 
-    private string GetUserFacingApiErrorMessage(Exception ex, string operationFallback)
-    {
-        if (IsApiDisabledError(ex))
-        {
-            var msg = ex.Message ?? string.Empty;
-            var match = GoogleConsoleUrlRegex.Match(msg);
-            var consoleUrl = match.Success
-                ? match.Value.TrimEnd('.', ',', ';', ')')
-                : HostingConstants.GoogleDriveApiEnablementUrl;
-
-            if (localizationService != null &&
-                localizationService.TryGetString("Tools.PublisherStudio.Hosting.GoogleDriveApiNotEnabled", out var localized, consoleUrl))
-            {
-                return localized;
-            }
-
-            return $"The Google Drive API is not enabled for your Google Cloud project. Enable it at {consoleUrl}, wait a few minutes for the change to propagate, then retry.";
-        }
-
-        return $"{operationFallback}: {ex.Message}";
-    }
-
     private static bool IsApiDisabledError(Exception ex)
     {
         if (ex is Google.GoogleApiException apiEx &&
@@ -688,6 +666,28 @@ public class GoogleDriveHostingProvider(
         return !string.IsNullOrEmpty(message) &&
             (message.Contains(HostingConstants.GoogleDriveApiEnablementUrl, StringComparison.OrdinalIgnoreCase) ||
              GoogleConsoleUrlRegex.IsMatch(message));
+    }
+
+    private string GetUserFacingApiErrorMessage(Exception ex, string operationFallback)
+    {
+        if (IsApiDisabledError(ex))
+        {
+            var msg = ex.Message ?? string.Empty;
+            var match = GoogleConsoleUrlRegex.Match(msg);
+            var consoleUrl = match.Success
+                ? match.Value.TrimEnd('.', ',', ';', ')')
+                : HostingConstants.GoogleDriveApiEnablementUrl;
+
+            if (localizationService != null &&
+                localizationService.TryGetString("Tools.PublisherStudio.Hosting.GoogleDriveApiNotEnabled", out var localized, consoleUrl))
+            {
+                return localized;
+            }
+
+            return $"The Google Drive API is not enabled for your Google Cloud project. Enable it at {consoleUrl}, wait a few minutes for the change to propagate, then retry.";
+        }
+
+        return $"{operationFallback}: {ex.Message}";
     }
 
     private string GetNotAuthenticatedMessage() =>
