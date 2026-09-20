@@ -107,7 +107,7 @@
     </Window.Styles>
 
     <!-- Main Grid - notifications are siblings to main content, not affecting its layout -->
-    <Grid>
+    <Grid Margin="{Binding $parent[Window].OffScreenMargin}">
         <!-- Main content with title bar - fixed height header prevents layout shift -->
         <Grid RowDefinitions="40,*">
             <!-- Custom title bar -->
