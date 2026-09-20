@@ -103,6 +103,55 @@ public sealed class OnlineNetworkServiceTests
     }
 
     /// <summary>
+    /// Tests that an expired session is re-issued once and the call retried.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task GetNetworksAsync_WithExpiredSession_ShouldRetryOnceAsync()
+    {
+        // Arrange
+        var sessionIssuances = 0;
+        var directoryCalls = 0;
+        var service = CreateService(CreateFactory(responder: request =>
+        {
+            var path = request.RequestUri?.AbsolutePath ?? string.Empty;
+            if (request.Method == HttpMethod.Post && path.EndsWith("/v1/sessions/anonymous", StringComparison.Ordinal))
+            {
+                sessionIssuances++;
+                return JsonResponse($$$"""{"token":"session-{{{sessionIssuances}}}"}""");
+            }
+
+            if (request.Method == HttpMethod.Get && path.EndsWith("/v1/networks", StringComparison.Ordinal))
+            {
+                directoryCalls++;
+                if (directoryCalls == 1)
+                {
+                    return new HttpResponseMessage(HttpStatusCode.Unauthorized)
+                    {
+                        Content = new StringContent(
+                            """{"error":"Invalid session","code":"online.session-required"}""",
+                            Encoding.UTF8,
+                            "application/json"),
+                    };
+                }
+
+                return JsonResponse(DirectoryJson);
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.NotFound);
+        }));
+
+        // Act
+        var result = await service.GetNetworksAsync();
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.Single(result.Data);
+        Assert.Equal(2, sessionIssuances);
+        Assert.Equal(2, directoryCalls);
+    }
+
+    /// <summary>
     /// Tests that a blank network id fails without HTTP traffic.
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
@@ -383,7 +432,7 @@ public sealed class OnlineNetworkServiceTests
         IP2PConnectionService? p2p = null)
     {
         var presence = new Mock<IOnlinePresenceService>();
-        presence.Setup(p => p.ConnectAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+        presence.Setup(p => p.ConnectAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<DateTime>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(GenHub.Core.Models.Results.OperationResult<bool>.CreateSuccess(true));
         presence.Setup(p => p.DisconnectAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(GenHub.Core.Models.Results.OperationResult<bool>.CreateSuccess(true));
@@ -411,10 +460,11 @@ public sealed class OnlineNetworkServiceTests
         CountingHandler? handler = null,
         HttpStatusCode joinStatus = HttpStatusCode.OK,
         Action<string>? onJoinBody = null,
-        Action<string>? onCreateBody = null)
+        Action<string>? onCreateBody = null,
+        Func<HttpRequestMessage, HttpResponseMessage>? responder = null)
     {
         handler ??= new CountingHandler();
-        handler.Responder = request => Route(request, joinStatus, onJoinBody, onCreateBody);
+        handler.Responder = responder ?? (request => Route(request, joinStatus, onJoinBody, onCreateBody));
         var factory = new Mock<IHttpClientFactory>();
         factory.Setup(f => f.CreateClient(It.IsAny<string>()))
             .Returns(() =>

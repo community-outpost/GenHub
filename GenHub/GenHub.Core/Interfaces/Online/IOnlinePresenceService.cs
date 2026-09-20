@@ -24,6 +24,11 @@ public interface IOnlinePresenceService
     event EventHandler? ConnectionLost;
 
     /// <summary>
+    /// Occurs when the join grant is proactively refreshed before expiry.
+    /// </summary>
+    event EventHandler<string>? GrantRefreshed;
+
+    /// <summary>
     /// Gets a value indicating whether the presence channel is connected.
     /// </summary>
     bool IsConnected { get; }
@@ -33,11 +38,13 @@ public interface IOnlinePresenceService
     /// </summary>
     /// <param name="networkId">The joined network identifier.</param>
     /// <param name="grant">The short-lived join grant.</param>
+    /// <param name="grantExpiresUtc">The grant expiry, used to schedule proactive refresh.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>True when the channel is connected.</returns>
     Task<OperationResult<bool>> ConnectAsync(
         string networkId,
         string grant,
+        DateTime grantExpiresUtc = default,
         CancellationToken cancellationToken = default);
 
     /// <summary>

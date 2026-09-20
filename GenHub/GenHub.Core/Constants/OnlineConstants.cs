@@ -64,6 +64,16 @@ public static class OnlineConstants
     public const int ReconnectMaxDelaySeconds = 60;
 
     /// <summary>
+    /// Prefix shared by every Online edge error code.
+    /// </summary>
+    public const string ErrorCodePrefix = "online.";
+
+    /// <summary>
+    /// Lead time in seconds before grant expiry to proactively refresh it.
+    /// </summary>
+    public const int GrantRefreshLeadTimeSeconds = 120;
+
+    /// <summary>
     /// Error code for a wrong network password.
     /// </summary>
     public const string ErrorWrongPassword = "online.wrong-password";
@@ -92,6 +102,11 @@ public static class OnlineConstants
     /// Error code for an unreachable edge service.
     /// </summary>
     public const string ErrorServiceUnavailable = "online.service-unavailable";
+
+    /// <summary>
+    /// Error code for a missing or expired session token.
+    /// </summary>
+    public const string ErrorSessionRequired = "online.session-required";
 
     /// <summary>
     /// Error code for a missing game profile on play.

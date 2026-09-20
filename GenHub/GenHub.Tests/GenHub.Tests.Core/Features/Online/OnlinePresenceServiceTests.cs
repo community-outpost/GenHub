@@ -1,6 +1,7 @@
 using GenHub.Features.Online.Services;
 using Microsoft.Extensions.Logging;
 using Moq;
+using System.Net.Http;
 
 namespace GenHub.Tests.Core.Features.Online;
 
@@ -16,7 +17,9 @@ public sealed class OnlinePresenceServiceTests : IDisposable
     /// </summary>
     public OnlinePresenceServiceTests()
     {
-        _service = new OnlinePresenceService(Mock.Of<ILogger<OnlinePresenceService>>());
+        _service = new OnlinePresenceService(
+            Mock.Of<IHttpClientFactory>(),
+            Mock.Of<ILogger<OnlinePresenceService>>());
     }
 
     /// <summary>
@@ -96,6 +99,58 @@ public sealed class OnlinePresenceServiceTests : IDisposable
 
         // Assert
         Assert.Null(members);
+    }
+
+    /// <summary>
+    /// Tests that a fresh grant needs no refresh on first connect.
+    /// </summary>
+    [Fact]
+    public void GrantNeedsRefresh_WithFreshGrant_ShouldReturnFalse()
+    {
+        // Arrange
+        var now = new DateTime(2026, 9, 20, 12, 0, 0, DateTimeKind.Utc);
+
+        // Act
+        var needsRefresh = OnlinePresenceService.GrantNeedsRefresh(now.AddMinutes(10), now, 0);
+
+        // Assert
+        Assert.False(needsRefresh);
+    }
+
+    /// <summary>
+    /// Tests that a grant inside the lead window refreshes before connecting.
+    /// </summary>
+    [Fact]
+    public void GrantNeedsRefresh_WithExpiringGrant_ShouldReturnTrue()
+    {
+        // Arrange
+        var now = new DateTime(2026, 9, 20, 12, 0, 0, DateTimeKind.Utc);
+
+        // Act
+        var needsRefresh = OnlinePresenceService.GrantNeedsRefresh(now.AddSeconds(60), now, 0);
+
+        // Assert
+        Assert.True(needsRefresh);
+    }
+
+    /// <summary>
+    /// Tests that an unknown expiry refreshes on reconnects but not first connect.
+    /// </summary>
+    /// <param name="attempt">The reconnect attempt number.</param>
+    /// <param name="expected">The expected refresh decision.</param>
+    [Theory]
+    [InlineData(0, false)]
+    [InlineData(1, true)]
+    public void GrantNeedsRefresh_WithUnknownExpiry_ShouldFollowAttempt(int attempt, bool expected)
+    {
+        // Arrange
+        var now = new DateTime(2026, 9, 20, 12, 0, 0, DateTimeKind.Utc);
+
+        // Act
+        var needsRefresh = OnlinePresenceService.GrantNeedsRefresh(default, now, attempt);
+
+        // Assert
+        Assert.Equal(expected, needsRefresh);
     }
 
     /// <summary>

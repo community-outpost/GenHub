@@ -429,6 +429,9 @@ const handleMetaPatch = async (request: Request, env: OnlineEnv, networkId: stri
   if (read.error !== undefined) {
     return read.error;
   }
+  if (read.body === null || typeof read.body !== "object") {
+    return error("Invalid request body", 400, "online.invalid-request");
+  }
   const raw = read.body as Record<string, unknown>;
   const res = await roomStub(env, networkId).fetch("https://room/internal/meta", {
     method: "PATCH",
@@ -457,6 +460,9 @@ const handleReport = async (request: Request, env: OnlineEnv, networkId: string)
   if (read.error !== undefined) {
     return read.error;
   }
+  if (read.body === null || typeof read.body !== "object") {
+    return error("Invalid request body", 400, "online.invalid-request");
+  }
   const raw = read.body as Record<string, unknown>;
   if (typeof raw.targetIp !== "string" || typeof raw.reason !== "string" || raw.reason.length === 0) {
     return error("Invalid report fields", 400, "online.invalid-request");
@@ -476,6 +482,9 @@ const handleBan = async (request: Request, env: OnlineEnv, networkId: string): P
   const read = await readJsonBody(request);
   if (read.error !== undefined) {
     return read.error;
+  }
+  if (read.body === null || typeof read.body !== "object") {
+    return error("Invalid request body", 400, "online.invalid-request");
   }
   const raw = read.body as Record<string, unknown>;
   if (typeof raw.targetIp !== "string") {

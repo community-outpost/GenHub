@@ -6,6 +6,10 @@ using GenHub.Core.Models.Results;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
+using System.Net;
+using System.Net.Http;
+using System.Net.Http.Headers;
+using System.Net.Http.Json;
 using System.Net.WebSockets;
 using System.Text;
 using System.Text.Json;
@@ -17,10 +21,14 @@ namespace GenHub.Features.Online.Services;
 /// <summary>
 /// WebSocket presence channel: live roster fan-out with heartbeat and
 /// reconnect with backoff. Application close codes (evicted, banned) are
-/// terminal and surface as <see cref="ConnectionLost"/>.
+/// terminal and surface as <see cref="ConnectionLost"/>. The join grant is
+/// proactively refreshed before expiry so reconnects never 403.
 /// </summary>
+/// <param name="httpClientFactory">The HTTP client factory.</param>
 /// <param name="logger">The logger.</param>
-public sealed class OnlinePresenceService(ILogger<OnlinePresenceService> logger) : IOnlinePresenceService, IDisposable, IAsyncDisposable
+public sealed class OnlinePresenceService(
+    IHttpClientFactory httpClientFactory,
+    ILogger<OnlinePresenceService> logger) : IOnlinePresenceService, IDisposable, IAsyncDisposable
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
@@ -33,6 +41,7 @@ public sealed class OnlinePresenceService(ILogger<OnlinePresenceService> logger)
     private Task? _loopTask;
     private string _networkId = string.Empty;
     private string _grant = string.Empty;
+    private DateTime _grantExpiresUtc;
     private bool _disposed;
 
     /// <inheritdoc/>
@@ -40,6 +49,9 @@ public sealed class OnlinePresenceService(ILogger<OnlinePresenceService> logger)
 
     /// <inheritdoc/>
     public event EventHandler? ConnectionLost;
+
+    /// <inheritdoc/>
+    public event EventHandler<string>? GrantRefreshed;
 
     /// <inheritdoc/>
     public bool IsConnected
@@ -57,6 +69,7 @@ public sealed class OnlinePresenceService(ILogger<OnlinePresenceService> logger)
     public async Task<OperationResult<bool>> ConnectAsync(
         string networkId,
         string grant,
+        DateTime grantExpiresUtc = default,
         CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(networkId) || string.IsNullOrWhiteSpace(grant))
@@ -64,14 +77,16 @@ public sealed class OnlinePresenceService(ILogger<OnlinePresenceService> logger)
             return OperationResult<bool>.CreateFailure("Network id and grant are required.");
         }
 
-        await _stateLock.WaitAsync(cancellationToken);
+        ThrowIfDisposed();
+        await _stateLock.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
             ThrowIfDisposed();
-            await StopLoopAsync();
+            await StopLoopAsync().ConfigureAwait(false);
 
             _networkId = networkId;
             _grant = grant;
+            _grantExpiresUtc = grantExpiresUtc;
             _loopCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             _loopTask = RunLoopAsync(_loopCts.Token);
             return OperationResult<bool>.CreateSuccess(true);
@@ -85,10 +100,11 @@ public sealed class OnlinePresenceService(ILogger<OnlinePresenceService> logger)
     /// <inheritdoc/>
     public async Task<OperationResult<bool>> DisconnectAsync(CancellationToken cancellationToken = default)
     {
-        await _stateLock.WaitAsync(cancellationToken);
+        ThrowIfDisposed();
+        await _stateLock.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            await StopLoopAsync();
+            await StopLoopAsync().ConfigureAwait(false);
             return OperationResult<bool>.CreateSuccess(true);
         }
         finally
@@ -110,9 +126,20 @@ public sealed class OnlinePresenceService(ILogger<OnlinePresenceService> logger)
             _disposed = true;
         }
 
-        // Join the loop before tearing down the socket so a running
-        // receive never observes a disposed socket or semaphore.
-        StopLoopAsync().GetAwaiter().GetResult();
+        // Serialize with lifecycle methods: a concurrent Connect/Disconnect
+        // must finish before the loop is torn down and the semaphore is
+        // disposed. Every await below uses ConfigureAwait(false), so blocking
+        // here cannot deadlock against a captured UI context at shutdown.
+        _stateLock.Wait();
+        try
+        {
+            StopLoopAsync().GetAwaiter().GetResult();
+        }
+        finally
+        {
+            _stateLock.Release();
+        }
+
         _stateLock.Dispose();
     }
 
@@ -129,7 +156,16 @@ public sealed class OnlinePresenceService(ILogger<OnlinePresenceService> logger)
             _disposed = true;
         }
 
-        await StopLoopAsync();
+        await _stateLock.WaitAsync().ConfigureAwait(false);
+        try
+        {
+            await StopLoopAsync().ConfigureAwait(false);
+        }
+        finally
+        {
+            _stateLock.Release();
+        }
+
         _stateLock.Dispose();
     }
 
@@ -177,6 +213,25 @@ public sealed class OnlinePresenceService(ILogger<OnlinePresenceService> logger)
         }
     }
 
+    /// <summary>
+    /// Determines whether the join grant must be re-minted before connecting.
+    /// </summary>
+    /// <param name="grantExpiresUtc">The grant expiry, or default when unknown.</param>
+    /// <param name="utcNow">The current UTC time.</param>
+    /// <param name="attempt">The reconnect attempt number.</param>
+    /// <returns>True when the grant must be refreshed first.</returns>
+    internal static bool GrantNeedsRefresh(DateTime grantExpiresUtc, DateTime utcNow, int attempt)
+    {
+        if (grantExpiresUtc == default)
+        {
+            // Unknown expiry: the opening grant is fresh from join, but every
+            // later reconnect re-mints to be safe.
+            return attempt > 0;
+        }
+
+        return grantExpiresUtc - utcNow < TimeSpan.FromSeconds(OnlineConstants.GrantRefreshLeadTimeSeconds);
+    }
+
     private static TimeSpan BackoffDelay(int attempt)
     {
         var seconds = Math.Min(
@@ -198,18 +253,33 @@ public sealed class OnlinePresenceService(ILogger<OnlinePresenceService> logger)
         var attempt = 0;
         while (!cancellationToken.IsCancellationRequested)
         {
+            ClientWebSocket? socket = null;
             try
             {
+                // The edge re-verifies the ticket on every upgrade and grants
+                // live minutes: re-mint before connecting, never after a 403
+                // (an expired grant cannot refresh itself).
+                if (GrantNeedsRefresh(_grantExpiresUtc, DateTime.UtcNow, attempt)
+                    && !await RefreshGrantAsync(_networkId, _grant, cancellationToken).ConfigureAwait(false))
+                {
+                    ConnectionLost?.Invoke(this, EventArgs.Empty);
+                    return;
+                }
+
                 var uri = BuildPresenceUri(ApiConstants.OnlineEdgeBaseUrl, _networkId, _grant);
-                var socket = new ClientWebSocket();
+                socket = new ClientWebSocket();
+                ClientWebSocket? previous;
                 lock (_syncLock)
                 {
+                    previous = _socket;
                     _socket = socket;
                 }
 
-                await socket.ConnectAsync(uri, cancellationToken);
+                previous?.Dispose();
+
+                await socket.ConnectAsync(uri, cancellationToken).ConfigureAwait(false);
                 attempt = 0;
-                var terminal = await ReceiveLoopAsync(socket, cancellationToken);
+                var terminal = await ReceiveLoopAsync(socket, cancellationToken).ConfigureAwait(false);
                 if (terminal)
                 {
                     return;
@@ -217,6 +287,7 @@ public sealed class OnlinePresenceService(ILogger<OnlinePresenceService> logger)
             }
             catch (OperationCanceledException)
             {
+                DisposeIfUnowned(socket);
                 return;
             }
             catch (WebSocketException ex)
@@ -227,13 +298,90 @@ public sealed class OnlinePresenceService(ILogger<OnlinePresenceService> logger)
             attempt++;
             try
             {
-                await Task.Delay(BackoffDelay(attempt), cancellationToken);
+                await Task.Delay(BackoffDelay(attempt), cancellationToken).ConfigureAwait(false);
             }
             catch (OperationCanceledException)
             {
                 return;
             }
         }
+    }
+
+    private async Task<bool> RefreshGrantAsync(string networkId, string grant, CancellationToken cancellationToken)
+    {
+        try
+        {
+            using var client = httpClientFactory.CreateClient(nameof(OnlinePresenceService));
+            client.BaseAddress = new Uri(ApiConstants.OnlineEdgeBaseUrl);
+            client.Timeout = TimeSpan.FromSeconds(OnlineConstants.HttpTimeoutSeconds);
+            using var request = new HttpRequestMessage(
+                HttpMethod.Get,
+                string.Format(ApiConstants.OnlineCertFormat, Uri.EscapeDataString(networkId)));
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", grant);
+            using var response = await client.SendAsync(request, cancellationToken).ConfigureAwait(false);
+            if (response.StatusCode == HttpStatusCode.Forbidden)
+            {
+                // Removed or banned: the grant cannot be renewed.
+                return false;
+            }
+
+            if (!response.IsSuccessStatusCode)
+            {
+                // Transient edge failure: proceed with the current grant.
+                return true;
+            }
+
+            var cert = await response.Content.ReadFromJsonAsync<OnlineCertResult>(cancellationToken).ConfigureAwait(false);
+            if (cert is null || string.IsNullOrWhiteSpace(cert.Grant))
+            {
+                return true;
+            }
+
+            lock (_syncLock)
+            {
+                _grant = cert.Grant;
+                _grantExpiresUtc = cert.GrantExpiresUtc;
+            }
+
+            GrantRefreshed?.Invoke(this, cert.Grant);
+            return true;
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (HttpRequestException ex)
+        {
+            logger.LogWarning(ex, "Grant refresh failed; keeping the current grant.");
+            return true;
+        }
+        catch (TaskCanceledException)
+        {
+            // Timeout rather than shutdown: best effort.
+            return true;
+        }
+        catch (JsonException)
+        {
+            return true;
+        }
+    }
+
+    private void DisposeIfUnowned(ClientWebSocket? socket)
+    {
+        if (socket is null)
+        {
+            return;
+        }
+
+        lock (_syncLock)
+        {
+            if (_socket == socket)
+            {
+                return;
+            }
+        }
+
+        socket.Dispose();
     }
 
     private async Task<bool> ReceiveLoopAsync(ClientWebSocket socket, CancellationToken cancellationToken)
@@ -245,10 +393,10 @@ public sealed class OnlinePresenceService(ILogger<OnlinePresenceService> logger)
             var message = new StringBuilder();
             while (socket.State == WebSocketState.Open && !cancellationToken.IsCancellationRequested)
             {
-                var result = await socket.ReceiveAsync(_receiveBuffer, cancellationToken);
+                var result = await socket.ReceiveAsync(_receiveBuffer, cancellationToken).ConfigureAwait(false);
                 if (result.MessageType == WebSocketMessageType.Close)
                 {
-                    await HandleCloseAsync(socket, result, cancellationToken);
+                    await HandleCloseAsync(socket, result, cancellationToken).ConfigureAwait(false);
                     return IsTerminalClose(result.CloseStatus);
                 }
 
@@ -279,10 +427,10 @@ public sealed class OnlinePresenceService(ILogger<OnlinePresenceService> logger)
         }
         finally
         {
-            await heartbeatCts.CancelAsync();
+            await heartbeatCts.CancelAsync().ConfigureAwait(false);
             try
             {
-                await heartbeatTask;
+                await heartbeatTask.ConfigureAwait(false);
             }
             catch (OperationCanceledException)
             {
@@ -298,10 +446,10 @@ public sealed class OnlinePresenceService(ILogger<OnlinePresenceService> logger)
         {
             while (socket.State == WebSocketState.Open && !cancellationToken.IsCancellationRequested)
             {
-                await Task.Delay(TimeSpan.FromSeconds(OnlineConstants.PresenceHeartbeatSeconds), cancellationToken);
+                await Task.Delay(TimeSpan.FromSeconds(OnlineConstants.PresenceHeartbeatSeconds), cancellationToken).ConfigureAwait(false);
                 if (socket.State == WebSocketState.Open)
                 {
-                    await socket.SendAsync(payload, WebSocketMessageType.Text, true, cancellationToken);
+                    await socket.SendAsync(payload, WebSocketMessageType.Text, true, cancellationToken).ConfigureAwait(false);
                 }
             }
         }
@@ -322,7 +470,7 @@ public sealed class OnlinePresenceService(ILogger<OnlinePresenceService> logger)
     {
         try
         {
-            await socket.CloseOutputAsync(WebSocketCloseStatus.NormalClosure, "Closing", cancellationToken);
+            await socket.CloseOutputAsync(WebSocketCloseStatus.NormalClosure, "Closing", cancellationToken).ConfigureAwait(false);
         }
         catch (OperationCanceledException)
         {
@@ -349,14 +497,14 @@ public sealed class OnlinePresenceService(ILogger<OnlinePresenceService> logger)
     {
         if (_loopCts is not null)
         {
-            await _loopCts.CancelAsync();
+            await _loopCts.CancelAsync().ConfigureAwait(false);
         }
 
         if (_loopTask is not null)
         {
             try
             {
-                await _loopTask;
+                await _loopTask.ConfigureAwait(false);
             }
             catch (OperationCanceledException)
             {
@@ -366,12 +514,17 @@ public sealed class OnlinePresenceService(ILogger<OnlinePresenceService> logger)
             _loopTask = null;
         }
 
-        _socket?.Dispose();
-        _socket = null;
+        lock (_syncLock)
+        {
+            _socket?.Dispose();
+            _socket = null;
+        }
+
         _loopCts?.Dispose();
         _loopCts = null;
         _networkId = string.Empty;
         _grant = string.Empty;
+        _grantExpiresUtc = default;
     }
 
     private void ThrowIfDisposed()

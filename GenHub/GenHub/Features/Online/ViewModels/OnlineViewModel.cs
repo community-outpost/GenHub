@@ -62,9 +62,11 @@ public sealed partial class OnlineViewModel(
     private OnlineNetworkSummary? _selectedNetwork;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsDetailVisible))]
     private OnlineNetworkDetail? _selectedDetail;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsDetailVisible))]
     private bool _detailLoading;
 
     [ObservableProperty]
@@ -143,6 +145,12 @@ public sealed partial class OnlineViewModel(
     private bool _isHostPanelOpen;
 
     /// <summary>
+    /// Gets a value indicating whether the detail card is visible: a loaded
+    /// detail, or the loading state while one is being fetched.
+    /// </summary>
+    public bool IsDetailVisible => SelectedDetail is not null || DetailLoading;
+
+    /// <summary>
     /// Initializes the view model by subscribing to roster updates.
     /// </summary>
     public void Initialize()
@@ -193,6 +201,7 @@ public sealed partial class OnlineViewModel(
         finally
         {
             IsLoading = false;
+            _refreshLock.Release();
         }
     }
 
@@ -830,7 +839,7 @@ public sealed partial class OnlineViewModel(
 
     private void ShowErrorToast(string titleKey, string? detail)
     {
-        var detailText = string.IsNullOrWhiteSpace(detail) || detail.StartsWith("online.", StringComparison.Ordinal)
+        var detailText = string.IsNullOrWhiteSpace(detail) || detail.StartsWith(OnlineConstants.ErrorCodePrefix, StringComparison.Ordinal)
             ? GetString("Online.Error.GenericDetail")
             : OnlineLogScrubber.Scrub(detail);
         notificationService.ShowError(GetString(titleKey), detailText, NotificationDurations.Long);

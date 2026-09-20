@@ -67,7 +67,7 @@ public sealed class OverlaySidecarHostTests : IDisposable
         // Arrange
         var locator = new Mock<IOverlaySidecarLocator>();
         locator.Setup(l => l.LocateBinary()).Returns("dotnet");
-        locator.Setup(l => l.BuildArguments(It.IsAny<string>())).Returns("--info");
+        locator.Setup(l => l.BuildArguments(It.IsAny<string>())).Returns("--invalid-option");
 
         // Act
         var result = await _host.StartAsync("{}", locator.Object);
