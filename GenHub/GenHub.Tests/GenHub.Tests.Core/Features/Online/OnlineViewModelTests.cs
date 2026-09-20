@@ -1,0 +1,208 @@
+using GenHub.Core.Constants;
+using GenHub.Core.Interfaces.Common;
+using GenHub.Core.Interfaces.GameProfiles;
+using GenHub.Core.Interfaces.Notifications;
+using GenHub.Core.Interfaces.Online;
+using GenHub.Core.Models.Online;
+using GenHub.Core.Models.Results;
+using GenHub.Features.Online.ViewModels;
+using Microsoft.Extensions.Logging;
+using Moq;
+
+namespace GenHub.Tests.Core.Features.Online;
+
+/// <summary>
+/// Unit tests for <see cref="OnlineViewModel"/>.
+/// </summary>
+public class OnlineViewModelTests
+{
+    /// <summary>
+    /// Tests that refreshing populates the directory.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task RefreshNetworksAsync_OnSuccess_ShouldPopulateAsync()
+    {
+        // Arrange
+        var network = new Mock<IOnlineNetworkService>();
+        network.Setup(n => n.GetNetworksAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IReadOnlyList<OnlineNetworkSummary>>.CreateSuccess(
+            [
+                new OnlineNetworkSummary { Id = "net-1", Name = "Lobby" },
+            ]));
+        var vm = CreateViewModel(network.Object);
+
+        // Act
+        await vm.RefreshNetworksAsync();
+
+        // Assert
+        Assert.Single(vm.Networks);
+        Assert.False(vm.DirectoryFailed);
+        Assert.False(vm.DirectoryEmpty);
+    }
+
+    /// <summary>
+    /// Tests that a failed refresh flags the directory and toasts.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task RefreshNetworksAsync_OnFailure_ShouldFlagAndToastAsync()
+    {
+        // Arrange
+        var network = new Mock<IOnlineNetworkService>();
+        network.Setup(n => n.GetNetworksAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IReadOnlyList<OnlineNetworkSummary>>.CreateFailure(
+                OnlineConstants.ErrorServiceUnavailable));
+        var notifications = new Mock<INotificationService>();
+        var vm = CreateViewModel(network.Object, notifications.Object);
+
+        // Act
+        await vm.RefreshNetworksAsync();
+
+        // Assert
+        Assert.True(vm.DirectoryFailed);
+        notifications.Verify(n => n.ShowError(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()), Times.Once);
+    }
+
+    /// <summary>
+    /// Tests that creating a public network without a password never calls the service.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task CreateNetworkAsync_PublicWithoutPassword_ShouldNotCallServiceAsync()
+    {
+        // Arrange
+        var network = new Mock<IOnlineNetworkService>(MockBehavior.Strict);
+        var vm = CreateViewModel(network.Object);
+        vm.CreateName = "Lobby";
+        vm.CreatePassword = string.Empty;
+        vm.CreateIsPublic = true;
+
+        // Act
+        await vm.CreateNetworkAsync();
+
+        // Assert
+        Assert.False(vm.IsJoined);
+    }
+
+    /// <summary>
+    /// Tests that play with a missing profile shows the download-prompt warning.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task PlayAsync_WithMissingProfile_ShouldWarnAsync()
+    {
+        // Arrange
+        var launch = new Mock<IOnlineLaunchService>();
+        launch.Setup(l => l.PlayAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<OnlinePlayResult>.CreateFailure(OnlineConstants.ErrorProfileMissing));
+        var notifications = new Mock<INotificationService>();
+        var vm = CreateViewModel(launchService: launch.Object, notifications: notifications.Object);
+
+        // Act
+        await vm.PlayAsync();
+
+        // Assert
+        notifications.Verify(n => n.ShowWarning(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()), Times.Once);
+        notifications.Verify(n => n.ShowSuccess(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()), Times.Never);
+    }
+
+    /// <summary>
+    /// Tests that reporting without a selection never opens the dialog.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task ReportMemberAsync_WithoutSelection_ShouldNotDialogAsync()
+    {
+        // Arrange
+        var dialogs = new Mock<IDialogService>(MockBehavior.Strict);
+        var vm = CreateViewModel(dialogs: dialogs.Object);
+
+        // Act
+        await vm.ReportMemberAsync();
+
+        // Assert
+        Assert.Null(vm.SelectedMember);
+    }
+
+    /// <summary>
+    /// Tests that declining the ban confirmation never calls the service.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task BanMemberAsync_WhenDeclined_ShouldNotCallServiceAsync()
+    {
+        // Arrange
+        var network = new Mock<IOnlineNetworkService>(MockBehavior.Strict);
+        var dialogs = new Mock<IDialogService>();
+        dialogs.Setup(d => d.ShowConfirmationAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
+            .ReturnsAsync(false);
+        var vm = CreateViewModel(network.Object, dialogs: dialogs.Object);
+        vm.SelectedMember = new OnlineMember { DisplayName = "Guest", OverlayIp = "10.42.0.3" };
+
+        // Act
+        await vm.BanMemberAsync();
+
+        // Assert
+        Assert.NotNull(vm.SelectedMember);
+    }
+
+    /// <summary>
+    /// Tests that a successful connection test toasts success.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task TestConnectionAsync_OnSuccess_ShouldToastAsync()
+    {
+        // Arrange
+        var p2p = new Mock<IP2PConnectionService>();
+        p2p.Setup(p => p.ConnectToPeerAsync(It.IsAny<string>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+        var notifications = new Mock<INotificationService>();
+        var vm = CreateViewModel(notifications: notifications.Object, p2pService: p2p.Object);
+        vm.SelectedMember = new OnlineMember { DisplayName = "Guest", OverlayIp = "10.42.0.3", Endpoint = "203.0.113.7:4321" };
+
+        // Act
+        await vm.TestConnectionAsync();
+
+        // Assert
+        p2p.Verify(p => p.ConnectToPeerAsync("203.0.113.7", 4321, It.IsAny<CancellationToken>()), Times.Once);
+        notifications.Verify(n => n.ShowSuccess(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()), Times.Once);
+    }
+
+    /// <summary>
+    /// Tests that a member without an endpoint never dials.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task TestConnectionAsync_WithoutEndpoint_ShouldNotDialAsync()
+    {
+        // Arrange
+        var p2p = new Mock<IP2PConnectionService>(MockBehavior.Strict);
+        var vm = CreateViewModel(p2pService: p2p.Object);
+        vm.SelectedMember = new OnlineMember { DisplayName = "Relay", OverlayIp = "10.42.0.4", Endpoint = string.Empty };
+
+        // Act
+        await vm.TestConnectionAsync();
+
+        // Assert
+        Assert.NotNull(vm.SelectedMember);
+    }
+
+    private static OnlineViewModel CreateViewModel(
+        IOnlineNetworkService? network = null,
+        INotificationService? notifications = null,
+        IOnlineLaunchService? launchService = null,
+        IDialogService? dialogs = null,
+        IP2PConnectionService? p2pService = null)
+    {
+        return new OnlineViewModel(
+            network ?? Mock.Of<IOnlineNetworkService>(),
+            launchService ?? Mock.Of<IOnlineLaunchService>(),
+            Mock.Of<IGameProfileManager>(),
+            p2pService ?? Mock.Of<IP2PConnectionService>(),
+            notifications ?? Mock.Of<INotificationService>(),
+            dialogs ?? Mock.Of<IDialogService>(),
+            Mock.Of<ILogger<OnlineViewModel>>());
+    }
+}

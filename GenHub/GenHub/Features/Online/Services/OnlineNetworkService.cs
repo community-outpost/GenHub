@@ -1,0 +1,602 @@
+using GenHub.Core.Constants;
+using GenHub.Core.Helpers;
+using GenHub.Core.Interfaces.Online;
+using GenHub.Core.Models.Online;
+using GenHub.Core.Models.Results;
+using Microsoft.Extensions.Logging;
+using System;
+using System.Collections.Generic;
+using System.Net;
+using System.Net.Http;
+using System.Net.Http.Headers;
+using System.Net.Http.Json;
+using System.Threading;
+using System.Threading.Tasks;
+
+namespace GenHub.Features.Online.Services;
+
+/// <summary>
+/// HTTP client for the Online edge control plane (directory, sessions, join grants).
+/// The edge only handles trust and control; game traffic stays on the P2P overlay.
+/// </summary>
+/// <param name="httpClientFactory">The HTTP client factory.</param>
+/// <param name="adapter">The platform virtual LAN adapter.</param>
+/// <param name="presence">The presence channel service.</param>
+/// <param name="p2p">The P2P connection service for endpoint discovery.</param>
+/// <param name="logger">The logger.</param>
+public sealed class OnlineNetworkService(
+    IHttpClientFactory httpClientFactory,
+    IVirtualLanAdapter adapter,
+    IOnlinePresenceService presence,
+    IP2PConnectionService p2p,
+    ILogger<OnlineNetworkService> logger) : IOnlineNetworkService
+{
+    private readonly SemaphoreSlim _sessionLock = new(1, 1);
+    private string? _sessionToken;
+    private bool _presenceSubscribed;
+
+    /// <inheritdoc/>
+    public event EventHandler<IReadOnlyList<OnlineMember>>? RosterChanged;
+
+    /// <inheritdoc/>
+    public event EventHandler? ConnectionLost;
+
+    /// <inheritdoc/>
+    public OnlineJoinResult? CurrentJoin { get; private set; }
+
+    /// <inheritdoc/>
+    public string LocalEndpoint { get; private set; } = string.Empty;
+
+    /// <inheritdoc/>
+    public async Task<OperationResult<IReadOnlyList<OnlineNetworkSummary>>> GetNetworksAsync(
+        string? search = null,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            using var client = await CreateAuthenticatedClientAsync(cancellationToken);
+            var url = ApiConstants.OnlineNetworksEndpoint;
+            if (!string.IsNullOrWhiteSpace(search))
+            {
+                url += "?search=" + Uri.EscapeDataString(search.Trim());
+            }
+
+            using var response = await client.GetAsync(url, cancellationToken);
+            if (!response.IsSuccessStatusCode)
+            {
+                return OperationResult<IReadOnlyList<OnlineNetworkSummary>>.CreateFailure(
+                    await ReadErrorAsync(response, cancellationToken));
+            }
+
+            var networks = await response.Content.ReadFromJsonAsync<IReadOnlyList<OnlineNetworkSummary>>(
+                cancellationToken) ?? [];
+            return OperationResult<IReadOnlyList<OnlineNetworkSummary>>.CreateSuccess(networks);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (HttpRequestException ex)
+        {
+            logger.LogWarning(ex, "Online directory unreachable.");
+            return OperationResult<IReadOnlyList<OnlineNetworkSummary>>.CreateFailure(
+                OnlineConstants.ErrorServiceUnavailable);
+        }
+    }
+
+    /// <inheritdoc/>
+    public async Task<OperationResult<OnlineNetworkDetail>> GetNetworkDetailAsync(
+        string networkId,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(networkId))
+        {
+            return OperationResult<OnlineNetworkDetail>.CreateFailure(OnlineConstants.ErrorNetworkNotFound);
+        }
+
+        try
+        {
+            using var client = await CreateAuthenticatedClientAsync(cancellationToken);
+            var url = ApiConstants.OnlineNetworksEndpoint + "/" + Uri.EscapeDataString(networkId);
+            using var response = await client.GetAsync(url, cancellationToken);
+            if (!response.IsSuccessStatusCode)
+            {
+                return OperationResult<OnlineNetworkDetail>.CreateFailure(
+                    await ReadErrorAsync(response, cancellationToken));
+            }
+
+            var detail = await response.Content.ReadFromJsonAsync<OnlineNetworkDetail>(cancellationToken);
+            if (detail is null)
+            {
+                return OperationResult<OnlineNetworkDetail>.CreateFailure(OnlineConstants.ErrorNetworkNotFound);
+            }
+
+            return OperationResult<OnlineNetworkDetail>.CreateSuccess(detail);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (HttpRequestException ex)
+        {
+            logger.LogWarning(ex, "Online detail request failed.");
+            return OperationResult<OnlineNetworkDetail>.CreateFailure(OnlineConstants.ErrorServiceUnavailable);
+        }
+    }
+
+    /// <inheritdoc/>
+    public async Task<OperationResult<OnlineJoinResult>> CreateNetworkAsync(
+        OnlineCreateNetworkRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        var validation = ValidateCreateRequest(request);
+        if (!validation.Success)
+        {
+            return OperationResult<OnlineJoinResult>.CreateFailure(validation);
+        }
+
+        try
+        {
+            var endpoint = await ResolvePublicEndpointAsync(false, cancellationToken);
+            using var client = await CreateAuthenticatedClientAsync(cancellationToken);
+            using var response = await client.PostAsJsonAsync(
+                ApiConstants.OnlineNetworksEndpoint, request with { Endpoint = endpoint }, cancellationToken);
+            if (!response.IsSuccessStatusCode)
+            {
+                return OperationResult<OnlineJoinResult>.CreateFailure(
+                    await ReadErrorAsync(response, cancellationToken));
+            }
+
+            var join = await response.Content.ReadFromJsonAsync<OnlineJoinResult>(cancellationToken);
+            if (join is null)
+            {
+                return OperationResult<OnlineJoinResult>.CreateFailure(OnlineConstants.ErrorServiceUnavailable);
+            }
+
+            return await ActivateJoinAsync(join, cancellationToken);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (HttpRequestException ex)
+        {
+            logger.LogWarning(ex, "Online network creation failed.");
+            return OperationResult<OnlineJoinResult>.CreateFailure(OnlineConstants.ErrorServiceUnavailable);
+        }
+    }
+
+    /// <inheritdoc/>
+    public async Task<OperationResult<OnlineJoinResult>> JoinNetworkAsync(
+        string networkId,
+        string password,
+        bool preferRelay = false,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(networkId))
+        {
+            return OperationResult<OnlineJoinResult>.CreateFailure(OnlineConstants.ErrorNetworkNotFound);
+        }
+
+        try
+        {
+            var endpoint = await ResolvePublicEndpointAsync(preferRelay, cancellationToken);
+            using var client = await CreateAuthenticatedClientAsync(cancellationToken);
+            var url = string.Format(ApiConstants.OnlineNetworkJoinFormat, Uri.EscapeDataString(networkId));
+            using var response = await client.PostAsJsonAsync(
+                url, new { password, preferRelay, endpoint }, cancellationToken);
+            if (response.StatusCode == HttpStatusCode.Unauthorized)
+            {
+                return OperationResult<OnlineJoinResult>.CreateFailure(OnlineConstants.ErrorWrongPassword);
+            }
+
+            if (response.StatusCode == HttpStatusCode.Conflict)
+            {
+                return OperationResult<OnlineJoinResult>.CreateFailure(OnlineConstants.ErrorNetworkFull);
+            }
+
+            if (response.StatusCode == HttpStatusCode.Forbidden)
+            {
+                return OperationResult<OnlineJoinResult>.CreateFailure(OnlineConstants.ErrorNetworkBanned);
+            }
+
+            if (!response.IsSuccessStatusCode)
+            {
+                return OperationResult<OnlineJoinResult>.CreateFailure(
+                    await ReadErrorAsync(response, cancellationToken));
+            }
+
+            var join = await response.Content.ReadFromJsonAsync<OnlineJoinResult>(cancellationToken);
+            if (join is null)
+            {
+                return OperationResult<OnlineJoinResult>.CreateFailure(OnlineConstants.ErrorServiceUnavailable);
+            }
+
+            return await ActivateJoinAsync(join, cancellationToken);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (HttpRequestException ex)
+        {
+            logger.LogWarning(ex, "Online join request failed.");
+            return OperationResult<OnlineJoinResult>.CreateFailure(OnlineConstants.ErrorServiceUnavailable);
+        }
+    }
+
+    /// <inheritdoc/>
+    public async Task<OperationResult<bool>> LeaveNetworkAsync(CancellationToken cancellationToken = default)
+    {
+        var join = CurrentJoin;
+        CurrentJoin = null;
+        LocalEndpoint = string.Empty;
+
+        if (join is not null)
+        {
+            await NotifyLeaveAsync(join, cancellationToken);
+        }
+
+        await presence.DisconnectAsync(cancellationToken);
+        UnsubscribePresence();
+        await p2p.StopListeningAsync(cancellationToken);
+
+        var teardown = await adapter.TearDownAsync(cancellationToken);
+        if (!teardown.Success)
+        {
+            logger.LogWarning("Adapter teardown reported errors: {Errors}", OnlineLogScrubber.Scrub(string.Join("; ", teardown.Errors)));
+        }
+
+        RosterChanged?.Invoke(this, []);
+        return OperationResult<bool>.CreateSuccess(true);
+    }
+
+    /// <inheritdoc/>
+    public async Task<OperationResult<bool>> UpdateNetworkAsync(
+        string? description,
+        string? expectedProfileId,
+        CancellationToken cancellationToken = default)
+    {
+        var join = CurrentJoin;
+        if (join is null)
+        {
+            return OperationResult<bool>.CreateFailure(OnlineConstants.ErrorServiceUnavailable);
+        }
+
+        try
+        {
+            using var client = CreateGrantClient(join.Grant);
+            var url = ApiConstants.OnlineNetworksEndpoint + "/" + Uri.EscapeDataString(join.NetworkId);
+            using var request = new HttpRequestMessage(HttpMethod.Patch, url)
+            {
+                Content = JsonContent.Create(new { description, expectedProfileId }),
+            };
+            using var response = await client.SendAsync(request, cancellationToken);
+            if (!response.IsSuccessStatusCode)
+            {
+                return OperationResult<bool>.CreateFailure(await ReadErrorAsync(response, cancellationToken));
+            }
+
+            return OperationResult<bool>.CreateSuccess(true);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (HttpRequestException ex)
+        {
+            logger.LogWarning(ex, "Online network update failed.");
+            return OperationResult<bool>.CreateFailure(OnlineConstants.ErrorServiceUnavailable);
+        }
+    }
+
+    /// <inheritdoc/>
+    public async Task<OperationResult<bool>> ReportMemberAsync(
+        string overlayIp,
+        string reason,
+        CancellationToken cancellationToken = default)
+    {
+        var join = CurrentJoin;
+        if (join is null || string.IsNullOrWhiteSpace(overlayIp) || string.IsNullOrWhiteSpace(reason))
+        {
+            return OperationResult<bool>.CreateFailure(OnlineConstants.ErrorServiceUnavailable);
+        }
+
+        try
+        {
+            using var client = CreateGrantClient(join.Grant);
+            var url = string.Format(ApiConstants.OnlineReportFormat, Uri.EscapeDataString(join.NetworkId));
+            using var response = await client.PostAsJsonAsync(
+                url, new { targetIp = overlayIp, reason }, cancellationToken);
+            if (!response.IsSuccessStatusCode)
+            {
+                return OperationResult<bool>.CreateFailure(await ReadErrorAsync(response, cancellationToken));
+            }
+
+            return OperationResult<bool>.CreateSuccess(true);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (HttpRequestException ex)
+        {
+            logger.LogWarning(ex, "Online member report failed.");
+            return OperationResult<bool>.CreateFailure(OnlineConstants.ErrorServiceUnavailable);
+        }
+    }
+
+    /// <inheritdoc/>
+    public async Task<OperationResult<bool>> BanMemberAsync(
+        string overlayIp,
+        CancellationToken cancellationToken = default)
+    {
+        var join = CurrentJoin;
+        if (join is null || string.IsNullOrWhiteSpace(overlayIp))
+        {
+            return OperationResult<bool>.CreateFailure(OnlineConstants.ErrorServiceUnavailable);
+        }
+
+        try
+        {
+            using var client = CreateGrantClient(join.Grant);
+            var url = string.Format(ApiConstants.OnlineBanFormat, Uri.EscapeDataString(join.NetworkId));
+            using var response = await client.PostAsJsonAsync(
+                url, new { targetIp = overlayIp }, cancellationToken);
+            if (!response.IsSuccessStatusCode)
+            {
+                return OperationResult<bool>.CreateFailure(await ReadErrorAsync(response, cancellationToken));
+            }
+
+            return OperationResult<bool>.CreateSuccess(true);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (HttpRequestException ex)
+        {
+            logger.LogWarning(ex, "Online member ban failed.");
+            return OperationResult<bool>.CreateFailure(OnlineConstants.ErrorServiceUnavailable);
+        }
+    }
+
+    private static OperationResult<bool> ValidateCreateRequest(OnlineCreateNetworkRequest request)
+    {
+        if (request.Name.Length < OnlineConstants.MinNetworkNameLength ||
+            request.Name.Length > OnlineConstants.MaxNetworkNameLength)
+        {
+            return OperationResult<bool>.CreateFailure("Network name has an invalid length.");
+        }
+
+        if (request.SlotsMax < 2 || request.SlotsMax > OnlineConstants.MaxSlotCap)
+        {
+            return OperationResult<bool>.CreateFailure("Slot cap is out of range.");
+        }
+
+        if (request.Password.Length > OnlineConstants.MaxPasswordLength)
+        {
+            return OperationResult<bool>.CreateFailure("Password is too long.");
+        }
+
+        return OperationResult<bool>.CreateSuccess(true);
+    }
+
+    private static async Task<string> ReadErrorAsync(HttpResponseMessage response, CancellationToken cancellationToken)
+    {
+        if (response.StatusCode == HttpStatusCode.NotFound)
+        {
+            return OnlineConstants.ErrorNetworkNotFound;
+        }
+
+        try
+        {
+            var problem = await response.Content.ReadFromJsonAsync<Dictionary<string, string>>(cancellationToken);
+            if (problem is not null)
+            {
+                if (problem.TryGetValue("code", out var code) && !string.IsNullOrWhiteSpace(code))
+                {
+                    return code;
+                }
+
+                if (problem.TryGetValue("message", out var message) && !string.IsNullOrWhiteSpace(message))
+                {
+                    return message;
+                }
+            }
+        }
+        catch (Exception ex) when (ex is HttpRequestException or NotSupportedException or System.Text.Json.JsonException)
+        {
+            // Fall through to the generic error below.
+        }
+
+        return OnlineConstants.ErrorServiceUnavailable;
+    }
+
+    private async Task<HttpClient> CreateAuthenticatedClientAsync(CancellationToken cancellationToken)
+    {
+        var token = await EnsureSessionAsync(cancellationToken);
+        var client = httpClientFactory.CreateClient(nameof(OnlineNetworkService));
+        client.BaseAddress = new Uri(ApiConstants.OnlineEdgeBaseUrl);
+        client.Timeout = TimeSpan.FromSeconds(OnlineConstants.HttpTimeoutSeconds);
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        return client;
+    }
+
+    private async Task<string> EnsureSessionAsync(CancellationToken cancellationToken)
+    {
+        if (!string.IsNullOrEmpty(_sessionToken))
+        {
+            return _sessionToken;
+        }
+
+        await _sessionLock.WaitAsync(cancellationToken);
+        try
+        {
+            if (!string.IsNullOrEmpty(_sessionToken))
+            {
+                return _sessionToken;
+            }
+
+            using var client = httpClientFactory.CreateClient(nameof(OnlineNetworkService));
+            client.BaseAddress = new Uri(ApiConstants.OnlineEdgeBaseUrl);
+            client.Timeout = TimeSpan.FromSeconds(OnlineConstants.HttpTimeoutSeconds);
+            using var response = await client.PostAsync(ApiConstants.OnlineSessionsEndpoint, null, cancellationToken);
+            response.EnsureSuccessStatusCode();
+
+            var session = await response.Content.ReadFromJsonAsync<Dictionary<string, string>>(cancellationToken);
+            if (session is null || !session.TryGetValue("token", out var token) || string.IsNullOrWhiteSpace(token))
+            {
+                throw new HttpRequestException("Session issuance returned no token.");
+            }
+
+            _sessionToken = token;
+            return token;
+        }
+        finally
+        {
+            _sessionLock.Release();
+        }
+    }
+
+    private async Task<OperationResult<OnlineJoinResult>> ActivateJoinAsync(
+        OnlineJoinResult join,
+        CancellationToken cancellationToken)
+    {
+        var bringUp = await adapter.BringUpAsync(join.AdapterConfig, join.OverlayIp, cancellationToken);
+        if (!bringUp.Success)
+        {
+            logger.LogWarning("Adapter bring-up failed for network {NetworkId}.", join.NetworkId);
+            await adapter.TearDownAsync(cancellationToken);
+            return OperationResult<OnlineJoinResult>.CreateFailure(OnlineConstants.ErrorAdapterFailed);
+        }
+
+        CurrentJoin = join;
+        RosterChanged?.Invoke(this, join.Members);
+        SubscribePresence();
+
+        var presenceResult = await presence.ConnectAsync(join.NetworkId, join.Grant, cancellationToken);
+        if (!presenceResult.Success)
+        {
+            logger.LogWarning("Presence channel failed; continuing with the join-time roster.");
+        }
+
+        return OperationResult<OnlineJoinResult>.CreateSuccess(join);
+    }
+
+    private void SubscribePresence()
+    {
+        if (_presenceSubscribed)
+        {
+            return;
+        }
+
+        _presenceSubscribed = true;
+        presence.RosterUpdated += OnPresenceRoster;
+        presence.ConnectionLost += OnPresenceLost;
+    }
+
+    private void UnsubscribePresence()
+    {
+        if (!_presenceSubscribed)
+        {
+            return;
+        }
+
+        _presenceSubscribed = false;
+        presence.RosterUpdated -= OnPresenceRoster;
+        presence.ConnectionLost -= OnPresenceLost;
+    }
+
+    private void OnPresenceRoster(object? sender, IReadOnlyList<OnlineMember> members)
+    {
+        RosterChanged?.Invoke(this, members);
+    }
+
+    private async void OnPresenceLost(object? sender, EventArgs e)
+    {
+        try
+        {
+            if (CurrentJoin is null)
+            {
+                return;
+            }
+
+            logger.LogWarning("Presence lost; leaving the network.");
+            await LeaveNetworkAsync();
+            ConnectionLost?.Invoke(this, EventArgs.Empty);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Auto-leave after presence loss failed.");
+        }
+    }
+
+    private async Task<string> ResolvePublicEndpointAsync(bool preferRelay, CancellationToken cancellationToken)
+    {
+        if (preferRelay)
+        {
+            return string.Empty;
+        }
+
+        try
+        {
+            var listen = await p2p.StartListeningAsync(0, cancellationToken);
+            if (!listen.Success)
+            {
+                return string.Empty;
+            }
+
+            var endpoints = await p2p.GetLocalAndPublicEndpointsAsync(cancellationToken);
+            if (!endpoints.Success || endpoints.Data?.Public is null)
+            {
+                return string.Empty;
+            }
+
+            LocalEndpoint = endpoints.Data.Public.ToString();
+            return LocalEndpoint;
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex) when (ex is System.Net.Sockets.SocketException or TimeoutException)
+        {
+            logger.LogWarning("Endpoint discovery failed; joining without a published endpoint.");
+            return string.Empty;
+        }
+    }
+
+    private HttpClient CreateGrantClient(string grant)
+    {
+        var client = httpClientFactory.CreateClient(nameof(OnlineNetworkService));
+        client.BaseAddress = new Uri(ApiConstants.OnlineEdgeBaseUrl);
+        client.Timeout = TimeSpan.FromSeconds(OnlineConstants.HttpTimeoutSeconds);
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", grant);
+        return client;
+    }
+
+    private async Task NotifyLeaveAsync(OnlineJoinResult join, CancellationToken cancellationToken)
+    {
+        try
+        {
+            using var client = CreateGrantClient(join.Grant);
+            var url = string.Format(ApiConstants.OnlineLeaveFormat, Uri.EscapeDataString(join.NetworkId));
+            using var response = await client.PostAsync(url, null, cancellationToken);
+            if (!response.IsSuccessStatusCode)
+            {
+                logger.LogWarning("Server leave returned {Status}.", (int)response.StatusCode);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (HttpRequestException ex)
+        {
+            logger.LogWarning(ex, "Server leave notification failed.");
+        }
+    }
+}

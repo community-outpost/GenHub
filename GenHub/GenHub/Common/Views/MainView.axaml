@@ -17,6 +17,8 @@
              xmlns:settingsViews="clr-namespace:GenHub.Features.Settings.Views"
              xmlns:infoVM="clr-namespace:GenHub.Features.Info.ViewModels"
              xmlns:infoViews="clr-namespace:GenHub.Features.Info.Views"
+             xmlns:onlineVM="clr-namespace:GenHub.Features.Online.ViewModels"
+             xmlns:onlineViews="clr-namespace:GenHub.Features.Online.Views"
              xmlns:notifications="clr-namespace:GenHub.Features.Notifications.Views"
              xmlns:system="clr-namespace:System;assembly=System.Runtime"
              xmlns:localization="clr-namespace:GenHub.Common.Markup"
@@ -159,6 +161,9 @@
         <DataTemplate DataType="infoVM:InfoViewModel">
             <infoViews:InfoView />
         </DataTemplate>
+        <DataTemplate DataType="onlineVM:OnlineViewModel">
+            <onlineViews:OnlineView />
+        </DataTemplate>
     </UserControl.DataTemplates>
 
     <Grid>
@@ -210,6 +215,13 @@
                                 CommandParameter="{x:Static enums:NavigationTab.Tools}"
                                 Content="{localization:Localize Navigation.Tools}"
                                 Name="Tab2Button" />
+                        <Button Classes="pill-tab"
+                                Classes.active="{Binding SelectedTab, Converter={x:Static conv:NavigationTabConverter.Instance}, ConverterParameter={x:Static enums:NavigationTab.Online}}"
+                                Command="{Binding SelectTabCommand}"
+                                CommandParameter="{x:Static enums:NavigationTab.Online}"
+                                Content="{localization:Localize Navigation.Online}"
+                                IsVisible="{Binding IsOnlineEnabled}"
+                                Name="Tab3Button" />
                     </StackPanel>
                 </Border>
 

@@ -128,6 +128,7 @@ public class SharedViewModelModuleTests
         services.AddGameProfileServices();
         services.AddUserDataServices();
         services.AddLaunchingServices();
+        services.AddOnlineServices();
         services.AddToolsServices();
         services.AddStorageMigrationServices();
         services.AddSharedViewModelModule();

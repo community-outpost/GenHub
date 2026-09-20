@@ -34,4 +34,9 @@ public enum NavigationTab
     /// Information and FAQ section.
     /// </summary>
     Info,
+
+    /// <summary>
+    /// Online virtual LAN networks (feature-flagged).
+    /// </summary>
+    Online,
 }
