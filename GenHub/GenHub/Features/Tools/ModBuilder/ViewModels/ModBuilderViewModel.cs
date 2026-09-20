@@ -239,6 +239,10 @@ public partial class ModBuilderViewModel(
     [ObservableProperty]
     private string _gameDirectory = string.Empty;
 
+    private long _lastProgressTick;
+    private string? _lastLoggedStage;
+    private int _lastLoggedPercentBucket = -1;
+
     /// <summary>
     /// Gets the list of bundles.
     /// </summary>
@@ -269,10 +273,6 @@ public partial class ModBuilderViewModel(
     /// <summary>
     /// Gets or sets the current build progress.
     /// </summary>
-    private long _lastProgressTick;
-    private string? _lastLoggedStage;
-    private int _lastLoggedPercentBucket = -1;
-
     [ObservableProperty]
     private BuildProgress? _buildProgress;
 
@@ -1025,6 +1025,16 @@ public partial class ModBuilderViewModel(
             return;
         }
 
+        if (_importCancellationTokenSource != null)
+        {
+            await _importCancellationTokenSource.CancelAsync().ConfigureAwait(false);
+            _importCancellationTokenSource.Dispose();
+            _importCancellationTokenSource = null;
+        }
+
+        var cts = new CancellationTokenSource();
+        _importCancellationTokenSource = cts;
+
         try
         {
             var primaryBigName = Path.GetFileNameWithoutExtension(selectedPaths[0]);
@@ -1067,15 +1077,21 @@ public partial class ModBuilderViewModel(
             logger.LogInformation("Creating imported project '{ProjectName}' at {ProjectPath} from {BigCount} BIG archives", projectName, projectPath, selectedPaths.Count);
             AppendBuildLog($"Creating project '{projectName}' from {selectedPaths.Count} .BIG archive(s)...");
 
-            await CreateImportedProjectAsync(projectPath, projectName, selectedPaths).ConfigureAwait(false);
+            await CreateImportedProjectAsync(projectPath, projectName, selectedPaths, cts.Token).ConfigureAwait(false);
         }
         finally
         {
+            if (_importCancellationTokenSource == cts)
+            {
+                _importCancellationTokenSource = null;
+            }
+
+            cts.Dispose();
             await InvokeOnUIThreadAsync(() => IsBuildRunning = false).ConfigureAwait(false);
         }
     }
 
-    private async Task CreateImportedProjectAsync(string projectPath, string projectName, IReadOnlyList<string> selectedPaths)
+    private async Task CreateImportedProjectAsync(string projectPath, string projectName, IReadOnlyList<string> selectedPaths, CancellationToken cancellationToken)
     {
         try
         {
@@ -1084,7 +1100,7 @@ public partial class ModBuilderViewModel(
                 projectName,
                 selectedPaths,
                 contentType: SelectedContentType,
-                cancellationToken: CancellationToken.None).ConfigureAwait(false);
+                cancellationToken: cancellationToken).ConfigureAwait(false);
 
             if (result.Success && result.Data != null)
             {
@@ -1114,6 +1130,11 @@ public partial class ModBuilderViewModel(
                 notificationService.ShowError(localizationService.GetString(ImportFailedTitleKey), result.FirstError ?? localizationService.GetString(UnknownErrorKey));
                 AppendBuildLog($"Failed to create imported project: {result.FirstError}");
             }
+        }
+        catch (OperationCanceledException)
+        {
+            AppendBuildLog("Import cancelled.");
+            notificationService.ShowInfo(localizationService.GetString("Tools.ModBuilder.Notification.ImportCancelled.Title"), localizationService.GetString("Tools.ModBuilder.Notification.ImportCancelled.Message"));
         }
         catch (Exception ex)
         {

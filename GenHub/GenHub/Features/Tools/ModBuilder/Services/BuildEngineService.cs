@@ -1339,6 +1339,8 @@ public sealed class BuildEngineService(
         if (!File.Exists(sourcePath))
         {
             logger.LogWarning("Source file {SourceFile} not found for bundle item {ItemName}", sourcePath, itemName);
+            Interlocked.Increment(ref _filesFailed);
+            RecordFirstError($"Source file {sourcePath} not found for bundle item {itemName}");
             return;
         }
 
