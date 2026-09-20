@@ -324,6 +324,7 @@ public static class HostingConstants
     /// so the parts cannot drift.
     /// </summary>
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Minor Code Smell", "S1075:URIs should not be hardcoded", Justification = "Fixed loopback redirect required by Dropbox exact-match registration")]
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Security", "S5332:Using http protocol is insecure", Justification = "OAuth 2.0 desktop loopback redirects require plain http; traffic never leaves the machine.")]
     public static readonly string DropboxOAuthRedirectUri = $"http://{OAuthLoopbackHost}:{DropboxOAuthLoopbackPort}/";
 
     private static readonly (string Pattern, string ProviderId)[] CloudProviderHostOwners =
