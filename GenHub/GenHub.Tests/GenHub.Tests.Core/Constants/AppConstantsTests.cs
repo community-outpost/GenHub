@@ -179,4 +179,19 @@ public class AppConstantsTests
             Assert.NotEmpty(registry.PossibleExecutableNames);
         });
     }
+
+    /// <summary>
+    /// Tests that build metadata properties reflect local development defaults in the test runner environment.
+    /// </summary>
+    [Fact]
+    public void AppConstants_BuildMetadata_ShouldReflectLocalDevelopmentDefaults()
+    {
+        // Arrange & Act & Assert
+        Assert.Multiple(() =>
+        {
+            Assert.Equal(AppConstants.DevBuildChannel, AppConstants.BuildChannel);
+            Assert.False(AppConstants.IsCiBuild);
+            Assert.True(AppConstants.IsLocalBuild);
+        });
+    }
 }

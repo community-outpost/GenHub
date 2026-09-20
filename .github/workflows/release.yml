@@ -152,7 +152,8 @@ jobs:
             -r win-x64 `
             --self-contained true `
             -o "win-publish" `
-            -p:Version=${{ steps.buildinfo.outputs.VERSION }}
+            -p:Version=${{ steps.buildinfo.outputs.VERSION }} `
+            -p:BuildChannel=Release
 
       - name: Install Velopack CLI
         shell: pwsh
@@ -262,7 +263,8 @@ jobs:
             -r linux-x64 \
             --self-contained true \
             -o "linux-publish" \
-            -p:Version="${{ steps.buildinfo.outputs.VERSION }}"
+            -p:Version="${{ steps.buildinfo.outputs.VERSION }}" \
+            -p:BuildChannel=Release
 
       - name: Install Velopack CLI
         run: |
@@ -338,7 +340,8 @@ jobs:
             -r osx-arm64 \
             --self-contained true \
             -o "macos-publish" \
-            -p:Version="${{ steps.buildinfo.outputs.VERSION }}"
+            -p:Version="${{ steps.buildinfo.outputs.VERSION }}" \
+            -p:BuildChannel=Release
 
       - name: Create .app Bundle
         run: |

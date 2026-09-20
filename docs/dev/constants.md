@@ -55,6 +55,7 @@ Application-wide constants for GenHub.
 | Constant                  | Value/Type          | Description                                      |
 | ------------------------- | ------------------- | ------------------------------------------------ |
 | `AppName`                 | `"GenHub"`          | The name of the application                      |
+| `DevBuildChannel`         | `"Dev"`             | Default build channel for local development builds |
 | `AppVersion`              | Dynamic (lazy)      | Full semantic version from assembly              |
 | `DisplayVersion`          | `"v" + AppVersion`  | Display version for UI                           |
 | `GitShortHash`            | Dynamic             | Short git commit hash (7 chars)                  |
@@ -62,6 +63,7 @@ Application-wide constants for GenHub.
 | `PullRequestNumber`       | Dynamic             | PR number if PR build                            |
 | `BuildChannel`            | Dynamic             | Build channel (Dev, PR, CI, Release)             |
 | `IsCiBuild`               | bool                | Whether this is a CI/CD build                    |
+| `IsLocalBuild`            | bool                | Whether this is a local development build        |
 | `FullDisplayVersion`    | string              | Full display version with hash                   |
 | `GitHubRepositoryUrl`   | `"https://github.com/community-outpost/GenHub"` | GitHub repository URL                            |
 | `GitHubRepositoryOwner` | `"community-outpost"`                           | GitHub repository owner                          |

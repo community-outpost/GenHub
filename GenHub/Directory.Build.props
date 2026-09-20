@@ -4,7 +4,7 @@
       Alpha versioning: 0.0.X format
       CI will override with: 0.0.{runNumber} or 0.0.{runNumber}-pr{prNumber}
     -->
-    <Version Condition="'$(Version)' == ''">0.0.1</Version>
+    <Version Condition="'$(Version)' == ''">0.0.1-dev</Version>
 
     <!--
       AssemblyVersion and FileVersion must be strictly numeric (x.y.z.w)
