@@ -288,12 +288,6 @@ public class DropboxHostingProvider(ILogger<DropboxHostingProvider> logger, IHtt
 
         try
         {
-            if (fileStream.CanSeek && fileStream.Length > MaxFileSizeBytes)
-            {
-                return OperationResult<HostingUploadResult>.CreateFailure(
-                    $"File '{fileName}' is {fileStream.Length / (1024 * 1024)} MB, which exceeds Dropbox's 150 MB single-request upload limit.");
-            }
-
             await EnsureFreshAccessTokenAsync(cancellationToken);
 
             folderPath ??= PublisherFolderPath;
@@ -308,6 +302,17 @@ public class DropboxHostingProvider(ILogger<DropboxHostingProvider> logger, IHtt
             logger.LogInformation("Uploading {FileName} to Dropbox at {Path}", safeFileName, targetPath);
             progress?.Report(10);
 
+            // Buffer the payload up front so the expired-token retry below can re-send
+            // the exact same bytes. The caller's stream may be non-seekable or no longer
+            // readable once the first attempt completes, which would make the retry dead.
+            var payloadResult = await BufferUploadPayloadAsync(fileStream, safeFileName, cancellationToken);
+            if (!payloadResult.Success || payloadResult.Data == null)
+            {
+                return OperationResult<HostingUploadResult>.CreateFailure(payloadResult);
+            }
+
+            var payload = payloadResult.Data;
+
             // Upload via Dropbox content API
             var uploadArgs = new
             {
@@ -318,10 +323,7 @@ public class DropboxHostingProvider(ILogger<DropboxHostingProvider> logger, IHtt
                 strict_conflict = false,
             };
 
-            using var request = CreateAuthorizedRequest(HttpMethod.Post, $"{DropboxContentUrl}/files/upload", _accessToken);
-            request.Headers.Add("Dropbox-API-Arg", JsonSerializer.Serialize(uploadArgs));
-            request.Content = new StreamContent(fileStream, HostingConstants.StreamCopyBufferSize);
-            request.Content.Headers.ContentType = new MediaTypeHeaderValue(HostingConstants.BinaryContentType);
+            using var request = CreateUploadRequest(uploadArgs, payload);
 
             progress?.Report(30);
 
@@ -337,7 +339,7 @@ public class DropboxHostingProvider(ILogger<DropboxHostingProvider> logger, IHtt
                         response,
                         errorContent,
                         uploadArgs,
-                        fileStream,
+                        payload,
                         safeFileName,
                         cancellationToken);
                 }
@@ -763,30 +765,29 @@ public class DropboxHostingProvider(ILogger<DropboxHostingProvider> logger, IHtt
         return null;
     }
 
-    private static bool TryRewindUploadStream(Stream stream)
+    private static async Task<OperationResult<byte[]>> BufferUploadPayloadAsync(Stream fileStream, string safeFileName, CancellationToken cancellationToken)
     {
-        if (!stream.CanSeek)
+        if (fileStream.CanSeek && fileStream.Length > MaxFileSizeBytes)
         {
-            return false;
+            return OperationResult<byte[]>.CreateFailure(
+                $"File '{safeFileName}' is {fileStream.Length / (1024 * 1024)} MB, which exceeds Dropbox's 150 MB single-request upload limit.");
         }
 
-        try
+        using var buffer = new MemoryStream();
+        var chunk = new byte[HostingConstants.StreamCopyBufferSize];
+        int read;
+        while ((read = await fileStream.ReadAsync(chunk, cancellationToken)) > 0)
         {
-            stream.Position = 0;
-            return true;
+            if (buffer.Length + read > MaxFileSizeBytes)
+            {
+                return OperationResult<byte[]>.CreateFailure(
+                    $"File '{safeFileName}' exceeds Dropbox's 150 MB single-request upload limit.");
+            }
+
+            buffer.Write(chunk, 0, read);
         }
-        catch (IOException)
-        {
-            return false;
-        }
-        catch (ObjectDisposedException)
-        {
-            return false;
-        }
-        catch (NotSupportedException)
-        {
-            return false;
-        }
+
+        return OperationResult<byte[]>.CreateSuccess(buffer.ToArray());
     }
 
     private DropboxOAuthService GetOAuthService()
@@ -900,25 +901,31 @@ public class DropboxHostingProvider(ILogger<DropboxHostingProvider> logger, IHtt
         }
     }
 
+    private HttpRequestMessage CreateUploadRequest(object uploadArgs, byte[] payload)
+    {
+        var request = CreateAuthorizedRequest(HttpMethod.Post, $"{DropboxContentUrl}/files/upload", _accessToken);
+        request.Headers.Add("Dropbox-API-Arg", JsonSerializer.Serialize(uploadArgs));
+        request.Content = new ByteArrayContent(payload);
+        request.Content.Headers.ContentType = new MediaTypeHeaderValue(HostingConstants.BinaryContentType);
+        return request;
+    }
+
     private async Task<(HttpResponseMessage Response, string ErrorContent)> TryRetryUploadAfterRefreshAsync(
         HttpResponseMessage failedResponse,
         string errorContent,
         object uploadArgs,
-        Stream fileStream,
+        byte[] payload,
         string safeFileName,
         CancellationToken cancellationToken)
     {
-        if (!await TryRefreshAccessTokenAsync(cancellationToken) || !TryRewindUploadStream(fileStream))
+        if (!await TryRefreshAccessTokenAsync(cancellationToken))
         {
             return (failedResponse, errorContent);
         }
 
         failedResponse.Dispose();
         logger.LogInformation("Retrying Dropbox upload of {File} after token refresh", safeFileName);
-        using var retryRequest = CreateAuthorizedRequest(HttpMethod.Post, $"{DropboxContentUrl}/files/upload", _accessToken);
-        retryRequest.Headers.Add("Dropbox-API-Arg", JsonSerializer.Serialize(uploadArgs));
-        retryRequest.Content = new StreamContent(fileStream, HostingConstants.StreamCopyBufferSize);
-        retryRequest.Content.Headers.ContentType = new MediaTypeHeaderValue(HostingConstants.BinaryContentType);
+        using var retryRequest = CreateUploadRequest(uploadArgs, payload);
         var response = await _httpClient.SendAsync(retryRequest, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
         var retryError = response.IsSuccessStatusCode
             ? string.Empty

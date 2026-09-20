@@ -509,14 +509,21 @@ public partial class PublishShareViewModel(
         }
 
         var renamedAny = false;
-        foreach (var state in _hostingStates.Values)
+        var staleRemotes = new List<(string ProviderId, CatalogHostingInfo Entry, string OldFileId)>();
+        foreach (var (providerId, state) in _hostingStates)
         {
             var entry = state.Catalogs.FirstOrDefault(c => c.CatalogId == oldCatalogId);
             if (entry != null)
             {
+                if (!string.IsNullOrWhiteSpace(entry.FileId))
+                {
+                    staleRemotes.Add((providerId, entry, entry.FileId));
+                }
+
                 entry.CatalogId = newCatalogId;
                 entry.CatalogName = newCatalogName;
                 entry.FileName = newFileName;
+                entry.LastUpdated = DateTime.UtcNow;
                 renamedAny = true;
             }
         }
@@ -524,6 +531,7 @@ public partial class PublishShareViewModel(
         if (renamedAny)
         {
             await SaveAllHostingStatesAsync(cancellationToken);
+            await DeleteRenamedCatalogRemotesAsync(staleRemotes, cancellationToken);
         }
     }
 
@@ -2048,17 +2056,26 @@ public partial class PublishShareViewModel(
         int total = UploadQueue.Count;
         int current = 0;
 
-        foreach (var task in UploadQueue)
+        // Defer state persistence and UI rebuilds until the loop completes so that
+        // publishing N artifacts costs one save and one refresh instead of N.
+        try
         {
-            cancellationToken.ThrowIfCancellationRequested();
-            current++;
-            if (!await ExecuteSingleArtifactUploadAsync(provider, task, current, total, cancellationToken, progressOffset: 0, progressTotal: total + additionalProgressTotal))
+            foreach (var task in UploadQueue)
             {
-                return (false, current - 1);
+                cancellationToken.ThrowIfCancellationRequested();
+                current++;
+                if (!await ExecuteSingleArtifactUploadAsync(provider, task, current, total, cancellationToken, progressOffset: 0, progressTotal: total + additionalProgressTotal, deferPersistenceAndRefresh: true))
+                {
+                    return (false, current - 1);
+                }
             }
-        }
 
-        return (true, total);
+            return (true, total);
+        }
+        finally
+        {
+            await FlushArtifactHostingStateAsync(CancellationToken.None);
+        }
     }
 
     private async Task<bool> UploadPendingArtworkAsync(
@@ -2361,7 +2378,20 @@ public partial class PublishShareViewModel(
         return (null, null, false);
     }
 
-    private async Task RecordUploadedArtifactHostingStateAsync(ArtifactUploadTask task, HostingUploadResult uploadData, CancellationToken cancellationToken = default)
+    private async Task FlushArtifactHostingStateAsync(CancellationToken cancellationToken)
+    {
+        await SaveAllHostingStatesAsync(cancellationToken);
+
+        RefreshHostedAssets();
+        RefreshUploadHierarchy();
+        RefreshArtifactStatuses();
+    }
+
+    private async Task RecordUploadedArtifactHostingStateAsync(
+        ArtifactUploadTask task,
+        HostingUploadResult uploadData,
+        CancellationToken cancellationToken = default,
+        bool deferPersistenceAndRefresh = false)
     {
         task.Artifact.DownloadUrl = uploadData.DirectDownloadUrl;
         task.Status = UploadStatus.Uploaded;
@@ -2396,11 +2426,12 @@ public partial class PublishShareViewModel(
             });
         }
 
-        await SaveAllHostingStatesAsync(cancellationToken);
+        if (deferPersistenceAndRefresh)
+        {
+            return;
+        }
 
-        RefreshHostedAssets();
-        RefreshUploadHierarchy();
-        RefreshArtifactStatuses();
+        await FlushArtifactHostingStateAsync(cancellationToken);
     }
 
     private async Task<bool> ExecuteSingleArtifactUploadAsync(
@@ -2410,7 +2441,8 @@ public partial class PublishShareViewModel(
         int total,
         CancellationToken cancellationToken = default,
         int progressOffset = 0,
-        int progressTotal = 0)
+        int progressTotal = 0,
+        bool deferPersistenceAndRefresh = false)
     {
         task.Status = UploadStatus.Uploading;
         UploadStatusMessage = FormatLocalizedString("Tools.PublisherStudio.Publish.UploadingArtifactFormat", "Uploading artifact {0}/{1}: {2}", current, total, task.Artifact.Filename);
@@ -2445,7 +2477,7 @@ public partial class PublishShareViewModel(
                 var result = await provider.UploadFileAsync(stream, uploadFileName, null, progress, cancellationToken);
                 if (result.Success && result.Data != null)
                 {
-                    await RecordUploadedArtifactHostingStateAsync(task, result.Data, cancellationToken);
+                    await RecordUploadedArtifactHostingStateAsync(task, result.Data, cancellationToken, deferPersistenceAndRefresh);
                     return true;
                 }
 
@@ -2545,6 +2577,61 @@ public partial class PublishShareViewModel(
         catch (Exception ex)
         {
             logger.LogWarning(ex, "Failed to delete orphaned remote file {FileId}", previousFileId);
+        }
+    }
+
+    /// <summary>
+    /// Best-effort deletion of the pre-rename remote catalog files.
+    /// Without this, the next cloud scan would resurrect the old catalog file as a ghost entry.
+    /// Entries whose remote file was deleted are reset to pending so the next publish uploads fresh;
+    /// entries that could not be reached keep their URL and are cleaned by orphan deletion on publish.
+    /// </summary>
+    /// <param name="staleRemotes">The provider, entry, and pre-rename remote file ID per renamed catalog.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    private async Task DeleteRenamedCatalogRemotesAsync(
+        List<(string ProviderId, CatalogHostingInfo Entry, string OldFileId)> staleRemotes,
+        CancellationToken cancellationToken)
+    {
+        var clearedAny = false;
+        foreach (var (providerId, entry, oldFileId) in staleRemotes)
+        {
+            var provider = HostingProviders.FirstOrDefault(p =>
+                string.Equals(p.ProviderId, providerId, StringComparison.OrdinalIgnoreCase));
+            if (provider == null || !provider.IsAuthenticated)
+            {
+                continue;
+            }
+
+            try
+            {
+                var result = await provider.DeleteFileAsync(oldFileId, cancellationToken);
+                if (result.Success)
+                {
+                    logger.LogInformation("Deleted pre-rename remote catalog {FileId} from {Provider}", oldFileId, providerId);
+                    entry.FileId = string.Empty;
+                    entry.Url = string.Empty;
+                    entry.FileSize = 0;
+                    clearedAny = true;
+                }
+                else
+                {
+                    logger.LogWarning("Failed to delete pre-rename remote catalog {FileId} from {Provider}: {Error}", oldFileId, providerId, result.FirstError);
+                }
+            }
+            catch (OperationCanceledException ex)
+            {
+                logger.LogInformation(ex, "Pre-rename remote catalog cleanup was canceled for {FileId}", oldFileId);
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Failed to delete pre-rename remote catalog {FileId} from {Provider}", oldFileId, providerId);
+            }
+        }
+
+        if (clearedAny)
+        {
+            await SaveAllHostingStatesAsync(cancellationToken);
         }
     }
 
@@ -3841,7 +3928,10 @@ public partial class PublishShareViewModel(
             return;
         }
 
-        var existing = _currentHostingState.Catalogs.FirstOrDefault(c => c.CatalogId == cloudCat.CatalogId || (!string.IsNullOrEmpty(cloudCat.FileName) && c.FileName == cloudCat.FileName));
+        var existing = _currentHostingState.Catalogs.FirstOrDefault(c =>
+            c.CatalogId == cloudCat.CatalogId ||
+            (!string.IsNullOrEmpty(cloudCat.FileName) && c.FileName == cloudCat.FileName) ||
+            (!string.IsNullOrEmpty(c.FileId) && !string.IsNullOrEmpty(cloudCat.FileId) && c.FileId == cloudCat.FileId));
         if (existing != null)
         {
             if (cloudCat.LastUpdated < existing.LastUpdated)
@@ -3856,7 +3946,7 @@ public partial class PublishShareViewModel(
 
             existing.FileSize = cloudCat.FileSize;
             existing.LastUpdated = cloudCat.LastUpdated;
-            if (!string.IsNullOrEmpty(cloudCat.FileName))
+            if (!string.IsNullOrEmpty(cloudCat.FileName) && string.Equals(existing.CatalogId, cloudCat.CatalogId, StringComparison.Ordinal))
             {
                 existing.FileName = cloudCat.FileName;
             }
@@ -3997,6 +4087,21 @@ public partial class PublishShareViewModel(
         string contentId,
         string version)
     {
+        if (!provider.SupportsArtifactHosting)
+        {
+            UploadStatusMessage = GetLocalizedString(
+                "Tools.PublisherStudio.Publish.ArtifactHostingNotSupported",
+                "Provider does not support artifact hosting. Please add URLs manually.");
+            notificationService?.ShowError(
+                GetLocalizedString("Tools.PublisherStudio.Publish.IncompatibleProvider", "Incompatible Provider"),
+                UploadStatusMessage);
+            logger.LogWarning(
+                "Blocked single artifact upload of {File} to {Provider}: provider does not support artifact hosting.",
+                artifact.Filename,
+                provider.DisplayName);
+            return;
+        }
+
         if (string.IsNullOrEmpty(artifact.LocalFilePath) ||
             (!File.Exists(artifact.LocalFilePath) && !Directory.Exists(artifact.LocalFilePath)))
         {
