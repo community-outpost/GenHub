@@ -33,6 +33,11 @@ const numVar = (raw: string | undefined, fallback: number): number => {
   return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : fallback;
 };
 
+// Unset secrets arrive as undefined at runtime even though the env interface
+// declares them as strings. Treat missing as empty so optional secrets
+// (COTURN_SECRET) disable their feature instead of throwing.
+const secretOrEmpty = (raw: string | undefined): string => raw ?? "";
+
 const json = (data: unknown, status = 200): Response =>
   new Response(JSON.stringify(data), { status, headers: CORS_HEADERS });
 
@@ -67,7 +72,7 @@ const clientRegion = (request: Request): string => {
 };
 
 const requireSecrets = (env: OnlineEnv): Response | null => {
-  if (env.JWT_SIGNING_SECRET.length === 0 || env.PASSWORD_PEPPER.length === 0) {
+  if (secretOrEmpty(env.JWT_SIGNING_SECRET).length === 0 || secretOrEmpty(env.PASSWORD_PEPPER).length === 0) {
     return error("Online edge unconfigured", 503, "online.service-unavailable");
   }
   return null;
@@ -114,15 +119,16 @@ const syncDirectory = async (env: OnlineEnv, summary: NetworkSummary | null, net
   }
 };
 
-const buildAdapterConfig = async (
+export const buildAdapterConfig = async (
   env: OnlineEnv,
   networkId: string,
   member: string
 ): Promise<string> => {
   const uris = parseTurnUris(env.TURN_URIS);
+  const coturnSecret = secretOrEmpty(env.COTURN_SECRET);
   let turn: unknown = null;
-  if (env.COTURN_SECRET.length > 0 && uris.length > 0) {
-    turn = await mintTurnCredentials(member, numVar(env.TURN_TTL_SECONDS, DEFAULT_TURN_TTL), env.COTURN_SECRET, uris);
+  if (coturnSecret.length > 0 && uris.length > 0) {
+    turn = await mintTurnCredentials(member, numVar(env.TURN_TTL_SECONDS, DEFAULT_TURN_TTL), coturnSecret, uris);
   }
   const config = {
     v: 0,
@@ -425,10 +431,11 @@ const handleTurn = async (request: Request, env: OnlineEnv): Promise<Response> =
     return session;
   }
   const uris = parseTurnUris(env.TURN_URIS);
-  if (env.COTURN_SECRET.length === 0 || uris.length === 0) {
+  const coturnSecret = secretOrEmpty(env.COTURN_SECRET);
+  if (coturnSecret.length === 0 || uris.length === 0) {
     return error("TURN unconfigured", 503, "online.service-unavailable");
   }
-  return json(await mintTurnCredentials(session.sub, numVar(env.TURN_TTL_SECONDS, DEFAULT_TURN_TTL), env.COTURN_SECRET, uris));
+  return json(await mintTurnCredentials(session.sub, numVar(env.TURN_TTL_SECONDS, DEFAULT_TURN_TTL), coturnSecret, uris));
 };
 
 const handleOverlayCert = async (request: Request, env: OnlineEnv, networkId: string): Promise<Response> => {
