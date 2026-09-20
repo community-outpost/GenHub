@@ -8116,6 +8116,12 @@ GenHub هو مشغل ومدير حديث لألعاب **Command &amp; Conquer: G
   <data name="Settings.GitHubAuth.SignedOut.SignInButton" xml:space="preserve">
     <value>تسجيل الدخول باستخدام GitHub</value>
   </data>
+  <data name="Settings.GitHubAuth.SessionExpired.Description" xml:space="preserve">
+    <value>لم تعد جلسة GitHub الخاصة بك صالحة. سجّل الدخول مرة أخرى لإعادة ربط حسابك.</value>
+  </data>
+  <data name="Settings.GitHubAuth.SessionExpired.SignInButton" xml:space="preserve">
+    <value>تسجيل الدخول مرة أخرى</value>
+  </data>
   <data name="Settings.GitHubAuth.Authorizing.Instructions" xml:space="preserve">
     <value>أدخل هذا الرمز على GitHub لتفويض GenHub:</value>
   </data>
@@ -8137,6 +8143,9 @@ GenHub هو مشغل ومدير حديث لألعاب **Command &amp; Conquer: G
   <data name="Settings.GitHubAuth.Toast.Title" xml:space="preserve">
     <value>GitHub</value>
   </data>
+  <data name="Settings.GitHubAuth.Toast.SessionExpired" xml:space="preserve">
+    <value>انتهت صلاحية جلسة GitHub الخاصة بك. يرجى تسجيل الدخول مرة أخرى.</value>
+  </data>
   <data name="Settings.GitHubAuth.Toast.SignedIn" xml:space="preserve">
     <value>تم تسجيل الدخول باسم {0}.</value>
   </data>
@@ -8154,6 +8163,9 @@ GenHub هو مشغل ومدير حديث لألعاب **Command &amp; Conquer: G
   </data>
   <data name="Settings.GitHubAuth.Toast.ServiceUnavailable" xml:space="preserve">
     <value>مصادقة GitHub غير متاحة.</value>
+  </data>
+  <data name="Settings.GitHubAuth.Status.SessionExpired" xml:space="preserve">
+    <value>انتهت الجلسة</value>
   </data>
   <data name="Settings.GitHubAuth.Status.SignedIn" xml:space="preserve">
     <value>تم تسجيل الدخول</value>

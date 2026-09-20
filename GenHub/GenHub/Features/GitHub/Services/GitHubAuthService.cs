@@ -28,6 +28,7 @@ public class GitHubAuthService(
     private readonly object _syncLock = new();
     private GitHubUserProfile? _currentUser;
     private bool _sessionSignedOut;
+    private bool _sessionExpired;
 
     /// <inheritdoc />
     public bool IsAuthenticated
@@ -36,7 +37,7 @@ public class GitHubAuthService(
         {
             lock (_syncLock)
             {
-                if (_sessionSignedOut)
+                if (_sessionSignedOut || _sessionExpired)
                 {
                     return false;
                 }
@@ -53,7 +54,19 @@ public class GitHubAuthService(
         {
             lock (_syncLock)
             {
-                return _sessionSignedOut ? null : _currentUser;
+                return _sessionSignedOut || _sessionExpired ? null : _currentUser;
+            }
+        }
+    }
+
+    /// <inheritdoc />
+    public bool IsSessionExpired
+    {
+        get
+        {
+            lock (_syncLock)
+            {
+                return _sessionExpired;
             }
         }
     }
@@ -160,6 +173,7 @@ public class GitHubAuthService(
                 return OperationResult<GitHubUserProfile>.CreateFailure(persistError);
             }
 
+            ClearSessionExpired();
             SetCurrentUser(profile);
             RaiseAuthStateChanged(true, profile);
             logger.LogInformation("Signed in to GitHub as {Login}", profile.Login);
@@ -224,7 +238,7 @@ public class GitHubAuthService(
         _ = cancellationToken;
         lock (_syncLock)
         {
-            if (_sessionSignedOut)
+            if (_sessionSignedOut || _sessionExpired)
             {
                 return Task.FromResult<SecureString?>(null);
             }
@@ -240,6 +254,7 @@ public class GitHubAuthService(
         lock (_syncLock)
         {
             _sessionSignedOut = true;
+            _sessionExpired = false;
             _currentUser = null;
         }
 
@@ -431,15 +446,25 @@ public class GitHubAuthService(
     private async Task<GitHubUserProfile?> FetchUserProfileAsync(CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
+        var hasCredential = false;
         try
         {
-            await EnsureClientCredentialsAsync().ConfigureAwait(false);
+            hasCredential = await EnsureClientCredentialsAsync().ConfigureAwait(false);
             var user = await gitHubClient.User.Current().ConfigureAwait(false);
             return new GitHubUserProfile(user.Login, user.Id, user.Name, user.AvatarUrl, user.HtmlUrl);
         }
         catch (AuthorizationException ex)
         {
-            logger.LogWarning(ex, "GitHub token was rejected while loading the user profile");
+            if (hasCredential)
+            {
+                logger.LogWarning(ex, "GitHub token was rejected while loading the user profile");
+                MarkSessionExpired();
+            }
+            else
+            {
+                logger.LogWarning(ex, "GitHub profile lookup was rejected without a credential to present");
+            }
+
             return null;
         }
         catch (ApiException ex)
@@ -461,6 +486,9 @@ public class GitHubAuthService(
 
     private void BeginLoginAttempt()
     {
+        // An abandoned login attempt must not clear the expired flag: only a successful
+        // sign-in or an explicit sign-out does, so the UI keeps reporting the rejected
+        // session instead of flipping back to a signed in state it cannot honor.
         lock (_syncLock)
         {
             _sessionSignedOut = false;
@@ -475,18 +503,48 @@ public class GitHubAuthService(
         }
     }
 
-    private async Task EnsureClientCredentialsAsync()
+    private void MarkSessionExpired()
+    {
+        lock (_syncLock)
+        {
+            if (_sessionExpired)
+            {
+                return;
+            }
+
+            _sessionExpired = true;
+            _currentUser = null;
+        }
+
+        // Drop the rejected credential from the shared client so later API calls fail fast
+        // as anonymous instead of replaying a token GitHub already refused.
+        SetClientCredentials(Credentials.Anonymous);
+        RaiseAuthStateChanged(false, null);
+    }
+
+    private void ClearSessionExpired()
+    {
+        lock (_syncLock)
+        {
+            _sessionExpired = false;
+        }
+    }
+
+    private async Task<bool> EnsureClientCredentialsAsync()
     {
         if (HasClientCredentials())
         {
-            return;
+            return true;
         }
 
         using var token = await LoadAccessTokenAsync().ConfigureAwait(false);
         if (token is { Length: > 0 })
         {
             SetClientCredentials(new Credentials(SecureStringHelper.ToUnsecureString(token)));
+            return true;
         }
+
+        return false;
     }
 
     private void SetCurrentUser(GitHubUserProfile profile)

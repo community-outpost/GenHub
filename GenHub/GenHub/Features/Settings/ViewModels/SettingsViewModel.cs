@@ -230,6 +230,14 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsGitHubSignedOut))]
+    [NotifyPropertyChangedFor(nameof(IsGitHubSessionExpiredVisible))]
+    [NotifyPropertyChangedFor(nameof(GitHubAuthStatusColor))]
+    [NotifyPropertyChangedFor(nameof(GitHubAuthStatusText))]
+    private bool _isGitHubSessionExpired;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsGitHubSignedOut))]
+    [NotifyPropertyChangedFor(nameof(IsGitHubSessionExpiredVisible))]
     private bool _isAuthenticating;
 
     [ObservableProperty]
@@ -450,21 +458,57 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     /// Gets a value indicating whether the GitHub account card shows the signed out state.
     /// </summary>
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Instance property required for Avalonia UI data binding.")]
-    public bool IsGitHubSignedOut => !IsGitHubAuthenticated && !IsAuthenticating;
+    public bool IsGitHubSignedOut => !IsGitHubAuthenticated && !IsGitHubSessionExpired && !IsAuthenticating;
+
+    /// <summary>
+    /// Gets a value indicating whether the GitHub account card shows the expired session state.
+    /// </summary>
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Instance property required for Avalonia UI data binding.")]
+    public bool IsGitHubSessionExpiredVisible => IsGitHubSessionExpired && !IsAuthenticating;
 
     /// <summary>
     /// Gets the status color for the GitHub authentication indicator.
     /// </summary>
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Instance property required for Avalonia UI data binding.")]
-    public string GitHubAuthStatusColor => IsGitHubAuthenticated ? UiConstants.StatusSuccessColor : UiConstants.StatusInactiveColor;
+    public string GitHubAuthStatusColor
+    {
+        get
+        {
+            if (IsGitHubAuthenticated)
+            {
+                return UiConstants.StatusSuccessColor;
+            }
+
+            if (IsGitHubSessionExpired)
+            {
+                return UiConstants.StatusErrorColor;
+            }
+
+            return UiConstants.StatusInactiveColor;
+        }
+    }
 
     /// <summary>
     /// Gets the localized GitHub authentication state for tooltips and screen readers.
     /// </summary>
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Instance property required for Avalonia UI data binding.")]
-    public string GitHubAuthStatusText => IsGitHubAuthenticated
-        ? (_localizationService?.GetString("Settings.GitHubAuth.Status.SignedIn") ?? "Signed in")
-        : (_localizationService?.GetString("Settings.GitHubAuth.Status.SignedOut") ?? "Signed out");
+    public string GitHubAuthStatusText
+    {
+        get
+        {
+            if (IsGitHubAuthenticated)
+            {
+                return _localizationService?.GetString("Settings.GitHubAuth.Status.SignedIn") ?? "Signed in";
+            }
+
+            if (IsGitHubSessionExpired)
+            {
+                return _localizationService?.GetString("Settings.GitHubAuth.Status.SessionExpired") ?? "Session expired";
+            }
+
+            return _localizationService?.GetString("Settings.GitHubAuth.Status.SignedOut") ?? "Signed out";
+        }
+    }
 
     /// <summary>
     /// Gets a value indicating whether to display the empty subscriptions state message.
@@ -1540,7 +1584,15 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
 
     private void OnGitHubAuthStateChanged(object? sender, GitHubAuthStateChangedEventArgs e)
     {
-        RunOnUiSafe(RefreshGitHubAuthState);
+        RunOnUiSafe(() =>
+        {
+            var wasExpired = IsGitHubSessionExpired;
+            RefreshGitHubAuthState();
+            if (!wasExpired && IsGitHubSessionExpired)
+            {
+                ShowGitHubErrorToast(_localizationService?.GetString("Settings.GitHubAuth.Toast.SessionExpired") ?? "Your GitHub session expired. Please sign in again.");
+            }
+        });
     }
 
     private void OnRateLimitUpdated(object? sender, EventArgs e)
@@ -1553,6 +1605,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         if (_gitHubAuthService == null)
         {
             IsGitHubAuthenticated = false;
+            IsGitHubSessionExpired = false;
             GitHubUserName = string.Empty;
             GitHubAvatarUrl = string.Empty;
             GitHubRateLimitText = string.Empty;
@@ -1560,6 +1613,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         }
 
         IsGitHubAuthenticated = _gitHubAuthService.IsAuthenticated;
+        IsGitHubSessionExpired = _gitHubAuthService.IsSessionExpired;
         var user = _gitHubAuthService.CurrentUser;
         GitHubUserName = user == null ? string.Empty : $"@{user.Login}";
         GitHubAvatarUrl = user?.AvatarUrl ?? string.Empty;
