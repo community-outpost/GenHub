@@ -19,6 +19,7 @@ public static class OnlineModule
     public static IServiceCollection AddOnlineServices(this IServiceCollection services)
     {
         services.AddHttpClient(nameof(OnlineNetworkService));
+        services.AddHttpClient(nameof(OnlinePresenceService));
         services.AddSingleton<IOnlineNetworkService, OnlineNetworkService>();
         services.AddSingleton<IOnlinePresenceService, OnlinePresenceService>();
         services.AddSingleton<IOnlineLaunchService, OnlineLaunchService>();

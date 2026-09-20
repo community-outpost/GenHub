@@ -143,6 +143,25 @@ describe("online edge", () => {
     expect(found?.hostDisplayName).toBe("Host");
   });
 
+  it("rejects null JSON bodies with 400, not 500", async () => {
+    const host = await session();
+    const created = await createNetwork(host);
+    const probes: [string, string][] = [
+      ["PATCH", `${BASE}/v1/networks/${created.networkId}`],
+      ["POST", `${BASE}/v1/networks/${created.networkId}/report`],
+      ["POST", `${BASE}/v1/networks/${created.networkId}/ban`],
+    ];
+    for (const [method, url] of probes) {
+      const res = await SELF.fetch(url, {
+        method,
+        headers: { ...auth(created.grant), "Content-Type": "application/json" },
+        body: "null",
+      });
+      expect(res.status).toBe(400);
+      expect(((await res.json()) as { code: string }).code).toBe("online.invalid-request");
+    }
+  });
+
   it("rejects oversized JSON bodies", async () => {
     const token = await session();
     const res = await SELF.fetch(`${BASE}/v1/networks`, {

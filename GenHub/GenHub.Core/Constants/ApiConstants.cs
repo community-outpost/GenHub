@@ -258,11 +258,6 @@ public static class ApiConstants
     public const string OnlinePresenceFormat = "/v1/networks/{0}/presence";
 
     /// <summary>
-    /// Format string for the network heartbeat endpoint (network id).
-    /// </summary>
-    public const string OnlineHeartbeatFormat = "/v1/networks/{0}/heartbeat";
-
-    /// <summary>
     /// Format string for the network leave endpoint (network id).
     /// </summary>
     public const string OnlineLeaveFormat = "/v1/networks/{0}/leave";
@@ -276,6 +271,11 @@ public static class ApiConstants
     /// Format string for the member ban endpoint (network id).
     /// </summary>
     public const string OnlineBanFormat = "/v1/networks/{0}/ban";
+
+    /// <summary>
+    /// Format string for the grant refresh endpoint (network id).
+    /// </summary>
+    public const string OnlineCertFormat = "/v1/networks/{0}/cert";
 
     /// <summary>
     /// Environment variable name for overriding the STUN hostname.

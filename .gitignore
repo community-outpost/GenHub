@@ -20,6 +20,8 @@
 # Node deps / package managers
 node_modules/
 package-lock.json
+# The online edge deploys from CI with npm ci, which requires its lockfile.
+!gateway-online/package-lock.json
 npm-debug.log*
 pnpm-debug.log*
 

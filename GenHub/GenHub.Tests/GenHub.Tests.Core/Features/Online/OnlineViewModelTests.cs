@@ -43,6 +43,31 @@ public class OnlineViewModelTests
     }
 
     /// <summary>
+    /// Tests that consecutive refreshes on one view model both complete.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task RefreshNetworksAsync_TwiceInARow_ShouldBothCompleteAsync()
+    {
+        // Arrange
+        var network = new Mock<IOnlineNetworkService>();
+        network.Setup(n => n.GetNetworksAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IReadOnlyList<OnlineNetworkSummary>>.CreateSuccess(
+            [
+                new OnlineNetworkSummary { Id = "net-1", Name = "Lobby" },
+            ]));
+        var vm = CreateViewModel(network.Object);
+
+        // Act
+        await vm.RefreshNetworksAsync();
+        await vm.RefreshNetworksAsync();
+
+        // Assert
+        Assert.Single(vm.Networks);
+        Assert.False(vm.DirectoryFailed);
+    }
+
+    /// <summary>
     /// Tests that a failed refresh flags the directory and toasts.
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>

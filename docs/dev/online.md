@@ -42,8 +42,11 @@ of failing silently.
 
 ## Going live (maintainer checklist)
 
-1. `cd gateway-online && npx wrangler deploy`
-2. Provision secrets: `wrangler secret put JWT_SIGNING_SECRET PASSWORD_PEPPER COTURN_SECRET`
+1. `cd gateway-online && npm run deploy`
+2. Provision secrets (one command per secret):
+   `wrangler secret put JWT_SIGNING_SECRET`
+   `wrangler secret put PASSWORD_PEPPER`
+   `wrangler secret put COTURN_SECRET`
 3. Verify the public hostname matches `ApiConstants.DefaultOnlineEdgeBaseUrl`;
    update the constant if the `workers.dev` subdomain differs.
 4. Point a coturn instance at `COTURN_SECRET` (`static-auth-secret`) and set
@@ -60,7 +63,9 @@ of failing silently.
 4. The client brings the platform adapter up, opens the grant-scoped presence
    socket (`/v1/networks/{id}/presence?ticket=`), and shows live roster updates.
    Reconnect uses exponential backoff; eviction/ban closes the socket (code
-   4001) and the client auto-leaves with a toast.
+   4001) and the client auto-leaves with a toast. Credentials renew
+   transparently: sessions retry once after a 401 and grants re-mint via
+   `/cert` ahead of expiry, so long sessions never decay into ghost joins.
 5. Play resolves the grant `expectedProfileId` through `IGameProfileManager`
    and launches via `IProfileLauncherFacade` (existing reconciliation). A
    missing profile shows a download prompt instead of failing silently.
@@ -123,5 +128,6 @@ GENHUB_ONLINE_ENABLED=1 GENHUB_ONLINE_EDGE_URL=http://127.0.0.1:8787 \
   the sidecar. `IOverlaySidecarLocator` returns null until then, so joins fail
   with a clear "overlay not available yet" toast.
 - **OQ4**: production hosting + TURN/relay funding and secret provisioning
-  (`wrangler secret put JWT_SIGNING_SECRET PASSWORD_PEPPER COTURN_SECRET`).
+  (one `wrangler secret put [KEY]` per secret: `JWT_SIGNING_SECRET`,
+  `PASSWORD_PEPPER`, `COTURN_SECRET`).
 - GameRanger interop stays "don't break it, don't depend on it".

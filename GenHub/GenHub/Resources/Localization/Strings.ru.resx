@@ -1862,10 +1862,10 @@
     <value>Описание и правила (необязательно)</value>
   </data>
   <data name="Online.Create.PreferRelay" xml:space="preserve">
-    <value>Через релей (скрыть мой адрес)</value>
+    <value>Через ретранслятор (скрыть мой адрес)</value>
   </data>
   <data name="Online.Create.PreferRelayTooltip" xml:space="preserve">
-    <value>Направлять трафик через релей вместо прямого соединения. Медленнее, но скрывает ваш публичный адрес от других участников.</value>
+    <value>Направлять трафик через ретранслятор вместо прямого соединения. Медленнее, но скрывает ваш публичный адрес от других участников.</value>
   </data>
   <data name="Online.Adapter.UnavailableTitle" xml:space="preserve">
     <value>Туннелирование для сетевой игры недоступно</value>
@@ -2045,13 +2045,13 @@
     <value>Пароль сети</value>
   </data>
   <data name="Online.Join.PreferRelay" xml:space="preserve">
-    <value>Через релей (скрыть мой адрес)</value>
+    <value>Через ретранслятор (скрыть мой адрес)</value>
   </data>
   <data name="Online.Join.PreferRelayTooltip" xml:space="preserve">
-    <value>Направлять трафик через релей вместо прямого соединения. Медленнее, но скрывает ваш публичный адрес от других участников.</value>
+    <value>Направлять трафик через ретранслятор вместо прямого соединения. Медленнее, но скрывает ваш публичный адрес от других участников.</value>
   </data>
   <data name="Online.Join.PrivacyNotice" xml:space="preserve">
-    <value>Режим релея (включён по умолчанию) скрывает ваш публичный адрес от участников комнаты. Отключите его для прямого соединения, которое раскрывает ваш адрес, как в Hamachi.</value>
+    <value>Режим ретранслятора (включён по умолчанию) скрывает ваш публичный адрес от участников комнаты. Отключите его для прямого соединения, которое раскрывает ваш адрес, как в Hamachi.</value>
   </data>
   <data name="Online.Join.SuccessMessage" xml:space="preserve">
     <value>Подключено с IP оверлея {0}. Откройте LAN-лобби в игре.</value>
@@ -2087,7 +2087,7 @@
     <value>Прямое</value>
   </data>
   <data name="Online.Quality.Relay" xml:space="preserve">
-    <value>Релей</value>
+    <value>Ретранслятор</value>
   </data>
   <data name="Online.Quality.Unknown" xml:space="preserve">
     <value>Неизвестно</value>
@@ -2108,13 +2108,13 @@
     <value>Оскорбления</value>
   </data>
   <data name="Online.Report.SuccessMessage" xml:space="preserve">
-    <value>Хост уведомлён о {0}.</value>
+    <value>Жалоба отправлена хосту. Причина: {0}.</value>
   </data>
   <data name="Online.Report.SuccessTitle" xml:space="preserve">
     <value>Жалоба отправлена</value>
   </data>
   <data name="Online.Error.TestFailed" xml:space="preserve">
-    <value>Не удалось связаться с {0} напрямую. Возможно, нужен релей.</value>
+    <value>Не удалось связаться с {0} напрямую. Возможно, нужен ретранслятор.</value>
   </data>
   <data name="Online.Error.TestTitle" xml:space="preserve">
     <value>Проверка не удалась</value>

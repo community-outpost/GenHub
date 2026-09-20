@@ -10,6 +10,8 @@ using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using System.Text;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -76,20 +78,21 @@ public sealed class OnlineNetworkService(
     {
         try
         {
-            using var client = await CreateAuthenticatedClientAsync(cancellationToken);
-            if (client is null)
-            {
-                return OperationResult<IReadOnlyList<OnlineNetworkSummary>>.CreateFailure(
-                    OnlineConstants.ErrorServiceUnavailable);
-            }
-
             var url = ApiConstants.OnlineNetworksEndpoint;
             if (!string.IsNullOrWhiteSpace(search))
             {
                 url += string.Format(ApiConstants.OnlineNetworksSearchFormat, Uri.EscapeDataString(search.Trim()));
             }
 
-            using var response = await client.GetAsync(url, cancellationToken);
+            using var response = await SendWithSessionRetryAsync(
+                (client, ct) => client.GetAsync(url, ct),
+                cancellationToken);
+            if (response is null)
+            {
+                return OperationResult<IReadOnlyList<OnlineNetworkSummary>>.CreateFailure(
+                    OnlineConstants.ErrorServiceUnavailable);
+            }
+
             if (!response.IsSuccessStatusCode)
             {
                 return OperationResult<IReadOnlyList<OnlineNetworkSummary>>.CreateFailure(
@@ -120,14 +123,15 @@ public sealed class OnlineNetworkService(
 
         try
         {
-            using var client = await CreateAuthenticatedClientAsync(cancellationToken);
-            if (client is null)
+            var url = string.Format(ApiConstants.OnlineNetworkByIdFormat, Uri.EscapeDataString(networkId));
+            using var response = await SendWithSessionRetryAsync(
+                (client, ct) => client.GetAsync(url, ct),
+                cancellationToken);
+            if (response is null)
             {
                 return OperationResult<OnlineNetworkDetail>.CreateFailure(OnlineConstants.ErrorServiceUnavailable);
             }
 
-            var url = string.Format(ApiConstants.OnlineNetworkByIdFormat, Uri.EscapeDataString(networkId));
-            using var response = await client.GetAsync(url, cancellationToken);
             if (!response.IsSuccessStatusCode)
             {
                 return OperationResult<OnlineNetworkDetail>.CreateFailure(
@@ -165,14 +169,15 @@ public sealed class OnlineNetworkService(
         try
         {
             var endpoint = await ResolvePublicEndpointAsync(request.PreferRelay, cancellationToken);
-            using var client = await CreateAuthenticatedClientAsync(cancellationToken);
-            if (client is null)
+            using var response = await SendWithSessionRetryAsync(
+                (client, ct) => client.PostAsJsonAsync(
+                    ApiConstants.OnlineNetworksEndpoint, request with { Endpoint = endpoint }, ct),
+                cancellationToken);
+            if (response is null)
             {
                 return OperationResult<OnlineJoinResult>.CreateFailure(OnlineConstants.ErrorServiceUnavailable);
             }
 
-            using var response = await client.PostAsJsonAsync(
-                ApiConstants.OnlineNetworksEndpoint, request with { Endpoint = endpoint }, cancellationToken);
             return await ActivateJoinFromResponseAsync(response, cancellationToken);
         }
         catch (HttpRequestException ex)
@@ -197,15 +202,16 @@ public sealed class OnlineNetworkService(
         try
         {
             var endpoint = await ResolvePublicEndpointAsync(preferRelay, cancellationToken);
-            using var client = await CreateAuthenticatedClientAsync(cancellationToken);
-            if (client is null)
+            var url = string.Format(ApiConstants.OnlineNetworkJoinFormat, Uri.EscapeDataString(networkId));
+            using var response = await SendWithSessionRetryAsync(
+                (client, ct) => client.PostAsJsonAsync(
+                    url, new { password, preferRelay, endpoint }, ct),
+                cancellationToken);
+            if (response is null)
             {
                 return OperationResult<OnlineJoinResult>.CreateFailure(OnlineConstants.ErrorServiceUnavailable);
             }
 
-            var url = string.Format(ApiConstants.OnlineNetworkJoinFormat, Uri.EscapeDataString(networkId));
-            using var response = await client.PostAsJsonAsync(
-                url, new { password, preferRelay, endpoint }, cancellationToken);
             if (response.StatusCode == HttpStatusCode.Unauthorized)
             {
                 return OperationResult<OnlineJoinResult>.CreateFailure(OnlineConstants.ErrorWrongPassword);
@@ -354,19 +360,129 @@ public sealed class OnlineNetworkService(
         return OnlineConstants.ErrorServiceUnavailable;
     }
 
-    private async Task<HttpClient?> CreateAuthenticatedClientAsync(CancellationToken cancellationToken)
+    private static async Task<string?> ReadUnauthorizedCodeAsync(
+        HttpResponseMessage response,
+        CancellationToken cancellationToken)
+    {
+        string body;
+        try
+        {
+            body = await response.Content.ReadAsStringAsync(cancellationToken);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (HttpRequestException)
+        {
+            return null;
+        }
+
+        // Restore the consumed body so the caller's error reader sees the same bytes.
+        response.Content.Dispose();
+        response.Content = new StringContent(body, Encoding.UTF8, "application/json");
+
+        try
+        {
+            using var document = JsonDocument.Parse(body);
+            if (document.RootElement.TryGetProperty("code", out var code))
+            {
+                return code.GetString();
+            }
+
+            return null;
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
+    }
+
+    private async Task<HttpResponseMessage?> SendWithSessionRetryAsync(
+        Func<HttpClient, CancellationToken, Task<HttpResponseMessage>> send,
+        CancellationToken cancellationToken)
+    {
+        var first = await CreateAuthenticatedClientAsync(cancellationToken);
+        if (first.Client is null)
+        {
+            return null;
+        }
+
+        using (first.Client)
+        {
+            // The default ResponseContentRead buffers before returning, so the
+            // response stays readable after its client is disposed.
+            var response = await send(first.Client, cancellationToken);
+            var transferred = false;
+            try
+            {
+                if (response.StatusCode != HttpStatusCode.Unauthorized
+                    || !string.Equals(
+                        await ReadUnauthorizedCodeAsync(response, cancellationToken),
+                        OnlineConstants.ErrorSessionRequired,
+                        StringComparison.Ordinal))
+                {
+                    transferred = true;
+                    return response;
+                }
+            }
+            finally
+            {
+                if (!transferred)
+                {
+                    response.Dispose();
+                }
+            }
+
+            await InvalidateSessionAsync(first.Token, cancellationToken);
+            var second = await CreateAuthenticatedClientAsync(cancellationToken);
+            if (second.Client is null)
+            {
+                return null;
+            }
+
+            using (second.Client)
+            {
+                return await send(second.Client, cancellationToken);
+            }
+        }
+    }
+
+    private async Task<(HttpClient? Client, string? Token)> CreateAuthenticatedClientAsync(CancellationToken cancellationToken)
     {
         var token = await EnsureSessionAsync(cancellationToken);
         if (token is null)
         {
-            return null;
+            return (null, null);
         }
 
         var client = httpClientFactory.CreateClient(nameof(OnlineNetworkService));
         client.BaseAddress = new Uri(ApiConstants.OnlineEdgeBaseUrl);
         client.Timeout = TimeSpan.FromSeconds(OnlineConstants.HttpTimeoutSeconds);
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
-        return client;
+        return (client, token);
+    }
+
+    private async Task InvalidateSessionAsync(string? tokenUsed, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrEmpty(tokenUsed))
+        {
+            return;
+        }
+
+        await _sessionLock.WaitAsync(cancellationToken);
+        try
+        {
+            // Only clear when nobody already rotated past the failed token.
+            if (string.Equals(_sessionToken, tokenUsed, StringComparison.Ordinal))
+            {
+                _sessionToken = null;
+            }
+        }
+        finally
+        {
+            _sessionLock.Release();
+        }
     }
 
     private async Task<string?> EnsureSessionAsync(CancellationToken cancellationToken)
@@ -440,7 +556,7 @@ public sealed class OnlineNetworkService(
         RosterChanged?.Invoke(this, join.Members);
         SubscribePresence();
 
-        var presenceResult = await presence.ConnectAsync(join.NetworkId, join.Grant, cancellationToken);
+        var presenceResult = await presence.ConnectAsync(join.NetworkId, join.Grant, join.GrantExpiresUtc, cancellationToken);
         if (!presenceResult.Success)
         {
             logger.LogWarning("Presence channel failed; continuing with the join-time roster.");
@@ -469,6 +585,7 @@ public sealed class OnlineNetworkService(
         _presenceSubscribed = true;
         presence.RosterUpdated += OnPresenceRoster;
         presence.ConnectionLost += OnPresenceLost;
+        presence.GrantRefreshed += OnGrantRefreshed;
     }
 
     private void UnsubscribePresence()
@@ -481,11 +598,21 @@ public sealed class OnlineNetworkService(
         _presenceSubscribed = false;
         presence.RosterUpdated -= OnPresenceRoster;
         presence.ConnectionLost -= OnPresenceLost;
+        presence.GrantRefreshed -= OnGrantRefreshed;
     }
 
     private void OnPresenceRoster(object? sender, IReadOnlyList<OnlineMember> members)
     {
         RosterChanged?.Invoke(this, members);
+    }
+
+    private void OnGrantRefreshed(object? sender, string grant)
+    {
+        var join = CurrentJoin;
+        if (join is not null)
+        {
+            CurrentJoin = join with { Grant = grant };
+        }
     }
 
     private async void OnPresenceLost(object? sender, EventArgs e)

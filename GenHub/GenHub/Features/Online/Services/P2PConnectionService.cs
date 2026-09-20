@@ -9,6 +9,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Net.Sockets;
+using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -183,8 +184,7 @@ public sealed class P2PConnectionService(ILogger<P2PConnectionService> logger) :
 
     private static byte[] BuildBindingRequest(out byte[] transactionId)
     {
-        transactionId = new byte[12];
-        Random.Shared.NextBytes(transactionId);
+        transactionId = RandomNumberGenerator.GetBytes(12);
 
         var request = new byte[20];
         request[0] = (byte)(StunBindingRequest >> 8);
