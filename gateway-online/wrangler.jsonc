@@ -13,6 +13,9 @@
       { "name": "DIRECTORY_INDEX", "class_name": "DirectoryIndex" }
     ]
   },
+  "migrations": [
+    { "tag": "v1", "new_sqlite_classes": ["PresenceRoom", "DirectoryIndex"] }
+  ],
   "vars": {
     "SESSION_TTL_SECONDS": "3600",
     "JOIN_GRANT_TTL_SECONDS": "600",
