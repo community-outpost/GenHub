@@ -70,6 +70,24 @@ public class GameLauncher(
     }
 
     /// <summary>
+    /// Resolves the supplemental archive root to configure on a workspace, applying the
+    /// Windows gate: on Windows the registry resolves both roots, so no root is configured.
+    /// This is the single entry point workspace builders use; the pure resolution below stays
+    /// operating-system agnostic so its precedence rules are testable on every platform.
+    /// </summary>
+    /// <param name="gameType">The game being launched.</param>
+    /// <param name="effectiveGeneralsArchivePath">The effective base Generals archive root, if any.</param>
+    /// <param name="profileEnvironment">The profile's environment variables, if any.</param>
+    /// <returns>The supplemental archive root as an absolute path, or <c>null</c> when the launch needs none.</returns>
+    internal static string? ResolveSupplementalArchiveRootForWorkspace(
+        GameType gameType,
+        string? effectiveGeneralsArchivePath,
+        IReadOnlyDictionary<string, string>? profileEnvironment) =>
+        OperatingSystem.IsWindows()
+            ? null
+            : ResolveSupplementalArchiveRoot(gameType, effectiveGeneralsArchivePath, profileEnvironment);
+
+    /// <summary>
     /// Resolves the supplemental archive root whose top-level archives are linked into the workspace.
     /// </summary>
     /// <remarks>
@@ -79,8 +97,9 @@ public class GameLauncher(
     /// linked is decided separately at link time against the resolved workspace executable, which
     /// is the exact path <see cref="WineRunner"/> will wrap; the client's declared path cannot be
     /// used here because workspace aliasing may rewrite it (e.g. <c>game.dat</c> to
-    /// <c>generals.exe</c>). The caller applies the <see cref="OperatingSystem.IsWindows"/> gate;
-    /// on Windows the registry resolves both roots.
+    /// <c>generals.exe</c>). Workspace builders call
+    /// <see cref="ResolveSupplementalArchiveRootForWorkspace"/> instead, which applies the
+    /// <see cref="OperatingSystem.IsWindows"/> gate on top of this resolution.
     /// </remarks>
     /// <param name="gameType">The game being launched.</param>
     /// <param name="effectiveGeneralsArchivePath">The effective base Generals archive root, if any.</param>
@@ -1233,9 +1252,7 @@ public class GameLauncher(
             WorkspaceRootPath = dynamicWorkspacePath,
             BaseInstallationPath = actualInstallationPath,
             ManifestSourcePaths = manifestSourcePaths,
-            SupplementalArchiveRoot = OperatingSystem.IsWindows()
-                ? null
-                : ResolveSupplementalArchiveRoot(gameClient.GameType, installation.EffectiveGeneralsArchivePath, profile.EnvironmentVariables),
+            SupplementalArchiveRoot = ResolveSupplementalArchiveRootForWorkspace(gameClient.GameType, installation.EffectiveGeneralsArchivePath, profile.EnvironmentVariables),
         };
         logger.LogDebug("[GameLauncher] BaseInstallationPath set to: {Path}", workspaceConfig.BaseInstallationPath);
 

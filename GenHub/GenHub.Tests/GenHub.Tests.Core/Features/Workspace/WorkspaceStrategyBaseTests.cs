@@ -196,6 +196,48 @@ public class WorkspaceStrategyBaseTests : IDisposable
     }
 
     /// <summary>
+    /// Tests that UpdateWorkspaceInfo leaves a native engine binary alone: aliasing it to
+    /// generals.exe would make the runner wrap a native binary in Wine.
+    /// </summary>
+    [Fact]
+    public void UpdateWorkspaceInfo_WithNativeExecutable_DoesNotCreateGeneralsExeAlias()
+    {
+        // Arrange
+        var workspaceInfo = new WorkspaceInfo
+        {
+            Id = "native-workspace",
+            WorkspacePath = _tempDir,
+        };
+
+        var nativeExePath = Path.Combine(_tempDir, "generalszh");
+        File.WriteAllBytes(nativeExePath, [0x7F, (byte)'E', (byte)'L', (byte)'F']);
+
+        var config = new WorkspaceConfiguration
+        {
+            Manifests =
+            [
+                new()
+                {
+                    ContentType = GenHub.Core.Models.Enums.ContentType.GameClient,
+                    EntryPoint = "generalszh",
+                    Files =
+                    [
+                        new() { RelativePath = "generalszh", Size = 1000, IsExecutable = true },
+                    ],
+                },
+            ],
+            GameClient = new GameClient { ExecutablePath = "generalszh" },
+        };
+
+        // Act
+        _strategy.TestUpdateWorkspaceInfo(workspaceInfo, 1, 1000L, config);
+
+        // Assert
+        Assert.False(File.Exists(Path.Combine(_tempDir, "generals.exe")));
+        Assert.Equal(nativeExePath, workspaceInfo.ExecutablePath);
+    }
+
+    /// <summary>
     /// Tests that GetFileSizeSafe handles missing files gracefully.
     /// </summary>
     [Fact]

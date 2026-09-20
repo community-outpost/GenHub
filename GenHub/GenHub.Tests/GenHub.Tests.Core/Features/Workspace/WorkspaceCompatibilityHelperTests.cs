@@ -5,7 +5,9 @@ using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Workspace;
 using GenHub.Features.Workspace.Strategies;
 using GenHub.Tests.Core.Helpers;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
+using Moq;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -913,6 +915,7 @@ public class WorkspaceCompatibilityHelperTests : IDisposable
             Id = "test-workspace",
             WorkspacePath = _workspaceDir,
             ExecutablePath = Path.Combine(_workspaceDir, "generals.exe"),
+            FileCount = 10,
         };
 
         var config = new WorkspaceConfiguration
@@ -930,6 +933,39 @@ public class WorkspaceCompatibilityHelperTests : IDisposable
         File.Exists(patchIniLink).Should().BeFalse();
         File.Exists(gensecLink).Should().BeFalse();
         File.Exists(Path.Combine(_workspaceDir, "Textures.big")).Should().BeTrue();
+        workspaceInfo.FileCount.Should().Be(9);
+    }
+
+    /// <summary>
+    /// Verifies that deliberately skipped archives are logged at information level so a root
+    /// holding an excluded archive leaves a trace in default logs instead of silently
+    /// missing content. A skip deliberately costs content, so debug level would hide the
+    /// names a missing-content report needs.
+    /// </summary>
+    [Fact]
+    public void TryGetSupplementalArchives_UnsafeArchive_LogsSkippedCandidate()
+    {
+        // Arrange
+        var supplementalRoot = Path.Combine(_tempDir, "generals-logged-skips");
+        Directory.CreateDirectory(supplementalRoot);
+        File.WriteAllText(Path.Combine(supplementalRoot, "Textures.big"), "safe");
+        File.WriteAllText(Path.Combine(supplementalRoot, "PatchINI.big"), "unsafe");
+        var mockLogger = new Mock<ILogger>();
+
+        // Act
+        var result = WorkspaceCompatibilityHelper.TryGetSupplementalArchives(supplementalRoot, out var archives, mockLogger.Object);
+
+        // Assert
+        result.Should().BeTrue();
+        archives.Keys.Should().BeEquivalentTo("Textures.big");
+        mockLogger.Verify(
+            x => x.Log(
+                LogLevel.Information,
+                It.IsAny<EventId>(),
+                It.Is<It.IsAnyType>((o, t) => o.ToString()!.Contains("PatchINI.big")),
+                It.IsAny<Exception>(),
+                It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
+            Times.Once);
     }
 
     /// <summary>

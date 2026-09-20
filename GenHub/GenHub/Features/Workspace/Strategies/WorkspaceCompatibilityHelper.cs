@@ -120,37 +120,12 @@ public static class WorkspaceCompatibilityHelper
             return false;
         }
 
-        // Unsafe: INI archives (INI.big, PatchINI.big) contain base Generals balance and game definitions
-        if (name.Contains("ini", StringComparison.OrdinalIgnoreCase))
-        {
-            return false;
-        }
-
-        // Unsafe: Patch archives (Patch.big, PatchData.big, PatchWindow.big, etc.) contain base Generals patch overrides
-        if (name.Contains("patch", StringComparison.OrdinalIgnoreCase))
-        {
-            return false;
-        }
-
-        // Unsafe: UI Window archives (Window.big, PatchWindow.big) contain base Generals window layouts
-        if (name.Contains("window", StringComparison.OrdinalIgnoreCase))
-        {
-            return false;
-        }
-
-        // Unsafe: Shaders (shaders.big) contain base Generals legacy DirectX 8 shaders
-        if (name.Contains("shader", StringComparison.OrdinalIgnoreCase))
-        {
-            return false;
-        }
-
-        // Unsafe: SafeDisc copy protection (gensec.big) triggers base Generals CD-ROM check
-        if (name.Contains("gensec", StringComparison.OrdinalIgnoreCase))
-        {
-            return false;
-        }
-
-        return true;
+        // Substring matching is deliberate: patch-era variants (PatchINI.big, PatchWindow.big,
+        // PatchData.big) must be caught without enumerating every retail filename, and a
+        // skipped community archive costs missing optional content while a linked unsafe one
+        // costs an engine crash.
+        return !GameClientConstants.UnsafeSupplementalArchiveMarkers.Any(
+            marker => name.Contains(marker, StringComparison.OrdinalIgnoreCase));
     }
 
     /// <summary>
@@ -167,8 +142,9 @@ public static class WorkspaceCompatibilityHelper
     /// </remarks>
     /// <param name="supplementalRoot">The supplemental archive root, or null when none is configured.</param>
     /// <param name="archives">The on-disk archive filenames mapped to their full source paths, compared case-insensitively.</param>
+    /// <param name="logger">Optional logger receiving an informational entry per deliberately skipped archive.</param>
     /// <returns><c>true</c> when the root was enumerated or is absent; <c>false</c> when it exists but could not be read.</returns>
-    public static bool TryGetSupplementalArchives(string? supplementalRoot, out IReadOnlyDictionary<string, string> archives)
+    public static bool TryGetSupplementalArchives(string? supplementalRoot, out IReadOnlyDictionary<string, string> archives, ILogger? logger = null)
     {
         var names = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         if (string.IsNullOrWhiteSpace(supplementalRoot))
@@ -190,6 +166,13 @@ public static class WorkspaceCompatibilityHelper
                 if (IsSafeSupplementalArchive(fileName))
                 {
                     names.TryAdd(fileName, path);
+                }
+                else
+                {
+                    // Informational, not debug: a skip deliberately costs content (see
+                    // IsSafeSupplementalArchive), so a missing-content report is only
+                    // diagnosable when the skipped names are visible in default logs.
+                    logger?.LogInformation("Skipping unsafe supplemental archive {FileName} from {Root}", fileName, supplementalRoot);
                 }
             }
 
@@ -297,7 +280,7 @@ public static class WorkspaceCompatibilityHelper
             return;
         }
 
-        if (!TryGetSupplementalArchives(supplementalRoot, out var desiredArchives))
+        if (!TryGetSupplementalArchives(supplementalRoot, out var desiredArchives, logger))
         {
             logger.LogWarning("Supplemental archive root could not be read: {Root}", supplementalRoot);
             workspaceInfo.ValidationIssues.Add(new ValidationIssue(
@@ -307,8 +290,8 @@ public static class WorkspaceCompatibilityHelper
         }
 
         var created = LinkMissingSupplementalArchives(workspaceInfo.WorkspacePath, desiredArchives, workspaceInfo, logger);
-        ReconcileStaleSupplementalLinks(workspaceInfo.WorkspacePath, supplementalRoot, desiredArchives, logger);
-        workspaceInfo.FileCount += created;
+        var removed = ReconcileStaleSupplementalLinks(workspaceInfo.WorkspacePath, supplementalRoot, desiredArchives, logger);
+        workspaceInfo.FileCount += created - removed;
     }
 
     /// <summary>
@@ -382,7 +365,8 @@ public static class WorkspaceCompatibilityHelper
     /// a mod, or the user may share a supplemental archive's name (a mod overriding a retail archive
     /// under a link-based strategy does exactly that), so name alone never establishes ownership.
     /// </remarks>
-    private static void ReconcileStaleSupplementalLinks(
+    /// <returns>The number of stale entries removed without replacement.</returns>
+    private static int ReconcileStaleSupplementalLinks(
         string workspacePath,
         string supplementalRoot,
         IReadOnlyDictionary<string, string> desiredArchives,
@@ -396,23 +380,30 @@ public static class WorkspaceCompatibilityHelper
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             logger.LogDebug(ex, "Failed to enumerate workspace root for supplemental reconciliation: {Workspace}", workspacePath);
-            return;
+            return 0;
         }
 
+        var removed = 0;
         foreach (var entry in entries)
         {
             try
             {
-                ReconcileSupplementalEntry(entry, supplementalRoot, desiredArchives, logger);
+                if (ReconcileSupplementalEntry(entry, supplementalRoot, desiredArchives, logger))
+                {
+                    removed++;
+                }
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
                 logger.LogDebug(ex, "Failed to reconcile supplemental entry {Entry}; it will be retried on the next launch", entry);
             }
         }
+
+        return removed;
     }
 
-    private static void ReconcileSupplementalEntry(
+    /// <returns><c>true</c> when the entry was removed without replacement; otherwise, <c>false</c>.</returns>
+    private static bool ReconcileSupplementalEntry(
         string entry,
         string supplementalRoot,
         IReadOnlyDictionary<string, string> desiredArchives,
@@ -421,7 +412,7 @@ public static class WorkspaceCompatibilityHelper
         var linkTarget = new FileInfo(entry).LinkTarget;
         if (linkTarget is null || !IsLinkTargetUnderRoot(linkTarget, supplementalRoot))
         {
-            return;
+            return false;
         }
 
         var name = Path.GetFileName(entry);
@@ -429,17 +420,26 @@ public static class WorkspaceCompatibilityHelper
         {
             File.Delete(entry);
             logger.LogDebug("Removed stale supplemental link {Entry} targeting {Target}", entry, linkTarget);
-            return;
+            return true;
         }
 
         if (string.Equals(NormalizeLinkPath(linkTarget), NormalizeLinkPath(expectedSource), PathHelper.PathComparison) &&
             File.Exists(entry))
         {
-            return;
+            return false;
         }
 
         File.Delete(entry);
-        LinkFileOrCopy(expectedSource, entry, name, logger);
+        try
+        {
+            LinkFileOrCopy(expectedSource, entry, name, logger);
+            return false;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            logger.LogDebug(ex, "Failed to relink supplemental entry {Entry}; it will be retried on the next launch", entry);
+            return true;
+        }
     }
 
     private static string NormalizeLinkPath(string? path) =>

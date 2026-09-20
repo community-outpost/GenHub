@@ -281,6 +281,27 @@ public static class GameClientConstants
     ];
 
     /// <summary>
+    /// Case-insensitive filename markers identifying base Generals archives that must never be
+    /// linked into a Zero Hour workspace: each names content that overrides Zero Hour's own
+    /// definitions and crashes the engine.
+    /// </summary>
+    /// <remarks>
+    /// <c>ini</c> matches balance and game-definition archives (INI.big, PatchINI.big);
+    /// <c>patch</c> matches patch overrides (Patch.big, PatchData.big, PatchWindow.big);
+    /// <c>window</c> matches UI window layouts (Window.big); <c>shader</c> matches legacy
+    /// DirectX 8 shaders (shaders.big); <c>gensec</c> matches SafeDisc copy protection
+    /// (gensec.big), which triggers a base Generals CD-ROM check.
+    /// </remarks>
+    public static readonly IReadOnlyList<string> UnsafeSupplementalArchiveMarkers =
+    [
+        "ini",
+        "patch",
+        "window",
+        "shader",
+        "gensec",
+    ];
+
+    /// <summary>
     /// List of valid game executable filenames for Generals installations.
     /// </summary>
     public static readonly IReadOnlyList<string> ValidGeneralsExecutableNames =

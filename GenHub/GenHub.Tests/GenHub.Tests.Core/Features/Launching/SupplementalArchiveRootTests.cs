@@ -1,6 +1,7 @@
 using GenHub.Core.Constants;
 using GenHub.Core.Models.Enums;
 using GenHub.Features.Launching;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using Xunit;
@@ -157,6 +158,24 @@ public class SupplementalArchiveRootTests
             new Dictionary<string, string>());
 
         Assert.Null(root);
+    }
+
+    /// <summary>
+    /// The workspace entry point applies the Windows gate on top of the pure resolution: null
+    /// on Windows, where the registry resolves both roots, and the resolved root elsewhere.
+    /// </summary>
+    [Fact]
+    public void ResolveSupplementalArchiveRootForWorkspace_AppliesWindowsGate()
+    {
+        var root = GameLauncher.ResolveSupplementalArchiveRootForWorkspace(
+            GameType.ZeroHour,
+            "/retail/generals",
+            null);
+
+        var expected = OperatingSystem.IsWindows()
+            ? null
+            : GameLauncher.ResolveSupplementalArchiveRoot(GameType.ZeroHour, "/retail/generals", null);
+        Assert.Equal(expected, root);
     }
 
     /// <summary>

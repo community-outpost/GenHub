@@ -189,7 +189,8 @@ public class WorkspaceReconciler(ILogger<WorkspaceReconciler> logger, IFileOpera
         // every launch would report them as orphans and force a full workspace recreation.
         if (!WorkspaceCompatibilityHelper.TryGetSupplementalArchives(
             configuration.SupplementalArchiveRoot,
-            out var supplementalArchives))
+            out var supplementalArchives,
+            logger))
         {
             logger.LogWarning(
                 "Supplemental archive root could not be read: {Root}. Already-linked supplemental archives will be treated as orphans for this run, forcing one workspace recreation.",
@@ -244,6 +245,44 @@ public class WorkspaceReconciler(ILogger<WorkspaceReconciler> logger, IFileOpera
         return deltas;
     }
 
+    /// <summary>
+    /// Compares two streams chunk by chunk. Each chunk is filled fully before comparing:
+    /// stream reads may legally short-read, and comparing two independently short-read
+    /// buffers would both misalign every later chunk and report identical files as different.
+    /// </summary>
+    /// <param name="first">The first stream to compare.</param>
+    /// <param name="second">The second stream to compare.</param>
+    /// <param name="cancellationToken">A cancellation token.</param>
+    /// <returns><c>true</c> when both streams have identical contents; otherwise, <c>false</c>.</returns>
+    internal static async Task<bool> StreamsHaveIdenticalContentAsync(
+        Stream first,
+        Stream second,
+        CancellationToken cancellationToken)
+    {
+        var firstBuffer = new byte[IoConstants.FileHashBufferSize];
+        var secondBuffer = new byte[IoConstants.FileHashBufferSize];
+
+        while (true)
+        {
+            var firstRead = await first.ReadAtLeastAsync(firstBuffer, firstBuffer.Length, throwOnEndOfStream: false, cancellationToken);
+            var secondRead = await second.ReadAtLeastAsync(secondBuffer, secondBuffer.Length, throwOnEndOfStream: false, cancellationToken);
+            if (firstRead != secondRead)
+            {
+                return false;
+            }
+
+            if (firstRead == 0)
+            {
+                return true;
+            }
+
+            if (!firstBuffer.AsSpan(0, firstRead).SequenceEqual(secondBuffer.AsSpan(0, secondRead)))
+            {
+                return false;
+            }
+        }
+    }
+
     private static bool IsOptionalOrSkippedFile(string relativePath)
     {
         var fileName = Path.GetFileName(relativePath.Replace('\\', '/'));
@@ -285,28 +324,7 @@ public class WorkspaceReconciler(ILogger<WorkspaceReconciler> logger, IFileOpera
 
         await using var first = new FileStream(firstPath, options);
         await using var second = new FileStream(secondPath, options);
-        var firstBuffer = new byte[IoConstants.FileHashBufferSize];
-        var secondBuffer = new byte[IoConstants.FileHashBufferSize];
-
-        while (true)
-        {
-            var firstRead = await first.ReadAsync(firstBuffer, cancellationToken);
-            var secondRead = await second.ReadAsync(secondBuffer, cancellationToken);
-            if (firstRead != secondRead)
-            {
-                return false;
-            }
-
-            if (firstRead == 0)
-            {
-                return true;
-            }
-
-            if (!firstBuffer.AsSpan(0, firstRead).SequenceEqual(secondBuffer.AsSpan(0, secondRead)))
-            {
-                return false;
-            }
-        }
+        return await StreamsHaveIdenticalContentAsync(first, second, cancellationToken);
     }
 
     private async Task<bool> IsSupplementalArchiveFileAsync(

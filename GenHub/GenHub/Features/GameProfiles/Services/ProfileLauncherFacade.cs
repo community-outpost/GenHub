@@ -331,9 +331,7 @@ public class ProfileLauncherFacade(
             }
 
             // Resolved after the guard so the installation dereference is textually protected.
-            workspaceConfig.SupplementalArchiveRoot = OperatingSystem.IsWindows()
-                ? null
-                : GameLauncher.ResolveSupplementalArchiveRoot(profile.GameClient.GameType, resolvedInstallation.EffectiveGeneralsArchivePath, profile.EnvironmentVariables);
+            workspaceConfig.SupplementalArchiveRoot = GameLauncher.ResolveSupplementalArchiveRootForWorkspace(profile.GameClient.GameType, resolvedInstallation.EffectiveGeneralsArchivePath, profile.EnvironmentVariables);
 
             var installationPath = resolvedInstallation.InstallationPath;
             workspaceConfig.BaseInstallationPath = installationPath;

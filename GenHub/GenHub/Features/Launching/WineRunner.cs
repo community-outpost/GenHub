@@ -75,6 +75,45 @@ public class WineRunner(
         return string.IsNullOrEmpty(clean) ? WineConstants.FallbackPrefixUserName : clean;
     }
 
+    /// <summary>
+    /// Copies the native Options.ini into one prefix user shell folder when the source is newer.
+    /// </summary>
+    /// <param name="sourcePath">The native Options.ini path.</param>
+    /// <param name="userDirectory">The prefix user profile directory.</param>
+    /// <param name="documentsDirectoryName">The shell folder name ("Documents" or "My Documents").</param>
+    /// <param name="dataDirectoryName">The game data directory name.</param>
+    /// <returns><c>true</c> when the destination was written; otherwise, <c>false</c>.</returns>
+    private static bool MirrorOptionsIniToShellFolder(string sourcePath, string userDirectory, string documentsDirectoryName, string dataDirectoryName)
+    {
+        var userDocuments = Path.Combine(userDirectory, documentsDirectoryName, dataDirectoryName);
+        Directory.CreateDirectory(userDocuments);
+
+        var destinationPath = Path.Combine(userDocuments, Path.GetFileName(sourcePath));
+        if (File.Exists(destinationPath) && File.GetLastWriteTimeUtc(sourcePath) <= File.GetLastWriteTimeUtc(destinationPath))
+        {
+            return false;
+        }
+
+        File.Copy(sourcePath, destinationPath, overwrite: true);
+        return true;
+    }
+
+    /// <summary>
+    /// Determines whether a WINEDLLOVERRIDES value already configures the Direct3D 8 DLL.
+    /// Entries are separated by semicolons, and each entry names one or more comma-separated
+    /// DLLs before the load order, so only an exact DLL-name match counts: a substring check
+    /// would mistake d3d8proxy for d3d8 and leave the wrapper override unset.
+    /// </summary>
+    /// <param name="existingOverrides">The current WINEDLLOVERRIDES value.</param>
+    /// <returns><c>true</c> when an entry already names the Direct3D 8 DLL; otherwise, <c>false</c>.</returns>
+    private static bool HasDirect3D8Override(string existingOverrides) =>
+        existingOverrides
+            .Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .SelectMany(entry => entry
+                .Split('=', 2)[0]
+                .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+            .Any(key => string.Equals(key, WineConstants.Direct3D8DllName, StringComparison.OrdinalIgnoreCase));
+
     private void ConfigureDirect3DOverride(GameLaunchConfiguration configuration, Dictionary<string, string> environment)
     {
         var workingDir = configuration.WorkingDirectory ?? Path.GetDirectoryName(configuration.ExecutablePath);
@@ -85,7 +124,7 @@ public class WineRunner(
 
         if (environment.TryGetValue(WineConstants.DllOverridesEnvironmentVariable, out var existingOverrides))
         {
-            if (!existingOverrides.Contains("d3d8", StringComparison.OrdinalIgnoreCase))
+            if (!HasDirect3D8Override(existingOverrides))
             {
                 environment[WineConstants.DllOverridesEnvironmentVariable] = $"{existingOverrides};{WineConstants.Direct3D8DllOverride}";
                 logger.LogInformation("Configured Wine DLL override for {Dll} (appended to existing overrides)", GameClientConstants.Direct3D8WrapperDll);
@@ -169,20 +208,22 @@ public class WineRunner(
                 WineConstants.DriveCDirectoryName,
                 WineConstants.PrefixUsersDirectoryName,
                 SanitizeUserName(Environment.UserName));
-            var documentsDirectoryName = !Directory.Exists(Path.Combine(userDirectory, WineConstants.DocumentsDirectoryName))
-                && Directory.Exists(Path.Combine(userDirectory, WineConstants.MyDocumentsDirectoryName))
-                ? WineConstants.MyDocumentsDirectoryName
-                : WineConstants.DocumentsDirectoryName;
-            var userDocuments = Path.Combine(
-                userDirectory,
-                documentsDirectoryName,
-                dataDirectoryName);
-            Directory.CreateDirectory(userDocuments);
 
-            var destinationPath = Path.Combine(userDocuments, Path.GetFileName(sourcePath));
-            if (!File.Exists(destinationPath) || File.GetLastWriteTimeUtc(sourcePath) > File.GetLastWriteTimeUtc(destinationPath))
+            // Plain Wine resolves the personal shell folder to "My Documents" while Proton
+            // uses "Documents", and on a fresh managed prefix neither directory exists yet to
+            // disambiguate. Guessing one risks the game silently ignoring the mirrored
+            // Options.ini — including the profile's resolution — with no error anywhere, and
+            // the guess can never self-heal because the first run creates the guessed
+            // directory itself. Mirror into both: the game reads exactly one, and the other
+            // copy stays inert.
+            var mirroredAny = false;
+            foreach (var documentsDirectoryName in new[] { WineConstants.DocumentsDirectoryName, WineConstants.MyDocumentsDirectoryName })
             {
-                File.Copy(sourcePath, destinationPath, overwrite: true);
+                mirroredAny |= MirrorOptionsIniToShellFolder(sourcePath, userDirectory, documentsDirectoryName, dataDirectoryName);
+            }
+
+            if (mirroredAny)
+            {
                 logger.LogInformation("Mirrored Options.ini into Wine prefix for {GameType}", configuration.GameType);
             }
         }

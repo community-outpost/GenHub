@@ -9,6 +9,8 @@ using Moq;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
 using ContentType = GenHub.Core.Models.Enums.ContentType;
@@ -330,6 +332,49 @@ public class WorkspaceReconcilerSupplementalTests : IDisposable
     }
 
     /// <summary>
+    /// Verifies that streams short-reading asymmetrically (legal on network mounts) still
+    /// compare aligned: each chunk is filled fully before comparing, so identical content
+    /// is not misreported as different.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task StreamsHaveIdenticalContent_AsymmetricShortReadsOnIdenticalContent_ReturnsTrueAsync()
+    {
+        // Arrange
+        var content = Enumerable.Range(0, 100).Select(i => (byte)i).ToArray();
+        using var first = new CappedReadStream(new MemoryStream(content), 7);
+        using var second = new CappedReadStream(new MemoryStream(content), 13);
+
+        // Act
+        var result = await WorkspaceReconciler.StreamsHaveIdenticalContentAsync(first, second, CancellationToken.None);
+
+        // Assert
+        Assert.True(result);
+    }
+
+    /// <summary>
+    /// Verifies that chunk filling does not mask a genuine difference under asymmetric
+    /// short reads.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task StreamsHaveIdenticalContent_AsymmetricShortReadsOnDifferentContent_ReturnsFalseAsync()
+    {
+        // Arrange
+        var firstBytes = Enumerable.Range(0, 100).Select(i => (byte)i).ToArray();
+        var secondBytes = Enumerable.Range(0, 100).Select(i => (byte)i).ToArray();
+        secondBytes[secondBytes.Length - 1] = 255;
+        using var first = new CappedReadStream(new MemoryStream(firstBytes), 7);
+        using var second = new CappedReadStream(new MemoryStream(secondBytes), 13);
+
+        // Act
+        var result = await WorkspaceReconciler.StreamsHaveIdenticalContentAsync(first, second, CancellationToken.None);
+
+        // Assert
+        Assert.False(result);
+    }
+
+    /// <summary>
     /// Verifies that an unreadable supplemental root degrades to treating linked archives as
     /// orphans, forcing one workspace recreation rather than silently keeping content that
     /// can no longer be verified.
@@ -474,5 +519,62 @@ public class WorkspaceReconcilerSupplementalTests : IDisposable
         await File.WriteAllBytesAsync(Path.Combine(workspacePath, "Textures.big"), workspaceBytes);
 
         return CreateWorkspace(id, workspacePath, supplementalRoot);
+    }
+
+    /// <summary>
+    /// A stream wrapper capping every read at a fixed size, simulating the short reads
+    /// network mounts may legally return.
+    /// </summary>
+    private sealed class CappedReadStream(Stream inner, int maxBytesPerRead) : Stream
+    {
+        /// <inheritdoc/>
+        public override bool CanRead => true;
+
+        /// <inheritdoc/>
+        public override bool CanSeek => false;
+
+        /// <inheritdoc/>
+        public override bool CanWrite => false;
+
+        /// <inheritdoc/>
+        public override long Length => inner.Length;
+
+        /// <inheritdoc/>
+        public override long Position
+        {
+            get => inner.Position;
+            set => inner.Position = value;
+        }
+
+        /// <inheritdoc/>
+        public override void Flush() => inner.Flush();
+
+        /// <inheritdoc/>
+        public override int Read(byte[] buffer, int offset, int count) =>
+            inner.Read(buffer, offset, Math.Min(count, maxBytesPerRead));
+
+        /// <inheritdoc/>
+        public override ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default) =>
+            inner.ReadAsync(buffer[..Math.Min(buffer.Length, maxBytesPerRead)], cancellationToken);
+
+        /// <inheritdoc/>
+        public override long Seek(long offset, SeekOrigin origin) => inner.Seek(offset, origin);
+
+        /// <inheritdoc/>
+        public override void SetLength(long value) => inner.SetLength(value);
+
+        /// <inheritdoc/>
+        public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+
+        /// <inheritdoc/>
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                inner.Dispose();
+            }
+
+            base.Dispose(disposing);
+        }
     }
 }

@@ -4,6 +4,7 @@ using GenHub.Core.Models.Common;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Workspace;
+using GenHub.Core.Utilities;
 using GenHub.Infrastructure.Exceptions;
 using Microsoft.Extensions.Logging;
 using System;
@@ -668,6 +669,15 @@ public abstract class WorkspaceStrategyBase<T>(
         if (resolvedFileName.Equals(GameClientConstants.GeneralsExecutable, StringComparison.OrdinalIgnoreCase) ||
             resolvedFileName.EndsWith(".exe", StringComparison.OrdinalIgnoreCase))
         {
+            return resolvedFullPath;
+        }
+
+        // The alias exists for Windows binaries with a custom entry name (Steam's game.dat,
+        // Contra's generals.ctr): a native engine binary must keep its own path so the runner
+        // passes it through instead of wrapping a misnamed copy in Wine.
+        if (File.Exists(resolvedFullPath) && !WindowsBinaryClassifier.IsWindowsBinary(resolvedFullPath))
+        {
+            logger.LogDebug("Skipping '{Alias}' alias for native entry point '{Target}' in workspace", GameClientConstants.GeneralsExecutable, resolvedFullPath);
             return resolvedFullPath;
         }
 
