@@ -224,6 +224,10 @@
                                   IsChecked="{Binding CreateIsPublic, Mode=TwoWay}"
                                   Foreground="{DynamicResource TextPrimary}" />
                     </StackPanel>
+                    <CheckBox Content="{localization:Localize Online.Create.PreferRelay}"
+                              ToolTip.Tip="{localization:Localize Online.Create.PreferRelayTooltip}"
+                              IsChecked="{Binding PreferRelay, Mode=TwoWay}"
+                              Foreground="{DynamicResource TextPrimary}" />
                     <Button Classes="primary-btn"
                             Content="{localization:Localize Online.Create.Submit}"
                             Command="{Binding CreateNetworkCommand}"

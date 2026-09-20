@@ -63,11 +63,13 @@ the tab shows its failed state with a retry action instead of failing silently.
 
 ## Privacy model
 
-Everyone sees servers; only joined members exchange packets. Joining shares the
-public endpoint with room members for direct hole-punching (disclosed in the
-join dialog). The Prefer Relay toggle offers relay-only candidates to hide the
-direct endpoint. Logs, toasts, and diagnostics scrub IPs via
-`OnlineLogScrubber`; toasts show overlay IPs or direct/relay state only.
+Everyone sees servers; only joined members exchange packets. Relay mode is on
+by default, so members publish no public endpoint and no STUN traffic runs.
+Turning relay off shares the public endpoint with room members for direct
+hole-punching (disclosed in the join dialog). The edge drops any endpoint sent
+by a relay member on create, join, and heartbeat. Logs, toasts, and
+diagnostics scrub IPs via `OnlineLogScrubber`; toasts show overlay IPs or
+direct/relay state only.
 
 ## Abuse
 

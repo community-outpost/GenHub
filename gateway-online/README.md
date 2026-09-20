@@ -57,7 +57,7 @@ directory reads per minute, overlay subnet, TURN URIs.
 - Joined members may publish a reflexive `endpoint` (`host:port`, validated)
   on create/join/heartbeat. Endpoints are visible only to grant holders via
   the roster; the directory and pre-join detail never carry them. Relay-mode
-  members publish nothing.
+  members publish nothing, and the edge drops any endpoint they send.
 
 ## Develop and test
 

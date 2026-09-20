@@ -20,6 +20,7 @@ export interface CreateNetworkInput {
   description: string;
   displayName: string;
   expectedProfileId: string;
+  preferRelay: boolean;
   endpoint: string;
 }
 
@@ -98,6 +99,7 @@ export const parseCreateNetwork = (body: unknown): CreateNetworkInput | null => 
     description,
     displayName,
     expectedProfileId,
+    preferRelay: raw.preferRelay === true,
     endpoint: parseEndpoint(raw.endpoint),
   };
 };

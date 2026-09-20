@@ -5,6 +5,8 @@ using GenHub.Core.Models.Online;
 using GenHub.Core.Models.Results;
 using Microsoft.Extensions.Logging;
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading;
@@ -19,7 +21,7 @@ namespace GenHub.Features.Online.Services;
 /// <param name="logger">The logger.</param>
 public sealed class P2PConnectionService(ILogger<P2PConnectionService> logger) : IP2PConnectionService, IDisposable
 {
-    private const int StunPort = 3473;
+    private const int StunPort = 3478;
     private const int StunTimeoutSeconds = 5;
     private const int PunchPacketCount = 3;
     private const ushort StunBindingRequest = 0x0001;
@@ -172,6 +174,16 @@ public sealed class P2PConnectionService(ILogger<P2PConnectionService> logger) :
         }
     }
 
+    /// <summary>
+    /// Orders STUN server candidates so IPv4 addresses are tried before IPv6.
+    /// </summary>
+    /// <param name="addresses">The resolved server addresses.</param>
+    /// <returns>The addresses with IPv4 first.</returns>
+    internal static IReadOnlyList<IPAddress> OrderStunCandidates(IPAddress[] addresses)
+    {
+        return addresses.OrderBy(a => a.AddressFamily == AddressFamily.InterNetwork ? 0 : 1).ToList();
+    }
+
     private static byte[] BuildBindingRequest(out byte[] transactionId)
     {
         transactionId = new byte[12];
@@ -236,6 +248,25 @@ public sealed class P2PConnectionService(ILogger<P2PConnectionService> logger) :
         return new IPEndPoint(new IPAddress(address), port);
     }
 
+    private static async Task<IPEndPoint?> TryQueryStunServerAsync(
+        IPAddress address,
+        byte[] request,
+        byte[] transactionId,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            using var udp = new UdpClient(address.AddressFamily);
+            await udp.SendAsync(request, new IPEndPoint(address, StunPort), cancellationToken);
+            var result = await udp.ReceiveAsync(cancellationToken);
+            return ParseBindingResponse(result.Buffer, transactionId);
+        }
+        catch (SocketException)
+        {
+            return null;
+        }
+    }
+
     private async Task<IPEndPoint?> QueryStunAsync(CancellationToken cancellationToken)
     {
         using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
@@ -244,17 +275,18 @@ public sealed class P2PConnectionService(ILogger<P2PConnectionService> logger) :
         try
         {
             var addresses = await Dns.GetHostAddressesAsync(ApiConstants.OnlineStunHost, timeoutCts.Token);
-            if (addresses.Length == 0)
+            var request = BuildBindingRequest(out var transactionId);
+            foreach (var address in OrderStunCandidates(addresses))
             {
-                return null;
+                timeoutCts.Token.ThrowIfCancellationRequested();
+                var endpoint = await TryQueryStunServerAsync(address, request, transactionId, timeoutCts.Token);
+                if (endpoint is not null)
+                {
+                    return endpoint;
+                }
             }
 
-            using var udp = new UdpClient(0);
-            var request = BuildBindingRequest(out var transactionId);
-            await udp.SendAsync(request, new IPEndPoint(addresses[0], StunPort), timeoutCts.Token);
-
-            var result = await udp.ReceiveAsync(timeoutCts.Token);
-            return ParseBindingResponse(result.Buffer, transactionId);
+            return null;
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {

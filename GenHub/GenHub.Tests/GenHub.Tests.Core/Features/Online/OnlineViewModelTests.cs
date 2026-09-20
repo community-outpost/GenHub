@@ -8,6 +8,7 @@ using GenHub.Core.Models.Results;
 using GenHub.Features.Online.ViewModels;
 using Microsoft.Extensions.Logging;
 using Moq;
+using System.Collections.ObjectModel;
 
 namespace GenHub.Tests.Core.Features.Online;
 
@@ -83,6 +84,61 @@ public class OnlineViewModelTests
 
         // Assert
         Assert.False(vm.IsJoined);
+    }
+
+    /// <summary>
+    /// Tests that relay mode is on by default to protect public endpoints.
+    /// </summary>
+    [Fact]
+    public void PreferRelay_ShouldDefaultToTrue()
+    {
+        // Arrange
+        var vm = CreateViewModel();
+
+        // Act
+        var preferRelay = vm.PreferRelay;
+
+        // Assert
+        Assert.True(preferRelay);
+    }
+
+    /// <summary>
+    /// Tests that a successful join with the adapter down warns about tunneling.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task JoinNetworkAsync_WithAdapterDown_ShouldWarnAboutTunnelingAsync()
+    {
+        // Arrange
+        var join = new OnlineJoinResult
+        {
+            NetworkId = "net-1",
+            Grant = "grant-token",
+            OverlayIp = "10.42.0.7",
+        };
+        var network = new Mock<IOnlineNetworkService>();
+        network.Setup(n => n.JoinNetworkAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<OnlineJoinResult>.CreateSuccess(join));
+        network.SetupGet(n => n.AdapterState).Returns(OnlineAdapterState.Down);
+        var notifications = new Mock<INotificationService>();
+        var vm = CreateViewModel(network.Object, notifications.Object);
+        vm.Networks = new ObservableCollection<OnlineNetworkSummary>(
+        [
+            new OnlineNetworkSummary { Id = "net-1", Name = "Lobby" },
+        ]);
+        vm.SelectedNetwork = vm.Networks[0];
+
+        // Act
+        await vm.JoinNetworkAsync();
+
+        // Assert
+        Assert.True(vm.IsJoined);
+        notifications.Verify(
+            n => n.ShowSuccess(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
+            Times.Once);
+        notifications.Verify(
+            n => n.ShowWarning(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
+            Times.Once);
     }
 
     /// <summary>

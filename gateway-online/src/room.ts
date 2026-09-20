@@ -44,6 +44,14 @@ const aggregateQuality = (members: RoomMember[]): number => {
 const json = (data: unknown, status = 200): Response =>
   new Response(JSON.stringify(data), { status, headers: { "Content-Type": "application/json" } });
 
+// Relay members publish nothing: their endpoint is dropped even if sent.
+const storedEndpoint = (preferRelay: boolean, raw: unknown): string => {
+  if (preferRelay || typeof raw !== "string") {
+    return "";
+  }
+  return raw.substring(0, 64);
+};
+
 export class PresenceRoom {
   private readonly state: DurableObjectState;
   private readonly env: OnlineEnv;
@@ -227,16 +235,18 @@ export class PresenceRoom {
       meta: RoomMeta;
       creatorSub: string;
       displayName: string;
+      preferRelay?: boolean;
       endpoint: string;
     };
     const now = Date.now();
     const displayName = sanitizeText(body.displayName).substring(0, 32);
+    const relayHost = body.preferRelay === true;
     const host: RoomMember = {
       sub: body.creatorSub,
       displayName,
-      endpoint: typeof body.endpoint === "string" ? body.endpoint.substring(0, 64) : "",
+      endpoint: storedEndpoint(relayHost, body.endpoint),
       overlayIp: allocateIp(body.meta.nextSlot),
-      quality: QUALITY_DIRECT,
+      quality: relayHost ? QUALITY_RELAY : QUALITY_DIRECT,
       isHost: true,
       lastSeen: now,
     };
@@ -282,7 +292,7 @@ export class PresenceRoom {
     }
 
     const displayName = sanitizeText(body.displayName).substring(0, 32);
-    const endpoint = typeof body.endpoint === "string" ? body.endpoint.substring(0, 64) : "";
+    const endpoint = storedEndpoint(body.preferRelay === true, body.endpoint);
     let member: RoomMember;
     if (returning !== undefined) {
       returning.lastSeen = Date.now();
@@ -353,7 +363,7 @@ export class PresenceRoom {
       return json({ error: "Not a member", code: "online.not-member" }, 403);
     }
     member.lastSeen = Date.now();
-    if (typeof body.endpoint === "string" && body.endpoint.length > 0) {
+    if (member.quality !== QUALITY_RELAY && typeof body.endpoint === "string" && body.endpoint.length > 0) {
       member.endpoint = body.endpoint.substring(0, 64);
     }
     await this.saveMembers(members);

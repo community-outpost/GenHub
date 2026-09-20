@@ -109,7 +109,7 @@ public sealed partial class OnlineViewModel(
     private OnlineConnectionQuality _connectionQuality = OnlineConnectionQuality.Unknown;
 
     [ObservableProperty]
-    private bool _preferRelay;
+    private bool _preferRelay = true;
 
     [ObservableProperty]
     private string _joinPassword = string.Empty;
@@ -220,6 +220,7 @@ public sealed partial class OnlineViewModel(
                 GetString("Online.Join.SuccessTitle"),
                 GetString("Online.Join.SuccessMessage", result.Data.OverlayIp),
                 NotificationDurations.Long);
+            WarnWhenAdapterDown();
         }
         catch (OperationCanceledException)
         {
@@ -312,6 +313,7 @@ public sealed partial class OnlineViewModel(
                 SlotsMax = Math.Clamp(CreateSlots, 2, OnlineConstants.MaxSlotCap),
                 IsPublic = CreateIsPublic,
                 Description = CreateDescription.Trim(),
+                PreferRelay = PreferRelay,
             };
 
             var result = await networkService.CreateNetworkAsync(request, cancellationToken);
@@ -330,6 +332,7 @@ public sealed partial class OnlineViewModel(
                 GetString("Online.Create.SuccessTitle"),
                 GetString("Online.Create.SuccessMessage", result.Data.OverlayIp),
                 NotificationDurations.Long);
+            WarnWhenAdapterDown();
         }
         catch (OperationCanceledException)
         {
@@ -382,6 +385,7 @@ public sealed partial class OnlineViewModel(
                 GetString("Online.Play.SuccessTitle"),
                 GetString("Online.Play.SuccessMessage", CurrentNetworkName),
                 NotificationDurations.Long);
+            WarnWhenAdapterDown();
         }
         catch (OperationCanceledException)
         {
@@ -812,6 +816,19 @@ public sealed partial class OnlineViewModel(
             ? GetString("Online.Error.GenericDetail")
             : OnlineLogScrubber.Scrub(detail);
         notificationService.ShowError(GetString(titleKey), detailText, NotificationDurations.Long);
+    }
+
+    private void WarnWhenAdapterDown()
+    {
+        if (networkService.AdapterState == OnlineAdapterState.Up)
+        {
+            return;
+        }
+
+        notificationService.ShowWarning(
+            GetString("Online.Adapter.UnavailableTitle"),
+            GetString("Online.Adapter.UnavailableMessage"),
+            NotificationDurations.Long);
     }
 
     private string GetString(string key) => localizationService?.GetString(key) ?? key;

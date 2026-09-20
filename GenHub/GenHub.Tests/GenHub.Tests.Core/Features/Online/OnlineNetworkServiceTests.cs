@@ -157,11 +157,11 @@ public sealed class OnlineNetworkServiceTests
     }
 
     /// <summary>
-    /// Tests that adapter failure during join maps to the adapter error code and tears down.
+    /// Tests that adapter failure during join stays joined without tunneling and tears down.
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Fact]
-    public async Task JoinNetworkAsync_WhenAdapterFails_ShouldTearDownAsync()
+    public async Task JoinNetworkAsync_WhenAdapterFails_ShouldStayJoinedWithoutTunnelingAsync()
     {
         // Arrange
         var adapter = new Mock<IVirtualLanAdapter>();
@@ -169,15 +169,16 @@ public sealed class OnlineNetworkServiceTests
             .ReturnsAsync(GenHub.Core.Models.Results.OperationResult<bool>.CreateFailure("no driver"));
         adapter.Setup(a => a.TearDownAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(GenHub.Core.Models.Results.OperationResult<bool>.CreateSuccess(true));
+        adapter.SetupGet(a => a.State).Returns(OnlineAdapterState.Down);
         var service = CreateService(CreateFactory(), adapter.Object);
 
         // Act
         var result = await service.JoinNetworkAsync("net-1", "secret");
 
         // Assert
-        Assert.False(result.Success);
-        Assert.Contains(OnlineConstants.ErrorAdapterFailed, result.Errors);
-        Assert.Null(service.CurrentJoin);
+        Assert.True(result.Success);
+        Assert.NotNull(service.CurrentJoin);
+        Assert.Equal(OnlineAdapterState.Down, service.AdapterState);
         adapter.Verify(a => a.TearDownAsync(It.IsAny<CancellationToken>()), Times.Once);
     }
 
@@ -290,7 +291,7 @@ public sealed class OnlineNetworkServiceTests
         var service = CreateService(CreateFactory(joinStatus: HttpStatusCode.OK, onJoinBody: body => joinBody = body), adapter.Object, p2p.Object);
 
         // Act
-        var result = await service.JoinNetworkAsync("net-1", "secret");
+        var result = await service.JoinNetworkAsync("net-1", "secret", false);
 
         // Assert
         Assert.True(result.Success);
@@ -319,6 +320,31 @@ public sealed class OnlineNetworkServiceTests
         // Assert
         Assert.True(result.Success);
         Assert.Contains("\"endpoint\":\"\"", joinBody ?? string.Empty);
+        Assert.Equal(string.Empty, service.LocalEndpoint);
+    }
+
+    /// <summary>
+    /// Tests that creating with the default relay preference hides the endpoint without STUN traffic.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task CreateNetworkAsync_WithRelayDefault_ShouldHideEndpointAsync()
+    {
+        // Arrange
+        var p2p = new Mock<IP2PConnectionService>(MockBehavior.Strict);
+        var adapter = new Mock<IVirtualLanAdapter>();
+        adapter.Setup(a => a.BringUpAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(GenHub.Core.Models.Results.OperationResult<bool>.CreateSuccess(true));
+        string? createBody = null;
+        var service = CreateService(CreateFactory(onCreateBody: body => createBody = body), adapter.Object, p2p.Object);
+
+        // Act
+        var result = await service.CreateNetworkAsync(new OnlineCreateNetworkRequest { Name = "Lobby", SlotsMax = 8 });
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.Contains("\"preferRelay\":true", createBody ?? string.Empty);
+        Assert.Contains("\"endpoint\":\"\"", createBody ?? string.Empty);
         Assert.Equal(string.Empty, service.LocalEndpoint);
     }
 
@@ -355,10 +381,11 @@ public sealed class OnlineNetworkServiceTests
     private static IHttpClientFactory CreateFactory(
         CountingHandler? handler = null,
         HttpStatusCode joinStatus = HttpStatusCode.OK,
-        Action<string>? onJoinBody = null)
+        Action<string>? onJoinBody = null,
+        Action<string>? onCreateBody = null)
     {
         handler ??= new CountingHandler();
-        handler.Responder = request => Route(request, joinStatus, onJoinBody);
+        handler.Responder = request => Route(request, joinStatus, onJoinBody, onCreateBody);
         var factory = new Mock<IHttpClientFactory>();
         factory.Setup(f => f.CreateClient(It.IsAny<string>()))
             .Returns(() =>
@@ -370,13 +397,23 @@ public sealed class OnlineNetworkServiceTests
         return factory.Object;
     }
 
-    private static HttpResponseMessage Route(HttpRequestMessage request, HttpStatusCode joinStatus, Action<string>? onJoinBody = null)
+    private static HttpResponseMessage Route(
+        HttpRequestMessage request,
+        HttpStatusCode joinStatus,
+        Action<string>? onJoinBody = null,
+        Action<string>? onCreateBody = null)
     {
         var path = request.RequestUri?.AbsolutePath ?? string.Empty;
 
         if (request.Method == HttpMethod.Post && path.EndsWith("/v1/sessions/anonymous", StringComparison.Ordinal))
         {
             return JsonResponse(SessionJson);
+        }
+
+        if (request.Method == HttpMethod.Post && path.EndsWith("/v1/networks", StringComparison.Ordinal))
+        {
+            onCreateBody?.Invoke(request.Content?.ReadAsStringAsync().GetAwaiter().GetResult() ?? string.Empty);
+            return JsonResponse(JoinJson);
         }
 
         if (request.Method == HttpMethod.Get && path.EndsWith("/v1/networks", StringComparison.Ordinal))
