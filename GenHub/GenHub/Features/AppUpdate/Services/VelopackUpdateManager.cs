@@ -104,6 +104,18 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
     public bool IsPrMergedOrClosed { get; private set; }
 
     /// <summary>
+    /// Gets the application version used for update evaluation.
+    /// Defaults to <see cref="AppConstants.AppVersion"/>.
+    /// </summary>
+    internal string CurrentAppVersion { get; init; } = AppConstants.AppVersion;
+
+    /// <summary>
+    /// Gets a value indicating whether this instance represents a local development build.
+    /// Defaults to <see cref="AppConstants.IsLocalBuild"/>.
+    /// </summary>
+    internal bool IsLocalDevelopmentBuild { get; init; } = AppConstants.IsLocalBuild;
+
+    /// <summary>
     /// Initializes a new instance of the <see cref="VelopackUpdateManager"/> class.
     /// </summary>
     /// <param name="logger">The logger instance.</param>
@@ -139,6 +151,30 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
             _logger.LogWarning(ex, "Velopack UpdateManager not available (running from Debug)");
             _logger.LogDebug("Update CHECKING will still work via GitHub API, but downloading/installing requires installed app");
         }
+    }
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="VelopackUpdateManager"/> class with version overrides for testing.
+    /// </summary>
+    /// <param name="logger">The logger instance.</param>
+    /// <param name="httpClientFactory">The HTTP client factory for creating HttpClient instances.</param>
+    /// <param name="gitHubAuthService">The GitHub authentication service (optional).</param>
+    /// <param name="userSettingsService">The user settings service (optional).</param>
+    /// <param name="fileDownloader">The high-performance file downloader (optional).</param>
+    /// <param name="currentAppVersion">The current application version to evaluate against updates.</param>
+    /// <param name="isLocalDevelopmentBuild">Whether this instance should be treated as a local development build.</param>
+    internal VelopackUpdateManager(
+        ILogger<VelopackUpdateManager> logger,
+        IHttpClientFactory httpClientFactory,
+        IGitHubAuthService? gitHubAuthService,
+        IUserSettingsService? userSettingsService,
+        IFileDownloader? fileDownloader,
+        string currentAppVersion,
+        bool isLocalDevelopmentBuild)
+        : this(logger, httpClientFactory, gitHubAuthService, userSettingsService, fileDownloader)
+    {
+        CurrentAppVersion = currentAppVersion;
+        IsLocalDevelopmentBuild = isLocalDevelopmentBuild;
     }
 
     /// <summary>
@@ -188,27 +224,14 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
                 return await CheckViaUpdateManagerAsync();
             }
 
-            JsonElement releases = default;
-            try
+            if (!TryParseReleases(json, out var releases))
             {
-                releases = JsonSerializer.Deserialize<JsonElement>(json);
-            }
-            catch (JsonException ex)
-            {
-                _logger.LogError(ex, "Failed to parse GitHub API response as JSON");
-                _logger.LogDebug("Raw JSON response: {Json}", json);
                 return null;
             }
 
-            if (!releases.ValueKind.Equals(JsonValueKind.Array) || releases.GetArrayLength() == 0)
+            if (!SemanticVersion.TryParse(CurrentAppVersion, out var currentVersion))
             {
-                _logger.LogWarning("No releases found on GitHub");
-                return null;
-            }
-
-            if (!SemanticVersion.TryParse(AppConstants.AppVersion, out var currentVersion))
-            {
-                _logger.LogError("Failed to parse current version: {Version}", AppConstants.AppVersion);
+                _logger.LogError("Failed to parse current version: {Version}", CurrentAppVersion);
                 return null;
             }
 
@@ -232,24 +255,25 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
                 return null;
             }
 
+            if (IsLocalDevelopmentBuild)
+            {
+                _logger.LogInformation(
+                    "Update available on GitHub ({Latest}), but suppressing notification for local development build (Current={Current})",
+                    latestVersion,
+                    currentVersion);
+                _cachedUpdateInfo = null;
+                _lastUpdateCheckTime = DateTime.UtcNow;
+                return null;
+            }
+
             _logger.LogInformation("Update available: Current={Current}, Latest={Latest}", currentVersion, latestVersion);
             _hasUpdateFromGitHub = true;
             _latestVersionFromGitHub = latestVersion.ToString();
 
-            if (_updateManager != null)
+            var updateInfo = await TryGetInstalledUpdateInfoAsync();
+            if (updateInfo != null)
             {
-                var updateInfo = await CheckViaUpdateManagerAsync();
-                if (updateInfo != null)
-                {
-                    _logger.LogInformation("✅ UpdateManager also confirmed update is available and can be installed");
-                    return updateInfo;
-                }
-
-                _logger.LogWarning("⚠️ UpdateManager returned NULL - no update found via Velopack (but GitHub says there is one)");
-            }
-            else
-            {
-                _logger.LogWarning("⚠️ UpdateManager is NULL - was not initialized successfully");
+                return updateInfo;
             }
 
             _logger.LogWarning("⚠️ Update detected via GitHub API but UpdateManager unavailable (running from debug)");
@@ -1285,6 +1309,28 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
         }
     }
 
+    private bool TryParseReleases(string json, out JsonElement releases)
+    {
+        try
+        {
+            releases = JsonSerializer.Deserialize<JsonElement>(json);
+            if (releases.ValueKind.Equals(JsonValueKind.Array) && releases.GetArrayLength() > 0)
+            {
+                return true;
+            }
+
+            _logger.LogWarning("No releases found on GitHub");
+            return false;
+        }
+        catch (JsonException ex)
+        {
+            _logger.LogError(ex, "Failed to parse GitHub API response as JSON");
+            _logger.LogDebug("Raw JSON response: {Json}", json);
+            releases = default;
+            return false;
+        }
+    }
+
     private (SemanticVersion? Version, JsonElement? Release) ParseLatestRelease(JsonElement releases)
     {
         SemanticVersion? latestVersion = null;
@@ -1343,6 +1389,25 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
             _logger.LogWarning("Update is available from GitHub, but cannot be downloaded/installed due to UpdateManager exception");
             return null;
         }
+    }
+
+    private async Task<UpdateInfo?> TryGetInstalledUpdateInfoAsync()
+    {
+        if (_updateManager == null)
+        {
+            _logger.LogWarning("UpdateManager is null - was not initialized successfully");
+            return null;
+        }
+
+        var updateInfo = await CheckViaUpdateManagerAsync();
+        if (updateInfo != null)
+        {
+            _logger.LogInformation("UpdateManager also confirmed update is available and can be installed");
+            return updateInfo;
+        }
+
+        _logger.LogWarning("UpdateManager returned null - no update found via Velopack (but GitHub says there is one)");
+        return null;
     }
 
     private ArtifactUpdateInfo? FindPlatformArtifactInRun(
