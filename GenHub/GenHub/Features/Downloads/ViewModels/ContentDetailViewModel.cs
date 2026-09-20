@@ -4869,10 +4869,9 @@ public partial class ContentDetailViewModel(
     }
 
     /// <summary>
-    /// Command to delete the downloaded content from local storage after confirmation.
-    /// Removes the manifest from the pool; the pool untracks CAS references so storage is
-    /// reclaimed when no remaining manifest references the content.
+    /// Shows the localized delete-failure notification for the content being viewed.
     /// </summary>
+    /// <param name="errorMessage">The error message describing the failure reason.</param>
     private void ShowDeleteFailedNotification(string? errorMessage)
     {
         notificationService.ShowError(
@@ -4881,6 +4880,11 @@ public partial class ContentDetailViewModel(
             NotificationDurations.Long);
     }
 
+    /// <summary>
+    /// Command to delete the downloaded content from local storage after confirmation.
+    /// Removes the manifest from the pool; the pool untracks CAS references so storage is
+    /// reclaimed when no remaining manifest references the content.
+    /// </summary>
     [RelayCommand]
     private async Task DeleteDownloadAsync()
     {
