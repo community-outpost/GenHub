@@ -1,6 +1,8 @@
 using GenHub.Common.Services;
 using GenHub.Core.Constants;
 using GenHub.Core.Helpers;
+using GenHub.Features.Workspace;
+using System;
 using System.IO;
 
 namespace GenHub.Features.GitHub.Services;
@@ -35,12 +37,43 @@ public static class GitHubTokenPathResolver
     public static string? GetFallbackTokenFilePath(string applicationDataPath)
     {
         var fallbackDirectory = StorageMigrationService.GetDefaultDataRoot();
-        if (PathHelper.AreSamePath(applicationDataPath, fallbackDirectory))
+
+        // Compare physical locations, not path text: when the data directory is a
+        // symlink or junction to the default root, both token paths identify the same
+        // file, and the post-save fallback cleanup would delete the token just written.
+        if (PathHelper.AreSamePhysicalPath(applicationDataPath, fallbackDirectory))
         {
             return null;
         }
 
         return Path.Combine(fallbackDirectory, AppConstants.TokenFileName);
+    }
+
+    /// <summary>
+    /// Removes the obsolete fallback copy without failing the caller when the stale file
+    /// is locked or access is denied. The primary token is already persisted at that point,
+    /// and a surviving copy is removed by the next save or sign-out.
+    /// </summary>
+    /// <param name="fallbackTokenFilePath">The fallback token file path, or null when there is none.</param>
+    public static void DeleteFallbackCopyBestEffort(string? fallbackTokenFilePath)
+    {
+        if (fallbackTokenFilePath == null)
+        {
+            return;
+        }
+
+        try
+        {
+            FileOperationsService.DeleteFileIfExists(fallbackTokenFilePath);
+        }
+        catch (IOException)
+        {
+            // Best effort: the primary token is already persisted.
+        }
+        catch (UnauthorizedAccessException)
+        {
+            // Best effort: the primary token is already persisted.
+        }
     }
 
     /// <summary>

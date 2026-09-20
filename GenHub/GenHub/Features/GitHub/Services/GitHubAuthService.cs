@@ -29,6 +29,8 @@ public class GitHubAuthService(
     private GitHubUserProfile? _currentUser;
     private bool _sessionSignedOut;
     private bool _sessionExpired;
+    private bool _credentialUnusable;
+    private volatile int _credentialGeneration;
 
     /// <inheritdoc />
     public bool IsAuthenticated
@@ -37,7 +39,7 @@ public class GitHubAuthService(
         {
             lock (_syncLock)
             {
-                if (_sessionSignedOut || _sessionExpired)
+                if (_sessionSignedOut || _sessionExpired || _credentialUnusable)
                 {
                     return false;
                 }
@@ -54,7 +56,7 @@ public class GitHubAuthService(
         {
             lock (_syncLock)
             {
-                return _sessionSignedOut || _sessionExpired ? null : _currentUser;
+                return _sessionSignedOut || _sessionExpired || _credentialUnusable ? null : _currentUser;
             }
         }
     }
@@ -173,7 +175,7 @@ public class GitHubAuthService(
                 return OperationResult<GitHubUserProfile>.CreateFailure(persistError);
             }
 
-            ClearSessionExpired();
+            ClearSessionErrorState();
             SetCurrentUser(profile);
             RaiseAuthStateChanged(true, profile);
             logger.LogInformation("Signed in to GitHub as {Login}", profile.Login);
@@ -238,7 +240,7 @@ public class GitHubAuthService(
         _ = cancellationToken;
         lock (_syncLock)
         {
-            if (_sessionSignedOut || _sessionExpired)
+            if (_sessionSignedOut || _sessionExpired || _credentialUnusable)
             {
                 return Task.FromResult<SecureString?>(null);
             }
@@ -255,6 +257,7 @@ public class GitHubAuthService(
         {
             _sessionSignedOut = true;
             _sessionExpired = false;
+            _credentialUnusable = false;
             _currentUser = null;
         }
 
@@ -354,6 +357,10 @@ public class GitHubAuthService(
             return "GitHub sign-in was cancelled.";
         }
 
+        // A fresh credential supersedes any in-flight profile fetch: a late rejection
+        // for the previous credential must neither re-latch an error state nor delete
+        // the token just saved.
+        Interlocked.Increment(ref _credentialGeneration);
         return null;
     }
 
@@ -446,6 +453,7 @@ public class GitHubAuthService(
     private async Task<GitHubUserProfile?> FetchUserProfileAsync(CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
+        var credentialGeneration = _credentialGeneration;
         var hasCredential = false;
         try
         {
@@ -458,11 +466,12 @@ public class GitHubAuthService(
             if (hasCredential)
             {
                 logger.LogWarning(ex, "GitHub token was rejected while loading the user profile");
-                MarkSessionExpired();
+                await MarkSessionExpiredAsync(credentialGeneration).ConfigureAwait(false);
             }
             else
             {
                 logger.LogWarning(ex, "GitHub profile lookup was rejected without a credential to present");
+                MarkCredentialUnusable(credentialGeneration);
             }
 
             return null;
@@ -503,13 +512,15 @@ public class GitHubAuthService(
         }
     }
 
-    private void MarkSessionExpired()
+    private async Task MarkSessionExpiredAsync(int credentialGeneration)
     {
         lock (_syncLock)
         {
             // An explicit sign-out always wins: a slow in-flight profile fetch must not
             // re-latch the expired flag after the user has deliberately signed out.
-            if (_sessionExpired || _sessionSignedOut)
+            // A rejection is also ignored once a newer credential was saved, so a stale
+            // failure can neither resurrect the expired state nor delete the fresh token.
+            if (_sessionExpired || _sessionSignedOut || credentialGeneration != _credentialGeneration)
             {
                 return;
             }
@@ -521,14 +532,40 @@ public class GitHubAuthService(
         // Drop the rejected credential from the shared client so later API calls fail fast
         // as anonymous instead of replaying a token GitHub already refused.
         SetClientCredentials(Credentials.Anonymous);
+
+        // Remove the rejected token from storage so the next launch does not reload and
+        // re-reject the same known-bad credential, showing the expired state every time.
+        await DeleteStoredTokenBestEffortAsync().ConfigureAwait(false);
         RaiseAuthStateChanged(false, null);
     }
 
-    private void ClearSessionExpired()
+    private void MarkCredentialUnusable(int credentialGeneration)
+    {
+        lock (_syncLock)
+        {
+            // A stored credential exists but could not be loaded, and no credential was
+            // presented: report signed out without deleting a file that was never rejected
+            // and without raising the expired state reserved for refused credentials.
+            // Stale failures and post-sign-out failures stay silent; sign-out and the
+            // first failure already notified consumers.
+            if (_credentialUnusable || _sessionExpired || _sessionSignedOut || credentialGeneration != _credentialGeneration)
+            {
+                return;
+            }
+
+            _credentialUnusable = true;
+            _currentUser = null;
+        }
+
+        RaiseAuthStateChanged(false, null);
+    }
+
+    private void ClearSessionErrorState()
     {
         lock (_syncLock)
         {
             _sessionExpired = false;
+            _credentialUnusable = false;
         }
     }
 

@@ -221,6 +221,58 @@ public class WindowsGitHubTokenStorageTests : IDisposable
         await Assert.ThrowsAsync<ArgumentException>(() => storage.SaveTokenAsync(empty));
     }
 
+    /// <summary>
+    /// Verifies that a primary copy that fails decryption is dropped while a valid fallback copy survives.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task LoadTokenAsync_WhenPrimaryDecryptionFails_PreservesFallbackAsync()
+    {
+        // Arrange
+        var fallbackWriter = CreateStorage(_environment.AppDataPath);
+        using var fallbackToken = SecureStringHelper.ToSecureString("fallback-token-value");
+        await fallbackWriter.SaveTokenAsync(fallbackToken);
+        File.WriteAllBytes(TokenFilePath(_tempDir), [0x01, 0x02, 0x03, 0x04]);
+        var storage = CreateStorage(_tempDir);
+
+        // Act
+        using var firstLoad = await storage.LoadTokenAsync();
+
+        // Assert
+        Assert.Null(firstLoad);
+        Assert.False(File.Exists(TokenFilePath(_tempDir)));
+        Assert.True(File.Exists(TokenFilePath(_environment.AppDataPath)));
+        using var secondLoad = await storage.LoadTokenAsync();
+        Assert.NotNull(secondLoad);
+        Assert.Equal("fallback-token-value", SecureStringHelper.ToUnsecureString(secondLoad));
+    }
+
+    /// <summary>
+    /// Verifies that saving succeeds when the stale fallback copy is locked, leaving the primary token persisted.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task SaveTokenAsync_WhenFallbackLocked_SucceedsAndKeepsPrimaryAsync()
+    {
+        // Arrange
+        var fallbackWriter = CreateStorage(_environment.AppDataPath);
+        using var staleToken = SecureStringHelper.ToSecureString("stale-token-value");
+        await fallbackWriter.SaveTokenAsync(staleToken);
+        var storage = CreateStorage(_tempDir);
+        using var primaryToken = SecureStringHelper.ToSecureString("primary-token-value");
+        using var lockStream = new FileStream(TokenFilePath(_environment.AppDataPath), System.IO.FileMode.Open, System.IO.FileAccess.Read, System.IO.FileShare.None);
+
+        // Act
+        await storage.SaveTokenAsync(primaryToken);
+
+        // Assert
+        Assert.True(File.Exists(TokenFilePath(_tempDir)));
+        Assert.True(File.Exists(TokenFilePath(_environment.AppDataPath)));
+        using var loaded = await storage.LoadTokenAsync();
+        Assert.NotNull(loaded);
+        Assert.Equal("primary-token-value", SecureStringHelper.ToUnsecureString(loaded));
+    }
+
     private static void DeleteDirectoryBestEffort(string directory)
     {
         try

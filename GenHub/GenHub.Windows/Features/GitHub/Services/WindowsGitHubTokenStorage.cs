@@ -84,10 +84,7 @@ public class WindowsGitHubTokenStorage : IGitHubTokenStorage
             // token file behind that the next launch would mistake for corruption.
             await FileOperationsService.WriteAllBytesAtomicAsync(_tokenFilePath, encryptedBytes).ConfigureAwait(false);
 
-            if (_fallbackTokenFilePath != null)
-            {
-                FileOperationsService.DeleteFileIfExists(_fallbackTokenFilePath);
-            }
+            GitHubTokenPathResolver.DeleteFallbackCopyBestEffort(_fallbackTokenFilePath);
         }
         finally
         {
@@ -151,8 +148,9 @@ public class WindowsGitHubTokenStorage : IGitHubTokenStorage
         }
         catch (CryptographicException)
         {
-            // Token was encrypted by different user or machine - delete it
-            await DeleteTokenAsync();
+            // The active copy was encrypted for a different user or machine. Drop only
+            // that copy so a valid fallback survives for the next load to recover.
+            FileOperationsService.DeleteFileIfExists(activePath);
             return null;
         }
     }

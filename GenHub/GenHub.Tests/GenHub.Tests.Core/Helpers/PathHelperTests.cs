@@ -408,6 +408,79 @@ public sealed class PathHelperTests
         Assert.Equal("a_b", PathHelper.SanitizeFileName("a b", replaceSpaces: true));
     }
 
+    /// <summary>
+    /// Matches paths that differ only in normalization: separators and dot segments.
+    /// </summary>
+    [Fact]
+    public void AreSamePhysicalPath_WithTextuallyEqualPaths_ReturnsTrue()
+    {
+        var root = CreateWorkingDirectory();
+
+        try
+        {
+            var target = Path.Combine(root, "data");
+            Directory.CreateDirectory(target);
+
+            Assert.True(PathHelper.AreSamePhysicalPath(target, target + Path.DirectorySeparatorChar + "."));
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    /// <summary>
+    /// Distinguishes two sibling directories that share a name prefix.
+    /// </summary>
+    [Fact]
+    public void AreSamePhysicalPath_WithDistinctDirectories_ReturnsFalse()
+    {
+        var root = CreateWorkingDirectory();
+
+        try
+        {
+            var first = Path.Combine(root, "data");
+            var second = Path.Combine(root, "data relocated");
+            Directory.CreateDirectory(first);
+            Directory.CreateDirectory(second);
+
+            Assert.False(PathHelper.AreSamePhysicalPath(first, second));
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    /// <summary>
+    /// Matches a directory accessed through a symbolic link with its link target.
+    /// </summary>
+    [Fact]
+    public void AreSamePhysicalPath_WithSymlinkedDirectory_ReturnsTrue()
+    {
+        var root = CreateWorkingDirectory();
+
+        try
+        {
+            var target = Path.Combine(root, "target");
+            var other = Path.Combine(root, "other");
+            Directory.CreateDirectory(target);
+            Directory.CreateDirectory(other);
+
+            if (!TryCreateDirectorySymbolicLink(Path.Combine(root, "link"), target))
+            {
+                return;
+            }
+
+            Assert.True(PathHelper.AreSamePhysicalPath(Path.Combine(root, "link"), target));
+            Assert.False(PathHelper.AreSamePhysicalPath(Path.Combine(root, "link"), other));
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
     private static string CreateWorkingDirectory()
     {
         var root = Path.Combine(Path.GetTempPath(), "GenHubContainmentLinks", Guid.NewGuid().ToString("N"));

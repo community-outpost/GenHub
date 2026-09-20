@@ -140,6 +140,63 @@ public class GitHubTokenPathResolverTests : IDisposable
         Assert.Null(active);
     }
 
+    /// <summary>
+    /// Verifies that no fallback path is returned when the data directory is a symbolic
+    /// link to the default root, so the post-save cleanup cannot delete the token just written.
+    /// </summary>
+    [Fact]
+    public void GetFallbackTokenFilePath_WhenAliasedToDefaultRoot_ReturnsNull()
+    {
+        // Arrange
+        var link = Path.Combine(_tempDir, "alias");
+
+        try
+        {
+            if (!TryCreateDirectorySymbolicLink(link, _defaultRootDir))
+            {
+                return;
+            }
+
+            // Act
+            var fallback = GitHubTokenPathResolver.GetFallbackTokenFilePath(link);
+
+            // Assert
+            Assert.Null(fallback);
+        }
+        finally
+        {
+            DeleteLinkBestEffort(link);
+        }
+    }
+
+    /// <summary>
+    /// Verifies that deleting a missing fallback copy is a no-op.
+    /// </summary>
+    [Fact]
+    public void DeleteFallbackCopyBestEffort_WithoutFallback_DoesNothing()
+    {
+        // Act & Assert
+        GitHubTokenPathResolver.DeleteFallbackCopyBestEffort(null);
+        GitHubTokenPathResolver.DeleteFallbackCopyBestEffort(Path.Combine(_tempDir, "missing-token-file"));
+    }
+
+    /// <summary>
+    /// Verifies that deleting the fallback copy removes the stale file.
+    /// </summary>
+    [Fact]
+    public void DeleteFallbackCopyBestEffort_WithFallback_RemovesFile()
+    {
+        // Arrange
+        var fallback = Path.Combine(_tempDir, "stale-token-file");
+        File.WriteAllText(fallback, "stale");
+
+        // Act
+        GitHubTokenPathResolver.DeleteFallbackCopyBestEffort(fallback);
+
+        // Assert
+        Assert.False(File.Exists(fallback));
+    }
+
     private static void DeleteDirectoryBestEffort(string directory)
     {
         try
@@ -153,6 +210,40 @@ public class GitHubTokenPathResolverTests : IDisposable
         catch (UnauthorizedAccessException)
         {
             // Best effort cleanup of the temp directory.
+        }
+    }
+
+    private static void DeleteLinkBestEffort(string linkPath)
+    {
+        try
+        {
+            Directory.Delete(linkPath);
+        }
+        catch (IOException)
+        {
+            // Best effort cleanup of the test link.
+        }
+        catch (UnauthorizedAccessException)
+        {
+            // Best effort cleanup of the test link.
+        }
+    }
+
+    private static bool TryCreateDirectorySymbolicLink(string linkPath, string targetPath)
+    {
+        try
+        {
+            Directory.CreateSymbolicLink(linkPath, targetPath);
+
+            return true;
+        }
+        catch (IOException)
+        {
+            return false;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return false;
         }
     }
 }

@@ -469,11 +469,12 @@ public class GitHubAuthServiceTests : IDisposable
     }
 
     /// <summary>
-    /// Verifies that an authorization failure without a presented credential does not mark the session expired.
+    /// Verifies that an authorization failure without a presented credential reports signed out
+    /// without marking the session expired and without deleting the credential that was never presented.
     /// </summary>
     /// <returns>A task representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task GetCurrentUserAsync_WhenRejectedWithoutCredential_DoesNotMarkExpiredAsync()
+    public async Task GetCurrentUserAsync_WhenRejectedWithoutCredential_ReportsSignedOutAsync()
     {
         // Arrange
         SetGitHubEnvironment(clientId: "test-client-id");
@@ -481,8 +482,8 @@ public class GitHubAuthServiceTests : IDisposable
         harness.TokenStorage.Setup(x => x.HasToken()).Returns(true);
         harness.TokenStorage.Setup(x => x.LoadTokenAsync()).ReturnsAsync((SecureString?)null);
         harness.UserClient.Setup(x => x.Current()).ThrowsAsync(new AuthorizationException(Mock.Of<IResponse>()));
-        var raised = false;
-        harness.Service.AuthStateChanged += (_, _) => raised = true;
+        GitHubAuthStateChangedEventArgs? raised = null;
+        harness.Service.AuthStateChanged += (_, args) => raised = args;
 
         // Act
         var profile = await harness.Service.GetCurrentUserAsync();
@@ -490,8 +491,12 @@ public class GitHubAuthServiceTests : IDisposable
         // Assert
         Assert.Null(profile);
         Assert.False(harness.Service.IsSessionExpired);
-        Assert.True(harness.Service.IsAuthenticated);
-        Assert.False(raised);
+        Assert.False(harness.Service.IsAuthenticated);
+        Assert.Null(harness.Service.CurrentUser);
+        Assert.Null(await harness.Service.GetAccessTokenAsync());
+        Assert.NotNull(raised);
+        Assert.False(raised.IsAuthenticated);
+        harness.TokenStorage.Verify(x => x.DeleteTokenAsync(), Times.Never);
     }
 
     /// <summary>
@@ -603,6 +608,119 @@ public class GitHubAuthServiceTests : IDisposable
         Assert.False(harness.Service.IsAuthenticated);
         Assert.Null(harness.Service.CurrentUser);
         Assert.Equal(1, raisedCount);
+    }
+
+    /// <summary>
+    /// Verifies that a rejected stored token is deleted so the next launch does not reload and re-reject it.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task GetCurrentUserAsync_WhenStoredTokenRejected_DeletesStoredTokenAsync()
+    {
+        // Arrange
+        SetGitHubEnvironment(clientId: "test-client-id");
+        var harness = new AuthHarness();
+        harness.TokenStorage.Setup(x => x.HasToken()).Returns(true);
+        harness.TokenStorage
+            .Setup(x => x.LoadTokenAsync())
+            .Returns(() => Task.FromResult<SecureString?>(SecureStringHelper.ToSecureString("stored-token-value")));
+        harness.UserClient.Setup(x => x.Current()).ThrowsAsync(new AuthorizationException(Mock.Of<IResponse>()));
+        GitHubAuthStateChangedEventArgs? raised = null;
+        harness.Service.AuthStateChanged += (_, args) => raised = args;
+
+        // Act
+        var profile = await harness.Service.GetCurrentUserAsync();
+
+        // Assert
+        Assert.Null(profile);
+        Assert.True(harness.Service.IsSessionExpired);
+        Assert.False(harness.Service.IsAuthenticated);
+        harness.TokenStorage.Verify(x => x.DeleteTokenAsync(), Times.Once);
+        Assert.NotNull(raised);
+        Assert.False(raised.IsAuthenticated);
+    }
+
+    /// <summary>
+    /// Verifies that a sign-in completing while a profile fetch is in flight wins over the late
+    /// authorization failure, preserving the fresh session and the token just saved.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task GetCurrentUserAsync_WhenSignInCompletesDuringFetch_DoesNotMarkExpiredAsync()
+    {
+        // Arrange
+        SetGitHubEnvironment(clientId: "test-client-id");
+        var harness = new AuthHarness();
+        harness.TokenStorage.Setup(x => x.HasToken()).Returns(true);
+        harness.TokenStorage
+            .Setup(x => x.LoadTokenAsync())
+            .Returns(() => Task.FromResult<SecureString?>(SecureStringHelper.ToSecureString("stored-token-value")));
+        using var entered = new ManualResetEventSlim(false);
+        var staleFetch = new TaskCompletionSource<User>();
+        var profileCalls = 0;
+        harness.UserClient.Setup(x => x.Current()).Returns(() =>
+        {
+            if (Interlocked.Increment(ref profileCalls) == 1)
+            {
+                entered.Set();
+                return staleFetch.Task;
+            }
+
+            return Task.FromResult(CreateOctokitUser());
+        });
+        harness.Oauth
+            .Setup(x => x.CreateAccessTokenForDeviceFlow(It.IsAny<string>(), It.IsAny<OauthDeviceFlowResponse>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new OauthToken("bearer", "oauth-access-token", 0, null!, 0, [], null!, null!, null!));
+        var raisedCount = 0;
+        harness.Service.AuthStateChanged += (_, _) => raisedCount++;
+        var fetchTask = harness.Service.GetCurrentUserAsync();
+        Assert.True(entered.Wait(TimeSpan.FromSeconds(5)));
+        var deviceCode = new GitHubDeviceCodeResponse("device-code", "USER-CODE", "https://github.com/login/device", 900, 5);
+
+        // Act
+        var loginResult = await harness.Service.WaitForAuthorizationAsync(deviceCode);
+        staleFetch.SetException(new AuthorizationException(Mock.Of<IResponse>()));
+
+        // Assert
+        Assert.True(loginResult.Success);
+        Assert.Null(await fetchTask);
+        Assert.False(harness.Service.IsSessionExpired);
+        Assert.True(harness.Service.IsAuthenticated);
+        Assert.Equal("octocat", harness.Service.CurrentUser?.Login);
+        Assert.Equal(1, raisedCount);
+        harness.TokenStorage.Verify(x => x.DeleteTokenAsync(), Times.Never);
+    }
+
+    /// <summary>
+    /// Verifies that a successful authorization after an unloadable credential clears the
+    /// unusable state and publishes the profile.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task WaitForAuthorizationAsync_AfterCredentialUnusable_ResetsUnusableStateAsync()
+    {
+        // Arrange
+        SetGitHubEnvironment(clientId: "test-client-id");
+        var harness = new AuthHarness();
+        harness.TokenStorage.Setup(x => x.HasToken()).Returns(true);
+        harness.TokenStorage.Setup(x => x.LoadTokenAsync()).ReturnsAsync((SecureString?)null);
+        harness.UserClient.Setup(x => x.Current()).ThrowsAsync(new AuthorizationException(Mock.Of<IResponse>()));
+        Assert.Null(await harness.Service.GetCurrentUserAsync());
+        Assert.False(harness.Service.IsAuthenticated);
+        harness.UserClient.Setup(x => x.Current()).ReturnsAsync(CreateOctokitUser());
+        harness.Oauth
+            .Setup(x => x.CreateAccessTokenForDeviceFlow(It.IsAny<string>(), It.IsAny<OauthDeviceFlowResponse>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new OauthToken("bearer", "oauth-access-token", 0, null!, 0, [], null!, null!, null!));
+        var deviceCode = new GitHubDeviceCodeResponse("device-code", "USER-CODE", "https://github.com/login/device", 900, 5);
+
+        // Act
+        var result = await harness.Service.WaitForAuthorizationAsync(deviceCode);
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.False(harness.Service.IsSessionExpired);
+        Assert.True(harness.Service.IsAuthenticated);
+        Assert.Equal("octocat", harness.Service.CurrentUser?.Login);
     }
 
     private static void SetGitHubEnvironment(string? clientId, string? genHubToken = null, string? gitHubToken = null)

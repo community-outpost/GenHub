@@ -350,6 +350,38 @@ public class EncryptedFileGitHubTokenStorageTests : IDisposable
         Assert.False(File.Exists(TokenFilePath(_defaultRootDir)));
     }
 
+    /// <summary>
+    /// Verifies that saving succeeds when the stale fallback copy is locked, leaving the primary token persisted.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task SaveTokenAsync_WhenFallbackLocked_SucceedsAndKeepsPrimaryAsync()
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            // Deleting an open file succeeds on Unix; only Windows denies it with a sharing violation.
+            return;
+        }
+
+        // Arrange
+        var fallbackWriter = CreateStorage("machine-secret-locked", appDataDir: _defaultRootDir);
+        using var staleToken = SecureStringHelper.ToSecureString("stale-token-value");
+        await fallbackWriter.SaveTokenAsync(staleToken);
+        var storage = CreateStorage("machine-secret-locked");
+        using var primaryToken = SecureStringHelper.ToSecureString("primary-token-value");
+        using var lockStream = new FileStream(TokenFilePath(_defaultRootDir), System.IO.FileMode.Open, System.IO.FileAccess.Read, System.IO.FileShare.None);
+
+        // Act
+        await storage.SaveTokenAsync(primaryToken);
+
+        // Assert
+        Assert.True(File.Exists(TokenFilePath()));
+        Assert.True(File.Exists(TokenFilePath(_defaultRootDir)));
+        using var loaded = await storage.LoadTokenAsync();
+        Assert.NotNull(loaded);
+        Assert.Equal("primary-token-value", SecureStringHelper.ToUnsecureString(loaded));
+    }
+
     private static void DeleteDirectoryBestEffort(string directory)
     {
         try
