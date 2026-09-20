@@ -16,6 +16,7 @@ using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Interfaces.Tools.ModBuilder;
+using GenHub.Core.Interfaces.Tools.WndEditor;
 using GenHub.Core.Models.Results.ModBuilder;
 using GenHub.Core.Models.Tools.ModBuilder;
 using GenHub.Core.Models.Enums;
@@ -38,6 +39,8 @@ public class ModBuilderViewModelTests : IDisposable
     private readonly Mock<ILoggerFactory> _mockLoggerFactory;
     private readonly Mock<ILogger<ModBuilderViewModel>> _mockLogger;
     private readonly Mock<ILogger<FileManagerViewModel>> _mockFileManagerLogger;
+    private readonly Mock<IWndDocumentService> _mockWndDocumentService;
+    private readonly Mock<ILocalizationService> _mockLocalizationService;
     private readonly FileManagerViewModel _fileManager;
     private readonly string _tempDir;
 
@@ -52,10 +55,14 @@ public class ModBuilderViewModelTests : IDisposable
         _mockLoggerFactory = new Mock<ILoggerFactory>();
         _mockLogger = new Mock<ILogger<ModBuilderViewModel>>();
         _mockFileManagerLogger = new Mock<ILogger<FileManagerViewModel>>();
+        _mockWndDocumentService = new Mock<IWndDocumentService>();
+        _mockLocalizationService = new Mock<ILocalizationService>();
 
         _fileManager = new FileManagerViewModel(
             _mockGameInstallService.Object,
             _mockNotificationService.Object,
+            _mockWndDocumentService.Object,
+            _mockLocalizationService.Object,
             _mockFileManagerLogger.Object);
 
         _mockLoggerFactory

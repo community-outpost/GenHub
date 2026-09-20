@@ -7194,6 +7194,57 @@ GenHub supports four file linking strategies under **Settings -&gt; Game Configu
   <data name="Tools.ModBuilder.FileManager.ButtonRemoveFromProject" xml:space="preserve">
     <value>Remove from Project</value>
   </data>
+  <data name="Tools.ModBuilder.FileManager.ButtonValidateWnd" xml:space="preserve">
+    <value>Validate WND</value>
+  </data>
+  <data name="Tools.ModBuilder.FileManager.TooltipValidateWnd" xml:space="preserve">
+    <value>Validate selected .wnd files</value>
+  </data>
+  <data name="Tools.ModBuilder.FileManager.ButtonFormatWnd" xml:space="preserve">
+    <value>Format WND</value>
+  </data>
+  <data name="Tools.ModBuilder.FileManager.TooltipFormatWnd" xml:space="preserve">
+    <value>Format selected .wnd files</value>
+  </data>
+  <data name="Tools.ModBuilder.Wnd.NoSelectionTitle" xml:space="preserve">
+    <value>No WND files selected</value>
+  </data>
+  <data name="Tools.ModBuilder.Wnd.NoSelectionMessage" xml:space="preserve">
+    <value>Select one or more .wnd files in the project tree.</value>
+  </data>
+  <data name="Tools.ModBuilder.Wnd.ValidateSuccessTitle" xml:space="preserve">
+    <value>WND validation passed</value>
+  </data>
+  <data name="Tools.ModBuilder.Wnd.ValidateSuccessMessage" xml:space="preserve">
+    <value>{0} of {1} file(s) are valid.</value>
+  </data>
+  <data name="Tools.ModBuilder.Wnd.ValidateIssuesTitle" xml:space="preserve">
+    <value>WND validation found issues</value>
+  </data>
+  <data name="Tools.ModBuilder.Wnd.ValidateIssuesMessage" xml:space="preserve">
+    <value>{0} of {1} file(s) valid. First issue: {2}</value>
+  </data>
+  <data name="Tools.ModBuilder.Wnd.FormatSuccessTitle" xml:space="preserve">
+    <value>WND files formatted</value>
+  </data>
+  <data name="Tools.ModBuilder.Wnd.FormatSuccessMessage" xml:space="preserve">
+    <value>Formatted {0} of {1} file(s).</value>
+  </data>
+  <data name="Tools.ModBuilder.Wnd.FormatIssuesTitle" xml:space="preserve">
+    <value>WND formatting incomplete</value>
+  </data>
+  <data name="Tools.ModBuilder.Wnd.FormatIssuesMessage" xml:space="preserve">
+    <value>Formatted {0} of {1} file(s). First error: {2}</value>
+  </data>
+  <data name="Tools.ModBuilder.Wnd.OperationCancelled" xml:space="preserve">
+    <value>Operation cancelled.</value>
+  </data>
+  <data name="Tools.ModBuilder.Wnd.ProgressValidating" xml:space="preserve">
+    <value>Validating ({0}/{1}): {2}</value>
+  </data>
+  <data name="Tools.ModBuilder.Wnd.ProgressFormatting" xml:space="preserve">
+    <value>Formatting ({0}/{1}): {2}</value>
+  </data>
   <data name="Tools.ModBuilder.BundleEditor.Title" xml:space="preserve">
     <value>Bundle Pack Editor</value>
   </data>

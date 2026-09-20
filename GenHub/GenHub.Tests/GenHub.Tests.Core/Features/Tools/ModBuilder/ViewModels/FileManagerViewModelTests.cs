@@ -10,12 +10,16 @@ using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using GenHub.Core.Constants;
+using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Interfaces.Notifications;
+using GenHub.Core.Interfaces.Tools.WndEditor;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameInstallations;
 using GenHub.Core.Models.Results;
+using GenHub.Features.Tools.ModBuilder.Models;
 using GenHub.Features.Tools.ModBuilder.ViewModels;
+using GenHub.Features.Tools.WndEditor.Services;
 using Microsoft.Extensions.Logging;
 using Moq;
 using Xunit;
@@ -27,6 +31,8 @@ public class FileManagerViewModelTests : IDisposable
 {
     private readonly Mock<IGameInstallationService> _mockGameInstallService;
     private readonly Mock<INotificationService> _mockNotificationService;
+    private readonly Mock<IWndDocumentService> _mockWndDocumentService;
+    private readonly Mock<ILocalizationService> _mockLocalizationService;
     private readonly Mock<ILogger<FileManagerViewModel>> _mockLogger;
     private readonly string _tempDir;
     private readonly string _projectDir;
@@ -36,7 +42,13 @@ public class FileManagerViewModelTests : IDisposable
     {
         _mockGameInstallService = new Mock<IGameInstallationService>();
         _mockNotificationService = new Mock<INotificationService>();
+        _mockWndDocumentService = new Mock<IWndDocumentService>();
+        _mockLocalizationService = new Mock<ILocalizationService>();
         _mockLogger = new Mock<ILogger<FileManagerViewModel>>();
+
+        _mockLocalizationService
+            .Setup(s => s.GetString(It.IsAny<string>(), It.IsAny<object?[]>()))
+            .Returns((string key, object?[] args) => key);
 
         _tempDir = Path.Combine(Path.GetTempPath(), "GenHub_FileManagerTests_" + Guid.NewGuid().ToString("N"));
         _projectDir = Path.Combine(_tempDir, "Project");
@@ -87,6 +99,8 @@ public class FileManagerViewModelTests : IDisposable
         var viewModel = new FileManagerViewModel(
             _mockGameInstallService.Object,
             _mockNotificationService.Object,
+            _mockWndDocumentService.Object,
+            _mockLocalizationService.Object,
             _mockLogger.Object);
 
         await viewModel.InitializeAsync(_projectDir);
@@ -105,11 +119,87 @@ public class FileManagerViewModelTests : IDisposable
         var viewModel = new FileManagerViewModel(
             _mockGameInstallService.Object,
             _mockNotificationService.Object,
+            _mockWndDocumentService.Object,
+            _mockLocalizationService.Object,
             _mockLogger.Object);
 
         await viewModel.InitializeAsync(_projectDir, cancellationToken: cts.Token);
 
         Assert.Equal("File loading canceled", viewModel.StatusMessage);
         Assert.False(viewModel.IsLoading);
+    }
+
+    [Fact]
+    public async Task ValidateWndFilesCommand_WithValidWndFile_ShowsSuccess()
+    {
+        var wndPath = Path.Combine(_projectDir, "GameFilesEdited", "Menu.wnd");
+        await File.WriteAllTextAsync(wndPath, "FILE_VERSION = 2;\nWINDOW\n  WINDOWTYPE = USER;\nEND\n");
+
+        var viewModel = CreateViewModelWithRealWndService();
+        viewModel.SelectedProjectFile = new FileTreeNode { Name = "Menu.wnd", FullPath = wndPath, IsDirectory = false };
+
+        await viewModel.ValidateWndFilesCommand.ExecuteAsync(null);
+
+        _mockNotificationService.Verify(
+            n => n.ShowSuccess(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
+            Times.Once);
+        Assert.False(viewModel.IsLoading);
+    }
+
+    [Fact]
+    public async Task ValidateWndFilesCommand_WithInvalidWndFile_ShowsWarning()
+    {
+        var wndPath = Path.Combine(_projectDir, "GameFilesEdited", "Broken.wnd");
+        await File.WriteAllTextAsync(wndPath, "WINDOW\n  WINDOWTYPE = USER\nEND\n");
+
+        var viewModel = CreateViewModelWithRealWndService();
+        viewModel.SelectedProjectFile = new FileTreeNode { Name = "Broken.wnd", FullPath = wndPath, IsDirectory = false };
+
+        await viewModel.ValidateWndFilesCommand.ExecuteAsync(null);
+
+        _mockNotificationService.Verify(
+            n => n.ShowWarning(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
+            Times.Once);
+    }
+
+    [Fact]
+    public async Task ValidateWndFilesCommand_WithNoSelection_ShowsInfo()
+    {
+        var viewModel = CreateViewModelWithRealWndService();
+
+        await viewModel.ValidateWndFilesCommand.ExecuteAsync(null);
+
+        _mockNotificationService.Verify(
+            n => n.ShowInfo(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
+            Times.Once);
+    }
+
+    [Fact]
+    public async Task FormatWndFilesCommand_WithMessyWndFile_FormatsAndShowsSuccess()
+    {
+        var wndPath = Path.Combine(_projectDir, "GameFilesEdited", "Messy.wnd");
+        await File.WriteAllTextAsync(wndPath, "FILE_VERSION=2;\nWINDOW\nWINDOWTYPE=USER;\nEND\n");
+
+        var viewModel = CreateViewModelWithRealWndService();
+        viewModel.SelectedProjectFile = new FileTreeNode { Name = "Messy.wnd", FullPath = wndPath, IsDirectory = false };
+
+        await viewModel.FormatWndFilesCommand.ExecuteAsync(null);
+
+        var formatted = await File.ReadAllTextAsync(wndPath);
+        Assert.Equal("FILE_VERSION = 2;\nWINDOW\n  WINDOWTYPE = USER;\nEND\n", formatted);
+        _mockNotificationService.Verify(
+            n => n.ShowSuccess(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
+            Times.Once);
+    }
+
+    private FileManagerViewModel CreateViewModelWithRealWndService()
+    {
+        var wndService = new WndDocumentService(Mock.Of<ILogger<WndDocumentService>>());
+        return new FileManagerViewModel(
+            _mockGameInstallService.Object,
+            _mockNotificationService.Object,
+            wndService,
+            _mockLocalizationService.Object,
+            _mockLogger.Object);
     }
 }

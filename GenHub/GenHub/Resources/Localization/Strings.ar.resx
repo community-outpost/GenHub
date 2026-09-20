@@ -7096,6 +7096,57 @@ GenHub هو مشغل ومدير حديث لألعاب **Command &amp; Conquer: G
   <data name="Tools.ModBuilder.FileManager.ButtonRemoveFromProject" xml:space="preserve">
     <value>إزالة من المشروع</value>
   </data>
+  <data name="Tools.ModBuilder.FileManager.ButtonValidateWnd" xml:space="preserve">
+    <value>التحقق من WND</value>
+  </data>
+  <data name="Tools.ModBuilder.FileManager.TooltipValidateWnd" xml:space="preserve">
+    <value>التحقق من ملفات .wnd المحددة</value>
+  </data>
+  <data name="Tools.ModBuilder.FileManager.ButtonFormatWnd" xml:space="preserve">
+    <value>تنسيق WND</value>
+  </data>
+  <data name="Tools.ModBuilder.FileManager.TooltipFormatWnd" xml:space="preserve">
+    <value>تنسيق ملفات .wnd المحددة</value>
+  </data>
+  <data name="Tools.ModBuilder.Wnd.NoSelectionTitle" xml:space="preserve">
+    <value>لم يتم تحديد ملفات WND</value>
+  </data>
+  <data name="Tools.ModBuilder.Wnd.NoSelectionMessage" xml:space="preserve">
+    <value>حدد ملف .wnd واحد أو أكثر في شجرة المشروع.</value>
+  </data>
+  <data name="Tools.ModBuilder.Wnd.ValidateSuccessTitle" xml:space="preserve">
+    <value>نجح التحقق من WND</value>
+  </data>
+  <data name="Tools.ModBuilder.Wnd.ValidateSuccessMessage" xml:space="preserve">
+    <value>{0} من {1} ملفًا صالحًا.</value>
+  </data>
+  <data name="Tools.ModBuilder.Wnd.ValidateIssuesTitle" xml:space="preserve">
+    <value>عثر التحقق من WND على مشكلات</value>
+  </data>
+  <data name="Tools.ModBuilder.Wnd.ValidateIssuesMessage" xml:space="preserve">
+    <value>{0} من {1} ملفًا صالحًا. أول مشكلة: {2}</value>
+  </data>
+  <data name="Tools.ModBuilder.Wnd.FormatSuccessTitle" xml:space="preserve">
+    <value>تم تنسيق ملفات WND</value>
+  </data>
+  <data name="Tools.ModBuilder.Wnd.FormatSuccessMessage" xml:space="preserve">
+    <value>تم تنسيق {0} من {1} ملفًا.</value>
+  </data>
+  <data name="Tools.ModBuilder.Wnd.FormatIssuesTitle" xml:space="preserve">
+    <value>اكتمل تنسيق WND جزئيًا</value>
+  </data>
+  <data name="Tools.ModBuilder.Wnd.FormatIssuesMessage" xml:space="preserve">
+    <value>تم تنسيق {0} من {1} ملفًا. أول خطأ: {2}</value>
+  </data>
+  <data name="Tools.ModBuilder.Wnd.OperationCancelled" xml:space="preserve">
+    <value>تم إلغاء العملية.</value>
+  </data>
+  <data name="Tools.ModBuilder.Wnd.ProgressValidating" xml:space="preserve">
+    <value>جارٍ التحقق ({0}/{1}): {2}</value>
+  </data>
+  <data name="Tools.ModBuilder.Wnd.ProgressFormatting" xml:space="preserve">
+    <value>جارٍ التنسيق ({0}/{1}): {2}</value>
+  </data>
   <data name="Tools.ModBuilder.BundleEditor.Title" xml:space="preserve">
     <value>محرر حزم الحزم</value>
   </data>
