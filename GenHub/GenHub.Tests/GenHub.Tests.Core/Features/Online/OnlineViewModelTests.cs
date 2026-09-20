@@ -167,6 +167,45 @@ public class OnlineViewModelTests
     }
 
     /// <summary>
+    /// Tests that a second join while one is in flight issues no extra request.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task JoinNetworkAsync_WhenJoinInFlight_ShouldCallServiceOnceAsync()
+    {
+        // Arrange
+        var join = new OnlineJoinResult
+        {
+            NetworkId = "net-1",
+            Grant = "grant-token",
+            OverlayIp = "10.42.0.7",
+        };
+        var gate = new TaskCompletionSource<OperationResult<OnlineJoinResult>>();
+        var network = new Mock<IOnlineNetworkService>();
+        network.Setup(n => n.JoinNetworkAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
+            .Returns(gate.Task);
+        network.SetupGet(n => n.AdapterState).Returns(OnlineAdapterState.Up);
+        var vm = CreateViewModel(network.Object);
+        vm.Networks = new ObservableCollection<OnlineNetworkSummary>(
+        [
+            new OnlineNetworkSummary { Id = "net-1", Name = "Lobby" },
+        ]);
+        vm.SelectedNetwork = vm.Networks[0];
+
+        // Act
+        var first = vm.JoinNetworkAsync();
+        var second = vm.JoinNetworkAsync();
+        gate.SetResult(OperationResult<OnlineJoinResult>.CreateSuccess(join));
+        await Task.WhenAll(first, second);
+
+        // Assert
+        network.Verify(
+            n => n.JoinNetworkAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()),
+            Times.Once);
+        Assert.True(vm.IsJoined);
+    }
+
+    /// <summary>
     /// Tests that play with a missing profile shows the download-prompt warning.
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>

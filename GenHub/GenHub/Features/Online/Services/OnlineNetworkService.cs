@@ -109,6 +109,18 @@ public sealed class OnlineNetworkService(
             return OperationResult<IReadOnlyList<OnlineNetworkSummary>>.CreateFailure(
                 OnlineConstants.ErrorServiceUnavailable);
         }
+        catch (OperationCanceledException ex) when (!cancellationToken.IsCancellationRequested)
+        {
+            logger.LogWarning(ex, "Online directory request timed out.");
+            return OperationResult<IReadOnlyList<OnlineNetworkSummary>>.CreateFailure(
+                OnlineConstants.ErrorServiceUnavailable);
+        }
+        catch (JsonException ex)
+        {
+            logger.LogWarning(ex, "Online directory response was malformed.");
+            return OperationResult<IReadOnlyList<OnlineNetworkSummary>>.CreateFailure(
+                OnlineConstants.ErrorServiceUnavailable);
+        }
     }
 
     /// <inheritdoc/>
@@ -151,6 +163,16 @@ public sealed class OnlineNetworkService(
             logger.LogWarning(ex, "Online detail request failed.");
             return OperationResult<OnlineNetworkDetail>.CreateFailure(OnlineConstants.ErrorServiceUnavailable);
         }
+        catch (OperationCanceledException ex) when (!cancellationToken.IsCancellationRequested)
+        {
+            logger.LogWarning(ex, "Online detail request timed out.");
+            return OperationResult<OnlineNetworkDetail>.CreateFailure(OnlineConstants.ErrorServiceUnavailable);
+        }
+        catch (JsonException ex)
+        {
+            logger.LogWarning(ex, "Online detail response was malformed.");
+            return OperationResult<OnlineNetworkDetail>.CreateFailure(OnlineConstants.ErrorServiceUnavailable);
+        }
     }
 
     /// <inheritdoc/>
@@ -183,6 +205,16 @@ public sealed class OnlineNetworkService(
         catch (HttpRequestException ex)
         {
             logger.LogWarning(ex, "Online network creation failed.");
+            return OperationResult<OnlineJoinResult>.CreateFailure(OnlineConstants.ErrorServiceUnavailable);
+        }
+        catch (OperationCanceledException ex) when (!cancellationToken.IsCancellationRequested)
+        {
+            logger.LogWarning(ex, "Online network creation timed out.");
+            return OperationResult<OnlineJoinResult>.CreateFailure(OnlineConstants.ErrorServiceUnavailable);
+        }
+        catch (JsonException ex)
+        {
+            logger.LogWarning(ex, "Online creation response was malformed.");
             return OperationResult<OnlineJoinResult>.CreateFailure(OnlineConstants.ErrorServiceUnavailable);
         }
     }
@@ -232,6 +264,16 @@ public sealed class OnlineNetworkService(
         catch (HttpRequestException ex)
         {
             logger.LogWarning(ex, "Online join request failed.");
+            return OperationResult<OnlineJoinResult>.CreateFailure(OnlineConstants.ErrorServiceUnavailable);
+        }
+        catch (OperationCanceledException ex) when (!cancellationToken.IsCancellationRequested)
+        {
+            logger.LogWarning(ex, "Online join request timed out.");
+            return OperationResult<OnlineJoinResult>.CreateFailure(OnlineConstants.ErrorServiceUnavailable);
+        }
+        catch (JsonException ex)
+        {
+            logger.LogWarning(ex, "Online join response was malformed.");
             return OperationResult<OnlineJoinResult>.CreateFailure(OnlineConstants.ErrorServiceUnavailable);
         }
     }
@@ -690,6 +732,10 @@ public sealed class OnlineNetworkService(
         {
             logger.LogWarning(ex, "Server leave notification failed.");
         }
+        catch (OperationCanceledException ex) when (!cancellationToken.IsCancellationRequested)
+        {
+            logger.LogWarning(ex, "Server leave notification timed out.");
+        }
     }
 
     private async Task<OperationResult<bool>> SendGrantMutationAsync(
@@ -717,6 +763,16 @@ public sealed class OnlineNetworkService(
         catch (HttpRequestException ex)
         {
             logger.LogWarning(ex, "Online network mutation failed.");
+            return OperationResult<bool>.CreateFailure(OnlineConstants.ErrorServiceUnavailable);
+        }
+        catch (OperationCanceledException ex) when (!cancellationToken.IsCancellationRequested)
+        {
+            logger.LogWarning(ex, "Online network mutation timed out.");
+            return OperationResult<bool>.CreateFailure(OnlineConstants.ErrorServiceUnavailable);
+        }
+        catch (JsonException ex)
+        {
+            logger.LogWarning(ex, "Online mutation response was malformed.");
             return OperationResult<bool>.CreateFailure(OnlineConstants.ErrorServiceUnavailable);
         }
     }

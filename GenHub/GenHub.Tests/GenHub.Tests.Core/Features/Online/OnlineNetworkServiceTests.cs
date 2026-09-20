@@ -152,6 +152,60 @@ public sealed class OnlineNetworkServiceTests
     }
 
     /// <summary>
+    /// Tests that an HTTP timeout maps to a failure result instead of throwing.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task GetNetworksAsync_WithTimeout_ShouldReturnServiceUnavailableAsync()
+    {
+        // Arrange
+        var service = CreateService(CreateFactory(responder: request =>
+        {
+            var path = request.RequestUri?.AbsolutePath ?? string.Empty;
+            if (request.Method == HttpMethod.Post && path.EndsWith("/v1/sessions/anonymous", StringComparison.Ordinal))
+            {
+                return JsonResponse(SessionJson);
+            }
+
+            throw new TaskCanceledException("Simulated client timeout.");
+        }));
+
+        // Act
+        var result = await service.GetNetworksAsync();
+
+        // Assert
+        Assert.False(result.Success);
+        Assert.Contains(OnlineConstants.ErrorServiceUnavailable, result.Errors);
+    }
+
+    /// <summary>
+    /// Tests that a malformed directory body maps to a failure result.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task GetNetworksAsync_WithMalformedBody_ShouldReturnServiceUnavailableAsync()
+    {
+        // Arrange
+        var service = CreateService(CreateFactory(responder: request =>
+        {
+            var path = request.RequestUri?.AbsolutePath ?? string.Empty;
+            if (request.Method == HttpMethod.Post && path.EndsWith("/v1/sessions/anonymous", StringComparison.Ordinal))
+            {
+                return JsonResponse(SessionJson);
+            }
+
+            return JsonResponse("not json{{{");
+        }));
+
+        // Act
+        var result = await service.GetNetworksAsync();
+
+        // Assert
+        Assert.False(result.Success);
+        Assert.Contains(OnlineConstants.ErrorServiceUnavailable, result.Errors);
+    }
+
+    /// <summary>
     /// Tests that a blank network id fails without HTTP traffic.
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
