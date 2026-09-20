@@ -3,6 +3,7 @@ using GenHub.Core.Constants;
 using GenHub.Core.Helpers;
 using GenHub.Features.Workspace;
 using System;
+using System.Collections.Generic;
 using System.IO;
 
 namespace GenHub.Features.GitHub.Services;
@@ -74,6 +75,29 @@ public static class GitHubTokenPathResolver
         {
             // Best effort: the primary token is already persisted.
         }
+    }
+
+    /// <summary>
+    /// Gets the token files that currently exist, primary first, so a load can retry
+    /// with the fallback copy when the primary copy fails to decrypt.
+    /// </summary>
+    /// <param name="primaryTokenFilePath">The primary token file path.</param>
+    /// <param name="fallbackTokenFilePath">The fallback token file path, or null when there is none.</param>
+    /// <returns>The existing token file paths in load order.</returns>
+    public static IReadOnlyList<string> GetExistingTokenFilePaths(string primaryTokenFilePath, string? fallbackTokenFilePath)
+    {
+        var paths = new List<string>(capacity: 2);
+        if (File.Exists(primaryTokenFilePath))
+        {
+            paths.Add(primaryTokenFilePath);
+        }
+
+        if (fallbackTokenFilePath != null && File.Exists(fallbackTokenFilePath))
+        {
+            paths.Add(fallbackTokenFilePath);
+        }
+
+        return paths;
     }
 
     /// <summary>

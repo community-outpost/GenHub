@@ -692,6 +692,90 @@ public class GitHubAuthServiceTests : IDisposable
     }
 
     /// <summary>
+    /// Verifies that a sign-in persisting while a stale rejected-token cleanup is in flight keeps
+    /// the fresh token: the save waits for the delete to finish instead of racing it.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task GetCurrentUserAsync_WhenSignInPersistsDuringStaleCleanup_PreservesFreshTokenAsync()
+    {
+        // Arrange
+        SetGitHubEnvironment(clientId: "test-client-id");
+        var harness = new AuthHarness();
+        harness.TokenStorage.Setup(x => x.HasToken()).Returns(true);
+        harness.TokenStorage
+            .Setup(x => x.LoadTokenAsync())
+            .Returns(() => Task.FromResult<SecureString?>(SecureStringHelper.ToSecureString("stored-token-value")));
+        using var entered = new ManualResetEventSlim(false);
+        var staleFetch = new TaskCompletionSource<User>();
+        var profileCalls = 0;
+        harness.UserClient.Setup(x => x.Current()).Returns(() =>
+        {
+            if (Interlocked.Increment(ref profileCalls) == 1)
+            {
+                entered.Set();
+                return staleFetch.Task;
+            }
+
+            return Task.FromResult(CreateOctokitUser());
+        });
+        harness.Oauth
+            .Setup(x => x.CreateAccessTokenForDeviceFlow(It.IsAny<string>(), It.IsAny<OauthDeviceFlowResponse>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new OauthToken("bearer", "oauth-access-token", 0, null!, 0, [], null!, null!, null!));
+        using var deleteEntered = new ManualResetEventSlim(false);
+        var deleteGate = new TaskCompletionSource();
+        var completionOrder = new List<string>();
+        harness.TokenStorage
+            .Setup(x => x.DeleteTokenAsync())
+            .Callback(() => deleteEntered.Set())
+            .Returns(async () =>
+            {
+                await deleteGate.Task;
+                lock (completionOrder)
+                {
+                    completionOrder.Add("delete");
+                }
+            });
+        var saveCompleted = new TaskCompletionSource();
+        harness.TokenStorage
+            .Setup(x => x.SaveTokenAsync(It.IsAny<SecureString>()))
+            .Callback(() =>
+            {
+                lock (completionOrder)
+                {
+                    completionOrder.Add("save");
+                }
+
+                saveCompleted.TrySetResult();
+            })
+            .Returns(Task.CompletedTask);
+        var fetchTask = harness.Service.GetCurrentUserAsync();
+        Assert.True(entered.Wait(TimeSpan.FromSeconds(5)));
+        staleFetch.SetException(new AuthorizationException(Mock.Of<IResponse>()));
+        Assert.True(deleteEntered.Wait(TimeSpan.FromSeconds(5)));
+
+        // Act: start the sign-in while the stale cleanup is blocked inside the delete.
+        // The save cannot proceed until the test releases the delete, so the wait below
+        // always expires; without the gate the save wins the race and the stale delete
+        // then removes the fresh token.
+        var deviceCode = new GitHubDeviceCodeResponse("device-code", "USER-CODE", "https://github.com/login/device", 900, 5);
+        var loginTask = harness.Service.WaitForAuthorizationAsync(deviceCode);
+        _ = await Task.WhenAny(saveCompleted.Task, Task.Delay(TimeSpan.FromSeconds(2)));
+        deleteGate.TrySetResult();
+
+        // Assert
+        var loginResult = await loginTask;
+        Assert.True(loginResult.Success);
+        Assert.Null(await fetchTask);
+        Assert.False(harness.Service.IsSessionExpired);
+        Assert.True(harness.Service.IsAuthenticated);
+        Assert.Equal("octocat", harness.Service.CurrentUser?.Login);
+        Assert.Equal(["delete", "save"], completionOrder);
+        harness.TokenStorage.Verify(x => x.SaveTokenAsync(It.IsAny<SecureString>()), Times.Once);
+        harness.TokenStorage.Verify(x => x.DeleteTokenAsync(), Times.Once);
+    }
+
+    /// <summary>
     /// Verifies that a successful authorization after an unloadable credential clears the
     /// unusable state and publishes the profile.
     /// </summary>

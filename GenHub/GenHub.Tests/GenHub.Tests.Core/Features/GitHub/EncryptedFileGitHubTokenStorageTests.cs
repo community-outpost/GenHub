@@ -327,6 +327,52 @@ public class EncryptedFileGitHubTokenStorageTests : IDisposable
     }
 
     /// <summary>
+    /// Verifies that a corrupt primary copy is dropped while the valid fallback copy is recovered in the same load.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task LoadToken_WhenPrimaryCorrupt_RecoversFallbackAsync()
+    {
+        // Arrange
+        var fallbackWriter = CreateStorage("machine-secret-recovery", appDataDir: _defaultRootDir);
+        using var fallbackToken = SecureStringHelper.ToSecureString("fallback-token-value");
+        await fallbackWriter.SaveTokenAsync(fallbackToken);
+        await File.WriteAllBytesAsync(TokenFilePath(), [0x01, 0x02, 0x03]);
+        var reader = CreateStorage("machine-secret-recovery");
+
+        // Act
+        using var loaded = await reader.LoadTokenAsync();
+
+        // Assert
+        Assert.NotNull(loaded);
+        Assert.Equal("fallback-token-value", SecureStringHelper.ToUnsecureString(loaded));
+        Assert.False(File.Exists(TokenFilePath()));
+        Assert.True(File.Exists(TokenFilePath(_defaultRootDir)));
+    }
+
+    /// <summary>
+    /// Verifies that corrupt primary and fallback copies are both dropped and the load returns null.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task LoadToken_WhenBothCopiesCorrupt_DeletesBothAndReturnsNullAsync()
+    {
+        // Arrange
+        await File.WriteAllBytesAsync(TokenFilePath(), [0x01, 0x02, 0x03]);
+        await File.WriteAllBytesAsync(TokenFilePath(_defaultRootDir), [0x04, 0x05, 0x06]);
+        var reader = CreateStorage("machine-secret-dual-corrupt");
+
+        // Act
+        var loaded = await reader.LoadTokenAsync();
+
+        // Assert
+        Assert.Null(loaded);
+        Assert.False(File.Exists(TokenFilePath()));
+        Assert.False(File.Exists(TokenFilePath(_defaultRootDir)));
+        Assert.False(reader.HasToken());
+    }
+
+    /// <summary>
     /// Verifies that deleting removes both the primary and fallback token copies.
     /// </summary>
     /// <returns>A task representing the asynchronous unit test.</returns>

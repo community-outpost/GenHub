@@ -222,11 +222,11 @@ public class WindowsGitHubTokenStorageTests : IDisposable
     }
 
     /// <summary>
-    /// Verifies that a primary copy that fails decryption is dropped while a valid fallback copy survives.
+    /// Verifies that a primary copy that fails decryption is dropped while the valid fallback copy is recovered in the same load.
     /// </summary>
     /// <returns>A task representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task LoadTokenAsync_WhenPrimaryDecryptionFails_PreservesFallbackAsync()
+    public async Task LoadTokenAsync_WhenPrimaryDecryptionFails_RecoversFallbackAsync()
     {
         // Arrange
         var fallbackWriter = CreateStorage(_environment.AppDataPath);
@@ -236,15 +236,35 @@ public class WindowsGitHubTokenStorageTests : IDisposable
         var storage = CreateStorage(_tempDir);
 
         // Act
-        using var firstLoad = await storage.LoadTokenAsync();
+        using var loaded = await storage.LoadTokenAsync();
 
         // Assert
-        Assert.Null(firstLoad);
+        Assert.NotNull(loaded);
+        Assert.Equal("fallback-token-value", SecureStringHelper.ToUnsecureString(loaded));
         Assert.False(File.Exists(TokenFilePath(_tempDir)));
         Assert.True(File.Exists(TokenFilePath(_environment.AppDataPath)));
-        using var secondLoad = await storage.LoadTokenAsync();
-        Assert.NotNull(secondLoad);
-        Assert.Equal("fallback-token-value", SecureStringHelper.ToUnsecureString(secondLoad));
+    }
+
+    /// <summary>
+    /// Verifies that invalid primary and fallback copies are both dropped and the load returns null.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task LoadTokenAsync_WhenBothCopiesInvalid_DeletesBothAndReturnsNullAsync()
+    {
+        // Arrange
+        File.WriteAllBytes(TokenFilePath(_tempDir), [0x01, 0x02, 0x03, 0x04]);
+        File.WriteAllBytes(TokenFilePath(_environment.AppDataPath), [0x05, 0x06, 0x07, 0x08]);
+        var storage = CreateStorage(_tempDir);
+
+        // Act
+        var loaded = await storage.LoadTokenAsync();
+
+        // Assert
+        Assert.Null(loaded);
+        Assert.False(File.Exists(TokenFilePath(_tempDir)));
+        Assert.False(File.Exists(TokenFilePath(_environment.AppDataPath)));
+        Assert.False(storage.HasToken());
     }
 
     /// <summary>

@@ -123,36 +123,41 @@ public class WindowsGitHubTokenStorage : IGitHubTokenStorage
     /// <returns>The secure string token if available, otherwise null.</returns>
     public async Task<SecureString?> LoadTokenAsync()
     {
-        var activePath = GitHubTokenPathResolver.ResolveActiveTokenFilePath(_tokenFilePath, _fallbackTokenFilePath);
-        if (activePath == null)
+        // Try the primary copy first, then the fallback copy, so a corrupt primary
+        // does not hide a valid fallback until the next load.
+        foreach (var candidate in GitHubTokenPathResolver.GetExistingTokenFilePaths(_tokenFilePath, _fallbackTokenFilePath))
         {
-            return null;
+            try
+            {
+                return await LoadTokenFromFileAsync(candidate);
+            }
+            catch (CryptographicException)
+            {
+                // The copy was encrypted for a different user or machine. Drop only
+                // that copy and try the next candidate, if any.
+                FileOperationsService.DeleteFileIfExists(candidate);
+            }
         }
 
-        try
-        {
-            // Read encrypted bytes
-            var encryptedBytes = await File.ReadAllBytesAsync(activePath);
+        return null;
+    }
 
-            // Decrypt using DPAPI
-            var plainBytes = ProtectedData.Unprotect(encryptedBytes, null, DataProtectionScope.CurrentUser);
-            var plainText = Encoding.UTF8.GetString(plainBytes);
+    private static async Task<SecureString> LoadTokenFromFileAsync(string tokenFilePath)
+    {
+        // Read encrypted bytes
+        var encryptedBytes = await File.ReadAllBytesAsync(tokenFilePath);
 
-            // Convert to SecureString
-            var secureString = StringToSecureString(plainText);
+        // Decrypt using DPAPI
+        var plainBytes = ProtectedData.Unprotect(encryptedBytes, null, DataProtectionScope.CurrentUser);
+        var plainText = Encoding.UTF8.GetString(plainBytes);
 
-            // Clear plain text
-            Array.Clear(plainBytes, 0, plainBytes.Length);
+        // Convert to SecureString
+        var secureString = StringToSecureString(plainText);
 
-            return secureString;
-        }
-        catch (CryptographicException)
-        {
-            // The active copy was encrypted for a different user or machine. Drop only
-            // that copy so a valid fallback survives for the next load to recover.
-            FileOperationsService.DeleteFileIfExists(activePath);
-            return null;
-        }
+        // Clear plain text
+        Array.Clear(plainBytes, 0, plainBytes.Length);
+
+        return secureString;
     }
 
     private static string SecureStringToString(SecureString secureString)

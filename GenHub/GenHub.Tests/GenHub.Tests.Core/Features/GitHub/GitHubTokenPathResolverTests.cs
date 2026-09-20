@@ -141,6 +141,43 @@ public class GitHubTokenPathResolverTests : IDisposable
     }
 
     /// <summary>
+    /// Verifies that the existing paths list both copies with the primary first.
+    /// </summary>
+    [Fact]
+    public void GetExistingTokenFilePaths_WithBothCopies_ReturnsPrimaryFirst()
+    {
+        // Arrange
+        var primary = GitHubTokenPathResolver.GetPrimaryTokenFilePath(_tempDir);
+        var fallback = GitHubTokenPathResolver.GetFallbackTokenFilePath(_tempDir);
+        Assert.NotNull(fallback);
+        File.WriteAllText(primary, "primary");
+        File.WriteAllText(fallback, "fallback");
+
+        // Act
+        var paths = GitHubTokenPathResolver.GetExistingTokenFilePaths(primary, fallback);
+
+        // Assert
+        Assert.Equal([primary, fallback], paths);
+    }
+
+    /// <summary>
+    /// Verifies that the existing paths list is empty when neither copy exists.
+    /// </summary>
+    [Fact]
+    public void GetExistingTokenFilePaths_WithoutCopies_ReturnsEmpty()
+    {
+        // Arrange
+        var primary = GitHubTokenPathResolver.GetPrimaryTokenFilePath(_tempDir);
+        var fallback = GitHubTokenPathResolver.GetFallbackTokenFilePath(_tempDir);
+
+        // Act
+        var paths = GitHubTokenPathResolver.GetExistingTokenFilePaths(primary, fallback);
+
+        // Assert
+        Assert.Empty(paths);
+    }
+
+    /// <summary>
     /// Verifies that no fallback path is returned when the data directory is a symbolic
     /// link to the default root, so the post-save cleanup cannot delete the token just written.
     /// </summary>

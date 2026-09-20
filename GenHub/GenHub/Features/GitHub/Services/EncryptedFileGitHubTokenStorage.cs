@@ -98,47 +98,20 @@ public class EncryptedFileGitHubTokenStorage : IGitHubTokenStorage
         await _fileLock.WaitAsync();
         try
         {
-            var activePath = GitHubTokenPathResolver.ResolveActiveTokenFilePath(_tokenFilePath, _fallbackTokenFilePath);
-            if (activePath == null)
-            {
-                return null;
-            }
-
-            var fileBytes = await File.ReadAllBytesAsync(activePath);
             var (secret, fromPrimarySource) = ResolveMachineSecret();
-            byte[]? plainBytes = null;
-            var decrypted = TryDecryptWithSecret(fileBytes, secret, out plainBytes);
-            if (!decrypted && fromPrimarySource)
-            {
-                // The token may have been saved while the primary source was unavailable and the
-                // fallback secret was used instead. Retry with the fallback secret before treating
-                // the file as corrupt, so a transient save-time lookup failure cannot destroy it.
-                decrypted = TryDecryptWithSecret(fileBytes, GetFallbackMachineSecret(), out plainBytes);
-            }
 
-            if (!decrypted || plainBytes == null)
+            // Try the primary copy first, then the fallback copy, so a corrupt primary
+            // does not hide a valid fallback until the next load.
+            foreach (var candidate in GitHubTokenPathResolver.GetExistingTokenFilePaths(_tokenFilePath, _fallbackTokenFilePath))
             {
-                // Only drop the file when the secret came from its primary source. A fallback
-                // secret may indicate a transient lookup failure, in which case deleting would
-                // destroy a healthy token and force an avoidable re-authentication.
-                // The lock serializes this delete against concurrent saves, so a racing
-                // truncate-then-write can never be mistaken for corruption.
-                if (fromPrimarySource)
+                var loaded = await TryLoadCandidateAsync(candidate, secret, fromPrimarySource);
+                if (loaded != null)
                 {
-                    DeleteTokenFile(activePath);
+                    return loaded;
                 }
-
-                return null;
             }
 
-            try
-            {
-                return SecureStringHelper.ToSecureString(Encoding.UTF8.GetString(plainBytes));
-            }
-            finally
-            {
-                CryptographicOperations.ZeroMemory(plainBytes);
-            }
+            return null;
         }
         finally
         {
@@ -209,6 +182,44 @@ public class EncryptedFileGitHubTokenStorage : IGitHubTokenStorage
     private static void DeleteTokenFile(string tokenFilePath)
     {
         FileOperationsService.DeleteFileIfExists(tokenFilePath);
+    }
+
+    private static async Task<SecureString?> TryLoadCandidateAsync(string candidatePath, string secret, bool fromPrimarySource)
+    {
+        var fileBytes = await File.ReadAllBytesAsync(candidatePath);
+        byte[]? plainBytes = null;
+        var decrypted = TryDecryptWithSecret(fileBytes, secret, out plainBytes);
+        if (!decrypted && fromPrimarySource)
+        {
+            // The token may have been saved while the primary source was unavailable and the
+            // fallback secret was used instead. Retry with the fallback secret before treating
+            // the file as corrupt, so a transient save-time lookup failure cannot destroy it.
+            decrypted = TryDecryptWithSecret(fileBytes, GetFallbackMachineSecret(), out plainBytes);
+        }
+
+        if (!decrypted || plainBytes == null)
+        {
+            // Only drop the file when the secret came from its primary source. A fallback
+            // secret may indicate a transient lookup failure, in which case deleting would
+            // destroy a healthy token and force an avoidable re-authentication.
+            // The lock serializes this delete against concurrent saves, so a racing
+            // truncate-then-write can never be mistaken for corruption.
+            if (fromPrimarySource)
+            {
+                DeleteTokenFile(candidatePath);
+            }
+
+            return null;
+        }
+
+        try
+        {
+            return SecureStringHelper.ToSecureString(Encoding.UTF8.GetString(plainBytes));
+        }
+        finally
+        {
+            CryptographicOperations.ZeroMemory(plainBytes);
+        }
     }
 
     private static byte[] EncryptToFileBytes(byte[] plainBytes, byte[] key)

@@ -26,6 +26,7 @@ public class GitHubAuthService(
     ILogger<GitHubAuthService> logger) : IGitHubAuthService
 {
     private readonly object _syncLock = new();
+    private readonly SemaphoreSlim _credentialGate = new(1, 1);
     private GitHubUserProfile? _currentUser;
     private bool _sessionSignedOut;
     private bool _sessionExpired;
@@ -326,42 +327,53 @@ public class GitHubAuthService(
             return "GitHub sign-in was cancelled.";
         }
 
-        using var secureToken = SecureStringHelper.ToSecureString(accessToken);
-        if (tokenStorage != null)
+        // Hold the gate from the save through the generation bump so a concurrent
+        // rejected-token cleanup either finishes before this save or observes the new
+        // generation and leaves the fresh token alone.
+        await _credentialGate.WaitAsync().ConfigureAwait(false);
+        try
         {
-            try
+            using var secureToken = SecureStringHelper.ToSecureString(accessToken);
+            if (tokenStorage != null)
             {
-                await tokenStorage.SaveTokenAsync(secureToken).ConfigureAwait(false);
+                try
+                {
+                    await tokenStorage.SaveTokenAsync(secureToken).ConfigureAwait(false);
+                }
+                catch (IOException ex)
+                {
+                    logger.LogWarning(ex, "Failed to save GitHub token after device authorization");
+                    return $"GitHub sign-in succeeded, but the token could not be saved: {ex.Message}";
+                }
+                catch (UnauthorizedAccessException ex)
+                {
+                    logger.LogWarning(ex, "Failed to save GitHub token after device authorization");
+                    return $"GitHub sign-in succeeded, but the token could not be saved: {ex.Message}";
+                }
             }
-            catch (IOException ex)
+            else
             {
-                logger.LogWarning(ex, "Failed to save GitHub token after device authorization");
-                return $"GitHub sign-in succeeded, but the token could not be saved: {ex.Message}";
+                logger.LogWarning("No token storage available; GitHub login lasts for this session only");
             }
-            catch (UnauthorizedAccessException ex)
-            {
-                logger.LogWarning(ex, "Failed to save GitHub token after device authorization");
-                return $"GitHub sign-in succeeded, but the token could not be saved: {ex.Message}";
-            }
-        }
-        else
-        {
-            logger.LogWarning("No token storage available; GitHub login lasts for this session only");
-        }
 
-        if (IsSessionSignedOut())
-        {
-            // Sign-out ran while the save was in flight. Remove the file this attempt
-            // just wrote so a later launch does not resurrect a signed-out session.
-            await DeleteStoredTokenBestEffortAsync().ConfigureAwait(false);
-            return "GitHub sign-in was cancelled.";
-        }
+            if (IsSessionSignedOut())
+            {
+                // Sign-out ran while the save was in flight. Remove the file this attempt
+                // just wrote so a later launch does not resurrect a signed-out session.
+                await DeleteStoredTokenBestEffortAsync().ConfigureAwait(false);
+                return "GitHub sign-in was cancelled.";
+            }
 
-        // A fresh credential supersedes any in-flight profile fetch: a late rejection
-        // for the previous credential must neither re-latch an error state nor delete
-        // the token just saved.
-        Interlocked.Increment(ref _credentialGeneration);
-        return null;
+            // A fresh credential supersedes any in-flight profile fetch: a late rejection
+            // for the previous credential must neither re-latch an error state nor delete
+            // the token just saved.
+            Interlocked.Increment(ref _credentialGeneration);
+            return null;
+        }
+        finally
+        {
+            _credentialGate.Release();
+        }
     }
 
     private async Task DeleteStoredTokenBestEffortAsync()
@@ -514,29 +526,40 @@ public class GitHubAuthService(
 
     private async Task MarkSessionExpiredAsync(int credentialGeneration)
     {
-        lock (_syncLock)
+        // Hold the gate across the check and the cleanup so a concurrent sign-in either
+        // persists fully before this check (and is then left alone) or only after this
+        // cleanup has finished (and then survives it).
+        await _credentialGate.WaitAsync().ConfigureAwait(false);
+        try
         {
-            // An explicit sign-out always wins: a slow in-flight profile fetch must not
-            // re-latch the expired flag after the user has deliberately signed out.
-            // A rejection is also ignored once a newer credential was saved, so a stale
-            // failure can neither resurrect the expired state nor delete the fresh token.
-            if (_sessionExpired || _sessionSignedOut || credentialGeneration != _credentialGeneration)
+            lock (_syncLock)
             {
-                return;
+                // An explicit sign-out always wins: a slow in-flight profile fetch must not
+                // re-latch the expired flag after the user has deliberately signed out.
+                // A rejection is also ignored once a newer credential was saved, so a stale
+                // failure can neither resurrect the expired state nor delete the fresh token.
+                if (_sessionExpired || _sessionSignedOut || credentialGeneration != _credentialGeneration)
+                {
+                    return;
+                }
+
+                _sessionExpired = true;
+                _currentUser = null;
             }
 
-            _sessionExpired = true;
-            _currentUser = null;
+            // Drop the rejected credential from the shared client so later API calls fail fast
+            // as anonymous instead of replaying a token GitHub already refused.
+            SetClientCredentials(Credentials.Anonymous);
+
+            // Remove the rejected token from storage so the next launch does not reload and
+            // re-reject the same known-bad credential, showing the expired state every time.
+            await DeleteStoredTokenBestEffortAsync().ConfigureAwait(false);
+            RaiseAuthStateChanged(false, null);
         }
-
-        // Drop the rejected credential from the shared client so later API calls fail fast
-        // as anonymous instead of replaying a token GitHub already refused.
-        SetClientCredentials(Credentials.Anonymous);
-
-        // Remove the rejected token from storage so the next launch does not reload and
-        // re-reject the same known-bad credential, showing the expired state every time.
-        await DeleteStoredTokenBestEffortAsync().ConfigureAwait(false);
-        RaiseAuthStateChanged(false, null);
+        finally
+        {
+            _credentialGate.Release();
+        }
     }
 
     private void MarkCredentialUnusable(int credentialGeneration)
