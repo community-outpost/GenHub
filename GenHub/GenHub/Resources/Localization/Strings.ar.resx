@@ -13049,6 +13049,66 @@ GameFilesEdited/Data/INI/**/*.ini</value>
   <data name="Tools.PublisherStudio.Hosting.AssetCategoryCloudDefinitionFormat" xml:space="preserve">
     <value>تعريف الناشر السحابي ({0})</value>
   </data>
+  <data name="Downloads.ContentDetail.PreviewVideos" xml:space="preserve">
+    <value>مقاطع الفيديو للمعاينة</value>
+  </data>
+  <data name="Downloads.ContentDetail.PlayVideoTooltip" xml:space="preserve">
+    <value>تشغيل أو فتح الفيديو</value>
+  </data>
+  <data name="Tools.PublisherStudio.Release.VariantsMode" xml:space="preserve">
+    <value>إصدارات بديلة (مثل اللغات والدقات)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Release.VariantsModeDesc" xml:space="preserve">
+    <value>كل ملف هو خيار مميز يختاره المستخدم (مثل الإنجليزية، الروسية، العربية أو 720p، 1080p، 4K).</value>
+  </data>
+  <data name="Tools.PublisherStudio.Release.BundleMode" xml:space="preserve">
+    <value>تثبيت كافة الملفات معاً (حزمة)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Release.BundleModeDesc" xml:space="preserve">
+    <value>يتم تنزيل وتثبيت جميع الملفات في هذا الإصدار معاً كحزمة واحدة.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Release.ReleaseImages" xml:space="preserve">
+    <value>عناوين صور الإصدار (عنوان لكل سطر)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Release.ReleaseVideos" xml:space="preserve">
+    <value>عناوين فيديو الإصدار (عنوان لكل سطر)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.Addons" xml:space="preserve">
+    <value>الملحقات</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.AddonsHint" xml:space="preserve">
+    <value>تبعيات ملحقات اختيارية مرتبطة بعنصر المحتوى هذا.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.AddAddon" xml:space="preserve">
+    <value>إضافة ملحق</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.NoAddons" xml:space="preserve">
+    <value>لا توجد ملحقات محددة لعنصر المحتوى هذا.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.RemoveAddonTooltip" xml:space="preserve">
+    <value>إزالة تبعية هذا الملحق</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ChangesPending" xml:space="preserve">
+    <value>تغييرات معلقة</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.Screenshots" xml:space="preserve">
+    <value>عناوين لقطات الشاشة (عنوان لكل سطر)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.VideoUrl" xml:space="preserve">
+    <value>رابط معاينة الفيديو</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.MediaAndTheme" xml:space="preserve">
+    <value>الوسائط والمظهر</value>
+  </data>
+  <data name="Tools.PublisherStudio.Release.ArtifactDeliveryMode" xml:space="preserve">
+    <value>وضع تسليم الحزمة</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.BadgeVariants" xml:space="preserve">
+    <value>المتغيرات</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.BadgeBundle" xml:space="preserve">
+    <value>الحزمة</value>
+  </data>
   <data name="GameProfiles.Notification.UnexpectedExit.Title" xml:space="preserve">
     <value>خرجت اللعبة بشكل غير متوقع</value>
   </data>

@@ -569,6 +569,11 @@ public partial class PublishShareViewModel(
             return OperationResult<HostingUploadResult>.CreateFailure(UploadAlreadyInProgressMessage);
         }
 
+        if (SelectedHostingProvider == null)
+        {
+            return OperationResult<HostingUploadResult>.CreateFailure(PleaseSelectHostingProviderMessage);
+        }
+
         _uploadCts?.Dispose();
         _uploadCts = new CancellationTokenSource();
         var cancellationToken = _uploadCts.Token;
@@ -576,7 +581,52 @@ public partial class PublishShareViewModel(
             GetLocalizedString("Tools.PublisherStudio.Publish.UploadStartedTitle", "Uploading"),
             GetLocalizedString("Tools.PublisherStudio.Publish.DefinitionUploadStarted", "Uploading provider definition..."));
 
-        return await UploadProviderDefinitionCoreAsync(cancellationToken, manageUploadingState: true);
+        try
+        {
+            IsUploading = true;
+
+            // Cascade down: Publish all catalogs and their content items first
+            var totalCatalogs = project.Catalogs.Count;
+            var currentCatalog = 0;
+            foreach (var catalog in project.Catalogs)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                currentCatalog++;
+                var (success, error) = await PublishCatalogItemAsync(catalog, currentCatalog, totalCatalogs, cancellationToken);
+                if (!success)
+                {
+                    logger.LogWarning("Catalog publish failed during cascading definition upload: {CatalogName} - {Error}", catalog.Name, error);
+                }
+            }
+
+            // Regenerate provider definition now that catalogs and content items have updated URLs
+            await GenerateProviderDefinitionAsync();
+
+            var result = await UploadProviderDefinitionCoreAsync(cancellationToken, manageUploadingState: false);
+            if (result.Success)
+            {
+                HasDefinitionChanges = false;
+            }
+
+            return result;
+        }
+        catch (OperationCanceledException)
+        {
+            UploadStatusMessage = GetLocalizedString("Tools.PublisherStudio.Publish.PublishAllCanceled", "Publishing was canceled.");
+            return OperationResult<HostingUploadResult>.CreateFailure(UploadStatusMessage);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to upload provider definition with cascade");
+            UploadStatusMessage = FormatLocalizedString("Tools.PublisherStudio.Publish.ErrorFormat", "Error: {0}", ex.Message);
+            return OperationResult<HostingUploadResult>.CreateFailure(UploadStatusMessage);
+        }
+        finally
+        {
+            IsUploading = false;
+            _uploadCts?.Dispose();
+            _uploadCts = null;
+        }
     }
 
     /// <summary>

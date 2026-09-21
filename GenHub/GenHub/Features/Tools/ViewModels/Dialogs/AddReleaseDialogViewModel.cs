@@ -51,7 +51,32 @@ public partial class AddReleaseDialogViewModel(
     private string _changelog = string.Empty;
 
     [ObservableProperty]
-    private bool _bundleArtifacts;
+    private bool _bundleArtifacts = true;
+
+    [ObservableProperty]
+    private bool _isVariantsMode;
+
+    [ObservableProperty]
+    private string _imageUrlsInput = string.Empty;
+
+    [ObservableProperty]
+    private string _videoUrlsInput = string.Empty;
+
+    partial void OnIsVariantsModeChanged(bool value)
+    {
+        if (BundleArtifacts == value)
+        {
+            BundleArtifacts = !value;
+        }
+    }
+
+    partial void OnBundleArtifactsChanged(bool value)
+    {
+        if (IsVariantsMode == value)
+        {
+            IsVariantsMode = !value;
+        }
+    }
 
     [ObservableProperty]
     private string? _validationError;
@@ -95,6 +120,13 @@ public partial class AddReleaseDialogViewModel(
         IsFeatured = existing.IsFeatured;
         Changelog = existing.Changelog ?? string.Empty;
         BundleArtifacts = existing.BundleArtifacts;
+        IsVariantsMode = !existing.BundleArtifacts;
+        ImageUrlsInput = existing.ImageUrls is { Count: > 0 }
+            ? string.Join(Environment.NewLine, existing.ImageUrls)
+            : string.Empty;
+        VideoUrlsInput = existing.VideoUrls is { Count: > 0 }
+            ? string.Join(Environment.NewLine, existing.VideoUrls)
+            : string.Empty;
 
         Artifacts.Clear();
         foreach (var artifact in existing.Artifacts)
@@ -505,10 +537,26 @@ public partial class AddReleaseDialogViewModel(
             BundleArtifacts = BundleArtifacts,
             Artifacts = [.. Artifacts],
             Dependencies = [.. Dependencies],
+            ImageUrls = ParseUrls(ImageUrlsInput),
+            VideoUrls = ParseUrls(VideoUrlsInput),
         };
 
         ArgumentNullException.ThrowIfNull(onReleaseCreated);
         onReleaseCreated(release);
+    }
+
+    private List<string> ParseUrls(string? input)
+    {
+        if (string.IsNullOrWhiteSpace(input))
+        {
+            return [];
+        }
+
+        return input
+            .Split(["\r\n", "\r", "\n", ","], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Where(u => !string.IsNullOrWhiteSpace(u))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
     }
 
     private void Validate()

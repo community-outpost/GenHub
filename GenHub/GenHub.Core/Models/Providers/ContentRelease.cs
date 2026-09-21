@@ -65,6 +65,18 @@ public class ContentRelease
     public bool BundleArtifacts { get; set; }
 
     /// <summary>
+    /// Gets or sets media image URLs (screenshots, promotional artwork) specific to this release.
+    /// </summary>
+    [JsonPropertyName("imageUrls")]
+    public List<string> ImageUrls { get; set; } = [];
+
+    /// <summary>
+    /// Gets or sets video URLs (trailers, preview videos) specific to this release.
+    /// </summary>
+    [JsonPropertyName("videoUrls")]
+    public List<string> VideoUrls { get; set; } = [];
+
+    /// <summary>
     /// Gets or sets dependencies required by this release.
     /// </summary>
     [JsonPropertyName("dependencies")]

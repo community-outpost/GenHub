@@ -315,6 +315,16 @@ public abstract partial class DownloadableItemViewModel : ObservableObject, IDow
     public bool HasPreviewImages => PreviewImages.Count > 0;
 
     /// <summary>
+    /// Gets the collection of preview videos for this item.
+    /// </summary>
+    public ObservableCollection<string> PreviewVideos { get; } = [];
+
+    /// <summary>
+    /// Gets a value indicating whether preview videos are available.
+    /// </summary>
+    public bool HasPreviewVideos => PreviewVideos.Count > 0;
+
+    /// <summary>
     /// Gets or sets a value indicating whether the item is downloaded.
     /// </summary>
     [ObservableProperty]

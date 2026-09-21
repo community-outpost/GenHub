@@ -740,6 +740,38 @@
                                                                     </ItemsControl>
                                                                 </ScrollViewer>
                                                             </StackPanel>
+
+                                                            <!-- Preview Videos -->
+                                                            <StackPanel Spacing="6" IsVisible="{Binding HasPreviewVideos}">
+                                                                <TextBlock Text="{localization:Localize Downloads.ContentDetail.PreviewVideos}" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" />
+                                                                <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
+                                                                    <ItemsControl ItemsSource="{Binding PreviewVideos}">
+                                                                        <ItemsControl.ItemsPanel>
+                                                                            <ItemsPanelTemplate>
+                                                                                <StackPanel Orientation="Horizontal" Spacing="10" />
+                                                                            </ItemsPanelTemplate>
+                                                                        </ItemsControl.ItemsPanel>
+                                                                        <ItemsControl.ItemTemplate>
+                                                                            <DataTemplate>
+                                                                                <Button Command="{Binding $parent[views:ContentDetailView].((vm:ContentDetailViewModel)DataContext).OpenFullScreenMediaCommand}"
+                                                                                        CommandParameter="{Binding}"
+                                                                                        Background="{DynamicResource CardBackground}"
+                                                                                        BorderThickness="1"
+                                                                                        BorderBrush="{DynamicResource BorderBrush}"
+                                                                                        CornerRadius="6"
+                                                                                        Padding="12,8"
+                                                                                        Cursor="Hand"
+                                                                                        ToolTip.Tip="{localization:Localize Downloads.ContentDetail.PlayVideoTooltip}">
+                                                                                    <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                                                                        <PathIcon Data="M8 5v14l11-7z" Width="14" Height="14" Foreground="{DynamicResource AccentBrush}"/>
+                                                                                        <TextBlock Text="{Binding}" MaxWidth="240" TextTrimming="CharacterEllipsis" FontSize="12" Foreground="{DynamicResource TextPrimary}"/>
+                                                                                    </StackPanel>
+                                                                                </Button>
+                                                                            </DataTemplate>
+                                                                        </ItemsControl.ItemTemplate>
+                                                                    </ItemsControl>
+                                                                </ScrollViewer>
+                                                            </StackPanel>
                                                         </StackPanel>
                                                     </StackPanel>
                                                 </Grid>

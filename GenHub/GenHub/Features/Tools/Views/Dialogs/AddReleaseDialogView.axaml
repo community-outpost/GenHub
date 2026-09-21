@@ -168,10 +168,32 @@
                          </ListBox.ItemTemplate>
                     </ListBox>
                     <TextBlock Text="{localization:Localize Tools.PublisherStudio.Release.ArtifactRequired}" FontSize="11" Foreground="{DynamicResource StatusErrorBrush}" IsVisible="{Binding !Artifacts.Count}"/>
-                    <CheckBox Content="{localization:Localize Tools.PublisherStudio.Release.BundleArtifacts}"
-                              IsChecked="{Binding BundleArtifacts}"
-                              Foreground="{DynamicResource TextPrimary}"
-                              ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Release.BundleArtifactsHint}"/>
+                    <!-- Mode: Bundle vs Variants -->
+                    <Border Background="{DynamicResource GlassFillSubtleBrush}"
+                            BorderBrush="{DynamicResource GlassBorderBrush}"
+                            BorderThickness="1"
+                            CornerRadius="8"
+                            Padding="12">
+                        <StackPanel Spacing="10">
+                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Release.ArtifactDeliveryMode}" FontWeight="SemiBold" FontSize="12" Foreground="{DynamicResource TextPrimary}"/>
+                            <RadioButton IsChecked="{Binding BundleArtifacts, Mode=TwoWay}"
+                                         GroupName="ReleaseArtifactMode"
+                                         Foreground="{DynamicResource TextPrimary}">
+                                <StackPanel Spacing="2">
+                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Release.BundleMode}" FontWeight="SemiBold" FontSize="12" Foreground="{DynamicResource TextPrimary}"/>
+                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Release.BundleModeDesc}" FontSize="11" Foreground="{DynamicResource TextSecondary}" TextWrapping="Wrap"/>
+                                </StackPanel>
+                            </RadioButton>
+                            <RadioButton IsChecked="{Binding IsVariantsMode, Mode=TwoWay}"
+                                         GroupName="ReleaseArtifactMode"
+                                         Foreground="{DynamicResource TextPrimary}">
+                                <StackPanel Spacing="2">
+                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Release.VariantsMode}" FontWeight="SemiBold" FontSize="12" Foreground="{DynamicResource TextPrimary}"/>
+                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Release.VariantsModeDesc}" FontSize="11" Foreground="{DynamicResource TextSecondary}" TextWrapping="Wrap"/>
+                                </StackPanel>
+                            </RadioButton>
+                        </StackPanel>
+                    </Border>
                 </StackPanel>
 
                 <!-- Dependencies Section -->
@@ -208,6 +230,25 @@
                              </DataTemplate>
                          </ListBox.ItemTemplate>
                     </ListBox>
+                </StackPanel>
+
+                <!-- Release Media (Images & Videos) Section -->
+                <StackPanel Spacing="8">
+                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Library.MediaAndTheme}" Classes="label"/>
+                    <StackPanel Spacing="4">
+                        <TextBlock Text="{localization:Localize Tools.PublisherStudio.Release.ReleaseImages}" Classes="label"/>
+                        <TextBox Text="{Binding ImageUrlsInput, Mode=TwoWay}"
+                                 AcceptsReturn="True"
+                                 Height="60"
+                                 Watermark="https://example.com/screenshot1.jpg&#x0a;https://example.com/screenshot2.jpg"/>
+                    </StackPanel>
+                    <StackPanel Spacing="4">
+                        <TextBlock Text="{localization:Localize Tools.PublisherStudio.Release.ReleaseVideos}" Classes="label"/>
+                        <TextBox Text="{Binding VideoUrlsInput, Mode=TwoWay}"
+                                 AcceptsReturn="True"
+                                 Height="60"
+                                 Watermark="https://www.youtube.com/watch?v=...&#x0a;https://example.com/video.mp4"/>
+                    </StackPanel>
                 </StackPanel>
             </StackPanel>
         </ScrollViewer>

@@ -261,6 +261,22 @@
                                 </ItemsControl.ItemTemplate>
                             </ItemsControl>
                         </StackPanel>
+
+                        <!-- Screenshots -->
+                        <StackPanel Spacing="4">
+                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.Screenshots}" Classes="label"/>
+                            <TextBox Text="{Binding ScreenshotUrlsInput, Mode=TwoWay}"
+                                     AcceptsReturn="True"
+                                     Height="65"
+                                     Watermark="https://example.com/screenshot1.png&#x0a;https://example.com/screenshot2.png"/>
+                        </StackPanel>
+
+                        <!-- Video Preview URL -->
+                        <StackPanel Spacing="4">
+                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.VideoUrl}" Classes="label"/>
+                            <TextBox Text="{Binding VideoUrl, Mode=TwoWay}"
+                                     Watermark="https://www.youtube.com/watch?v=..."/>
+                        </StackPanel>
                     </StackPanel>
                 </Expander>
 

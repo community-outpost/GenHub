@@ -1145,7 +1145,7 @@ public partial class ContentDetailViewModel(
     /// </summary>
     public void PopulateReleasesFromVariants()
     {
-        if (Variants.Count == 0)
+        if (Variants.Count == 0 || Releases.Count > 0)
         {
             return;
         }
@@ -2301,7 +2301,7 @@ public partial class ContentDetailViewModel(
             SelectedVariant = chosenVariant;
             RebuildVariantAxes();
 
-            if (ParsedPage == null)
+            if (ParsedPage == null && Releases.Count == 0)
             {
                 PopulateReleasesFromVariants();
             }
@@ -2399,6 +2399,46 @@ public partial class ContentDetailViewModel(
         {
             IsDownloaded = value.CurrentState == ContentState.Downloaded;
             IsUpdateAvailable = value.CurrentState is ContentState.UpdateAvailable;
+        }
+
+        if (SelectedDownloadableItem is ReleaseItemViewModel currentRel && value != null && IsCatalogContent)
+        {
+            if (!string.IsNullOrWhiteSpace(value.DownloadUrl))
+            {
+                currentRel.DownloadUrl = value.DownloadUrl;
+            }
+
+            if (!string.IsNullOrWhiteSpace(value.File))
+            {
+                currentRel.Filename = value.File;
+            }
+
+            if (value.Size.HasValue && value.Size.Value > 0)
+            {
+                currentRel.FileSize = value.Size.Value;
+            }
+
+            if (!string.IsNullOrWhiteSpace(value.Sha256))
+            {
+                currentRel.Sha256Hash = value.Sha256;
+            }
+
+            if (currentRel.File != null)
+            {
+                currentRel.File = new DownloadableFile(
+                    Name: !string.IsNullOrWhiteSpace(currentRel.Filename) ? currentRel.Filename : currentRel.Name,
+                    DownloadUrl: currentRel.DownloadUrl,
+                    SizeBytes: currentRel.FileSize > 0 ? currentRel.FileSize : null,
+                    UploadDate: currentRel.ReleaseDate,
+                    Version: currentRel.Version,
+                    Category: currentRel.Category,
+                    Uploader: currentRel.Uploader,
+                    Filename: currentRel.Filename,
+                    Description: currentRel.FullDescription,
+                    FileSectionType: FileSectionType.Downloads);
+            }
+
+            RefreshSelectedTargetProperties();
         }
 
         if (value != null &&
@@ -3538,6 +3578,7 @@ public partial class ContentDetailViewModel(
             PopulateCatalogScreenshots(catalogItem);
             PopulateCatalogReleases(catalogItem);
             PopulateCatalogMedia(catalogItem);
+            PopulateCatalogAddons(catalogItem);
 
             OnPropertyChanged(nameof(Description));
             OnPropertyChanged(nameof(FormattedDescription));
@@ -3605,6 +3646,51 @@ public partial class ContentDetailViewModel(
         OnPropertyChanged(nameof(HasReleases));
         OnPropertyChanged(nameof(ReleasesCount));
         OnPropertyChanged(nameof(ShowSelectedTargetBanner));
+    }
+
+    private bool IsCatalogContent =>
+        searchResult.ResolverId == CatalogConstants.GenericCatalogResolverId ||
+        (searchResult.ResolverMetadata != null &&
+         searchResult.ResolverMetadata.ContainsKey(CatalogConstants.CatalogItemJsonMetadataKey));
+
+    private static bool IsVideoUrl(string url)
+    {
+        return url.Contains("youtube.com", StringComparison.OrdinalIgnoreCase) ||
+               url.Contains("youtu.be", StringComparison.OrdinalIgnoreCase) ||
+               url.Contains("vimeo.com", StringComparison.OrdinalIgnoreCase) ||
+               url.EndsWith(".mp4", StringComparison.OrdinalIgnoreCase) ||
+               url.EndsWith(".webm", StringComparison.OrdinalIgnoreCase) ||
+               url.EndsWith(".mkv", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private void PopulateCatalogAddons(CatalogContentItem catalogItem)
+    {
+        if (catalogItem.Addons is not { Count: > 0 })
+        {
+            return;
+        }
+
+        Addons.Clear();
+        foreach (var addonDep in catalogItem.Addons)
+        {
+            var file = new DownloadableFile(
+                Name: !string.IsNullOrWhiteSpace(addonDep.ContentId) ? addonDep.ContentId : "Addon",
+                DownloadUrl: addonDep.DefinitionUrl ?? addonDep.CatalogUrl ?? string.Empty,
+                SizeBytes: null,
+                UploadDate: null,
+                Version: addonDep.VersionConstraint,
+                Category: Enum.TryParse<ContentType>(addonDep.ContentType, true, out var parsedType) ? parsedType.GetDisplayName() : addonDep.ContentType,
+                Uploader: addonDep.PublisherId ?? searchResult.AuthorName,
+                Filename: addonDep.ContentId,
+                Description: $"Addon dependency for {catalogItem.Name}",
+                FileSectionType: FileSectionType.Addons);
+
+            var addonItem = CreateAddonItemViewModel(file);
+            Addons.Add(addonItem);
+        }
+
+        OnPropertyChanged(nameof(HasAddons));
+        OnPropertyChanged(nameof(AddonsCount));
     }
 
     private void PopulateCatalogMedia(CatalogContentItem catalogItem)
@@ -3956,7 +4042,24 @@ public partial class ContentDetailViewModel(
             Sha256Hash = primaryArtifact?.Sha256,
             Md5Hash = null,
             IsDetailsLoaded = true,
+            Release = rel,
         };
+
+        if (rel.ImageUrls != null)
+        {
+            foreach (var img in rel.ImageUrls.Where(u => !string.IsNullOrWhiteSpace(u)))
+            {
+                releaseItem.PreviewImages.Add(img);
+            }
+        }
+
+        if (rel.VideoUrls != null)
+        {
+            foreach (var vid in rel.VideoUrls.Where(u => !string.IsNullOrWhiteSpace(u)))
+            {
+                releaseItem.PreviewVideos.Add(vid);
+            }
+        }
 
         releaseItem.SelectCommand = new RelayCommand(
             () => SelectDownloadableItem(releaseItem, isUserInitiated: true),
@@ -4218,6 +4321,46 @@ public partial class ContentDetailViewModel(
         foreach (var addon in Addons)
         {
             addon.IsSelected = ReferenceEquals(addon, item);
+        }
+
+        if (item is ReleaseItemViewModel relItem && relItem.Release != null)
+        {
+            var rel = relItem.Release;
+            if (!rel.BundleArtifacts && rel.Artifacts.Count > 1)
+            {
+                Variants.Clear();
+                foreach (var art in rel.Artifacts)
+                {
+                    var varName = !string.IsNullOrWhiteSpace(art.Variant)
+                        ? art.Variant
+                        : (!string.IsNullOrWhiteSpace(art.Filename) ? art.Filename : "Variant");
+                    var axis = !string.IsNullOrWhiteSpace(art.VariantAxis) ? art.VariantAxis : "Variant";
+                    Variants.Add(new InstallableVariant
+                    {
+                        Id = !string.IsNullOrWhiteSpace(art.Filename) ? art.Filename : art.DownloadUrl,
+                        Name = varName,
+                        ManifestId = art.Sha256,
+                        DownloadUrl = art.DownloadUrl,
+                        File = art.Filename,
+                        Size = art.Size,
+                        Sha256 = art.Sha256,
+                        VariantType = axis,
+                        IsDefault = art.IsDefaultVariant,
+                    });
+                }
+
+                var defaultVar = Variants.FirstOrDefault(v => v.IsDefault) ?? Variants[0];
+                SelectedVariant = defaultVar;
+                OnPropertyChanged(nameof(HasVariants));
+                RebuildVariantAxes();
+            }
+            else if (IsCatalogContent)
+            {
+                Variants.Clear();
+                SelectedVariant = null;
+                OnPropertyChanged(nameof(HasVariants));
+                RebuildVariantAxes();
+            }
         }
 
         if (Variants.Count > 0)
@@ -5472,6 +5615,24 @@ public partial class ContentDetailViewModel(
         }
         else if (item is string url && !string.IsNullOrWhiteSpace(url))
         {
+            if (IsVideoUrl(url) && Uri.TryCreate(url, UriKind.Absolute, out var videoUri) &&
+                (videoUri.Scheme == Uri.UriSchemeHttp || videoUri.Scheme == Uri.UriSchemeHttps))
+            {
+                try
+                {
+                    System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                    {
+                        FileName = videoUri.AbsoluteUri,
+                        UseShellExecute = true,
+                    });
+                    return;
+                }
+                catch (Exception ex)
+                {
+                    logger.LogWarning(ex, "Failed to open video in browser: {Url}", url);
+                }
+            }
+
             FullScreenMediaUrl = url;
             FullScreenMediaTitle = GetLocalizedString("Downloads.ContentDetail.ImagePreview", "Image Preview");
             IsFullScreenMediaOpen = true;

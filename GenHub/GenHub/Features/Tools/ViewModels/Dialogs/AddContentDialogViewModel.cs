@@ -134,6 +134,12 @@ public partial class AddContentDialogViewModel(
     private string? _accentColor;
 
     [ObservableProperty]
+    private string? _videoUrl;
+
+    [ObservableProperty]
+    private string _screenshotUrlsInput = string.Empty;
+
+    [ObservableProperty]
     private bool _isValid;
 
     [ObservableProperty]
@@ -199,6 +205,10 @@ public partial class AddContentDialogViewModel(
         BannerArtwork = existing.Metadata?.BannerUrl;
         BackdropArtwork = existing.Metadata?.BackdropUrl;
         AccentColor = existing.Metadata?.AccentColor;
+        VideoUrl = existing.Metadata?.VideoUrl;
+        ScreenshotUrlsInput = existing.Metadata?.ScreenshotUrls is { Count: > 0 }
+            ? string.Join(Environment.NewLine, existing.Metadata.ScreenshotUrls)
+            : string.Empty;
     }
 
     /// <summary>
@@ -390,6 +400,20 @@ public partial class AddContentDialogViewModel(
     /// </summary>
     /// <param name="input">The input string.</param>
     /// <returns>A list of tags.</returns>
+    private static List<string> ParseUrls(string? input)
+    {
+        if (string.IsNullOrWhiteSpace(input))
+        {
+            return [];
+        }
+
+        return input
+            .Split(["\r\n", "\r", "\n", ","], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Where(u => !string.IsNullOrWhiteSpace(u))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
+
     private static List<string> ParseTags(string input)
     {
         if (string.IsNullOrWhiteSpace(input))
@@ -481,6 +505,8 @@ public partial class AddContentDialogViewModel(
             BundleArtifacts = source.BundleArtifacts,
             Artifacts = source.Artifacts.Select(CloneArtifact).ToList(),
             Dependencies = source.Dependencies.Select(CloneDependency).ToList(),
+            ImageUrls = [.. source.ImageUrls],
+            VideoUrls = [.. source.VideoUrls],
         };
     }
 
@@ -1207,9 +1233,11 @@ public partial class AddContentDialogViewModel(
         var banner = NormalizeArtworkValue(BannerArtwork);
         var backdrop = NormalizeArtworkValue(BackdropArtwork);
         var accent = NormalizeArtworkValue(AccentColor);
+        var video = NormalizeArtworkValue(VideoUrl);
+        var screenshots = ParseUrls(ScreenshotUrlsInput);
         var source = _existingItem?.Metadata;
 
-        if (icon == null && banner == null && backdrop == null && accent == null && source == null)
+        if (icon == null && banner == null && backdrop == null && accent == null && video == null && screenshots.Count == 0 && source == null)
         {
             return null;
         }
@@ -1220,8 +1248,8 @@ public partial class AddContentDialogViewModel(
             BannerUrl = banner,
             BackdropUrl = backdrop,
             AccentColor = accent,
-            ScreenshotUrls = source?.ScreenshotUrls is { } shots ? [.. shots] : [],
-            VideoUrl = source?.VideoUrl,
+            ScreenshotUrls = screenshots.Count > 0 ? screenshots : (source?.ScreenshotUrls is { } shots ? [.. shots] : []),
+            VideoUrl = video ?? source?.VideoUrl,
             DocumentationUrl = source?.DocumentationUrl,
             Author = source?.Author,
             License = source?.License,
@@ -1327,6 +1355,11 @@ public partial class AddContentDialogViewModel(
         foreach (var dependency in _existingItem.BundledItems)
         {
             contentItem.BundledItems.Add(CloneDependency(dependency));
+        }
+
+        foreach (var addon in _existingItem.Addons)
+        {
+            contentItem.Addons.Add(CloneDependency(addon));
         }
     }
 

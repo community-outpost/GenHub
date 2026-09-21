@@ -13147,6 +13147,66 @@ Project structure ready. Edit files in GameFilesEdited folder.</value>
   <data name="Tools.PublisherStudio.Hosting.AssetCategoryCloudDefinitionFormat" xml:space="preserve">
     <value>Cloud Publisher Definition ({0})</value>
   </data>
+  <data name="Downloads.ContentDetail.PreviewVideos" xml:space="preserve">
+    <value>Preview Videos</value>
+  </data>
+  <data name="Downloads.ContentDetail.PlayVideoTooltip" xml:space="preserve">
+    <value>Play or open video</value>
+  </data>
+  <data name="Tools.PublisherStudio.Release.VariantsMode" xml:space="preserve">
+    <value>Alternative Variants (e.g. Languages, Resolutions)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Release.VariantsModeDesc" xml:space="preserve">
+    <value>Each file is a distinct variant the user chooses from (e.g. English, Russian, Arabic or 720p, 1080p, 4K).</value>
+  </data>
+  <data name="Tools.PublisherStudio.Release.BundleMode" xml:space="preserve">
+    <value>Install all files together (Bundle)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Release.BundleModeDesc" xml:space="preserve">
+    <value>All files in this release are downloaded and installed together as a single package.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Release.ReleaseImages" xml:space="preserve">
+    <value>Release Image URLs (one per line)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Release.ReleaseVideos" xml:space="preserve">
+    <value>Release Video URLs (one per line)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.Addons" xml:space="preserve">
+    <value>Addons</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.AddonsHint" xml:space="preserve">
+    <value>Optional addon dependencies associated with this content item.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.AddAddon" xml:space="preserve">
+    <value>Add Addon</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.NoAddons" xml:space="preserve">
+    <value>No addons specified for this content item.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.RemoveAddonTooltip" xml:space="preserve">
+    <value>Remove this addon dependency</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ChangesPending" xml:space="preserve">
+    <value>Changes Pending</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.Screenshots" xml:space="preserve">
+    <value>Screenshot URLs (one per line)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.VideoUrl" xml:space="preserve">
+    <value>Video Preview URL</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.MediaAndTheme" xml:space="preserve">
+    <value>Media &amp; Theme</value>
+  </data>
+  <data name="Tools.PublisherStudio.Release.ArtifactDeliveryMode" xml:space="preserve">
+    <value>Artifact Delivery Mode</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.BadgeVariants" xml:space="preserve">
+    <value>VARIANTS</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.BadgeBundle" xml:space="preserve">
+    <value>BUNDLE</value>
+  </data>
   <data name="GameProfiles.Notification.UnexpectedExit.Title" xml:space="preserve">
     <value>Game Exited Unexpectedly</value>
   </data>

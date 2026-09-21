@@ -495,6 +495,50 @@ public partial class ContentLibraryViewModel(
     }
 
     /// <summary>
+    /// Adds an addon dependency to the selected content item.
+    /// </summary>
+    [RelayCommand]
+    private async Task AddAddonAsync()
+    {
+        if (SelectedContent == null) return;
+
+        var dependency = await dialogService.ShowAddDependencyDialogAsync(activeCatalog.Catalog, SelectedContent);
+        if (dependency != null)
+        {
+            SelectedContent.Addons.Add(dependency);
+            RefreshSelectedContent();
+
+            MarkProjectAndCatalogDirty();
+            if (parentViewModel != null)
+            {
+                await parentViewModel.SaveProjectAsync();
+            }
+
+            logger.LogInformation("Added addon to {ContentId} in catalog: {CatalogId}: {DependencyId}", SelectedContent.Id, activeCatalog.Id, dependency.ContentId);
+        }
+    }
+
+    /// <summary>
+    /// Removes an addon dependency from the selected content item.
+    /// </summary>
+    [RelayCommand]
+    private async Task RemoveAddonAsync(CatalogDependency? dependency)
+    {
+        if (SelectedContent == null || dependency == null) return;
+
+        SelectedContent.Addons.Remove(dependency);
+        RefreshSelectedContent();
+
+        MarkProjectAndCatalogDirty();
+        if (parentViewModel != null)
+        {
+            await parentViewModel.SaveProjectAsync();
+        }
+
+        logger.LogInformation("Removed addon {DependencyId} from {ContentId}", dependency.ContentId, SelectedContent.Id);
+    }
+
+    /// <summary>
     /// Deletes a release from the selected content item after user confirmation.
     /// </summary>
     [RelayCommand]

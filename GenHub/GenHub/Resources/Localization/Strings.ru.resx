@@ -13049,6 +13049,66 @@ GameFilesEdited/Data/INI/**/*.ini</value>
   <data name="Tools.PublisherStudio.Hosting.AssetCategoryCloudDefinitionFormat" xml:space="preserve">
     <value>Облачный манифест издателя ({0})</value>
   </data>
+  <data name="Downloads.ContentDetail.PreviewVideos" xml:space="preserve">
+    <value>Видео для ознакомления</value>
+  </data>
+  <data name="Downloads.ContentDetail.PlayVideoTooltip" xml:space="preserve">
+    <value>Воспроизвести или открыть видео</value>
+  </data>
+  <data name="Tools.PublisherStudio.Release.VariantsMode" xml:space="preserve">
+    <value>Альтернативные варианты (напр., языки, разрешения)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Release.VariantsModeDesc" xml:space="preserve">
+    <value>Каждый файл представляет отдельный вариант на выбор пользователя (напр., русский, английский или 720p, 1080p, 4K).</value>
+  </data>
+  <data name="Tools.PublisherStudio.Release.BundleMode" xml:space="preserve">
+    <value>Установить все файлы вместе (пакет)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Release.BundleModeDesc" xml:space="preserve">
+    <value>Все файлы в этом выпуске загружаются и устанавливаются вместе как единый пакет.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Release.ReleaseImages" xml:space="preserve">
+    <value>URL изображений выпуска (по одному на строку)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Release.ReleaseVideos" xml:space="preserve">
+    <value>URL видео выпуска (по одному на строку)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.Addons" xml:space="preserve">
+    <value>Дополнения</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.AddonsHint" xml:space="preserve">
+    <value>Дополнительные зависимости (аддоны), связанные с этим элементом контента.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.AddAddon" xml:space="preserve">
+    <value>Добавить дополнение</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.NoAddons" xml:space="preserve">
+    <value>Для этого элемента контента дополнения не указаны.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.RemoveAddonTooltip" xml:space="preserve">
+    <value>Удалить зависимость дополнения</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ChangesPending" xml:space="preserve">
+    <value>Ожидают загрузки</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.Screenshots" xml:space="preserve">
+    <value>URL скриншотов (по одному на строку)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.VideoUrl" xml:space="preserve">
+    <value>URL видео-превью</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.MediaAndTheme" xml:space="preserve">
+    <value>Медиа и тема</value>
+  </data>
+  <data name="Tools.PublisherStudio.Release.ArtifactDeliveryMode" xml:space="preserve">
+    <value>Режим доставки артефактов</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.BadgeVariants" xml:space="preserve">
+    <value>ВАРИАНТЫ</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.BadgeBundle" xml:space="preserve">
+    <value>КОМПЛЕКТ</value>
+  </data>
   <data name="GameProfiles.Notification.UnexpectedExit.Title" xml:space="preserve">
     <value>Игра неожиданно завершилась</value>
   </data>

@@ -266,9 +266,16 @@
                                 Command="{Binding UploadDefinitionCommand}"
                                 IsEnabled="{Binding HasDefinitionChanges}"
                                 ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Studio.UploadDefinitionTooltip}">
-                            <PathIcon Data="{StaticResource PublishIcon}"
-                                      Width="14" Height="14"
-                                      Foreground="{DynamicResource TextSecondary}"/>
+                            <Grid>
+                                <PathIcon Data="{StaticResource PublishIcon}"
+                                          Width="14" Height="14"
+                                          Foreground="{DynamicResource TextMuted}"
+                                          IsVisible="{Binding !HasDefinitionChanges}"/>
+                                <PathIcon Data="{StaticResource PublishIcon}"
+                                          Width="14" Height="14"
+                                          Foreground="{DynamicResource AccentColorBrush}"
+                                          IsVisible="{Binding HasDefinitionChanges}"/>
+                            </Grid>
                         </Button>
                     </StackPanel>
                 </Grid>

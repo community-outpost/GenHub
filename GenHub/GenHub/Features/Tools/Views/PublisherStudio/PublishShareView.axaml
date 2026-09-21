@@ -548,7 +548,9 @@
                             <!-- Upload Definition Action Button -->
                             <StackPanel Orientation="Horizontal" Spacing="12">
                                 <Button Command="{Binding UploadProviderDefinitionCommand}"
-                                        Classes="glass-btn">
+                                        Classes="accent-glass-btn"
+                                        Padding="14,8"
+                                        VerticalAlignment="Center">
                                     <Button.IsEnabled>
                                         <MultiBinding Converter="{x:Static conv:MultiBooleanAndConverter.Instance}">
                                             <Binding Path="HasDefinitionChanges"/>
@@ -557,9 +559,21 @@
                                     </Button.IsEnabled>
                                     <StackPanel Orientation="Horizontal" Spacing="8">
                                         <PathIcon Data="{StaticResource PublishIcon}" Width="14" Height="14" Foreground="White"/>
-                                        <TextBlock Text="{localization:Localize Tools.PublisherStudio.Publish.UploadDefinition}" FontWeight="SemiBold" Foreground="White"/>
+                                        <TextBlock Text="{localization:Localize Tools.PublisherStudio.Publish.UploadDefinition}" FontWeight="Bold" Foreground="White"/>
                                     </StackPanel>
                                 </Button>
+                                <Border Background="{DynamicResource AccentBadgeBackgroundBrush}"
+                                        BorderBrush="{DynamicResource AccentColorBrush}"
+                                        BorderThickness="1"
+                                        CornerRadius="6"
+                                        Padding="10,4"
+                                        VerticalAlignment="Center"
+                                        IsVisible="{Binding HasDefinitionChanges}">
+                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Publish.ChangesPending}"
+                                               FontSize="11"
+                                               FontWeight="Bold"
+                                               Foreground="{DynamicResource AccentColorBrush}"/>
+                                </Border>
                             </StackPanel>
                         </StackPanel>
                     </Border>
@@ -629,7 +643,7 @@
                                                         Command="{Binding #RootView.((vm:PublishShareViewModel)DataContext).PublishCatalogByIdCommand}"
                                                         CommandParameter="{Binding Id}"
                                                         ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Publish.PublishCatalogTooltip}"
-                                                        Classes="glass-btn"
+                                                        Classes="accent-glass-btn"
                                                         Padding="12,6"
                                                         VerticalAlignment="Center">
                                                     <Button.IsEnabled>

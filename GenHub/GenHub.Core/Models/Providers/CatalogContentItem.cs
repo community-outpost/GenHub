@@ -66,6 +66,12 @@ public class CatalogContentItem
     public List<CatalogDependency> BundledItems { get; set; } = [];
 
     /// <summary>
+    /// Gets or sets explicit addons or addon dependencies associated with this content item.
+    /// </summary>
+    [JsonPropertyName("addons")]
+    public List<CatalogDependency> Addons { get; set; } = [];
+
+    /// <summary>
     /// Gets or sets the content ID that this addon extends (for Addon type).
     /// Format: "contentId" for same catalog, or "publisherId/contentId" for cross-publisher.
     /// </summary>
