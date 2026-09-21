@@ -143,10 +143,11 @@ GENHUB_ONLINE_ENABLED=1 GENHUB_ONLINE_EDGE_URL=http://127.0.0.1:8787 \
 
 ## What is still gated
 
-- **OQ1/D3**: the overlay spike (two machines, real NATs, packet capture) picks
-  the sidecar. Until then the edge reports `overlay: "pending-selection"`,
-  joins succeed lobby-only (roster + presence, no tunneling), and the UI says
-  so instead of warning.
+- **OQ1/D3**: the overlay spike picks the sidecar; see
+  [overlay-spike.md](overlay-spike.md) for the recommended TUN + TURN-relayed
+  design and validation plan. Until then the edge reports
+  `overlay: "pending-selection"`, joins succeed lobby-only (roster +
+  presence, no tunneling), and the UI says so instead of warning.
 - **OQ4**: production hosting + TURN/relay funding and secret provisioning
   (one `wrangler secret put [KEY]` per secret: `JWT_SIGNING_SECRET`,
   `PASSWORD_PEPPER`, `COTURN_SECRET`).
