@@ -1,8 +1,13 @@
+using GenHub.Core.Constants;
+using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GitHub;
 using GenHub.Features.AppUpdate.Services;
 using Microsoft.Extensions.Logging;
 using Moq;
+using System.Net;
+using System.Net.Http;
+using System.Text;
 using System.Text.Json;
 using Velopack.Sources;
 
@@ -13,6 +18,23 @@ namespace GenHub.Tests.Core.Features.AppUpdate.Services;
 /// </summary>
 public class VelopackUpdateManagerTests
 {
+    private sealed class TestHttpMessageHandler(Func<HttpRequestMessage, HttpResponseMessage> handler) : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken) =>
+            Task.FromResult(handler(request));
+    }
+
+    private const string CannedGitHubReleasesJson = """
+        [
+          {
+            "tag_name": "v0.3.0",
+            "name": "GenHub v0.3.0",
+            "prerelease": false,
+            "draft": false
+          }
+        ]
+        """;
+
     private readonly Mock<ILogger<VelopackUpdateManager>> _mockLogger;
     private readonly Mock<IHttpClientFactory> _mockHttpClientFactory;
     private readonly Mock<IGitHubAuthService> _mockGitHubAuthService;
@@ -28,8 +50,10 @@ public class VelopackUpdateManagerTests
         _mockGitHubAuthService = new Mock<IGitHubAuthService>();
         _mockUserSettingsService = new Mock<IUserSettingsService>();
 
-        // Use the actual interface method, not the extension method
-        _mockHttpClientFactory.Setup(x => x.CreateClient(It.IsAny<string>())).Returns(new HttpClient());
+        // Return a fresh canned HttpClient per call to support dispose-per-request patterns
+        _mockHttpClientFactory
+            .Setup(x => x.CreateClient(It.IsAny<string>()))
+            .Returns(() => CreateCannedHttpClient(CannedGitHubReleasesJson));
 
         // Default: no GitHub authentication available
         _mockGitHubAuthService.SetupGet(x => x.IsAuthenticated).Returns(false);
@@ -53,7 +77,7 @@ public class VelopackUpdateManagerTests
     }
 
     /// <summary>
-    /// Tests that CheckForUpdatesAsync returns null when running from development environment.
+    /// Tests that CheckForUpdatesAsync returns null and sets no GitHub update flag when running from development environment.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     [Fact]
@@ -67,6 +91,73 @@ public class VelopackUpdateManagerTests
 
         // Assert
         Assert.Null(result);
+        Assert.False(manager.HasUpdateAvailableFromGitHub);
+        Assert.Null(manager.LatestVersionFromGitHub);
+    }
+
+    /// <summary>
+    /// Tests that CheckForUpdatesAsync suppresses release checks for local development builds even if external checks would fail.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task CheckForUpdatesAsync_WhenLocalDevelopmentBuild_SkipsExternalChecksAndReturnsNullAsync()
+    {
+        // Arrange - HttpClientFactory is strict and throws if called, proving external requests are skipped
+        var throwingFactory = new Mock<IHttpClientFactory>(MockBehavior.Strict);
+        var manager = new VelopackUpdateManager(
+            _mockLogger.Object,
+            throwingFactory.Object,
+            _mockGitHubAuthService.Object,
+            _mockUserSettingsService.Object,
+            fileDownloader: null,
+            currentAppVersion: "0.0.1-dev",
+            isLocalDevelopmentBuild: true);
+
+        // Act
+        var result = await manager.CheckForUpdatesAsync();
+
+        // Assert
+        Assert.Null(result);
+        Assert.False(manager.HasUpdateAvailableFromGitHub);
+        Assert.Null(manager.LatestVersionFromGitHub);
+        throwingFactory.Verify(
+            x => x.CreateClient(It.IsAny<string>()),
+            Times.Never);
+    }
+
+    /// <summary>
+    /// Tests that CheckForArtifactUpdatesAsync suppresses artifact checks for local development builds.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task CheckForArtifactUpdatesAsync_WhenLocalDevelopmentBuild_SkipsArtifactChecksAndReturnsNullAsync()
+    {
+        // Arrange - even when authenticated with a subscribed PR, local dev builds skip artifact checks
+        using var secureToken = SecureStringHelper.ToSecureString("test-token");
+        _mockGitHubAuthService.SetupGet(x => x.IsAuthenticated).Returns(true);
+        _mockGitHubAuthService
+            .Setup(x => x.GetAccessTokenAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(secureToken);
+
+        var throwingFactory = new Mock<IHttpClientFactory>(MockBehavior.Strict);
+        var manager = new VelopackUpdateManager(
+            _mockLogger.Object,
+            throwingFactory.Object,
+            _mockGitHubAuthService.Object,
+            _mockUserSettingsService.Object,
+            fileDownloader: null,
+            currentAppVersion: "0.0.1-dev",
+            isLocalDevelopmentBuild: true);
+        manager.SubscribedPrNumber = 541;
+
+        // Act
+        var result = await manager.CheckForArtifactUpdatesAsync();
+
+        // Assert
+        Assert.Null(result);
+        throwingFactory.Verify(
+            x => x.CreateClient(It.IsAny<string>()),
+            Times.Never);
     }
 
     /// <summary>
@@ -287,8 +378,84 @@ public class VelopackUpdateManagerTests
     }
 
     /// <summary>
-    /// Creates a new VelopackUpdateManager instance with mocked dependencies.
+    /// Tests that installed builds (PR, branch, or release) allow release fallback when a newer GitHub release exists.
     /// </summary>
-    private VelopackUpdateManager CreateManager() =>
-        new(_mockLogger.Object, _mockHttpClientFactory.Object, _mockGitHubAuthService.Object, _mockUserSettingsService.Object);
+    /// <param name="currentAppVersion">The current application version under test.</param>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Theory]
+    [InlineData("0.0.1525-pr541")] // Installed PR build from CI
+    [InlineData("0.0.1525")] // Installed branch build from CI
+    [InlineData("0.2.0")] // Installed release build
+    public async Task CheckForUpdatesAsync_WhenInstalledBuildAndNewerReleaseExists_AllowsReleaseFallbackAsync(string currentAppVersion)
+    {
+        // Arrange
+        var manager = CreateManager(
+            currentAppVersion: currentAppVersion,
+            isLocalDevelopmentBuild: false);
+
+        // Act
+        var result = await manager.CheckForUpdatesAsync();
+
+        // Assert - UpdateManager is not installed in the test runner, so result is null,
+        // but GitHub API release update must be marked available to allow release fallback.
+        Assert.Null(result);
+        Assert.True(manager.HasUpdateAvailableFromGitHub);
+        Assert.Equal("0.3.0", manager.LatestVersionFromGitHub);
+    }
+
+    /// <summary>
+    /// Tests that an installed release build that is already up to date returns no update.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task CheckForUpdatesAsync_WhenReleaseBuildIsUpToDate_ReturnsNoUpdateAsync()
+    {
+        // Arrange - installed official release build already at 0.3.0
+        var manager = CreateManager(
+            currentAppVersion: "0.3.0",
+            isLocalDevelopmentBuild: false);
+
+        // Act
+        var result = await manager.CheckForUpdatesAsync();
+
+        // Assert
+        Assert.Null(result);
+        Assert.False(manager.HasUpdateAvailableFromGitHub);
+        Assert.Null(manager.LatestVersionFromGitHub);
+    }
+
+    private static HttpClient CreateCannedHttpClient(string responseJson, HttpStatusCode statusCode = HttpStatusCode.OK)
+    {
+        var handler = new TestHttpMessageHandler(_ => new HttpResponseMessage(statusCode)
+        {
+            Content = new StringContent(responseJson, Encoding.UTF8, "application/json"),
+        });
+        return new HttpClient(handler);
+    }
+
+    /// <summary>
+    /// Creates a new VelopackUpdateManager instance with mocked dependencies and optional version overrides.
+    /// </summary>
+    private VelopackUpdateManager CreateManager(
+        string? currentAppVersion = null,
+        bool? isLocalDevelopmentBuild = null)
+    {
+        if (currentAppVersion != null || isLocalDevelopmentBuild.HasValue)
+        {
+            return new VelopackUpdateManager(
+                _mockLogger.Object,
+                _mockHttpClientFactory.Object,
+                _mockGitHubAuthService.Object,
+                _mockUserSettingsService.Object,
+                fileDownloader: null,
+                currentAppVersion: currentAppVersion ?? AppConstants.AppVersion,
+                isLocalDevelopmentBuild: isLocalDevelopmentBuild ?? AppConstants.IsLocalBuild);
+        }
+
+        return new VelopackUpdateManager(
+            _mockLogger.Object,
+            _mockHttpClientFactory.Object,
+            _mockGitHubAuthService.Object,
+            _mockUserSettingsService.Object);
+    }
 }

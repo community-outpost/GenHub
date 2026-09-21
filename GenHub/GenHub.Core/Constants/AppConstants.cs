@@ -13,6 +13,11 @@ public static class AppConstants
     /// </summary>
     public const string AppName = "GenHub";
 
+    /// <summary>
+    /// The default build channel for local development builds.
+    /// </summary>
+    public const string DevBuildChannel = "Dev";
+
     private static readonly Lazy<string> _appVersion = new(() =>
     {
         var assembly = typeof(AppConstants).Assembly;
@@ -30,7 +35,7 @@ public static class AppConstants
         GetAssemblyMetadata("PullRequestNumber") ?? string.Empty);
 
     private static readonly Lazy<string> _buildChannel = new(() =>
-        GetAssemblyMetadata("BuildChannel") ?? "Dev");
+        GetAssemblyMetadata("BuildChannel") ?? DevBuildChannel);
 
     /// <summary>
     /// Gets the full semantic version of the application.
@@ -64,6 +69,13 @@ public static class AppConstants
     /// Gets a value indicating whether this is a CI/CD build (has git hash embedded).
     /// </summary>
     public static bool IsCiBuild => !string.IsNullOrEmpty(GitShortHash);
+
+    /// <summary>
+    /// Gets a value indicating whether this binary is a local source / development build.
+    /// Local development builds use the default "Dev" build channel and lack CI commit metadata.
+    /// </summary>
+    public static bool IsLocalBuild =>
+        string.Equals(BuildChannel, DevBuildChannel, StringComparison.OrdinalIgnoreCase) && !IsCiBuild;
 
     /// <summary>
     /// Gets the full display version including hash for dev builds.

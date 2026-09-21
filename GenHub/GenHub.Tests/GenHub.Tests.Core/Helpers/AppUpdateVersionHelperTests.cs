@@ -20,6 +20,7 @@ public class AppUpdateVersionHelperTests
     [InlineData("0.0.1287-development", "development")]
     [InlineData("0.0.0-ci.500", "ci")]
     [InlineData("0.0.1300-fix-ci.9", "fix-ci.9")]
+    [InlineData("0.0.1-dev", "dev")]
     [InlineData("1.0.42", "release")]
     [InlineData("0.0.1287", "release")]
     [InlineData("", null)]
@@ -163,5 +164,15 @@ public class AppUpdateVersionHelperTests
         Assert.True(AppUpdateVersionHelper.IsArtifactVersionNewer("1.2.0", "1.1.0"));
         Assert.False(AppUpdateVersionHelper.IsArtifactVersionNewer("1.1.0", "1.2.0"));
         Assert.False(AppUpdateVersionHelper.IsArtifactVersionNewer("1.0.0", "1.0.0"));
+    }
+
+    /// <summary>
+    /// Tests that IsArtifactVersionNewer rejects cross-channel artifact updates when current version is on the dev channel.
+    /// </summary>
+    [Fact]
+    public void IsArtifactVersionNewer_WhenDevChannelAndReleaseUpdate_ShouldReturnFalse()
+    {
+        var result = AppUpdateVersionHelper.IsArtifactVersionNewer("0.0.1525", "0.0.1-dev", allowCrossChannel: false);
+        Assert.False(result);
     }
 }
