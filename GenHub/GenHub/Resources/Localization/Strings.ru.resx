@@ -7213,6 +7213,18 @@ GenHub передает официальный идентификатор AppID 
   <data name="Tools.WndEditor.Assets.SelectorTooltip" xml:space="preserve">
     <value>Установка игры, используемая для предпросмотра изображений</value>
   </data>
+  <data name="Tools.WndEditor.Assets.ResolvedStatus" xml:space="preserve">
+    <value>{0} из {1} изображений</value>
+  </data>
+  <data name="Tools.WndEditor.Assets.EmptyStatus" xml:space="preserve">
+    <value>Нет игровых изображений</value>
+  </data>
+  <data name="Tools.WndEditor.Assets.MissingTooltip" xml:space="preserve">
+    <value>Отсутствующие изображения: {0}</value>
+  </data>
+  <data name="Tools.WndEditor.Assets.MissingMore" xml:space="preserve">
+    <value>ещё +{0}</value>
+  </data>
   <data name="Tools.WndEditor.Properties.Delete" xml:space="preserve">
     <value>Удалить</value>
   </data>

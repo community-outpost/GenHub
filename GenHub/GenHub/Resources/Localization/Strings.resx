@@ -7311,6 +7311,18 @@ GenHub supports four file linking strategies under **Settings -&gt; Game Configu
   <data name="Tools.WndEditor.Assets.SelectorTooltip" xml:space="preserve">
     <value>Game installation used for canvas image previews</value>
   </data>
+  <data name="Tools.WndEditor.Assets.ResolvedStatus" xml:space="preserve">
+    <value>{0} of {1} images</value>
+  </data>
+  <data name="Tools.WndEditor.Assets.EmptyStatus" xml:space="preserve">
+    <value>No game images</value>
+  </data>
+  <data name="Tools.WndEditor.Assets.MissingTooltip" xml:space="preserve">
+    <value>Missing images: {0}</value>
+  </data>
+  <data name="Tools.WndEditor.Assets.MissingMore" xml:space="preserve">
+    <value>+{0} more</value>
+  </data>
   <data name="Tools.WndEditor.Properties.Delete" xml:space="preserve">
     <value>Delete</value>
   </data>

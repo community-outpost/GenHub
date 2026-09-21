@@ -39,7 +39,7 @@
                           IsComponentTextInputVisible="True"
                           IsColorPaletteVisible="False"
                           IsColorPreviewVisible="True"
-                          Width="300"/>
+                          Width="360" MinWidth="360"/>
           </Flyout>
         </Button.Flyout>
         <Grid ColumnDefinitions="Auto,*" VerticalAlignment="Center">

@@ -109,6 +109,9 @@ public sealed class WndEditorViewsTests
                 .OfType<Button>()
                 .FirstOrDefault(button => button.Flyout is Flyout flyout && flyout.Content is ColorView);
             swatch.Should().NotBeNull();
+            var colorView = (ColorView)((Flyout)swatch!.Flyout!).Content!;
+            colorView.Width.Should().BeGreaterThanOrEqualTo(340);
+            colorView.MinWidth.Should().BeGreaterThanOrEqualTo(340);
         }
         finally
         {

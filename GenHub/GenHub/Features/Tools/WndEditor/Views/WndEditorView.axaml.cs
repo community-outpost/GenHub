@@ -16,6 +16,7 @@ public partial class WndEditorView : UserControl
     private bool _panning;
     private Point _panStartPoint;
     private Vector _panStartOffset;
+    private WndEditorViewModel? _framingViewModel;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="WndEditorView"/> class.
@@ -23,6 +24,39 @@ public partial class WndEditorView : UserControl
     public WndEditorView()
     {
         InitializeComponent();
+        DataContextChanged += OnDataContextChanged;
+    }
+
+    private void OnDataContextChanged(object? sender, EventArgs e)
+    {
+        _ = sender;
+        _ = e;
+        if (_framingViewModel != null)
+        {
+            _framingViewModel.CanvasFramingRequested -= OnCanvasFramingRequested;
+            _framingViewModel = null;
+        }
+
+        if (DataContext is WndEditorViewModel viewModel)
+        {
+            _framingViewModel = viewModel;
+            _framingViewModel.CanvasFramingRequested += OnCanvasFramingRequested;
+        }
+    }
+
+    private void OnCanvasFramingRequested(object? sender, EventArgs e)
+    {
+        _ = sender;
+        _ = e;
+        if (DataContext is not WndEditorViewModel viewModel || CanvasScrollViewer == null)
+        {
+            return;
+        }
+
+        var offset = viewModel.CanvasContentOffset;
+        Dispatcher.UIThread.Post(
+            () => CanvasScrollViewer.Offset = offset,
+            DispatcherPriority.Loaded);
     }
 
     private void OnCanvasItemPointerPressed(object? sender, PointerPressedEventArgs e)

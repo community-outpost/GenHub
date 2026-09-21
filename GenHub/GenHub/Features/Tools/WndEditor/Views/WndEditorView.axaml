@@ -159,23 +159,25 @@
                       <Style Selector="TreeViewItem">
                         <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}"/>
                         <Setter Property="HorizontalAlignment" Value="Left"/>
+                        <Setter Property="Padding" Value="0"/>
+                        <Setter Property="MinHeight" Value="0"/>
                       </Style>
                     </TreeView.Styles>
                     <TreeView.ItemTemplate>
                       <TreeDataTemplate ItemsSource="{Binding Children}" x:DataType="vm:WndTreeNodeViewModel">
-                        <Border Margin="8,2" Padding="10,8" CornerRadius="8" Background="Transparent" ToolTip.Tip="{Binding FullName}">
+                        <Border Margin="4,1" Padding="6,3" CornerRadius="6" Background="Transparent" ToolTip.Tip="{Binding FullName}">
                           <Grid ColumnDefinitions="Auto,*,Auto" VerticalAlignment="Center">
                             <Border Grid.Column="0"
                                     Background="{DynamicResource AccentTintBackgroundBrush}"
                                     BorderBrush="{DynamicResource AccentBrush}" BorderThickness="1"
-                                    CornerRadius="4" Padding="6,2" Margin="0,0,8,0">
+                                    CornerRadius="4" Padding="4,1" Margin="0,0,6,0">
                               <TextBlock Text="{Binding Window.ControlTypeName}"
-                                         FontSize="10" FontWeight="SemiBold"
+                                         FontSize="9" FontWeight="SemiBold"
                                          Foreground="{DynamicResource AccentBrush}"/>
                             </Border>
                             <TextBlock Grid.Column="1"
                                        Text="{Binding DisplayName}"
-                                       FontSize="12"
+                                       FontSize="11"
                                        Foreground="{DynamicResource TextPrimary}"
                                        VerticalAlignment="Center"
                                        TextTrimming="CharacterEllipsis"/>
@@ -183,9 +185,9 @@
                                     IsVisible="{Binding IsHidden}"
                                     Background="{DynamicResource SurfaceHoverBrush}"
                                     BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
-                                    CornerRadius="4" Padding="6,2" Margin="8,0,0,0">
+                                    CornerRadius="4" Padding="4,1" Margin="6,0,0,0">
                               <TextBlock Text="{localization:Localize Tools.WndEditor.Tree.HiddenBadge}"
-                                         FontSize="10"
+                                         FontSize="9"
                                          Foreground="{DynamicResource TextSecondary}"/>
                             </Border>
                           </Grid>
@@ -248,13 +250,13 @@
                           <Button Command="{Binding ElementName=Root, Path=DataContext.OpenExplorerFileCommand}"
                                   CommandParameter="{Binding}"
                                   Background="Transparent" BorderThickness="0"
-                                  Padding="0" Margin="4,2"
+                                  Padding="0" Margin="4,1"
                                   HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
-                            <Border Padding="10,8" CornerRadius="8" Background="Transparent">
+                            <Border Padding="6,3" CornerRadius="6" Background="Transparent">
                               <Grid ColumnDefinitions="*,Auto" VerticalAlignment="Center">
                                 <TextBlock Grid.Column="0"
                                            Text="{Binding FileName}"
-                                           FontSize="12"
+                                           FontSize="11"
                                            Foreground="{DynamicResource TextPrimary}"
                                            VerticalAlignment="Center"
                                            TextTrimming="CharacterEllipsis"
@@ -263,7 +265,7 @@
                                         IsVisible="{Binding IsCurrent}"
                                         Background="{DynamicResource AccentTintBackgroundBrush}"
                                         BorderBrush="{DynamicResource AccentBrush}" BorderThickness="1"
-                                        CornerRadius="4" Padding="6,2" Margin="8,0,0,0">
+                                        CornerRadius="4" Padding="4,1" Margin="6,0,0,0">
                                   <TextBlock Text="{localization:Localize Tools.WndEditor.Files.OpenBadge}"
                                              FontSize="10" FontWeight="SemiBold"
                                              Foreground="{DynamicResource AccentBrush}"/>
@@ -296,6 +298,11 @@
                          VerticalAlignment="Center"/>
               <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6"
                           HorizontalAlignment="Right" VerticalAlignment="Center">
+                <TextBlock Text="{Binding AssetStatusText}"
+                           FontSize="11" Foreground="{DynamicResource TextMuted}"
+                           VerticalAlignment="Center"
+                           ToolTip.Tip="{Binding AssetStatusTooltip}"
+                           IsVisible="{Binding AssetStatusText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
                 <TextBlock Text="{localization:Localize Tools.WndEditor.Assets.Label}"
                            FontSize="11" Foreground="{DynamicResource TextSecondary}"
                            VerticalAlignment="Center"/>
@@ -334,25 +341,48 @@
                     </ItemsControl.ItemContainerTheme>
                     <ItemsControl.ItemTemplate>
                       <DataTemplate x:DataType="vm:WndCanvasItemViewModel">
-                        <Panel PointerPressed="OnCanvasItemPointerPressed" Background="Transparent">
+                        <Panel PointerPressed="OnCanvasItemPointerPressed" Background="Transparent"
+                               Opacity="{Binding CanvasOpacity}" ToolTip.Tip="{Binding Label}">
                           <Border Width="{Binding Width}" Height="{Binding Height}"
                                   Background="{DynamicResource SurfaceHoverBrush}"
                                   BorderBrush="{DynamicResource BorderBrush}"
                                   BorderThickness="1" CornerRadius="2"/>
+                          <Border Width="{Binding Width}" Height="{Binding Height}"
+                                  Background="{Binding FillOverlay}"
+                                  IsVisible="{Binding ShowFill}"
+                                  BorderThickness="0" CornerRadius="2"
+                                  IsHitTestVisible="False"/>
                           <Image Width="{Binding Width}" Height="{Binding Height}"
                                  Source="{Binding Image}"
                                  Stretch="Fill"
                                  IsVisible="{Binding HasImage}"
                                  IsHitTestVisible="False"/>
                           <Border Width="{Binding Width}" Height="{Binding Height}"
+                                  IsVisible="{Binding HasBorderOverlay}"
+                                  BorderBrush="{Binding BorderOverlay}"
+                                  BorderThickness="1" CornerRadius="2"
+                                  IsHitTestVisible="False"/>
+                          <Border Width="{Binding Width}" Height="{Binding Height}"
                                   IsVisible="{Binding IsSelected}"
                                   BorderBrush="{DynamicResource AccentBrush}"
                                   BorderThickness="2" CornerRadius="2"/>
+                          <TextBlock Text="{Binding ContentText}"
+                                     Width="{Binding Width}" Height="{Binding Height}"
+                                     Padding="4,2"
+                                     FontSize="{Binding ContentFontSize}"
+                                     FontWeight="{Binding ContentFontWeight}"
+                                     Foreground="{Binding ContentTextBrush}"
+                                     TextAlignment="{Binding ContentTextAlignment}"
+                                     VerticalAlignment="Center"
+                                     TextWrapping="Wrap"
+                                     IsVisible="{Binding HasContentText}"
+                                     IsHitTestVisible="False"/>
                           <TextBlock Text="{Binding Label}"
                                      Margin="4,2" FontSize="10"
                                      Foreground="{DynamicResource TextSecondary}"
                                      TextTrimming="CharacterEllipsis"
                                      MaxWidth="{Binding Width}"
+                                     IsVisible="{Binding ShowNameTag}"
                                      IsHitTestVisible="False"/>
                         </Panel>
                       </DataTemplate>

@@ -7213,6 +7213,18 @@ GenHub هو مشغل ومدير حديث لألعاب **Command &amp; Conquer: G
   <data name="Tools.WndEditor.Assets.SelectorTooltip" xml:space="preserve">
     <value>نسخة اللعبة المستخدمة لمعاينات الصور على اللوحة</value>
   </data>
+  <data name="Tools.WndEditor.Assets.ResolvedStatus" xml:space="preserve">
+    <value>{0} من {1} من الصور</value>
+  </data>
+  <data name="Tools.WndEditor.Assets.EmptyStatus" xml:space="preserve">
+    <value>لا توجد صور لعبة</value>
+  </data>
+  <data name="Tools.WndEditor.Assets.MissingTooltip" xml:space="preserve">
+    <value>الصور المفقودة: {0}</value>
+  </data>
+  <data name="Tools.WndEditor.Assets.MissingMore" xml:space="preserve">
+    <value>+{0} أخرى</value>
+  </data>
   <data name="Tools.WndEditor.Properties.Delete" xml:space="preserve">
     <value>حذف</value>
   </data>
