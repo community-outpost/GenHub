@@ -652,6 +652,15 @@ public sealed class BuildEngineService(
         var bigFilePath = Path.Combine(bundlesDir, bigFileName);
 
         var stagingDir = Path.Combine(bundlesDir, $"{ModBuilderConstants.StagingItemPrefix}{item.Name}");
+        if (!IsSubpathOf(bundlesDir, stagingDir) || !IsSubpathOf(bundlesDir, bigFilePath))
+        {
+            var escapeError = $"Bundle item '{item.Name}' resolves outside the bundles directory. Check the item name and BigSuffix for '..' or absolute paths.";
+            logger.LogError("{EscapeError}", escapeError);
+            Interlocked.Increment(ref _filesFailed);
+            _lastErrorMessage = escapeError;
+            return;
+        }
+
         if (Directory.Exists(stagingDir))
         {
             Directory.Delete(stagingDir, true);
@@ -687,6 +696,15 @@ public sealed class BuildEngineService(
 
                 var targetRelPath = GetTargetRelativePath(file);
                 var targetStagedFile = Path.Combine(stagingDir, targetRelPath);
+                if (!IsSubpathOf(stagingDir, targetStagedFile))
+                {
+                    var escapeError = $"Refusing to stage '{sourceFile}': target '{targetRelPath}' escapes the staging directory. Check RelTargetFile for '..' or absolute paths.";
+                    logger.LogWarning("{EscapeError}", escapeError);
+                    Interlocked.Increment(ref _filesFailed);
+                    RecordFirstError(escapeError);
+                    return ValueTask.CompletedTask;
+                }
+
                 if (PathHelper.AreSamePath(sourceFile, targetStagedFile))
                 {
                     logger.LogDebug("Skipping staging where source and target are the same file: {Path}", sourceFile);
@@ -763,6 +781,11 @@ public sealed class BuildEngineService(
         {
             var targetRelPath = GetTargetRelativePath(file);
             var targetStagedFile = Path.Combine(stagingDir, targetRelPath);
+            if (!IsSubpathOf(stagingDir, targetStagedFile))
+            {
+                continue;
+            }
+
             var targetStagedDir = Path.GetDirectoryName(targetStagedFile);
             if (!string.IsNullOrEmpty(targetStagedDir))
             {
@@ -914,6 +937,15 @@ public sealed class BuildEngineService(
         var packFilePath = Path.Combine(releaseDir, packFileName);
 
         var packStagingDir = Path.Combine(buildDir, ModBuilderConstants.StagingPackPrefix, pack.Name);
+        if (!IsSubpathOf(buildDir, packStagingDir) || !IsSubpathOf(releaseDir, packFilePath))
+        {
+            var escapeError = $"Bundle pack '{pack.Name}' resolves outside the build directories. Check the pack name and OutputFile for '..' or absolute paths.";
+            logger.LogError("{EscapeError}", escapeError);
+            Interlocked.Increment(ref _filesFailed);
+            _lastErrorMessage = escapeError;
+            return;
+        }
+
         if (Directory.Exists(packStagingDir))
         {
             Directory.Delete(packStagingDir, true);
@@ -1212,6 +1244,11 @@ public sealed class BuildEngineService(
             var targetRelPath = GetTargetRelativePath(file);
             var (_, finalTargetRelPath) = ResolveStagedSource(file, targetRelPath, buildDir);
             var destPath = Path.Combine(packStagingDir, finalTargetRelPath);
+            if (!IsSubpathOf(packStagingDir, destPath))
+            {
+                continue;
+            }
+
             var dir = Path.GetDirectoryName(destPath);
             if (!string.IsNullOrEmpty(dir))
             {
@@ -1371,6 +1408,15 @@ public sealed class BuildEngineService(
         var (actualSource, finalTargetRelPath) = ResolveStagedSource(file, targetRelPath, buildDir);
 
         var destPath = Path.Combine(packStagingDir, finalTargetRelPath);
+        if (!IsSubpathOf(packStagingDir, destPath))
+        {
+            var escapeError = $"Refusing to stage '{actualSource}': target '{finalTargetRelPath}' escapes the staging directory. Check RelTargetFile for '..' or absolute paths.";
+            logger.LogWarning("{EscapeError}", escapeError);
+            Interlocked.Increment(ref _filesFailed);
+            RecordFirstError(escapeError);
+            return;
+        }
+
         if (PathHelper.AreSamePath(actualSource, destPath))
         {
             logger.LogDebug("Skipping staging where source and target are the same file: {Path}", actualSource);
@@ -1480,6 +1526,15 @@ public sealed class BuildEngineService(
             var (actualSource, finalRelPath) = ResolveStagedSource(file, relPath, buildDir);
 
             var destPath = Path.Combine(packStagingDir, finalRelPath);
+            if (!IsSubpathOf(packStagingDir, destPath))
+            {
+                var escapeError = $"Refusing to stage '{actualSource}': target '{finalRelPath}' escapes the staging directory. Check RelTargetFile for '..' or absolute paths.";
+                logger.LogWarning("{EscapeError}", escapeError);
+                Interlocked.Increment(ref _filesFailed);
+                RecordFirstError(escapeError);
+                continue;
+            }
+
             if (PathHelper.AreSamePath(actualSource, destPath))
             {
                 logger.LogDebug("Skipping staging where source and target are the same file: {Path}", actualSource);
@@ -1611,6 +1666,15 @@ public sealed class BuildEngineService(
     {
         var extension = Path.GetExtension(filePath).ToLowerInvariant();
         var targetPath = GetTargetPathForFile(filePath, BuildIndex.RawBundleItem, setup);
+        var buildDir = setup.Folders?.AbsBuildDir ?? ModBuilderConstants.DefaultBuildDir;
+        if (!IsSubpathOf(buildDir, targetPath))
+        {
+            var escapeError = $"Refusing to process '{filePath}': target '{targetPath}' escapes the build directory. Check RelTargetFile for '..' or absolute paths.";
+            logger.LogWarning("{EscapeError}", escapeError);
+            RecordFirstError(escapeError);
+            return false;
+        }
+
         var bundleFile = FindBundleFile(filePath);
 
         // Honor explicit passthrough: files already in their declared output format,

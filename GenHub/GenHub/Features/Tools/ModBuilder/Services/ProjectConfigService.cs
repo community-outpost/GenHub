@@ -1710,7 +1710,7 @@ public sealed class ProjectConfigService(
                 {
                     new
                     {
-                        Name = "PatchINI",
+                        Name = ModBuilderConstants.SampleProjects.PatchIniItemName,
                         SourceFiles = new[] { $"{directories.GameFilesEdited}/Data/INI/**/*.ini" },
                         OutputFormat = "INI",
                         ManifestFile = "config/500_900_CommunityPatch_CoreINI.big.manifest.json",
@@ -1732,8 +1732,8 @@ public sealed class ProjectConfigService(
                 {
                     new
                     {
-                        Name = "GeneralsGamePatch2",
-                        Items = new[] { "PatchINI" },
+                        Name = ModBuilderConstants.GeneralsGamePatch2SampleName,
+                        Items = new[] { ModBuilderConstants.SampleProjects.PatchIniItemName },
                         OutputFile = $"{directories.Release}/500_900_CommunityPatch_CoreINI.big",
                         ManifestFile = "config/500_900_CommunityPatch_CoreINI.big.manifest.json",
                         Big = true,
@@ -1763,7 +1763,7 @@ public sealed class ProjectConfigService(
                 {
                     new
                     {
-                        Name = "Hotkeys_ZH_English",
+                        Name = ModBuilderConstants.SampleProjects.HotkeysZhEnglishItem,
                         SourceFiles = new[] { $"{directories.GameFilesEdited}/ZeroHour/English/**/*.csf" },
                         OutputFormat = "RAW",
                         NoConvert = true,
@@ -1772,7 +1772,7 @@ public sealed class ProjectConfigService(
                     },
                     new
                     {
-                        Name = "Hotkeys_Generals_English",
+                        Name = ModBuilderConstants.SampleProjects.HotkeysGeneralsEnglishItem,
                         SourceFiles = new[] { $"{directories.GameFilesEdited}/Generals/English/**/*.csf" },
                         OutputFormat = "RAW",
                         NoConvert = true,
@@ -1781,7 +1781,7 @@ public sealed class ProjectConfigService(
                     },
                     new
                     {
-                        Name = "Hotkeys_ZH_German",
+                        Name = ModBuilderConstants.SampleProjects.HotkeysZhGermanItem,
                         SourceFiles = new[] { $"{directories.GameFilesEdited}/ZeroHour/German/**/*.csf" },
                         OutputFormat = "RAW",
                         NoConvert = true,
@@ -1804,8 +1804,8 @@ public sealed class ProjectConfigService(
                 {
                     new
                     {
-                        Name = "LeikezeHotkeys_ZH_EN",
-                        Items = new[] { "Hotkeys_ZH_English" },
+                        Name = ModBuilderConstants.SampleProjects.LeikezeHotkeysZhEnPack,
+                        Items = new[] { ModBuilderConstants.SampleProjects.HotkeysZhEnglishItem },
                         OutputFile = $"{directories.Release}/!HotkeysLeikezeENZH.big",
                         ManifestFile = "config/!HotkeysLeikezeENZH.big.manifest.json",
                         Big = true,
@@ -1815,8 +1815,8 @@ public sealed class ProjectConfigService(
                     },
                     new
                     {
-                        Name = "LeikezeHotkeys_Generals_EN",
-                        Items = new[] { "Hotkeys_Generals_English" },
+                        Name = ModBuilderConstants.SampleProjects.LeikezeHotkeysGeneralsEnPack,
+                        Items = new[] { ModBuilderConstants.SampleProjects.HotkeysGeneralsEnglishItem },
                         OutputFile = $"{directories.Release}/!HotkeysLeikezeEN.big",
                         ManifestFile = "config/!HotkeysLeikezeEN.big.manifest.json",
                         Big = true,
@@ -1826,8 +1826,8 @@ public sealed class ProjectConfigService(
                     },
                     new
                     {
-                        Name = "LeikezeHotkeys_ZH_DE",
-                        Items = new[] { "Hotkeys_ZH_German" },
+                        Name = ModBuilderConstants.SampleProjects.LeikezeHotkeysZhDePack,
+                        Items = new[] { ModBuilderConstants.SampleProjects.HotkeysZhGermanItem },
                         OutputFile = $"{directories.Release}/!HotkeysLeikezeDEZH.big",
                         ManifestFile = "config/!HotkeysLeikezeDEZH.big.manifest.json",
                         Big = true,
@@ -1846,15 +1846,15 @@ public sealed class ProjectConfigService(
             new SampleBundleManifest(
                 "Leikeze Hotkeys (ZH English)",
                 "Leikeze competitive hotkeys for Zero Hour (English)",
-                ["LeikezeHotkeys_ZH_EN"]),
+                [ModBuilderConstants.SampleProjects.LeikezeHotkeysZhEnPack]),
             new SampleBundleManifest(
                 "Leikeze Hotkeys (Generals English)",
                 "Leikeze competitive hotkeys for Generals (English)",
-                ["LeikezeHotkeys_Generals_EN"]),
+                [ModBuilderConstants.SampleProjects.LeikezeHotkeysGeneralsEnPack]),
             new SampleBundleManifest(
                 "Leikeze Hotkeys (ZH German)",
                 "Leikeze competitive hotkeys for Zero Hour (German)",
-                ["LeikezeHotkeys_ZH_DE"]),
+                [ModBuilderConstants.SampleProjects.LeikezeHotkeysZhDePack]),
         ], cancellationToken).ConfigureAwait(false);
     }
 
@@ -1873,7 +1873,7 @@ public sealed class ProjectConfigService(
                 {
                     new
                     {
-                        Name = "ModifiedINI",
+                        Name = ModBuilderConstants.SampleProjects.LegacyModifiedIniToken,
                         SourceFiles = new[] { $"{directories.GameFilesEdited}/Data/INI/**/*.ini" },
                         OutputFormat = "INI",
                         Description = "Custom INI game settings and unit tweaks",
@@ -1896,8 +1896,8 @@ public sealed class ProjectConfigService(
                     new
                     {
                         Name = Path.GetFileNameWithoutExtension(projectDir) ?? "MyMod",
-                        Items = new[] { "ModifiedINI" },
-                        ItemNames = new[] { "ModifiedINI" },
+                        Items = new[] { ModBuilderConstants.SampleProjects.LegacyModifiedIniToken },
+                        ItemNames = new[] { ModBuilderConstants.SampleProjects.LegacyModifiedIniToken },
                         AllowBuild = true,
                         AllowInstall = true,
                         OutputFile = $"{directories.Release}/{Path.GetFileNameWithoutExtension(projectDir) ?? "MyMod"}.big",
@@ -1960,21 +1960,21 @@ public sealed class ProjectConfigService(
                     // packing produces identical bytes to the manifest-pinned sample.
                     new
                     {
-                        Name = "HotkeyIndicators",
+                        Name = ModBuilderConstants.SampleProjects.HotkeyIndicatorsItem,
                         SourceFiles = new[] { $"{directories.GameFilesEdited}/**/Art/Textures/**/*.tga" },
                         OutputFormat = "TGA",
                         Description = "Control bar indicator overlay textures for QWERTY hotkeys",
                     },
                     new
                     {
-                        Name = "HotkeyINIs",
+                        Name = ModBuilderConstants.SampleProjects.HotkeyINIsItem,
                         SourceFiles = new[] { $"{directories.GameFilesEdited}/Data/INI/**/*.ini" },
                         OutputFormat = "INI",
                         Description = "Command button assignments and mapped image coordinates",
                     },
                     new
                     {
-                        Name = "HotkeyStrings",
+                        Name = ModBuilderConstants.SampleProjects.HotkeyStringsItem,
                         SourceFiles = new[] { $"{directories.GameFilesEdited}/Data/English/**/*.csf" },
                         OutputFormat = "CSF",
                         Description = "String table with hotkey annotations (&Key)",
@@ -1995,9 +1995,9 @@ public sealed class ProjectConfigService(
                 {
                     new
                     {
-                        Name = "Hotkeys",
-                        Items = new[] { "HotkeyIndicators", "HotkeyINIs", "HotkeyStrings" },
-                        ItemNames = new[] { "HotkeyIndicators", "HotkeyINIs", "HotkeyStrings" },
+                        Name = ModBuilderConstants.HotkeysSampleName,
+                        Items = new[] { ModBuilderConstants.SampleProjects.HotkeyIndicatorsItem, ModBuilderConstants.SampleProjects.HotkeyINIsItem, ModBuilderConstants.SampleProjects.HotkeyStringsItem },
+                        ItemNames = new[] { ModBuilderConstants.SampleProjects.HotkeyIndicatorsItem, ModBuilderConstants.SampleProjects.HotkeyINIsItem, ModBuilderConstants.SampleProjects.HotkeyStringsItem },
                         OutputFile = $"{directories.Release}/!HotkeysLegionnaireZH.big",
                         Big = true,
                         AllowBuild = true,
@@ -2074,8 +2074,8 @@ public sealed class ProjectConfigService(
                         Name = ModBuilderConstants.LemonControlBarArt1080ItemName,
                         SourceFiles = new[]
                         {
-                            $"{directories.GameFilesEdited}/Gen1080/Art/**/*.dds",
-                            $"{directories.GameFilesEdited}/Gen1080/Art/**/*.tga",
+                            $"{directories.GameFilesEdited}/{ModBuilderConstants.SampleProjects.LemonGen1080Dir}/Art/**/*.dds",
+                            $"{directories.GameFilesEdited}/{ModBuilderConstants.SampleProjects.LemonGen1080Dir}/Art/**/*.tga",
                         },
                         OutputFormat = "RAW",
                         NoConvert = true,
@@ -2100,8 +2100,8 @@ public sealed class ProjectConfigService(
                         Name = ModBuilderConstants.LemonControlBarData1080ItemName,
                         SourceFiles = new[]
                         {
-                            $"{directories.GameFilesEdited}/Gen1080/Data/**/*.ini",
-                            $"{directories.GameFilesEdited}/Gen1080/Window/**/*.wnd",
+                            $"{directories.GameFilesEdited}/{ModBuilderConstants.SampleProjects.LemonGen1080Dir}/Data/**/*.ini",
+                            $"{directories.GameFilesEdited}/{ModBuilderConstants.SampleProjects.LemonGen1080Dir}/Window/**/*.wnd",
                         },
                         OutputFormat = "RAW",
                         NoConvert = true,
@@ -2202,7 +2202,7 @@ public sealed class ProjectConfigService(
                 {
                     new
                     {
-                        Name = "LemonControlBar_Art1080",
+                        Name = ModBuilderConstants.SampleProjects.LemonControlBarArt1080Pack,
                         Items = new[] { ModBuilderConstants.LemonControlBarArt1080ItemName },
                         ItemNames = new[] { ModBuilderConstants.LemonControlBarArt1080ItemName },
                         AllowBuild = true,
@@ -2214,7 +2214,7 @@ public sealed class ProjectConfigService(
                     },
                     new
                     {
-                        Name = "LemonControlBar_Art2160",
+                        Name = ModBuilderConstants.SampleProjects.LemonControlBarArt2160Pack,
                         Items = new[] { ModBuilderConstants.LemonControlBarArt2160ItemName },
                         ItemNames = new[] { ModBuilderConstants.LemonControlBarArt2160ItemName },
                         AllowBuild = true,
@@ -2226,7 +2226,7 @@ public sealed class ProjectConfigService(
                     },
                     new
                     {
-                        Name = "LemonControlBar_Data1080",
+                        Name = ModBuilderConstants.SampleProjects.LemonControlBarData1080Pack,
                         Items = new[] { ModBuilderConstants.LemonControlBarData1080ItemName },
                         ItemNames = new[] { ModBuilderConstants.LemonControlBarData1080ItemName },
                         AllowBuild = true,
@@ -2238,7 +2238,7 @@ public sealed class ProjectConfigService(
                     },
                     new
                     {
-                        Name = "LemonControlBar_Data2160",
+                        Name = ModBuilderConstants.SampleProjects.LemonControlBarData2160Pack,
                         Items = new[] { ModBuilderConstants.LemonControlBarData2160ItemName },
                         ItemNames = new[] { ModBuilderConstants.LemonControlBarData2160ItemName },
                         AllowBuild = true,
@@ -2250,7 +2250,7 @@ public sealed class ProjectConfigService(
                     },
                     new
                     {
-                        Name = "LemonControlBar_Base",
+                        Name = ModBuilderConstants.SampleProjects.LemonControlBarBasePack,
                         Items = new[] { ModBuilderConstants.LemonControlBarBaseItemName },
                         ItemNames = new[] { ModBuilderConstants.LemonControlBarBaseItemName },
                         AllowBuild = true,
@@ -2262,7 +2262,7 @@ public sealed class ProjectConfigService(
                     },
                     new
                     {
-                        Name = "LemonControlBar_720p",
+                        Name = ModBuilderConstants.SampleProjects.LemonControlBar720pPack,
                         Items = new[] { ModBuilderConstants.LemonControlBarWindows720pItemName },
                         ItemNames = new[] { ModBuilderConstants.LemonControlBarWindows720pItemName },
                         AllowBuild = true,
@@ -2274,7 +2274,7 @@ public sealed class ProjectConfigService(
                     },
                     new
                     {
-                        Name = "LemonControlBar_1080p",
+                        Name = ModBuilderConstants.SampleProjects.LemonControlBar1080pPack,
                         Items = new[] { ModBuilderConstants.LemonControlBarWindows1080pItemName },
                         ItemNames = new[] { ModBuilderConstants.LemonControlBarWindows1080pItemName },
                         AllowBuild = true,
@@ -2286,7 +2286,7 @@ public sealed class ProjectConfigService(
                     },
                     new
                     {
-                        Name = "LemonControlBar_1440p",
+                        Name = ModBuilderConstants.SampleProjects.LemonControlBar1440pPack,
                         Items = new[] { ModBuilderConstants.LemonControlBarWindows1440pItemName },
                         ItemNames = new[] { ModBuilderConstants.LemonControlBarWindows1440pItemName },
                         AllowBuild = true,
@@ -2298,7 +2298,7 @@ public sealed class ProjectConfigService(
                     },
                     new
                     {
-                        Name = "LemonControlBar_4K",
+                        Name = ModBuilderConstants.SampleProjects.LemonControlBar4KPack,
                         Items = new[] { ModBuilderConstants.LemonControlBarWindows4KItemName },
                         ItemNames = new[] { ModBuilderConstants.LemonControlBarWindows4KItemName },
                         AllowBuild = true,
@@ -2319,19 +2319,19 @@ public sealed class ProjectConfigService(
             new SampleBundleManifest(
                 "Lemon Control Bar (720p)",
                 "Lemon Edition control bar for 720p (1280x720) displays",
-                ["LemonControlBar_Base", "LemonControlBar_Art1080", "LemonControlBar_Data1080", "LemonControlBar_720p"]),
+                [ModBuilderConstants.SampleProjects.LemonControlBarBasePack, ModBuilderConstants.SampleProjects.LemonControlBarArt1080Pack, ModBuilderConstants.SampleProjects.LemonControlBarData1080Pack, ModBuilderConstants.SampleProjects.LemonControlBar720pPack]),
             new SampleBundleManifest(
                 "Lemon Control Bar (1080p)",
                 "Lemon Edition control bar for 1080p (1920x1080) displays",
-                ["LemonControlBar_Base", "LemonControlBar_Art1080", "LemonControlBar_Data1080", "LemonControlBar_1080p"]),
+                [ModBuilderConstants.SampleProjects.LemonControlBarBasePack, ModBuilderConstants.SampleProjects.LemonControlBarArt1080Pack, ModBuilderConstants.SampleProjects.LemonControlBarData1080Pack, ModBuilderConstants.SampleProjects.LemonControlBar1080pPack]),
             new SampleBundleManifest(
                 "Lemon Control Bar (1440p)",
                 "Lemon Edition control bar for 1440p (2560x1440) displays",
-                ["LemonControlBar_Base", "LemonControlBar_Art2160", "LemonControlBar_Data2160", "LemonControlBar_1440p"]),
+                [ModBuilderConstants.SampleProjects.LemonControlBarBasePack, ModBuilderConstants.SampleProjects.LemonControlBarArt2160Pack, ModBuilderConstants.SampleProjects.LemonControlBarData2160Pack, ModBuilderConstants.SampleProjects.LemonControlBar1440pPack]),
             new SampleBundleManifest(
                 "Lemon Control Bar (4K)",
                 "Lemon Edition control bar for 4K (3840x2160) displays",
-                ["LemonControlBar_Base", "LemonControlBar_Art2160", "LemonControlBar_Data2160", "LemonControlBar_4K"]),
+                [ModBuilderConstants.SampleProjects.LemonControlBarBasePack, ModBuilderConstants.SampleProjects.LemonControlBarArt2160Pack, ModBuilderConstants.SampleProjects.LemonControlBarData2160Pack, ModBuilderConstants.SampleProjects.LemonControlBar4KPack]),
         ], cancellationToken).ConfigureAwait(false);
     }
 
@@ -2407,7 +2407,7 @@ public sealed class ProjectConfigService(
                 {
                     new
                     {
-                        Name = "ImprovedMenus_English",
+                        Name = ModBuilderConstants.SampleProjects.ImprovedMenusEnglishPack,
                         Items = new[] { ModBuilderConstants.MenuWindowsItemName, ModBuilderConstants.MenuMappedImagesItemName, ModBuilderConstants.MenuTexturesEnglishItemName },
                         OutputFile = $"{directories.Release}/0_ImprovedMenusEnglish.big",
                         ManifestFile = ModBuilderConstants.ImprovedMenusEnglishManifestPath,
@@ -2418,7 +2418,7 @@ public sealed class ProjectConfigService(
                     },
                     new
                     {
-                        Name = "ImprovedMenus_Russian",
+                        Name = ModBuilderConstants.SampleProjects.ImprovedMenusRussianPack,
                         Items = new[] { ModBuilderConstants.MenuWindowsItemName, ModBuilderConstants.MenuMappedImagesItemName, ModBuilderConstants.MenuTexturesRussianItemName },
                         OutputFile = $"{directories.Release}/0_ImprovedMenusRussian.big",
                         ManifestFile = ModBuilderConstants.ImprovedMenusRussianManifestPath,
@@ -2429,7 +2429,7 @@ public sealed class ProjectConfigService(
                     },
                     new
                     {
-                        Name = "ImprovedMenus_Spanish",
+                        Name = ModBuilderConstants.SampleProjects.ImprovedMenusSpanishPack,
                         Items = new[] { ModBuilderConstants.MenuWindowsItemName, ModBuilderConstants.MenuMappedImagesItemName, ModBuilderConstants.MenuTexturesSpanishItemName },
                         OutputFile = $"{directories.Release}/0_ImprovedMenusSpanish.big",
                         ManifestFile = ModBuilderConstants.ImprovedMenusSpanishManifestPath,
@@ -2449,15 +2449,15 @@ public sealed class ProjectConfigService(
             new SampleBundleManifest(
                 "Improved Menus (English)",
                 "Complete 16:9 widescreen menu overhaul, English variant",
-                ["ImprovedMenus_English"]),
+                [ModBuilderConstants.SampleProjects.ImprovedMenusEnglishPack]),
             new SampleBundleManifest(
                 "Improved Menus (Russian)",
                 "Complete 16:9 widescreen menu overhaul, Russian variant",
-                ["ImprovedMenus_Russian"]),
+                [ModBuilderConstants.SampleProjects.ImprovedMenusRussianPack]),
             new SampleBundleManifest(
                 "Improved Menus (Spanish)",
                 "Complete 16:9 widescreen menu overhaul, Spanish variant",
-                ["ImprovedMenus_Spanish"]),
+                [ModBuilderConstants.SampleProjects.ImprovedMenusSpanishPack]),
         ], cancellationToken).ConfigureAwait(false);
 
         var menusDir = Path.Combine(projectDir, directories.GameFilesEdited, "window", "Menus");

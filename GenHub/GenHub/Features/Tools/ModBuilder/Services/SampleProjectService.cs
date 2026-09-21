@@ -89,11 +89,11 @@ public class SampleProjectService(
         "CustomIcons",
     ];
 
-    private const string GeneralsGamePatch2Name = "GeneralsGamePatch2";
+    private const string GeneralsGamePatch2Name = ModBuilderConstants.GeneralsGamePatch2SampleName;
     private const string ImprovedMenusName = "ImprovedMenus";
     private const string LemonControlBarName = "LemonControlBar";
     private const string LeikezeHotkeysName = "LeikezeHotkeys";
-    private const string HotkeysName = "Hotkeys";
+    private const string HotkeysName = ModBuilderConstants.HotkeysSampleName;
     private const string CustomIconsName = "CustomIcons";
 
     private const string UnknownError = "Unknown error";
@@ -1283,10 +1283,10 @@ public class SampleProjectService(
 
         var resolutions = new[]
         {
-            new LemonResolutionSpec("1080p", ModBuilderConstants.SampleProjects.LemonControlBar1080pUrl, "ControlBarProLemonEditionZH_v1.3_1920x1080.zip", "340_ControlBarProLemonEdition1080ZH.big", ModBuilderConstants.SampleProjects.LemonControlBarSha256, ModBuilderConstants.SampleProjects.LemonGen1080Dir, ModBuilderConstants.SampleProjects.LemonControlBarArt1080Sha256, ModBuilderConstants.SampleProjects.LemonControlBarData1080Sha256, true),
-            new LemonResolutionSpec("720p", ModBuilderConstants.SampleProjects.LemonControlBar720pUrl, "ControlBarProLemonEditionZH_v1.3_1280x720.zip", "340_ControlBarProLemonEdition720ZH.big", ModBuilderConstants.SampleProjects.LemonControlBar720pSha256, ModBuilderConstants.SampleProjects.LemonGen1080Dir, ModBuilderConstants.SampleProjects.LemonControlBarArt1080Sha256, ModBuilderConstants.SampleProjects.LemonControlBarData1080Sha256, false),
-            new LemonResolutionSpec("1440p", ModBuilderConstants.SampleProjects.LemonControlBar1440pUrl, "ControlBarProLemonEditionZH_v1.3_2560x1440.zip", "340_ControlBarProLemonEdition1440ZH.big", ModBuilderConstants.SampleProjects.LemonControlBar1440pSha256, ModBuilderConstants.SampleProjects.LemonGen2160Dir, ModBuilderConstants.SampleProjects.LemonControlBarArt2160Sha256, ModBuilderConstants.SampleProjects.LemonControlBarData2160Sha256, false),
-            new LemonResolutionSpec("4K", ModBuilderConstants.SampleProjects.LemonControlBar4KUrl, "ControlBarProLemonEditionZH_v1.3_3840x2160.zip", "340_ControlBarProLemonEdition2160ZH.big", ModBuilderConstants.SampleProjects.LemonControlBar2160Sha256, ModBuilderConstants.SampleProjects.LemonGen2160Dir, ModBuilderConstants.SampleProjects.LemonControlBarArt2160Sha256, ModBuilderConstants.SampleProjects.LemonControlBarData2160Sha256, false),
+            new LemonResolutionSpec("1080p", ModBuilderConstants.SampleProjects.LemonControlBar1080pUrl, ModBuilderConstants.SampleProjects.LemonControlBar1080pZipFileName, ModBuilderConstants.SampleProjects.LemonControlBarOutputFileName, ModBuilderConstants.SampleProjects.LemonControlBarSha256, ModBuilderConstants.SampleProjects.LemonGen1080Dir, ModBuilderConstants.SampleProjects.LemonControlBarArt1080Sha256, ModBuilderConstants.SampleProjects.LemonControlBarData1080Sha256, true),
+            new LemonResolutionSpec("720p", ModBuilderConstants.SampleProjects.LemonControlBar720pUrl, ModBuilderConstants.SampleProjects.LemonControlBar720pZipFileName, ModBuilderConstants.SampleProjects.LemonControlBar720pOutputFileName, ModBuilderConstants.SampleProjects.LemonControlBar720pSha256, ModBuilderConstants.SampleProjects.LemonGen1080Dir, ModBuilderConstants.SampleProjects.LemonControlBarArt1080Sha256, ModBuilderConstants.SampleProjects.LemonControlBarData1080Sha256, false),
+            new LemonResolutionSpec("1440p", ModBuilderConstants.SampleProjects.LemonControlBar1440pUrl, ModBuilderConstants.SampleProjects.LemonControlBar1440pZipFileName, ModBuilderConstants.SampleProjects.LemonControlBar1440pOutputFileName, ModBuilderConstants.SampleProjects.LemonControlBar1440pSha256, ModBuilderConstants.SampleProjects.LemonGen2160Dir, ModBuilderConstants.SampleProjects.LemonControlBarArt2160Sha256, ModBuilderConstants.SampleProjects.LemonControlBarData2160Sha256, false),
+            new LemonResolutionSpec("4K", ModBuilderConstants.SampleProjects.LemonControlBar4KUrl, ModBuilderConstants.SampleProjects.LemonControlBar2160ZipFileName, ModBuilderConstants.SampleProjects.LemonControlBar2160OutputFileName, ModBuilderConstants.SampleProjects.LemonControlBar2160Sha256, ModBuilderConstants.SampleProjects.LemonGen2160Dir, ModBuilderConstants.SampleProjects.LemonControlBarArt2160Sha256, ModBuilderConstants.SampleProjects.LemonControlBarData2160Sha256, false),
         };
 
         var primarySucceeded = false;

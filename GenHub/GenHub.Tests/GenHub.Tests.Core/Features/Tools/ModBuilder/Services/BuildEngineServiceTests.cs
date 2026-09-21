@@ -1955,4 +1955,200 @@ public sealed class BuildEngineServiceTests : IDisposable
 
         return (project, configuration, buildDir);
     }
+
+    [Fact]
+    public async Task ExecuteBuildAsync_WithTraversalRelTarget_FailsWithoutWritingOutsideStaging()
+    {
+        // Arrange
+        var patchProjectDir = Path.Combine(_tempDirectory, "TraversalRelTarget");
+        var editedDir = Path.Combine(patchProjectDir, "GameFilesEdited");
+        var buildDir = Path.Combine(patchProjectDir, ".Build");
+        var releaseDir = Path.Combine(patchProjectDir, ".Release");
+
+        Directory.CreateDirectory(Path.Combine(editedDir, "Data"));
+        var iniFile = Path.Combine(editedDir, "Data", "GameData.ini");
+        await File.WriteAllTextAsync(iniFile, "GameData content");
+
+        var project = new ModBuilderProject
+        {
+            Name = "TraversalRelTarget",
+            ProjectDir = patchProjectDir,
+            Directories = new ProjectDirectories
+            {
+                GameFilesEdited = editedDir,
+                Build = buildDir,
+                Release = releaseDir,
+            },
+            BundleConfigs = new List<string>(),
+        };
+
+        var configuration = new BuildConfiguration
+        {
+            Folders = new FolderConfiguration
+            {
+                AbsBuildDir = buildDir,
+                AbsReleaseDir = releaseDir,
+            },
+            Items = new List<BundleItem>
+            {
+                new()
+                {
+                    Name = "EvilItem",
+                    IsBig = true,
+                    Files = new List<BundleFile>
+                    {
+                        new() { AbsSourceParent = patchProjectDir, AbsSourceFile = iniFile, RelTargetFile = "../../evil.txt" },
+                    },
+                },
+            },
+            Packs = new List<BundlePack>(),
+        };
+
+        _mockCacheService.Setup(x => x.DetermineFileStatus(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<Dictionary<string, object>>()))
+            .Returns(BuildFileStatus.Added);
+
+        // Act
+        var result = await _service.ExecuteBuildAsync(
+            project,
+            configuration,
+            new List<string>(),
+            BuildStep.Build);
+
+        // Assert
+        result.Success.Should().BeFalse();
+        result.FirstError.Should().Contain("escapes");
+        Directory.GetFiles(patchProjectDir, "evil.txt", SearchOption.AllDirectories).Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task ExecuteBuildAsync_WithTraversalBigSuffix_FailsWithoutWritingOutsideBundles()
+    {
+        // Arrange
+        var patchProjectDir = Path.Combine(_tempDirectory, "TraversalBigSuffix");
+        var editedDir = Path.Combine(patchProjectDir, "GameFilesEdited");
+        var buildDir = Path.Combine(patchProjectDir, ".Build");
+        var releaseDir = Path.Combine(patchProjectDir, ".Release");
+
+        Directory.CreateDirectory(Path.Combine(editedDir, "Data"));
+        var iniFile = Path.Combine(editedDir, "Data", "GameData.ini");
+        await File.WriteAllTextAsync(iniFile, "GameData content");
+
+        var project = new ModBuilderProject
+        {
+            Name = "TraversalBigSuffix",
+            ProjectDir = patchProjectDir,
+            Directories = new ProjectDirectories
+            {
+                GameFilesEdited = editedDir,
+                Build = buildDir,
+                Release = releaseDir,
+            },
+            BundleConfigs = new List<string>(),
+        };
+
+        var configuration = new BuildConfiguration
+        {
+            Folders = new FolderConfiguration
+            {
+                AbsBuildDir = buildDir,
+                AbsReleaseDir = releaseDir,
+            },
+            Items = new List<BundleItem>
+            {
+                new()
+                {
+                    Name = "EvilSuffix",
+                    IsBig = true,
+                    BigSuffix = "/../../evil",
+                    Files = new List<BundleFile>
+                    {
+                        new() { AbsSourceParent = patchProjectDir, AbsSourceFile = iniFile, RelTargetFile = "Data/GameData.ini" },
+                    },
+                },
+            },
+            Packs = new List<BundlePack>(),
+        };
+
+        _mockCacheService.Setup(x => x.DetermineFileStatus(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<Dictionary<string, object>>()))
+            .Returns(BuildFileStatus.Added);
+
+        // Act
+        var result = await _service.ExecuteBuildAsync(
+            project,
+            configuration,
+            new List<string>(),
+            BuildStep.Build);
+
+        // Assert
+        result.Success.Should().BeFalse();
+        result.FirstError.Should().Contain("outside the bundles directory");
+        Directory.GetFiles(patchProjectDir, "evil.big", SearchOption.AllDirectories).Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task ExecuteBuildAsync_WithTraversalPackName_FailsWithoutCreatingOutsideDirs()
+    {
+        // Arrange
+        var patchProjectDir = Path.Combine(_tempDirectory, "TraversalPack");
+        var editedDir = Path.Combine(patchProjectDir, "GameFilesEdited");
+        var buildDir = Path.Combine(patchProjectDir, ".Build");
+        var releaseDir = Path.Combine(patchProjectDir, ".Release");
+
+        Directory.CreateDirectory(Path.Combine(editedDir, "Data"));
+        var iniFile = Path.Combine(editedDir, "Data", "GameData.ini");
+        await File.WriteAllTextAsync(iniFile, "GameData content");
+
+        var project = new ModBuilderProject
+        {
+            Name = "TraversalPack",
+            ProjectDir = patchProjectDir,
+            Directories = new ProjectDirectories
+            {
+                GameFilesEdited = editedDir,
+                Build = buildDir,
+                Release = releaseDir,
+            },
+            BundleConfigs = new List<string>(),
+        };
+
+        var configuration = new BuildConfiguration
+        {
+            Folders = new FolderConfiguration
+            {
+                AbsBuildDir = buildDir,
+                AbsReleaseDir = releaseDir,
+            },
+            Items = new List<BundleItem>
+            {
+                new()
+                {
+                    Name = "GoodItem",
+                    IsBig = false,
+                    Files = new List<BundleFile>
+                    {
+                        new() { AbsSourceParent = patchProjectDir, AbsSourceFile = iniFile, RelTargetFile = "Data/GameData.ini" },
+                    },
+                },
+            },
+            Packs = new List<BundlePack>
+            {
+                new() { Name = "a/../../evilpack", AllowBuild = true, ItemNames = new List<string> { "GoodItem" } },
+            },
+        };
+
+        _mockCacheService.Setup(x => x.DetermineFileStatus(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<Dictionary<string, object>>()))
+            .Returns(BuildFileStatus.Added);
+
+        // Act
+        var result = await _service.ExecuteBuildAsync(
+            project,
+            configuration,
+            new List<string> { "a/../../evilpack" },
+            BuildStep.Build | BuildStep.Release);
+
+        // Assert
+        result.Success.Should().BeFalse();
+        result.FirstError.Should().Contain("outside the build directories");
+        Directory.Exists(Path.Combine(patchProjectDir, "evilpack")).Should().BeFalse();
+    }
 }

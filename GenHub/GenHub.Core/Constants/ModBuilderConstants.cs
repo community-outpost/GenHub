@@ -1114,6 +1114,226 @@ public static class ModBuilderConstants
         public const string HotkeysHlenSha256 = "60647478fc0494cac46934fad1a830e522f90475b21feca5bf896c3902a02033";
 
         /// <summary>
+        /// Display name for the Generals Community Patch 2.0 showcase sample.
+        /// </summary>
+        public const string GeneralsGamePatch2DisplayName = "Generals Community Patch 2.0";
+
+        /// <summary>
+        /// Publisher name for the Generals Community Patch 2.0 showcase sample.
+        /// </summary>
+        public const string GeneralsGamePatch2Publisher = "TheSuperHackers";
+
+        /// <summary>
+        /// Expected output file name for the Generals Community Patch 2.0 showcase sample.
+        /// </summary>
+        public const string GeneralsGamePatch2OutputFileName = "500_900_CommunityPatch_CoreINI.big";
+
+        /// <summary>
+        /// Display name for the Improved Menus showcase sample.
+        /// </summary>
+        public const string ImprovedMenusDisplayName = "Improved Menus Widescreen";
+
+        /// <summary>
+        /// Publisher name for the Improved Menus showcase sample.
+        /// </summary>
+        public const string ImprovedMenusPublisher = "ElTioRata";
+
+        /// <summary>
+        /// Expected output file name for the Improved Menus showcase sample.
+        /// </summary>
+        public const string ImprovedMenusOutputFileName = "0_ImprovedMenusEnglish.big";
+
+        /// <summary>
+        /// Display name for the Lemon Control Bar showcase sample.
+        /// </summary>
+        public const string LemonControlBarDisplayName = "Lemon Control Bar";
+
+        /// <summary>
+        /// Publisher name for the Lemon Control Bar showcase sample.
+        /// </summary>
+        public const string LemonControlBarPublisher = "L3-M (Lemon)";
+
+        /// <summary>
+        /// Expected output file name for the Lemon Control Bar showcase sample.
+        /// </summary>
+        public const string LemonControlBarOutputFileName = "340_ControlBarProLemonEdition1080ZH.big";
+
+        /// <summary>
+        /// Display name for the Leikeze Hotkeys showcase sample.
+        /// </summary>
+        public const string LeikezeHotkeysDisplayName = "Leikeze Competitive Hotkeys";
+
+        /// <summary>
+        /// Publisher name for the Leikeze Hotkeys showcase sample.
+        /// </summary>
+        public const string LeikezeHotkeysPublisher = "Leikeze";
+
+        /// <summary>
+        /// Expected output file name for the Leikeze Hotkeys showcase sample.
+        /// </summary>
+        public const string LeikezeHotkeysOutputFileName = "!HotkeysLeikezeENZH.big";
+
+        /// <summary>
+        /// Pack name for the Improved Menus English variant.
+        /// </summary>
+        public const string ImprovedMenusEnglishPack = "ImprovedMenus_English";
+
+        /// <summary>
+        /// Pack name for the Improved Menus Russian variant.
+        /// </summary>
+        public const string ImprovedMenusRussianPack = "ImprovedMenus_Russian";
+
+        /// <summary>
+        /// Pack name for the Leikeze Hotkeys Zero Hour English variant.
+        /// </summary>
+        public const string LeikezeHotkeysZhEnPack = "LeikezeHotkeys_ZH_EN";
+
+        /// <summary>
+        /// Item name for the Leikeze Hotkeys Zero Hour English content.
+        /// </summary>
+        public const string HotkeysZhEnglishItem = "Hotkeys_ZH_English";
+
+        /// <summary>
+        /// Legacy marker found in stale Generals Community Patch 2.0 configs.
+        /// </summary>
+        public const string LegacyModifiedIniToken = "ModifiedINI";
+
+        /// <summary>
+        /// Item name for the Generals Community Patch 2.0 patch INI content.
+        /// </summary>
+        public const string PatchIniItemName = "PatchINI";
+
+        /// <summary>
+        /// Legacy JSON key found in stale Lemon Control Bar configs.
+        /// </summary>
+        public const string LegacyTargetDirJsonKey = "\"TargetDir\"";
+
+        /// <summary>
+        /// Pack name for the shared Lemon Control Bar base content.
+        /// </summary>
+        public const string LemonControlBarBasePack = "LemonControlBar_Base";
+
+        /// <summary>
+        /// Pack name for the Lemon Control Bar 1080p art content.
+        /// </summary>
+        public const string LemonControlBarArt1080Pack = "LemonControlBar_Art1080";
+
+        /// <summary>
+        /// Pack name for the Hotkeys Legionnaire Zero Hour content.
+        /// </summary>
+        public const string HotkeysLegionnaireZhPack = "!HotkeysLegionnaireZH";
+
+        /// <summary>
+        /// Item name for the Hotkeys indicators content.
+        /// </summary>
+        public const string HotkeyIndicatorsItem = "HotkeyIndicators";
+
+        /// <summary>
+        /// Pack name for the Improved Menus Spanish variant.
+        /// </summary>
+        public const string ImprovedMenusSpanishPack = "ImprovedMenus_Spanish";
+
+        /// <summary>
+        /// Pack name for the Leikeze Hotkeys Generals English variant.
+        /// </summary>
+        public const string LeikezeHotkeysGeneralsEnPack = "LeikezeHotkeys_Generals_EN";
+
+        /// <summary>
+        /// Pack name for the Leikeze Hotkeys Zero Hour German variant.
+        /// </summary>
+        public const string LeikezeHotkeysZhDePack = "LeikezeHotkeys_ZH_DE";
+
+        /// <summary>
+        /// Item name for the Hotkeys Zero Hour German content.
+        /// </summary>
+        public const string HotkeysZhGermanItem = "Hotkeys_ZH_German";
+
+        /// <summary>
+        /// Item name for the Hotkeys Generals English content.
+        /// </summary>
+        public const string HotkeysGeneralsEnglishItem = "Hotkeys_Generals_English";
+
+        /// <summary>
+        /// Item name for the Hotkeys string table content.
+        /// </summary>
+        public const string HotkeyStringsItem = "HotkeyStrings";
+
+        /// <summary>
+        /// Item name for the Hotkeys INI content.
+        /// </summary>
+        public const string HotkeyINIsItem = "HotkeyINIs";
+
+        /// <summary>
+        /// Pack name for the Lemon Control Bar 720p resolution content.
+        /// </summary>
+        public const string LemonControlBar720pPack = "LemonControlBar_720p";
+
+        /// <summary>
+        /// Pack name for the Lemon Control Bar 1080p resolution content.
+        /// </summary>
+        public const string LemonControlBar1080pPack = "LemonControlBar_1080p";
+
+        /// <summary>
+        /// Pack name for the Lemon Control Bar 1440p resolution content.
+        /// </summary>
+        public const string LemonControlBar1440pPack = "LemonControlBar_1440p";
+
+        /// <summary>
+        /// Pack name for the Lemon Control Bar 4K resolution content.
+        /// </summary>
+        public const string LemonControlBar4KPack = "LemonControlBar_4K";
+
+        /// <summary>
+        /// Pack name for the Lemon Control Bar 1080p data content.
+        /// </summary>
+        public const string LemonControlBarData1080Pack = "LemonControlBar_Data1080";
+
+        /// <summary>
+        /// Pack name for the Lemon Control Bar 2160p art content.
+        /// </summary>
+        public const string LemonControlBarArt2160Pack = "LemonControlBar_Art2160";
+
+        /// <summary>
+        /// Pack name for the Lemon Control Bar 2160p data content.
+        /// </summary>
+        public const string LemonControlBarData2160Pack = "LemonControlBar_Data2160";
+
+        /// <summary>
+        /// Expected output file name for the Lemon Control Bar 720p resolution.
+        /// </summary>
+        public const string LemonControlBar720pOutputFileName = "340_ControlBarProLemonEdition720ZH.big";
+
+        /// <summary>
+        /// Expected output file name for the Lemon Control Bar 1440p resolution.
+        /// </summary>
+        public const string LemonControlBar1440pOutputFileName = "340_ControlBarProLemonEdition1440ZH.big";
+
+        /// <summary>
+        /// Expected output file name for the Lemon Control Bar 2160p resolution.
+        /// </summary>
+        public const string LemonControlBar2160OutputFileName = "340_ControlBarProLemonEdition2160ZH.big";
+
+        /// <summary>
+        /// Download archive file name for the Lemon Control Bar 1080p assets.
+        /// </summary>
+        public const string LemonControlBar1080pZipFileName = "ControlBarProLemonEditionZH_v1.3_1920x1080.zip";
+
+        /// <summary>
+        /// Download archive file name for the Lemon Control Bar 720p assets.
+        /// </summary>
+        public const string LemonControlBar720pZipFileName = "ControlBarProLemonEditionZH_v1.3_1280x720.zip";
+
+        /// <summary>
+        /// Download archive file name for the Lemon Control Bar 1440p assets.
+        /// </summary>
+        public const string LemonControlBar1440pZipFileName = "ControlBarProLemonEditionZH_v1.3_2560x1440.zip";
+
+        /// <summary>
+        /// Download archive file name for the Lemon Control Bar 2160p assets.
+        /// </summary>
+        public const string LemonControlBar2160ZipFileName = "ControlBarProLemonEditionZH_v1.3_3840x2160.zip";
+
+        /// <summary>
         /// Gets the download URL for Generals Community Patch 2.0 core INI sample assets.
         /// </summary>
         public static string GeneralsGamePatch2Url =>

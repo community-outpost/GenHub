@@ -530,7 +530,7 @@ public partial class ConfigEditorViewModel(
     {
         foreach (var manifest in configuration.Manifests)
         {
-            BundleManifests.Add(CreateManifestConfigViewModel(manifest));
+            BundleManifests.Add(CreateManifestConfigViewModel(manifest, CurrentProject));
         }
 
         if (BundleManifests.Count == 0 && BundlePacks.Count > 0)
@@ -539,7 +539,7 @@ public partial class ConfigEditorViewModel(
         }
     }
 
-    private BundleManifestConfigViewModel CreateManifestConfigViewModel(BundleManifest manifest)
+    private static BundleManifestConfigViewModel CreateManifestConfigViewModel(BundleManifest manifest, ModBuilderProject? project)
     {
         var viewModel = new BundleManifestConfigViewModel
         {
@@ -547,8 +547,8 @@ public partial class ConfigEditorViewModel(
             Version = manifest.Version,
             Publisher = manifest.Publisher,
             Description = manifest.Description,
-            ContentType = ResolveEditorContentType(manifest.ContentType, CurrentProject),
-            TargetGame = ResolveEditorTargetGame(manifest.TargetGame, CurrentProject),
+            ContentType = ResolveEditorContentType(manifest.ContentType, project),
+            TargetGame = ResolveEditorTargetGame(manifest.TargetGame, project),
         };
         foreach (var packName in manifest.PackNames)
         {

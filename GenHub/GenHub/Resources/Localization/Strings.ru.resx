@@ -9071,6 +9071,9 @@ GenHub передает официальный идентификатор AppID 
   <data name="Tools.ModBuilder.Notification.Busy.OpenProject" xml:space="preserve">
     <value>Невозможно открыть проект, пока выполняется другая операция.</value>
   </data>
+  <data name="Tools.ModBuilder.Notification.Busy.NewProject" xml:space="preserve">
+    <value>Невозможно создать новый проект, пока выполняется другая операция.</value>
+  </data>
   </data>
   <data name="Tools.ModBuilder.Notification.CleanSkipped.Title" xml:space="preserve">
     <value>Очистка пропущена</value>

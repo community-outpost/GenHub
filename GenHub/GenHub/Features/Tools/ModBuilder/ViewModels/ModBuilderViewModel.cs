@@ -66,6 +66,7 @@ public partial class ModBuilderViewModel(
     private const string OperationInProgressTitleKey = "Tools.ModBuilder.Notification.OperationInProgress.Title";
     private const string BusyImportFilesKey = "Tools.ModBuilder.Notification.Busy.ImportFiles";
     private const string BusyOpenProjectKey = "Tools.ModBuilder.Notification.Busy.OpenProject";
+    private const string BusyNewProjectKey = "Tools.ModBuilder.Notification.Busy.NewProject";
     private const string BusyDeleteProjectKey = "Tools.ModBuilder.Notification.Busy.DeleteProject";
     private const string NoProjectTitleKey = "Tools.ModBuilder.Notification.NoProject.Title";
     private const string NoProjectMessageKey = "Tools.ModBuilder.Notification.NoProject.Message";
@@ -435,12 +436,12 @@ public partial class ModBuilderViewModel(
     [
         new SampleProjectShowcaseItem
         {
-            Id = "GeneralsGamePatch2",
-            Name = "Generals Community Patch 2.0",
-            Publisher = "TheSuperHackers",
+            Id = ModBuilderConstants.GeneralsGamePatch2SampleName,
+            Name = ModBuilderConstants.SampleProjects.GeneralsGamePatch2DisplayName,
+            Publisher = ModBuilderConstants.SampleProjects.GeneralsGamePatch2Publisher,
             Description = localizationService.GetString("Tools.ModBuilder.Samples.GeneralsGamePatch2.Description"),
             TargetGame = ModBuilderConstants.ZeroHourDisplayName,
-            OutputFileName = "500_900_CommunityPatch_CoreINI.big",
+            OutputFileName = ModBuilderConstants.SampleProjects.GeneralsGamePatch2OutputFileName,
             Tag = localizationService.GetString("Tools.ModBuilder.Samples.GeneralsGamePatch2.Tag"),
             VariantSummary = localizationService.GetString("Tools.ModBuilder.Samples.GeneralsGamePatch2.VariantSummary"),
             VariantCount = 1,
@@ -448,12 +449,12 @@ public partial class ModBuilderViewModel(
         },
         new SampleProjectShowcaseItem
         {
-            Id = "ImprovedMenus",
-            Name = "Improved Menus Widescreen",
-            Publisher = "ElTioRata",
+            Id = ModBuilderConstants.ImprovedMenusSampleName,
+            Name = ModBuilderConstants.SampleProjects.ImprovedMenusDisplayName,
+            Publisher = ModBuilderConstants.SampleProjects.ImprovedMenusPublisher,
             Description = localizationService.GetString("Tools.ModBuilder.Samples.ImprovedMenus.Description"),
             TargetGame = ModBuilderConstants.ZeroHourDisplayName,
-            OutputFileName = "0_ImprovedMenusEnglish.big",
+            OutputFileName = ModBuilderConstants.SampleProjects.ImprovedMenusOutputFileName,
             Tag = localizationService.GetString("Tools.ModBuilder.Samples.ImprovedMenus.Tag"),
             VariantSummary = localizationService.GetString("Tools.ModBuilder.Samples.ImprovedMenus.VariantSummary"),
             VariantCount = 3,
@@ -461,12 +462,12 @@ public partial class ModBuilderViewModel(
         },
         new SampleProjectShowcaseItem
         {
-            Id = "LemonControlBar",
-            Name = "Lemon Control Bar",
-            Publisher = "L3-M (Lemon)",
+            Id = ModBuilderConstants.LemonControlBarSampleName,
+            Name = ModBuilderConstants.SampleProjects.LemonControlBarDisplayName,
+            Publisher = ModBuilderConstants.SampleProjects.LemonControlBarPublisher,
             Description = localizationService.GetString("Tools.ModBuilder.Samples.LemonControlBar.Description"),
             TargetGame = ModBuilderConstants.ZeroHourDisplayName,
-            OutputFileName = "340_ControlBarProLemonEdition1080ZH.big",
+            OutputFileName = ModBuilderConstants.SampleProjects.LemonControlBarOutputFileName,
             Tag = localizationService.GetString("Tools.ModBuilder.Samples.LemonControlBar.Tag"),
             VariantSummary = localizationService.GetString("Tools.ModBuilder.Samples.LemonControlBar.VariantSummary"),
             VariantCount = 4,
@@ -474,12 +475,12 @@ public partial class ModBuilderViewModel(
         },
         new SampleProjectShowcaseItem
         {
-            Id = "LeikezeHotkeys",
-            Name = "Leikeze Competitive Hotkeys",
-            Publisher = "Leikeze",
+            Id = ModBuilderConstants.LeikezeHotkeysSampleName,
+            Name = ModBuilderConstants.SampleProjects.LeikezeHotkeysDisplayName,
+            Publisher = ModBuilderConstants.SampleProjects.LeikezeHotkeysPublisher,
             Description = localizationService.GetString("Tools.ModBuilder.Samples.LeikezeHotkeys.Description"),
             TargetGame = ModBuilderConstants.ZeroHourDisplayName,
-            OutputFileName = "!HotkeysLeikezeENZH.big",
+            OutputFileName = ModBuilderConstants.SampleProjects.LeikezeHotkeysOutputFileName,
             Tag = localizationService.GetString("Tools.ModBuilder.Samples.LeikezeHotkeys.Tag"),
             VariantSummary = localizationService.GetString("Tools.ModBuilder.Samples.LeikezeHotkeys.VariantSummary"),
             VariantCount = 3,
@@ -695,6 +696,12 @@ public partial class ModBuilderViewModel(
                 return;
             }
 
+            if (!await TryClaimBuildSlotAsync().ConfigureAwait(false))
+            {
+                notificationService.ShowWarning(localizationService.GetString(OperationInProgressTitleKey), localizationService.GetString(BusyNewProjectKey));
+                return;
+            }
+
             var projectName = Path.GetFileNameWithoutExtension(projectPath);
             logger.LogInformation("Creating new project '{ProjectName}' at {ProjectPath}", projectName, projectPath);
 
@@ -724,6 +731,10 @@ public partial class ModBuilderViewModel(
                 notificationService.ShowError(
                     localizationService.GetString("Tools.ModBuilder.Notification.CreationError.Title"),
                     ex.Message);
+            }
+            finally
+            {
+                await InvokeOnUIThreadAsync(() => IsBuildRunning = false);
             }
         }
     }
@@ -1477,13 +1488,13 @@ public partial class ModBuilderViewModel(
             return false;
         }
 
-        if (isPacksFile && (!content.Contains("ImprovedMenus_English", StringComparison.OrdinalIgnoreCase) ||
-            !content.Contains("ImprovedMenus_Russian", StringComparison.OrdinalIgnoreCase)))
+        if (isPacksFile && (!content.Contains(ModBuilderConstants.SampleProjects.ImprovedMenusEnglishPack, StringComparison.OrdinalIgnoreCase) ||
+            !content.Contains(ModBuilderConstants.SampleProjects.ImprovedMenusRussianPack, StringComparison.OrdinalIgnoreCase)))
         {
             return true;
         }
 
-        return isItemsFile && !content.Contains("MenuTexturesEnglish", StringComparison.OrdinalIgnoreCase);
+        return isItemsFile && !content.Contains(ModBuilderConstants.MenuTexturesEnglishItemName, StringComparison.OrdinalIgnoreCase);
     }
 
     private static bool IsLeikezeHotkeysConfigStale(string sampleId, string content, bool isItemsFile, bool isPacksFile)
@@ -1493,12 +1504,12 @@ public partial class ModBuilderViewModel(
             return false;
         }
 
-        if (isPacksFile && !content.Contains("LeikezeHotkeys_ZH_EN", StringComparison.OrdinalIgnoreCase))
+        if (isPacksFile && !content.Contains(ModBuilderConstants.SampleProjects.LeikezeHotkeysZhEnPack, StringComparison.OrdinalIgnoreCase))
         {
             return true;
         }
 
-        return isItemsFile && !content.Contains("Hotkeys_ZH_English", StringComparison.OrdinalIgnoreCase);
+        return isItemsFile && !content.Contains(ModBuilderConstants.SampleProjects.HotkeysZhEnglishItem, StringComparison.OrdinalIgnoreCase);
     }
 
     private static bool IsGeneralsGamePatch2ConfigStale(string sampleId, string content, bool isItemsFile, bool isPacksFile)
@@ -1508,14 +1519,14 @@ public partial class ModBuilderViewModel(
             return false;
         }
 
-        if (isPacksFile && (!content.Contains("GeneralsGamePatch2", StringComparison.OrdinalIgnoreCase) ||
-            content.Contains("ModifiedINI", StringComparison.OrdinalIgnoreCase)))
+        if (isPacksFile && (!content.Contains(ModBuilderConstants.GeneralsGamePatch2SampleName, StringComparison.OrdinalIgnoreCase) ||
+            content.Contains(ModBuilderConstants.SampleProjects.LegacyModifiedIniToken, StringComparison.OrdinalIgnoreCase)))
         {
             return true;
         }
 
-        return isItemsFile && (!content.Contains("PatchINI", StringComparison.OrdinalIgnoreCase) ||
-            content.Contains("ModifiedINI", StringComparison.OrdinalIgnoreCase));
+        return isItemsFile && (!content.Contains(ModBuilderConstants.SampleProjects.PatchIniItemName, StringComparison.OrdinalIgnoreCase) ||
+            content.Contains(ModBuilderConstants.SampleProjects.LegacyModifiedIniToken, StringComparison.OrdinalIgnoreCase));
     }
 
     private static bool IsLemonControlBarConfigStale(string sampleId, string content, bool isItemsFile, bool isPacksFile)
@@ -1527,13 +1538,13 @@ public partial class ModBuilderViewModel(
 
         // Pre-generation layouts used TargetDir flattening with per-resolution
         // Window sources; the current layout keeps Gen/Res prefixes instead.
-        if (isItemsFile && (!content.Contains("Gen1080", StringComparison.OrdinalIgnoreCase) ||
-            content.Contains("\"TargetDir\"", StringComparison.OrdinalIgnoreCase)))
+        if (isItemsFile && (!content.Contains(ModBuilderConstants.SampleProjects.LemonGen1080Dir, StringComparison.OrdinalIgnoreCase) ||
+            content.Contains(ModBuilderConstants.SampleProjects.LegacyTargetDirJsonKey, StringComparison.OrdinalIgnoreCase)))
         {
             return true;
         }
 
-        return isPacksFile && !content.Contains("LemonControlBar_Art1080", StringComparison.OrdinalIgnoreCase);
+        return isPacksFile && !content.Contains(ModBuilderConstants.SampleProjects.LemonControlBarArt1080Pack, StringComparison.OrdinalIgnoreCase);
     }
 
     private static bool IsHotkeysConfigStale(string sampleId, string content, bool isItemsFile, bool isPacksFile)
@@ -1543,12 +1554,12 @@ public partial class ModBuilderViewModel(
             return false;
         }
 
-        if (isPacksFile && !content.Contains("!HotkeysLegionnaireZH", StringComparison.OrdinalIgnoreCase))
+        if (isPacksFile && !content.Contains(ModBuilderConstants.SampleProjects.HotkeysLegionnaireZhPack, StringComparison.OrdinalIgnoreCase))
         {
             return true;
         }
 
-        return isItemsFile && !content.Contains("HotkeyIndicators", StringComparison.OrdinalIgnoreCase);
+        return isItemsFile && !content.Contains(ModBuilderConstants.SampleProjects.HotkeyIndicatorsItem, StringComparison.OrdinalIgnoreCase);
     }
 
     private async Task SyncSampleTemplateConfigsAsync(string sampleId, string projectDir, CancellationToken cancellationToken)
