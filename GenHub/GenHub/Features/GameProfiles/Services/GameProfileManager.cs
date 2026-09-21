@@ -257,15 +257,7 @@ public class GameProfileManager(
             if (deleteResult.Success)
             {
                 logger.LogInformation("Successfully deleted game profile with ID: {ProfileId}", profileId);
-                try
-                {
-                    WeakReferenceMessenger.Default.Send(new ProfileDeletedMessage(profileId, profileName));
-                }
-                catch (Exception ex)
-                {
-                    logger.LogError(ex, "Failed to send ProfileDeletedMessage for {ProfileId}", profileId);
-                }
-
+                WeakReferenceMessenger.Default.Send(new ProfileDeletedMessage(profileId, profileName));
                 return OperationResult<bool>.CreateSuccess(true);
             }
 
@@ -540,7 +532,7 @@ public class GameProfileManager(
             return true;
         }
 
-        if (string.IsNullOrWhiteSpace(profile.GameInstallationId))
+        if (!profile.IsToolProfile && string.IsNullOrWhiteSpace(profile.GameInstallationId))
         {
             return true;
         }
@@ -562,7 +554,7 @@ public class GameProfileManager(
 
     private static bool IsCreatedWithContentOrphan(GameProfile profile, IReadOnlyList<string> remainingContentIds)
     {
-        if (profile.Description?.StartsWith("Profile created with ", StringComparison.OrdinalIgnoreCase) != true)
+        if (profile.Description?.StartsWith(ProfileConstants.CreatedWithContentDescriptionPrefix, StringComparison.OrdinalIgnoreCase) != true)
         {
             return false;
         }
@@ -976,13 +968,6 @@ public class GameProfileManager(
             return;
         }
 
-        try
-        {
-            WeakReferenceMessenger.Default.Send(new ProfileListUpdatedMessage());
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Failed to send ProfileListUpdatedMessage after scrubbing profiles");
-        }
+        WeakReferenceMessenger.Default.Send(new ProfileListUpdatedMessage());
     }
 }

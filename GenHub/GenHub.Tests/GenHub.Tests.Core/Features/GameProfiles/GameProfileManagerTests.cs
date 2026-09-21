@@ -1056,6 +1056,46 @@ public class GameProfileManagerTests
     }
 
     /// <summary>
+    /// Verifies that when a tool profile contains multiple contents and non-tool content is deleted, the tool profile is updated, not deleted as orphaned.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ScrubDeletedManifestReferencesAsync_WhenToolProfileRetainsToolContent_UpdatesProfileAsync()
+    {
+        // Arrange
+        const string toolId = "tool.worldbuilder";
+        const string extraId = "extra.map";
+        var toolProfile = new GameProfile
+        {
+            Id = "tool-profile-1",
+            Name = "WorldBuilder Tool",
+            ToolContentId = toolId,
+            EnabledContentIds = [toolId, extraId],
+        };
+
+        _profileRepositoryMock.Setup(x => x.LoadAllProfilesAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<IReadOnlyList<GameProfile>>.CreateSuccess([toolProfile]));
+        _profileRepositoryMock.Setup(x => x.LoadProfileAsync("tool-profile-1", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(toolProfile));
+        _profileRepositoryMock.Setup(x => x.SaveProfileAsync(It.IsAny<GameProfile>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(toolProfile));
+
+        // Act
+        var result = await _profileManager.ScrubDeletedManifestReferencesAsync([extraId]);
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.Equal(1, result.Data!.UpdatedProfilesCount);
+        Assert.Equal(0, result.Data.DeletedProfilesCount);
+        _profileRepositoryMock.Verify(x => x.DeleteProfileAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+        _profileRepositoryMock.Verify(
+            x => x.SaveProfileAsync(
+                It.Is<GameProfile>(p => p.EnabledContentIds.Count == 1 && p.EnabledContentIds.Contains(toolId)),
+                It.IsAny<CancellationToken>()),
+            Times.Once);
+    }
+
+    /// <summary>
     /// Verifies that when a tool profile tool content manifest is deleted, the orphaned tool profile is deleted.
     /// </summary>
     /// <returns>A task representing the asynchronous unit test.</returns>
@@ -1103,7 +1143,7 @@ public class GameProfileManagerTests
         {
             Id = "auto-profile-1",
             Name = "ShockWave Profile",
-            Description = "Profile created with ShockWave",
+            Description = $"{ProfileConstants.CreatedWithContentDescriptionPrefix}ShockWave",
             GameInstallationId = "inst-1",
             GameClient = new GameClient { Id = "client-1", Version = "1.0", GameType = GameType.ZeroHour },
             EnabledContentIds = [modId, gameInstallId],

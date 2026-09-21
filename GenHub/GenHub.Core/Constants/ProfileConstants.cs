@@ -36,6 +36,11 @@ public static class ProfileConstants
     public const string CopyNameNumberedFormat = "(Copy {0})";
 
     /// <summary>
+    /// The prefix used for descriptions of profiles created with specific content.
+    /// </summary>
+    public const string CreatedWithContentDescriptionPrefix = "Profile created with ";
+
+    /// <summary>
     /// Localization key for workspace preparation notification title.
     /// </summary>
     public const string WorkspacePreparingTitleKey = "GameProfiles.Launch.WorkspacePreparingTitle";

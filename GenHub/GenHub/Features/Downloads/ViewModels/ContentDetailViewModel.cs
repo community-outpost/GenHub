@@ -5624,10 +5624,33 @@ public partial class ContentDetailViewModel(
 
             if (profileManager != null)
             {
-                var scrubResult = await profileManager.ScrubDeletedManifestReferencesAsync([manifestId], _cts.Token);
-                if (!scrubResult.Success)
+                var scrubResult = await profileManager.ScrubDeletedManifestReferencesAsync([manifestId], CancellationToken.None);
+                if (!scrubResult.Success || scrubResult.Data == null)
                 {
                     logger.LogWarning("Failed to scrub profile references after deleting {ManifestId}: {Error}", manifestId, scrubResult.FirstError);
+                    var enumerationFormat = GetLocalizedString(
+                        "Settings.Manifests.ScrubFailed.EnumerationMessage",
+                        "The profile list could not be loaded, so deleted manifests may still be referenced by profiles. Those profiles may fail to launch until updated.");
+                    notificationService.ShowWarning(
+                        GetLocalizedString("Settings.Manifests.ScrubFailed.Title", "Profile Update Incomplete"),
+                        enumerationFormat,
+                        NotificationDurations.Medium);
+                }
+                else if (scrubResult.Data.FailedProfileNames.Count > 0)
+                {
+                    var failedProfileNames = scrubResult.Data.FailedProfileNames;
+                    logger.LogWarning(
+                        "Failed to update {Count} profile(s) while scrubbing deleted manifest {ManifestId}: {FailedProfiles}",
+                        failedProfileNames.Count,
+                        manifestId,
+                        string.Join(", ", failedProfileNames));
+                    var scrubFailedFormat = GetLocalizedString(
+                        "Settings.Manifests.ScrubFailed.Message",
+                        "Deleted manifests could not be removed from {0} profile(s): {1}. Those profiles may fail to launch until updated.");
+                    notificationService.ShowWarning(
+                        GetLocalizedString("Settings.Manifests.ScrubFailed.Title", "Profile Update Incomplete"),
+                        string.Format(CultureInfo.InvariantCulture, scrubFailedFormat, failedProfileNames.Count, string.Join(", ", failedProfileNames)),
+                        NotificationDurations.Medium);
                 }
             }
 

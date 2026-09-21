@@ -980,7 +980,7 @@ public sealed class ProfileContentService(
         {
             Name = profileName,
             EnabledContentIds = filteredIds,
-            Description = $"Profile created with {manifest.Name}",
+            Description = $"{ProfileConstants.CreatedWithContentDescriptionPrefix}{manifest.Name}",
             ThemeColor = manifest.Metadata?.ThemeColor ?? GetThemeColorForPublisher(manifest.Publisher?.PublisherType, manifest.TargetGame),
             IconPath = PublisherInfoConstants.GetPublisherLogo(manifest.Publisher?.PublisherType ?? manifest.Publisher?.Name, $"{manifest.Id} {manifest.Name}")
                        ?? (manifest.Metadata?.IconUrl != null && !manifest.Metadata.IconUrl.Contains("cover", StringComparison.OrdinalIgnoreCase) && !manifest.Metadata.IconUrl.Contains("poster", StringComparison.OrdinalIgnoreCase) ? manifest.Metadata.IconUrl : GetIconPathForGame(manifest.TargetGame)),
@@ -1023,7 +1023,7 @@ public sealed class ProfileContentService(
             GameClientId = profileGameClient?.Id ?? gameClient.Id,
             GameClient = profileGameClient,
             EnabledContentIds = enabledContentIds,
-            Description = $"Profile created with {manifest.Name}",
+            Description = $"{ProfileConstants.CreatedWithContentDescriptionPrefix}{manifest.Name}",
             ThemeColor = manifest.Metadata?.ThemeColor ?? GetThemeColorForPublisher(manifest.Publisher?.PublisherType, manifest.TargetGame),
             IconPath = PublisherInfoConstants.GetPublisherLogo(manifest.Publisher?.PublisherType ?? manifest.Publisher?.Name, $"{manifest.Id} {manifest.Name}")
                        ?? (manifest.Metadata?.IconUrl != null && !manifest.Metadata.IconUrl.Contains("cover", StringComparison.OrdinalIgnoreCase) && !manifest.Metadata.IconUrl.Contains("poster", StringComparison.OrdinalIgnoreCase) ? manifest.Metadata.IconUrl : GetIconPathForGame(manifest.TargetGame)),

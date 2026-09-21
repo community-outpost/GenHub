@@ -2562,10 +2562,136 @@ public sealed class ContentDetailViewModelTests
         profileManager.Verify(
             manager => manager.ScrubDeletedManifestReferencesAsync(
                 It.Is<IEnumerable<string>>(ids => ids.Contains(manifestId)),
-                It.IsAny<CancellationToken>()),
+                CancellationToken.None),
             Times.Once);
         artworkService.Verify(
             service => service.PurgeArtworkAsync(manifestId, It.IsAny<CancellationToken>()),
+            Times.Once);
+        notifications.Verify(
+            n => n.ShowSuccess(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
+            Times.Once);
+    }
+
+    /// <summary>
+    /// Verifies that when scrubbing profile references fails after deleting a download, a warning notification is displayed.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task DeleteDownloadCommand_WhenScrubFails_ShowsWarningNotificationAsync()
+    {
+        // Arrange
+        const string manifestId = "1.20260901.custom.mod.test";
+        var searchResult = new ContentSearchResult
+        {
+            Id = manifestId,
+            Name = "Custom Mod",
+            ProviderName = "custom",
+            ContentType = ContentType.Mod,
+            TargetGame = GameType.ZeroHour,
+        };
+
+        var manifestPool = CreateManifestPoolMock(CreateDownloadedManifest(manifestId, "Custom Mod", ContentType.Mod));
+        manifestPool
+            .Setup(pool => pool.RemoveManifestAsync(It.IsAny<ManifestId>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+
+        var profileManager = new Mock<IGameProfileManager>();
+        profileManager
+            .Setup(manager => manager.GetAllProfilesAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<IReadOnlyList<GameProfile>>.CreateSuccess([]));
+        profileManager
+            .Setup(manager => manager.ScrubDeletedManifestReferencesAsync(It.IsAny<IEnumerable<string>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ProfileScrubResult>.CreateFailure("Storage locked"));
+
+        var dialogService = new Mock<IDialogService>();
+        dialogService
+            .Setup(dialog => dialog.ShowConfirmationAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string?>()))
+            .ReturnsAsync(true);
+
+        var notifications = new Mock<INotificationService>();
+        var viewModel = CreateViewModel(
+            searchResult,
+            new Mock<IContentDownloadCoordinator>().Object,
+            manifestPool: manifestPool.Object,
+            notificationService: notifications.Object,
+            profileManager: profileManager.Object,
+            dialogService: dialogService.Object);
+        viewModel.IsDownloaded = true;
+
+        // Act
+        await viewModel.DeleteDownloadCommand.ExecuteAsync(null);
+
+        // Assert
+        notifications.Verify(
+            n => n.ShowWarning(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
+            Times.Once);
+        notifications.Verify(
+            n => n.ShowSuccess(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
+            Times.Once);
+    }
+
+    /// <summary>
+    /// Verifies that when scrubbing profile references reports failed profiles, a warning notification is displayed.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task DeleteDownloadCommand_WhenScrubHasFailedProfiles_ShowsWarningNotificationAsync()
+    {
+        // Arrange
+        const string manifestId = "1.20260901.custom.mod.test";
+        var searchResult = new ContentSearchResult
+        {
+            Id = manifestId,
+            Name = "Custom Mod",
+            ProviderName = "custom",
+            ContentType = ContentType.Mod,
+            TargetGame = GameType.ZeroHour,
+        };
+
+        var manifestPool = CreateManifestPoolMock(CreateDownloadedManifest(manifestId, "Custom Mod", ContentType.Mod));
+        manifestPool
+            .Setup(pool => pool.RemoveManifestAsync(It.IsAny<ManifestId>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+
+        var profileManager = new Mock<IGameProfileManager>();
+        profileManager
+            .Setup(manager => manager.GetAllProfilesAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<IReadOnlyList<GameProfile>>.CreateSuccess([]));
+        profileManager
+            .Setup(manager => manager.ScrubDeletedManifestReferencesAsync(It.IsAny<IEnumerable<string>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ProfileScrubResult>.CreateSuccess(new ProfileScrubResult(1, 0, ["Locked Profile"])));
+
+        var dialogService = new Mock<IDialogService>();
+        dialogService
+            .Setup(dialog => dialog.ShowConfirmationAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string?>()))
+            .ReturnsAsync(true);
+
+        var notifications = new Mock<INotificationService>();
+        var viewModel = CreateViewModel(
+            searchResult,
+            new Mock<IContentDownloadCoordinator>().Object,
+            manifestPool: manifestPool.Object,
+            notificationService: notifications.Object,
+            profileManager: profileManager.Object,
+            dialogService: dialogService.Object);
+        viewModel.IsDownloaded = true;
+
+        // Act
+        await viewModel.DeleteDownloadCommand.ExecuteAsync(null);
+
+        // Assert
+        notifications.Verify(
+            n => n.ShowWarning(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
             Times.Once);
         notifications.Verify(
             n => n.ShowSuccess(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
