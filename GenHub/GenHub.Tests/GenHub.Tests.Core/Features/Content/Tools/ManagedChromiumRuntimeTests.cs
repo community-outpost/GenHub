@@ -383,6 +383,69 @@ public sealed class ManagedChromiumRuntimeTests : IDisposable
     }
 
     /// <summary>
+    /// Verifies staged download measurement accumulates per-file high-water marks so deleted
+    /// phase archives stay counted, and ignores files outside Playwright's staging pattern.
+    /// </summary>
+    [Fact]
+    public void MeasureStagedDownloadBytes_AccumulatesHighWaterMarksAcrossDeletedPhases()
+    {
+        // Arrange
+        var stagingDirectory = Path.Combine(Path.GetTempPath(), "GenHubTests", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(stagingDirectory);
+        try
+        {
+            var runtime = new ManagedChromiumRuntime(
+                _runtimeDirectory,
+                _ => 0,
+                _ => Task.FromResult(true),
+                new Mock<ILogger>().Object);
+            var highWaterMarks = new Dictionary<string, long>(StringComparer.OrdinalIgnoreCase);
+            File.WriteAllBytes(Path.Combine(stagingDirectory, "playwright-download-chromium-win32-x64.zip"), new byte[100]);
+            File.WriteAllBytes(Path.Combine(stagingDirectory, "unrelated.tmp"), new byte[5000]);
+
+            // Act
+            var first = runtime.MeasureStagedDownloadBytes(stagingDirectory, highWaterMarks);
+
+            // Assert
+            Assert.Equal(100, first);
+
+            // Act: Playwright deletes each archive after extraction, then stages the next phase.
+            File.Delete(Path.Combine(stagingDirectory, "playwright-download-chromium-win32-x64.zip"));
+            File.WriteAllBytes(Path.Combine(stagingDirectory, "playwright-download-ffmpeg-win64.zip"), new byte[50]);
+            var second = runtime.MeasureStagedDownloadBytes(stagingDirectory, highWaterMarks);
+
+            // Assert
+            Assert.Equal(150, second);
+        }
+        finally
+        {
+            Directory.Delete(stagingDirectory, recursive: true);
+        }
+    }
+
+    /// <summary>
+    /// Verifies staged download measurement returns zero when no archives were ever staged.
+    /// </summary>
+    [Fact]
+    public void MeasureStagedDownloadBytes_WithoutStagedArchives_ReturnsZero()
+    {
+        // Arrange
+        var runtime = new ManagedChromiumRuntime(
+            _runtimeDirectory,
+            _ => 0,
+            _ => Task.FromResult(true),
+            new Mock<ILogger>().Object);
+
+        // Act
+        var total = runtime.MeasureStagedDownloadBytes(
+            Path.Combine(Path.GetTempPath(), "GenHubTests", Guid.NewGuid().ToString("N")),
+            new Dictionary<string, long>(StringComparer.OrdinalIgnoreCase));
+
+        // Assert
+        Assert.Equal(0, total);
+    }
+
+    /// <summary>
     /// Deletes the temporary runtime directory and restores the process environment.
     /// </summary>
     public void Dispose()

@@ -8075,6 +8075,9 @@ GenHub передает официальный идентификатор AppID 
   <data name="ModDB.ChromiumExtractingMessage" xml:space="preserve">
     <value>Распаковка и настройка среды выполнения Chromium...</value>
   </data>
+  <data name="ModDB.ChromiumProgressStatusFormat" xml:space="preserve">
+    <value>{0:F0} МБ / ~{1:F0} МБ</value>
+  </data>
   <data name="ModDB.ChromiumReadyTitle" xml:space="preserve">
     <value>Среда выполнения Chromium готова</value>
   </data>

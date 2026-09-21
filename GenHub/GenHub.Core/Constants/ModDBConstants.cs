@@ -643,6 +643,13 @@ public static class ModDBConstants
     /// <summary>Message when the Chromium runtime installation fails.</summary>
     public const string ChromiumInstallFailedMessage = "GenHub could not install its managed Chromium runtime. Check your network connection and try again.";
 
+    /// <summary>
+    /// File pattern for Playwright's staged browser archives in the OS temp directory.
+    /// Playwright streams each download there (never the browsers path) and deletes it
+    /// after extraction, so progress must be measured from these files.
+    /// </summary>
+    public const string PlaywrightStagingDownloadPattern = "playwright-download-*";
+
     // ===== Managed Playwright Driver =====
 
     /// <summary>NuGet package id that ships the Playwright driver binaries.</summary>

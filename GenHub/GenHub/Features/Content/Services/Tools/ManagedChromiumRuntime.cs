@@ -5,6 +5,7 @@ using GenHub.Core.Interfaces.Notifications;
 using Microsoft.Extensions.Logging;
 using Microsoft.Playwright;
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -275,6 +276,46 @@ internal sealed class ManagedChromiumRuntime(
             ?? FindDriverNodeUnderDirectory(new DirectoryInfo(assemblyDirectory).Parent?.Parent?.FullName, platformFolder, nodeBinaryName);
     }
 
+    /// <summary>
+    /// Measures cumulative staged browser download bytes. Playwright streams each browser
+    /// archive to the OS temp directory (never the browsers path) and deletes it after
+    /// extraction, so per-file high-water marks keep completed phases counted.
+    /// </summary>
+    /// <param name="stagingDirectory">The directory holding Playwright's staged archives.</param>
+    /// <param name="highWaterMarks">The per-file high-water marks, updated in place.</param>
+    /// <returns>The cumulative staged bytes observed so far.</returns>
+    internal long MeasureStagedDownloadBytes(string stagingDirectory, Dictionary<string, long> highWaterMarks)
+    {
+        try
+        {
+            foreach (var filePath in Directory.EnumerateFiles(stagingDirectory, ModDBConstants.PlaywrightStagingDownloadPattern))
+            {
+                long length;
+                try
+                {
+                    length = new FileInfo(filePath).Length;
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                {
+                    logger.LogTrace(ex, "Transient error while measuring staged browser archive {FilePath}", filePath);
+                    continue;
+                }
+
+                var fileName = Path.GetFileName(filePath);
+                if (length > highWaterMarks.GetValueOrDefault(fileName))
+                {
+                    highWaterMarks[fileName] = length;
+                }
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            logger.LogTrace(ex, "Transient error while enumerating staged browser archives during installation");
+        }
+
+        return highWaterMarks.Values.Sum();
+    }
+
     private static string? FindDriverNodeUnderDirectory(string? directory, string platformFolder, string nodeBinaryName)
     {
         if (string.IsNullOrWhiteSpace(directory))
@@ -309,6 +350,7 @@ internal sealed class ManagedChromiumRuntime(
         IBrowserType chromium,
         CancellationToken cancellationToken)
     {
+        var stagedHighWaterMarks = new Dictionary<string, long>(StringComparer.OrdinalIgnoreCase);
         using var periodicTimer = new PeriodicTimer(TimeSpan.FromSeconds(1));
         try
         {
@@ -322,30 +364,19 @@ internal sealed class ManagedChromiumRuntime(
                     continue;
                 }
 
-                try
+                var totalBytes = MeasureStagedDownloadBytes(Path.GetTempPath(), stagedHighWaterMarks);
+                if (totalBytes > 0)
                 {
-                    if (Directory.Exists(runtimeDirectory))
-                    {
-                        var dirInfo = new DirectoryInfo(runtimeDirectory);
-                        var totalBytes = dirInfo.EnumerateFiles("*", SearchOption.AllDirectories).Sum(fi => fi.Length);
-                        if (totalBytes > 0)
-                        {
-                            var fraction = Math.Clamp(totalBytes / ModDBConstants.ChromiumExpectedSizeBytes, 0.05, 0.90);
-                            var mbDownloaded = totalBytes / (1024.0 * 1024.0);
-                            var statusFormat = localizationService?.GetString("ModDB.ChromiumProgressStatusFormat")
-                                ?? ModDBConstants.ChromiumProgressStatusFormat;
-                            var status = string.Format(
-                                CultureInfo.CurrentCulture,
-                                statusFormat,
-                                mbDownloaded,
-                                ModDBConstants.ChromiumExpectedSizeMegabytes);
-                            scope.ReportFraction(fraction, status);
-                        }
-                    }
-                }
-                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-                {
-                    logger.LogTrace(ex, "Transient error while measuring runtime directory size during installation");
+                    var fraction = Math.Clamp(totalBytes / ModDBConstants.ChromiumExpectedSizeBytes, 0.05, 0.90);
+                    var mbDownloaded = totalBytes / (1024.0 * 1024.0);
+                    var statusFormat = localizationService?.GetString("ModDB.ChromiumProgressStatusFormat")
+                        ?? ModDBConstants.ChromiumProgressStatusFormat;
+                    var status = string.Format(
+                        CultureInfo.CurrentCulture,
+                        statusFormat,
+                        mbDownloaded,
+                        ModDBConstants.ChromiumExpectedSizeMegabytes);
+                    scope.ReportFraction(fraction, status);
                 }
             }
         }

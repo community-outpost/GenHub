@@ -8075,6 +8075,9 @@ GenHub هو مشغل ومدير حديث لألعاب **Command &amp; Conquer: G
   <data name="ModDB.ChromiumExtractingMessage" xml:space="preserve">
     <value>جارٍ استخراج وتكوين بيئة تشغيل Chromium...</value>
   </data>
+  <data name="ModDB.ChromiumProgressStatusFormat" xml:space="preserve">
+    <value>{0:F0} م.ب / ~{1:F0} م.ب</value>
+  </data>
   <data name="ModDB.ChromiumReadyTitle" xml:space="preserve">
     <value>بيئة تشغيل Chromium جاهزة</value>
   </data>

@@ -8169,6 +8169,9 @@ Do you want to download and inspect this profile package?</value>
   <data name="ModDB.ChromiumExtractingMessage" xml:space="preserve">
     <value>Extracting and configuring Chromium runtime...</value>
   </data>
+  <data name="ModDB.ChromiumProgressStatusFormat" xml:space="preserve">
+    <value>{0:F0} MB / ~{1:F0} MB</value>
+  </data>
   <data name="ModDB.ChromiumReadyTitle" xml:space="preserve">
     <value>Chromium Runtime Ready</value>
   </data>
