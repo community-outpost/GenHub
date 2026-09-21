@@ -152,6 +152,9 @@ public partial class PublishShareViewModel(
     private const string RestoredConnectionTitleKey = "Tools.PublisherStudio.Publish.RestoredConnection";
     private const string RestoredConnectionDefaultMessage = "Restored connection";
 
+    private const string LoadFailedTitleKey = "Tools.PublisherStudio.Hosting.LoadFailedTitle";
+    private const string LoadFailedDefaultTitle = "Load Failed";
+
     /// <summary>
     /// Progress band (0-80%) shared by pending artifact and artwork uploads.
     /// The remaining band covers the catalog JSON upload.
@@ -1293,8 +1296,18 @@ public partial class PublishShareViewModel(
             return;
         }
 
-        // Discovered definitions in cloud storage
-        // skipcq: CS-R1033
+        PopulateDiscoveredDefinitions(providerName, ref totalBytes);
+        PopulateDiscoveredCatalogs(providerName, ref totalBytes, ref catCount);
+        PopulateDiscoveredArtifacts(providerName, ref totalBytes, ref artCount);
+    }
+
+    private void PopulateDiscoveredDefinitions(string providerName, ref long totalBytes)
+    {
+        if (_currentHostingState == null)
+        {
+            return;
+        }
+
         foreach (var cloudDef in _currentHostingState.Definitions.Where(cloudDef => !HostedAssets.Any(a =>
             (!string.IsNullOrEmpty(a.Url) && !string.IsNullOrEmpty(cloudDef.Url) && string.Equals(a.Url, cloudDef.Url, StringComparison.OrdinalIgnoreCase)) ||
             (!string.IsNullOrEmpty(a.Name) && !string.IsNullOrEmpty(cloudDef.FileName) && string.Equals(a.Name, cloudDef.FileName, StringComparison.OrdinalIgnoreCase)))))
@@ -1321,9 +1334,15 @@ public partial class PublishShareViewModel(
                 LastUpdated = cloudDef.LastUpdated,
             });
         }
+    }
 
-        // Catalogs in cloud storage
-        // skipcq: CS-R1033
+    private void PopulateDiscoveredCatalogs(string providerName, ref long totalBytes, ref int catCount)
+    {
+        if (_currentHostingState == null)
+        {
+            return;
+        }
+
         foreach (var cloudCat in _currentHostingState.Catalogs.Where(cloudCat => !HostedAssets.Any(a =>
             (!string.IsNullOrEmpty(a.Url) && !string.IsNullOrEmpty(cloudCat.Url) && string.Equals(a.Url, cloudCat.Url, StringComparison.OrdinalIgnoreCase)) ||
             (!string.IsNullOrEmpty(a.Name) && !string.IsNullOrEmpty(cloudCat.FileName) && string.Equals(a.Name, cloudCat.FileName, StringComparison.OrdinalIgnoreCase)))))
@@ -1350,9 +1369,15 @@ public partial class PublishShareViewModel(
                 LastUpdated = cloudCat.LastUpdated,
             });
         }
+    }
 
-        // Artifacts in cloud storage
-        // skipcq: CS-R1033
+    private void PopulateDiscoveredArtifacts(string providerName, ref long totalBytes, ref int artCount)
+    {
+        if (_currentHostingState == null)
+        {
+            return;
+        }
+
         foreach (var cloudArt in _currentHostingState.Artifacts.Where(cloudArt => !HostedAssets.Any(a =>
             (!string.IsNullOrEmpty(a.Url) && !string.IsNullOrEmpty(cloudArt.Url) && string.Equals(a.Url, cloudArt.Url, StringComparison.OrdinalIgnoreCase)) ||
             (!string.IsNullOrEmpty(a.Name) && !string.IsNullOrEmpty(cloudArt.FileName) && string.Equals(a.Name, cloudArt.FileName, StringComparison.OrdinalIgnoreCase)))))
@@ -4908,7 +4933,7 @@ public partial class PublishShareViewModel(
         {
             logger.LogError(ex, "Failed to load asset {AssetName} into project", asset.Name);
             notificationService?.ShowError(
-                GetLocalizedString("Tools.PublisherStudio.Hosting.LoadFailedTitle", "Load Failed"),
+                GetLocalizedString(LoadFailedTitleKey, LoadFailedDefaultTitle),
                 FormatLocalizedString("Tools.PublisherStudio.Hosting.LoadFailedFormat", "Failed to load {0}: {1}", asset.Name, ex.Message));
         }
     }
@@ -4923,7 +4948,7 @@ public partial class PublishShareViewModel(
         if (string.IsNullOrWhiteSpace(json))
         {
             notificationService?.ShowError(
-                GetLocalizedString("Tools.PublisherStudio.Hosting.LoadFailedTitle", "Load Failed"),
+                GetLocalizedString(LoadFailedTitleKey, LoadFailedDefaultTitle),
                 GetLocalizedString("Tools.PublisherStudio.Hosting.DownloadEmptyError", "Downloaded definition was empty."));
             return;
         }
@@ -4937,7 +4962,7 @@ public partial class PublishShareViewModel(
         {
             logger.LogError(ex, "Failed to deserialize publisher definition JSON from {Url}", asset.Url);
             notificationService?.ShowError(
-                GetLocalizedString("Tools.PublisherStudio.Hosting.LoadFailedTitle", "Load Failed"),
+                GetLocalizedString(LoadFailedTitleKey, LoadFailedDefaultTitle),
                 FormatLocalizedString("Tools.PublisherStudio.Hosting.DeserializeDefinitionErrorFormat", "Invalid publisher definition JSON: {0}", ex.Message));
             return;
         }
@@ -4945,95 +4970,16 @@ public partial class PublishShareViewModel(
         if (definition?.Publisher == null)
         {
             notificationService?.ShowError(
-                GetLocalizedString("Tools.PublisherStudio.Hosting.LoadFailedTitle", "Load Failed"),
+                GetLocalizedString(LoadFailedTitleKey, LoadFailedDefaultTitle),
                 GetLocalizedString("Tools.PublisherStudio.Hosting.InvalidDefinitionError", "Definition does not contain valid publisher information."));
             return;
         }
 
-        // Apply publisher profile to current project
-        if (project.Catalog != null)
-        {
-            project.Catalog.Publisher = definition.Publisher;
-        }
+        ApplyDefinitionProfile(definition, asset.Name);
 
-        project.ProviderDefinitionFileName = asset.Name;
+        var loadedCatalogsCount = await DownloadAndAttachCatalogsAsync(definition);
 
-        if (definition.Referrals != null && project.Catalog != null)
-        {
-            project.Catalog.Referrals = definition.Referrals;
-        }
-
-        if (definition.Tags != null)
-        {
-            project.Tags = definition.Tags;
-        }
-
-        // Download and attach catalogs referenced by definition
-        var loadedCatalogsCount = 0;
-        if (definition.Catalogs != null && definition.Catalogs.Count > 0)
-        {
-            foreach (var catRef in definition.Catalogs)
-            {
-                if (string.IsNullOrWhiteSpace(catRef.Url))
-                {
-                    continue;
-                }
-
-                try
-                {
-                    var catJson = await DownloadStringFromUrlAsync(catRef.Url);
-                    if (string.IsNullOrWhiteSpace(catJson))
-                    {
-                        continue;
-                    }
-
-                    var pubCat = JsonSerializer.Deserialize<PublisherCatalog>(catJson, PublisherJsonOptions.Definition);
-                    if (pubCat != null)
-                    {
-                        var catFileName = Path.GetFileName(new Uri(catRef.Url).LocalPath);
-                        if (string.IsNullOrEmpty(catFileName) || !catFileName.EndsWith(".json", StringComparison.OrdinalIgnoreCase))
-                        {
-                            catFileName = $"catalog-{catRef.Id}.json";
-                        }
-
-                        var existingNamedCat = project.Catalogs.FirstOrDefault(c => c.Id == catRef.Id);
-                        if (existingNamedCat != null)
-                        {
-                            existingNamedCat.Catalog = pubCat;
-                            existingNamedCat.FileName = catFileName;
-                            existingNamedCat.Name = catRef.Name ?? catRef.Id;
-                        }
-                        else
-                        {
-                            project.Catalogs.Add(new NamedCatalog
-                            {
-                                Id = catRef.Id,
-                                Name = catRef.Name ?? catRef.Id,
-                                FileName = catFileName,
-                                Catalog = pubCat,
-                            });
-                        }
-
-                        loadedCatalogsCount++;
-                    }
-                }
-                catch (Exception catEx)
-                {
-                    logger.LogWarning(catEx, "Failed to download/load catalog from {Url}", catRef.Url);
-                }
-            }
-        }
-
-        // Update hosting state
-        _currentHostingState ??= GetOrCreateHostingState(SelectedHostingProvider?.ProviderId ?? HostingConstants.UnknownProviderId);
-        _currentHostingState.Definition = new HostedFileInfo
-        {
-            Url = asset.Url,
-            FileName = asset.Name,
-            FileSize = asset.FileSize,
-            LastUpdated = asset.LastUpdated != DateTime.MinValue ? asset.LastUpdated : DateTime.UtcNow,
-        };
-        ProviderDefinitionUrl = asset.Url;
+        UpdateHostingDefinitionState(asset);
 
         // Persist project changes
         if (SaveProjectCallback != null)
@@ -5055,6 +5001,111 @@ public partial class PublishShareViewModel(
             autoDismissMs: 4000);
     }
 
+    private void ApplyDefinitionProfile(PublisherDefinition definition, string assetName)
+    {
+        if (project.Catalog != null)
+        {
+            project.Catalog.Publisher = definition.Publisher;
+            if (definition.Referrals != null)
+            {
+                project.Catalog.Referrals = definition.Referrals;
+            }
+        }
+
+        project.ProviderDefinitionFileName = assetName;
+
+        if (definition.Tags != null)
+        {
+            project.Tags = definition.Tags;
+        }
+    }
+
+    private void UpdateHostingDefinitionState(HostedAssetItemViewModel asset)
+    {
+        _currentHostingState ??= GetOrCreateHostingState(SelectedHostingProvider?.ProviderId ?? HostingConstants.UnknownProviderId);
+        _currentHostingState.Definition = new HostedFileInfo
+        {
+            Url = asset.Url,
+            FileName = asset.Name,
+            FileSize = asset.FileSize,
+            LastUpdated = asset.LastUpdated != DateTime.MinValue ? asset.LastUpdated : DateTime.UtcNow,
+        };
+        ProviderDefinitionUrl = asset.Url;
+    }
+
+    private async Task<int> DownloadAndAttachCatalogsAsync(PublisherDefinition definition)
+    {
+        if (definition.Catalogs == null || definition.Catalogs.Count == 0)
+        {
+            return 0;
+        }
+
+        var loadedCatalogsCount = 0;
+        foreach (var catRef in definition.Catalogs)
+        {
+            if (string.IsNullOrWhiteSpace(catRef.Url))
+            {
+                continue;
+            }
+
+            if (await TryLoadReferencedCatalogAsync(catRef))
+            {
+                loadedCatalogsCount++;
+            }
+        }
+
+        return loadedCatalogsCount;
+    }
+
+    private async Task<bool> TryLoadReferencedCatalogAsync(CatalogEntry catRef)
+    {
+        try
+        {
+            var catJson = await DownloadStringFromUrlAsync(catRef.Url);
+            if (string.IsNullOrWhiteSpace(catJson))
+            {
+                return false;
+            }
+
+            var pubCat = JsonSerializer.Deserialize<PublisherCatalog>(catJson, PublisherJsonOptions.Definition);
+            if (pubCat == null)
+            {
+                return false;
+            }
+
+            var catFileName = Path.GetFileName(new Uri(catRef.Url).LocalPath);
+            if (string.IsNullOrEmpty(catFileName) || !catFileName.EndsWith(".json", StringComparison.OrdinalIgnoreCase))
+            {
+                catFileName = $"catalog-{catRef.Id}.json";
+            }
+
+            var existingNamedCat = project.Catalogs.FirstOrDefault(c => c.Id == catRef.Id);
+            if (existingNamedCat != null)
+            {
+                existingNamedCat.Catalog = pubCat;
+                existingNamedCat.FileName = catFileName;
+                existingNamedCat.Name = catRef.Name ?? catRef.Id;
+            }
+            else
+            {
+                project.Catalogs.Add(new NamedCatalog
+                {
+                    Id = catRef.Id,
+                    Name = catRef.Name ?? catRef.Id,
+                    FileName = catFileName,
+                    Catalog = pubCat,
+                });
+            }
+
+            return true;
+        }
+        catch (Exception catEx)
+        {
+            logger.LogWarning(catEx, "Failed to download/load catalog from {Url}", catRef.Url);
+            return false;
+        }
+    }
+
     private async Task LoadCatalogToProjectAsync(HostedAssetItemViewModel asset)
     {
         notificationService?.ShowInfo(
@@ -5065,7 +5116,7 @@ public partial class PublishShareViewModel(
         if (string.IsNullOrWhiteSpace(json))
         {
             notificationService?.ShowError(
-                GetLocalizedString("Tools.PublisherStudio.Hosting.LoadFailedTitle", "Load Failed"),
+                GetLocalizedString(LoadFailedTitleKey, LoadFailedDefaultTitle),
                 GetLocalizedString("Tools.PublisherStudio.Hosting.DownloadEmptyError", "Downloaded catalog was empty."));
             return;
         }
@@ -5079,7 +5130,7 @@ public partial class PublishShareViewModel(
         {
             logger.LogError(ex, "Failed to deserialize catalog JSON from {Url}", asset.Url);
             notificationService?.ShowError(
-                GetLocalizedString("Tools.PublisherStudio.Hosting.LoadFailedTitle", "Load Failed"),
+                GetLocalizedString(LoadFailedTitleKey, LoadFailedDefaultTitle),
                 FormatLocalizedString("Tools.PublisherStudio.Hosting.DeserializeCatalogErrorFormat", "Invalid catalog JSON: {0}", ex.Message));
             return;
         }
@@ -5087,7 +5138,7 @@ public partial class PublishShareViewModel(
         if (pubCat == null)
         {
             notificationService?.ShowError(
-                GetLocalizedString("Tools.PublisherStudio.Hosting.LoadFailedTitle", "Load Failed"),
+                GetLocalizedString(LoadFailedTitleKey, LoadFailedDefaultTitle),
                 GetLocalizedString("Tools.PublisherStudio.Hosting.InvalidCatalogError", "Catalog JSON is missing a valid identifier."));
             return;
         }
@@ -5276,14 +5327,14 @@ public partial class PublishShareViewModel(
         {
             using var request = new HttpRequestMessage(HttpMethod.Get, directUrl);
             request.Headers.Add("User-Agent", "GenHub/1.0");
-            using var response = await SharedHttpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead);
+            using var response = await SharedHttpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, CancellationToken.None);
             if (!response.IsSuccessStatusCode)
             {
                 logger.LogWarning("HTTP GET {Url} returned status code {StatusCode}", directUrl, response.StatusCode);
                 return null;
             }
 
-            return await response.Content.ReadAsStringAsync();
+            return await response.Content.ReadAsStringAsync(CancellationToken.None);
         }
         catch (Exception ex)
         {

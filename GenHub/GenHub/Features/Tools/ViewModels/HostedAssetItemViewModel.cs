@@ -1,6 +1,7 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using GenHub.Core.Helpers;
 using System;
+using System.Diagnostics.CodeAnalysis;
 
 namespace GenHub.Features.Tools.ViewModels;
 
@@ -36,6 +37,9 @@ public enum HostedAssetKind
 public partial class HostedAssetItemViewModel : ObservableObject
 {
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsDefinition))]
+    [NotifyPropertyChangedFor(nameof(IsCatalog))]
+    [NotifyPropertyChangedFor(nameof(IsArtifact))]
     private HostedAssetKind _assetKind = HostedAssetKind.Artifact;
 
     [ObservableProperty]
@@ -69,6 +73,8 @@ public partial class HostedAssetItemViewModel : ObservableObject
     private string _loadButtonTooltip = string.Empty;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsCatalog))]
+    [NotifyPropertyChangedFor(nameof(IsArtifact))]
     private string _name = string.Empty;
 
     [ObservableProperty]
@@ -107,16 +113,19 @@ public partial class HostedAssetItemViewModel : ObservableObject
     /// <summary>
     /// Gets a value indicating whether this asset is a publisher definition.
     /// </summary>
+    [SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Instance property bound to UI")]
     public bool IsDefinition => AssetKind == HostedAssetKind.Definition;
 
     /// <summary>
     /// Gets a value indicating whether this asset is a catalog manifest.
     /// </summary>
+    [SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Instance property bound to UI")]
     public bool IsCatalog => AssetKind == HostedAssetKind.Catalog || (AssetKind == HostedAssetKind.CloudFile && Name.Contains("catalog", StringComparison.OrdinalIgnoreCase));
 
     /// <summary>
     /// Gets a value indicating whether this asset is an artifact or binary release file.
     /// </summary>
+    [SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Instance property bound to UI")]
     public bool IsArtifact => AssetKind == HostedAssetKind.Artifact || (AssetKind == HostedAssetKind.CloudFile && !Name.Contains("catalog", StringComparison.OrdinalIgnoreCase));
 
     /// <summary>
@@ -139,8 +148,7 @@ public partial class HostedAssetItemViewModel : ObservableObject
 
     partial void OnAssetKindChanged(HostedAssetKind value)
     {
-        OnPropertyChanged(nameof(IsDefinition));
-        OnPropertyChanged(nameof(IsCatalog));
-        OnPropertyChanged(nameof(IsArtifact));
+        CanLoadToProject = value is HostedAssetKind.Definition or HostedAssetKind.Catalog;
+        CanAddToCatalog = value is HostedAssetKind.Artifact or HostedAssetKind.CloudFile;
     }
 }

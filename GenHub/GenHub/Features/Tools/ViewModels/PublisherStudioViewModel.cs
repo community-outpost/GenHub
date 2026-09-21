@@ -311,63 +311,17 @@ public partial class PublisherStudioViewModel(
             return;
         }
 
-        // Resync Catalogs collection
-        MigrateProjectToMultiCatalog();
+        SyncReloadCatalogsCollection();
 
-        Catalogs.Clear();
-        foreach (var catalog in CurrentProject.Catalogs)
-        {
-            if (catalog?.Catalog != null)
-            {
-                catalog.Catalog.Publisher = CurrentProject.Catalog?.Publisher ?? new();
-                catalog.Catalog.Content ??= [];
-            }
-
-            if (catalog != null)
-            {
-                Catalogs.Add(catalog);
-            }
-        }
-
-        if (Catalogs.Count > 0 && (SelectedCatalog == null || !Catalogs.Contains(SelectedCatalog)))
-        {
-            SelectedCatalog = Catalogs.FirstOrDefault();
-        }
-
-        // Reload Profile ViewModel
         PublisherProfileViewModel?.LoadFromProject();
-
-        // Reload Referrals ViewModel
         ReferralsViewModel?.LoadFromProject();
 
-        // Update Content Library ViewModel catalog
         if (SelectedCatalog != null)
         {
             ContentLibraryViewModel = new GenHub.Features.Tools.ViewModels.ContentLibraryViewModel(CurrentProject, SelectedCatalog, this, logger, dialogService, notificationService, localizationService);
         }
 
-        // Refresh Publish & Share catalogs
-        if (PublishShareViewModel != null)
-        {
-            PublishShareViewModel.AvailableCatalogs.Clear();
-            foreach (var c in CurrentProject.Catalogs)
-            {
-                PublishShareViewModel.AvailableCatalogs.Add(c);
-            }
-
-            PublishShareViewModel.CatalogStatuses.Clear();
-            foreach (var c in CurrentProject.Catalogs)
-            {
-                PublishShareViewModel.CatalogStatuses.Add(new CatalogPublishStatus(c, localizationService));
-            }
-
-            if (SelectedCatalog != null)
-            {
-                PublishShareViewModel.ActiveCatalog = SelectedCatalog;
-            }
-
-            PublishShareViewModel.RefreshHostedAssets();
-        }
+        SyncPublishShareCatalogs();
 
         await Task.CompletedTask;
     }
@@ -873,6 +827,63 @@ public partial class PublisherStudioViewModel(
         StatusMessage = GetStatusString("Tools.PublisherStudio.Studio.CatalogRenamedFormat", "Renamed catalog to '{0}'", target.Name);
         notificationService?.ShowSuccess(StudioNotificationTitle, StatusMessage, NotificationDurations.Short);
         logger.LogInformation("Renamed catalog to {CatalogName} ({CatalogId})", target.Name, target.Id);
+    }
+
+    private void SyncReloadCatalogsCollection()
+    {
+        if (CurrentProject == null)
+        {
+            return;
+        }
+
+        MigrateProjectToMultiCatalog();
+
+        Catalogs.Clear();
+        foreach (var catalog in CurrentProject.Catalogs)
+        {
+            if (catalog?.Catalog != null)
+            {
+                catalog.Catalog.Publisher = CurrentProject.Catalog?.Publisher ?? new();
+                catalog.Catalog.Content ??= [];
+            }
+
+            if (catalog != null)
+            {
+                Catalogs.Add(catalog);
+            }
+        }
+
+        if (Catalogs.Count > 0 && (SelectedCatalog == null || !Catalogs.Contains(SelectedCatalog)))
+        {
+            SelectedCatalog = Catalogs.FirstOrDefault();
+        }
+    }
+
+    private void SyncPublishShareCatalogs()
+    {
+        if (PublishShareViewModel == null || CurrentProject == null)
+        {
+            return;
+        }
+
+        PublishShareViewModel.AvailableCatalogs.Clear();
+        foreach (var c in CurrentProject.Catalogs)
+        {
+            PublishShareViewModel.AvailableCatalogs.Add(c);
+        }
+
+        PublishShareViewModel.CatalogStatuses.Clear();
+        foreach (var c in CurrentProject.Catalogs)
+        {
+            PublishShareViewModel.CatalogStatuses.Add(new CatalogPublishStatus(c, localizationService));
+        }
+
+        if (SelectedCatalog != null)
+        {
+            PublishShareViewModel.ActiveCatalog = SelectedCatalog;
+        }
+
+        PublishShareViewModel.RefreshHostedAssets();
     }
 
     /// <summary>

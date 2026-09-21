@@ -1011,6 +1011,19 @@ public class DropboxHostingProvider(ILogger<DropboxHostingProvider> logger, IHtt
 
         var directUrl = (linkResult is { Success: true, Data: not null }) ? ConvertToDirectDownloadUrl(linkResult.Data) : string.Empty;
 
+        RecordDiscoveredDropboxAsset(state, fileName, fileId, directUrl, fileSize, lastUpdated);
+
+        return OperationResult.CreateSuccess();
+    }
+
+    private void RecordDiscoveredDropboxAsset(
+        HostingState state,
+        string fileName,
+        string fileId,
+        string directUrl,
+        long fileSize,
+        DateTime lastUpdated)
+    {
         if (HostingConstants.IsPublisherDefinitionFileName(fileName))
         {
             var defInfo = new HostedFileInfo
@@ -1058,8 +1071,6 @@ public class DropboxHostingProvider(ILogger<DropboxHostingProvider> logger, IHtt
             });
             logger.LogInformation("Discovered artifact '{File}' in Dropbox: {Url}", fileName, directUrl);
         }
-
-        return OperationResult.CreateSuccess();
     }
 
     private async Task<OperationResult<string>> CreateSharedLinkAsync(string path, CancellationToken cancellationToken)
