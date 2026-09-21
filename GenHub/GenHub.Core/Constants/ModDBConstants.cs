@@ -643,6 +643,50 @@ public static class ModDBConstants
     /// <summary>Message when the Chromium runtime installation fails.</summary>
     public const string ChromiumInstallFailedMessage = "GenHub could not install its managed Chromium runtime. Check your network connection and try again.";
 
+    // ===== Managed Playwright Driver =====
+
+    /// <summary>NuGet package id that ships the Playwright driver binaries.</summary>
+    public const string PlaywrightDriverPackageId = "microsoft.playwright";
+
+    /// <summary>
+    /// Exact Playwright driver version to provision on demand.
+    /// Must match the Microsoft.Playwright package version in Directory.Packages.props.
+    /// </summary>
+    public const string PlaywrightDriverVersion = "1.55.0";
+
+    /// <summary>Expected download size in megabytes for the Playwright driver package.</summary>
+    public const double PlaywrightDriverExpectedSizeMegabytes = 190.0;
+
+    /// <summary>Expected download size in bytes for the Playwright driver package.</summary>
+    public const double PlaywrightDriverExpectedSizeBytes = PlaywrightDriverExpectedSizeMegabytes * 1024.0 * 1024.0;
+
+    /// <summary>Format string for progress reporting during Playwright driver download.</summary>
+    public const string PlaywrightDriverProgressStatusFormat = "{0:F0} MB / ~{1:F0} MB";
+
+    /// <summary>Name for the managed Playwright driver.</summary>
+    public const string PlaywrightDriverRuntimeName = "ModDB Playwright Driver";
+
+    /// <summary>Title for the Playwright driver installation toast.</summary>
+    public const string PlaywrightDriverInstallTitle = "Installing Web Driver";
+
+    /// <summary>Initial message when downloading the managed Playwright driver.</summary>
+    public const string PlaywrightDriverDownloadingMessage = "Downloading Playwright driver (~190 MB)... Please wait.";
+
+    /// <summary>Message while extracting the managed Playwright driver.</summary>
+    public const string PlaywrightDriverExtractingMessage = "Extracting Playwright driver...";
+
+    /// <summary>Title when the Playwright driver installation completes successfully.</summary>
+    public const string PlaywrightDriverReadyTitle = "Web Driver Ready";
+
+    /// <summary>Message when the Playwright driver installation completes successfully.</summary>
+    public const string PlaywrightDriverReadyMessage = "Playwright driver installed successfully.";
+
+    /// <summary>Title when the Playwright driver installation fails.</summary>
+    public const string PlaywrightDriverInstallFailedTitle = "Driver Installation Failed";
+
+    /// <summary>Message when the Playwright driver installation fails.</summary>
+    public const string PlaywrightDriverInstallFailedMessage = "GenHub could not install its managed Playwright driver. Check your network connection and try again.";
+
     // ===== Content Tags =====
 
     /// <summary>Content tags for search and categorization.</summary>

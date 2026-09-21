@@ -11,6 +11,9 @@
         <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
         <GenerateDocumentationFile>true</GenerateDocumentationFile>
         <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+        <!-- Debug ships the Windows Playwright driver next to the binaries. Release keeps
+             the Directory.Build.props default (none): the driver downloads on demand. -->
+        <PlaywrightPlatform Condition="'$(Configuration)' != 'Release'">win-x64</PlaywrightPlatform>
     </PropertyGroup>
 
     <ItemGroup>

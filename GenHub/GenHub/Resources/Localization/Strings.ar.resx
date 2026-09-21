@@ -8087,6 +8087,47 @@ GenHub هو مشغل ومدير حديث لألعاب **Command &amp; Conquer: G
   <data name="ModDB.ChromiumInstallFailedMessage" xml:space="preserve">
     <value>تعذر على GenHub تثبيت بيئة Chromium المدارة. تحقق من الاتصال بالشبكة وحاول مرة أخرى.</value>
   </data>
+  <data name="ModDB.PlaywrightDriverRuntimeName" xml:space="preserve">
+    <value>برنامج تشغيل Playwright الخاص بـ ModDB</value>
+  </data>
+  <data name="ModDB.PlaywrightDriverInstallTitle" xml:space="preserve">
+    <value>تثبيت برنامج تشغيل الويب</value>
+  </data>
+  <data name="ModDB.PlaywrightDriverDownloadingMessage" xml:space="preserve">
+    <value>جارٍ تنزيل برنامج تشغيل Playwright (حوالي 190 م.ب)... يرجى الانتظار.</value>
+  </data>
+  <data name="ModDB.PlaywrightDriverExtractingMessage" xml:space="preserve">
+    <value>جارٍ استخراج برنامج تشغيل Playwright...</value>
+  </data>
+  <data name="ModDB.PlaywrightDriverReadyTitle" xml:space="preserve">
+    <value>برنامج تشغيل الويب جاهز</value>
+  </data>
+  <data name="ModDB.PlaywrightDriverReadyMessage" xml:space="preserve">
+    <value>تم تثبيت برنامج تشغيل Playwright بنجاح.</value>
+  </data>
+  <data name="ModDB.PlaywrightDriverInstallFailedTitle" xml:space="preserve">
+    <value>فشل تثبيت برنامج التشغيل</value>
+  </data>
+  <data name="ModDB.PlaywrightDriverInstallFailedMessage" xml:space="preserve">
+    <value>تعذر على GenHub تثبيت برنامج تشغيل Playwright المدار. تحقق من الاتصال بالشبكة وحاول مرة أخرى.</value>
+  </data>
+  <data name="ModDB.PlaywrightDriverConsentTitle" xml:space="preserve">
+    <value>تثبيت برنامج تشغيل الويب</value>
+  </data>
+  <data name="ModDB.PlaywrightDriverConsentConfirm" xml:space="preserve">
+    <value>تثبيت</value>
+  </data>
+  <data name="ModDB.PlaywrightDriverConsentMessage" xml:space="preserve">
+    <value>يحتاج GenHub إلى برنامج تشغيل الويب Playwright لتحميل محتوى ModDB. سيتم تنزيله مرة واحدة (حوالي 190 م.ب) وتخزينه محليًا.
+
+بعد أن يصبح برنامج التشغيل جاهزًا، سيطلب GenHub تثبيت بيئة المتصفح بعد ذلك.
+
+موقع التثبيت:
+{0}</value>
+  </data>
+  <data name="ModDB.PlaywrightDriverProgressStatusFormat" xml:space="preserve">
+    <value>{0:F0} م.ب / ~{1:F0} م.ب</value>
+  </data>
 
   <data name="Updates.Status.InstallationFailed" xml:space="preserve">
     <value>فشل التثبيت</value>

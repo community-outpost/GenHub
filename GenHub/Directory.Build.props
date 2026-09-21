@@ -36,6 +36,14 @@
 
     <!-- Enforce zero warnings policy across all projects -->
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+
+    <!--
+      Never copy the Playwright driver by default. The driver's buildTransitive targets
+      would otherwise copy the build-host driver into every referencing project's output
+      (libraries, tools, tests), leaking foreign-platform binaries into publishes.
+      Each platform head opts back in for Debug only; Release downloads on demand.
+    -->
+    <PlaywrightPlatform>none</PlaywrightPlatform>
   </PropertyGroup>
 
   <!-- Embed build metadata in assembly for runtime access -->

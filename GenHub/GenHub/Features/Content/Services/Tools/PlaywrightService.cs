@@ -14,6 +14,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -29,12 +30,14 @@ namespace GenHub.Features.Content.Services.Tools;
 /// <param name="logger">Logger instance.</param>
 /// <param name="configurationProvider">Application configuration provider.</param>
 /// <param name="dialogService">Dialog service used to confirm managed Chromium installation.</param>
+/// <param name="httpClientFactory">Factory for the HTTP client used by on-demand driver downloads.</param>
 /// <param name="notificationService">Optional notifications shown before a headed browser window opens.</param>
 /// <param name="localizationService">Optional localization service for notifications.</param>
 public sealed class PlaywrightService(
     ILogger<PlaywrightService> logger,
     IConfigurationProviderService configurationProvider,
     IDialogService dialogService,
+    IHttpClientFactory httpClientFactory,
     INotificationService? notificationService = null,
     ILocalizationService? localizationService = null) : IPlaywrightService, IDisposable, IAsyncDisposable
 {
@@ -72,6 +75,8 @@ public sealed class PlaywrightService(
     private int _activePersistentSessions;
 
     private ManagedChromiumRuntime? managedChromiumRuntime;
+
+    private ManagedPlaywrightDriver? managedPlaywrightDriver;
 
     private int _disposeState;
 
@@ -1388,6 +1393,9 @@ public sealed class PlaywrightService(
     /// <returns>A task representing the browser runtime initialization.</returns>
     private async Task<IPlaywright> EnsureManagedPlaywrightAsync(CancellationToken cancellationToken)
     {
+        var driver = GetOrCreateManagedPlaywrightDriver();
+        await driver.EnsureInstalledAsync(cancellationToken);
+
         var runtime = GetOrCreateManagedChromiumRuntime();
         runtime.ConfigureEnvironment();
 
@@ -1405,6 +1413,24 @@ public sealed class PlaywrightService(
 
         await runtime.EnsureInstalledAsync(playwright.Chromium, cancellationToken);
         return playwright;
+    }
+
+    private ManagedPlaywrightDriver GetOrCreateManagedPlaywrightDriver()
+    {
+        if (managedPlaywrightDriver != null)
+        {
+            return managedPlaywrightDriver;
+        }
+
+        var newDriver = new ManagedPlaywrightDriver(
+            Path.Combine(configurationProvider.GetApplicationDataPath(), DirectoryNames.PlaywrightDriver),
+            httpClientFactory.CreateClient(),
+            RequestManagedDriverInstallConsentAsync,
+            logger,
+            notificationService,
+            localizationService);
+
+        return Interlocked.CompareExchange(ref managedPlaywrightDriver, newDriver, null) ?? newDriver;
     }
 
     private ManagedChromiumRuntime GetOrCreateManagedChromiumRuntime()
@@ -1447,6 +1473,35 @@ public sealed class PlaywrightService(
                 message,
                 confirmText: "Install",
                 cancelText: "Cancel");
+
+        if (Dispatcher.UIThread.CheckAccess())
+        {
+            return await ShowAsync();
+        }
+
+        return await Dispatcher.UIThread.InvokeAsync(ShowAsync);
+    }
+
+    /// <summary>
+    /// Asks the user whether to download GenHub's managed Playwright driver for web scraping
+    /// and bot-protected content. Release builds exclude the driver from the installer.
+    /// </summary>
+    /// <param name="driverDirectory">The directory the driver will be installed under.</param>
+    /// <returns>True when the user consents to the download.</returns>
+    private async Task<bool> RequestManagedDriverInstallConsentAsync(string driverDirectory)
+    {
+        var title = localizationService?.GetString("ModDB.PlaywrightDriverConsentTitle") ?? "Install Web Driver";
+        var confirmText = localizationService?.GetString("ModDB.PlaywrightDriverConsentConfirm") ?? "Install";
+        var cancelText = localizationService?.GetString("Common.Cancel") ?? "Cancel";
+        var message = localizationService?.GetString("ModDB.PlaywrightDriverConsentMessage", driverDirectory)
+            ?? $"GenHub needs the Playwright web driver to load ModDB content. It will be downloaded once (~190 MB) and stored locally.\n\nAfter the driver is ready, GenHub will ask to install the browser runtime next.\n\nInstall location:\n{driverDirectory}";
+
+        async Task<bool> ShowAsync() =>
+            await dialogService.ShowConfirmationAsync(
+                title,
+                message,
+                confirmText: confirmText,
+                cancelText: cancelText);
 
         if (Dispatcher.UIThread.CheckAccess())
         {

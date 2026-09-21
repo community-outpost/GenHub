@@ -17,11 +17,12 @@ namespace GenHub.Tests.Core.Features.Content.Tools;
 /// <summary>
 /// Tests the app-owned Playwright Chromium runtime and request-header propagation.
 /// </summary>
+[Collection(PlaywrightEnvironmentCollection.Name)]
 public sealed class ManagedChromiumRuntimeTests : IDisposable
 {
     private readonly string _runtimeDirectory = Path.Combine(Path.GetTempPath(), "GenHubTests", Guid.NewGuid().ToString("N"));
     private readonly string? _originalBrowserPath = Environment.GetEnvironmentVariable(ManagedChromiumRuntime.BrowserPathEnvironmentVariable);
-    private readonly string? _originalDriverPath = Environment.GetEnvironmentVariable(ManagedChromiumRuntime.DriverPathEnvironmentVariable);
+    private readonly string? _originalDriverPath = Environment.GetEnvironmentVariable(ManagedChromiumRuntime.DriverSearchPathEnvironmentVariable);
 
     /// <summary>
     /// Verifies a pre-provisioned app-owned Chromium executable does not trigger another install.
@@ -387,7 +388,7 @@ public sealed class ManagedChromiumRuntimeTests : IDisposable
     public void Dispose()
     {
         Environment.SetEnvironmentVariable(ManagedChromiumRuntime.BrowserPathEnvironmentVariable, _originalBrowserPath);
-        Environment.SetEnvironmentVariable(ManagedChromiumRuntime.DriverPathEnvironmentVariable, _originalDriverPath);
+        Environment.SetEnvironmentVariable(ManagedChromiumRuntime.DriverSearchPathEnvironmentVariable, _originalDriverPath);
         if (Directory.Exists(_runtimeDirectory))
         {
             Directory.Delete(_runtimeDirectory, recursive: true);

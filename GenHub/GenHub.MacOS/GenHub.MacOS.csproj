@@ -7,6 +7,9 @@
         <Nullable>enable</Nullable>
         <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
         <GenerateDocumentationFile>true</GenerateDocumentationFile>
+        <!-- Debug ships the host Playwright driver (empty restores host detection).
+             Release keeps the Directory.Build.props default (none): on-demand download. -->
+        <PlaywrightPlatform Condition="'$(Configuration)' != 'Release'"></PlaywrightPlatform>
     </PropertyGroup>
 
     <ItemGroup>
