@@ -339,6 +339,27 @@ public sealed class WndDocumentService(ILogger<WndDocumentService> logger) : IWn
         return content.Split(["\r\n", "\n"], StringSplitOptions.None);
     }
 
+    private static bool IsCommentStart(string content, int index)
+    {
+        return index + 1 < content.Length && content[index] == '/' && content[index + 1] == '/';
+    }
+
+    private static int SkipComment(string content, int index, ref int lineNumber)
+    {
+        while (index < content.Length && content[index] != '\n')
+        {
+            index++;
+        }
+
+        if (index < content.Length && content[index] == '\n')
+        {
+            lineNumber++;
+            index++;
+        }
+
+        return index;
+    }
+
     private static List<(string Statement, int LineNumber, bool Terminated)> SplitRawStatements(string content)
     {
         var statements = new List<(string Statement, int LineNumber, bool Terminated)>();
@@ -347,26 +368,19 @@ public sealed class WndDocumentService(ILogger<WndDocumentService> logger) : IWn
         var lineNumber = 1;
         var statementLine = 1;
         var hasStatementContent = false;
-        for (var i = 0; i < content.Length; i++)
+        var index = 0;
+
+        while (index < content.Length)
         {
-            var ch = content[i];
+            var ch = content[index];
             if (ch == WndConstants.Syntax.Quote)
             {
                 inQuotes = !inQuotes;
             }
 
-            if (!inQuotes && ch == '/' && i + 1 < content.Length && content[i + 1] == '/')
+            if (!inQuotes && IsCommentStart(content, index))
             {
-                while (i < content.Length && content[i] != '\n')
-                {
-                    i++;
-                }
-
-                if (i < content.Length && content[i] == '\n')
-                {
-                    lineNumber++;
-                }
-
+                index = SkipComment(content, index, ref lineNumber);
                 continue;
             }
 
@@ -380,6 +394,7 @@ public sealed class WndDocumentService(ILogger<WndDocumentService> logger) : IWn
                 statements.Add((current.ToString(), statementLine, true));
                 current.Clear();
                 hasStatementContent = false;
+                index++;
                 continue;
             }
 
@@ -390,6 +405,7 @@ public sealed class WndDocumentService(ILogger<WndDocumentService> logger) : IWn
             }
 
             current.Append(ch);
+            index++;
         }
 
         var remainder = current.ToString();

@@ -286,8 +286,7 @@ public sealed class WndEditorPanTests
             CreateLocalizationService(),
             Mock.Of<IDialogService>(),
             gameInstallService.Object,
-            Mock.Of<IWndImageAssetService>(),
-            Mock.Of<IWndStringTableService>(),
+            new WndEditorAssetService(Mock.Of<IWndImageAssetService>(), Mock.Of<IWndStringTableService>()),
             Mock.Of<ILogger<WndEditorViewModel>>());
     }
 

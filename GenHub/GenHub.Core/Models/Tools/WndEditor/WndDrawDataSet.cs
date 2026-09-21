@@ -27,8 +27,14 @@ public sealed record WndDrawDataSet
     /// <summary>
     /// Gets an empty nine-entry set padded with empty entries.
     /// </summary>
-    public static WndDrawDataSet Empty => new(
+    public static WndDrawDataSet Empty { get; } = new(
         Enumerable.Repeat(WndDrawDataEntry.Empty, WndConstants.DrawData.EntryCount).ToArray());
+
+    /// <summary>
+    /// Creates an empty nine-entry set padded with empty entries.
+    /// </summary>
+    /// <returns>An empty nine-entry set.</returns>
+    public static WndDrawDataSet CreateEmpty() => Empty;
 
     /// <summary>
     /// Tries to parse a draw data property value. Accepts one or more 12-token entries.

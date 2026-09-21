@@ -9,7 +9,7 @@ namespace GenHub.Common.Controls;
 
 /// <summary>
 /// Attached behavior that enables Blender-style click-and-drag horizontal scrubbing
-/// on <see cref=\"NumericUpDown\"/> controls across the GenHub ecosystem.
+/// on <see cref="NumericUpDown"/> controls across the GenHub ecosystem.
 /// </summary>
 public static class NumericScrubber
 {

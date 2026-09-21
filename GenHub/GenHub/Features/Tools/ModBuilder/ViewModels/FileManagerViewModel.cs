@@ -40,6 +40,14 @@ public partial class FileManagerViewModel(
         Format,
     }
 
+    private sealed record WndOperationSpec(
+        string Progress,
+        string SuccessTitle,
+        string SuccessMessage,
+        string IssuesTitle,
+        string IssuesMessage,
+        bool RefreshAfter);
+
     private readonly ConcurrentDictionary<string, (long Length, DateTime LastWriteTimeUtc, string Hash)> _fileHashCache = new(StringComparer.OrdinalIgnoreCase);
     private readonly SemaphoreSlim _loadLock = new(1, 1);
     private CancellationTokenSource? _reloadCts;
@@ -897,27 +905,107 @@ public partial class FileManagerViewModel(
         await RunWndFileOperationAsync(WndFileOperation.Format, cancellationToken).ConfigureAwait(false);
     }
 
+    private static WndOperationSpec GetWndOperationSpec(WndFileOperation operation) => operation switch
+    {
+        WndFileOperation.Validate => new(
+            "Tools.ModBuilder.Wnd.ProgressValidating",
+            "Tools.ModBuilder.Wnd.ValidateSuccessTitle",
+            "Tools.ModBuilder.Wnd.ValidateSuccessMessage",
+            "Tools.ModBuilder.Wnd.ValidateIssuesTitle",
+            "Tools.ModBuilder.Wnd.ValidateIssuesMessage",
+            false),
+        WndFileOperation.Format => new(
+            "Tools.ModBuilder.Wnd.ProgressFormatting",
+            "Tools.ModBuilder.Wnd.FormatSuccessTitle",
+            "Tools.ModBuilder.Wnd.FormatSuccessMessage",
+            "Tools.ModBuilder.Wnd.FormatIssuesTitle",
+            "Tools.ModBuilder.Wnd.FormatIssuesMessage",
+            true),
+        _ => throw new ArgumentOutOfRangeException(nameof(operation)),
+    };
+
+    private void SetStatusMessageSafe(string message)
+    {
+        if (Application.Current == null || Dispatcher.UIThread.CheckAccess())
+        {
+            StatusMessage = message;
+        }
+        else
+        {
+            Dispatcher.UIThread.Post(() => StatusMessage = message);
+        }
+    }
+
+    private async Task<(int SucceededCount, string? FirstProblem)> ProcessWndFilesBatchAsync(
+        IReadOnlyList<string> wndFiles,
+        WndFileOperation operation,
+        string progressKey,
+        CancellationToken cancellationToken)
+    {
+        var succeededCount = 0;
+        string? firstProblem = null;
+        var total = wndFiles.Count;
+
+        for (var i = 0; i < total; i++)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var file = wndFiles[i];
+            var outcome = await ExecuteSingleWndOperationAsync(file, operation, cancellationToken).ConfigureAwait(false);
+            if (outcome.Succeeded)
+            {
+                succeededCount++;
+            }
+            else
+            {
+                firstProblem ??= outcome.Problem ?? file;
+            }
+
+            var current = i + 1;
+            var percent = (current / (double)total) * 100.0;
+            ReportWndProgress(percent, progressKey, current, total, file);
+        }
+
+        return (succeededCount, firstProblem);
+    }
+
+    private Task<(bool Succeeded, string? Problem)> ExecuteSingleWndOperationAsync(
+        string file,
+        WndFileOperation operation,
+        CancellationToken cancellationToken)
+    {
+        return operation == WndFileOperation.Validate
+            ? ValidateSingleWndFileAsync(file, cancellationToken)
+            : FormatSingleWndFileAsync(file, cancellationToken);
+    }
+
+    private void CompleteWndOperation(
+        WndOperationSpec spec,
+        int succeededCount,
+        int total,
+        string? firstProblem)
+    {
+        if (succeededCount == total)
+        {
+            var message = localizationService.GetString(spec.SuccessMessage, succeededCount, total);
+            notificationService.ShowSuccess(
+                localizationService.GetString(spec.SuccessTitle),
+                message,
+                NotificationDurations.Medium);
+            SetStatusMessageSafe(message);
+        }
+        else
+        {
+            var message = localizationService.GetString(spec.IssuesMessage, succeededCount, total, firstProblem ?? string.Empty);
+            notificationService.ShowWarning(
+                localizationService.GetString(spec.IssuesTitle),
+                message,
+                NotificationDurations.Long);
+            SetStatusMessageSafe(message);
+        }
+    }
+
     private async Task RunWndFileOperationAsync(WndFileOperation operation, CancellationToken cancellationToken)
     {
-        var keys = operation switch
-        {
-            WndFileOperation.Validate => (
-                Progress: "Tools.ModBuilder.Wnd.ProgressValidating",
-                SuccessTitle: "Tools.ModBuilder.Wnd.ValidateSuccessTitle",
-                SuccessMessage: "Tools.ModBuilder.Wnd.ValidateSuccessMessage",
-                IssuesTitle: "Tools.ModBuilder.Wnd.ValidateIssuesTitle",
-                IssuesMessage: "Tools.ModBuilder.Wnd.ValidateIssuesMessage",
-                RefreshAfter: false),
-            WndFileOperation.Format => (
-                Progress: "Tools.ModBuilder.Wnd.ProgressFormatting",
-                SuccessTitle: "Tools.ModBuilder.Wnd.FormatSuccessTitle",
-                SuccessMessage: "Tools.ModBuilder.Wnd.FormatSuccessMessage",
-                IssuesTitle: "Tools.ModBuilder.Wnd.FormatIssuesTitle",
-                IssuesMessage: "Tools.ModBuilder.Wnd.FormatIssuesMessage",
-                RefreshAfter: true),
-            _ => throw new ArgumentOutOfRangeException(nameof(operation)),
-        };
-
         if (IsLoading)
         {
             return;
@@ -933,81 +1021,30 @@ public partial class FileManagerViewModel(
             return;
         }
 
+        var spec = GetWndOperationSpec(operation);
+
         try
         {
             IsLoading = true;
             IsIndeterminateProgress = false;
-            var succeededCount = 0;
-            string? firstProblem = null;
-            var total = wndFiles.Count;
-            for (var i = 0; i < total; i++)
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-                var file = wndFiles[i];
-                var outcome = operation == WndFileOperation.Validate
-                    ? await ValidateSingleWndFileAsync(file, cancellationToken).ConfigureAwait(false)
-                    : await FormatSingleWndFileAsync(file, cancellationToken).ConfigureAwait(false);
-                if (outcome.Succeeded)
-                {
-                    succeededCount++;
-                }
-                else
-                {
-                    firstProblem ??= outcome.Problem ?? file;
-                }
 
-                var current = i + 1;
-                var percent = (current / (double)total) * 100.0;
-                ReportWndProgress(percent, keys.Progress, current, total, file);
-            }
+            var (succeededCount, firstProblem) = await ProcessWndFilesBatchAsync(
+                wndFiles,
+                operation,
+                spec.Progress,
+                cancellationToken).ConfigureAwait(false);
 
-            if (keys.RefreshAfter)
+            if (spec.RefreshAfter)
             {
                 await LoadProjectFilesAsync(cancellationToken).ConfigureAwait(false);
             }
 
-            void SetFinalStatus(string msg)
-            {
-                if (Application.Current == null || Dispatcher.UIThread.CheckAccess())
-                {
-                    StatusMessage = msg;
-                }
-                else
-                {
-                    Dispatcher.UIThread.Post(() => StatusMessage = msg);
-                }
-            }
-
-            if (succeededCount == total)
-            {
-                var message = localizationService.GetString(keys.SuccessMessage, succeededCount, total);
-                notificationService.ShowSuccess(
-                    localizationService.GetString(keys.SuccessTitle),
-                    message,
-                    NotificationDurations.Medium);
-                SetFinalStatus(message);
-            }
-            else
-            {
-                var message = localizationService.GetString(keys.IssuesMessage, succeededCount, total, firstProblem ?? string.Empty);
-                notificationService.ShowWarning(
-                    localizationService.GetString(keys.IssuesTitle),
-                    message,
-                    NotificationDurations.Long);
-                SetFinalStatus(message);
-            }
+            CompleteWndOperation(spec, succeededCount, wndFiles.Count, firstProblem);
         }
         catch (OperationCanceledException ex)
         {
             logger.LogInformation(ex, "WND file operation was cancelled");
-            if (Application.Current == null || Dispatcher.UIThread.CheckAccess())
-            {
-                StatusMessage = localizationService.GetString("Tools.ModBuilder.Wnd.OperationCancelled");
-            }
-            else
-            {
-                Dispatcher.UIThread.Post(() => StatusMessage = localizationService.GetString("Tools.ModBuilder.Wnd.OperationCancelled"));
-            }
+            SetStatusMessageSafe(localizationService.GetString("Tools.ModBuilder.Wnd.OperationCancelled"));
         }
         finally
         {

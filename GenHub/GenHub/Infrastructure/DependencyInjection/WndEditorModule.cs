@@ -22,6 +22,7 @@ public static class WndEditorModule
         services.AddSingleton<IWndDocumentService, WndDocumentService>();
         services.AddSingleton<IWndImageAssetService, WndImageAssetService>();
         services.AddSingleton<IWndStringTableService, WndStringTableService>();
+        services.AddSingleton<IWndEditorAssetService, WndEditorAssetService>();
         services.AddTransient<WndEditorViewModel>();
         services.AddSingleton<IToolPlugin, WndEditorToolPlugin>();
 

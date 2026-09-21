@@ -39,8 +39,7 @@ public sealed partial class WndEditorViewModel(
     ILocalizationService localizationService,
     IDialogService dialogService,
     IGameInstallationService gameInstallationService,
-    IWndImageAssetService imageAssetService,
-    IWndStringTableService stringTableService,
+    IWndEditorAssetService assetService,
     ILogger<WndEditorViewModel> logger) : ObservableObject, IDisposable
 {
     private sealed record AssetRoots(string BaseRoot, string? OverrideRoot);
@@ -1132,7 +1131,7 @@ public sealed partial class WndEditorViewModel(
     partial void OnSelectedAssetInstallationChanged(GameInstallationOption? value)
     {
         _ = value;
-        imageAssetService.InvalidateCache();
+        assetService.InvalidateCache();
         RefreshAssetPreviews();
     }
 
@@ -1964,8 +1963,8 @@ public sealed partial class WndEditorViewModel(
             var projectDirectory = ResolveProjectDirectory(FilePath, roots);
             var names = CollectPreviewImageNames(document);
             var labels = CollectPreviewLabels(document);
-            var images = await imageAssetService.GetImagesAsync(names, roots.BaseRoot, roots.OverrideRoot, projectDirectory, cancellationToken).ConfigureAwait(false);
-            var strings = await stringTableService.GetStringsAsync(labels, roots.BaseRoot, roots.OverrideRoot, projectDirectory, cancellationToken).ConfigureAwait(false);
+            var images = await assetService.Images.GetImagesAsync(names, roots.BaseRoot, roots.OverrideRoot, projectDirectory, cancellationToken).ConfigureAwait(false);
+            var strings = await assetService.Strings.GetStringsAsync(labels, roots.BaseRoot, roots.OverrideRoot, projectDirectory, cancellationToken).ConfigureAwait(false);
             if ((!images.Success && !strings.Success) || generation != _previewGeneration)
             {
                 return;

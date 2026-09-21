@@ -1,5 +1,5 @@
-using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
+using System.Collections.ObjectModel;
 
 namespace GenHub.Features.Tools.WndEditor.ViewModels;
 
@@ -47,12 +47,12 @@ public sealed partial class WndFileTreeNodeViewModel : ObservableObject
     public string FullPath { get; }
 
     /// <summary>
-    /// Gets whether this node represents a directory.
+    /// Gets a value indicating whether this node represents a directory.
     /// </summary>
     public bool IsDirectory { get; }
 
     /// <summary>
-    /// Gets whether this node represents a file.
+    /// Gets a value indicating whether this node represents a file.
     /// </summary>
     public bool IsFile => !IsDirectory;
 

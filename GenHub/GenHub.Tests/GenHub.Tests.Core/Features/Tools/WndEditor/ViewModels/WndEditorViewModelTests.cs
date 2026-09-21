@@ -92,14 +92,14 @@ public sealed class WndEditorViewModelTests : IDisposable
             .ReturnsAsync(OperationResult<IReadOnlyDictionary<string, string>>.CreateSuccess(
                 new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)));
         var documentService = new WndDocumentService(Mock.Of<ILogger<WndDocumentService>>());
+        var assetService = new WndEditorAssetService(_mockImageAssetService.Object, _mockStringTableService.Object);
         _viewModel = new WndEditorViewModel(
             documentService,
             _mockNotificationService.Object,
             _mockLocalizationService.Object,
             _mockDialogService.Object,
             _mockGameInstallService.Object,
-            _mockImageAssetService.Object,
-            _mockStringTableService.Object,
+            assetService,
             Mock.Of<ILogger<WndEditorViewModel>>());
         _tempDirectory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
         Directory.CreateDirectory(_tempDirectory);
