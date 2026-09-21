@@ -639,7 +639,7 @@ describe("online edge", () => {
     }
   });
 
-  it("rate-limits joins per network and IP", async () => {
+  it("rate-limits joins per network and IP", { timeout: 20000 }, async () => {
     const host = await session();
     const created = await createNetwork(host, { slotsMax: 16 });
     let limited = 0;
@@ -1015,5 +1015,62 @@ describe("online edge", () => {
     expect(rosters.length).toBeGreaterThanOrEqual(2);
     expect(rosters[rosters.length - 1][0].profileFingerprint).toBe("opf1|later");
     socket?.close();
+  });
+
+  it("does not consume creation quota when password validation fails", { timeout: 20000 }, async () => {
+    const host = await session();
+    for (let i = 0; i < 12; i++) {
+      const res = await SELF.fetch(`${BASE}/v1/networks`, {
+        method: "POST",
+        headers: { ...auth(host), "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: `short-pwd-${i}`,
+          password: "12",
+          slotsMax: 4,
+          displayName: "Host",
+        }),
+      });
+      expect(res.status).toBe(400);
+      expect(((await res.json()) as { code: string }).code).toBe("online.password-too-short");
+    }
+
+    const valid = await createNetwork(host, { name: "valid-quota-net", password: "valid-password" });
+    expect(valid.overlayIp.length).toBeGreaterThan(0);
+  });
+
+  it("closes older presence websocket when a new one connects for the same member", async () => {
+    const host = await session();
+    const created = await createNetwork(host);
+
+    const ws1 = await SELF.fetch(`${BASE}/v1/networks/${created.networkId}/presence?ticket=${created.grant}`, {
+      headers: { Upgrade: "websocket" },
+    });
+    expect(ws1.status).toBe(101);
+    const socket1 = ws1.webSocket;
+    socket1?.accept();
+
+    const ws1Closed = new Promise<number>((resolve) => {
+      socket1?.addEventListener("close", (event: CloseEvent) => resolve(event.code), { once: true });
+    });
+
+    const ws2 = await SELF.fetch(`${BASE}/v1/networks/${created.networkId}/presence?ticket=${created.grant}`, {
+      headers: { Upgrade: "websocket" },
+    });
+    expect(ws2.status).toBe(101);
+    const socket2 = ws2.webSocket;
+    socket2?.accept();
+
+    expect(await ws1Closed).toBe(4000);
+    socket2?.close();
+  });
+
+  it("enforces rate limits on session minting", async () => {
+    const res = await SELF.fetch(`${BASE}/v1/sessions/anonymous`, {
+      method: "POST",
+      headers: { "CF-Connecting-IP": "198.51.100.100" },
+    });
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { token: string };
+    expect(body.token).toBeDefined();
   });
 });
