@@ -139,7 +139,7 @@ public class ProfileLauncherFacade(
             }
             else
             {
-                launchResult = await LaunchGameProfileAsync(profile, profileId, skipUserDataCleanup, additionalArguments, cancellationToken);
+                launchResult = await LaunchGameProfileAsync(profile, profileId, skipUserDataCleanup, additionalArguments, cancellationToken, networkIpOverride);
             }
 
             if (launchResult.Success)
@@ -879,7 +879,8 @@ public class ProfileLauncherFacade(
         string profileId,
         bool skipUserDataCleanup,
         IReadOnlyDictionary<string, string>? additionalArguments,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        string? networkIpOverride = null)
     {
         try
         {

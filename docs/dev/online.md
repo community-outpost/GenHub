@@ -18,9 +18,10 @@ Three layers, each independently testable:
    services + per-OS adapter bring-up). Join/leave, adapter lifecycle, presence
    channel, launch integration. All fallible operations return
    `OperationResult<T>`; all long-running work takes a `CancellationToken`.
-3. **Overlay data plane** (selected by the Phase 0 spike: Nebula, ZeroTier, or
-   NetBird). Runs as a sidecar process managed by `OverlaySidecarHost`; the edge
-   reports `overlay: "pending-selection"` until the spike lands.
+3. **Overlay data plane** (see `docs/dev/overlay-spike.md`: userspace TUN +
+   TURN-relayed UDP mesh). Runs as a sidecar process managed by
+   `OverlaySidecarHost`; the edge reports `overlay: "pending-selection"`
+   until the sidecar lands.
 
 ## Feature flag
 
@@ -95,12 +96,13 @@ member gets a toast plus a re-match.
 
 ## Privacy model
 
-Everyone sees servers; only joined members exchange packets. Relay is always
-on: members publish no public endpoint and no STUN traffic runs, so the real
-IP address is never shared with lobby members. The edge drops any endpoint
-sent by a relay member on create, join, and heartbeat. Logs, toasts, and
-diagnostics scrub IPs via `OnlineLogScrubber`; toasts show overlay IPs or
-relay state only.
+Everyone sees servers; only joined members exchange packets. Direct connection
+is attempted first: members discover their public endpoint via STUN and publish
+it to lobby members for direct peer traffic. If STUN discovery fails or relay is
+preferred, traffic routes through an encrypted TURN relay where real IP addresses
+are never shared with peers. The edge drops any endpoint sent by a relay member
+on create, join, and heartbeat. Logs, toasts, and diagnostics scrub IPs via
+`OnlineLogScrubber`; toasts show overlay IPs or relay state only.
 
 ## Lifecycle
 

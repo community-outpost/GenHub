@@ -203,7 +203,7 @@ public sealed partial class OnlineViewModel(
     [RelayCommand]
     public async Task RefreshNetworksAsync(CancellationToken cancellationToken = default)
     {
-        if (!OnlineConstants.IsOnlineEnabled)
+        if (!OnlineConstants.IsOnlineEnabled || _disposed)
         {
             return;
         }
@@ -577,8 +577,6 @@ public sealed partial class OnlineViewModel(
         }
     }
 
-    private bool CanPlay() => IsJoined && !IsGameRunning;
-
     /// <summary>
     /// Copies the overlay IP address to the clipboard.
     /// </summary>
@@ -841,6 +839,9 @@ public sealed partial class OnlineViewModel(
     private bool CanModerate() => IsJoined && SelectedMember is not null && SelectedMember.OverlayIp != OverlayIp;
 
     private bool CanBan() => CanModerate() && IsCurrentUserHost;
+
+    [SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Reads generated MVVM properties Sonar cannot see; wired as an instance CanExecute predicate.")]
+    private bool CanPlay() => _isJoined && !_isGameRunning;
 
     private void OnConnectionLost(object? sender, EventArgs e)
     {
@@ -1402,7 +1403,7 @@ public sealed partial class OnlineViewModel(
 
     private async Task EnsureProfilesLoadedAsync(CancellationToken cancellationToken = default)
     {
-        if (_profilesLoaded)
+        if (_disposed || _profilesLoaded)
         {
             return;
         }
@@ -1504,7 +1505,7 @@ public sealed partial class OnlineViewModel(
 
         // Cancel without disposing: the superseded load may still register on
         // the token, and a CTS without timers holds no native resources.
-        _DetailCts?.Cancel();
+        _detailCts?.Cancel();
         if (value is null)
         {
             SelectedDetail = null;
