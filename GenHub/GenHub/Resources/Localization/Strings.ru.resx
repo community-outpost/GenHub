@@ -1835,7 +1835,7 @@
     <value>Название сети</value>
   </data>
   <data name="Online.Create.PasswordWatermark" xml:space="preserve">
-    <value>Пароль (необязателен для частной сети)</value>
+    <value>Пароль (необязательно)</value>
   </data>
   <data name="Online.Create.PasswordHint" xml:space="preserve">
     <value>Необязательно. Оставьте поле пустым для открытого лобби. Если пароль указан, он должен содержать минимум 4 символа.</value>

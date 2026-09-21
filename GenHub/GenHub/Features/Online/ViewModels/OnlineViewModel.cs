@@ -75,10 +75,12 @@ public sealed partial class OnlineViewModel(
     private ObservableCollection<OnlineNetworkSummary> _networks = [];
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(JoinRequiresPassword))]
     private OnlineNetworkSummary? _selectedNetwork;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsDetailVisible))]
+    [NotifyPropertyChangedFor(nameof(JoinRequiresPassword))]
     private OnlineNetworkDetail? _selectedDetail;
 
     [ObservableProperty]
@@ -160,6 +162,18 @@ public sealed partial class OnlineViewModel(
 
     [ObservableProperty]
     private string _createDescription = string.Empty;
+
+    [ObservableProperty]
+    private string _createPassword = string.Empty;
+
+    [ObservableProperty]
+    private string _joinPassword = string.Empty;
+
+    /// <summary>
+    /// Gets a value indicating whether the currently selected network requires a password.
+    /// </summary>
+    [SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Reads generated MVVM properties Sonar cannot see; bound from XAML as an instance property.")]
+    public bool JoinRequiresPassword => SelectedDetail?.RequiresPassword ?? SelectedNetwork?.RequiresPassword ?? false;
 
     [ObservableProperty]
     private int _createSlots = OnlineConstants.DefaultSlotCap;
@@ -278,17 +292,15 @@ public sealed partial class OnlineViewModel(
             IsLoading = true;
             var advertisement = await ResolveAdvertisementAsync(cancellationToken);
 
-            // Direct-first with relay fallback: STUN failure still joins
-            // without a published endpoint. Passwords are removed: lobbies
-            // are open, so the credential stays empty.
             var result = await networkService.JoinNetworkAsync(
-                target.Id, string.Empty, false, advertisement.Fingerprint, advertisement.Name, cancellationToken);
+                target.Id, JoinPassword.Trim(), false, advertisement.Fingerprint, advertisement.Name, cancellationToken);
             if (!result.Success)
             {
                 ShowJoinErrorToast(result.Errors.FirstOrDefault());
                 return;
             }
 
+            JoinPassword = string.Empty;
             await ApplyJoinAsync(result.Data, target.Name, cancellationToken);
             notificationService.ShowSuccess(
                 GetString("Online.Join.SuccessTitle"),
@@ -406,7 +418,7 @@ public sealed partial class OnlineViewModel(
             var request = new OnlineCreateNetworkRequest
             {
                 Name = networkName,
-                Password = string.Empty,
+                Password = CreatePassword.Trim(),
                 SlotsMax = slotsMax,
                 IsPublic = isPublic,
                 Description = description,
@@ -431,6 +443,7 @@ public sealed partial class OnlineViewModel(
             await ApplyJoinAsync(result.Data, networkName, cancellationToken);
             CreateName = string.Empty;
             CreateDescription = string.Empty;
+            CreatePassword = string.Empty;
             IsCreatePanelOpen = false;
             notificationService.ShowSuccess(
                 GetString("Online.Create.SuccessTitle"),
@@ -981,6 +994,7 @@ public sealed partial class OnlineViewModel(
         ConnectionQuality = OnlineConnectionQuality.Unknown;
         Members = [];
         SelectedMember = null;
+        JoinPassword = string.Empty;
         networkService.SetLocalProfileAdvertisement(string.Empty, string.Empty);
         JoinNetworkCommand.NotifyCanExecuteChanged();
         LeaveNetworkCommand.NotifyCanExecuteChanged();
@@ -1208,6 +1222,22 @@ public sealed partial class OnlineViewModel(
         ProfileMatchState = match;
         if (string.IsNullOrEmpty(ExpectedProfileFingerprint))
         {
+            if (match == OnlineProfileMatch.Exact)
+            {
+                ProfileMatchDetail = null;
+                return;
+            }
+
+            if (!string.IsNullOrEmpty(ExpectedProfileName) || !string.IsNullOrEmpty(ExpectedProfileId))
+            {
+                ProfileMatchDetail = match switch
+                {
+                    OnlineProfileMatch.Mismatch => GetString("Online.Detail.MatchDetailMismatch"),
+                    _ => GetString("Online.Detail.MatchDetailNoProfile"),
+                };
+                return;
+            }
+
             ProfileMatchDetail = GetString("Online.Detail.MatchDetailAny");
             return;
         }
@@ -1262,6 +1292,34 @@ public sealed partial class OnlineViewModel(
         ApplyMatch(OnlineProfileMatch.Unknown, null);
         if (string.IsNullOrEmpty(ExpectedProfileFingerprint))
         {
+            if (!string.IsNullOrWhiteSpace(ExpectedProfileName) || !string.IsNullOrWhiteSpace(ExpectedProfileId))
+            {
+                try
+                {
+                    await EnsureProfilesLoadedAsync(cancellationToken);
+                    var matched = AvailableProfiles.FirstOrDefault(p =>
+                        (!string.IsNullOrWhiteSpace(ExpectedProfileId) && string.Equals(p.Id, ExpectedProfileId, StringComparison.OrdinalIgnoreCase)) ||
+                        (!string.IsNullOrWhiteSpace(ExpectedProfileName) && string.Equals(p.Name, ExpectedProfileName, StringComparison.OrdinalIgnoreCase)) ||
+                        (!string.IsNullOrWhiteSpace(ExpectedProfileId) && string.Equals(p.Name, ExpectedProfileId, StringComparison.OrdinalIgnoreCase)));
+
+                    if (matched is not null)
+                    {
+                        SetPlayProfile(matched);
+                        var setup = await DescribeProfileAsync(matched, cancellationToken);
+                        ApplyMatch(OnlineProfileMatch.Exact, setup.GameplayContentIds);
+                        return;
+                    }
+                }
+                catch (OperationCanceledException)
+                {
+                    throw;
+                }
+                catch (Exception ex)
+                {
+                    logger.LogWarning(ex, "Failed to match profile by name or id.");
+                }
+            }
+
             return;
         }
 
@@ -1494,6 +1552,7 @@ public sealed partial class OnlineViewModel(
 
     partial void OnSelectedNetworkChanged(OnlineNetworkSummary? value)
     {
+        JoinPassword = string.Empty;
         JoinNetworkCommand.NotifyCanExecuteChanged();
 
         // While joined the detail card hides and the live lobby state stays

@@ -1839,7 +1839,7 @@
     <value>Network name</value>
   </data>
   <data name="Online.Create.PasswordWatermark" xml:space="preserve">
-    <value>Password (optional for private)</value>
+    <value>Password (optional)</value>
   </data>
   <data name="Online.Create.PasswordHint" xml:space="preserve">
     <value>Optional. Leave empty for an open lobby (min 4 characters when set).</value>

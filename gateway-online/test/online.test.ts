@@ -97,7 +97,7 @@ describe("online edge", () => {
     const found = entries.find((e) => e.id === created.networkId);
     expect(found).toBeDefined();
     assertMetadataOnly(found as Record<string, unknown>);
-    expect(found).toMatchObject({ slotsUsed: 1, slotsMax: 4, requiresPassword: false });
+    expect(found).toMatchObject({ slotsUsed: 1, slotsMax: 4, requiresPassword: true });
   });
 
   it("keeps private lobbies out of the directory across join, heartbeat, and leave", async () => {
@@ -158,7 +158,7 @@ describe("online edge", () => {
     expect(res.status).toBe(200);
     const detail = (await res.json()) as Record<string, unknown>;
     assertMetadataOnly(detail);
-    expect(detail).toMatchObject({ slotsUsed: 1, requiresPassword: false, hostPresent: true });
+    expect(detail).toMatchObject({ slotsUsed: 1, requiresPassword: true, hostPresent: true });
   });
 
   it("allows public networks without a password", async () => {
@@ -181,21 +181,15 @@ describe("online edge", () => {
     expect(joined.status).toBe(200);
   });
 
-  it("ignores passwords on create", async () => {
+  it("rejects password too short if password is provided", async () => {
     const token = await session();
     const res = await SELF.fetch(`${BASE}/v1/networks`, {
       method: "POST",
       headers: { ...auth(token), "Content-Type": "application/json" },
-      body: JSON.stringify({ name: "Open Lobby", password: "abc", slotsMax: 4, isPublic: true }),
+      body: JSON.stringify({ name: "Protected Lobby", password: "abc", slotsMax: 4, isPublic: true }),
     });
-    expect(res.status).toBe(200);
-    const created = (await res.json()) as JoinResult;
-    expect(created.networkId.length).toBeGreaterThan(0);
-
-    const detailRes = await SELF.fetch(`${BASE}/v1/networks/${created.networkId}`, { headers: auth(token) });
-    expect(detailRes.status).toBe(200);
-    const detail = (await detailRes.json()) as Record<string, unknown>;
-    expect(detail.requiresPassword).toBe(false);
+    expect(res.status).toBe(400);
+    expect(((await res.json()) as { code: string }).code).toBe("online.password-too-short");
   });
 
   it("strips control characters from display strings", async () => {
@@ -255,18 +249,26 @@ describe("online edge", () => {
     expect(ban.status).toBe(403);
   });
 
-  it("ignores passwords on join", async () => {
+  it("verifies password when network has a password", async () => {
     const host = await session();
-    const created = await createNetwork(host);
+    const created = await createNetwork(host, { password: "secret-password" });
     const guest = await session();
 
-    const res = await SELF.fetch(`${BASE}/v1/networks/${created.networkId}/join`, {
+    const wrong = await SELF.fetch(`${BASE}/v1/networks/${created.networkId}/join`, {
       method: "POST",
       headers: { ...auth(guest), "Content-Type": "application/json" },
       body: JSON.stringify({ password: "wrong-password", preferRelay: false }),
     });
-    expect(res.status).toBe(200);
-    const joined = (await res.json()) as JoinResult;
+    expect(wrong.status).toBe(401);
+    expect(((await wrong.json()) as { code: string }).code).toBe("online.wrong-password");
+
+    const correct = await SELF.fetch(`${BASE}/v1/networks/${created.networkId}/join`, {
+      method: "POST",
+      headers: { ...auth(guest), "Content-Type": "application/json" },
+      body: JSON.stringify({ password: "secret-password", preferRelay: false }),
+    });
+    expect(correct.status).toBe(200);
+    const joined = (await correct.json()) as JoinResult;
     expect(joined.overlayIp.length).toBeGreaterThan(0);
   });
 

@@ -1835,7 +1835,7 @@
     <value>اسم الشبكة</value>
   </data>
   <data name="Online.Create.PasswordWatermark" xml:space="preserve">
-    <value>كلمة المرور (اختيارية للخاصة)</value>
+    <value>كلمة المرور (اختيارية)</value>
   </data>
   <data name="Online.Create.PasswordHint" xml:space="preserve">
     <value>اختياري. اتركه فارغًا لردهة مفتوحة (4 أحرف على الأقل عند التعيين).</value>
