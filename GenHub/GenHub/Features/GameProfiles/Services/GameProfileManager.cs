@@ -566,6 +566,16 @@ public class GameProfileManager(
         return !hasCustomContentRemaining;
     }
 
+    private static void NotifyProfileListUpdatedIfChanged(int updatedCount, int deletedCount)
+    {
+        if (deletedCount == 0 && updatedCount == 0)
+        {
+            return;
+        }
+
+        WeakReferenceMessenger.Default.Send(new ProfileListUpdatedMessage());
+    }
+
     /// <summary>
     /// Attempts to resolve a fallback game client from the profile installation when the request omits the game client,
     /// or validates client compatibility when the profile's installation is changing.
@@ -959,15 +969,5 @@ public class GameProfileManager(
 
         logger.LogWarning("Failed to update scrubbed profile {ProfileName} ({ProfileId}): {Error}", profile.Name, profile.Id, updateResult.FirstError);
         return (false, false, profile.Name);
-    }
-
-    private void NotifyProfileListUpdatedIfChanged(int updatedCount, int deletedCount)
-    {
-        if (deletedCount == 0 && updatedCount == 0)
-        {
-            return;
-        }
-
-        WeakReferenceMessenger.Default.Send(new ProfileListUpdatedMessage());
     }
 }
