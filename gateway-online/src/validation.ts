@@ -214,3 +214,24 @@ export const parseEndpoint = (value: unknown): string => {
 };
 
 export const defaultDisplayName = (sub: string): string => `Player-${sub.replaceAll("-", "").substring(0, 6)}`;
+
+export const OUTCOME_DIRECT = "direct";
+export const OUTCOME_RELAY = "relay";
+export const OUTCOME_FAILED = "failed";
+const MAX_OVERLAY_IP_LENGTH = 64;
+
+export const parseOutcomeBody = (
+  body: unknown
+): { targetIp: string; direct: boolean; outcome: string } | null => {
+  if (body === null || typeof body !== "object") {
+    return null;
+  }
+  const raw = body as Record<string, unknown>;
+  if (typeof raw.targetIp !== "string" || raw.targetIp.length === 0 || raw.targetIp.length > MAX_OVERLAY_IP_LENGTH) {
+    return null;
+  }
+  if (raw.outcome !== OUTCOME_DIRECT && raw.outcome !== OUTCOME_RELAY && raw.outcome !== OUTCOME_FAILED) {
+    return null;
+  }
+  return { targetIp: raw.targetIp, direct: raw.direct === true, outcome: raw.outcome };
+};

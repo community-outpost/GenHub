@@ -39,6 +39,7 @@ public sealed class OnlineNetworkService(
     private string? _sessionToken;
     private bool _presenceSubscribed;
     private OnlineJoinResult? _currentJoin;
+    private IReadOnlyList<OnlineMember> _latestRoster = [];
 
     /// <inheritdoc/>
     public OnlineJoinResult? CurrentJoin
@@ -237,7 +238,7 @@ public sealed class OnlineNetworkService(
     public async Task<OperationResult<OnlineJoinResult>> JoinNetworkAsync(
         string networkId,
         string password,
-        bool preferRelay = true,
+        bool preferRelay = false,
         string profileFingerprint = "",
         string profileName = "",
         CancellationToken cancellationToken = default)
@@ -314,6 +315,7 @@ public sealed class OnlineNetworkService(
     public async Task<OperationResult<bool>> LeaveNetworkAsync(CancellationToken cancellationToken = default)
     {
         var join = TakeJoin();
+        _latestRoster = [];
         LocalEndpoint = string.Empty;
 
         if (join is not null)
@@ -397,6 +399,30 @@ public sealed class OnlineNetworkService(
 
         var url = string.Format(ApiConstants.OnlineBanFormat, Uri.EscapeDataString(join.NetworkId));
         return SendGrantMutationAsync(join.Grant, url, HttpMethod.Post, new { targetIp = overlayIp }, cancellationToken);
+    }
+
+    /// <inheritdoc/>
+    public async Task<OperationResult<OnlineMeshCheckResult>> RunMeshCheckAsync(CancellationToken cancellationToken = default)
+    {
+        var join = CurrentJoin;
+        if (join is null)
+        {
+            return OperationResult<OnlineMeshCheckResult>.CreateFailure(OnlineConstants.ErrorServiceUnavailable);
+        }
+
+        // Relay members publish no endpoint and ourselves need no probe; only
+        // direct peers prove the full mesh.
+        var peers = _latestRoster
+            .Where(m => !string.IsNullOrWhiteSpace(m.Endpoint) && !string.Equals(m.Endpoint, LocalEndpoint, StringComparison.Ordinal))
+            .ToList();
+        if (peers.Count == 0)
+        {
+            return OperationResult<OnlineMeshCheckResult>.CreateSuccess(new OnlineMeshCheckResult { Peers = [] });
+        }
+
+        var results = await Task.WhenAll(peers.Select(m => ProbeMemberAsync(m, cancellationToken)));
+        await Task.WhenAll(results.Select(r => ReportConnectionOutcomeAsync(join, r, cancellationToken)));
+        return OperationResult<OnlineMeshCheckResult>.CreateSuccess(new OnlineMeshCheckResult { Peers = results });
     }
 
     private static IReadOnlyList<OnlineNetworkSummary> DropStaleEntries(IReadOnlyList<OnlineNetworkSummary> networks)
@@ -651,6 +677,7 @@ public sealed class OnlineNetworkService(
         }
 
         CurrentJoin = join;
+        _latestRoster = join.Members;
         RosterChanged?.Invoke(this, join.Members);
         SubscribePresence();
 
@@ -703,15 +730,19 @@ public sealed class OnlineNetworkService(
 
     private void OnPresenceRoster(object? sender, IReadOnlyList<OnlineMember> members)
     {
+        _latestRoster = members;
         RosterChanged?.Invoke(this, members);
     }
 
-    private void OnGrantRefreshed(object? sender, string grant)
+    private void OnGrantRefreshed(object? sender, OnlineCertResult cert)
     {
         var join = CurrentJoin;
         if (join is not null)
         {
-            CurrentJoin = join with { Grant = grant };
+            // The refreshed adapter config carries fresh TURN credentials;
+            // keep it even while tunneling waits for the overlay selection.
+            var adapterConfig = string.IsNullOrWhiteSpace(cert.AdapterConfig) ? join.AdapterConfig : cert.AdapterConfig;
+            CurrentJoin = join with { Grant = cert.Grant, AdapterConfig = adapterConfig };
         }
     }
 
@@ -761,6 +792,38 @@ public sealed class OnlineNetworkService(
         await p2p.StopListeningAsync(CancellationToken.None);
     }
 
+    private async Task<OnlineMeshPeerResult> ProbeMemberAsync(OnlineMember member, CancellationToken cancellationToken)
+    {
+        var reachable = false;
+        if (IPEndPoint.TryParse(member.Endpoint, out var target) && target is not null)
+        {
+            var probe = await p2p.ProbePeerAsync(target.Address.ToString(), target.Port, cancellationToken);
+            reachable = probe.Success && probe.Data;
+        }
+
+        if (!reachable)
+        {
+            logger.LogWarning("Mesh probe found no route to a lobby member.");
+        }
+
+        return new OnlineMeshPeerResult { OverlayIp = member.OverlayIp, Reachable = reachable };
+    }
+
+    private async Task ReportConnectionOutcomeAsync(
+        OnlineJoinResult join,
+        OnlineMeshPeerResult peer,
+        CancellationToken cancellationToken)
+    {
+        var url = string.Format(ApiConstants.OnlineOutcomeFormat, Uri.EscapeDataString(join.NetworkId));
+        var outcome = peer.Reachable ? OnlineConstants.OutcomeDirect : OnlineConstants.OutcomeFailed;
+        var reported = await SendGrantMutationAsync(
+            join.Grant, url, HttpMethod.Post, new { targetIp = peer.OverlayIp, direct = true, outcome }, cancellationToken);
+        if (!reported.Success)
+        {
+            logger.LogWarning("Connection-outcome report was dropped.");
+        }
+    }
+
     private async Task<string> ResolvePublicEndpointAsync(bool preferRelay, CancellationToken cancellationToken)
     {
         if (preferRelay)
@@ -773,12 +836,14 @@ public sealed class OnlineNetworkService(
             var listen = await p2p.StartListeningAsync(0, cancellationToken);
             if (!listen.Success)
             {
+                logger.LogInformation("No UDP listener; falling back to relay.");
                 return string.Empty;
             }
 
             var endpoints = await p2p.GetLocalAndPublicEndpointsAsync(cancellationToken);
             if (!endpoints.Success || endpoints.Data?.Public is null)
             {
+                logger.LogInformation("STUN discovery failed; falling back to relay.");
                 return string.Empty;
             }
 

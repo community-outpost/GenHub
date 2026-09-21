@@ -152,6 +152,11 @@ public static class OnlineConstants
     public const string ErrorLaunchFailed = "online.launch-failed";
 
     /// <summary>
+    /// Error code for a failed game stop from the Online tab.
+    /// </summary>
+    public const string ErrorStopFailed = "online.stop-failed";
+
+    /// <summary>
     /// Environment variable overriding the overlay sidecar binary path.
     /// </summary>
     public const string OverlayBinaryEnvVar = "GENHUB_OVERLAY_BIN";
@@ -235,6 +240,36 @@ public static class OnlineConstants
     /// Hole-punch packets sent per peer connection attempt.
     /// </summary>
     public const int PunchPacketCount = 3;
+
+    /// <summary>
+    /// Mesh probe attempts per peer before it counts as unreachable.
+    /// </summary>
+    public const int MeshCheckAttempts = 2;
+
+    /// <summary>
+    /// Timeout in milliseconds waiting for one mesh probe echo.
+    /// </summary>
+    public const int MeshProbeTimeoutMs = 1500;
+
+    /// <summary>
+    /// Random token bytes appended to the punch magic in mesh probes.
+    /// </summary>
+    public const int MeshProbeTokenBytes = 8;
+
+    /// <summary>
+    /// Connection-outcome value for a directly reached peer.
+    /// </summary>
+    public const string OutcomeDirect = "direct";
+
+    /// <summary>
+    /// Connection-outcome value for a relay-only peer.
+    /// </summary>
+    public const string OutcomeRelay = "relay";
+
+    /// <summary>
+    /// Connection-outcome value for an unreachable peer.
+    /// </summary>
+    public const string OutcomeFailed = "failed";
 
     /// <summary>
     /// STUN binding request message type.

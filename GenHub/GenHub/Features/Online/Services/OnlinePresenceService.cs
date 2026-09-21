@@ -65,7 +65,7 @@ public sealed class OnlinePresenceService(
     public event EventHandler? ConnectionLost;
 
     /// <inheritdoc/>
-    public event EventHandler<string>? GrantRefreshed;
+    public event EventHandler<OnlineCertResult>? GrantRefreshed;
 
     /// <inheritdoc/>
     public event EventHandler<OnlineExpectedProfile>? ExpectedProfileChanged;
@@ -387,7 +387,7 @@ public sealed class OnlinePresenceService(
                 _grantExpiresUtc = cert.GrantExpiresUtc;
             }
 
-            GrantRefreshed?.Invoke(this, cert.Grant);
+            GrantRefreshed?.Invoke(this, cert);
             return true;
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)

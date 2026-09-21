@@ -1,14 +1,13 @@
 import type { NetworkSummary, OnlineEnv, PublicMember } from "./env";
-import { createVerifier } from "./passwords";
 import { bearerToken, mintJoinGrant, mintSessionToken, verifyToken } from "./tokens";
 import type { JoinGrantClaims, SessionClaims } from "./tokens";
 import { mintTurnCredentials, parseTurnUris } from "./turn";
 import {
-  MIN_PASSWORD_LENGTH,
   defaultDisplayName,
   parseCreateNetwork,
   parseEndpoint,
   parseJoinBody,
+  parseOutcomeBody,
 } from "./validation";
 
 export { DirectoryIndex } from "./directory";
@@ -21,6 +20,9 @@ const CORS_HEADERS: Record<string, string> = {
 
 const DEFAULT_SESSION_TTL = 3600;
 const DEFAULT_GRANT_TTL = 600;
+// Deliberately short: coturn REST credentials are stateless HMAC with no
+// per-credential revoke (unlike managed TURN), so a short TTL plus the
+// /cert refresh path bounds a leaked credential instead of a 4h window.
 const DEFAULT_TURN_TTL = 1800;
 const DEFAULT_MAX_PER_IP = 10;
 const DEFAULT_SUBNET = "10.42.0.0/20"; // NOSONAR - private overlay range, never a routable target
@@ -155,8 +157,8 @@ const syncPublicDirectory = async (
   summary: NetworkSummary | null | undefined,
   networkId: string
 ): Promise<void> => {
-  const visible = summary !== null && summary !== undefined && summary.isPublic;
-  await syncDirectory(env, visible ? summary : null, networkId);
+  const visible = summary?.isPublic ? summary : null;
+  await syncDirectory(env, visible, networkId);
 };
 
 // A failed create must not burn one of the caller's hourly creation slots.
@@ -219,8 +221,14 @@ export const buildAdapterConfig = async (
   const uris = parseTurnUris(env.TURN_URIS);
   const coturnSecret = secretOrEmpty(env.COTURN_SECRET);
   let turn: unknown = null;
+  // Fail open: a TURN mint failure must degrade to direct-only, never fail
+  // the join or grant refresh that carries this config.
   if (coturnSecret.length > 0 && uris.length > 0) {
-    turn = await mintTurnCredentials(member, numVar(env.TURN_TTL_SECONDS, DEFAULT_TURN_TTL), coturnSecret, uris);
+    try {
+      turn = await mintTurnCredentials(member, numVar(env.TURN_TTL_SECONDS, DEFAULT_TURN_TTL), coturnSecret, uris);
+    } catch (err) {
+      console.warn(`TURN mint failed for ${networkId}; continuing direct-only:`, err instanceof Error ? err.message : String(err));
+    }
   }
   const config = {
     v: 0,
@@ -263,11 +271,6 @@ const handleCreate = async (request: Request, env: OnlineEnv): Promise<Response>
   if (input === null) {
     return error("Invalid network fields", 400, "online.invalid-request");
   }
-  // Passwords are optional everywhere: public lobbies may run open, and
-  // private lobbies stay unlisted. Only a present-but-short password fails.
-  if (input.password.length > 0 && input.password.length < MIN_PASSWORD_LENGTH) {
-    return error("Password too short", 400, "online.password-too-short");
-  }
 
   const capRes = await directoryStub(env).fetch("https://directory/internal/check-creation", {
     method: "POST",
@@ -283,7 +286,8 @@ const handleCreate = async (request: Request, env: OnlineEnv): Promise<Response>
 
   const networkId = crypto.randomUUID();
   const displayName = input.displayName.length > 0 ? input.displayName : defaultDisplayName(session.sub);
-  const verifier = input.password.length > 0 ? await createVerifier(input.password, env.PASSWORD_PEPPER) : "";
+  // Passwords are removed: lobbies are open, so no verifier is ever stored.
+  const verifier = "";
   const initRes = await roomStub(env, networkId).fetch("https://room/internal/init", {
     method: "POST",
     body: JSON.stringify({
@@ -419,7 +423,10 @@ const handleLeave = async (request: Request, env: OnlineEnv, networkId: string):
     method: "POST",
     body: JSON.stringify({ sub: grant.sub }),
   });
-  const payload = (await res.json()) as { empty?: boolean; summary?: NetworkSummary };
+  const payload = (await res.json()) as { empty?: boolean; summary?: NetworkSummary; error?: string; code?: string };
+  if (!res.ok) {
+    return error(payload.error ?? "Leave failed", res.status, payload.code ?? "online.service-unavailable");
+  }
   await syncPublicDirectory(env, payload.summary, networkId);
   return json({ success: true });
 };
@@ -442,11 +449,11 @@ const handleHeartbeat = async (request: Request, env: OnlineEnv, networkId: stri
     method: "POST",
     body: JSON.stringify({ sub: grant.sub, endpoint, ip: clientIp(request) }),
   });
-  const payload = (await res.json()) as { members?: PublicMember[]; summary?: NetworkSummary; error?: string; code?: string };
+  const payload = (await res.json()) as { members?: PublicMember[]; summary?: NetworkSummary; error?: string; code?: string; shouldSync?: boolean };
   if (!res.ok) {
     return error(payload.error ?? "Heartbeat failed", res.status, payload.code);
   }
-  if (payload.summary !== undefined) {
+  if (payload.summary !== undefined && payload.shouldSync !== false) {
     await syncPublicDirectory(env, payload.summary, networkId);
   }
   return json({ success: true, members: payload.members ?? [] });
@@ -565,7 +572,31 @@ const handleTurn = async (request: Request, env: OnlineEnv, networkId: string): 
   if (coturnSecret.length === 0 || uris.length === 0) {
     return error("TURN unconfigured", 503, "online.service-unavailable");
   }
-  return json(await mintTurnCredentials(grant.sub, numVar(env.TURN_TTL_SECONDS, DEFAULT_TURN_TTL), coturnSecret, uris));
+  try {
+    return json(await mintTurnCredentials(grant.sub, numVar(env.TURN_TTL_SECONDS, DEFAULT_TURN_TTL), coturnSecret, uris));
+  } catch {
+    return error("TURN unavailable", 503, "online.service-unavailable");
+  }
+};
+
+const handleOutcome = async (request: Request, env: OnlineEnv, networkId: string): Promise<Response> => {
+  const grant = await requireGrant(request, env, networkId);
+  if (grant instanceof Response) {
+    return grant;
+  }
+  const read = await readJsonBody(request);
+  if (read.error !== undefined) {
+    return read.error;
+  }
+  const input = parseOutcomeBody(read.body);
+  if (input === null) {
+    return error("Invalid outcome fields", 400, "online.invalid-request");
+  }
+  const res = await roomStub(env, networkId).fetch("https://room/internal/outcome", {
+    method: "POST",
+    body: JSON.stringify({ sub: grant.sub, targetIp: input.targetIp, direct: input.direct, outcome: input.outcome }),
+  });
+  return json(await res.json(), res.status);
 };
 
 const handleOverlayCert = async (request: Request, env: OnlineEnv, networkId: string): Promise<Response> => {
@@ -616,7 +647,7 @@ const handleCorsPreflight = (): Response =>
   });
 
 const matchNetworkRoute = (pathname: string): { id: string; action: string } | null => {
-  const match = /^\/v1\/networks\/([^/]+)(?:\/(join|leave|heartbeat|members|report|ban|presence|cert|turn))?$/.exec(pathname);
+  const match = /^\/v1\/networks\/([^/]+)(?:\/(join|leave|heartbeat|members|report|ban|presence|cert|turn|outcome))?$/.exec(pathname);
   const [, id, action] = match ?? [];
   if (id === undefined) {
     return null;
@@ -652,6 +683,8 @@ const dispatchNetworkRoute = async (
       return await handleOverlayCert(request, env, route.id);
     case "GET /turn":
       return await handleTurn(request, env, route.id);
+    case "POST /outcome":
+      return await handleOutcome(request, env, route.id);
     default:
       return null;
   }

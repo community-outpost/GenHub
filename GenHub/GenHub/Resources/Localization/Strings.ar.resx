@@ -1810,6 +1810,9 @@
   <data name="Online.Action.Play" xml:space="preserve">
     <value>العب</value>
   </data>
+  <data name="Online.Action.Stop" xml:space="preserve">
+    <value>إيقاف</value>
+  </data>
   <data name="Online.Action.Ban" xml:space="preserve">
     <value>حظر</value>
   </data>
@@ -1915,6 +1918,9 @@
   <data name="Online.Error.PasswordRequired" xml:space="preserve">
     <value>تحتاج الردهات العامة إلى كلمة مرور في إصدار الخادم هذا.</value>
   </data>
+  <data name="Online.Error.ProfileRequired" xml:space="preserve">
+    <value>اختر ملف لعبة للردهة.</value>
+  </data>
   <data name="Online.Error.ReportFailed" xml:space="preserve">
     <value>فشل البلاغ. يرجى المحاولة مرة أخرى.</value>
   </data>
@@ -1969,8 +1975,20 @@
   <data name="Online.Error.LaunchFailed" xml:space="preserve">
     <value>فشل تشغيل اللعبة. تحقق من الملف وحاول مرة أخرى.</value>
   </data>
+  <data name="Online.Error.StopTitle" xml:space="preserve">
+    <value>تعذر الإيقاف</value>
+  </data>
+  <data name="Online.Error.StopFailed" xml:space="preserve">
+    <value>فشل إيقاف اللعبة. أغلق اللعبة يدويًا إذا كانت لا تزال تعمل.</value>
+  </data>
   <data name="Online.Error.LaunchTitle" xml:space="preserve">
     <value>تعذر التشغيل</value>
+  </data>
+  <data name="Online.Play.ConnectivityMessage" xml:space="preserve">
+    <value>لم يستجب {0} من {1} من الأعضاء لفحص الاتصال. سيستمر التشغيل؛ قد يحدث تأخير أو عدم تزامن.</value>
+  </data>
+  <data name="Online.Play.ConnectivityTitle" xml:space="preserve">
+    <value>تعذّر الوصول إلى بعض الأعضاء</value>
   </data>
   <data name="Online.Play.LaunchingMessage" xml:space="preserve">
     <value>جارٍ تجهيز مساحة العمل وتشغيل {0}.</value>
@@ -1989,6 +2007,12 @@
   </data>
   <data name="Online.Play.SuccessTitle" xml:space="preserve">
     <value>تم التشغيل</value>
+  </data>
+  <data name="Online.Stop.SuccessTitle" xml:space="preserve">
+    <value>تم إيقاف اللعبة</value>
+  </data>
+  <data name="Online.Stop.SuccessMessage" xml:space="preserve">
+    <value>تم إيقاف اللعب على {0}.</value>
   </data>
   <data name="Online.Error.AdapterFailed" xml:space="preserve">
     <value>فشل تشغيل المحول الافتراضي على هذا الجهاز.</value>
@@ -11483,7 +11507,7 @@ GenHub هو مشغل ومدير حديث لألعاب **Command &amp; Conquer: G
     <value>ملف اللعبة</value>
   </data>
   <data name="Online.Create.ProfilePlaceholder" xml:space="preserve">
-    <value>بدون ملف (أي إعداد)</value>
+    <value>اختر ملف لعبة</value>
   </data>
   <data name="Online.Create.ProfileHint" xml:space="preserve">
     <value>يطابق الأعضاء هذا الإعداد تلقائيًا. يمكن للجميع الانضمام؛ وتُعرض الفروقات فقط.</value>

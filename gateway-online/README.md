@@ -14,7 +14,7 @@ game traffic — gameplay stays on the P2P overlay.
 | POST | `/v1/networks` | session | Create network, join as host |
 | GET | `/v1/networks/{id}` | session | Pre-join detail, no endpoints |
 | PATCH | `/v1/networks/{id}` | host grant | Update description / expected profile |
-| POST | `/v1/networks/{id}/join` | session | Password check, grant, overlay config |
+| POST | `/v1/networks/{id}/join` | session | Grant, overlay config |
 | POST | `/v1/networks/{id}/leave` | grant | Leave, free slot |
 | POST | `/v1/networks/{id}/heartbeat` | grant | Keep membership, fetch roster |
 | GET | `/v1/networks/{id}/members` | grant | Member roster (poll fallback) |
@@ -66,8 +66,8 @@ directory reads per minute, overlay subnet, TURN URIs.
 
 ## Policies
 
-- Passwords are optional everywhere: public lobbies may run open, and private
-  lobbies stay unlisted. A password that is set must be at least 4 characters.
+- Passwords are removed: every lobby is open. The wire fields stay for backward
+  compatibility but the edge never stores or verifies a credential.
 - Display strings are control-character sanitized; JSON bodies are capped at
   8 KiB; directory reads are rate-limited per IP.
 - Bans bind to the anonymous session identity (see `docs/dev/online.md`).
@@ -90,8 +90,8 @@ npx wrangler dev
 
 ## Notes
 
-- Passwords are PBKDF2-SHA256 verifiers with a server-side pepper; join rate
-  limiting is per network + IP inside the room object.
+- Passwords were removed; join rate limiting is per network + IP inside the
+  room object.
 - `adapterConfig.overlay` is `"pending-selection"` until the Phase 0 overlay spike
   picks Nebula / ZeroTier / NetBird. The payload is versioned (`v: 0`) so the
   client can keep treating it as opaque.

@@ -15,12 +15,16 @@ using GenHub.Core.Models.Dialogs;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameProfile;
 using GenHub.Core.Models.Online;
+using GenHub.Core.Models.Results;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
+using System.Net.Http;
+using System.Net.Sockets;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -64,6 +68,7 @@ public sealed partial class OnlineViewModel(
     private bool _joinInFlight;
     private bool _profilesLoaded;
     private bool _syncingPlayProfile;
+    private string? _launchedProfileId;
     private IReadOnlyList<string> _expectedContentIds = [];
 
     [ObservableProperty]
@@ -129,7 +134,11 @@ public sealed partial class OnlineViewModel(
     private bool _directoryFailed;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsDetailVisible))]
     private bool _isJoined;
+
+    [ObservableProperty]
+    private bool _isGameRunning;
 
     [ObservableProperty]
     private bool _isCurrentUserHost;
@@ -147,13 +156,7 @@ public sealed partial class OnlineViewModel(
     private OnlineConnectionQuality _connectionQuality = OnlineConnectionQuality.Unknown;
 
     [ObservableProperty]
-    private string _joinPassword = string.Empty;
-
-    [ObservableProperty]
     private string _createName = string.Empty;
-
-    [ObservableProperty]
-    private string _createPassword = string.Empty;
 
     [ObservableProperty]
     private string _createDescription = string.Empty;
@@ -175,10 +178,12 @@ public sealed partial class OnlineViewModel(
 
     /// <summary>
     /// Gets a value indicating whether the detail card is visible: a loaded
-    /// detail, or the loading state while one is being fetched.
+    /// detail, or the loading state while one is being fetched. Hidden while
+    /// joined so browsing the directory cannot clobber the live lobby state;
+    /// the joined banner carries the lobby game instead.
     /// </summary>
     [SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Reads generated MVVM properties Sonar cannot see; bound from XAML as an instance property.")]
-    public bool IsDetailVisible => SelectedDetail is not null || DetailLoading;
+    public bool IsDetailVisible => !IsJoined && (SelectedDetail is not null || DetailLoading);
 
     /// <summary>
     /// Initializes the view model by subscribing to roster updates.
@@ -237,8 +242,8 @@ public sealed partial class OnlineViewModel(
     }
 
     /// <summary>
-    /// Joins the selected network with the entered password. Profile setup
-    /// never gates joining; it only advertises match state to the roster.
+    /// Joins the selected network. Lobbies are open: anyone can join, and the
+    /// profile setup only advertises match state to the roster.
     /// </summary>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
@@ -267,16 +272,17 @@ public sealed partial class OnlineViewModel(
         // stay live during the round-trip, and joining whatever is selected
         // when the awaits complete could target the wrong lobby.
         var target = SelectedNetwork;
-        var password = JoinPassword;
         _joinInFlight = true;
         try
         {
             IsLoading = true;
             var advertisement = await ResolveAdvertisementAsync(cancellationToken);
 
-            // Relay is always on: the endpoint stays hidden from members.
+            // Direct-first with relay fallback: STUN failure still joins
+            // without a published endpoint. Passwords are removed: lobbies
+            // are open, so the credential stays empty.
             var result = await networkService.JoinNetworkAsync(
-                target.Id, password, true, advertisement.Fingerprint, advertisement.Name, cancellationToken);
+                target.Id, string.Empty, false, advertisement.Fingerprint, advertisement.Name, cancellationToken);
             if (!result.Success)
             {
                 ShowJoinErrorToast(result.Errors.FirstOrDefault());
@@ -284,7 +290,6 @@ public sealed partial class OnlineViewModel(
             }
 
             await ApplyJoinAsync(result.Data, target.Name, cancellationToken);
-            JoinPassword = string.Empty;
             notificationService.ShowSuccess(
                 GetString("Online.Join.SuccessTitle"),
                 GetString("Online.Join.SuccessMessage", result.Data.OverlayIp),
@@ -369,17 +374,11 @@ public sealed partial class OnlineViewModel(
             return;
         }
 
-        // Passwords are optional, even for public lobbies; only a
-        // present-but-short password is rejected.
-        if (CreatePassword.Length > 0 && CreatePassword.Length < OnlineConstants.MinPasswordLength)
+        // Every lobby carries a game setup so members can verify their own
+        // profile against it; lobbies without one cannot show match state.
+        if (SelectedCreateProfile is null)
         {
-            ShowErrorToast(CreateErrorTitleKey, GetString("Online.Error.PasswordTooShort"));
-            return;
-        }
-
-        if (CreatePassword.Length > OnlineConstants.MaxPasswordLength)
-        {
-            ShowErrorToast(CreateErrorTitleKey, GetString("Online.Error.PasswordTooLong"));
+            ShowErrorToast(CreateErrorTitleKey, GetString("Online.Error.ProfileRequired"));
             return;
         }
 
@@ -394,7 +393,6 @@ public sealed partial class OnlineViewModel(
         // during profile resolution, and the request must describe what the
         // user submitted, not what the fields hold when awaits complete.
         var networkName = CreateName.Trim();
-        var createPassword = CreatePassword;
         var description = CreateDescription.Trim();
         var createProfile = SelectedCreateProfile;
         var slotsMax = Math.Clamp(CreateSlots, 2, OnlineConstants.MaxSlotCap);
@@ -408,11 +406,11 @@ public sealed partial class OnlineViewModel(
             var request = new OnlineCreateNetworkRequest
             {
                 Name = networkName,
-                Password = createPassword,
+                Password = string.Empty,
                 SlotsMax = slotsMax,
                 IsPublic = isPublic,
                 Description = description,
-                PreferRelay = true,
+                PreferRelay = false,
                 ExpectedProfileId = createProfile?.Id ?? string.Empty,
                 ExpectedProfileFingerprint = setup.Fingerprint,
                 ExpectedProfileName = createProfile?.Name ?? string.Empty,
@@ -432,7 +430,6 @@ public sealed partial class OnlineViewModel(
             SetPlayProfile(createProfile);
             await ApplyJoinAsync(result.Data, networkName, cancellationToken);
             CreateName = string.Empty;
-            CreatePassword = string.Empty;
             CreateDescription = string.Empty;
             IsCreatePanelOpen = false;
             notificationService.ShowSuccess(
@@ -463,7 +460,7 @@ public sealed partial class OnlineViewModel(
     /// </summary>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
-    [RelayCommand(CanExecute = nameof(IsJoined))]
+    [RelayCommand(CanExecute = nameof(CanPlay))]
     public async Task PlayAsync(CancellationToken cancellationToken = default)
     {
         try
@@ -483,6 +480,8 @@ public sealed partial class OnlineViewModel(
                     NotificationDurations.Long);
                 return;
             }
+
+            await WarnOnUnreachableMeshAsync(cancellationToken);
 
             notificationService.ShowInfo(
                 GetString("Online.Play.LaunchingTitle"),
@@ -505,6 +504,8 @@ public sealed partial class OnlineViewModel(
                 return;
             }
 
+            _launchedProfileId = profileId;
+            IsGameRunning = true;
             notificationService.ShowSuccess(
                 GetString("Online.Play.SuccessTitle"),
                 GetString("Online.Play.SuccessMessage", CurrentNetworkName),
@@ -525,6 +526,58 @@ public sealed partial class OnlineViewModel(
             IsLoading = false;
         }
     }
+
+    /// <summary>
+    /// Stops the game launched from the Online tab.
+    /// </summary>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [RelayCommand(CanExecute = nameof(IsGameRunning))]
+    public async Task StopAsync(CancellationToken cancellationToken = default)
+    {
+        var profileId = _launchedProfileId ?? SelectedPlayProfile?.Id;
+        if (string.IsNullOrEmpty(profileId))
+        {
+            notificationService.ShowWarning(
+                GetString("Online.Play.NoProfileTitle"),
+                GetString("Online.Play.NoProfileMessage"),
+                NotificationDurations.Long);
+            return;
+        }
+
+        try
+        {
+            IsLoading = true;
+            var result = await launchService.StopAsync(profileId, cancellationToken);
+            if (!result.Success)
+            {
+                ShowErrorToast("Online.Error.StopTitle", GetString("Online.Error.StopFailed"));
+                return;
+            }
+
+            _launchedProfileId = null;
+            IsGameRunning = false;
+            notificationService.ShowSuccess(
+                GetString("Online.Stop.SuccessTitle"),
+                GetString("Online.Stop.SuccessMessage", CurrentNetworkName),
+                NotificationDurations.Medium);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to stop the game from the Online tab.");
+            ShowErrorToast("Online.Error.StopTitle", null);
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
+    private bool CanPlay() => IsJoined && !IsGameRunning;
 
     /// <summary>
     /// Copies the overlay IP address to the clipboard.
@@ -677,6 +730,15 @@ public sealed partial class OnlineViewModel(
         try
         {
             IsLoading = true;
+
+            // The lobby always carries a game setup so members can verify
+            // their own profile against it; clearing it is not allowed.
+            if (SelectedHostProfile is null)
+            {
+                ShowErrorToast("Online.Error.UpdateTitle", GetString("Online.Error.ProfileRequired"));
+                return;
+            }
+
             await EnsureProfilesLoadedAsync(cancellationToken);
             var setup = await DescribeProfileAsync(SelectedHostProfile, cancellationToken);
             var expected = new OnlineExpectedProfile
@@ -915,7 +977,6 @@ public sealed partial class OnlineViewModel(
         HostDescription = string.Empty;
         IsHostPanelOpen = false;
         OverlayIp = string.Empty;
-        JoinPassword = string.Empty;
         ConnectionQuality = OnlineConnectionQuality.Unknown;
         Members = [];
         SelectedMember = null;
@@ -923,6 +984,7 @@ public sealed partial class OnlineViewModel(
         JoinNetworkCommand.NotifyCanExecuteChanged();
         LeaveNetworkCommand.NotifyCanExecuteChanged();
         PlayCommand.NotifyCanExecuteChanged();
+        StopCommand.NotifyCanExecuteChanged();
         CopyOverlayIpCommand.NotifyCanExecuteChanged();
         ReportMemberCommand.NotifyCanExecuteChanged();
         BanMemberCommand.NotifyCanExecuteChanged();
@@ -1004,6 +1066,42 @@ public sealed partial class OnlineViewModel(
         notificationService.ShowWarning(
             GetString("Online.Adapter.UnavailableTitle"),
             GetString("Online.Adapter.UnavailableMessage"),
+            NotificationDurations.Long);
+    }
+
+    private async Task WarnOnUnreachableMeshAsync(CancellationToken cancellationToken)
+    {
+        // Advisory preflight: any mesh failure skips the warning and the
+        // launch proceeds. Mixed-version peers cannot answer probes yet.
+        var meshTask = networkService.RunMeshCheckAsync(cancellationToken);
+        if (meshTask is null)
+        {
+            return;
+        }
+
+        OperationResult<OnlineMeshCheckResult> mesh;
+        try
+        {
+            mesh = await meshTask;
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception ex) when (ex is HttpRequestException or SocketException or TimeoutException or JsonException)
+        {
+            logger.LogWarning(ex, "Mesh check skipped.");
+            return;
+        }
+
+        if (!mesh.Success || mesh.Data is null || mesh.Data.AllReachable)
+        {
+            return;
+        }
+
+        notificationService.ShowWarning(
+            GetString("Online.Play.ConnectivityTitle"),
+            GetString("Online.Play.ConnectivityMessage", mesh.Data.UnreachableCount, mesh.Data.Peers.Count),
             NotificationDurations.Long);
     }
 
@@ -1397,9 +1495,16 @@ public sealed partial class OnlineViewModel(
     {
         JoinNetworkCommand.NotifyCanExecuteChanged();
 
+        // While joined the detail card hides and the live lobby state stays
+        // pinned: browsing must not overwrite the joined lobby's game.
+        if (IsJoined)
+        {
+            return;
+        }
+
         // Cancel without disposing: the superseded load may still register on
         // the token, and a CTS without timers holds no native resources.
-        _detailCts?.Cancel();
+        _DetailCts?.Cancel();
         if (value is null)
         {
             SelectedDetail = null;
@@ -1458,9 +1563,16 @@ public sealed partial class OnlineViewModel(
         JoinNetworkCommand.NotifyCanExecuteChanged();
         LeaveNetworkCommand.NotifyCanExecuteChanged();
         PlayCommand.NotifyCanExecuteChanged();
+        StopCommand.NotifyCanExecuteChanged();
         CopyOverlayIpCommand.NotifyCanExecuteChanged();
         ReportMemberCommand.NotifyCanExecuteChanged();
         BanMemberCommand.NotifyCanExecuteChanged();
+    }
+
+    partial void OnIsGameRunningChanged(bool value)
+    {
+        PlayCommand.NotifyCanExecuteChanged();
+        StopCommand.NotifyCanExecuteChanged();
     }
 
     partial void OnIsCurrentUserHostChanged(bool value)

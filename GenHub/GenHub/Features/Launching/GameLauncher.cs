@@ -408,7 +408,8 @@ public class GameLauncher(
         IProgress<LaunchProgress>? progress = null,
         bool skipUserDataCleanup = false,
         IReadOnlyDictionary<string, string>? additionalArguments = null,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        string? networkIpOverride = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(profileId);
 
@@ -423,7 +424,7 @@ public class GameLauncher(
         }
 
         var profile = profileResult.Data;
-        return await LaunchProfileAsync(profile, progress, skipUserDataCleanup, additionalArguments, cancellationToken);
+        return await LaunchProfileAsync(profile, progress, skipUserDataCleanup, additionalArguments, cancellationToken, networkIpOverride);
     }
 
     /// <summary>
@@ -434,13 +435,15 @@ public class GameLauncher(
     /// <param name="skipUserDataCleanup">Whether to skip cleanup of user data files (maps, etc.) from other profiles.</param>
     /// <param name="additionalArguments">Optional transient command line arguments to merge with profile launch options.</param>
     /// <param name="cancellationToken">A cancellation token to observe while waiting for the task to complete.</param>
+    /// <param name="networkIpOverride">Optional LAN IP written to Options.ini instead of the profile's stored address.</param>
     /// <returns>A <see cref="LaunchOperationResult{T}"/> representing the result of the launch operation.</returns>
     public async Task<LaunchOperationResult<GameLaunchInfo>> LaunchProfileAsync(
         GameProfile profile,
         IProgress<LaunchProgress>? progress = null,
         bool skipUserDataCleanup = false,
         IReadOnlyDictionary<string, string>? additionalArguments = null,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        string? networkIpOverride = null)
     {
         ArgumentNullException.ThrowIfNull(profile);
 
@@ -2378,7 +2381,7 @@ public class GameLauncher(
     /// </summary>
     /// <param name="profile">The game profile containing the settings to apply.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
-    private async Task ApplyProfileSettingsToIniOptionsAsync(GameProfile profile)
+    private async Task ApplyProfileSettingsToIniOptionsAsync(GameProfile profile, string? networkIpOverride = null)
     {
         try
         {
@@ -2410,7 +2413,12 @@ public class GameLauncher(
             if (profile.HasCustomSettings())
             {
                 logger.LogInformation("Applying profile custom settings to Options.ini for {GameType}", gameType);
-                GameSettingsMapper.ApplyToOptions(profile, options);
+                GameSettingsMapper.ApplyToOptions(profile, options, networkIpOverride: networkIpOverride);
+            }
+            else if (!string.IsNullOrWhiteSpace(networkIpOverride))
+            {
+                options.Network.GameSpyIPAddress = networkIpOverride;
+                options.Network.IPAddress = networkIpOverride;
             }
             else
             {

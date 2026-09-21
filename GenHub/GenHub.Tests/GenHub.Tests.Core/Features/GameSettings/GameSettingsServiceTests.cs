@@ -311,6 +311,58 @@ MissingBracket
     }
 
     /// <summary>
+    /// Should round-trip both network IP keys and leave no temp residue behind.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task SaveOptionsAsync_Should_RoundTripLanIpKeysAtomicallyAsync()
+    {
+        // Arrange
+        var tempFile = Path.GetTempFileName();
+        var options = new IniOptions
+        {
+            Network = new NetworkSettings
+            {
+                GameSpyIPAddress = "10.42.0.7",
+                IPAddress = "10.42.0.7",
+            },
+        };
+
+        var mockService = new Mock<GameSettingsService>(MockBehavior.Loose, _loggerMock.Object, _pathProviderMock.Object)
+        {
+            CallBase = true,
+        };
+        mockService.Setup(x => x.GetOptionsFilePath(It.IsAny<GameType>())).Returns(tempFile);
+
+        try
+        {
+            // Act
+            var result = await mockService.Object.SaveOptionsAsync(GameType.ZeroHour, options);
+
+            // Assert
+            Assert.True(result.Success);
+            var savedLines = await File.ReadAllLinesAsync(tempFile);
+            Assert.Contains("GameSpyIPAddress=10.42.0.7", savedLines);
+            Assert.Contains("IPAddress=10.42.0.7", savedLines);
+            Assert.False(File.Exists(tempFile + ".tmp"));
+
+            var loadResult = await mockService.Object.LoadOptionsAsync(GameType.ZeroHour);
+            Assert.True(loadResult.Success);
+            Assert.Equal("10.42.0.7", loadResult.Data!.Network.GameSpyIPAddress);
+            Assert.Equal("10.42.0.7", loadResult.Data!.Network.IPAddress);
+        }
+        finally
+        {
+            File.Delete(tempFile);
+            var residue = tempFile + ".tmp";
+            if (File.Exists(residue))
+            {
+                File.Delete(residue);
+            }
+        }
+    }
+
+    /// <summary>
     /// Should handle boolean values correctly in serialization.
     /// </summary>
     /// <param name="value">The boolean value to test.</param>

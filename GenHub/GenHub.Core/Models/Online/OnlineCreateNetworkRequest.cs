@@ -48,9 +48,10 @@ public sealed record OnlineCreateNetworkRequest
     /// <summary>
     /// Gets a value indicating whether the host prefers relayed traffic.
     /// Relayed members publish no endpoint, hiding the public IP from peers.
+    /// Defaults to direct-first with relay fallback.
     /// </summary>
     [JsonPropertyName("preferRelay")]
-    public bool PreferRelay { get; init; } = true;
+    public bool PreferRelay { get; init; } = false;
 
     /// <summary>
     /// Gets the host-local id of the expected game profile.

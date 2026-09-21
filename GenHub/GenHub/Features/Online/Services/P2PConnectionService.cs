@@ -23,7 +23,10 @@ namespace GenHub.Features.Online.Services;
 public sealed class P2PConnectionService(ILogger<P2PConnectionService> logger) : IP2PConnectionService, IDisposable
 {
     private readonly object _syncLock = new();
+    private readonly Dictionary<string, TaskCompletionSource<bool>> _pendingProbes = new();
     private UdpClient? _listener;
+    private CancellationTokenSource? _receiveCts;
+    private Task? _receiveTask;
     private bool _disposed;
 
     /// <inheritdoc/>
@@ -46,9 +49,11 @@ public sealed class P2PConnectionService(ILogger<P2PConnectionService> logger) :
             ThrowIfDisposed();
             try
             {
+                StopReceiveLoopLocked();
                 _listener?.Close();
                 _listener = new UdpClient(port);
                 endpoint = (IPEndPoint)_listener.Client.LocalEndPoint!;
+                StartReceiveLoopLocked(_listener);
             }
             catch (SocketException ex)
             {
@@ -136,21 +141,77 @@ public sealed class P2PConnectionService(ILogger<P2PConnectionService> logger) :
     }
 
     /// <inheritdoc/>
-    public Task<OperationResult<bool>> StopListeningAsync(CancellationToken cancellationToken = default)
+    public async Task<OperationResult<bool>> ProbePeerAsync(
+        string ipAddress,
+        int port,
+        CancellationToken cancellationToken = default)
     {
+        if (!IPAddress.TryParse(ipAddress, out var address) || port is < 1 or > 65535)
+        {
+            return OperationResult<bool>.CreateFailure("Peer endpoint is invalid.");
+        }
+
+        UdpClient? listener;
         lock (_syncLock)
         {
+            ThrowIfDisposed();
+            listener = _listener;
+        }
+
+        if (listener is null)
+        {
+            return OperationResult<bool>.CreateFailure("Listener is not started.");
+        }
+
+        var target = new IPEndPoint(address, port);
+        for (var attempt = 0; attempt < OnlineConstants.MeshCheckAttempts; attempt++)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (await TryProbeOnceAsync(listener, target, cancellationToken))
+            {
+                return OperationResult<bool>.CreateSuccess(true);
+            }
+        }
+
+        // Unreachable is a mesh result, not an operation error.
+        return OperationResult<bool>.CreateSuccess(false);
+    }
+
+    /// <inheritdoc/>
+    public async Task<OperationResult<bool>> StopListeningAsync(CancellationToken cancellationToken = default)
+    {
+        Task? receive;
+        Dictionary<string, TaskCompletionSource<bool>> pending;
+        lock (_syncLock)
+        {
+            receive = _receiveTask;
+            StopReceiveLoopLocked();
             _listener?.Close();
             _listener = null;
+            pending = TakePendingProbesLocked();
+        }
+
+        FailProbes(pending);
+        if (receive is not null)
+        {
+            try
+            {
+                await receive.WaitAsync(cancellationToken);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                // The loop still ends via its own CTS and socket close.
+            }
         }
 
         SetQuality(OnlineConnectionQuality.Unknown);
-        return Task.FromResult(OperationResult<bool>.CreateSuccess(true));
+        return OperationResult<bool>.CreateSuccess(true);
     }
 
     /// <inheritdoc/>
     public void Dispose()
     {
+        Dictionary<string, TaskCompletionSource<bool>> pending;
         lock (_syncLock)
         {
             if (_disposed)
@@ -159,9 +220,13 @@ public sealed class P2PConnectionService(ILogger<P2PConnectionService> logger) :
             }
 
             _disposed = true;
+            StopReceiveLoopLocked();
             _listener?.Close();
             _listener = null;
+            pending = TakePendingProbesLocked();
         }
+
+        FailProbes(pending);
     }
 
     /// <summary>
@@ -172,6 +237,33 @@ public sealed class P2PConnectionService(ILogger<P2PConnectionService> logger) :
     internal static IReadOnlyList<IPAddress> OrderStunCandidates(IPAddress[] addresses)
     {
         return addresses.OrderBy(a => a.AddressFamily == AddressFamily.InterNetwork ? 0 : 1).ToList();
+    }
+
+    private static bool IsPunchPacket(byte[] buffer)
+    {
+        if (buffer.Length != 4 && buffer.Length != 4 + OnlineConstants.MeshProbeTokenBytes)
+        {
+            return false;
+        }
+
+        var magic = OnlineConstants.GetPunchMagic();
+        for (var i = 0; i < 4; i++)
+        {
+            if (buffer[i] != magic[i])
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static void FailProbes(Dictionary<string, TaskCompletionSource<bool>> pending)
+    {
+        foreach (var completion in pending.Values)
+        {
+            completion.TrySetResult(false);
+        }
     }
 
     private static byte[] BuildBindingRequest(out byte[] transactionId)
@@ -280,6 +372,136 @@ public sealed class P2PConnectionService(ILogger<P2PConnectionService> logger) :
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
             return null;
+        }
+    }
+
+    private void StartReceiveLoopLocked(UdpClient listener)
+    {
+        var cts = new CancellationTokenSource();
+        _receiveCts = cts;
+        _receiveTask = Task.Run(() => ReceiveLoopAsync(listener, cts.Token), CancellationToken.None);
+    }
+
+    private void StopReceiveLoopLocked()
+    {
+        try
+        {
+            _receiveCts?.Cancel();
+        }
+        catch (ObjectDisposedException)
+        {
+            // Already torn down.
+        }
+
+        _receiveCts?.Dispose();
+        _receiveCts = null;
+        _receiveTask = null;
+    }
+
+    private Dictionary<string, TaskCompletionSource<bool>> TakePendingProbesLocked()
+    {
+        var pending = new Dictionary<string, TaskCompletionSource<bool>>(_pendingProbes);
+        _pendingProbes.Clear();
+        return pending;
+    }
+
+    private void CompleteProbe(byte[] buffer)
+    {
+        if (buffer.Length <= 4)
+        {
+            // Bare legacy punch: echoed, but nothing waits on it.
+            return;
+        }
+
+        var key = Convert.ToBase64String(buffer, 4, buffer.Length - 4);
+        TaskCompletionSource<bool>? pending;
+        lock (_syncLock)
+        {
+            _pendingProbes.TryGetValue(key, out pending);
+            _pendingProbes.Remove(key);
+        }
+
+        pending?.TrySetResult(true);
+    }
+
+    private async Task ReceiveLoopAsync(UdpClient listener, CancellationToken cancellationToken)
+    {
+        while (!cancellationToken.IsCancellationRequested)
+        {
+            UdpReceiveResult result;
+            try
+            {
+                result = await listener.ReceiveAsync(cancellationToken);
+            }
+            catch (Exception ex) when (ex is SocketException or ObjectDisposedException or OperationCanceledException)
+            {
+                return;
+            }
+
+            await HandleDatagramAsync(listener, result, cancellationToken);
+        }
+    }
+
+    private async Task HandleDatagramAsync(UdpClient listener, UdpReceiveResult result, CancellationToken cancellationToken)
+    {
+        if (!IsPunchPacket(result.Buffer))
+        {
+            return;
+        }
+
+        try
+        {
+            await listener.SendAsync(result.Buffer, result.RemoteEndPoint, cancellationToken);
+        }
+        catch (Exception ex) when (ex is SocketException or ObjectDisposedException or OperationCanceledException)
+        {
+            return;
+        }
+
+        CompleteProbe(result.Buffer);
+    }
+
+    private async Task<bool> TryProbeOnceAsync(UdpClient listener, IPEndPoint target, CancellationToken cancellationToken)
+    {
+        var token = RandomNumberGenerator.GetBytes(OnlineConstants.MeshProbeTokenBytes);
+        var magic = OnlineConstants.GetPunchMagic();
+        var probe = new byte[magic.Length + token.Length];
+        Buffer.BlockCopy(magic, 0, probe, 0, magic.Length);
+        Buffer.BlockCopy(token, 0, probe, magic.Length, token.Length);
+
+        var pending = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var key = Convert.ToBase64String(token);
+        lock (_syncLock)
+        {
+            ThrowIfDisposed();
+            _pendingProbes[key] = pending;
+        }
+
+        try
+        {
+            await listener.SendAsync(probe, target, cancellationToken);
+            using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            timeoutCts.CancelAfter(OnlineConstants.MeshProbeTimeoutMs);
+            try
+            {
+                return await pending.Task.WaitAsync(timeoutCts.Token);
+            }
+            catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+            {
+                // Probe timeout: the caller spends the next attempt.
+                return false;
+            }
+        }
+        catch (Exception ex) when (ex is SocketException or ObjectDisposedException)
+        {
+            return false;
+        }
+        finally
+        {
+            lock (_syncLock)
+            {
+                _pendingProbes.Remove(key);
+            }
         }
     }
 

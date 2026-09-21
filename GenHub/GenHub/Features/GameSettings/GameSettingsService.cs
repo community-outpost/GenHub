@@ -145,7 +145,13 @@ public class GameSettingsService(ILogger<GameSettingsService> logger, IGamePathP
                 _logger.LogDebug("Serializing options");
                 var lines = SerializeOptionsIni(options);
                 _logger.LogDebug("Writing {LineCount} lines to file", lines.Length);
-                await File.WriteAllLinesAsync(filePath, lines, Encoding.UTF8);
+
+                // Atomic replace: a crash mid-write must never leave a truncated
+                // Options.ini behind. The temp file lives beside the target so the
+                // move stays on one volume.
+                var temporaryPath = filePath + ".tmp";
+                await File.WriteAllLinesAsync(temporaryPath, lines, Encoding.UTF8);
+                File.Move(temporaryPath, filePath, overwrite: true);
 
                 _logger.LogInformation("Saved successfully to {FilePath}", filePath);
                 return OperationResult<bool>.CreateSuccess(true);
@@ -716,6 +722,9 @@ public class GameSettingsService(ILogger<GameSettingsService> logger, IGamePathP
                 case "GameSpyIPAddress":
                     network.GameSpyIPAddress = kvp.Value;
                     break;
+                case "IPAddress":
+                    network.IPAddress = kvp.Value;
+                    break;
                 default:
                     // Preserve unknown settings
                     network.AdditionalProperties[kvp.Key] = kvp.Value;
@@ -786,6 +795,11 @@ public class GameSettingsService(ILogger<GameSettingsService> logger, IGamePathP
         if (!string.IsNullOrEmpty(options.Network.GameSpyIPAddress))
         {
             lines.Add($"GameSpyIPAddress={options.Network.GameSpyIPAddress}");
+        }
+
+        if (!string.IsNullOrEmpty(options.Network.IPAddress))
+        {
+            lines.Add($"IPAddress={options.Network.IPAddress}");
         }
 
         // Add additional network properties

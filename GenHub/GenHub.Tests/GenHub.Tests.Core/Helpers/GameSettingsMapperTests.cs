@@ -916,4 +916,49 @@ public class GameSettingsMapperTests
         Assert.Equal(100f, updateRequest.CameraMinHeight);
         Assert.Equal(35f, updateRequest.CameraPitch);
     }
+
+    /// <summary>
+    /// Verifies that a network IP override wins over the profile's stored address on both keys.
+    /// </summary>
+    [Fact]
+    public void ApplyToOptions_NetworkIpOverride_WinsOverStoredAddress()
+    {
+        // Arrange
+        var profile = new GameProfile
+        {
+            GameSpyIPAddress = "192.168.1.15",
+        };
+        var options = new IniOptions();
+
+        // Act
+        GameSettingsMapper.ApplyToOptions(profile, options, networkIpOverride: "10.42.0.7");
+
+        // Assert
+        Assert.Equal("10.42.0.7", options.Network.GameSpyIPAddress);
+        Assert.Equal("10.42.0.7", options.Network.IPAddress);
+    }
+
+    /// <summary>
+    /// Verifies that without an override the profile's stored address still applies.
+    /// </summary>
+    [Fact]
+    public void ApplyToOptions_WithoutOverride_UsesStoredAddress()
+    {
+        // Arrange
+        var profile = new GameProfile
+        {
+            GameSpyIPAddress = "192.168.1.15",
+        };
+        var options = new IniOptions
+        {
+            Network = { IPAddress = "192.168.1.16" },
+        };
+
+        // Act
+        GameSettingsMapper.ApplyToOptions(profile, options);
+
+        // Assert
+        Assert.Equal("192.168.1.15", options.Network.GameSpyIPAddress);
+        Assert.Equal("192.168.1.16", options.Network.IPAddress);
+    }
 }

@@ -51,7 +51,7 @@ public sealed class OnlineLaunchService(
 
         await PreselectOverlayIpAsync(profile.Data, overlayIp);
 
-        var launch = await launcherFacade.LaunchProfileAsync(profile.Data.Id, false, cancellationToken);
+        var launch = await launcherFacade.LaunchProfileAsync(profile.Data.Id, false, cancellationToken, OverlayOrNull(overlayIp));
         if (!launch.Success)
         {
             logger.LogWarning("Online play launch failed for profile {ProfileId}.", profile.Data.Id);
@@ -62,6 +62,27 @@ public sealed class OnlineLaunchService(
         return OperationResult<OnlinePlayResult>.CreateSuccess(
             new OnlinePlayResult(profile.Data.Id, profile.Data.Name, networkName));
     }
+
+    /// <inheritdoc/>
+    public async Task<OperationResult<bool>> StopAsync(string profileId, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(profileId))
+        {
+            return OperationResult<bool>.CreateFailure(OnlineConstants.ErrorProfileMissing);
+        }
+
+        var stop = await launcherFacade.StopProfileAsync(profileId, cancellationToken);
+        if (!stop.Success)
+        {
+            logger.LogWarning("Online stop failed for profile {ProfileId}.", profileId);
+            return OperationResult<bool>.CreateFailure(OnlineConstants.ErrorStopFailed);
+        }
+
+        return OperationResult<bool>.CreateSuccess(true);
+    }
+
+    private static string? OverlayOrNull(string overlayIp) =>
+        string.IsNullOrWhiteSpace(overlayIp) || !IPAddress.TryParse(overlayIp, out _) ? null : overlayIp;
 
     private async Task PreselectOverlayIpAsync(GameProfile profile, string overlayIp)
     {
@@ -81,12 +102,14 @@ public sealed class OnlineLaunchService(
         }
 
         var options = load.Data;
-        if (string.Equals(options.Network.GameSpyIPAddress, overlayIp, StringComparison.Ordinal))
+        if (string.Equals(options.Network.GameSpyIPAddress, overlayIp, StringComparison.Ordinal) &&
+            string.Equals(options.Network.IPAddress, overlayIp, StringComparison.Ordinal))
         {
             return;
         }
 
         options.Network.GameSpyIPAddress = overlayIp;
+        options.Network.IPAddress = overlayIp;
         var save = await gameSettingsService.SaveOptionsAsync(gameType, options);
         if (!save.Success)
         {

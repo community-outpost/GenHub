@@ -278,6 +278,11 @@ public static class ApiConstants
     public const string OnlineCertFormat = "/v1/networks/{0}/cert";
 
     /// <summary>
+    /// Format string for the connection-outcome telemetry endpoint (network id).
+    /// </summary>
+    public const string OnlineOutcomeFormat = "/v1/networks/{0}/outcome";
+
+    /// <summary>
     /// Environment variable name for overriding the STUN hostname.
     /// </summary>
     public const string OnlineStunHostEnvVar = "GENHUB_ONLINE_STUN_HOST";

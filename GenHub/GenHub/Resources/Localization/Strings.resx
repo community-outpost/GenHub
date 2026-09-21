@@ -1814,6 +1814,9 @@
   <data name="Online.Action.Play" xml:space="preserve">
     <value>Play</value>
   </data>
+  <data name="Online.Action.Stop" xml:space="preserve">
+    <value>Stop</value>
+  </data>
   <data name="Online.Action.Ban" xml:space="preserve">
     <value>Ban</value>
   </data>
@@ -1919,6 +1922,9 @@
   <data name="Online.Error.PasswordRequired" xml:space="preserve">
     <value>Public lobbies need a password on this server version.</value>
   </data>
+  <data name="Online.Error.ProfileRequired" xml:space="preserve">
+    <value>Select a game profile for the lobby.</value>
+  </data>
   <data name="Online.Error.ReportFailed" xml:space="preserve">
     <value>Report failed. Please try again.</value>
   </data>
@@ -1973,8 +1979,20 @@
   <data name="Online.Error.LaunchFailed" xml:space="preserve">
     <value>Game launch failed. Check the profile and try again.</value>
   </data>
+  <data name="Online.Error.StopTitle" xml:space="preserve">
+    <value>Could not stop</value>
+  </data>
+  <data name="Online.Error.StopFailed" xml:space="preserve">
+    <value>Game stop failed. Close the game manually if it is still running.</value>
+  </data>
   <data name="Online.Error.LaunchTitle" xml:space="preserve">
     <value>Could not launch</value>
+  </data>
+  <data name="Online.Play.ConnectivityMessage" xml:space="preserve">
+    <value>{0} of {1} members did not answer the connectivity check. Launching anyway; expect lag or desyncs.</value>
+  </data>
+  <data name="Online.Play.ConnectivityTitle" xml:space="preserve">
+    <value>Some members are unreachable</value>
   </data>
   <data name="Online.Play.LaunchingMessage" xml:space="preserve">
     <value>Preparing workspace and launching {0}.</value>
@@ -1993,6 +2011,12 @@
   </data>
   <data name="Online.Play.SuccessTitle" xml:space="preserve">
     <value>Launched</value>
+  </data>
+  <data name="Online.Stop.SuccessTitle" xml:space="preserve">
+    <value>Game stopped</value>
+  </data>
+  <data name="Online.Stop.SuccessMessage" xml:space="preserve">
+    <value>Stopped playing on {0}.</value>
   </data>
   <data name="Online.Error.AdapterFailed" xml:space="preserve">
     <value>Virtual adapter failed to start on this device.</value>
@@ -11581,7 +11605,7 @@ Then click the 'Submit' button at the bottom of the page! (GenHub requests exact
     <value>Game profile</value>
   </data>
   <data name="Online.Create.ProfilePlaceholder" xml:space="preserve">
-    <value>No profile (any setup)</value>
+    <value>Select a game profile</value>
   </data>
   <data name="Online.Create.ProfileHint" xml:space="preserve">
     <value>Members auto-match this setup. Anyone can still join; mismatches are only shown.</value>

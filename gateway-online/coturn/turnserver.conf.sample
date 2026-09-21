@@ -8,13 +8,25 @@ server-name=genhub-online
 # Ephemeral REST credentials minted by the edge (GET /v1/networks/{id}/turn).
 use-auth-secret
 static-auth-secret=${COTURN_SECRET}
-# Relay port range for game packet allocations.
+# Relay port range for game packet allocations. coturn burns two ports per
+# allocation, so size for 2x peak concurrent relayed peers: 2000 ports here
+# support roughly 1000 relayed players. Never run the old 41-port sample in
+# production; exhausted relays fail allocations silently mid-match.
 min-port=49160
-max-port=49200
+max-port=51160
 # Serve turns: with TLS for clients behind UDP-blocking NATs.
 # cert=/etc/coturn/fullchain.pem
 # pkey=/etc/coturn/privkey.pem
+# Refuse to relay back into the host or onto multicast: relays only ever
+# connect game clients to each other.
+no-loopback-peers
+no-multicast-peers
+fingerprint
 # Relay-only by product design: no direct peer-to-peer hole punching.
 no-cli
 log-file=/var/log/coturn/turn.log
 simple-log
+# Optional Prometheus scrape for allocation pressure (ports exhausted,
+# active sessions). Point your scraper at this port when enabled.
+# prometheus
+# prometheus-port=9641

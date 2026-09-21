@@ -20,4 +20,10 @@ public sealed record OnlineCertResult
     /// </summary>
     [JsonPropertyName("grantExpiresUtc")]
     public DateTime GrantExpiresUtc { get; init; }
+
+    /// <summary>
+    /// Gets the refreshed overlay adapter config with fresh TURN credentials.
+    /// </summary>
+    [JsonPropertyName("adapterConfig")]
+    public string AdapterConfig { get; init; } = string.Empty;
 }

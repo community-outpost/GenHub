@@ -1810,6 +1810,9 @@
   <data name="Online.Action.Play" xml:space="preserve">
     <value>Играть</value>
   </data>
+  <data name="Online.Action.Stop" xml:space="preserve">
+    <value>Остановить</value>
+  </data>
   <data name="Online.Action.Ban" xml:space="preserve">
     <value>Заблокировать</value>
   </data>
@@ -1915,6 +1918,9 @@
   <data name="Online.Error.PasswordRequired" xml:space="preserve">
     <value>На этой версии сервера публичные лобби требуют пароль.</value>
   </data>
+  <data name="Online.Error.ProfileRequired" xml:space="preserve">
+    <value>Выберите игровой профиль для лобби.</value>
+  </data>
   <data name="Online.Error.ReportFailed" xml:space="preserve">
     <value>Не удалось отправить жалобу. Попробуйте снова.</value>
   </data>
@@ -1969,8 +1975,20 @@
   <data name="Online.Error.LaunchFailed" xml:space="preserve">
     <value>Не удалось запустить игру. Проверьте профиль и попробуйте снова.</value>
   </data>
+  <data name="Online.Error.StopTitle" xml:space="preserve">
+    <value>Не удалось остановить</value>
+  </data>
+  <data name="Online.Error.StopFailed" xml:space="preserve">
+    <value>Не удалось остановить игру. Закройте её вручную, если она всё ещё запущена.</value>
+  </data>
   <data name="Online.Error.LaunchTitle" xml:space="preserve">
     <value>Не удалось запустить</value>
+  </data>
+  <data name="Online.Play.ConnectivityMessage" xml:space="preserve">
+    <value>{0} из {1} не ответили на проверку соединения. Запуск продолжается; возможны задержки или рассинхронизация.</value>
+  </data>
+  <data name="Online.Play.ConnectivityTitle" xml:space="preserve">
+    <value>Некоторые участники недоступны</value>
   </data>
   <data name="Online.Play.LaunchingMessage" xml:space="preserve">
     <value>Подготовка и запуск {0}.</value>
@@ -1989,6 +2007,12 @@
   </data>
   <data name="Online.Play.SuccessTitle" xml:space="preserve">
     <value>Запущено</value>
+  </data>
+  <data name="Online.Stop.SuccessTitle" xml:space="preserve">
+    <value>Игра остановлена</value>
+  </data>
+  <data name="Online.Stop.SuccessMessage" xml:space="preserve">
+    <value>Игра на {0} остановлена.</value>
   </data>
   <data name="Online.Error.AdapterFailed" xml:space="preserve">
     <value>Не удалось запустить виртуальный адаптер на этом устройстве.</value>
@@ -11483,7 +11507,7 @@ GenHub передает официальный идентификатор AppID 
     <value>Игровой профиль</value>
   </data>
   <data name="Online.Create.ProfilePlaceholder" xml:space="preserve">
-    <value>Без профиля (любая сборка)</value>
+    <value>Выберите игровой профиль</value>
   </data>
   <data name="Online.Create.ProfileHint" xml:space="preserve">
     <value>Профили участников автоматически сравниваются с этой сборкой. Подключиться может любой игрок; несовпадения только отображаются.</value>

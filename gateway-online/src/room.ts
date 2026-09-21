@@ -1,11 +1,10 @@
 import type { DurableObjectState } from "@cloudflare/workers-types";
 import { QUALITY_DIRECT, QUALITY_RELAY, QUALITY_UNKNOWN } from "./env";
 import type { NetworkDetail, NetworkSummary, OnlineEnv, PublicMember, RoomMember, RoomMeta } from "./env";
-import { verifyPassword } from "./passwords";
 import { allowRequest } from "./ratelimit";
 import type { RateCounter } from "./ratelimit";
 import { verifyToken } from "./tokens";
-import { sanitizeText } from "./validation";
+import { OUTCOME_DIRECT, OUTCOME_FAILED, OUTCOME_RELAY, sanitizeText } from "./validation";
 
 interface AbuseReport {
   reporter: string;
@@ -23,6 +22,12 @@ interface JoinBody {
   endpoint: string;
   profileFingerprint?: string;
   profileName?: string;
+}
+
+interface OutcomeTotals {
+  direct: number;
+  relay: number;
+  failed: number;
 }
 
 // Compares only the expected-profile block: description-only meta patches
@@ -155,6 +160,7 @@ export class PresenceRoom {
   private readonly env: OnlineEnv;
   private readonly sessions: Map<WebSocket, string> = new Map();
   private mutex: Promise<void> = Promise.resolve();
+  private lastDirectorySyncMs = 0;
 
   constructor(state: DurableObjectState, env: OnlineEnv) {
     this.state = state;
@@ -198,6 +204,8 @@ export class PresenceRoom {
             return await this.handleMembership(url);
           case "POST /internal/report":
             return await this.handleReport(request);
+          case "POST /internal/outcome":
+            return await this.handleOutcome(request);
           case "POST /internal/ban":
             return await this.handleBan(request);
           case "PATCH /internal/meta":
@@ -223,6 +231,8 @@ export class PresenceRoom {
       }
       if (evicted && meta !== null) {
         await this.broadcastRoster();
+        await this.upsertDirectory(meta, members);
+      } else if (meta !== null && meta.isPublic && Date.now() - this.lastDirectorySyncMs >= 300_000) {
         await this.upsertDirectory(meta, members);
       }
       if (meta !== null && (meta.emptiedUtc ?? 0) !== 0) {
@@ -274,6 +284,7 @@ export class PresenceRoom {
     if (!meta.isPublic) {
       return;
     }
+    this.lastDirectorySyncMs = Date.now();
     const stub = this.env.DIRECTORY_INDEX.get(this.env.DIRECTORY_INDEX.idFromName("directory"));
     await stub.fetch("https://directory/internal/upsert", {
       method: "POST",
@@ -360,7 +371,7 @@ export class PresenceRoom {
       region: meta.region,
       hostDisplayName: meta.hostDisplayName,
       quality: aggregateQuality(members),
-      requiresPassword: meta.verifier.length > 0,
+      requiresPassword: false,
       isPublic: meta.isPublic,
       lastHeartbeatUtc: new Date().toISOString(),
     };
@@ -528,8 +539,9 @@ export class PresenceRoom {
     });
   }
 
-  // Ban, capacity, and password gates. Returning members bypass the capacity
-  // gate (they already hold a slot) but never the ban or password gates.
+  // Ban and capacity gates. Returning members bypass the capacity gate
+  // (they already hold a slot) but never the ban gate. Passwords are removed:
+  // lobbies are open.
   private async rejectJoin(meta: RoomMeta, members: RoomMember[], body: JoinBody): Promise<Response | null> {
     const bans = await this.loadBans();
     const bannedIps = await this.loadBannedIps();
@@ -542,9 +554,6 @@ export class PresenceRoom {
     // instead of reassigning overlay IPs that members still hold.
     if (!returning && (members.length >= meta.slotsMax || meta.nextSlot >= MAX_OVERLAY_SLOT)) {
       return json({ error: "Network full", code: "online.network-full" }, 409);
-    }
-    if (meta.verifier.length > 0 && !(await verifyPassword(body.password, meta.verifier, this.env.PASSWORD_PEPPER))) {
-      return json({ error: "Wrong password", code: "online.wrong-password" }, 401);
     }
     return null;
   }
@@ -649,10 +658,16 @@ export class PresenceRoom {
     if (changed) {
       await this.broadcastRoster();
     }
+    const now = Date.now();
+    const shouldSync = changed || (now - this.lastDirectorySyncMs >= 300_000);
+    if (shouldSync) {
+      this.lastDirectorySyncMs = now;
+    }
     return json({
       success: true,
       members: members.map(toPublic),
       summary: await this.summary(meta, members),
+      shouldSync,
     });
   }
 
@@ -671,7 +686,7 @@ export class PresenceRoom {
       slotsUsed: members.length,
       slotsMax: meta.slotsMax,
       ...this.expectedProfile(meta),
-      requiresPassword: meta.verifier.length > 0,
+      requiresPassword: false,
       hostPresent: members.some((m) => m.isHost),
     };
     return json(detail);
@@ -721,6 +736,34 @@ export class PresenceRoom {
     await this.state.storage.put("reports", reports.slice(-MAX_REPORTS));
     await this.broadcastEvent("report", { targetIp: target.overlayIp });
     return json({ success: true });
+  }
+
+  // Connection-outcome telemetry: clients report per-pair mesh probe
+  // results (direct/relay/failed) so NAT failure rates stay visible.
+  // Advisory counters only; a stale target (member left mid-probe) still
+  // counts because the attempt itself is the signal.
+  private async handleOutcome(request: Request): Promise<Response> {
+    const members = await this.loadMembers();
+    const body = await parseJsonBody<{ sub: string; targetIp: string; direct: boolean; outcome: string }>(request);
+    if (body === null) {
+      return json({ error: "Invalid request body" }, 400);
+    }
+    if (!members.some((m) => m.sub === body.sub)) {
+      return json({ error: "Not a member" }, 403);
+    }
+    if (body.outcome !== OUTCOME_DIRECT && body.outcome !== OUTCOME_RELAY && body.outcome !== OUTCOME_FAILED) {
+      return json({ error: "Invalid outcome" }, 400);
+    }
+    const totals = (await this.state.storage.get<OutcomeTotals>("outcomeTotals")) ?? { direct: 0, relay: 0, failed: 0 };
+    if (body.outcome === OUTCOME_DIRECT) {
+      totals.direct += 1;
+    } else if (body.outcome === OUTCOME_RELAY) {
+      totals.relay += 1;
+    } else {
+      totals.failed += 1;
+    }
+    await this.state.storage.put("outcomeTotals", totals);
+    return json({ success: true, totals });
   }
 
   private async handleBan(request: Request): Promise<Response> {
@@ -863,7 +906,8 @@ export class PresenceRoom {
     if (member === undefined) {
       return;
     }
-    member.lastSeen = Date.now();
+    const now = Date.now();
+    const stale = now - member.lastSeen >= (this.presenceTimeout() * 1000) / 3;
     // Advertisement refreshes only rebroadcast when the visible roster
     // actually changed; every heartbeat rewriting the roster would fan out
     // a roster storm on every interval for every member.
@@ -875,7 +919,10 @@ export class PresenceRoom {
       member.profileFingerprint = advertisement.profileFingerprint;
       member.profileName = advertisement.profileName;
     }
-    await this.saveMembers(members);
+    if (stale || changed) {
+      member.lastSeen = now;
+      await this.saveMembers(members);
+    }
     if (changed) {
       await this.broadcastRoster();
     }
