@@ -147,6 +147,18 @@ const syncDirectory = async (env: OnlineEnv, summary: NetworkSummary | null, net
   }
 };
 
+// Invite-only lobbies must never appear in the public directory: every
+// room-driven sync (join, leave, heartbeat, meta, ban) funnels through
+// here so a private summary removes any stray entry instead of upserting.
+const syncPublicDirectory = async (
+  env: OnlineEnv,
+  summary: NetworkSummary | null | undefined,
+  networkId: string
+): Promise<void> => {
+  const visible = summary !== null && summary !== undefined && summary.isPublic;
+  await syncDirectory(env, visible ? summary : null, networkId);
+};
+
 // A failed create must not burn one of the caller's hourly creation slots.
 const releaseCreation = async (env: OnlineEnv, ip: string): Promise<void> => {
   try {
@@ -313,9 +325,7 @@ const handleCreate = async (request: Request, env: OnlineEnv): Promise<Response>
     summary: NetworkSummary;
     expectedProfile: ExpectedProfilePayload;
   };
-  if (input.isPublic) {
-    await syncDirectory(env, init.summary, networkId);
-  }
+  await syncPublicDirectory(env, init.summary, networkId);
 
   const grantTtl = numVar(env.JOIN_GRANT_TTL_SECONDS, DEFAULT_GRANT_TTL);
   const grant = await mintJoinGrant(session.sub, networkId, init.member.overlayIp, true, grantTtl, env.JWT_SIGNING_SECRET);
@@ -378,7 +388,7 @@ const handleJoin = async (request: Request, env: OnlineEnv, networkId: string): 
   if (!res.ok || payload.member === undefined || payload.summary === undefined) {
     return error(payload.error ?? "Join failed", res.status, payload.code ?? "online.service-unavailable");
   }
-  await syncDirectory(env, payload.summary, networkId);
+  await syncPublicDirectory(env, payload.summary, networkId);
 
   const grantTtl = numVar(env.JOIN_GRANT_TTL_SECONDS, DEFAULT_GRANT_TTL);
   const grant = await mintJoinGrant(
@@ -410,7 +420,7 @@ const handleLeave = async (request: Request, env: OnlineEnv, networkId: string):
     body: JSON.stringify({ sub: grant.sub }),
   });
   const payload = (await res.json()) as { empty?: boolean; summary?: NetworkSummary };
-  await syncDirectory(env, payload.summary ?? null, networkId);
+  await syncPublicDirectory(env, payload.summary, networkId);
   return json({ success: true });
 };
 
@@ -437,7 +447,7 @@ const handleHeartbeat = async (request: Request, env: OnlineEnv, networkId: stri
     return error(payload.error ?? "Heartbeat failed", res.status, payload.code);
   }
   if (payload.summary !== undefined) {
-    await syncDirectory(env, payload.summary, networkId);
+    await syncPublicDirectory(env, payload.summary, networkId);
   }
   return json({ success: true, members: payload.members ?? [] });
 };
@@ -484,7 +494,7 @@ const handleMetaPatch = async (request: Request, env: OnlineEnv, networkId: stri
     return error(payload.error ?? "Update failed", res.status);
   }
   if (payload.summary !== undefined) {
-    await syncDirectory(env, payload.summary, networkId);
+    await syncPublicDirectory(env, payload.summary, networkId);
   }
   return json({ success: true });
 };
@@ -537,7 +547,7 @@ const handleBan = async (request: Request, env: OnlineEnv, networkId: string): P
     return error(payload.error ?? "Ban failed", res.status);
   }
   if (payload.summary !== undefined) {
-    await syncDirectory(env, payload.summary, networkId);
+    await syncPublicDirectory(env, payload.summary, networkId);
   }
   return json({ success: true });
 };

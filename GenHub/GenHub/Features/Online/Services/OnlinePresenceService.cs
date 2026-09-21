@@ -47,18 +47,6 @@ public sealed class OnlinePresenceService(
     private bool _disposed;
 
     /// <inheritdoc/>
-    public event EventHandler<IReadOnlyList<OnlineMember>>? RosterUpdated;
-
-    /// <inheritdoc/>
-    public event EventHandler? ConnectionLost;
-
-    /// <inheritdoc/>
-    public event EventHandler<string>? GrantRefreshed;
-
-    /// <inheritdoc/>
-    public event EventHandler<OnlineExpectedProfile>? ExpectedProfileChanged;
-
-    /// <inheritdoc/>
     public bool IsConnected
     {
         get
@@ -69,6 +57,18 @@ public sealed class OnlinePresenceService(
             }
         }
     }
+
+    /// <inheritdoc/>
+    public event EventHandler<IReadOnlyList<OnlineMember>>? RosterUpdated;
+
+    /// <inheritdoc/>
+    public event EventHandler? ConnectionLost;
+
+    /// <inheritdoc/>
+    public event EventHandler<string>? GrantRefreshed;
+
+    /// <inheritdoc/>
+    public event EventHandler<OnlineExpectedProfile>? ExpectedProfileChanged;
 
     /// <inheritdoc/>
     public async Task<OperationResult<bool>> ConnectAsync(
@@ -195,7 +195,7 @@ public sealed class OnlinePresenceService(
     internal static Uri BuildPresenceUri(string edgeBaseUrl, string networkId, string grant)
     {
         var baseUri = new Uri(edgeBaseUrl);
-        var scheme = baseUri.Scheme == "https" ? "wss" : "ws";
+        var scheme = baseUri.Scheme == Uri.UriSchemeHttps ? OnlineConstants.WebSocketSecureScheme : OnlineConstants.WebSocketScheme;
         var builder = new UriBuilder(scheme, baseUri.Host, baseUri.Port)
         {
             Path = string.Format(ApiConstants.OnlinePresenceFormat, Uri.EscapeDataString(networkId)),
@@ -215,7 +215,7 @@ public sealed class OnlinePresenceService(
         {
             using var document = JsonDocument.Parse(message);
             if (!document.RootElement.TryGetProperty("type", out var type) ||
-                type.GetString() != "roster" ||
+                type.GetString() != OnlineConstants.PresenceMessageRoster ||
                 !document.RootElement.TryGetProperty("members", out var members))
             {
                 return null;
@@ -240,9 +240,9 @@ public sealed class OnlinePresenceService(
         {
             using var document = JsonDocument.Parse(message);
             if (!document.RootElement.TryGetProperty("type", out var type) ||
-                type.GetString() != "event" ||
-                !document.RootElement.TryGetProperty("event", out var name) ||
-                name.GetString() != "profile-changed" ||
+                type.GetString() != OnlineConstants.PresenceMessageEvent ||
+                !document.RootElement.TryGetProperty(OnlineConstants.PresenceMessageEvent, out var name) ||
+                name.GetString() != OnlineConstants.PresenceEventProfileChanged ||
                 !document.RootElement.TryGetProperty("data", out var data))
             {
                 return null;
@@ -288,7 +288,8 @@ public sealed class OnlinePresenceService(
         // Only the server's explicit membership terminations end the session.
         // Transient closes (1001 GoingAway during restarts, network drops)
         // must reconnect with backoff instead of auto-leaving the network.
-        return status is (WebSocketCloseStatus)4000 or (WebSocketCloseStatus)4001;
+        return status is (WebSocketCloseStatus)OnlineConstants.PresenceCloseMembershipEnded
+            or (WebSocketCloseStatus)OnlineConstants.PresenceCloseBanned;
     }
 
     private async Task RunLoopAsync(CancellationToken cancellationToken)
@@ -527,11 +528,12 @@ public sealed class OnlinePresenceService(
 
         if (string.IsNullOrEmpty(fingerprint) && string.IsNullOrEmpty(profileName))
         {
-            return Encoding.UTF8.GetBytes("""{"type":"heartbeat"}""");
+            return Encoding.UTF8.GetBytes(
+                "{\"type\":\"" + OnlineConstants.PresenceMessageHeartbeat + "\"}");
         }
 
         var payload = JsonSerializer.Serialize(
-            new { type = "heartbeat", profileFingerprint = fingerprint, profileName },
+            new { type = OnlineConstants.PresenceMessageHeartbeat, profileFingerprint = fingerprint, profileName },
             JsonOptions);
         return Encoding.UTF8.GetBytes(payload);
     }

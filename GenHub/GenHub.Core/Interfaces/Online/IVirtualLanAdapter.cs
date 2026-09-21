@@ -13,11 +13,6 @@ namespace GenHub.Core.Interfaces.Online;
 public interface IVirtualLanAdapter
 {
     /// <summary>
-    /// Occurs when the adapter state changes.
-    /// </summary>
-    event EventHandler<OnlineAdapterState>? StateChanged;
-
-    /// <summary>
     /// Gets the current adapter state.
     /// </summary>
     OnlineAdapterState State { get; }
@@ -26,6 +21,11 @@ public interface IVirtualLanAdapter
     /// Gets the active overlay IP address, or null when the adapter is down.
     /// </summary>
     string? OverlayIp { get; }
+
+    /// <summary>
+    /// Occurs when the adapter state changes.
+    /// </summary>
+    event EventHandler<OnlineAdapterState>? StateChanged;
 
     /// <summary>
     /// Brings the adapter up with the given overlay configuration.

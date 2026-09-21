@@ -22,23 +22,15 @@ namespace GenHub.Features.Online.Services;
 /// <param name="logger">The logger.</param>
 public sealed class P2PConnectionService(ILogger<P2PConnectionService> logger) : IP2PConnectionService, IDisposable
 {
-    private const int StunPort = 3478;
-    private const int StunTimeoutSeconds = 5;
-    private const int PunchPacketCount = 3;
-    private const ushort StunBindingRequest = 0x0001;
-    private const ushort StunBindingResponse = 0x0101;
-    private const ushort StunXorMappedAddress = 0x0020;
-    private const uint StunMagicCookie = 0x2112A442;
-
     private readonly object _syncLock = new();
     private UdpClient? _listener;
     private bool _disposed;
 
     /// <inheritdoc/>
-    public event EventHandler<OnlineConnectionQuality>? ConnectionStatusChanged;
+    public OnlineConnectionQuality CurrentQuality { get; private set; } = OnlineConnectionQuality.Unknown;
 
     /// <inheritdoc/>
-    public OnlineConnectionQuality CurrentQuality { get; private set; } = OnlineConnectionQuality.Unknown;
+    public event EventHandler<OnlineConnectionQuality>? ConnectionStatusChanged;
 
     /// <inheritdoc/>
     public Task<OperationResult<IPEndPoint>> StartListeningAsync(int port, CancellationToken cancellationToken = default)
@@ -95,8 +87,8 @@ public sealed class P2PConnectionService(ILogger<P2PConnectionService> logger) :
         try
         {
             var target = new IPEndPoint(address, port);
-            var punch = OnlineConstants.PunchMagic;
-            for (var i = 0; i < PunchPacketCount; i++)
+            var punch = OnlineConstants.GetPunchMagic();
+            for (var i = 0; i < OnlineConstants.PunchPacketCount; i++)
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 await listener.SendAsync(punch, target, cancellationToken);
@@ -187,19 +179,19 @@ public sealed class P2PConnectionService(ILogger<P2PConnectionService> logger) :
         transactionId = RandomNumberGenerator.GetBytes(12);
 
         var request = new byte[20];
-        request[0] = (byte)(StunBindingRequest >> 8);
-        request[1] = (byte)StunBindingRequest;
-        request[4] = (byte)((StunMagicCookie >> 24) & 0xFF);
-        request[5] = (byte)((StunMagicCookie >> 16) & 0xFF);
-        request[6] = (byte)((StunMagicCookie >> 8) & 0xFF);
-        request[7] = (byte)(StunMagicCookie & 0xFF);
+        request[0] = (byte)(OnlineConstants.StunBindingRequest >> 8);
+        request[1] = (byte)OnlineConstants.StunBindingRequest;
+        request[4] = (byte)((OnlineConstants.StunMagicCookie >> 24) & 0xFF);
+        request[5] = (byte)((OnlineConstants.StunMagicCookie >> 16) & 0xFF);
+        request[6] = (byte)((OnlineConstants.StunMagicCookie >> 8) & 0xFF);
+        request[7] = (byte)(OnlineConstants.StunMagicCookie & 0xFF);
         Buffer.BlockCopy(transactionId, 0, request, 8, 12);
         return request;
     }
 
     private static IPEndPoint? ParseBindingResponse(byte[] response, byte[] transactionId)
     {
-        if (response.Length < 20 || response[0] != ((StunBindingResponse >> 8) & 0xFF) || response[1] != (StunBindingResponse & 0xFF))
+        if (response.Length < 20 || response[0] != ((OnlineConstants.StunBindingResponse >> 8) & 0xFF) || response[1] != (OnlineConstants.StunBindingResponse & 0xFF))
         {
             return null;
         }
@@ -217,7 +209,7 @@ public sealed class P2PConnectionService(ILogger<P2PConnectionService> logger) :
         {
             var type = (ushort)((response[offset] << 8) | response[offset + 1]);
             var length = (ushort)((response[offset + 2] << 8) | response[offset + 3]);
-            if (type == StunXorMappedAddress && offset + 4 + length <= response.Length)
+            if (type == OnlineConstants.StunXorMappedAddress && offset + 4 + length <= response.Length)
             {
                 return ParseXorMappedAddress(response, offset + 4, length);
             }
@@ -235,11 +227,11 @@ public sealed class P2PConnectionService(ILogger<P2PConnectionService> logger) :
             return null;
         }
 
-        var port = (ushort)(((buffer[offset + 2] << 8) | buffer[offset + 3]) ^ (StunMagicCookie >> 16));
+        var port = (ushort)(((buffer[offset + 2] << 8) | buffer[offset + 3]) ^ (OnlineConstants.StunMagicCookie >> 16));
         var address = new byte[4];
         for (var i = 0; i < 4; i++)
         {
-            address[i] = (byte)(buffer[offset + 4 + i] ^ (StunMagicCookie >> (24 - (i * 8))));
+            address[i] = (byte)(buffer[offset + 4 + i] ^ (OnlineConstants.StunMagicCookie >> (24 - (i * 8))));
         }
 
         return new IPEndPoint(new IPAddress(address), port);
@@ -254,7 +246,7 @@ public sealed class P2PConnectionService(ILogger<P2PConnectionService> logger) :
         try
         {
             using var udp = new UdpClient(address.AddressFamily);
-            await udp.SendAsync(request, new IPEndPoint(address, StunPort), cancellationToken);
+            await udp.SendAsync(request, new IPEndPoint(address, OnlineConstants.StunPort), cancellationToken);
             var result = await udp.ReceiveAsync(cancellationToken);
             return ParseBindingResponse(result.Buffer, transactionId);
         }
@@ -267,7 +259,7 @@ public sealed class P2PConnectionService(ILogger<P2PConnectionService> logger) :
     private static async Task<IPEndPoint?> QueryStunAsync(CancellationToken cancellationToken)
     {
         using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        timeoutCts.CancelAfter(TimeSpan.FromSeconds(StunTimeoutSeconds));
+        timeoutCts.CancelAfter(TimeSpan.FromSeconds(OnlineConstants.StunTimeoutSeconds));
 
         try
         {

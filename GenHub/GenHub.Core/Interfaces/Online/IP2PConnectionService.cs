@@ -14,14 +14,14 @@ namespace GenHub.Core.Interfaces.Online;
 public interface IP2PConnectionService
 {
     /// <summary>
-    /// Occurs when the P2P connection status changes.
-    /// </summary>
-    event EventHandler<OnlineConnectionQuality>? ConnectionStatusChanged;
-
-    /// <summary>
     /// Gets the current connection quality.
     /// </summary>
     OnlineConnectionQuality CurrentQuality { get; }
+
+    /// <summary>
+    /// Occurs when the P2P connection status changes.
+    /// </summary>
+    event EventHandler<OnlineConnectionQuality>? ConnectionStatusChanged;
 
     /// <summary>
     /// Starts listening on the given port for inbound peer traffic.

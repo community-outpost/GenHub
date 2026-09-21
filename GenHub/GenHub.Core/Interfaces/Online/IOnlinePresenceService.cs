@@ -14,6 +14,11 @@ namespace GenHub.Core.Interfaces.Online;
 public interface IOnlinePresenceService
 {
     /// <summary>
+    /// Gets a value indicating whether the presence channel is connected.
+    /// </summary>
+    bool IsConnected { get; }
+
+    /// <summary>
     /// Occurs when the live roster changes.
     /// </summary>
     event EventHandler<IReadOnlyList<OnlineMember>>? RosterUpdated;
@@ -32,11 +37,6 @@ public interface IOnlinePresenceService
     /// Occurs when the host switches the lobby's expected profile.
     /// </summary>
     event EventHandler<OnlineExpectedProfile>? ExpectedProfileChanged;
-
-    /// <summary>
-    /// Gets a value indicating whether the presence channel is connected.
-    /// </summary>
-    bool IsConnected { get; }
 
     /// <summary>
     /// Sets the local profile advertisement attached to heartbeats so the

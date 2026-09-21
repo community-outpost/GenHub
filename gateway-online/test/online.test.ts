@@ -100,6 +100,45 @@ describe("online edge", () => {
     expect(found).toMatchObject({ slotsUsed: 1, slotsMax: 4, requiresPassword: true });
   });
 
+  it("keeps private lobbies out of the directory across join, heartbeat, and leave", async () => {
+    const host = await session();
+    const created = await createNetwork(host, { isPublic: false });
+
+    const isListed = async (): Promise<boolean> => {
+      const res = await SELF.fetch(`${BASE}/v1/networks`, { headers: auth(host) });
+      expect(res.status).toBe(200);
+      const entries = (await res.json()) as { id: string }[];
+      return entries.some((e) => e.id === created.networkId);
+    };
+
+    expect(await isListed()).toBe(false);
+
+    const guest = await session();
+    const joinRes = await SELF.fetch(`${BASE}/v1/networks/${created.networkId}/join`, {
+      method: "POST",
+      headers: { ...auth(guest), "Content-Type": "application/json" },
+      body: JSON.stringify({ password: "secret-password" }),
+    });
+    expect(joinRes.status).toBe(200);
+    const joined = (await joinRes.json()) as JoinResult;
+    expect(await isListed()).toBe(false);
+
+    const beat = await SELF.fetch(`${BASE}/v1/networks/${created.networkId}/heartbeat`, {
+      method: "POST",
+      headers: { ...auth(joined.grant), "Content-Type": "application/json" },
+      body: JSON.stringify({}),
+    });
+    expect(beat.status).toBe(200);
+    expect(await isListed()).toBe(false);
+
+    const leave = await SELF.fetch(`${BASE}/v1/networks/${created.networkId}/leave`, {
+      method: "POST",
+      headers: auth(joined.grant),
+    });
+    expect(leave.status).toBe(200);
+    expect(await isListed()).toBe(false);
+  });
+
   it("supports server-side directory search", async () => {
     const token = await session();
     const created = await createNetwork(token, { name: "Searchable Zebra Lobby", tags: ["generals"] });

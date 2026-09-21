@@ -545,6 +545,35 @@ public sealed class OnlineNetworkServiceTests
     }
 
     /// <summary>
+    /// Tests that a failed join releases the UDP listener and clears the endpoint.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task JoinNetworkAsync_WhenJoinFails_ShouldReleaseListenerAsync()
+    {
+        // Arrange
+        var local = new System.Net.IPEndPoint(System.Net.IPAddress.Loopback, 5000);
+        var reflexive = new System.Net.IPEndPoint(System.Net.IPAddress.Parse("203.0.113.7"), 4321);
+        var p2p = new Mock<IP2PConnectionService>();
+        p2p.Setup(p => p.StartListeningAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(GenHub.Core.Models.Results.OperationResult<System.Net.IPEndPoint>.CreateSuccess(local));
+        p2p.Setup(p => p.GetLocalAndPublicEndpointsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(GenHub.Core.Models.Results.OperationResult<P2PEndpoints>.CreateSuccess(new P2PEndpoints(local, reflexive)));
+        p2p.Setup(p => p.StopListeningAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(GenHub.Core.Models.Results.OperationResult<bool>.CreateSuccess(true));
+        var adapter = new Mock<IVirtualLanAdapter>();
+        var service = CreateService(CreateFactory(joinStatus: HttpStatusCode.Conflict), adapter.Object, p2p.Object);
+
+        // Act
+        var result = await service.JoinNetworkAsync("net-1", "secret", false);
+
+        // Assert
+        Assert.False(result.Success);
+        Assert.Equal(string.Empty, service.LocalEndpoint);
+        p2p.Verify(p => p.StopListeningAsync(It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    /// <summary>
     /// Tests that creating with the default relay preference hides the endpoint without STUN traffic.
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>

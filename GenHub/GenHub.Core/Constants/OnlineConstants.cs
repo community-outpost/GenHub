@@ -222,9 +222,80 @@ public static class OnlineConstants
     public const string FingerprintListSeparator = ",";
 
     /// <summary>
-    /// Wire-protocol magic ("GHP1") for UDP hole-punch packets.
+    /// Default UDP port for STUN reflexive endpoint discovery.
     /// </summary>
-    public static readonly byte[] PunchMagic = [0x47, 0x48, 0x50, 0x31];
+    public const int StunPort = 3478;
+
+    /// <summary>
+    /// Timeout in seconds for a single STUN binding transaction.
+    /// </summary>
+    public const int StunTimeoutSeconds = 5;
+
+    /// <summary>
+    /// Hole-punch packets sent per peer connection attempt.
+    /// </summary>
+    public const int PunchPacketCount = 3;
+
+    /// <summary>
+    /// STUN binding request message type.
+    /// </summary>
+    public const ushort StunBindingRequest = 0x0001;
+
+    /// <summary>
+    /// STUN binding success response message type.
+    /// </summary>
+    public const ushort StunBindingResponse = 0x0101;
+
+    /// <summary>
+    /// STUN XOR-MAPPED-ADDRESS attribute type.
+    /// </summary>
+    public const ushort StunXorMappedAddress = 0x0020;
+
+    /// <summary>
+    /// STUN magic cookie (RFC 5389 section 6).
+    /// </summary>
+    public const uint StunMagicCookie = 0x2112A442;
+
+    /// <summary>
+    /// Presence socket close code for an ended membership (network deleted or left).
+    /// </summary>
+    public const int PresenceCloseMembershipEnded = 4000;
+
+    /// <summary>
+    /// Presence socket close code for a banned member.
+    /// </summary>
+    public const int PresenceCloseBanned = 4001;
+
+    /// <summary>
+    /// Plain WebSocket URI scheme for presence channels.
+    /// </summary>
+    public const string WebSocketScheme = "ws";
+
+    /// <summary>
+    /// Secure WebSocket URI scheme for presence channels.
+    /// </summary>
+    public const string WebSocketSecureScheme = "wss";
+
+    /// <summary>
+    /// Presence socket message type carrying the live roster.
+    /// </summary>
+    public const string PresenceMessageRoster = "roster";
+
+    /// <summary>
+    /// Presence socket message type for lobby events. The same token names
+    /// the event property inside the envelope.
+    /// </summary>
+    public const string PresenceMessageEvent = "event";
+
+    /// <summary>
+    /// Lobby event name broadcast when the host switches expected profile.
+    /// </summary>
+    public const string PresenceEventProfileChanged = "profile-changed";
+
+    /// <summary>
+    /// Presence socket message type for member heartbeats.
+    /// </summary>
+    public const string PresenceMessageHeartbeat = "heartbeat";
 
     /// <summary>
     /// Retired fingerprint prefixes still accepted when extracting the game
@@ -237,4 +308,12 @@ public static class OnlineConstants
     /// </summary>
     public static bool IsOnlineEnabled =>
         Environment.GetEnvironmentVariable(EnabledEnvVar)?.Trim().ToLowerInvariant() is not ("0" or "false");
+
+    /// <summary>
+    /// Creates a fresh wire-protocol magic ("GHP1") buffer for UDP hole-punch
+    /// packets. A new array is returned on every call so senders cannot mutate
+    /// shared state.
+    /// </summary>
+    /// <returns>A new punch magic buffer.</returns>
+    public static byte[] GetPunchMagic() => [0x47, 0x48, 0x50, 0x31];
 }
