@@ -800,4 +800,96 @@ public class GameSettingsMapperTests
         Assert.Equal("/covers/custom.png", cloneRequest.CoverPath);
         Assert.Equal("-quickstart", cloneRequest.CommandLineArguments);
     }
+
+    /// <summary>
+    /// Verifies that PopulateGameProfile maps camera settings from CreateProfileRequest.
+    /// </summary>
+    [Fact]
+    public void PopulateGameProfile_CameraSettings_MapsFromRequest()
+    {
+        // Arrange
+        var request = new CreateProfileRequest
+        {
+            Name = "CameraProfile",
+            CameraHeight = 450f,
+            CameraMaxHeight = 850f,
+            CameraMinHeight = 150f,
+            CameraPitch = 40.5f,
+        };
+        var profile = new GameProfile();
+
+        // Act
+        GameSettingsMapper.PopulateGameProfile(profile, request);
+
+        // Assert
+        Assert.Equal(450f, profile.CameraHeight);
+        Assert.Equal(850f, profile.CameraMaxHeight);
+        Assert.Equal(150f, profile.CameraMinHeight);
+        Assert.Equal(40.5f, profile.CameraPitch);
+    }
+
+    /// <summary>
+    /// Verifies that UpdateFromRequest updates non-null camera settings and preserves existing values on null.
+    /// </summary>
+    [Fact]
+    public void UpdateFromRequest_CameraSettings_UpdatesNonNullAndPreservesExisting()
+    {
+        // Arrange
+        var profile = new GameProfile
+        {
+            CameraHeight = 450f,
+            CameraMaxHeight = 850f,
+            CameraMinHeight = 150f,
+            CameraPitch = 40.5f,
+        };
+        var updateRequest = new UpdateProfileRequest
+        {
+            CameraHeight = 520f,
+            CameraPitch = 45.0f,
+            CameraMaxHeight = null,
+            CameraMinHeight = null,
+        };
+
+        // Act
+        GameSettingsMapper.UpdateFromRequest(profile, updateRequest);
+
+        // Assert
+        Assert.Equal(520f, profile.CameraHeight);
+        Assert.Equal(850f, profile.CameraMaxHeight);
+        Assert.Equal(150f, profile.CameraMinHeight);
+        Assert.Equal(45.0f, profile.CameraPitch);
+    }
+
+    /// <summary>
+    /// Verifies that PopulateRequest copies camera settings to both CreateProfileRequest and UpdateProfileRequest.
+    /// </summary>
+    [Fact]
+    public void PopulateRequest_CameraSettings_CopiesFromGameProfileToRequests()
+    {
+        // Arrange
+        var profile = new GameProfile
+        {
+            CameraHeight = 350f,
+            CameraMaxHeight = 700f,
+            CameraMinHeight = 100f,
+            CameraPitch = 35f,
+        };
+        var createRequest = new CreateProfileRequest { Name = "CreateReq" };
+        var updateRequest = new UpdateProfileRequest();
+
+        // Act
+        GameSettingsMapper.PopulateRequest(createRequest, profile);
+        GameSettingsMapper.PopulateRequest(updateRequest, profile);
+
+        // Assert
+        Assert.Equal(350f, createRequest.CameraHeight);
+        Assert.Equal(700f, createRequest.CameraMaxHeight);
+        Assert.Equal(100f, createRequest.CameraMinHeight);
+        Assert.Equal(35f, createRequest.CameraPitch);
+
+        Assert.Equal(350f, updateRequest.CameraHeight);
+        Assert.Equal(700f, updateRequest.CameraMaxHeight);
+        Assert.Equal(100f, updateRequest.CameraMinHeight);
+        Assert.Equal(35f, updateRequest.CameraPitch);
+    }
 }

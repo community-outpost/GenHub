@@ -2398,7 +2398,7 @@
     <comment>Appearance settings section header.</comment>
   </data>
   <data name="Settings.Section.CAS" xml:space="preserve">
-    <value>🔗 التخزين القابل للتوجيه حسب المحتوى (CAS)</value>
+    <value>التخزين القابل للتوجيه حسب المحتوى (CAS)</value>
     <comment>Section header for CAS settings</comment>
   </data>
   <data name="Settings.Section.CasStorage" xml:space="preserve">

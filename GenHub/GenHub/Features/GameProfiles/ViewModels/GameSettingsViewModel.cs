@@ -157,6 +157,7 @@ public partial class GameSettingsViewModel(
     /// <summary>
     /// Gets a value indicating whether the selected game is Zero Hour.
     /// </summary>
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Accesses generated observable property SelectedGameType in partial view model")]
     public bool IsZeroHour => SelectedGameType == GameType.ZeroHour;
 
     [ObservableProperty]
@@ -168,6 +169,7 @@ public partial class GameSettingsViewModel(
     /// <summary>
     /// Gets a value indicating whether custom camera settings should be shown (for non-GeneralsOnline profiles).
     /// </summary>
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Accesses generated observable property IsGeneralsOnlineVisible in partial view model")]
     public bool IsCustomCameraVisible => !IsGeneralsOnlineVisible;
 
     /// <summary>
@@ -1209,6 +1211,7 @@ public partial class GameSettingsViewModel(
         }
     }
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Mutates generated observable properties in partial view model")]
     private void LoadCameraSettingsFromProfile(Core.Models.GameProfile.GameProfile profile)
     {
         CameraHeight = MathF.Round(profile.CameraHeight ?? GameSettingsConstants.Camera.DefaultHeight);

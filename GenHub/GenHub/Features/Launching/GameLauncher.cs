@@ -60,6 +60,11 @@ public class GameLauncher(
 {
     private const string EaLogoBik = "EA_LOGO.BIK";
     private const string EaLogo640Bik = "EA_LOGO640.BIK";
+    private const string MoviesDirectoryName = "Movies";
+    private const string DataDirectoryName = "Data";
+    private const string EnglishDirectoryName = "English";
+    private const string LowerMoviesDirectoryName = "movies";
+    private const string LowerDataDirectoryName = "data";
 
     private static readonly ConcurrentDictionary<string, SemaphoreSlim> _profileLaunchLocks = new();
     private static readonly ConcurrentDictionary<string, SemaphoreSlim> _steamInstallationLaunchLocks =
@@ -1740,14 +1745,14 @@ public class GameLauncher(
     {
         var possiblePaths = new[]
         {
-            Path.Combine(workspacePath, "Data", "Movies", EaLogoBik),
-            Path.Combine(workspacePath, "Data", "English", "Movies", EaLogoBik),
-            Path.Combine(workspacePath, "Movies", EaLogoBik),
-            Path.Combine(workspacePath, "data", "movies", EaLogoBik),
-            Path.Combine(workspacePath, "Data", "Movies", EaLogo640Bik),
-            Path.Combine(workspacePath, "Data", "English", "Movies", EaLogo640Bik),
-            Path.Combine(workspacePath, "Movies", EaLogo640Bik),
-            Path.Combine(workspacePath, "data", "movies", EaLogo640Bik),
+            Path.Combine(workspacePath, DataDirectoryName, MoviesDirectoryName, EaLogoBik),
+            Path.Combine(workspacePath, DataDirectoryName, EnglishDirectoryName, MoviesDirectoryName, EaLogoBik),
+            Path.Combine(workspacePath, MoviesDirectoryName, EaLogoBik),
+            Path.Combine(workspacePath, LowerDataDirectoryName, LowerMoviesDirectoryName, EaLogoBik),
+            Path.Combine(workspacePath, DataDirectoryName, MoviesDirectoryName, EaLogo640Bik),
+            Path.Combine(workspacePath, DataDirectoryName, EnglishDirectoryName, MoviesDirectoryName, EaLogo640Bik),
+            Path.Combine(workspacePath, MoviesDirectoryName, EaLogo640Bik),
+            Path.Combine(workspacePath, LowerDataDirectoryName, LowerMoviesDirectoryName, EaLogo640Bik),
         };
 
         logger.LogInformation("[GameLauncher] Skip EA Logo enabled - checking workspace: {WorkspacePath}", workspacePath);

@@ -157,10 +157,10 @@ public class WindowsInstallationDetector(ILogger<WindowsInstallationDetector> lo
 
         var possibleStandalonePaths = new[]
         {
-            Path.Combine(programFiles, GameClientConstants.EaGamesParentDirectoryName, GameClientConstants.GeneralsRetailDirectoryName),
-            Path.Combine(programFilesX86, GameClientConstants.EaGamesParentDirectoryName, GameClientConstants.GeneralsRetailDirectoryName),
-            Path.Combine(programFiles, GameClientConstants.EaGamesParentDirectoryName, GameClientConstants.ZeroHourRetailDirectoryName),
-            Path.Combine(programFilesX86, GameClientConstants.EaGamesParentDirectoryName, GameClientConstants.ZeroHourRetailDirectoryName),
+            Path.Combine(programFiles, GameClientConstants.GeneralsRetailDirectoryName),
+            Path.Combine(programFilesX86, GameClientConstants.GeneralsRetailDirectoryName),
+            Path.Combine(programFiles, GameClientConstants.ZeroHourRetailDirectoryName),
+            Path.Combine(programFilesX86, GameClientConstants.ZeroHourRetailDirectoryName),
         };
 
         foreach (var basePath in possibleStandalonePaths.Where(Directory.Exists))

@@ -735,6 +735,7 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
         _ = RefreshFiltersAndContentAsync();
     }
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Mutates instance collections in partial view model")]
     private void UpdateEnabledInstallations(ContentDisplayItem value)
     {
         value.IsEnabled = true;

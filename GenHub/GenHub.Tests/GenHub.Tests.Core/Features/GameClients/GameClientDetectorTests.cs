@@ -112,7 +112,7 @@ public class GameClientDetectorTests : IDisposable
         Assert.Single(result.Items);
         var client = result.Items[0];
         Assert.Equal(GameType.Generals, client.GameType);
-        Assert.Equal("1.09", client.Version);
+        Assert.Equal("1.08", client.Version);
         Assert.Equal(executablePath, client.ExecutablePath);
         Assert.Equal(generalsPath, client.WorkingDirectory);
     }
@@ -895,7 +895,7 @@ public class GameClientDetectorTests : IDisposable
         Assert.Single(result.Items);
         var client = result.Items[0];
         Assert.Equal(GameType.Generals, client.GameType);
-        Assert.Equal("1.09", client.Version);
+        Assert.Equal("1.08", client.Version);
         Assert.True(File.Exists(client.ExecutablePath));
         Assert.Equal("Generals.exe", Path.GetFileName(client.ExecutablePath), ignoreCase: true);
         Assert.Equal(generalsPath, client.WorkingDirectory);
