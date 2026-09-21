@@ -18,6 +18,8 @@ namespace GenHub.Tests.Core.Features.Storage;
 [Collection(StorageMigrationStaticStateCollection.Name)]
 public class InstallationConflictServiceTests : System.IDisposable
 {
+    private delegate bool TryGetStringHandler(string key, out string? result, object?[] arguments);
+
     private readonly string _tempRoot;
     private readonly Mock<IInstallationLocationTracker> _mockTracker;
     private readonly Mock<INotificationService> _mockNotificationService;
@@ -441,6 +443,7 @@ public class InstallationConflictServiceTests : System.IDisposable
         await service.CheckAndResolveConflictsAsync();
 
         var expectedGuidanceKey = GetExpectedGuidanceKey();
+        string? expectedAdoptedMessage = $"[{StorageMigrationConstants.DuplicateInstallationAdoptedMessageKey}:{customDir}]";
         _mockNotificationService.Verify(
             n => n.ShowWarning(
                 $"[{StorageMigrationConstants.DuplicateInstallationDetectedTitleKey}]",
@@ -452,7 +455,7 @@ public class InstallationConflictServiceTests : System.IDisposable
                 true),
             Times.Once);
         mockLocalizationService.Verify(
-            l => l.GetString(StorageMigrationConstants.DuplicateInstallationAdoptedMessageKey, It.IsAny<object?[]>()),
+            l => l.TryGetString(StorageMigrationConstants.DuplicateInstallationAdoptedMessageKey, out expectedAdoptedMessage, It.IsAny<object?[]>()),
             Times.Once);
     }
 
@@ -477,6 +480,7 @@ public class InstallationConflictServiceTests : System.IDisposable
         await service.CheckAndResolveConflictsAsync();
 
         var expectedGuidanceKey = GetExpectedGuidanceKey();
+        string? expectedDetectedMessage = $"[{StorageMigrationConstants.DuplicateInstallationDetectedMessageKey}:{customDir}]";
         _mockNotificationService.Verify(
             n => n.ShowWarning(
                 $"[{StorageMigrationConstants.DuplicateInstallationDetectedTitleKey}]",
@@ -489,7 +493,37 @@ public class InstallationConflictServiceTests : System.IDisposable
                 true),
             Times.Once);
         mockLocalizationService.Verify(
-            l => l.GetString(StorageMigrationConstants.DuplicateInstallationDetectedMessageKey, It.IsAny<object?[]>()),
+            l => l.TryGetString(StorageMigrationConstants.DuplicateInstallationDetectedMessageKey, out expectedDetectedMessage, It.IsAny<object?[]>()),
+            Times.Once);
+    }
+
+    /// <summary>
+    /// Verifies that when the localization lookup fails, the notification falls back to the English
+    /// constants instead of rendering raw resource keys in the user-facing toast.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task CheckAndResolveConflictsAsync_WhenLocalizationLookupFails_UsesEnglishFallbackInsteadOfResourceKeys()
+    {
+        StorageMigrationService.SetCustomInstallRootOverrideForTesting(false);
+
+        var customDir = CreateCustomInstallStub("CustomInstallLocalizationFailure");
+        _mockTracker.Setup(t => t.GetRegisteredCustomInstallPath()).Returns(customDir);
+
+        var service = CreateServiceWithLocalization(CreateFailingLocalizationMock());
+
+        await service.CheckAndResolveConflictsAsync();
+
+        _mockNotificationService.Verify(
+            n => n.ShowWarning(
+                StorageMigrationConstants.DuplicateInstallationDetectedTitle,
+                It.Is<string>(msg =>
+                    msg.Contains("default folder") &&
+                    msg.Contains(customDir) &&
+                    HasExpectedReinstallGuidance(msg) &&
+                    !msg.Contains("Storage.DuplicateInstallation")),
+                StorageMigrationConstants.DuplicateInstallationNotificationAutoDismissMs,
+                true),
             Times.Once);
     }
 
@@ -500,9 +534,28 @@ public class InstallationConflictServiceTests : System.IDisposable
     private static Mock<ILocalizationService> CreateLocalizationMock()
     {
         var mockLocalizationService = new Mock<ILocalizationService>();
+        string? echoResult = null;
         mockLocalizationService
-            .Setup(l => l.GetString(It.IsAny<string>(), It.IsAny<object?[]>()))
-            .Returns((string key, object?[] arguments) => arguments.Length == 0 ? $"[{key}]" : $"[{key}:{arguments[0]}]");
+            .Setup(l => l.TryGetString(It.IsAny<string>(), out echoResult, It.IsAny<object?[]>()))
+            .Returns(new TryGetStringHandler((string key, out string? result, object?[] arguments) =>
+            {
+                result = arguments.Length == 0 ? $"[{key}]" : $"[{key}:{arguments[0]}]";
+                return true;
+            }));
+        return mockLocalizationService;
+    }
+
+    /// <summary>
+    /// Creates a localization mock whose lookups always fail.
+    /// </summary>
+    /// <returns>The configured localization mock.</returns>
+    private static Mock<ILocalizationService> CreateFailingLocalizationMock()
+    {
+        string? nullResult = null;
+        var mockLocalizationService = new Mock<ILocalizationService>();
+        mockLocalizationService
+            .Setup(l => l.TryGetString(It.IsAny<string>(), out nullResult, It.IsAny<object?[]>()))
+            .Returns(false);
         return mockLocalizationService;
     }
 

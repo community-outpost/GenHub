@@ -54,9 +54,10 @@ public class InstallationConflictService(
 
     private string ResolveMessage(string resourceKey, string defaultFormat, params object?[] arguments)
     {
-        if (localizationService != null)
+        if (localizationService != null &&
+            localizationService.TryGetString(resourceKey, out var resolved, arguments))
         {
-            return localizationService.GetString(resourceKey, arguments);
+            return resolved;
         }
 
         return string.Format(CultureInfo.InvariantCulture, defaultFormat, arguments);
