@@ -16,6 +16,8 @@ namespace GenHub.Features.GameClients;
 public class GameClientHashRegistry : IGameClientHashRegistry
 {
     // Core Hash Constants - These are the foundational hashes for official EA/Steam releases
+    // Note: The Steam release of Generals is catalogued as version 1.09 per Steam distribution (distinguished
+    // from EA App Generals 1.08, hash 69A39881...). GameClientDetector uses hash detection rather than blanket installation rewrites.
     private const string SteamGenerals109Hash = "1c96366ff6a99f40863f6bbcfa8bf7622e8df1f80a474201e0e95e37c6416255";
     private const string SteamZeroHour104Hash = "7B075B9F0BAA9DF81651C0C9DD7D8C445454AE1B2452B928F4A1D9332E9CCECE";
     private const string EaAppZeroHour104Hash = "253FEBA0A5503CB4D49FD07463B17D3CC84731E583F9625CB90FCD8B5CAC0221";

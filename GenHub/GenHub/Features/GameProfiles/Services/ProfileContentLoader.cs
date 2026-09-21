@@ -533,21 +533,22 @@ public class ProfileContentLoader(
 
         foreach (var manifest in casGameClients)
         {
-            if (result.Any(r => r.ManifestId == manifest.Id.Value ||
+            var candidate = CreateManifestDisplayItem(manifest);
+            if (result.Any(r => r.ManifestId == candidate.ManifestId ||
                                (r.ContentType == ContentType.GameClient &&
-                                r.GameType == manifest.TargetGame &&
-                                string.Equals(r.DisplayName, manifest.Name, StringComparison.OrdinalIgnoreCase) &&
-                                string.Equals(r.Version, manifest.Version, StringComparison.OrdinalIgnoreCase))))
+                                r.GameType == candidate.GameType &&
+                                string.Equals(r.DisplayName, candidate.DisplayName, StringComparison.OrdinalIgnoreCase) &&
+                                string.Equals(r.Version, candidate.Version, StringComparison.OrdinalIgnoreCase))))
             {
                 continue;
             }
 
-            result.Add(CreateManifestDisplayItem(manifest));
+            result.Add(candidate);
 
             logger.LogDebug(
                 "Added CAS-stored GameClient: {DisplayName} ({ManifestId})",
-                manifest.Name,
-                manifest.Id.Value);
+                candidate.DisplayName,
+                candidate.ManifestId);
         }
 
         logger.LogDebug(
