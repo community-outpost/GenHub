@@ -933,6 +933,7 @@ public partial class PublisherStudioViewModel(
                 PublishShareViewModel.HasDefinitionChanges = true;
             }
         };
+        PublishShareViewModel.ProjectReloadCallback = ReloadFromCurrentProjectAsync;
         await PublishShareViewModel.InitializeAsync();
         HasDefinitionChanges = !PublishShareViewModel.IsDefinitionPublished;
         PublishShareViewModel.HasDefinitionChanges = HasDefinitionChanges;
@@ -946,6 +947,81 @@ public partial class PublisherStudioViewModel(
         EnsureStatusLocalizationHooked();
         OnPropertyChanged(nameof(ProjectStatusText));
         OnPropertyChanged(nameof(CatalogSummaryText));
+
+        await Task.CompletedTask;
+    }
+
+    /// <summary>
+    /// Reloads the studio UI state from the current project after an external definition or catalog is loaded.
+    /// </summary>
+    public async Task ReloadFromCurrentProjectAsync()
+    {
+        if (CurrentProject == null)
+        {
+            return;
+        }
+
+        // Resync Catalogs collection
+        MigrateProjectToMultiCatalog();
+
+        Catalogs.Clear();
+        foreach (var catalog in CurrentProject.Catalogs)
+        {
+            if (catalog?.Catalog != null)
+            {
+                catalog.Catalog.Publisher = CurrentProject.Publisher ?? CurrentProject.Catalog?.Publisher ?? new();
+                catalog.Catalog.Content ??= [];
+            }
+
+            if (catalog != null)
+            {
+                Catalogs.Add(catalog);
+            }
+        }
+
+        if (Catalogs.Count > 0 && (SelectedCatalog == null || !Catalogs.Contains(SelectedCatalog)))
+        {
+            SelectedCatalog = Catalogs.FirstOrDefault();
+        }
+
+        // Reload Profile ViewModel
+        PublisherProfileViewModel?.LoadFromProject();
+
+        // Reload Referrals ViewModel
+        ReferralsViewModel?.LoadFromProject();
+
+        // Update Content Library ViewModel catalog
+        if (ContentLibraryViewModel != null && SelectedCatalog != null)
+        {
+            ContentLibraryViewModel.ActiveCatalog = SelectedCatalog;
+            ContentLibraryViewModel.RefreshContentDisplay();
+        }
+
+        // Refresh Publish & Share catalogs
+        if (PublishShareViewModel != null)
+        {
+            PublishShareViewModel.AvailableCatalogs.Clear();
+            foreach (var c in CurrentProject.Catalogs)
+            {
+                PublishShareViewModel.AvailableCatalogs.Add(c);
+            }
+
+            PublishShareViewModel.CatalogStatuses.Clear();
+            foreach (var c in CurrentProject.Catalogs)
+            {
+                PublishShareViewModel.CatalogStatuses.Add(new CatalogPublishStatus(c, localizationService));
+            }
+
+            if (SelectedCatalog != null)
+            {
+                PublishShareViewModel.ActiveCatalog = SelectedCatalog;
+            }
+
+            PublishShareViewModel.RefreshHostedAssets();
+        }
+
+        OnPropertyChanged(nameof(CanExport));
+        OnPropertyChanged(nameof(CanValidate));
 
         await Task.CompletedTask;
     }

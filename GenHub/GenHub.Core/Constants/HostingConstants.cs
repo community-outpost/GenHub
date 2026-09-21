@@ -384,4 +384,49 @@ public static class HostingConstants
 
         return null;
     }
+
+    /// <summary>
+    /// Checks whether a given file name corresponds to a publisher definition JSON file.
+    /// Matches default "publisher.json", prefixes like "publisher-*.json", suffixes like "*-publisher.json",
+    /// and files containing "definition" like "publisher_definition.json".
+    /// </summary>
+    /// <param name="fileName">The file name to inspect.</param>
+    /// <returns><c>true</c> if the file name matches a publisher definition pattern; otherwise, <c>false</c>.</returns>
+    public static bool IsPublisherDefinitionFileName(string? fileName)
+    {
+        if (string.IsNullOrWhiteSpace(fileName) || !fileName.EndsWith(".json", System.StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        var stem = System.IO.Path.GetFileNameWithoutExtension(fileName);
+        if (stem.StartsWith("catalog-", System.StringComparison.OrdinalIgnoreCase) ||
+            stem.Equals("catalog", System.StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        return stem.Equals("publisher", System.StringComparison.OrdinalIgnoreCase) ||
+               stem.StartsWith("publisher", System.StringComparison.OrdinalIgnoreCase) ||
+               stem.EndsWith("publisher", System.StringComparison.OrdinalIgnoreCase) ||
+               stem.Contains("definition", System.StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// Checks whether a given file name corresponds to a catalog JSON file.
+    /// Matches "catalog.json" or "catalog-*.json".
+    /// </summary>
+    /// <param name="fileName">The file name to inspect.</param>
+    /// <returns><c>true</c> if the file name matches a catalog pattern; otherwise, <c>false</c>.</returns>
+    public static bool IsCatalogFileName(string? fileName)
+    {
+        if (string.IsNullOrWhiteSpace(fileName) || !fileName.EndsWith(".json", System.StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        var stem = System.IO.Path.GetFileNameWithoutExtension(fileName);
+        return stem.Equals("catalog", System.StringComparison.OrdinalIgnoreCase) ||
+               stem.StartsWith("catalog-", System.StringComparison.OrdinalIgnoreCase);
+    }
 }

@@ -26,9 +26,14 @@ public class HostingState
     public string FolderUrl { get; set; } = string.Empty;
 
     /// <summary>
-    /// Gets or sets the hosting info for the publisher definition file.
+    /// Gets or sets the hosting info for the active publisher definition file.
     /// </summary>
     public HostedFileInfo? Definition { get; set; }
+
+    /// <summary>
+    /// Gets or sets the hosting info for all discovered publisher definition files in cloud storage.
+    /// </summary>
+    public List<HostedFileInfo> Definitions { get; set; } = [];
 
     /// <summary>
     /// Gets or sets the hosting info for each catalog file.
@@ -53,7 +58,16 @@ public class HostingState
     public string? AuthToken { get; set; }
 
     /// <summary>
-    /// Gets or sets the display name or username from the authenticated provider.
+    /// Gets or sets the in-memory refresh token for the hosting provider.
+    /// Ignored during serialization to avoid plaintext credential storage on disk.
     /// </summary>
-    public string? AuthDisplayName { get; set; }
+    [JsonIgnore]
+    public string? RefreshToken { get; set; }
+
+    /// <summary>
+    /// Gets or sets the token expiration time in UTC.
+    /// Ignored during serialization to avoid plaintext credential storage on disk.
+    /// </summary>
+    [JsonIgnore]
+    public DateTime? TokenExpiresAt { get; set; }
 }

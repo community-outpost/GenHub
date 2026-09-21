@@ -461,9 +461,85 @@
                                        FontSize="12" Foreground="{DynamicResource TextSecondary}"/>
                         </StackPanel>
 
-                        <Border Grid.Column="1" Classes="status-badge-info" VerticalAlignment="Center">
-                            <TextBlock Text="{Binding HostedAssetsCountText}" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource StatusInfoBrush}"/>
-                        </Border>
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                            <Border Classes="status-badge-info" VerticalAlignment="Center">
+                                <TextBlock Text="{Binding HostedAssetsCountText}" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource StatusInfoBrush}"/>
+                            </Border>
+
+                            <Button Classes="small-glass-btn"
+                                    Command="{Binding ScanCloudStorageCommand}"
+                                    IsEnabled="{Binding !IsScanningStorage}"
+                                    ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Hosting.ScanAndLoadProviderTip}"
+                                    AutomationProperties.Name="{localization:Localize Tools.PublisherStudio.Hosting.ScanAndLoadProvider}">
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <PathIcon Data="{StaticResource RefreshIcon}" Width="12" Height="12" Foreground="{DynamicResource AccentColorBrush}"/>
+                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.ScanAndLoadProvider}" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}"/>
+                                </StackPanel>
+                            </Button>
+                        </StackPanel>
+                    </Grid>
+
+                    <!-- Filter and Search Toolbar -->
+                    <Grid ColumnDefinitions="*,Auto">
+                        <!-- Category Filter Tabs -->
+                        <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                            <Button Classes="small-glass-btn"
+                                    Command="{Binding SetInventoryFilterCommand}"
+                                    CommandParameter="All"
+                                    Padding="10,5">
+                                <StackPanel Orientation="Horizontal" Spacing="5">
+                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.FilterAll}" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}"/>
+                                    <Border Background="{DynamicResource GlassFillBrush}" CornerRadius="10" Padding="5,1">
+                                        <TextBlock Text="{Binding HostedAssets.Count}" FontSize="10" Foreground="{DynamicResource TextSecondary}"/>
+                                    </Border>
+                                </StackPanel>
+                            </Button>
+
+                            <Button Classes="small-glass-btn"
+                                    Command="{Binding SetInventoryFilterCommand}"
+                                    CommandParameter="Definition"
+                                    Padding="10,5">
+                                <StackPanel Orientation="Horizontal" Spacing="5">
+                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.FilterDefinitions}" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}"/>
+                                    <Border Background="{DynamicResource GlassFillBrush}" CornerRadius="10" Padding="5,1">
+                                        <TextBlock Text="{Binding HostedDefinitionCount}" FontSize="10" Foreground="{DynamicResource TextSecondary}"/>
+                                    </Border>
+                                </StackPanel>
+                            </Button>
+
+                            <Button Classes="small-glass-btn"
+                                    Command="{Binding SetInventoryFilterCommand}"
+                                    CommandParameter="Catalog"
+                                    Padding="10,5">
+                                <StackPanel Orientation="Horizontal" Spacing="5">
+                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.FilterCatalogs}" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}"/>
+                                    <Border Background="{DynamicResource GlassFillBrush}" CornerRadius="10" Padding="5,1">
+                                        <TextBlock Text="{Binding HostedCatalogsCount}" FontSize="10" Foreground="{DynamicResource TextSecondary}"/>
+                                    </Border>
+                                </StackPanel>
+                            </Button>
+
+                            <Button Classes="small-glass-btn"
+                                    Command="{Binding SetInventoryFilterCommand}"
+                                    CommandParameter="Artifact"
+                                    Padding="10,5">
+                                <StackPanel Orientation="Horizontal" Spacing="5">
+                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.FilterArtifacts}" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}"/>
+                                    <Border Background="{DynamicResource GlassFillBrush}" CornerRadius="10" Padding="5,1">
+                                        <TextBlock Text="{Binding HostedArtifactsCount}" FontSize="10" Foreground="{DynamicResource TextSecondary}"/>
+                                    </Border>
+                                </StackPanel>
+                            </Button>
+                        </StackPanel>
+
+                        <!-- Search Filter -->
+                        <TextBox Grid.Column="1"
+                                 Text="{Binding InventorySearchText, Mode=TwoWay}"
+                                 Watermark="{localization:Localize Tools.PublisherStudio.Hosting.SearchAssetsWatermark}"
+                                 Width="200"
+                                 FontSize="11"
+                                 Padding="8,4"
+                                 VerticalAlignment="Center"/>
                     </Grid>
 
                     <!-- Table Header -->
@@ -474,12 +550,12 @@
                             <TextBlock Grid.Column="2" Text="{localization:Localize Tools.PublisherStudio.Hosting.ColSize}" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource TextSecondary}"/>
                             <TextBlock Grid.Column="3" Text="{localization:Localize Tools.PublisherStudio.Hosting.ColStatus}" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource TextSecondary}"/>
                             <TextBlock Grid.Column="4" Text="{localization:Localize Tools.PublisherStudio.Hosting.ColLocation}" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource TextSecondary}"/>
-                            <TextBlock Grid.Column="5" Text="{localization:Localize Tools.PublisherStudio.Hosting.ColActions}" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource TextSecondary}" Width="140" TextAlignment="Right"/>
+                            <TextBlock Grid.Column="5" Text="{localization:Localize Tools.PublisherStudio.Hosting.ColActions}" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource TextSecondary}" Width="220" TextAlignment="Right"/>
                         </Grid>
                     </Border>
 
                     <!-- Items List -->
-                    <ItemsControl ItemsSource="{Binding HostedAssets}">
+                    <ItemsControl ItemsSource="{Binding FilteredHostedAssets}">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate DataType="vm:HostedAssetItemViewModel">
                                 <Border Background="{DynamicResource GlassFillSubtleBrush}"
@@ -517,7 +593,33 @@
                                         <TextBlock Grid.Column="4" Text="{Binding Location}" FontSize="11" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
 
                                         <!-- Column 5: Action Buttons -->
-                                        <StackPanel Grid.Column="5" Orientation="Horizontal" Spacing="6" HorizontalAlignment="Right" VerticalAlignment="Center" Width="140">
+                                        <StackPanel Grid.Column="5" Orientation="Horizontal" Spacing="6" HorizontalAlignment="Right" VerticalAlignment="Center" Width="220">
+                                            <!-- Load to Project (for Cloud Definitions or Catalogs) -->
+                                            <Button Classes="small-glass-btn"
+                                                    Command="{Binding ((vm:PublishShareViewModel)DataContext).LoadAssetToProjectCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                    CommandParameter="{Binding}"
+                                                    IsVisible="{Binding CanLoadToProject}"
+                                                    AutomationProperties.Name="{localization:Localize Tools.PublisherStudio.Hosting.LoadToProject}"
+                                                    ToolTip.Tip="{Binding LoadButtonTooltip}">
+                                                <StackPanel Orientation="Horizontal" Spacing="4">
+                                                    <PathIcon Data="{StaticResource ToolIcon.Download}" Width="10" Height="10" Foreground="{DynamicResource StatusSuccessBrush}"/>
+                                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.LoadToProject}" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}"/>
+                                                </StackPanel>
+                                            </Button>
+
+                                            <!-- Add to Catalog (for discovered Cloud Artifacts) -->
+                                            <Button Classes="small-glass-btn"
+                                                    Command="{Binding ((vm:PublishShareViewModel)DataContext).AddArtifactToActiveCatalogCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                    CommandParameter="{Binding}"
+                                                    IsVisible="{Binding CanAddToCatalog}"
+                                                    AutomationProperties.Name="{localization:Localize Tools.PublisherStudio.Hosting.AddToCatalog}"
+                                                    ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Hosting.AddToCatalogTip}">
+                                                <StackPanel Orientation="Horizontal" Spacing="4">
+                                                    <PathIcon Data="{StaticResource ToolIcon.Plus}" Width="10" Height="10" Foreground="{DynamicResource StatusInfoBrush}"/>
+                                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.AddToCatalog}" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}"/>
+                                                </StackPanel>
+                                            </Button>
+
                                             <Button Classes="small-glass-btn"
                                                     Command="{Binding ((vm:PublishShareViewModel)DataContext).UploadHostedAssetCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                                     CommandParameter="{Binding}"
@@ -560,7 +662,7 @@
                     </ItemsControl>
 
                     <!-- Empty State -->
-                    <Border IsVisible="{Binding !HostedAssets.Count}"
+                    <Border IsVisible="{Binding !FilteredHostedAssets.Count}"
                             Background="{DynamicResource GlassFillSubtleBrush}" BorderBrush="{DynamicResource GlassFillBrush}" BorderThickness="1" CornerRadius="8"
                             Padding="32" Margin="0,10,0,0">
                         <StackPanel Spacing="10" HorizontalAlignment="Center">

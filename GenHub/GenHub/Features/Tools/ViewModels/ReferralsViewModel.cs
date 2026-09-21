@@ -166,4 +166,21 @@ public partial class ReferralsViewModel(
 
         SelectedReferral = Referrals.FirstOrDefault();
     }
+
+    /// <summary>
+    /// Reloads the referrals list from the current project.
+    /// </summary>
+    public void LoadFromProject()
+    {
+        Referrals.Clear();
+        var refs = project?.Referrals ?? project?.Catalog?.Referrals;
+        if (refs != null)
+        {
+            foreach (var r in refs)
+            {
+                Referrals.Add(r);
+            }
+        }
+        SelectedReferral = Referrals.FirstOrDefault();
+    }
 }

@@ -189,4 +189,21 @@ public partial class PublisherProfileViewModel(
                 NotificationDurations.Long);
         }
     }
+
+    /// <summary>
+    /// Reloads the view model fields from the current project.
+    /// </summary>
+    public void LoadFromProject()
+    {
+        var pub = project?.Publisher ?? project?.Catalog?.Publisher;
+        PublisherId = pub?.Id ?? string.Empty;
+        PublisherName = pub?.Name ?? string.Empty;
+        AvatarUrl = pub?.AvatarUrl ?? string.Empty;
+        WebsiteUrl = pub?.WebsiteUrl ?? string.Empty;
+        SupportUrl = pub?.SupportUrl ?? string.Empty;
+        ContactEmail = pub?.ContactEmail ?? string.Empty;
+        Description = pub?.Description ?? string.Empty;
+        TagsString = project?.Tags != null ? string.Join(", ", project.Tags) : string.Empty;
+        ClearErrors();
+    }
 }

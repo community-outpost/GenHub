@@ -60,6 +60,15 @@ public partial class HostedAssetItemViewModel : ObservableObject
     private bool _isUploading;
 
     [ObservableProperty]
+    private bool _canLoadToProject;
+
+    [ObservableProperty]
+    private bool _canAddToCatalog;
+
+    [ObservableProperty]
+    private string _loadButtonTooltip = string.Empty;
+
+    [ObservableProperty]
     private string _name = string.Empty;
 
     [ObservableProperty]
@@ -96,6 +105,21 @@ public partial class HostedAssetItemViewModel : ObservableObject
     private string? _sha256;
 
     /// <summary>
+    /// Gets whether this asset is a publisher definition.
+    /// </summary>
+    public bool IsDefinition => AssetKind == HostedAssetKind.Definition;
+
+    /// <summary>
+    /// Gets whether this asset is a catalog manifest.
+    /// </summary>
+    public bool IsCatalog => AssetKind == HostedAssetKind.Catalog || (AssetKind == HostedAssetKind.CloudFile && Name.Contains("catalog", StringComparison.OrdinalIgnoreCase));
+
+    /// <summary>
+    /// Gets whether this asset is an artifact or binary release file.
+    /// </summary>
+    public bool IsArtifact => AssetKind == HostedAssetKind.Artifact || (AssetKind == HostedAssetKind.CloudFile && !Name.Contains("catalog", StringComparison.OrdinalIgnoreCase));
+
+    /// <summary>
     /// Updates the formatted file size whenever <see cref="FileSize"/> changes.
     /// </summary>
     partial void OnFileSizeChanged(long value)
@@ -111,5 +135,12 @@ public partial class HostedAssetItemViewModel : ObservableObject
         LastUpdatedFormatted = value == DateTime.MinValue
             ? "Never"
             : value.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss");
+    }
+
+    partial void OnAssetKindChanged(HostedAssetKind value)
+    {
+        OnPropertyChanged(nameof(IsDefinition));
+        OnPropertyChanged(nameof(IsCatalog));
+        OnPropertyChanged(nameof(IsArtifact));
     }
 }

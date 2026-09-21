@@ -12953,6 +12953,102 @@ GameFilesEdited/Data/INI/**/*.ini</value>
   <data name="Tools.PublisherStudio.Publish.PublishCatalogTooltip" xml:space="preserve">
     <value>نشر هذا الفهرس إلى موفر الاستضافة</value>
   </data>
+  <data name="Tools.PublisherStudio.Hosting.ScanAndLoadProvider" xml:space="preserve">
+    <value>فحص وتحميل المزود</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.ScanAndLoadProviderTip" xml:space="preserve">
+    <value>فحص مساحة تخزين المزود المتصل ومزامنة/تحميل الأصول والتعريفات</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.FilterAll" xml:space="preserve">
+    <value>الكل</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.FilterDefinitions" xml:space="preserve">
+    <value>التعريفات</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.FilterCatalogs" xml:space="preserve">
+    <value>الكتالوجات</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.FilterArtifacts" xml:space="preserve">
+    <value>الملفات والمخرجات</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.SearchAssetsWatermark" xml:space="preserve">
+    <value>بحث في الأصول...</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.LoadToProject" xml:space="preserve">
+    <value>تحميل للمشروع</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.LoadToProjectTip" xml:space="preserve">
+    <value>تحميل هذا التعريف وكتالوجاته في المشروع الحالي</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.LoadCatalogTip" xml:space="preserve">
+    <value>تحميل هذا الكتالوج في المشروع الحالي</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.AddToCatalog" xml:space="preserve">
+    <value>إضافة إلى الكتالوج</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.AddToCatalogTip" xml:space="preserve">
+    <value>ربط هذا الملف الثنائي السحابي بإصدار الكتالوج النشط</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.LoadedDefinitionSuccessTitle" xml:space="preserve">
+    <value>تم تحميل التعريف</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.LoadedDefinitionSuccessFormat" xml:space="preserve">
+    <value>تم تحميل تعريف الناشر "{0}" و {1} كتالوج بنجاح.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.LoadedCatalogSuccessTitle" xml:space="preserve">
+    <value>تم تحميل الكتالوج</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.LoadedCatalogSuccessFormat" xml:space="preserve">
+    <value>تم تحميل الكتالوج "{0}" في المشروع بنجاح.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.ArtifactAddedTitle" xml:space="preserve">
+    <value>تمت إضافة المخرج</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.ArtifactAddedToCatalogFormat" xml:space="preserve">
+    <value>تمت إضافة "{0}" إلى الكتالوج "{1}".</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.LoadingDefinitionTitle" xml:space="preserve">
+    <value>جارٍ تحميل التعريف</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.LoadingDefinitionFormat" xml:space="preserve">
+    <value>جارٍ تحميل تعريف الناشر من {0}...</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.LoadingCatalogTitle" xml:space="preserve">
+    <value>جارٍ تحميل الكتالوج</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.LoadingCatalogFormat" xml:space="preserve">
+    <value>جارٍ تحميل الكتالوج من {0}...</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.LoadFailedTitle" xml:space="preserve">
+    <value>فشل التحميل</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.LoadFailedFormat" xml:space="preserve">
+    <value>فشل تحميل {0}: {1}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DownloadEmptyError" xml:space="preserve">
+    <value>الملف الذي تم تنزيله كان فارغاً.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeserializeDefinitionErrorFormat" xml:space="preserve">
+    <value>تنسيق JSON لتعريف الناشر غير صالح: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeserializeCatalogErrorFormat" xml:space="preserve">
+    <value>تنسيق JSON للكتالوج غير صالح: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.InvalidDefinitionError" xml:space="preserve">
+    <value>التعريف لا يحتوي على معلومات ناشر صالحة.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.InvalidCatalogError" xml:space="preserve">
+    <value>ملف JSON للكتالوج يفتقد لمعرف صالح.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.NoActiveCatalogTitle" xml:space="preserve">
+    <value>لا يوجد كتالوج نشط</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.NoActiveCatalogError" xml:space="preserve">
+    <value>يرجى تحديد أو إنشاء كتالوج نشط أولاً.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.AssetCategoryCloudDefinitionFormat" xml:space="preserve">
+    <value>تعريف الناشر السحابي ({0})</value>
+  </data>
   <data name="GameProfiles.Notification.UnexpectedExit.Title" xml:space="preserve">
     <value>خرجت اللعبة بشكل غير متوقع</value>
   </data>

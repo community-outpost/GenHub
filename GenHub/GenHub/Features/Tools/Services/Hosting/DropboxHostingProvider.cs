@@ -1011,20 +1011,29 @@ public class DropboxHostingProvider(ILogger<DropboxHostingProvider> logger, IHtt
 
         var directUrl = (linkResult is { Success: true, Data: not null }) ? ConvertToDirectDownloadUrl(linkResult.Data) : string.Empty;
 
-        if (fileName.Equals("publisher.json", StringComparison.OrdinalIgnoreCase))
+        if (HostingConstants.IsPublisherDefinitionFileName(fileName))
         {
-            state.Definition = new HostedFileInfo
+            var defInfo = new HostedFileInfo
             {
                 FileId = fileId,
+                FileName = fileName,
                 Url = directUrl,
                 FileSize = fileSize,
                 LastUpdated = lastUpdated,
             };
-            logger.LogInformation("Discovered publisher definition in Dropbox: {Url}", directUrl);
+            state.Definitions.Add(defInfo);
+            if (state.Definition == null || fileName.Equals(HostingConstants.DefaultDefinitionFileName, StringComparison.OrdinalIgnoreCase))
+            {
+                state.Definition = defInfo;
+            }
+
+            logger.LogInformation("Discovered publisher definition in Dropbox: {FileName} -> {Url}", fileName, directUrl);
         }
-        else if (fileName.EndsWith(".json", StringComparison.OrdinalIgnoreCase) && fileName.StartsWith("catalog-", StringComparison.OrdinalIgnoreCase))
+        else if (HostingConstants.IsCatalogFileName(fileName))
         {
-            var catId = fileName.Replace("catalog-", string.Empty).Replace(".json", string.Empty);
+            var catId = fileName.Equals(HostingConstants.DefaultCatalogFileName, StringComparison.OrdinalIgnoreCase)
+                ? "main"
+                : fileName.Replace("catalog-", string.Empty).Replace(".json", string.Empty);
             state.Catalogs.Add(new CatalogHostingInfo
             {
                 FileId = fileId,

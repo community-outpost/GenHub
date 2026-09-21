@@ -12953,6 +12953,102 @@ GameFilesEdited/Data/INI/**/*.ini</value>
   <data name="Tools.PublisherStudio.Publish.PublishCatalogTooltip" xml:space="preserve">
     <value>Опубликовать этот каталог у хостинг-провайдера</value>
   </data>
+  <data name="Tools.PublisherStudio.Hosting.ScanAndLoadProvider" xml:space="preserve">
+    <value>Сканировать и загрузить провайдер</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.ScanAndLoadProviderTip" xml:space="preserve">
+    <value>Сканировать хранилище подключенного провайдера и синхронизировать/загрузить файлы и манифесты</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.FilterAll" xml:space="preserve">
+    <value>Все</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.FilterDefinitions" xml:space="preserve">
+    <value>Манифесты издателя</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.FilterCatalogs" xml:space="preserve">
+    <value>Каталоги</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.FilterArtifacts" xml:space="preserve">
+    <value>Релизы и артефакты</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.SearchAssetsWatermark" xml:space="preserve">
+    <value>Поиск файлов...</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.LoadToProject" xml:space="preserve">
+    <value>Загрузить в проект</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.LoadToProjectTip" xml:space="preserve">
+    <value>Загрузить этот манифест и его каталоги в текущий проект</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.LoadCatalogTip" xml:space="preserve">
+    <value>Загрузить этот каталог в текущий проект</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.AddToCatalog" xml:space="preserve">
+    <value>Добавить в каталог</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.AddToCatalogTip" xml:space="preserve">
+    <value>Привязать этот облачный файл релиза к активному каталогу</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.LoadedDefinitionSuccessTitle" xml:space="preserve">
+    <value>Манифест загружен</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.LoadedDefinitionSuccessFormat" xml:space="preserve">
+    <value>Успешно загружен манифест издателя "{0}" и {1} каталог(ов).</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.LoadedCatalogSuccessTitle" xml:space="preserve">
+    <value>Каталог загружен</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.LoadedCatalogSuccessFormat" xml:space="preserve">
+    <value>Каталог "{0}" успешно загружен в проект.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.ArtifactAddedTitle" xml:space="preserve">
+    <value>Артефакт добавлен</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.ArtifactAddedToCatalogFormat" xml:space="preserve">
+    <value>"{0}" добавлен в каталог "{1}".</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.LoadingDefinitionTitle" xml:space="preserve">
+    <value>Загрузка манифеста</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.LoadingDefinitionFormat" xml:space="preserve">
+    <value>Загрузка манифеста издателя из {0}...</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.LoadingCatalogTitle" xml:space="preserve">
+    <value>Загрузка каталога</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.LoadingCatalogFormat" xml:space="preserve">
+    <value>Загрузка каталога из {0}...</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.LoadFailedTitle" xml:space="preserve">
+    <value>Ошибка загрузки</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.LoadFailedFormat" xml:space="preserve">
+    <value>Не удалось загрузить {0}: {1}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DownloadEmptyError" xml:space="preserve">
+    <value>Загруженный файл оказался пустым.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeserializeDefinitionErrorFormat" xml:space="preserve">
+    <value>Неверный формат JSON манифеста: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeserializeCatalogErrorFormat" xml:space="preserve">
+    <value>Неверный формат JSON каталога: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.InvalidDefinitionError" xml:space="preserve">
+    <value>Манифест не содержит корректных данных об издателе.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.InvalidCatalogError" xml:space="preserve">
+    <value>В JSON каталога отсутствует идентификатор.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.NoActiveCatalogTitle" xml:space="preserve">
+    <value>Нет активного каталога</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.NoActiveCatalogError" xml:space="preserve">
+    <value>Пожалуйста, сначала выберите или создайте активный каталог.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.AssetCategoryCloudDefinitionFormat" xml:space="preserve">
+    <value>Облачный манифест издателя ({0})</value>
+  </data>
   <data name="GameProfiles.Notification.UnexpectedExit.Title" xml:space="preserve">
     <value>Игра неожиданно завершилась</value>
   </data>

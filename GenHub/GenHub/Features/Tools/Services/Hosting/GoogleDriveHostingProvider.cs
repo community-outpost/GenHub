@@ -810,20 +810,29 @@ public class GoogleDriveHostingProvider(
         var fileSize = file.Size ?? 0;
         var lastUpdated = file.ModifiedTimeDateTimeOffset?.UtcDateTime ?? DateTime.UtcNow;
 
-        if (file.Name.Equals("publisher.json", StringComparison.OrdinalIgnoreCase))
+        if (HostingConstants.IsPublisherDefinitionFileName(file.Name))
         {
-            state.Definition = new HostedFileInfo
+            var defInfo = new HostedFileInfo
             {
                 FileId = file.Id,
+                FileName = file.Name,
                 Url = directUrl,
                 FileSize = fileSize,
                 LastUpdated = lastUpdated,
             };
-            logger.LogInformation("Discovered publisher definition on Google Drive: {Url}", directUrl);
+            state.Definitions.Add(defInfo);
+            if (state.Definition == null || file.Name.Equals(HostingConstants.DefaultDefinitionFileName, StringComparison.OrdinalIgnoreCase))
+            {
+                state.Definition = defInfo;
+            }
+
+            logger.LogInformation("Discovered publisher definition on Google Drive: {FileName} -> {Url}", file.Name, directUrl);
         }
-        else if (file.Name.EndsWith(".json", StringComparison.OrdinalIgnoreCase) && file.Name.StartsWith("catalog-", StringComparison.OrdinalIgnoreCase))
+        else if (HostingConstants.IsCatalogFileName(file.Name))
         {
-            var catId = file.Name.Replace("catalog-", string.Empty).Replace(".json", string.Empty);
+            var catId = file.Name.Equals(HostingConstants.DefaultCatalogFileName, StringComparison.OrdinalIgnoreCase)
+                ? "main"
+                : file.Name.Replace("catalog-", string.Empty).Replace(".json", string.Empty);
             state.Catalogs.Add(new CatalogHostingInfo
             {
                 FileId = file.Id,

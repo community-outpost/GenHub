@@ -13051,6 +13051,102 @@ Project structure ready. Edit files in GameFilesEdited folder.</value>
   <data name="Tools.PublisherStudio.Publish.PublishCatalogTooltip" xml:space="preserve">
     <value>Publish this catalog to the hosting provider</value>
   </data>
+  <data name="Tools.PublisherStudio.Hosting.ScanAndLoadProvider" xml:space="preserve">
+    <value>Scan &amp; Load Provider</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.ScanAndLoadProviderTip" xml:space="preserve">
+    <value>Scan connected provider storage and sync/load assets and definitions</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.FilterAll" xml:space="preserve">
+    <value>All</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.FilterDefinitions" xml:space="preserve">
+    <value>Definitions</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.FilterCatalogs" xml:space="preserve">
+    <value>Catalogs</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.FilterArtifacts" xml:space="preserve">
+    <value>Artifacts</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.SearchAssetsWatermark" xml:space="preserve">
+    <value>Search inventory...</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.LoadToProject" xml:space="preserve">
+    <value>Load to Project</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.LoadToProjectTip" xml:space="preserve">
+    <value>Load this definition and its catalogs into current project</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.LoadCatalogTip" xml:space="preserve">
+    <value>Load this catalog into current project</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.AddToCatalog" xml:space="preserve">
+    <value>Add to Catalog</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.AddToCatalogTip" xml:space="preserve">
+    <value>Link this cloud artifact binary into the active catalog release</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.LoadedDefinitionSuccessTitle" xml:space="preserve">
+    <value>Definition Loaded</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.LoadedDefinitionSuccessFormat" xml:space="preserve">
+    <value>Successfully loaded publisher definition "{0}" and {1} catalog(s).</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.LoadedCatalogSuccessTitle" xml:space="preserve">
+    <value>Catalog Loaded</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.LoadedCatalogSuccessFormat" xml:space="preserve">
+    <value>Successfully loaded catalog "{0}" into project.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.ArtifactAddedTitle" xml:space="preserve">
+    <value>Artifact Added</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.ArtifactAddedToCatalogFormat" xml:space="preserve">
+    <value>Added "{0}" to catalog "{1}".</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.LoadingDefinitionTitle" xml:space="preserve">
+    <value>Loading Definition</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.LoadingDefinitionFormat" xml:space="preserve">
+    <value>Loading publisher definition from {0}...</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.LoadingCatalogTitle" xml:space="preserve">
+    <value>Loading Catalog</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.LoadingCatalogFormat" xml:space="preserve">
+    <value>Loading catalog from {0}...</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.LoadFailedTitle" xml:space="preserve">
+    <value>Load Failed</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.LoadFailedFormat" xml:space="preserve">
+    <value>Failed to load {0}: {1}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DownloadEmptyError" xml:space="preserve">
+    <value>Downloaded file was empty.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeserializeDefinitionErrorFormat" xml:space="preserve">
+    <value>Invalid publisher definition JSON: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeserializeCatalogErrorFormat" xml:space="preserve">
+    <value>Invalid catalog JSON: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.InvalidDefinitionError" xml:space="preserve">
+    <value>Definition does not contain valid publisher information.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.InvalidCatalogError" xml:space="preserve">
+    <value>Catalog JSON is missing a valid identifier.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.NoActiveCatalogTitle" xml:space="preserve">
+    <value>No Active Catalog</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.NoActiveCatalogError" xml:space="preserve">
+    <value>Please select or create an active catalog first.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.AssetCategoryCloudDefinitionFormat" xml:space="preserve">
+    <value>Cloud Publisher Definition ({0})</value>
+  </data>
   <data name="GameProfiles.Notification.UnexpectedExit.Title" xml:space="preserve">
     <value>Game Exited Unexpectedly</value>
   </data>
