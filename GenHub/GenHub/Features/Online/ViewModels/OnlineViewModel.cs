@@ -701,8 +701,9 @@ public sealed partial class OnlineViewModel(
         IsCreatePanelOpen = !IsCreatePanelOpen;
         if (IsCreatePanelOpen)
         {
-            // Safe to detach: the loader reports its own errors.
-            _ = EnsureProfilesLoadedAsync();
+            // Safe to detach: the loader reports its own errors, and the
+            // panel outlives any scoped token, so loading is uncancellable.
+            _ = EnsureProfilesLoadedAsync(CancellationToken.None);
         }
     }
 
@@ -793,8 +794,19 @@ public sealed partial class OnlineViewModel(
             return;
         }
 
+        // The room broadcasts to every socket including the saver, so the
+        // host would toast its own save. A no-op payload skips everything.
+        if (string.Equals(ExpectedProfileFingerprint, expected.ExpectedProfileFingerprint, StringComparison.Ordinal) &&
+            string.Equals(ExpectedProfileId, expected.ExpectedProfileId, StringComparison.Ordinal) &&
+            string.Equals(ExpectedProfileName, expected.ExpectedProfileName, StringComparison.Ordinal))
+        {
+            return;
+        }
+
         ApplyExpectedProfile(expected);
-        await UpdateMatchAndAdvertiseAsync();
+
+        // Presence events carry no scoped token; the re-match is uncancellable.
+        await UpdateMatchAndAdvertiseAsync(CancellationToken.None);
         var message = string.IsNullOrWhiteSpace(expected.ExpectedProfileName)
             ? GetString("Online.Profile.SwitchedClearedMessage")
             : GetString("Online.Profile.SwitchedMessage", expected.ExpectedProfileName);
@@ -1221,13 +1233,14 @@ public sealed partial class OnlineViewModel(
             {
                 AvailableProfiles = new ObservableCollection<GameProfile>(
                     profiles.Data.Where(p => !p.IsToolProfile).OrderBy(p => p.Name, StringComparer.OrdinalIgnoreCase));
+                _profilesLoaded = true;
             }
             else
             {
+                // Stay unloaded so the next panel open or join retries; the
+                // lock already prevents concurrent hammering.
                 logger.LogWarning("Failed to load game profiles for the Online tab.");
             }
-
-            _profilesLoaded = true;
         }
         catch (OperationCanceledException)
         {
@@ -1236,7 +1249,6 @@ public sealed partial class OnlineViewModel(
         catch (Exception ex)
         {
             logger.LogWarning(ex, "Failed to load game profiles for the Online tab.");
-            _profilesLoaded = true;
         }
         finally
         {
