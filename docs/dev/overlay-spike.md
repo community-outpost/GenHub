@@ -22,7 +22,7 @@ carries actual Generals / Zero Hour LAN traffic.
 - Cross-platform: Windows, Linux, macOS, with Wine/Proton in the mix. Any
   TUN bring-up must survive that matrix.
 - Reuse what exists: the edge already mints ephemeral coturn credentials
-  (`COTURN_SECRET`, `/v1/turn-config`), and the client already has the
+  (`COTURN_SECRET` + `TURN_URIS`, `GET /v1/networks/{id}/turn`), and the client already has the
   `IOverlaySidecarLocator` / `OverlaySidecarHost` seam plus opaque adapter
   configs for peer maps.
 

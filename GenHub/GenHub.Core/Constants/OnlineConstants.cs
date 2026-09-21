@@ -202,9 +202,9 @@ public static class OnlineConstants
     public const string OverlayUnixBinary = "genhub-overlay";
 
     /// <summary>
-    /// Version prefix for online profile fingerprints (hash based).
+    /// Version prefix for online profile fingerprints (length-prefixed hash).
     /// </summary>
-    public const string ProfileFingerprintPrefix = "opf2";
+    public const string ProfileFingerprintPrefix = "opf3";
 
     /// <summary>
     /// Maximum expected content ids published per lobby (mirrors the edge).
@@ -225,6 +225,12 @@ public static class OnlineConstants
     /// Wire-protocol magic ("GHP1") for UDP hole-punch packets.
     /// </summary>
     public static readonly byte[] PunchMagic = [0x47, 0x48, 0x50, 0x31];
+
+    /// <summary>
+    /// Retired fingerprint prefixes still accepted when extracting the game
+    /// client key, so mixed-version lobbies keep same-client detection.
+    /// </summary>
+    public static readonly string[] LegacyProfileFingerprintPrefixes = ["opf1", "opf2"];
 
     /// <summary>
     /// Gets a value indicating whether the Online feature is enabled.

@@ -138,6 +138,7 @@ public class OnlineProfileMatcherTests
     /// </summary>
     /// <param name="fingerprint">The fingerprint to parse.</param>
     [Theory]
+    [InlineData("opf3|ZeroHour|1.04|zerohour-client|0123456789abcdef")]
     [InlineData("opf2|ZeroHour|1.04|zerohour-client|0123456789abcdef")]
     [InlineData("opf1|ZeroHour|1.04|zerohour-client|some-mod")]
     public void TryGetGameClientKey_WithValidFingerprint_ShouldExtract(string fingerprint)
@@ -182,7 +183,38 @@ public class OnlineProfileMatcherTests
 
         // Assert
         Assert.True(fingerprint.Length < 256);
-        Assert.StartsWith("opf2|", fingerprint, StringComparison.Ordinal);
+        Assert.StartsWith("opf3|", fingerprint, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// Tests that a newline smuggled across the client/content boundary hashes distinctly.
+    /// </summary>
+    [Fact]
+    public void ComputeFingerprint_WithNewlineAcrossBoundary_ShouldDiffer()
+    {
+        // Arrange: content id "A\nB" under client "Generals|v|i" versus content
+        // "B" under client "Generals|v|i\nA" share one naive joined string.
+        var plain = new GameProfile
+        {
+            Id = Guid.NewGuid().ToString(),
+            Name = "Plain",
+            GameClient = new GameClient { Id = "i", Name = "Generals", Version = "v", GameType = GameType.Generals },
+            EnabledContentIds = ["A\nB"],
+        };
+        var smuggled = new GameProfile
+        {
+            Id = Guid.NewGuid().ToString(),
+            Name = "Smuggled",
+            GameClient = new GameClient { Id = "i\nA", Name = "Generals", Version = "v", GameType = GameType.Generals },
+            EnabledContentIds = ["B"],
+        };
+
+        // Act
+        var first = OnlineProfileMatcher.ComputeFingerprint(plain, contentTypes: null);
+        var second = OnlineProfileMatcher.ComputeFingerprint(smuggled, contentTypes: null);
+
+        // Assert
+        Assert.NotEqual(first, second);
     }
 
     /// <summary>

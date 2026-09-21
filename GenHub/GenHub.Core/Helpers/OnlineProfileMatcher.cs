@@ -22,7 +22,6 @@ namespace GenHub.Core.Helpers;
 public static class OnlineProfileMatcher
 {
     private const int FingerprintHashChars = 16;
-    private const string PreviousFingerprintPrefix = "opf1";
 
     /// <summary>
     /// Determines whether a content type can affect game sync and therefore
@@ -99,7 +98,11 @@ public static class OnlineProfileMatcher
 
         var clientKey = GetGameClientKey(profile);
         var gameplay = GetGameplayContentIds(profile, contentTypes);
-        var canonical = clientKey + "\n" + string.Join("\n", gameplay);
+
+        // Length-prefixed so no client key or content id can blur the domain
+        // boundary: "X\nY" with no content must hash differently from "X" with
+        // content "Y".
+        var canonical = clientKey.Length + "\n" + clientKey + "\n" + string.Join("\n", gameplay);
         var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(canonical)));
         return string.Join(
             OnlineConstants.FingerprintSeparator,
@@ -189,7 +192,7 @@ public static class OnlineProfileMatcher
 
     /// <summary>
     /// Extracts the game client key embedded in a fingerprint.
-    /// Accepts current and previous fingerprint versions so mixed-version
+    /// Accepts current and retired fingerprint versions so mixed-version
     /// lobbies still detect the same-client case.
     /// </summary>
     /// <param name="fingerprint">The fingerprint string.</param>
@@ -204,7 +207,7 @@ public static class OnlineProfileMatcher
         }
 
         var segments = fingerprint.Split(OnlineConstants.FingerprintSeparator);
-        if (segments.Length < 3 || (segments[0] != PreviousFingerprintPrefix && segments[0] != OnlineConstants.ProfileFingerprintPrefix))
+        if (segments.Length < 3 || !IsKnownPrefix(segments[0]))
         {
             return false;
         }
@@ -233,4 +236,8 @@ public static class OnlineProfileMatcher
         var local = new HashSet<string>(localContentIds, StringComparer.Ordinal);
         return expectedContentIds.Count(id => local.Contains(id));
     }
+
+    private static bool IsKnownPrefix(string prefix) =>
+        string.Equals(prefix, OnlineConstants.ProfileFingerprintPrefix, StringComparison.Ordinal) ||
+        OnlineConstants.LegacyProfileFingerprintPrefixes.Contains(prefix, StringComparer.Ordinal);
 }
