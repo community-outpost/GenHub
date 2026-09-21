@@ -154,6 +154,8 @@ public partial class PublishShareViewModel(
 
     private const string LoadFailedTitleKey = "Tools.PublisherStudio.Hosting.LoadFailedTitle";
     private const string LoadFailedDefaultTitle = "Load Failed";
+    private const string PublishErrorFormatKey = "Tools.PublisherStudio.Publish.ErrorFormat";
+    private const string PublishErrorFormatDefault = "Error: {0}";
 
     /// <summary>
     /// Progress band (0-80%) shared by pending artifact and artwork uploads.
@@ -618,7 +620,7 @@ public partial class PublishShareViewModel(
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to upload provider definition with cascade");
-            UploadStatusMessage = FormatLocalizedString("Tools.PublisherStudio.Publish.ErrorFormat", "Error: {0}", ex.Message);
+            UploadStatusMessage = FormatLocalizedString(PublishErrorFormatKey, PublishErrorFormatDefault, ex.Message);
             return OperationResult<HostingUploadResult>.CreateFailure(UploadStatusMessage);
         }
         finally
@@ -2246,7 +2248,7 @@ public partial class PublishShareViewModel(
         }
         catch (Exception ex)
         {
-            UploadStatusMessage = FormatLocalizedString("Tools.PublisherStudio.Publish.ErrorFormat", "Error: {0}", ex.Message);
+            UploadStatusMessage = FormatLocalizedString(PublishErrorFormatKey, PublishErrorFormatDefault, ex.Message);
             logger.LogError(ex, "Error uploading catalog");
             return OperationResult<HostingUploadResult>.CreateFailure($"Error uploading catalog: {ex.Message}");
         }
@@ -3436,7 +3438,7 @@ public partial class PublishShareViewModel(
         catch (Exception ex)
         {
             logger.LogError(ex, "Error generating provider definition");
-            UploadStatusMessage = FormatLocalizedString("Tools.PublisherStudio.Publish.ErrorFormat", "Error: {0}", ex.Message);
+            UploadStatusMessage = FormatLocalizedString(PublishErrorFormatKey, PublishErrorFormatDefault, ex.Message);
             return false;
         }
     }
@@ -4031,7 +4033,7 @@ public partial class PublishShareViewModel(
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to publish all catalogs");
-            UploadStatusMessage = FormatLocalizedString("Tools.PublisherStudio.Publish.ErrorFormat", "Error: {0}", ex.Message);
+            UploadStatusMessage = FormatLocalizedString(PublishErrorFormatKey, PublishErrorFormatDefault, ex.Message);
         }
         finally
         {

@@ -4331,9 +4331,19 @@ public partial class ContentDetailViewModel(
                 Variants.Clear();
                 foreach (var art in rel.Artifacts)
                 {
-                    var varName = !string.IsNullOrWhiteSpace(art.Variant)
-                        ? art.Variant
-                        : (!string.IsNullOrWhiteSpace(art.Filename) ? art.Filename : "Variant");
+                    string varName;
+                    if (!string.IsNullOrWhiteSpace(art.Variant))
+                    {
+                        varName = art.Variant;
+                    }
+                    else if (!string.IsNullOrWhiteSpace(art.Filename))
+                    {
+                        varName = art.Filename;
+                    }
+                    else
+                    {
+                        varName = "Variant";
+                    }
                     var axis = !string.IsNullOrWhiteSpace(art.VariantAxis) ? art.VariantAxis : "Variant";
                     Variants.Add(new InstallableVariant
                     {

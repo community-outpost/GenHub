@@ -1242,13 +1242,27 @@ public partial class AddContentDialogViewModel(
             return null;
         }
 
+        List<string> resolvedScreenshots;
+        if (screenshots.Count > 0)
+        {
+            resolvedScreenshots = screenshots;
+        }
+        else if (source?.ScreenshotUrls is { } shots)
+        {
+            resolvedScreenshots = [.. shots];
+        }
+        else
+        {
+            resolvedScreenshots = [];
+        }
+
         return new ContentRichMetadata
         {
             IconUrl = icon,
             BannerUrl = banner,
             BackdropUrl = backdrop,
             AccentColor = accent,
-            ScreenshotUrls = screenshots.Count > 0 ? screenshots : (source?.ScreenshotUrls is { } shots ? [.. shots] : []),
+            ScreenshotUrls = resolvedScreenshots,
             VideoUrl = video ?? source?.VideoUrl,
             DocumentationUrl = source?.DocumentationUrl,
             Author = source?.Author,

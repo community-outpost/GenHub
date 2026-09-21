@@ -307,6 +307,20 @@ public partial class AddReleaseDialogViewModel(
         };
     }
 
+    private static List<string> ParseUrls(string? input)
+    {
+        if (string.IsNullOrWhiteSpace(input))
+        {
+            return [];
+        }
+
+        return input
+            .Split(["\r\n", "\r", "\n", ","], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Where(u => !string.IsNullOrWhiteSpace(u))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
+
     partial void OnVersionChanged(string value) => Validate();
 
     /// <summary>
@@ -543,20 +557,6 @@ public partial class AddReleaseDialogViewModel(
 
         ArgumentNullException.ThrowIfNull(onReleaseCreated);
         onReleaseCreated(release);
-    }
-
-    private List<string> ParseUrls(string? input)
-    {
-        if (string.IsNullOrWhiteSpace(input))
-        {
-            return [];
-        }
-
-        return input
-            .Split(["\r\n", "\r", "\n", ","], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-            .Where(u => !string.IsNullOrWhiteSpace(u))
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToList();
     }
 
     private void Validate()
