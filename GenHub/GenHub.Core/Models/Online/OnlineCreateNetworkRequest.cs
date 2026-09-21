@@ -51,7 +51,7 @@ public sealed record OnlineCreateNetworkRequest
     /// Defaults to direct-first with relay fallback.
     /// </summary>
     [JsonPropertyName("preferRelay")]
-    public bool PreferRelay { get; init; } = false;
+    public bool PreferRelay { get; init; } = true;
 
     /// <summary>
     /// Gets the host-local id of the expected game profile.
