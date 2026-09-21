@@ -875,6 +875,6 @@ public static class WndConstants
         public const string FileName = "Generals.csf";
 
         /// <summary>Languages probed for string tables, in order.</summary>
-        public static readonly string[] Languages = Preview.TextureLanguages;
+        public static readonly string[] Languages = MappedImages.TextureLanguages;
     }
 }

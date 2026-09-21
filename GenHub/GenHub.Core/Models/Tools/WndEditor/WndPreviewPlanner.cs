@@ -109,7 +109,7 @@ public static class WndPreviewPlanner
             glyph,
             null,
             false,
-            ResolveFillColor(entry, single != null, isSeeThru),
+            ResolveFillColor(entry, !string.IsNullOrWhiteSpace(entry?.Image), isSeeThru),
             ResolveBorderColor(entry, isSeeThru),
             drawsText ? text : null,
             textColor,

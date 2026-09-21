@@ -536,15 +536,17 @@ public sealed class WndEditorViewModelTests : IDisposable
 
         // Assert
         opened.Should().BeTrue();
-        _viewModel.Files.Should().HaveCount(2);
-        _viewModel.Files.Should().ContainSingle(f => f.IsCurrent).Which.FileName.Should().Be("First.wnd");
+        _viewModel.Files.Should().HaveCount(1);
+        var root = _viewModel.Files[0];
+        root.Children.Should().HaveCount(2);
+        root.Children.Should().ContainSingle(f => f.IsCurrent).Which.FileName.Should().Be("First.wnd");
 
         // Act
-        await _viewModel.OpenExplorerFileCommand.ExecuteAsync(_viewModel.Files.First(f => !f.IsCurrent));
+        await _viewModel.OpenExplorerFileCommand.ExecuteAsync(root.Children.First(f => !f.IsCurrent));
 
         // Assert
         _viewModel.FilePath.Should().Be(secondPath);
-        _viewModel.Files.Should().ContainSingle(f => f.IsCurrent).Which.FileName.Should().Be("Second.wnd");
+        root.Children.Should().ContainSingle(f => f.IsCurrent).Which.FileName.Should().Be("Second.wnd");
     }
 
     /// <summary>
@@ -1184,31 +1186,9 @@ public sealed class WndEditorViewModelTests : IDisposable
         item.Overlays.Should().OnlyContain(overlay => overlay.X + overlay.Width == item.Width);
     }
 
-    private static string DrawDataWith(string name, int index)
-    {
-        var entries = new List<WndDrawDataEntry>();
-        for (var i = 0; i < WndConstants.DrawData.EntryCount; i++)
-        {
-            entries.Add(WndDrawDataEntry.Empty);
-        }
-
-        entries[index] = new WndDrawDataEntry(name, WndRgbaColor.White, WndRgbaColor.White);
-        return new WndDrawDataSet(entries).ToString();
-    }
-
-    private void SetupSingleInstallation()
-    {
-        var gameDir = Path.Combine(_tempDirectory, "Game");
-        Directory.CreateDirectory(gameDir);
-        var installation = new GameInstallation(gameDir, GameInstallationType.Steam)
-        {
-            HasZeroHour = true,
-            ZeroHourPath = gameDir,
-        };
-        _mockGameInstallService
-            .Setup(s => s.GetAllInstallationsAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(OperationResult<IReadOnlyList<GameInstallation>>.CreateSuccess([installation]));
-    }
+    /// <summary>
+    /// Tests that refreshing files loads the directory tree recursively, skips empty directories, and strips extensions.
+    /// </summary>
     [Fact]
     public void RefreshFiles_LoadsTreeRecursively_SkipsEmptyDirectories_StripsExtension()
     {
@@ -1258,6 +1238,10 @@ public sealed class WndEditorViewModelTests : IDisposable
         controlBarNode.Name.Should().Be("ControlBar");
     }
 
+    /// <summary>
+    /// Tests that opening a file inside the current directory retains the tree hierarchy and updates the active file.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
     public async Task SyncFilesDirectory_WhenFileInsideCurrentDirectory_RetainsTreeAndUpdatesIsCurrent()
     {
@@ -1267,11 +1251,7 @@ public sealed class WndEditorViewModelTests : IDisposable
         Directory.CreateDirectory(menusDir);
 
         var defeatPath = Path.Combine(menusDir, "Defeat.wnd");
-        File.WriteAllText(defeatPath, "FILE_VERSION = 2;
-WINDOW
-  SCREENRECT = UPPERLEFT: 0 0, BOTTOMRIGHT: 10 10, CREATIONRESOLUTION: 800 600;
-END
-");
+        File.WriteAllText(defeatPath, "FILE_VERSION = 2;\nWINDOW\n  SCREENRECT = UPPERLEFT: 0 0, BOTTOMRIGHT: 10 10, CREATIONRESOLUTION: 800 600;\nEND\n");
 
         _viewModel.FilesDirectory = rootDir;
         _viewModel.Files.Should().HaveCount(1);
@@ -1286,5 +1266,31 @@ END
         var defeatNode = _viewModel.Files[0].Children[0].Children[0].Children[0];
         defeatNode.Name.Should().Be("Defeat");
         defeatNode.IsCurrent.Should().BeTrue();
+    }
+
+    private static string DrawDataWith(string name, int index)
+    {
+        var entries = new List<WndDrawDataEntry>();
+        for (var i = 0; i < WndConstants.DrawData.EntryCount; i++)
+        {
+            entries.Add(WndDrawDataEntry.Empty);
+        }
+
+        entries[index] = new WndDrawDataEntry(name, WndRgbaColor.White, WndRgbaColor.White);
+        return new WndDrawDataSet(entries).ToString();
+    }
+
+    private void SetupSingleInstallation()
+    {
+        var gameDir = Path.Combine(_tempDirectory, "Game");
+        Directory.CreateDirectory(gameDir);
+        var installation = new GameInstallation(gameDir, GameInstallationType.Steam)
+        {
+            HasZeroHour = true,
+            ZeroHourPath = gameDir,
+        };
+        _mockGameInstallService
+            .Setup(s => s.GetAllInstallationsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IReadOnlyList<GameInstallation>>.CreateSuccess([installation]));
     }
 }

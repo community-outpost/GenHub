@@ -37,6 +37,11 @@ public sealed partial class WndFileTreeNodeViewModel : ObservableObject
     }
 
     /// <summary>
+    /// Gets the file name with extension if this is a file, or the directory name.
+    /// </summary>
+    public string FileName => System.IO.Path.GetFileName(FullPath);
+
+    /// <summary>
     /// Gets the display name of the directory or file (without extension for files).
     /// </summary>
     public string Name { get; }
