@@ -1427,8 +1427,11 @@ public sealed class PlaywrightService(
             httpClientFactory.CreateClient(ModDBConstants.PlaywrightDriverHttpClientName),
             RequestManagedDriverInstallConsentAsync,
             logger,
-            notificationService,
-            localizationService);
+            new ManagedPlaywrightDriverOptions
+            {
+                NotificationService = notificationService,
+                LocalizationService = localizationService,
+            });
 
         return Interlocked.CompareExchange(ref managedPlaywrightDriver, newDriver, null) ?? newDriver;
     }

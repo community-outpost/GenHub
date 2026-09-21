@@ -340,7 +340,10 @@ public sealed class ManagedPlaywrightDriverTests : IDisposable
                 return Task.FromResult(true);
             },
             new Mock<ILogger>().Object,
-            expectedPackageSha256: expectedHash);
+            new ManagedPlaywrightDriverOptions
+            {
+                ExpectedPackageSha256 = expectedHash,
+            });
     }
 
     private void SeedManagedDriver(string version)

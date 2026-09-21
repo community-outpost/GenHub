@@ -1,7 +1,5 @@
 using GenHub.Core.Constants;
 using GenHub.Core.Helpers;
-using GenHub.Core.Interfaces.Common;
-using GenHub.Core.Interfaces.Notifications;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Globalization;
@@ -25,10 +23,7 @@ internal sealed class ManagedPlaywrightDriver(
     HttpClient httpClient,
     Func<string, Task<bool>> requestInstallConsentAsync,
     ILogger logger,
-    INotificationService? notificationService = null,
-    ILocalizationService? localizationService = null,
-    ManagedChromiumRuntimeCallbacks? callbacks = null,
-    string? expectedPackageSha256 = null)
+    ManagedPlaywrightDriverOptions? options = null)
 {
     private const string PlaywrightRootName = ".playwright";
     private const string PackageEntriesPrefix = ".playwright/package/";
@@ -38,6 +33,7 @@ internal sealed class ManagedPlaywrightDriver(
     private const string StagingDirectoryName = "staging";
 
     private readonly SemaphoreSlim _installLock = new(1, 1);
+    private readonly ManagedPlaywrightDriverOptions _options = options ?? new ManagedPlaywrightDriverOptions();
 
     /// <summary>
     /// Gets the expected managed node executable path for the current platform.
@@ -101,32 +97,32 @@ internal sealed class ManagedPlaywrightDriver(
 
             logger.LogDebug("Managed Playwright driver install consented. Installing under {DriverDirectory}", driverDirectory);
 
-            Action? onInstallStarting = callbacks?.OnInstallStarting;
-            Action<bool>? onInstallCompleted = callbacks?.OnInstallCompleted;
-            Action? onInstallCanceled = callbacks?.OnInstallCanceled;
-            Func<DownloadNotificationScope?>? scopeFactory = callbacks?.ScopeFactory;
+            Action? onInstallStarting = _options.Callbacks?.OnInstallStarting;
+            Action<bool>? onInstallCompleted = _options.Callbacks?.OnInstallCompleted;
+            Action? onInstallCanceled = _options.Callbacks?.OnInstallCanceled;
+            Func<DownloadNotificationScope?>? scopeFactory = _options.Callbacks?.ScopeFactory;
 
             DownloadNotificationScope? scope = null;
             if (scopeFactory != null)
             {
                 scope = scopeFactory();
             }
-            else if (notificationService != null)
+            else if (_options.NotificationService is { } notifications)
             {
-                var contentName = localizationService?.GetString("ModDB.PlaywrightDriverRuntimeName")
+                var contentName = _options.LocalizationService?.GetString("ModDB.PlaywrightDriverRuntimeName")
                     ?? ModDBConstants.PlaywrightDriverRuntimeName;
-                var startTitle = localizationService?.GetString("ModDB.PlaywrightDriverInstallTitle")
+                var startTitle = _options.LocalizationService?.GetString("ModDB.PlaywrightDriverInstallTitle")
                     ?? ModDBConstants.PlaywrightDriverInstallTitle;
-                var startMessage = localizationService?.GetString("ModDB.PlaywrightDriverDownloadingMessage")
+                var startMessage = _options.LocalizationService?.GetString("ModDB.PlaywrightDriverDownloadingMessage")
                     ?? ModDBConstants.PlaywrightDriverDownloadingMessage;
 
                 scope = new DownloadNotificationScope(
-                    notificationService,
+                    notifications,
                     contentName,
                     new DownloadNotificationOptions(
                         StartTitle: startTitle,
                         StartMessage: startMessage),
-                    localization: localizationService);
+                    localization: _options.LocalizationService);
             }
 
             using (scope)
@@ -151,9 +147,9 @@ internal sealed class ManagedPlaywrightDriver(
                 }
                 catch (Exception ex) when (ex is HttpRequestException or IOException or UnauthorizedAccessException or InvalidDataException)
                 {
-                    var failedTitle = localizationService?.GetString("ModDB.PlaywrightDriverInstallFailedTitle")
+                    var failedTitle = _options.LocalizationService?.GetString("ModDB.PlaywrightDriverInstallFailedTitle")
                         ?? ModDBConstants.PlaywrightDriverInstallFailedTitle;
-                    var failedMessage = localizationService?.GetString("ModDB.PlaywrightDriverInstallFailedMessage")
+                    var failedMessage = _options.LocalizationService?.GetString("ModDB.PlaywrightDriverInstallFailedMessage")
                         ?? ModDBConstants.PlaywrightDriverInstallFailedMessage;
                     scope?.CompleteFailure(failedMessage, failedTitle);
                     onInstallCompleted?.Invoke(false);
@@ -171,9 +167,9 @@ internal sealed class ManagedPlaywrightDriver(
 
                 if (!File.Exists(ManagedNodeExecutablePath))
                 {
-                    var failedTitle = localizationService?.GetString("ModDB.PlaywrightDriverInstallFailedTitle")
+                    var failedTitle = _options.LocalizationService?.GetString("ModDB.PlaywrightDriverInstallFailedTitle")
                         ?? ModDBConstants.PlaywrightDriverInstallFailedTitle;
-                    var failedMessage = localizationService?.GetString("ModDB.PlaywrightDriverInstallFailedMessage")
+                    var failedMessage = _options.LocalizationService?.GetString("ModDB.PlaywrightDriverInstallFailedMessage")
                         ?? ModDBConstants.PlaywrightDriverInstallFailedMessage;
                     scope?.CompleteFailure(failedMessage, failedTitle);
                     onInstallCompleted?.Invoke(false);
@@ -181,9 +177,9 @@ internal sealed class ManagedPlaywrightDriver(
                         "GenHub could not install its managed Playwright driver. Check the network connection and try the ModDB action again.");
                 }
 
-                var readyTitle = localizationService?.GetString("ModDB.PlaywrightDriverReadyTitle")
+                var readyTitle = _options.LocalizationService?.GetString("ModDB.PlaywrightDriverReadyTitle")
                     ?? ModDBConstants.PlaywrightDriverReadyTitle;
-                var readyMessage = localizationService?.GetString("ModDB.PlaywrightDriverReadyMessage")
+                var readyMessage = _options.LocalizationService?.GetString("ModDB.PlaywrightDriverReadyMessage")
                     ?? ModDBConstants.PlaywrightDriverReadyMessage;
                 scope?.CompleteSuccess(readyMessage, readyTitle);
                 onInstallCompleted?.Invoke(true);
@@ -262,7 +258,7 @@ internal sealed class ManagedPlaywrightDriver(
     {
         // The archive becomes an executed binary, so verify the pinned hash before
         // extraction. This applies to override feeds too: they must serve identical bytes.
-        var expectedHash = expectedPackageSha256 ?? ModDBConstants.PlaywrightDriverExpectedSha256;
+        var expectedHash = _options.ExpectedPackageSha256 ?? ModDBConstants.PlaywrightDriverExpectedSha256;
         var actualHash = await DownloadSecurityValidator.ComputeSha256Async(downloadPath, cancellationToken);
         if (!string.Equals(actualHash, expectedHash, StringComparison.OrdinalIgnoreCase))
         {
@@ -332,7 +328,7 @@ internal sealed class ManagedPlaywrightDriver(
 
         var fraction = Math.Clamp((double)totalRead / totalBytes, 0.05, 0.95);
         var mbDownloaded = totalRead / (1024.0 * 1024.0);
-        var statusFormat = localizationService?.GetString("ModDB.PlaywrightDriverProgressStatusFormat")
+        var statusFormat = _options.LocalizationService?.GetString("ModDB.PlaywrightDriverProgressStatusFormat")
             ?? ModDBConstants.PlaywrightDriverProgressStatusFormat;
         var status = string.Format(
             CultureInfo.CurrentCulture,
@@ -349,7 +345,7 @@ internal sealed class ManagedPlaywrightDriver(
             return;
         }
 
-        var extractingMessage = localizationService?.GetString("ModDB.PlaywrightDriverExtractingMessage")
+        var extractingMessage = _options.LocalizationService?.GetString("ModDB.PlaywrightDriverExtractingMessage")
             ?? ModDBConstants.PlaywrightDriverExtractingMessage;
         scope.ReportFraction(0.97, extractingMessage);
     }
