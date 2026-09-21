@@ -3196,9 +3196,9 @@
     <value>Close</value>
     <comment>Close window.</comment>
   </data>
-  <data name="Window.MaximizeRestore" xml:space="preserve">
-    <value>Maximize or Restore</value>
-    <comment>Maximize or restore window.</comment>
+  <data name="Window.Maximize" xml:space="preserve">
+    <value>Maximize</value>
+    <comment>Maximize window.</comment>
   </data>
   <data name="Window.Minimize" xml:space="preserve">
     <value>Minimize</value>
