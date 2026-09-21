@@ -545,8 +545,8 @@ public partial class ConfigEditorViewModel(
             Version = manifest.Version,
             Publisher = manifest.Publisher,
             Description = manifest.Description,
-            ContentType = ResolveEditorContentType(manifest.ContentType),
-            TargetGame = ResolveEditorTargetGame(manifest.TargetGame),
+            ContentType = ResolveEditorContentType(manifest.ContentType, CurrentProject),
+            TargetGame = ResolveEditorTargetGame(manifest.TargetGame, CurrentProject),
         };
         foreach (var packName in manifest.PackNames)
         {
@@ -561,11 +561,11 @@ public partial class ConfigEditorViewModel(
         var viewModel = new BundleManifestConfigViewModel
         {
             Name = ResolveDefaultManifestName(),
-            Version = ResolveProjectVersion(),
+            Version = ResolveProjectVersion(CurrentProject),
             Publisher = string.Empty,
             Description = CurrentProject?.Description ?? string.Empty,
-            ContentType = ResolveEditorContentType(null),
-            TargetGame = ResolveEditorTargetGame(null),
+            ContentType = ResolveEditorContentType(null, CurrentProject),
+            TargetGame = ResolveEditorTargetGame(null, CurrentProject),
         };
         foreach (var pack in BundlePacks.Where(pack => !string.IsNullOrEmpty(pack.Name)))
         {
@@ -587,31 +587,31 @@ public partial class ConfigEditorViewModel(
         return firstPack?.Name ?? $"NewManifest{BundleManifests.Count + 1}";
     }
 
-    private string ResolveProjectVersion()
+    private static string ResolveProjectVersion(ModBuilderProject? project)
     {
-        var projectVersion = CurrentProject?.Version;
+        var projectVersion = project?.Version;
         return !string.IsNullOrWhiteSpace(projectVersion) ? projectVersion : ModBuilderConstants.DefaultManifestVersion;
     }
 
-    private ContentType ResolveEditorContentType(ContentType? manifestValue)
+    private static ContentType ResolveEditorContentType(ContentType? manifestValue, ModBuilderProject? project)
     {
         if (manifestValue is { } contentType && contentType != ContentType.UnknownContentType)
         {
             return contentType;
         }
 
-        var projectValue = CurrentProject?.ContentType ?? ContentType.Mod;
+        var projectValue = project?.ContentType ?? ContentType.Mod;
         return projectValue != ContentType.UnknownContentType ? projectValue : ContentType.Mod;
     }
 
-    private GameType ResolveEditorTargetGame(GameType? manifestValue)
+    private static GameType ResolveEditorTargetGame(GameType? manifestValue, ModBuilderProject? project)
     {
         if (manifestValue is { } targetGame && targetGame != GameType.Unknown)
         {
             return targetGame;
         }
 
-        var projectValue = CurrentProject?.TargetGame ?? GameType.ZeroHour;
+        var projectValue = project?.TargetGame ?? GameType.ZeroHour;
         return projectValue != GameType.Unknown ? projectValue : GameType.ZeroHour;
     }
 
@@ -957,11 +957,11 @@ public partial class ConfigEditorViewModel(
         var newManifest = new BundleManifestConfigViewModel
         {
             Name = $"NewManifest{BundleManifests.Count + 1}",
-            Version = ResolveProjectVersion(),
+            Version = ResolveProjectVersion(CurrentProject),
             Publisher = string.Empty,
             Description = string.Empty,
-            ContentType = ResolveEditorContentType(null),
-            TargetGame = ResolveEditorTargetGame(null),
+            ContentType = ResolveEditorContentType(null, CurrentProject),
+            TargetGame = ResolveEditorTargetGame(null, CurrentProject),
         };
 
         foreach (var pack in BundlePacks.Where(pack => !string.IsNullOrEmpty(pack.Name) && !coveredPacks.Contains(pack.Name)))
