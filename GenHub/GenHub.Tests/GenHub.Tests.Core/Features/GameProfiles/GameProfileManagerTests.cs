@@ -998,6 +998,277 @@ public class GameProfileManagerTests
         _profileRepositoryMock.Verify(x => x.SaveProfileAsync(It.IsAny<GameProfile>(), default), Times.Never);
     }
 
+    /// <summary>
+    /// Verifies that passing null or empty manifest IDs returns zero counts without accessing repository.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ScrubDeletedManifestReferencesAsync_WhenEmptyIds_ReturnsZeroCountsAsync()
+    {
+        // Act
+        var result = await _profileManager.ScrubDeletedManifestReferencesAsync([]);
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.Equal(0, result.Data!.UpdatedProfilesCount);
+        Assert.Equal(0, result.Data.DeletedProfilesCount);
+        _profileRepositoryMock.Verify(x => x.LoadAllProfilesAsync(It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    /// <summary>
+    /// Verifies that a profile retaining remaining custom content is updated with scrubbed IDs.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ScrubDeletedManifestReferencesAsync_WhenProfileRetainsContent_UpdatesProfileAsync()
+    {
+        // Arrange
+        const string deletedId = "mod.to.delete";
+        const string remainingId = "mod.to.keep";
+        var profile = new GameProfile
+        {
+            Id = "profile-1",
+            Name = "Kept Profile",
+            GameInstallationId = "inst-1",
+            GameClient = new GameClient { Id = "client-1", Version = "1.0", GameType = GameType.ZeroHour },
+            EnabledContentIds = [deletedId, remainingId],
+        };
+
+        _profileRepositoryMock.Setup(x => x.LoadAllProfilesAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<IReadOnlyList<GameProfile>>.CreateSuccess([profile]));
+        _profileRepositoryMock.Setup(x => x.LoadProfileAsync("profile-1", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(profile));
+        _profileRepositoryMock.Setup(x => x.SaveProfileAsync(It.IsAny<GameProfile>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(profile));
+
+        // Act
+        var result = await _profileManager.ScrubDeletedManifestReferencesAsync([deletedId]);
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.Equal(1, result.Data!.UpdatedProfilesCount);
+        Assert.Equal(0, result.Data.DeletedProfilesCount);
+        _profileRepositoryMock.Verify(
+            x => x.SaveProfileAsync(
+                It.Is<GameProfile>(p => p.EnabledContentIds.Count == 1 && p.EnabledContentIds.Contains(remainingId)),
+                It.IsAny<CancellationToken>()),
+            Times.Once);
+    }
+
+    /// <summary>
+    /// Verifies that when a tool profile tool content manifest is deleted, the orphaned tool profile is deleted.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ScrubDeletedManifestReferencesAsync_WhenToolContentDeleted_DeletesOrphanedProfileAsync()
+    {
+        // Arrange
+        const string toolId = "tool.worldbuilder";
+        var toolProfile = new GameProfile
+        {
+            Id = "tool-profile-1",
+            Name = "WorldBuilder Tool",
+            ToolContentId = toolId,
+            EnabledContentIds = [toolId],
+        };
+
+        _profileRepositoryMock.Setup(x => x.LoadAllProfilesAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<IReadOnlyList<GameProfile>>.CreateSuccess([toolProfile]));
+        _profileRepositoryMock.Setup(x => x.LoadProfileAsync("tool-profile-1", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(toolProfile));
+        _profileRepositoryMock.Setup(x => x.DeleteProfileAsync("tool-profile-1", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(toolProfile));
+
+        // Act
+        var result = await _profileManager.ScrubDeletedManifestReferencesAsync([toolId]);
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.Equal(0, result.Data!.UpdatedProfilesCount);
+        Assert.Equal(1, result.Data.DeletedProfilesCount);
+        _profileRepositoryMock.Verify(x => x.DeleteProfileAsync("tool-profile-1", It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    /// <summary>
+    /// Verifies that a profile auto-created with content is deleted when all custom content is removed.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ScrubDeletedManifestReferencesAsync_WhenCreatedWithContentLosesCustomContent_DeletesOrphanedProfileAsync()
+    {
+        // Arrange
+        const string modId = "mod.shockwave";
+        const string gameInstallId = "1.0.gameinstallation.zerohour";
+        var profile = new GameProfile
+        {
+            Id = "auto-profile-1",
+            Name = "ShockWave Profile",
+            Description = "Profile created with ShockWave",
+            GameInstallationId = "inst-1",
+            GameClient = new GameClient { Id = "client-1", Version = "1.0", GameType = GameType.ZeroHour },
+            EnabledContentIds = [modId, gameInstallId],
+        };
+
+        _profileRepositoryMock.Setup(x => x.LoadAllProfilesAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<IReadOnlyList<GameProfile>>.CreateSuccess([profile]));
+        _profileRepositoryMock.Setup(x => x.LoadProfileAsync("auto-profile-1", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(profile));
+        _profileRepositoryMock.Setup(x => x.DeleteProfileAsync("auto-profile-1", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(profile));
+
+        // Act
+        var result = await _profileManager.ScrubDeletedManifestReferencesAsync([modId]);
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.Equal(0, result.Data!.UpdatedProfilesCount);
+        Assert.Equal(1, result.Data.DeletedProfilesCount);
+        _profileRepositoryMock.Verify(x => x.DeleteProfileAsync("auto-profile-1", It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    /// <summary>
+    /// Verifies that when a profile enabled content list becomes empty, it is deleted as orphaned.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ScrubDeletedManifestReferencesAsync_WhenAllContentDeleted_DeletesOrphanedProfileAsync()
+    {
+        // Arrange
+        const string modId = "mod.onlymod";
+        var profile = new GameProfile
+        {
+            Id = "profile-empty-content",
+            Name = "Empty Content Profile",
+            GameInstallationId = "inst-1",
+            GameClient = new GameClient { Id = "client-1", Version = "1.0", GameType = GameType.ZeroHour },
+            EnabledContentIds = [modId],
+        };
+
+        _profileRepositoryMock.Setup(x => x.LoadAllProfilesAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<IReadOnlyList<GameProfile>>.CreateSuccess([profile]));
+        _profileRepositoryMock.Setup(x => x.LoadProfileAsync("profile-empty-content", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(profile));
+        _profileRepositoryMock.Setup(x => x.DeleteProfileAsync("profile-empty-content", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(profile));
+
+        // Act
+        var result = await _profileManager.ScrubDeletedManifestReferencesAsync([modId]);
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.Equal(0, result.Data!.UpdatedProfilesCount);
+        Assert.Equal(1, result.Data.DeletedProfilesCount);
+        _profileRepositoryMock.Verify(x => x.DeleteProfileAsync("profile-empty-content", It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    /// <summary>
+    /// Verifies that when a profile game client manifest is deleted, the orphaned profile is deleted.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ScrubDeletedManifestReferencesAsync_WhenGameClientDeleted_DeletesOrphanedProfileAsync()
+    {
+        // Arrange
+        const string clientId = "client.genonline.zh";
+        var profile = new GameProfile
+        {
+            Id = "profile-client-deleted",
+            Name = "Online Profile",
+            GameInstallationId = "inst-1",
+            GameClient = new GameClient { Id = clientId, Version = "1.0", GameType = GameType.ZeroHour },
+            EnabledContentIds = [clientId, "some.mod"],
+        };
+
+        _profileRepositoryMock.Setup(x => x.LoadAllProfilesAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<IReadOnlyList<GameProfile>>.CreateSuccess([profile]));
+        _profileRepositoryMock.Setup(x => x.LoadProfileAsync("profile-client-deleted", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(profile));
+        _profileRepositoryMock.Setup(x => x.DeleteProfileAsync("profile-client-deleted", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(profile));
+
+        // Act
+        var result = await _profileManager.ScrubDeletedManifestReferencesAsync([clientId]);
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.Equal(0, result.Data!.UpdatedProfilesCount);
+        Assert.Equal(1, result.Data.DeletedProfilesCount);
+        _profileRepositoryMock.Verify(x => x.DeleteProfileAsync("profile-client-deleted", It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    /// <summary>
+    /// Verifies that failed profile deletes are recorded in FailedProfileNames.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ScrubDeletedManifestReferencesAsync_WhenDeleteFails_TracksFailedProfileNamesAsync()
+    {
+        // Arrange
+        const string modId = "mod.failing";
+        var profile = new GameProfile
+        {
+            Id = "failing-profile",
+            Name = "Failing Profile",
+            GameInstallationId = "inst-1",
+            GameClient = new GameClient { Id = "client-1", Version = "1.0", GameType = GameType.ZeroHour },
+            EnabledContentIds = [modId],
+        };
+
+        _profileRepositoryMock.Setup(x => x.LoadAllProfilesAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<IReadOnlyList<GameProfile>>.CreateSuccess([profile]));
+        _profileRepositoryMock.Setup(x => x.LoadProfileAsync("failing-profile", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(profile));
+        _profileRepositoryMock.Setup(x => x.DeleteProfileAsync("failing-profile", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateFailure("Delete locked"));
+
+        // Act
+        var result = await _profileManager.ScrubDeletedManifestReferencesAsync([modId]);
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.Equal(0, result.Data!.DeletedProfilesCount);
+        Assert.Contains("Failing Profile", result.Data.FailedProfileNames);
+    }
+
+    /// <summary>
+    /// Verifies that DeleteProfileAsync sends a ProfileDeletedMessage containing profile ID and name.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task DeleteProfileAsync_WhenSuccessful_SendsProfileDeletedMessageAsync()
+    {
+        // Arrange
+        const string profileId = "profile-del-msg";
+        const string profileName = "Deleted Name";
+        var profile = new GameProfile { Id = profileId, Name = profileName };
+
+        _profileRepositoryMock.Setup(x => x.LoadProfileAsync(profileId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(profile));
+        _profileRepositoryMock.Setup(x => x.DeleteProfileAsync(profileId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(profile));
+
+        ProfileDeletedMessage? receivedMessage = null;
+        WeakReferenceMessenger.Default.Register<ProfileDeletedMessage>(
+            this,
+            (_, m) => receivedMessage = m);
+
+        try
+        {
+            // Act
+            var result = await _profileManager.DeleteProfileAsync(profileId);
+
+            // Assert
+            Assert.True(result.Success);
+            Assert.NotNull(receivedMessage);
+            Assert.Equal(profileId, receivedMessage.ProfileId);
+            Assert.Equal(profileName, receivedMessage.ProfileName);
+        }
+        finally
+        {
+            WeakReferenceMessenger.Default.Unregister<ProfileDeletedMessage>(this);
+        }
+    }
+
     private static GameInstallation CreateTestInstallation(string clientId)
     {
         return new GameInstallation("C:\\Games\\Generals", GameInstallationType.Retail)

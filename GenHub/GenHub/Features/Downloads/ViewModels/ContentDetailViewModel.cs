@@ -5622,6 +5622,15 @@ public partial class ContentDetailViewModel(
                 }
             }
 
+            if (profileManager != null)
+            {
+                var scrubResult = await profileManager.ScrubDeletedManifestReferencesAsync([manifestId], _cts.Token);
+                if (!scrubResult.Success)
+                {
+                    logger.LogWarning("Failed to scrub profile references after deleting {ManifestId}: {Error}", manifestId, scrubResult.FirstError);
+                }
+            }
+
             notificationService.ShowSuccess(
                 GetLocalizedString("Downloads.ContentDetail.DeletedTitle", "Download Deleted"),
                 FormatLocalizedString("Downloads.ContentDetail.DeletedMessage", "Deleted '{0}' and freed unused storage.", Name),

@@ -573,24 +573,13 @@ public class SettingsViewModelTests
             Name = "Test Mod",
         };
 
-        var profile = new GameProfile
-        {
-            Id = "profile-1",
-            Name = "Test Profile",
-            EnabledContentIds = [manifestId, "unrelated-id"],
-        };
-
         _mockManifestPool
             .Setup(x => x.GetAllManifestsAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult<IEnumerable<ContentManifest>>.CreateSuccess([manifest]));
 
         _mockProfileManager
-            .Setup(x => x.GetAllProfilesAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(ProfileOperationResult<IReadOnlyList<GameProfile>>.CreateSuccess([profile]));
-
-        _mockProfileManager
-            .Setup(x => x.UpdateProfileAsync(It.IsAny<string>(), It.IsAny<UpdateProfileRequest>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(profile));
+            .Setup(x => x.ScrubDeletedManifestReferencesAsync(It.IsAny<IEnumerable<string>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ProfileScrubResult>.CreateSuccess(new ProfileScrubResult(1, 0, [])));
 
         _mockDialogService
             .Setup(x => x.ShowConfirmationAsync(
@@ -609,9 +598,8 @@ public class SettingsViewModelTests
         // Assert
         _mockManifestPool.Verify(x => x.RemoveManifestAsync(manifest.Id, It.IsAny<bool>(), It.IsAny<CancellationToken>()), Times.Once);
         _mockProfileManager.Verify(
-            x => x.UpdateProfileAsync(
-                "profile-1",
-                It.Is<UpdateProfileRequest>(req => req.EnabledContentIds != null && req.EnabledContentIds.SequenceEqual(new[] { "unrelated-id" })),
+            x => x.ScrubDeletedManifestReferencesAsync(
+                It.Is<IEnumerable<string>>(ids => ids.Contains(manifestId)),
                 It.IsAny<CancellationToken>()),
             Times.Once);
     }
@@ -631,20 +619,13 @@ public class SettingsViewModelTests
             Name = "Test Mod",
         };
 
-        var unaffectedProfile = new GameProfile
-        {
-            Id = "profile-unaffected",
-            Name = "Unaffected Profile",
-            EnabledContentIds = ["other-mod-id"],
-        };
-
         _mockManifestPool
             .Setup(x => x.GetAllManifestsAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult<IEnumerable<ContentManifest>>.CreateSuccess([manifest]));
 
         _mockProfileManager
-            .Setup(x => x.GetAllProfilesAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(ProfileOperationResult<IReadOnlyList<GameProfile>>.CreateSuccess([unaffectedProfile]));
+            .Setup(x => x.ScrubDeletedManifestReferencesAsync(It.IsAny<IEnumerable<string>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ProfileScrubResult>.CreateSuccess(new ProfileScrubResult(0, 0, [])));
 
         _mockDialogService
             .Setup(x => x.ShowConfirmationAsync(
@@ -662,12 +643,14 @@ public class SettingsViewModelTests
 
         // Assert
         _mockProfileManager.Verify(
-            x => x.UpdateProfileAsync(It.IsAny<string>(), It.IsAny<UpdateProfileRequest>(), It.IsAny<CancellationToken>()),
-            Times.Never);
+            x => x.ScrubDeletedManifestReferencesAsync(
+                It.Is<IEnumerable<string>>(ids => ids.Contains(manifestId)),
+                It.IsAny<CancellationToken>()),
+            Times.Once);
     }
 
     /// <summary>
-    /// Verifies that deleting manifests tolerates profile enumeration failures without updating profiles.
+    /// Verifies that deleting manifests tolerates profile scrub failures without failing manifest deletion.
     /// </summary>
     /// <returns>A task representing the asynchronous unit test.</returns>
     [Fact]
@@ -686,8 +669,8 @@ public class SettingsViewModelTests
             .ReturnsAsync(OperationResult<IEnumerable<ContentManifest>>.CreateSuccess([manifest]));
 
         _mockProfileManager
-            .Setup(x => x.GetAllProfilesAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(ProfileOperationResult<IReadOnlyList<GameProfile>>.CreateFailure("Profile store unavailable"));
+            .Setup(x => x.ScrubDeletedManifestReferencesAsync(It.IsAny<IEnumerable<string>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ProfileScrubResult>.CreateFailure("Profile store unavailable"));
 
         _mockDialogService
             .Setup(x => x.ShowConfirmationAsync(
@@ -705,9 +688,6 @@ public class SettingsViewModelTests
 
         // Assert
         _mockManifestPool.Verify(x => x.RemoveManifestAsync(manifest.Id, It.IsAny<bool>(), It.IsAny<CancellationToken>()), Times.Once);
-        _mockProfileManager.Verify(
-            x => x.UpdateProfileAsync(It.IsAny<string>(), It.IsAny<UpdateProfileRequest>(), It.IsAny<CancellationToken>()),
-            Times.Never);
     }
 
     /// <summary>
@@ -730,8 +710,8 @@ public class SettingsViewModelTests
             .ReturnsAsync(OperationResult<IEnumerable<ContentManifest>>.CreateSuccess([manifest]));
 
         _mockProfileManager
-            .Setup(x => x.GetAllProfilesAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(ProfileOperationResult<IReadOnlyList<GameProfile>>.CreateFailure("Profile store unavailable"));
+            .Setup(x => x.ScrubDeletedManifestReferencesAsync(It.IsAny<IEnumerable<string>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ProfileScrubResult>.CreateFailure("Profile store unavailable"));
 
         _mockDialogService
             .Setup(x => x.ShowConfirmationAsync(
@@ -758,7 +738,7 @@ public class SettingsViewModelTests
     }
 
     /// <summary>
-    /// Verifies that deleting manifests scrubs case-variant content IDs from profiles.
+    /// Verifies that deleting manifests passes deleted IDs to the profile manager for scrubbing.
     /// </summary>
     /// <returns>A task representing the asynchronous unit test.</returns>
     [Fact]
@@ -772,24 +752,13 @@ public class SettingsViewModelTests
             Name = "Test Mod",
         };
 
-        var profile = new GameProfile
-        {
-            Id = "profile-1",
-            Name = "Test Profile",
-            EnabledContentIds = ["1.0.TEST.MOD.MyMod", "unrelated-id"],
-        };
-
         _mockManifestPool
             .Setup(x => x.GetAllManifestsAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult<IEnumerable<ContentManifest>>.CreateSuccess([manifest]));
 
         _mockProfileManager
-            .Setup(x => x.GetAllProfilesAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(ProfileOperationResult<IReadOnlyList<GameProfile>>.CreateSuccess([profile]));
-
-        _mockProfileManager
-            .Setup(x => x.UpdateProfileAsync(It.IsAny<string>(), It.IsAny<UpdateProfileRequest>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(profile));
+            .Setup(x => x.ScrubDeletedManifestReferencesAsync(It.IsAny<IEnumerable<string>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ProfileScrubResult>.CreateSuccess(new ProfileScrubResult(1, 0, [])));
 
         _mockDialogService
             .Setup(x => x.ShowConfirmationAsync(
@@ -807,9 +776,8 @@ public class SettingsViewModelTests
 
         // Assert
         _mockProfileManager.Verify(
-            x => x.UpdateProfileAsync(
-                "profile-1",
-                It.Is<UpdateProfileRequest>(req => req.EnabledContentIds != null && req.EnabledContentIds.SequenceEqual(new[] { "unrelated-id" })),
+            x => x.ScrubDeletedManifestReferencesAsync(
+                It.Is<IEnumerable<string>>(ids => ids.Contains(manifestId)),
                 It.IsAny<CancellationToken>()),
             Times.Once);
     }
@@ -829,24 +797,13 @@ public class SettingsViewModelTests
             Name = "Test Mod",
         };
 
-        var profile = new GameProfile
-        {
-            Id = "profile-1",
-            Name = "Test Profile",
-            EnabledContentIds = [manifestId],
-        };
-
         _mockManifestPool
             .Setup(x => x.GetAllManifestsAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult<IEnumerable<ContentManifest>>.CreateSuccess([manifest]));
 
         _mockProfileManager
-            .Setup(x => x.GetAllProfilesAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(ProfileOperationResult<IReadOnlyList<GameProfile>>.CreateSuccess([profile]));
-
-        _mockProfileManager
-            .Setup(x => x.UpdateProfileAsync(It.IsAny<string>(), It.IsAny<UpdateProfileRequest>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateFailure("Profile is currently running"));
+            .Setup(x => x.ScrubDeletedManifestReferencesAsync(It.IsAny<IEnumerable<string>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ProfileScrubResult>.CreateSuccess(new ProfileScrubResult(0, 0, ["Test Profile"])));
 
         _mockDialogService
             .Setup(x => x.ShowConfirmationAsync(
@@ -887,13 +844,6 @@ public class SettingsViewModelTests
             Name = "Test Mod",
         };
 
-        var profile = new GameProfile
-        {
-            Id = "profile-1",
-            Name = "Test Profile",
-            EnabledContentIds = [manifestId],
-        };
-
         var mockLocService = new Mock<ILocalizationService>();
         var englishCulture = new CultureInfo("en-US");
         mockLocService.Setup(x => x.AvailableCultures).Returns([englishCulture]);
@@ -910,12 +860,8 @@ public class SettingsViewModelTests
             .ReturnsAsync(OperationResult<IEnumerable<ContentManifest>>.CreateSuccess([manifest]));
 
         _mockProfileManager
-            .Setup(x => x.GetAllProfilesAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(ProfileOperationResult<IReadOnlyList<GameProfile>>.CreateSuccess([profile]));
-
-        _mockProfileManager
-            .Setup(x => x.UpdateProfileAsync(It.IsAny<string>(), It.IsAny<UpdateProfileRequest>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateFailure("Profile is currently running"));
+            .Setup(x => x.ScrubDeletedManifestReferencesAsync(It.IsAny<IEnumerable<string>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ProfileScrubResult>.CreateSuccess(new ProfileScrubResult(0, 0, ["Test Profile"])));
 
         _mockDialogService
             .Setup(x => x.ShowConfirmationAsync(
@@ -984,13 +930,6 @@ public class SettingsViewModelTests
             new ContentManifest { Id = ManifestId.Create(pendingManifestId), Name = "Pending Mod" },
         };
 
-        var profile = new GameProfile
-        {
-            Id = "profile-1",
-            Name = "Test Profile",
-            EnabledContentIds = [removedManifestId, pendingManifestId],
-        };
-
         _mockManifestPool
             .Setup(x => x.GetAllManifestsAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult<IEnumerable<ContentManifest>>.CreateSuccess(manifests));
@@ -1000,15 +939,16 @@ public class SettingsViewModelTests
             .ReturnsAsync(OperationResult<bool>.CreateSuccess(true))
             .ThrowsAsync(new OperationCanceledException());
 
+        IEnumerable<string>? scrubbedIds = null;
         CancellationToken? scrubToken = null;
         _mockProfileManager
-            .Setup(x => x.GetAllProfilesAsync(It.IsAny<CancellationToken>()))
-            .Callback<CancellationToken>(token => scrubToken = token)
-            .ReturnsAsync(ProfileOperationResult<IReadOnlyList<GameProfile>>.CreateSuccess([profile]));
-
-        _mockProfileManager
-            .Setup(x => x.UpdateProfileAsync(It.IsAny<string>(), It.IsAny<UpdateProfileRequest>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(profile));
+            .Setup(x => x.ScrubDeletedManifestReferencesAsync(It.IsAny<IEnumerable<string>>(), It.IsAny<CancellationToken>()))
+            .Callback<IEnumerable<string>, CancellationToken>((ids, token) =>
+            {
+                scrubbedIds = ids;
+                scrubToken = token;
+            })
+            .ReturnsAsync(OperationResult<ProfileScrubResult>.CreateSuccess(new ProfileScrubResult(1, 0, [])));
 
         _mockDialogService
             .Setup(x => x.ShowConfirmationAsync(
@@ -1030,11 +970,13 @@ public class SettingsViewModelTests
             x => x.RemoveManifestAsync(It.IsAny<ManifestId>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()),
             Times.Exactly(2));
         _mockProfileManager.Verify(
-            x => x.UpdateProfileAsync(
-                "profile-1",
-                It.Is<UpdateProfileRequest>(req => req.EnabledContentIds != null && req.EnabledContentIds.SequenceEqual(new[] { pendingManifestId })),
+            x => x.ScrubDeletedManifestReferencesAsync(
+                It.IsAny<IEnumerable<string>>(),
                 It.IsAny<CancellationToken>()),
             Times.Once);
+        Assert.NotNull(scrubbedIds);
+        Assert.Contains(removedManifestId, scrubbedIds);
+        Assert.DoesNotContain(pendingManifestId, scrubbedIds);
         Assert.Equal(CancellationToken.None, scrubToken);
     }
 
@@ -1247,12 +1189,8 @@ public class SettingsViewModelTests
             .ReturnsAsync(OperationResult<IEnumerable<ContentManifest>>.CreateSuccess([manifest]));
 
         _mockProfileManager
-            .Setup(x => x.GetAllProfilesAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(ProfileOperationResult<IReadOnlyList<GameProfile>>.CreateSuccess([profile]));
-
-        _mockProfileManager
-            .Setup(x => x.UpdateProfileAsync(It.IsAny<string>(), It.IsAny<UpdateProfileRequest>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateFailure("Profile is currently running"));
+            .Setup(x => x.ScrubDeletedManifestReferencesAsync(It.IsAny<IEnumerable<string>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ProfileScrubResult>.CreateSuccess(new ProfileScrubResult(0, 0, ["Test Profile"])));
 
         _mockDialogService
             .Setup(x => x.ShowConfirmationAsync(
@@ -1270,7 +1208,7 @@ public class SettingsViewModelTests
 
         // Assert
         _mockProfileManager.Verify(
-            x => x.UpdateProfileAsync("profile-1", It.IsAny<UpdateProfileRequest>(), It.IsAny<CancellationToken>()),
+            x => x.ScrubDeletedManifestReferencesAsync(It.IsAny<IEnumerable<string>>(), It.IsAny<CancellationToken>()),
             Times.Once);
         _mockNotificationService.Verify(
             x => x.ShowWarning("Profile Update Incomplete", It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
@@ -1903,7 +1841,7 @@ public class SettingsViewModelTests
         Assert.True(viewModel.HasUploads);
         Assert.Equal(2, viewModel.ActiveUploads.Count);
         Assert.Equal(50.0, viewModel.UploadQuotaPercent);
-        Assert.Contains("5.0 MB / 10.0 MB", viewModel.UploadQuotaText);
+        Assert.Contains(string.Format(CultureInfo.CurrentCulture, "{0:F1} MB / {1:F1} MB", 5.0, 10.0), viewModel.UploadQuotaText);
     }
 
     /// <summary>
@@ -2358,6 +2296,9 @@ public class SettingsViewModelTests
         _mockProfileManager
             .Setup(x => x.GetAllProfilesAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(ProfileOperationResult<IReadOnlyList<GameProfile>>.CreateSuccess([new GameProfile { Id = "profile-to-delete" }]));
+        _mockProfileManager
+            .Setup(x => x.ScrubDeletedManifestReferencesAsync(It.IsAny<IEnumerable<string>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ProfileScrubResult>.CreateSuccess(new ProfileScrubResult(0, 0, [])));
         _mockWorkspaceManager
             .Setup(x => x.GetAllWorkspacesAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult<IEnumerable<WorkspaceInfo>>.CreateSuccess([new WorkspaceInfo { Id = "workspace-to-delete" }]));

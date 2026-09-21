@@ -2517,6 +2517,9 @@ public sealed class ContentDetailViewModelTests
         profileManager
             .Setup(manager => manager.GetAllProfilesAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(ProfileOperationResult<IReadOnlyList<GameProfile>>.CreateSuccess([]));
+        profileManager
+            .Setup(manager => manager.ScrubDeletedManifestReferencesAsync(It.IsAny<IEnumerable<string>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ProfileScrubResult>.CreateSuccess(new ProfileScrubResult(0, 0, [])));
 
         var dialogService = new Mock<IDialogService>();
         dialogService
@@ -2556,6 +2559,11 @@ public sealed class ContentDetailViewModelTests
         Assert.NotNull(removedId);
         Assert.Equal(manifestId, removedId.Value.Value);
         Assert.Equal(manifestId, deletedId);
+        profileManager.Verify(
+            manager => manager.ScrubDeletedManifestReferencesAsync(
+                It.Is<IEnumerable<string>>(ids => ids.Contains(manifestId)),
+                It.IsAny<CancellationToken>()),
+            Times.Once);
         artworkService.Verify(
             service => service.PurgeArtworkAsync(manifestId, It.IsAny<CancellationToken>()),
             Times.Once);
