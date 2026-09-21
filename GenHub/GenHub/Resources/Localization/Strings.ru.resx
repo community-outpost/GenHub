@@ -7180,14 +7180,8 @@ GenHub передает официальный идентификатор AppID 
   <data name="Tools.WndEditor.Toolbar.Validate" xml:space="preserve">
     <value>Проверить</value>
   </data>
-  <data name="Tools.WndEditor.Pane.Windows" xml:space="preserve">
-    <value>Окна</value>
-  </data>
   <data name="Tools.WndEditor.Pane.Preview" xml:space="preserve">
     <value>Предпросмотр</value>
-  </data>
-  <data name="Tools.WndEditor.Pane.Properties" xml:space="preserve">
-    <value>Свойства</value>
   </data>
   <data name="Tools.WndEditor.Tree.AddChild" xml:space="preserve">
     <value>Добавить дочернее</value>
@@ -7237,6 +7231,339 @@ GenHub передает официальный идентификатор AppID 
   <data name="Tools.WndEditor.FileDialog.FilterName" xml:space="preserve">
     <value>Файлы компоновки WND</value>
   </data>
+  <data name="Tools.WndEditor.Control.Combo.Ascii" xml:space="preserve">
+    <value>Только ASCII</value>
+  </data>
+  <data name="Tools.WndEditor.Control.Combo.Editable" xml:space="preserve">
+    <value>Редактируемый</value>
+  </data>
+  <data name="Tools.WndEditor.Control.Combo.Letters" xml:space="preserve">
+    <value>Только буквы и цифры</value>
+  </data>
+  <data name="Tools.WndEditor.Control.Combo.MaxChars" xml:space="preserve">
+    <value>Макс. символов</value>
+  </data>
+  <data name="Tools.WndEditor.Control.Combo.MaxDisplay" xml:space="preserve">
+    <value>Макс. показано</value>
+  </data>
+  <data name="Tools.WndEditor.Control.Entry.AlphaNumerical" xml:space="preserve">
+    <value>Только буквы и цифры</value>
+  </data>
+  <data name="Tools.WndEditor.Control.Entry.Ascii" xml:space="preserve">
+    <value>Только ASCII</value>
+  </data>
+  <data name="Tools.WndEditor.Control.Entry.MaxLen" xml:space="preserve">
+    <value>Макс. длина</value>
+  </data>
+  <data name="Tools.WndEditor.Control.Entry.Numerical" xml:space="preserve">
+    <value>Только цифры</value>
+  </data>
+  <data name="Tools.WndEditor.Control.Entry.Secret" xml:space="preserve">
+    <value>Скрытый текст</value>
+  </data>
+  <data name="Tools.WndEditor.Control.List.AutoPurge" xml:space="preserve">
+    <value>Автоочистка</value>
+  </data>
+  <data name="Tools.WndEditor.Control.List.AutoScroll" xml:space="preserve">
+    <value>Автопрокрутка</value>
+  </data>
+  <data name="Tools.WndEditor.Control.List.ColumnWidths" xml:space="preserve">
+    <value>Ширина столбцов</value>
+  </data>
+  <data name="Tools.WndEditor.Control.List.ColumnWidthsHint" xml:space="preserve">
+    <value>60, 40</value>
+  </data>
+  <data name="Tools.WndEditor.Control.List.Columns" xml:space="preserve">
+    <value>Столбцы</value>
+  </data>
+  <data name="Tools.WndEditor.Control.List.ForceSelect" xml:space="preserve">
+    <value>Обязательный выбор</value>
+  </data>
+  <data name="Tools.WndEditor.Control.List.HasScrollIfAtEnd" xml:space="preserve">
+    <value>Объявить прокрутку в конце</value>
+  </data>
+  <data name="Tools.WndEditor.Control.List.Length" xml:space="preserve">
+    <value>Макс. записей</value>
+  </data>
+  <data name="Tools.WndEditor.Control.List.MultiSelect" xml:space="preserve">
+    <value>Множественный выбор</value>
+  </data>
+  <data name="Tools.WndEditor.Control.List.ScrollBar" xml:space="preserve">
+    <value>Полоса прокрутки</value>
+  </data>
+  <data name="Tools.WndEditor.Control.List.ScrollIfAtEnd" xml:space="preserve">
+    <value>Прокрутка в конце</value>
+  </data>
+  <data name="Tools.WndEditor.Control.MissingHint" xml:space="preserve">
+    <value>Блок данных не объявлен. Редактирование добавит его.</value>
+  </data>
+  <data name="Tools.WndEditor.Control.Radio.Group" xml:space="preserve">
+    <value>Группа</value>
+  </data>
+  <data name="Tools.WndEditor.Control.Section.ComboBox" xml:space="preserve">
+    <value>COMBOBOXDATA</value>
+  </data>
+  <data name="Tools.WndEditor.Control.Section.Listbox" xml:space="preserve">
+    <value>LISTBOXDATA</value>
+  </data>
+  <data name="Tools.WndEditor.Control.Section.RadioButton" xml:space="preserve">
+    <value>RADIOBUTTONDATA</value>
+  </data>
+  <data name="Tools.WndEditor.Control.Section.Slider" xml:space="preserve">
+    <value>SLIDERDATA</value>
+  </data>
+  <data name="Tools.WndEditor.Control.Section.StaticText" xml:space="preserve">
+    <value>STATICTEXTDATA</value>
+  </data>
+  <data name="Tools.WndEditor.Control.Section.TabControl" xml:space="preserve">
+    <value>TABCONTROLDATA</value>
+  </data>
+  <data name="Tools.WndEditor.Control.Section.TextEntry" xml:space="preserve">
+    <value>TEXTENTRYDATA</value>
+  </data>
+  <data name="Tools.WndEditor.Control.Slider.Max" xml:space="preserve">
+    <value>Максимум</value>
+  </data>
+  <data name="Tools.WndEditor.Control.Slider.Min" xml:space="preserve">
+    <value>Минимум</value>
+  </data>
+  <data name="Tools.WndEditor.Control.Static.Centered" xml:space="preserve">
+    <value>По центру</value>
+  </data>
+  <data name="Tools.WndEditor.Control.Tab.Count" xml:space="preserve">
+    <value>Число вкладок</value>
+  </data>
+  <data name="Tools.WndEditor.Control.Tab.Edge" xml:space="preserve">
+    <value>Край</value>
+  </data>
+  <data name="Tools.WndEditor.Control.Tab.Height" xml:space="preserve">
+    <value>Высота вкладки</value>
+  </data>
+  <data name="Tools.WndEditor.Control.Tab.Orientation" xml:space="preserve">
+    <value>Ориентация</value>
+  </data>
+  <data name="Tools.WndEditor.Control.Tab.PaneBorder" xml:space="preserve">
+    <value>Граница панели</value>
+  </data>
+  <data name="Tools.WndEditor.Control.Tab.PaneDisabled" xml:space="preserve">
+    <value>Отключенные панели</value>
+  </data>
+  <data name="Tools.WndEditor.Control.Tab.PaneDisabledHint" xml:space="preserve">
+    <value>yes, no</value>
+  </data>
+  <data name="Tools.WndEditor.Control.Tab.Width" xml:space="preserve">
+    <value>Ширина вкладки</value>
+  </data>
+  <data name="Tools.WndEditor.Control.Unsupported" xml:space="preserve">
+    <value>Этот тип элемента не объявляет блок данных.</value>
+  </data>
+  <data name="Tools.WndEditor.ControlData.InvalidMessage" xml:space="preserve">
+    <value>Список содержит значения, которые движок не может разобрать. Используйте yes/no или числа через запятую.</value>
+  </data>
+  <data name="Tools.WndEditor.ControlData.InvalidTitle" xml:space="preserve">
+    <value>Недопустимые данные элемента</value>
+  </data>
+  <data name="Tools.WndEditor.FileDialog.FolderTitle" xml:space="preserve">
+    <value>Выберите папку определений окон</value>
+  </data>
+  <data name="Tools.WndEditor.Files.Browse" xml:space="preserve">
+    <value>Обзор...</value>
+  </data>
+  <data name="Tools.WndEditor.Files.OpenBadge" xml:space="preserve">
+    <value>Открыт</value>
+  </data>
+  <data name="Tools.WndEditor.Files.Refresh" xml:space="preserve">
+    <value>Обновить</value>
+  </data>
+  <data name="Tools.WndEditor.General.Callbacks.Draw" xml:space="preserve">
+    <value>Отрисовка</value>
+  </data>
+  <data name="Tools.WndEditor.General.Callbacks.HeaderTemplate" xml:space="preserve">
+    <value>Шаблон заголовка</value>
+  </data>
+  <data name="Tools.WndEditor.General.Callbacks.ImageOffset" xml:space="preserve">
+    <value>Смещение изображения</value>
+  </data>
+  <data name="Tools.WndEditor.General.Callbacks.Input" xml:space="preserve">
+    <value>Ввод</value>
+  </data>
+  <data name="Tools.WndEditor.General.Callbacks.System" xml:space="preserve">
+    <value>Система</value>
+  </data>
+  <data name="Tools.WndEditor.General.Callbacks.Tooltip" xml:space="preserve">
+    <value>Подсказка</value>
+  </data>
+  <data name="Tools.WndEditor.General.Colors.Disabled" xml:space="preserve">
+    <value>Отключен</value>
+  </data>
+  <data name="Tools.WndEditor.General.Colors.DisabledBorder" xml:space="preserve">
+    <value>Граница отключенного</value>
+  </data>
+  <data name="Tools.WndEditor.General.Colors.Enabled" xml:space="preserve">
+    <value>Включен</value>
+  </data>
+  <data name="Tools.WndEditor.General.Colors.EnabledBorder" xml:space="preserve">
+    <value>Граница включенного</value>
+  </data>
+  <data name="Tools.WndEditor.General.Colors.Hilite" xml:space="preserve">
+    <value>Подсветка</value>
+  </data>
+  <data name="Tools.WndEditor.General.Colors.HiliteBorder" xml:space="preserve">
+    <value>Граница подсветки</value>
+  </data>
+  <data name="Tools.WndEditor.General.Draw.Border" xml:space="preserve">
+    <value>Граница</value>
+  </data>
+  <data name="Tools.WndEditor.General.Draw.Color" xml:space="preserve">
+    <value>Цвет</value>
+  </data>
+  <data name="Tools.WndEditor.General.Draw.Disabled" xml:space="preserve">
+    <value>Отключен</value>
+  </data>
+  <data name="Tools.WndEditor.General.Draw.Enabled" xml:space="preserve">
+    <value>Включен</value>
+  </data>
+  <data name="Tools.WndEditor.General.Draw.Hilite" xml:space="preserve">
+    <value>Подсветка</value>
+  </data>
+  <data name="Tools.WndEditor.General.Draw.Image" xml:space="preserve">
+    <value>Изображение</value>
+  </data>
+  <data name="Tools.WndEditor.General.Font.Bold" xml:space="preserve">
+    <value>Жирный</value>
+  </data>
+  <data name="Tools.WndEditor.General.Font.Name" xml:space="preserve">
+    <value>Имя</value>
+  </data>
+  <data name="Tools.WndEditor.General.Font.Size" xml:space="preserve">
+    <value>Размер</value>
+  </data>
+  <data name="Tools.WndEditor.General.Name.Label" xml:space="preserve">
+    <value>Имя</value>
+  </data>
+  <data name="Tools.WndEditor.General.Position.BottomRight" xml:space="preserve">
+    <value>Правый нижний</value>
+  </data>
+  <data name="Tools.WndEditor.General.Position.Creation" xml:space="preserve">
+    <value>Разрешение создания</value>
+  </data>
+  <data name="Tools.WndEditor.General.Position.MissingHint" xml:space="preserve">
+    <value>SCREENRECT не объявлен. Редактирование добавит его.</value>
+  </data>
+  <data name="Tools.WndEditor.General.Position.UpperLeft" xml:space="preserve">
+    <value>Левый верхний</value>
+  </data>
+  <data name="Tools.WndEditor.General.Section.Callbacks" xml:space="preserve">
+    <value>Обратные вызовы</value>
+  </data>
+  <data name="Tools.WndEditor.General.Section.DrawData" xml:space="preserve">
+    <value>Данные отрисовки</value>
+  </data>
+  <data name="Tools.WndEditor.General.Section.Font" xml:space="preserve">
+    <value>Шрифт</value>
+  </data>
+  <data name="Tools.WndEditor.General.Section.Identity" xml:space="preserve">
+    <value>Идентификация</value>
+  </data>
+  <data name="Tools.WndEditor.General.Section.Other" xml:space="preserve">
+    <value>Прочие свойства</value>
+  </data>
+  <data name="Tools.WndEditor.General.Section.Position" xml:space="preserve">
+    <value>Позиция</value>
+  </data>
+  <data name="Tools.WndEditor.General.Section.Status" xml:space="preserve">
+    <value>Статус</value>
+  </data>
+  <data name="Tools.WndEditor.General.Section.Text" xml:space="preserve">
+    <value>Текст</value>
+  </data>
+  <data name="Tools.WndEditor.General.Section.TextColors" xml:space="preserve">
+    <value>Цвета текста</value>
+  </data>
+  <data name="Tools.WndEditor.General.Status.Basic" xml:space="preserve">
+    <value>Основные</value>
+  </data>
+  <data name="Tools.WndEditor.General.Status.Interaction" xml:space="preserve">
+    <value>Взаимодействие</value>
+  </data>
+  <data name="Tools.WndEditor.General.Status.Misc" xml:space="preserve">
+    <value>Дополнительно</value>
+  </data>
+  <data name="Tools.WndEditor.General.Status.Unknown" xml:space="preserve">
+    <value>Неизвестные флаги</value>
+  </data>
+  <data name="Tools.WndEditor.General.Style.Label" xml:space="preserve">
+    <value>Стиль</value>
+  </data>
+  <data name="Tools.WndEditor.General.Text.Label" xml:space="preserve">
+    <value>Текст</value>
+  </data>
+  <data name="Tools.WndEditor.General.Text.Tooltip" xml:space="preserve">
+    <value>Подсказка</value>
+  </data>
+  <data name="Tools.WndEditor.General.Text.TooltipDelay" xml:space="preserve">
+    <value>Задержка подсказки</value>
+  </data>
+  <data name="Tools.WndEditor.General.Type.Label" xml:space="preserve">
+    <value>Тип окна</value>
+  </data>
+  <data name="Tools.WndEditor.History.ApplyRawText" xml:space="preserve">
+    <value>Применить текст</value>
+  </data>
+  <data name="Tools.WndEditor.Pane.NoSelectionMessage" xml:space="preserve">
+    <value>Выберите окно, чтобы редактировать его свойства.</value>
+  </data>
+  <data name="Tools.WndEditor.Pane.NoSelectionTitle" xml:space="preserve">
+    <value>Окно не выбрано</value>
+  </data>
+  <data name="Tools.WndEditor.Raw.AppliedMessage" xml:space="preserve">
+    <value>Операторы применены к окну.</value>
+  </data>
+  <data name="Tools.WndEditor.Raw.AppliedTitle" xml:space="preserve">
+    <value>Текст применен</value>
+  </data>
+  <data name="Tools.WndEditor.Raw.Apply" xml:space="preserve">
+    <value>Применить</value>
+  </data>
+  <data name="Tools.WndEditor.Raw.Hint" xml:space="preserve">
+    <value>Один оператор KEY = VALUE; на строку. Многострочные значения допускаются.</value>
+  </data>
+  <data name="Tools.WndEditor.Raw.InvalidMessage" xml:space="preserve">
+    <value>Не удалось разобрать текст: {0}</value>
+  </data>
+  <data name="Tools.WndEditor.Raw.InvalidTitle" xml:space="preserve">
+    <value>Недопустимый текст</value>
+  </data>
+  <data name="Tools.WndEditor.Raw.Reset" xml:space="preserve">
+    <value>Сбросить</value>
+  </data>
+  <data name="Tools.WndEditor.Tabs.Control" xml:space="preserve">
+    <value>Элемент</value>
+  </data>
+  <data name="Tools.WndEditor.Tabs.Files" xml:space="preserve">
+    <value>Файлы</value>
+  </data>
+  <data name="Tools.WndEditor.Tabs.General" xml:space="preserve">
+    <value>Общие</value>
+  </data>
+  <data name="Tools.WndEditor.Tabs.Raw" xml:space="preserve">
+    <value>Текст</value>
+  </data>
+  <data name="Tools.WndEditor.Tabs.Windows" xml:space="preserve">
+    <value>Окна</value>
+  </data>
+  <data name="Tools.WndEditor.Tree.CollapseAll" xml:space="preserve">
+    <value>Свернуть все</value>
+  </data>
+  <data name="Tools.WndEditor.Tree.ExpandAll" xml:space="preserve">
+    <value>Развернуть все</value>
+  </data>
+  <data name="Tools.WndEditor.Tree.FilterWatermark" xml:space="preserve">
+    <value>Поиск окон...</value>
+  </data>
+  <data name="Tools.WndEditor.Tree.HiddenBadge" xml:space="preserve">
+    <value>Скрыто</value>
+  </data>
   <data name="Tools.WndEditor.Validate.SuccessTitle" xml:space="preserve">
     <value>Документ допустим</value>
   </data>
@@ -7284,9 +7611,6 @@ GenHub передает официальный идентификатор AppID 
   </data>
   <data name="Tools.WndEditor.History.DeleteWindow" xml:space="preserve">
     <value>Удалить окно</value>
-  </data>
-  <data name="Tools.WndEditor.History.AddProperty" xml:space="preserve">
-    <value>Добавить свойство {0}</value>
   </data>
   <data name="Tools.WndEditor.History.DeleteProperty" xml:space="preserve">
     <value>Удалить свойство {0}</value>

@@ -1,4 +1,5 @@
 using CommunityToolkit.Mvvm.ComponentModel;
+using GenHub.Core.Constants;
 using GenHub.Core.Models.Tools.WndEditor;
 
 namespace GenHub.Features.Tools.WndEditor.ViewModels;
@@ -15,7 +16,8 @@ public sealed partial class WndCanvasItemViewModel : ObservableObject
     public WndCanvasItemViewModel(WndWindow window)
     {
         Window = window;
-        _label = window.Name?.Trim('"') ?? window.ControlTypeName;
+        var shortName = WndDecoratedName.Parse(window.GetProperty(WndConstants.PropertyKeys.Name)).ShortName;
+        _label = string.IsNullOrWhiteSpace(shortName) ? window.ControlTypeName : shortName;
     }
 
     /// <summary>

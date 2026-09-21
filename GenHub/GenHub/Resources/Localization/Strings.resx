@@ -7278,14 +7278,8 @@ GenHub supports four file linking strategies under **Settings -&gt; Game Configu
   <data name="Tools.WndEditor.Toolbar.Validate" xml:space="preserve">
     <value>Validate</value>
   </data>
-  <data name="Tools.WndEditor.Pane.Windows" xml:space="preserve">
-    <value>Windows</value>
-  </data>
   <data name="Tools.WndEditor.Pane.Preview" xml:space="preserve">
     <value>Preview</value>
-  </data>
-  <data name="Tools.WndEditor.Pane.Properties" xml:space="preserve">
-    <value>Properties</value>
   </data>
   <data name="Tools.WndEditor.Tree.AddChild" xml:space="preserve">
     <value>Add Child</value>
@@ -7335,6 +7329,339 @@ GenHub supports four file linking strategies under **Settings -&gt; Game Configu
   <data name="Tools.WndEditor.FileDialog.FilterName" xml:space="preserve">
     <value>WND layout files</value>
   </data>
+  <data name="Tools.WndEditor.Control.Combo.Ascii" xml:space="preserve">
+    <value>ASCII only</value>
+  </data>
+  <data name="Tools.WndEditor.Control.Combo.Editable" xml:space="preserve">
+    <value>Editable</value>
+  </data>
+  <data name="Tools.WndEditor.Control.Combo.Letters" xml:space="preserve">
+    <value>Letters and numbers only</value>
+  </data>
+  <data name="Tools.WndEditor.Control.Combo.MaxChars" xml:space="preserve">
+    <value>Max characters</value>
+  </data>
+  <data name="Tools.WndEditor.Control.Combo.MaxDisplay" xml:space="preserve">
+    <value>Max displayed</value>
+  </data>
+  <data name="Tools.WndEditor.Control.Entry.AlphaNumerical" xml:space="preserve">
+    <value>Letters and numbers only</value>
+  </data>
+  <data name="Tools.WndEditor.Control.Entry.Ascii" xml:space="preserve">
+    <value>ASCII only</value>
+  </data>
+  <data name="Tools.WndEditor.Control.Entry.MaxLen" xml:space="preserve">
+    <value>Max length</value>
+  </data>
+  <data name="Tools.WndEditor.Control.Entry.Numerical" xml:space="preserve">
+    <value>Numbers only</value>
+  </data>
+  <data name="Tools.WndEditor.Control.Entry.Secret" xml:space="preserve">
+    <value>Secret text</value>
+  </data>
+  <data name="Tools.WndEditor.Control.List.AutoPurge" xml:space="preserve">
+    <value>Auto purge</value>
+  </data>
+  <data name="Tools.WndEditor.Control.List.AutoScroll" xml:space="preserve">
+    <value>Auto scroll</value>
+  </data>
+  <data name="Tools.WndEditor.Control.List.ColumnWidths" xml:space="preserve">
+    <value>Column widths</value>
+  </data>
+  <data name="Tools.WndEditor.Control.List.ColumnWidthsHint" xml:space="preserve">
+    <value>60, 40</value>
+  </data>
+  <data name="Tools.WndEditor.Control.List.Columns" xml:space="preserve">
+    <value>Columns</value>
+  </data>
+  <data name="Tools.WndEditor.Control.List.ForceSelect" xml:space="preserve">
+    <value>Force select</value>
+  </data>
+  <data name="Tools.WndEditor.Control.List.HasScrollIfAtEnd" xml:space="preserve">
+    <value>Declare scroll-if-at-end</value>
+  </data>
+  <data name="Tools.WndEditor.Control.List.Length" xml:space="preserve">
+    <value>Max entries</value>
+  </data>
+  <data name="Tools.WndEditor.Control.List.MultiSelect" xml:space="preserve">
+    <value>Multi select</value>
+  </data>
+  <data name="Tools.WndEditor.Control.List.ScrollBar" xml:space="preserve">
+    <value>Scroll bar</value>
+  </data>
+  <data name="Tools.WndEditor.Control.List.ScrollIfAtEnd" xml:space="preserve">
+    <value>Scroll if at end</value>
+  </data>
+  <data name="Tools.WndEditor.Control.MissingHint" xml:space="preserve">
+    <value>No data block declared. Editing adds one.</value>
+  </data>
+  <data name="Tools.WndEditor.Control.Radio.Group" xml:space="preserve">
+    <value>Group</value>
+  </data>
+  <data name="Tools.WndEditor.Control.Section.ComboBox" xml:space="preserve">
+    <value>COMBOBOXDATA</value>
+  </data>
+  <data name="Tools.WndEditor.Control.Section.Listbox" xml:space="preserve">
+    <value>LISTBOXDATA</value>
+  </data>
+  <data name="Tools.WndEditor.Control.Section.RadioButton" xml:space="preserve">
+    <value>RADIOBUTTONDATA</value>
+  </data>
+  <data name="Tools.WndEditor.Control.Section.Slider" xml:space="preserve">
+    <value>SLIDERDATA</value>
+  </data>
+  <data name="Tools.WndEditor.Control.Section.StaticText" xml:space="preserve">
+    <value>STATICTEXTDATA</value>
+  </data>
+  <data name="Tools.WndEditor.Control.Section.TabControl" xml:space="preserve">
+    <value>TABCONTROLDATA</value>
+  </data>
+  <data name="Tools.WndEditor.Control.Section.TextEntry" xml:space="preserve">
+    <value>TEXTENTRYDATA</value>
+  </data>
+  <data name="Tools.WndEditor.Control.Slider.Max" xml:space="preserve">
+    <value>Maximum</value>
+  </data>
+  <data name="Tools.WndEditor.Control.Slider.Min" xml:space="preserve">
+    <value>Minimum</value>
+  </data>
+  <data name="Tools.WndEditor.Control.Static.Centered" xml:space="preserve">
+    <value>Centered</value>
+  </data>
+  <data name="Tools.WndEditor.Control.Tab.Count" xml:space="preserve">
+    <value>Tab count</value>
+  </data>
+  <data name="Tools.WndEditor.Control.Tab.Edge" xml:space="preserve">
+    <value>Edge</value>
+  </data>
+  <data name="Tools.WndEditor.Control.Tab.Height" xml:space="preserve">
+    <value>Tab height</value>
+  </data>
+  <data name="Tools.WndEditor.Control.Tab.Orientation" xml:space="preserve">
+    <value>Orientation</value>
+  </data>
+  <data name="Tools.WndEditor.Control.Tab.PaneBorder" xml:space="preserve">
+    <value>Pane border</value>
+  </data>
+  <data name="Tools.WndEditor.Control.Tab.PaneDisabled" xml:space="preserve">
+    <value>Pane disabled</value>
+  </data>
+  <data name="Tools.WndEditor.Control.Tab.PaneDisabledHint" xml:space="preserve">
+    <value>yes, no</value>
+  </data>
+  <data name="Tools.WndEditor.Control.Tab.Width" xml:space="preserve">
+    <value>Tab width</value>
+  </data>
+  <data name="Tools.WndEditor.Control.Unsupported" xml:space="preserve">
+    <value>This control type declares no gadget data block.</value>
+  </data>
+  <data name="Tools.WndEditor.ControlData.InvalidMessage" xml:space="preserve">
+    <value>The list contains values the engine cannot parse. Use yes/no or numbers separated by commas.</value>
+  </data>
+  <data name="Tools.WndEditor.ControlData.InvalidTitle" xml:space="preserve">
+    <value>Invalid control data</value>
+  </data>
+  <data name="Tools.WndEditor.FileDialog.FolderTitle" xml:space="preserve">
+    <value>Choose a window definition folder</value>
+  </data>
+  <data name="Tools.WndEditor.Files.Browse" xml:space="preserve">
+    <value>Browse...</value>
+  </data>
+  <data name="Tools.WndEditor.Files.OpenBadge" xml:space="preserve">
+    <value>Open</value>
+  </data>
+  <data name="Tools.WndEditor.Files.Refresh" xml:space="preserve">
+    <value>Refresh</value>
+  </data>
+  <data name="Tools.WndEditor.General.Callbacks.Draw" xml:space="preserve">
+    <value>Draw</value>
+  </data>
+  <data name="Tools.WndEditor.General.Callbacks.HeaderTemplate" xml:space="preserve">
+    <value>Header template</value>
+  </data>
+  <data name="Tools.WndEditor.General.Callbacks.ImageOffset" xml:space="preserve">
+    <value>Image offset</value>
+  </data>
+  <data name="Tools.WndEditor.General.Callbacks.Input" xml:space="preserve">
+    <value>Input</value>
+  </data>
+  <data name="Tools.WndEditor.General.Callbacks.System" xml:space="preserve">
+    <value>System</value>
+  </data>
+  <data name="Tools.WndEditor.General.Callbacks.Tooltip" xml:space="preserve">
+    <value>Tooltip</value>
+  </data>
+  <data name="Tools.WndEditor.General.Colors.Disabled" xml:space="preserve">
+    <value>Disabled</value>
+  </data>
+  <data name="Tools.WndEditor.General.Colors.DisabledBorder" xml:space="preserve">
+    <value>Disabled border</value>
+  </data>
+  <data name="Tools.WndEditor.General.Colors.Enabled" xml:space="preserve">
+    <value>Enabled</value>
+  </data>
+  <data name="Tools.WndEditor.General.Colors.EnabledBorder" xml:space="preserve">
+    <value>Enabled border</value>
+  </data>
+  <data name="Tools.WndEditor.General.Colors.Hilite" xml:space="preserve">
+    <value>Highlight</value>
+  </data>
+  <data name="Tools.WndEditor.General.Colors.HiliteBorder" xml:space="preserve">
+    <value>Highlight border</value>
+  </data>
+  <data name="Tools.WndEditor.General.Draw.Border" xml:space="preserve">
+    <value>Border</value>
+  </data>
+  <data name="Tools.WndEditor.General.Draw.Color" xml:space="preserve">
+    <value>Color</value>
+  </data>
+  <data name="Tools.WndEditor.General.Draw.Disabled" xml:space="preserve">
+    <value>Disabled</value>
+  </data>
+  <data name="Tools.WndEditor.General.Draw.Enabled" xml:space="preserve">
+    <value>Enabled</value>
+  </data>
+  <data name="Tools.WndEditor.General.Draw.Hilite" xml:space="preserve">
+    <value>Highlight</value>
+  </data>
+  <data name="Tools.WndEditor.General.Draw.Image" xml:space="preserve">
+    <value>Image</value>
+  </data>
+  <data name="Tools.WndEditor.General.Font.Bold" xml:space="preserve">
+    <value>Bold</value>
+  </data>
+  <data name="Tools.WndEditor.General.Font.Name" xml:space="preserve">
+    <value>Name</value>
+  </data>
+  <data name="Tools.WndEditor.General.Font.Size" xml:space="preserve">
+    <value>Size</value>
+  </data>
+  <data name="Tools.WndEditor.General.Name.Label" xml:space="preserve">
+    <value>Name</value>
+  </data>
+  <data name="Tools.WndEditor.General.Position.BottomRight" xml:space="preserve">
+    <value>Bottom right</value>
+  </data>
+  <data name="Tools.WndEditor.General.Position.Creation" xml:space="preserve">
+    <value>Creation resolution</value>
+  </data>
+  <data name="Tools.WndEditor.General.Position.MissingHint" xml:space="preserve">
+    <value>No SCREENRECT declared. Editing adds one.</value>
+  </data>
+  <data name="Tools.WndEditor.General.Position.UpperLeft" xml:space="preserve">
+    <value>Upper left</value>
+  </data>
+  <data name="Tools.WndEditor.General.Section.Callbacks" xml:space="preserve">
+    <value>Callbacks</value>
+  </data>
+  <data name="Tools.WndEditor.General.Section.DrawData" xml:space="preserve">
+    <value>Draw Data</value>
+  </data>
+  <data name="Tools.WndEditor.General.Section.Font" xml:space="preserve">
+    <value>Font</value>
+  </data>
+  <data name="Tools.WndEditor.General.Section.Identity" xml:space="preserve">
+    <value>Identity</value>
+  </data>
+  <data name="Tools.WndEditor.General.Section.Other" xml:space="preserve">
+    <value>Other Properties</value>
+  </data>
+  <data name="Tools.WndEditor.General.Section.Position" xml:space="preserve">
+    <value>Position</value>
+  </data>
+  <data name="Tools.WndEditor.General.Section.Status" xml:space="preserve">
+    <value>Status</value>
+  </data>
+  <data name="Tools.WndEditor.General.Section.Text" xml:space="preserve">
+    <value>Text</value>
+  </data>
+  <data name="Tools.WndEditor.General.Section.TextColors" xml:space="preserve">
+    <value>Text Colors</value>
+  </data>
+  <data name="Tools.WndEditor.General.Status.Basic" xml:space="preserve">
+    <value>Basic</value>
+  </data>
+  <data name="Tools.WndEditor.General.Status.Interaction" xml:space="preserve">
+    <value>Interaction</value>
+  </data>
+  <data name="Tools.WndEditor.General.Status.Misc" xml:space="preserve">
+    <value>Advanced</value>
+  </data>
+  <data name="Tools.WndEditor.General.Status.Unknown" xml:space="preserve">
+    <value>Unrecognized flags</value>
+  </data>
+  <data name="Tools.WndEditor.General.Style.Label" xml:space="preserve">
+    <value>Style</value>
+  </data>
+  <data name="Tools.WndEditor.General.Text.Label" xml:space="preserve">
+    <value>Text</value>
+  </data>
+  <data name="Tools.WndEditor.General.Text.Tooltip" xml:space="preserve">
+    <value>Tooltip</value>
+  </data>
+  <data name="Tools.WndEditor.General.Text.TooltipDelay" xml:space="preserve">
+    <value>Tooltip delay</value>
+  </data>
+  <data name="Tools.WndEditor.General.Type.Label" xml:space="preserve">
+    <value>Window type</value>
+  </data>
+  <data name="Tools.WndEditor.History.ApplyRawText" xml:space="preserve">
+    <value>Apply raw text</value>
+  </data>
+  <data name="Tools.WndEditor.Pane.NoSelectionMessage" xml:space="preserve">
+    <value>Select a window to edit its properties.</value>
+  </data>
+  <data name="Tools.WndEditor.Pane.NoSelectionTitle" xml:space="preserve">
+    <value>No window selected</value>
+  </data>
+  <data name="Tools.WndEditor.Raw.AppliedMessage" xml:space="preserve">
+    <value>The raw statements were applied to the window.</value>
+  </data>
+  <data name="Tools.WndEditor.Raw.AppliedTitle" xml:space="preserve">
+    <value>Raw text applied</value>
+  </data>
+  <data name="Tools.WndEditor.Raw.Apply" xml:space="preserve">
+    <value>Apply</value>
+  </data>
+  <data name="Tools.WndEditor.Raw.Hint" xml:space="preserve">
+    <value>One KEY = VALUE; statement per line. Multi-line values are allowed.</value>
+  </data>
+  <data name="Tools.WndEditor.Raw.InvalidMessage" xml:space="preserve">
+    <value>The raw text could not be parsed: {0}</value>
+  </data>
+  <data name="Tools.WndEditor.Raw.InvalidTitle" xml:space="preserve">
+    <value>Invalid raw text</value>
+  </data>
+  <data name="Tools.WndEditor.Raw.Reset" xml:space="preserve">
+    <value>Reset</value>
+  </data>
+  <data name="Tools.WndEditor.Tabs.Control" xml:space="preserve">
+    <value>Control</value>
+  </data>
+  <data name="Tools.WndEditor.Tabs.Files" xml:space="preserve">
+    <value>Files</value>
+  </data>
+  <data name="Tools.WndEditor.Tabs.General" xml:space="preserve">
+    <value>General</value>
+  </data>
+  <data name="Tools.WndEditor.Tabs.Raw" xml:space="preserve">
+    <value>Raw Text</value>
+  </data>
+  <data name="Tools.WndEditor.Tabs.Windows" xml:space="preserve">
+    <value>Windows</value>
+  </data>
+  <data name="Tools.WndEditor.Tree.CollapseAll" xml:space="preserve">
+    <value>Collapse all</value>
+  </data>
+  <data name="Tools.WndEditor.Tree.ExpandAll" xml:space="preserve">
+    <value>Expand all</value>
+  </data>
+  <data name="Tools.WndEditor.Tree.FilterWatermark" xml:space="preserve">
+    <value>Search windows...</value>
+  </data>
+  <data name="Tools.WndEditor.Tree.HiddenBadge" xml:space="preserve">
+    <value>Hidden</value>
+  </data>
   <data name="Tools.WndEditor.Validate.SuccessTitle" xml:space="preserve">
     <value>Document is valid</value>
   </data>
@@ -7382,9 +7709,6 @@ GenHub supports four file linking strategies under **Settings -&gt; Game Configu
   </data>
   <data name="Tools.WndEditor.History.DeleteWindow" xml:space="preserve">
     <value>Delete window</value>
-  </data>
-  <data name="Tools.WndEditor.History.AddProperty" xml:space="preserve">
-    <value>Add property {0}</value>
   </data>
   <data name="Tools.WndEditor.History.DeleteProperty" xml:space="preserve">
     <value>Delete property {0}</value>

@@ -119,6 +119,45 @@ public sealed class WndDocumentService(ILogger<WndDocumentService> logger) : IWn
     }
 
     /// <inheritdoc />
+    public OperationResult<IReadOnlyList<WndProperty>> ParseStatements(string content)
+    {
+        ArgumentNullException.ThrowIfNull(content);
+        var stopwatch = Stopwatch.StartNew();
+        var state = new ParserState(SplitLines(content), "(statements)");
+        var properties = new List<WndProperty>();
+        foreach (var (statement, lineNumber, terminated) in SplitRawStatements(content))
+        {
+            if (statement.Trim().Length == 0)
+            {
+                continue;
+            }
+
+            if (!terminated)
+            {
+                state.AddErrorAt(lineNumber, "Unterminated statement, expected ';'.");
+                continue;
+            }
+
+            var property = SplitStatement(
+                string.Concat(statement, WndConstants.Syntax.StatementTerminator),
+                state,
+                lineNumber);
+            if (property != null)
+            {
+                properties.Add(property);
+            }
+        }
+
+        if (state.Errors.Count > 0)
+        {
+            logger.LogWarning("Failed to parse statements: {Error}", state.Errors[0]);
+            return OperationResult<IReadOnlyList<WndProperty>>.CreateFailure(state.Errors, stopwatch.Elapsed);
+        }
+
+        return OperationResult<IReadOnlyList<WndProperty>>.CreateSuccess(properties, stopwatch.Elapsed);
+    }
+
+    /// <inheritdoc />
     public string WriteDocument(WndDocument document)
     {
         ArgumentNullException.ThrowIfNull(document);
@@ -251,6 +290,45 @@ public sealed class WndDocumentService(ILogger<WndDocumentService> logger) : IWn
     private static string[] SplitLines(string content)
     {
         return content.Split(["\r\n", "\n"], StringSplitOptions.None);
+    }
+
+    private static List<(string Statement, int LineNumber, bool Terminated)> SplitRawStatements(string content)
+    {
+        var statements = new List<(string Statement, int LineNumber, bool Terminated)>();
+        var current = new StringBuilder();
+        var inQuotes = false;
+        var lineNumber = 1;
+        var statementLine = 1;
+        foreach (var ch in content)
+        {
+            if (ch == WndConstants.Syntax.Quote)
+            {
+                inQuotes = !inQuotes;
+            }
+
+            if (ch == '\n')
+            {
+                lineNumber++;
+            }
+
+            if (ch == WndConstants.Syntax.StatementTerminator && !inQuotes)
+            {
+                statements.Add((current.ToString(), statementLine, true));
+                current.Clear();
+                statementLine = lineNumber;
+                continue;
+            }
+
+            current.Append(ch);
+        }
+
+        var remainder = current.ToString();
+        if (remainder.Trim().Length > 0)
+        {
+            statements.Add((remainder, statementLine, false));
+        }
+
+        return statements;
     }
 
     private static void ParseTopLevel(ParserState state, WndDocument document)
@@ -679,10 +757,177 @@ public sealed class WndDocumentService(ILogger<WndDocumentService> logger) : IWn
             issues.Add(new ValidationIssue($"Window at {path} has an invalid SCREENRECT value.", ValidationSeverity.Warning, targetPath));
         }
 
+        ValidateWindowFlags(window, path, targetPath, issues);
+        ValidateWindowTypedValues(window, path, targetPath, issues);
+        ValidateWindowControlData(window, path, targetPath, issues);
+
         for (var i = 0; i < window.Children.Count; i++)
         {
             ValidateWindow(window.Children[i], $"{path}/Child[{i}]", targetPath, issues);
         }
+    }
+
+    private static void ValidateWindowFlags(WndWindow window, string path, string targetPath, List<ValidationIssue> issues)
+    {
+        var status = WndStatusValue.ParseStatus(window.GetProperty(WndConstants.PropertyKeys.Status));
+        foreach (var token in status.UnknownTokens)
+        {
+            issues.Add(new ValidationIssue(
+                $"Window at {path} has unrecognized STATUS flag '{token}'.",
+                ValidationSeverity.Warning,
+                targetPath,
+                actual: token));
+        }
+
+        var style = WndStatusValue.ParseStyle(window.GetProperty(WndConstants.PropertyKeys.Style));
+        foreach (var token in style.UnknownTokens)
+        {
+            issues.Add(new ValidationIssue(
+                $"Window at {path} has unrecognized STYLE flag '{token}'.",
+                ValidationSeverity.Warning,
+                targetPath,
+                actual: token));
+        }
+    }
+
+    private static void ValidateWindowTypedValues(WndWindow window, string path, string targetPath, List<ValidationIssue> issues)
+    {
+        ValidateOptionalValue(
+            window.GetProperty(WndConstants.PropertyKeys.Font),
+            value => WndFontValue.TryParse(value, out _),
+            WndConstants.PropertyKeys.Font,
+            path,
+            targetPath,
+            issues);
+        ValidateOptionalValue(
+            window.GetProperty(WndConstants.PropertyKeys.TextColor),
+            value => WndTextColorValue.TryParse(value, out _),
+            WndConstants.PropertyKeys.TextColor,
+            path,
+            targetPath,
+            issues);
+        ValidateOptionalValue(
+            window.GetProperty(WndConstants.PropertyKeys.ImageOffset),
+            value => WndImageOffset.TryParse(value, out _),
+            WndConstants.PropertyKeys.ImageOffset,
+            path,
+            targetPath,
+            issues);
+
+        var tooltipDelay = window.GetProperty(WndConstants.PropertyKeys.TooltipDelay);
+        if (tooltipDelay != null && !int.TryParse(tooltipDelay.Trim(), out _))
+        {
+            issues.Add(new ValidationIssue(
+                $"Window at {path} has an invalid TOOLTIPDELAY value.",
+                ValidationSeverity.Warning,
+                targetPath));
+        }
+
+        ValidateDrawDataValues(window, path, targetPath, issues);
+    }
+
+    private static void ValidateDrawDataValues(WndWindow window, string path, string targetPath, List<ValidationIssue> issues)
+    {
+        var drawDataKeys = new List<string>
+        {
+            WndConstants.PropertyKeys.EnabledDrawData,
+            WndConstants.PropertyKeys.DisabledDrawData,
+            WndConstants.PropertyKeys.HiliteDrawData,
+        };
+        drawDataKeys.AddRange(WndConstants.SubDrawDataKeys.All);
+        foreach (var key in drawDataKeys)
+        {
+            var value = window.GetProperty(key);
+            if (value != null && !WndDrawDataSet.TryParse(value, out _))
+            {
+                issues.Add(new ValidationIssue(
+                    $"Window at {path} has an invalid {key} value.",
+                    ValidationSeverity.Warning,
+                    targetPath));
+            }
+        }
+    }
+
+    private static void ValidateOptionalValue(
+        string? value,
+        Func<string?, bool> tryParse,
+        string key,
+        string path,
+        string targetPath,
+        List<ValidationIssue> issues)
+    {
+        if (value != null && !tryParse(value))
+        {
+            issues.Add(new ValidationIssue(
+                $"Window at {path} has an invalid {key} value.",
+                ValidationSeverity.Warning,
+                targetPath));
+        }
+    }
+
+    private static void ValidateWindowControlData(WndWindow window, string path, string targetPath, List<ValidationIssue> issues)
+    {
+        var controlType = window.ControlType;
+        ValidateControlDataValue(window, WndConstants.PropertyKeys.StaticTextData, controlType == WndControlType.StaticText, path, targetPath, issues);
+        ValidateControlDataValue(window, WndConstants.PropertyKeys.TextEntryData, controlType == WndControlType.EntryField, path, targetPath, issues);
+        ValidateControlDataValue(
+            window,
+            WndConstants.PropertyKeys.SliderData,
+            controlType == WndControlType.HorzSlider || controlType == WndControlType.VertSlider,
+            path,
+            targetPath,
+            issues);
+        ValidateControlDataValue(window, WndConstants.PropertyKeys.ListboxData, controlType == WndControlType.ScrollListBox, path, targetPath, issues);
+        ValidateControlDataValue(window, WndConstants.PropertyKeys.ComboBoxData, controlType == WndControlType.ComboBox, path, targetPath, issues);
+        ValidateControlDataValue(window, WndConstants.PropertyKeys.RadioButtonData, controlType == WndControlType.RadioButton, path, targetPath, issues);
+        ValidateControlDataValue(window, WndConstants.PropertyKeys.TabControlData, controlType == WndControlType.TabControl, path, targetPath, issues);
+    }
+
+    private static void ValidateControlDataValue(
+        WndWindow window,
+        string key,
+        bool matchesControlType,
+        string path,
+        string targetPath,
+        List<ValidationIssue> issues)
+    {
+        var value = window.GetProperty(key);
+        if (value == null)
+        {
+            return;
+        }
+
+        if (!matchesControlType)
+        {
+            issues.Add(new ValidationIssue(
+                $"Window at {path} declares {key} but is not a matching control type.",
+                ValidationSeverity.Warning,
+                targetPath));
+            return;
+        }
+
+        if (!TryParseControlData(key, value))
+        {
+            issues.Add(new ValidationIssue(
+                $"Window at {path} has an invalid {key} value.",
+                ValidationSeverity.Warning,
+                targetPath));
+        }
+    }
+
+    private static bool TryParseControlData(string key, string value)
+    {
+        return key switch
+        {
+            WndConstants.PropertyKeys.StaticTextData => WndStaticTextData.TryParse(value, out _),
+            WndConstants.PropertyKeys.TextEntryData => WndTextEntryData.TryParse(value, out _),
+            WndConstants.PropertyKeys.SliderData => WndSliderData.TryParse(value, out _),
+            WndConstants.PropertyKeys.ListboxData => WndListboxData.TryParse(value, out _),
+            WndConstants.PropertyKeys.ComboBoxData => WndComboBoxData.TryParse(value, out _),
+            WndConstants.PropertyKeys.RadioButtonData => WndRadioButtonData.TryParse(value, out _),
+            WndConstants.PropertyKeys.TabControlData => WndTabControlData.TryParse(value, out _),
+            _ => true,
+        };
     }
 
     private static void DeleteTempFile(string tempPath)

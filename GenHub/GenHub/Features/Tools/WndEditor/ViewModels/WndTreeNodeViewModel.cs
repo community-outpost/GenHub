@@ -1,5 +1,7 @@
 using CommunityToolkit.Mvvm.ComponentModel;
+using GenHub.Core.Constants;
 using GenHub.Core.Models.Tools.WndEditor;
+using System;
 using System.Collections.ObjectModel;
 
 namespace GenHub.Features.Tools.WndEditor.ViewModels;
@@ -37,19 +39,44 @@ public sealed partial class WndTreeNodeViewModel : ObservableObject
     public ObservableCollection<WndTreeNodeViewModel> Children { get; } = [];
 
     /// <summary>
-    /// Gets the display name combining the window name and control type.
+    /// Gets the short display name without the file prefix.
     /// </summary>
     public string DisplayName
     {
         get
         {
-            var name = Window.Name?.Trim('"') ?? string.Empty;
-            if (string.IsNullOrWhiteSpace(name))
+            var shortName = WndDecoratedName.Parse(Window.GetProperty(WndConstants.PropertyKeys.Name)).ShortName;
+            if (string.IsNullOrWhiteSpace(shortName))
             {
                 return Window.ControlTypeName;
             }
 
-            return $"{name} [{Window.ControlTypeName}]";
+            return shortName;
+        }
+    }
+
+    /// <summary>
+    /// Gets the full decorated name for tooltips.
+    /// </summary>
+    public string FullName => Window.GetProperty(WndConstants.PropertyKeys.Name)?.Trim('"') ?? string.Empty;
+
+    /// <summary>
+    /// Gets a value indicating whether the window carries the hidden flag.
+    /// </summary>
+    public bool IsHidden
+    {
+        get
+        {
+            var status = WndStatusValue.ParseStatus(Window.GetProperty(WndConstants.PropertyKeys.Status));
+            foreach (var flag in status.Flags)
+            {
+                if (string.Equals(flag, WndConstants.StatusFlags.Hidden, StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
     }
 
@@ -65,5 +92,7 @@ public sealed partial class WndTreeNodeViewModel : ObservableObject
     public void RefreshDisplay()
     {
         OnPropertyChanged(nameof(DisplayName));
+        OnPropertyChanged(nameof(FullName));
+        OnPropertyChanged(nameof(IsHidden));
     }
 }

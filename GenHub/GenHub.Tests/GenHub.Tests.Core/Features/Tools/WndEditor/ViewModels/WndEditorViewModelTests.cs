@@ -92,7 +92,9 @@ public sealed class WndEditorViewModelTests : IDisposable
         _viewModel.RootNodes[0].Children.Should().ContainSingle();
         _viewModel.CanvasItems.Should().HaveCount(2);
         _viewModel.SelectedNode = _viewModel.RootNodes[0];
-        _viewModel.PropertyRows.Should().NotBeEmpty();
+        _viewModel.SelectedProperties.Should().NotBeNull();
+        _viewModel.SelectedProperties!.ShortName.Should().Be("Parent");
+        _viewModel.SelectedProperties.SelectedWindowType.Should().Be("USER");
         _viewModel.IsModified.Should().BeFalse();
     }
 
@@ -124,10 +126,9 @@ public sealed class WndEditorViewModelTests : IDisposable
         // Arrange
         await _viewModel.LoadFromTextAsync(SampleDocument, null);
         _viewModel.SelectedNode = _viewModel.RootNodes[0];
-        var row = _viewModel.PropertyRows.First(r => r.Key == "NAME");
 
         // Act
-        row.Value = "\"Menu.wnd:Renamed\"";
+        _viewModel.SelectedProperties!.ShortName = "Renamed";
 
         // Assert
         _viewModel.SelectedNode!.Window.GetProperty("NAME").Should().Be("\"Menu.wnd:Renamed\"");
@@ -152,7 +153,7 @@ public sealed class WndEditorViewModelTests : IDisposable
         // Arrange
         await _viewModel.LoadFromTextAsync(SampleDocument, null);
         _viewModel.SelectedNode = _viewModel.RootNodes[0];
-        _viewModel.PropertyRows.First(r => r.Key == "NAME").Value = "\"Menu.wnd:Renamed\"";
+        _viewModel.SelectedProperties!.ShortName = "Renamed";
         _viewModel.UndoCommand.Execute(null);
 
         // Act
@@ -206,11 +207,11 @@ public sealed class WndEditorViewModelTests : IDisposable
         await _viewModel.LoadFromTextAsync(SampleDocument, null);
         _viewModel.SelectedNode = _viewModel.RootNodes[0];
         var count = _viewModel.SelectedNode!.Window.Properties.Count;
-        _viewModel.NewPropertyKey = "NAME";
-        _viewModel.NewPropertyValue = "Other";
+        _viewModel.SelectedProperties!.NewPropertyKey = "NAME";
+        _viewModel.SelectedProperties.NewPropertyValue = "Other";
 
         // Act
-        _viewModel.AddPropertyCommand.Execute(null);
+        _viewModel.SelectedProperties.AddPropertyCommand.Execute(null);
 
         // Assert
         _viewModel.SelectedNode!.Window.Properties.Should().HaveCount(count);
@@ -259,7 +260,7 @@ public sealed class WndEditorViewModelTests : IDisposable
         var path = Path.Combine(_tempDirectory, "Saved.wnd");
         await _viewModel.LoadFromTextAsync("WINDOW\nWINDOWTYPE=USER;\nEND\n", path);
         _viewModel.SelectedNode = _viewModel.RootNodes[0];
-        _viewModel.PropertyRows.First(r => r.Key == "WINDOWTYPE").Value = "STATICTEXT";
+        _viewModel.SelectedProperties!.SelectedWindowType = "STATICTEXT";
 
         // Act
         await _viewModel.SaveFileCommand.ExecuteAsync(null);
@@ -340,5 +341,225 @@ public sealed class WndEditorViewModelTests : IDisposable
         _mockNotificationService.Verify(
             n => n.ShowSuccess(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
             Times.Once);
+    }
+
+    /// <summary>
+    /// Tests that toggling a status flag commits an undoable change.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task StatusFlag_Toggle_CommitsUndoableChange()
+    {
+        // Arrange
+        await _viewModel.LoadFromTextAsync(SampleDocument, null);
+        _viewModel.SelectedNode = _viewModel.RootNodes[0];
+        var flag = _viewModel.SelectedProperties!.BasicStatusFlags.First(f => f.Name == "ENABLED");
+
+        // Act
+        flag.IsChecked = true;
+
+        // Assert
+        _viewModel.SelectedNode!.Window.GetProperty("STATUS").Should().Be("ENABLED");
+        _viewModel.CanUndo.Should().BeTrue();
+
+        // Act
+        _viewModel.UndoCommand.Execute(null);
+
+        // Assert
+        _viewModel.SelectedNode!.Window.GetProperty("STATUS").Should().BeNull();
+    }
+
+    /// <summary>
+    /// Tests that editing a position component commits an undoable change.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task Position_Edit_CommitsUndoableChange()
+    {
+        // Arrange
+        await _viewModel.LoadFromTextAsync(SampleDocument, null);
+        _viewModel.SelectedNode = _viewModel.RootNodes[0];
+
+        // Act
+        _viewModel.SelectedProperties!.UpperLeftX = 50;
+
+        // Assert
+        _viewModel.SelectedNode!.Window.GetProperty("SCREENRECT").Should().Be(
+            "UPPERLEFT: 50 0, BOTTOMRIGHT: 800 600, CREATIONRESOLUTION: 800 600");
+
+        // Act
+        _viewModel.UndoCommand.Execute(null);
+
+        // Assert
+        _viewModel.SelectedNode!.Window.GetProperty("SCREENRECT").Should().Be(
+            "UPPERLEFT: 0 0, BOTTOMRIGHT: 800 600, CREATIONRESOLUTION: 800 600");
+    }
+
+    /// <summary>
+    /// Tests that applying raw text replaces all properties with undo support.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task RawText_Apply_ReplacesProperties()
+    {
+        // Arrange
+        await _viewModel.LoadFromTextAsync(SampleDocument, null);
+        _viewModel.SelectedNode = _viewModel.RootNodes[0];
+        var properties = _viewModel.SelectedProperties!;
+        properties.RawText = "WINDOWTYPE = STATICTEXT;\nNAME = \"Menu.wnd:Raw\";";
+
+        // Act
+        properties.ApplyRawTextCommand.Execute(null);
+
+        // Assert
+        _viewModel.SelectedNode!.Window.GetProperty("NAME").Should().Be("\"Menu.wnd:Raw\"");
+        _viewModel.SelectedNode!.Window.ControlType.Should().Be(WndControlType.StaticText);
+
+        // Act
+        _viewModel.UndoCommand.Execute(null);
+
+        // Assert
+        _viewModel.SelectedNode!.Window.GetProperty("NAME").Should().Be("\"Menu.wnd:Parent\"");
+        _viewModel.SelectedNode!.Window.ControlType.Should().Be(WndControlType.User);
+    }
+
+    /// <summary>
+    /// Tests that applying invalid raw text reports an error without changing the window.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task RawText_Invalid_ShowsError()
+    {
+        // Arrange
+        await _viewModel.LoadFromTextAsync(SampleDocument, null);
+        _viewModel.SelectedNode = _viewModel.RootNodes[0];
+        var properties = _viewModel.SelectedProperties!;
+        properties.RawText = "WINDOWTYPE = USER";
+
+        // Act
+        properties.ApplyRawTextCommand.Execute(null);
+
+        // Assert
+        _viewModel.SelectedNode!.Window.GetProperty("NAME").Should().Be("\"Menu.wnd:Parent\"");
+        _mockNotificationService.Verify(
+            n => n.ShowError(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
+            Times.Once);
+    }
+
+    /// <summary>
+    /// Tests that the window filter narrows the tree to matches and their ancestors.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task WindowsFilter_Text_NarrowsTree()
+    {
+        // Arrange
+        await _viewModel.LoadFromTextAsync(SampleDocument, null);
+
+        // Act
+        _viewModel.WindowsFilter = "pushbutton";
+
+        // Assert
+        _viewModel.RootNodes.Should().ContainSingle();
+        _viewModel.RootNodes[0].Children.Should().ContainSingle();
+
+        // Act
+        _viewModel.WindowsFilter = "nothing-matches-this";
+
+        // Assert
+        _viewModel.RootNodes.Should().BeEmpty();
+
+        // Act
+        _viewModel.WindowsFilter = string.Empty;
+
+        // Assert
+        _viewModel.RootNodes.Should().ContainSingle();
+        _viewModel.RootNodes[0].Children.Should().ContainSingle();
+    }
+
+    /// <summary>
+    /// Tests that opening a file lists sibling files in the explorer.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task OpenFile_ListsSiblingsInExplorer()
+    {
+        // Arrange
+        var firstPath = Path.Combine(_tempDirectory, "First.wnd");
+        var secondPath = Path.Combine(_tempDirectory, "Second.wnd");
+        await File.WriteAllTextAsync(firstPath, SampleDocument);
+        await File.WriteAllTextAsync(secondPath, SampleDocument);
+
+        // Act
+        var opened = await _viewModel.OpenFileAsync(firstPath);
+
+        // Assert
+        opened.Should().BeTrue();
+        _viewModel.Files.Should().HaveCount(2);
+        _viewModel.Files.Should().ContainSingle(f => f.IsCurrent).Which.FileName.Should().Be("First.wnd");
+
+        // Act
+        await _viewModel.OpenExplorerFileCommand.ExecuteAsync(_viewModel.Files.First(f => !f.IsCurrent));
+
+        // Assert
+        _viewModel.FilePath.Should().Be(secondPath);
+        _viewModel.Files.Should().ContainSingle(f => f.IsCurrent).Which.FileName.Should().Be("Second.wnd");
+    }
+
+    /// <summary>
+    /// Tests that control data editors follow the selected control type.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task ControlData_FollowsSelectedControlType()
+    {
+        // Arrange
+        const string SliderDocument =
+            "FILE_VERSION = 2;\n" +
+            "WINDOW\n" +
+            "  WINDOWTYPE = HORZSLIDER;\n" +
+            "  SLIDERDATA = MINVALUE: 0, MAXVALUE: 100;\n" +
+            "END\n";
+        await _viewModel.LoadFromTextAsync(SliderDocument, null);
+        _viewModel.SelectedNode = _viewModel.RootNodes[0];
+
+        // Assert
+        var properties = _viewModel.SelectedProperties!;
+        properties.IsSlider.Should().BeTrue();
+        properties.IsControlDataSupported.Should().BeTrue();
+        properties.HasControlData.Should().BeTrue();
+        properties.SliderMaxValue.Should().Be(100);
+
+        // Act
+        properties.SliderMaxValue = 200;
+
+        // Assert
+        _viewModel.SelectedNode!.Window.GetProperty("SLIDERDATA").Should().Be("MINVALUE: 0, MAXVALUE: 200");
+    }
+
+    /// <summary>
+    /// Tests that draw data entries commit the whole set.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task DrawData_Edit_CommitsSet()
+    {
+        // Arrange
+        await _viewModel.LoadFromTextAsync(SampleDocument, null);
+        _viewModel.SelectedNode = _viewModel.RootNodes[0];
+        var properties = _viewModel.SelectedProperties!;
+
+        // Assert
+        properties.EnabledDrawData.Should().HaveCount(9);
+
+        // Act
+        properties.EnabledDrawData[0].Image = "Circle_Small03_Black";
+
+        // Assert
+        var parsed = WndDrawDataSet.TryParse(
+            _viewModel.SelectedNode!.Window.GetProperty("ENABLEDDRAWDATA"),
+            out var set);
+        parsed.Should().BeTrue();
+        set!.Entries[0].Image.Should().Be("Circle_Small03_Black");
     }
 }

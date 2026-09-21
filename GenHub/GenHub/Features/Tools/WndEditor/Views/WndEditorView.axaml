@@ -2,6 +2,7 @@
              xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:localization="clr-namespace:GenHub.Common.Markup"
+             xmlns:views="clr-namespace:GenHub.Features.Tools.WndEditor.Views"
              xmlns:vm="clr-namespace:GenHub.Features.Tools.WndEditor.ViewModels"
              x:Class="GenHub.Features.Tools.WndEditor.Views.WndEditorView">
   <Grid RowDefinitions="Auto,*">
@@ -84,72 +85,164 @@
     </Border>
 
     <Grid Grid.Row="1">
-      <Grid ColumnDefinitions="300,4,*,4,340" IsVisible="{Binding HasDocument}">
+      <Grid ColumnDefinitions="300,4,*,4,380" IsVisible="{Binding HasDocument}">
         <Border Grid.Column="0"
                 Background="{DynamicResource CardBackground}"
                 BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
                 CornerRadius="10" Padding="14" ClipToBounds="True">
-          <Grid RowDefinitions="Auto,*,Auto">
-            <TextBlock Grid.Row="0"
-                       Text="{localization:Localize Tools.WndEditor.Pane.Windows}"
-                       FontWeight="Bold" FontSize="14"
-                       Foreground="{DynamicResource TextPrimary}"
-                       Margin="0,0,0,10"/>
-            <Border Grid.Row="1"
-                    BorderBrush="{DynamicResource BorderBrush}"
-                    BorderThickness="1" CornerRadius="8"
-                    Background="{DynamicResource SurfaceElevatedBrush}">
-              <TreeView ItemsSource="{Binding RootNodes}"
-                        SelectedItem="{Binding SelectedNode, Mode=TwoWay}"
-                        BorderThickness="0" Background="Transparent">
-                <TreeView.Styles>
-                  <Style Selector="TreeViewItem">
-                    <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}"/>
-                  </Style>
-                </TreeView.Styles>
-                <TreeView.ItemTemplate>
-                  <TreeDataTemplate ItemsSource="{Binding Children}" x:DataType="vm:WndTreeNodeViewModel">
-                    <Border Margin="8,2" Padding="10,8" CornerRadius="8" Background="Transparent">
-                      <Grid ColumnDefinitions="Auto,*" VerticalAlignment="Center">
-                        <Border Grid.Column="0"
-                                Background="{DynamicResource AccentTintBackgroundBrush}"
-                                BorderBrush="{DynamicResource AccentBrush}" BorderThickness="1"
-                                CornerRadius="4" Padding="6,2" Margin="0,0,8,0">
-                          <TextBlock Text="{Binding Window.ControlTypeName}"
-                                     FontSize="10" FontWeight="SemiBold"
-                                     Foreground="{DynamicResource AccentBrush}"/>
+          <TabControl>
+            <TabItem Header="{localization:Localize Tools.WndEditor.Tabs.Windows}">
+              <Grid RowDefinitions="Auto,Auto,*,Auto">
+                <TextBox Grid.Row="0"
+                         Text="{Binding WindowsFilter, Mode=TwoWay}"
+                         Watermark="{localization:Localize Tools.WndEditor.Tree.FilterWatermark}"
+                         FontSize="11" Margin="0,8,0,6"/>
+                <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="6" Margin="0,0,0,6">
+                  <Button Command="{Binding ExpandAllNodesCommand}"
+                          Padding="8,4"
+                          Background="Transparent"
+                          BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                          CornerRadius="6"
+                          Content="{localization:Localize Tools.WndEditor.Tree.ExpandAll}"
+                          FontSize="11"/>
+                  <Button Command="{Binding CollapseAllNodesCommand}"
+                          Padding="8,4"
+                          Background="Transparent"
+                          BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                          CornerRadius="6"
+                          Content="{localization:Localize Tools.WndEditor.Tree.CollapseAll}"
+                          FontSize="11"/>
+                </StackPanel>
+                <Border Grid.Row="2"
+                        BorderBrush="{DynamicResource BorderBrush}"
+                        BorderThickness="1" CornerRadius="8"
+                        Background="{DynamicResource SurfaceElevatedBrush}">
+                  <TreeView ItemsSource="{Binding RootNodes}"
+                            SelectedItem="{Binding SelectedNode, Mode=TwoWay}"
+                            BorderThickness="0" Background="Transparent">
+                    <TreeView.Styles>
+                      <Style Selector="TreeViewItem">
+                        <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}"/>
+                      </Style>
+                    </TreeView.Styles>
+                    <TreeView.ItemTemplate>
+                      <TreeDataTemplate ItemsSource="{Binding Children}" x:DataType="vm:WndTreeNodeViewModel">
+                        <Border Margin="8,2" Padding="10,8" CornerRadius="8" Background="Transparent" ToolTip.Tip="{Binding FullName}">
+                          <Grid ColumnDefinitions="Auto,*,Auto" VerticalAlignment="Center">
+                            <Border Grid.Column="0"
+                                    Background="{DynamicResource AccentTintBackgroundBrush}"
+                                    BorderBrush="{DynamicResource AccentBrush}" BorderThickness="1"
+                                    CornerRadius="4" Padding="6,2" Margin="0,0,8,0">
+                              <TextBlock Text="{Binding Window.ControlTypeName}"
+                                         FontSize="10" FontWeight="SemiBold"
+                                         Foreground="{DynamicResource AccentBrush}"/>
+                            </Border>
+                            <TextBlock Grid.Column="1"
+                                       Text="{Binding DisplayName}"
+                                       FontSize="12"
+                                       Foreground="{DynamicResource TextPrimary}"
+                                       VerticalAlignment="Center"
+                                       TextTrimming="CharacterEllipsis"/>
+                            <Border Grid.Column="2"
+                                    IsVisible="{Binding IsHidden}"
+                                    Background="{DynamicResource SurfaceHoverBrush}"
+                                    BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                                    CornerRadius="4" Padding="6,2" Margin="8,0,0,0">
+                              <TextBlock Text="{localization:Localize Tools.WndEditor.Tree.HiddenBadge}"
+                                         FontSize="10"
+                                         Foreground="{DynamicResource TextSecondary}"/>
+                            </Border>
+                          </Grid>
                         </Border>
-                        <TextBlock Grid.Column="1"
-                                   Text="{Binding DisplayName}"
-                                   FontSize="12"
-                                   Foreground="{DynamicResource TextPrimary}"
-                                   VerticalAlignment="Center"
-                                   TextTrimming="CharacterEllipsis"/>
-                      </Grid>
-                    </Border>
-                  </TreeDataTemplate>
-                </TreeView.ItemTemplate>
-              </TreeView>
-            </Border>
-            <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="6" Margin="0,10,0,0">
-              <Button Command="{Binding AddChildWindowCommand}"
-                      Padding="8,4"
-                      Background="{DynamicResource SurfaceElevatedBrush}"
-                      BorderBrush="{DynamicResource BorderBrush}"
-                      BorderThickness="1" CornerRadius="6"
-                      Content="{localization:Localize Tools.WndEditor.Tree.AddChild}"
-                      FontSize="11" FontWeight="SemiBold"/>
-              <Button Command="{Binding DeleteSelectedWindowCommand}"
-                      IsEnabled="{Binding SelectedNode, Converter={x:Static ObjectConverters.IsNotNull}}"
-                      Padding="8,4"
-                      Background="{DynamicResource ErrorBadgeBackgroundBrush}"
-                      Foreground="{DynamicResource ErrorBrush}"
-                      BorderBrush="{DynamicResource ErrorBrush}" BorderThickness="1"
-                      CornerRadius="6"
-                      Content="{localization:Localize Tools.WndEditor.Tree.Delete}"
-                      FontSize="11" FontWeight="SemiBold"/>
-            </StackPanel>
-          </Grid>
+                      </TreeDataTemplate>
+                    </TreeView.ItemTemplate>
+                  </TreeView>
+                </Border>
+                <StackPanel Grid.Row="3" Orientation="Horizontal" Spacing="6" Margin="0,10,0,0">
+                  <Button Command="{Binding AddChildWindowCommand}"
+                          Padding="8,4"
+                          Background="{DynamicResource SurfaceElevatedBrush}"
+                          BorderBrush="{DynamicResource BorderBrush}"
+                          BorderThickness="1" CornerRadius="6"
+                          Content="{localization:Localize Tools.WndEditor.Tree.AddChild}"
+                          FontSize="11" FontWeight="SemiBold"/>
+                  <Button Command="{Binding DeleteSelectedWindowCommand}"
+                          IsEnabled="{Binding SelectedNode, Converter={x:Static ObjectConverters.IsNotNull}}"
+                          Padding="8,4"
+                          Background="{DynamicResource ErrorBadgeBackgroundBrush}"
+                          Foreground="{DynamicResource ErrorBrush}"
+                          BorderBrush="{DynamicResource ErrorBrush}" BorderThickness="1"
+                          CornerRadius="6"
+                          Content="{localization:Localize Tools.WndEditor.Tree.Delete}"
+                          FontSize="11" FontWeight="SemiBold"/>
+                </StackPanel>
+              </Grid>
+            </TabItem>
+            <TabItem Header="{localization:Localize Tools.WndEditor.Tabs.Files}">
+              <Grid RowDefinitions="Auto,Auto,*">
+                <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="6" Margin="0,8,0,6">
+                  <Button Command="{Binding BrowseFilesDirectoryCommand}"
+                          Padding="8,4"
+                          Background="{DynamicResource SurfaceElevatedBrush}"
+                          BorderBrush="{DynamicResource BorderBrush}"
+                          BorderThickness="1" CornerRadius="6"
+                          Content="{localization:Localize Tools.WndEditor.Files.Browse}"
+                          FontSize="11" FontWeight="SemiBold"/>
+                  <Button Command="{Binding RefreshFilesCommand}"
+                          Padding="8,4"
+                          Background="Transparent"
+                          BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                          CornerRadius="6"
+                          Content="{localization:Localize Tools.WndEditor.Files.Refresh}"
+                          FontSize="11"/>
+                </StackPanel>
+                <TextBlock Grid.Row="1"
+                           Text="{Binding FilesDirectory}"
+                           FontSize="10" Foreground="{DynamicResource TextMuted}"
+                           TextTrimming="CharacterEllipsis" Margin="0,0,0,6"
+                           ToolTip.Tip="{Binding FilesDirectory}"/>
+                <Border Grid.Row="2"
+                        BorderBrush="{DynamicResource BorderBrush}"
+                        BorderThickness="1" CornerRadius="8"
+                        Background="{DynamicResource SurfaceElevatedBrush}">
+                  <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                    <ItemsControl ItemsSource="{Binding Files}" Margin="4">
+                      <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="vm:WndFileEntryViewModel">
+                          <Button Command="{Binding ElementName=Root, Path=DataContext.OpenExplorerFileCommand}"
+                                  CommandParameter="{Binding}"
+                                  Background="Transparent" BorderThickness="0"
+                                  Padding="0" Margin="4,2"
+                                  HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
+                            <Border Padding="10,8" CornerRadius="8" Background="Transparent">
+                              <Grid ColumnDefinitions="*,Auto" VerticalAlignment="Center">
+                                <TextBlock Grid.Column="0"
+                                           Text="{Binding FileName}"
+                                           FontSize="12"
+                                           Foreground="{DynamicResource TextPrimary}"
+                                           VerticalAlignment="Center"
+                                           TextTrimming="CharacterEllipsis"
+                                           ToolTip.Tip="{Binding FullPath}"/>
+                                <Border Grid.Column="1"
+                                        IsVisible="{Binding IsCurrent}"
+                                        Background="{DynamicResource AccentTintBackgroundBrush}"
+                                        BorderBrush="{DynamicResource AccentBrush}" BorderThickness="1"
+                                        CornerRadius="4" Padding="6,2" Margin="8,0,0,0">
+                                  <TextBlock Text="{localization:Localize Tools.WndEditor.Files.OpenBadge}"
+                                             FontSize="10" FontWeight="SemiBold"
+                                             Foreground="{DynamicResource AccentBrush}"/>
+                                </Border>
+                              </Grid>
+                            </Border>
+                          </Button>
+                        </DataTemplate>
+                      </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                  </ScrollViewer>
+                </Border>
+              </Grid>
+            </TabItem>
+          </TabControl>
         </Border>
 
         <GridSplitter Grid.Column="1" Background="Transparent" ResizeDirection="Columns"/>
@@ -220,69 +313,29 @@
                 Background="{DynamicResource CardBackground}"
                 BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
                 CornerRadius="10" Padding="14" ClipToBounds="True">
-          <Grid RowDefinitions="Auto,*,Auto">
-            <TextBlock Grid.Row="0"
-                       Text="{localization:Localize Tools.WndEditor.Pane.Properties}"
-                       FontWeight="Bold" FontSize="14"
-                       Foreground="{DynamicResource TextPrimary}"
-                       Margin="0,0,0,10"/>
-            <Border Grid.Row="1"
-                    BorderBrush="{DynamicResource BorderBrush}"
-                    BorderThickness="1" CornerRadius="8"
-                    Background="{DynamicResource SurfaceElevatedBrush}">
-              <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-                <ItemsControl ItemsSource="{Binding PropertyRows}" Margin="8">
-                  <ItemsControl.ItemTemplate>
-                    <DataTemplate x:DataType="vm:WndPropertyRowViewModel">
-                      <Border Margin="0,2" Padding="8,6" CornerRadius="6" Background="Transparent">
-                        <Grid ColumnDefinitions="110,*,Auto">
-                          <TextBlock Grid.Column="0"
-                                     Text="{Binding Key}"
-                                     FontSize="11" FontWeight="SemiBold"
-                                     Foreground="{DynamicResource TextSecondary}"
-                                     VerticalAlignment="Center"
-                                     TextTrimming="CharacterEllipsis"
-                                     ToolTip.Tip="{Binding Key}"/>
-                          <TextBox Grid.Column="1"
-                                   Text="{Binding Value, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"
-                                   FontSize="11" Margin="8,0"
-                                   VerticalAlignment="Center"/>
-                          <Button Grid.Column="2"
-                                  Command="{Binding ElementName=Root, Path=DataContext.DeletePropertyCommand}"
-                                  CommandParameter="{Binding}"
-                                  Padding="8,4"
-                                  Background="Transparent"
-                                  BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
-                                  CornerRadius="6"
-                                  Content="{localization:Localize Tools.WndEditor.Properties.Delete}"
-                                  FontSize="11"
-                                  Foreground="{DynamicResource ErrorBrush}"
-                                  VerticalAlignment="Center"/>
-                        </Grid>
-                      </Border>
-                    </DataTemplate>
-                  </ItemsControl.ItemTemplate>
-                </ItemsControl>
-              </ScrollViewer>
-            </Border>
-            <Grid Grid.Row="2" ColumnDefinitions="*,*,Auto" Margin="0,10,0,0">
-              <TextBox Grid.Column="0"
-                       Text="{Binding NewPropertyKey, Mode=TwoWay}"
-                       Watermark="{localization:Localize Tools.WndEditor.Properties.KeyWatermark}"
-                       FontSize="11" Margin="0,0,4,0"/>
-              <TextBox Grid.Column="1"
-                       Text="{Binding NewPropertyValue, Mode=TwoWay}"
-                       Watermark="{localization:Localize Tools.WndEditor.Properties.ValueWatermark}"
-                       FontSize="11" Margin="0,0,4,0"/>
-              <Button Grid.Column="2"
-                      Command="{Binding AddPropertyCommand}"
-                      Padding="8,4"
-                      Background="{DynamicResource SurfaceElevatedBrush}"
-                      BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
-                      CornerRadius="6"
-                      Content="{localization:Localize Tools.WndEditor.Properties.Add}"
-                      FontSize="11" FontWeight="SemiBold"/>
-            </Grid>
+          <Grid>
+            <TabControl IsVisible="{Binding SelectedNode, Converter={x:Static ObjectConverters.IsNotNull}}">
+              <TabItem Header="{localization:Localize Tools.WndEditor.Tabs.General}">
+                <views:WndGeneralPropertiesView DataContext="{Binding SelectedProperties}" Margin="0,8,0,0"/>
+              </TabItem>
+              <TabItem Header="{localization:Localize Tools.WndEditor.Tabs.Control}">
+                <views:WndControlPropertiesView DataContext="{Binding SelectedProperties}" Margin="0,8,0,0"/>
+              </TabItem>
+              <TabItem Header="{localization:Localize Tools.WndEditor.Tabs.Raw}">
+                <views:WndRawTextView DataContext="{Binding SelectedProperties}" Margin="0,8,0,0"/>
+              </TabItem>
+            </TabControl>
+            <StackPanel IsVisible="{Binding SelectedNode, Converter={x:Static ObjectConverters.IsNull}}"
+                        VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="8">
+              <TextBlock Text="{localization:Localize Tools.WndEditor.Pane.NoSelectionTitle}"
+                         FontWeight="Bold" FontSize="14"
+                         Foreground="{DynamicResource TextPrimary}"
+                         HorizontalAlignment="Center"/>
+              <TextBlock Text="{localization:Localize Tools.WndEditor.Pane.NoSelectionMessage}"
+                         FontSize="12"
+                         Foreground="{DynamicResource TextSecondary}"
+                         HorizontalAlignment="Center" TextWrapping="Wrap"/>
+            </StackPanel>
           </Grid>
         </Border>
       </Grid>

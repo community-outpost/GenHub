@@ -1,5 +1,6 @@
 using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Tools.WndEditor;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -32,6 +33,13 @@ public interface IWndDocumentService
     /// <param name="document">The document to serialize.</param>
     /// <returns>The canonical file text.</returns>
     string WriteDocument(WndDocument document);
+
+    /// <summary>
+    /// Parses raw KEY = VALUE; statements into an ordered property list.
+    /// </summary>
+    /// <param name="content">The raw statement text.</param>
+    /// <returns>Operation result containing the parsed properties.</returns>
+    OperationResult<IReadOnlyList<WndProperty>> ParseStatements(string content);
 
     /// <summary>
     /// Rewrites a window definition file in canonical form, atomically.

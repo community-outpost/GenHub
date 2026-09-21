@@ -9,7 +9,6 @@ namespace GenHub.Features.Tools.WndEditor.ViewModels;
 public sealed partial class WndPropertyRowViewModel : ObservableObject
 {
     private readonly Action<string, string> _commitEdit;
-    private bool _suppressCommit;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="WndPropertyRowViewModel"/> class.
@@ -35,28 +34,8 @@ public sealed partial class WndPropertyRowViewModel : ObservableObject
     [ObservableProperty]
     private string _value;
 
-    /// <summary>
-    /// Updates the displayed value without committing an edit.
-    /// </summary>
-    /// <param name="value">The value to display.</param>
-    public void RefreshValue(string value)
-    {
-        _suppressCommit = true;
-        try
-        {
-            Value = value;
-        }
-        finally
-        {
-            _suppressCommit = false;
-        }
-    }
-
     partial void OnValueChanged(string value)
     {
-        if (!_suppressCommit)
-        {
-            _commitEdit(Key, value);
-        }
+        _commitEdit(Key, value);
     }
 }

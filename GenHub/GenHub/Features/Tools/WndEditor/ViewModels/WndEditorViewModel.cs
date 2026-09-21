@@ -46,9 +46,9 @@ public sealed partial class WndEditorViewModel(
     public ObservableCollection<WndTreeNodeViewModel> RootNodes { get; } = [];
 
     /// <summary>
-    /// Gets the property rows of the selected window.
+    /// Gets the window definition files listed in the explorer.
     /// </summary>
-    public ObservableCollection<WndPropertyRowViewModel> PropertyRows { get; } = [];
+    public ObservableCollection<WndFileEntryViewModel> Files { get; } = [];
 
     /// <summary>
     /// Gets the canvas items rendered from window geometry.
@@ -109,16 +109,22 @@ public sealed partial class WndEditorViewModel(
     private double _zoom = WndConstants.Editor.DefaultZoom;
 
     /// <summary>
-    /// Gets or sets the key input for adding a property.
+    /// Gets or sets the typed editors for the selected window.
     /// </summary>
     [ObservableProperty]
-    private string _newPropertyKey = string.Empty;
+    private WndWindowPropertiesViewModel? _selectedProperties;
 
     /// <summary>
-    /// Gets or sets the value input for adding a property.
+    /// Gets or sets the window tree filter text.
     /// </summary>
     [ObservableProperty]
-    private string _newPropertyValue = string.Empty;
+    private string _windowsFilter = string.Empty;
+
+    /// <summary>
+    /// Gets or sets the directory listed in the file explorer.
+    /// </summary>
+    [ObservableProperty]
+    private string? _filesDirectory;
 
     /// <summary>
     /// Gets or sets whether a document is open.
@@ -260,7 +266,7 @@ public sealed partial class WndEditorViewModel(
 
         if (!item.Window.TryGetScreenRect(out var moved) || moved == null || moved.Equals(original))
         {
-            SyncAfterEdit(item.Window, WndConstants.PropertyKeys.ScreenRect);
+            SyncAfterEdit(item.Window);
             return;
         }
 
@@ -270,14 +276,14 @@ public sealed partial class WndEditorViewModel(
             () =>
             {
                 item.Window.SetProperty(WndConstants.PropertyKeys.ScreenRect, finalRect.ToString());
-                SyncAfterEdit(item.Window, WndConstants.PropertyKeys.ScreenRect);
+                SyncAfterEdit(item.Window);
             },
             () =>
             {
                 item.Window.SetProperty(WndConstants.PropertyKeys.ScreenRect, original.ToString());
-                SyncAfterEdit(item.Window, WndConstants.PropertyKeys.ScreenRect);
+                SyncAfterEdit(item.Window);
             }));
-        SyncAfterEdit(item.Window, WndConstants.PropertyKeys.ScreenRect);
+        SyncAfterEdit(item.Window);
     }
 
     private static TopLevel? GetTopLevel()
@@ -361,6 +367,47 @@ public sealed partial class WndEditorViewModel(
             {
                 yield return child;
             }
+        }
+    }
+
+    private static void SetNodesExpanded(IEnumerable<WndTreeNodeViewModel> nodes, bool expanded)
+    {
+        foreach (var node in nodes)
+        {
+            node.IsExpanded = expanded;
+            SetNodesExpanded(node.Children, expanded);
+        }
+    }
+
+    private static bool MatchesWindowsFilter(WndWindow window, string filter)
+    {
+        if (window.ControlTypeName.Contains(filter, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        var name = WndDecoratedName.Parse(window.GetProperty(WndConstants.PropertyKeys.Name)).ShortName;
+        return name.Contains(filter, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool SubtreeMatchesFilter(WndWindow window, string filter)
+    {
+        return MatchesWindowsFilter(window, filter) || window.Children.Any(child => SubtreeMatchesFilter(child, filter));
+    }
+
+    private static void ApplyProperties(WndWindow window, IReadOnlyList<WndProperty> properties)
+    {
+        window.Properties.Clear();
+        window.Properties.AddRange(properties);
+        SyncWindowType(window);
+    }
+
+    private static void SyncWindowType(WndWindow window)
+    {
+        var declared = window.GetProperty(WndConstants.PropertyKeys.WindowType);
+        if (declared != null)
+        {
+            window.ControlTypeName = declared.Trim();
         }
     }
 
@@ -472,6 +519,7 @@ public sealed partial class WndEditorViewModel(
         if (!string.IsNullOrEmpty(localPath))
         {
             FilePath = localPath;
+            SyncFilesDirectory(localPath);
             await WriteDocumentToFileAsync(localPath, cancellationToken);
         }
     }
@@ -609,95 +657,123 @@ public sealed partial class WndEditorViewModel(
     }
 
     /// <summary>
-    /// Adds the entered property to the selected window.
+    /// Opens a file chosen in the explorer.
     /// </summary>
+    /// <param name="file">The file entry to open.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
     [RelayCommand]
-    private void AddProperty()
+    private async Task OpenExplorerFileAsync(WndFileEntryViewModel? file, CancellationToken cancellationToken = default)
     {
-        if (_document == null || SelectedNode == null)
+        if (file == null)
         {
             return;
         }
 
-        var key = NewPropertyKey.Trim();
-        if (key.Length == 0)
-        {
-            notificationService.ShowWarning(
-                localizationService.GetString("Tools.WndEditor.Property.EmptyKeyTitle"),
-                localizationService.GetString("Tools.WndEditor.Property.EmptyKeyMessage"),
-                NotificationDurations.Short);
-            return;
-        }
-
-        var window = SelectedNode.Window;
-        if (window.GetProperty(key) != null)
-        {
-            notificationService.ShowWarning(
-                localizationService.GetString("Tools.WndEditor.Property.DuplicateKeyTitle"),
-                localizationService.GetString("Tools.WndEditor.Property.DuplicateKeyMessage", key),
-                NotificationDurations.Short);
-            return;
-        }
-
-        var value = NewPropertyValue;
-        window.SetProperty(key, value);
-        PushUndo(new WndEditAction(
-            localizationService.GetString("Tools.WndEditor.History.AddProperty", key),
-            () =>
-            {
-                window.SetProperty(key, value);
-                SyncAfterEdit(window, key);
-            },
-            () =>
-            {
-                window.RemoveProperty(key);
-                SyncAfterEdit(window, key);
-            }));
-        NewPropertyKey = string.Empty;
-        NewPropertyValue = string.Empty;
-        SyncAfterEdit(window, key);
+        await OpenFileAsync(file.FullPath, cancellationToken);
     }
 
     /// <summary>
-    /// Deletes a property row from the selected window.
+    /// Chooses the directory listed in the file explorer.
     /// </summary>
-    /// <param name="row">The property row to delete.</param>
     [RelayCommand]
-    private void DeleteProperty(WndPropertyRowViewModel? row)
+    private async Task BrowseFilesDirectoryAsync(CancellationToken cancellationToken = default)
     {
-        if (_document == null || SelectedNode == null || row == null)
+        var topLevel = GetTopLevel();
+        if (topLevel == null)
         {
             return;
         }
 
-        var window = SelectedNode.Window;
-        var index = window.Properties.FindIndex(p => string.Equals(p.Key, row.Key, StringComparison.Ordinal));
-        if (index < 0)
+        var folders = await topLevel.StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
+        {
+            Title = localizationService.GetString("Tools.WndEditor.FileDialog.FolderTitle"),
+            AllowMultiple = false,
+        });
+        if (folders.Count == 0)
         {
             return;
         }
 
-        var removed = window.Properties[index];
-        window.Properties.RemoveAt(index);
-        PushUndo(new WndEditAction(
-            localizationService.GetString("Tools.WndEditor.History.DeleteProperty", row.Key),
-            () =>
+        var localPath = folders[0].TryGetLocalPath();
+        if (!string.IsNullOrEmpty(localPath))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            FilesDirectory = localPath;
+        }
+    }
+
+    /// <summary>
+    /// Refreshes the file explorer listing.
+    /// </summary>
+    [RelayCommand]
+    private void RefreshFiles()
+    {
+        Files.Clear();
+        if (string.IsNullOrEmpty(FilesDirectory) || !Directory.Exists(FilesDirectory))
+        {
+            return;
+        }
+
+        try
+        {
+            var currentPath = FilePath;
+            var ordered = Directory
+                .EnumerateFiles(FilesDirectory, ModBuilderConstants.FileNames.WndSearchPattern)
+                .OrderBy(Path.GetFileName, StringComparer.OrdinalIgnoreCase);
+            foreach (var path in ordered)
             {
-                window.RemoveProperty(row.Key);
-                SyncAfterEdit(window, row.Key);
-            },
-            () =>
-            {
-                window.Properties.Insert(Math.Min(index, window.Properties.Count), removed);
-                SyncAfterEdit(window, row.Key);
-            }));
-        SyncAfterEdit(window, row.Key);
+                var isCurrent = string.Equals(path, currentPath, StringComparison.OrdinalIgnoreCase);
+                Files.Add(new WndFileEntryViewModel(Path.GetFileName(path), path, isCurrent));
+            }
+        }
+        catch (IOException ex)
+        {
+            logger.LogWarning(ex, "Failed to list window definition files in {Directory}", FilesDirectory);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            logger.LogWarning(ex, "Access denied listing window definition files in {Directory}", FilesDirectory);
+        }
+    }
+
+    /// <summary>
+    /// Expands every window tree node.
+    /// </summary>
+    [RelayCommand]
+    private void ExpandAllNodes()
+    {
+        SetNodesExpanded(RootNodes, true);
+    }
+
+    /// <summary>
+    /// Collapses every window tree node.
+    /// </summary>
+    [RelayCommand]
+    private void CollapseAllNodes()
+    {
+        SetNodesExpanded(RootNodes, false);
     }
 
     partial void OnSelectedNodeChanged(WndTreeNodeViewModel? value)
     {
         SyncCanvasSelection();
         RebuildProperties();
+    }
+
+    partial void OnWindowsFilterChanged(string value)
+    {
+        var selectedId = SelectedNode?.Window.Id;
+        RebuildTree();
+        SelectedNode = selectedId == null ? null : FindNode(selectedId.Value);
+        SyncCanvasSelection();
+    }
+
+    partial void OnFilesDirectoryChanged(string? value)
+    {
+        if (!string.IsNullOrEmpty(value))
+        {
+            RefreshFiles();
+        }
     }
 
     partial void OnZoomChanged(double value)
@@ -771,7 +847,21 @@ public sealed partial class WndEditorViewModel(
         _undoStack.Clear();
         _redoStack.Clear();
         RefreshUndoCommands();
+        SyncFilesDirectory(filePath);
         RebuildAll();
+    }
+
+    private void SyncFilesDirectory(string? filePath)
+    {
+        var directory = string.IsNullOrEmpty(filePath) ? null : Path.GetDirectoryName(filePath);
+        if (!string.IsNullOrEmpty(directory) && !string.Equals(directory, FilesDirectory, StringComparison.OrdinalIgnoreCase))
+        {
+            FilesDirectory = directory;
+        }
+        else
+        {
+            RefreshFiles();
+        }
     }
 
     private void PushUndo(WndEditAction action)
@@ -808,18 +898,37 @@ public sealed partial class WndEditorViewModel(
             return;
         }
 
+        var filter = WindowsFilter.Trim();
         foreach (var window in _document.Windows)
         {
-            RootNodes.Add(BuildTreeNode(window, null));
+            var node = BuildTreeNode(window, null, filter);
+            if (node != null)
+            {
+                RootNodes.Add(node);
+            }
         }
     }
 
-    private WndTreeNodeViewModel BuildTreeNode(WndWindow window, WndTreeNodeViewModel? parent)
+    private WndTreeNodeViewModel? BuildTreeNode(WndWindow window, WndTreeNodeViewModel? parent, string filter)
     {
+        if (filter.Length > 0 && !SubtreeMatchesFilter(window, filter))
+        {
+            return null;
+        }
+
         var node = new WndTreeNodeViewModel(window, parent);
         foreach (var child in window.Children)
         {
-            node.Children.Add(BuildTreeNode(child, node));
+            var childNode = BuildTreeNode(child, node, filter);
+            if (childNode != null)
+            {
+                node.Children.Add(childNode);
+            }
+        }
+
+        if (filter.Length > 0)
+        {
+            node.IsExpanded = true;
         }
 
         return node;
@@ -864,16 +973,16 @@ public sealed partial class WndEditorViewModel(
 
     private void RebuildProperties()
     {
-        PropertyRows.Clear();
-        if (SelectedNode == null)
-        {
-            return;
-        }
-
-        foreach (var property in SelectedNode.Window.Properties)
-        {
-            PropertyRows.Add(new WndPropertyRowViewModel(property.Key, property.Value, CommitPropertyEdit));
-        }
+        SelectedProperties = SelectedNode == null
+            ? null
+            : new WndWindowPropertiesViewModel(
+                SelectedNode.Window,
+                wndDocumentService,
+                notificationService,
+                localizationService,
+                CommitPropertyEdit,
+                RemovePropertyByKey,
+                ReplaceSelectedProperties);
     }
 
     private void CommitPropertyEdit(string key, string value)
@@ -891,12 +1000,14 @@ public sealed partial class WndEditorViewModel(
         }
 
         window.SetProperty(key, value);
+        SyncWindowType(window);
         PushUndo(new WndEditAction(
             localizationService.GetString("Tools.WndEditor.History.EditProperty", key),
             () =>
             {
                 window.SetProperty(key, value);
-                SyncAfterEdit(window, key);
+                SyncWindowType(window);
+                SyncAfterEdit(window);
             },
             () =>
             {
@@ -909,18 +1020,77 @@ public sealed partial class WndEditorViewModel(
                     window.SetProperty(key, oldValue);
                 }
 
-                SyncAfterEdit(window, key);
+                SyncWindowType(window);
+                SyncAfterEdit(window);
             }));
-        SyncAfterEdit(window, key);
+        SyncAfterEdit(window);
     }
 
-    private void SyncAfterEdit(WndWindow window, string? propertyKey)
+    private void RemovePropertyByKey(string key)
+    {
+        if (_document == null || SelectedNode == null)
+        {
+            return;
+        }
+
+        var window = SelectedNode.Window;
+        var index = window.Properties.FindIndex(p => string.Equals(p.Key, key, StringComparison.Ordinal));
+        if (index < 0)
+        {
+            return;
+        }
+
+        var removed = window.Properties[index];
+        window.Properties.RemoveAt(index);
+        SyncWindowType(window);
+        PushUndo(new WndEditAction(
+            localizationService.GetString("Tools.WndEditor.History.DeleteProperty", key),
+            () =>
+            {
+                window.RemoveProperty(key);
+                SyncWindowType(window);
+                SyncAfterEdit(window);
+            },
+            () =>
+            {
+                window.Properties.Insert(Math.Min(index, window.Properties.Count), removed);
+                SyncWindowType(window);
+                SyncAfterEdit(window);
+            }));
+        SyncAfterEdit(window);
+    }
+
+    private void ReplaceSelectedProperties(IReadOnlyList<WndProperty> properties)
+    {
+        if (_document == null || SelectedNode == null)
+        {
+            return;
+        }
+
+        var window = SelectedNode.Window;
+        var previous = window.Properties.ToList();
+        ApplyProperties(window, properties);
+        PushUndo(new WndEditAction(
+            localizationService.GetString("Tools.WndEditor.History.ApplyRawText"),
+            () =>
+            {
+                ApplyProperties(window, properties);
+                RebuildAll();
+            },
+            () =>
+            {
+                ApplyProperties(window, previous);
+                RebuildAll();
+            }));
+        RebuildAll();
+    }
+
+    private void SyncAfterEdit(WndWindow window)
     {
         FindNode(window.Id)?.RefreshDisplay();
-        if (propertyKey != null && SelectedNode?.Window.Id == window.Id)
+        if (SelectedNode?.Window.Id == window.Id)
         {
-            var row = PropertyRows.FirstOrDefault(r => string.Equals(r.Key, propertyKey, StringComparison.Ordinal));
-            row?.RefreshValue(window.GetProperty(propertyKey) ?? string.Empty);
+            SelectedProperties?.RefreshFromWindow();
         }
 
         RebuildCanvas();
