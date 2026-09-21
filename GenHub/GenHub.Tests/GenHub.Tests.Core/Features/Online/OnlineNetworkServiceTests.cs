@@ -617,8 +617,8 @@ public sealed class OnlineNetworkServiceTests
 
         // Assert
         Assert.True(result.Success);
-        Assert.Contains(""preferRelay":true", joinBody ?? string.Empty);
-        Assert.Contains(""endpoint":""", joinBody ?? string.Empty);
+        Assert.Contains("\"preferRelay\":true", joinBody ?? string.Empty);
+        Assert.Contains("\"endpoint\":\"\"", joinBody ?? string.Empty);
         Assert.Equal(string.Empty, service.LocalEndpoint);
     }
 
