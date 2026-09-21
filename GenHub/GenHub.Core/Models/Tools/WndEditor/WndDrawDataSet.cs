@@ -25,9 +25,10 @@ public sealed record WndDrawDataSet
     public IReadOnlyList<WndDrawDataEntry> Entries { get; }
 
     /// <summary>
-    /// Gets an empty single-entry set.
+    /// Gets an empty nine-entry set padded with empty entries.
     /// </summary>
-    public static WndDrawDataSet Empty => new([WndDrawDataEntry.Empty]);
+    public static WndDrawDataSet Empty => new(
+        Enumerable.Repeat(WndDrawDataEntry.Empty, WndConstants.DrawData.EntryCount).ToArray());
 
     /// <summary>
     /// Tries to parse a draw data property value. Accepts one or more 12-token entries.
@@ -58,23 +59,24 @@ public sealed record WndDrawDataSet
             index += WndConstants.DrawData.TokensPerEntry;
         }
 
-        if (entries.Count == 0)
-        {
-            return false;
-        }
-
         set = new WndDrawDataSet(entries);
         return true;
     }
 
     /// <summary>
-    /// Returns the canonical single-line representation of this set.
+    /// Returns the canonical single-line representation of this set, padded to nine entries.
     /// </summary>
     /// <returns>The canonical representation.</returns>
     public override string ToString()
     {
+        var entries = Entries.ToList();
+        while (entries.Count < WndConstants.DrawData.EntryCount)
+        {
+            entries.Add(WndDrawDataEntry.Empty);
+        }
+
         return string.Join(
             WndConstants.Syntax.ComponentListSeparator,
-            Entries.Select(entry => entry.ToString()));
+            entries.Select(entry => entry.ToString()));
     }
 }

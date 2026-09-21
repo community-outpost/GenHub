@@ -22,6 +22,7 @@ using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -107,16 +108,19 @@ public sealed partial class WndEditorViewModel(
     /// <summary>
     /// Gets the zoom factor as a display percentage.
     /// </summary>
+    [SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Instance property bound to UI in Avalonia XAML")]
     public string ZoomDisplayText => $"{Zoom:P0}";
 
     /// <summary>
     /// Gets the canvas cursor, showing a hand while the pan tool is active.
     /// </summary>
+    [SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Instance property bound to UI in Avalonia XAML")]
     public Cursor? CanvasCursor => IsPanMode ? new Cursor(StandardCursorType.Hand) : null;
 
     /// <summary>
     /// Gets the scroll offset showing content origin, framing the padded canvas on load and zoom reset.
     /// </summary>
+    [SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Instance property bound to UI in Avalonia XAML")]
     public Vector CanvasContentOffset => new(WndConstants.Editor.CanvasPadding * Zoom, WndConstants.Editor.CanvasPadding * Zoom);
 
     /// <summary>
@@ -942,6 +946,7 @@ public sealed partial class WndEditorViewModel(
     partial void OnSelectedAssetInstallationChanged(GameInstallationOption? value)
     {
         _ = value;
+        imageAssetService.InvalidateCache();
         RefreshAssetPreviews();
     }
 
@@ -1257,13 +1262,9 @@ public sealed partial class WndEditorViewModel(
         }
 
         RebuildCanvas();
-        foreach (var imageName in WndPreviewPlanner.Plan(window).ReferencedImages)
+        if (WndPreviewPlanner.Plan(window).ReferencedImages.Any(imageName => !_previewBitmaps.ContainsKey(imageName)))
         {
-            if (!_previewBitmaps.ContainsKey(imageName))
-            {
-                RefreshAssetPreviews();
-                break;
-            }
+            RefreshAssetPreviews();
         }
     }
 
@@ -1551,6 +1552,7 @@ public sealed partial class WndEditorViewModel(
         }
         catch (ObjectDisposedException)
         {
+            // Expected if CTS was already disposed by a concurrent cancellation.
         }
         finally
         {

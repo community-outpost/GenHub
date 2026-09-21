@@ -110,9 +110,11 @@ public sealed class WndGadgetDataTests
         data.ColumnWidths.Should().Equal(60, 40);
         data.ToString().Should().Be(value);
 
-        // Reject duplicate COLUMNS label used as width
-        const string malformed = "LENGTH: 30, AUTOSCROLL: 0, AUTOPURGE: 0, SCROLLBAR: 1, MULTISELECT: 0, COLUMNS: 2, COLUMNS: 60, COLUMNS: 40, FORCESELECT: 0";
-        WndListboxData.TryParse(malformed, out _).Should().BeFalse();
+        // Dialect check: COLUMNS label accepted as width
+        const string columnsLabel = "LENGTH: 30, AUTOSCROLL: 0, AUTOPURGE: 0, SCROLLBAR: 1, MULTISELECT: 0, COLUMNS: 2, COLUMNS: 60, COLUMNS: 40, FORCESELECT: 0";
+        WndListboxData.TryParse(columnsLabel, out var colData).Should().BeTrue();
+        colData!.ColumnWidths.Should().Equal(60, 40);
+        colData.ToString().Should().Be(value);
 
         WndListboxData.TryParse("LENGTH: 30", out _).Should().BeFalse();
     }

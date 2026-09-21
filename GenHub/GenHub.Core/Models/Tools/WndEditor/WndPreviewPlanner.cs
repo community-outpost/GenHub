@@ -1,5 +1,6 @@
 using GenHub.Core.Constants;
 using System;
+using System.Diagnostics.CodeAnalysis;
 
 namespace GenHub.Core.Models.Tools.WndEditor;
 
@@ -76,6 +77,7 @@ public static class WndPreviewPlanner
         return new WndPreviewPlan(left, null, null, null, single?.Color, single?.BorderColor, text, textColor, fontSize, fontBold, false, isHidden);
     }
 
+    [SuppressMessage("Major Code Smell", "S107:Methods should not have too many parameters", Justification = "Internal helper packaging full preview plan context")]
     private static WndPreviewPlan PlanGeneric(
         WndDrawDataSet? drawData,
         bool hasImageFlag,

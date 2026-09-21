@@ -3,6 +3,7 @@ using Avalonia.Media.Imaging;
 using CommunityToolkit.Mvvm.ComponentModel;
 using GenHub.Core.Constants;
 using GenHub.Core.Models.Tools.WndEditor;
+using System.Diagnostics.CodeAnalysis;
 
 namespace GenHub.Features.Tools.WndEditor.ViewModels;
 
@@ -75,6 +76,7 @@ public sealed partial class WndCanvasItemViewModel : ObservableObject
     /// <summary>
     /// Gets a value indicating whether a preview image is available.
     /// </summary>
+    [SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Instance property bound to UI in Avalonia XAML")]
     public bool HasImage => Image != null;
 
     /// <summary>
@@ -88,6 +90,7 @@ public sealed partial class WndCanvasItemViewModel : ObservableObject
     /// <summary>
     /// Gets a value indicating whether a background fill is available.
     /// </summary>
+    [SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Instance property bound to UI in Avalonia XAML")]
     public bool HasFill => FillOverlay != null;
 
     /// <summary>
@@ -105,6 +108,7 @@ public sealed partial class WndCanvasItemViewModel : ObservableObject
     /// <summary>
     /// Gets a value indicating whether a border tint is available.
     /// </summary>
+    [SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Instance property bound to UI in Avalonia XAML")]
     public bool HasBorderOverlay => BorderOverlay != null;
 
     /// <summary>
@@ -118,6 +122,7 @@ public sealed partial class WndCanvasItemViewModel : ObservableObject
     /// <summary>
     /// Gets a value indicating whether control text is available.
     /// </summary>
+    [SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Instance property bound to UI in Avalonia XAML")]
     public bool HasContentText => !string.IsNullOrEmpty(ContentText);
 
     /// <summary>

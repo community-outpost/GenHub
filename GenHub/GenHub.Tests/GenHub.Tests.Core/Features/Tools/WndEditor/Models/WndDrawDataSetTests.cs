@@ -1,4 +1,5 @@
 using FluentAssertions;
+using GenHub.Core.Constants;
 using GenHub.Core.Models.Tools.WndEditor;
 using System.Linq;
 
@@ -98,16 +99,37 @@ public sealed class WndDrawDataSetTests
     }
 
     /// <summary>
-    /// Tests that the empty set carries a single empty entry.
+    /// Tests that serializing fewer than nine entries pads to nine entries.
     /// </summary>
     [Fact]
-    public void Empty_ContainsSingleEmptyEntry()
+    public void ToString_FewerThanNineEntries_PadsToNineEntries()
+    {
+        // Arrange
+        const string singleEntry = "IMAGE: Circle_Small03_Black, COLOR: 0 0 128 255, BORDERCOLOR: 0 0 0 255";
+        var parsed = WndDrawDataSet.TryParse(singleEntry, out var set);
+        parsed.Should().BeTrue();
+        set.Should().NotBeNull();
+        set!.Entries.Should().HaveCount(1);
+
+        // Act
+        var serialized = set.ToString();
+
+        // Assert
+        var expected = string.Join(", ", new[] { singleEntry }.Concat(Enumerable.Repeat(EmptyEntry, 8)));
+        serialized.Should().Be(expected);
+    }
+
+    /// <summary>
+    /// Tests that the empty set carries nine empty entries.
+    /// </summary>
+    [Fact]
+    public void Empty_ContainsNineEmptyEntries()
     {
         // Act
         var set = WndDrawDataSet.Empty;
 
         // Assert
-        set.Entries.Should().HaveCount(1);
+        set.Entries.Should().HaveCount(WndConstants.DrawData.EntryCount);
         set.Entries.Should().OnlyContain(entry => entry.IsEmpty);
     }
 }

@@ -80,10 +80,6 @@ public sealed class WndImageAssetService(ILogger<WndImageAssetService> logger) :
 
             return OperationResult<IReadOnlyDictionary<string, byte[]>>.CreateSuccess(resolved, stopwatch.Elapsed);
         }
-        catch (OperationCanceledException)
-        {
-            throw;
-        }
         catch (IOException ex)
         {
             logger.LogWarning(ex, "Failed to load preview assets from {Root}", baseRoot);

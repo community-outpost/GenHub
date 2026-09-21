@@ -1,6 +1,7 @@
 using Avalonia.Controls;
 using GenHub.Features.Tools.WndEditor.ViewModels;
 using System;
+using System.Diagnostics.CodeAnalysis;
 
 namespace GenHub.Features.Tools.WndEditor.Views;
 
@@ -24,12 +25,14 @@ public partial class WndGeneralPropertiesView : UserControl
             : null;
     }
 
+    [SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Avalonia XAML event handler")]
     private void OnColorFlyoutOpened(object? sender, EventArgs e)
     {
         _ = e;
         GetRgbaViewModel(sender)?.BeginColorEdit();
     }
 
+    [SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Avalonia XAML event handler")]
     private void OnColorFlyoutClosed(object? sender, EventArgs e)
     {
         _ = e;

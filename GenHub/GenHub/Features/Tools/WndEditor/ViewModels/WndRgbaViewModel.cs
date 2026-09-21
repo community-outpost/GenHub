@@ -81,6 +81,7 @@ public sealed partial class WndRgbaViewModel : ObservableObject
     /// <summary>
     /// Gets the hexadecimal representation in RGBA channel order.
     /// </summary>
+    [SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Instance property bound to RGBA color components.")]
     public string HexValue => $"#{Red:X2}{Green:X2}{Blue:X2}{Alpha:X2}";
 
     /// <summary>
@@ -121,18 +122,21 @@ public sealed partial class WndRgbaViewModel : ObservableObject
         NotifyChannelChanged();
     }
 
+    [SuppressMessage("Major Code Smell", "S4144:Methods should not have identical implementations", Justification = "CommunityToolkit generated property change hook")]
     partial void OnGreenChanged(int value)
     {
         _ = value;
         NotifyChannelChanged();
     }
 
+    [SuppressMessage("Major Code Smell", "S4144:Methods should not have identical implementations", Justification = "CommunityToolkit generated property change hook")]
     partial void OnBlueChanged(int value)
     {
         _ = value;
         NotifyChannelChanged();
     }
 
+    [SuppressMessage("Major Code Smell", "S4144:Methods should not have identical implementations", Justification = "CommunityToolkit generated property change hook")]
     partial void OnAlphaChanged(int value)
     {
         _ = value;

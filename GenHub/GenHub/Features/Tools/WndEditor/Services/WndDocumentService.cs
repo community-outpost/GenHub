@@ -200,9 +200,9 @@ public sealed class WndDocumentService(ILogger<WndDocumentService> logger) : IWn
             var utf8Strict = new UTF8Encoding(false, throwOnInvalidBytes: true);
             _ = utf8Strict.GetString(bytes);
         }
-        catch (DecoderFallbackException)
+        catch (DecoderFallbackException ex)
         {
-            logger.LogWarning("Refusing to format {Path}: non-UTF-8 or ANSI encoding detected", filePath);
+            logger.LogWarning(ex, "Refusing to format {Path}: non-UTF-8 or ANSI encoding detected", filePath);
             return OperationResult<bool>.CreateFailure(
                 $"Cannot format file with non-UTF-8 or unsupported ANSI encoding: {filePath}",
                 stopwatch.Elapsed);

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace GenHub.Core.Models.Tools.WndEditor;
 
@@ -29,20 +30,9 @@ public sealed record WndPreviewPlan(
     /// <summary>
     /// Gets the distinct mapped image names referenced by this plan.
     /// </summary>
-    public IReadOnlyCollection<string> ReferencedImages
-    {
-        get
-        {
-            var names = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            foreach (var name in new[] { SingleImage, LeftImage, CenterImage, RightImage })
-            {
-                if (!string.IsNullOrWhiteSpace(name))
-                {
-                    names.Add(name.Trim());
-                }
-            }
-
-            return names;
-        }
-    }
+    public IReadOnlyCollection<string> ReferencedImages =>
+        new[] { SingleImage, LeftImage, CenterImage, RightImage }
+            .Where(name => !string.IsNullOrWhiteSpace(name))
+            .Select(name => name!.Trim())
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
 }
