@@ -122,6 +122,7 @@ public class OnlineViewModelTests
 
         // Assert
         Assert.True(vm.IsJoined);
+        Assert.Equal("Lobby", vm.CurrentNetworkName);
         network.Verify(
             n => n.CreateNetworkAsync(It.Is<OnlineCreateNetworkRequest>(r => r.Password == string.Empty), It.IsAny<CancellationToken>()),
             Times.Once);
@@ -171,6 +172,42 @@ public class OnlineViewModelTests
                 It.IsAny<string>(),
                 It.IsAny<CancellationToken>()),
             Times.Once);
+    }
+
+    /// <summary>
+    /// Tests that joining a network missing from the directory still shows its name.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task JoinNetworkAsync_WhenDirectoryLacksNetwork_ShouldUseSelectedNameAsync()
+    {
+        // Arrange
+        var join = new OnlineJoinResult
+        {
+            NetworkId = "net-1",
+            Grant = "grant-token",
+            OverlayIp = "10.42.0.7",
+        };
+        var network = new Mock<IOnlineNetworkService>();
+        network.Setup(n => n.JoinNetworkAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<bool>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<OnlineJoinResult>.CreateSuccess(join));
+        network.SetupGet(n => n.AdapterState).Returns(OnlineAdapterState.Up);
+        var vm = CreateViewModel(network.Object);
+        vm.Networks = [];
+        vm.SelectedNetwork = new OnlineNetworkSummary { Id = "net-1", Name = "Lobby" };
+
+        // Act
+        await vm.JoinNetworkAsync();
+
+        // Assert
+        Assert.True(vm.IsJoined);
+        Assert.Equal("Lobby", vm.CurrentNetworkName);
     }
 
     /// <summary>
