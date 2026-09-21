@@ -105,6 +105,12 @@ public static class GeneralsOnlineConstants
     /// <summary>Manifest name suffix for 60Hz variant.</summary>
     public const string Variant60HzSuffix = "60hz";
 
+    /// <summary>CRC catalog content name for Easy Anti-Cheat Zero Hour game clients.</summary>
+    public const string EacZeroHourContentName = "eac-zerohour";
+
+    /// <summary>Content name suffix for compound detector game client ids such as "zerohour-generalsonline-60hz".</summary>
+    public const string Compound60HzContentNameSuffix = "-" + PublisherType + "-" + Variant60HzSuffix;
+
     /// <summary>Manifest name suffix for QuickMatch MapPack.</summary>
     public const string QuickMatchMapPackSuffix = "quickmatch-maps";
 

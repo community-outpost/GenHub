@@ -4520,8 +4520,8 @@ public sealed class ReplayDirectoryServiceTests
     }
 
     /// <summary>
-    /// Verifies that a GeneralsOnline replay reports RequiresProfile (not Downloadable) once the
-    /// 60Hz client variant is acquired, even though the catalog declares the zerohour content name.
+    /// Verifies that the acquired GeneralsOnline 60Hz client variant satisfies the catalog
+    /// zerohour client requirement, even though the catalog declares the zerohour content name.
     /// </summary>
     [Fact]
     public void IsClientManifestInstalled_WhenGeneralsOnline60HzVariantAcquired_ReturnsTrue()
@@ -4576,7 +4576,9 @@ public sealed class ReplayDirectoryServiceTests
     /// <summary>
     /// Verifies that a retail Zero Hour 1.04 replay resolves to Compatible for retail-provenance
     /// profiles on both stock retail executables and user-modified retail executables (GenTool
-    /// and similar patches preserve the simulation while changing the binary checksum).
+    /// and similar patches preserve the simulation while changing the binary checksum). Both rows
+    /// pin the retail-provenance bypass, which intentionally does not consult the live executable
+    /// CRC; plain retail profiles additionally yield no checkpoint support.
     /// </summary>
     /// <param name="mockedExeCrc">The live executable CRC reported for the profile executable.</param>
     /// <returns>A task representing the asynchronous unit test.</returns>
@@ -4586,12 +4588,13 @@ public sealed class ReplayDirectoryServiceTests
     public async Task ResolveCompatibility_WhenRetailReplayAndRetailProvenanceProfileExists_ResolvesToCompatibleAsync(string mockedExeCrc)
     {
         var tempDir = Path.Combine(Path.GetTempPath(), "genhub_test_retail_provenance_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(tempDir);
         var fakeExePath = Path.Combine(tempDir, "game.dat");
-        File.WriteAllText(fakeExePath, "fake-steam-binary-content");
 
         try
         {
+            Directory.CreateDirectory(tempDir);
+            File.WriteAllText(fakeExePath, "fake-steam-binary-content");
+
             var mockCrcCalc = new Mock<IGameCrcCalculatorService>();
             mockCrcCalc
                 .Setup(c => c.CalculateExeCrcAsync(fakeExePath, It.IsAny<string?>(), It.IsAny<int?>(), It.IsAny<int?>(), It.IsAny<CancellationToken>()))
@@ -4645,6 +4648,8 @@ public sealed class ReplayDirectoryServiceTests
 
             Assert.Equal(ReplayCompatibilityStatus.Compatible, replay.CompatibilityStatus);
             Assert.Equal("retail-profile-1", replay.MatchingProfileId);
+            Assert.False(replay.SupportsCheckpoints);
+            Assert.Null(replay.RecoveryProfileId);
         }
         finally
         {
@@ -4702,6 +4707,26 @@ public sealed class ReplayDirectoryServiceTests
     }
 
     /// <summary>
+    /// Verifies end-to-end client manifest matching for GeneralsOnline variants, including the
+    /// version gate: version-less candidates (such as compound detector ids with a zero build
+    /// segment) cannot match, while candidates with a known matching version can.
+    /// </summary>
+    /// <param name="candidateId">The candidate manifest ID.</param>
+    /// <param name="candidateVersion">The candidate client version, if known.</param>
+    /// <param name="expected">The expected match result.</param>
+    [Theory]
+    [InlineData("1.213262.generalsonline.gameclient.60hz", "021326_QFE2", true)]
+    [InlineData("1.213262.generalsonline.gameclient.60hz", null, true)]
+    [InlineData("1.0.generalsonline.gameclient.zerohour-generalsonline-60hz", "021326_QFE2", true)]
+    [InlineData("1.0.generalsonline.gameclient.zerohour-generalsonline-60hz", null, false)]
+    public void IsClientManifestMatch_GeneralsOnlineVariants_RespectsVersionGate(string candidateId, string? candidateVersion, bool expected)
+    {
+        Assert.Equal(
+            expected,
+            ReplayDirectoryService.IsClientManifestMatch("1.213262.generalsonline.gameclient.zerohour", candidateId, "021326_QFE2", candidateVersion));
+    }
+
+    /// <summary>
     /// Verifies that profile creation from the client selection dialog resolves an unpooled
     /// GeneralsOnline catalog id (zerohour content name) to the pooled 60Hz variant manifest.
     /// </summary>
@@ -4735,6 +4760,10 @@ public sealed class ReplayDirectoryServiceTests
         _mockProfileManager
             .Setup(p => p.GetAllProfilesAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(ProfileOperationResult<IReadOnlyList<GameProfile>>.CreateSuccess([]));
+
+        _mockDependencyResolver
+            .Setup(r => r.ResolveDependenciesAsync(It.IsAny<IEnumerable<string>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((IEnumerable<string> ids, CancellationToken _) => new HashSet<string>(ids));
 
         var pooledGameClient = new ContentManifest
         {
@@ -4835,12 +4864,13 @@ public sealed class ReplayDirectoryServiceTests
     private static async Task<IReadOnlyList<GameProfile>> FindRecoveryProfilesWithCachedExeCrcAsync(string mockedExeCrc)
     {
         var tempDir = Path.Combine(Path.GetTempPath(), "genhub_test_recovery_crc_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(tempDir);
         var fakeExePath = Path.Combine(tempDir, "generals.exe");
-        File.WriteAllText(fakeExePath, "fake-recovery-binary-content");
 
         try
         {
+            Directory.CreateDirectory(tempDir);
+            File.WriteAllText(fakeExePath, "fake-recovery-binary-content");
+
             var mockCrcCalc = new Mock<IGameCrcCalculatorService>();
             mockCrcCalc
                 .Setup(c => c.CalculateExeCrcAsync(fakeExePath, It.IsAny<string?>(), It.IsAny<int?>(), It.IsAny<int?>(), It.IsAny<CancellationToken>()))

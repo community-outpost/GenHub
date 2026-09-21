@@ -602,28 +602,12 @@ public sealed class ReplayDirectoryService(
                 return false;
             }
 
-            if (!IsRecoveryExeCrcCompatible(p, replayExeCrc, replay.GameVersion))
+            if (!IsRecoveryExeCrcCompatible(p, replayExeCrc, replay.GameVersion, logger))
             {
                 return false;
             }
 
-            var profilePublisher = p.GameClient?.PublisherType ?? string.Empty;
-            var profileClientId = p.GameClient?.Id ?? string.Empty;
-            var isProfileGeneralsOnline = string.Equals(profilePublisher, PublisherTypeConstants.GeneralsOnline, StringComparison.OrdinalIgnoreCase) ||
-                                          profileClientId.Contains(PublisherTypeConstants.GeneralsOnline, StringComparison.OrdinalIgnoreCase) ||
-                                          p.EnabledContentIds?.Any(id => id.Contains(PublisherTypeConstants.GeneralsOnline, StringComparison.OrdinalIgnoreCase)) == true;
-
-            if (isGeneralsOnlineReplay)
-            {
-                return isProfileGeneralsOnline;
-            }
-
-            if (isProfileGeneralsOnline)
-            {
-                return false;
-            }
-
-            return true;
+            return IsRecoveryPublisherAligned(p, isGeneralsOnlineReplay);
         }).ToList();
 
         if (recoveryCandidates.Count == 0)
@@ -843,7 +827,8 @@ public sealed class ReplayDirectoryService(
     /// Determines whether two GeneralsOnline game client manifest IDs denote the same release
     /// despite the catalog/distribution content-name split: the CRC catalog declares the
     /// "zerohour" content name while the delivery pipeline materializes the "60hz" variant.
-    /// Version equality is checked separately by the caller.
+    /// Schema-version segment equality is enforced here; release-version equality is checked
+    /// separately by the caller.
     /// </summary>
     /// <param name="requiredManifestId">The manifest ID required by the replay CRC mapping.</param>
     /// <param name="candidateManifestId">The candidate manifest ID from a profile or the pool.</param>
@@ -853,11 +838,6 @@ public sealed class ReplayDirectoryService(
         if (string.IsNullOrEmpty(requiredManifestId) || string.IsNullOrEmpty(candidateManifestId))
         {
             return false;
-        }
-
-        if (string.Equals(requiredManifestId, candidateManifestId, StringComparison.OrdinalIgnoreCase))
-        {
-            return true;
         }
 
         var requiredParts = requiredManifestId.Split(ManifestConstants.ManifestIdSegmentSeparator);
@@ -882,6 +862,11 @@ public sealed class ReplayDirectoryService(
             !string.Equals(candidateParts[3], ManifestConstants.GameClientContentTypeName, StringComparison.OrdinalIgnoreCase))
         {
             return false;
+        }
+
+        if (string.Equals(requiredManifestId, candidateManifestId, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
         }
 
         return IsGeneralsOnlineZeroHourClientName(requiredParts[4]) && IsGeneralsOnlineZeroHourClientName(candidateParts[4]);
@@ -1213,6 +1198,7 @@ public sealed class ReplayDirectoryService(
         // (custom build) replays where the exact engine build matters.
         if (ReplayCrcMatchingHelper.IsRetailExeCrc(targetExeCrc, gameVersion))
         {
+            LogRetailProvenanceBypassDiagnostics(profile, targetExeCrc, gameVersion, logger);
             return true;
         }
 
@@ -1241,6 +1227,46 @@ public sealed class ReplayDirectoryService(
 
     private static string? GetCachedExeCrc(string exePath) =>
         ReplayCrcMatchingHelper.GetCachedExeCrc(exePath);
+
+    /// <summary>
+    /// Logs a diagnostic message when retail provenance trust matches a profile whose warm
+    /// cached executable CRC differs from the replay CRC, so launch-time desynchronizations
+    /// on user-modified retail executables remain diagnosable. Diagnostics never fail matching.
+    /// </summary>
+    /// <param name="profile">The matched game profile.</param>
+    /// <param name="targetExeCrc">The replay executable CRC.</param>
+    /// <param name="gameVersion">The game version required by the replay.</param>
+    /// <param name="logger">Optional logger for diagnostic messages.</param>
+    private static void LogRetailProvenanceBypassDiagnostics(GameProfile profile, string targetExeCrc, GameType gameVersion, ILogger? logger)
+    {
+        if (logger == null || !logger.IsEnabled(LogLevel.Debug))
+        {
+            return;
+        }
+
+        try
+        {
+            var exePath = ResolveProfileFullExePath(profile.GameClient);
+            if (string.IsNullOrEmpty(exePath))
+            {
+                return;
+            }
+
+            var cachedCrc = GetCachedExeCrc(exePath);
+            if (!string.IsNullOrEmpty(cachedCrc) && !ReplayCrcMatchingHelper.AreExeCrcsEquivalent(cachedCrc, targetExeCrc, gameVersion))
+            {
+                logger.LogDebug(
+                    "[ReplayManager] Retail provenance trust matched profile '{ProfileName}' for replay executable CRC {ReplayCrc} despite profile executable CRC {ProfileCrc}",
+                    profile.Name,
+                    targetExeCrc,
+                    cachedCrc);
+            }
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            logger.LogDebug(ex, "[ReplayManager] Could not evaluate retail provenance diagnostics for profile '{ProfileName}'", profile.Name);
+        }
+    }
 
     private static bool IsExeCrcCompatible(string actualCrc, string targetExeCrc)
     {
@@ -1377,35 +1403,84 @@ public sealed class ReplayDirectoryService(
     }
 
     /// <summary>
+    /// Determines whether a candidate recovery profile publisher aligns with the replay publisher.
+    /// GeneralsOnline replays recover only through GeneralsOnline profiles, and retail replays
+    /// never recover through GeneralsOnline profiles.
+    /// </summary>
+    /// <param name="profile">The candidate game profile.</param>
+    /// <param name="isGeneralsOnlineReplay"><c>true</c> if the replay requires a GeneralsOnline client.</param>
+    /// <returns><c>true</c> if the profile publisher aligns with the replay; otherwise, <c>false</c>.</returns>
+    private static bool IsRecoveryPublisherAligned(GameProfile profile, bool isGeneralsOnlineReplay)
+    {
+        var profilePublisher = profile.GameClient?.PublisherType ?? string.Empty;
+        var profileClientId = profile.GameClient?.Id ?? string.Empty;
+        var isProfileGeneralsOnline = string.Equals(profilePublisher, PublisherTypeConstants.GeneralsOnline, StringComparison.OrdinalIgnoreCase) ||
+                                      profileClientId.Contains(PublisherTypeConstants.GeneralsOnline, StringComparison.OrdinalIgnoreCase) ||
+                                      profile.EnabledContentIds?.Any(id => id.Contains(PublisherTypeConstants.GeneralsOnline, StringComparison.OrdinalIgnoreCase)) == true;
+
+        if (isGeneralsOnlineReplay)
+        {
+            return isProfileGeneralsOnline;
+        }
+
+        if (isProfileGeneralsOnline)
+        {
+            return false;
+        }
+
+        return true;
+    }
+
+    /// <summary>
     /// Determines whether a candidate recovery profile runs the same executable build as the replay.
-    /// Checkpoint minting re-simulates the replay, so a verifiably different engine build cannot
-    /// produce valid checkpoints. Profiles whose executable cannot be verified (missing file or
-    /// cold CRC cache) are allowed through to preserve existing behavior.
+    /// Checkpoint minting re-simulates the replay frame by frame, so unlike play matching (which
+    /// trusts retail provenance for retail replays) it requires the exact engine build: a verifiably
+    /// different build would desynchronize and produce invalid checkpoints. Profiles whose executable
+    /// cannot be verified (missing file or cold CRC cache) are allowed through to preserve existing behavior.
     /// </summary>
     /// <param name="profile">The candidate game profile.</param>
     /// <param name="replayExeCrc">The replay executable CRC, if known.</param>
     /// <param name="gameVersion">The game version required by the replay.</param>
+    /// <param name="logger">Optional logger for diagnostic messages.</param>
     /// <returns><c>true</c> if the profile build matches or cannot be verified; otherwise, <c>false</c>.</returns>
-    private static bool IsRecoveryExeCrcCompatible(GameProfile profile, string? replayExeCrc, GameType gameVersion)
+    private static bool IsRecoveryExeCrcCompatible(GameProfile profile, string? replayExeCrc, GameType gameVersion, ILogger? logger)
     {
         if (string.IsNullOrEmpty(replayExeCrc))
         {
             return true;
         }
 
-        var exePath = ResolveProfileFullExePath(profile.GameClient);
-        if (string.IsNullOrEmpty(exePath) || !File.Exists(exePath))
+        try
         {
+            var exePath = ResolveProfileFullExePath(profile.GameClient);
+            if (string.IsNullOrEmpty(exePath) || !File.Exists(exePath))
+            {
+                return true;
+            }
+
+            var cachedCrc = GetCachedExeCrc(exePath);
+            if (string.IsNullOrEmpty(cachedCrc))
+            {
+                return true;
+            }
+
+            var equivalent = ReplayCrcMatchingHelper.AreExeCrcsEquivalent(cachedCrc, replayExeCrc, gameVersion);
+            if (!equivalent)
+            {
+                logger?.LogDebug(
+                    "[ReplayManager] Excluding recovery profile '{ProfileName}' for replay executable CRC {ReplayCrc}: profile executable CRC is {ProfileCrc}",
+                    profile.Name,
+                    replayExeCrc,
+                    cachedCrc);
+            }
+
+            return equivalent;
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            logger?.LogDebug(ex, "[ReplayManager] Could not verify recovery executable CRC for profile '{ProfileName}'; allowing candidate", profile.Name);
             return true;
         }
-
-        var cachedCrc = GetCachedExeCrc(exePath);
-        if (string.IsNullOrEmpty(cachedCrc))
-        {
-            return true;
-        }
-
-        return ReplayCrcMatchingHelper.AreExeCrcsEquivalent(cachedCrc, replayExeCrc, gameVersion);
     }
 
     private static int ScoreRecoveryProfile(
@@ -1914,7 +1989,7 @@ public sealed class ReplayDirectoryService(
             return false;
         }
 
-        return acquiredIds.Any(id => IsClientManifestMatch(match.ManifestId, id, match.Version, null));
+        return acquiredIds.Contains(match.ManifestId) || acquiredIds.Any(id => IsClientManifestMatch(match.ManifestId, id, match.Version, null));
     }
 
     private static bool IsGeneralsOnlineZeroHourClientName(string? contentName)
@@ -1925,10 +2000,16 @@ public sealed class ReplayDirectoryService(
         }
 
         // The delivery pipeline materializes the 60Hz tickrate variant while the CRC catalog
-        // and detector identify the same clients by their Zero Hour game name (including EAC
-        // and compound detector ids such as "zerohour-generalsonline-60hz").
-        return string.Equals(contentName, GeneralsOnlineConstants.Variant60HzSuffix, StringComparison.OrdinalIgnoreCase) ||
-               contentName.Contains(ManifestConstants.ZeroHourContentName, StringComparison.OrdinalIgnoreCase);
+        // identifies the same clients by their Zero Hour game name (including EAC ids).
+        if (string.Equals(contentName, GeneralsOnlineConstants.Variant60HzSuffix, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(contentName, ManifestConstants.ZeroHourContentName, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(contentName, GeneralsOnlineConstants.EacZeroHourContentName, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        // Compound detector ids such as "zerohour-generalsonline-60hz" denote the same family.
+        return contentName.EndsWith(GeneralsOnlineConstants.Compound60HzContentNameSuffix, StringComparison.OrdinalIgnoreCase);
     }
 
     private static bool IsRetailFallbackInstalled(GameType gameVersion, HashSet<string> acquiredIds)
@@ -2197,6 +2278,47 @@ public sealed class ReplayDirectoryService(
     }
 
     /// <summary>
+    /// Resolves the effective client manifest ID for dialog-selected custom game clients, keeping
+    /// the client identity consistent when the selection maps to a pooled variant manifest.
+    /// </summary>
+    /// <param name="manifestPool">The content manifest pool.</param>
+    /// <param name="context">The profile client preparation context.</param>
+    /// <param name="isCustomRetail"><c>true</c> if the custom client is a retail client.</param>
+    /// <param name="gameClient">The resolved game client, if any.</param>
+    /// <param name="clientManifestId">The current client manifest ID.</param>
+    /// <param name="logger">Optional logger for diagnostic messages.</param>
+    /// <param name="ct">Cancellation token.</param>
+    /// <returns>The effective client manifest ID for profile creation.</returns>
+    private static async Task<string> ResolveProfileCustomClientManifestIdAsync(
+        IContentManifestPool manifestPool,
+        ReplayProfileClientPreparationContext context,
+        bool isCustomRetail,
+        GameClient? gameClient,
+        string clientManifestId,
+        ILogger? logger,
+        CancellationToken ct)
+    {
+        if (context.CustomGameClient == null || isCustomRetail || gameClient == null)
+        {
+            return clientManifestId;
+        }
+
+        var resolvedCustomId = await ResolveCustomClientManifestIdAsync(manifestPool, context.TargetReplay, clientManifestId, logger, ct);
+        if (!string.Equals(resolvedCustomId, clientManifestId, StringComparison.OrdinalIgnoreCase))
+        {
+            logger?.LogDebug(
+                "[ReplayManager] Resolved custom client manifest '{CustomId}' to pooled variant '{ResolvedId}' for replay '{Replay}'",
+                clientManifestId,
+                resolvedCustomId,
+                context.TargetReplay.FileName);
+            gameClient.Id = resolvedCustomId;
+            return resolvedCustomId;
+        }
+
+        return clientManifestId;
+    }
+
+    /// <summary>
     /// Resolves a dialog-selected custom client manifest ID to the pooled manifest that actually
     /// provides it. Explicit pooled selections are kept verbatim; unpooled catalog ids (such as the
     /// GeneralsOnline "zerohour" catalog name versus the pooled "60hz" variant) resolve through the
@@ -2205,12 +2327,14 @@ public sealed class ReplayDirectoryService(
     /// <param name="manifestPool">The content manifest pool.</param>
     /// <param name="replay">The replay file context.</param>
     /// <param name="customClientManifestId">The dialog-selected client manifest ID.</param>
+    /// <param name="logger">Optional logger for diagnostic messages.</param>
     /// <param name="ct">Cancellation token.</param>
     /// <returns>The effective client manifest ID for profile creation.</returns>
     private static async Task<string> ResolveCustomClientManifestIdAsync(
         IContentManifestPool manifestPool,
         ReplayFile replay,
         string customClientManifestId,
+        ILogger? logger,
         CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(customClientManifestId))
@@ -2234,6 +2358,10 @@ public sealed class ReplayDirectoryService(
             }
         }
 
+        logger?.LogDebug(
+            "[ReplayManager] Custom client manifest '{CustomId}' for replay '{Replay}' is not pooled and no variant resolved; keeping selection as chosen",
+            customClientManifestId,
+            replay.FileName);
         return customClientManifestId;
     }
 
@@ -2957,15 +3085,7 @@ public sealed class ReplayDirectoryService(
                 contentOrchestrator,
                 ct);
 
-        if (context.CustomGameClient != null && !isCustomRetail && gameClient != null)
-        {
-            var resolvedCustomId = await ResolveCustomClientManifestIdAsync(manifestPool, context.TargetReplay, clientManifestId, ct);
-            if (!string.Equals(resolvedCustomId, clientManifestId, StringComparison.OrdinalIgnoreCase))
-            {
-                clientManifestId = resolvedCustomId;
-                gameClient.Id = resolvedCustomId;
-            }
-        }
+        clientManifestId = await ResolveProfileCustomClientManifestIdAsync(manifestPool, context, isCustomRetail, gameClient, clientManifestId, logger, ct);
 
         if (context.CustomGameClient != null && isCustomRetail && !string.IsNullOrWhiteSpace(context.CustomGameClient.Name) && gameClient != null)
         {
