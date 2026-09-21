@@ -137,24 +137,67 @@ public sealed class WndImageAssetService(ILogger<WndImageAssetService> logger) :
 
     private static IEnumerable<string> TextureCandidates(string texture)
     {
+        var raw = texture.Trim();
+        var baseName = Path.GetFileName(raw);
+        var directExt = Path.GetExtension(raw);
+        var baseWithoutExt = Path.GetFileNameWithoutExtension(raw);
+
+        var extensions = new[] { directExt, ".tga", ".dds", ".jpg", ".png", ".bmp" }
+            .Where(ext => !string.IsNullOrWhiteSpace(ext))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        var candidateStems = new List<string>
+        {
+            raw,
+            baseName,
+            baseWithoutExt,
+            string.Concat("Data\\Art\\Textures\\", baseName),
+            string.Concat("Data\\Art\\Textures\\", baseWithoutExt),
+            string.Concat("Art\\Textures\\", baseName),
+            string.Concat("Art\\Textures\\", baseWithoutExt),
+            string.Concat("Data\\Textures\\", baseName),
+            string.Concat("Data\\Textures\\", baseWithoutExt),
+            string.Concat("Textures\\", baseName),
+            string.Concat("Textures\\", baseWithoutExt),
+        };
+
         foreach (var language in WndConstants.MappedImages.TextureLanguages)
         {
-            var stem = string.Concat("Data\\", language, "\\", WndConstants.MappedImages.TexturesDirectory, "\\", texture);
-            foreach (var extension in WndConstants.MappedImages.TextureExtensions)
+            candidateStems.Add(string.Concat("Data\\", language, "\\", WndConstants.MappedImages.TexturesDirectory, "\\", baseName));
+            candidateStems.Add(string.Concat("Data\\", language, "\\", WndConstants.MappedImages.TexturesDirectory, "\\", baseWithoutExt));
+            candidateStems.Add(string.Concat("Data\\", language, "\\Art\\Textures\\", baseName));
+            candidateStems.Add(string.Concat("Data\\", language, "\\Art\\Textures\\", baseWithoutExt));
+            candidateStems.Add(string.Concat("Data\\", language, "\\Textures\\", baseName));
+            candidateStems.Add(string.Concat("Data\\", language, "\\Textures\\", baseWithoutExt));
+            candidateStems.Add(string.Concat("Data\\", language, "\\", baseName));
+            candidateStems.Add(string.Concat("Data\\", language, "\\", baseWithoutExt));
+        }
+
+        candidateStems.Add(string.Concat(WndConstants.MappedImages.TexturesDirectory, "\\", baseName));
+        candidateStems.Add(string.Concat(WndConstants.MappedImages.TexturesDirectory, "\\", baseWithoutExt));
+
+        var returned = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        // First yield any exact paths that already have extensions
+        foreach (var stem in candidateStems)
+        {
+            if (!string.IsNullOrEmpty(Path.GetExtension(stem)) && returned.Add(stem))
             {
-                yield return Path.ChangeExtension(stem, extension);
+                yield return stem;
             }
         }
 
-        foreach (var stem in new[]
+        // Then yield with extensions
+        foreach (var stem in candidateStems)
         {
-            string.Concat(WndConstants.MappedImages.TexturesDirectory, "\\", texture),
-            texture,
-        })
-        {
-            foreach (var extension in WndConstants.MappedImages.TextureExtensions)
+            foreach (var ext in extensions)
             {
-                yield return Path.ChangeExtension(stem, extension);
+                var candidate = Path.ChangeExtension(stem, ext);
+                if (returned.Add(candidate))
+                {
+                    yield return candidate;
+                }
             }
         }
     }
@@ -244,25 +287,50 @@ public sealed class WndImageAssetService(ILogger<WndImageAssetService> logger) :
     {
         var fileSystem = WndGameFileSystem.Open(baseRoot, overrideRoot, projectDirectory, logger, cancellationToken);
 
-        var images = new Dictionary<string, (WndMappedImage Image, int Score, int Size)>(StringComparer.OrdinalIgnoreCase);
-        foreach (var iniPath in fileSystem.FilesUnder(WndConstants.MappedImages.DefinitionsDirectory))
+        var searchDirs = new[]
         {
-            cancellationToken.ThrowIfCancellationRequested();
-            var bytes = fileSystem.Read(iniPath);
-            if (bytes == null)
-            {
-                continue;
-            }
+            WndConstants.MappedImages.DefinitionsDirectory, // "Data\\INI\\MappedImages"
+            "INI\\MappedImages",
+            "MappedImages",
+            "Data\\INI",
+            "INI",
+        };
 
-            var size = ParseTextureSize(iniPath);
-            var score = DefinitionScore(iniPath, size);
-            foreach (var image in WndMappedImage.ParseDefinitions(Encoding.UTF8.GetString(bytes)))
+        var images = new Dictionary<string, (WndMappedImage Image, int Score, int Size)>(StringComparer.OrdinalIgnoreCase);
+        var processedInis = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var dir in searchDirs)
+        {
+            foreach (var iniPath in fileSystem.FilesUnder(dir))
             {
-                if (!images.TryGetValue(image.Name, out var incumbent)
-                    || score < incumbent.Score
-                    || (score == incumbent.Score && size > incumbent.Size))
+                cancellationToken.ThrowIfCancellationRequested();
+                if (!iniPath.EndsWith(".ini", StringComparison.OrdinalIgnoreCase) || !processedInis.Add(iniPath))
                 {
-                    images[image.Name] = (image, score, size);
+                    continue;
+                }
+
+                var bytes = fileSystem.Read(iniPath);
+                if (bytes == null || bytes.Length == 0)
+                {
+                    continue;
+                }
+
+                var text = Encoding.UTF8.GetString(bytes);
+                if (!text.Contains("MappedImage", StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                var size = ParseTextureSize(iniPath);
+                var score = DefinitionScore(iniPath, size);
+                foreach (var image in WndMappedImage.ParseDefinitions(text))
+                {
+                    if (!images.TryGetValue(image.Name, out var incumbent)
+                        || score < incumbent.Score
+                        || (score == incumbent.Score && size > incumbent.Size))
+                    {
+                        images[image.Name] = (image, score, size);
+                    }
                 }
             }
         }
@@ -351,9 +419,20 @@ public sealed class WndImageAssetService(ILogger<WndImageAssetService> logger) :
             return MagickFormat.Tga;
         }
 
-        if (string.Equals(extension, WndConstants.MappedImages.TextureExtensionJpg, StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(extension, WndConstants.MappedImages.TextureExtensionJpg, StringComparison.OrdinalIgnoreCase)
+            || string.Equals(extension, ".jpeg", StringComparison.OrdinalIgnoreCase))
         {
             return MagickFormat.Jpg;
+        }
+
+        if (string.Equals(extension, ".png", StringComparison.OrdinalIgnoreCase))
+        {
+            return MagickFormat.Png;
+        }
+
+        if (string.Equals(extension, ".bmp", StringComparison.OrdinalIgnoreCase))
+        {
+            return MagickFormat.Bmp;
         }
 
         return MagickFormat.Unknown;
@@ -363,8 +442,12 @@ public sealed class WndImageAssetService(ILogger<WndImageAssetService> logger) :
     {
         try
         {
-            var settings = new MagickReadSettings { Format = group.Format };
-            using var page = new MagickImage(group.Bytes, settings);
+            var settings = group.Format != MagickFormat.Unknown
+                ? new MagickReadSettings { Format = group.Format }
+                : null;
+            using var page = settings != null
+                ? new MagickImage(group.Bytes, settings)
+                : new MagickImage(group.Bytes);
             foreach (var image in group.Images)
             {
                 var png = CropToPng(page, image);

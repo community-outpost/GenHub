@@ -1209,4 +1209,82 @@ public sealed class WndEditorViewModelTests : IDisposable
             .Setup(s => s.GetAllInstallationsAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult<IReadOnlyList<GameInstallation>>.CreateSuccess([installation]));
     }
+    [Fact]
+    public void RefreshFiles_LoadsTreeRecursively_SkipsEmptyDirectories_StripsExtension()
+    {
+        // Arrange
+        var rootDir = Path.Combine(_tempDirectory, "GameFilesEdited");
+        var gen1080 = Path.Combine(rootDir, "Gen1080", "Window", "Menus");
+        var emptyDir = Path.Combine(rootDir, "EmptyFolder", "SubEmpty");
+        var nonWndDir = Path.Combine(rootDir, "NonWndFolder");
+
+        Directory.CreateDirectory(gen1080);
+        Directory.CreateDirectory(emptyDir);
+        Directory.CreateDirectory(nonWndDir);
+
+        File.WriteAllText(Path.Combine(gen1080, "Defeat.wnd"), "FILE_VERSION = 2;");
+        File.WriteAllText(Path.Combine(gen1080, "DisconnectScreen.wnd"), "FILE_VERSION = 2;");
+        File.WriteAllText(Path.Combine(rootDir, "Gen1080", "Window", "ControlBar.wnd"), "FILE_VERSION = 2;");
+        File.WriteAllText(Path.Combine(nonWndDir, "readme.txt"), "not a wnd file");
+
+        // Act
+        _viewModel.FilesDirectory = rootDir;
+
+        // Assert
+        _viewModel.FilesDirectoryName.Should().Be("GameFilesEdited");
+        _viewModel.Files.Should().HaveCount(1);
+
+        var rootNode = _viewModel.Files[0];
+        rootNode.Name.Should().Be("GameFilesEdited");
+        rootNode.IsDirectory.Should().BeTrue();
+
+        // Gen1080 should be present; EmptyFolder and NonWndFolder should be skipped!
+        rootNode.Children.Should().HaveCount(1);
+        var gen1080Node = rootNode.Children[0];
+        gen1080Node.Name.Should().Be("Gen1080");
+
+        var windowNode = gen1080Node.Children[0];
+        windowNode.Name.Should().Be("Window");
+
+        // Window contains Menus (folder) and ControlBar (file without .wnd)
+        windowNode.Children.Should().HaveCount(2);
+
+        var menusNode = windowNode.Children.First(c => c.IsDirectory);
+        menusNode.Name.Should().Be("Menus");
+        menusNode.Children.Select(c => c.Name).Should().BeEquivalentTo(["Defeat", "DisconnectScreen"]);
+        menusNode.Children.All(c => c.IsFile).Should().BeTrue();
+
+        var controlBarNode = windowNode.Children.First(c => c.IsFile);
+        controlBarNode.Name.Should().Be("ControlBar");
+    }
+
+    [Fact]
+    public async Task SyncFilesDirectory_WhenFileInsideCurrentDirectory_RetainsTreeAndUpdatesIsCurrent()
+    {
+        // Arrange
+        var rootDir = Path.Combine(_tempDirectory, "GameFilesEdited");
+        var menusDir = Path.Combine(rootDir, "Window", "Menus");
+        Directory.CreateDirectory(menusDir);
+
+        var defeatPath = Path.Combine(menusDir, "Defeat.wnd");
+        File.WriteAllText(defeatPath, "FILE_VERSION = 2;
+WINDOW
+  SCREENRECT = UPPERLEFT: 0 0, BOTTOMRIGHT: 10 10, CREATIONRESOLUTION: 800 600;
+END
+");
+
+        _viewModel.FilesDirectory = rootDir;
+        _viewModel.Files.Should().HaveCount(1);
+
+        // Act
+        await _viewModel.OpenFileAsync(defeatPath);
+
+        // Assert - FilesDirectory stays as rootDir
+        _viewModel.FilesDirectory.Should().Be(rootDir);
+
+        // Defeat node should now be marked IsCurrent
+        var defeatNode = _viewModel.Files[0].Children[0].Children[0].Children[0];
+        defeatNode.Name.Should().Be("Defeat");
+        defeatNode.IsCurrent.Should().BeTrue();
+    }
 }

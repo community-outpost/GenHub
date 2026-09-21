@@ -74,7 +74,16 @@ public sealed partial class WndEditorViewModel(
     /// <summary>
     /// Gets the window definition files listed in the explorer.
     /// </summary>
-    public ObservableCollection<WndFileEntryViewModel> Files { get; } = [];
+    public ObservableCollection<WndFileTreeNodeViewModel> Files { get; } = [];
+
+    /// <summary>
+    /// Gets the directory name for display in the explorer.
+    /// </summary>
+    public string? FilesDirectoryName => string.IsNullOrEmpty(FilesDirectory)
+        ? null
+        : Path.GetFileName(FilesDirectory.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)) is { Length: > 0 } name
+            ? name
+            : FilesDirectory;
 
     /// <summary>
     /// Gets the canvas items rendered from window geometry.
@@ -843,17 +852,48 @@ public sealed partial class WndEditorViewModel(
     /// <summary>
     /// Opens a file chosen in the explorer.
     /// </summary>
-    /// <param name="file">The file entry to open.</param>
+    /// <param name="file">The file tree node to open.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     [RelayCommand]
-    private async Task OpenExplorerFileAsync(WndFileEntryViewModel? file, CancellationToken cancellationToken = default)
+    private async Task OpenExplorerFileAsync(WndFileTreeNodeViewModel? file, CancellationToken cancellationToken = default)
     {
-        if (file == null)
+        if (file == null || file.IsDirectory)
         {
             return;
         }
 
         await OpenFileAsync(file.FullPath, cancellationToken);
+    }
+
+    /// <summary>
+    /// Toggles the expanded state of a directory node.
+    /// </summary>
+    /// <param name="node">The directory node.</param>
+    [RelayCommand]
+    private void ToggleFileDirectory(WndFileTreeNodeViewModel? node)
+    {
+        if (node != null && node.IsDirectory)
+        {
+            node.IsExpanded = !node.IsExpanded;
+        }
+    }
+
+    /// <summary>
+    /// Expands every file tree node.
+    /// </summary>
+    [RelayCommand]
+    private void ExpandAllFiles()
+    {
+        SetFileNodesExpanded(Files, true);
+    }
+
+    /// <summary>
+    /// Collapses every file tree node.
+    /// </summary>
+    [RelayCommand]
+    private void CollapseAllFiles()
+    {
+        SetFileNodesExpanded(Files, false);
     }
 
     /// <summary>
@@ -900,23 +940,136 @@ public sealed partial class WndEditorViewModel(
 
         try
         {
-            var currentPath = FilePath;
-            var ordered = Directory
-                .EnumerateFiles(FilesDirectory, ModBuilderConstants.FileNames.WndSearchPattern)
-                .OrderBy(Path.GetFileName, StringComparer.OrdinalIgnoreCase);
-            foreach (var path in ordered)
+            var rootDirInfo = new DirectoryInfo(FilesDirectory);
+            var rootNode = BuildDirectoryNode(rootDirInfo, FilePath, null);
+            if (rootNode != null)
             {
-                var isCurrent = string.Equals(path, currentPath, StringComparison.OrdinalIgnoreCase);
-                Files.Add(new WndFileEntryViewModel(Path.GetFileName(path), path, isCurrent));
+                Files.Add(rootNode);
             }
         }
-        catch (IOException ex)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             logger.LogWarning(ex, "Failed to list window definition files in {Directory}", FilesDirectory);
         }
-        catch (UnauthorizedAccessException ex)
+    }
+
+    /// <summary>
+    /// Recursively builds a file tree node for the given directory, skipping directories with no .wnd files.
+    /// </summary>
+    private WndFileTreeNodeViewModel? BuildDirectoryNode(
+        DirectoryInfo directoryInfo,
+        string? currentPath,
+        WndFileTreeNodeViewModel? parent)
+    {
+        var node = new WndFileTreeNodeViewModel(
+            directoryInfo.Name,
+            directoryInfo.FullName,
+            isDirectory: true,
+            isCurrent: false,
+            parent: parent);
+
+        try
         {
-            logger.LogWarning(ex, "Access denied listing window definition files in {Directory}", FilesDirectory);
+            var subDirectories = directoryInfo
+                .EnumerateDirectories()
+                .OrderBy(d => d.Name, StringComparer.OrdinalIgnoreCase);
+
+            foreach (var subDir in subDirectories)
+            {
+                if ((subDir.Attributes & FileAttributes.Hidden) != 0)
+                {
+                    continue;
+                }
+
+                var childNode = BuildDirectoryNode(subDir, currentPath, node);
+                if (childNode != null && childNode.Children.Count > 0)
+                {
+                    node.Children.Add(childNode);
+                }
+            }
+        }
+        catch (Exception ex) when (ex is UnauthorizedAccessException or IOException)
+        {
+            logger.LogWarning(ex, "Access denied enumerating subdirectories in {Path}", directoryInfo.FullName);
+        }
+
+        try
+        {
+            var files = directoryInfo
+                .EnumerateFiles(ModBuilderConstants.FileNames.WndSearchPattern)
+                .OrderBy(f => f.Name, StringComparer.OrdinalIgnoreCase);
+
+            foreach (var file in files)
+            {
+                var isCurrent = string.Equals(file.FullName, currentPath, StringComparison.OrdinalIgnoreCase);
+                var fileNameWithoutExtension = Path.GetFileNameWithoutExtension(file.Name);
+                var fileNode = new WndFileTreeNodeViewModel(
+                    fileNameWithoutExtension,
+                    file.FullName,
+                    isDirectory: false,
+                    isCurrent: isCurrent,
+                    parent: node);
+
+                node.Children.Add(fileNode);
+            }
+        }
+        catch (Exception ex) when (ex is UnauthorizedAccessException or IOException)
+        {
+            logger.LogWarning(ex, "Access denied enumerating files in {Path}", directoryInfo.FullName);
+        }
+
+        if (node.Children.Count == 0)
+        {
+            return null;
+        }
+
+        return node;
+    }
+
+    private static void SetFileNodesExpanded(IEnumerable<WndFileTreeNodeViewModel> nodes, bool expanded)
+    {
+        foreach (var node in nodes)
+        {
+            if (node.IsDirectory)
+            {
+                node.IsExpanded = expanded;
+                SetFileNodesExpanded(node.Children, expanded);
+            }
+        }
+    }
+
+    private void UpdateCurrentFileNode(string? currentPath)
+    {
+        UpdateNodesCurrentState(Files, currentPath);
+    }
+
+    private static void UpdateNodesCurrentState(IEnumerable<WndFileTreeNodeViewModel> nodes, string? currentPath)
+    {
+        foreach (var node in nodes)
+        {
+            if (node.IsFile)
+            {
+                node.IsCurrent = string.Equals(node.FullPath, currentPath, StringComparison.OrdinalIgnoreCase);
+            }
+            else
+            {
+                UpdateNodesCurrentState(node.Children, currentPath);
+            }
+        }
+    }
+
+    private static bool IsSubPathOf(string path, string basePath)
+    {
+        try
+        {
+            var normalizedPath = Path.GetFullPath(path).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+            var normalizedBase = Path.GetFullPath(basePath).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+            return normalizedPath.StartsWith(normalizedBase + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)
+                || string.Equals(normalizedPath, normalizedBase, StringComparison.OrdinalIgnoreCase);
+        }
+        catch (Exception)
+        {
+            return false;
         }
     }
 
@@ -954,9 +1107,14 @@ public sealed partial class WndEditorViewModel(
 
     partial void OnFilesDirectoryChanged(string? value)
     {
+        OnPropertyChanged(nameof(FilesDirectoryName));
         if (!string.IsNullOrEmpty(value))
         {
             RefreshFiles();
+        }
+        else
+        {
+            Files.Clear();
         }
     }
 
@@ -1054,14 +1212,23 @@ public sealed partial class WndEditorViewModel(
 
     private void SyncFilesDirectory(string? filePath)
     {
-        var directory = string.IsNullOrEmpty(filePath) ? null : Path.GetDirectoryName(filePath);
-        if (!string.IsNullOrEmpty(directory) && !string.Equals(directory, FilesDirectory, StringComparison.OrdinalIgnoreCase))
+        if (string.IsNullOrEmpty(filePath))
+        {
+            return;
+        }
+
+        var directory = Path.GetDirectoryName(filePath);
+        if (string.IsNullOrEmpty(FilesDirectory) || !Directory.Exists(FilesDirectory))
         {
             FilesDirectory = directory;
         }
-        else
+        else if (IsSubPathOf(filePath, FilesDirectory))
         {
-            RefreshFiles();
+            UpdateCurrentFileNode(filePath);
+        }
+        else if (!string.IsNullOrEmpty(directory))
+        {
+            FilesDirectory = directory;
         }
     }
 
@@ -1492,9 +1659,38 @@ public sealed partial class WndEditorViewModel(
             if (!string.IsNullOrEmpty(installation.ZeroHourPath)
                 && string.Equals(selection.Path, installation.ZeroHourPath, StringComparison.OrdinalIgnoreCase))
             {
-                return !string.IsNullOrEmpty(installation.GeneralsPath) && installation.HasGenerals
-                    ? new AssetRoots(installation.GeneralsPath, installation.ZeroHourPath)
-                    : new AssetRoots(installation.ZeroHourPath, null);
+                if (!string.IsNullOrEmpty(installation.GeneralsPath) && installation.HasGenerals)
+                {
+                    return new AssetRoots(installation.GeneralsPath, installation.ZeroHourPath);
+                }
+
+                // If this installation does not directly link Generals (e.g. Steam standalone),
+                // search for ANY detected Generals installation across all installations
+                var anyGenerals = _installations.FirstOrDefault(i => !string.IsNullOrEmpty(i.GeneralsPath) && i.HasGenerals);
+                if (anyGenerals != null && !string.IsNullOrEmpty(anyGenerals.GeneralsPath))
+                {
+                    return new AssetRoots(anyGenerals.GeneralsPath, installation.ZeroHourPath);
+                }
+
+                // Also check sibling directory (e.g. Steam: Command & Conquer Generals)
+                try
+                {
+                    var parent = Directory.GetParent(installation.ZeroHourPath)?.FullName;
+                    if (!string.IsNullOrEmpty(parent))
+                    {
+                        var siblingGenerals = Path.Combine(parent, "Command & Conquer Generals");
+                        if (Directory.Exists(siblingGenerals))
+                        {
+                            return new AssetRoots(siblingGenerals, installation.ZeroHourPath);
+                        }
+                    }
+                }
+                catch (Exception)
+                {
+                    // Fall back to ZeroHourPath
+                }
+
+                return new AssetRoots(installation.ZeroHourPath, null);
             }
 
             if (!string.IsNullOrEmpty(installation.GeneralsPath)
@@ -1502,6 +1698,14 @@ public sealed partial class WndEditorViewModel(
             {
                 return new AssetRoots(installation.GeneralsPath, null);
             }
+        }
+
+        // If selection.Path is a Zero Hour folder without a matched installation, try finding Generals base
+        var fallbackGenerals = _installations.FirstOrDefault(i => !string.IsNullOrEmpty(i.GeneralsPath) && i.HasGenerals);
+        if (fallbackGenerals != null && !string.IsNullOrEmpty(fallbackGenerals.GeneralsPath)
+            && selection.DisplayName.Contains("Zero Hour", StringComparison.OrdinalIgnoreCase))
+        {
+            return new AssetRoots(fallbackGenerals.GeneralsPath, selection.Path);
         }
 
         return new AssetRoots(selection.Path, null);
@@ -1891,11 +2095,24 @@ public sealed partial class WndEditorViewModel(
     private static string? FindModRoot(string directory)
     {
         var current = directory;
-        for (var depth = 0; depth < 6 && !string.IsNullOrEmpty(current); depth++)
+        for (var depth = 0; depth < 8 && !string.IsNullOrEmpty(current); depth++)
         {
             try
             {
-                if (Directory.Exists(Path.Combine(current, "Data")))
+                if (Directory.GetFiles(current, "*.mbproj").Length > 0)
+                {
+                    return current;
+                }
+
+                if (Directory.Exists(Path.Combine(current, "GameFilesEdited")))
+                {
+                    return current;
+                }
+
+                if (Directory.Exists(Path.Combine(current, "Data"))
+                    || Directory.Exists(Path.Combine(current, "window"))
+                    || Directory.Exists(Path.Combine(current, "Art"))
+                    || Directory.Exists(Path.Combine(current, "INI")))
                 {
                     return current;
                 }

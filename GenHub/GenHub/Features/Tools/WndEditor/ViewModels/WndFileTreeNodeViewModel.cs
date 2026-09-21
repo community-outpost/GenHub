@@ -1,0 +1,68 @@
+using System.Collections.ObjectModel;
+using CommunityToolkit.Mvvm.ComponentModel;
+
+namespace GenHub.Features.Tools.WndEditor.ViewModels;
+
+/// <summary>
+/// Tree node representing a directory or window definition file in the explorer.
+/// </summary>
+public sealed partial class WndFileTreeNodeViewModel : ObservableObject
+{
+    [ObservableProperty]
+    private bool _isExpanded = true;
+
+    [ObservableProperty]
+    private bool _isCurrent;
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="WndFileTreeNodeViewModel"/> class.
+    /// </summary>
+    /// <param name="name">The display name of the directory or file.</param>
+    /// <param name="fullPath">The full path on disk.</param>
+    /// <param name="isDirectory">Whether this node is a directory.</param>
+    /// <param name="isCurrent">Whether this file is currently open in the editor.</param>
+    /// <param name="parent">The parent directory node, or null for root.</param>
+    public WndFileTreeNodeViewModel(
+        string name,
+        string fullPath,
+        bool isDirectory,
+        bool isCurrent = false,
+        WndFileTreeNodeViewModel? parent = null)
+    {
+        Name = name;
+        FullPath = fullPath;
+        IsDirectory = isDirectory;
+        _isCurrent = isCurrent;
+        Parent = parent;
+    }
+
+    /// <summary>
+    /// Gets the display name of the directory or file (without extension for files).
+    /// </summary>
+    public string Name { get; }
+
+    /// <summary>
+    /// Gets the full path to the directory or file.
+    /// </summary>
+    public string FullPath { get; }
+
+    /// <summary>
+    /// Gets whether this node represents a directory.
+    /// </summary>
+    public bool IsDirectory { get; }
+
+    /// <summary>
+    /// Gets whether this node represents a file.
+    /// </summary>
+    public bool IsFile => !IsDirectory;
+
+    /// <summary>
+    /// Gets the parent node, or null for root nodes.
+    /// </summary>
+    public WndFileTreeNodeViewModel? Parent { get; }
+
+    /// <summary>
+    /// Gets the child nodes.
+    /// </summary>
+    public ObservableCollection<WndFileTreeNodeViewModel> Children { get; } = [];
+}

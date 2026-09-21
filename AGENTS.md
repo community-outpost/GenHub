@@ -24,6 +24,13 @@ Every contributor and agent targets the `development` branch. Because changes to
 
 No hidden exceptions for control flow. Operations that can fail (missing files, network drops, checksum mismatches, launch errors) return strongly typed `OperationResult<T>` records. Constants are centralized, constructors are primary, and code is clean, maintainable, and verifiable.
 
+### 5. Ecosystem & Architectural Consistency
+
+Consistency is paramount across GenHub. Every feature, view, control, behavior, pipeline, and architectural component must adhere to unified ecosystem standards:
+- **Consistent Behaviors & UX:** Never create isolated, one-off interaction models. Common interactions (such as scrubbers, numeric inputs, sidebars, tree views, expanders, dialogs, and progress indicators) must behave identically across all tools and features.
+- **Consistent Styling & Design Tokens:** All views and controls must bind to semantic theme tokens from `ThemeResources.axaml` via `{DynamicResource ...}`. Shared controls and styles (such as `SidebarLayout`, `NumericUpDownStyles`, `ExpanderStyles`) must live in common infrastructure (`GenHub.Common.Controls`, `GenHub/Assets/Styles`) and apply globally across all windows and views.
+- **Consistent Code & Infrastructure:** Follow unified service lifetimes, Result patterns, primary constructors, naming conventions, and logging patterns across all features, tools, and platforms without diverging into bespoke paradigms.
+
 ## A note from the maintainers
 
 We like ambitious ideas, simple systems, and software that feels obvious. Do not preserve complexity just because it already exists. Do not introduce machinery because it looks architecturally impressive. Understand the real constraint, then fight for the smallest model that makes the correct behavior unsurprising.

@@ -42,6 +42,37 @@ public static class WndGameFileSystem
         if (!string.IsNullOrWhiteSpace(projectDirectory) && Directory.Exists(projectDirectory))
         {
             fileSystem.AddMod(projectDirectory);
+
+            // Layer loose files in GameFilesEdited if present
+            var gameFilesEdited = Path.Combine(projectDirectory, "GameFilesEdited");
+            if (Directory.Exists(gameFilesEdited))
+            {
+                fileSystem.AddMod(gameFilesEdited);
+            }
+
+            // Layer .Release and Release output folders containing packed .big archives
+            foreach (var releaseSub in new[] { ".Release", "Release" })
+            {
+                var releaseDir = Path.Combine(projectDirectory, releaseSub);
+                if (Directory.Exists(releaseDir))
+                {
+                    fileSystem.AddMod(releaseDir);
+                }
+            }
+
+            // If projectDirectory is GameFilesEdited itself, also layer parent directory and parent's releases
+            var parent = Directory.GetParent(projectDirectory)?.FullName;
+            if (!string.IsNullOrEmpty(parent) && Directory.Exists(parent))
+            {
+                foreach (var releaseSub in new[] { ".Release", "Release" })
+                {
+                    var parentReleaseDir = Path.Combine(parent, releaseSub);
+                    if (Directory.Exists(parentReleaseDir))
+                    {
+                        fileSystem.AddMod(parentReleaseDir);
+                    }
+                }
+            }
         }
 
         return fileSystem;

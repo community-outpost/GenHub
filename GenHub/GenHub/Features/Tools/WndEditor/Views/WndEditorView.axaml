@@ -126,7 +126,7 @@
     </Border>
 
     <Grid Grid.Row="1">
-      <Grid ColumnDefinitions="320,4,*,4,380" IsVisible="{Binding HasDocument}">
+      <Grid ColumnDefinitions="350,4,*,4,380" IsVisible="{Binding HasDocument}">
         <Border Grid.Column="0"
                 Background="{DynamicResource CardBackground}"
                 BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
@@ -161,18 +161,18 @@
                   <TreeView ItemsSource="{Binding RootNodes}"
                             SelectedItem="{Binding SelectedNode, Mode=TwoWay}"
                             BorderThickness="0" Background="Transparent"
-                            ScrollViewer.HorizontalScrollBarVisibility="Auto">
+                            ScrollViewer.HorizontalScrollBarVisibility="Disabled">
                     <TreeView.Styles>
                       <Style Selector="TreeViewItem">
                         <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}"/>
-                        <Setter Property="HorizontalAlignment" Value="Left"/>
+                        <Setter Property="HorizontalAlignment" Value="Stretch"/>
                         <Setter Property="Padding" Value="0"/>
                         <Setter Property="MinHeight" Value="0"/>
                       </Style>
                     </TreeView.Styles>
                     <TreeView.ItemTemplate>
                       <TreeDataTemplate ItemsSource="{Binding Children}" x:DataType="vm:WndTreeNodeViewModel">
-                        <Border Margin="4,1" Padding="6,3" CornerRadius="6" Background="Transparent" ToolTip.Tip="{Binding FullName}">
+                        <Border Margin="4,1" Padding="6,3" CornerRadius="6" Background="Transparent" ToolTip.Tip="{Binding FullName}" HorizontalAlignment="Stretch">
                           <Grid ColumnDefinitions="Auto,*,Auto" VerticalAlignment="Center">
                             <Border Grid.Column="0"
                                     Background="{DynamicResource AccentTintBackgroundBrush}"
@@ -225,65 +225,137 @@
             </TabItem>
             <TabItem Header="{localization:Localize Tools.WndEditor.Tabs.Files}">
               <Grid RowDefinitions="Auto,Auto,*">
-                <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="6" Margin="0,8,0,6">
-                  <Button Command="{Binding BrowseFilesDirectoryCommand}"
+                <Grid Grid.Row="0" ColumnDefinitions="Auto,Auto,*,Auto,Auto" Margin="0,8,0,6">
+                  <Button Grid.Column="0"
+                          Command="{Binding BrowseFilesDirectoryCommand}"
                           Padding="8,4"
                           Background="{DynamicResource SurfaceElevatedBrush}"
                           BorderBrush="{DynamicResource BorderBrush}"
                           BorderThickness="1" CornerRadius="6"
                           Content="{localization:Localize Tools.WndEditor.Files.Browse}"
                           FontSize="11" FontWeight="SemiBold"/>
-                  <Button Command="{Binding RefreshFilesCommand}"
-                          Padding="8,4"
+                  <Button Grid.Column="1"
+                          Command="{Binding RefreshFilesCommand}"
+                          Padding="8,4" Margin="6,0,0,0"
                           Background="Transparent"
                           BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
                           CornerRadius="6"
                           Content="{localization:Localize Tools.WndEditor.Files.Refresh}"
                           FontSize="11"/>
-                </StackPanel>
-                <TextBlock Grid.Row="1"
-                           Text="{Binding FilesDirectory}"
-                           FontSize="10" Foreground="{DynamicResource TextMuted}"
-                           TextTrimming="CharacterEllipsis" Margin="0,0,0,6"
-                           ToolTip.Tip="{Binding FilesDirectory}"/>
+                  <Button Grid.Column="3"
+                          Command="{Binding ExpandAllFilesCommand}"
+                          Padding="5,4" Margin="4,0,0,0"
+                          Background="Transparent"
+                          BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                          CornerRadius="6"
+                          ToolTip.Tip="{localization:Localize Tools.WndEditor.Tree.ExpandAll}">
+                    <material:MaterialIcon Kind="ArrowExpandAll" Width="13" Height="13" Foreground="{DynamicResource TextSecondary}"/>
+                  </Button>
+                  <Button Grid.Column="4"
+                          Command="{Binding CollapseAllFilesCommand}"
+                          Padding="5,4" Margin="4,0,0,0"
+                          Background="Transparent"
+                          BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                          CornerRadius="6"
+                          ToolTip.Tip="{localization:Localize Tools.WndEditor.Tree.CollapseAll}">
+                    <material:MaterialIcon Kind="ArrowCollapseAll" Width="13" Height="13" Foreground="{DynamicResource TextSecondary}"/>
+                  </Button>
+                </Grid>
+                <Border Grid.Row="1"
+                        IsVisible="{Binding FilesDirectoryName, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                        Background="{DynamicResource SurfaceHoverBrush}"
+                        BorderBrush="{DynamicResource BorderBrush}"
+                        BorderThickness="1" CornerRadius="6"
+                        Padding="6,3" Margin="0,0,0,6"
+                        ToolTip.Tip="{Binding FilesDirectory}">
+                  <Grid ColumnDefinitions="Auto,*" VerticalAlignment="Center">
+                    <material:MaterialIcon Grid.Column="0" Kind="Folder" Width="13" Height="13"
+                                           Foreground="{DynamicResource AccentBrush}"
+                                           VerticalAlignment="Center" Margin="0,0,5,0"/>
+                    <TextBlock Grid.Column="1"
+                               Text="{Binding FilesDirectoryName}"
+                               FontSize="11" FontWeight="SemiBold"
+                               Foreground="{DynamicResource TextPrimary}"
+                               VerticalAlignment="Center"
+                               TextTrimming="CharacterEllipsis"/>
+                  </Grid>
+                </Border>
                 <Border Grid.Row="2"
                         BorderBrush="{DynamicResource BorderBrush}"
                         BorderThickness="1" CornerRadius="8"
                         Background="{DynamicResource SurfaceElevatedBrush}">
-                  <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-                    <ItemsControl ItemsSource="{Binding Files}" Margin="4">
-                      <ItemsControl.ItemTemplate>
-                        <DataTemplate x:DataType="vm:WndFileEntryViewModel">
-                          <Button Command="{Binding ElementName=Root, Path=DataContext.OpenExplorerFileCommand}"
+                  <TreeView ItemsSource="{Binding Files}"
+                            BorderThickness="0" Background="Transparent"
+                            ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                    <TreeView.Styles>
+                      <Style Selector="TreeViewItem">
+                        <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}"/>
+                        <Setter Property="HorizontalAlignment" Value="Stretch"/>
+                        <Setter Property="Padding" Value="0"/>
+                        <Setter Property="MinHeight" Value="0"/>
+                      </Style>
+                    </TreeView.Styles>
+                    <TreeView.ItemTemplate>
+                      <TreeDataTemplate ItemsSource="{Binding Children}" x:DataType="vm:WndFileTreeNodeViewModel">
+                        <Panel>
+                          <!-- Directory item -->
+                          <Button IsVisible="{Binding IsDirectory}"
+                                  Command="{Binding ElementName=Root, Path=DataContext.ToggleFileDirectoryCommand}"
                                   CommandParameter="{Binding}"
                                   Background="Transparent" BorderThickness="0"
-                                  Padding="0" Margin="4,1"
+                                  Padding="0" Margin="1,1"
                                   HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
-                            <Border Padding="6,3" CornerRadius="6" Background="Transparent">
-                              <Grid ColumnDefinitions="*,Auto" VerticalAlignment="Center">
-                                <TextBlock Grid.Column="0"
-                                           Text="{Binding FileName}"
+                            <Border Padding="4,2" CornerRadius="4" Background="Transparent">
+                              <Grid ColumnDefinitions="Auto,*" VerticalAlignment="Center">
+                                <material:MaterialIcon Grid.Column="0" Kind="FolderOutline" Width="13" Height="13"
+                                                       Foreground="{DynamicResource AccentBrush}"
+                                                       Margin="0,0,5,0" VerticalAlignment="Center"/>
+                                <TextBlock Grid.Column="1"
+                                           Text="{Binding Name}"
+                                           FontSize="11" FontWeight="SemiBold"
+                                           Foreground="{DynamicResource TextSecondary}"
+                                           VerticalAlignment="Center"
+                                           TextTrimming="CharacterEllipsis"
+                                           ToolTip.Tip="{Binding FullPath}"/>
+                              </Grid>
+                            </Border>
+                          </Button>
+
+                          <!-- File item -->
+                          <Button IsVisible="{Binding IsFile}"
+                                  Command="{Binding ElementName=Root, Path=DataContext.OpenExplorerFileCommand}"
+                                  CommandParameter="{Binding}"
+                                  Background="Transparent" BorderThickness="0"
+                                  Padding="0" Margin="1,1"
+                                  HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
+                            <Border Padding="4,2" CornerRadius="4" Background="Transparent">
+                              <Grid ColumnDefinitions="Auto,*,Auto" VerticalAlignment="Center">
+                                <material:MaterialIcon Grid.Column="0" Kind="FileCodeOutline" Width="13" Height="13"
+                                                       Foreground="{DynamicResource TextMuted}"
+                                                       Margin="0,0,5,0" VerticalAlignment="Center"/>
+                                <TextBlock Grid.Column="1"
+                                           Text="{Binding Name}"
                                            FontSize="11"
                                            Foreground="{DynamicResource TextPrimary}"
                                            VerticalAlignment="Center"
                                            TextTrimming="CharacterEllipsis"
                                            ToolTip.Tip="{Binding FullPath}"/>
-                                <Border Grid.Column="1"
+                                <Border Grid.Column="2"
                                         IsVisible="{Binding IsCurrent}"
                                         Background="{DynamicResource AccentTintBackgroundBrush}"
                                         BorderBrush="{DynamicResource AccentBrush}" BorderThickness="1"
-                                        CornerRadius="4" Padding="4,1" Margin="6,0,0,0">
+                                        CornerRadius="4" Padding="3,1" Margin="4,0,0,0">
                                   <TextBlock Text="{localization:Localize Tools.WndEditor.Files.OpenBadge}"
-                                             FontSize="10" FontWeight="SemiBold"
+                                             FontSize="9" FontWeight="SemiBold"
                                              Foreground="{DynamicResource AccentBrush}"/>
                                 </Border>
                               </Grid>
                             </Border>
                           </Button>
-                        </DataTemplate>
-                      </ItemsControl.ItemTemplate>
-                    </ItemsControl>
-                  </ScrollViewer>
+                        </Panel>
+                      </TreeDataTemplate>
+                    </TreeView.ItemTemplate>
+                  </TreeView>
                 </Border>
               </Grid>
             </TabItem>

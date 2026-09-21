@@ -2,9 +2,14 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
     <Design.PreviewWith>
         <Border Padding="20" Background="#08080C" Width="400">
-            <Expander Header="Data Directories" IsExpanded="True">
-                <TextBlock Text="Content inside expander" Padding="16" Foreground="White" />
-            </Expander>
+            <StackPanel Spacing="8">
+                <Expander Header="Data Directories" IsExpanded="True">
+                    <TextBlock Text="Content inside expander" Padding="16" Foreground="White" />
+                </Expander>
+                <Expander Header="Compact Section" Classes="compact" IsExpanded="True">
+                    <TextBlock Text="Content inside compact expander" Foreground="White" />
+                </Expander>
+            </StackPanel>
         </Border>
     </Design.PreviewWith>
 
@@ -164,5 +169,35 @@
         <Setter Property="Background" Value="Transparent" />
         <Setter Property="BorderThickness" Value="0" />
         <Setter Property="Padding" Value="0" />
+    </Style>
+
+    <!-- Compact Expander Style for Inspectors / Tool Sidebars -->
+    <Style Selector="Expander.compact">
+        <Setter Property="Margin" Value="0,0,0,4" />
+        <Setter Property="CornerRadius" Value="6" />
+    </Style>
+
+    <Style Selector="Expander.compact /template/ ToggleButton#ExpanderHeader">
+        <Setter Property="Padding" Value="10,6" />
+        <Setter Property="MinHeight" Value="28" />
+        <Setter Property="CornerRadius" Value="6" />
+        <Setter Property="FontSize" Value="11" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+    </Style>
+
+    <Style Selector="Expander.compact:expanded /template/ ToggleButton#ExpanderHeader">
+        <Setter Property="CornerRadius" Value="6,6,0,0" />
+    </Style>
+
+    <Style Selector="Expander.compact /template/ ToggleButton#ExpanderHeader /template/ Border#ToggleButtonBackground">
+        <Setter Property="CornerRadius" Value="6" />
+    </Style>
+
+    <Style Selector="Expander.compact:expanded /template/ ToggleButton#ExpanderHeader /template/ Border#ToggleButtonBackground">
+        <Setter Property="CornerRadius" Value="6,6,0,0" />
+    </Style>
+
+    <Style Selector="Expander.compact /template/ Border#ExpanderContent">
+        <Setter Property="Padding" Value="10,8" />
     </Style>
 </Styles>
