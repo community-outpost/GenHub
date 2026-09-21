@@ -5,6 +5,7 @@ using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Interfaces.GameSettings;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Interfaces.Notifications;
+using GenHub.Core.Messages;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameClients;
 using GenHub.Core.Models.GameInstallations;
@@ -1306,6 +1307,144 @@ public class GameProfileManagerTests
         finally
         {
             WeakReferenceMessenger.Default.Unregister<ProfileDeletedMessage>(this);
+        }
+    }
+
+    /// <summary>
+    /// Verifies that DeleteProfileAsync returns success even if a message recipient throws an exception.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task DeleteProfileAsync_WhenMessengerThrows_StillReturnsSuccessAsync()
+    {
+        // Arrange
+        const string profileId = "profile-del-throws";
+        const string profileName = "Deleted Name";
+        var profile = new GameProfile { Id = profileId, Name = profileName };
+
+        _profileRepositoryMock.Setup(x => x.LoadProfileAsync(profileId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(profile));
+        _profileRepositoryMock.Setup(x => x.DeleteProfileAsync(profileId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(profile));
+
+        WeakReferenceMessenger.Default.Register<ProfileDeletedMessage>(
+            this,
+            (_, _) => throw new InvalidOperationException("Simulated recipient failure"));
+
+        try
+        {
+            // Act
+            var result = await _profileManager.DeleteProfileAsync(profileId);
+
+            // Assert
+            Assert.True(result.Success);
+        }
+        finally
+        {
+            WeakReferenceMessenger.Default.Unregister<ProfileDeletedMessage>(this);
+        }
+    }
+
+    /// <summary>
+    /// Verifies that ScrubDeletedManifestReferencesAsync returns success even if the list update message recipient throws.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ScrubDeletedManifestReferencesAsync_WhenMessengerThrows_StillReturnsSuccessWithCorrectCountsAsync()
+    {
+        // Arrange
+        const string deletedId = "manifest-to-delete";
+        var profile = new GameProfile
+        {
+            Id = "profile-scrub-msg",
+            Name = "Profile Scrub Msg",
+            GameInstallationId = "install-1",
+            GameClient = new GameClient { Id = "client-1", Version = "1.0", GameType = GameType.Generals },
+            EnabledContentIds = [deletedId, "keep-this-manifest"],
+        };
+
+        _profileRepositoryMock.Setup(x => x.LoadAllProfilesAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<IReadOnlyList<GameProfile>>.CreateSuccess([profile]));
+
+        _profileRepositoryMock.Setup(x => x.LoadProfileAsync("profile-scrub-msg", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(profile));
+
+        _profileRepositoryMock.Setup(x => x.SaveProfileAsync(It.IsAny<GameProfile>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((GameProfile p, CancellationToken _) => ProfileOperationResult<GameProfile>.CreateSuccess(p));
+
+        WeakReferenceMessenger.Default.Register<ProfileListUpdatedMessage>(
+            this,
+            (_, _) => throw new InvalidOperationException("Simulated recipient failure"));
+
+        try
+        {
+            // Act
+            var result = await _profileManager.ScrubDeletedManifestReferencesAsync([deletedId]);
+
+            // Assert
+            Assert.True(result.Success);
+            Assert.NotNull(result.Data);
+            Assert.Equal(1, result.Data.UpdatedProfilesCount);
+            Assert.Equal(0, result.Data.DeletedProfilesCount);
+        }
+        finally
+        {
+            WeakReferenceMessenger.Default.Unregister<ProfileListUpdatedMessage>(this);
+        }
+    }
+
+    /// <summary>
+    /// Verifies that UpdateProfileAsync returns success even if a message recipient throws an exception.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task UpdateProfileAsync_WhenMessengerThrows_StillReturnsSuccessAsync()
+    {
+        // Arrange
+        var profileId = Guid.NewGuid().ToString();
+        var existingProfile = new GameProfile
+        {
+            Id = profileId,
+            Name = "Test Profile",
+            GameInstallationId = "install-1",
+            GameClient = new GameClient { Id = "client-1", Version = "1.0" },
+            EnabledContentIds = ["content1"],
+        };
+        var request = new UpdateProfileRequest
+        {
+            Name = "Updated Name",
+        };
+
+        _profileRepositoryMock.Setup(x => x.LoadProfileAsync(profileId, default))
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(existingProfile));
+
+        var updatedProfile = new GameProfile
+        {
+            Id = existingProfile.Id,
+            Name = "Updated Name",
+            GameInstallationId = existingProfile.GameInstallationId,
+            GameClient = existingProfile.GameClient,
+            EnabledContentIds = existingProfile.EnabledContentIds,
+        };
+
+        _profileRepositoryMock.Setup(x => x.SaveProfileAsync(It.IsAny<GameProfile>(), default))
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(updatedProfile));
+
+        WeakReferenceMessenger.Default.Register<ProfileUpdatedMessage>(
+            this,
+            (_, _) => throw new InvalidOperationException("Simulated recipient failure"));
+
+        try
+        {
+            // Act
+            var result = await _profileManager.UpdateProfileAsync(profileId, request);
+
+            // Assert
+            Assert.True(result.Success);
+        }
+        finally
+        {
+            WeakReferenceMessenger.Default.Unregister<ProfileUpdatedMessage>(this);
         }
     }
 

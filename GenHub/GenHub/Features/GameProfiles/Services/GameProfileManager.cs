@@ -257,7 +257,15 @@ public class GameProfileManager(
             if (deleteResult.Success)
             {
                 logger.LogInformation("Successfully deleted game profile with ID: {ProfileId}", profileId);
-                WeakReferenceMessenger.Default.Send(new ProfileDeletedMessage(profileId, profileName));
+                try
+                {
+                    WeakReferenceMessenger.Default.Send(new ProfileDeletedMessage(profileId, profileName));
+                }
+                catch (Exception ex)
+                {
+                    logger.LogWarning(ex, "Failed to publish profile deletion notification for {ProfileId}", profileId);
+                }
+
                 return OperationResult<bool>.CreateSuccess(true);
             }
 
@@ -378,7 +386,7 @@ public class GameProfileManager(
                 }
             }
 
-            NotifyProfileListUpdatedIfChanged(updatedCount, deletedCount);
+            NotifyProfileListUpdatedIfChanged(logger, updatedCount, deletedCount);
 
             logger.LogInformation(
                 "Scrubbed deleted manifest IDs: {UpdatedCount} profile(s) updated, {DeletedCount} orphaned profile(s) deleted",
@@ -566,14 +574,24 @@ public class GameProfileManager(
         return !hasCustomContentRemaining;
     }
 
-    private static void NotifyProfileListUpdatedIfChanged(int updatedCount, int deletedCount)
+    private static void NotifyProfileListUpdatedIfChanged(
+        ILogger logger,
+        int updatedCount,
+        int deletedCount)
     {
         if (deletedCount == 0 && updatedCount == 0)
         {
             return;
         }
 
-        WeakReferenceMessenger.Default.Send(new ProfileListUpdatedMessage());
+        try
+        {
+            WeakReferenceMessenger.Default.Send(new ProfileListUpdatedMessage());
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Failed to publish profile list update notification");
+        }
     }
 
     /// <summary>
@@ -794,7 +812,14 @@ public class GameProfileManager(
 
             // Send notification after successful update so UI can refresh
             // This is critical for GameProfileLauncherViewModel.RefreshSingleProfileAsync to work
-            WeakReferenceMessenger.Default.Send(new ProfileUpdatedMessage(profile));
+            try
+            {
+                WeakReferenceMessenger.Default.Send(new ProfileUpdatedMessage(profile));
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Failed to publish profile update notification for {ProfileId}", profile.Id);
+            }
         }
         else
         {
