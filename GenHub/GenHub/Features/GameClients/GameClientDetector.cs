@@ -612,16 +612,20 @@ public class GameClientDetector(
 
     private string NormalizeGenericVersion(string fallbackVersion, GameType gameType, GameInstallationType? installationType = null)
     {
-        if (installationType == GameInstallationType.Steam && gameType == GameType.Generals)
+        if (installationType == GameInstallationType.Steam &&
+            gameType == GameType.Generals &&
+            (fallbackVersion == GameClientConstants.UnknownVersion ||
+             fallbackVersion == "1.0" ||
+             fallbackVersion == "1.00" ||
+             fallbackVersion == "0.0" ||
+             fallbackVersion == "0.0.0.0" ||
+             fallbackVersion == "1.08"))
         {
-            if (fallbackVersion == GameClientConstants.UnknownVersion || fallbackVersion == "1.0" || fallbackVersion == "1.00" || fallbackVersion == "0.0" || fallbackVersion == "0.0.0.0" || fallbackVersion == "1.08")
-            {
-                logger.LogInformation(
-                    "Normalized generic Steam Generals version '{OldVersion}' to '{NewVersion}'",
-                    fallbackVersion,
-                    GameClientConstants.LatestSteamGeneralsVersion);
-                return GameClientConstants.LatestSteamGeneralsVersion;
-            }
+            logger.LogInformation(
+                "Normalized generic Steam Generals version '{OldVersion}' to '{NewVersion}'",
+                fallbackVersion,
+                GameClientConstants.LatestSteamGeneralsVersion);
+            return GameClientConstants.LatestSteamGeneralsVersion;
         }
 
         if (fallbackVersion == GameClientConstants.UnknownVersion || fallbackVersion == "1.0" || fallbackVersion == "1.00" || fallbackVersion == "0.0" || fallbackVersion == "0.0.0.0")

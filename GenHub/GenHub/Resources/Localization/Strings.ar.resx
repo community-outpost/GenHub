@@ -3866,9 +3866,6 @@
   <data name="GameSettings.Tsh.ObserverMode" xml:space="preserve">
     <value>وضع المشاهد</value>
   </data>
-  <data name="GameSettings.Tsh.SkipIntro" xml:space="preserve">
-    <value>تخطي مقاطع المقدمة</value>
-  </data>
   <data name="GameSettings.Tsh.CursorCapture" xml:space="preserve">
     <value>حصر المؤشر داخل الشاشة</value>
   </data>
@@ -8490,9 +8487,6 @@ GenHub هو مشغل ومدير حديث لألعاب **Command &amp; Conquer: G
   </data>
   <data name="GameSettings.Tsh.ObserverModeToolTip" xml:space="preserve">
     <value>Enables advanced observer and spectator features.</value>
-  </data>
-  <data name="GameSettings.Tsh.SkipIntroToolTip" xml:space="preserve">
-    <value>Skips introductory logo movies on game launch.</value>
   </data>
   <data name="GameSettings.Go.AutoLoginToolTip" xml:space="preserve">
     <value>Automatically logs into Generals Online on startup.</value>

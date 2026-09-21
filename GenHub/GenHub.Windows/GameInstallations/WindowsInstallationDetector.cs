@@ -134,27 +134,24 @@ public class WindowsInstallationDetector(ILogger<WindowsInstallationDetector> lo
             Path.Combine(programFilesX86, GameClientConstants.EaGamesParentDirectoryName),
         };
 
-        foreach (var parentFolder in parentFolders)
+        foreach (var parentFolder in parentFolders.Where(Directory.Exists))
         {
-            if (Directory.Exists(parentFolder))
+            var generalsPath = Path.Combine(parentFolder, GameClientConstants.GeneralsRetailDirectoryName);
+            var zeroHourPath = Path.Combine(parentFolder, GameClientConstants.ZeroHourRetailDirectoryName);
+
+            var hasGenerals = Directory.Exists(generalsPath) && InstallationExtensions.HasValidGeneralsExecutable(generalsPath);
+            var hasZeroHour = Directory.Exists(zeroHourPath) && InstallationExtensions.HasValidZeroHourExecutable(zeroHourPath);
+
+            if (hasGenerals || hasZeroHour)
             {
-                var generalsPath = Path.Combine(parentFolder, GameClientConstants.GeneralsRetailDirectoryName);
-                var zeroHourPath = Path.Combine(parentFolder, GameClientConstants.ZeroHourRetailDirectoryName);
-
-                var hasGenerals = Directory.Exists(generalsPath) && InstallationExtensions.HasValidGeneralsExecutable(generalsPath);
-                var hasZeroHour = Directory.Exists(zeroHourPath) && InstallationExtensions.HasValidZeroHourExecutable(zeroHourPath);
-
-                if (hasGenerals || hasZeroHour)
-                {
-                    var installation = new GameInstallation(parentFolder, GameInstallationType.Retail, null);
-                    installation.SetPaths(hasGenerals ? generalsPath : null, hasZeroHour ? zeroHourPath : null);
-                    retailInstalls.Add(installation);
-                    logger.LogInformation(
-                        "Detected Retail installation at {ParentFolder} (Generals: {HasGenerals}, ZeroHour: {HasZeroHour})",
-                        parentFolder,
-                        hasGenerals,
-                        hasZeroHour);
-                }
+                var installation = new GameInstallation(parentFolder, GameInstallationType.Retail, null);
+                installation.SetPaths(hasGenerals ? generalsPath : null, hasZeroHour ? zeroHourPath : null);
+                retailInstalls.Add(installation);
+                logger.LogInformation(
+                    "Detected Retail installation at {ParentFolder} (Generals: {HasGenerals}, ZeroHour: {HasZeroHour})",
+                    parentFolder,
+                    hasGenerals,
+                    hasZeroHour);
             }
         }
 
@@ -166,30 +163,27 @@ public class WindowsInstallationDetector(ILogger<WindowsInstallationDetector> lo
             Path.Combine(programFilesX86, GameClientConstants.EaGamesParentDirectoryName, GameClientConstants.ZeroHourRetailDirectoryName),
         };
 
-        foreach (var basePath in possibleStandalonePaths)
+        foreach (var basePath in possibleStandalonePaths.Where(Directory.Exists))
         {
-            if (Directory.Exists(basePath))
+            // Skip if already covered by an EA Games parent installation
+            if (retailInstalls.Any(r =>
+                string.Equals(r.GeneralsPath, basePath, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(r.ZeroHourPath, basePath, StringComparison.OrdinalIgnoreCase)))
             {
-                // Skip if already covered by an EA Games parent installation
-                if (retailInstalls.Any(r =>
-                    string.Equals(r.GeneralsPath, basePath, StringComparison.OrdinalIgnoreCase) ||
-                    string.Equals(r.ZeroHourPath, basePath, StringComparison.OrdinalIgnoreCase)))
-                {
-                    continue;
-                }
+                continue;
+            }
 
-                var installation = new GameInstallation(basePath, GameInstallationType.Retail, null);
-                installation.Fetch();
+            var installation = new GameInstallation(basePath, GameInstallationType.Retail, null);
+            installation.Fetch();
 
-                if (installation.HasGenerals || installation.HasZeroHour)
-                {
-                    retailInstalls.Add(installation);
-                    logger.LogInformation(
-                        "Detected standalone Retail installation at {BasePath} (Generals: {HasGenerals}, ZeroHour: {HasZeroHour})",
-                        basePath,
-                        installation.HasGenerals,
-                        installation.HasZeroHour);
-                }
+            if (installation.HasGenerals || installation.HasZeroHour)
+            {
+                retailInstalls.Add(installation);
+                logger.LogInformation(
+                    "Detected standalone Retail installation at {BasePath} (Generals: {HasGenerals}, ZeroHour: {HasZeroHour})",
+                    basePath,
+                    installation.HasGenerals,
+                    installation.HasZeroHour);
             }
         }
 

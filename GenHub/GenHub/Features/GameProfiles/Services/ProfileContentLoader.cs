@@ -49,51 +49,7 @@ public class ProfileContentLoader(
 
             foreach (var installation in installationsResult.Data)
             {
-                if (installation.AvailableGameClients.Count == 0)
-                {
-                    logger.LogDebug(
-                        "Skipping installation {InstallationId} - no available game clients",
-                        installation.Id);
-                    continue;
-                }
-
-                var uniqueGameTypes = installation.AvailableGameClients
-                    .Select(gc => gc.GameType)
-                    .Distinct();
-
-                foreach (var gameType in uniqueGameTypes)
-                {
-                    if (gameType is not (GameType.Generals or GameType.ZeroHour))
-                    {
-                        logger.LogDebug(
-                            "Skipping installation {InstallationId} game type {GameType} - unsupported",
-                            installation.Id,
-                            gameType);
-                        continue;
-                    }
-
-                    var baseClient = GetBaseGameClient(installation, gameType);
-                    if (baseClient is null) continue;
-
-                    var item = CreateInstallationDisplayItem(installation, baseClient, gameType);
-                    if (result.Any(r => r.ManifestId == item.ManifestId ||
-                                       (r.GameType == item.GameType &&
-                                        r.InstallationType == item.InstallationType &&
-                                        string.Equals(r.DisplayName, item.DisplayName, StringComparison.OrdinalIgnoreCase) &&
-                                        string.Equals(r.Version, item.Version, StringComparison.OrdinalIgnoreCase))))
-                    {
-                        continue;
-                    }
-
-                    result.Add(item);
-
-                    logger.LogDebug(
-                        "Added GameInstallation: {DisplayName} ({Publisher}, {GameType}, {Version})",
-                        item.DisplayName,
-                        item.Publisher,
-                        gameType,
-                        item.Version);
-                }
+                ProcessInstallationGameTypes(installation, result);
             }
 
             logger.LogInformation(
@@ -795,5 +751,57 @@ public class ProfileContentLoader(
         }
 
         return CreateManifestDisplayItem(manifest, isEnabled: true);
+    }
+
+    private void ProcessInstallationGameTypes(GameInstallation installation, ObservableCollection<ContentDisplayItem> result)
+    {
+        if (installation.AvailableGameClients.Count == 0)
+        {
+            logger.LogDebug(
+                "Skipping installation {InstallationId} - no available game clients",
+                installation.Id);
+            return;
+        }
+
+        var uniqueGameTypes = installation.AvailableGameClients
+            .Select(gc => gc.GameType)
+            .Distinct();
+
+        foreach (var gameType in uniqueGameTypes)
+        {
+            if (gameType is not (GameType.Generals or GameType.ZeroHour))
+            {
+                logger.LogDebug(
+                    "Skipping installation {InstallationId} game type {GameType} - unsupported",
+                    installation.Id,
+                    gameType);
+                continue;
+            }
+
+            var baseClient = GetBaseGameClient(installation, gameType);
+            if (baseClient is null)
+            {
+                continue;
+            }
+
+            var item = CreateInstallationDisplayItem(installation, baseClient, gameType);
+            if (result.Any(r => r.ManifestId == item.ManifestId ||
+                               (r.GameType == item.GameType &&
+                                r.InstallationType == item.InstallationType &&
+                                string.Equals(r.DisplayName, item.DisplayName, StringComparison.OrdinalIgnoreCase) &&
+                                string.Equals(r.Version, item.Version, StringComparison.OrdinalIgnoreCase))))
+            {
+                continue;
+            }
+
+            result.Add(item);
+
+            logger.LogDebug(
+                "Added GameInstallation: {DisplayName} ({Publisher}, {GameType}, {Version})",
+                item.DisplayName,
+                item.Publisher,
+                gameType,
+                item.Version);
+        }
     }
 }

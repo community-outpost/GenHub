@@ -421,9 +421,6 @@ public static class GameSettingsConstants
         public const float DefaultMaxHeight = 310.0f;
 
         /// <summary>Default minimum camera height (zoom in).</summary>
-        public const float DefaultMinMinHeight = 50.0f;
-
-        /// <summary>Default minimum camera height (zoom in).</summary>
         public const float DefaultMinHeight = 120.0f;
 
         /// <summary>Default camera pitch angle in degrees.</summary>

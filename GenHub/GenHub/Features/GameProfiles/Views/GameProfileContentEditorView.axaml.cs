@@ -21,7 +21,7 @@ public partial class GameProfileContentEditorView : UserControl
 
     private SectionScrollSpy<ContentEditorCategory>? _scrollSpy;
     private GameProfileSettingsViewModel? _subscribedViewModel;
-    private IDisposable? _sidebarWidthSubscription;
+    private SidebarWidthSynchronizer? _sidebarSynchronizer;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="GameProfileContentEditorView"/> class.
@@ -39,22 +39,8 @@ public partial class GameProfileContentEditorView : UserControl
     {
         base.OnLoaded(e);
 
-        var grid = this.FindControl<Grid>("RootGrid");
-        if (grid != null && grid.ColumnDefinitions.Count > 0)
-        {
-            var sidebarCol = grid.ColumnDefinitions[0];
-            sidebarCol.Width = new GridLength(GameProfileSettingsWindow.SavedSidebarWidth);
-            _sidebarWidthSubscription?.Dispose();
-            _sidebarWidthSubscription = sidebarCol.GetObservable(ColumnDefinition.WidthProperty)
-                .Subscribe(w =>
-                {
-                    if (w.IsAbsolute && w.Value > 0 && Math.Abs(w.Value - GameProfileSettingsWindow.SavedSidebarWidth) > 0.5)
-                    {
-                        GameProfileSettingsWindow.UpdateSidebarWidth(w.Value);
-                    }
-                });
-            GameProfileSettingsWindow.SidebarWidthChanged += OnSidebarWidthChanged;
-        }
+        _sidebarSynchronizer?.Dispose();
+        _sidebarSynchronizer = SidebarWidthSynchronizer.Attach(this.FindControl<Grid>("RootGrid"));
 
         EnsureScrollSpy();
         SubscribeViewModel();
@@ -68,9 +54,8 @@ public partial class GameProfileContentEditorView : UserControl
     {
         base.OnUnloaded(e);
 
-        GameProfileSettingsWindow.SidebarWidthChanged -= OnSidebarWidthChanged;
-        _sidebarWidthSubscription?.Dispose();
-        _sidebarWidthSubscription = null;
+        _sidebarSynchronizer?.Dispose();
+        _sidebarSynchronizer = null;
 
         _scrollSpy?.Dispose();
         _scrollSpy = null;
@@ -100,19 +85,6 @@ public partial class GameProfileContentEditorView : UserControl
         }
 
         return null;
-    }
-
-    private void OnSidebarWidthChanged(object? sender, double newWidth)
-    {
-        var grid = this.FindControl<Grid>("RootGrid");
-        if (grid != null && grid.ColumnDefinitions.Count > 0)
-        {
-            var col = grid.ColumnDefinitions[0];
-            if (col.Width.IsAbsolute && Math.Abs(col.Width.Value - newWidth) > 0.5)
-            {
-                col.Width = new GridLength(newWidth);
-            }
-        }
     }
 
     private void InitializeComponent()

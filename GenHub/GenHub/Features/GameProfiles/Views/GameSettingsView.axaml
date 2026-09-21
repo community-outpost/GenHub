@@ -286,8 +286,8 @@
                                     <ColumnDefinition Width="Auto" MinWidth="0" />
                                 </Grid.ColumnDefinitions>
                                 <TextBlock Text="{localization:Localize GameSettings.Camera.Height}" VerticalAlignment="Center" TextWrapping="Wrap" />
-                                <Slider Grid.Column="1" Value="{Binding CameraHeight}" Minimum="100" Maximum="800" VerticalAlignment="Center" Margin="0,0,12,0" ToolTip.Tip="{localization:Localize GameSettings.Camera.HeightToolTip}" />
-                                <NumericUpDown Grid.Column="2" Value="{Binding CameraHeight}" Minimum="100" Maximum="800" Increment="5" Classes="slider-input" />
+                                <Slider Grid.Column="1" Value="{Binding CameraHeight}" Minimum="100" Maximum="800" IsSnapToTickEnabled="True" TickFrequency="1" VerticalAlignment="Center" Margin="0,0,12,0" ToolTip.Tip="{localization:Localize GameSettings.Camera.HeightToolTip}" />
+                                <NumericUpDown Grid.Column="2" Value="{Binding CameraHeight}" Minimum="100" Maximum="800" Increment="5" FormatString="0" Classes="slider-input" />
                             </Grid>
 
                             <!-- Max Camera Height (Zoom Out) -->
@@ -298,8 +298,8 @@
                                     <ColumnDefinition Width="Auto" MinWidth="0" />
                                 </Grid.ColumnDefinitions>
                                 <TextBlock Text="{localization:Localize GameSettings.Camera.MaxHeight}" VerticalAlignment="Center" TextWrapping="Wrap" />
-                                <Slider Grid.Column="1" Value="{Binding CameraMaxHeight}" Minimum="100" Maximum="1000" VerticalAlignment="Center" Margin="0,0,12,0" ToolTip.Tip="{localization:Localize GameSettings.Camera.MaxHeightToolTip}" />
-                                <NumericUpDown Grid.Column="2" Value="{Binding CameraMaxHeight}" Minimum="100" Maximum="1000" Increment="10" Classes="slider-input" />
+                                <Slider Grid.Column="1" Value="{Binding CameraMaxHeight}" Minimum="100" Maximum="1000" IsSnapToTickEnabled="True" TickFrequency="1" VerticalAlignment="Center" Margin="0,0,12,0" ToolTip.Tip="{localization:Localize GameSettings.Camera.MaxHeightToolTip}" />
+                                <NumericUpDown Grid.Column="2" Value="{Binding CameraMaxHeight}" Minimum="100" Maximum="1000" Increment="10" FormatString="0" Classes="slider-input" />
                             </Grid>
 
                             <!-- Min Camera Height (Zoom In) -->
@@ -310,8 +310,8 @@
                                     <ColumnDefinition Width="Auto" MinWidth="0" />
                                 </Grid.ColumnDefinitions>
                                 <TextBlock Text="{localization:Localize GameSettings.Camera.MinHeight}" VerticalAlignment="Center" TextWrapping="Wrap" />
-                                <Slider Grid.Column="1" Value="{Binding CameraMinHeight}" Minimum="50" Maximum="500" VerticalAlignment="Center" Margin="0,0,12,0" ToolTip.Tip="{localization:Localize GameSettings.Camera.MinHeightToolTip}" />
-                                <NumericUpDown Grid.Column="2" Value="{Binding CameraMinHeight}" Minimum="50" Maximum="500" Increment="5" Classes="slider-input" />
+                                <Slider Grid.Column="1" Value="{Binding CameraMinHeight}" Minimum="50" Maximum="500" IsSnapToTickEnabled="True" TickFrequency="1" VerticalAlignment="Center" Margin="0,0,12,0" ToolTip.Tip="{localization:Localize GameSettings.Camera.MinHeightToolTip}" />
+                                <NumericUpDown Grid.Column="2" Value="{Binding CameraMinHeight}" Minimum="50" Maximum="500" Increment="5" FormatString="0" Classes="slider-input" />
                             </Grid>
 
                             <!-- Camera Pitch Angle -->
@@ -322,8 +322,8 @@
                                     <ColumnDefinition Width="Auto" MinWidth="0" />
                                 </Grid.ColumnDefinitions>
                                 <TextBlock Text="{localization:Localize GameSettings.Camera.Pitch}" VerticalAlignment="Center" TextWrapping="Wrap" />
-                                <Slider Grid.Column="1" Value="{Binding CameraPitch}" Minimum="10" Maximum="85" VerticalAlignment="Center" Margin="0,0,12,0" ToolTip.Tip="{localization:Localize GameSettings.Camera.PitchToolTip}" />
-                                <NumericUpDown Grid.Column="2" Value="{Binding CameraPitch}" Minimum="10" Maximum="85" Increment="0.5" Classes="slider-input" />
+                                <Slider Grid.Column="1" Value="{Binding CameraPitch}" Minimum="10" Maximum="85" IsSnapToTickEnabled="True" TickFrequency="0.5" VerticalAlignment="Center" Margin="0,0,12,0" ToolTip.Tip="{localization:Localize GameSettings.Camera.PitchToolTip}" />
+                                <NumericUpDown Grid.Column="2" Value="{Binding CameraPitch}" Minimum="10" Maximum="85" Increment="0.5" FormatString="0.#" Classes="slider-input" />
                             </Grid>
                         </StackPanel>
                     </StackPanel>
@@ -441,18 +441,18 @@
                             <TextBlock Text="{localization:Localize GameSettings.Go.CameraSettings}" FontWeight="SemiBold" FontSize="13" Opacity="0.8" />
                             <Grid ColumnDefinitions="180,*,Auto" Margin="0,0,0,8">
                                 <TextBlock Text="{localization:Localize GameSettings.Go.MinCameraHeight}" VerticalAlignment="Center" TextWrapping="Wrap" />
-                                <Slider Grid.Column="1" Value="{Binding GoCameraMinHeight}" Minimum="50" Maximum="1000" VerticalAlignment="Center" Margin="0,0,12,0" />
-                                <NumericUpDown Grid.Column="2" Value="{Binding GoCameraMinHeight}" Minimum="50" Maximum="1000" Classes="slider-input" />
+                                <Slider Grid.Column="1" Value="{Binding GoCameraMinHeight}" Minimum="50" Maximum="1000" IsSnapToTickEnabled="True" TickFrequency="1" VerticalAlignment="Center" Margin="0,0,12,0" />
+                                <NumericUpDown Grid.Column="2" Value="{Binding GoCameraMinHeight}" Minimum="50" Maximum="1000" FormatString="0" Classes="slider-input" />
                             </Grid>
                             <Grid ColumnDefinitions="180,*,Auto" Margin="0,0,0,8">
                                 <TextBlock Text="{localization:Localize GameSettings.Go.MaxCameraHeight}" VerticalAlignment="Center" TextWrapping="Wrap" />
-                                <Slider Grid.Column="1" Value="{Binding GoCameraMaxHeightOnlyWhenLobbyHost}" Minimum="50" Maximum="1000" VerticalAlignment="Center" Margin="0,0,12,0" />
-                                <NumericUpDown Grid.Column="2" Value="{Binding GoCameraMaxHeightOnlyWhenLobbyHost}" Minimum="50" Maximum="1000" Classes="slider-input" />
+                                <Slider Grid.Column="1" Value="{Binding GoCameraMaxHeightOnlyWhenLobbyHost}" Minimum="50" Maximum="1000" IsSnapToTickEnabled="True" TickFrequency="1" VerticalAlignment="Center" Margin="0,0,12,0" />
+                                <NumericUpDown Grid.Column="2" Value="{Binding GoCameraMaxHeightOnlyWhenLobbyHost}" Minimum="50" Maximum="1000" FormatString="0" Classes="slider-input" />
                             </Grid>
                             <Grid ColumnDefinitions="180,*,Auto">
                                 <TextBlock Text="{localization:Localize GameSettings.Go.CameraMoveSpeed}" VerticalAlignment="Center" TextWrapping="Wrap" />
-                                <Slider Grid.Column="1" Value="{Binding GoCameraMoveSpeedRatio}" Minimum="0.5" Maximum="5.0" VerticalAlignment="Center" Margin="10,0,12,0" />
-                                <NumericUpDown Grid.Column="2" Value="{Binding GoCameraMoveSpeedRatio}" Minimum="0.5" Maximum="5.0" Increment="0.1" Classes="slider-input" />
+                                <Slider Grid.Column="1" Value="{Binding GoCameraMoveSpeedRatio}" Minimum="0.5" Maximum="5.0" IsSnapToTickEnabled="True" TickFrequency="0.1" VerticalAlignment="Center" Margin="10,0,12,0" />
+                                <NumericUpDown Grid.Column="2" Value="{Binding GoCameraMoveSpeedRatio}" Minimum="0.5" Maximum="5.0" Increment="0.1" FormatString="0.#" Classes="slider-input" />
                             </Grid>
 
                             <Separator Background="#15FFFFFF" Height="1" Margin="0,4" />

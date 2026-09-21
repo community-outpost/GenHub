@@ -22,7 +22,7 @@ public partial class GameProfileGeneralSettingsView : UserControl
 
     private SectionScrollSpy<GeneralSettingsCategory>? _scrollSpy;
     private GameProfileSettingsViewModel? _boundViewModel;
-    private IDisposable? _sidebarWidthSubscription;
+    private SidebarWidthSynchronizer? _sidebarSynchronizer;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="GameProfileGeneralSettingsView"/> class.
@@ -40,22 +40,8 @@ public partial class GameProfileGeneralSettingsView : UserControl
     {
         base.OnLoaded(e);
 
-        var grid = this.FindControl<Grid>("RootGrid");
-        if (grid != null && grid.ColumnDefinitions.Count > 0)
-        {
-            var sidebarCol = grid.ColumnDefinitions[0];
-            sidebarCol.Width = new GridLength(GameProfileSettingsWindow.SavedSidebarWidth);
-            _sidebarWidthSubscription?.Dispose();
-            _sidebarWidthSubscription = sidebarCol.GetObservable(ColumnDefinition.WidthProperty)
-                .Subscribe(w =>
-                {
-                    if (w.IsAbsolute && w.Value > 0 && Math.Abs(w.Value - GameProfileSettingsWindow.SavedSidebarWidth) > 0.5)
-                    {
-                        GameProfileSettingsWindow.UpdateSidebarWidth(w.Value);
-                    }
-                });
-            GameProfileSettingsWindow.SidebarWidthChanged += OnSidebarWidthChanged;
-        }
+        _sidebarSynchronizer?.Dispose();
+        _sidebarSynchronizer = SidebarWidthSynchronizer.Attach(this.FindControl<Grid>("RootGrid"));
 
         EnsureScrollSpy();
         if (DataContext is GameProfileSettingsViewModel vm)
@@ -91,9 +77,8 @@ public partial class GameProfileGeneralSettingsView : UserControl
     {
         base.OnUnloaded(e);
 
-        GameProfileSettingsWindow.SidebarWidthChanged -= OnSidebarWidthChanged;
-        _sidebarWidthSubscription?.Dispose();
-        _sidebarWidthSubscription = null;
+        _sidebarSynchronizer?.Dispose();
+        _sidebarSynchronizer = null;
 
         _scrollSpy?.Dispose();
         _scrollSpy = null;
@@ -116,19 +101,6 @@ public partial class GameProfileGeneralSettingsView : UserControl
         }
 
         return null;
-    }
-
-    private void OnSidebarWidthChanged(object? sender, double newWidth)
-    {
-        var grid = this.FindControl<Grid>("RootGrid");
-        if (grid != null && grid.ColumnDefinitions.Count > 0)
-        {
-            var col = grid.ColumnDefinitions[0];
-            if (col.Width.IsAbsolute && Math.Abs(col.Width.Value - newWidth) > 0.5)
-            {
-                col.Width = new GridLength(newWidth);
-            }
-        }
     }
 
     private void EnsureScrollSpy()

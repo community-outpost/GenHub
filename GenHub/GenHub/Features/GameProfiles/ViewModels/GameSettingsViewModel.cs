@@ -181,6 +181,11 @@ public partial class GameSettingsViewModel(
         IsGeneralsOnlineVisible = isGeneralsOnline;
         OnPropertyChanged(nameof(IsCustomCameraVisible));
 
+        if (isGeneralsOnline)
+        {
+            ResetCameraDefaults();
+        }
+
         if (!IsTheSuperHackersVisible && SelectedCategory == SettingsCategory.TheSuperHackers)
         {
             SelectedCategory = SettingsCategory.Video;
@@ -467,6 +472,75 @@ public partial class GameSettingsViewModel(
     [ObservableProperty]
     private float _cameraPitch = GameSettingsConstants.Camera.DefaultPitch;
 
+    partial void OnCameraHeightChanged(float value)
+    {
+        var rounded = MathF.Round(value);
+        if (Math.Abs(rounded - value) > 0.001f)
+        {
+            CameraHeight = rounded;
+            return;
+        }
+
+        if (CameraHeight > CameraMaxHeight)
+        {
+            CameraMaxHeight = CameraHeight;
+        }
+
+        if (CameraHeight < CameraMinHeight)
+        {
+            CameraMinHeight = CameraHeight;
+        }
+    }
+
+    partial void OnCameraMaxHeightChanged(float value)
+    {
+        var rounded = MathF.Round(value);
+        if (Math.Abs(rounded - value) > 0.001f)
+        {
+            CameraMaxHeight = rounded;
+            return;
+        }
+
+        if (CameraMaxHeight < CameraMinHeight)
+        {
+            CameraMinHeight = CameraMaxHeight;
+        }
+
+        if (CameraHeight > CameraMaxHeight)
+        {
+            CameraHeight = CameraMaxHeight;
+        }
+    }
+
+    partial void OnCameraMinHeightChanged(float value)
+    {
+        var rounded = MathF.Round(value);
+        if (Math.Abs(rounded - value) > 0.001f)
+        {
+            CameraMinHeight = rounded;
+            return;
+        }
+
+        if (CameraMinHeight > CameraMaxHeight)
+        {
+            CameraMaxHeight = CameraMinHeight;
+        }
+
+        if (CameraHeight < CameraMinHeight)
+        {
+            CameraHeight = CameraMinHeight;
+        }
+    }
+
+    partial void OnCameraPitchChanged(float value)
+    {
+        var rounded = MathF.Round(value * 2f) / 2f;
+        if (Math.Abs(rounded - value) > 0.001f)
+        {
+            CameraPitch = rounded;
+        }
+    }
+
     /// <summary>
     /// Resets camera settings to standard game engine defaults.
     /// </summary>
@@ -488,6 +562,33 @@ public partial class GameSettingsViewModel(
 
     [ObservableProperty]
     private float _goCameraMoveSpeedRatio = 1.5f;
+
+    partial void OnGoCameraMinHeightChanged(float value)
+    {
+        var rounded = MathF.Round(value);
+        if (Math.Abs(rounded - value) > 0.001f)
+        {
+            GoCameraMinHeight = rounded;
+        }
+    }
+
+    partial void OnGoCameraMaxHeightOnlyWhenLobbyHostChanged(float value)
+    {
+        var rounded = MathF.Round(value);
+        if (Math.Abs(rounded - value) > 0.001f)
+        {
+            GoCameraMaxHeightOnlyWhenLobbyHost = rounded;
+        }
+    }
+
+    partial void OnGoCameraMoveSpeedRatioChanged(float value)
+    {
+        var rounded = MathF.Round(value * 10f) / 10f;
+        if (Math.Abs(rounded - value) > 0.001f)
+        {
+            GoCameraMoveSpeedRatio = rounded;
+        }
+    }
 
     // Chat settings
     [ObservableProperty]
@@ -1110,10 +1211,10 @@ public partial class GameSettingsViewModel(
 
     private void LoadCameraSettingsFromProfile(Core.Models.GameProfile.GameProfile profile)
     {
-        CameraHeight = profile.CameraHeight ?? GameSettingsConstants.Camera.DefaultHeight;
-        CameraMaxHeight = profile.CameraMaxHeight ?? GameSettingsConstants.Camera.DefaultMaxHeight;
-        CameraMinHeight = profile.CameraMinHeight ?? GameSettingsConstants.Camera.DefaultMinHeight;
-        CameraPitch = profile.CameraPitch ?? GameSettingsConstants.Camera.DefaultPitch;
+        CameraHeight = MathF.Round(profile.CameraHeight ?? GameSettingsConstants.Camera.DefaultHeight);
+        CameraMaxHeight = MathF.Round(profile.CameraMaxHeight ?? GameSettingsConstants.Camera.DefaultMaxHeight);
+        CameraMinHeight = MathF.Round(profile.CameraMinHeight ?? GameSettingsConstants.Camera.DefaultMinHeight);
+        CameraPitch = MathF.Round((profile.CameraPitch ?? GameSettingsConstants.Camera.DefaultPitch) * 2f) / 2f;
     }
 
     private void LoadGeneralsOnlineSettingsFromProfile(Core.Models.GameProfile.GameProfile profile)

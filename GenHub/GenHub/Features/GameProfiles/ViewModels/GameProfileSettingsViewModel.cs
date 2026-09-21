@@ -2,6 +2,7 @@ using Avalonia.Threading;
 using CommunityToolkit.Mvvm.Messaging;
 using GenHub.Common.ViewModels;
 using GenHub.Core.Constants;
+using GenHub.Core.Extensions;
 using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
@@ -262,15 +263,10 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
     public void UpdateApplicableClientVisibility()
     {
         var enabledClients = EnabledContent.Where(c => c.ContentType == ContentType.GameClient).ToList();
-        var hasGo = enabledClients.Any(c =>
-            (c.Publisher?.Contains("GeneralsOnline", StringComparison.OrdinalIgnoreCase) ?? false) ||
-            c.DisplayName.Contains("GeneralsOnline", StringComparison.OrdinalIgnoreCase) ||
-            c.ManifestId.Value.Contains("generalsonline", StringComparison.OrdinalIgnoreCase));
-        var hasTsh = enabledClients.Any(c =>
-            (c.Publisher?.Contains("SuperHackers", StringComparison.OrdinalIgnoreCase) ?? false) ||
-            c.DisplayName.Contains("SuperHackers", StringComparison.OrdinalIgnoreCase) ||
-            c.ManifestId.Value.Contains("thesuperhackers", StringComparison.OrdinalIgnoreCase) ||
-            c.ManifestId.Value.Contains("superhackers", StringComparison.OrdinalIgnoreCase));
+        var hasGo = enabledClients.Any(IsGeneralsOnlineItem) || (_originalProfile?.IsGeneralsOnlineProfile() == true);
+        var hasTsh = hasGo ||
+                     enabledClients.Any(c => IsTheSuperHackersClientItem(c, _originalProfile)) ||
+                     (_originalProfile != null && !ReplayCrcMatchingHelper.IsRetailCompatible(_originalProfile.GameClient));
 
         GameSettingsViewModel?.UpdateApplicableClientVisibility(hasTsh, hasGo);
     }
@@ -543,6 +539,58 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
         }
     }
 
+    private static bool IsGeneralsOnlineItem(ContentDisplayItem item)
+    {
+        if (item.DisplayName.Contains(GeneralsOnlineConstants.ClientName, StringComparison.OrdinalIgnoreCase) ||
+            item.DisplayName.Contains(PublisherTypeConstants.GeneralsOnline, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        if (!string.IsNullOrEmpty(item.Publisher) &&
+            item.Publisher.Contains(PublisherTypeConstants.GeneralsOnline, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        if (item.ManifestId.Value.Contains(PublisherTypeConstants.GeneralsOnline, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        if (item.GameClient != null &&
+            ((!string.IsNullOrEmpty(item.GameClient.PublisherType) && item.GameClient.PublisherType.Contains(PublisherTypeConstants.GeneralsOnline, StringComparison.OrdinalIgnoreCase)) ||
+             (!string.IsNullOrEmpty(item.GameClient.Name) && item.GameClient.Name.Contains(GeneralsOnlineConstants.ClientName, StringComparison.OrdinalIgnoreCase)) ||
+             (!string.IsNullOrEmpty(item.GameClient.Id) && item.GameClient.Id.Contains(PublisherTypeConstants.GeneralsOnline, StringComparison.OrdinalIgnoreCase))))
+        {
+            return true;
+        }
+
+        return false;
+    }
+
+    private static bool IsTheSuperHackersClientItem(ContentDisplayItem item, GameProfile? profile)
+    {
+        var client = item.GameClient ?? profile?.GameClient;
+
+        var exePath = !string.IsNullOrEmpty(item.SourcePath) && item.SourcePath.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)
+            ? item.SourcePath
+            : ReplayCrcMatchingHelper.ResolveProfileFullExePath(client);
+
+        if (!string.IsNullOrEmpty(exePath) && System.IO.File.Exists(exePath))
+        {
+            var crc = ReplayCrcMatchingHelper.GetCachedExeCrc(exePath);
+            if (!string.IsNullOrEmpty(crc))
+            {
+                var isRetail = ReplayCrcMatchingHelper.IsZeroHourRetailExeCrc(crc) ||
+                               ReplayCrcMatchingHelper.IsGeneralsRetailExeCrc(crc);
+                return !isRetail;
+            }
+        }
+
+        return !ReplayCrcMatchingHelper.IsRetailCompatible(client);
+    }
+
     private ContentDisplayItem ConvertToViewModelContentDisplayItem(Core.Models.Content.ContentDisplayItem coreItem)
     {
         var (isLocked, canToggle) = GetItemHotswapState(IsHotswapMode, coreItem.ContentType, coreItem.Manifest);
@@ -687,19 +735,8 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
         _ = RefreshFiltersAndContentAsync();
     }
 
-    private void SyncInstallationSelection(ContentDisplayItem value)
+    private void UpdateEnabledInstallations(ContentDisplayItem value)
     {
-        var isToolProfile = ToolProfileHelper.IsToolProfile(EnabledContent
-            .Where(c => c.IsEnabled)
-            .Select(c => (c.ManifestId.Value, c.ContentType)));
-        if (isToolProfile)
-        {
-            _logger?.LogInformation("SelectedGameInstallation ignored because profile is a standalone tool profile");
-            value.IsEnabled = false;
-            SelectedGameInstallation = null;
-            return;
-        }
-
         value.IsEnabled = true;
         foreach (var item in AvailableGameInstallations)
         {
@@ -720,6 +757,22 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
         {
             EnabledContent.Add(value);
         }
+    }
+
+    private void SyncInstallationSelection(ContentDisplayItem value)
+    {
+        var isToolProfile = ToolProfileHelper.IsToolProfile(EnabledContent
+            .Where(c => c.IsEnabled)
+            .Select(c => (c.ManifestId.Value, c.ContentType)));
+        if (isToolProfile)
+        {
+            _logger?.LogInformation("SelectedGameInstallation ignored because profile is a standalone tool profile");
+            value.IsEnabled = false;
+            SelectedGameInstallation = null;
+            return;
+        }
+
+        UpdateEnabledInstallations(value);
 
         if (value.GameType != GameTypeFilter)
         {
@@ -736,14 +789,12 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
         var generalsIcon = NormalizeResourcePath(_profileResourceService?.GetDefaultIconPath("Generals"));
         var zeroHourIcon = NormalizeResourcePath(_profileResourceService?.GetDefaultIconPath("ZeroHour"));
 
-        if (string.IsNullOrEmpty(IconPath) ||
-            string.Equals(IconPath, generalsIcon, StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(IconPath, zeroHourIcon, StringComparison.OrdinalIgnoreCase))
+        if (!string.IsNullOrEmpty(newDefaultIcon) &&
+            (string.IsNullOrEmpty(IconPath) ||
+             string.Equals(IconPath, generalsIcon, StringComparison.OrdinalIgnoreCase) ||
+             string.Equals(IconPath, zeroHourIcon, StringComparison.OrdinalIgnoreCase)))
         {
-            if (!string.IsNullOrEmpty(newDefaultIcon))
-            {
-                IconPath = newDefaultIcon;
-            }
+            IconPath = newDefaultIcon;
         }
 
         if (!IsInitializing && string.IsNullOrEmpty(CurrentProfileId) && (string.IsNullOrWhiteSpace(Name) || Name == ProfileConstants.DefaultProfileName))

@@ -3866,9 +3866,6 @@ Applied: {2} / {3} applicable fixes.</value>
   <data name="GameSettings.Tsh.ObserverMode" xml:space="preserve">
     <value>Observer Mode</value>
   </data>
-  <data name="GameSettings.Tsh.SkipIntro" xml:space="preserve">
-    <value>Skip Intro Movies</value>
-  </data>
   <data name="GameSettings.Tsh.CursorCapture" xml:space="preserve">
     <value>Cursor Clipping / Capture</value>
   </data>
@@ -8583,9 +8580,6 @@ Install location:
   </data>
   <data name="GameSettings.Tsh.ObserverModeToolTip" xml:space="preserve">
     <value>Enables advanced observer and spectator features.</value>
-  </data>
-  <data name="GameSettings.Tsh.SkipIntroToolTip" xml:space="preserve">
-    <value>Skips introductory logo movies on game launch.</value>
   </data>
   <data name="GameSettings.Go.AutoLoginToolTip" xml:space="preserve">
     <value>Automatically logs into Generals Online on startup.</value>

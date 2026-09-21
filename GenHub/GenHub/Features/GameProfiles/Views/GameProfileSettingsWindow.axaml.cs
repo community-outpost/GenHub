@@ -1,6 +1,7 @@
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
+using Avalonia.Interactivity;
 using Avalonia.Markup.Xaml;
 using GenHub.Common.Helpers;
 using GenHub.Core.Constants;
@@ -12,18 +13,17 @@ using System;
 namespace GenHub.Features.GameProfiles.Views;
 
 /// <summary>
-/// Interaction logic for <c>GameProfileSettingsWindow.axaml</c>.
+/// Window for managing game profile settings.
 /// </summary>
 public partial class GameProfileSettingsWindow : Window
 {
-    // Static fields to persist window size across instances
     private static double? _savedWidth;
     private static double? _savedHeight;
     private static WindowState? _savedWindowState;
     private bool _isClosing;
 
     /// <summary>
-    /// Event raised when the persisted sidebar width is changed by the user.
+    /// Event raised when the sidebar width is adjusted by the user.
     /// </summary>
     public static event EventHandler<double>? SidebarWidthChanged;
 
@@ -31,29 +31,6 @@ public partial class GameProfileSettingsWindow : Window
     /// Gets or sets the persisted width of the profile settings sidebar.
     /// </summary>
     public static double SavedSidebarWidth { get; set; } = UiConstants.DefaultProfileSettingsSidebarWidth;
-
-    /// <summary>
-    /// Updates the persisted sidebar width and notifies all open views.
-    /// </summary>
-    /// <param name="width">The new sidebar width.</param>
-    public static void UpdateSidebarWidth(double width)
-    {
-        if (width <= 0) return;
-        SavedSidebarWidth = width;
-
-        try
-        {
-            var userSettingsService = App.Services?.GetService<IUserSettingsService>();
-            userSettingsService?.Update(s => s.ProfileSettingsSidebarWidth = width);
-            _ = userSettingsService?.SaveAsync();
-        }
-        catch
-        {
-            // Ignore settings save errors in design-time or unit-test environments
-        }
-
-        SidebarWidthChanged?.Invoke(null, width);
-    }
 
     /// <summary>
     /// Initializes a new instance of the <see cref="GameProfileSettingsWindow"/> class.
@@ -72,8 +49,23 @@ public partial class GameProfileSettingsWindow : Window
         // Subscribe to property changes to save window size
         PropertyChanged += OnPropertyChanged;
 
-        // Refresh hotswap state when window is focused/activated
+        // Subscribe to window events
         Activated += OnWindowActivated;
+    }
+
+    /// <summary>
+    /// Updates the persisted sidebar width and notifies all open views.
+    /// </summary>
+    /// <param name="width">The new sidebar width.</param>
+    public static void UpdateSidebarWidth(double width)
+    {
+        if (width <= 0)
+        {
+            return;
+        }
+
+        SavedSidebarWidth = width;
+        SidebarWidthChanged?.Invoke(null, width);
     }
 
     /// <summary>
@@ -101,7 +93,7 @@ public partial class GameProfileSettingsWindow : Window
     /// </summary>
     /// <param name="sender">The sender.</param>
     /// <param name="e">The event arguments.</param>
-    public void OnToggleFullscreenClick(object sender, Avalonia.Interactivity.RoutedEventArgs e)
+    public void OnToggleFullscreenClick(object? sender, RoutedEventArgs e)
     {
         WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
     }
@@ -120,7 +112,7 @@ public partial class GameProfileSettingsWindow : Window
     /// <inheritdoc/>
     protected override void OnClosing(WindowClosingEventArgs e)
     {
-        SaveWindowSize();
+        PersistWindowSettingsToDisk();
         _isClosing = true;
         base.OnClosing(e);
     }
@@ -138,10 +130,39 @@ public partial class GameProfileSettingsWindow : Window
             viewModel.CloseRequested -= OnCloseRequested;
         }
 
-        // Save window size before closing
-        SaveWindowSize();
-
         base.OnClosed(e);
+    }
+
+    private static void SetInitialDimensions(double? width, double? height, bool? isMaximized, double? sidebarWidth)
+    {
+        _savedWidth ??= width;
+        _savedHeight ??= height;
+        if (!_savedWindowState.HasValue && isMaximized.HasValue)
+        {
+            _savedWindowState = isMaximized.Value ? WindowState.Maximized : WindowState.Normal;
+        }
+
+        if (sidebarWidth.HasValue)
+        {
+            SavedSidebarWidth = sidebarWidth.Value;
+        }
+    }
+
+    private static void RecordWindowDimensions(WindowState state, double width, double height)
+    {
+        if (state == WindowState.Maximized)
+        {
+            _savedWindowState = WindowState.Maximized;
+        }
+        else if (state == WindowState.Normal)
+        {
+            _savedWindowState = WindowState.Normal;
+            if (width > 0 && height > 0)
+            {
+                _savedWidth = width;
+                _savedHeight = height;
+            }
+        }
     }
 
     private async void OnWindowActivated(object? sender, EventArgs e)
@@ -186,9 +207,9 @@ public partial class GameProfileSettingsWindow : Window
     }
 
     /// <summary>
-    /// Handles property changes to save window size when it changes.
+    /// Handles property changes to track window size in memory without disk churn.
     /// </summary>
-    private void OnPropertyChanged(object? sender, Avalonia.AvaloniaPropertyChangedEventArgs e)
+    private void OnPropertyChanged(object? sender, AvaloniaPropertyChangedEventArgs e)
     {
         if (_isClosing)
         {
@@ -197,7 +218,7 @@ public partial class GameProfileSettingsWindow : Window
 
         if (e.Property == WidthProperty || e.Property == HeightProperty || e.Property == WindowStateProperty)
         {
-            SaveWindowSize();
+            UpdateInMemoryWindowSize();
         }
     }
 
@@ -212,17 +233,11 @@ public partial class GameProfileSettingsWindow : Window
             var settings = userSettingsService?.Get();
             if (settings != null)
             {
-                _savedWidth ??= settings.ProfileSettingsWindowWidth;
-                _savedHeight ??= settings.ProfileSettingsWindowHeight;
-                if (!_savedWindowState.HasValue && settings.ProfileSettingsWindowIsMaximized.HasValue)
-                {
-                    _savedWindowState = settings.ProfileSettingsWindowIsMaximized.Value ? WindowState.Maximized : WindowState.Normal;
-                }
-
-                if (settings.ProfileSettingsSidebarWidth.HasValue)
-                {
-                    SavedSidebarWidth = settings.ProfileSettingsSidebarWidth.Value;
-                }
+                SetInitialDimensions(
+                    settings.ProfileSettingsWindowWidth,
+                    settings.ProfileSettingsWindowHeight,
+                    settings.ProfileSettingsWindowIsMaximized,
+                    settings.ProfileSettingsSidebarWidth);
             }
         }
         catch
@@ -239,23 +254,19 @@ public partial class GameProfileSettingsWindow : Window
     }
 
     /// <summary>
-    /// Saves the current window size and state to static fields and user settings.
+    /// Updates the static fields tracking the current window state and dimensions in memory.
     /// </summary>
-    private void SaveWindowSize()
+    private void UpdateInMemoryWindowSize()
     {
-        if (WindowState == WindowState.Maximized)
-        {
-            _savedWindowState = WindowState.Maximized;
-        }
-        else if (WindowState == WindowState.Normal)
-        {
-            _savedWindowState = WindowState.Normal;
-            if (Width > 0 && Height > 0)
-            {
-                _savedWidth = Width;
-                _savedHeight = Height;
-            }
-        }
+        RecordWindowDimensions(WindowState, Width, Height);
+    }
+
+    /// <summary>
+    /// Persists the current window size and sidebar dimensions to user settings on disk.
+    /// </summary>
+    private void PersistWindowSettingsToDisk()
+    {
+        UpdateInMemoryWindowSize();
 
         try
         {
