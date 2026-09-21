@@ -80,6 +80,8 @@ public partial class PublishShareViewModel(
     private const string UploadFailedDefaultMessage = "Upload Failed";
     private const string IncompatibleProviderTitleKey = "Tools.PublisherStudio.Publish.IncompatibleProvider";
     private const string IncompatibleProviderDefaultMessage = "Incompatible Provider";
+    private const string RestoredConnectionTitleKey = "Tools.PublisherStudio.Publish.RestoredConnection";
+    private const string RestoredConnectionDefaultMessage = "Restored connection";
 
     /// <summary>
     /// Progress band (0-80%) shared by pending artifact and artwork uploads.
@@ -2938,7 +2940,7 @@ public partial class PublishShareViewModel(
                     var result = await githubProvider.AuthenticateWithTokenAsync(token, CancellationToken.None);
                     if (result.Success)
                     {
-                        AuthenticationStatusMessage = GetLocalizedString("Tools.PublisherStudio.Publish.RestoredConnection", "Restored connection");
+                        AuthenticationStatusMessage = GetLocalizedString(RestoredConnectionTitleKey, RestoredConnectionDefaultMessage);
                         logger.LogInformation("Restored GitHub authentication from secure credential store");
                     }
                 }
@@ -2984,7 +2986,7 @@ public partial class PublishShareViewModel(
             if (result.Success)
             {
                 await PersistCurrentDropboxCredentialAsync();
-                AuthenticationStatusMessage = GetLocalizedString("Tools.PublisherStudio.Publish.RestoredConnection", "Restored connection");
+                AuthenticationStatusMessage = GetLocalizedString(RestoredConnectionTitleKey, RestoredConnectionDefaultMessage);
                 logger.LogInformation("Restored Dropbox OAuth session from secure credential store");
             }
 
@@ -2995,7 +2997,7 @@ public partial class PublishShareViewModel(
         var legacyResult = await dropboxProvider.AuthenticateWithTokenAsync(token, CancellationToken.None);
         if (legacyResult.Success)
         {
-            AuthenticationStatusMessage = GetLocalizedString("Tools.PublisherStudio.Publish.RestoredConnection", "Restored connection");
+            AuthenticationStatusMessage = GetLocalizedString(RestoredConnectionTitleKey, RestoredConnectionDefaultMessage);
             logger.LogInformation("Restored Dropbox authentication from secure credential store");
         }
     }
@@ -3073,7 +3075,7 @@ public partial class PublishShareViewModel(
         var result = await gdrive.AuthenticateAsync(CancellationToken.None);
         if (result.Success)
         {
-            AuthenticationStatusMessage = GetLocalizedString("Tools.PublisherStudio.Publish.RestoredConnection", "Restored connection");
+            AuthenticationStatusMessage = GetLocalizedString(RestoredConnectionTitleKey, RestoredConnectionDefaultMessage);
             logger.LogInformation("Restored Google Drive authentication from secure credential store");
         }
     }

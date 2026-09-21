@@ -8,6 +8,7 @@ namespace GenHub.Features.Tools.ViewModels;
 /// <summary>
 /// Hierarchy Tier 2: Catalog item containing content items.
 /// </summary>
+[System.Diagnostics.CodeAnalysis.SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Computed properties read CommunityToolkit generated instance properties.")]
 public partial class UploadCatalogNodeViewModel : ObservableObject
 {
     private ILocalizationService? _localizationService;

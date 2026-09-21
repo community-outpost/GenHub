@@ -581,36 +581,7 @@ public partial class AddContentDialogViewModel(
         var stagedAny = false;
         foreach (var rawPath in paths)
         {
-            if (string.IsNullOrWhiteSpace(rawPath))
-            {
-                continue;
-            }
-
-            var path = rawPath.Trim('"', '\'', ' ');
-            if (!File.Exists(path) && !Directory.Exists(path))
-            {
-                continue;
-            }
-
-            if (StagedFiles.Any(e => string.Equals(e.LocalPath, path, StringComparison.OrdinalIgnoreCase)))
-            {
-                continue;
-            }
-
-            var isFirst = StagedFiles.Count == 0;
-            var entry = CreateStagedEntry(path);
-            StagedFiles.Add(entry);
-            StartStagedCompute(entry);
-            stagedAny = true;
-
-            if (isFirst)
-            {
-                PackageFilename = entry.IsFolder ? $"{entry.DisplayName}.zip" : entry.DisplayName;
-                if (autofill)
-                {
-                    AutoFillFromEntry(path, entry);
-                }
-            }
+            stagedAny |= TryStagePath(rawPath, autofill);
         }
 
         if (!stagedAny)
@@ -622,6 +593,46 @@ public partial class AddContentDialogViewModel(
         IncludeInitialRelease = true;
         SyncPrimaryFromStaged();
         Validate();
+    }
+
+    private bool TryStagePath(string? rawPath, bool autofill)
+    {
+        if (string.IsNullOrWhiteSpace(rawPath))
+        {
+            return false;
+        }
+
+        var path = rawPath.Trim('"', '\'', ' ');
+        if (!File.Exists(path) && !Directory.Exists(path))
+        {
+            return false;
+        }
+
+        if (StagedFiles.Any(e => string.Equals(e.LocalPath, path, StringComparison.OrdinalIgnoreCase)))
+        {
+            return false;
+        }
+
+        var isFirst = StagedFiles.Count == 0;
+        var entry = CreateStagedEntry(path);
+        StagedFiles.Add(entry);
+        StartStagedCompute(entry);
+
+        if (isFirst)
+        {
+            ApplyFirstStagedEntry(path, entry, autofill);
+        }
+
+        return true;
+    }
+
+    private void ApplyFirstStagedEntry(string path, StagedContentFile entry, bool autofill)
+    {
+        PackageFilename = entry.IsFolder ? $"{entry.DisplayName}.zip" : entry.DisplayName;
+        if (autofill)
+        {
+            AutoFillFromEntry(path, entry);
+        }
     }
 
     private void AutoFillFromEntry(string path, StagedContentFile entry)
