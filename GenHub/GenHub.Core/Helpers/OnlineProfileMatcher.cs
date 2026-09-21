@@ -5,18 +5,25 @@ using GenHub.Core.Models.Online;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Security.Cryptography;
+using System.Text;
 
 namespace GenHub.Core.Helpers;
 
 /// <summary>
 /// Matches local game profiles against a lobby's expected profile.
-/// The fingerprint covers the game client plus gameplay-affecting content
-/// (mods, patches); cosmetics such as UI addons, skins, maps, and media never
-/// affect the match, mirroring the exe and ini CRC inputs that decide whether
-/// two setups can share a game.
+/// The fingerprint binds the game client key to a hash of the sorted
+/// gameplay-affecting content ids (mods, patches); cosmetics such as UI
+/// addons, skins, maps, and media never affect the match, mirroring the exe
+/// and ini CRC inputs that decide whether two setups can share a game.
+/// Hashing keeps every fingerprint well under the edge 256-character cap no
+/// matter how many content ids a profile carries.
 /// </summary>
 public static class OnlineProfileMatcher
 {
+    private const int FingerprintHashChars = 16;
+    private const string PreviousFingerprintPrefix = "opf1";
+
     /// <summary>
     /// Determines whether a content type can affect game sync and therefore
     /// belongs in the profile fingerprint.
@@ -90,12 +97,29 @@ public static class OnlineProfileMatcher
     {
         ArgumentNullException.ThrowIfNull(profile);
 
+        var clientKey = GetGameClientKey(profile);
         var gameplay = GetGameplayContentIds(profile, contentTypes);
+        var canonical = clientKey + "\n" + string.Join("\n", gameplay);
+        var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(canonical)));
         return string.Join(
             OnlineConstants.FingerprintSeparator,
             OnlineConstants.ProfileFingerprintPrefix,
-            GetGameClientKey(profile),
-            string.Join(OnlineConstants.FingerprintListSeparator, gameplay));
+            clientKey,
+            hash.Substring(0, FingerprintHashChars));
+    }
+
+    /// <summary>
+    /// Bounds a gameplay content id list to the edge publish limit.
+    /// </summary>
+    /// <param name="contentIds">The sorted gameplay content ids.</param>
+    /// <returns>At most the first 32 ids.</returns>
+    public static IReadOnlyList<string> BoundContentIds(IReadOnlyList<string> contentIds)
+    {
+        ArgumentNullException.ThrowIfNull(contentIds);
+
+        return contentIds.Count <= OnlineConstants.MaxExpectedContentIds
+            ? contentIds
+            : contentIds.Take(OnlineConstants.MaxExpectedContentIds).ToList();
     }
 
     /// <summary>
@@ -154,7 +178,7 @@ public static class OnlineProfileMatcher
         }
 
         if (!string.IsNullOrEmpty(expectedGameClientId) &&
-            TryParseFingerprint(memberFingerprint, out var memberClient, out _) &&
+            TryGetGameClientKey(memberFingerprint, out var memberClient) &&
             string.Equals(memberClient, expectedGameClientId, StringComparison.Ordinal))
         {
             return OnlineProfileMatch.SameClient;
@@ -164,35 +188,28 @@ public static class OnlineProfileMatcher
     }
 
     /// <summary>
-    /// Parses a fingerprint into its game client key and gameplay content ids.
+    /// Extracts the game client key embedded in a fingerprint.
+    /// Accepts current and previous fingerprint versions so mixed-version
+    /// lobbies still detect the same-client case.
     /// </summary>
     /// <param name="fingerprint">The fingerprint string.</param>
     /// <param name="gameClientId">The game client key, or empty when unparsable.</param>
-    /// <param name="contentIds">The gameplay content ids, or empty when unparsable.</param>
     /// <returns>True when the fingerprint has the expected shape.</returns>
-    public static bool TryParseFingerprint(
-        string fingerprint,
-        out string gameClientId,
-        out IReadOnlyList<string> contentIds)
+    public static bool TryGetGameClientKey(string fingerprint, out string gameClientId)
     {
         gameClientId = string.Empty;
-        contentIds = [];
         if (string.IsNullOrEmpty(fingerprint))
         {
             return false;
         }
 
         var segments = fingerprint.Split(OnlineConstants.FingerprintSeparator);
-        if (segments.Length < 3 || !string.Equals(segments[0], OnlineConstants.ProfileFingerprintPrefix, StringComparison.Ordinal))
+        if (segments.Length < 3 || (segments[0] != PreviousFingerprintPrefix && segments[0] != OnlineConstants.ProfileFingerprintPrefix))
         {
             return false;
         }
 
         gameClientId = string.Join(OnlineConstants.FingerprintSeparator, segments, 1, segments.Length - 2);
-        var list = segments[segments.Length - 1];
-        contentIds = string.IsNullOrEmpty(list)
-            ? []
-            : list.Split(OnlineConstants.FingerprintListSeparator, StringSplitOptions.RemoveEmptyEntries);
         return !string.IsNullOrEmpty(gameClientId);
     }
 

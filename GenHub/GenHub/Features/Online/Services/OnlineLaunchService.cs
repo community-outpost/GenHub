@@ -72,7 +72,15 @@ public sealed class OnlineLaunchService(
 
         var gameType = profile.GameClient?.GameType ?? GameType.ZeroHour;
         var load = await gameSettingsService.LoadOptionsAsync(gameType);
-        var options = load.Success && load.Data is not null ? load.Data : new IniOptions();
+        if (!load.Success || load.Data is null)
+        {
+            // Never save over a file that failed to load; the player's
+            // existing settings stay untouched and the game keeps its IP.
+            logger.LogWarning("Online play could not load game settings; skipping lobby IP preselection.");
+            return;
+        }
+
+        var options = load.Data;
         if (string.Equals(options.Network.GameSpyIPAddress, overlayIp, StringComparison.Ordinal))
         {
             return;

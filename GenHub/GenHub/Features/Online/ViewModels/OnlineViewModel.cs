@@ -1267,7 +1267,7 @@ public sealed partial class OnlineViewModel(
         return new OnlineProfileSetup(
             OnlineProfileMatcher.ComputeFingerprint(profile, map),
             OnlineProfileMatcher.GetGameClientKey(profile),
-            OnlineProfileMatcher.GetGameplayContentIds(profile, map));
+            OnlineProfileMatcher.BoundContentIds(OnlineProfileMatcher.GetGameplayContentIds(profile, map)));
     }
 
     private async Task<IReadOnlyDictionary<string, ContentType>?> GetContentTypeMapAsync(

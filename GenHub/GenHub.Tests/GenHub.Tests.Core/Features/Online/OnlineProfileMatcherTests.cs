@@ -134,22 +134,20 @@ public class OnlineProfileMatcherTests
     }
 
     /// <summary>
-    /// Tests that fingerprints round-trip through the parser.
+    /// Tests that the client key extracts from current and previous fingerprints.
     /// </summary>
-    [Fact]
-    public void TryParseFingerprint_WithValidFingerprint_ShouldRoundTrip()
+    /// <param name="fingerprint">The fingerprint to parse.</param>
+    [Theory]
+    [InlineData("opf2|ZeroHour|1.04|zerohour-client|0123456789abcdef")]
+    [InlineData("opf1|ZeroHour|1.04|zerohour-client|some-mod")]
+    public void TryGetGameClientKey_WithValidFingerprint_ShouldExtract(string fingerprint)
     {
-        // Arrange
-        var profile = ProfileWith("1.0.0.steam.mod.generals-plus");
-        var fingerprint = OnlineProfileMatcher.ComputeFingerprint(profile, contentTypes: null);
-
         // Act
-        var parsed = OnlineProfileMatcher.TryParseFingerprint(fingerprint, out var client, out var content);
+        var parsed = OnlineProfileMatcher.TryGetGameClientKey(fingerprint, out var client);
 
         // Assert
         Assert.True(parsed);
-        Assert.Equal(OnlineProfileMatcher.GetGameClientKey(profile), client);
-        Assert.Contains("1.0.0.steam.mod.generals-plus", content);
+        Assert.Equal("ZeroHour|1.04|zerohour-client", client);
     }
 
     /// <summary>
@@ -159,14 +157,49 @@ public class OnlineProfileMatcherTests
     [Theory]
     [InlineData("")]
     [InlineData("not-a-fingerprint")]
-    [InlineData("opf1|only-client")]
-    public void TryParseFingerprint_WithMalformedInput_ShouldFail(string fingerprint)
+    [InlineData("opf2|only-client")]
+    public void TryGetGameClientKey_WithMalformedInput_ShouldFail(string fingerprint)
     {
         // Act
-        var parsed = OnlineProfileMatcher.TryParseFingerprint(fingerprint, out _, out _);
+        var parsed = OnlineProfileMatcher.TryGetGameClientKey(fingerprint, out _);
 
         // Assert
         Assert.False(parsed);
+    }
+
+    /// <summary>
+    /// Tests that fingerprints stay bounded no matter the content count.
+    /// </summary>
+    [Fact]
+    public void ComputeFingerprint_WithManyLongIds_ShouldStayBounded()
+    {
+        // Arrange
+        var ids = Enumerable.Range(0, 100).Select(i => $"1.0.0.steam.mod.very-long-mod-name-number-{i:D3}-padding").ToArray();
+        var profile = ProfileWith(ids);
+
+        // Act
+        var fingerprint = OnlineProfileMatcher.ComputeFingerprint(profile, contentTypes: null);
+
+        // Assert
+        Assert.True(fingerprint.Length < 256);
+        Assert.StartsWith("opf2|", fingerprint, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// Tests that content id lists bound to the edge publish limit.
+    /// </summary>
+    [Fact]
+    public void BoundContentIds_WithOversizedList_ShouldCap()
+    {
+        // Arrange
+        var ids = Enumerable.Range(0, 50).Select(i => $"id-{i:D2}").ToList();
+
+        // Act
+        var bounded = OnlineProfileMatcher.BoundContentIds(ids);
+
+        // Assert
+        Assert.Equal(32, bounded.Count);
+        Assert.Equal("id-00", bounded[0]);
     }
 
     /// <summary>

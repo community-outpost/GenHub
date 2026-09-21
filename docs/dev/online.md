@@ -79,7 +79,8 @@ of failing silently.
 ## Profile matching
 
 Profile ids are machine-local, so lobbies match on the fingerprint
-(`OnlineProfileMatcher`): game client plus gameplay content (mods, patches).
+(`OnlineProfileMatcher`): the game client key plus a hash of the sorted
+gameplay content ids (mods, patches).
 Cosmetics (UI addons, skins, maps, media) never affect the match, mirroring
 the exe/ini inputs that decide whether two setups can share a game. The host
 picks a profile from their own library; joiners auto-match the closest local

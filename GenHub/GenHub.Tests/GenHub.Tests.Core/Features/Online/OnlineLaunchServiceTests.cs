@@ -153,6 +153,35 @@ public class OnlineLaunchServiceTests
     }
 
     /// <summary>
+    /// Tests that a settings load failure skips preselection but never blocks the launch.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task PlayAsync_WhenSettingsLoadFails_ShouldSkipPreselectionAndLaunchAsync()
+    {
+        // Arrange
+        var manager = new Mock<IGameProfileManager>();
+        manager.Setup(m => m.GetProfileAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(new GameProfile { Id = "p1", Name = "ZH" }));
+        var facade = new Mock<IProfileLauncherFacade>();
+        facade.Setup(f => f.LaunchProfileAsync(It.IsAny<string>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameLaunchInfo>.CreateSuccess(
+                new GameLaunchInfo { LaunchId = "l1", ProfileId = "p1", WorkspaceId = "w1", ProcessInfo = new GameProcessInfo() }));
+        var settings = new Mock<IGameSettingsService>();
+        settings.Setup(s => s.LoadOptionsAsync(It.IsAny<GameType>()))
+            .ReturnsAsync(OperationResult<IniOptions>.CreateFailure("locked"));
+        var service = new OnlineLaunchService(manager.Object, facade.Object, settings.Object, Mock.Of<ILogger<OnlineLaunchService>>());
+
+        // Act
+        var result = await service.PlayAsync("p1", "Net", "10.42.0.7");
+
+        // Assert
+        Assert.True(result.Success);
+        facade.Verify(f => f.LaunchProfileAsync("p1", false, It.IsAny<CancellationToken>()), Times.Once);
+        settings.Verify(s => s.SaveOptionsAsync(It.IsAny<GameType>(), It.IsAny<IniOptions>()), Times.Never);
+    }
+
+    /// <summary>
     /// Tests that a settings write failure never blocks the launch.
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
@@ -169,7 +198,7 @@ public class OnlineLaunchServiceTests
                 new GameLaunchInfo { LaunchId = "l1", ProfileId = "p1", WorkspaceId = "w1", ProcessInfo = new GameProcessInfo() }));
         var settings = new Mock<IGameSettingsService>();
         settings.Setup(s => s.LoadOptionsAsync(It.IsAny<GameType>()))
-            .ReturnsAsync(OperationResult<IniOptions>.CreateFailure("locked"));
+            .ReturnsAsync(OperationResult<IniOptions>.CreateSuccess(new IniOptions()));
         settings.Setup(s => s.SaveOptionsAsync(It.IsAny<GameType>(), It.IsAny<IniOptions>()))
             .ReturnsAsync(OperationResult<bool>.CreateFailure("locked"));
         var service = new OnlineLaunchService(manager.Object, facade.Object, settings.Object, Mock.Of<ILogger<OnlineLaunchService>>());

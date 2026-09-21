@@ -1835,7 +1835,7 @@
     <value>Пароль (необязателен для частной)</value>
   </data>
   <data name="Online.Create.PasswordHint" xml:space="preserve">
-    <value>Необязательно. Оставьте пустым для открытого лобби (минимум 4 символа, если задано).</value>
+    <value>Необязательно. Оставьте поле пустым для открытого лобби. Если пароль указан, он должен содержать минимум 4 символа.</value>
   </data>
   <data name="Online.Create.PublicLabel" xml:space="preserve">
     <value>Публичный список</value>
@@ -11480,7 +11480,7 @@ GenHub передает официальный идентификатор AppID 
     <value>Без профиля (любая сборка)</value>
   </data>
   <data name="Online.Create.ProfileHint" xml:space="preserve">
-    <value>Участники автоматически сверяются с этой сборкой. Войти может каждый; несовпадения только отображаются.</value>
+    <value>Профили участников автоматически сравниваются с этой сборкой. Подключиться может любой игрок; несовпадения только отображаются.</value>
   </data>
   <data name="Online.Detail.MatchLabel" xml:space="preserve">
     <value>Ваша сборка</value>
@@ -11507,7 +11507,7 @@ GenHub передает официальный идентификатор AppID 
     <value>Хост переключил лобби на «{0}».</value>
   </data>
   <data name="Online.Profile.SwitchedClearedMessage" xml:space="preserve">
-    <value>Хост убрал игру лобби.</value>
+    <value>Хост убрал игру из лобби.</value>
   </data>
   <data name="Online.Adapter.PendingTitle" xml:space="preserve">
     <value>Только лобби</value>
