@@ -49,6 +49,90 @@ public partial class GameProfileSettingsViewModel
     [ObservableProperty]
     private string _colorValue = "#5E35B1";
 
+    private bool _isNameCustomized;
+    private bool _isColorCustomized;
+    private bool _isIconCustomized;
+    private bool _isCoverCustomized;
+    private bool _isApplyingBranding;
+
+    partial void OnNameChanged(string value)
+    {
+        if (IsInitializing || _isApplyingBranding)
+        {
+            return;
+        }
+
+        var defaultBranding = ResolveDefaultBranding();
+        if (string.IsNullOrWhiteSpace(value) ||
+            string.Equals(value, ProfileConstants.DefaultProfileName, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(value, defaultBranding.Name, StringComparison.OrdinalIgnoreCase))
+        {
+            _isNameCustomized = false;
+        }
+        else
+        {
+            _isNameCustomized = true;
+        }
+    }
+
+    partial void OnColorValueChanged(string value)
+    {
+        if (IsInitializing || _isApplyingBranding)
+        {
+            return;
+        }
+
+        var defaultBranding = ResolveDefaultBranding();
+        if (string.IsNullOrWhiteSpace(value) ||
+            string.Equals(value, ProfileSharingConstants.DefaultThemeColor, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(value, defaultBranding.Color, StringComparison.OrdinalIgnoreCase))
+        {
+            _isColorCustomized = false;
+        }
+        else
+        {
+            _isColorCustomized = true;
+        }
+    }
+
+    partial void OnIconPathChanged(string value)
+    {
+        if (IsInitializing || _isApplyingBranding)
+        {
+            return;
+        }
+
+        var defaultBranding = ResolveDefaultBranding();
+        if (string.IsNullOrWhiteSpace(value) ||
+            string.Equals(value, defaultBranding.IconPath, StringComparison.OrdinalIgnoreCase))
+        {
+            _isIconCustomized = false;
+        }
+        else
+        {
+            _isIconCustomized = true;
+        }
+    }
+
+    partial void OnCoverPathChanged(string value)
+    {
+        if (IsInitializing || _isApplyingBranding)
+        {
+            return;
+        }
+
+        var defaultBranding = ResolveDefaultBranding();
+        if (string.IsNullOrWhiteSpace(value) ||
+            string.Equals(value, defaultBranding.CoverPath, StringComparison.OrdinalIgnoreCase))
+        {
+            _isCoverCustomized = false;
+        }
+        else
+        {
+            _isCoverCustomized = true;
+        }
+    }
+
     private ContentType _selectedContentType = ContentType.GameClient;
 
     /// <summary>

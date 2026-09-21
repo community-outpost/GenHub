@@ -316,18 +316,14 @@ public partial class GameProfileSettingsViewModel
         var itemToRemove = EnabledContent.FirstOrDefault(e => e.ManifestId.Value == contentItem.ManifestId.Value);
         if (itemToRemove != null)
         {
-            if (Name == itemToRemove.DisplayName)
-            {
-                var remainingClientOrInstall = EnabledContent.FirstOrDefault(e => e.ContentType is ContentType.GameClient or ContentType.GameInstallation && e.ManifestId.Value != itemToRemove.ManifestId.Value);
-                Name = remainingClientOrInstall?.DisplayName ?? ProfileConstants.DefaultProfileName;
-            }
-
             itemToRemove.IsEnabled = false;
             EnabledContent.Remove(itemToRemove);
 
             UpdateAvailableContentOnDisable(itemToRemove);
             UpdateSelectedInstallationOnDisable(itemToRemove);
             UpdateApplicableClientVisibility();
+
+            ApplyPrimaryBranding();
 
             StatusMessage = $"Disabled {itemToRemove.DisplayName}";
             _logger?.LogInformation("Disabled content {ContentName} from profile", itemToRemove.DisplayName);
@@ -371,17 +367,6 @@ public partial class GameProfileSettingsViewModel
             if (remainingInstallation != null)
             {
                 SelectedGameInstallation = remainingInstallation;
-            }
-            else
-            {
-                var generalsIcon = NormalizeResourcePath(_profileResourceService?.GetDefaultIconPath("Generals"));
-                var zeroHourIcon = NormalizeResourcePath(_profileResourceService?.GetDefaultIconPath("ZeroHour"));
-                if (string.IsNullOrEmpty(IconPath) ||
-                    string.Equals(IconPath, generalsIcon, StringComparison.OrdinalIgnoreCase) ||
-                    string.Equals(IconPath, zeroHourIcon, StringComparison.OrdinalIgnoreCase))
-                {
-                    IconPath = generalsIcon ?? string.Empty;
-                }
             }
         }
         else if (itemToRemove.ContentType is ContentType.GameClient or ContentType.Mod &&
@@ -1066,6 +1051,7 @@ public partial class GameProfileSettingsViewModel
     private void SelectIcon(ProfileResourceItem? icon)
     {
         if (icon == null) return;
+        _isIconCustomized = true;
         SelectedIcon = icon;
         IconPath = icon.Path;
         _logger?.LogInformation("Selected icon: {DisplayName} ({Path})", icon.DisplayName, icon.Path);
@@ -1075,6 +1061,7 @@ public partial class GameProfileSettingsViewModel
     private void SelectCover(ProfileResourceItem? cover)
     {
         if (cover == null) return;
+        _isCoverCustomized = true;
         SelectedCoverItem = cover;
         CoverPath = cover.Path;
         _logger?.LogInformation("Selected cover: {DisplayName} ({Path})", cover.DisplayName, cover.Path);
@@ -1110,6 +1097,7 @@ public partial class GameProfileSettingsViewModel
                 if (result.Count > 0)
                 {
                     var selectedFile = result[0];
+                    _isIconCustomized = true;
                     IconPath = selectedFile.Path.LocalPath;
                     SelectedIcon = null;
                     _logger?.LogInformation("Selected custom icon: {Path}", IconPath);
@@ -1154,6 +1142,7 @@ public partial class GameProfileSettingsViewModel
                 if (result.Count > 0)
                 {
                     var selectedFile = result[0];
+                    _isCoverCustomized = true;
                     CoverPath = selectedFile.Path.LocalPath;
                     SelectedCoverItem = null;
                     _logger?.LogInformation("Selected custom cover: {Path}", CoverPath);
@@ -1171,6 +1160,7 @@ public partial class GameProfileSettingsViewModel
     [RelayCommand]
     private void RandomizeColor()
     {
+        _isColorCustomized = true;
         var colors = new List<string>
         {
             "#1976D2", "#388E3C", "#FBC02D", "#FF5722", "#7B1FA2",
@@ -1193,6 +1183,7 @@ public partial class GameProfileSettingsViewModel
     {
         if (!string.IsNullOrEmpty(color))
         {
+            _isColorCustomized = true;
             ColorValue = color;
             if (GameSettingsViewModel != null)
             {

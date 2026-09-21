@@ -59,6 +59,7 @@ public class ReplayCrcMatchingHelperTests
     {
         Assert.True(ReplayCrcMatchingHelper.IsGeneralsRetailExeCrc(ReplayManagerConstants.RetailGeneralsExeCrcFirstDecade));
         Assert.True(ReplayCrcMatchingHelper.IsGeneralsRetailExeCrc(ReplayManagerConstants.RetailGeneralsExeCrcSteam));
+        Assert.True(ReplayCrcMatchingHelper.IsGeneralsRetailExeCrc(ReplayManagerConstants.RetailGeneralsExeCrcEaApp));
         Assert.False(ReplayCrcMatchingHelper.IsGeneralsRetailExeCrc("0xDEADBEEF"));
     }
 
@@ -378,7 +379,7 @@ public class ReplayCrcMatchingHelperTests
             Version = "1.08",
         };
         Assert.True(ReplayCrcMatchingHelper.IsRetailCompatible(eaGenerals));
-        Assert.True(ReplayCrcMatchingHelper.IsGeneralsRetailExeCrc("0x8F98E20A"));
+        Assert.True(ReplayCrcMatchingHelper.IsGeneralsRetailExeCrc(ReplayManagerConstants.RetailGeneralsExeCrcEaApp));
 
         // Generals 1.09 Steam
         var steamGenerals = new GameClient

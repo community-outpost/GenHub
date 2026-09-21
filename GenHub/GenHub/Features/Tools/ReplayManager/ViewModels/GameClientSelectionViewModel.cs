@@ -260,7 +260,7 @@ public sealed partial class GameClientSelectionViewModel(
 
         if (targetGame == GameType.Generals)
         {
-            return exeCrc is ReplayManagerConstants.RetailGeneralsExeCrcFirstDecadeValue or ReplayManagerConstants.RetailGeneralsExeCrcSteamValue ||
+            return exeCrc is ReplayManagerConstants.RetailGeneralsExeCrcFirstDecadeValue or ReplayManagerConstants.RetailGeneralsExeCrcSteamValue or ReplayManagerConstants.RetailGeneralsExeCrcEaAppValue ||
                    ReplayCrcMatchingHelper.IsGeneralsRetailExeCrc(replayExeCrc);
         }
 

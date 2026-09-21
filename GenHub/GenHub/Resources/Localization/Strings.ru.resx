@@ -611,6 +611,14 @@
     <value>Используется модифицированный exe; несовместимо с версией 1.04</value>
     <comment>Tooltip for non-retail compatible profile badge</comment>
   </data>
+  <data name="GameProfiles.Tooltip.RetailCompatibleGenerals" xml:space="preserve">
+    <value>Совместимо с оригинальной версией Generals 1.08 / 1.09 (официальный exe)</value>
+    <comment>Tooltip for retail compatible Generals profile badge</comment>
+  </data>
+  <data name="GameProfiles.Tooltip.NonRetailCompatibleGenerals" xml:space="preserve">
+    <value>Используется модифицированный exe; несовместимо с версией Generals 1.08 / 1.09</value>
+    <comment>Tooltip for non-retail compatible Generals profile badge</comment>
+  </data>
   <data name="GameProfiles.Button.AddNewProfile" xml:space="preserve">
     <value>Добавить новый профиль</value>
     <comment>Button to create a new game profile</comment>

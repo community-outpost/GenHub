@@ -797,32 +797,12 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
             GameSettingsViewModel.SelectedGameType = value.GameType;
         }
 
-        var newDefaultIcon = NormalizeResourcePath(_profileResourceService?.GetDefaultIconPath(value.GameType.ToString()));
-        var generalsIcon = NormalizeResourcePath(_profileResourceService?.GetDefaultIconPath("Generals"));
-        var zeroHourIcon = NormalizeResourcePath(_profileResourceService?.GetDefaultIconPath("ZeroHour"));
-
-        if (!string.IsNullOrEmpty(newDefaultIcon) &&
-            (string.IsNullOrEmpty(IconPath) ||
-             string.Equals(IconPath, generalsIcon, StringComparison.OrdinalIgnoreCase) ||
-             string.Equals(IconPath, zeroHourIcon, StringComparison.OrdinalIgnoreCase)))
-        {
-            IconPath = newDefaultIcon;
-        }
-
-        if (!IsInitializing && string.IsNullOrEmpty(CurrentProfileId) && (string.IsNullOrWhiteSpace(Name) || Name == ProfileConstants.DefaultProfileName))
-        {
-            Name = value.DisplayName;
-        }
+        ApplyPrimaryBranding();
     }
 
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Mutates SelectedGameInstallation and instance collections in partial view model")]
     private void ClearInstallationSelection()
     {
-        if (!IsInitializing && string.IsNullOrEmpty(CurrentProfileId) && (Name == SelectedGameInstallation?.DisplayName || string.IsNullOrWhiteSpace(Name)))
-        {
-            Name = ProfileConstants.DefaultProfileName;
-        }
-
         foreach (var item in AvailableGameInstallations)
         {
             item.IsEnabled = false;
@@ -835,13 +815,147 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
             EnabledContent.Remove(existing);
         }
 
-        var generalsIcon = NormalizeResourcePath(_profileResourceService?.GetDefaultIconPath("Generals"));
-        var zeroHourIcon = NormalizeResourcePath(_profileResourceService?.GetDefaultIconPath("ZeroHour"));
-        if (string.IsNullOrEmpty(IconPath) ||
-            string.Equals(IconPath, generalsIcon, StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(IconPath, zeroHourIcon, StringComparison.OrdinalIgnoreCase))
+        ApplyPrimaryBranding();
+    }
+
+    private sealed record ProfileBranding(string Name, string Color, string IconPath, string CoverPath, Core.Models.Enums.GameType GameType);
+
+    private ProfileBranding ResolveDefaultBranding()
+    {
+        var activeClientItem = EnabledContent.FirstOrDefault(c => c.IsEnabled && c.ContentType == ContentType.GameClient);
+        var activeInstallationItem = EnabledContent.FirstOrDefault(c => c.IsEnabled && c.ContentType == ContentType.GameInstallation)
+            ?? (SelectedGameInstallation?.IsEnabled == true ? SelectedGameInstallation : null);
+
+        var primaryItem = activeClientItem ?? activeInstallationItem;
+        if (primaryItem == null)
         {
-            IconPath = generalsIcon ?? string.Empty;
+            var fallbackGameType = GameTypeFilter != Core.Models.Enums.GameType.Unknown ? GameTypeFilter : Core.Models.Enums.GameType.ZeroHour;
+            var fallbackColor = fallbackGameType == Core.Models.Enums.GameType.Generals ? UiConstants.GeneralsThemeColor : UiConstants.ZeroHourThemeColor;
+            var fallbackIcon = fallbackGameType == Core.Models.Enums.GameType.Generals ? UriConstants.GeneralsIconUri : UriConstants.ZeroHourIconUri;
+            var fallbackCover = fallbackGameType == Core.Models.Enums.GameType.Generals
+                ? NormalizeResourcePath(_profileResourceService?.GetDefaultCoverPath("Generals"), $"{UriConstants.AvarUriScheme}GenHub{UriConstants.CoversDirectoryPath}{UriConstants.GeneralsCoverFilename}")
+                : NormalizeResourcePath(_profileResourceService?.GetDefaultCoverPath("ZeroHour"), $"{UriConstants.AvarUriScheme}GenHub{UriConstants.CoversDirectoryPath}{UriConstants.ZeroHourCoverFilename}");
+
+            return new ProfileBranding(ProfileConstants.DefaultProfileName, fallbackColor, fallbackIcon, fallbackCover, fallbackGameType);
+        }
+
+        var gameType = primaryItem.GameType != Core.Models.Enums.GameType.Unknown
+            ? primaryItem.GameType
+            : (primaryItem.GameClient?.GameType ?? (GameTypeFilter != Core.Models.Enums.GameType.Unknown ? GameTypeFilter : Core.Models.Enums.GameType.ZeroHour));
+
+        var displayName = primaryItem.DisplayName;
+        var publisher = primaryItem.Publisher ?? primaryItem.GameClient?.PublisherType ?? string.Empty;
+        var itemName = primaryItem.DisplayName ?? primaryItem.GameClient?.Name ?? string.Empty;
+
+        bool isTsh = publisher.Contains(SuperHackersConstants.PublisherName, StringComparison.OrdinalIgnoreCase) ||
+                     publisher.Contains(SuperHackersConstants.PublisherId, StringComparison.OrdinalIgnoreCase) ||
+                     publisher.Contains(PublisherTypeConstants.TheSuperHackers, StringComparison.OrdinalIgnoreCase) ||
+                     itemName.Contains(SuperHackersConstants.PublisherName, StringComparison.OrdinalIgnoreCase) ||
+                     itemName.Contains("SuperHackers", StringComparison.OrdinalIgnoreCase);
+
+        bool isGo = publisher.Contains(GeneralsOnlineConstants.PublisherName, StringComparison.OrdinalIgnoreCase) ||
+                    publisher.Contains(PublisherTypeConstants.GeneralsOnline, StringComparison.OrdinalIgnoreCase) ||
+                    itemName.Contains(GeneralsOnlineConstants.ClientName, StringComparison.OrdinalIgnoreCase) ||
+                    itemName.Contains("Generals Online", StringComparison.OrdinalIgnoreCase);
+
+        bool isCo = publisher.Contains(CommunityOutpostConstants.PublisherName, StringComparison.OrdinalIgnoreCase) ||
+                    publisher.Contains(CommunityOutpostConstants.PublisherId, StringComparison.OrdinalIgnoreCase) ||
+                    publisher.Contains(PublisherTypeConstants.CommunityOutpost, StringComparison.OrdinalIgnoreCase) ||
+                    itemName.Contains("Community Outpost", StringComparison.OrdinalIgnoreCase) ||
+                    itemName.Contains("CommunityOutpost", StringComparison.OrdinalIgnoreCase);
+
+        if (isTsh)
+        {
+            var color = gameType == Core.Models.Enums.GameType.Generals ? SuperHackersConstants.GeneralsThemeColor : SuperHackersConstants.ZeroHourThemeColor;
+            var cover = NormalizeResourcePath(SuperHackersConstants.ZeroHourCoverSource);
+            var icon = UriConstants.SuperHackersLogoUri;
+            return new ProfileBranding(displayName, color, icon, cover, gameType);
+        }
+
+        if (isGo)
+        {
+            var color = GeneralsOnlineConstants.ThemeColor;
+            var cover = NormalizeResourcePath(GeneralsOnlineConstants.CoverSource);
+            var icon = UriConstants.GeneralsOnlineLogoUri;
+            return new ProfileBranding(displayName, color, icon, cover, gameType);
+        }
+
+        if (isCo)
+        {
+            var color = CommunityOutpostConstants.ThemeColor;
+            var cover = NormalizeResourcePath(CommunityOutpostConstants.CoverSource);
+            var icon = CommunityOutpostConstants.LogoSource;
+            return new ProfileBranding(displayName, color, icon, cover, gameType);
+        }
+
+        if (gameType == Core.Models.Enums.GameType.Generals)
+        {
+            var color = UiConstants.GeneralsThemeColor;
+            var icon = NormalizeResourcePath(_profileResourceService?.GetDefaultIconPath("Generals"), UriConstants.GeneralsIconUri);
+            var cover = NormalizeResourcePath(_profileResourceService?.GetDefaultCoverPath("Generals"), $"{UriConstants.AvarUriScheme}GenHub{UriConstants.CoversDirectoryPath}{UriConstants.GeneralsCoverFilename}");
+            return new ProfileBranding(displayName, color, icon, cover, gameType);
+        }
+        else
+        {
+            var color = UiConstants.ZeroHourThemeColor;
+            var icon = NormalizeResourcePath(_profileResourceService?.GetDefaultIconPath("ZeroHour"), UriConstants.ZeroHourIconUri);
+            var cover = NormalizeResourcePath(_profileResourceService?.GetDefaultCoverPath("ZeroHour"), $"{UriConstants.AvarUriScheme}GenHub{UriConstants.CoversDirectoryPath}{UriConstants.ZeroHourCoverFilename}");
+            return new ProfileBranding(displayName, color, icon, cover, gameType);
+        }
+    }
+
+    private void ApplyPrimaryBranding()
+    {
+        if (IsInitializing)
+        {
+            return;
+        }
+
+        var branding = ResolveDefaultBranding();
+        _isApplyingBranding = true;
+        try
+        {
+            if (!_isNameCustomized && !string.IsNullOrWhiteSpace(branding.Name))
+            {
+                Name = branding.Name;
+            }
+
+            if (!_isColorCustomized && !string.IsNullOrWhiteSpace(branding.Color))
+            {
+                ColorValue = branding.Color;
+                if (GameSettingsViewModel != null)
+                {
+                    GameSettingsViewModel.ColorValue = ColorValue;
+                }
+            }
+
+            if (!_isIconCustomized && !string.IsNullOrWhiteSpace(branding.IconPath))
+            {
+                IconPath = branding.IconPath;
+            }
+
+            if (!_isCoverCustomized)
+            {
+                CoverPath = branding.CoverPath;
+            }
+
+            if (branding.GameType != Core.Models.Enums.GameType.Unknown && branding.GameType != GameTypeFilter)
+            {
+                GameTypeFilter = branding.GameType;
+            }
+
+            if (branding.GameType != Core.Models.Enums.GameType.Unknown &&
+                GameSettingsViewModel != null &&
+                GameSettingsViewModel.SelectedGameType != branding.GameType)
+            {
+                GameSettingsViewModel.SelectedGameType = branding.GameType;
+            }
+
+            LoadAvailableIconsAndCovers(branding.GameType.ToString());
+        }
+        finally
+        {
+            _isApplyingBranding = false;
         }
     }
 
@@ -930,40 +1044,8 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
 
         foreach (var existing in incompatible)
         {
-            if ((existing.ContentType is ContentType.GameClient or ContentType.GameInstallation) && Name == existing.DisplayName)
-            {
-                Name = ProfileConstants.DefaultProfileName;
-            }
-
             existing.IsEnabled = false;
             EnabledContent.Remove(existing);
-
-            if (existing.ContentType == SelectedContentType && existing.GameType == newGameType)
-            {
-                var alreadyInAvailable = AvailableContent.FirstOrDefault(a => a.ManifestId.Value == existing.ManifestId.Value);
-                if (alreadyInAvailable == null)
-                {
-                    AvailableContent.Add(new ContentDisplayItem
-                    {
-                        ManifestId = existing.ManifestId,
-                        DisplayName = existing.DisplayName,
-                        ContentType = existing.ContentType,
-                        GameType = existing.GameType,
-                        InstallationType = existing.InstallationType,
-                        Publisher = existing.Publisher,
-                        IsEnabled = false,
-                        SourceId = existing.SourceId,
-                        GameClientId = existing.GameClientId,
-                        GameClient = existing.GameClient?.Clone(),
-                        Manifest = existing.Manifest,
-                        Version = existing.Version,
-                        IsEditable = existing.IsEditable,
-                        SourcePath = existing.SourcePath,
-                        IsLocked = existing.IsLocked,
-                        CanToggle = existing.CanToggle,
-                    });
-                }
-            }
         }
 
         GameTypeFilter = newGameType;
@@ -979,6 +1061,8 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
         {
             SelectedGameInstallation = matchingInstallation;
         }
+
+        ApplyPrimaryBranding();
     }
 
     private void ReplaceConflictingEnabledContent(ContentDisplayItem contentItem)
@@ -996,11 +1080,6 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
         var existingItems = EnabledContent.Where(e => e.ContentType == contentItem.ContentType).ToList();
         foreach (var existing in existingItems)
         {
-            if ((existing.ContentType is ContentType.GameClient or ContentType.GameInstallation) && Name == existing.DisplayName)
-            {
-                Name = ProfileConstants.DefaultProfileName;
-            }
-
             existing.IsEnabled = false;
             EnabledContent.Remove(existing);
 
@@ -1066,12 +1145,7 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
         StatusMessage = $"Enabled {contentItem.DisplayName}";
         _logger?.LogInformation("Enabled content {ContentName} for profile", contentItem.DisplayName);
 
-        if ((contentItem.ContentType is ContentType.GameClient or ContentType.GameInstallation) &&
-            (Name == ProfileConstants.DefaultProfileName || string.IsNullOrWhiteSpace(Name)))
-        {
-            Name = contentItem.DisplayName;
-        }
-
+        ApplyPrimaryBranding();
         UpdateApplicableClientVisibility();
     }
 

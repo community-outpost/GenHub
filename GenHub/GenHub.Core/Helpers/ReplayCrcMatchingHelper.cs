@@ -75,7 +75,7 @@ public static class ReplayCrcMatchingHelper
         var normalized = NormalizeCrcHex(crc);
         return string.Equals(normalized, NormalizeCrcHex(ReplayManagerConstants.RetailGeneralsExeCrcFirstDecade), StringComparison.OrdinalIgnoreCase) ||
                string.Equals(normalized, NormalizeCrcHex(ReplayManagerConstants.RetailGeneralsExeCrcSteam), StringComparison.OrdinalIgnoreCase) ||
-               string.Equals(normalized, NormalizeCrcHex("0x8F98E20A"), StringComparison.OrdinalIgnoreCase);
+               string.Equals(normalized, NormalizeCrcHex(ReplayManagerConstants.RetailGeneralsExeCrcEaApp), StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary>
@@ -170,11 +170,7 @@ public static class ReplayCrcMatchingHelper
                                   normalizedPub == PublisherTypeConstants.Steam ||
                                   normalizedPub == PublisherTypeConstants.Ea ||
                                   normalizedPub == PublisherTypeConstants.EaApp ||
-                                  normalizedPub == PublisherTypeConstants.Retail ||
-                                  normalizedPub == "ea" ||
-                                  normalizedPub == "eaapp" ||
-                                  normalizedPub == "steam" ||
-                                  normalizedPub == "retail";
+                                  normalizedPub == PublisherTypeConstants.Retail;
 
         if (!isOfficialPublisher && client.IsPublisherClient)
         {

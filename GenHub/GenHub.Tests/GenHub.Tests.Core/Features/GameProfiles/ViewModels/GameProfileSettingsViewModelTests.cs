@@ -1,4 +1,5 @@
 using CommunityToolkit.Mvvm.Messaging;
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Interfaces.GameSettings;
@@ -12,7 +13,10 @@ using GenHub.Core.Models.Results;
 using GenHub.Features.GameProfiles.ViewModels;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
+using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
@@ -39,26 +43,26 @@ public class GameProfileSettingsViewModelTests
         var mockConfigProvider = new Mock<IConfigurationProviderService>();
 
         var availableInstallations = new ObservableCollection<CoreContentDisplayItem>
-       {
-           new()
-           {
-               Id = "1.108.steam.gameinstallation.generals",
-               ManifestId = "1.108.steam.gameinstallation.generals",
-               DisplayName = "Command & Conquer: Generals",
-               ContentType = GenHub.Core.Models.Enums.ContentType.GameInstallation,
-               GameType = GenHub.Core.Models.Enums.GameType.Generals,
-               InstallationType = GenHub.Core.Models.Enums.GameInstallationType.Steam,
-           },
-           new()
-           {
-               Id = "1.108.steam.gameinstallation.zh",
-               ManifestId = "1.108.steam.gameinstallation.zh",
-               DisplayName = "Zero Hour",
-               ContentType = GenHub.Core.Models.Enums.ContentType.GameInstallation,
-               GameType = GenHub.Core.Models.Enums.GameType.ZeroHour,
-               InstallationType = GenHub.Core.Models.Enums.GameInstallationType.Steam,
-           },
-       };
+        {
+            new()
+            {
+                Id = "1.108.steam.gameinstallation.generals",
+                ManifestId = "1.108.steam.gameinstallation.generals",
+                DisplayName = "Command & Conquer: Generals",
+                ContentType = GenHub.Core.Models.Enums.ContentType.GameInstallation,
+                GameType = GenHub.Core.Models.Enums.GameType.Generals,
+                InstallationType = GenHub.Core.Models.Enums.GameInstallationType.Steam,
+            },
+            new()
+            {
+                Id = "1.108.steam.gameinstallation.zh",
+                ManifestId = "1.108.steam.gameinstallation.zh",
+                DisplayName = "Zero Hour",
+                ContentType = GenHub.Core.Models.Enums.ContentType.GameInstallation,
+                GameType = GenHub.Core.Models.Enums.GameType.ZeroHour,
+                InstallationType = GenHub.Core.Models.Enums.GameInstallationType.Steam,
+            },
+        };
 
         mockContentLoader
             .Setup(x => x.LoadAvailableGameInstallationsAsync())
@@ -214,7 +218,6 @@ public class GameProfileSettingsViewModelTests
         vm.EnabledContent.Add(oldItem);
 
         // Act - call handler directly to avoid Dispatcher issues in test
-        // WeakReferenceMessenger.Default.Send(new ManifestReplacedMessage(oldId, newId));
         await vm.HandleManifestReplacementAsync(oldId, newId);
 
         // Assert
@@ -419,5 +422,312 @@ public class GameProfileSettingsViewModelTests
         // Assert
         Assert.Single(vm.AvailableContent);
         Assert.Equal("ZH Mod", vm.AvailableContent[0].DisplayName);
+    }
+
+    /// <summary>
+    /// Verifies Issue #549: selecting Generals installation, removing it, and selecting Zero Hour updates the title bar, color, and icon.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task Issue549_SelectingGenerals_RemovingIt_AndSelectingZeroHour_UpdatesTitleAndBrandingAsync()
+    {
+        // Arrange
+        var mockGameSettingsService = new Mock<IGameSettingsService>();
+        var mockContentLoader = new Mock<IProfileContentLoader>();
+        var mockConfigProvider = new Mock<IConfigurationProviderService>();
+
+        var generalsInstallation = new CoreContentDisplayItem
+        {
+            Id = "1.108.steam.gameinstallation.generals",
+            ManifestId = "1.108.steam.gameinstallation.generals",
+            DisplayName = "Command & Conquer: Generals",
+            ContentType = ContentType.GameInstallation,
+            GameType = GameType.Generals,
+            InstallationType = GameInstallationType.Steam,
+        };
+
+        var zhInstallation = new CoreContentDisplayItem
+        {
+            Id = "1.04.steam.gameinstallation.zh",
+            ManifestId = "1.04.steam.gameinstallation.zh",
+            DisplayName = "Zero Hour",
+            ContentType = ContentType.GameInstallation,
+            GameType = GameType.ZeroHour,
+            InstallationType = GameInstallationType.Steam,
+        };
+
+        var availableInstallations = new ObservableCollection<CoreContentDisplayItem>
+        {
+            generalsInstallation,
+            zhInstallation,
+        };
+
+        mockContentLoader
+            .Setup(x => x.LoadAvailableGameInstallationsAsync())
+            .ReturnsAsync(availableInstallations);
+
+        mockContentLoader
+            .Setup(x => x.LoadAvailableContentAsync(
+                It.IsAny<ContentType>(),
+                It.IsAny<ObservableCollection<CoreContentDisplayItem>>(),
+                It.IsAny<IReadOnlyList<string>>()))
+            .ReturnsAsync([]);
+
+        mockConfigProvider
+            .Setup(x => x.GetDefaultWorkspaceStrategy())
+            .Returns(WorkspaceStrategy.HardLink);
+
+        var vm = new GameProfileSettingsViewModel(
+            null!,
+            mockGameSettingsService.Object,
+            mockConfigProvider.Object,
+            mockContentLoader.Object,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            NullLogger<GameProfileSettingsViewModel>.Instance,
+            NullLogger<GameSettingsViewModel>.Instance);
+
+        await vm.InitializeForNewProfileAsync();
+        Assert.Equal("New Profile", vm.Name);
+
+        // Act 1: Select Generals installation from AvailableGameInstallations
+        var vmGeneralsItem = vm.AvailableGameInstallations.First(i => i.GameType == GameType.Generals);
+        vm.SelectedGameInstallation = vmGeneralsItem;
+
+        // Assert 1: Updates to Generals branding
+        Assert.Equal("Command & Conquer: Generals", vm.Name);
+        Assert.Equal(UiConstants.GeneralsThemeColor, vm.ColorValue);
+        Assert.Equal(UriConstants.GeneralsIconUri, vm.IconPath);
+
+        // Act 2: Disable / remove Generals installation
+        await vm.DisableContentCommand.ExecuteAsync(vmGeneralsItem);
+
+        // Assert 2: Resets title back to DefaultProfileName
+        Assert.Equal(ProfileConstants.DefaultProfileName, vm.Name);
+
+        // Act 3: Select Zero Hour installation from AvailableGameInstallations
+        var vmZhItem = vm.AvailableGameInstallations.First(i => i.GameType == GameType.ZeroHour);
+        vm.SelectedGameInstallation = vmZhItem;
+
+        // Assert 3: Updates to Zero Hour branding
+        Assert.Equal("Zero Hour", vm.Name);
+        Assert.Equal(UiConstants.ZeroHourThemeColor, vm.ColorValue);
+        Assert.Equal(UriConstants.ZeroHourIconUri, vm.IconPath);
+    }
+
+    /// <summary>
+    /// Verifies that scanned / uncustomized profiles inherit client branding (title, color, icon, cover) when switching game clients.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task SwitchClient_AutoInheritsPublisherStyle_WhenNotCustomizedAsync()
+    {
+        // Arrange
+        var mockProfileManager = new Mock<IGameProfileManager>();
+        var mockGameSettingsService = new Mock<IGameSettingsService>();
+        var mockContentLoader = new Mock<IProfileContentLoader>();
+        var mockConfigProvider = new Mock<IConfigurationProviderService>();
+        var mockManifestPool = new Mock<IContentManifestPool>();
+
+        var profileId = "scanned-go-profile";
+        var existingProfile = new GameProfile
+        {
+            Id = profileId,
+            Name = "GeneralsOnline 60Hz",
+            Description = "Auto-created profile for GeneralsOnline",
+            ThemeColor = GeneralsOnlineConstants.ThemeColor,
+            IconPath = UriConstants.GeneralsOnlineLogoUri,
+            CoverPath = GeneralsOnlineConstants.CoverSource,
+            GameClient = new GameClient
+            {
+                Id = "go-client-id",
+                Name = "GeneralsOnline 60Hz",
+                PublisherType = PublisherTypeConstants.GeneralsOnline,
+                GameType = GameType.ZeroHour,
+            },
+        };
+
+        mockProfileManager
+            .Setup(p => p.GetProfileAsync(profileId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(existingProfile));
+
+        var goClientItem = new CoreContentDisplayItem
+        {
+            Id = "1.0.generalsonline.gameclient.zh",
+            ManifestId = "1.0.generalsonline.gameclient.zh",
+            DisplayName = "GeneralsOnline 60Hz",
+            ContentType = ContentType.GameClient,
+            GameType = GameType.ZeroHour,
+            Publisher = PublisherTypeConstants.GeneralsOnline,
+            IsEnabled = true,
+        };
+
+        mockContentLoader
+            .Setup(c => c.LoadEnabledContentForProfileAsync(existingProfile))
+            .ReturnsAsync([goClientItem]);
+
+        mockContentLoader
+            .Setup(c => c.LoadAvailableGameInstallationsAsync())
+            .ReturnsAsync([]);
+
+        mockContentLoader
+            .Setup(c => c.LoadAvailableContentAsync(It.IsAny<ContentType>(), It.IsAny<ObservableCollection<CoreContentDisplayItem>>(), It.IsAny<IEnumerable<string>>()))
+            .ReturnsAsync([]);
+
+        mockManifestPool
+            .Setup(m => m.GetAllManifestsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IEnumerable<ContentManifest>>.CreateSuccess([]));
+
+        var vm = new GameProfileSettingsViewModel(
+            mockProfileManager.Object,
+            mockGameSettingsService.Object,
+            mockConfigProvider.Object,
+            mockContentLoader.Object,
+            null,
+            null,
+            mockManifestPool.Object,
+            null,
+            null,
+            null,
+            null,
+            NullLogger<GameProfileSettingsViewModel>.Instance,
+            NullLogger<GameSettingsViewModel>.Instance);
+
+        await vm.InitializeForProfileAsync(profileId);
+
+        Assert.Equal("GeneralsOnline 60Hz", vm.Name);
+        Assert.Equal(GeneralsOnlineConstants.ThemeColor, vm.ColorValue);
+
+        // Act: Switch to TheSuperHackers client
+        var tshClient = new ContentDisplayItem
+        {
+            Id = "1.0.thesuperhackers.gameclient.zh",
+            ManifestId = ManifestId.Create("1.0.thesuperhackers.gameclient.zh"),
+            DisplayName = "SuperHackers - Zero Hour",
+            ContentType = ContentType.GameClient,
+            GameType = GameType.ZeroHour,
+            InstallationType = GameInstallationType.Unknown,
+            Publisher = PublisherTypeConstants.TheSuperHackers,
+            IsEnabled = false,
+        };
+
+        await vm.EnableContentCommand.ExecuteAsync(tshClient);
+
+        // Assert: Title, color, and icon updated to SuperHackers
+        Assert.Equal("SuperHackers - Zero Hour", vm.Name);
+        Assert.Equal(SuperHackersConstants.ZeroHourThemeColor, vm.ColorValue);
+        Assert.Equal(UriConstants.SuperHackersLogoUri, vm.IconPath);
+    }
+
+    /// <summary>
+    /// Verifies that user-customized profile settings (Name, Color, Icon, Cover) are preserved when switching game clients.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task UserCustomizedSettings_ArePreserved_WhenSwitchingClientsAsync()
+    {
+        // Arrange
+        var mockProfileManager = new Mock<IGameProfileManager>();
+        var mockGameSettingsService = new Mock<IGameSettingsService>();
+        var mockContentLoader = new Mock<IProfileContentLoader>();
+        var mockConfigProvider = new Mock<IConfigurationProviderService>();
+        var mockManifestPool = new Mock<IContentManifestPool>();
+
+        var profileId = "user-custom-profile";
+        var existingProfile = new GameProfile
+        {
+            Id = profileId,
+            Name = "My Tournament Config",
+            Description = "Custom profile configured by user",
+            ThemeColor = "#ABCDEF",
+            IconPath = @"C:\Custom\my-icon.ico",
+            CoverPath = @"C:\Custom\my-cover.jpg",
+            GameClient = new GameClient
+            {
+                Id = "go-client-id",
+                Name = "GeneralsOnline 60Hz",
+                PublisherType = PublisherTypeConstants.GeneralsOnline,
+                GameType = GameType.ZeroHour,
+            },
+        };
+
+        mockProfileManager
+            .Setup(p => p.GetProfileAsync(profileId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(existingProfile));
+
+        var goClientItem = new CoreContentDisplayItem
+        {
+            Id = "1.0.generalsonline.gameclient.zh",
+            ManifestId = "1.0.generalsonline.gameclient.zh",
+            DisplayName = "GeneralsOnline 60Hz",
+            ContentType = ContentType.GameClient,
+            GameType = GameType.ZeroHour,
+            Publisher = PublisherTypeConstants.GeneralsOnline,
+            IsEnabled = true,
+        };
+
+        mockContentLoader
+            .Setup(c => c.LoadEnabledContentForProfileAsync(existingProfile))
+            .ReturnsAsync([goClientItem]);
+
+        mockContentLoader
+            .Setup(c => c.LoadAvailableGameInstallationsAsync())
+            .ReturnsAsync([]);
+
+        mockContentLoader
+            .Setup(c => c.LoadAvailableContentAsync(It.IsAny<ContentType>(), It.IsAny<ObservableCollection<CoreContentDisplayItem>>(), It.IsAny<IEnumerable<string>>()))
+            .ReturnsAsync([]);
+
+        mockManifestPool
+            .Setup(m => m.GetAllManifestsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IEnumerable<ContentManifest>>.CreateSuccess([]));
+
+        var vm = new GameProfileSettingsViewModel(
+            mockProfileManager.Object,
+            mockGameSettingsService.Object,
+            mockConfigProvider.Object,
+            mockContentLoader.Object,
+            null,
+            null,
+            mockManifestPool.Object,
+            null,
+            null,
+            null,
+            null,
+            NullLogger<GameProfileSettingsViewModel>.Instance,
+            NullLogger<GameSettingsViewModel>.Instance);
+
+        await vm.InitializeForProfileAsync(profileId);
+
+        Assert.Equal("My Tournament Config", vm.Name);
+        Assert.Equal("#ABCDEF", vm.ColorValue);
+        Assert.Equal(@"C:\Custom\my-icon.ico", vm.IconPath);
+        Assert.Equal(@"C:\Custom\my-cover.jpg", vm.CoverPath);
+
+        // Act: Switch client to TheSuperHackers
+        var tshClient = new ContentDisplayItem
+        {
+            Id = "1.0.thesuperhackers.gameclient.zh",
+            ManifestId = ManifestId.Create("1.0.thesuperhackers.gameclient.zh"),
+            DisplayName = "SuperHackers - Zero Hour",
+            ContentType = ContentType.GameClient,
+            GameType = GameType.ZeroHour,
+            InstallationType = GameInstallationType.Unknown,
+            Publisher = PublisherTypeConstants.TheSuperHackers,
+            IsEnabled = false,
+        };
+
+        await vm.EnableContentCommand.ExecuteAsync(tshClient);
+
+        // Assert: User customization is preserved
+        Assert.Equal("My Tournament Config", vm.Name);
+        Assert.Equal("#ABCDEF", vm.ColorValue);
+        Assert.Equal(@"C:\Custom\my-icon.ico", vm.IconPath);
+        Assert.Equal(@"C:\Custom\my-cover.jpg", vm.CoverPath);
     }
 }
