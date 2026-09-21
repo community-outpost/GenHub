@@ -1,5 +1,7 @@
+using CommunityToolkit.Mvvm.Messaging;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Content;
+using GenHub.Core.Messages;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Providers;
@@ -582,6 +584,56 @@ public sealed class ContentGridItemViewModelTests
         viewModel.IsDownloaded = true;
         Assert.Contains(nameof(ContentGridItemViewModel.EffectiveIsDownloaded), notifiedProperties);
         Assert.Contains(nameof(ContentGridItemViewModel.ShowAddToProfileButton), notifiedProperties);
+    }
+
+    /// <summary>
+    /// Verifies that receiving ContentLibraryClearedMessage resets downloaded status, variant states,
+    /// and button visibility back to NotDownloaded.
+    /// </summary>
+    [Fact]
+    public void ContentLibraryClearedMessage_WhenReceived_ResetsCardAndVariantsToNotDownloaded()
+    {
+        // Arrange
+        var searchResult = new ContentSearchResult
+        {
+            Id = "1.0.test.mod.card",
+            Name = "Test Card",
+            ContentType = ContentType.Mod,
+        };
+        var stateService = new Mock<IContentStateService>();
+        var viewModel = CreateViewModel(searchResult, stateService.Object);
+        viewModel.Initialize();
+
+        var variant = new InstallableVariant
+        {
+            Name = "Main Variant",
+            ManifestId = "1.0.test.mod.card.variant",
+            CurrentState = ContentState.Downloaded,
+        };
+        viewModel.Variants.Add(variant);
+        viewModel.SelectedVariant = variant;
+        viewModel.CurrentState = ContentState.Downloaded;
+        viewModel.IsDownloaded = true;
+
+        Assert.True(viewModel.IsDownloaded);
+        Assert.Equal(ContentState.Downloaded, viewModel.CurrentState);
+        Assert.Equal(ContentState.Downloaded, variant.CurrentState);
+        Assert.False(viewModel.ShowDownloadButton);
+        Assert.True(viewModel.ShowAddToProfileButton);
+
+        // Act
+        WeakReferenceMessenger.Default.Send(new ContentLibraryClearedMessage());
+
+        // Assert
+        Assert.False(viewModel.IsDownloaded);
+        Assert.False(viewModel.EffectiveIsDownloaded);
+        Assert.Equal(ContentState.NotDownloaded, viewModel.CurrentState);
+        Assert.Equal(ContentState.NotDownloaded, viewModel.EffectiveCurrentState);
+        Assert.Equal(ContentState.NotDownloaded, variant.CurrentState);
+        Assert.Equal(ContentState.NotDownloaded, viewModel.SelectedVariant.CurrentState);
+        Assert.True(viewModel.ShowDownloadButton);
+        Assert.False(viewModel.ShowAddToProfileButton);
+        Assert.False(viewModel.ShowUpdateButton);
     }
 
     private static void MarkAllSelectedDownloaded(ContentGridItemViewModel viewModel)

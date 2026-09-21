@@ -1,3 +1,4 @@
+using CommunityToolkit.Mvvm.Messaging;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GameInstallations;
@@ -9,6 +10,7 @@ using GenHub.Core.Interfaces.Providers;
 using GenHub.Core.Interfaces.Storage;
 using GenHub.Core.Interfaces.UserData;
 using GenHub.Core.Interfaces.Workspace;
+using GenHub.Core.Messages;
 using GenHub.Core.Models.Common;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameInstallations;
@@ -2257,6 +2259,59 @@ public class SettingsViewModelTests
         // Assert
         mockRefresh.Verify(r => r.RefreshAllAsync(It.IsAny<CancellationToken>()), Times.Once);
         _mockNotificationService.Verify(n => n.ShowSuccess(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()), Times.Once);
+    }
+
+    /// <summary>
+    /// Verifies that DeleteManifestsCommand deletes manifests, scrubs profiles, and broadcasts ContentLibraryClearedMessage.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task DeleteManifestsCommand_WhenConfirmed_DeletesManifestsAndBroadcastsClearedMessageAsync()
+    {
+        // Arrange
+        _mockDialogService
+            .Setup(x => x.ShowConfirmationAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string?>()))
+            .ReturnsAsync(true);
+
+        var manifest = new ContentManifest
+        {
+            Id = ManifestId.Create("1.0.test.mod.item"),
+            Name = "Test Item",
+            ContentType = GenHub.Core.Models.Enums.ContentType.Mod,
+        };
+
+        _mockManifestPool
+            .Setup(x => x.GetAllManifestsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IEnumerable<ContentManifest>>.CreateSuccess([manifest]));
+
+        _mockManifestPool
+            .Setup(x => x.RemoveManifestAsync(manifest.Id, It.IsAny<bool>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+
+        _mockProfileManager
+            .Setup(x => x.ScrubDeletedManifestReferencesAsync(It.IsAny<IEnumerable<string>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ProfileScrubResult>.CreateSuccess(new ProfileScrubResult(0, 0, [])));
+
+        var viewModel = CreateViewModel();
+
+        var messageBroadcasted = false;
+        var recipient = new object();
+        WeakReferenceMessenger.Default.Register<ContentLibraryClearedMessage>(recipient, (_, _) => messageBroadcasted = true);
+
+        try
+        {
+            // Act
+            await viewModel.DeleteManifestsCommand.ExecuteAsync(null);
+
+            // Assert
+            Assert.True(messageBroadcasted);
+            _mockManifestPool.Verify(x => x.RemoveManifestAsync(manifest.Id, It.IsAny<bool>(), It.IsAny<CancellationToken>()), Times.Once);
+            _mockNotificationService.Verify(x => x.ShowSuccess(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()), Times.Once);
+        }
+        finally
+        {
+            WeakReferenceMessenger.Default.Unregister<ContentLibraryClearedMessage>(recipient);
+        }
     }
 
     private SettingsViewModel CreateViewModel(

@@ -2171,6 +2171,13 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
                     await ScrubPartiallyRemovedManifestsAsync(orderedIds, removedCount, showToast, ex);
                     throw;
                 }
+                finally
+                {
+                    if (removedCount > 0 || count == 0)
+                    {
+                        NotifyContentLibraryCleared();
+                    }
+                }
 
                 if (showToast)
                 {
@@ -2194,6 +2201,21 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             {
                 _notificationService.ShowError("Deletion Failed", $"Failed to delete manifests: {ex.Message}", 5000);
             }
+        }
+    }
+
+    /// <summary>
+    /// Broadcasts a message indicating that the content library was cleared.
+    /// </summary>
+    private void NotifyContentLibraryCleared()
+    {
+        try
+        {
+            WeakReferenceMessenger.Default.Send(new ContentLibraryClearedMessage());
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to broadcast ContentLibraryClearedMessage after manifest deletion");
         }
     }
 

@@ -1,3 +1,4 @@
+using Avalonia.Headless.XUnit;
 using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
 using GenHub.Core.Constants;
@@ -4252,5 +4253,82 @@ public sealed class ContentDetailViewModelTests
         Assert.NotNull(matching);
         Assert.True(matching.IsDownloaded);
         Assert.Equal(manifestId, matching.DownloadedManifestId);
+    }
+
+    /// <summary>
+    /// Verifies that receiving ContentLibraryClearedMessage resets all download, release, and variant states
+    /// in the detail view back to NotDownloaded.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ContentLibraryClearedMessage_WhenReceived_ResetsAllDownloadAndVariantStatesAsync()
+    {
+        // Arrange
+        var searchResult = new ContentSearchResult
+        {
+            Id = "1.0.test.mod.detail",
+            Name = "Test Mod Detail",
+            ContentType = ContentType.Mod,
+            TargetGame = GameType.ZeroHour,
+        };
+
+        var coordinator = new Mock<IContentDownloadCoordinator>();
+        var stateServiceMock = new Mock<IContentStateService>();
+        stateServiceMock
+            .Setup(s => s.GetStateAsync(It.IsAny<ContentSearchResult>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ContentState.NotDownloaded);
+        stateServiceMock
+            .Setup(s => s.GetStateByManifestIdAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ContentState.NotDownloaded);
+
+        var viewModel = CreateViewModel(searchResult, coordinator.Object, contentStateService: stateServiceMock.Object);
+        viewModel.Initialize();
+
+        var variant = new InstallableVariant
+        {
+            Name = "Default",
+            ManifestId = "1.0.test.mod.detail",
+            CurrentState = ContentState.Downloaded,
+        };
+        viewModel.Variants.Add(variant);
+        viewModel.SelectedVariant = variant;
+
+        var release = new ReleaseItemViewModel
+        {
+            Id = "rel-1",
+            Name = "Release 1",
+            IsDownloaded = true,
+            IsUpdateAvailable = true,
+            DownloadedManifestId = "1.0.test.mod.detail",
+        };
+        viewModel.Releases.Add(release);
+        viewModel.SelectedDownloadableItem = release;
+
+        viewModel.IsDownloaded = true;
+        viewModel.IsUpdateAvailable = true;
+
+        Assert.True(viewModel.IsDownloaded);
+        Assert.True(viewModel.ShowAddToProfileButton);
+        Assert.True(viewModel.ShowDeleteButton);
+        Assert.False(viewModel.ShowDownloadButton);
+
+        // Act
+        WeakReferenceMessenger.Default.Send(new ContentLibraryClearedMessage());
+
+        // Allow UI thread dispatcher to process posted ResetDownloadState work
+        await Task.Delay(100);
+
+        // Assert
+        Assert.False(viewModel.IsDownloaded);
+        Assert.False(viewModel.IsUpdateAvailable);
+        Assert.False(release.IsDownloaded);
+        Assert.False(release.IsUpdateAvailable);
+        Assert.Null(release.DownloadedManifestId);
+        Assert.Equal(ContentState.NotDownloaded, variant.CurrentState);
+        Assert.Equal(ContentState.NotDownloaded, viewModel.SelectedVariant.CurrentState);
+        Assert.True(viewModel.ShowDownloadButton);
+        Assert.False(viewModel.ShowUpdateButton);
+        Assert.False(viewModel.ShowAddToProfileButton);
+        Assert.False(viewModel.ShowDeleteButton);
     }
 }

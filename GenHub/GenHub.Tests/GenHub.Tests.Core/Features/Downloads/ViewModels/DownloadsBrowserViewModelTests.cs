@@ -1,3 +1,4 @@
+using CommunityToolkit.Mvvm.Messaging;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.GameProfiles;
@@ -6,6 +7,7 @@ using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Interfaces.Parsers;
 using GenHub.Core.Interfaces.Providers;
+using GenHub.Core.Messages;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
@@ -1720,6 +1722,143 @@ public class DownloadsBrowserViewModelTests
         Assert.Null(viewModel.SelectedContent);
         Assert.Equal(ContentState.UpdateAvailable, item.CurrentState);
         Assert.True(item.ShowUpdateButton);
+    }
+
+    /// <summary>
+    /// Verifies that receiving ContentLibraryClearedMessage clears visible items and resets pagination
+    /// when currently viewing the Downloaded tab.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task OnContentLibraryCleared_WhenViewingDownloadedPublisher_ClearsItemsAndEvictsCacheAsync()
+    {
+        // Arrange
+        var manifestPoolMock = new Mock<IContentManifestPool>();
+        manifestPoolMock
+            .Setup(p => p.GetAllManifestsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IEnumerable<ContentManifest>>.CreateSuccess([]));
+
+        var serviceProviderMock = new Mock<IServiceProvider>();
+        serviceProviderMock.Setup(sp => sp.GetService(typeof(IContentManifestPool))).Returns(manifestPoolMock.Object);
+
+        var subscriptionStore = new Mock<IPublisherSubscriptionStore>();
+        subscriptionStore
+            .Setup(store => store.GetSubscriptionsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IReadOnlyList<PublisherSubscription>>.CreateSuccess([]));
+
+        using var viewModel = new DownloadsBrowserViewModel(
+            serviceProviderMock.Object,
+            new Mock<ILogger<DownloadsBrowserViewModel>>().Object,
+            [],
+            new Mock<IContentStateService>().Object,
+            new Mock<IContentOrchestrator>().Object,
+            new Mock<IProfileContentService>().Object,
+            new Mock<IGameProfileManager>().Object,
+            new Mock<INotificationService>().Object,
+            new Mock<ILoggerFactory>().Object,
+            subscriptionStore.Object);
+
+        await viewModel.InitializeAsync();
+
+        var downloadedPublisher = viewModel.Publishers.First(p => p.PublisherId == PublisherTypeConstants.Downloaded);
+        viewModel.SelectedPublisher = downloadedPublisher;
+
+        var sr = new ContentSearchResult
+        {
+            Id = "1.0.test.mod.testmod",
+            Name = "Test Mod",
+            ContentType = ContentType.Mod,
+        };
+        var item = new ContentGridItemViewModel(
+            sr,
+            new Mock<IContentStateService>().Object,
+            new Mock<ILogger<ContentGridItemViewModel>>().Object)
+        {
+            IsDownloaded = true,
+            CurrentState = ContentState.Downloaded,
+        };
+        viewModel.ContentItems.Add(item);
+        Assert.Single(viewModel.ContentItems);
+
+        // Act
+        WeakReferenceMessenger.Default.Send(new ContentLibraryClearedMessage());
+
+        // Wait briefly for UI thread dispatcher execution
+        await Task.Delay(100);
+
+        // Assert: ContentItems is cleared because manifests were wiped
+        Assert.Empty(viewModel.ContentItems);
+        Assert.Equal(1, viewModel.CurrentPage);
+        Assert.False(viewModel.CanLoadMore);
+    }
+
+    /// <summary>
+    /// Verifies that receiving ContentLibraryClearedMessage while viewing another publisher
+    /// reconciles release states across visible cards and updates downloaded count.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task OnContentLibraryCleared_WhenViewingOtherPublisher_ReconcilesCardsAsync()
+    {
+        // Arrange
+        var manifestPoolMock = new Mock<IContentManifestPool>();
+        manifestPoolMock
+            .Setup(p => p.GetAllManifestsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IEnumerable<ContentManifest>>.CreateSuccess([]));
+
+        var serviceProviderMock = new Mock<IServiceProvider>();
+        serviceProviderMock.Setup(sp => sp.GetService(typeof(IContentManifestPool))).Returns(manifestPoolMock.Object);
+
+        var sub = new PublisherSubscription { PublisherId = "test-pub", PublisherName = "Test Pub", CatalogUrl = "https://example.com/pub.json" };
+        var subscriptionStore = new Mock<IPublisherSubscriptionStore>();
+        subscriptionStore
+            .Setup(store => store.GetSubscriptionsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IReadOnlyList<PublisherSubscription>>.CreateSuccess([sub]));
+
+        using var viewModel = new DownloadsBrowserViewModel(
+            serviceProviderMock.Object,
+            new Mock<ILogger<DownloadsBrowserViewModel>>().Object,
+            [],
+            new Mock<IContentStateService>().Object,
+            new Mock<IContentOrchestrator>().Object,
+            new Mock<IProfileContentService>().Object,
+            new Mock<IGameProfileManager>().Object,
+            new Mock<INotificationService>().Object,
+            new Mock<ILoggerFactory>().Object,
+            subscriptionStore.Object);
+
+        await viewModel.InitializeAsync();
+
+        var otherPublisher = viewModel.Publishers.First(p => p.PublisherId == "test-pub");
+        viewModel.SelectedPublisher = otherPublisher;
+
+        // Card that was previously marked as Downloaded
+        var sr = new ContentSearchResult
+        {
+            Id = "1.0.test.mod.testmod",
+            Name = "Test Mod",
+            ContentType = ContentType.Mod,
+        };
+        var card = new ContentGridItemViewModel(
+            sr,
+            new Mock<IContentStateService>().Object,
+            new Mock<ILogger<ContentGridItemViewModel>>().Object)
+        {
+            IsDownloaded = true,
+            CurrentState = ContentState.Downloaded,
+        };
+        card.Initialize();
+        viewModel.ContentItems.Add(card);
+
+        // Act
+        WeakReferenceMessenger.Default.Send(new ContentLibraryClearedMessage());
+        Avalonia.Threading.Dispatcher.UIThread.RunJobs();
+
+        // Assert: Card is reset via ContentLibraryClearedMessage and reconciliation
+        Assert.False(card.IsDownloaded);
+        Assert.Equal(ContentState.NotDownloaded, card.CurrentState);
+        Assert.True(card.ShowDownloadButton);
+        Assert.False(card.ShowAddToProfileButton);
     }
 
     private static DownloadsBrowserViewModel CreateViewModel(

@@ -596,6 +596,27 @@ public sealed partial class ContentGridItemViewModel(
             IsDownloaded = false;
             IsDownloading = false;
             DownloadStatus = string.Empty;
+
+            if (SelectedVariant != null)
+            {
+                SelectedVariant.CurrentState = ContentState.NotDownloaded;
+            }
+
+            foreach (var variant in Variants)
+            {
+                variant.CurrentState = ContentState.NotDownloaded;
+            }
+
+            foreach (var component in BundleComponents)
+            {
+                component.ResetState();
+            }
+
+            OnPropertyChanged(nameof(EffectiveCurrentState));
+            OnPropertyChanged(nameof(EffectiveIsDownloaded));
+            OnPropertyChanged(nameof(ShowDownloadButton));
+            OnPropertyChanged(nameof(ShowUpdateButton));
+            NotifyStateChanged();
         });
     }
 

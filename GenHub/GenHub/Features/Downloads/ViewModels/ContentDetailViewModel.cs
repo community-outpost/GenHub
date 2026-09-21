@@ -2949,12 +2949,53 @@ public partial class ContentDetailViewModel(
 
     private void ResetDownloadState()
     {
-        Dispatcher.UIThread.Post(() =>
+        RunOnUiThread(() =>
         {
             IsDownloaded = false;
             IsUpdateAvailable = false;
             DownloadProgress = 0;
             DownloadStatusMessage = string.Empty;
+
+            if (SelectedDownloadableItem != null)
+            {
+                SelectedDownloadableItem.IsDownloaded = false;
+                SelectedDownloadableItem.IsUpdateAvailable = false;
+            }
+
+            if (SelectedVariant != null)
+            {
+                SelectedVariant.CurrentState = ContentState.NotDownloaded;
+            }
+
+            foreach (var variant in Variants)
+            {
+                variant.CurrentState = ContentState.NotDownloaded;
+            }
+
+            foreach (var release in Releases)
+            {
+                release.IsDownloaded = false;
+                release.IsUpdateAvailable = false;
+                release.DownloadedManifestId = null;
+            }
+
+            foreach (var addon in Addons)
+            {
+                addon.IsDownloaded = false;
+                addon.IsUpdateAvailable = false;
+            }
+
+            foreach (var component in BundleComponents)
+            {
+                component.ResetState();
+            }
+
+            OnPropertyChanged(nameof(ShowAddToProfileButton));
+            OnPropertyChanged(nameof(ShowDeleteButton));
+            OnPropertyChanged(nameof(ShowDownloadButton));
+            OnPropertyChanged(nameof(ShowUpdateButton));
+            OnPropertyChanged(nameof(CanDownload));
+            OnPropertyChanged(nameof(CanUpdate));
         });
     }
 
