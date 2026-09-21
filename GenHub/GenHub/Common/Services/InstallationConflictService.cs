@@ -19,11 +19,13 @@ namespace GenHub.Common.Services;
 /// <param name="notificationService">Optional notification service to alert the user about detected conflicts.</param>
 /// <param name="userSettingsService">Optional user settings service to reload settings after adoption.</param>
 /// <param name="logger">Optional logger for diagnostics.</param>
+/// <param name="localizationService">Optional localization service for notification copy.</param>
 public class InstallationConflictService(
     IInstallationLocationTracker installationLocationTracker,
     INotificationService? notificationService = null,
     IUserSettingsService? userSettingsService = null,
-    ILogger<InstallationConflictService>? logger = null) : IInstallationConflictService
+    ILogger<InstallationConflictService>? logger = null,
+    ILocalizationService? localizationService = null) : IInstallationConflictService
 {
     private const string ConflictCheckErrorMessage = "Error checking for installation location conflicts.";
     private const string RemoveMarkerErrorMessage = "Failed to remove adoption marker file at {MarkerPath}";
@@ -35,14 +37,30 @@ public class InstallationConflictService(
         return Task.Run(() => ExecuteConflictResolution(cancellationToken), cancellationToken);
     }
 
-    private static string BuildReinstallGuidance(string customPath)
+    private string BuildReinstallGuidance(string customPath)
     {
         if (OperatingSystem.IsWindows())
         {
-            return string.Format(CultureInfo.InvariantCulture, StorageMigrationConstants.DuplicateInstallationWindowsReinstallGuidanceFormat, customPath);
+            return ResolveMessage(
+                StorageMigrationConstants.DuplicateInstallationWindowsReinstallGuidanceKey,
+                StorageMigrationConstants.DuplicateInstallationWindowsReinstallGuidanceFormat,
+                customPath);
         }
 
-        return StorageMigrationConstants.DuplicateInstallationGenericReinstallGuidance;
+        return ResolveMessage(
+            StorageMigrationConstants.DuplicateInstallationGenericReinstallGuidanceKey,
+            StorageMigrationConstants.DuplicateInstallationGenericReinstallGuidance);
+    }
+
+    private string ResolveMessage(string resourceKey, string defaultFormat, params object?[] arguments)
+    {
+        if (localizationService != null &&
+            localizationService.TryGetString(resourceKey, out var resolved, arguments))
+        {
+            return resolved;
+        }
+
+        return string.Format(CultureInfo.InvariantCulture, defaultFormat, arguments);
     }
 
     private void ExecuteConflictResolution(CancellationToken cancellationToken)
@@ -281,13 +299,23 @@ public class InstallationConflictService(
         }
 
         var message = imported
-            ? string.Format(CultureInfo.InvariantCulture, StorageMigrationConstants.DuplicateInstallationAdoptedMessageFormat, customPath)
-            : string.Format(CultureInfo.InvariantCulture, StorageMigrationConstants.DuplicateInstallationDetectedMessageFormat, customPath);
+            ? ResolveMessage(
+                StorageMigrationConstants.DuplicateInstallationAdoptedMessageKey,
+                StorageMigrationConstants.DuplicateInstallationAdoptedMessageFormat,
+                customPath)
+            : ResolveMessage(
+                StorageMigrationConstants.DuplicateInstallationDetectedMessageKey,
+                StorageMigrationConstants.DuplicateInstallationDetectedMessageFormat,
+                customPath);
 
         message = string.Concat(message, " ", BuildReinstallGuidance(customPath));
 
+        var title = ResolveMessage(
+            StorageMigrationConstants.DuplicateInstallationDetectedTitleKey,
+            StorageMigrationConstants.DuplicateInstallationDetectedTitle);
+
         notificationService.ShowWarning(
-            StorageMigrationConstants.DuplicateInstallationDetectedTitle,
+            title,
             message,
             StorageMigrationConstants.DuplicateInstallationNotificationAutoDismissMs,
             showInBadge: true);
