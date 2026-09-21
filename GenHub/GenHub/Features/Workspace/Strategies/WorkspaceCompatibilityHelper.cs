@@ -4,6 +4,7 @@ using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Validation;
 using GenHub.Core.Models.Workspace;
+using GenHub.Core.Services.Tools.Checksum;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
@@ -100,19 +101,20 @@ public static class WorkspaceCompatibilityHelper
 
     /// <summary>
     /// Determines whether a base Generals archive is safe to link as a supplemental asset archive for Zero Hour.
-    /// Excludes archives that contain game logic, patches, INIs, window definitions, shaders, or copy protection
-    /// which would override or conflict with Zero Hour's own definitions and cause engine crashes.
+    /// Excludes archives that contain game logic, patches, INIs, window definitions, shaders, copy protection,
+    /// or localized language string tables which would override or conflict with Zero Hour's own definitions,
+    /// causing engine crashes or missing Zero Hour UI strings.
     /// </summary>
-    /// <param name="fileName">The archive file name.</param>
+    /// <param name="candidatePathOrName">The archive file name or absolute path.</param>
     /// <returns><c>true</c> if the archive is safe to mount in Zero Hour; otherwise <c>false</c>.</returns>
-    public static bool IsSafeSupplementalArchive(string? fileName)
+    public static bool IsSafeSupplementalArchive(string? candidatePathOrName)
     {
-        if (string.IsNullOrWhiteSpace(fileName))
+        if (string.IsNullOrWhiteSpace(candidatePathOrName))
         {
             return false;
         }
 
-        var name = Path.GetFileName(fileName);
+        var name = Path.GetFileName(candidatePathOrName);
 
         // Never link Zero Hour archives from a supplemental root
         if (name.EndsWith(GameClientConstants.ZeroHourArchiveExtensionSuffix, StringComparison.OrdinalIgnoreCase))
@@ -124,8 +126,48 @@ public static class WorkspaceCompatibilityHelper
         // PatchData.big) must be caught without enumerating every retail filename, and a
         // skipped community archive costs missing optional content while a linked unsafe one
         // costs an engine crash.
-        return !GameClientConstants.UnsafeSupplementalArchiveMarkers.Any(
-            marker => name.Contains(marker, StringComparison.OrdinalIgnoreCase));
+        if (GameClientConstants.UnsafeSupplementalArchiveMarkers.Any(
+            marker => name.Contains(marker, StringComparison.OrdinalIgnoreCase)))
+        {
+            return false;
+        }
+
+        // Language archives (e.g. English.big, German.big) contain base generals.csf string tables.
+        // Zero Hour ships complete string tables in *ZH.big (e.g. EnglishZH.big). Linking the base
+        // language archive causes SAGE to load the base generals.csf first alphabetically, wiping out
+        // Zero Hour specific GUI strings (GUI:StartingMoney, GUI:LimitSuperweapons, GUI:StartingMoneyFormat, etc.).
+        // Note: Audio and speech variants (AudioEnglish.big, SpeechEnglish.big) do not contain CSF tables
+        // and are safe to link.
+        var baseNameWithoutExtension = Path.GetFileNameWithoutExtension(name);
+        if (GameClientConstants.UnsafeSupplementalLanguageArchiveNames.Any(
+            lang => string.Equals(baseNameWithoutExtension, lang, StringComparison.OrdinalIgnoreCase)))
+        {
+            return false;
+        }
+
+        // Deep archive inspection: if the file exists on disk, inspect its directory index.
+        // Any archive containing .csf string tables, .wnd window layouts, or .ini definitions
+        // must never be linked as a supplemental archive.
+        if (File.Exists(candidatePathOrName))
+        {
+            try
+            {
+                if (BigArchiveReader.TryReadIndex(candidatePathOrName, out var index) &&
+                    index.Keys.Any(entry =>
+                        entry.EndsWith(".csf", StringComparison.OrdinalIgnoreCase) ||
+                        entry.EndsWith(".wnd", StringComparison.OrdinalIgnoreCase) ||
+                        entry.EndsWith(".ini", StringComparison.OrdinalIgnoreCase)))
+                {
+                    return false;
+                }
+            }
+            catch
+            {
+                // If reading fails or is not a valid BIG, rely on the filename checks above.
+            }
+        }
+
+        return true;
     }
 
     /// <summary>
@@ -163,7 +205,7 @@ public static class WorkspaceCompatibilityHelper
                 .OrderBy(candidate => candidate, StringComparer.Ordinal))
             {
                 var fileName = Path.GetFileName(path);
-                if (IsSafeSupplementalArchive(fileName))
+                if (IsSafeSupplementalArchive(path))
                 {
                     names.TryAdd(fileName, path);
                 }

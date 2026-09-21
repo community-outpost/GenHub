@@ -283,14 +283,15 @@ public static class GameClientConstants
     /// <summary>
     /// Case-insensitive filename markers identifying base Generals archives that must never be
     /// linked into a Zero Hour workspace: each names content that overrides Zero Hour's own
-    /// definitions and crashes the engine.
+    /// definitions, crashes the engine, or conflicts with localized string tables.
     /// </summary>
     /// <remarks>
     /// <c>ini</c> matches balance and game-definition archives (INI.big, PatchINI.big);
     /// <c>patch</c> matches patch overrides (Patch.big, PatchData.big, PatchWindow.big);
     /// <c>window</c> matches UI window layouts (Window.big); <c>shader</c> matches legacy
     /// DirectX 8 shaders (shaders.big); <c>gensec</c> matches SafeDisc copy protection
-    /// (gensec.big), which triggers a base Generals CD-ROM check.
+    /// (gensec.big), which triggers a base Generals CD-ROM check;
+    /// <c>csf</c>, <c>lang</c>, and <c>string</c> match localization or string table overrides.
     /// </remarks>
     public static readonly IReadOnlyList<string> UnsafeSupplementalArchiveMarkers =
     [
@@ -299,6 +300,36 @@ public static class GameClientConstants
         "window",
         "shader",
         "gensec",
+        "csf",
+        "lang",
+        "string",
+    ];
+
+    /// <summary>
+    /// Exact base filenames (without extension or directory) of base Generals language archives
+    /// that contain string tables (generals.csf) conflicting with Zero Hour's localized string tables.
+    /// </summary>
+    /// <remarks>
+    /// Zero Hour ships its own complete language archives (e.g. EnglishZH.big, GermanZH.big)
+    /// containing all base game strings plus Zero Hour additions. Linking base language archives
+    /// (e.g. English.big) causes SAGE to mount the base generals.csf first alphabetically, wiping out
+    /// Zero Hour specific GUI strings (GUI:StartingMoney, GUI:LimitSuperweapons, GUI:StartingMoneyFormat, etc.).
+    /// Audio and speech variants (e.g. AudioEnglish.big, SpeechEnglish.big) are sound-only and safe to link.
+    /// </remarks>
+    public static readonly IReadOnlyList<string> UnsafeSupplementalLanguageArchiveNames =
+    [
+        "english",
+        "german",
+        "french",
+        "spanish",
+        "italian",
+        "korean",
+        "polish",
+        "chinese",
+        "chinesetraditional",
+        "portuguesebrazil",
+        "brazilian",
+        "russian",
     ];
 
     /// <summary>

@@ -11,7 +11,9 @@ using Moq;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Runtime.InteropServices;
+using System.Text;
 using Xunit;
 using ContentInstallTarget = GenHub.Core.Models.Enums.ContentInstallTarget;
 using ContentType = GenHub.Core.Models.Enums.ContentType;
@@ -847,7 +849,7 @@ public class WorkspaceCompatibilityHelperTests : IDisposable
     }
 
     /// <summary>
-    /// Verifies that conflicting base Generals archives (INI, Patch, Window, Shader, SafeDisc gensec, ZH)
+    /// Verifies that conflicting base Generals archives (INI, Patch, Window, Shader, SafeDisc gensec, ZH, Language archives)
     /// are excluded from supplemental archives to prevent breaking Zero Hour game data and crashing the engine.
     /// </summary>
     [Fact]
@@ -862,7 +864,8 @@ public class WorkspaceCompatibilityHelperTests : IDisposable
         File.WriteAllText(Path.Combine(supplementalRoot, "AudioEnglish.big"), "safe");
         File.WriteAllText(Path.Combine(supplementalRoot, "SpeechEnglish.big"), "safe");
         File.WriteAllText(Path.Combine(supplementalRoot, "maps.big"), "safe");
-        File.WriteAllText(Path.Combine(supplementalRoot, "English.big"), "safe");
+        File.WriteAllText(Path.Combine(supplementalRoot, "English.big"), "unsafe");
+        File.WriteAllText(Path.Combine(supplementalRoot, "German.big"), "unsafe");
         File.WriteAllText(Path.Combine(supplementalRoot, "INI.big"), "unsafe");
         File.WriteAllText(Path.Combine(supplementalRoot, "PatchINI.big"), "unsafe");
         File.WriteAllText(Path.Combine(supplementalRoot, "Patch.big"), "unsafe");
@@ -884,8 +887,108 @@ public class WorkspaceCompatibilityHelperTests : IDisposable
             "Terrain.big",
             "AudioEnglish.big",
             "SpeechEnglish.big",
-            "maps.big",
-            "English.big");
+            "maps.big");
+    }
+
+    /// <summary>
+    /// Verifies that base language archives containing generals.csf are flagged unsafe by IsSafeSupplementalArchive,
+    /// while audio and speech language archives remain safe to link.
+    /// </summary>
+    /// <param name="fileName">The archive file name under test.</param>
+    /// <param name="expectedSafe">Whether the archive is expected to be considered safe.</param>
+    [Theory]
+    [InlineData("English.big", false)]
+    [InlineData("english.big", false)]
+    [InlineData("German.big", false)]
+    [InlineData("german.big", false)]
+    [InlineData("French.big", false)]
+    [InlineData("Spanish.big", false)]
+    [InlineData("Italian.big", false)]
+    [InlineData("Korean.big", false)]
+    [InlineData("Polish.big", false)]
+    [InlineData("Chinese.big", false)]
+    [InlineData("ChineseTraditional.big", false)]
+    [InlineData("Brazilian.big", false)]
+    [InlineData("Russian.big", false)]
+    [InlineData("AudioEnglish.big", true)]
+    [InlineData("SpeechEnglish.big", true)]
+    [InlineData("AudioGerman.big", true)]
+    [InlineData("SpeechGerman.big", true)]
+    public void IsSafeSupplementalArchive_LanguageArchives_IdentifiedCorrectly(string fileName, bool expectedSafe)
+    {
+        WorkspaceCompatibilityHelper.IsSafeSupplementalArchive(fileName).Should().Be(expectedSafe);
+    }
+
+    /// <summary>
+    /// Verifies that previously linked base language archives (e.g. English.big)
+    /// are purged as stale links during reconciliation so Zero Hour strings are restored.
+    /// </summary>
+    [Fact]
+    public void EnsureDrmAndAssetCompatibility_PurgesConflictingLanguageSupplementalLinks()
+    {
+        // Arrange
+        var supplementalRoot = Path.Combine(_tempDir, "generals-lang-purge");
+        Directory.CreateDirectory(supplementalRoot);
+        File.WriteAllText(Path.Combine(supplementalRoot, "Textures.big"), "safe textures");
+        File.WriteAllText(Path.Combine(supplementalRoot, "English.big"), "unsafe english csf");
+
+        var englishLink = Path.Combine(_workspaceDir, "English.big");
+        if (!SymlinkTestHelper.TryCreateFileSymlink(englishLink, Path.Combine(supplementalRoot, "English.big")))
+        {
+            return;
+        }
+
+        var workspaceInfo = new WorkspaceInfo
+        {
+            Id = "test-workspace",
+            WorkspacePath = _workspaceDir,
+            ExecutablePath = Path.Combine(_workspaceDir, "generals.exe"),
+            FileCount = 10,
+        };
+
+        var config = new WorkspaceConfiguration
+        {
+            Id = "test-workspace",
+            BaseInstallationPath = _gameInstallDir,
+            Manifests = [],
+            SupplementalArchiveRoot = supplementalRoot,
+        };
+
+        // Act
+        WorkspaceCompatibilityHelper.EnsureDrmAndAssetCompatibility(workspaceInfo, config, NullLogger.Instance);
+
+        // Assert
+        File.Exists(englishLink).Should().BeFalse();
+        File.Exists(Path.Combine(_workspaceDir, "Textures.big")).Should().BeTrue();
+        workspaceInfo.FileCount.Should().Be(10); // 1 removed (English.big), 1 created (Textures.big)
+    }
+
+    /// <summary>
+    /// Verifies that deep archive inspection catches archives with non-standard names
+    /// that contain string tables (.csf), window definitions (.wnd), or INIs (.ini).
+    /// </summary>
+    [Fact]
+    public void IsSafeSupplementalArchive_DeepArchiveInspection_ExcludesArchiveContainingCsfOrWndOrIni()
+    {
+        var tempBigDir = Path.Combine(_tempDir, "deep-inspection");
+        Directory.CreateDirectory(tempBigDir);
+
+        var safeBig = Path.Combine(tempBigDir, "CustomModels.big");
+        CreateDummyBigArchive(safeBig, "Data/Art/Model.w3d", "Data/Art/Texture.dds");
+
+        var csfBig = Path.Combine(tempBigDir, "CustomStrings.big");
+        CreateDummyBigArchive(csfBig, "Data/English/generals.csf");
+
+        var wndBig = Path.Combine(tempBigDir, "CustomUI.big");
+        CreateDummyBigArchive(wndBig, "Data/English/GUI.wnd");
+
+        var iniBig = Path.Combine(tempBigDir, "CustomRules.big");
+        CreateDummyBigArchive(iniBig, "Data/INI/GameData.ini");
+
+        WorkspaceCompatibilityHelper.IsSafeSupplementalArchive(safeBig).Should().BeTrue();
+        WorkspaceCompatibilityHelper.IsSafeSupplementalArchive(csfBig).Should().BeFalse();
+        WorkspaceCompatibilityHelper.IsSafeSupplementalArchive(wndBig).Should().BeFalse();
+        WorkspaceCompatibilityHelper.IsSafeSupplementalArchive(iniBig).Should().BeFalse();
     }
 
     /// <summary>
@@ -999,5 +1102,75 @@ public class WorkspaceCompatibilityHelperTests : IDisposable
         var parentDir = Path.GetDirectoryName(_workspaceDir)!;
         var installerDir = Path.Combine(parentDir, GameClientConstants.SteamDrmMarkerDirectory);
         Directory.Exists(installerDir).Should().BeTrue();
+    }
+
+    private static void CreateDummyBigArchive(string filePath, params string[] entryPaths)
+    {
+        using var ms = new MemoryStream();
+        using var writer = new BinaryWriter(ms);
+
+        int dirSize = entryPaths.Sum(p => 8 + Encoding.ASCII.GetByteCount(p) + 1);
+        int headerSize = 16 + dirSize;
+        int dummyDataOffset = headerSize;
+        const int dummyDataSize = 4;
+        int totalFileSize = headerSize + (entryPaths.Length * dummyDataSize);
+
+        // Magic "BIGF"
+        writer.Write([(byte)'B', (byte)'I', (byte)'G', (byte)'F']);
+
+        // File length: little-endian 4 bytes
+        writer.Write(totalFileSize);
+
+        // Entry count: big-endian 4 bytes
+        var countBytes = BitConverter.GetBytes((uint)entryPaths.Length);
+        if (BitConverter.IsLittleEndian)
+        {
+            Array.Reverse(countBytes);
+        }
+
+        writer.Write(countBytes);
+
+        // Header size: big-endian 4 bytes
+        var headerSizeBytes = BitConverter.GetBytes((uint)headerSize);
+        if (BitConverter.IsLittleEndian)
+        {
+            Array.Reverse(headerSizeBytes);
+        }
+
+        writer.Write(headerSizeBytes);
+
+        // Directory entries
+        int currentDataOffset = dummyDataOffset;
+        foreach (var entryPath in entryPaths)
+        {
+            var offsetBytes = BitConverter.GetBytes((uint)currentDataOffset);
+            if (BitConverter.IsLittleEndian)
+            {
+                Array.Reverse(offsetBytes);
+            }
+
+            writer.Write(offsetBytes);
+
+            var sizeBytes = BitConverter.GetBytes((uint)dummyDataSize);
+            if (BitConverter.IsLittleEndian)
+            {
+                Array.Reverse(sizeBytes);
+            }
+
+            writer.Write(sizeBytes);
+
+            writer.Write(Encoding.ASCII.GetBytes(entryPath));
+            writer.Write((byte)0); // null terminator
+
+            currentDataOffset += dummyDataSize;
+        }
+
+        // Dummy data for each entry
+        for (int i = 0; i < entryPaths.Length; i++)
+        {
+            writer.Write(new byte[] { 1, 2, 3, 4 });
+        }
+
+        File.WriteAllBytes(filePath, ms.ToArray());
     }
 }
