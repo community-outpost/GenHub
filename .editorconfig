@@ -98,5 +98,3 @@ dotnet_diagnostic.SA1210.severity = none
 # WndEditor Feature Analyzer Configuration
 [**/WndEditor/**.cs]
 dotnet_diagnostic.SA1204.severity = none
-dotnet_diagnostic.S2325.severity = none
-dotnet_diagnostic.S4144.severity = none

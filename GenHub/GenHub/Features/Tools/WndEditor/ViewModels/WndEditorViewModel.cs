@@ -1131,6 +1131,7 @@ public sealed partial class WndEditorViewModel(
     partial void OnSelectedAssetInstallationChanged(GameInstallationOption? value)
     {
         _ = value;
+        _resolvedStrings = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         assetService.InvalidateCache();
         RefreshAssetPreviews();
     }
@@ -1157,13 +1158,15 @@ public sealed partial class WndEditorViewModel(
             return false;
         }
 
+        string? tempPath = null;
         try
         {
             var text = wndDocumentService.WriteDocument(_document);
             var directory = Path.GetDirectoryName(filePath);
-            var tempPath = Path.Combine(directory ?? Path.GetTempPath(), Path.GetRandomFileName());
+            tempPath = Path.Combine(directory ?? Path.GetTempPath(), Path.GetRandomFileName());
             await File.WriteAllTextAsync(tempPath, text, cancellationToken).ConfigureAwait(false);
             File.Move(tempPath, filePath, overwrite: true);
+            tempPath = null;
             IsModified = false;
             notificationService.ShowSuccess(
                 localizationService.GetString("Tools.WndEditor.Save.SuccessTitle"),
@@ -1190,6 +1193,20 @@ public sealed partial class WndEditorViewModel(
                 NotificationDurations.Long);
             return false;
         }
+        finally
+        {
+            if (tempPath != null && File.Exists(tempPath))
+            {
+                try
+                {
+                    File.Delete(tempPath);
+                }
+                catch (Exception ex)
+                {
+                    logger.LogDebug(ex, "Failed to clean up temporary file {Path}", tempPath);
+                }
+            }
+        }
     }
 
     private void AdoptDocument(WndDocument document, string? filePath)
@@ -1198,6 +1215,7 @@ public sealed partial class WndEditorViewModel(
         FilePath = filePath;
         HasDocument = true;
         IsModified = false;
+        _resolvedStrings = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         _undoStack.Clear();
         _redoStack.Clear();
         RefreshUndoCommands();
@@ -1972,7 +1990,7 @@ public sealed partial class WndEditorViewModel(
 
             var bitmaps = images.Success ? images.Data : null;
             var values = strings.Success ? strings.Data : null;
-            await InvokeOnUIThreadAsync(() => ApplyPreviews(bitmaps, values, generation)).ConfigureAwait(false);
+            await InvokeOnUIThreadAsync(() => ApplyPreviews(bitmaps, values, generation, labels)).ConfigureAwait(false);
         }
         catch (OperationCanceledException ex)
         {
@@ -1987,7 +2005,8 @@ public sealed partial class WndEditorViewModel(
     private void ApplyPreviews(
         IReadOnlyDictionary<string, byte[]>? images,
         IReadOnlyDictionary<string, string>? strings,
-        int generation)
+        int generation,
+        IReadOnlyCollection<string>? attemptedLabels = null)
     {
         if (generation != _previewGeneration)
         {
@@ -2013,9 +2032,26 @@ public sealed partial class WndEditorViewModel(
             }
         }
 
-        if (strings != null)
+        if (strings != null || attemptedLabels != null)
         {
-            _resolvedStrings = strings;
+            var resolved = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            if (attemptedLabels != null)
+            {
+                foreach (var label in attemptedLabels)
+                {
+                    resolved[label] = string.Empty;
+                }
+            }
+
+            if (strings != null)
+            {
+                foreach (var (key, value) in strings)
+                {
+                    resolved[key] = value;
+                }
+            }
+
+            _resolvedStrings = resolved;
         }
 
         foreach (var item in CanvasItems)

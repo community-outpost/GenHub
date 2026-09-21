@@ -115,7 +115,7 @@ public sealed class WndStringTableService(ILogger<WndStringTableService> logger)
                 return cached;
             }
 
-            var loaded = await Task.Run(() => LoadTable(key, baseRoot, overrideRoot, projectDirectory, cancellationToken), cancellationToken).ConfigureAwait(false);
+            var loaded = await Task.Run(() => LoadTable(baseRoot, overrideRoot, projectDirectory, cancellationToken), cancellationToken).ConfigureAwait(false);
             if (_tables.Count >= MaxCachedTables)
             {
                 _tables.Clear();
@@ -130,23 +130,23 @@ public sealed class WndStringTableService(ILogger<WndStringTableService> logger)
         }
     }
 
+    /// <summary>
+    /// Probes game file systems for localized string tables in language order of preference.
+    /// In multilingual installations, the first successfully loaded table in <see cref="WndConstants.StringTables.Languages"/> wins.
+    /// </summary>
     private IReadOnlyDictionary<string, string> LoadTable(
-        string key,
         string baseRoot,
         string? overrideRoot,
         string? projectDirectory,
         CancellationToken cancellationToken)
     {
-        _ = key;
         var fileSystem = WndGameFileSystem.Open(baseRoot, overrideRoot, projectDirectory, logger, cancellationToken);
         foreach (var language in WndConstants.StringTables.Languages)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            var path = string.Concat(
+            var path = Path.Combine(
                 WndConstants.StringTables.DataDirectory,
-                "\\",
                 language,
-                "\\",
                 WndConstants.StringTables.FileName);
             var bytes = TryRead(fileSystem, path);
             if (bytes == null)

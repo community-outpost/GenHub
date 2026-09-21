@@ -182,6 +182,8 @@ public partial class FileManagerViewModel(
     /// Gets or sets a value indicating whether files are being loaded.
     /// </summary>
     [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(ValidateWndFilesCommand))]
+    [NotifyCanExecuteChangedFor(nameof(FormatWndFilesCommand))]
     private bool _isLoading;
 
     /// <summary>
@@ -887,10 +889,12 @@ public partial class FileManagerViewModel(
         }
     }
 
+    private bool CanRunWndOperation => !IsLoading;
+
     /// <summary>
     /// Validates selected window definition (.wnd) project files.
     /// </summary>
-    [RelayCommand]
+    [RelayCommand(CanExecute = nameof(CanRunWndOperation))]
     private async Task ValidateWndFilesAsync(CancellationToken cancellationToken = default)
     {
         await RunWndFileOperationAsync(WndFileOperation.Validate, cancellationToken).ConfigureAwait(false);
@@ -899,7 +903,7 @@ public partial class FileManagerViewModel(
     /// <summary>
     /// Formats selected window definition (.wnd) project files in canonical form.
     /// </summary>
-    [RelayCommand]
+    [RelayCommand(CanExecute = nameof(CanRunWndOperation))]
     private async Task FormatWndFilesAsync(CancellationToken cancellationToken = default)
     {
         await RunWndFileOperationAsync(WndFileOperation.Format, cancellationToken).ConfigureAwait(false);
