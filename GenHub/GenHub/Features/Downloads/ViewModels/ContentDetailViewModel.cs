@@ -2356,11 +2356,19 @@ public partial class ContentDetailViewModel(
                      value.Name.Contains(r.Name, StringComparison.OrdinalIgnoreCase)));
             if (match != null)
             {
-                var isExactManifestOrNameMatch =
-                    (!string.IsNullOrEmpty(value.ManifestId) && string.Equals(match.DownloadedManifestId, value.ManifestId, StringComparison.OrdinalIgnoreCase)) ||
-                    string.Equals(match.Name, value.Name, StringComparison.OrdinalIgnoreCase);
+                var isManifestMatch = !string.IsNullOrEmpty(value.ManifestId) &&
+                    string.Equals(match.DownloadedManifestId, value.ManifestId, StringComparison.OrdinalIgnoreCase);
+                var isExactNameMatch = string.Equals(match.Name, value.Name, StringComparison.OrdinalIgnoreCase);
 
-                // Only an exact manifest or name match may flip row state: fuzzy
+                // The variant carries no version, so an exact-name match is only trustworthy
+                // when the name is unique across releases: same-named siblings (e.g. a patch
+                // and a full build sharing a title) are indistinguishable here, and binding
+                // the variant's manifest to the wrong one would corrupt Add to Profile.
+                var isUniqueNameMatch = isExactNameMatch &&
+                    Releases.Count(row => string.Equals(row.Name, value.Name, StringComparison.OrdinalIgnoreCase)) == 1;
+                var isExactManifestOrNameMatch = isManifestMatch || isUniqueNameMatch;
+
+                // Only an exact manifest or unique-name match may flip row state: fuzzy
                 // substring matches routinely pick a sibling release and would show
                 // "Add to Profile" on the wrong row. The row's own async state probe
                 // corrects display state; selection below is still harmless.

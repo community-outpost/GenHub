@@ -3959,6 +3959,71 @@ public sealed class ContentDetailViewModelTests
     }
 
     /// <summary>
+    /// Verifies that selecting a downloaded variant does not flip row state or bind the
+    /// variant's manifest when the variant name matches several same-named release rows:
+    /// the variant carries no version, so ambiguous siblings are indistinguishable and the
+    /// rows' own probes must resolve them. Selection still moves to the first match.
+    /// </summary>
+    [Fact]
+    public void SelectedVariant_WhenReleaseNameIsAmbiguous_DoesNotBindManifestToSiblingRow()
+    {
+        // Arrange
+        const string manifestId = "1.0.genlauncherzerohour.mod.riseofthereds187publicbuild20";
+        var parent = new ContentSearchResult
+        {
+            Id = "genlauncher-zerohour-riseofthereds",
+            Name = "Rise of the Reds",
+            ProviderName = "genlauncher",
+            ContentType = ContentType.Mod,
+            TargetGame = GameType.ZeroHour,
+        };
+
+        var stateService = new Mock<IContentStateService>();
+        stateService
+            .Setup(s => s.GetStateAsync(It.IsAny<ContentSearchResult>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ContentState.NotDownloaded);
+
+        var viewModel = CreateViewModel(
+            parent,
+            new Mock<IContentDownloadCoordinator>().Object,
+            contentStateService: stateService.Object);
+
+        viewModel.PopulateReleases(
+        [
+            new DownloadableFile(
+                Name: "Shared Title",
+                Version: "1.0",
+                DownloadUrl: "http://example.com/shared10.zip",
+                FileSectionType: FileSectionType.Downloads),
+            new DownloadableFile(
+                Name: "Shared Title",
+                Version: "2.0",
+                DownloadUrl: "http://example.com/shared20.zip",
+                FileSectionType: FileSectionType.Downloads),
+        ]);
+
+        var variant = new InstallableVariant
+        {
+            Name = "Shared Title",
+            ManifestId = manifestId,
+            CurrentState = ContentState.Downloaded,
+        };
+
+        viewModel.Variants.Add(variant);
+
+        // Act
+        viewModel.SelectedVariant = variant;
+
+        // Assert
+        Assert.NotNull(viewModel.SelectedDownloadableItem);
+        Assert.All(viewModel.Releases, row =>
+        {
+            Assert.False(row.IsDownloaded);
+            Assert.Null(row.DownloadedManifestId);
+        });
+    }
+
+    /// <summary>
     /// Verifies that LoadInitialStateAsync reconciles release rows when there are multiple releases.
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
