@@ -14,21 +14,6 @@ namespace GenHub.Core.Interfaces.Online;
 public interface IOnlineNetworkService
 {
     /// <summary>
-    /// Occurs when the joined roster changes.
-    /// </summary>
-    event EventHandler<IReadOnlyList<OnlineMember>>? RosterChanged;
-
-    /// <summary>
-    /// Occurs when presence is lost unrecoverably and the client auto-left.
-    /// </summary>
-    event EventHandler? ConnectionLost;
-
-    /// <summary>
-    /// Occurs when the host switches the lobby's expected profile.
-    /// </summary>
-    event EventHandler<OnlineExpectedProfile>? ExpectedProfileChanged;
-
-    /// <summary>
     /// Gets the currently joined network, or null when not joined.
     /// </summary>
     OnlineJoinResult? CurrentJoin { get; }
@@ -43,6 +28,21 @@ public interface IOnlineNetworkService
     /// (roster, presence) while the adapter is down; only tunneling waits.
     /// </summary>
     OnlineAdapterState AdapterState { get; }
+
+    /// <summary>
+    /// Occurs when the joined roster changes.
+    /// </summary>
+    event EventHandler<IReadOnlyList<OnlineMember>>? RosterChanged;
+
+    /// <summary>
+    /// Occurs when presence is lost unrecoverably and the client auto-left.
+    /// </summary>
+    event EventHandler? ConnectionLost;
+
+    /// <summary>
+    /// Occurs when the host switches the lobby's expected profile.
+    /// </summary>
+    event EventHandler<OnlineExpectedProfile>? ExpectedProfileChanged;
 
     /// <summary>
     /// Gets the public network directory (metadata only, no endpoints).

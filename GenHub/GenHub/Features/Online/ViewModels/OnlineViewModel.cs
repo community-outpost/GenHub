@@ -397,6 +397,8 @@ public sealed partial class OnlineViewModel(
         var createPassword = CreatePassword;
         var description = CreateDescription.Trim();
         var createProfile = SelectedCreateProfile;
+        var slotsMax = Math.Clamp(CreateSlots, 2, OnlineConstants.MaxSlotCap);
+        var isPublic = CreateIsPublic;
         _joinInFlight = true;
         try
         {
@@ -407,8 +409,8 @@ public sealed partial class OnlineViewModel(
             {
                 Name = networkName,
                 Password = createPassword,
-                SlotsMax = Math.Clamp(CreateSlots, 2, OnlineConstants.MaxSlotCap),
-                IsPublic = CreateIsPublic,
+                SlotsMax = slotsMax,
+                IsPublic = isPublic,
                 Description = description,
                 PreferRelay = true,
                 ExpectedProfileId = createProfile?.Id ?? string.Empty,

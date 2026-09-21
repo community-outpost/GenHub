@@ -271,6 +271,9 @@ export class PresenceRoom {
   }
 
   private async upsertDirectory(meta: RoomMeta, members: RoomMember[]): Promise<void> {
+    if (!meta.isPublic) {
+      return;
+    }
     const stub = this.env.DIRECTORY_INDEX.get(this.env.DIRECTORY_INDEX.idFromName("directory"));
     await stub.fetch("https://directory/internal/upsert", {
       method: "POST",
@@ -358,6 +361,7 @@ export class PresenceRoom {
       hostDisplayName: meta.hostDisplayName,
       quality: aggregateQuality(members),
       requiresPassword: meta.verifier.length > 0,
+      isPublic: meta.isPublic,
       lastHeartbeatUtc: new Date().toISOString(),
     };
   }

@@ -54,6 +54,7 @@ export interface NetworkSummary {
   hostDisplayName: string;
   quality: number;
   requiresPassword: boolean;
+  isPublic: boolean;
   lastHeartbeatUtc: string;
 }
 

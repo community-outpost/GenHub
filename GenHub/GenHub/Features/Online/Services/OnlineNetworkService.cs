@@ -41,15 +41,6 @@ public sealed class OnlineNetworkService(
     private OnlineJoinResult? _currentJoin;
 
     /// <inheritdoc/>
-    public event EventHandler<IReadOnlyList<OnlineMember>>? RosterChanged;
-
-    /// <inheritdoc/>
-    public event EventHandler? ConnectionLost;
-
-    /// <inheritdoc/>
-    public event EventHandler<OnlineExpectedProfile>? ExpectedProfileChanged;
-
-    /// <inheritdoc/>
     public OnlineJoinResult? CurrentJoin
     {
         get
@@ -74,6 +65,15 @@ public sealed class OnlineNetworkService(
 
     /// <inheritdoc/>
     public OnlineAdapterState AdapterState => adapter.State;
+
+    /// <inheritdoc/>
+    public event EventHandler<IReadOnlyList<OnlineMember>>? RosterChanged;
+
+    /// <inheritdoc/>
+    public event EventHandler? ConnectionLost;
+
+    /// <inheritdoc/>
+    public event EventHandler<OnlineExpectedProfile>? ExpectedProfileChanged;
 
     /// <inheritdoc/>
     public async Task<OperationResult<IReadOnlyList<OnlineNetworkSummary>>> GetNetworksAsync(
@@ -192,6 +192,7 @@ public sealed class OnlineNetworkService(
             return OperationResult<OnlineJoinResult>.CreateFailure(validation);
         }
 
+        var activated = false;
         try
         {
             var endpoint = await ResolvePublicEndpointAsync(request.PreferRelay, cancellationToken);
@@ -204,7 +205,9 @@ public sealed class OnlineNetworkService(
                 return OperationResult<OnlineJoinResult>.CreateFailure(OnlineConstants.ErrorServiceUnavailable);
             }
 
-            return await ActivateJoinFromResponseAsync(response, cancellationToken);
+            var result = await ActivateJoinFromResponseAsync(response, cancellationToken);
+            activated = result.Success;
+            return result;
         }
         catch (HttpRequestException ex)
         {
@@ -220,6 +223,13 @@ public sealed class OnlineNetworkService(
         {
             logger.LogWarning(ex, "Online creation response was malformed.");
             return OperationResult<OnlineJoinResult>.CreateFailure(OnlineConstants.ErrorServiceUnavailable);
+        }
+        finally
+        {
+            if (!activated)
+            {
+                await ReleaseEndpointAsync();
+            }
         }
     }
 
@@ -237,6 +247,7 @@ public sealed class OnlineNetworkService(
             return OperationResult<OnlineJoinResult>.CreateFailure(OnlineConstants.ErrorNetworkNotFound);
         }
 
+        var activated = false;
         try
         {
             var endpoint = await ResolvePublicEndpointAsync(preferRelay, cancellationToken);
@@ -271,7 +282,9 @@ public sealed class OnlineNetworkService(
                 return OperationResult<OnlineJoinResult>.CreateFailure(OnlineConstants.ErrorNetworkBanned);
             }
 
-            return await ActivateJoinFromResponseAsync(response, cancellationToken);
+            var joinResult = await ActivateJoinFromResponseAsync(response, cancellationToken);
+            activated = joinResult.Success;
+            return joinResult;
         }
         catch (HttpRequestException ex)
         {
@@ -287,6 +300,13 @@ public sealed class OnlineNetworkService(
         {
             logger.LogWarning(ex, "Online join response was malformed.");
             return OperationResult<OnlineJoinResult>.CreateFailure(OnlineConstants.ErrorServiceUnavailable);
+        }
+        finally
+        {
+            if (!activated)
+            {
+                await ReleaseEndpointAsync();
+            }
         }
     }
 
@@ -730,6 +750,15 @@ public sealed class OnlineNetworkService(
         {
             logger.LogError(ex, "Auto-leave after presence loss failed.");
         }
+    }
+
+    private async Task ReleaseEndpointAsync()
+    {
+        // A failed join or create must not keep the UDP listener bound:
+        // LeaveNetworkAsync never runs for joins that were never activated.
+        // Endpoint release is never cancellable, hence CancellationToken.None.
+        LocalEndpoint = string.Empty;
+        await p2p.StopListeningAsync(CancellationToken.None);
     }
 
     private async Task<string> ResolvePublicEndpointAsync(bool preferRelay, CancellationToken cancellationToken)

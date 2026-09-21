@@ -14,13 +14,13 @@ namespace GenHub.Features.Online.Services;
 public sealed class NullVirtualLanAdapter : IVirtualLanAdapter
 {
     /// <inheritdoc/>
-    public event EventHandler<OnlineAdapterState>? StateChanged;
-
-    /// <inheritdoc/>
     public OnlineAdapterState State { get; private set; } = OnlineAdapterState.Down;
 
     /// <inheritdoc/>
     public string? OverlayIp => null;
+
+    /// <inheritdoc/>
+    public event EventHandler<OnlineAdapterState>? StateChanged;
 
     /// <inheritdoc/>
     public Task<OperationResult<bool>> BringUpAsync(
