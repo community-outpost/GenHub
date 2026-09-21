@@ -79,7 +79,7 @@ public interface IOnlineNetworkService
     /// </summary>
     /// <param name="networkId">The network identifier.</param>
     /// <param name="password">The network password.</param>
-    /// <param name="preferRelay">When true, offer only relay candidates (hide direct endpoint). Defaults to direct-first with relay fallback.</param>
+    /// <param name="preferRelay">When true, offer only relay candidates (hide direct endpoint, masking IP). Defaults to true for privacy.</param>
     /// <param name="profileFingerprint">The local profile fingerprint advertised to the roster.</param>
     /// <param name="profileName">The local profile display name advertised to the roster.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
@@ -87,7 +87,7 @@ public interface IOnlineNetworkService
     Task<OperationResult<OnlineJoinResult>> JoinNetworkAsync(
         string networkId,
         string password,
-        bool preferRelay = false,
+        bool preferRelay = true,
         string profileFingerprint = "",
         string profileName = "",
         CancellationToken cancellationToken = default);

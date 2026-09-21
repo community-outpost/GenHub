@@ -298,7 +298,7 @@ public sealed partial class OnlineViewModel(
             var advertisement = await ResolveAdvertisementAsync(cancellationToken);
 
             var result = await networkService.JoinNetworkAsync(
-                target.Id, JoinPassword.Trim(), false, advertisement.Fingerprint, advertisement.Name, cancellationToken);
+                target.Id, JoinPassword.Trim(), true, advertisement.Fingerprint, advertisement.Name, cancellationToken);
             if (!result.Success)
             {
                 ShowJoinErrorToast(result.Errors.FirstOrDefault());
@@ -427,7 +427,7 @@ public sealed partial class OnlineViewModel(
                 SlotsMax = slotsMax,
                 IsPublic = isPublic,
                 Description = description,
-                PreferRelay = false,
+                PreferRelay = true,
                 ExpectedProfileId = createProfile?.Id ?? string.Empty,
                 ExpectedProfileFingerprint = setup.Fingerprint,
                 ExpectedProfileName = createProfile?.Name ?? string.Empty,
