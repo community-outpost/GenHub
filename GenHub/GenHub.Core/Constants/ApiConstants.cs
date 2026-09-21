@@ -215,17 +215,70 @@ public static class ApiConstants
     public const string OnlineEdgeBaseUrlEnvVar = "GENHUB_ONLINE_EDGE_URL";
 
     /// <summary>
-    /// Default base URL for the GenHub Online edge (control plane only, never game traffic).
+    /// Environment variable name for overriding the primary Online edge URL (e.g. self-hosted VPS).
+    /// </summary>
+    public const string OnlinePrimaryUrlEnvVar = "GENHUB_ONLINE_PRIMARY_URL";
+
+    /// <summary>
+    /// Environment variable name for overriding the fallback/backup Online edge URL.
+    /// </summary>
+    public const string OnlineFallbackUrlEnvVar = "GENHUB_ONLINE_FALLBACK_URL";
+
+    /// <summary>
+    /// Default primary base URL for the GenHub Online edge (self-hosted VPS instance).
+    /// </summary>
+    public const string DefaultPrimaryEdgeBaseUrl = "http://152.70.171.121:8787";
+
+    /// <summary>
+    /// Default fallback base URL for the GenHub Online edge (Cloudflare Worker backup).
     /// </summary>
     public const string DefaultOnlineEdgeBaseUrl = "https://genhub-online-edge.mustafa2146.workers.dev";
 
+    private static volatile string? _activeEdgeBaseUrl;
+
     /// <summary>
-    /// Gets the active base URL for the Online edge, checking environment variable overrides first.
+    /// Gets or sets the actively resolved base URL for the Online edge.
+    /// </summary>
+    public static string ActiveOnlineEdgeBaseUrl
+    {
+        get => _activeEdgeBaseUrl ?? OnlineEdgeBaseUrl;
+        set => _activeEdgeBaseUrl = string.IsNullOrWhiteSpace(value) ? null : value.TrimEnd('/');
+    }
+
+    /// <summary>
+    /// Gets the primary base URL for the Online edge.
+    /// </summary>
+    public static string PrimaryOnlineEdgeBaseUrl =>
+        Environment.GetEnvironmentVariable(OnlinePrimaryUrlEnvVar) is { Length: > 0 } primaryUrl
+            ? primaryUrl.TrimEnd('/')
+            : (Environment.GetEnvironmentVariable(OnlineEdgeBaseUrlEnvVar) is { Length: > 0 } customUrl
+                ? customUrl.TrimEnd('/')
+                : DefaultPrimaryEdgeBaseUrl);
+
+    /// <summary>
+    /// Gets the fallback/backup base URL for the Online edge.
+    /// </summary>
+    public static string FallbackOnlineEdgeBaseUrl =>
+        Environment.GetEnvironmentVariable(OnlineFallbackUrlEnvVar) is { Length: > 0 } fallbackUrl
+            ? fallbackUrl.TrimEnd('/')
+            : DefaultOnlineEdgeBaseUrl;
+
+    /// <summary>
+    /// Gets the active base URL for the Online edge, checking runtime active selection and environment variable overrides first.
     /// </summary>
     public static string OnlineEdgeBaseUrl =>
-        Environment.GetEnvironmentVariable(OnlineEdgeBaseUrlEnvVar) is { Length: > 0 } customUrl
+        _activeEdgeBaseUrl
+        ?? (Environment.GetEnvironmentVariable(OnlineEdgeBaseUrlEnvVar) is { Length: > 0 } customUrl
             ? customUrl.TrimEnd('/')
-            : DefaultOnlineEdgeBaseUrl;
+            : PrimaryOnlineEdgeBaseUrl);
+
+    /// <summary>
+    /// Resets the active edge base URL to the configured primary.
+    /// </summary>
+    public static void ResetActiveOnlineEdgeBaseUrl()
+    {
+        _activeEdgeBaseUrl = null;
+    }
 
     /// <summary>
     /// Endpoint path for anonymous session issuance.

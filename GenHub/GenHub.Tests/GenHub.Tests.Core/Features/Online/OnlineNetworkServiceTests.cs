@@ -598,6 +598,80 @@ public sealed class OnlineNetworkServiceTests
         Assert.Equal(string.Empty, service.LocalEndpoint);
     }
 
+    /// <summary>
+    /// Tests that calling JoinNetworkAsync with default parameters masks public IP and uses relay.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task JoinNetworkAsync_WithDefaultParameters_ShouldMaskIpAndPreferRelayAsync()
+    {
+        // Arrange
+        var adapter = new Mock<IVirtualLanAdapter>();
+        adapter.Setup(a => a.BringUpAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(GenHub.Core.Models.Results.OperationResult<bool>.CreateSuccess(true));
+        string? joinBody = null;
+        var service = CreateService(CreateFactory(joinStatus: HttpStatusCode.OK, onJoinBody: body => joinBody = body), adapter.Object);
+
+        // Act - omit preferRelay to test default parameter
+        var result = await service.JoinNetworkAsync("net-1", "secret");
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.Contains(""preferRelay":true", joinBody ?? string.Empty);
+        Assert.Contains(""endpoint":""", joinBody ?? string.Empty);
+        Assert.Equal(string.Empty, service.LocalEndpoint);
+    }
+
+    /// <summary>
+    /// Tests that when the primary edge fails to issue a session token, the client fails over to the backup edge.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task EnsureSessionAsync_WhenPrimaryEdgeFails_ShouldFailoverToBackupEdgeAsync()
+    {
+        // Arrange
+        ApiConstants.ResetActiveOnlineEdgeBaseUrl();
+        var primaryAttempts = 0;
+        var backupAttempts = 0;
+
+        var handler = new CountingHandler();
+        handler.Responder = request =>
+        {
+            var host = request.RequestUri?.Authority ?? string.Empty;
+            if (request.RequestUri?.AbsolutePath.EndsWith("/v1/sessions/anonymous", StringComparison.Ordinal) == true)
+            {
+                if (host.Contains("152.70.171.121", StringComparison.Ordinal))
+                {
+                    primaryAttempts++;
+                    throw new HttpRequestException("Primary VPS unreachable");
+                }
+
+                backupAttempts++;
+                return JsonResponse(SessionJson);
+            }
+
+            return Route(request, HttpStatusCode.OK);
+        };
+
+        try
+        {
+            var service = CreateService(CreateFactory(handler));
+
+            // Act
+            var result = await service.GetNetworksAsync();
+
+            // Assert
+            Assert.True(result.Success);
+            Assert.True(primaryAttempts > 0, "Expected primary edge to be attempted first");
+            Assert.True(backupAttempts > 0, "Expected backup edge to be attempted upon failover");
+            Assert.Equal(ApiConstants.FallbackOnlineEdgeBaseUrl, ApiConstants.ActiveOnlineEdgeBaseUrl);
+        }
+        finally
+        {
+            ApiConstants.ResetActiveOnlineEdgeBaseUrl();
+        }
+    }
+
     private static OnlineNetworkService CreateService(
         IHttpClientFactory factory,
         IVirtualLanAdapter? adapter = null,

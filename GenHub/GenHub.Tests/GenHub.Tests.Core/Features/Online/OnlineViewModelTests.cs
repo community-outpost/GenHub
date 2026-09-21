@@ -240,11 +240,11 @@ public class OnlineViewModelTests
     }
 
     /// <summary>
-    /// Tests that joins prefer direct mode first, falling back to relay on STUN failure.
+    /// Tests that joins prefer relay mode to mask public IP addresses by default.
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Fact]
-    public async Task JoinNetworkAsync_ShouldPreferDirectFirstAsync()
+    public async Task JoinNetworkAsync_ShouldPreferRelayMaskingAsync()
     {
         // Arrange
         var join = new OnlineJoinResult
@@ -278,7 +278,7 @@ public class OnlineViewModelTests
             n => n.JoinNetworkAsync(
                 "net-1",
                 It.IsAny<string>(),
-                false,
+                true,
                 It.IsAny<string>(),
                 It.IsAny<string>(),
                 It.IsAny<CancellationToken>()),

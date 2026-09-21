@@ -238,7 +238,7 @@ public sealed class OnlineNetworkService(
     public async Task<OperationResult<OnlineJoinResult>> JoinNetworkAsync(
         string networkId,
         string password,
-        bool preferRelay = false,
+        bool preferRelay = true,
         string profileFingerprint = "",
         string profileName = "",
         CancellationToken cancellationToken = default)
@@ -539,9 +539,39 @@ public sealed class OnlineNetworkService(
 
         using (first.Client)
         {
-            // The default ResponseContentRead buffers before returning, so the
-            // response stays readable after its client is disposed.
-            var response = await send(first.Client, cancellationToken);
+            HttpResponseMessage? response = null;
+            try
+            {
+                // The default ResponseContentRead buffers before returning, so the
+                // response stays readable after its client is disposed.
+                response = await send(first.Client, cancellationToken);
+            }
+            catch (HttpRequestException ex) when (!cancellationToken.IsCancellationRequested)
+            {
+                var fallback = ApiConstants.FallbackOnlineEdgeBaseUrl;
+                if (!string.Equals(ApiConstants.OnlineEdgeBaseUrl, fallback, StringComparison.OrdinalIgnoreCase))
+                {
+                    logger.LogWarning(
+                        ex,
+                        "HTTP call against {Primary} failed; failing over to backup edge: {Fallback}",
+                        ApiConstants.OnlineEdgeBaseUrl,
+                        fallback);
+                    ApiConstants.ActiveOnlineEdgeBaseUrl = fallback;
+                    await InvalidateSessionAsync(first.Token, cancellationToken);
+
+                    var fallbackClient = await CreateAuthenticatedClientAsync(cancellationToken);
+                    if (fallbackClient.Client is not null)
+                    {
+                        using (fallbackClient.Client)
+                        {
+                            return await send(fallbackClient.Client, cancellationToken);
+                        }
+                    }
+                }
+
+                throw;
+            }
+
             var transferred = false;
             try
             {
@@ -629,26 +659,51 @@ public sealed class OnlineNetworkService(
                 return _sessionToken;
             }
 
-            using var client = httpClientFactory.CreateClient(nameof(OnlineNetworkService));
-            client.BaseAddress = new Uri(ApiConstants.OnlineEdgeBaseUrl);
-            client.Timeout = TimeSpan.FromSeconds(OnlineConstants.HttpTimeoutSeconds);
-            using var response = await client.PostAsync(ApiConstants.OnlineSessionsEndpoint, null, cancellationToken);
-            response.EnsureSuccessStatusCode();
-
-            var session = await response.Content.ReadFromJsonAsync<Dictionary<string, string>>(cancellationToken);
-            if (session is null || !session.TryGetValue("token", out var token) || string.IsNullOrWhiteSpace(token))
+            try
             {
-                logger.LogWarning("Session issuance returned no token.");
-                return null;
+                _sessionToken = await RequestSessionTokenAsync(ApiConstants.OnlineEdgeBaseUrl, cancellationToken);
+                return _sessionToken;
             }
+            catch (HttpRequestException ex)
+            {
+                var fallback = ApiConstants.FallbackOnlineEdgeBaseUrl;
+                if (!string.Equals(ApiConstants.OnlineEdgeBaseUrl, fallback, StringComparison.OrdinalIgnoreCase))
+                {
+                    logger.LogWarning(
+                        ex,
+                        "Primary Online edge at {Primary} failed; failing over to backup edge: {Fallback}",
+                        ApiConstants.OnlineEdgeBaseUrl,
+                        fallback);
+                    ApiConstants.ActiveOnlineEdgeBaseUrl = fallback;
+                    _sessionToken = await RequestSessionTokenAsync(fallback, cancellationToken);
+                    return _sessionToken;
+                }
 
-            _sessionToken = token;
-            return token;
+                throw;
+            }
         }
         finally
         {
             _sessionLock.Release();
         }
+    }
+
+    private async Task<string?> RequestSessionTokenAsync(string baseUrl, CancellationToken cancellationToken)
+    {
+        using var client = httpClientFactory.CreateClient(nameof(OnlineNetworkService));
+        client.BaseAddress = new Uri(baseUrl);
+        client.Timeout = TimeSpan.FromSeconds(OnlineConstants.HttpTimeoutSeconds);
+        using var response = await client.PostAsync(ApiConstants.OnlineSessionsEndpoint, null, cancellationToken);
+        response.EnsureSuccessStatusCode();
+
+        var session = await response.Content.ReadFromJsonAsync<Dictionary<string, string>>(cancellationToken);
+        if (session is null || !session.TryGetValue("token", out var token) || string.IsNullOrWhiteSpace(token))
+        {
+            logger.LogWarning("Session issuance returned no token.");
+            return null;
+        }
+
+        return token;
     }
 
     private async Task<OperationResult<OnlineJoinResult>> ActivateJoinFromResponseAsync(
