@@ -204,19 +204,19 @@
 
         <!-- Compatibility Badges -->
         <Style Selector="Border.badge.compatibility-retail">
-            <Setter Property="BorderBrush" Value="#10B981" />
-            <Setter Property="Background" Value="#2010B981" />
+            <Setter Property="BorderBrush" Value="{DynamicResource CompatibilityRetailBorderBrush}" />
+            <Setter Property="Background" Value="{DynamicResource CompatibilityRetailBackgroundBrush}" />
         </Style>
         <Style Selector="Border.badge.compatibility-retail TextBlock.badge-text">
-            <Setter Property="Foreground" Value="#34D399" />
+            <Setter Property="Foreground" Value="{DynamicResource CompatibilityRetailForegroundBrush}" />
         </Style>
 
         <Style Selector="Border.badge.compatibility-nonretail">
-            <Setter Property="BorderBrush" Value="#F59E0B" />
-            <Setter Property="Background" Value="#20F59E0B" />
+            <Setter Property="BorderBrush" Value="{DynamicResource CompatibilityNonRetailBorderBrush}" />
+            <Setter Property="Background" Value="{DynamicResource CompatibilityNonRetailBackgroundBrush}" />
         </Style>
         <Style Selector="Border.badge.compatibility-nonretail TextBlock.badge-text">
-            <Setter Property="Foreground" Value="#FBBF24" />
+            <Setter Property="Foreground" Value="{DynamicResource CompatibilityNonRetailForegroundBrush}" />
         </Style>
 
         <!-- Context Menu Style -->

@@ -1668,7 +1668,10 @@ public partial class ContentDetailViewModel(
 
     private static string? GetDeduplicationKey(string? url, string? name, string? filename = null)
     {
-        if (!string.IsNullOrWhiteSpace(filename))
+        // Extensionless endpoint segments (for example OneDrive "/embed" links that
+        // slipped into Filename) must not dedupe on their own: unrelated downloads
+        // would collapse into one row. Fall through to the URL-based key instead.
+        if (!string.IsNullOrWhiteSpace(filename) && GenLauncherConstants.IsUsableArchiveFileName(filename))
         {
             return filename.Trim().ToLowerInvariant();
         }

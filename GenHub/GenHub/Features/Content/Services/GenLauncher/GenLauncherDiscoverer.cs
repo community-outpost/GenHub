@@ -294,7 +294,7 @@ public class GenLauncherDiscoverer(
         {
             var fn = Path.GetFileName(uri.LocalPath);
             if (!string.IsNullOrWhiteSpace(fn) &&
-                !GenLauncherConstants.IsYamlDescriptorPath(fn))
+                GenLauncherConstants.IsUsableArchiveFileName(fn))
             {
                 return Uri.UnescapeDataString(fn);
             }

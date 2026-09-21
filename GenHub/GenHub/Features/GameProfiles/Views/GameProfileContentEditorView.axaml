@@ -32,8 +32,8 @@
     <UserControl.Styles>
         <!-- Section card style -->
         <Style Selector="Border.section-card">
-            <Setter Property="Background" Value="#10FFFFFF" />
-            <Setter Property="BorderBrush" Value="#20FFFFFF" />
+            <Setter Property="Background" Value="{DynamicResource GlassCardBackgroundBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource GlassCardBorderBrush}" />
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="CornerRadius" Value="12" />
             <Setter Property="Padding" Value="24" />

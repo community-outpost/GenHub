@@ -1,5 +1,6 @@
 using System;
 using System.Diagnostics.CodeAnalysis;
+using System.IO;
 using System.Text;
 
 namespace GenHub.Core.Constants;
@@ -401,5 +402,29 @@ public static class GenLauncherConstants
 
         return path.EndsWith(".yaml", StringComparison.OrdinalIgnoreCase) ||
                path.EndsWith(".yml", StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// Determines whether a URL-derived file name is usable as an archive file name.
+    /// </summary>
+    /// <param name="fileName">The file name extracted from a download URL.</param>
+    /// <returns>True when the name carries a real file extension and is not a manifest descriptor; otherwise false.</returns>
+    public static bool IsUsableArchiveFileName(string? fileName)
+    {
+        if (string.IsNullOrWhiteSpace(fileName))
+        {
+            return false;
+        }
+
+        if (IsYamlDescriptorPath(fileName))
+        {
+            return false;
+        }
+
+        // Endpoint-style URL segments without an extension (for example the "embed"
+        // segment of OneDrive share links) are not file names: accepting them assigns
+        // identical names to unrelated downloads and collapses distinct releases
+        // during deduplication.
+        return Path.GetExtension(fileName.Trim()).Length > 1;
     }
 }

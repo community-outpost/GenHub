@@ -301,6 +301,45 @@ public sealed class ContentDetailViewModelTests
     }
 
     /// <summary>
+    /// Verifies that releases sharing an extensionless endpoint file name (for example
+    /// OneDrive "/embed" links) are not collapsed into a single row.
+    /// </summary>
+    [Fact]
+    public void PopulateReleases_WithSharedExtensionlessFilename_KeepsBothRows()
+    {
+        // Arrange
+        var parent = new ContentSearchResult
+        {
+            Id = "genlauncher-zerohour-rise-of-the-reds",
+            Name = "Rise of the Reds",
+            ProviderName = "genlauncher",
+            ContentType = ContentType.Mod,
+            TargetGame = GameType.ZeroHour,
+        };
+        var viewModel = CreateViewModel(parent, new Mock<IContentDownloadCoordinator>().Object);
+
+        var parentFile = new DownloadableFile(
+            Name: "Rise Of The Reds 1.87 Public Build 2.0",
+            Version: "1.87 Public Build 2.0",
+            DownloadUrl: "https://onedrive.live.com/embed?cid=AFB01C08E053A64E&resid=AFB01C08E053A64E%21593",
+            FileSectionType: FileSectionType.Downloads,
+            Filename: "embed");
+
+        var patchFile = new DownloadableFile(
+            Name: "Balance Patch",
+            Version: "2.999.06.5",
+            DownloadUrl: "https://onedrive.live.com/embed?cid=0A88C98986A457EB&resid=A88C98986A457EB%21135",
+            FileSectionType: FileSectionType.Downloads,
+            Filename: "embed");
+
+        // Act
+        viewModel.PopulateReleases([parentFile, patchFile]);
+
+        // Assert
+        Assert.Equal(2, viewModel.Releases.Count);
+    }
+
+    /// <summary>
     /// After download, changing the Type dropdown must rewrite the stored manifest so tools
     /// misclassified as Addon become Executable/ModdingTool and lose game-install requirements.
     /// </summary>

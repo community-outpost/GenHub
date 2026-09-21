@@ -17,6 +17,17 @@
         <conv:EqualityConverter x:Key="EqualityConverter" />
     </UserControl.Resources>
 
+    <UserControl.Styles>
+        <!-- Transparent glass cards matching the Content tab -->
+        <Style Selector="Border.settings-card">
+            <Setter Property="Background" Value="{DynamicResource GlassCardBackgroundBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource GlassCardBorderBrush}" />
+        </Style>
+        <Style Selector="Border.settings-card:pointerover">
+            <Setter Property="BorderBrush" Value="{DynamicResource GlassCardBorderBrush}" />
+        </Style>
+    </UserControl.Styles>
+
     <Grid>
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="190" MinWidth="68" MaxWidth="300" />
