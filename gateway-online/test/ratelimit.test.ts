@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { allowRequest } from "../src/ratelimit";
+import { allowRequest, pruneCounters } from "../src/ratelimit";
+import { isQuotaError } from "../src/validation";
 
 describe("rate limiter", () => {
   it("allows requests under the limit", () => {
@@ -26,5 +27,26 @@ describe("rate limiter", () => {
     const counters = {};
     allowRequest(counters, "a", 1000, 1, 60);
     expect(allowRequest(counters, "b", 1000, 1, 60)).toBe(true);
+  });
+
+  it("prunes expired counters", () => {
+    const counters = {
+      old: { count: 5, windowStart: 100 },
+      fresh: { count: 3, windowStart: 950 },
+    };
+    pruneCounters(counters, 1000, 60);
+    expect(counters).toEqual({
+      fresh: { count: 3, windowStart: 950 },
+    });
+  });
+});
+
+describe("isQuotaError", () => {
+  it("detects Durable Objects free tier or quota errors", () => {
+    expect(isQuotaError(new Error("Durable Objects exceeded daily requests limit"))).toBe(true);
+    expect(isQuotaError(new Error("free tier limit exceeded"))).toBe(true);
+    expect(isQuotaError(new Error("exceeded quota"))).toBe(true);
+    expect(isQuotaError(new Error("Network connection refused"))).toBe(false);
+    expect(isQuotaError(null)).toBe(false);
   });
 });
