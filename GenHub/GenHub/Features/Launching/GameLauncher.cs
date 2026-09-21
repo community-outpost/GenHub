@@ -403,13 +403,24 @@ public class GameLauncher(
     }
 
     /// <inheritdoc/>
-    public async Task<LaunchOperationResult<GameLaunchInfo>> LaunchProfileAsync(
+    public Task<LaunchOperationResult<GameLaunchInfo>> LaunchProfileAsync(
         string profileId,
         IProgress<LaunchProgress>? progress = null,
         bool skipUserDataCleanup = false,
         IReadOnlyDictionary<string, string>? additionalArguments = null,
-        CancellationToken cancellationToken = default,
-        string? networkIpOverride = null)
+        CancellationToken cancellationToken = default)
+    {
+        return LaunchProfileAsync(profileId, progress, skipUserDataCleanup, additionalArguments, cancellationToken, null);
+    }
+
+    /// <inheritdoc/>
+    public async Task<LaunchOperationResult<GameLaunchInfo>> LaunchProfileAsync(
+        string profileId,
+        IProgress<LaunchProgress>? progress,
+        bool skipUserDataCleanup,
+        IReadOnlyDictionary<string, string>? additionalArguments,
+        CancellationToken cancellationToken,
+        string? networkIpOverride)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(profileId);
 
@@ -427,23 +438,25 @@ public class GameLauncher(
         return await LaunchProfileAsync(profile, progress, skipUserDataCleanup, additionalArguments, cancellationToken, networkIpOverride);
     }
 
-    /// <summary>
-    /// Launches a game using the provided game profile object with optional transient command line arguments.
-    /// </summary>
-    /// <param name="profile">The game profile to launch.</param>
-    /// <param name="progress">Optional progress reporter for launch progress.</param>
-    /// <param name="skipUserDataCleanup">Whether to skip cleanup of user data files (maps, etc.) from other profiles.</param>
-    /// <param name="additionalArguments">Optional transient command line arguments to merge with profile launch options.</param>
-    /// <param name="cancellationToken">A cancellation token to observe while waiting for the task to complete.</param>
-    /// <param name="networkIpOverride">Optional LAN IP written to Options.ini instead of the profile's stored address.</param>
-    /// <returns>A <see cref="LaunchOperationResult{T}"/> representing the result of the launch operation.</returns>
-    public async Task<LaunchOperationResult<GameLaunchInfo>> LaunchProfileAsync(
+    /// <inheritdoc/>
+    public Task<LaunchOperationResult<GameLaunchInfo>> LaunchProfileAsync(
         GameProfile profile,
         IProgress<LaunchProgress>? progress = null,
         bool skipUserDataCleanup = false,
         IReadOnlyDictionary<string, string>? additionalArguments = null,
-        CancellationToken cancellationToken = default,
-        string? networkIpOverride = null)
+        CancellationToken cancellationToken = default)
+    {
+        return LaunchProfileAsync(profile, progress, skipUserDataCleanup, additionalArguments, cancellationToken, null);
+    }
+
+    /// <inheritdoc/>
+    public async Task<LaunchOperationResult<GameLaunchInfo>> LaunchProfileAsync(
+        GameProfile profile,
+        IProgress<LaunchProgress>? progress,
+        bool skipUserDataCleanup,
+        IReadOnlyDictionary<string, string>? additionalArguments,
+        CancellationToken cancellationToken,
+        string? networkIpOverride)
     {
         ArgumentNullException.ThrowIfNull(profile);
 

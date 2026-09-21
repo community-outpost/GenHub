@@ -79,10 +79,29 @@ public class ProfileLauncherFacade(
     public Task<ProfileOperationResult<GameLaunchInfo>> LaunchProfileAsync(
         string profileId,
         bool skipUserDataCleanup = false,
-        CancellationToken cancellationToken = default,
-        string? networkIpOverride = null)
+        CancellationToken cancellationToken = default)
+    {
+        return LaunchProfileAsync(profileId, skipUserDataCleanup, null, cancellationToken, null);
+    }
+
+    /// <inheritdoc/>
+    public Task<ProfileOperationResult<GameLaunchInfo>> LaunchProfileAsync(
+        string profileId,
+        bool skipUserDataCleanup,
+        CancellationToken cancellationToken,
+        string? networkIpOverride)
     {
         return LaunchProfileAsync(profileId, skipUserDataCleanup, null, cancellationToken, networkIpOverride);
+    }
+
+    /// <inheritdoc/>
+    public Task<ProfileOperationResult<GameLaunchInfo>> LaunchProfileAsync(
+        string profileId,
+        bool skipUserDataCleanup,
+        IReadOnlyDictionary<string, string>? additionalArguments,
+        CancellationToken cancellationToken = default)
+    {
+        return LaunchProfileAsync(profileId, skipUserDataCleanup, additionalArguments, cancellationToken, null);
     }
 
     /// <inheritdoc/>
@@ -90,8 +109,8 @@ public class ProfileLauncherFacade(
         string profileId,
         bool skipUserDataCleanup,
         IReadOnlyDictionary<string, string>? additionalArguments,
-        CancellationToken cancellationToken = default,
-        string? networkIpOverride = null)
+        CancellationToken cancellationToken,
+        string? networkIpOverride)
     {
         try
         {
