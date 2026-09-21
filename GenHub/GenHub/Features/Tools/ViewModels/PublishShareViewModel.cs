@@ -4607,17 +4607,13 @@ public partial class PublishShareViewModel(
 
     private void MarkCatalogWithContentStale(string contentId)
     {
-        foreach (var catalog in project.Catalogs)
+        var catalog = project.Catalogs.FirstOrDefault(c => c.Catalog.Content.Any(content => content.Id == contentId));
+        if (catalog != null)
         {
-            if (catalog.Catalog.Content.Any(c => c.Id == contentId))
+            var status = CatalogStatuses.FirstOrDefault(s => s.Catalog.Id == catalog.Id);
+            if (status != null)
             {
-                var status = CatalogStatuses.FirstOrDefault(s => s.Catalog.Id == catalog.Id);
-                if (status != null)
-                {
-                    status.HasChanges = true;
-                }
-
-                return;
+                status.HasChanges = true;
             }
         }
     }
