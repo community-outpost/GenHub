@@ -434,6 +434,33 @@ public sealed class DownloadedContentDiscovererTests
         Assert.Equal("Custom Family", item.VariantFamilyName);
     }
 
+    /// <summary>
+    /// Verifies that an unmappable manifest neither consumes a page slot nor inflates
+    /// totals: the page fills with valid entries and counts exclude the skipped one.
+    /// </summary>
+    /// <returns>A task that represents the asynchronous test.</returns>
+    [Fact]
+    public async Task DiscoverAsync_WithUnmappableManifest_FillsPageAndExcludesFromTotalsAsync()
+    {
+        var broken = CreateManifest("1.20260101.test.mod.alpha", "Alpha Mod", ContentType.Mod, GameType.ZeroHour);
+        var valid = CreateManifest("1.20260102.test.mod.bravo", "Bravo Mod", ContentType.Mod, GameType.ZeroHour);
+
+        var artworkService = CreateArtworkService();
+        artworkService
+            .Setup(service => service.GetLocalArtworkPath(broken.Id.Value, It.IsAny<ContentArtworkKind>()))
+            .Throws(new InvalidOperationException("Corrupt artwork index"));
+
+        var discoverer = CreateDiscoverer([broken, valid], artworkService);
+
+        var result = await discoverer.DiscoverAsync(new ContentSearchQuery { Take = 1, Page = 1 });
+
+        Assert.True(result.Success);
+        var item = Assert.Single(result.Data!.Items);
+        Assert.Equal("Bravo Mod", item.Name);
+        Assert.Equal(1, result.Data.TotalItems);
+        Assert.False(result.Data.HasMoreItems);
+    }
+
     private static DownloadedContentDiscoverer CreateDiscoverer(
         IReadOnlyList<ContentManifest> manifests,
         Mock<IContentArtworkService>? artworkService = null)

@@ -2364,27 +2364,21 @@ public partial class ContentDetailViewModel(
                 // substring matches routinely pick a sibling release and would show
                 // "Add to Profile" on the wrong row. The row's own async state probe
                 // corrects display state; selection below is still harmless.
-                if (value.CurrentState == ContentState.Downloaded)
+                if (value.CurrentState == ContentState.Downloaded && isExactManifestOrNameMatch)
                 {
-                    if (isExactManifestOrNameMatch)
+                    match.IsDownloaded = true;
+                    if (!string.IsNullOrEmpty(value.ManifestId) && ManifestIdValidator.IsValid(value.ManifestId, out _))
                     {
-                        match.IsDownloaded = true;
-                        if (!string.IsNullOrEmpty(value.ManifestId) && ManifestIdValidator.IsValid(value.ManifestId, out _))
-                        {
-                            match.DownloadedManifestId = value.ManifestId;
-                        }
+                        match.DownloadedManifestId = value.ManifestId;
                     }
                 }
-                else if (value.CurrentState == ContentState.UpdateAvailable)
+                else if (value.CurrentState == ContentState.UpdateAvailable && isExactManifestOrNameMatch)
                 {
-                    if (isExactManifestOrNameMatch)
+                    match.IsDownloaded = true;
+                    match.IsUpdateAvailable = true;
+                    if (!string.IsNullOrEmpty(value.ManifestId) && ManifestIdValidator.IsValid(value.ManifestId, out _))
                     {
-                        match.IsDownloaded = true;
-                        match.IsUpdateAvailable = true;
-                        if (!string.IsNullOrEmpty(value.ManifestId) && ManifestIdValidator.IsValid(value.ManifestId, out _))
-                        {
-                            match.DownloadedManifestId = value.ManifestId;
-                        }
+                        match.DownloadedManifestId = value.ManifestId;
                     }
                 }
 
@@ -2753,9 +2747,6 @@ public partial class ContentDetailViewModel(
 
                     if (matchingRelease != null)
                     {
-                        matchingRelease.IsDownloaded = true;
-                        matchingRelease.IsUpdateAvailable = IsUpdateAvailable;
-
                         // Bind the on-disk manifest only on exact identity: a single exact release,
                         // a row already resolved to this manifest, or (when the parent itself is
                         // downloaded with no update pending, so the local manifest IS this release)
@@ -2781,9 +2772,14 @@ public partial class ContentDetailViewModel(
                             }
                         }
 
+                        // Flags follow the bound manifest: marking a row downloaded without one
+                        // shows an Add to Profile button that rejects the action, and the row's
+                        // own probe returns early for NotDownloaded without clearing the flags.
                         if (!string.IsNullOrEmpty(manifestIdForRelease))
                         {
                             matchingRelease.DownloadedManifestId = manifestIdForRelease;
+                            matchingRelease.IsDownloaded = true;
+                            matchingRelease.IsUpdateAvailable = IsUpdateAvailable;
                         }
 
                         RefreshSelectedTargetProperties();

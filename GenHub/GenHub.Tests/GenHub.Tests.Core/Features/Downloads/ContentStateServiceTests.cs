@@ -2230,8 +2230,9 @@ public class ContentStateServiceTests
 
     /// <summary>
     /// Verifies that installing one ModDB release does not mark its sibling releases as
-    /// installed: a sibling row with a different detail URL resolves to NotDownloaded with no
-    /// manifest, so Add to Profile can never target the wrong release.
+    /// installed: a sibling row carrying the stored manifest's exact name but a different
+    /// detail URL and version resolves to NotDownloaded with no manifest, proving name
+    /// agreement alone cannot link a row to another release's manifest.
     /// </summary>
     /// <returns>A completed task.</returns>
     [Fact]
@@ -2269,7 +2270,7 @@ public class ContentStateServiceTests
         var row172 = new ContentSearchResult
         {
             Id = ContentConstants.FileContentIdPrefix + detailUrl172,
-            Name = "Rise of the Reds Version 1.72",
+            Name = storedManifest.Name,
             Version = "1.72",
             ProviderName = ModDBConstants.PublisherType,
             ContentType = ContentType.Map,

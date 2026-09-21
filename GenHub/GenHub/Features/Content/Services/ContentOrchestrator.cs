@@ -590,10 +590,12 @@ public class ContentOrchestrator : IContentOrchestrator
             finally
             {
                 // Cleanup staging directory off the calling thread: deleting a large extracted
-                // tree synchronously janks the UI when acquisition resumes on it.
+                // tree synchronously janks the UI when acquisition resumes on it. The token is
+                // explicitly not forwarded: this is finally-block cleanup that must run even
+                // when acquisition was cancelled, otherwise staging directories leak.
                 try
                 {
-                    await Task.Run(() => FileOperationsService.DeleteDirectoryIfExists(stagingDir));
+                    await Task.Run(() => FileOperationsService.DeleteDirectoryIfExists(stagingDir), CancellationToken.None);
                 }
                 catch (Exception ex)
                 {

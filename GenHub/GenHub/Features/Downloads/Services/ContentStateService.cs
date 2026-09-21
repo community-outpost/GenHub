@@ -141,9 +141,7 @@ public sealed partial class ContentStateService(
             return ContentState.Downloaded;
         }
 
-        var isFileRow = (!string.IsNullOrEmpty(item.Id) && item.Id.StartsWith(FileSchemePrefix, StringComparison.OrdinalIgnoreCase)) ||
-                        !string.IsNullOrWhiteSpace(item.SelectedDownloadUrl);
-        if (isFileRow)
+        if (IsFileRow(item))
         {
             logger.LogDebug("Content {ContentName} is not downloaded (file row with no exact manifest match)", item.Name);
             return ContentState.NotDownloaded;
@@ -215,9 +213,7 @@ public sealed partial class ContentStateService(
             return prospectiveId;
         }
 
-        var isFileRow = (!string.IsNullOrEmpty(item.Id) && item.Id.StartsWith(FileSchemePrefix, StringComparison.OrdinalIgnoreCase)) ||
-                        !string.IsNullOrWhiteSpace(item.SelectedDownloadUrl);
-        if (isFileRow)
+        if (IsFileRow(item))
         {
             return null;
         }
@@ -1463,6 +1459,12 @@ public sealed partial class ContentStateService(
             StringComparison.OrdinalIgnoreCase);
     }
 
+    private static bool IsFileRow(ContentSearchResult item)
+    {
+        return (!string.IsNullOrEmpty(item.Id) && item.Id.StartsWith(FileSchemePrefix, StringComparison.OrdinalIgnoreCase)) ||
+            !string.IsNullOrWhiteSpace(item.SelectedDownloadUrl);
+    }
+
     private static bool FileRowMatchesManifest(ContentManifest manifest, ContentSearchResult item)
     {
         var checkUrl = !string.IsNullOrWhiteSpace(item.SelectedDownloadUrl) ? item.SelectedDownloadUrl : item.SourceUrl;
@@ -2196,9 +2198,7 @@ public sealed partial class ContentStateService(
         // linkage identifies the row's own manifest regardless of version-string schemes,
         // which differ per publisher (ModDB rows carry display versions like "1.85" while
         // manifests carry dates). Version heuristics below must not veto that linkage.
-        var isFileRow = (!string.IsNullOrEmpty(item.Id) && item.Id.StartsWith(FileSchemePrefix, StringComparison.OrdinalIgnoreCase)) ||
-            !string.IsNullOrWhiteSpace(item.SelectedDownloadUrl);
-        if (isFileRow && IsSameContentSource(persistedManifest, item))
+        if (IsFileRow(item) && IsSameContentSource(persistedManifest, item))
         {
             return persistedManifest.Id.Value;
         }
@@ -2254,10 +2254,8 @@ public sealed partial class ContentStateService(
         }
 
         var manifests = allManifestsResult.Data.ToList();
-        var isFileRow = (!string.IsNullOrEmpty(item.Id) && item.Id.StartsWith(FileSchemePrefix, StringComparison.OrdinalIgnoreCase)) ||
-                        !string.IsNullOrWhiteSpace(item.SelectedDownloadUrl);
 
-        if (isFileRow)
+        if (IsFileRow(item))
         {
             return FindDirectFileMatch(manifests, item, logger);
         }

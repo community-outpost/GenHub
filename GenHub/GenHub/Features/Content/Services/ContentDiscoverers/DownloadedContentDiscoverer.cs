@@ -62,7 +62,6 @@ public sealed class DownloadedContentDiscoverer(
         }
 
         var filtered = manifestsResult.Data.Where(manifest => MatchesQuery(manifest, query)).ToList();
-        var total = filtered.Count;
 
         var take = query.Take > 0 ? query.Take : FallbackPageSize;
         var page = query.Page.GetValueOrDefault(1);
@@ -71,30 +70,20 @@ public sealed class DownloadedContentDiscoverer(
             page = 1;
         }
 
-        var skip = Math.Max(0, query.Skip + ((page - 1) * take));
-        var pageItems = filtered
+        // Map defensively before pagination: one malformed manifest must neither fail the
+        // whole library page nor consume a page slot and starve valid entries. Totals are
+        // computed from the successfully mapped set.
+        var ordered = filtered
             .OrderBy(manifest => manifest.Name, StringComparer.OrdinalIgnoreCase)
             .ThenBy(manifest => manifest.Version, StringComparer.OrdinalIgnoreCase)
             .ThenBy(manifest => manifest.Id.Value, StringComparer.OrdinalIgnoreCase)
-            .Skip(skip)
-            .Take(take)
             .ToList();
-
-        logger.LogDebug(
-            "Downloaded content discovery: {Total} stored, {Returned} returned (page {Page})",
-            total,
-            pageItems.Count,
-            page);
-
-        PrefetchPageArtwork(pageItems, cancellationToken);
-
-        // Map defensively: one malformed manifest must not fail the whole library page.
-        var items = new List<ContentSearchResult>(pageItems.Count);
-        foreach (var manifest in pageItems)
+        var mapped = new List<(ContentManifest Manifest, ContentSearchResult Item)>(ordered.Count);
+        foreach (var manifest in ordered)
         {
             try
             {
-                items.Add(ToSearchResult(manifest));
+                mapped.Add((manifest, ToSearchResult(manifest)));
             }
             catch (Exception ex)
             {
@@ -102,10 +91,24 @@ public sealed class DownloadedContentDiscoverer(
             }
         }
 
+        var total = mapped.Count;
+        var skip = Math.Max(0, query.Skip + ((page - 1) * take));
+        var pagePairs = mapped.Skip(skip).Take(take).ToList();
+        var pageItems = pagePairs.Select(pair => pair.Manifest).ToList();
+        var items = pagePairs.Select(pair => pair.Item).ToList();
+
+        logger.LogDebug(
+            "Downloaded content discovery: {Total} stored, {Returned} returned (page {Page})",
+            total,
+            items.Count,
+            page);
+
+        PrefetchPageArtwork(pageItems, cancellationToken);
+
         return OperationResult<ContentDiscoveryResult>.CreateSuccess(new ContentDiscoveryResult
         {
             Items = items,
-            HasMoreItems = skip + pageItems.Count < total,
+            HasMoreItems = skip + pagePairs.Count < total,
             TotalItems = total,
         });
     }

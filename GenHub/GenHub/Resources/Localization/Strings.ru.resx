@@ -7676,12 +7676,6 @@ GenHub передает официальный идентификатор AppID 
   <data name="Downloads.ContentDetail.LoadingModDbDetailsMessage" xml:space="preserve">
     <value>Открывается окно браузера для чтения этой страницы ModDB. Если потребуется проверка, выполните её там. В противном случае подождите и ничего не нажимайте в этом окне — сведения заполнятся автоматически.</value>
   </data>
-  <data name="Downloads.ContentDetail.ModDbDownloadStartingTitle" xml:space="preserve">
-    <value>Запуск загрузки с ModDB</value>
-  </data>
-  <data name="Downloads.ContentDetail.ModDbDownloadStartingMessage" xml:space="preserve">
-    <value>Откроется окно браузера для загрузки этого файла. Дождитесь завершения загрузки и ничего не нажимайте в этом окне.</value>
-  </data>
   <data name="Downloads.ContentDetail.DownloadFailed" xml:space="preserve">
     <value>Ошибка загрузки</value>
   </data>
