@@ -213,17 +213,17 @@ public static partial class ContentCardBadgeHelper
 
         if (IsCommunityOutpost(result))
         {
-            return "avares://GenHub/Assets/Covers/gla-cover.png";
+            return "avares://GenHub/Assets/Covers/gla-cover.jpg";
         }
 
         if (IsTheSuperHackers(result))
         {
             if (result.ContentType == ContentType.Patch)
             {
-                return "avares://GenHub/Assets/Covers/gla-cover.png";
+                return "avares://GenHub/Assets/Covers/gla-cover.jpg";
             }
 
-            return "avares://GenHub/Assets/Covers/china-cover.png";
+            return "avares://GenHub/Assets/Covers/china-cover.jpg";
         }
 
         if (IsGitHub(result))

@@ -366,11 +366,12 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
     private static string NormalizeResourcePath(string? path, string defaultUri)
     {
         if (string.IsNullOrWhiteSpace(path)) return defaultUri;
+        path = MigrateLegacyCoverFilename(path);
         if (path.StartsWith(UriConstants.AvarUriScheme, StringComparison.OrdinalIgnoreCase)) return path;
         if (Uri.TryCreate(path, UriKind.Absolute, out _)) return path;
 
         // Add backward compatibility for old cover paths
-        // Images were renamed/moved: Assets/Images/china-poster.png → Assets/Covers/china-cover.png
+        // Images were renamed/moved: Assets/Images/china-poster.png → Assets/Covers/china-cover.jpg
         var normalizedPath = path;
         var legacyImagesPath = UriConstants.LegacyImagesBasePath;
         var coversPath = UriConstants.CoversDirectoryPath;
@@ -398,6 +399,26 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
         }
 
         return $"{UriConstants.AvarUriScheme}GenHub/{normalizedPath.TrimStart('/')}";
+    }
+
+    private static string MigrateLegacyCoverFilename(string path)
+    {
+        if (path.Contains(UriConstants.LegacyChinaCoverPngFilename, StringComparison.OrdinalIgnoreCase))
+        {
+            return path.Replace(UriConstants.LegacyChinaCoverPngFilename, UriConstants.ChinaCoverFilename, StringComparison.OrdinalIgnoreCase);
+        }
+
+        if (path.Contains(UriConstants.LegacyUsaCoverPngFilename, StringComparison.OrdinalIgnoreCase))
+        {
+            return path.Replace(UriConstants.LegacyUsaCoverPngFilename, UriConstants.UsaCoverFilename, StringComparison.OrdinalIgnoreCase);
+        }
+
+        if (path.Contains(UriConstants.LegacyGlaCoverPngFilename, StringComparison.OrdinalIgnoreCase))
+        {
+            return path.Replace(UriConstants.LegacyGlaCoverPngFilename, UriConstants.GlaCoverFilename, StringComparison.OrdinalIgnoreCase);
+        }
+
+        return path;
     }
 
     private static void PopulateGameSettings(CreateProfileRequest request, UpdateProfileRequest? gameSettings)

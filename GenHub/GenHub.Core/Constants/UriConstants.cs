@@ -155,17 +155,17 @@ public static class UriConstants
     /// <summary>
     /// Filename for China cover.
     /// </summary>
-    public const string ChinaCoverFilename = "china-cover.png";
+    public const string ChinaCoverFilename = "china-cover.jpg";
 
     /// <summary>
     /// Filename for USA cover.
     /// </summary>
-    public const string UsaCoverFilename = "usa-cover.png";
+    public const string UsaCoverFilename = "usa-cover.jpg";
 
     /// <summary>
     /// Filename for GLA cover.
     /// </summary>
-    public const string GlaCoverFilename = "gla-cover.png";
+    public const string GlaCoverFilename = "gla-cover.jpg";
 
     /// <summary>
     /// Legacy base path for image assets.
@@ -186,6 +186,21 @@ public static class UriConstants
     /// Legacy filename for GLA poster.
     /// </summary>
     public const string LegacyGlaPosterFilename = "gla-poster.png";
+
+    /// <summary>
+    /// Legacy filename for China cover before the JPEG re-encode.
+    /// </summary>
+    public const string LegacyChinaCoverPngFilename = "china-cover.png";
+
+    /// <summary>
+    /// Legacy filename for USA cover before the JPEG re-encode.
+    /// </summary>
+    public const string LegacyUsaCoverPngFilename = "usa-cover.png";
+
+    /// <summary>
+    /// Legacy filename for GLA cover before the JPEG re-encode.
+    /// </summary>
+    public const string LegacyGlaCoverPngFilename = "gla-cover.png";
 
     // Logo Path Constants
 

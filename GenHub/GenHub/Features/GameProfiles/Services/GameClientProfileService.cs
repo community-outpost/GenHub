@@ -398,17 +398,17 @@ public class GameClientProfileService(
         {
             if (gameClient.PublisherType == PublisherTypeConstants.TheSuperHackers)
             {
-                return $"{UriConstants.AvarUriScheme}GenHub{UriConstants.CoversBasePath}/china-cover.png";
+                return $"{UriConstants.AvarUriScheme}GenHub{UriConstants.CoversBasePath}/{UriConstants.ChinaCoverFilename}";
             }
 
             if (gameClient.PublisherType == CommunityOutpostConstants.PublisherType)
             {
-                return $"{UriConstants.AvarUriScheme}GenHub{UriConstants.CoversBasePath}/gla-cover.png";
+                return $"{UriConstants.AvarUriScheme}GenHub{UriConstants.CoversBasePath}/{UriConstants.GlaCoverFilename}";
             }
 
             if (gameClient.PublisherType == PublisherTypeConstants.GeneralsOnline)
             {
-                return $"{UriConstants.AvarUriScheme}GenHub{UriConstants.CoversBasePath}/usa-cover.png";
+                return $"{UriConstants.AvarUriScheme}GenHub{UriConstants.CoversBasePath}/{UriConstants.UsaCoverFilename}";
             }
         }
 

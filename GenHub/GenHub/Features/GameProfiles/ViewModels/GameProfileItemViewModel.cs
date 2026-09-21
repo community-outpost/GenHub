@@ -631,7 +631,8 @@ public partial class GameProfileItemViewModel : ViewModelBase
 
     /// <summary>
     /// Normalizes old cover paths to new paths for backward compatibility.
-    /// Handles migration from Assets/Images/*.png to Assets/Covers/*.png.
+    /// Handles migration from Assets/Images/*.png to Assets/Covers/*.png,
+    /// and from the legacy PNG faction covers to the re-encoded JPEG covers.
     /// </summary>
     /// <param name="coverPath">The cover path to normalize.</param>
     /// <returns>The normalized cover path.</returns>
@@ -643,23 +644,31 @@ public partial class GameProfileItemViewModel : ViewModelBase
         }
 
         // Map old paths to new paths for backward compatibility
-        // Images were renamed/moved: Assets/Images/china-poster.png → Assets/Covers/china-cover.png
+        // Images were renamed/moved: Assets/Images/china-poster.png → Assets/Covers/china-cover.jpg
         return coverPath switch
         {
-            var p when p.Contains("china-poster.png", StringComparison.OrdinalIgnoreCase) =>
-                p.Replace("china-poster.png", "china-cover.png", StringComparison.OrdinalIgnoreCase)
-                 .Replace("/Assets/Images/", "/Assets/Covers/", StringComparison.OrdinalIgnoreCase),
-            var p when p.Contains("usa-poster.png", StringComparison.OrdinalIgnoreCase) =>
-                p.Replace("usa-poster.png", "usa-cover.png", StringComparison.OrdinalIgnoreCase)
-                 .Replace("/Assets/Images/", "/Assets/Covers/", StringComparison.OrdinalIgnoreCase),
-            var p when p.Contains("gla-poster.png", StringComparison.OrdinalIgnoreCase) =>
-                p.Replace("gla-poster.png", "gla-cover.png", StringComparison.OrdinalIgnoreCase)
-                 .Replace("/Assets/Images/", "/Assets/Covers/", StringComparison.OrdinalIgnoreCase),
+            var p when p.Contains(UriConstants.LegacyChinaPosterFilename, StringComparison.OrdinalIgnoreCase) =>
+                p.Replace(UriConstants.LegacyChinaPosterFilename, UriConstants.ChinaCoverFilename, StringComparison.OrdinalIgnoreCase)
+                 .Replace(UriConstants.LegacyImagesBasePath, UriConstants.CoversDirectoryPath, StringComparison.OrdinalIgnoreCase),
+            var p when p.Contains(UriConstants.LegacyUsaPosterFilename, StringComparison.OrdinalIgnoreCase) =>
+                p.Replace(UriConstants.LegacyUsaPosterFilename, UriConstants.UsaCoverFilename, StringComparison.OrdinalIgnoreCase)
+                 .Replace(UriConstants.LegacyImagesBasePath, UriConstants.CoversDirectoryPath, StringComparison.OrdinalIgnoreCase),
+            var p when p.Contains(UriConstants.LegacyGlaPosterFilename, StringComparison.OrdinalIgnoreCase) =>
+                p.Replace(UriConstants.LegacyGlaPosterFilename, UriConstants.GlaCoverFilename, StringComparison.OrdinalIgnoreCase)
+                 .Replace(UriConstants.LegacyImagesBasePath, UriConstants.CoversDirectoryPath, StringComparison.OrdinalIgnoreCase),
+
+            // Stored profiles may reference the pre-re-encode PNG faction covers
+            var p when p.Contains(UriConstants.LegacyChinaCoverPngFilename, StringComparison.OrdinalIgnoreCase) =>
+                p.Replace(UriConstants.LegacyChinaCoverPngFilename, UriConstants.ChinaCoverFilename, StringComparison.OrdinalIgnoreCase),
+            var p when p.Contains(UriConstants.LegacyUsaCoverPngFilename, StringComparison.OrdinalIgnoreCase) =>
+                p.Replace(UriConstants.LegacyUsaCoverPngFilename, UriConstants.UsaCoverFilename, StringComparison.OrdinalIgnoreCase),
+            var p when p.Contains(UriConstants.LegacyGlaCoverPngFilename, StringComparison.OrdinalIgnoreCase) =>
+                p.Replace(UriConstants.LegacyGlaCoverPngFilename, UriConstants.GlaCoverFilename, StringComparison.OrdinalIgnoreCase),
 
             // Also handle just the directory change for any other files in Images/ that might reference covers
-            var p when p.Contains("/Assets/Images/", StringComparison.OrdinalIgnoreCase) &&
+            var p when p.Contains(UriConstants.LegacyImagesBasePath, StringComparison.OrdinalIgnoreCase) &&
                        (p.Contains("cover", StringComparison.OrdinalIgnoreCase) || p.Contains("poster", StringComparison.OrdinalIgnoreCase)) =>
-                p.Replace("/Assets/Images/", "/Assets/Covers/", StringComparison.OrdinalIgnoreCase),
+                p.Replace(UriConstants.LegacyImagesBasePath, UriConstants.CoversDirectoryPath, StringComparison.OrdinalIgnoreCase),
             _ => coverPath,
         };
     }

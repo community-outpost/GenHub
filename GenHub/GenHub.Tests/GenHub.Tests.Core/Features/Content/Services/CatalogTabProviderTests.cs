@@ -74,7 +74,7 @@ public sealed class CatalogTabProviderTests : IDisposable
                                 Title = "Stability pass",
                                 Description = "Improved multiplayer reliability.",
                                 Label = "THIS WEEK",
-                                ImageUrl = "avares://GenHub/Assets/Covers/usa-cover.png",
+                                ImageUrl = "avares://GenHub/Assets/Covers/usa-cover.jpg",
                                 AccentColor = "#3E78B2",
                             },
                         ],

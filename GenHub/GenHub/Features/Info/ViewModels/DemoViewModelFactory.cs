@@ -53,7 +53,7 @@ public static class DemoViewModelFactory
             UseSteamLaunch = false, // Explicitly start disabled so the first toggle turns it ON
         };
 
-        GameProfileItemViewModel vm = new(mockProfile.Id, mockProfile, UriConstants.ZeroHourIconUri, "avares://GenHub/Assets/Covers/usa-cover.png")
+        GameProfileItemViewModel vm = new(mockProfile.Id, mockProfile, UriConstants.ZeroHourIconUri, "avares://GenHub/Assets/Covers/usa-cover.jpg")
         {
             // Wire up demo actions that show notifications instead of real operations
             LaunchAction = async _ =>

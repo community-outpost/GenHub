@@ -184,9 +184,9 @@ public class ProfileResourceService(ILogger<ProfileResourceService> logger)
         // Load faction covers
         var factionCoverFiles = new (string, string, string?)[]
         {
-            ("china-cover.png", "China Cover", null),
-            ("gla-cover.png", "GLA Cover", null),
-            ("usa-cover.png", "USA Cover", null),
+            (UriConstants.ChinaCoverFilename, "China Cover", null),
+            (UriConstants.GlaCoverFilename, "GLA Cover", null),
+            (UriConstants.UsaCoverFilename, "USA Cover", null),
         };
 
         foreach (var (fileName, displayName, gameType) in factionCoverFiles)

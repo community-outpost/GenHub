@@ -49,7 +49,7 @@ public static class GeneralsOnlineConstants
     /// <summary>
     /// Cover image source path for UI display.
     /// </summary>
-    public const string CoverSource = "/Assets/Covers/usa-cover.png";
+    public const string CoverSource = "/Assets/Covers/usa-cover.jpg";
 
     /// <summary>
     /// Theme color for Generals Online content.
