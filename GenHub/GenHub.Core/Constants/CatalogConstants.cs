@@ -66,6 +66,12 @@ public static class CatalogConstants
     public const string GenericCatalogResolverId = "generic-catalog";
 
     /// <summary>
+    /// Source name of the generic catalog content provider that acquires content
+    /// from any subscribed publisher catalog.
+    /// </summary>
+    public const string GenericCatalogProviderName = "GenericCatalog";
+
+    /// <summary>
     /// Default catalog cache expiration in hours.
     /// </summary>
     public const int DefaultCatalogCacheExpirationHours = 24;

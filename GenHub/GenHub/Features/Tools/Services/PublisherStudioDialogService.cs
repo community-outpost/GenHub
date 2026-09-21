@@ -176,6 +176,33 @@ public class PublisherStudioDialogService(
     }
 
     /// <inheritdoc/>
+    public async Task<IReadOnlyList<string>> ShowFilesPickerAsync(string title)
+    {
+        var mainWindow = GetMainWindow();
+        if (mainWindow == null) return [];
+
+        var options = new Avalonia.Platform.Storage.FilePickerOpenOptions
+        {
+            Title = title,
+            AllowMultiple = true,
+            FileTypeFilter =
+            [
+                new Avalonia.Platform.Storage.FilePickerFileType("Supported Content Files (*.zip, *.7z, *.rar, *.tar.gz, *.big)")
+                {
+                    Patterns = ["*.zip", "*.7z", "*.rar", "*.tar.gz", "*.big"],
+                },
+                new Avalonia.Platform.Storage.FilePickerFileType("All Files")
+                {
+                    Patterns = ["*.*"],
+                },
+            ],
+        };
+
+        var files = await mainWindow.StorageProvider.OpenFilePickerAsync(options);
+        return files.Select(f => f.Path.LocalPath).ToList();
+    }
+
+    /// <inheritdoc/>
     public async Task<string?> ShowImagePickerAsync(string title)
     {
         return await ShowOpenPickerAsync(
@@ -271,12 +298,14 @@ public class PublisherStudioDialogService(
             toolWindow.Title = title;
         }
 
+        var mainWindow = GetMainWindow();
+        ConstrainDialogToWorkingArea(toolWindow, mainWindow);
+
         toolWindow.SetDialogContent(view);
         window = toolWindow;
 
         window.Closed += (s, e) => tcs.TrySetResult(defaultResult);
 
-        var mainWindow = GetMainWindow();
         if (mainWindow != null)
         {
             await window.ShowDialog(mainWindow);
@@ -315,6 +344,38 @@ public class PublisherStudioDialogService(
         }
 
         return null;
+    }
+
+    private static void ConstrainDialogToWorkingArea(ToolDialogWindow toolWindow, Window? mainWindow)
+    {
+        const double MaxDialogWidth = 760;
+        const double MaxDialogHeight = 880;
+        const double WorkingAreaMargin = 0.94;
+
+        var maxWidth = MaxDialogWidth;
+        var maxHeight = MaxDialogHeight;
+
+        try
+        {
+            var screen = mainWindow?.Screens.Primary;
+            if (screen != null)
+            {
+                // WorkingArea is in device pixels; window bounds use DIPs.
+                var scaling = screen.Scaling <= 0 ? 1 : screen.Scaling;
+                var workingArea = screen.WorkingArea;
+                maxWidth = Math.Min(MaxDialogWidth, workingArea.Width / scaling * WorkingAreaMargin);
+                maxHeight = Math.Min(MaxDialogHeight, workingArea.Height / scaling * WorkingAreaMargin);
+            }
+        }
+        catch (InvalidOperationException)
+        {
+            // Headless environments may not expose screens; fall back to static caps.
+        }
+
+        // Keep the size-to-content behavior but cap it so the dialog always fits
+        // on screen and its inner ScrollViewer handles overflow instead of clipping.
+        toolWindow.MaxWidth = Math.Max(toolWindow.MinWidth, maxWidth);
+        toolWindow.MaxHeight = Math.Max(toolWindow.MinHeight, maxHeight);
     }
 
     private async Task<string?> ShowOpenPickerAsync(

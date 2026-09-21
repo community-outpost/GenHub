@@ -4,10 +4,16 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:vm="using:GenHub.Features.Tools.ViewModels.Dialogs"
+             xmlns:converters="using:GenHub.Infrastructure.Converters"
              mc:Ignorable="d" d:DesignWidth="680" d:DesignHeight="720"
              x:Class="GenHub.Features.Tools.Views.Dialogs.AddContentDialogView"
              x:DataType="vm:AddContentDialogViewModel"
-             DragDrop.AllowDrop="True">
+             DragDrop.AllowDrop="True"
+             x:Name="RootView">
+
+    <UserControl.Resources>
+        <converters:ColorToBrushConverter x:Key="AccentColorBrushConverter"/>
+    </UserControl.Resources>
 
     <UserControl.Styles>
         <Style Selector="TextBox">
@@ -146,14 +152,21 @@
                 </StackPanel>
 
                 <!-- ==================== ARTWORK (Browser cards & detail headers) ==================== -->
-                <Border Background="{DynamicResource GlassFillSubtleBrush}"
-                        BorderBrush="{DynamicResource GlassStrongBrush}"
-                        BorderThickness="1"
-                        CornerRadius="8"
-                        Padding="16">
+                <Expander Background="{DynamicResource GlassFillSubtleBrush}"
+                          BorderBrush="{DynamicResource GlassStrongBrush}"
+                          BorderThickness="1"
+                          CornerRadius="8"
+                          Padding="16"
+                          IsExpanded="False"
+                          HorizontalAlignment="Stretch"
+                          HorizontalContentAlignment="Stretch">
+                    <Expander.Header>
+                        <StackPanel Spacing="2">
+                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.ArtworkTitle}" Classes="label"/>
+                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.ArtworkHint}" Classes="hint" TextWrapping="Wrap"/>
+                        </StackPanel>
+                    </Expander.Header>
                     <StackPanel Spacing="12">
-                        <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.ArtworkTitle}" Classes="label"/>
-                        <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.ArtworkHint}" Classes="hint" TextWrapping="Wrap"/>
 
                         <!-- Icon -->
                         <StackPanel Spacing="4">
@@ -210,23 +223,60 @@
                         </StackPanel>
 
                         <!-- Accent color -->
-                        <StackPanel Spacing="4">
+                        <StackPanel Spacing="8">
                             <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.AccentColor}" Classes="label"/>
-                            <TextBox Text="{Binding AccentColor, Mode=TwoWay}"
-                                     Watermark="{localization:Localize Tools.PublisherStudio.Content.AccentColorPlaceholder}"
-                                     MaxWidth="200"
-                                     HorizontalAlignment="Left"/>
+                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.AccentColorPresetsHint}" Classes="hint" TextWrapping="Wrap"/>
+                            <StackPanel Orientation="Horizontal" Spacing="12">
+                                <Border Width="40" Height="40"
+                                        CornerRadius="8"
+                                        Background="{Binding AccentColor, Converter={StaticResource AccentColorBrushConverter}}"
+                                        BorderBrush="{DynamicResource GlassBorderBrush}"
+                                        BorderThickness="1"
+                                        VerticalAlignment="Center"
+                                        ToolTip.Tip="{Binding AccentColor}"/>
+                                <TextBox Text="{Binding AccentColor, Mode=TwoWay}"
+                                         Watermark="{localization:Localize Tools.PublisherStudio.Content.AccentColorPlaceholder}"
+                                         MaxWidth="200"
+                                         VerticalAlignment="Center"/>
+                            </StackPanel>
+                            <ItemsControl ItemsSource="{x:Static vm:AddContentDialogViewModel.AccentColorPresets}">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <WrapPanel Orientation="Horizontal"/>
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Button Command="{Binding #RootView.((vm:AddContentDialogViewModel)DataContext).SelectAccentColorCommand}"
+                                                CommandParameter="{Binding}"
+                                                ToolTip.Tip="{Binding}"
+                                                Width="30" Height="30"
+                                                Padding="0"
+                                                CornerRadius="15"
+                                                Margin="0,0,6,6"
+                                                Background="{Binding Converter={StaticResource AccentColorBrushConverter}}"
+                                                BorderThickness="0"
+                                                Cursor="Hand"/>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
                         </StackPanel>
                     </StackPanel>
-                </Border>
+                </Expander>
 
                 <!-- ==================== INITIAL RELEASE & ARTIFACT (Create Mode Only) ==================== -->
-                <Border Background="{DynamicResource GlassFillSubtleBrush}"
-                        BorderBrush="{DynamicResource GlassStrongBrush}"
-                        BorderThickness="1"
-                        CornerRadius="8"
-                        Padding="16"
-                        IsVisible="{Binding !IsEditMode}">
+                <Expander Background="{DynamicResource GlassFillSubtleBrush}"
+                          BorderBrush="{DynamicResource GlassStrongBrush}"
+                          BorderThickness="1"
+                          CornerRadius="8"
+                          Padding="16"
+                          IsExpanded="True"
+                          HorizontalAlignment="Stretch"
+                          HorizontalContentAlignment="Stretch"
+                          IsVisible="{Binding !IsEditMode}">
+                    <Expander.Header>
+                        <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.InitialRelease}" Classes="label"/>
+                    </Expander.Header>
                     <StackPanel Spacing="12">
                         <CheckBox IsChecked="{Binding IncludeInitialRelease}"
                                   Content="{localization:Localize Tools.PublisherStudio.Content.IncludeInitialRelease}"
@@ -240,7 +290,7 @@
                                     <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.ReleaseVersion}" Classes="label"/>
                                     <TextBox Text="{Binding InitialVersion}" Watermark="1.0.0"/>
                                 </StackPanel>
-                                <StackPanel Grid.Column="2" Spacing="4">
+                                <StackPanel Grid.Column="2" Spacing="4" IsVisible="{Binding !IsMultiFileStaging}">
                                     <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.PackageFilename}" Classes="label"/>
                                     <TextBox Text="{Binding PackageFilename}" Watermark="{localization:Localize Tools.PublisherStudio.Content.PackageFilenamePlaceholder}"/>
                                 </StackPanel>
@@ -267,39 +317,89 @@
                             </StackPanel>
 
                             <!-- Local File Mode -->
-                            <StackPanel Spacing="4" IsVisible="{Binding !UseDirectUrl}">
+                            <StackPanel Spacing="8" IsVisible="{Binding !UseDirectUrl}">
                                 <Grid ColumnDefinitions="*,Auto">
                                     <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.LocalFileOrFolder}" Classes="label"/>
                                     <TextBlock Grid.Column="1" Text="{localization:Localize Tools.PublisherStudio.Content.DragDropHint}" Classes="hint" VerticalAlignment="Center"/>
                                 </Grid>
-                                <Grid ColumnDefinitions="*,Auto">
-                                    <TextBox Text="{Binding LocalFilePath, Mode=TwoWay}"
-                                             Watermark="{localization:Localize Tools.PublisherStudio.Content.SelectOrDragPlaceholder}"
-                                             IsReadOnly="True"/>
-                                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" Margin="8,0,0,0">
-                                        <Button Content="{localization:Localize Tools.PublisherStudio.Content.BrowseFile}"
-                                                Command="{Binding BrowseLocalFileCommand}"
-                                                Padding="12,8"
-                                                Background="{DynamicResource GlassStrongBrush}"
-                                                CornerRadius="6"
-                                                Foreground="{DynamicResource TextPrimary}"/>
-                                        <Button Content="{localization:Localize Tools.PublisherStudio.Content.BrowseFolder}"
-                                                Command="{Binding BrowseLocalFolderCommand}"
-                                                Padding="12,8"
-                                                Background="{DynamicResource GlassStrongBrush}"
-                                                CornerRadius="6"
-                                                Foreground="{DynamicResource TextPrimary}"/>
-                                    </StackPanel>
-                                </Grid>
-                                <Grid ColumnDefinitions="Auto,*" Margin="0,4,0,0" IsVisible="{Binding LocalFilePath, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
-                                    <TextBlock Text="{Binding FileSizeDisplay}" FontSize="12" Foreground="{DynamicResource AccentColorBrush}" FontWeight="SemiBold"/>
-                                    <TextBlock Grid.Column="1" Text="{Binding Sha256Hash, StringFormat='SHA256: {0}'}" FontSize="11" Foreground="{DynamicResource TextMuted}" Margin="12,0,0,0" TextTrimming="CharacterEllipsis"/>
-                                </Grid>
+                                <ItemsControl ItemsSource="{Binding StagedFiles}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border Background="{DynamicResource GlassFillSubtleBrush}"
+                                                    BorderBrush="{DynamicResource GlassBorderBrush}"
+                                                    BorderThickness="1"
+                                                    CornerRadius="6"
+                                                    Padding="10,8"
+                                                    Margin="0,0,0,6">
+                                                <Grid ColumnDefinitions="Auto,*,Auto">
+                                                    <PathIcon Data="{StaticResource ContentIcon}"
+                                                              Width="16" Height="16"
+                                                              Foreground="{DynamicResource AccentColorBrush}"
+                                                              VerticalAlignment="Center"
+                                                              Margin="0,0,10,0"/>
+                                                    <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                                                        <TextBlock Text="{Binding DisplayName}"
+                                                                   FontWeight="SemiBold"
+                                                                   FontSize="13"
+                                                                   Foreground="{DynamicResource TextPrimary}"
+                                                                   TextTrimming="CharacterEllipsis"/>
+                                                        <TextBlock Text="{Binding FileSizeDisplay}"
+                                                                   FontSize="11"
+                                                                   Foreground="{DynamicResource AccentColorBrush}"
+                                                                   IsVisible="{Binding FileSizeDisplay, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                                                        <TextBlock Text="{Binding ArchiveNoteText}"
+                                                                   FontSize="11"
+                                                                   Foreground="{DynamicResource TextSecondary}"
+                                                                   TextWrapping="Wrap"
+                                                                   IsVisible="{Binding ArchiveNoteText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                                                        <TextBlock Text="{Binding Sha256Hash, StringFormat='SHA256: {0}'}"
+                                                                   FontSize="10"
+                                                                   Foreground="{DynamicResource TextMuted}"
+                                                                   TextTrimming="CharacterEllipsis"
+                                                                   IsVisible="{Binding Sha256Hash, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                                                    </StackPanel>
+                                                    <Button Grid.Column="2"
+                                                            Command="{Binding #RootView.((vm:AddContentDialogViewModel)DataContext).RemoveStagedFileCommand}"
+                                                            CommandParameter="{Binding}"
+                                                            ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Content.RemoveStagedFileTooltip}"
+                                                            Background="Transparent"
+                                                            BorderThickness="0"
+                                                            Padding="8"
+                                                            VerticalAlignment="Center"
+                                                            Cursor="Hand">
+                                                        <PathIcon Data="{StaticResource CloseIcon}" Width="10" Height="10" Foreground="{DynamicResource StatusErrorBrush}"/>
+                                                    </Button>
+                                                </Grid>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                                <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.NoFileSelected}"
+                                           Classes="hint"
+                                           IsVisible="{Binding !HasStagedFiles}"/>
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <Button Content="{localization:Localize Tools.PublisherStudio.Content.BrowseFiles}"
+                                            Command="{Binding BrowseLocalFileCommand}"
+                                            Padding="12,8"
+                                            Background="{DynamicResource GlassStrongBrush}"
+                                            CornerRadius="6"
+                                            Foreground="{DynamicResource TextPrimary}"/>
+                                    <Button Content="{localization:Localize Tools.PublisherStudio.Content.BrowseFolder}"
+                                            Command="{Binding BrowseLocalFolderCommand}"
+                                            Padding="12,8"
+                                            Background="{DynamicResource GlassStrongBrush}"
+                                            CornerRadius="6"
+                                            Foreground="{DynamicResource TextPrimary}"/>
+                                </StackPanel>
+                                <TextBlock Text="{Binding MultiFileBundleNote}"
+                                           Classes="hint"
+                                           TextWrapping="Wrap"
+                                           IsVisible="{Binding IsMultiFileStaging}"/>
                                 <ProgressBar IsIndeterminate="True" Height="2" IsVisible="{Binding IsComputingHash}" Margin="0,4,0,0"/>
                             </StackPanel>
                         </StackPanel>
                     </StackPanel>
-                </Border>
+                </Expander>
             </StackPanel>
         </ScrollViewer>
 

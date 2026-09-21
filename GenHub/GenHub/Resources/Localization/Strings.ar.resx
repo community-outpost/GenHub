@@ -12884,6 +12884,60 @@ GameFilesEdited/Data/INI/**/*.ini</value>
   <data name="Tools.PublisherStudio.Hosting.RedirectUriCopied" xml:space="preserve">
     <value>تم نسخ عنوان إعادة التوجيه. الصقه في قائمة Redirect URIs بتطبيق Dropbox الخاص بك.</value>
   </data>
+  <data name="Tools.PublisherStudio.Content.AutoDescriptionFormat" xml:space="preserve">
+    <value>{0} حزمة لـ {1}.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Validation.DownloadUrlInvalid" xml:space="preserve">
+    <value>يجب أن يكون رابط التنزيل رابط HTTP أو HTTPS صالحًا.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Validation.LocalPathMissingFormat" xml:space="preserve">
+    <value>المسار المحلي غير موجود: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.SelectFileTitle" xml:space="preserve">
+    <value>اختيار ملف القطعة</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.SelectFolderTitle" xml:space="preserve">
+    <value>اختيار مجلد القطعة</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.AccentColorPresetsHint" xml:space="preserve">
+    <value>اختر لونًا جاهزًا أو أدخل لون hex مخصص.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.BrowseFiles" xml:space="preserve">
+    <value>استعراض الملفات...</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.RemoveStagedFileTooltip" xml:space="preserve">
+    <value>إزالة الملف</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.MultiFileBundleNoteFormat" xml:space="preserve">
+    <value>سيتم رفع {0} من الملفات بشكل منفصل وتثبيتها معًا كحزمة واحدة.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.StagedFolderCalculating" xml:space="preserve">
+    <value>مجلد (جارٍ حساب الحجم...)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.StagedFolderSizeFormat" xml:space="preserve">
+    <value>{0} (مجلد)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.StagedFolderUnavailable" xml:space="preserve">
+    <value>مجلد (الحجم غير متوفر)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.StagedArchiveFormat" xml:space="preserve">
+    <value>أرشيف يحتوي على {0} من الملفات. يتم استخراج المحتويات تلقائيًا عندما يثبّت اللاعبون هذا المحتوى.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.StagedArchiveUnknownFormat" xml:space="preserve">
+    <value>أرشيف. يتم استخراج المحتويات تلقائيًا عندما يثبّت اللاعبون هذا المحتوى.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Release.BundleArtifacts" xml:space="preserve">
+    <value>تثبيت جميع الملفات معًا (حزمة)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Release.BundleArtifactsHint" xml:space="preserve">
+    <value>يتم تثبيت جمиع القطع في هذا الإصدار كحزمة واحدة بدلاً من عرض منتقي الملفات.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.RemoteCatalogDeleteFailedFormat" xml:space="preserve">
+    <value>تمت إزالة الفهرس محليًا، ولكن تعذّر حذف الملف المنشور لـ '{0}'. قد يظل متاحًا.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.PublishCatalogTooltip" xml:space="preserve">
+    <value>نشر هذا الفهرس إلى موفر الاستضافة</value>
+  </data>
   <data name="GameProfiles.Notification.UnexpectedExit.Title" xml:space="preserve">
     <value>خرجت اللعبة بشكل غير متوقع</value>
   </data>

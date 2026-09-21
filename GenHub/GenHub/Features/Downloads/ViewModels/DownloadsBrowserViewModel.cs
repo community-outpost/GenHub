@@ -38,6 +38,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Threading;
@@ -1864,6 +1865,8 @@ public sealed partial class DownloadsBrowserViewModel(
 
             if (result.Success && result.Data != null)
             {
+                await PersistRefreshedSubscriptionUrlAsync(publisherId, discoverer, opCts.Token);
+
                 var items = result.Data.Items
                     .Where(item => !query.ContentType.HasValue || item.ContentType == query.ContentType.Value)
                     .ToList();
@@ -2450,6 +2453,74 @@ public sealed partial class DownloadsBrowserViewModel(
 
         vm.Initialize();
         return vm;
+    }
+
+    /// <summary>
+    /// Persists a catalog URL refreshed from the publisher definition during discovery,
+    /// so publisher renames and hosting moves survive the next subscription sync.
+    /// </summary>
+    /// <param name="publisherId">The publisher ID.</param>
+    /// <param name="discoverer">The discoverer that ran the fetch.</param>
+    /// <param name="cancellationToken">A token to cancel the operation.</param>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    private async Task PersistRefreshedSubscriptionUrlAsync(
+        string publisherId,
+        IContentDiscoverer discoverer,
+        CancellationToken cancellationToken)
+    {
+        if (cancellationToken.IsCancellationRequested)
+        {
+            return;
+        }
+
+        if (discoverer is not GenericCatalogDiscoverer genericCatalogDiscoverer)
+        {
+            return;
+        }
+
+        var refreshedUrl = genericCatalogDiscoverer.TakeRefreshedCatalogUrl();
+        if (string.IsNullOrWhiteSpace(refreshedUrl))
+        {
+            return;
+        }
+
+        try
+        {
+            var storedResult = await subscriptionStore.GetSubscriptionAsync(publisherId, cancellationToken);
+            if (!storedResult.Success || storedResult.Data == null)
+            {
+                return;
+            }
+
+            if (string.Equals(storedResult.Data.CatalogUrl, refreshedUrl, StringComparison.OrdinalIgnoreCase))
+            {
+                return;
+            }
+
+            storedResult.Data.CatalogUrl = refreshedUrl;
+            storedResult.Data.CachedCatalogHash = null;
+            storedResult.Data.LastFetched = null;
+            var updateResult = await subscriptionStore.UpdateSubscriptionAsync(storedResult.Data, cancellationToken);
+            if (updateResult.Success)
+            {
+                logger.LogInformation("Persisted refreshed catalog URL for {PublisherId}", publisherId);
+            }
+            else
+            {
+                logger.LogWarning(
+                    "Failed to persist refreshed catalog URL for {PublisherId}: {Errors}",
+                    publisherId,
+                    string.Join("; ", updateResult.Errors));
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // Best-effort persistence; results were already delivered.
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException)
+        {
+            logger.LogDebug(ex, "Failed to persist refreshed catalog URL for {PublisherId}", publisherId);
+        }
     }
 
     /// <returns>The discoverer for the specified publisher, or null if not found.</returns>

@@ -51,6 +51,9 @@ public partial class AddReleaseDialogViewModel(
     private string _changelog = string.Empty;
 
     [ObservableProperty]
+    private bool _bundleArtifacts;
+
+    [ObservableProperty]
     private string? _validationError;
 
     [ObservableProperty]
@@ -91,6 +94,7 @@ public partial class AddReleaseDialogViewModel(
         IsPrerelease = existing.IsPrerelease;
         IsFeatured = existing.IsFeatured;
         Changelog = existing.Changelog ?? string.Empty;
+        BundleArtifacts = existing.BundleArtifacts;
 
         Artifacts.Clear();
         foreach (var artifact in existing.Artifacts)
@@ -152,6 +156,7 @@ public partial class AddReleaseDialogViewModel(
     {
         ArgumentNullException.ThrowIfNull(paths);
 
+        var addedCount = 0;
         foreach (var rawPath in paths)
         {
             if (string.IsNullOrWhiteSpace(rawPath))
@@ -177,6 +182,14 @@ public partial class AddReleaseDialogViewModel(
             }
 
             Artifacts.Add(artifact);
+            addedCount++;
+        }
+
+        // Files dropped together are parts of one payload; bundle them so the
+        // downloads browser installs all of them instead of offering a picker.
+        if (addedCount > 1)
+        {
+            BundleArtifacts = true;
         }
 
         Validate();
@@ -489,6 +502,7 @@ public partial class AddReleaseDialogViewModel(
             IsPrerelease = IsPrerelease,
             IsFeatured = IsFeatured,
             Changelog = Changelog.Trim(),
+            BundleArtifacts = BundleArtifacts,
             Artifacts = [.. Artifacts],
             Dependencies = [.. Dependencies],
         };

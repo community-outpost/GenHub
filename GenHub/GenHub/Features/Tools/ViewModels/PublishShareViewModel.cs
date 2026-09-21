@@ -13,12 +13,14 @@ using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
 using System.Security.Cryptography;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -59,6 +61,13 @@ public partial class PublishShareViewModel(
         Backdrop,
     }
 
+    /// <summary>
+    /// Google Drive OAuth client credentials persisted in the encrypted credential store.
+    /// </summary>
+    /// <param name="ClientId">The Google OAuth client ID.</param>
+    /// <param name="ClientSecret">The Google OAuth client secret.</param>
+    private sealed record GoogleDriveClientCredentials(string ClientId, string ClientSecret);
+
     private const string SuccessLiteral = "Success";
     private const string WarningLiteral = "Warning";
     private const string CommonNotificationSuccessKey = "Common.Notification.Success";
@@ -69,6 +78,8 @@ public partial class PublishShareViewModel(
     private const string PublishSuccessTitleKey = "Tools.PublisherStudio.Publish.SuccessTitle";
     private const string PublishFailedTitleKey = "Tools.PublisherStudio.Publish.FailedTitle";
     private const string UploadFailedDefaultMessage = "Upload Failed";
+    private const string IncompatibleProviderTitleKey = "Tools.PublisherStudio.Publish.IncompatibleProvider";
+    private const string IncompatibleProviderDefaultMessage = "Incompatible Provider";
 
     /// <summary>
     /// Progress band (0-80%) shared by pending artifact and artwork uploads.
@@ -142,6 +153,9 @@ public partial class PublishShareViewModel(
     [ObservableProperty]
     private string _googleClientSecret = string.Empty;
 
+    [ObservableProperty]
+    private bool _hasDefinitionChanges = true;
+
     private System.Threading.CancellationTokenSource? _authCts;
     private CancellationTokenSource? _uploadCts;
     private CancellationTokenSource? _scanCts;
@@ -207,6 +221,11 @@ public partial class PublishShareViewModel(
     /// Gets the collection of catalog publish statuses.
     /// </summary>
     public ObservableCollection<CatalogPublishStatus> CatalogStatuses { get; } = project?.Catalogs != null ? new ObservableCollection<CatalogPublishStatus>(project.Catalogs.Select(c => new CatalogPublishStatus(c, localizationService))) : [];
+
+    /// <summary>
+    /// Gets a value indicating whether any catalog needs publishing.
+    /// </summary>
+    public bool AnyCatalogNeedsPublish => CatalogStatuses.Any(s => s.NeedsPublish);
 
     /// <summary>
     /// Gets the available catalogs in the project.
@@ -496,17 +515,7 @@ public partial class PublishShareViewModel(
         string newFileName,
         CancellationToken cancellationToken = default)
     {
-        if (_hostingStates.Count == 0 && !string.IsNullOrEmpty(project.ProjectPath))
-        {
-            var loadResult = hostingStateManager != null ? await hostingStateManager.LoadStatesAsync(project.ProjectPath, cancellationToken) : null;
-            if (loadResult?.Success == true && loadResult.Data != null)
-            {
-                foreach (var (providerId, state) in loadResult.Data.States)
-                {
-                    _hostingStates[providerId] = state;
-                }
-            }
-        }
+        await EnsureHostingStatesLoadedAsync(cancellationToken);
 
         var renamedAny = false;
         var staleRemotes = new List<(string ProviderId, CatalogHostingInfo Entry, string OldFileId)>();
@@ -533,6 +542,120 @@ public partial class PublishShareViewModel(
             await SaveAllHostingStatesAsync(cancellationToken);
             await DeleteRenamedCatalogRemotesAsync(staleRemotes, cancellationToken);
         }
+    }
+
+    /// <summary>
+    /// Deletes the remotely hosted catalog files for a removed catalog across all
+    /// providers and prunes their hosting-state entries. Artifact files are left
+    /// untouched because content IDs can be shared by other catalogs.
+    /// </summary>
+    /// <param name="catalogId">The removed catalog ID.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>True when every remote catalog file was deleted or none existed; otherwise false.</returns>
+    public async Task<bool> DeleteCatalogRemotesAsync(string catalogId, CancellationToken cancellationToken = default)
+    {
+        await EnsureHostingStatesLoadedAsync(cancellationToken);
+
+        var allCleaned = true;
+        var stateChanged = false;
+        foreach (var (providerId, state) in _hostingStates)
+        {
+            var entry = state.Catalogs.FirstOrDefault(c => c.CatalogId == catalogId);
+            if (entry == null)
+            {
+                continue;
+            }
+
+            if (string.IsNullOrWhiteSpace(entry.FileId))
+            {
+                state.Catalogs.Remove(entry);
+                stateChanged = true;
+                continue;
+            }
+
+            var provider = HostingProviders.FirstOrDefault(p =>
+                string.Equals(p.ProviderId, providerId, StringComparison.OrdinalIgnoreCase));
+            if (provider == null || !provider.IsAuthenticated)
+            {
+                allCleaned = false;
+                continue;
+            }
+
+            try
+            {
+                var result = await provider.DeleteFileAsync(entry.FileId, cancellationToken);
+                if (result.Success)
+                {
+                    logger.LogInformation("Deleted remote catalog {FileId} from {Provider}", entry.FileId, providerId);
+                    state.Catalogs.Remove(entry);
+                    stateChanged = true;
+                }
+                else
+                {
+                    logger.LogWarning("Failed to delete remote catalog {FileId} from {Provider}: {Error}", entry.FileId, providerId, result.FirstError);
+                    allCleaned = false;
+                }
+            }
+            catch (OperationCanceledException ex)
+            {
+                logger.LogInformation(ex, "Remote catalog cleanup was canceled for {FileId}", entry.FileId);
+                allCleaned = false;
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Failed to delete remote catalog {FileId} from {Provider}", entry.FileId, providerId);
+                allCleaned = false;
+            }
+        }
+
+        if (stateChanged)
+        {
+            await SaveAllHostingStatesAsync(cancellationToken);
+            RefreshHostedAssets();
+        }
+
+        return allCleaned;
+    }
+
+    /// <summary>
+    /// Marks a catalog as having unpublished changes.
+    /// </summary>
+    /// <param name="catalogId">The catalog ID.</param>
+    public void MarkCatalogChanged(string catalogId)
+    {
+        var status = CatalogStatuses.FirstOrDefault(s => s.Catalog.Id == catalogId);
+        if (status == null)
+        {
+            return;
+        }
+
+        status.HasChanges = true;
+        RefreshUploadHierarchy();
+    }
+
+    /// <summary>
+    /// Marks every catalog as having unpublished changes.
+    /// Used when a project-wide edit (such as the publisher profile) affects all exports.
+    /// </summary>
+    public void MarkAllCatalogsChanged()
+    {
+        foreach (var status in CatalogStatuses)
+        {
+            status.HasChanges = true;
+        }
+
+        RefreshUploadHierarchy();
+    }
+
+    /// <summary>
+    /// Gets a value indicating whether a catalog needs publishing.
+    /// Unknown catalogs report true so their publish actions stay enabled.
+    /// </summary>
+    /// <param name="catalogId">The catalog ID.</param>
+    /// <returns>True when the catalog was never published or has pending changes.</returns>
+    public bool CatalogNeedsPublish(string catalogId)
+    {
+        return CatalogStatuses.FirstOrDefault(s => s.Catalog.Id == catalogId)?.NeedsPublish ?? true;
     }
 
     /// <summary>
@@ -1286,6 +1409,13 @@ public partial class PublishShareViewModel(
         AuthenticationStatusMessage = GetLocalizedString("Tools.PublisherStudio.Publish.AuthenticatedSuccess", "Authenticated successfully");
         logger.LogInformation("Authenticated with {Provider}", SelectedHostingProvider?.DisplayName ?? "Provider");
 
+        // Google client credentials are app-level (not project-level), so persist
+        // them independently of the project path for post-restart restores.
+        if (SelectedHostingProvider?.ProviderId == HostingConstants.GoogleDrive)
+        {
+            await PersistGoogleDriveClientCredentialsAsync();
+        }
+
         // Save token to hosting state for persistence
         await SaveAuthTokenAsync();
 
@@ -1594,6 +1724,20 @@ public partial class PublishShareViewModel(
             catNode.LastUpdated = hostedInfo.LastUpdated;
         }
 
+        // Sync publish state from the tracked status so hierarchy nodes grey out
+        // together with the status list after uploads and edits.
+        var publishStatus = CatalogStatuses.FirstOrDefault(s => s.Catalog.Id == namedCat.Id);
+        if (publishStatus != null)
+        {
+            catNode.IsPublished = publishStatus.IsPublished;
+            catNode.HasChanges = publishStatus.HasChanges;
+            catNode.LastUpdated = publishStatus.LastPublished ?? catNode.LastUpdated;
+            if (publishStatus.PublishedUrl != null)
+            {
+                catNode.DirectDownloadUrl = publishStatus.PublishedUrl;
+            }
+        }
+
         if (namedCat.Catalog?.Content != null)
         {
             foreach (var contentItem in namedCat.Catalog.Content)
@@ -1726,7 +1870,7 @@ public partial class PublishShareViewModel(
         {
             var warningMsg = FormatLocalizedString("Tools.PublisherStudio.Publish.IncompatibleArtifactsActiveCatalogFormat", "{0} only hosts catalog metadata (JSON). The active catalog '{1}' has {2} local file(s) pending upload. Either provide direct CDN URLs for those files, or switch to Google Drive or Dropbox to host binary archives.", SelectedHostingProvider?.DisplayName ?? "This provider", ActiveCatalog?.Name, ActiveCatalogPendingArtifactsCount);
             UploadStatusMessage = warningMsg;
-            notificationService?.ShowError(GetLocalizedString("Tools.PublisherStudio.Publish.IncompatibleProvider", "Incompatible Provider"), warningMsg);
+            notificationService?.ShowError(GetLocalizedString(IncompatibleProviderTitleKey, IncompatibleProviderDefaultMessage), warningMsg);
             return OperationResult<HostingUploadResult>.CreateFailure(warningMsg);
         }
 
@@ -1912,6 +2056,8 @@ public partial class PublishShareViewModel(
         logger.LogInformation("Catalog and artifacts uploaded to {Provider}: {Url}", SelectedHostingProvider.ProviderId, CatalogUrl);
 
         await SaveHostingStateAsync(data.FileId, data.DirectDownloadUrl, data.FileSize, cancellationToken);
+        MarkActiveCatalogPublished(data.DirectDownloadUrl);
+        RefreshUploadHierarchy();
         await PersistProjectAfterPublishAsync();
         await PersistCurrentDropboxCredentialAsync();
         NotifyLibraryRefresh();
@@ -1954,6 +2100,23 @@ public partial class PublishShareViewModel(
                     UploadStatusMessage,
                     autoDismissMs: 4000);
             }
+        }
+    }
+
+    private void MarkActiveCatalogPublished(string catalogUrl)
+    {
+        if (ActiveCatalog == null)
+        {
+            return;
+        }
+
+        var status = CatalogStatuses.FirstOrDefault(s => s.Catalog.Id == ActiveCatalog.Id);
+        if (status != null)
+        {
+            status.IsPublished = true;
+            status.PublishedUrl = catalogUrl;
+            status.LastPublished = DateTime.UtcNow;
+            status.HasChanges = false;
         }
     }
 
@@ -2104,7 +2267,7 @@ public partial class PublishShareViewModel(
             if (!suppressNotifications)
             {
                 notificationService?.ShowError(
-                    GetLocalizedString("Tools.PublisherStudio.Publish.IncompatibleProvider", "Incompatible Provider"),
+                    GetLocalizedString(IncompatibleProviderTitleKey, IncompatibleProviderDefaultMessage),
                     UploadStatusMessage);
             }
 
@@ -2513,7 +2676,7 @@ public partial class PublishShareViewModel(
         if (string.IsNullOrEmpty(project.ProjectPath))
             return;
 
-        _currentHostingState = GetOrCreateHostingState(SelectedHostingProvider?.ProviderId ?? "unknown");
+        _currentHostingState = GetOrCreateHostingState(SelectedHostingProvider?.ProviderId ?? HostingConstants.UnknownProviderId);
 
         // Update or add catalog entry using the active catalog ID
         var catalogId = ActiveCatalog?.Id ?? "default";
@@ -2577,6 +2740,25 @@ public partial class PublishShareViewModel(
         catch (Exception ex)
         {
             logger.LogWarning(ex, "Failed to delete orphaned remote file {FileId}", previousFileId);
+        }
+    }
+
+    private async Task EnsureHostingStatesLoadedAsync(CancellationToken cancellationToken)
+    {
+        if (_hostingStates.Count > 0 || string.IsNullOrEmpty(project.ProjectPath))
+        {
+            return;
+        }
+
+        var loadResult = hostingStateManager != null
+            ? await hostingStateManager.LoadStatesAsync(project.ProjectPath, cancellationToken)
+            : null;
+        if (loadResult?.Success == true && loadResult.Data != null)
+        {
+            foreach (var (providerId, state) in loadResult.Data.States)
+            {
+                _hostingStates[providerId] = state;
+            }
         }
     }
 
@@ -2702,6 +2884,15 @@ public partial class PublishShareViewModel(
 
         SelectedHostingProvider = provider;
 
+        // Google Drive persists OAuth tokens under the broker user key and client
+        // credentials under a dedicated key, never under the provider ID, so its
+        // restore path does not depend on a provider-ID token.
+        if (provider.ProviderId == HostingConstants.GoogleDrive)
+        {
+            await TryRestoreProviderAuthenticationAsync(provider, string.Empty);
+            return;
+        }
+
         var token = await RetrieveOrMigrateTokenAsync(provider);
         if (string.IsNullOrEmpty(token))
         {
@@ -2769,6 +2960,10 @@ public partial class PublishShareViewModel(
                     DropboxAccessToken = token;
                 }
             }
+            else if (provider.ProviderId == HostingConstants.GoogleDrive)
+            {
+                await RestoreGoogleDriveAuthenticationAsync(provider);
+            }
 
             NotifyAuthenticationPropertiesChanged();
         }
@@ -2802,6 +2997,84 @@ public partial class PublishShareViewModel(
         {
             AuthenticationStatusMessage = GetLocalizedString("Tools.PublisherStudio.Publish.RestoredConnection", "Restored connection");
             logger.LogInformation("Restored Dropbox authentication from secure credential store");
+        }
+    }
+
+    private async Task PersistGoogleDriveClientCredentialsAsync()
+    {
+        if (credentialStore == null)
+        {
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(GoogleClientId) || string.IsNullOrWhiteSpace(GoogleClientSecret))
+        {
+            return;
+        }
+
+        var payload = JsonSerializer.Serialize(new GoogleDriveClientCredentials(GoogleClientId.Trim(), GoogleClientSecret.Trim()));
+        await credentialStore.SaveCredentialAsync(HostingConstants.GoogleDriveClientCredentialKey, payload, CancellationToken.None);
+    }
+
+    private async Task RestoreGoogleDriveAuthenticationAsync(IHostingProvider provider)
+    {
+        if (credentialStore == null || provider is not GoogleDriveHostingProvider gdrive)
+        {
+            return;
+        }
+
+        var clientJson = await credentialStore.GetCredentialAsync(HostingConstants.GoogleDriveClientCredentialKey, CancellationToken.None);
+        if (string.IsNullOrWhiteSpace(clientJson))
+        {
+            return;
+        }
+
+        GoogleDriveClientCredentials? clientCredentials;
+        try
+        {
+            clientCredentials = JsonSerializer.Deserialize<GoogleDriveClientCredentials>(clientJson);
+        }
+        catch (JsonException ex)
+        {
+            logger.LogWarning(ex, "Stored Google Drive client credentials are corrupted and will be ignored.");
+            return;
+        }
+
+        if (clientCredentials == null ||
+            string.IsNullOrWhiteSpace(clientCredentials.ClientId) ||
+            string.IsNullOrWhiteSpace(clientCredentials.ClientSecret))
+        {
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(GoogleClientId))
+        {
+            GoogleClientId = clientCredentials.ClientId;
+        }
+
+        if (string.IsNullOrWhiteSpace(GoogleClientSecret))
+        {
+            GoogleClientSecret = clientCredentials.ClientSecret;
+        }
+
+        gdrive.CustomClientId = clientCredentials.ClientId;
+        gdrive.CustomClientSecret = clientCredentials.ClientSecret;
+
+        // Only attempt a silent restore when OAuth tokens were persisted.
+        // Without tokens, AuthenticateAsync would pop the browser during startup.
+        var storedToken = await credentialStore.GetCredentialAsync(
+            CredentialStoreDataStore.DefaultKeyPrefix + CredentialStoreDataStore.BrokerUserKey,
+            CancellationToken.None);
+        if (string.IsNullOrWhiteSpace(storedToken))
+        {
+            return;
+        }
+
+        var result = await gdrive.AuthenticateAsync(CancellationToken.None);
+        if (result.Success)
+        {
+            AuthenticationStatusMessage = GetLocalizedString("Tools.PublisherStudio.Publish.RestoredConnection", "Restored connection");
+            logger.LogInformation("Restored Google Drive authentication from secure credential store");
         }
     }
 
@@ -3265,7 +3538,26 @@ public partial class PublishShareViewModel(
             }
         }
 
+        SubscribeCatalogStatusChanges();
         OnPropertyChanged(nameof(CatalogStatusesCountText));
+        OnPropertyChanged(nameof(AnyCatalogNeedsPublish));
+    }
+
+    private void SubscribeCatalogStatusChanges()
+    {
+        foreach (var status in CatalogStatuses)
+        {
+            status.PropertyChanged -= OnCatalogStatusPropertyChanged;
+            status.PropertyChanged += OnCatalogStatusPropertyChanged;
+        }
+    }
+
+    private void OnCatalogStatusPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName is nameof(CatalogPublishStatus.NeedsPublish) or nameof(CatalogPublishStatus.IsPublished) or nameof(CatalogPublishStatus.HasChanges))
+        {
+            OnPropertyChanged(nameof(AnyCatalogNeedsPublish));
+        }
     }
 
     /// <summary>
@@ -3319,15 +3611,7 @@ public partial class PublishShareViewModel(
             }
             else if (uploadResult.Success)
             {
-                // Update status
-                var status = CatalogStatuses.FirstOrDefault(s => s.Catalog.Id == catalog.Id);
-                if (status != null)
-                {
-                    status.IsPublished = true;
-                    status.LastPublished = DateTime.UtcNow;
-                    status.HasChanges = false;
-                }
-
+                // Publish status is updated centrally in CompletePublishSuccessAsync.
                 notificationService?.ShowSuccess(
                     GetLocalizedString(PublishSuccessTitleKey, "Published"),
                     FormatLocalizedString(
@@ -3379,7 +3663,7 @@ public partial class PublishShareViewModel(
         {
             var warningMsg = FormatLocalizedString("Tools.PublisherStudio.Publish.IncompatibleArtifactsActiveCatalogFormat", "{0} only hosts catalog metadata (JSON). The active catalog '{1}' has {2} local file(s) pending upload. Either provide direct CDN URLs for those files, or switch to Google Drive or Dropbox to host binary archives.", SelectedHostingProvider.DisplayName, ActiveCatalog?.Name, ActiveCatalogPendingArtifactsCount);
             UploadStatusMessage = warningMsg;
-            notificationService?.ShowError(GetLocalizedString("Tools.PublisherStudio.Publish.IncompatibleProvider", "Incompatible Provider"), warningMsg);
+            notificationService?.ShowError(GetLocalizedString(IncompatibleProviderTitleKey, IncompatibleProviderDefaultMessage), warningMsg);
             return false;
         }
 
@@ -3504,14 +3788,7 @@ public partial class PublishShareViewModel(
             var res = await UploadCatalogCoreAsync(cancellationToken, manageUploadingState: false, suppressNotifications: true);
             if (res.Success)
             {
-                var status = CatalogStatuses.FirstOrDefault(s => s.Catalog.Id == catalog.Id);
-                if (status != null)
-                {
-                    status.IsPublished = true;
-                    status.LastPublished = DateTime.UtcNow;
-                    status.HasChanges = false;
-                }
-
+                // Publish status is updated centrally in CompletePublishSuccessAsync.
                 return (true, null);
             }
 
@@ -3897,7 +4174,7 @@ public partial class PublishShareViewModel(
 
     private void MergeCloudHostingState(HostingState cloudState)
     {
-        _currentHostingState ??= GetOrCreateHostingState(SelectedHostingProvider?.ProviderId ?? "unknown");
+        _currentHostingState ??= GetOrCreateHostingState(SelectedHostingProvider?.ProviderId ?? HostingConstants.UnknownProviderId);
 
         if (cloudState.Definition != null && !string.IsNullOrEmpty(cloudState.Definition.Url))
         {
@@ -4093,7 +4370,7 @@ public partial class PublishShareViewModel(
                 "Tools.PublisherStudio.Publish.ArtifactHostingNotSupported",
                 "Provider does not support artifact hosting. Please add URLs manually.");
             notificationService?.ShowError(
-                GetLocalizedString("Tools.PublisherStudio.Publish.IncompatibleProvider", "Incompatible Provider"),
+                GetLocalizedString(IncompatibleProviderTitleKey, IncompatibleProviderDefaultMessage),
                 UploadStatusMessage);
             logger.LogWarning(
                 "Blocked single artifact upload of {File} to {Provider}: provider does not support artifact hosting.",

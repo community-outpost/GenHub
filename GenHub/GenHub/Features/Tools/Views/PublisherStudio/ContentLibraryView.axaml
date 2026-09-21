@@ -17,6 +17,7 @@
         <UserControl.Resources>
         <converters:FileSizeConverter x:Key="FileSizeConverter"/>
         <converters:ArtifactPendingUploadConverter x:Key="ArtifactPendingUploadConverter"/>
+        <converters:ReleaseOrderingConverter x:Key="ReleaseOrderingConverter"/>
     </UserControl.Resources>
 
     <UserControl.Styles>
@@ -50,6 +51,16 @@
             </Setter>
         </Style>
         <Style Selector="Button.glass-icon-btn:pointerover">
+            <Setter Property="Background" Value="{DynamicResource GlassStrongBrush}"/>
+        </Style>
+
+        <Style Selector="Button.card-action">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Padding" Value="7"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="Cursor" Value="Hand"/>
+        </Style>
+        <Style Selector="Button.card-action:pointerover">
             <Setter Property="Background" Value="{DynamicResource GlassStrongBrush}"/>
         </Style>
 
@@ -145,6 +156,7 @@
                             </Button>
                             <!-- Upload Catalog -->
                             <Button Command="{Binding UploadActiveCatalogCommand}"
+                                    IsEnabled="{Binding ActiveCatalogNeedsPublish}"
                                     ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Library.UploadCatalogTooltip}"
                                     Background="{DynamicResource GlassFillBrush}"
                                     BorderBrush="{DynamicResource GlassBorderBrush}"
@@ -196,7 +208,7 @@
                                     CornerRadius="8"
                                     Padding="12"
                                     Transitions="{x:Null}">
-                                <Grid ColumnDefinitions="Auto,*">
+                                <Grid ColumnDefinitions="Auto,*,Auto">
                                     <!-- Type Icon Box -->
                                     <Border Width="40" Height="40"
                                             CornerRadius="8"
@@ -225,6 +237,30 @@
                                             <Run Text="{Binding Releases.Count, Mode=OneWay}"/>
                                             <Run Text="{localization:Localize Tools.PublisherStudio.Library.ReleasesSuffix}"/>
                                         </TextBlock>
+                                    </StackPanel>
+
+                                    <!-- Card Actions -->
+                                    <StackPanel Grid.Column="2"
+                                                Orientation="Horizontal"
+                                                Spacing="2"
+                                                VerticalAlignment="Center"
+                                                Margin="8,0,0,0">
+                                        <Button Command="{Binding #RootView.((vm:ContentLibraryViewModel)DataContext).EditContentCommand}"
+                                                CommandParameter="{Binding}"
+                                                Classes="card-action"
+                                                ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Library.EditContentTooltip}">
+                                            <PathIcon Data="{StaticResource EditIcon}"
+                                                      Width="14" Height="14"
+                                                      Foreground="{DynamicResource AccentColorBrush}"/>
+                                        </Button>
+                                        <Button Command="{Binding #RootView.((vm:ContentLibraryViewModel)DataContext).DeleteContentCommand}"
+                                                CommandParameter="{Binding}"
+                                                Classes="card-action"
+                                                ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Library.DeleteContentTooltip}">
+                                            <PathIcon Data="{StaticResource DeleteIcon}"
+                                                      Width="14" Height="14"
+                                                      Foreground="{DynamicResource ErrorBrush}"/>
+                                        </Button>
                                     </StackPanel>
                                 </Grid>
                             </Border>
@@ -274,54 +310,34 @@
         <!-- Content Detail Panel -->
         <ScrollViewer Grid.Column="1"
                       IsVisible="{Binding SelectedContent, Converter={x:Static ObjectConverters.IsNotNull}}"
-                      Padding="32">
+                      HorizontalScrollBarVisibility="Disabled"
+                      Padding="32,32,12,32">
             <ContentControl Content="{Binding SelectedContent}">
                 <ContentControl.ContentTemplate>
                     <DataTemplate DataType="models:CatalogContentItem">
                         <StackPanel Spacing="24" MaxWidth="800" HorizontalAlignment="Left">
-                            <!-- Header / Actions -->
-                            <Grid ColumnDefinitions="*,Auto">
-                                <StackPanel Spacing="6">
-                                    <StackPanel Orientation="Horizontal" Spacing="10">
-                                        <TextBlock Text="{Binding Name}"
-                                                   FontSize="24"
-                                                   FontWeight="Bold"
-                                                   Foreground="{DynamicResource TextPrimary}"/>
-                                        <Border Background="{DynamicResource AccentBadgeBackgroundBrush}"
-                                                CornerRadius="4"
-                                                Padding="8,2"
-                                                VerticalAlignment="Center">
-                                             <TextBlock Text="{Binding ContentType, FallbackValue=''}"
-                                                        FontSize="11"
-                                                        FontWeight="Bold"
-                                                        Foreground="{DynamicResource AccentColorBrush}"/>
-                                        </Border>
-                                    </StackPanel>
-                                    <TextBlock FontSize="13" Foreground="{DynamicResource TextSecondary}">
-                                        <Run Text="{localization:Localize Tools.PublisherStudio.Library.ManifestIdPrefix}"/>
-                                        <Run Text="{Binding Id}"/>
-                                    </TextBlock>
+                            <!-- Header -->
+                            <StackPanel Spacing="6">
+                                <StackPanel Orientation="Horizontal" Spacing="10">
+                                    <TextBlock Text="{Binding Name}"
+                                               FontSize="24"
+                                               FontWeight="Bold"
+                                               Foreground="{DynamicResource TextPrimary}"/>
+                                    <Border Background="{DynamicResource AccentBadgeBackgroundBrush}"
+                                            CornerRadius="4"
+                                            Padding="8,2"
+                                            VerticalAlignment="Center">
+                                         <TextBlock Text="{Binding ContentType, FallbackValue=''}"
+                                                    FontSize="11"
+                                                    FontWeight="Bold"
+                                                    Foreground="{DynamicResource AccentColorBrush}"/>
+                                    </Border>
                                 </StackPanel>
-
-                                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Top">
-                                    <Button Command="{Binding #RootView.((vm:ContentLibraryViewModel)DataContext).EditContentCommand}"
-                                            CommandParameter="{Binding}"
-                                            Classes="glass-icon-btn"
-                                            ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Library.EditContentTooltip}">
-                                        <PathIcon Data="{StaticResource EditIcon}"
-                                                  Width="20" Height="20"
-                                                  Foreground="{DynamicResource AccentColorBrush}"/>
-                                    </Button>
-                                    <Button Command="{Binding #RootView.((vm:ContentLibraryViewModel)DataContext).DeleteContentCommand}"
-                                            CommandParameter="{Binding}"
-                                            Classes="glass-icon-btn"
-                                            ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Library.DeleteContentTooltip}">
-                                        <PathIcon Data="{StaticResource DeleteIcon}"
-                                                  Width="20" Height="20"
-                                                  Foreground="{DynamicResource ErrorBrush}"/>
-                                    </Button>
-                                </StackPanel>
-                            </Grid>
+                                <TextBlock FontSize="13" Foreground="{DynamicResource TextSecondary}">
+                                    <Run Text="{localization:Localize Tools.PublisherStudio.Library.ManifestIdPrefix}"/>
+                                    <Run Text="{Binding Id}"/>
+                                </TextBlock>
+                            </StackPanel>
 
                             <Rectangle Height="1" Fill="{DynamicResource GlassFillBrush}"/>
 
@@ -490,7 +506,7 @@
                                     BorderThickness="1"
                                     CornerRadius="12"
                                     Padding="24"
-                                    Margin="0,8,0,0">
+                                    Margin="0,8,0,24">
                                 <StackPanel Spacing="16">
                                     <!-- Hosting hint: pending uploads without a connected provider -->
                                     <Border Background="{DynamicResource StatusWarningBadgeBackgroundBrush}"
@@ -529,7 +545,7 @@
                                     </Grid>
 
                                     <!-- Releases List -->
-                                    <ItemsControl ItemsSource="{Binding Releases}">
+                                    <ItemsControl ItemsSource="{Binding Releases, Converter={StaticResource ReleaseOrderingConverter}}">
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate DataType="models:ContentRelease">
                                                 <Expander Background="{DynamicResource GlassFillSubtleBrush}"
@@ -614,32 +630,34 @@
                                                                             <Grid ColumnDefinitions="Auto,*,Auto">
                                                                                 <PathIcon Data="{StaticResource DownloadIcon}" Width="14" Height="14" Foreground="{DynamicResource AccentColorBrush}" Margin="0,0,10,0" VerticalAlignment="Center"/>
                                                                                 <StackPanel Grid.Column="1" Spacing="4">
-                                                                                    <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                                                                                        <TextBlock Text="{Binding Filename}" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" FontSize="13"/>
-                                                                                        <Border Background="{DynamicResource StatusInfoBadgeBackgroundBrush}" CornerRadius="3" Padding="4,1" IsVisible="{Binding DownloadUrl, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
-                                                                                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Library.CdnDirectBadge}" FontSize="9" FontWeight="Bold" Foreground="{DynamicResource StatusInfoBrush}"/>
-                                                                                        </Border>
-                                                                                        <Button Command="{Binding #RootView.((vm:ContentLibraryViewModel)DataContext).UploadArtifactCommand}"
-                                                                                                CommandParameter="{Binding}"
-                                                                                                ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Library.UploadArtifactTooltip}"
-                                                                                                Background="{DynamicResource StatusWarningBadgeBackgroundBrush}"
-                                                                                                BorderBrush="{DynamicResource WarningHighlightBrush}"
-                                                                                                BorderThickness="1"
-                                                                                                CornerRadius="3"
-                                                                                                Padding="6,1"
-                                                                                                Cursor="Hand">
-                                                                                            <Button.IsVisible>
-                                                                                                <MultiBinding Converter="{StaticResource ArtifactPendingUploadConverter}">
-                                                                                                    <Binding Path="LocalFilePath"/>
-                                                                                                    <Binding Path="DownloadUrl"/>
-                                                                                                </MultiBinding>
-                                                                                            </Button.IsVisible>
-                                                                                            <StackPanel Orientation="Horizontal" Spacing="4">
-                                                                                                <PathIcon Data="{StaticResource PublishIcon}" Width="10" Height="10" Foreground="{DynamicResource WarningHighlightBrush}"/>
-                                                                                                <TextBlock Text="{localization:Localize Tools.PublisherStudio.Library.UploadButton}" FontSize="9" FontWeight="Bold" Foreground="{DynamicResource WarningHighlightBrush}"/>
-                                                                                            </StackPanel>
-                                                                                        </Button>
-                                                                                    </StackPanel>
+                                                                                    <DockPanel VerticalAlignment="Center">
+                                                                                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center" Margin="8,0,0,0">
+                                                                                            <Border Background="{DynamicResource StatusInfoBadgeBackgroundBrush}" CornerRadius="3" Padding="4,1" IsVisible="{Binding DownloadUrl, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                                                                                                <TextBlock Text="{localization:Localize Tools.PublisherStudio.Library.CdnDirectBadge}" FontSize="9" FontWeight="Bold" Foreground="{DynamicResource StatusInfoBrush}"/>
+                                                                                            </Border>
+                                                                                            <Button Command="{Binding #RootView.((vm:ContentLibraryViewModel)DataContext).UploadArtifactCommand}"
+                                                                                                    CommandParameter="{Binding}"
+                                                                                                    ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Library.UploadArtifactTooltip}"
+                                                                                                    Background="{DynamicResource StatusWarningBadgeBackgroundBrush}"
+                                                                                                    BorderBrush="{DynamicResource WarningHighlightBrush}"
+                                                                                                    BorderThickness="1"
+                                                                                                    CornerRadius="3"
+                                                                                                    Padding="6,1"
+                                                                                                    Cursor="Hand">
+                                                                                                <Button.IsVisible>
+                                                                                                    <MultiBinding Converter="{StaticResource ArtifactPendingUploadConverter}">
+                                                                                                        <Binding Path="LocalFilePath"/>
+                                                                                                        <Binding Path="DownloadUrl"/>
+                                                                                                    </MultiBinding>
+                                                                                                </Button.IsVisible>
+                                                                                                <StackPanel Orientation="Horizontal" Spacing="4">
+                                                                                                    <PathIcon Data="{StaticResource PublishIcon}" Width="10" Height="10" Foreground="{DynamicResource WarningHighlightBrush}"/>
+                                                                                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Library.UploadButton}" FontSize="9" FontWeight="Bold" Foreground="{DynamicResource WarningHighlightBrush}"/>
+                                                                                                </StackPanel>
+                                                                                            </Button>
+                                                                                        </StackPanel>
+                                                                                        <TextBlock Text="{Binding Filename}" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" FontSize="13" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+                                                                                    </DockPanel>
                                                                                     <TextBlock Text="{Binding DownloadUrl}" FontSize="11" Foreground="{DynamicResource TextSecondary}" TextTrimming="CharacterEllipsis" IsVisible="{Binding DownloadUrl, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
                                                                                     <TextBlock Text="{Binding LocalFilePath}" FontSize="11" Foreground="{DynamicResource WarningHighlightBrush}" TextTrimming="CharacterEllipsis" IsVisible="{Binding LocalFilePath, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
                                                                                 </StackPanel>

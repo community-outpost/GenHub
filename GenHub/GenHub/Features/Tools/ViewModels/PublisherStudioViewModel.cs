@@ -56,8 +56,8 @@ public partial class PublisherStudioViewModel(
 
     private readonly string _settingsPath = Path.Combine(
         configurationProvider?.GetApplicationDataPath() ?? Path.GetTempPath(),
-        "GenHub",
-        "publisher_studio_settings.json");
+        AppConstants.AppName,
+        PublisherStudioConstants.SettingsFileName);
 
     private readonly SemaphoreSlim _saveLock = new(1, 1);
 
@@ -149,6 +149,11 @@ public partial class PublisherStudioViewModel(
             CurrentProject.IsDirty = true;
             HasUnsavedChanges = true;
             HasDefinitionChanges = true;
+            if (PublishShareViewModel != null)
+            {
+                PublishShareViewModel.HasDefinitionChanges = true;
+            }
+
             RefreshSetupState();
         }
     }
@@ -510,14 +515,14 @@ public partial class PublisherStudioViewModel(
     private string GetDefaultProjectPath()
     {
         var baseDir = configurationProvider?.GetApplicationDataPath()
-            ?? Path.Combine(Path.GetTempPath(), "GenHub");
-        var projectDir = Path.Combine(baseDir, "PublisherStudio", "projects");
+            ?? Path.Combine(Path.GetTempPath(), AppConstants.AppName);
+        var projectDir = Path.Combine(baseDir, PublisherStudioConstants.StudioFolderName, PublisherStudioConstants.ProjectsFolderName);
         if (!Directory.Exists(projectDir))
         {
             Directory.CreateDirectory(projectDir);
         }
 
-        return Path.Combine(projectDir, "default-publisher.json");
+        return Path.Combine(projectDir, PublisherStudioConstants.DefaultProjectFileName);
     }
 
     [RelayCommand]
@@ -729,7 +734,19 @@ public partial class PublisherStudioViewModel(
         SelectedCatalog = Catalogs.FirstOrDefault();
         MarkDirty();
         OnPropertyChanged(nameof(CanRemoveCatalog));
-        PublishShareViewModel?.SyncAvailableCatalogs();
+        if (PublishShareViewModel != null)
+        {
+            var remotesCleaned = await PublishShareViewModel.DeleteCatalogRemotesAsync(catalog.Id);
+            PublishShareViewModel.SyncAvailableCatalogs();
+            if (!remotesCleaned)
+            {
+                var warnMessage = string.Format(
+                    localizationService?.GetString("Tools.PublisherStudio.Studio.RemoteCatalogDeleteFailedFormat") ?? "Catalog removed locally, but the published file for '{0}' could not be deleted. It may still be live.",
+                    catalog.Name);
+                notificationService?.ShowWarning(StudioNotificationTitle, warnMessage, NotificationDurations.Medium);
+            }
+        }
+
         logger.LogInformation("Removed catalog: {CatalogId}", catalog.Id);
     }
 
@@ -777,6 +794,7 @@ public partial class PublisherStudioViewModel(
         {
             await PublishShareViewModel.RenameCatalogInHostingStateAsync(oldId, target.Id, target.Name, target.FileName);
             PublishShareViewModel.SyncAvailableCatalogs();
+            PublishShareViewModel.MarkCatalogChanged(target.Id);
         }
 
         await SaveProjectAsync();
@@ -899,9 +917,17 @@ public partial class PublisherStudioViewModel(
         PublishShareViewModel = new GenHub.Features.Tools.ViewModels.PublishShareViewModel(CurrentProject, publisherStudioService, logger, hostingProviderFactory, hostingStateManager, notificationService, localizationService, credentialStore);
         PublishShareViewModel.SaveProjectCallback = SaveProjectAfterPublishAsync;
         PublishShareViewModel.LibraryRefreshCallback = () => ContentLibraryViewModel?.RefreshContentDisplay();
-        PublishShareViewModel.DefinitionUploadedCallback = () => HasDefinitionChanges = false;
+        PublishShareViewModel.DefinitionUploadedCallback = () =>
+        {
+            HasDefinitionChanges = false;
+            if (PublishShareViewModel != null)
+            {
+                PublishShareViewModel.HasDefinitionChanges = false;
+            }
+        };
         await PublishShareViewModel.InitializeAsync();
         HasDefinitionChanges = !PublishShareViewModel.IsDefinitionPublished;
+        PublishShareViewModel.HasDefinitionChanges = HasDefinitionChanges;
         ReferralsViewModel = new GenHub.Features.Tools.ViewModels.ReferralsViewModel(CurrentProject, this, logger, dialogService, notificationService, localizationService);
 
         // Check for hosting state recovery

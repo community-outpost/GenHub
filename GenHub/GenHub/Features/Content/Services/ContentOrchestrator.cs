@@ -437,6 +437,11 @@ public class ContentOrchestrator : IContentOrchestrator
             var provider = _providers.FirstOrDefault(p => p.SourceName == searchResult.ProviderName);
             if (provider == null)
             {
+                provider = FindFallbackProvider(searchResult);
+            }
+
+            if (provider == null)
+            {
                 return OperationResult<ContentManifest>.CreateFailure(
                     $"Provider not found: {searchResult.ProviderName}");
             }
@@ -705,6 +710,29 @@ public class ContentOrchestrator : IContentOrchestrator
             searchResult.ResolverMetadata?.TryGetValue(ContentConstants.ParentContentIdMetadataKey, out parentId);
             manifest.OriginalContentId = !string.IsNullOrEmpty(parentId) ? parentId : searchResult.Id;
         }
+    }
+
+    private IContentProvider? FindFallbackProvider(ContentSearchResult searchResult)
+    {
+        // Generic catalog results carry the publisher name as ProviderName, which never
+        // matches a registered SourceName. Route them via their resolver instead: every
+        // subscribed publisher shares the generic catalog pipeline.
+        if (string.Equals(searchResult.ResolverId, CatalogConstants.GenericCatalogResolverId, StringComparison.OrdinalIgnoreCase))
+        {
+            var genericProvider = _providers.FirstOrDefault(p => p.SourceName == CatalogConstants.GenericCatalogProviderName);
+            if (genericProvider != null)
+            {
+                _logger.LogDebug(
+                    "Routing generic catalog content {ContentName} from {ProviderName} to {Fallback}",
+                    searchResult.Name,
+                    searchResult.ProviderName,
+                    genericProvider.SourceName);
+            }
+
+            return genericProvider;
+        }
+
+        return null;
     }
 
     private async Task<OperationResult<ContentManifest>> ObtainManifestAsync(

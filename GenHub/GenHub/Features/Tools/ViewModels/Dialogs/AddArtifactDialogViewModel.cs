@@ -423,7 +423,7 @@ public partial class AddArtifactDialogViewModel(Action<ReleaseArtifact> onArtifa
         var files = await topLevel.StorageProvider.OpenFilePickerAsync(
             new FilePickerOpenOptions
             {
-                Title = "Select Artifact File",
+                Title = GetLocalizedString("Tools.PublisherStudio.Artifact.SelectFileTitle", "Select Artifact File"),
                 AllowMultiple = false,
                 FileTypeFilter = new[]
                 {
@@ -601,7 +601,7 @@ public partial class AddArtifactDialogViewModel(Action<ReleaseArtifact> onArtifa
         var folders = await topLevel.StorageProvider.OpenFolderPickerAsync(
             new FolderPickerOpenOptions
             {
-                Title = "Select Artifact Folder",
+                Title = GetLocalizedString("Tools.PublisherStudio.Artifact.SelectFolderTitle", "Select Artifact Folder"),
                 AllowMultiple = false,
             });
 

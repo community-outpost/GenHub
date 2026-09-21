@@ -56,6 +56,15 @@ public class ContentRelease
     public List<ReleaseArtifact> Artifacts { get; set; } = [];
 
     /// <summary>
+    /// Gets or sets a value indicating whether all downloadable artifacts in this
+    /// release are installed together as one package. When true, catalog discovery
+    /// does not split multi-file releases into per-file variant siblings; every
+    /// artifact becomes a manifest file of the same installed content.
+    /// </summary>
+    [JsonPropertyName("bundleArtifacts")]
+    public bool BundleArtifacts { get; set; }
+
+    /// <summary>
     /// Gets or sets dependencies required by this release.
     /// </summary>
     [JsonPropertyName("dependencies")]

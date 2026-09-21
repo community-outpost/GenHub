@@ -48,6 +48,12 @@ public partial class CatalogPublishStatus : ObservableObject, IDisposable
     }
 
     /// <summary>
+    /// Gets a value indicating whether this catalog needs to be published.
+    /// True when never published or when changes are pending since the last publish.
+    /// </summary>
+    public bool NeedsPublish => !IsPublished || HasChanges;
+
+    /// <summary>
     /// Gets the display status text.
     /// </summary>
     public string StatusText
@@ -134,6 +140,7 @@ public partial class CatalogPublishStatus : ObservableObject, IDisposable
 
     private void NotifyStatusChanged()
     {
+        OnPropertyChanged(nameof(NeedsPublish));
         OnPropertyChanged(nameof(StatusText));
         OnPropertyChanged(nameof(StatusColor));
     }

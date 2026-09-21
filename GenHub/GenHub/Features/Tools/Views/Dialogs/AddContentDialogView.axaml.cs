@@ -46,10 +46,14 @@ public partial class AddContentDialogView : UserControl
         var files = e.Data.GetFiles();
         if (files != null)
         {
-            var first = files.FirstOrDefault();
-            if (first?.Path?.LocalPath is { } path)
+            var paths = files
+                .Select(f => f.Path?.LocalPath)
+                .Where(p => !string.IsNullOrWhiteSpace(p))
+                .Cast<string>()
+                .ToList();
+            if (paths.Count > 0)
             {
-                vm.PopulateFromPath(path);
+                vm.PopulateFromPaths(paths);
                 e.Handled = true;
             }
         }

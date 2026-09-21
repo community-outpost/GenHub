@@ -8,6 +8,8 @@
         Title="{localization:Localize Tools.PublisherStudio.Dialogs.WindowTitle}"
         SizeToContent="WidthAndHeight"
         WindowStartupLocation="CenterOwner"
+        MaxWidth="760"
+        MaxHeight="880"
         CanResize="False"
         SystemDecorations="Full"
         Background="Transparent"

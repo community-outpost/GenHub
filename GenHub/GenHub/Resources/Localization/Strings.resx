@@ -12982,6 +12982,60 @@ Project structure ready. Edit files in GameFilesEdited folder.</value>
   <data name="Tools.PublisherStudio.Hosting.RedirectUriCopied" xml:space="preserve">
     <value>Redirect URI copied. Paste it into your Dropbox app's Redirect URIs list.</value>
   </data>
+  <data name="Tools.PublisherStudio.Content.AutoDescriptionFormat" xml:space="preserve">
+    <value>{0} package for {1}.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Validation.DownloadUrlInvalid" xml:space="preserve">
+    <value>Download URL must be a valid HTTP or HTTPS link.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Validation.LocalPathMissingFormat" xml:space="preserve">
+    <value>Local path does not exist: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.SelectFileTitle" xml:space="preserve">
+    <value>Select Artifact File</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.SelectFolderTitle" xml:space="preserve">
+    <value>Select Artifact Folder</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.AccentColorPresetsHint" xml:space="preserve">
+    <value>Pick a preset or enter a custom hex color.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.BrowseFiles" xml:space="preserve">
+    <value>Browse Files...</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.RemoveStagedFileTooltip" xml:space="preserve">
+    <value>Remove file</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.MultiFileBundleNoteFormat" xml:space="preserve">
+    <value>{0} files will be uploaded separately and installed together as one package.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.StagedFolderCalculating" xml:space="preserve">
+    <value>Folder (calculating size...)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.StagedFolderSizeFormat" xml:space="preserve">
+    <value>{0} (folder)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.StagedFolderUnavailable" xml:space="preserve">
+    <value>Folder (size unavailable)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.StagedArchiveFormat" xml:space="preserve">
+    <value>Archive with {0} files. Contents are extracted automatically when players install this content.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.StagedArchiveUnknownFormat" xml:space="preserve">
+    <value>Archive. Contents are extracted automatically when players install this content.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Release.BundleArtifacts" xml:space="preserve">
+    <value>Install all files together (bundle)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Release.BundleArtifactsHint" xml:space="preserve">
+    <value>All artifacts in this release are installed as one package instead of offering a file picker.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.RemoteCatalogDeleteFailedFormat" xml:space="preserve">
+    <value>Catalog removed locally, but the published file for '{0}' could not be deleted. It may still be live.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.PublishCatalogTooltip" xml:space="preserve">
+    <value>Publish this catalog to the hosting provider</value>
+  </data>
   <data name="GameProfiles.Notification.UnexpectedExit.Title" xml:space="preserve">
     <value>Game Exited Unexpectedly</value>
   </data>

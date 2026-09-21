@@ -5,6 +5,7 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:vm="using:GenHub.Features.Tools.ViewModels"
              xmlns:interfaces="using:GenHub.Features.Tools.Interfaces"
+             xmlns:conv="clr-namespace:GenHub.Infrastructure.Converters"
              mc:Ignorable="d"
              d:DesignWidth="920" d:DesignHeight="1200"
              x:Class="GenHub.Features.Tools.Views.PublisherStudio.PublishShareView"
@@ -262,8 +263,13 @@
                         <!-- Publish Button -->
                         <Button Command="{Binding PublishAllCatalogsCommand}"
                                 Classes="primary-btn"
-                                IsEnabled="{Binding !IsUploading}"
                                 HorizontalAlignment="Stretch">
+                            <Button.IsEnabled>
+                                <MultiBinding Converter="{x:Static conv:MultiBooleanAndConverter.Instance}">
+                                    <Binding Path="AnyCatalogNeedsPublish"/>
+                                    <Binding Path="!IsUploading"/>
+                                </MultiBinding>
+                            </Button.IsEnabled>
                             <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
                                 <PathIcon Data="{StaticResource PublishIcon}" Width="16" Height="16" Foreground="{Binding $parent[Button].Foreground}"/>
                                 <TextBlock Text="{Binding PublishButtonText}" FontSize="14" FontWeight="SemiBold"/>
@@ -562,8 +568,13 @@
                             <!-- Upload Definition Action Button -->
                             <StackPanel Orientation="Horizontal" Spacing="12">
                                 <Button Command="{Binding UploadProviderDefinitionCommand}"
-                                        Classes="glass-btn"
-                                        IsEnabled="{Binding !IsUploading}">
+                                        Classes="glass-btn">
+                                    <Button.IsEnabled>
+                                        <MultiBinding Converter="{x:Static conv:MultiBooleanAndConverter.Instance}">
+                                            <Binding Path="HasDefinitionChanges"/>
+                                            <Binding Path="!IsUploading"/>
+                                        </MultiBinding>
+                                    </Button.IsEnabled>
                                     <StackPanel Orientation="Horizontal" Spacing="8">
                                         <PathIcon Data="{StaticResource PublishIcon}" Width="14" Height="14" Foreground="White"/>
                                         <TextBlock Text="{localization:Localize Tools.PublisherStudio.Publish.UploadDefinition}" FontWeight="SemiBold" Foreground="White"/>
@@ -604,10 +615,17 @@
                                                 <!-- Status Badge -->
                                                 <Border Grid.Column="2"
                                                         Classes="status-badge-active"
-                                                        IsVisible="{Binding IsPublished}"
+                                                        IsVisible="{Binding IsUpToDate}"
                                                         Margin="0,0,10,0"
                                                         VerticalAlignment="Center">
                                                     <TextBlock Text="{localization:Localize Tools.PublisherStudio.Publish.Published}" FontSize="11" Foreground="{DynamicResource StatusSuccessBrush}" FontWeight="SemiBold"/>
+                                                </Border>
+                                                <Border Grid.Column="2"
+                                                        Classes="status-badge-pending"
+                                                        IsVisible="{Binding HasPendingChanges}"
+                                                        Margin="0,0,10,0"
+                                                        VerticalAlignment="Center">
+                                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Status.ChangesPending}" FontSize="11" Foreground="{DynamicResource WarningHighlightBrush}" FontWeight="SemiBold"/>
                                                 </Border>
                                                 <Border Grid.Column="2"
                                                         Classes="status-badge-pending"
@@ -621,10 +639,16 @@
                                                 <Button Grid.Column="3"
                                                         Command="{Binding #RootView.((vm:PublishShareViewModel)DataContext).PublishCatalogByIdCommand}"
                                                         CommandParameter="{Binding Id}"
-                                                        IsEnabled="{Binding !#RootView.((vm:PublishShareViewModel)DataContext).IsUploading}"
+                                                        ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Publish.PublishCatalogTooltip}"
                                                         Classes="glass-btn"
                                                         Padding="12,6"
                                                         VerticalAlignment="Center">
+                                                    <Button.IsEnabled>
+                                                        <MultiBinding Converter="{x:Static conv:MultiBooleanAndConverter.Instance}">
+                                                            <Binding Path="NeedsPublish"/>
+                                                            <Binding Path="!#RootView.((vm:PublishShareViewModel)DataContext).IsUploading"/>
+                                                        </MultiBinding>
+                                                    </Button.IsEnabled>
                                                     <StackPanel Orientation="Horizontal" Spacing="6">
                                                         <PathIcon Data="{StaticResource PublishIcon}" Width="12" Height="12" Foreground="White"/>
                                                         <TextBlock Text="{localization:Localize Tools.PublisherStudio.Publish.PublishCatalog}" FontSize="12" Foreground="White"/>

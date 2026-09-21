@@ -8,7 +8,9 @@ using GenHub.Core.Models.Providers;
 using GenHub.Features.Tools.Interfaces;
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.IO;
+using System.IO.Compression;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Text.RegularExpressions;
@@ -27,6 +29,46 @@ public partial class AddContentDialogViewModel(
     GenHub.Core.Interfaces.Common.ILocalizationService? localizationService = null) : ObservableValidator, IDisposable
 {
     /// <summary>
+    /// A local file or folder staged for the initial release.
+    /// Each staged entry becomes one release artifact; multiple entries are
+    /// installed together as one package.
+    /// </summary>
+    public partial class StagedContentFile : ObservableObject
+    {
+        [ObservableProperty]
+        private string _localPath = string.Empty;
+
+        [ObservableProperty]
+        private string _displayName = string.Empty;
+
+        [ObservableProperty]
+        private bool _isFolder;
+
+        [ObservableProperty]
+        private bool _isArchive;
+
+        [ObservableProperty]
+        private long _fileSizeBytes;
+
+        [ObservableProperty]
+        private string _fileSizeDisplay = string.Empty;
+
+        [ObservableProperty]
+        private string? _sha256Hash;
+
+        [ObservableProperty]
+        private bool _isComputingHash;
+
+        [ObservableProperty]
+        private string? _archiveNoteText;
+
+        /// <summary>
+        /// Gets or sets the cancellation source for the entry's background computation.
+        /// </summary>
+        internal CancellationTokenSource? ComputeCts { get; set; }
+    }
+
+    /// <summary>
     /// Artwork browse target for the content icon.
     /// </summary>
     public const string ArtworkTargetIcon = "Icon";
@@ -42,9 +84,8 @@ public partial class AddContentDialogViewModel(
     public const string ArtworkTargetBackdrop = "Backdrop";
 
     private readonly CatalogContentItem? _existingItem;
-    private CancellationTokenSource? _computationCts;
-
-    private int _hashGeneration;
+    private bool _syncingPrimary;
+    private bool _disposed;
 
     [ObservableProperty]
     private bool _isEditMode;
@@ -187,6 +228,25 @@ public partial class AddContentDialogViewModel(
     ];
 
     /// <summary>
+    /// Gets curated accent color presets for the color picker.
+    /// </summary>
+    public static IReadOnlyList<string> AccentColorPresets =>
+    [
+        "#7C3AED",
+        "#4F46E5",
+        "#2563EB",
+        "#0891B2",
+        "#0D9488",
+        "#059669",
+        "#65A30D",
+        "#CA8A04",
+        "#EA580C",
+        "#DC2626",
+        "#DB2777",
+        "#64748B",
+    ];
+
+    /// <summary>
     /// Gets the dialog title based on mode.
     /// </summary>
     public string DialogTitle => IsEditMode
@@ -221,6 +281,33 @@ public partial class AddContentDialogViewModel(
     public bool ShowAddonParentSelection => CanExtend;
 
     /// <summary>
+    /// Gets the local files and folders staged for the initial release.
+    /// Each entry becomes one release artifact uploaded separately.
+    /// </summary>
+    public ObservableCollection<StagedContentFile> StagedFiles { get; } = [];
+
+    /// <summary>
+    /// Gets a value indicating whether any local files are staged.
+    /// </summary>
+    public bool HasStagedFiles => StagedFiles.Count > 0;
+
+    /// <summary>
+    /// Gets a value indicating whether multiple local files are staged for upload.
+    /// </summary>
+    public bool IsMultiFileStaging => !UseDirectUrl && StagedFiles.Count > 1;
+
+    /// <summary>
+    /// Gets the localized note explaining multi-file installs, or null for single files.
+    /// </summary>
+    public string? MultiFileBundleNote => IsMultiFileStaging
+        ? string.Format(
+            GetLocalizedString(
+                "Tools.PublisherStudio.Content.MultiFileBundleNoteFormat",
+                "{0} files will be uploaded separately and installed together as one package."),
+            StagedFiles.Count)
+        : null;
+
+    /// <summary>
     /// Populates content item fields from a local directory or file path.
     /// If ContentName or ContentId are empty, auto-fills them.
     /// </summary>
@@ -228,43 +315,18 @@ public partial class AddContentDialogViewModel(
     public void PopulateFromPath(string path)
     {
         if (string.IsNullOrWhiteSpace(path)) return;
-        path = path.Trim('"', '\'', ' ');
+        StagePaths([path], autofill: true);
+    }
 
-        LocalFilePath = path;
-        UseDirectUrl = false;
-        IncludeInitialRelease = true;
-
-        if (!PopulateFileSystemInfo(path, out var baseName))
-        {
-            return;
-        }
-
-        // Auto-fill ContentName if empty
-        if (string.IsNullOrWhiteSpace(ContentName))
-        {
-            ContentName = FormatContentNameFromBaseName(baseName);
-        }
-
-        // Auto-fill ContentId if empty
-        if (string.IsNullOrWhiteSpace(ContentId))
-        {
-            ContentId = GenerateContentId(ContentName);
-        }
-
-        // Auto-fill Description if empty
-        if (string.IsNullOrWhiteSpace(Description))
-        {
-            Description = $"{ContentName} package for {SelectedTargetGame}.";
-        }
-
-        // Intelligently infer ContentType from extension or name
-        var inferredType = InferContentType(path, baseName);
-        if (inferredType.HasValue)
-        {
-            SelectedContentType = inferredType.Value;
-        }
-
-        Validate();
+    /// <summary>
+    /// Stages multiple local directories or file paths for the initial release.
+    /// Empty content fields are auto-filled from the first staged entry.
+    /// </summary>
+    /// <param name="paths">Paths to stage.</param>
+    public void PopulateFromPaths(IEnumerable<string> paths)
+    {
+        ArgumentNullException.ThrowIfNull(paths);
+        StagePaths(paths, autofill: true);
     }
 
     /// <inheritdoc />
@@ -280,11 +342,10 @@ public partial class AddContentDialogViewModel(
     /// <param name="disposing"><c>true</c> to release both managed and unmanaged resources; <c>false</c> to release only unmanaged resources.</param>
     protected virtual void Dispose(bool disposing)
     {
-        if (disposing)
+        if (disposing && !_disposed)
         {
-            _computationCts?.Cancel();
-            _computationCts?.Dispose();
-            _computationCts = null;
+            _disposed = true;
+            CancelAllStagedCompute();
         }
     }
 
@@ -417,6 +478,7 @@ public partial class AddContentDialogViewModel(
             IsLatest = source.IsLatest,
             IsFeatured = source.IsFeatured,
             Changelog = source.Changelog,
+            BundleArtifacts = source.BundleArtifacts,
             Artifacts = source.Artifacts.Select(CloneArtifact).ToList(),
             Dependencies = source.Dependencies.Select(CloneDependency).ToList(),
         };
@@ -466,15 +528,39 @@ public partial class AddContentDialogViewModel(
     {
         if (value)
         {
-            LocalFilePath = null;
-            FileSize = 0;
-            FileSizeDisplay = string.Empty;
-            Sha256Hash = null;
+            CancelAllStagedCompute();
+            StagedFiles.Clear();
+            SyncPrimaryFromStaged();
         }
         else
         {
             DownloadUrl = null;
         }
+
+        OnPropertyChanged(nameof(IsMultiFileStaging));
+        OnPropertyChanged(nameof(MultiFileBundleNote));
+    }
+
+    partial void OnLocalFilePathChanged(string? value)
+    {
+        if (_syncingPrimary || string.IsNullOrWhiteSpace(value))
+        {
+            return;
+        }
+
+        // External assignment (tests, legacy callers): mirror an existing path
+        // into the staged files so creation flows stay consistent.
+        if (StagedFiles.Count == 1 && string.Equals(StagedFiles[0].LocalPath, value, StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        if (!File.Exists(value) && !Directory.Exists(value))
+        {
+            return;
+        }
+
+        StagePaths([value], autofill: false);
     }
 
     partial void OnDownloadUrlChanged(string? value)
@@ -490,56 +576,264 @@ public partial class AddContentDialogViewModel(
         }
     }
 
-    private bool PopulateFileSystemInfo(string path, out string baseName)
+    private void StagePaths(IEnumerable<string> paths, bool autofill)
     {
-        _computationCts?.Cancel();
-        _computationCts?.Dispose();
-        _computationCts = new CancellationTokenSource();
-        var ct = _computationCts.Token;
-        _hashGeneration++;
+        var stagedAny = false;
+        foreach (var rawPath in paths)
+        {
+            if (string.IsNullOrWhiteSpace(rawPath))
+            {
+                continue;
+            }
 
+            var path = rawPath.Trim('"', '\'', ' ');
+            if (!File.Exists(path) && !Directory.Exists(path))
+            {
+                continue;
+            }
+
+            if (StagedFiles.Any(e => string.Equals(e.LocalPath, path, StringComparison.OrdinalIgnoreCase)))
+            {
+                continue;
+            }
+
+            var isFirst = StagedFiles.Count == 0;
+            var entry = CreateStagedEntry(path);
+            StagedFiles.Add(entry);
+            StartStagedCompute(entry);
+            stagedAny = true;
+
+            if (isFirst)
+            {
+                PackageFilename = entry.IsFolder ? $"{entry.DisplayName}.zip" : entry.DisplayName;
+                if (autofill)
+                {
+                    AutoFillFromEntry(path, entry);
+                }
+            }
+        }
+
+        if (!stagedAny)
+        {
+            return;
+        }
+
+        UseDirectUrl = false;
+        IncludeInitialRelease = true;
+        SyncPrimaryFromStaged();
+        Validate();
+    }
+
+    private void AutoFillFromEntry(string path, StagedContentFile entry)
+    {
+        var baseName = entry.IsFolder ? entry.DisplayName : Path.GetFileNameWithoutExtension(entry.DisplayName);
+
+        // Auto-fill ContentName if empty
+        if (string.IsNullOrWhiteSpace(ContentName))
+        {
+            ContentName = FormatContentNameFromBaseName(baseName);
+        }
+
+        // Auto-fill ContentId if empty
+        if (string.IsNullOrWhiteSpace(ContentId))
+        {
+            ContentId = GenerateContentId(ContentName);
+        }
+
+        // Auto-fill Description if empty
+        if (string.IsNullOrWhiteSpace(Description))
+        {
+            Description = string.Format(
+                GetLocalizedString("Tools.PublisherStudio.Content.AutoDescriptionFormat", "{0} package for {1}."),
+                ContentName,
+                GetLocalizedGameName(SelectedTargetGame));
+        }
+
+        // Intelligently infer ContentType from extension or name
+        var inferredType = InferContentType(path, baseName);
+        if (inferredType.HasValue)
+        {
+            SelectedContentType = inferredType.Value;
+        }
+    }
+
+    private StagedContentFile CreateStagedEntry(string path)
+    {
         if (Directory.Exists(path))
         {
             var dirInfo = new DirectoryInfo(path);
-            baseName = dirInfo.Name;
-            PackageFilename = $"{baseName}.zip";
-
-            FileSize = 0;
-            FileSizeDisplay = "Folder (calculating size...)";
-            Sha256Hash = string.Empty;
-
-            _ = ComputeFolderSizeAsync(path, ct);
-            return true;
+            return new StagedContentFile
+            {
+                LocalPath = path,
+                DisplayName = dirInfo.Name,
+                IsFolder = true,
+                FileSizeDisplay = GetLocalizedString(
+                    "Tools.PublisherStudio.Content.StagedFolderCalculating",
+                    "Folder (calculating size...)"),
+                Sha256Hash = string.Empty,
+            };
         }
 
-        if (File.Exists(path))
+        var fileInfo = new FileInfo(path);
+        var entry = new StagedContentFile
         {
-            var fileInfo = new FileInfo(path);
-            baseName = Path.GetFileNameWithoutExtension(path);
-            PackageFilename = fileInfo.Name;
-            FileSize = fileInfo.Length;
-            FileSizeDisplay = FormatBytes(fileInfo.Length);
-            _ = ComputeSha256Async(path, ct);
-            return true;
+            LocalPath = path,
+            DisplayName = fileInfo.Name,
+            FileSizeBytes = fileInfo.Length,
+            FileSizeDisplay = FormatBytes(fileInfo.Length),
+            IsArchive = IsArchivePath(path),
+        };
+
+        if (entry.IsArchive)
+        {
+            entry.ArchiveNoteText = DescribeArchive(path);
         }
 
-        baseName = string.Empty;
-        return false;
+        return entry;
+    }
+
+    private bool IsArchivePath(string path)
+    {
+        var extension = Path.GetExtension(path);
+        return extension.Equals(".zip", StringComparison.OrdinalIgnoreCase) ||
+            extension.Equals(".7z", StringComparison.OrdinalIgnoreCase) ||
+            extension.Equals(".rar", StringComparison.OrdinalIgnoreCase) ||
+            extension.Equals(".tar", StringComparison.OrdinalIgnoreCase) ||
+            extension.Equals(".gz", StringComparison.OrdinalIgnoreCase) ||
+            extension.Equals(".tgz", StringComparison.OrdinalIgnoreCase) ||
+            extension.Equals(".bz2", StringComparison.OrdinalIgnoreCase) ||
+            extension.Equals(".xz", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private string DescribeArchive(string path)
+    {
+        var entryCount = TryGetZipEntryCount(path);
+        if (entryCount >= 0)
+        {
+            return string.Format(
+                GetLocalizedString(
+                    "Tools.PublisherStudio.Content.StagedArchiveFormat",
+                    "Archive with {0} files. Contents are extracted automatically when players install this content."),
+                entryCount);
+        }
+
+        return GetLocalizedString(
+            "Tools.PublisherStudio.Content.StagedArchiveUnknownFormat",
+            "Archive. Contents are extracted automatically when players install this content.");
+    }
+
+    private int TryGetZipEntryCount(string path)
+    {
+        if (!Path.GetExtension(path).Equals(".zip", StringComparison.OrdinalIgnoreCase))
+        {
+            return -1;
+        }
+
+        try
+        {
+            using var archive = ZipFile.OpenRead(path);
+            return archive.Entries.Count(e => !string.IsNullOrEmpty(e.Name));
+        }
+        catch (Exception ex) when (ex is InvalidDataException or IOException or UnauthorizedAccessException or NotSupportedException)
+        {
+            return -1;
+        }
+    }
+
+    private void StartStagedCompute(StagedContentFile entry)
+    {
+        CancelStagedCompute(entry);
+        var cts = new CancellationTokenSource();
+        entry.ComputeCts = cts;
+        entry.IsComputingHash = true;
+        UpdateAggregateHashState();
+        _ = ComputeStagedEntryAsync(entry, cts.Token);
+    }
+
+    private void CancelStagedCompute(StagedContentFile entry)
+    {
+        entry.ComputeCts?.Cancel();
+        entry.ComputeCts?.Dispose();
+        entry.ComputeCts = null;
+    }
+
+    private void CancelAllStagedCompute()
+    {
+        foreach (var entry in StagedFiles)
+        {
+            CancelStagedCompute(entry);
+        }
+    }
+
+    private void SyncPrimaryFromStaged()
+    {
+        _syncingPrimary = true;
+        try
+        {
+            var first = StagedFiles.FirstOrDefault();
+            if (first == null)
+            {
+                LocalFilePath = null;
+                FileSize = 0;
+                FileSizeDisplay = string.Empty;
+                Sha256Hash = null;
+            }
+            else
+            {
+                LocalFilePath = first.LocalPath;
+                FileSize = first.FileSizeBytes;
+                FileSizeDisplay = first.FileSizeDisplay;
+                Sha256Hash = first.Sha256Hash;
+            }
+
+            UpdateAggregateHashState();
+            OnPropertyChanged(nameof(HasStagedFiles));
+            OnPropertyChanged(nameof(IsMultiFileStaging));
+            OnPropertyChanged(nameof(MultiFileBundleNote));
+        }
+        finally
+        {
+            _syncingPrimary = false;
+        }
+    }
+
+    private void UpdateAggregateHashState()
+    {
+        IsComputingHash = StagedFiles.Any(e => e.IsComputingHash);
     }
 
     /// <summary>
-    /// Browses for a local archive file (.zip, .big, .7z, etc.).
+    /// Removes a staged file or folder from the initial release.
+    /// </summary>
+    /// <param name="entry">The staged entry to remove.</param>
+    [RelayCommand]
+    private void RemoveStagedFile(StagedContentFile? entry)
+    {
+        if (entry == null || !StagedFiles.Contains(entry))
+        {
+            return;
+        }
+
+        CancelStagedCompute(entry);
+        StagedFiles.Remove(entry);
+        SyncPrimaryFromStaged();
+    }
+
+    /// <summary>
+    /// Browses for local content files (.zip, .big, .7z, etc.).
+    /// Multiple files can be selected; each becomes one release artifact.
     /// </summary>
     [RelayCommand]
     private async Task BrowseLocalFileAsync()
     {
         if (dialogService == null) return;
 
-        var filePath = await dialogService.ShowFilePickerAsync(
+        var filePaths = await dialogService.ShowFilesPickerAsync(
             GetLocalizedString("Tools.PublisherStudio.Content.SelectArchiveTitle", "Select Content Archive File"));
-        if (!string.IsNullOrEmpty(filePath) && File.Exists(filePath))
+        var existing = filePaths.Where(File.Exists).ToList();
+        if (existing.Count > 0)
         {
-            PopulateFromPath(filePath);
+            StagePaths(existing, autofill: true);
         }
     }
 
@@ -595,16 +889,35 @@ public partial class AddContentDialogViewModel(
         }
     }
 
-    private async Task ComputeFolderSizeAsync(string folderPath, CancellationToken ct)
+    private async Task ComputeStagedEntryAsync(StagedContentFile entry, CancellationToken ct)
+    {
+        try
+        {
+            if (entry.IsFolder)
+            {
+                await ComputeStagedFolderSizeAsync(entry, ct);
+            }
+            else
+            {
+                await ComputeStagedFileHashAsync(entry, ct);
+            }
+        }
+        finally
+        {
+            entry.IsComputingHash = false;
+            SyncPrimaryFromStaged();
+        }
+    }
+
+    private async Task ComputeStagedFolderSizeAsync(StagedContentFile entry, CancellationToken ct)
     {
         try
         {
             var totalBytes = await Task.Run(
                 () =>
                 {
-                    var dirInfo = new DirectoryInfo(folderPath);
                     long sum = 0;
-                    foreach (var file in dirInfo.EnumerateFiles("*", SearchOption.AllDirectories))
+                    foreach (var file in new DirectoryInfo(entry.LocalPath).EnumerateFiles("*", SearchOption.AllDirectories))
                     {
                         ct.ThrowIfCancellationRequested();
                         sum += file.Length;
@@ -614,10 +927,12 @@ public partial class AddContentDialogViewModel(
                 },
                 ct);
 
-            if (!ct.IsCancellationRequested && string.Equals(LocalFilePath, folderPath, StringComparison.OrdinalIgnoreCase))
+            if (!ct.IsCancellationRequested)
             {
-                FileSize = totalBytes;
-                FileSizeDisplay = $"{FormatBytes(totalBytes)} (folder)";
+                entry.FileSizeBytes = totalBytes;
+                entry.FileSizeDisplay = string.Format(
+                    GetLocalizedString("Tools.PublisherStudio.Content.StagedFolderSizeFormat", "{0} (folder)"),
+                    FormatBytes(totalBytes));
             }
         }
         catch (OperationCanceledException)
@@ -626,26 +941,26 @@ public partial class AddContentDialogViewModel(
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            if (!ct.IsCancellationRequested && string.Equals(LocalFilePath, folderPath, StringComparison.OrdinalIgnoreCase))
+            if (!ct.IsCancellationRequested)
             {
-                FileSize = 0;
-                FileSizeDisplay = "Folder (size unavailable)";
+                entry.FileSizeBytes = 0;
+                entry.FileSizeDisplay = GetLocalizedString(
+                    "Tools.PublisherStudio.Content.StagedFolderUnavailable",
+                    "Folder (size unavailable)");
             }
         }
     }
 
-    private async Task ComputeSha256Async(string filePath, CancellationToken ct)
+    private async Task ComputeStagedFileHashAsync(StagedContentFile entry, CancellationToken ct)
     {
-        var generation = _hashGeneration;
         try
         {
-            IsComputingHash = true;
-            using var stream = File.OpenRead(filePath);
+            using var stream = File.OpenRead(entry.LocalPath);
             using var sha256 = SHA256.Create();
             var hashBytes = await sha256.ComputeHashAsync(stream, ct);
-            if (!ct.IsCancellationRequested && generation == _hashGeneration)
+            if (!ct.IsCancellationRequested)
             {
-                Sha256Hash = Convert.ToHexString(hashBytes).ToLowerInvariant();
+                entry.Sha256Hash = Convert.ToHexString(hashBytes).ToLowerInvariant();
             }
         }
         catch (OperationCanceledException)
@@ -654,17 +969,23 @@ public partial class AddContentDialogViewModel(
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            if (!ct.IsCancellationRequested && generation == _hashGeneration)
+            if (!ct.IsCancellationRequested)
             {
-                Sha256Hash = string.Empty;
+                entry.Sha256Hash = string.Empty;
             }
         }
-        finally
+    }
+
+    /// <summary>
+    /// Applies a preset accent color from the picker.
+    /// </summary>
+    /// <param name="hex">The preset hex color.</param>
+    [RelayCommand]
+    private void SelectAccentColor(string? hex)
+    {
+        if (!string.IsNullOrWhiteSpace(hex))
         {
-            if (generation == _hashGeneration)
-            {
-                IsComputingHash = false;
-            }
+            AccentColor = hex;
         }
     }
 
@@ -771,7 +1092,23 @@ public partial class AddContentDialogViewModel(
             if (!Uri.TryCreate(DownloadUrl.Trim(), UriKind.Absolute, out var uri) ||
                 (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
             {
-                ValidationError = "Download URL must be a valid HTTP or HTTPS link.";
+                ValidationError = GetLocalizedString(
+                    "Tools.PublisherStudio.Validation.DownloadUrlInvalid",
+                    "Download URL must be a valid HTTP or HTTPS link.");
+                IsValid = false;
+                return false;
+            }
+        }
+        else if (StagedFiles.Count > 0)
+        {
+            var missing = StagedFiles.FirstOrDefault(e => !File.Exists(e.LocalPath) && !Directory.Exists(e.LocalPath));
+            if (missing != null)
+            {
+                ValidationError = string.Format(
+                    GetLocalizedString(
+                        "Tools.PublisherStudio.Validation.LocalPathMissingFormat",
+                        "Local path does not exist: {0}"),
+                    missing.LocalPath);
                 IsValid = false;
                 return false;
             }
@@ -780,12 +1117,26 @@ public partial class AddContentDialogViewModel(
                  !System.IO.File.Exists(LocalFilePath) &&
                  !System.IO.Directory.Exists(LocalFilePath))
         {
-            ValidationError = $"Local path does not exist: {LocalFilePath}";
+            ValidationError = string.Format(
+                GetLocalizedString(
+                    "Tools.PublisherStudio.Validation.LocalPathMissingFormat",
+                    "Local path does not exist: {0}"),
+                LocalFilePath);
             IsValid = false;
             return false;
         }
 
         return true;
+    }
+
+    private string GetLocalizedGameName(GameType game)
+    {
+        return game switch
+        {
+            GameType.Generals => GetLocalizedString("GameProfiles.GameType.Generals", "C&C Generals"),
+            GameType.ZeroHour => GetLocalizedString("GameProfiles.GameType.ZeroHour", "C&C Generals: Zero Hour"),
+            _ => game.ToString(),
+        };
     }
 
     private bool IsRemoteArtworkUrl(string value)
@@ -879,6 +1230,20 @@ public partial class AddContentDialogViewModel(
             Artifacts = [],
         };
 
+        if (UseDirectUrl || StagedFiles.Count == 0)
+        {
+            AttachSingleInitialArtifact(contentItem, release, version);
+        }
+        else
+        {
+            AttachStagedInitialArtifacts(release);
+        }
+
+        contentItem.Releases.Add(release);
+    }
+
+    private void AttachSingleInitialArtifact(CatalogContentItem contentItem, ContentRelease release, string version)
+    {
         var artifactName = DetermineArtifactName(contentItem.Id, version);
 
         var artifact = new ReleaseArtifact
@@ -893,7 +1258,45 @@ public partial class AddContentDialogViewModel(
         };
 
         release.Artifacts.Add(artifact);
-        contentItem.Releases.Add(release);
+    }
+
+    private void AttachStagedInitialArtifacts(ContentRelease release)
+    {
+        var isSingle = StagedFiles.Count == 1;
+        for (var index = 0; index < StagedFiles.Count; index++)
+        {
+            var entry = StagedFiles[index];
+            var artifactName = isSingle && !string.IsNullOrWhiteSpace(PackageFilename)
+                ? PackageFilename.Trim()
+                : StagedArtifactFilename(entry);
+
+            release.Artifacts.Add(new ReleaseArtifact
+            {
+                Filename = artifactName,
+                DownloadUrl = string.Empty,
+                LocalFilePath = entry.LocalPath,
+                Size = entry.FileSizeBytes,
+                Sha256 = entry.Sha256Hash?.Trim() ?? string.Empty,
+                ContentType = MimeTypeHelper.FromFileName(artifactName),
+                IsPrimary = index == 0,
+            });
+        }
+
+        // Multiple staged files are parts of one payload; bundle them so the
+        // downloads browser installs all of them instead of offering a picker.
+        release.BundleArtifacts = StagedFiles.Count > 1;
+    }
+
+    private string StagedArtifactFilename(StagedContentFile entry)
+    {
+        if (!entry.IsFolder)
+        {
+            return entry.DisplayName;
+        }
+
+        return entry.DisplayName.EndsWith(".zip", StringComparison.OrdinalIgnoreCase)
+            ? entry.DisplayName
+            : entry.DisplayName + ".zip";
     }
 
     private void CopyFromExistingItem(CatalogContentItem contentItem)

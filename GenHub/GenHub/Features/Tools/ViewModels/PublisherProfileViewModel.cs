@@ -124,6 +124,7 @@ public partial class PublisherProfileViewModel(
     private void MarkDirty()
     {
         parentViewModel?.MarkDirty();
+        parentViewModel?.PublishShareViewModel?.MarkAllCatalogsChanged();
     }
 
     /// <summary>

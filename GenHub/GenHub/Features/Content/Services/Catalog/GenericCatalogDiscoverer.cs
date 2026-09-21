@@ -58,6 +58,7 @@ public class GenericCatalogDiscoverer(
     private static readonly JsonSerializerOptions DefinitionJsonOptions = PublisherJsonOptions.Definition;
 
     private Core.Models.Providers.PublisherSubscription? _subscription;
+    private string? _refreshedCatalogUrl;
 
     /// <summary>
     /// Gets the unique identifier of the resolver used by this discoverer.
@@ -87,6 +88,19 @@ public class GenericCatalogDiscoverer(
         ArgumentNullException.ThrowIfNull(subscription);
         _subscription = subscription;
         logger.LogDebug("Configured discoverer for publisher: {PublisherId}", subscription.PublisherId);
+    }
+
+    /// <summary>
+    /// Takes the catalog URL resolved from the publisher definition during the last
+    /// discovery, if it differs from the stored subscription URL. Consumers persist it
+    /// so renames and hosting moves stick. Returns null when nothing changed.
+    /// </summary>
+    /// <returns>The refreshed catalog URL, or null.</returns>
+    public string? TakeRefreshedCatalogUrl()
+    {
+        var refreshed = _refreshedCatalogUrl;
+        _refreshedCatalogUrl = null;
+        return refreshed;
     }
 
     /// <inheritdoc />
@@ -241,7 +255,7 @@ public class GenericCatalogDiscoverer(
         }
     }
 
-    private static IReadOnlyList<string> ResolveDefinitionCatalogUrls(PublisherDefinition? definition)
+    private static IReadOnlyList<string> ResolveDefinitionCatalogUrls(PublisherDefinition? definition, string? selectedCatalogId)
     {
         var urls = new List<string>();
         if (definition == null)
@@ -249,31 +263,48 @@ public class GenericCatalogDiscoverer(
             return urls;
         }
 
-        AddDefinitionUrl(urls, definition.CatalogUrl);
-        if (definition.CatalogMirrors != null)
-        {
-            foreach (var mirror in definition.CatalogMirrors)
-            {
-                AddDefinitionUrl(urls, mirror);
-            }
-        }
-
         if (definition.Catalogs != null)
         {
+            // The selected catalog goes first so the feed the user follows wins
+            // over sibling catalogs when a publisher hosts several.
+            var selected = !string.IsNullOrWhiteSpace(selectedCatalogId)
+                ? definition.Catalogs.FirstOrDefault(e => string.Equals(e.Id, selectedCatalogId, StringComparison.OrdinalIgnoreCase))
+                : null;
+            if (selected != null)
+            {
+                AddDefinitionUrl(urls, selected.Url);
+                AddDefinitionMirrors(urls, selected.Mirrors);
+            }
+
             foreach (var entry in definition.Catalogs)
             {
-                AddDefinitionUrl(urls, entry.Url);
-                if (entry.Mirrors != null)
+                if (ReferenceEquals(entry, selected))
                 {
-                    foreach (var mirror in entry.Mirrors)
-                    {
-                        AddDefinitionUrl(urls, mirror);
-                    }
+                    continue;
                 }
+
+                AddDefinitionUrl(urls, entry.Url);
+                AddDefinitionMirrors(urls, entry.Mirrors);
             }
         }
 
+        AddDefinitionUrl(urls, definition.CatalogUrl);
+        AddDefinitionMirrors(urls, definition.CatalogMirrors);
+
         return urls;
+    }
+
+    private static void AddDefinitionMirrors(List<string> urls, List<string>? mirrors)
+    {
+        if (mirrors == null)
+        {
+            return;
+        }
+
+        foreach (var mirror in mirrors)
+        {
+            AddDefinitionUrl(urls, mirror);
+        }
     }
 
     private static void AddDefinitionUrl(List<string> urls, string? url)
@@ -753,12 +784,37 @@ public class GenericCatalogDiscoverer(
         }
     }
 
-    private async Task<OperationResult<PublisherCatalog>?> TryFetchFromDefinitionAsync(
+    private async Task<IReadOnlyList<string>> ResolveCandidateCatalogUrlsAsync(
+        HttpClient httpClient,
+        CancellationToken cancellationToken)
+    {
+        var urls = new List<string>();
+        if (_subscription != null && !string.IsNullOrWhiteSpace(_subscription.DefinitionUrl))
+        {
+            var definition = await TryFetchDefinitionAsync(httpClient, _subscription.DefinitionUrl, cancellationToken);
+            if (definition != null)
+            {
+                logger.LogDebug("Resolving catalog URLs from definition for {PublisherId}", _subscription.PublisherId);
+                foreach (var url in ResolveDefinitionCatalogUrls(definition, _subscription.SelectedCatalogId))
+                {
+                    AddDefinitionUrl(urls, url);
+                }
+            }
+            else
+            {
+                logger.LogDebug("Publisher definition unavailable; falling back to cached catalog URL");
+            }
+        }
+
+        AddDefinitionUrl(urls, _subscription?.CatalogUrl);
+        return urls;
+    }
+
+    private async Task<PublisherDefinition?> TryFetchDefinitionAsync(
         HttpClient httpClient,
         string definitionUrl,
         CancellationToken cancellationToken)
     {
-        PublisherDefinition? definition;
         try
         {
             var defJson = await CatalogDocumentReader.ReadAsync(
@@ -766,7 +822,7 @@ public class GenericCatalogDiscoverer(
                 definitionUrl,
                 CatalogConstants.MaxCatalogSizeBytes,
                 cancellationToken);
-            definition = JsonSerializer.Deserialize<PublisherDefinition>(defJson, DefinitionJsonOptions);
+            return JsonSerializer.Deserialize<PublisherDefinition>(defJson, DefinitionJsonOptions);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -774,45 +830,29 @@ public class GenericCatalogDiscoverer(
         }
         catch (Exception ex)
         {
-            logger.LogDebug(ex, "Failed to read publisher definition; falling back to direct catalog URL");
+            logger.LogDebug(ex, "Failed to read publisher definition; falling back to cached catalog URL");
             return null;
         }
+    }
 
-        var candidateUrls = ResolveDefinitionCatalogUrls(definition);
-        if (candidateUrls.Count == 0)
+    private void RememberResolvedCatalogUrl(string candidateUrl)
+    {
+        if (_subscription == null)
         {
-            return null;
+            return;
         }
 
-        foreach (var candidateUrl in candidateUrls)
+        if (string.Equals(_subscription.CatalogUrl, candidateUrl, StringComparison.OrdinalIgnoreCase))
         {
-            OperationResult<PublisherCatalog>? parsed = null;
-            try
-            {
-                var candidateJson = await CatalogDocumentReader.ReadAsync(
-                    httpClient,
-                    candidateUrl,
-                    CatalogConstants.MaxCatalogSizeBytes,
-                    cancellationToken);
-                parsed = await catalogParser.ParseCatalogAsync(candidateJson, cancellationToken);
-            }
-            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-            {
-                throw;
-            }
-            catch (Exception ex)
-            {
-                logger.LogDebug(ex, "Definition catalog candidate failed: {CatalogUrl}", candidateUrl);
-            }
-
-            if (parsed?.Success == true && parsed.Data != null)
-            {
-                return OperationResult<PublisherCatalog>.CreateSuccess(parsed.Data);
-            }
+            return;
         }
 
-        return OperationResult<PublisherCatalog>.CreateFailure(
-            "Failed to fetch catalog from all definition URLs and mirrors.");
+        logger.LogInformation(
+            "Resolved catalog URL for {PublisherId}: {CatalogUrl}",
+            _subscription.PublisherId,
+            candidateUrl);
+        _subscription.CatalogUrl = candidateUrl;
+        _refreshedCatalogUrl = candidateUrl;
     }
 
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1031:DoNotCatchGeneralExceptionTypes", Justification = "Catalog discovery failures are reported via OperationResult.")]
@@ -823,60 +863,71 @@ public class GenericCatalogDiscoverer(
             return OperationResult<PublisherCatalog>.CreateFailure("Subscription is not configured");
         }
 
-        try
+        var httpClient = httpClientFactory.CreateClient(CatalogConstants.CatalogHttpClientName);
+        httpClient.Timeout = TimeSpan.FromSeconds(30);
+
+        var candidateUrls = await ResolveCandidateCatalogUrlsAsync(httpClient, cancellationToken);
+        if (candidateUrls.Count == 0)
         {
-            var httpClient = httpClientFactory.CreateClient(CatalogConstants.CatalogHttpClientName);
-            httpClient.Timeout = TimeSpan.FromSeconds(30);
+            return OperationResult<PublisherCatalog>.CreateFailure("No catalog URL available for subscription.");
+        }
 
-            var targetCatalogUrl = _subscription.CatalogUrl;
-
-            // If catalog URL is missing, resolve it from the Definition URL
-            if (string.IsNullOrWhiteSpace(targetCatalogUrl) && !string.IsNullOrWhiteSpace(_subscription.DefinitionUrl))
+        OperationResult<PublisherCatalog>? lastFailure = null;
+        foreach (var candidateUrl in candidateUrls)
+        {
+            OperationResult<PublisherCatalog>? parsed = null;
+            try
             {
-                logger.LogInformation("Resolving catalog URL from definition: {DefinitionUrl}", _subscription.DefinitionUrl);
-                var definitionResult = await TryFetchFromDefinitionAsync(httpClient, _subscription.DefinitionUrl, cancellationToken);
-                if (definitionResult != null)
-                {
-                    return definitionResult;
-                }
+                logger.LogDebug("Fetching catalog from: {CatalogUrl}", candidateUrl);
+
+                var catalogJson = await CatalogDocumentReader.ReadAsync(
+                    httpClient,
+                    candidateUrl,
+                    CatalogConstants.MaxCatalogSizeBytes,
+                    cancellationToken);
+
+                // Parse catalog
+                parsed = await catalogParser.ParseCatalogAsync(catalogJson, cancellationToken);
+            }
+            catch (OperationCanceledException ex) when (cancellationToken.IsCancellationRequested)
+            {
+                logger.LogInformation(ex, "Catalog fetch cancelled by user");
+                throw new OperationCanceledException("Catalog fetch cancelled by user", ex, cancellationToken);
+            }
+            catch (HttpRequestException ex)
+            {
+                logger.LogDebug(ex, "Catalog candidate failed: {CatalogUrl}", candidateUrl);
+                lastFailure = OperationResult<PublisherCatalog>.CreateFailure($"Failed to fetch catalog: {ex.Message}");
+                continue;
+            }
+            catch (TaskCanceledException ex)
+            {
+                logger.LogDebug(ex, "Catalog candidate timed out: {CatalogUrl}", candidateUrl);
+                lastFailure = OperationResult<PublisherCatalog>.CreateFailure("Catalog fetch timed out");
+                continue;
+            }
+            catch (Exception ex)
+            {
+                logger.LogDebug(ex, "Catalog candidate failed: {CatalogUrl}", candidateUrl);
+                lastFailure = OperationResult<PublisherCatalog>.CreateFailure($"Failed to fetch catalog: {ex.Message}");
+                continue;
             }
 
-            if (string.IsNullOrWhiteSpace(targetCatalogUrl))
+            if (parsed?.Success == true && parsed.Data != null)
             {
-                return OperationResult<PublisherCatalog>.CreateFailure("No catalog URL available for subscription.");
+                RememberResolvedCatalogUrl(candidateUrl);
+                return OperationResult<PublisherCatalog>.CreateSuccess(parsed.Data);
             }
 
-            logger.LogDebug("Fetching catalog from: {CatalogUrl}", targetCatalogUrl);
+            lastFailure = parsed ?? OperationResult<PublisherCatalog>.CreateFailure("Failed to fetch catalog.");
+        }
 
-            var catalogJson = await CatalogDocumentReader.ReadAsync(
-                httpClient,
-                targetCatalogUrl,
-                CatalogConstants.MaxCatalogSizeBytes,
-                cancellationToken);
-
-            // Parse catalog
-            return await catalogParser.ParseCatalogAsync(catalogJson, cancellationToken);
-        }
-        catch (HttpRequestException ex)
-        {
-            logger.LogError(ex, "HTTP error fetching catalog");
-            return OperationResult<PublisherCatalog>.CreateFailure($"Failed to fetch catalog: {ex.Message}");
-        }
-        catch (OperationCanceledException ex) when (cancellationToken.IsCancellationRequested)
-        {
-            logger.LogInformation(ex, "Catalog fetch cancelled by user");
-            throw new OperationCanceledException("Catalog fetch cancelled by user", ex, cancellationToken);
-        }
-        catch (TaskCanceledException ex)
-        {
-            logger.LogWarning(ex, "Catalog fetch timed out");
-            return OperationResult<PublisherCatalog>.CreateFailure("Catalog fetch timed out");
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Failed to read or parse catalog");
-            return OperationResult<PublisherCatalog>.CreateFailure($"Failed to fetch catalog: {ex.Message}");
-        }
+        logger.LogWarning(
+            "All {CandidateCount} catalog candidates failed for {PublisherId}: {Error}",
+            candidateUrls.Count,
+            _subscription.PublisherId,
+            lastFailure?.FirstError);
+        return lastFailure ?? OperationResult<PublisherCatalog>.CreateFailure("Failed to fetch catalog.");
     }
 
     private List<ContentSearchResult> ConvertCatalogToSearchResults(
@@ -919,7 +970,7 @@ public class GenericCatalogDiscoverer(
                 // ever be visible or downloadable. Single-file releases take the original
                 // one-card path unchanged.
                 var variantAxes = GetVariantArtifacts(release);
-                var implicitFileSplit = variantAxes.Count == 0 && HasMultipleDownloadableArtifacts(release);
+                var implicitFileSplit = variantAxes.Count == 0 && !release.BundleArtifacts && HasMultipleDownloadableArtifacts(release);
                 if (implicitFileSplit)
                 {
                     variantAxes = release.Artifacts
@@ -1126,6 +1177,7 @@ public class GenericCatalogDiscoverer(
             IsPrerelease = context.ResolvedRelease.IsPrerelease,
             IsLatest = context.ResolvedRelease.IsLatest,
             Changelog = context.ResolvedRelease.Changelog,
+            BundleArtifacts = context.ResolvedRelease.BundleArtifacts,
             Artifacts = siblingArtifacts,
             Dependencies = context.ResolvedRelease.Dependencies?.Select(dep =>
             {

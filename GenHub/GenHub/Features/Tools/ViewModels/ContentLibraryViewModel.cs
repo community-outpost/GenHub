@@ -194,7 +194,7 @@ public partial class ContentLibraryViewModel(
             OnPropertyChanged(nameof(CatalogSummaryText));
             SelectedContent = newContent;
 
-            parentViewModel?.MarkDirty();
+            MarkProjectAndCatalogDirty();
             if (parentViewModel != null)
             {
                 await parentViewModel.SaveProjectAsync();
@@ -213,6 +213,12 @@ public partial class ContentLibraryViewModel(
     }
 
     /// <summary>
+    /// Gets a value indicating whether the active catalog needs publishing.
+    /// </summary>
+    public bool ActiveCatalogNeedsPublish =>
+        parentViewModel?.PublishShareViewModel?.CatalogNeedsPublish(activeCatalog.Id) ?? true;
+
+    /// <summary>
     /// Rebuilds the content detail display after artifact uploads mutate models in place.
     /// Invoked from the publish pipeline so pending badges and hints update without switching tabs.
     /// </summary>
@@ -220,6 +226,14 @@ public partial class ContentLibraryViewModel(
     {
         RefreshSelectedContent();
         OnPropertyChanged(nameof(CatalogSummaryText));
+        OnPropertyChanged(nameof(ActiveCatalogNeedsPublish));
+    }
+
+    private void MarkProjectAndCatalogDirty()
+    {
+        parentViewModel?.MarkDirty();
+        parentViewModel?.PublishShareViewModel?.MarkCatalogChanged(activeCatalog.Id);
+        OnPropertyChanged(nameof(ActiveCatalogNeedsPublish));
     }
 
     /// <summary>
@@ -269,6 +283,14 @@ public partial class ContentLibraryViewModel(
             return;
         }
 
+        if (publishShare.IsUploading)
+        {
+            notificationService?.ShowWarning(
+                GetLocalizedString("Tools.PublisherStudio.Publish.PublishCatalog", "Publish Catalog"),
+                GetLocalizedString("Tools.PublisherStudio.Publish.UploadAlreadyInProgress", "An upload is already in progress."));
+            return;
+        }
+
         await publishShare.PublishCatalogByIdCommand.ExecuteAsync(activeCatalog.Id);
     }
 
@@ -310,45 +332,49 @@ public partial class ContentLibraryViewModel(
     }
 
     /// <summary>
-    /// Edits the selected content item using a pre-populated dialog.
+    /// Edits a content item using a pre-populated dialog.
     /// </summary>
+    /// <param name="item">The item to edit, or null to edit the selected item.</param>
     [RelayCommand]
-    private async Task EditContentAsync()
+    private async Task EditContentAsync(CatalogContentItem? item)
     {
-        if (SelectedContent == null) return;
+        var target = item ?? SelectedContent;
+        if (target == null) return;
 
-        var edited = await dialogService.ShowEditContentDialogAsync(SelectedContent);
+        var edited = await dialogService.ShowEditContentDialogAsync(target);
         if (edited != null)
         {
             // Update the existing item's properties
-            SelectedContent.Name = edited.Name;
-            SelectedContent.Description = edited.Description;
-            SelectedContent.ContentType = edited.ContentType;
-            SelectedContent.TargetGame = edited.TargetGame;
-            SelectedContent.Tags = edited.Tags;
-            SelectedContent.ExtendsContentId = edited.ExtendsContentId;
-            SelectedContent.Metadata = edited.Metadata;
+            target.Name = edited.Name;
+            target.Description = edited.Description;
+            target.ContentType = edited.ContentType;
+            target.TargetGame = edited.TargetGame;
+            target.Tags = edited.Tags;
+            target.ExtendsContentId = edited.ExtendsContentId;
+            target.Metadata = edited.Metadata;
 
             // Trigger UI update
             RefreshSelectedContent();
 
-            parentViewModel?.MarkDirty();
+            MarkProjectAndCatalogDirty();
             if (parentViewModel != null)
             {
                 await parentViewModel.SaveProjectAsync();
             }
 
-            logger.LogInformation("Updated content item: {ContentId}", SelectedContent.Id);
+            logger.LogInformation("Updated content item: {ContentId}", target.Id);
         }
     }
 
     /// <summary>
-    /// Deletes the currently selected content item from the active catalog.
+    /// Deletes a content item from the active catalog.
     /// </summary>
+    /// <param name="item">The item to delete, or null to delete the selected item.</param>
     [RelayCommand]
-    private async Task DeleteContentAsync()
+    private async Task DeleteContentAsync(CatalogContentItem? item)
     {
-        if (SelectedContent == null)
+        var target = item ?? SelectedContent;
+        if (target == null)
         {
             return;
         }
@@ -358,8 +384,8 @@ public partial class ContentLibraryViewModel(
             GetLocalizedString(
                 "Tools.PublisherStudio.Content.DeleteContentMessageFormat",
                 "Are you sure you want to delete '{0}' ({1})? This will also remove all its releases and artifacts."),
-            SelectedContent.Name,
-            SelectedContent.Id);
+            target.Name,
+            target.Id);
 
         var confirmed = await dialogService.ShowConfirmationAsync(title, message);
 
@@ -368,14 +394,18 @@ public partial class ContentLibraryViewModel(
             return;
         }
 
-        var contentId = SelectedContent.Id;
-        activeCatalog.Catalog.Content.Remove(SelectedContent);
-        ContentItems.Remove(SelectedContent);
-        SelectedContent = null;
+        var contentId = target.Id;
+        activeCatalog.Catalog.Content.Remove(target);
+        ContentItems.Remove(target);
+        if (SelectedContent == target)
+        {
+            SelectedContent = null;
+        }
+
         OnPropertyChanged(nameof(FilteredContent));
         OnPropertyChanged(nameof(CatalogSummaryText));
 
-        parentViewModel?.MarkDirty();
+        MarkProjectAndCatalogDirty();
         if (parentViewModel != null)
         {
             await parentViewModel.SaveProjectAsync();
@@ -410,7 +440,7 @@ public partial class ContentLibraryViewModel(
             SelectedContent.Releases.Add(newRelease);
             RefreshSelectedContent();
 
-            parentViewModel?.MarkDirty();
+            MarkProjectAndCatalogDirty();
             if (parentViewModel != null)
             {
                 await parentViewModel.SaveProjectAsync();
@@ -434,7 +464,7 @@ public partial class ContentLibraryViewModel(
             SelectedContent.BundledItems.Add(dependency);
             RefreshSelectedContent();
 
-            parentViewModel?.MarkDirty();
+            MarkProjectAndCatalogDirty();
             if (parentViewModel != null)
             {
                 await parentViewModel.SaveProjectAsync();
@@ -455,7 +485,7 @@ public partial class ContentLibraryViewModel(
         SelectedContent.BundledItems.Remove(dependency);
         RefreshSelectedContent();
 
-        parentViewModel?.MarkDirty();
+        MarkProjectAndCatalogDirty();
         if (parentViewModel != null)
         {
             await parentViewModel.SaveProjectAsync();
@@ -497,7 +527,7 @@ public partial class ContentLibraryViewModel(
 
         RefreshSelectedContent();
 
-        parentViewModel?.MarkDirty();
+        MarkProjectAndCatalogDirty();
         if (parentViewModel != null)
         {
             await parentViewModel.SaveProjectSilentAsync();
@@ -550,7 +580,7 @@ public partial class ContentLibraryViewModel(
 
             RefreshSelectedContent();
 
-            parentViewModel?.MarkDirty();
+            MarkProjectAndCatalogDirty();
             if (parentViewModel != null)
             {
                 await parentViewModel.SaveProjectAsync();
@@ -582,7 +612,7 @@ public partial class ContentLibraryViewModel(
             release.Artifacts.Add(artifact);
             RefreshSelectedContent();
 
-            parentViewModel?.MarkDirty();
+            MarkProjectAndCatalogDirty();
             if (parentViewModel != null)
             {
                 await parentViewModel.SaveProjectAsync();
@@ -606,7 +636,7 @@ public partial class ContentLibraryViewModel(
             release.Artifacts.Remove(artifact);
             RefreshSelectedContent();
 
-            parentViewModel?.MarkDirty();
+            MarkProjectAndCatalogDirty();
             if (parentViewModel != null)
             {
                 await parentViewModel.SaveProjectAsync();
@@ -630,7 +660,7 @@ public partial class ContentLibraryViewModel(
             release.Dependencies.Add(dependency);
             RefreshSelectedContent();
 
-            parentViewModel?.MarkDirty();
+            MarkProjectAndCatalogDirty();
             if (parentViewModel != null)
             {
                 await parentViewModel.SaveProjectAsync();
@@ -654,7 +684,7 @@ public partial class ContentLibraryViewModel(
             release.Dependencies.Remove(dependency);
             RefreshSelectedContent();
 
-            parentViewModel?.MarkDirty();
+            MarkProjectAndCatalogDirty();
             if (parentViewModel != null)
             {
                 await parentViewModel.SaveProjectAsync();

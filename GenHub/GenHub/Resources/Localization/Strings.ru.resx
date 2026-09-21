@@ -12884,6 +12884,60 @@ GameFilesEdited/Data/INI/**/*.ini</value>
   <data name="Tools.PublisherStudio.Hosting.RedirectUriCopied" xml:space="preserve">
     <value>Redirect URI скопирован. Вставьте его в список Redirect URIs вашего приложения Dropbox.</value>
   </data>
+  <data name="Tools.PublisherStudio.Content.AutoDescriptionFormat" xml:space="preserve">
+    <value>Пакет {0} для {1}.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Validation.DownloadUrlInvalid" xml:space="preserve">
+    <value>URL-адрес загрузки должен быть допустимой ссылкой HTTP или HTTPS.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Validation.LocalPathMissingFormat" xml:space="preserve">
+    <value>Локальный путь не существует: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.SelectFileTitle" xml:space="preserve">
+    <value>Выберите файл артефакта</value>
+  </data>
+  <data name="Tools.PublisherStudio.Artifact.SelectFolderTitle" xml:space="preserve">
+    <value>Выберите папку артефакта</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.AccentColorPresetsHint" xml:space="preserve">
+    <value>Выберите готовый цвет или введите свой hex-код.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.BrowseFiles" xml:space="preserve">
+    <value>Выбрать файлы...</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.RemoveStagedFileTooltip" xml:space="preserve">
+    <value>Убрать файл</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.MultiFileBundleNoteFormat" xml:space="preserve">
+    <value>Файлы ({0}) будут загружены по отдельности и установлены вместе как один пакет.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.StagedFolderCalculating" xml:space="preserve">
+    <value>Папка (вычисление размера...)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.StagedFolderSizeFormat" xml:space="preserve">
+    <value>{0} (папка)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.StagedFolderUnavailable" xml:space="preserve">
+    <value>Папка (размер недоступен)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.StagedArchiveFormat" xml:space="preserve">
+    <value>Архив с файлами ({0}). Содержимое извлекается автоматически при установке этого контента игроками.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.StagedArchiveUnknownFormat" xml:space="preserve">
+    <value>Архив. Содержимое извлекается автоматически при установке этого контента игроками.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Release.BundleArtifacts" xml:space="preserve">
+    <value>Установить все файлы вместе (пакет)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Release.BundleArtifactsHint" xml:space="preserve">
+    <value>Все артефакты этого выпуска устанавливаются как один пакет вместо отображения выбора файлов.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Studio.RemoteCatalogDeleteFailedFormat" xml:space="preserve">
+    <value>Каталог удалён локально, но опубликованный файл «{0}» удалить не удалось. Возможно, он всё ещё доступен.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.PublishCatalogTooltip" xml:space="preserve">
+    <value>Опубликовать этот каталог у хостинг-провайдера</value>
+  </data>
   <data name="GameProfiles.Notification.UnexpectedExit.Title" xml:space="preserve">
     <value>Игра неожиданно завершилась</value>
   </data>

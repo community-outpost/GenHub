@@ -168,6 +168,10 @@
                          </ListBox.ItemTemplate>
                     </ListBox>
                     <TextBlock Text="{localization:Localize Tools.PublisherStudio.Release.ArtifactRequired}" FontSize="11" Foreground="{DynamicResource StatusErrorBrush}" IsVisible="{Binding !Artifacts.Count}"/>
+                    <CheckBox Content="{localization:Localize Tools.PublisherStudio.Release.BundleArtifacts}"
+                              IsChecked="{Binding BundleArtifacts}"
+                              Foreground="{DynamicResource TextPrimary}"
+                              ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Release.BundleArtifactsHint}"/>
                 </StackPanel>
 
                 <!-- Dependencies Section -->

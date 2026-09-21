@@ -784,7 +784,7 @@ public class DropboxHostingProvider(ILogger<DropboxHostingProvider> logger, IHtt
                     $"File '{safeFileName}' exceeds Dropbox's 150 MB single-request upload limit.");
             }
 
-            buffer.Write(chunk, 0, read);
+            await buffer.WriteAsync(chunk.AsMemory(0, read), cancellationToken);
         }
 
         return OperationResult<byte[]>.CreateSuccess(buffer.ToArray());

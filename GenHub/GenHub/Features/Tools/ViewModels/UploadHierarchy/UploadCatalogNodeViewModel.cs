@@ -28,6 +28,9 @@ public partial class UploadCatalogNodeViewModel : ObservableObject
     private bool _isPublished;
 
     [ObservableProperty]
+    private bool _hasChanges;
+
+    [ObservableProperty]
     private DateTime? _lastUpdated;
 
     /// <summary>
@@ -42,6 +45,22 @@ public partial class UploadCatalogNodeViewModel : ObservableObject
             OnPropertyChanged(nameof(ContentItemsCountText));
         }
     }
+
+    /// <summary>
+    /// Gets a value indicating whether this catalog needs to be published.
+    /// True when never published or when changes are pending since the last publish.
+    /// </summary>
+    public bool NeedsPublish => !IsPublished || HasChanges;
+
+    /// <summary>
+    /// Gets a value indicating whether this catalog is published with no pending changes.
+    /// </summary>
+    public bool IsUpToDate => IsPublished && !HasChanges;
+
+    /// <summary>
+    /// Gets a value indicating whether this catalog is published but has pending changes.
+    /// </summary>
+    public bool HasPendingChanges => IsPublished && HasChanges;
 
     /// <summary>
     /// Gets the number of content items in this catalog.
@@ -60,4 +79,15 @@ public partial class UploadCatalogNodeViewModel : ObservableObject
     /// Gets the content items contained within this catalog.
     /// </summary>
     public ObservableCollection<UploadContentNodeViewModel> ContentItems { get; } = new();
+
+    partial void OnIsPublishedChanged(bool value) => NotifyPublishStateChanged();
+
+    partial void OnHasChangesChanged(bool value) => NotifyPublishStateChanged();
+
+    private void NotifyPublishStateChanged()
+    {
+        OnPropertyChanged(nameof(NeedsPublish));
+        OnPropertyChanged(nameof(IsUpToDate));
+        OnPropertyChanged(nameof(HasPendingChanges));
+    }
 }

@@ -26,6 +26,17 @@ public static class HostingConstants
     public const string Manual = "manual";
 
     /// <summary>
+    /// Fallback provider ID used when no hosting provider is selected.
+    /// </summary>
+    public const string UnknownProviderId = "unknown";
+
+    /// <summary>
+    /// Credential-store key for the encrypted Google Drive OAuth client ID and secret.
+    /// Persisted so Drive sessions can be restored silently after an app restart.
+    /// </summary>
+    public const string GoogleDriveClientCredentialKey = "google_drive_client";
+
+    /// <summary>
     /// Default provider definition file name.
     /// </summary>
     public const string DefaultDefinitionFileName = "publisher.json";

@@ -13,9 +13,17 @@ namespace GenHub.Features.Tools.Services.Hosting;
 /// <param name="keyPrefix">Prefix isolating Google token keys from provider PAT entries.</param>
 public class CredentialStoreDataStore(
     IHostingCredentialStore credentialStore,
-    string keyPrefix = "GoogleDrive.") : IDataStore
+    string keyPrefix = CredentialStoreDataStore.DefaultKeyPrefix) : IDataStore
 {
-    private const string BrokerUserKey = "user";
+    /// <summary>
+    /// Default prefix isolating Google token keys from provider PAT entries.
+    /// </summary>
+    public const string DefaultKeyPrefix = "GoogleDrive.";
+
+    /// <summary>
+    /// Broker user key under which the Google OAuth token response is stored.
+    /// </summary>
+    public const string BrokerUserKey = "user";
 
     /// <inheritdoc />
     public async Task StoreAsync<T>(string key, T value)

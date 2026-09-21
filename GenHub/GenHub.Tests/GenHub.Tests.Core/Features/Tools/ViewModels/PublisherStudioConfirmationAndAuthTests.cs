@@ -78,6 +78,84 @@ public class PublisherStudioConfirmationAndAuthTests
     }
 
     /// <summary>
+    /// Tests that removing a catalog whose remote file cannot be deleted still removes
+    /// it locally and warns that the published file may still be live.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the test operation.</returns>
+    [Fact]
+    public async Task RemoveCatalogCommand_WhenRemoteDeleteFails_RemovesLocallyAndWarnsAsync()
+    {
+        _mockDialogService
+            .Setup(d => d.ShowConfirmationAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>()))
+            .ReturnsAsync(true);
+
+        var hostingState = new HostingState
+        {
+            Catalogs =
+            [
+                new()
+                {
+                    CatalogId = "cat2",
+                    CatalogName = "Catalog 2",
+                    FileName = "catalog-2.json",
+                    FileId = "remote-file-id",
+                    Url = "https://example.com/catalog-2.json",
+                },
+            ],
+        };
+        var container = new PublisherHostingStates
+        {
+            States = { [HostingConstants.GoogleDrive] = hostingState },
+        };
+        _mockHostingStateManager
+            .Setup(m => m.LoadStatesAsync("test/project.json", It.IsAny<System.Threading.CancellationToken>()))
+            .ReturnsAsync(GenHub.Core.Models.Results.OperationResult<PublisherHostingStates>.CreateSuccess(container));
+
+        var mockProvider = new Mock<IHostingProvider>();
+        mockProvider.Setup(p => p.ProviderId).Returns(HostingConstants.GoogleDrive);
+        mockProvider.Setup(p => p.IsAuthenticated).Returns(false);
+
+        var vm = new PublisherStudioViewModel(
+            _mockStudioLogger.Object,
+            _mockStudioService.Object,
+            _mockDialogService.Object,
+            notificationService: _mockNotificationService.Object);
+
+        var project = new PublisherStudioProject { ProjectPath = "test/project.json" };
+        var cat1 = new NamedCatalog { Id = "cat1", Name = "Catalog 1" };
+        var cat2 = new NamedCatalog { Id = "cat2", Name = "Catalog 2" };
+        project.Catalogs.Add(cat1);
+        project.Catalogs.Add(cat2);
+
+        var publishShare = new PublishShareViewModel(
+            project,
+            _mockStudioService.Object,
+            _mockPublishLogger.Object,
+            hostingStateManager: _mockHostingStateManager.Object,
+            notificationService: _mockNotificationService.Object);
+        publishShare.HostingProviders.Add(mockProvider.Object);
+
+        vm.CurrentProject = project;
+        vm.Catalogs.Clear();
+        vm.Catalogs.Add(cat1);
+        vm.Catalogs.Add(cat2);
+        vm.PublishShareViewModel = publishShare;
+
+        await vm.RemoveCatalogCommand.ExecuteAsync(cat2);
+
+        Assert.Single(vm.Catalogs);
+        Assert.DoesNotContain(cat2, project.Catalogs);
+        _mockNotificationService.Verify(
+            n => n.ShowWarning(It.IsAny<string>(), It.Is<string>(s => s.Contains("Catalog 2")), It.IsAny<int?>(), It.IsAny<bool>()),
+            Times.Once);
+    }
+
+    /// <summary>
     /// Tests that cancelling catalog deletion leaves the catalog in the collection.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the test operation.</returns>

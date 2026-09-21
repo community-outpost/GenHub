@@ -1,5 +1,6 @@
 using GenHub.Core.Models.Providers;
 using GenHub.Core.Models.Publishers;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 
 namespace GenHub.Features.Tools.Interfaces;
@@ -109,6 +110,13 @@ public interface IPublisherStudioDialogService
     /// <param name="title">Title of the dialog.</param>
     /// <returns>The selected file path, or null if cancelled.</returns>
     Task<string?> ShowFilePickerAsync(string title);
+
+    /// <summary>
+    /// Shows a file picker dialog for selecting multiple content files.
+    /// </summary>
+    /// <param name="title">Title of the dialog.</param>
+    /// <returns>The selected file paths, or an empty list if cancelled.</returns>
+    Task<IReadOnlyList<string>> ShowFilesPickerAsync(string title);
 
     /// <summary>
     /// Shows a file picker dialog filtered to artwork image files.

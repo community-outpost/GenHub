@@ -119,6 +119,29 @@ public sealed class GenericCatalogDiscovererImplicitSplitTests
         Assert.True(string.IsNullOrEmpty(single.VariantGroupId));
     }
 
+    /// <summary>
+    /// A multi-file release flagged as bundled keeps a single card so every file
+    /// installs together instead of surfacing a per-file variant picker.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task DiscoverAsync_BundledMultiFileRelease_KeepsSingleCardAsync()
+    {
+        var catalog = CreateCatalogWithRelease(
+        [
+            new ReleaseArtifact { Filename = "controlbar-a.big", DownloadUrl = "https://cdn.example.com/controlbar-a.big", Size = 1000 },
+            new ReleaseArtifact { Filename = "controlbar-b.big", DownloadUrl = "https://cdn.example.com/controlbar-b.big", Size = 2000 },
+            new ReleaseArtifact { Filename = "controlbar-c.big", DownloadUrl = "https://cdn.example.com/controlbar-c.big", Size = 3000 },
+        ],
+        bundleArtifacts: true);
+        var result = await DiscoverAsync(catalog);
+
+        Assert.True(result.Success, result.FirstError);
+        Assert.NotNull(result.Data);
+        var single = Assert.Single(result.Data.Items);
+        Assert.True(string.IsNullOrEmpty(single.VariantGroupId));
+    }
+
     private static async Task<OperationResult<ContentDiscoveryResult>> DiscoverAsync(PublisherCatalog catalog)
     {
         var catalogParserMock = new Mock<IPublisherCatalogParser>();
@@ -143,7 +166,7 @@ public sealed class GenericCatalogDiscovererImplicitSplitTests
         return await discoverer.DiscoverAsync(new ContentSearchQuery());
     }
 
-    private static PublisherCatalog CreateCatalogWithRelease(IReadOnlyList<ReleaseArtifact> artifacts)
+    private static PublisherCatalog CreateCatalogWithRelease(IReadOnlyList<ReleaseArtifact> artifacts, bool bundleArtifacts = false)
     {
         return new PublisherCatalog
         {
@@ -164,6 +187,7 @@ public sealed class GenericCatalogDiscovererImplicitSplitTests
                             Version = "1.0.0",
                             IsLatest = true,
                             ReleaseDate = new DateTime(2026, 9, 19, 0, 0, 0, DateTimeKind.Utc),
+                            BundleArtifacts = bundleArtifacts,
                             Artifacts = [.. artifacts],
                         },
                     ],

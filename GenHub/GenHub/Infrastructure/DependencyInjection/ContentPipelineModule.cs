@@ -235,6 +235,12 @@ public static class ContentPipelineModule
         // Register generic catalog manifest factory
         services.AddTransient<GenericCatalogManifestFactory>();
         services.AddTransient<IPublisherManifestFactory>(sp => sp.GetRequiredService<GenericCatalogManifestFactory>());
+
+        // Generic catalog content provider: acquires subscribed-publisher content.
+        // Search results carry the publisher name as ProviderName, so the orchestrator
+        // routes them here via the generic-catalog resolver ID fallback.
+        services.AddTransient<GenericCatalogContentProvider>();
+        services.AddTransient<IContentProvider>(sp => sp.GetRequiredService<GenericCatalogContentProvider>());
     }
 
     /// <summary>
