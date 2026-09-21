@@ -739,7 +739,11 @@ export default {
         return (await dispatchNetworkRoute(request, env, route)) ?? error("Endpoint not found", 404);
       }
     } catch (err: unknown) {
-      console.error("Internal error:", err instanceof Error ? err.message : String(err));
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error("Internal error:", msg);
+      if (msg.includes("Durable Objects") || msg.includes("free tier") || msg.includes("quota")) {
+        return error("Service temporarily unavailable: quota exceeded", 503, "online.service-unavailable");
+      }
       return error("Internal error", 500);
     }
 

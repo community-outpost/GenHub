@@ -470,6 +470,11 @@ public sealed class OnlineNetworkService(
                     return code;
                 }
 
+                if (problem.TryGetValue("error", out var errorMsg) && !string.IsNullOrWhiteSpace(errorMsg))
+                {
+                    return errorMsg;
+                }
+
                 if (problem.TryGetValue("message", out var message) && !string.IsNullOrWhiteSpace(message))
                 {
                     return message;

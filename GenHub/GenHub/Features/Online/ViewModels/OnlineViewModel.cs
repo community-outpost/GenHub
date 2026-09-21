@@ -56,6 +56,11 @@ public sealed partial class OnlineViewModel(
         string ClientKey,
         IReadOnlyList<string> GameplayContentIds);
 
+    private readonly record struct ProfileCandidate(
+        GameProfile Profile,
+        OnlineProfileSetup Setup,
+        bool IsExactFingerprintMatch);
+
     private const int SearchDebounceMs = 350;
     private const string CreateErrorTitleKey = "Online.Error.CreateTitle";
 
@@ -1292,81 +1297,26 @@ public sealed partial class OnlineViewModel(
         ApplyMatch(OnlineProfileMatch.Unknown, null);
         if (string.IsNullOrEmpty(ExpectedProfileFingerprint))
         {
-            if (!string.IsNullOrWhiteSpace(ExpectedProfileName) || !string.IsNullOrWhiteSpace(ExpectedProfileId))
-            {
-                try
-                {
-                    await EnsureProfilesLoadedAsync(cancellationToken);
-                    var matched = AvailableProfiles.FirstOrDefault(p =>
-                        (!string.IsNullOrWhiteSpace(ExpectedProfileId) && string.Equals(p.Id, ExpectedProfileId, StringComparison.OrdinalIgnoreCase)) ||
-                        (!string.IsNullOrWhiteSpace(ExpectedProfileName) && string.Equals(p.Name, ExpectedProfileName, StringComparison.OrdinalIgnoreCase)) ||
-                        (!string.IsNullOrWhiteSpace(ExpectedProfileId) && string.Equals(p.Name, ExpectedProfileId, StringComparison.OrdinalIgnoreCase)));
-
-                    if (matched is not null)
-                    {
-                        SetPlayProfile(matched);
-                        var setup = await DescribeProfileAsync(matched, cancellationToken);
-                        ApplyMatch(OnlineProfileMatch.Exact, setup.GameplayContentIds);
-                        return;
-                    }
-                }
-                catch (OperationCanceledException)
-                {
-                    throw;
-                }
-                catch (Exception ex)
-                {
-                    logger.LogWarning(ex, "Failed to match profile by name or id.");
-                }
-            }
-
+            await TryMatchLegacyProfileByNameOrIdAsync(cancellationToken);
             return;
         }
 
         try
         {
             await EnsureProfilesLoadedAsync(cancellationToken);
-            GameProfile? best = null;
-            var bestOverlap = -1;
-            string? bestFingerprint = null;
-            IReadOnlyList<string>? bestContentIds = null;
-            foreach (var profile in AvailableProfiles)
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-                var setup = await DescribeProfileAsync(profile, cancellationToken);
-                if (string.Equals(setup.Fingerprint, ExpectedProfileFingerprint, StringComparison.Ordinal))
-                {
-                    SetPlayProfile(profile);
-                    ApplyMatch(OnlineProfileMatch.Exact, setup.GameplayContentIds);
-                    return;
-                }
-
-                if (!string.Equals(setup.ClientKey, ExpectedGameClientId, StringComparison.Ordinal) ||
-                    string.IsNullOrEmpty(setup.ClientKey))
-                {
-                    continue;
-                }
-
-                var overlap = OnlineProfileMatcher.ScoreOverlap(_expectedContentIds, setup.GameplayContentIds);
-                if (best is null || overlap > bestOverlap)
-                {
-                    best = profile;
-                    bestOverlap = overlap;
-                    bestFingerprint = setup.Fingerprint;
-                    bestContentIds = setup.GameplayContentIds;
-                }
-            }
-
+            var best = await FindBestProfileMatchAsync(cancellationToken);
             if (best is not null)
             {
-                SetPlayProfile(best);
-                ApplyMatch(
-                    OnlineProfileMatcher.Compare(
+                var candidate = best.Value;
+                SetPlayProfile(candidate.Profile);
+                var match = candidate.IsExactFingerprintMatch
+                    ? OnlineProfileMatch.Exact
+                    : OnlineProfileMatcher.Compare(
                         ExpectedProfileFingerprint,
                         ExpectedGameClientId,
-                        bestFingerprint ?? string.Empty,
-                        OnlineProfileMatcher.GetGameClientKey(best)),
-                    bestContentIds);
+                        candidate.Setup.Fingerprint,
+                        OnlineProfileMatcher.GetGameClientKey(candidate.Profile));
+                ApplyMatch(match, candidate.Setup.GameplayContentIds);
             }
             else if (AvailableProfiles.Count > 0)
             {
@@ -1382,6 +1332,84 @@ public sealed partial class OnlineViewModel(
             logger.LogWarning(ex, "Failed to auto-match a local profile.");
         }
     }
+
+    private async Task<bool> TryMatchLegacyProfileByNameOrIdAsync(CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(ExpectedProfileName) && string.IsNullOrWhiteSpace(ExpectedProfileId))
+        {
+            return false;
+        }
+
+        try
+        {
+            await EnsureProfilesLoadedAsync(cancellationToken);
+            var matched = AvailableProfiles.FirstOrDefault(IsLegacyProfileMatch);
+            if (matched is not null)
+            {
+                SetPlayProfile(matched);
+                var setup = await DescribeProfileAsync(matched, cancellationToken);
+                ApplyMatch(OnlineProfileMatch.Exact, setup.GameplayContentIds);
+                return true;
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Failed to match profile by name or id.");
+        }
+
+        return false;
+    }
+
+    private bool IsLegacyProfileMatch(GameProfile profile)
+    {
+        if (!string.IsNullOrWhiteSpace(ExpectedProfileId) &&
+            (string.Equals(profile.Id, ExpectedProfileId, StringComparison.OrdinalIgnoreCase) ||
+             string.Equals(profile.Name, ExpectedProfileId, StringComparison.OrdinalIgnoreCase)))
+        {
+            return true;
+        }
+
+        return !string.IsNullOrWhiteSpace(ExpectedProfileName) &&
+               string.Equals(profile.Name, ExpectedProfileName, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private async Task<ProfileCandidate?> FindBestProfileMatchAsync(CancellationToken cancellationToken)
+    {
+        ProfileCandidate? best = null;
+        var bestOverlap = -1;
+
+        foreach (var profile in AvailableProfiles)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var setup = await DescribeProfileAsync(profile, cancellationToken);
+            if (string.Equals(setup.Fingerprint, ExpectedProfileFingerprint, StringComparison.Ordinal))
+            {
+                return new ProfileCandidate(profile, setup, true);
+            }
+
+            if (!IsCompatibleClient(setup.ClientKey))
+            {
+                continue;
+            }
+
+            var overlap = OnlineProfileMatcher.ScoreOverlap(_expectedContentIds, setup.GameplayContentIds);
+            if (best is null || overlap > bestOverlap)
+            {
+                best = new ProfileCandidate(profile, setup, false);
+                bestOverlap = overlap;
+            }
+        }
+
+        return best;
+    }
+
+    private bool IsCompatibleClient(string? clientKey) =>
+        !string.IsNullOrEmpty(clientKey) &&
+        string.Equals(clientKey, ExpectedGameClientId, StringComparison.Ordinal);
 
     private async Task UpdateMatchAndAdvertiseAsync(CancellationToken cancellationToken = default)
     {
