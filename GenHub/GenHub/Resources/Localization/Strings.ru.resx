@@ -9062,6 +9062,9 @@ GenHub передает официальный идентификатор AppID 
   <data name="Tools.ModBuilder.Project.Error.ProjectNull" xml:space="preserve">
     <value>Проект не может быть null</value>
   </data>
+  <data name="Tools.ModBuilder.Project.Error.DirectoriesNull" xml:space="preserve">
+    <value>Конфигурация каталогов проекта отсутствует</value>
+  </data>
   <data name="Tools.ModBuilder.Project.Error.RequiredDirectoryMissing" xml:space="preserve">
     <value>Требуемый каталог не существует: {0}</value>
   </data>

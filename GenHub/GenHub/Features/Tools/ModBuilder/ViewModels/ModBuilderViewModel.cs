@@ -656,18 +656,7 @@ public partial class ModBuilderViewModel(
             return;
         }
 
-        var defaultFolder = GetUserModBuilderDirectory();
-        if (!Directory.Exists(defaultFolder))
-        {
-            try
-            {
-                Directory.CreateDirectory(defaultFolder);
-            }
-            catch (Exception ex)
-            {
-                logger.LogWarning(ex, "Could not create default ModBuilder directory at {Folder}", defaultFolder);
-            }
-        }
+        var defaultFolder = EnsureDefaultModBuilderDirectory();
 
         var suggestedFolder = Directory.Exists(defaultFolder)
             ? await topLevel.StorageProvider.TryGetFolderFromPathAsync(defaultFolder).ConfigureAwait(false)
@@ -998,18 +987,7 @@ public partial class ModBuilderViewModel(
         try
         {
             var primaryBigName = Path.GetFileNameWithoutExtension(selectedPaths[0]);
-            var defaultFolder = GetUserModBuilderDirectory();
-            if (!Directory.Exists(defaultFolder))
-            {
-                try
-                {
-                    Directory.CreateDirectory(defaultFolder);
-                }
-                catch (Exception ex)
-                {
-                    logger.LogWarning(ex, "Could not create default ModBuilder directory at {Folder}", defaultFolder);
-                }
-            }
+            var defaultFolder = EnsureDefaultModBuilderDirectory();
 
             var suggestedFolder = Directory.Exists(defaultFolder)
                 ? await topLevel.StorageProvider.TryGetFolderFromPathAsync(defaultFolder).ConfigureAwait(false)
@@ -1951,6 +1929,24 @@ public partial class ModBuilderViewModel(
         }
 
         return Path.Combine(Path.GetTempPath(), AppConstants.AppName, ModBuilderConstants.ModBuilderDirName);
+    }
+
+    private string EnsureDefaultModBuilderDirectory()
+    {
+        var defaultFolder = GetUserModBuilderDirectory();
+        if (!Directory.Exists(defaultFolder))
+        {
+            try
+            {
+                Directory.CreateDirectory(defaultFolder);
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Could not create default ModBuilder directory at {Folder}", defaultFolder);
+            }
+        }
+
+        return defaultFolder;
     }
 
     private async Task<string?> MigrateProjectOutOfAppDirectoryAsync(string oldProjectPath)

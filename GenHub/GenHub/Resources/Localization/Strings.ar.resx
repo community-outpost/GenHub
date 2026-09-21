@@ -9062,6 +9062,9 @@ GenHub هو مشغل ومدير حديث لألعاب **Command &amp; Conquer: G
   <data name="Tools.ModBuilder.Project.Error.ProjectNull" xml:space="preserve">
     <value>لا يمكن أن يكون المشروع فارغًا</value>
   </data>
+  <data name="Tools.ModBuilder.Project.Error.DirectoriesNull" xml:space="preserve">
+    <value>تكوين مجلدات المشروع مفقود</value>
+  </data>
   <data name="Tools.ModBuilder.Project.Error.RequiredDirectoryMissing" xml:space="preserve">
     <value>المجلد المطلوب غير موجود: {0}</value>
   </data>

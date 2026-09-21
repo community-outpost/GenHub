@@ -167,6 +167,11 @@ public static class ModBuilderConstants
     public const string StagingManifestPrefix = ".staging_manifest";
 
     /// <summary>
+    /// Structured logging template for reporting staging path escape errors.
+    /// </summary>
+    public const string EscapeErrorLogTemplate = "{EscapeError}";
+
+    /// <summary>
     /// Number of staged files between build progress reports during staging loops.
     /// </summary>
     public const int StagingProgressReportInterval = 25;

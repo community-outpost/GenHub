@@ -38,6 +38,7 @@ public sealed class ProjectConfigService(
     private const string ProjectAlreadyExistsErrorKey = "Tools.ModBuilder.Project.Error.AlreadyExists";
     private const string InvalidProjectPathErrorKey = "Tools.ModBuilder.Project.Error.InvalidPath";
     private const string ProjectNullErrorKey = "Tools.ModBuilder.Project.Error.ProjectNull";
+    private const string ProjectDirectoriesNullErrorKey = "Tools.ModBuilder.Project.Error.DirectoriesNull";
     private const string ProjectFileNotFoundErrorKey = "Tools.ModBuilder.Project.Error.FileNotFound";
     private const string ProjectDeserializeFailedErrorKey = "Tools.ModBuilder.Project.Error.DeserializeFailed";
     private const string ProjectDirectoryNotFoundErrorKey = "Tools.ModBuilder.Project.Error.DirectoryNotFound";
@@ -378,6 +379,12 @@ public sealed class ProjectConfigService(
         if (string.IsNullOrEmpty(projectDir) || !Directory.Exists(projectDir))
         {
             errors.Add(GetProjectError(ProjectDirectoryNotFoundErrorKey, "Project directory does not exist: {0}", projectDir));
+            return;
+        }
+
+        if (project.Directories == null)
+        {
+            errors.Add(GetProjectError(ProjectDirectoriesNullErrorKey, "Project directories configuration is missing"));
             return;
         }
 
@@ -764,7 +771,7 @@ public sealed class ProjectConfigService(
                     sw.Elapsed);
             }
 
-            var effectiveConfigs = ResolveConfigsDir(projectDir, project.Directories.Configs);
+            var effectiveConfigs = ResolveConfigsDir(projectDir, project.Directories?.Configs);
             var bundleConfigPaths = project.BundleConfigs
                 .Select(config => ResolveBundleConfigPath(projectDir, effectiveConfigs, config))
                 .Where(File.Exists)
@@ -2497,8 +2504,9 @@ public sealed class ProjectConfigService(
     }
 
     /// <summary>
-    /// Retains a recent project entry when its file or directory exists, or when its
+    /// Retains a recent project entry when its project file exists, or when its
     /// storage root is unreachable (temporarily unavailable share or drive).
+    /// Directory entries are pruned because only .mbproj files can be opened.
     /// </summary>
     /// <param name="path">The recent project path.</param>
     /// <returns>True when the entry should be kept; otherwise, false.</returns>
@@ -2509,7 +2517,7 @@ public sealed class ProjectConfigService(
             return false;
         }
 
-        if (File.Exists(path) || Directory.Exists(path))
+        if (File.Exists(path))
         {
             return true;
         }
@@ -2532,7 +2540,8 @@ public sealed class ProjectConfigService(
 
     /// <summary>
     /// Reads the recent projects file and prunes entries that no longer exist on disk.
-    /// Directory-based entries and entries on unreachable storage roots are retained.
+    /// Directory entries are pruned because only .mbproj files can be opened, while
+    /// entries on unreachable storage roots are retained.
     /// Callers must hold <see cref="_recentProjectsLock"/> to serialize read-modify-write cycles.
     /// </summary>
     /// <param name="maxCount">The maximum number of projects to return.</param>
@@ -2570,9 +2579,10 @@ public sealed class ProjectConfigService(
 
             recentProjects ??= new List<string>();
 
-            // Filter out projects that no longer exist. Directory-based entries are
-            // retained, and entries on temporarily unavailable storage are kept so a
-            // disconnected share or drive does not irreversibly delete them.
+            // Filter out projects that no longer exist. Directory entries are pruned
+            // because only .mbproj files can be opened, while entries on temporarily
+            // unavailable storage are kept so a disconnected share or drive does not
+            // irreversibly delete them.
             var validProjects = recentProjects
                 .Where(ShouldRetainRecentProjectPath)
                 .ToList();

@@ -9171,6 +9171,9 @@ Install location:
   <data name="Tools.ModBuilder.Project.Error.ProjectNull" xml:space="preserve">
     <value>Project cannot be null</value>
   </data>
+  <data name="Tools.ModBuilder.Project.Error.DirectoriesNull" xml:space="preserve">
+    <value>Project directories configuration is missing</value>
+  </data>
   <data name="Tools.ModBuilder.Project.Error.RequiredDirectoryMissing" xml:space="preserve">
     <value>Required directory does not exist: {0}</value>
   </data>

@@ -655,7 +655,7 @@ public sealed class BuildEngineService(
         if (!IsSubpathOf(bundlesDir, stagingDir) || !IsSubpathOf(bundlesDir, bigFilePath))
         {
             var escapeError = $"Bundle item '{item.Name}' resolves outside the bundles directory. Check the item name and BigSuffix for '..' or absolute paths.";
-            logger.LogError("{EscapeError}", escapeError);
+            logger.LogError(ModBuilderConstants.EscapeErrorLogTemplate, escapeError);
             Interlocked.Increment(ref _filesFailed);
             _lastErrorMessage = escapeError;
             return;
@@ -699,7 +699,7 @@ public sealed class BuildEngineService(
                 if (!IsSubpathOf(stagingDir, targetStagedFile))
                 {
                     var escapeError = $"Refusing to stage '{sourceFile}': target '{targetRelPath}' escapes the staging directory. Check RelTargetFile for '..' or absolute paths.";
-                    logger.LogWarning("{EscapeError}", escapeError);
+                    logger.LogWarning(ModBuilderConstants.EscapeErrorLogTemplate, escapeError);
                     Interlocked.Increment(ref _filesFailed);
                     RecordFirstError(escapeError);
                     return ValueTask.CompletedTask;
@@ -714,23 +714,7 @@ public sealed class BuildEngineService(
                 File.Copy(sourceFile, targetStagedFile, true);
 
                 var processed = Interlocked.Increment(ref currentFile);
-                if (processed % ModBuilderConstants.StagingProgressReportInterval == 0 || processed == totalFiles)
-                {
-                    var fileProgress = (double)processed / totalFiles;
-                    var overallProgress = ((currentItem - 1) + fileProgress) / totalBigItems;
-
-                    progress?.Report(new BuildProgress
-                    {
-                        CurrentStage = BuildStage.Packing,
-                        CurrentFile = Path.GetFileName(sourceFile),
-                        CurrentIndex = BuildIndex.BigBundleItem,
-                        CurrentStep = $"Packing {item.Name} ({processed}/{totalFiles}): {Path.GetFileName(sourceFile)}",
-                        ProcessedFiles = processed,
-                        TotalFiles = totalFiles,
-                        PercentComplete = overallProgress * 100,
-                        Percentage = overallProgress,
-                    });
-                }
+                ReportBigBundleStagingProgress(progress, item.Name, sourceFile, processed, totalFiles, currentItem, totalBigItems);
 
                 return ValueTask.CompletedTask;
             }).ConfigureAwait(false);
@@ -772,6 +756,36 @@ public sealed class BuildEngineService(
                 }
             }
         }
+    }
+
+    private static void ReportBigBundleStagingProgress(
+        IProgress<BuildProgress>? progress,
+        string itemName,
+        string sourceFile,
+        int processed,
+        int totalFiles,
+        int currentItem,
+        int totalBigItems)
+    {
+        if (processed % ModBuilderConstants.StagingProgressReportInterval != 0 && processed != totalFiles)
+        {
+            return;
+        }
+
+        var fileProgress = (double)processed / totalFiles;
+        var overallProgress = ((currentItem - 1) + fileProgress) / totalBigItems;
+
+        progress?.Report(new BuildProgress
+        {
+            CurrentStage = BuildStage.Packing,
+            CurrentFile = Path.GetFileName(sourceFile),
+            CurrentIndex = BuildIndex.BigBundleItem,
+            CurrentStep = $"Packing {itemName} ({processed}/{totalFiles}): {Path.GetFileName(sourceFile)}",
+            ProcessedFiles = processed,
+            TotalFiles = totalFiles,
+            PercentComplete = overallProgress * 100,
+            Percentage = overallProgress,
+        });
     }
 
     private static void CreateStagingDirectories(IReadOnlyList<BundleFile> files, string stagingDir)
@@ -940,7 +954,7 @@ public sealed class BuildEngineService(
         if (!IsSubpathOf(buildDir, packStagingDir) || !IsSubpathOf(releaseDir, packFilePath))
         {
             var escapeError = $"Bundle pack '{pack.Name}' resolves outside the build directories. Check the pack name and OutputFile for '..' or absolute paths.";
-            logger.LogError("{EscapeError}", escapeError);
+            logger.LogError(ModBuilderConstants.EscapeErrorLogTemplate, escapeError);
             Interlocked.Increment(ref _filesFailed);
             _lastErrorMessage = escapeError;
             return;
@@ -1411,7 +1425,7 @@ public sealed class BuildEngineService(
         if (!IsSubpathOf(packStagingDir, destPath))
         {
             var escapeError = $"Refusing to stage '{actualSource}': target '{finalTargetRelPath}' escapes the staging directory. Check RelTargetFile for '..' or absolute paths.";
-            logger.LogWarning("{EscapeError}", escapeError);
+            logger.LogWarning(ModBuilderConstants.EscapeErrorLogTemplate, escapeError);
             Interlocked.Increment(ref _filesFailed);
             RecordFirstError(escapeError);
             return;
@@ -1502,6 +1516,47 @@ public sealed class BuildEngineService(
         }
     }
 
+    private (string ActualSource, string DestPath, string FinalRelPath)? TryResolveRawStagingTarget(
+        BundleFile file,
+        string itemName,
+        string packStagingDir,
+        string? buildDir)
+    {
+        var sourcePath = file.AbsSourceFile;
+        if (!File.Exists(sourcePath))
+        {
+            logger.LogWarning("Source file {SourceFile} not found for raw bundle item {ItemName}", sourcePath, itemName);
+            Interlocked.Increment(ref _filesFailed);
+            return null;
+        }
+
+        var relPath = !string.IsNullOrEmpty(file.RelTargetFile) ? file.RelTargetFile : file.GetRelSourceFile();
+        if (string.IsNullOrEmpty(relPath))
+        {
+            relPath = Path.GetFileName(sourcePath);
+        }
+
+        var (actualSource, finalRelPath) = ResolveStagedSource(file, relPath, buildDir);
+
+        var destPath = Path.Combine(packStagingDir, finalRelPath);
+        if (!IsSubpathOf(packStagingDir, destPath))
+        {
+            var escapeError = $"Refusing to stage '{actualSource}': target '{finalRelPath}' escapes the staging directory. Check RelTargetFile for '..' or absolute paths.";
+            logger.LogWarning(ModBuilderConstants.EscapeErrorLogTemplate, escapeError);
+            Interlocked.Increment(ref _filesFailed);
+            RecordFirstError(escapeError);
+            return null;
+        }
+
+        if (PathHelper.AreSamePath(actualSource, destPath))
+        {
+            logger.LogDebug("Skipping staging where source and target are the same file: {Path}", actualSource);
+            return null;
+        }
+
+        return (actualSource, destPath, finalRelPath);
+    }
+
     private void StageRawBundleFiles(BundleItem item, string packStagingDir, string packName, string? buildDir = null, IProgress<BuildProgress>? progress = null, CancellationToken cancellationToken = default)
     {
         var totalFiles = item.Files.Count;
@@ -1509,38 +1564,13 @@ public sealed class BuildEngineService(
         foreach (var file in item.Files)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            var sourcePath = file.AbsSourceFile;
-            if (!File.Exists(sourcePath))
+            var target = TryResolveRawStagingTarget(file, item.Name, packStagingDir, buildDir);
+            if (target == null)
             {
-                logger.LogWarning("Source file {SourceFile} not found for raw bundle item {ItemName}", sourcePath, item.Name);
-                Interlocked.Increment(ref _filesFailed);
                 continue;
             }
 
-            var relPath = !string.IsNullOrEmpty(file.RelTargetFile) ? file.RelTargetFile : file.GetRelSourceFile();
-            if (string.IsNullOrEmpty(relPath))
-            {
-                relPath = Path.GetFileName(sourcePath);
-            }
-
-            var (actualSource, finalRelPath) = ResolveStagedSource(file, relPath, buildDir);
-
-            var destPath = Path.Combine(packStagingDir, finalRelPath);
-            if (!IsSubpathOf(packStagingDir, destPath))
-            {
-                var escapeError = $"Refusing to stage '{actualSource}': target '{finalRelPath}' escapes the staging directory. Check RelTargetFile for '..' or absolute paths.";
-                logger.LogWarning("{EscapeError}", escapeError);
-                Interlocked.Increment(ref _filesFailed);
-                RecordFirstError(escapeError);
-                continue;
-            }
-
-            if (PathHelper.AreSamePath(actualSource, destPath))
-            {
-                logger.LogDebug("Skipping staging where source and target are the same file: {Path}", actualSource);
-                continue;
-            }
-
+            var (actualSource, destPath, finalRelPath) = target.Value;
             EnsureDestinationDirectory(destPath);
             File.Copy(actualSource, destPath, true);
             logger.LogDebug("Staged loose file {RelPath} for pack {PackName}", finalRelPath, packName);
@@ -1552,7 +1582,7 @@ public sealed class BuildEngineService(
                 progress?.Report(new BuildProgress
                 {
                     CurrentStage = BuildStage.Staging,
-                    CurrentFile = Path.GetFileName(sourcePath),
+                    CurrentFile = Path.GetFileName(actualSource),
                     CurrentIndex = BuildIndex.ReleaseBundlePack,
                     CurrentStep = $"Staging {item.Name} for release {packName} ({stagedCount}/{totalFiles} files)",
                     ProcessedFiles = stagedCount,
@@ -1670,7 +1700,7 @@ public sealed class BuildEngineService(
         if (!IsSubpathOf(buildDir, targetPath))
         {
             var escapeError = $"Refusing to process '{filePath}': target '{targetPath}' escapes the build directory. Check RelTargetFile for '..' or absolute paths.";
-            logger.LogWarning("{EscapeError}", escapeError);
+            logger.LogWarning(ModBuilderConstants.EscapeErrorLogTemplate, escapeError);
             RecordFirstError(escapeError);
             return false;
         }

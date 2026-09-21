@@ -279,6 +279,36 @@ public sealed class ProjectConfigServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task ValidateProjectAsync_WithNullDirectories_ReturnsFailure()
+    {
+        // Arrange: explicit null directories (e.g. hand-edited .mbproj with "directories": null)
+        var projectPath = Path.Combine(_tempDirectory, "NullDirs.mbproj");
+        var project = new ModBuilderProject { Name = "NullDirs", Directories = null! };
+
+        // Act
+        var result = await _service.ValidateProjectAsync(projectPath, project);
+
+        // Assert: reported as a validation error instead of throwing NullReferenceException
+        result.Success.Should().BeFalse();
+        result.Errors.Should().ContainSingle().Which.Should().Contain("directories");
+    }
+
+    [Fact]
+    public async Task GetBundleConfigsAsync_WithNullDirectories_ReturnsSuccess()
+    {
+        // Arrange
+        var projectPath = Path.Combine(_tempDirectory, "NullDirs.mbproj");
+        var project = new ModBuilderProject { Name = "NullDirs", Directories = null! };
+
+        // Act
+        var result = await _service.GetBundleConfigsAsync(projectPath, project);
+
+        // Assert: falls back to default configs directory instead of throwing
+        result.Success.Should().BeTrue();
+        result.Data.Should().NotBeNull().And.BeEmpty();
+    }
+
+    [Fact]
     public async Task GetRecentProjectsAsync_ReturnsRecentProjects()
     {
         // Arrange
@@ -572,7 +602,7 @@ public sealed class ProjectConfigServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task GetRecentProjectsAsync_WithDirectoryEntry_RetainsIt()
+    public async Task GetRecentProjectsAsync_WithDirectoryEntry_PrunesIt()
     {
         // Arrange: isolated recent-projects file via mocked configuration provider
         var appDataDir = Path.Combine(_tempDirectory, "appdata");
@@ -591,9 +621,9 @@ public sealed class ProjectConfigServiceTests : IDisposable
         // Act
         var result = await service.GetRecentProjectsAsync();
 
-        // Assert
+        // Assert: directory entries can never be opened, so they are pruned
         result.Success.Should().BeTrue();
-        result.Data.Should().Contain(directoryEntry);
+        result.Data.Should().NotContain(directoryEntry);
         result.Data.Should().NotContain(staleFileEntry);
     }
 
