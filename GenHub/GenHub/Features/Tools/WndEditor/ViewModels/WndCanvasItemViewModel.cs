@@ -58,19 +58,4 @@ public sealed partial class WndCanvasItemViewModel : ObservableObject
     /// </summary>
     [ObservableProperty]
     private bool _isSelected;
-
-    /// <summary>
-    /// Updates the rendered geometry.
-    /// </summary>
-    /// <param name="x">The canvas X position.</param>
-    /// <param name="y">The canvas Y position.</param>
-    /// <param name="width">The width.</param>
-    /// <param name="height">The height.</param>
-    public void UpdateGeometry(double x, double y, double width, double height)
-    {
-        X = x;
-        Y = y;
-        Width = width;
-        Height = height;
-    }
 }

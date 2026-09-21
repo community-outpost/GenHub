@@ -28,6 +28,7 @@ public partial class WndEditorView : UserControl
             && control.DataContext is WndCanvasItemViewModel item
             && e.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
         {
+            e.Pointer.Capture(CanvasHost);
             viewModel.BeginCanvasDrag(item, e.GetPosition(CanvasHost));
             e.Handled = true;
         }
@@ -56,6 +57,7 @@ public partial class WndEditorView : UserControl
 
     private void OnCanvasPointerReleased(object? sender, PointerReleasedEventArgs e)
     {
+        e.Pointer.Capture(null);
         if (DataContext is WndEditorViewModel viewModel)
         {
             viewModel.EndCanvasDrag();

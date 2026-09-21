@@ -33,7 +33,7 @@ public sealed partial class WndPropertyRowViewModel : ObservableObject
     /// Gets or sets the property value.
     /// </summary>
     [ObservableProperty]
-    private string _value = string.Empty;
+    private string _value;
 
     /// <summary>
     /// Updates the displayed value without committing an edit.

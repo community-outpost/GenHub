@@ -2,6 +2,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Platform.Storage;
+using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using GenHub.Core.Constants;
@@ -158,7 +159,7 @@ public sealed partial class WndEditorViewModel(
             return false;
         }
 
-        AdoptDocument(result.Data, filePath);
+        await InvokeOnUIThreadAsync(() => AdoptDocument(result.Data, filePath)).ConfigureAwait(false);
         logger.LogInformation("Opened window definition file {Path}", filePath);
         return true;
     }
@@ -237,7 +238,10 @@ public sealed partial class WndEditorViewModel(
             _dragOriginal.CreationWidth,
             _dragOriginal.CreationHeight);
         _dragItem.Window.SetProperty(WndConstants.PropertyKeys.ScreenRect, moved.ToString());
-        SyncAfterEdit(_dragItem.Window, WndConstants.PropertyKeys.ScreenRect);
+        _dragItem.X = moved.UpperLeftX * Zoom;
+        _dragItem.Y = moved.UpperLeftY * Zoom;
+        _dragItem.Width = moved.Width * Zoom;
+        _dragItem.Height = moved.Height * Zoom;
     }
 
     /// <summary>
@@ -273,6 +277,7 @@ public sealed partial class WndEditorViewModel(
                 item.Window.SetProperty(WndConstants.PropertyKeys.ScreenRect, original.ToString());
                 SyncAfterEdit(item.Window, WndConstants.PropertyKeys.ScreenRect);
             }));
+        SyncAfterEdit(item.Window, WndConstants.PropertyKeys.ScreenRect);
     }
 
     private static TopLevel? GetTopLevel()
@@ -334,6 +339,19 @@ public sealed partial class WndEditorViewModel(
         }
     }
 
+    private static async Task InvokeOnUIThreadAsync(Action action)
+    {
+        if (Application.Current == null || Dispatcher.UIThread.CheckAccess())
+        {
+            action();
+            await Task.CompletedTask.ConfigureAwait(false);
+        }
+        else
+        {
+            await Dispatcher.UIThread.InvokeAsync(action);
+        }
+    }
+
     private static IEnumerable<WndWindow> EnumerateWindows(IEnumerable<WndWindow> windows)
     {
         foreach (var window in windows)
@@ -359,8 +377,11 @@ public sealed partial class WndEditorViewModel(
 
         var document = new WndDocument();
         document.Windows.Add(CreateDefaultWindow());
-        AdoptDocument(document, null);
-        IsModified = true;
+        await InvokeOnUIThreadAsync(() =>
+        {
+            AdoptDocument(document, null);
+            IsModified = true;
+        }).ConfigureAwait(false);
         logger.LogInformation("Created new window definition document");
     }
 
@@ -825,8 +846,11 @@ public sealed partial class WndEditorViewModel(
             var item = new WndCanvasItemViewModel(window)
             {
                 IsSelected = window.Id == selectedId,
+                X = rect.UpperLeftX * Zoom,
+                Y = rect.UpperLeftY * Zoom,
+                Width = rect.Width * Zoom,
+                Height = rect.Height * Zoom,
             };
-            item.UpdateGeometry(rect.UpperLeftX * Zoom, rect.UpperLeftY * Zoom, rect.Width * Zoom, rect.Height * Zoom);
             CanvasItems.Add(item);
             maxWidth = Math.Max(maxWidth, rect.BottomRightX);
             maxHeight = Math.Max(maxHeight, rect.BottomRightY);

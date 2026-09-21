@@ -13,6 +13,7 @@ using System;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace GenHub.Features.Tools.ViewModels;
@@ -534,7 +535,7 @@ public sealed partial class ToolsViewModel(
             SelectedTool = tool;
             if (tool is IFileOpenTarget target)
             {
-                await target.OpenFileAsync(message.FilePath).ConfigureAwait(false);
+                await target.OpenFileAsync(message.FilePath, CancellationToken.None).ConfigureAwait(false);
             }
         }
         catch (Exception ex)

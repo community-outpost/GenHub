@@ -2,7 +2,6 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Threading;
 using GenHub.Core.Constants;
-using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Tools;
 using GenHub.Core.Models.Tools;
 using GenHub.Features.Tools.WndEditor.ViewModels;
@@ -37,20 +36,19 @@ public sealed class WndEditorToolPlugin : IToolPlugin, IFileOpenTarget
     /// <inheritdoc />
     public Control CreateControl()
     {
-        if (_view == null && _serviceProvider != null)
-        {
-            var viewModel = _serviceProvider.GetRequiredService<WndEditorViewModel>();
-            _view = new WndEditorView { DataContext = viewModel };
-        }
-
         if (_view != null)
         {
             return _view;
         }
 
-        var localizationService = _serviceProvider?.GetService<ILocalizationService>();
-        var text = localizationService?.GetString("Tools.WndEditor.Error.LoadFailed") ?? "Error loading WND Editor";
-        return new TextBlock { Text = text };
+        if (_serviceProvider == null)
+        {
+            return new TextBlock { Text = "Error loading WND Editor" };
+        }
+
+        var viewModel = _serviceProvider.GetRequiredService<WndEditorViewModel>();
+        _view = new WndEditorView { DataContext = viewModel };
+        return _view;
     }
 
     /// <inheritdoc />
