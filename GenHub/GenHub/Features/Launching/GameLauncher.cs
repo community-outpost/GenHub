@@ -962,7 +962,7 @@ public class GameLauncher(
             foreach (var line in File.ReadLines(filePath))
             {
                 var trimmed = line.Trim();
-                if (trimmed.StartsWith("Resolution", StringComparison.OrdinalIgnoreCase))
+                if (trimmed.StartsWith(GameSettingsIniConstants.ResolutionKey, StringComparison.OrdinalIgnoreCase))
                 {
                     var parts = trimmed.Split('=', 2);
                     if (parts.Length == 2)
@@ -1207,6 +1207,36 @@ public class GameLauncher(
         }
     }
 
+    private void ApplyResolutionFromNativeOptionsIni(GameProfile profile, Dictionary<string, string> arguments)
+    {
+        if (arguments.ContainsKey(GameClientConstants.XResolutionArgument)
+            && arguments.ContainsKey(GameClientConstants.YResolutionArgument))
+        {
+            return;
+        }
+
+        var nativeOptionsPath = TryGetNativeOptionsIniPath(profile.GameClient?.GameType);
+        if (string.IsNullOrEmpty(nativeOptionsPath) || !File.Exists(nativeOptionsPath))
+        {
+            return;
+        }
+
+        var (width, height) = TryReadResolutionFromOptionsIni(nativeOptionsPath);
+        TryApplyResolutionArgument(arguments, GameClientConstants.XResolutionArgument, width);
+        TryApplyResolutionArgument(arguments, GameClientConstants.YResolutionArgument, height);
+    }
+
+    private void TryApplyResolutionArgument(Dictionary<string, string> arguments, string argumentName, int value)
+    {
+        if (value <= 0 || arguments.ContainsKey(argumentName))
+        {
+            return;
+        }
+
+        arguments[argumentName] = value.ToString(CultureInfo.InvariantCulture);
+        logger.LogInformation("[GameLauncher] Added {Argument} argument from Options.ini: {Value}", argumentName, value);
+    }
+
     private async Task<OperationResult<(GameLaunchConfiguration LaunchConfig, SteamLaunchPrepResult? SteamPrep, string? SteamAppId)>> PrepareLaunchConfigurationAndProxyAsync(
         GameProfile profile,
         GameInstallation installation,
@@ -1225,25 +1255,7 @@ public class GameLauncher(
         }
 
         var arguments = argsResult.Data;
-        if (!arguments.ContainsKey("-xres") || !arguments.ContainsKey("-yres"))
-        {
-            var nativeOptionsPath = TryGetNativeOptionsIniPath(profile.GameClient?.GameType);
-            if (!string.IsNullOrEmpty(nativeOptionsPath) && File.Exists(nativeOptionsPath))
-            {
-                var (width, height) = TryReadResolutionFromOptionsIni(nativeOptionsPath);
-                if (width > 0 && !arguments.ContainsKey("-xres"))
-                {
-                    arguments["-xres"] = width.ToString(CultureInfo.InvariantCulture);
-                    logger.LogInformation("[GameLauncher] Added -xres argument from Options.ini: {Width}", width);
-                }
-
-                if (height > 0 && !arguments.ContainsKey("-yres"))
-                {
-                    arguments["-yres"] = height.ToString(CultureInfo.InvariantCulture);
-                    logger.LogInformation("[GameLauncher] Added -yres argument from Options.ini: {Height}", height);
-                }
-            }
-        }
+        ApplyResolutionFromNativeOptionsIni(profile, arguments);
 
         SteamLaunchPrepResult? steamPrep = null;
         string? steamAppId = null;
@@ -1737,22 +1749,22 @@ public class GameLauncher(
             }
         }
 
-        if (profile.VideoWindowed == true && !arguments.ContainsKey("-win"))
+        if (profile.VideoWindowed == true && !arguments.ContainsKey(GameClientConstants.WindowedArgument))
         {
-            arguments["-win"] = string.Empty;
-            logger.LogInformation("[GameLauncher] Added -win argument for windowed mode");
+            arguments[GameClientConstants.WindowedArgument] = string.Empty;
+            logger.LogInformation("[GameLauncher] Added {Argument} argument for windowed mode", GameClientConstants.WindowedArgument);
         }
 
-        if (profile.VideoResolutionWidth > 0 && !arguments.ContainsKey("-xres"))
+        if (profile.VideoResolutionWidth > 0 && !arguments.ContainsKey(GameClientConstants.XResolutionArgument))
         {
-            arguments["-xres"] = profile.VideoResolutionWidth.Value.ToString(CultureInfo.InvariantCulture);
-            logger.LogInformation("[GameLauncher] Added -xres argument: {Width}", profile.VideoResolutionWidth.Value);
+            arguments[GameClientConstants.XResolutionArgument] = profile.VideoResolutionWidth.Value.ToString(CultureInfo.InvariantCulture);
+            logger.LogInformation("[GameLauncher] Added {Argument} argument: {Width}", GameClientConstants.XResolutionArgument, profile.VideoResolutionWidth.Value);
         }
 
-        if (profile.VideoResolutionHeight > 0 && !arguments.ContainsKey("-yres"))
+        if (profile.VideoResolutionHeight > 0 && !arguments.ContainsKey(GameClientConstants.YResolutionArgument))
         {
-            arguments["-yres"] = profile.VideoResolutionHeight.Value.ToString(CultureInfo.InvariantCulture);
-            logger.LogInformation("[GameLauncher] Added -yres argument: {Height}", profile.VideoResolutionHeight.Value);
+            arguments[GameClientConstants.YResolutionArgument] = profile.VideoResolutionHeight.Value.ToString(CultureInfo.InvariantCulture);
+            logger.LogInformation("[GameLauncher] Added {Argument} argument: {Height}", GameClientConstants.YResolutionArgument, profile.VideoResolutionHeight.Value);
         }
 
         return OperationResult<Dictionary<string, string>>.CreateSuccess(arguments);

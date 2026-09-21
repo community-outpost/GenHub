@@ -409,6 +409,48 @@ public sealed class WineRunnerTests : IDisposable
     }
 
     /// <summary>
+    /// Verifies that Proton's tracked-files marker is probed in the compatdata root next to
+    /// the prefix directory: a prefix path without "compatdata" still mirrors into
+    /// steamuser's folders when the marker sits in the parent directory.
+    /// </summary>
+    [Fact]
+    public void ResolveCommand_WithTrackedFilesNextToPrefix_MirrorsIntoSteamUserDocumentsFolders()
+    {
+        // Arrange
+        var binDirectory = CreateDirectory("bin");
+        File.WriteAllText(Path.Combine(binDirectory, "wine"), "fake wine");
+        var compatRoot = CreateDirectory("compat-root");
+        File.WriteAllText(Path.Combine(compatRoot, WineConstants.ProtonTrackedFilesMarker), "tracked");
+        var prefixPath = Path.Combine(compatRoot, "pfx");
+        var runner = CreateRunner([binDirectory], prefixPath);
+        var nativeOptionsPath = Path.Combine(CreateDirectory("userdata-tracked"), "Options.ini");
+        File.WriteAllText(nativeOptionsPath, "tracked-settings");
+        var configuration = new GameLaunchConfiguration
+        {
+            ExecutablePath = Path.Combine(_tempDirectory, "game", "generals.exe"),
+            GameType = GameType.ZeroHour,
+            NativeOptionsIniPath = nativeOptionsPath,
+        };
+
+        // Act
+        var result = runner.ResolveCommand(configuration);
+
+        // Assert
+        Assert.True(result.Success, result.AllErrors);
+        var steamUserDocs = Path.Combine(
+            prefixPath,
+            WineConstants.DriveCDirectoryName,
+            WineConstants.PrefixUsersDirectoryName,
+            WineConstants.ProtonUserName,
+            WineConstants.DocumentsDirectoryName,
+            MapManagerConstants.ZeroHourDataDirectoryName,
+            "Options.ini");
+
+        Assert.True(File.Exists(steamUserDocs));
+        Assert.Equal("tracked-settings", File.ReadAllText(steamUserDocs));
+    }
+
+    /// <summary>
     /// Verifies that if the native Options.ini does not exist on disk, a baseline Options.ini
     /// is bootstrapped using the configured resolution arguments and mirrored into the prefix.
     /// </summary>

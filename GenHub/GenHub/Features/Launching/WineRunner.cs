@@ -115,10 +115,69 @@ public class WineRunner(
             .Any(key => string.Equals(key, WineConstants.Direct3D8DllName, StringComparison.OrdinalIgnoreCase));
 
     private static bool IsExcludedPrefixUser(string dirName) =>
-        dirName.Equals("Public", StringComparison.OrdinalIgnoreCase)
-        || dirName.Equals("Default", StringComparison.OrdinalIgnoreCase)
-        || dirName.Equals("Default User", StringComparison.OrdinalIgnoreCase)
-        || dirName.Equals("All Users", StringComparison.OrdinalIgnoreCase);
+        WineConstants.ExcludedPrefixUserNames.Contains(dirName, StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Collects the prefix user profiles targeted when mirroring the native Options.ini:
+    /// the current login plus every existing non-system profile directory.
+    /// </summary>
+    /// <param name="usersRoot">The prefix users directory.</param>
+    /// <returns>The candidate user profile names, compared case-insensitively.</returns>
+    private static HashSet<string> CollectCandidateUsernames(string usersRoot)
+    {
+        var candidateUsernames = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            SanitizeUserName(Environment.UserName),
+        };
+
+        if (!Directory.Exists(usersRoot))
+        {
+            return candidateUsernames;
+        }
+
+        foreach (var dir in Directory.EnumerateDirectories(usersRoot))
+        {
+            var dirName = Path.GetFileName(dir);
+            if (!string.IsNullOrWhiteSpace(dirName) && !IsExcludedPrefixUser(dirName))
+            {
+                candidateUsernames.Add(dirName);
+            }
+        }
+
+        return candidateUsernames;
+    }
+
+    /// <summary>
+    /// Mirrors the native Options.ini into every candidate user shell folder.
+    /// </summary>
+    /// <remarks>
+    /// Plain Wine resolves the personal shell folder to "My Documents" while Proton
+    /// uses "Documents", and on a fresh managed prefix neither directory exists yet to
+    /// disambiguate. Guessing one risks the game silently ignoring the mirrored
+    /// Options.ini — including the profile's resolution — with no error anywhere, and
+    /// the guess can never self-heal because the first run creates the guessed
+    /// directory itself. Mirror into both: the game reads exactly one, and the other
+    /// copy stays inert.
+    /// </remarks>
+    /// <param name="sourcePath">The native Options.ini path.</param>
+    /// <param name="usersRoot">The prefix users directory.</param>
+    /// <param name="candidateUsernames">The user profiles to mirror into.</param>
+    /// <param name="dataDirectoryName">The game data directory name.</param>
+    /// <returns><c>true</c> when at least one destination was written; otherwise, <c>false</c>.</returns>
+    private static bool MirrorToCandidateUsers(string sourcePath, string usersRoot, HashSet<string> candidateUsernames, string dataDirectoryName)
+    {
+        var mirroredAny = false;
+        foreach (var userName in candidateUsernames)
+        {
+            var userDirectory = Path.Combine(usersRoot, userName);
+            foreach (var documentsDirectoryName in new[] { WineConstants.DocumentsDirectoryName, WineConstants.MyDocumentsDirectoryName })
+            {
+                mirroredAny |= MirrorOptionsIniToShellFolder(sourcePath, userDirectory, documentsDirectoryName, dataDirectoryName);
+            }
+        }
+
+        return mirroredAny;
+    }
 
     private void ConfigureDirect3DOverride(GameLaunchConfiguration configuration, Dictionary<string, string> environment)
     {
@@ -191,6 +250,69 @@ public class WineRunner(
         }
     }
 
+    /// <summary>
+    /// Determines whether the configured prefix is Proton-managed from the steamuser
+    /// profile, a compatdata path, or Proton's tracked-files marker.
+    /// </summary>
+    /// <remarks>
+    /// <c>tracked_files</c> lives in the compatdata root, next to the <c>pfx</c> prefix
+    /// directory rather than inside it, so the parent directory is probed as well as
+    /// the prefix itself (the latter covers prefix paths pointing at a compatdata root).
+    /// </remarks>
+    /// <param name="usersRoot">The prefix users directory.</param>
+    /// <returns><c>true</c> when the prefix looks Proton-managed; otherwise, <c>false</c>.</returns>
+    private bool IsProtonPrefix(string usersRoot)
+    {
+        if (Directory.Exists(Path.Combine(usersRoot, WineConstants.ProtonUserName)))
+        {
+            return true;
+        }
+
+        if (options.PrefixPath.Contains(WineConstants.CompatDataDirectoryMarker, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        var parent = Directory.GetParent(options.PrefixPath);
+        return File.Exists(Path.Combine(options.PrefixPath, WineConstants.ProtonTrackedFilesMarker))
+            || (parent is not null && File.Exists(Path.Combine(parent.FullName, WineConstants.ProtonTrackedFilesMarker)));
+    }
+
+    /// <summary>
+    /// Writes a baseline native Options.ini so a first launch has settings to mirror.
+    /// </summary>
+    /// <param name="sourcePath">The native Options.ini path to create.</param>
+    /// <param name="args">The launch arguments, used for the bootstrap resolution when present.</param>
+    /// <returns><c>true</c> when the baseline was written; otherwise, <c>false</c>.</returns>
+    private bool BootstrapNativeOptionsIni(string sourcePath, Dictionary<string, string>? args)
+    {
+        try
+        {
+            var dir = Path.GetDirectoryName(sourcePath);
+            if (!string.IsNullOrEmpty(dir))
+            {
+                Directory.CreateDirectory(dir);
+            }
+
+            var resolutionLine = $"{GameSettingsIniConstants.ResolutionKey} = {WineConstants.BootstrapResolutionWidth} {WineConstants.BootstrapResolutionHeight}";
+            if (args is { Count: > 0 }
+                && args.TryGetValue(GameClientConstants.XResolutionArgument, out var xres) && !string.IsNullOrWhiteSpace(xres)
+                && args.TryGetValue(GameClientConstants.YResolutionArgument, out var yres) && !string.IsNullOrWhiteSpace(yres))
+            {
+                resolutionLine = $"{GameSettingsIniConstants.ResolutionKey} = {xres} {yres}";
+            }
+
+            File.WriteAllText(sourcePath, $"{resolutionLine}\r\n{GameSettingsIniConstants.IdealStaticGameLODKey} = {WineConstants.BootstrapIdealStaticGameLOD}\r\n");
+            logger.LogInformation("Bootstrapped baseline Options.ini at {SourcePath}", sourcePath);
+            return true;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
+        {
+            logger.LogDebug(ex, "Could not bootstrap missing native Options.ini at {SourcePath}", sourcePath);
+            return false;
+        }
+    }
+
     private void MirrorOptionsIni(GameLaunchConfiguration configuration)
     {
         if (configuration.GameType is null || string.IsNullOrWhiteSpace(configuration.NativeOptionsIniPath))
@@ -199,32 +321,9 @@ public class WineRunner(
         }
 
         var sourcePath = configuration.NativeOptionsIniPath;
-        if (!File.Exists(sourcePath))
+        if (!File.Exists(sourcePath) && !BootstrapNativeOptionsIni(sourcePath, configuration.Arguments))
         {
-            try
-            {
-                var dir = Path.GetDirectoryName(sourcePath);
-                if (!string.IsNullOrEmpty(dir))
-                {
-                    Directory.CreateDirectory(dir);
-                }
-
-                var resolutionLine = "Resolution = 1024 768";
-                if (configuration.Arguments is { Count: > 0 } args
-                    && args.TryGetValue("-xres", out var xres) && !string.IsNullOrWhiteSpace(xres)
-                    && args.TryGetValue("-yres", out var yres) && !string.IsNullOrWhiteSpace(yres))
-                {
-                    resolutionLine = $"Resolution = {xres} {yres}";
-                }
-
-                File.WriteAllText(sourcePath, $"{resolutionLine}\r\nIdealStaticGameLOD = Low\r\n");
-                logger.LogInformation("Bootstrapped baseline Options.ini at {SourcePath}", sourcePath);
-            }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
-            {
-                logger.LogDebug(ex, "Could not bootstrap missing native Options.ini at {SourcePath}", sourcePath);
-                return;
-            }
+            return;
         }
 
         try
@@ -238,48 +337,13 @@ public class WineRunner(
                 WineConstants.DriveCDirectoryName,
                 WineConstants.PrefixUsersDirectoryName);
 
-            var candidateUsernames = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-            {
-                SanitizeUserName(Environment.UserName),
-            };
-
-            if (Directory.Exists(usersRoot))
-            {
-                foreach (var dir in Directory.EnumerateDirectories(usersRoot))
-                {
-                    var dirName = Path.GetFileName(dir);
-                    if (!string.IsNullOrWhiteSpace(dirName) && !IsExcludedPrefixUser(dirName))
-                    {
-                        candidateUsernames.Add(dirName);
-                    }
-                }
-            }
-
-            if (Directory.Exists(Path.Combine(usersRoot, WineConstants.ProtonUserName))
-                || options.PrefixPath.Contains("compatdata", StringComparison.OrdinalIgnoreCase)
-                || File.Exists(Path.Combine(options.PrefixPath, "tracked_files")))
+            var candidateUsernames = CollectCandidateUsernames(usersRoot);
+            if (IsProtonPrefix(usersRoot))
             {
                 candidateUsernames.Add(WineConstants.ProtonUserName);
             }
 
-            // Plain Wine resolves the personal shell folder to "My Documents" while Proton
-            // uses "Documents", and on a fresh managed prefix neither directory exists yet to
-            // disambiguate. Guessing one risks the game silently ignoring the mirrored
-            // Options.ini — including the profile's resolution — with no error anywhere, and
-            // the guess can never self-heal because the first run creates the guessed
-            // directory itself. Mirror into both: the game reads exactly one, and the other
-            // copy stays inert.
-            var mirroredAny = false;
-            foreach (var userName in candidateUsernames)
-            {
-                var userDirectory = Path.Combine(usersRoot, userName);
-                foreach (var documentsDirectoryName in new[] { WineConstants.DocumentsDirectoryName, WineConstants.MyDocumentsDirectoryName })
-                {
-                    mirroredAny |= MirrorOptionsIniToShellFolder(sourcePath, userDirectory, documentsDirectoryName, dataDirectoryName);
-                }
-            }
-
-            if (mirroredAny)
+            if (MirrorToCandidateUsers(sourcePath, usersRoot, candidateUsernames, dataDirectoryName))
             {
                 logger.LogInformation("Mirrored Options.ini into Wine prefix for {GameType}", configuration.GameType);
             }

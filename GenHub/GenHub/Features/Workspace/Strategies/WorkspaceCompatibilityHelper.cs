@@ -147,24 +147,15 @@ public static class WorkspaceCompatibilityHelper
 
         // Deep archive inspection: if the file exists on disk, inspect its directory index.
         // Any archive containing .csf string tables, .wnd window layouts, or .ini definitions
-        // must never be linked as a supplemental archive.
-        if (File.Exists(candidatePathOrName))
+        // must never be linked as a supplemental archive. TryReadIndex already converts I/O,
+        // corruption, and format failures into a false return, so when the index cannot be
+        // read only the filename checks above apply.
+        if (File.Exists(candidatePathOrName) &&
+            BigArchiveReader.TryReadIndex(candidatePathOrName, out var index) &&
+            index.Keys.Any(entry => GameClientConstants.UnsafeSupplementalArchiveEntryExtensions.Any(
+                extension => entry.EndsWith(extension, StringComparison.OrdinalIgnoreCase))))
         {
-            try
-            {
-                if (BigArchiveReader.TryReadIndex(candidatePathOrName, out var index) &&
-                    index.Keys.Any(entry =>
-                        entry.EndsWith(".csf", StringComparison.OrdinalIgnoreCase) ||
-                        entry.EndsWith(".wnd", StringComparison.OrdinalIgnoreCase) ||
-                        entry.EndsWith(".ini", StringComparison.OrdinalIgnoreCase)))
-                {
-                    return false;
-                }
-            }
-            catch
-            {
-                // If reading fails or is not a valid BIG, rely on the filename checks above.
-            }
+            return false;
         }
 
         return true;

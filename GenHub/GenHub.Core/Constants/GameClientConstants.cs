@@ -30,6 +30,17 @@ public static class GameClientConstants
     /// <summary>Contra modded client executable filename.</summary>
     public const string ContraExecutable = "generals.ctr";
 
+    // ===== Engine Launch Arguments =====
+
+    /// <summary>SAGE engine command-line argument overriding the horizontal resolution.</summary>
+    public const string XResolutionArgument = "-xres";
+
+    /// <summary>SAGE engine command-line argument overriding the vertical resolution.</summary>
+    public const string YResolutionArgument = "-yres";
+
+    /// <summary>SAGE engine command-line argument requesting windowed mode.</summary>
+    public const string WindowedArgument = "-win";
+
     // ===== SuperHackers Client Detection =====
 
     /// <summary>SuperHackers Generals executable filename.</summary>
@@ -303,6 +314,18 @@ public static class GameClientConstants
         "csf",
         "lang",
         "string",
+    ];
+
+    /// <summary>
+    /// Archive entry extensions identifying content that must never be linked into a Zero Hour
+    /// workspace: string tables, window layouts, and INI definitions override Zero Hour's own
+    /// files and crash the engine.
+    /// </summary>
+    public static readonly IReadOnlyList<string> UnsafeSupplementalArchiveEntryExtensions =
+    [
+        ".csf",
+        ".wnd",
+        ".ini",
     ];
 
     /// <summary>
