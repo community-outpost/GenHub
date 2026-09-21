@@ -648,11 +648,21 @@ public static class ModDBConstants
     /// <summary>NuGet package id that ships the Playwright driver binaries.</summary>
     public const string PlaywrightDriverPackageId = "microsoft.playwright";
 
+    /// <summary>Named HttpClient for on-demand Playwright driver downloads.</summary>
+    public const string PlaywrightDriverHttpClientName = "PlaywrightDriverHttpClient";
+
     /// <summary>
     /// Exact Playwright driver version to provision on demand.
     /// Must match the Microsoft.Playwright package version in Directory.Packages.props.
     /// </summary>
     public const string PlaywrightDriverVersion = "1.55.0";
+
+    /// <summary>
+    /// Pinned SHA-256 (lowercase hex) of the Playwright driver package archive.
+    /// Verified before extraction so a compromised feed cannot ship code.
+    /// Must be refreshed together with <see cref="PlaywrightDriverVersion"/>.
+    /// </summary>
+    public const string PlaywrightDriverExpectedSha256 = "dd83393186e2beb44772cf883453c44d496e981cbfb8bba1059c5d8b471c063d";
 
     /// <summary>Expected download size in megabytes for the Playwright driver package.</summary>
     public const double PlaywrightDriverExpectedSizeMegabytes = 190.0;

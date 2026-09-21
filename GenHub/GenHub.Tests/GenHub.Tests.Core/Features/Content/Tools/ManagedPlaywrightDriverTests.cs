@@ -8,6 +8,7 @@ using System.IO;
 using System.IO.Compression;
 using System.Net;
 using System.Net.Http;
+using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
@@ -89,20 +90,17 @@ public sealed class ManagedPlaywrightDriverTests : IDisposable
     {
         // Arrange
         Environment.SetEnvironmentVariable(ManagedChromiumRuntime.DriverSearchPathEnvironmentVariable, null);
-        var driver = CreateDriver(out var consentCalls, out var downloadCalls, requestUri =>
-        {
-            Assert.Equal(
-                ApiConstants.GetNuGetPackageDownloadUrl(ModDBConstants.PlaywrightDriverPackageId, ModDBConstants.PlaywrightDriverVersion),
-                requestUri?.AbsoluteUri);
-            return BuildDriverPackage();
-        });
+        var driver = CreateDriver(out var consentCalls, out var downloadCalls);
 
         // Act
         await driver.EnsureInstalledAsync(default);
 
         // Assert
         Assert.Equal([_driverDirectory], consentCalls);
-        Assert.Single(downloadCalls);
+        var downloadUri = Assert.Single(downloadCalls);
+        Assert.Equal(
+            ApiConstants.GetNuGetPackageDownloadUrl(ModDBConstants.PlaywrightDriverPackageId, ModDBConstants.PlaywrightDriverVersion),
+            downloadUri);
         var platformFolder = ManagedChromiumRuntime.GetDriverPlatformFolder();
         var nodeBinaryName = ManagedChromiumRuntime.GetDriverNodeBinaryName();
         Assert.True(File.Exists(Path.Combine(_driverDirectory, ".playwright", "node", platformFolder, nodeBinaryName)));
@@ -244,6 +242,32 @@ public sealed class ManagedPlaywrightDriverTests : IDisposable
     }
 
     /// <summary>
+    /// Verifies a tampered package is rejected before extraction and leaves no trace.
+    /// </summary>
+    /// <returns>A task that represents the asynchronous test.</returns>
+    [Fact]
+    public async Task EnsureInstalledAsync_HashMismatch_RejectsWithoutExtractingAsync()
+    {
+        // Arrange
+        Environment.SetEnvironmentVariable(ManagedChromiumRuntime.DriverSearchPathEnvironmentVariable, null);
+        var driver = CreateDriver(out _, out _, expectedPackageSha256: new string('0', 64));
+
+        // Act & Assert
+        await Assert.ThrowsAsync<InvalidOperationException>(() => driver.EnsureInstalledAsync(default));
+        Assert.False(Directory.Exists(Path.Combine(_driverDirectory, ".playwright")));
+        Assert.False(File.Exists(Path.Combine(_driverDirectory, "driver.download")));
+    }
+
+    /// <summary>
+    /// Verifies the pinned package hash is a well-formed lowercase SHA-256 hex string.
+    /// </summary>
+    [Fact]
+    public void PlaywrightDriverExpectedSha256_IsLowercaseHex64()
+    {
+        Assert.Matches("^[0-9a-f]{64}$", ModDBConstants.PlaywrightDriverExpectedSha256);
+    }
+
+    /// <summary>
     /// Deletes the temporary driver directory and restores the process environment.
     /// </summary>
     public void Dispose()
@@ -290,18 +314,23 @@ public sealed class ManagedPlaywrightDriverTests : IDisposable
     private ManagedPlaywrightDriver CreateDriver(
         out List<string> consentCalls,
         out List<string> downloadCalls,
-        Func<Uri?, byte[]>? packageFactory = null)
+        Func<Uri?, byte[]>? packageFactory = null,
+        string? expectedPackageSha256 = null)
     {
         var consents = new List<string>();
         var downloads = new List<string>();
         consentCalls = consents;
         downloadCalls = downloads;
         var factory = packageFactory ?? (_ => BuildDriverPackage());
+        byte[]? packageBytes = null;
         var httpClient = new HttpClient(new StubHandler(request =>
         {
             downloads.Add(request?.AbsoluteUri ?? string.Empty);
-            return factory(request);
+            packageBytes ??= factory(request);
+            return packageBytes;
         }));
+        packageBytes ??= factory(null);
+        var expectedHash = expectedPackageSha256 ?? Convert.ToHexString(SHA256.HashData(packageBytes)).ToLowerInvariant();
         return new ManagedPlaywrightDriver(
             _driverDirectory,
             httpClient,
@@ -310,7 +339,8 @@ public sealed class ManagedPlaywrightDriverTests : IDisposable
                 consents.Add(path);
                 return Task.FromResult(true);
             },
-            new Mock<ILogger>().Object);
+            new Mock<ILogger>().Object,
+            expectedPackageSha256: expectedHash);
     }
 
     private void SeedManagedDriver(string version)

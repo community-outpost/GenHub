@@ -27,7 +27,8 @@ internal sealed class ManagedPlaywrightDriver(
     ILogger logger,
     INotificationService? notificationService = null,
     ILocalizationService? localizationService = null,
-    ManagedChromiumRuntimeCallbacks? callbacks = null)
+    ManagedChromiumRuntimeCallbacks? callbacks = null,
+    string? expectedPackageSha256 = null)
 {
     private const string PlaywrightRootName = ".playwright";
     private const string PackageEntriesPrefix = ".playwright/package/";
@@ -244,6 +245,32 @@ internal sealed class ManagedPlaywrightDriver(
         return destinationPath;
     }
 
+    private static void SetNodeExecutableBit(string nodePath)
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        const UnixFileMode ExecutableMode = UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute
+            | UnixFileMode.GroupRead | UnixFileMode.GroupExecute
+            | UnixFileMode.OtherRead | UnixFileMode.OtherExecute;
+        File.SetUnixFileMode(nodePath, ExecutableMode);
+    }
+
+    private async Task VerifyPackageIntegrityAsync(string downloadPath, CancellationToken cancellationToken)
+    {
+        // The archive becomes an executed binary, so verify the pinned hash before
+        // extraction. This applies to override feeds too: they must serve identical bytes.
+        var expectedHash = expectedPackageSha256 ?? ModDBConstants.PlaywrightDriverExpectedSha256;
+        var actualHash = await DownloadSecurityValidator.ComputeSha256Async(downloadPath, cancellationToken);
+        if (!string.Equals(actualHash, expectedHash, StringComparison.OrdinalIgnoreCase))
+        {
+            File.Delete(downloadPath);
+            throw new InvalidDataException("Downloaded Playwright driver package failed integrity verification.");
+        }
+    }
+
     private bool TryUseManagedDriver()
     {
         if (!IsManagedDriverValid())
@@ -270,23 +297,28 @@ internal sealed class ManagedPlaywrightDriver(
 
         var totalBytes = response.Content.Headers.ContentLength ?? (long)ModDBConstants.PlaywrightDriverExpectedSizeBytes;
         await using var content = await response.Content.ReadAsStreamAsync(cancellationToken);
-        await using var file = new FileStream(
+
+        // Scoped so the writer is closed before integrity verification re-opens the file.
+        await using (var file = new FileStream(
             downloadPath,
             FileMode.Create,
             FileAccess.Write,
             FileShare.None,
             AppUpdateConstants.DefaultStreamBufferSize,
-            useAsync: true);
-
-        var buffer = new byte[AppUpdateConstants.DefaultStreamBufferSize];
-        long totalRead = 0;
-        int read;
-        while ((read = await content.ReadAsync(buffer, cancellationToken)) > 0)
+            useAsync: true))
         {
-            await file.WriteAsync(buffer.AsMemory(0, read), cancellationToken);
-            totalRead += read;
-            ReportDownloadProgress(scope, totalRead, totalBytes);
+            var buffer = new byte[AppUpdateConstants.DefaultStreamBufferSize];
+            long totalRead = 0;
+            int read;
+            while ((read = await content.ReadAsync(buffer, cancellationToken)) > 0)
+            {
+                await file.WriteAsync(buffer.AsMemory(0, read), cancellationToken);
+                totalRead += read;
+                ReportDownloadProgress(scope, totalRead, totalBytes);
+            }
         }
+
+        await VerifyPackageIntegrityAsync(downloadPath, cancellationToken);
 
         return downloadPath;
     }
@@ -377,18 +409,5 @@ internal sealed class ManagedPlaywrightDriver(
         Directory.Delete(stagingDirectory, true);
         File.Delete(packagePath);
         File.WriteAllText(Path.Combine(driverDirectory, MarkerFileName), ModDBConstants.PlaywrightDriverVersion);
-    }
-
-    private void SetNodeExecutableBit(string nodePath)
-    {
-        if (OperatingSystem.IsWindows())
-        {
-            return;
-        }
-
-        const UnixFileMode ExecutableMode = UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute
-            | UnixFileMode.GroupRead | UnixFileMode.GroupExecute
-            | UnixFileMode.OtherRead | UnixFileMode.OtherExecute;
-        File.SetUnixFileMode(nodePath, ExecutableMode);
     }
 }

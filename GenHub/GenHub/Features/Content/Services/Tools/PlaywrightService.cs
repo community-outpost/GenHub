@@ -1424,7 +1424,7 @@ public sealed class PlaywrightService(
 
         var newDriver = new ManagedPlaywrightDriver(
             Path.Combine(configurationProvider.GetApplicationDataPath(), DirectoryNames.PlaywrightDriver),
-            httpClientFactory.CreateClient(),
+            httpClientFactory.CreateClient(ModDBConstants.PlaywrightDriverHttpClientName),
             RequestManagedDriverInstallConsentAsync,
             logger,
             notificationService,

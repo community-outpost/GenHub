@@ -247,10 +247,11 @@ internal sealed class ManagedChromiumRuntime(
     /// <summary>
     /// Resolves an already available Playwright driver node executable, mirroring
     /// Playwright's own resolution: the search path override, then the application
-    /// directory, then its grandparent (NuGet layout). Conservative by design: a
-    /// non-null result means Playwright.CreateAsync will find the driver.
+    /// directory, then its grandparent (NuGet layout). Best-effort only: it checks
+    /// the node executable, not the driver package entry point, and a whitespace-only
+    /// search path is treated as unset rather than Playwright's fail-fast.
     /// </summary>
-    /// <returns>The node executable path, or null when no driver is available.</returns>
+    /// <returns>The node executable path, or null when no driver was found.</returns>
     internal static string? TryResolveDriverNodeExecutable()
     {
         var platformFolder = GetDriverPlatformFolder();
@@ -268,8 +269,10 @@ internal sealed class ManagedChromiumRuntime(
             assemblyDirectory = Path.GetDirectoryName(typeof(Playwright).Assembly.Location) ?? assemblyDirectory;
         }
 
+        // Directory.GetParent keeps a trailing separator quirk (GetParent(".../app/") is
+        // ".../app"), so walk parents through DirectoryInfo exactly like Playwright does.
         return FindDriverNodeUnderDirectory(assemblyDirectory, platformFolder, nodeBinaryName)
-            ?? FindDriverNodeUnderDirectory(Directory.GetParent(assemblyDirectory)?.Parent?.FullName, platformFolder, nodeBinaryName);
+            ?? FindDriverNodeUnderDirectory(new DirectoryInfo(assemblyDirectory).Parent?.Parent?.FullName, platformFolder, nodeBinaryName);
     }
 
     private static string? FindDriverNodeUnderDirectory(string? directory, string platformFolder, string nodeBinaryName)

@@ -7,6 +7,7 @@ using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameClients;
 using GenHub.Core.Models.GameProfile;
+using GenHub.Features.GameProfiles.Helpers;
 using GenHub.Infrastructure.Converters;
 using System;
 using System.Collections.Generic;
@@ -645,7 +646,8 @@ public partial class GameProfileItemViewModel : ViewModelBase
 
         // Map old paths to new paths for backward compatibility
         // Images were renamed/moved: Assets/Images/china-poster.png → Assets/Covers/china-cover.jpg
-        return coverPath switch
+        // Stored profiles may also reference the pre-re-encode PNG faction covers.
+        return CoverPathMigrationHelper.MigrateLegacyCoverFilename(coverPath switch
         {
             var p when p.Contains(UriConstants.LegacyChinaPosterFilename, StringComparison.OrdinalIgnoreCase) =>
                 p.Replace(UriConstants.LegacyChinaPosterFilename, UriConstants.ChinaCoverFilename, StringComparison.OrdinalIgnoreCase)
@@ -657,20 +659,12 @@ public partial class GameProfileItemViewModel : ViewModelBase
                 p.Replace(UriConstants.LegacyGlaPosterFilename, UriConstants.GlaCoverFilename, StringComparison.OrdinalIgnoreCase)
                  .Replace(UriConstants.LegacyImagesBasePath, UriConstants.CoversDirectoryPath, StringComparison.OrdinalIgnoreCase),
 
-            // Stored profiles may reference the pre-re-encode PNG faction covers
-            var p when p.Contains(UriConstants.LegacyChinaCoverPngFilename, StringComparison.OrdinalIgnoreCase) =>
-                p.Replace(UriConstants.LegacyChinaCoverPngFilename, UriConstants.ChinaCoverFilename, StringComparison.OrdinalIgnoreCase),
-            var p when p.Contains(UriConstants.LegacyUsaCoverPngFilename, StringComparison.OrdinalIgnoreCase) =>
-                p.Replace(UriConstants.LegacyUsaCoverPngFilename, UriConstants.UsaCoverFilename, StringComparison.OrdinalIgnoreCase),
-            var p when p.Contains(UriConstants.LegacyGlaCoverPngFilename, StringComparison.OrdinalIgnoreCase) =>
-                p.Replace(UriConstants.LegacyGlaCoverPngFilename, UriConstants.GlaCoverFilename, StringComparison.OrdinalIgnoreCase),
-
             // Also handle just the directory change for any other files in Images/ that might reference covers
             var p when p.Contains(UriConstants.LegacyImagesBasePath, StringComparison.OrdinalIgnoreCase) &&
                        (p.Contains("cover", StringComparison.OrdinalIgnoreCase) || p.Contains("poster", StringComparison.OrdinalIgnoreCase)) =>
                 p.Replace(UriConstants.LegacyImagesBasePath, UriConstants.CoversDirectoryPath, StringComparison.OrdinalIgnoreCase),
             _ => coverPath,
-        };
+        });
     }
 
     private static string MapPublisherName(string publisherSegment, string fallback) =>
