@@ -1229,11 +1229,19 @@ public sealed class ProfileContentService(
             var manifestResult = await manifestPool.GetManifestAsync(
                 Core.Models.Manifest.ManifestId.Create(contentId),
                 cancellationToken);
-            if (manifestResult.Success && manifestResult.Data != null &&
-                (manifestResult.Data.ContentType == ContentType.GameClient ||
-                 manifestResult.Data.ContentType == ContentType.GameInstallation))
+            if (manifestResult.Success && manifestResult.Data != null)
             {
-                continue;
+                if (manifestResult.Data.ContentType == ContentType.GameClient ||
+                    manifestResult.Data.ContentType == ContentType.GameInstallation)
+                {
+                    continue;
+                }
+
+                if (manifestResult.Data.TargetGame != GameType.Unknown &&
+                    manifestResult.Data.TargetGame != requiredGameType)
+                {
+                    continue;
+                }
             }
 
             nonFoundationContentIds.Add(contentId);

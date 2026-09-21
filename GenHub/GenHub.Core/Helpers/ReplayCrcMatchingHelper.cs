@@ -74,7 +74,8 @@ public static class ReplayCrcMatchingHelper
 
         var normalized = NormalizeCrcHex(crc);
         return string.Equals(normalized, NormalizeCrcHex(ReplayManagerConstants.RetailGeneralsExeCrcFirstDecade), StringComparison.OrdinalIgnoreCase) ||
-               string.Equals(normalized, NormalizeCrcHex(ReplayManagerConstants.RetailGeneralsExeCrcSteam), StringComparison.OrdinalIgnoreCase);
+               string.Equals(normalized, NormalizeCrcHex(ReplayManagerConstants.RetailGeneralsExeCrcSteam), StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(normalized, NormalizeCrcHex("0x8F98E20A"), StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary>
@@ -137,12 +138,84 @@ public static class ReplayCrcMatchingHelper
     }
 
     /// <summary>
-    /// Determines whether the specified game client and enabled content are compatible with the retail Zero Hour 1.04 executable CRC.
+    /// Determines whether the specified game client represents an official retail base game client
+    /// (e.g. Generals 1.08 / 1.09, Zero Hour 1.04 / 1.05 from EA, EA App, Steam, or Retail distribution).
+    /// </summary>
+    /// <param name="client">The game client to evaluate.</param>
+    /// <returns><c>true</c> if an official base game client; otherwise, <c>false</c>.</returns>
+    public static bool IsOfficialBaseClient(GameClient? client)
+    {
+        if (client == null)
+        {
+            return false;
+        }
+
+        if (IsGeneralsOnlineClient(client) || IsLegacySuperHackersClient(client))
+        {
+            return false;
+        }
+
+        var pub = client.PublisherType;
+        if (string.IsNullOrEmpty(pub) && !string.IsNullOrEmpty(client.Id))
+        {
+            var segments = client.Id.Split([ManifestConstants.ManifestIdSegmentSeparator], StringSplitOptions.None);
+            if (segments.Length >= 4)
+            {
+                pub = segments[2];
+            }
+        }
+
+        var normalizedPub = pub?.Trim().ToLowerInvariant() ?? string.Empty;
+        var isOfficialPublisher = string.IsNullOrEmpty(normalizedPub) ||
+                                  normalizedPub == PublisherTypeConstants.Steam ||
+                                  normalizedPub == PublisherTypeConstants.Ea ||
+                                  normalizedPub == PublisherTypeConstants.EaApp ||
+                                  normalizedPub == PublisherTypeConstants.Retail ||
+                                  normalizedPub == "ea" ||
+                                  normalizedPub == "eaapp" ||
+                                  normalizedPub == "steam" ||
+                                  normalizedPub == "retail";
+
+        if (!isOfficialPublisher && client.IsPublisherClient)
+        {
+            return false;
+        }
+
+        var ver = client.Version?.Trim() ?? string.Empty;
+        var id = client.Id?.ToLowerInvariant() ?? string.Empty;
+
+        if (client.GameType == GameType.Generals)
+        {
+            return ver.StartsWith("1.08", StringComparison.OrdinalIgnoreCase) ||
+                   ver.StartsWith("1.09", StringComparison.OrdinalIgnoreCase) ||
+                   ver == "1.8" ||
+                   ver == "1.9" ||
+                   id.Contains(".108.") ||
+                   id.Contains(".109.") ||
+                   !client.IsPublisherClient;
+        }
+
+        if (client.GameType == GameType.ZeroHour)
+        {
+            return ver.StartsWith("1.04", StringComparison.OrdinalIgnoreCase) ||
+                   ver.StartsWith("1.05", StringComparison.OrdinalIgnoreCase) ||
+                   ver == "1.4" ||
+                   ver == "1.5" ||
+                   id.Contains(".104.") ||
+                   id.Contains(".105.") ||
+                   !client.IsPublisherClient;
+        }
+
+        return !client.IsPublisherClient;
+    }
+
+    /// <summary>
+    /// Determines whether the specified game client and enabled content are compatible with the retail Zero Hour executable CRC.
     /// </summary>
     /// <param name="client">The game client to evaluate.</param>
     /// <param name="enabledContentIds">Optional list of enabled content manifest IDs for the profile.</param>
     /// <returns>
-    /// <c>true</c> if the client is compatible with retail Zero Hour 1.04 executable CRC;
+    /// <c>true</c> if the client is compatible with retail Zero Hour executable CRC (e.g. 1.04 / 1.05);
     /// <c>false</c> if it uses a non-retail or custom executable (such as Generals Online or non-retail Community Patch).
     /// </returns>
     public static bool IsZeroHourRetailCompatible(GameClient? client, IReadOnlyList<string>? enabledContentIds = null)
@@ -152,24 +225,21 @@ public static class ReplayCrcMatchingHelper
             return false;
         }
 
+        if (IsGeneralsOnlineClient(client) ||
+            HasNonRetailIdentifier(client, enabledContentIds) ||
+            IsLegacySuperHackersClient(client))
+        {
+            return false;
+        }
+
         if (TryGetCachedExeCrc(client, out var cachedCrc))
         {
-            return IsZeroHourRetailExeCrc(cachedCrc);
-        }
+            if (IsZeroHourRetailExeCrc(cachedCrc))
+            {
+                return true;
+            }
 
-        if (IsGeneralsOnlineClient(client))
-        {
-            return false;
-        }
-
-        if (HasNonRetailIdentifier(client, enabledContentIds))
-        {
-            return false;
-        }
-
-        if (IsLegacySuperHackersClient(client))
-        {
-            return false;
+            return IsOfficialBaseClient(client);
         }
 
         return true;
@@ -177,12 +247,12 @@ public static class ReplayCrcMatchingHelper
 
     /// <summary>
     /// Determines whether the specified game client is compatible with the retail executable CRC for its game type.
-    /// For Zero Hour, checks compatibility with retail 1.04 executable CRC.
+    /// For Zero Hour, checks compatibility with retail executable CRC (1.04 / 1.05).
     /// </summary>
     /// <param name="client">The game client to evaluate.</param>
     /// <param name="enabledContentIds">Optional list of enabled content manifest IDs for the profile.</param>
     /// <returns>
-    /// <c>true</c> if compatible with retail executable CRC (e.g. retail 1.04 for Zero Hour);
+    /// <c>true</c> if compatible with retail executable CRC (e.g. retail 1.08 / 1.09 for Generals, retail 1.04 / 1.05 for Zero Hour);
     /// <c>false</c> if it uses a non-retail or custom executable.
     /// </returns>
     public static bool IsRetailCompatible(GameClient? client, IReadOnlyList<string>? enabledContentIds = null)
@@ -198,14 +268,22 @@ public static class ReplayCrcMatchingHelper
 
         if (isExplicitGenerals)
         {
-            if (TryGetCachedExeCrc(client, out var cachedCrc))
+            if (IsGeneralsOnlineClient(client) || HasNonRetailIdentifier(client, enabledContentIds))
             {
-                return IsGeneralsRetailExeCrc(cachedCrc);
+                return false;
             }
 
-            return !client.IsPublisherClient ||
-                   string.Equals(client.PublisherType, PublisherTypeConstants.Steam, StringComparison.OrdinalIgnoreCase) ||
-                   string.Equals(client.PublisherType, PublisherTypeConstants.Ea, StringComparison.OrdinalIgnoreCase) || string.Equals(client.PublisherType, PublisherTypeConstants.EaApp, StringComparison.OrdinalIgnoreCase);
+            if (TryGetCachedExeCrc(client, out var cachedCrc))
+            {
+                if (IsGeneralsRetailExeCrc(cachedCrc))
+                {
+                    return true;
+                }
+
+                return IsOfficialBaseClient(client);
+            }
+
+            return true;
         }
 
         return IsZeroHourRetailCompatible(client, enabledContentIds);

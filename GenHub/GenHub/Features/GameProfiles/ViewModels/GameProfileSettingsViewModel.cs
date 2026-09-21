@@ -775,10 +775,21 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
 
         UpdateEnabledInstallations(value);
 
-        if (value.GameType != GameTypeFilter)
+        if (value.GameType != GameTypeFilter && value.GameType != Core.Models.Enums.GameType.Unknown)
         {
             GameTypeFilter = value.GameType;
             _logger?.LogInformation("Auto-synced GameTypeFilter to {GameType} based on SelectedGameInstallation", value.GameType);
+
+            var incompatible = EnabledContent
+                .Where(e => e.ContentType != ContentType.GameInstallation &&
+                            e.GameType != Core.Models.Enums.GameType.Unknown &&
+                            e.GameType != value.GameType)
+                .ToList();
+            foreach (var item in incompatible)
+            {
+                item.IsEnabled = false;
+                EnabledContent.Remove(item);
+            }
         }
 
         if (!IsInitializing && GameSettingsViewModel.SelectedGameType != value.GameType)
@@ -909,8 +920,74 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
         return true;
     }
 
+    private void SwitchGameType(GameType newGameType)
+    {
+        _logger?.LogInformation("Switching profile game type from {OldGameType} to {NewGameType}", GameTypeFilter, newGameType);
+
+        var incompatible = EnabledContent
+            .Where(e => e.GameType != Core.Models.Enums.GameType.Unknown && e.GameType != newGameType)
+            .ToList();
+
+        foreach (var existing in incompatible)
+        {
+            if ((existing.ContentType is ContentType.GameClient or ContentType.GameInstallation) && Name == existing.DisplayName)
+            {
+                Name = ProfileConstants.DefaultProfileName;
+            }
+
+            existing.IsEnabled = false;
+            EnabledContent.Remove(existing);
+
+            if (existing.ContentType == SelectedContentType && existing.GameType == newGameType)
+            {
+                var alreadyInAvailable = AvailableContent.FirstOrDefault(a => a.ManifestId.Value == existing.ManifestId.Value);
+                if (alreadyInAvailable == null)
+                {
+                    AvailableContent.Add(new ContentDisplayItem
+                    {
+                        ManifestId = existing.ManifestId,
+                        DisplayName = existing.DisplayName,
+                        ContentType = existing.ContentType,
+                        GameType = existing.GameType,
+                        InstallationType = existing.InstallationType,
+                        Publisher = existing.Publisher,
+                        IsEnabled = false,
+                        SourceId = existing.SourceId,
+                        GameClientId = existing.GameClientId,
+                        GameClient = existing.GameClient?.Clone(),
+                        Manifest = existing.Manifest,
+                        Version = existing.Version,
+                        IsEditable = existing.IsEditable,
+                        SourcePath = existing.SourcePath,
+                        IsLocked = existing.IsLocked,
+                        CanToggle = existing.CanToggle,
+                    });
+                }
+            }
+        }
+
+        GameTypeFilter = newGameType;
+        if (!IsInitializing && GameSettingsViewModel.SelectedGameType != newGameType)
+        {
+            GameSettingsViewModel.SelectedGameType = newGameType;
+        }
+
+        var matchingInstallation = AvailableGameInstallations
+            .OrderBy(GetInstallationPriority)
+            .FirstOrDefault(i => i.GameType == newGameType);
+        if (matchingInstallation != null && (SelectedGameInstallation == null || SelectedGameInstallation.GameType != newGameType))
+        {
+            SelectedGameInstallation = matchingInstallation;
+        }
+    }
+
     private void ReplaceConflictingEnabledContent(ContentDisplayItem contentItem)
     {
+        if (contentItem.GameType != Core.Models.Enums.GameType.Unknown && contentItem.GameType != GameTypeFilter)
+        {
+            SwitchGameType(contentItem.GameType);
+        }
+
         if (contentItem.ContentType != ContentType.GameInstallation && contentItem.ContentType != ContentType.GameClient)
         {
             return;
@@ -970,6 +1047,20 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
         if (contentItem.ContentType == ContentType.GameInstallation)
         {
             SelectedGameInstallation = contentItem;
+        }
+        else if (contentItem.ContentType == ContentType.GameClient)
+        {
+            if (contentItem.GameType != Core.Models.Enums.GameType.Unknown &&
+                (SelectedGameInstallation == null || SelectedGameInstallation.GameType != contentItem.GameType))
+            {
+                var matchingInstallation = AvailableGameInstallations
+                    .OrderBy(GetInstallationPriority)
+                    .FirstOrDefault(i => i.GameType == contentItem.GameType);
+                if (matchingInstallation != null)
+                {
+                    SelectedGameInstallation = matchingInstallation;
+                }
+            }
         }
 
         StatusMessage = $"Enabled {contentItem.DisplayName}";
@@ -1283,6 +1374,13 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
             compatibleInstallation ??= AvailableGameInstallations
                 .OrderBy(GetInstallationPriority)
                 .FirstOrDefault(x => dependency.CompatibleGameTypes.Contains(x.GameType));
+        }
+
+        if (compatibleInstallation == null && contentItem.GameType != Core.Models.Enums.GameType.Unknown)
+        {
+            compatibleInstallation = AvailableGameInstallations
+                .OrderBy(GetInstallationPriority)
+                .FirstOrDefault(x => x.GameType == contentItem.GameType);
         }
 
         return compatibleInstallation;

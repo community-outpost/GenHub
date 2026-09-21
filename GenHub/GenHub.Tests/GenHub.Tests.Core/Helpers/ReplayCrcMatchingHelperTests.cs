@@ -360,4 +360,59 @@ public class ReplayCrcMatchingHelperTests
             steamClient,
             new[] { "1.106.communityoutpost.patch.zerohour.nonretail" }));
     }
+
+    /// <summary>
+    /// Verifies that official base clients for Generals (1.08 EA App, 1.09 Steam) and Zero Hour (1.04, 1.05)
+    /// are consistently recognized as retail compatible, while non-retail clients like Generals Online are not.
+    /// </summary>
+    [Fact]
+    public void IsRetailCompatible_OfficialBaseClients_AreRetailCompatible()
+    {
+        // Generals 1.08 EA App with known raw checksum 0x8F98E20A
+        var eaGenerals = new GameClient
+        {
+            Id = "1.108.ea.gameclient.generals",
+            Name = "Command & Conquer Generals (EA)",
+            PublisherType = "EA",
+            GameType = GameType.Generals,
+            Version = "1.08",
+        };
+        Assert.True(ReplayCrcMatchingHelper.IsRetailCompatible(eaGenerals));
+        Assert.True(ReplayCrcMatchingHelper.IsGeneralsRetailExeCrc("0x8F98E20A"));
+
+        // Generals 1.09 Steam
+        var steamGenerals = new GameClient
+        {
+            Id = "1.109.steam.gameclient.generals",
+            Name = "Command & Conquer Generals (Steam)",
+            PublisherType = "Steam",
+            GameType = GameType.Generals,
+            Version = "1.09",
+        };
+        Assert.True(ReplayCrcMatchingHelper.IsRetailCompatible(steamGenerals));
+
+        // Zero Hour 1.05
+        var zh105 = new GameClient
+        {
+            Id = "1.105.communityoutpost.gameclient.zerohour",
+            Name = "Command & Conquer Generals Zero Hour 1.05",
+            PublisherType = "communityoutpost",
+            GameType = GameType.ZeroHour,
+            Version = "1.05",
+        };
+        Assert.True(ReplayCrcMatchingHelper.IsRetailCompatible(zh105));
+        Assert.True(ReplayCrcMatchingHelper.IsZeroHourRetailCompatible(zh105));
+
+        // Generals Online (must be non-retail)
+        var goClient = new GameClient
+        {
+            Id = "1.828261.generalsonline.gameclient.zerohour",
+            Name = "Generals Online",
+            PublisherType = "generalsonline",
+            GameType = GameType.ZeroHour,
+            Version = "1.828261",
+        };
+        Assert.False(ReplayCrcMatchingHelper.IsRetailCompatible(goClient));
+        Assert.False(ReplayCrcMatchingHelper.IsZeroHourRetailCompatible(goClient));
+    }
 }

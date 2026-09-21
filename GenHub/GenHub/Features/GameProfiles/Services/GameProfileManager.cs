@@ -630,10 +630,13 @@ public class GameProfileManager(
         var availableClients = newInstallationResult.Data.AvailableGameClients;
         if (request.GameClient != null)
         {
-            var isCompatible = availableClients.Any(c =>
+            var isAvailable = availableClients.Any(c =>
                 c.IsEnabled &&
                 string.Equals(c.Id, request.GameClient.Id, StringComparison.OrdinalIgnoreCase));
-            if (!isCompatible)
+            var isProviderClient = request.GameClient.SourceType == Core.Models.Enums.ContentType.GameClient &&
+                                   availableClients.Any(c => c.IsEnabled && c.GameType == request.GameClient.GameType);
+
+            if (!isAvailable && !isProviderClient)
             {
                 return ProfileOperationResult<GameProfile>.CreateFailure(
                     $"Game client '{request.GameClient.Id}' is not available in installation '{request.GameInstallationId}'.");

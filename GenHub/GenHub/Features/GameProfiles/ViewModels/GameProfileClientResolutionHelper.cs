@@ -190,7 +190,15 @@ internal static class GameProfileClientResolutionHelper
 
         if (item.GameClient != null)
         {
-            return item.GameClient.Clone();
+            var client = item.GameClient.Clone();
+            if (string.IsNullOrEmpty(client.PublisherType))
+            {
+                var manifestIdValue = item.ManifestId.Value ?? string.Empty;
+                var segments = manifestIdValue.Split([ManifestConstants.ManifestIdSegmentSeparator], StringSplitOptions.None);
+                client.PublisherType = ExtractPublisherType(segments, item.Publisher);
+            }
+
+            return client;
         }
 
         if (item.Manifest != null)
