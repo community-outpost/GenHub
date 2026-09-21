@@ -5,7 +5,7 @@ import { allowRequest } from "./ratelimit";
 import type { RateCounter } from "./ratelimit";
 import { verifyToken } from "./tokens";
 import { verifyPassword } from "./passwords";
-import { OUTCOME_DIRECT, OUTCOME_FAILED, OUTCOME_RELAY, sanitizeText } from "./validation";
+import { isQuotaError, OUTCOME_DIRECT, OUTCOME_FAILED, OUTCOME_RELAY, sanitizeText } from "./validation";
 
 interface AbuseReport {
   reporter: string;
@@ -159,7 +159,6 @@ export const emptyRoomExpired = (emptiedUtcMs: number, nowMs: number, ttlSeconds
 export class PresenceRoom {
   private readonly state: DurableObjectState;
   private readonly env: OnlineEnv;
-  private readonly sessions: Map<WebSocket, string> = new Map();
   private mutex: Promise<void> = Promise.resolve();
   private lastDirectorySyncMs = 0;
 
@@ -215,7 +214,11 @@ export class PresenceRoom {
             return json({ error: "Unknown room endpoint" }, 404);
         }
       } catch (err) {
-        console.error("Room error:", err instanceof Error ? err.message : String(err));
+        const msg = err instanceof Error ? err.message : String(err);
+        console.error("Room error:", msg);
+        if (isQuotaError(err)) {
+          return json({ error: "Service temporarily unavailable: quota exceeded", code: "online.service-unavailable" }, 503);
+        }
         return json({ error: "Room error" }, 500);
       }
     });
@@ -262,14 +265,13 @@ export class PresenceRoom {
   }
 
   private async destroyRoom(networkId: string | undefined): Promise<void> {
-    for (const socket of this.sessions.keys()) {
+    for (const socket of this.state.getWebSockets()) {
       try {
         socket.close(4000, "Network deleted");
       } catch {
         // Already closed.
       }
     }
-    this.sessions.clear();
     if (networkId !== undefined) {
       const stub = this.env.DIRECTORY_INDEX.get(this.env.DIRECTORY_INDEX.idFromName("directory"));
       await stub.fetch("https://directory/internal/remove", {
@@ -381,37 +383,33 @@ export class PresenceRoom {
   private async broadcastRoster(): Promise<void> {
     const members = await this.loadMembers();
     const payload = JSON.stringify({ type: "roster", members: members.map(toPublic) });
-    for (const socket of this.sessions.keys()) {
+    for (const socket of this.state.getWebSockets()) {
       try {
         socket.send(payload);
       } catch {
-        this.sessions.delete(socket);
+        // Drop dead session.
       }
     }
   }
 
   private async broadcastEvent(event: string, data: unknown): Promise<void> {
     const payload = JSON.stringify({ type: "event", event, data });
-    for (const socket of this.sessions.keys()) {
+    for (const socket of this.state.getWebSockets()) {
       try {
         socket.send(payload);
       } catch {
-        this.sessions.delete(socket);
+        // Drop dead session.
       }
     }
   }
 
   private closeSocketsFor(sub: string, code = 4001, reason = "Membership ended"): void {
-    for (const [socket, owner] of this.sessions) {
-      if (owner !== sub) {
-        continue;
-      }
+    for (const socket of this.state.getWebSockets(sub)) {
       try {
         socket.close(code, reason);
       } catch {
-        // Already closed; drop below.
+        // Already closed.
       }
-      this.sessions.delete(socket);
     }
   }
 
@@ -876,31 +874,35 @@ export class PresenceRoom {
     const pair = new WebSocketPair();
     const client = pair[0];
     const server = pair[1];
-    server.accept();
     const owner = verified.claims.sub;
-    this.sessions.set(server, owner);
-
-    server.addEventListener("close", () => {
-      this.sessions.delete(server);
-    });
-    server.addEventListener("error", () => {
-      this.sessions.delete(server);
-    });
-    server.addEventListener("message", (event) => {
-      const heartbeat = parseHeartbeat(event.data);
-      if (heartbeat === null) {
-        return;
-      }
-      // Serialized with every other roster write; a storage failure here
-      // must not surface as an unhandled rejection on the socket.
-      void this.withLock(() => this.touchMember(owner, heartbeat)).then(
-        () => undefined,
-        () => undefined
-      );
-    });
+    this.closeSocketsFor(owner, 4000, "Superseded by new presence session");
+    server.serializeAttachment({ sub: owner });
+    this.state.acceptWebSocket(server, [owner]);
 
     server.send(JSON.stringify({ type: "roster", members: members.map(toPublic) }));
     return new Response(null, { status: 101, webSocket: client });
+  }
+
+  async webSocketMessage(ws: WebSocket, message: string | ArrayBuffer): Promise<void> {
+    const tags = this.state.getTags(ws);
+    const owner = tags[0] ?? (ws.deserializeAttachment() as { sub?: string } | null)?.sub;
+    if (!owner) {
+      return;
+    }
+    const data = typeof message === "string" ? message : new TextDecoder().decode(message);
+    const heartbeat = parseHeartbeat(data);
+    if (heartbeat === null) {
+      return;
+    }
+    await this.withLock(() => this.touchMember(owner, heartbeat)).catch(() => undefined);
+  }
+
+  async webSocketClose(_ws: WebSocket, _code: number, _reason: string, _wasClean: boolean): Promise<void> {
+    // Edge runtime automatically evicts closed sockets from state.getWebSockets().
+  }
+
+  async webSocketError(_ws: WebSocket, error: unknown): Promise<void> {
+    console.error("Presence WebSocket error:", error);
   }
 
   private async touchMember(sub: string, advertisement?: HeartbeatAdvertisement): Promise<void> {

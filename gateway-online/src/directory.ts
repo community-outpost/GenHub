@@ -1,7 +1,8 @@
 import type { DurableObjectState } from "@cloudflare/workers-types";
 import type { NetworkSummary, OnlineEnv } from "./env";
-import { allowRequest } from "./ratelimit";
+import { allowRequest, pruneCounters } from "./ratelimit";
 import type { RateCounter } from "./ratelimit";
+import { isQuotaError } from "./validation";
 
 interface CreationCounter {
   count: number;
@@ -24,14 +25,6 @@ const parseJsonBody = async <T>(request: Request): Promise<T | null> => {
     return (await request.json()) as T;
   } catch {
     return null;
-  }
-};
-
-const pruneCounters = (counters: Record<string, RateCounter>, nowSeconds: number, windowSeconds: number): void => {
-  for (const [key, entry] of Object.entries(counters)) {
-    if (nowSeconds - entry.windowStart >= windowSeconds) {
-      delete counters[key];
-    }
   }
 };
 
@@ -79,7 +72,11 @@ export class DirectoryIndex {
             return json({ error: "Unknown directory endpoint" }, 404);
         }
       } catch (err) {
-        console.error("Directory error:", err instanceof Error ? err.message : String(err));
+        const msg = err instanceof Error ? err.message : String(err);
+        console.error("Directory error:", msg);
+        if (isQuotaError(err)) {
+          return json({ error: "Service temporarily unavailable: quota exceeded", code: "online.service-unavailable" }, 503);
+        }
         return json({ error: "Directory error" }, 500);
       }
     });

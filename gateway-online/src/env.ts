@@ -19,6 +19,8 @@ export interface OnlineEnv {
   REPORT_RATE_WINDOW_SECONDS?: string;
   OVERLAY_SUBNET?: string;
   TURN_URIS?: string;
+  SESSION_RATE_LIMIT?: string;
+  SESSION_RATE_WINDOW_SECONDS?: string;
 }
 
 export interface RoomMember {

@@ -378,8 +378,9 @@ public sealed class P2PConnectionService(ILogger<P2PConnectionService> logger) :
     private void StartReceiveLoopLocked(UdpClient listener)
     {
         var cts = new CancellationTokenSource();
+        var token = cts.Token;
         _receiveCts = cts;
-        _receiveTask = Task.Run(() => ReceiveLoopAsync(listener, cts.Token), CancellationToken.None);
+        _receiveTask = Task.Run(() => ReceiveLoopAsync(listener, token), CancellationToken.None);
     }
 
     private void StopReceiveLoopLocked()

@@ -3,9 +3,12 @@ import { bearerToken, mintJoinGrant, mintSessionToken, verifyToken } from "./tok
 import type { JoinGrantClaims, SessionClaims } from "./tokens";
 import { mintTurnCredentials, parseTurnUris } from "./turn";
 import { createVerifier } from "./passwords";
+import { allowRequest, pruneCounters } from "./ratelimit";
+import type { RateCounter } from "./ratelimit";
 import {
   MIN_PASSWORD_LENGTH,
   defaultDisplayName,
+  isQuotaError,
   parseCreateNetwork,
   parseEndpoint,
   parseJoinBody,
@@ -29,7 +32,11 @@ const DEFAULT_TURN_TTL = 1800;
 const DEFAULT_MAX_PER_IP = 10;
 const DEFAULT_SUBNET = "10.42.0.0/20"; // NOSONAR - private overlay range, never a routable target
 const DEFAULT_DIRECTORY_PER_MIN = 600;
+const DEFAULT_SESSION_RATE_LIMIT = 600;
+const DEFAULT_SESSION_RATE_WINDOW_SECONDS = 60;
 const MAX_JSON_BODY_BYTES = 8192;
+
+const sessionCounters: Record<string, RateCounter> = {};
 
 const numVar = (raw: string | undefined, fallback: number): number => {
   const parsed = Number.parseInt(raw ?? "", 10);
@@ -242,8 +249,20 @@ export const buildAdapterConfig = async (
   return btoa(JSON.stringify(config));
 };
 
-const handleSession = async (env: OnlineEnv): Promise<Response> => {
-  const token = await mintSessionToken(crypto.randomUUID(), numVar(env.SESSION_TTL_SECONDS, DEFAULT_SESSION_TTL), env.JWT_SIGNING_SECRET);
+const handleSession = async (request: Request, env: OnlineEnv): Promise<Response> => {
+  const ip = clientIp(request);
+  const now = Math.floor(Date.now() / 1000);
+  const limit = numVar(env.SESSION_RATE_LIMIT, DEFAULT_SESSION_RATE_LIMIT);
+  const window = numVar(env.SESSION_RATE_WINDOW_SECONDS, DEFAULT_SESSION_RATE_WINDOW_SECONDS);
+  pruneCounters(sessionCounters, now, window);
+  if (!allowRequest(sessionCounters, ip, now, limit, window)) {
+    return error("Too many requests", 429, "online.rate-limited");
+  }
+  const token = await mintSessionToken(
+    crypto.randomUUID(),
+    numVar(env.SESSION_TTL_SECONDS, DEFAULT_SESSION_TTL),
+    env.JWT_SIGNING_SECRET
+  );
   return json({ token });
 };
 
@@ -274,20 +293,20 @@ const handleCreate = async (request: Request, env: OnlineEnv): Promise<Response>
     return error("Invalid network fields", 400, "online.invalid-request");
   }
 
+  if (input.password.length > 0 && input.password.length < MIN_PASSWORD_LENGTH) {
+    return error("Password too short", 400, "online.password-too-short");
+  }
+
   const capRes = await directoryStub(env).fetch("https://directory/internal/check-creation", {
     method: "POST",
     body: JSON.stringify({ ip: clientIp(request), maxPerIp: numVar(env.MAX_NETWORKS_PER_IP, DEFAULT_MAX_PER_IP) }),
   });
   const cap = capRes.ok ? ((await capRes.json()) as { allowed?: unknown }) : null;
   if (cap === null) {
-    return error("Directory unavailable", 503, "online.service-unavailable");
+    return error("Directory unavailable", capRes.status === 503 ? 503 : 503, "online.service-unavailable");
   }
   if (cap.allowed !== true) {
     return error("Too many networks", 429, "online.rate-limited");
-  }
-
-  if (input.password.length > 0 && input.password.length < MIN_PASSWORD_LENGTH) {
-    return error("Password too short", 400, "online.password-too-short");
   }
 
   const networkId = crypto.randomUUID();
@@ -326,7 +345,8 @@ const handleCreate = async (request: Request, env: OnlineEnv): Promise<Response>
   });
   if (!initRes.ok) {
     await releaseCreation(env, clientIp(request));
-    return error("Failed to create network", 500, "online.service-unavailable");
+    const initErr = (await initRes.json().catch(() => null)) as { error?: string; code?: string } | null;
+    return error(initErr?.error ?? "Failed to create network", initRes.status, initErr?.code ?? "online.service-unavailable");
   }
   const init = (await initRes.json()) as {
     member: PublicMember;
@@ -701,7 +721,7 @@ const dispatchAuthedTopLevelRoute = async (
   pathname: string
 ): Promise<Response | null> => {
   if (request.method === "POST" && pathname === "/v1/sessions/anonymous") {
-    return await handleSession(env);
+    return await handleSession(request, env);
   }
   if (request.method === "GET" && pathname === "/v1/networks") {
     return await handleDirectory(request, env);
@@ -741,7 +761,7 @@ export default {
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       console.error("Internal error:", msg);
-      if (msg.includes("Durable Objects") || msg.includes("free tier") || msg.includes("quota")) {
+      if (isQuotaError(err)) {
         return error("Service temporarily unavailable: quota exceeded", 503, "online.service-unavailable");
       }
       return error("Internal error", 500);

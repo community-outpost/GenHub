@@ -20,3 +20,15 @@ export const allowRequest = (
   entry.count += 1;
   return entry.count <= max;
 };
+
+export const pruneCounters = (
+  counters: Record<string, RateCounter>,
+  nowSeconds: number,
+  windowSeconds: number
+): void => {
+  for (const [key, entry] of Object.entries(counters)) {
+    if (nowSeconds - entry.windowStart >= windowSeconds) {
+      delete counters[key];
+    }
+  }
+};

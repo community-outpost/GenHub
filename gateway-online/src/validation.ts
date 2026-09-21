@@ -235,3 +235,8 @@ export const parseOutcomeBody = (
   }
   return { targetIp: raw.targetIp, direct: raw.direct === true, outcome: raw.outcome };
 };
+
+export const isQuotaError = (err: unknown): boolean => {
+  const msg = err instanceof Error ? err.message : String(err);
+  return msg.includes("Durable Objects") || msg.includes("free tier") || msg.includes("quota");
+};
