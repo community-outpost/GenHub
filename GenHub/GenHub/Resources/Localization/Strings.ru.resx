@@ -1912,6 +1912,9 @@
   <data name="Online.Error.PasswordTooLong" xml:space="preserve">
     <value>Пароль должен содержать не более 128 символов.</value>
   </data>
+  <data name="Online.Error.PasswordRequired" xml:space="preserve">
+    <value>На этой версии сервера публичные лобби требуют пароль.</value>
+  </data>
   <data name="Online.Error.ReportFailed" xml:space="preserve">
     <value>Не удалось отправить жалобу. Попробуйте снова.</value>
   </data>
@@ -2028,6 +2031,9 @@
   </data>
   <data name="Online.Join.PrivacyNotice" xml:space="preserve">
     <value>Трафик всегда идёт через ретранслятор: ваш реальный IP-адрес никогда не передаётся участникам лобби.</value>
+  </data>
+  <data name="Online.Join.ProfileHint" xml:space="preserve">
+    <value>Показывается лобби и используется для запуска. Оставьте автоподбор, чтобы выбрать ближайшую конфигурацию.</value>
   </data>
   <data name="Online.Join.SuccessMessage" xml:space="preserve">
     <value>Подключено с IP оверлея {0}. Откройте LAN-лобби в игре.</value>
@@ -11487,6 +11493,21 @@ GenHub передает официальный идентификатор AppID 
   </data>
   <data name="Online.Detail.PlayProfileLabel" xml:space="preserve">
     <value>Играть с</value>
+  </data>
+  <data name="Online.Detail.LaunchProfilePlaceholder" xml:space="preserve">
+    <value>Автоподбор</value>
+  </data>
+  <data name="Online.Detail.MatchDetailAny" xml:space="preserve">
+    <value>Хост не задал игру — подойдёт любая конфигурация.</value>
+  </data>
+  <data name="Online.Detail.MatchDetailNoProfile" xml:space="preserve">
+    <value>Выберите профиль запуска для сравнения.</value>
+  </data>
+  <data name="Online.Detail.MatchDetailSameClient" xml:space="preserve">
+    <value>Та же игра, установлено {0} из {1} модов лобби.</value>
+  </data>
+  <data name="Online.Detail.MatchDetailMismatch" xml:space="preserve">
+    <value>Другой игровой клиент — эти конфигурации не могут играть вместе.</value>
   </data>
   <data name="Online.Match.Exact" xml:space="preserve">
     <value>Совпадает</value>

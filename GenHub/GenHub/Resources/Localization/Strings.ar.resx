@@ -1912,6 +1912,9 @@
   <data name="Online.Error.PasswordTooLong" xml:space="preserve">
     <value>يجب ألا تتجاوز كلمة المرور 128 حرفًا.</value>
   </data>
+  <data name="Online.Error.PasswordRequired" xml:space="preserve">
+    <value>تحتاج الردهات العامة إلى كلمة مرور في إصدار الخادم هذا.</value>
+  </data>
   <data name="Online.Error.ReportFailed" xml:space="preserve">
     <value>فشل البلاغ. يرجى المحاولة مرة أخرى.</value>
   </data>
@@ -2028,6 +2031,9 @@
   </data>
   <data name="Online.Join.PrivacyNotice" xml:space="preserve">
     <value>تمر الحركة دائمًا عبر وسيط: لا يُشارك عنوان IP الحقيقي مع أعضاء الردهة أبدًا.</value>
+  </data>
+  <data name="Online.Join.ProfileHint" xml:space="preserve">
+    <value>يُعلن للردهة ويُستخدم للعب. اتركه على المطابقة التلقائية لاختيار أقرب إعداد.</value>
   </data>
   <data name="Online.Join.SuccessMessage" xml:space="preserve">
     <value>تم الاتصال باستخدام IP الافتراضي {0}. افتح ردهة LAN داخل اللعبة للعب.</value>
@@ -11487,6 +11493,21 @@ GenHub هو مشغل ومدير حديث لألعاب **Command &amp; Conquer: G
   </data>
   <data name="Online.Detail.PlayProfileLabel" xml:space="preserve">
     <value>يلعب باستخدام</value>
+  </data>
+  <data name="Online.Detail.LaunchProfilePlaceholder" xml:space="preserve">
+    <value>مطابقة تلقائية</value>
+  </data>
+  <data name="Online.Detail.MatchDetailAny" xml:space="preserve">
+    <value>لم يحدد المضيف لعبة — أي إعداد يعمل.</value>
+  </data>
+  <data name="Online.Detail.MatchDetailNoProfile" xml:space="preserve">
+    <value>اختر ملف تشغيل للمقارنة.</value>
+  </data>
+  <data name="Online.Detail.MatchDetailSameClient" xml:space="preserve">
+    <value>اللعبة نفسها، {0} من {1} من تعديلات الردهة مثبتة.</value>
+  </data>
+  <data name="Online.Detail.MatchDetailMismatch" xml:space="preserve">
+    <value>عميل لعبة مختلف — لا يمكن لهذه الإعدادات اللعب معًا.</value>
   </data>
   <data name="Online.Match.Exact" xml:space="preserve">
     <value>متطابق</value>

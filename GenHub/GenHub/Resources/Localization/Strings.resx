@@ -1916,6 +1916,9 @@
   <data name="Online.Error.PasswordTooLong" xml:space="preserve">
     <value>Password must be at most 128 characters.</value>
   </data>
+  <data name="Online.Error.PasswordRequired" xml:space="preserve">
+    <value>Public lobbies need a password on this server version.</value>
+  </data>
   <data name="Online.Error.ReportFailed" xml:space="preserve">
     <value>Report failed. Please try again.</value>
   </data>
@@ -2032,6 +2035,9 @@
   </data>
   <data name="Online.Join.PrivacyNotice" xml:space="preserve">
     <value>Traffic is always relayed: your real IP address is never shared with lobby members.</value>
+  </data>
+  <data name="Online.Join.ProfileHint" xml:space="preserve">
+    <value>Advertised to the lobby and used for Play. Leave on auto-match to pick the closest setup.</value>
   </data>
   <data name="Online.Join.SuccessMessage" xml:space="preserve">
     <value>Connected with overlay IP {0}. Open the in-game LAN lobby to play.</value>
@@ -11585,6 +11591,21 @@ Then click the 'Submit' button at the bottom of the page! (GenHub requests exact
   </data>
   <data name="Online.Detail.PlayProfileLabel" xml:space="preserve">
     <value>Plays with</value>
+  </data>
+  <data name="Online.Detail.LaunchProfilePlaceholder" xml:space="preserve">
+    <value>Auto-match</value>
+  </data>
+  <data name="Online.Detail.MatchDetailAny" xml:space="preserve">
+    <value>Host set no game — any setup works.</value>
+  </data>
+  <data name="Online.Detail.MatchDetailNoProfile" xml:space="preserve">
+    <value>Select a launch profile to compare.</value>
+  </data>
+  <data name="Online.Detail.MatchDetailSameClient" xml:space="preserve">
+    <value>Same game, {0} of {1} lobby mods installed.</value>
+  </data>
+  <data name="Online.Detail.MatchDetailMismatch" xml:space="preserve">
+    <value>Different game client — these setups cannot play together.</value>
   </data>
   <data name="Online.Match.Exact" xml:space="preserve">
     <value>Matches</value>

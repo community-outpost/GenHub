@@ -42,6 +42,23 @@ in the client, and set `TURN_URIS` to the production coturn hosts.
 `COTURN_SECRET` must match the coturn `static-auth-secret`. Rotate with dual-secret
 support on the coturn side; tokens are short-lived so rotation converges in minutes.
 
+## TURN relay (coturn)
+
+Relay-mode members publish no underlay addresses, so the overlay sidecar (see
+`docs/dev/overlay-spike.md`) pumps game packets through TURN allocations. The
+edge mints short-lived coturn REST credentials and serves them via
+`GET /v1/networks/{id}/turn` and inside every join `adapterConfig`.
+
+1. Run coturn with [`coturn/turnserver.conf.sample`](coturn/turnserver.conf.sample),
+   replacing `${COTURN_SECRET}` with the value stored via
+   `wrangler secret put COTURN_SECRET`.
+2. Set `TURN_URIS` in `wrangler.jsonc` to the public `turn:`/`turns:` URIs,
+   comma-separated.
+3. Redeploy: `npm run deploy`.
+
+Without `COTURN_SECRET`/`TURN_URIS` the edge still serves lobbies; `turn`
+credentials are `null` and clients stay lobby-only until the overlay lands.
+
 ## Vars
 
 See `wrangler.jsonc`: TTLs, presence timeout, join rate limit, per-IP creation cap,
@@ -49,8 +66,8 @@ directory reads per minute, overlay subnet, TURN URIs.
 
 ## Policies
 
-- Public networks require a password (min 4 chars); private networks may be
-  password-less and stay unlisted.
+- Passwords are optional everywhere: public lobbies may run open, and private
+  lobbies stay unlisted. A password that is set must be at least 4 characters.
 - Display strings are control-character sanitized; JSON bodies are capped at
   8 KiB; directory reads are rate-limited per IP.
 - Bans bind to the anonymous session identity (see `docs/dev/online.md`).
