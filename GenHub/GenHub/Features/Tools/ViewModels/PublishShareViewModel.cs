@@ -4,6 +4,8 @@ using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Interfaces.Publishers;
+using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.Notifications;
 using GenHub.Core.Models.Providers;
 using GenHub.Core.Models.Publishers;
 using GenHub.Core.Models.Results;
@@ -67,6 +69,71 @@ public partial class PublishShareViewModel(
     /// <param name="ClientId">The Google OAuth client ID.</param>
     /// <param name="ClientSecret">The Google OAuth client secret.</param>
     private sealed record GoogleDriveClientCredentials(string ClientId, string ClientSecret);
+
+    /// <summary>
+    /// Pinned notification toast that mirrors upload progress until disposed.
+    /// Terminal success or failure toasts are shown separately by the owning operation.
+    /// </summary>
+    private sealed class UploadProgressToastScope : IDisposable
+    {
+        private readonly PublishShareViewModel _owner;
+        private readonly INotificationService? _notificationService;
+        private readonly Guid _notificationId;
+        private bool _disposed;
+
+        public UploadProgressToastScope(PublishShareViewModel owner, INotificationService? notificationService, string title, string message)
+        {
+            _owner = owner;
+            _notificationService = notificationService;
+            if (notificationService == null)
+            {
+                return;
+            }
+
+            var notification = new NotificationMessage(NotificationType.Info, title, message, autoDismissMilliseconds: null);
+            _notificationId = notification.Id;
+            notificationService.Show(notification);
+            owner.PropertyChanged += OnOwnerPropertyChanged;
+        }
+
+        public void Dispose()
+        {
+            if (_disposed)
+            {
+                return;
+            }
+
+            _disposed = true;
+            _owner.PropertyChanged -= OnOwnerPropertyChanged;
+            if (_notificationService != null && _notificationId != Guid.Empty)
+            {
+                _notificationService.Dismiss(_notificationId);
+            }
+        }
+
+        private static string BuildProgressMessage(string statusMessage, int progress)
+        {
+            if (string.IsNullOrWhiteSpace(statusMessage))
+            {
+                return $"{progress}%";
+            }
+
+            return progress > 0 && progress < 100 ? $"{statusMessage} ({progress}%)" : statusMessage;
+        }
+
+        private void OnOwnerPropertyChanged(object? sender, PropertyChangedEventArgs e)
+        {
+            if (_disposed || _notificationService == null)
+            {
+                return;
+            }
+
+            if (e.PropertyName is nameof(PublishShareViewModel.UploadProgress) or nameof(PublishShareViewModel.UploadStatusMessage))
+            {
+                _notificationService.Update(_notificationId, BuildProgressMessage(_owner.UploadStatusMessage, _owner.UploadProgress));
+            }
+        }
+    }
 
     private const string SuccessLiteral = "Success";
     private const string WarningLiteral = "Warning";
@@ -414,6 +481,12 @@ public partial class PublishShareViewModel(
     public Action? DefinitionUploadedCallback { get; set; }
 
     /// <summary>
+    /// Gets or sets the callback invoked when the remote provider definition becomes stale.
+    /// Wired by the parent studio view model to re-enable definition uploads.
+    /// </summary>
+    public Action? DefinitionStaleCallback { get; set; }
+
+    /// <summary>
     /// Gets a value indicating whether the provider definition has been published before.
     /// </summary>
     public bool IsDefinitionPublished => !string.IsNullOrEmpty(_currentHostingState?.Definition?.Url);
@@ -473,10 +546,9 @@ public partial class PublishShareViewModel(
         _uploadCts?.Dispose();
         _uploadCts = new CancellationTokenSource();
         var cancellationToken = _uploadCts.Token;
-        notificationService?.ShowInfo(
+        using var progressToast = BeginUploadProgressToast(
             GetLocalizedString("Tools.PublisherStudio.Publish.UploadStartedTitle", "Uploading"),
-            GetLocalizedString("Tools.PublisherStudio.Publish.DefinitionUploadStarted", "Uploading provider definition..."),
-            autoDismissMs: NotificationDurations.Short);
+            GetLocalizedString("Tools.PublisherStudio.Publish.DefinitionUploadStarted", "Uploading provider definition..."));
 
         return await UploadProviderDefinitionCoreAsync(cancellationToken, manageUploadingState: true);
     }
@@ -1931,6 +2003,8 @@ public partial class PublishShareViewModel(
             var pendingUploadResult = await UploadPendingContentAsync(SelectedHostingProvider, cancellationToken, suppressNotifications);
             if (pendingUploadResult != null)
             {
+                MarkActiveCatalogStale();
+                NotifyDefinitionStale();
                 return pendingUploadResult;
             }
 
@@ -2080,6 +2154,7 @@ public partial class PublishShareViewModel(
         if (defResult != null && !defResult.Success)
         {
             UploadStatusMessage = FormatLocalizedString("Tools.PublisherStudio.Publish.DefinitionUploadFailedAfterPublishFormat", "Catalog published, but provider definition upload failed: {0}", defResult.FirstError);
+            NotifyDefinitionStale();
             if (!suppressNotifications)
             {
                 notificationService?.ShowWarning(GetLocalizedString(PublishWarningKey, PublishWarningDefaultMessage), UploadStatusMessage);
@@ -2087,6 +2162,7 @@ public partial class PublishShareViewModel(
         }
         else if (!definitionGenerated)
         {
+            NotifyDefinitionStale();
             if (!suppressNotifications)
             {
                 notificationService?.ShowWarning(GetLocalizedString(PublishWarningKey, PublishWarningDefaultMessage), UploadStatusMessage);
@@ -3286,6 +3362,7 @@ public partial class PublishShareViewModel(
             }
 
             UploadStatusMessage = FormatLocalizedString("Tools.PublisherStudio.Publish.UploadFailedFormat", "Upload failed: {0}", result.FirstError);
+            NotifyDefinitionStale();
             if (!suppressNotifications)
             {
                 notificationService?.ShowError(
@@ -3299,6 +3376,7 @@ public partial class PublishShareViewModel(
         {
             UploadStatusMessage = FormatLocalizedString("Tools.PublisherStudio.Publish.ErrorUploadingDefinitionFormat", "Error uploading definition: {0}", ex.Message);
             logger.LogError(ex, "Error uploading provider definition");
+            NotifyDefinitionStale();
             if (!suppressNotifications)
             {
                 notificationService?.ShowError(
@@ -3592,13 +3670,12 @@ public partial class PublishShareViewModel(
         // Set as active catalog temporarily
         var previousActive = ActiveCatalog;
         ActiveCatalog = catalog;
-        notificationService?.ShowInfo(
+        using var progressToast = BeginUploadProgressToast(
             GetLocalizedString("Tools.PublisherStudio.Publish.PublishStartedTitle", "Publishing"),
             FormatLocalizedString(
                 "Tools.PublisherStudio.Publish.PublishCatalogStartedFormat",
                 "Publishing catalog '{0}'...",
-                catalog.Name),
-            autoDismissMs: NotificationDurations.Short);
+                catalog.Name));
 
         _uploadCts?.Dispose();
         _uploadCts = new CancellationTokenSource();
@@ -3708,14 +3785,13 @@ public partial class PublishShareViewModel(
         PublishCompleted = false;
         var publishedAny = false;
         var succeededCount = 0;
-        notificationService?.ShowInfo(
+        using var progressToast = BeginUploadProgressToast(
             GetLocalizedString("Tools.PublisherStudio.Publish.PublishStartedTitle", "Publishing"),
             FormatLocalizedString(
                 "Tools.PublisherStudio.Publish.PublishAllStartedFormat",
                 "Publishing {0} catalog(s) to {1}...",
                 project.Catalogs.Count,
-                SelectedHostingProvider?.DisplayName ?? string.Empty),
-            autoDismissMs: NotificationDurations.Short);
+                SelectedHostingProvider?.DisplayName ?? string.Empty));
 
         try
         {
@@ -3794,6 +3870,7 @@ public partial class PublishShareViewModel(
                 return (true, null);
             }
 
+            MarkActiveCatalogStale();
             return (false, res.FirstError);
         }
         finally
@@ -3844,6 +3921,11 @@ public partial class PublishShareViewModel(
                     succeededCount,
                     totalCatalogs);
 
+            if (definitionProblem)
+            {
+                NotifyDefinitionStale();
+            }
+
             notificationService?.ShowWarning(
                 GetLocalizedString(PublishWarningKey, PublishWarningDefaultMessage),
                 UploadStatusMessage);
@@ -3855,6 +3937,7 @@ public partial class PublishShareViewModel(
                 "Successfully published all {0} catalog(s), but provider definition upload failed: {1}",
                 totalCatalogs,
                 defError ?? UploadStatusMessage);
+            NotifyDefinitionStale();
             notificationService?.ShowWarning(
                 GetLocalizedString(PublishWarningKey, PublishWarningDefaultMessage),
                 UploadStatusMessage);
@@ -3914,6 +3997,16 @@ public partial class PublishShareViewModel(
     private void OpenGoogleCredentialsConsole()
     {
         OpenExternalBrowserUrl(HostingConstants.GoogleCloudConsoleCredentialsUrl);
+    }
+
+    /// <summary>
+    /// Opens the Google Drive API enablement page in the default web browser.
+    /// Uploads fail with 403 accessNotConfigured until the API is enabled for the project.
+    /// </summary>
+    [RelayCommand]
+    private void OpenGoogleDriveApiConsole()
+    {
+        OpenExternalBrowserUrl(HostingConstants.GoogleDriveApiEnablementUrl);
     }
 
     /// <summary>
@@ -4399,13 +4492,12 @@ public partial class PublishShareViewModel(
         var cancellationToken = _uploadCts.Token;
 
         IsUploading = true;
-        notificationService?.ShowInfo(
+        using var progressToast = BeginUploadProgressToast(
             GetLocalizedString("Tools.PublisherStudio.Publish.UploadStartedTitle", "Uploading"),
             FormatLocalizedString(
                 "Tools.PublisherStudio.Hosting.SingleUploadStartedFormat",
                 "Uploading {0}...",
-                artifact.Filename),
-            autoDismissMs: NotificationDurations.Short);
+                artifact.Filename));
         try
         {
             var task = new ArtifactUploadTask
@@ -4419,6 +4511,8 @@ public partial class PublishShareViewModel(
 
             if (await ExecuteSingleArtifactUploadAsync(provider, task, 1, 1, cancellationToken))
             {
+                MarkCatalogWithContentStale(contentId);
+                NotifyDefinitionStale();
                 RefreshUploadHierarchy();
                 RefreshArtifactStatuses();
                 await PersistProjectAfterPublishAsync();
@@ -4476,6 +4570,55 @@ public partial class PublishShareViewModel(
         catch (Exception ex)
         {
             logger.LogWarning(ex, "Definition uploaded callback failed");
+        }
+    }
+
+    private UploadProgressToastScope BeginUploadProgressToast(string title, string message)
+    {
+        return new UploadProgressToastScope(this, notificationService, title, message);
+    }
+
+    private void NotifyDefinitionStale()
+    {
+        HasDefinitionChanges = true;
+        try
+        {
+            DefinitionStaleCallback?.Invoke();
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Definition stale callback failed");
+        }
+    }
+
+    private void MarkActiveCatalogStale()
+    {
+        if (ActiveCatalog == null)
+        {
+            return;
+        }
+
+        var status = CatalogStatuses.FirstOrDefault(s => s.Catalog.Id == ActiveCatalog.Id);
+        if (status != null)
+        {
+            status.HasChanges = true;
+        }
+    }
+
+    private void MarkCatalogWithContentStale(string contentId)
+    {
+        foreach (var catalog in project.Catalogs)
+        {
+            if (catalog.Catalog.Content.Any(c => c.Id == contentId))
+            {
+                var status = CatalogStatuses.FirstOrDefault(s => s.Catalog.Id == catalog.Id);
+                if (status != null)
+                {
+                    status.HasChanges = true;
+                }
+
+                return;
+            }
         }
     }
 

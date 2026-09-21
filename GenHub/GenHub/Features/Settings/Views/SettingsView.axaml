@@ -955,7 +955,8 @@
 
                       <StackPanel Grid.Column="1" VerticalAlignment="Center">
                         <TextBlock Text="{Binding PublisherName}" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" FontSize="14"/>
-                        <TextBlock Text="{Binding CatalogUrl}" Foreground="{DynamicResource TextSecondary}" FontSize="11" TextTrimming="CharacterEllipsis"/>
+                        <TextBlock Text="{Binding DefinitionUrl}" Foreground="{DynamicResource TextSecondary}" FontSize="11" TextTrimming="CharacterEllipsis" IsVisible="{Binding DefinitionUrl, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                        <TextBlock Text="{Binding CatalogUrl}" Foreground="{DynamicResource TextSecondary}" FontSize="11" TextTrimming="CharacterEllipsis" IsVisible="{Binding DefinitionUrl, Converter={x:Static StringConverters.IsNullOrEmpty}}"/>
                       </StackPanel>
 
                       <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8">

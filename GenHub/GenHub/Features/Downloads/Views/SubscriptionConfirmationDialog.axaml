@@ -137,7 +137,7 @@
                                     Padding="8,2"
                                     VerticalAlignment="Center"
                                     IsVisible="{Binding !IsAlreadySubscribed}">
-                                <TextBlock Text="{localization:Localize Downloads.Subscription.NewCatalogBadge}" FontSize="11" Foreground="{DynamicResource SuccessBrush}" FontWeight="SemiBold" />
+                                <TextBlock Text="{Binding NewSourceBadgeText}" FontSize="11" Foreground="{DynamicResource SuccessBrush}" FontWeight="SemiBold" />
                             </Border>
                         </StackPanel>
                         <TextBlock Text="{localization:Localize Downloads.Subscription.Subtitle}"
@@ -370,6 +370,31 @@
                                     </Border>
                                 </StackPanel>
                             </Grid>
+
+                            <!-- Definition Catalog Selector -->
+                            <StackPanel Spacing="4" IsVisible="{Binding ShowCatalogSelector}">
+                                <TextBlock Text="{localization:Localize Downloads.Subscription.CatalogsLabel}"
+                                           FontSize="11"
+                                           FontWeight="SemiBold"
+                                           Foreground="{DynamicResource TextSecondary}" />
+                                <ItemsControl ItemsSource="{Binding DefinitionCatalogOptions}">
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <WrapPanel Orientation="Horizontal" />
+                                        </ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate DataType="vm:CatalogCategoryFilter">
+                                            <Button Command="{Binding $parent[Window].((vm:SubscriptionConfirmationViewModel)DataContext).SelectDefinitionCatalogCommand}"
+                                                    CommandParameter="{Binding Key}"
+                                                    Classes.filter-chip-selected="{Binding IsSelected}"
+                                                    Classes.filter-chip="{Binding !IsSelected}">
+                                                <TextBlock Text="{Binding DisplayText}" />
+                                            </Button>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
 
                             <!-- Category Filter Chips -->
                             <ItemsControl ItemsSource="{Binding CategoryFilters}">

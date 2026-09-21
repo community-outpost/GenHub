@@ -658,18 +658,18 @@ public partial class ContentDetailViewModel(
     public string ProviderName => searchResult.ProviderName ?? string.Empty;
 
     /// <summary>
-    /// Gets the icon URL - prefers parsed page context icon.
+    /// Gets the icon URL - prefers parsed page context icon, falling back to a placeholder when missing.
     /// </summary>
-    public string? IconUrl =>
+    public string IconUrl => ContentCardBadgeHelper.OrDefaultImage(
         ParsedPage?.Context.IconUrl ??
         (!string.IsNullOrWhiteSpace(searchResult.IconUrl)
             ? searchResult.IconUrl
-            : (ContentCardBadgeHelper.GetPublisherLogoUrl(searchResult) ?? ContentCardBadgeHelper.GetThumbnailUrl(searchResult)));
+            : (ContentCardBadgeHelper.GetPublisherLogoUrl(searchResult) ?? ContentCardBadgeHelper.GetThumbnailUrl(searchResult))));
 
     /// <summary>
     /// Gets the preferred header thumbnail URL (banner / screenshot / icon).
     /// </summary>
-    public string? ThumbnailUrl =>
+    public string ThumbnailUrl =>
         !string.IsNullOrWhiteSpace(searchResult.BannerUrl)
             ? searchResult.BannerUrl
             : ContentCardBadgeHelper.GetThumbnailUrl(searchResult) ?? IconUrl;

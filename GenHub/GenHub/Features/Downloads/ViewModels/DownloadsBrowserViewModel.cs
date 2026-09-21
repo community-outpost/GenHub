@@ -3300,6 +3300,13 @@ public sealed partial class DownloadsBrowserViewModel(
             if (mainWindow != null)
             {
                 await dialog.ShowDialog(mainWindow);
+                if (importVm.LastConfirmResult == true)
+                {
+                    await InitializeAsync();
+                    notificationService.ShowSuccess(
+                        localizationService?.GetString("Downloads.Subscription.SubscribedNotificationTitle") ?? "Subscribed",
+                        localizationService?.GetString("Downloads.Subscription.SubscribedNotificationMessage") ?? "Successfully subscribed to content catalog.");
+                }
             }
             else
             {

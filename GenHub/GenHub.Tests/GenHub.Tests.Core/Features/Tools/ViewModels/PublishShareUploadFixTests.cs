@@ -380,6 +380,116 @@ public class PublishShareUploadFixTests
         }
     }
 
+    /// <summary>
+    /// Publishing a catalog with local artifacts pending upload must upload the artifacts
+    /// first and the catalog JSON afterwards, so a single publish covers both.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task PublishCatalogCommand_PendingArtifacts_UploadsArtifactsBeforeCatalogAsync()
+    {
+        var tempFile = Path.GetTempFileName();
+        try
+        {
+            await File.WriteAllTextAsync(tempFile, "artifact");
+            var artifact = new ReleaseArtifact { Filename = "mod.zip", LocalFilePath = tempFile, DownloadUrl = string.Empty };
+            var project = CreateProjectWithArtifacts(artifact);
+            var callOrder = new List<string>();
+
+            var mockProvider = CreateRecordingArtifactProvider(callOrder);
+            SetupCatalogServiceMocks();
+
+            var vm = CreatePublishShareViewModel(project, mockProvider.Object);
+
+            await vm.PublishCatalogCommand.ExecuteAsync(project.Catalogs[0]);
+
+            Assert.False(string.IsNullOrEmpty(artifact.DownloadUrl));
+            var artifactIndex = callOrder.FindIndex(c => c.StartsWith("artifact:", StringComparison.Ordinal));
+            var catalogIndex = callOrder.IndexOf("catalog");
+            Assert.True(artifactIndex >= 0, "Expected the pending artifact to be uploaded.");
+            Assert.True(catalogIndex >= 0, "Expected the catalog to be uploaded.");
+            Assert.True(artifactIndex < catalogIndex, "Expected artifacts to upload before the catalog.");
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>
+    /// A successful single-artifact upload changes the catalog export and the provider
+    /// definition, so the owning catalog and the definition must be marked stale.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task UploadArtifactFromLibraryAsync_Success_MarksCatalogAndDefinitionStaleAsync()
+    {
+        var tempFile = Path.GetTempFileName();
+        try
+        {
+            await File.WriteAllTextAsync(tempFile, "artifact");
+            var artifact = new ReleaseArtifact { Filename = "mod.zip", LocalFilePath = tempFile, DownloadUrl = string.Empty };
+            var project = CreateProjectWithArtifacts(artifact);
+
+            var mockProvider = CreateRecordingArtifactProvider([]);
+            var vm = CreatePublishShareViewModel(project, mockProvider.Object);
+            vm.HasDefinitionChanges = false;
+            var staleCallbackInvoked = false;
+            vm.DefinitionStaleCallback = () => staleCallbackInvoked = true;
+
+            await vm.UploadArtifactFromLibraryAsync(artifact);
+
+            Assert.False(string.IsNullOrEmpty(artifact.DownloadUrl));
+            Assert.True(vm.CatalogStatuses[0].HasChanges);
+            Assert.True(vm.HasDefinitionChanges);
+            Assert.True(staleCallbackInvoked);
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>
+    /// When the catalog publishes but the provider definition upload fails, the definition
+    /// must be marked stale so the header upload action re-enables instead of staying greyed out.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task PublishCatalogCommand_DefinitionUploadFails_MarksDefinitionStaleAsync()
+    {
+        var project = CreateProjectWithArtifacts();
+        var mockProvider = new Mock<IHostingProvider>();
+        mockProvider.Setup(p => p.ProviderId).Returns(HostingConstants.Dropbox);
+        mockProvider.Setup(p => p.DisplayName).Returns("Dropbox");
+        mockProvider.Setup(p => p.RequiresAuthentication).Returns(false);
+        mockProvider.Setup(p => p.IsAuthenticated).Returns(true);
+        mockProvider.Setup(p => p.SupportsArtifactHosting).Returns(true);
+        mockProvider.Setup(p => p.SupportsCatalogHosting).Returns(true);
+        mockProvider.Setup(p => p.SupportsUpdate).Returns(false);
+        mockProvider.Setup(p => p.UploadCatalogAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<IProgress<int>?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<HostingUploadResult>.CreateSuccess(new HostingUploadResult
+            {
+                FileId = "id-catalog",
+                PublicUrl = "https://dl.dropboxusercontent.com/s/x/catalog.json",
+                DirectDownloadUrl = "https://dl.dropboxusercontent.com/s/x/catalog.json",
+                FileSize = 10,
+            }));
+        mockProvider.Setup(p => p.UploadFileAsync(It.IsAny<Stream>(), It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<IProgress<int>?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<HostingUploadResult>.CreateFailure("Drive API disabled"));
+        SetupCatalogServiceMocks();
+
+        var vm = CreatePublishShareViewModel(project, mockProvider.Object);
+        vm.HasDefinitionChanges = false;
+        var staleCallbackInvoked = false;
+        vm.DefinitionStaleCallback = () => staleCallbackInvoked = true;
+
+        await vm.PublishCatalogCommand.ExecuteAsync(project.Catalogs[0]);
+
+        Assert.True(vm.HasDefinitionChanges);
+        Assert.True(staleCallbackInvoked);
+    }
+
     private static PublisherStudioProject CreateProjectWithArtifacts(params ReleaseArtifact[] artifacts)
     {
         var catalog = new NamedCatalog
@@ -421,5 +531,69 @@ public class PublishShareUploadFixTests
             .ReturnsAsync(OperationResult<PublisherHostingStates>.CreateSuccess(container));
         _mockHostingStateManager.Setup(m => m.SaveStatesAsync(projectPath, It.IsAny<PublisherHostingStates>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+    }
+
+    private Mock<IHostingProvider> CreateRecordingArtifactProvider(List<string> callOrder)
+    {
+        var mockProvider = new Mock<IHostingProvider>();
+        mockProvider.Setup(p => p.ProviderId).Returns(HostingConstants.Dropbox);
+        mockProvider.Setup(p => p.DisplayName).Returns("Dropbox");
+        mockProvider.Setup(p => p.RequiresAuthentication).Returns(false);
+        mockProvider.Setup(p => p.IsAuthenticated).Returns(true);
+        mockProvider.Setup(p => p.SupportsArtifactHosting).Returns(true);
+        mockProvider.Setup(p => p.SupportsCatalogHosting).Returns(true);
+        mockProvider.Setup(p => p.SupportsUpdate).Returns(false);
+        mockProvider.Setup(p => p.UploadFileAsync(It.IsAny<Stream>(), It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<IProgress<int>?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((Stream s, string name, string? folder, IProgress<int>? progress, CancellationToken ct) =>
+            {
+                callOrder.Add($"artifact:{name}");
+                return OperationResult<HostingUploadResult>.CreateSuccess(new HostingUploadResult
+                {
+                    FileId = $"id-{name}",
+                    PublicUrl = $"https://dl.dropboxusercontent.com/s/x/{name}",
+                    DirectDownloadUrl = $"https://dl.dropboxusercontent.com/s/x/{name}",
+                    FileSize = 8,
+                });
+            });
+        mockProvider.Setup(p => p.UploadCatalogAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<IProgress<int>?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((string json, string publisherId, string? fileName, IProgress<int>? progress, CancellationToken ct) =>
+            {
+                callOrder.Add("catalog");
+                return OperationResult<HostingUploadResult>.CreateSuccess(new HostingUploadResult
+                {
+                    FileId = "id-catalog",
+                    PublicUrl = "https://dl.dropboxusercontent.com/s/x/catalog.json",
+                    DirectDownloadUrl = "https://dl.dropboxusercontent.com/s/x/catalog.json",
+                    FileSize = 10,
+                });
+            });
+        return mockProvider;
+    }
+
+    private void SetupCatalogServiceMocks()
+    {
+        _mockStudioService.Setup(m => m.ValidateCatalogAsync(It.IsAny<PublisherCatalog>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+        _mockStudioService.Setup(m => m.ExportCatalogAsync(It.IsAny<PublisherStudioProject>(), It.IsAny<NamedCatalog?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<string>.CreateSuccess("{\"catalog\":true}"));
+        _mockStudioService.Setup(m => m.ExportProviderDefinitionAsync(It.IsAny<PublisherStudioProject>(), It.IsAny<Dictionary<string, string>>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<string>.CreateSuccess("{\"definition\":true}"));
+        _mockStudioService.Setup(m => m.GenerateSubscriptionUrl(It.IsAny<string>())).Returns("genhub://subscribe/test");
+        _mockHostingStateManager.Setup(m => m.SaveStatesAsync(It.IsAny<string>(), It.IsAny<PublisherHostingStates>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+    }
+
+    private PublishShareViewModel CreatePublishShareViewModel(PublisherStudioProject project, IHostingProvider provider)
+    {
+        var vm = new PublishShareViewModel(
+            project,
+            _mockStudioService.Object,
+            _mockPublishLogger.Object,
+            null,
+            _mockHostingStateManager.Object,
+            _mockNotificationService.Object);
+        vm.HostingProviders.Add(provider);
+        vm.SelectedHostingProvider = provider;
+        return vm;
     }
 }

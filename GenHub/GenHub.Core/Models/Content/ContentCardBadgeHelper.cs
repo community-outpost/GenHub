@@ -297,6 +297,16 @@ public static partial class ContentCardBadgeHelper
     }
 
     /// <summary>
+    /// Returns the candidate image URL, or the default placeholder when it is missing.
+    /// </summary>
+    /// <param name="candidate">The candidate image URL.</param>
+    /// <returns>The candidate URL, or the default content image URL when empty.</returns>
+    public static string OrDefaultImage(string? candidate)
+    {
+        return string.IsNullOrWhiteSpace(candidate) ? ImageCacheConstants.DefaultContentImageUrl : candidate;
+    }
+
+    /// <summary>
     /// Resolves an icon URL by filtering out unusable URLs and falling back to a secondary URL.
     /// </summary>
     /// <param name="rawUrl">The primary candidate icon URL.</param>

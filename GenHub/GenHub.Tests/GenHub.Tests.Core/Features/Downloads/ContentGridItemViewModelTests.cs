@@ -190,6 +190,24 @@ public sealed class ContentGridItemViewModelTests
     }
 
     /// <summary>
+    /// Verifies cards without artwork fall back to the default placeholder image.
+    /// </summary>
+    [Fact]
+    public void ThumbnailUrl_MissingArtwork_FallsBackToDefaultImage()
+    {
+        var searchResult = new ContentSearchResult
+        {
+            Id = "no-artwork",
+            Name = "No Artwork",
+        };
+
+        var viewModel = CreateViewModel(searchResult);
+
+        Assert.Equal(ImageCacheConstants.DefaultContentImageUrl, viewModel.ThumbnailUrl);
+        Assert.Equal(ImageCacheConstants.DefaultContentImageUrl, viewModel.IconUrl);
+    }
+
+    /// <summary>
     /// Verifies includes summaries from catalog metadata surface on the card.
     /// </summary>
     [Fact]

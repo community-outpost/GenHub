@@ -191,6 +191,9 @@ public class PublisherStudioMixedCdnAndCredentialTests
         var googleEx = Record.Exception(() => vm.OpenGoogleCredentialsConsoleCommand.Execute(null));
         Assert.Null(googleEx);
 
+        var driveApiEx = Record.Exception(() => vm.OpenGoogleDriveApiConsoleCommand.Execute(null));
+        Assert.Null(driveApiEx);
+
         var githubEx = Record.Exception(() => vm.OpenGitHubTokenConsoleCommand.Execute(null));
         Assert.Null(githubEx);
 
@@ -199,6 +202,7 @@ public class PublisherStudioMixedCdnAndCredentialTests
 
         Assert.Contains(HostingConstants.GoogleAuthPlatformUrl, openedUrls);
         Assert.Contains(HostingConstants.GoogleCloudConsoleCredentialsUrl, openedUrls);
+        Assert.Contains(HostingConstants.GoogleDriveApiEnablementUrl, openedUrls);
         Assert.Contains(HostingConstants.GitHubPersonalAccessTokensUrl, openedUrls);
         Assert.Contains(HostingConstants.DropboxAppConsoleUrl, openedUrls);
     }

@@ -4727,8 +4727,17 @@ This will modify game files and configuration settings at:
   <data name="Common.SavingEllipsis" xml:space="preserve">
     <value>Saving...</value>
   </data>
+  <data name="Downloads.Subscription.CatalogsLabel" xml:space="preserve">
+    <value>Catalogs</value>
+  </data>
   <data name="Downloads.Subscription.NewCatalogBadge" xml:space="preserve">
     <value>+ New Catalog</value>
+  </data>
+  <data name="Downloads.Subscription.NewPublisherBadge" xml:space="preserve">
+    <value>+ New Publisher</value>
+  </data>
+  <data name="Downloads.Subscription.NewPublisherBadgeFormat" xml:space="preserve">
+    <value>+ New Publisher • {0} catalogs</value>
   </data>
   <data name="Profiles.AddLocalContent.AddContentButton" xml:space="preserve">
     <value>ADD CONTENT</value>
@@ -6958,13 +6967,13 @@ GenHub supports four file linking strategies under **Settings -&gt; Game Configu
     <value>Updated {0:yyyy-MM-dd}</value>
   </data>
   <data name="Settings.Section.CatalogSubscriptions" xml:space="preserve">
-    <value>Catalog Subscriptions</value>
+    <value>Publisher Subscriptions</value>
   </data>
   <data name="Settings.Subscriptions.Description" xml:space="preserve">
-    <value>Manage your subscribed content catalogs.</value>
+    <value>Manage your subscribed publishers and their content catalogs.</value>
   </data>
   <data name="Settings.Subscriptions.EmptyState" xml:space="preserve">
-    <value>No active subscriptions found. You can subscribe to catalogs via 'genhub://subscribe' links.</value>
+    <value>No active subscriptions found. You can subscribe to publishers via 'genhub://subscribe' links.</value>
   </data>
   <data name="Settings.Subscriptions.LoadFailedFallback" xml:space="preserve">
     <value>Failed to load subscriptions</value>
@@ -6985,7 +6994,7 @@ GenHub supports four file linking strategies under **Settings -&gt; Game Configu
     <value>An unexpected error occurred during refresh.</value>
   </data>
   <data name="Settings.Subscriptions.RefreshedNotificationMessage" xml:space="preserve">
-    <value>Successfully updated all subscribed catalogs.</value>
+    <value>Successfully updated all subscribed publishers.</value>
   </data>
   <data name="Settings.Subscriptions.RefreshedNotificationTitle" xml:space="preserve">
     <value>Catalogs Refreshed</value>
@@ -7021,7 +7030,7 @@ GenHub supports four file linking strategies under **Settings -&gt; Game Configu
     <value>Subscription Removed</value>
   </data>
   <data name="Settings.Subscriptions.Title" xml:space="preserve">
-    <value>Catalog Subscriptions</value>
+    <value>Publisher Subscriptions</value>
   </data>
   <data name="Settings.Subscriptions.ToggleTrustAutomation" xml:space="preserve">
     <value>Toggle Subscription Trust Level</value>
@@ -9934,7 +9943,7 @@ Then click the 'Submit' button at the bottom of the page! (GenHub requests exact
     <value>Google Drive Desktop OAuth Setup Guide (Step-by-Step)</value>
   </data>
   <data name="Tools.PublisherStudio.Hosting.GDS1Step1" xml:space="preserve">
-    <value>1. Click '1. Open Google Auth Platform' or '2. Open Credentials Console' below and log into your Google account.</value>
+    <value>1. Use the links next to the steps below to open the Google Cloud Console and log into your Google account.</value>
   </data>
   <data name="Tools.PublisherStudio.Hosting.GDS1Step2" xml:space="preserve">
     <value>2. In the top navigation bar (next to 'Google Cloud'), click the project selector dropdown, then click 'NEW PROJECT'.</value>
@@ -9949,7 +9958,7 @@ Then click the 'Submit' button at the bottom of the page! (GenHub requests exact
     <value>Step 1: Create a Project in Google Cloud</value>
   </data>
   <data name="Tools.PublisherStudio.Hosting.GDS2Step1" xml:space="preserve">
-    <value>1. Click '1. Open Google Auth Platform' below. If you see 'Google auth platform not configured yet', click the blue 'Get started' button. (If you see a yellow banner 'To create an OAuth client ID, you must first configure your consent screen', click 'Configure consent screen').</value>
+    <value>1. Click 'Open Auth Platform' next to this step. If you see 'Google auth platform not configured yet', click the blue 'Get started' button. (If you see a yellow banner 'To create an OAuth client ID, you must first configure your consent screen', click 'Configure consent screen').</value>
   </data>
   <data name="Tools.PublisherStudio.Hosting.GDS2Step2" xml:space="preserve">
     <value>2. The 'Project configuration' wizard will open with 4 steps:</value>
@@ -9973,16 +9982,16 @@ Then click the 'Submit' button at the bottom of the page! (GenHub requests exact
     <value>Note: Google will NOT allow creating OAuth credentials until your project has an App configured!</value>
   </data>
   <data name="Tools.PublisherStudio.Hosting.GDS3Step1" xml:space="preserve">
-    <value>1. In the top search bar, search for 'Google Drive API' and click on it.</value>
+    <value>1. Click 'Enable Drive API' next to this step (or search for 'Google Drive API' in the Cloud Console top search bar).</value>
   </data>
   <data name="Tools.PublisherStudio.Hosting.GDS3Step2" xml:space="preserve">
-    <value>2. Click the blue 'ENABLE' button.</value>
+    <value>2. Click the blue 'ENABLE' button, then wait a few minutes before connecting. Uploads fail with 403 until the API is enabled.</value>
   </data>
   <data name="Tools.PublisherStudio.Hosting.GDS3Title" xml:space="preserve">
     <value>Step 3: Enable the Google Drive API</value>
   </data>
   <data name="Tools.PublisherStudio.Hosting.GDS4Step1" xml:space="preserve">
-    <value>1. In Google Auth Platform, click 'Clients' in the left menu (or click '2. Open Credentials Console' below).</value>
+    <value>1. In Google Auth Platform, click 'Clients' in the left menu (or click 'Open Credentials' next to this step).</value>
   </data>
   <data name="Tools.PublisherStudio.Hosting.GDS4Step2" xml:space="preserve">
     <value>2. Click '+ Create client' (or '+ CREATE CREDENTIALS' &gt; 'OAuth client ID').</value>
@@ -10003,7 +10012,7 @@ Then click the 'Submit' button at the bottom of the page! (GenHub requests exact
     <value>Step 4: Create Desktop OAuth Client Credentials</value>
   </data>
   <data name="Tools.PublisherStudio.Hosting.GDS5Step1" xml:space="preserve">
-    <value>1. In Google Auth Platform, click the 'Audience' tab in the left menu (or click button #3 below).</value>
+    <value>1. In Google Auth Platform, click the 'Audience' tab in the left menu (or click 'Open Test Users' next to this step).</value>
   </data>
   <data name="Tools.PublisherStudio.Hosting.GDS5Step2" xml:space="preserve">
     <value>2. Under 'Test users', click '+ ADD USERS', enter your Google account email (e.g. your Gmail), and click 'SAVE'.</value>
@@ -10024,28 +10033,28 @@ Then click the 'Submit' button at the bottom of the page! (GenHub requests exact
     <value>Step 6: Paste and Connect in GenHub</value>
   </data>
   <data name="Tools.PublisherStudio.Hosting.GDStep1Desc" xml:space="preserve">
-    <value>Click button #1 below. In Google Cloud Console, click the project selector at the top &gt; 'NEW PROJECT' &gt; name it 'GenHub Publisher' &gt; click 'CREATE'. Then select it from the project dropdown.</value>
+    <value>Open the Google Cloud Console with one of the links next to the steps below. Click the project selector at the top &gt; 'NEW PROJECT' &gt; name it 'GenHub Publisher' &gt; click 'CREATE'. Then select it from the project dropdown.</value>
   </data>
   <data name="Tools.PublisherStudio.Hosting.GDStep1Title" xml:space="preserve">
     <value>Step 1: Create a Google Cloud Project</value>
   </data>
   <data name="Tools.PublisherStudio.Hosting.GDStep2Desc" xml:space="preserve">
-    <value>Click button #1 below ('Open Google Auth Platform'). If you see 'Google auth platform not configured yet', click 'Get started' (or 'Configure consent screen'). Enter App name (GenHub), select your email, set Audience to External, developer email, and click Create.</value>
+    <value>Click 'Open Auth Platform' next to this step. If you see 'Google auth platform not configured yet', click 'Get started' (or 'Configure consent screen'). Enter App name (GenHub), select your email, set Audience to External, developer email, and click Create.</value>
   </data>
   <data name="Tools.PublisherStudio.Hosting.GDStep2Title" xml:space="preserve">
     <value>Step 2: Create App via 'Project Configuration'  [CRITICAL: Configure first]</value>
   </data>
   <data name="Tools.PublisherStudio.Hosting.GDStep3Desc" xml:space="preserve">
-    <value>Search for 'Google Drive API' in the top search bar and click 'ENABLE'.</value>
+    <value>Click 'Enable Drive API' next to this step (or search for 'Google Drive API' in the top search bar) and click 'ENABLE'. Wait a few minutes before connecting.</value>
   </data>
   <data name="Tools.PublisherStudio.Hosting.GDStep4Desc" xml:space="preserve">
-    <value>In Google Auth Platform, click 'Clients' (or click button #2 below). Click '+ Create client'. Set Application type to 'Desktop app' (DO NOT leave as 'Web application'!). Name it 'GenHub Desktop' and click 'CREATE'. Copy your Client ID and Client Secret immediately!</value>
+    <value>In Google Auth Platform, click 'Clients' (or click 'Open Credentials' next to this step). Click '+ Create client'. Set Application type to 'Desktop app' (DO NOT leave as 'Web application'!). Name it 'GenHub Desktop' and click 'CREATE'. Copy your Client ID and Client Secret immediately!</value>
   </data>
   <data name="Tools.PublisherStudio.Hosting.GDStep4Title" xml:space="preserve">
     <value>Step 4: Create Desktop OAuth Client ID  [CRITICAL: Must select 'Desktop app']</value>
   </data>
   <data name="Tools.PublisherStudio.Hosting.GDStep5Desc" xml:space="preserve">
-    <value>In Google Auth Platform, click 'Audience' (or button #3 below). Under 'Test users', click '+ ADD USERS', enter your Google account email (e.g. your Gmail), and click 'SAVE'. If you skip this, Google blocks authorization with Error 403: access_denied.</value>
+    <value>In Google Auth Platform, click 'Audience' (or click 'Open Test Users' next to this step). Under 'Test users', click '+ ADD USERS', enter your Google account email (e.g. your Gmail), and click 'SAVE'. If you skip this, Google blocks authorization with Error 403: access_denied.</value>
   </data>
   <data name="Tools.PublisherStudio.Hosting.GDStep5Title" xml:space="preserve">
     <value>Step 5: Add your Google account to Test Users  [CRITICAL: Fixes Error 403 access_denied]</value>
@@ -10123,7 +10132,7 @@ Then click the 'Submit' button at the bottom of the page! (GenHub requests exact
     <value>Not Connected</value>
   </data>
   <data name="Tools.PublisherStudio.Hosting.OpenAuthPlatform" xml:space="preserve">
-    <value>1. Open Google Auth Platform</value>
+    <value>Open Auth Platform</value>
   </data>
   <data name="Tools.PublisherStudio.Hosting.OpenAuthWizardTip" xml:space="preserve">
     <value>Open Google Auth Platform / Project Configuration wizard in your default browser</value>
@@ -10135,13 +10144,19 @@ Then click the 'Submit' button at the bottom of the page! (GenHub requests exact
     <value>Open the provider's /GenHub_Publisher storage folder in browser</value>
   </data>
   <data name="Tools.PublisherStudio.Hosting.OpenCredentials" xml:space="preserve">
-    <value>2. Open Credentials (Desktop Client ID)</value>
+    <value>Open Credentials</value>
   </data>
   <data name="Tools.PublisherStudio.Hosting.OpenCredentialsTip" xml:space="preserve">
     <value>Open Google Cloud Console Credentials page in your default browser</value>
   </data>
+  <data name="Tools.PublisherStudio.Hosting.OpenDriveApi" xml:space="preserve">
+    <value>Enable Drive API</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.OpenDriveApiTip" xml:space="preserve">
+    <value>Open the Google Drive API enablement page in your default browser</value>
+  </data>
   <data name="Tools.PublisherStudio.Hosting.OpenTestUsers" xml:space="preserve">
-    <value>3. Open Audience / Test Users (Fix 403)</value>
+    <value>Open Test Users</value>
   </data>
   <data name="Tools.PublisherStudio.Hosting.OpenTestUsersTip" xml:space="preserve">
     <value>Open Google Auth Platform Audience / Test Users page to authorize your account and fix 403 errors</value>

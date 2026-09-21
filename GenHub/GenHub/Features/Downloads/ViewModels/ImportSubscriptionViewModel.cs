@@ -46,6 +46,12 @@ public partial class ImportSubscriptionViewModel : ObservableObject
     /// </summary>
     public Action<bool?>? RequestClose { get; set; }
 
+    /// <summary>
+    /// Gets the confirmation dialog result when a subscription was confirmed or dismissed.
+    /// Null when the dialog never reached confirmation (invalid input or launch failure).
+    /// </summary>
+    public bool? LastConfirmResult { get; private set; }
+
     private static string ResolveTargetUrl(string raw)
     {
         var targetUrl = CommandLineParser.ExtractSubscriptionUrl([raw]);
@@ -84,11 +90,16 @@ public partial class ImportSubscriptionViewModel : ObservableObject
         if (parent != null)
         {
             var confirmResult = await confirmDialog.ShowDialog<bool>(parent);
+            LastConfirmResult = confirmResult;
             RequestClose?.Invoke(confirmResult);
         }
         else
         {
-            confirmDialog.Closed += (_, _) => RequestClose?.Invoke(confirmDialog.DialogResult);
+            confirmDialog.Closed += (_, _) =>
+            {
+                LastConfirmResult = confirmDialog.DialogResult;
+                RequestClose?.Invoke(confirmDialog.DialogResult);
+            };
             confirmDialog.Show();
         }
     }

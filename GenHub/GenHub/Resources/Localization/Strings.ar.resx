@@ -4723,8 +4723,17 @@
   <data name="Common.SavingEllipsis" xml:space="preserve">
     <value>جارٍ الحفظ...</value>
   </data>
+  <data name="Downloads.Subscription.CatalogsLabel" xml:space="preserve">
+    <value>الكتالوجات</value>
+  </data>
   <data name="Downloads.Subscription.NewCatalogBadge" xml:space="preserve">
     <value>+ كتالوج جديد</value>
+  </data>
+  <data name="Downloads.Subscription.NewPublisherBadge" xml:space="preserve">
+    <value>+ ناشر جديد</value>
+  </data>
+  <data name="Downloads.Subscription.NewPublisherBadgeFormat" xml:space="preserve">
+    <value>+ ناشر جديد • {0} كتالوجات</value>
   </data>
   <data name="Profiles.AddLocalContent.AddContentButton" xml:space="preserve">
     <value>إضافة محتوى</value>
@@ -6860,13 +6869,13 @@ GenHub هو مشغل ومدير حديث لألعاب **Command &amp; Conquer: G
     <value>تم التحديث {0:yyyy-MM-dd}</value>
   </data>
   <data name="Settings.Section.CatalogSubscriptions" xml:space="preserve">
-    <value>اشتراكات الكتالوج</value>
+    <value>اشتراكات الناشرين</value>
   </data>
   <data name="Settings.Subscriptions.Description" xml:space="preserve">
-    <value>إدارة كتالوجات المحتوى المشترك بها.</value>
+    <value>إدارة الناشرين المشترك بهم وكتالوجات المحتوى الخاصة بهم.</value>
   </data>
   <data name="Settings.Subscriptions.EmptyState" xml:space="preserve">
-    <value>لم يتم العثور على أي اشتراكات نشطة. يمكنك الاشتراك في الكتالوجات عبر روابط 'genhub://subscribe'.</value>
+    <value>لم يتم العثور على أي اشتراكات نشطة. يمكنك الاشتراك في الناشرين عبر روابط 'genhub://subscribe'.</value>
   </data>
   <data name="Settings.Subscriptions.LoadFailedFallback" xml:space="preserve">
     <value>فشل تحميل الاشتراكات</value>
@@ -6887,7 +6896,7 @@ GenHub هو مشغل ومدير حديث لألعاب **Command &amp; Conquer: G
     <value>حدث خطأ غير متوقع أثناء التحديث.</value>
   </data>
   <data name="Settings.Subscriptions.RefreshedNotificationMessage" xml:space="preserve">
-    <value>تم تحديث جميع الكتالوجات المشترك بها بنجاح.</value>
+    <value>تم تحديث جميع الناشرين المشترك بهم بنجاح.</value>
   </data>
   <data name="Settings.Subscriptions.RefreshedNotificationTitle" xml:space="preserve">
     <value>تم تحديث الكتالوجات</value>
@@ -6923,7 +6932,7 @@ GenHub هو مشغل ومدير حديث لألعاب **Command &amp; Conquer: G
     <value>تمت إزالة الاشتراك</value>
   </data>
   <data name="Settings.Subscriptions.Title" xml:space="preserve">
-    <value>اشتراكات الكتالوج</value>
+    <value>اشتراكات الناشرين</value>
   </data>
   <data name="Settings.Subscriptions.ToggleTrustAutomation" xml:space="preserve">
     <value>تبديل مستوى الثقة للاشتراك</value>
@@ -9836,7 +9845,7 @@ GenHub هو مشغل ومدير حديث لألعاب **Command &amp; Conquer: G
     <value>دليل إعداد Google Drive Desktop OAuth (خطوة بخطوة)</value>
   </data>
   <data name="Tools.PublisherStudio.Hosting.GDS1Step1" xml:space="preserve">
-    <value>1. انقر فوق '1. فتح منصة مصادقة Google' أو '2. فتح وحدة تحكم بيانات الاعتماد' أدناه وسجل الدخول إلى حساب Google الخاص بك.</value>
+    <value>1. استخدم الروابط الموجودة بجانب الخطوات أدناه لفتح Google Cloud Console وسجل الدخول إلى حساب Google الخاص بك.</value>
   </data>
   <data name="Tools.PublisherStudio.Hosting.GDS1Step2" xml:space="preserve">
     <value>2. في شريط التنقل العلوي (بجوار 'Google Cloud')، انقر فوق القائمة المنسدلة لاختيار المشروع، ثم انقر فوق 'NEW PROJECT'.</value>
@@ -9851,7 +9860,7 @@ GenHub هو مشغل ومدير حديث لألعاب **Command &amp; Conquer: G
     <value>الخطوة 1: إنشاء مشروع في Google Cloud</value>
   </data>
   <data name="Tools.PublisherStudio.Hosting.GDS2Step1" xml:space="preserve">
-    <value>1. انقر فوق '1. فتح منصة مصادقة Google' أدناه. إذا رأيت 'Google auth platform not configured yet'، فانقر فوق الزر الأزرق 'Get started'. (إذا رأيت شعارًا أصفر 'To create an OAuth client ID, you must first configure your consent screen'، فانقر فوق 'Configure consent screen').</value>
+    <value>1. انقر فوق 'فتح منصة المصادقة' بجانب هذه الخطوة. إذا رأيت 'Google auth platform not configured yet'، فانقر فوق الزر الأزرق 'Get started'. (إذا رأيت شعارًا أصفر 'To create an OAuth client ID, you must first configure your consent screen'، فانقر فوق 'Configure consent screen').</value>
   </data>
   <data name="Tools.PublisherStudio.Hosting.GDS2Step2" xml:space="preserve">
     <value>2. سيفتح معالج 'تكوين المشروع' المكون من 4 خطوات:</value>
@@ -9875,16 +9884,16 @@ GenHub هو مشغل ومدير حديث لألعاب **Command &amp; Conquer: G
     <value>ملاحظة: لن تسمح Google بإنشاء بيانات اعتماد OAuth حتى يتم تكوين تطبيق لمشروعك!</value>
   </data>
   <data name="Tools.PublisherStudio.Hosting.GDS3Step1" xml:space="preserve">
-    <value>1. في شريط البحث العلوي، ابحث عن 'Google Drive API' وانقر عليه.</value>
+    <value>1. انقر فوق 'تفعيل Drive API' بجانب هذه الخطوة (أو ابحث عن 'Google Drive API' في شريط البحث العلوي).</value>
   </data>
   <data name="Tools.PublisherStudio.Hosting.GDS3Step2" xml:space="preserve">
-    <value>2. انقر فوق الزر الأزرق 'ENABLE'.</value>
+    <value>2. انقر فوق الزر الأزرق 'ENABLE'، ثم انتظر بضع دقائق قبل الاتصال. تفشل عمليات الرفع مع الخطأ 403 حتى يتم تفعيل API.</value>
   </data>
   <data name="Tools.PublisherStudio.Hosting.GDS3Title" xml:space="preserve">
     <value>الخطوة 3: تفعيل Google Drive API</value>
   </data>
   <data name="Tools.PublisherStudio.Hosting.GDS4Step1" xml:space="preserve">
-    <value>1. في منصة مصادقة Google، انقر فوق 'Clients' في القائمة اليسرى (أو انقر فوق '2. فتح وحدة تحكم بيانات الاعتماد' أدناه).</value>
+    <value>1. في منصة مصادقة Google، انقر فوق 'Clients' في القائمة اليسرى (أو انقر فوق 'فتح بيانات الاعتماد' بجانب هذه الخطوة).</value>
   </data>
   <data name="Tools.PublisherStudio.Hosting.GDS4Step2" xml:space="preserve">
     <value>2. انقر فوق '+ Create client' (أو '+ CREATE CREDENTIALS' &gt; 'OAuth client ID').</value>
@@ -9905,7 +9914,7 @@ GenHub هو مشغل ومدير حديث لألعاب **Command &amp; Conquer: G
     <value>الخطوة 4: إنشاء بيانات اعتماد عميل Desktop OAuth</value>
   </data>
   <data name="Tools.PublisherStudio.Hosting.GDS5Step1" xml:space="preserve">
-    <value>1. في منصة مصادقة Google، انقر فوق علامة التبويب 'Audience' في القائمة اليسرى (أو انقر فوق الزر رقم 3 أدناه).</value>
+    <value>1. في منصة مصادقة Google، انقر فوق علامة التبويب 'Audience' في القائمة اليسرى (أو انقر فوق 'فتح المستخدمين التجريبيين' بجانب هذه الخطوة).</value>
   </data>
   <data name="Tools.PublisherStudio.Hosting.GDS5Step2" xml:space="preserve">
     <value>2. ضمن 'Test users'، انقر فوق '+ ADD USERS'، وأدخل البريد الإلكتروني لحساب Google الخاص بك (مثلاً: Gmail الخاص بك)، وانقر فوق 'SAVE'.</value>
@@ -9926,28 +9935,28 @@ GenHub هو مشغل ومدير حديث لألعاب **Command &amp; Conquer: G
     <value>الخطوة 6: اللصق والاتصال في GenHub</value>
   </data>
   <data name="Tools.PublisherStudio.Hosting.GDStep1Desc" xml:space="preserve">
-    <value>انقر فوق الزر رقم 1 أدناه. في Google Cloud Console، انقر فوق محدد المشروع في الأعلى &gt; 'NEW PROJECT' &gt; سمه 'GenHub Publisher' &gt; انقر فوق 'CREATE'. ثم حدده من القائمة المنسدلة للمشروع.</value>
+    <value>افتح Google Cloud Console باستخدام أحد الروابط الموجودة بجانب الخطوات أدناه. انقر فوق محدد المشروع في الأعلى &gt; 'NEW PROJECT' &gt; سمه 'GenHub Publisher' &gt; انقر فوق 'CREATE'. ثم حدده من القائمة المنسدلة للمشروع.</value>
   </data>
   <data name="Tools.PublisherStudio.Hosting.GDStep1Title" xml:space="preserve">
     <value>الخطوة 1: إنشاء مشروع في Google Cloud</value>
   </data>
   <data name="Tools.PublisherStudio.Hosting.GDStep2Desc" xml:space="preserve">
-    <value>انقر فوق الزر رقم 1 أدناه ('فتح منصة مصادقة Google'). إذا رأيت 'Google auth platform not configured yet'، فانقر فوق 'Get started' (أو 'Configure consent screen'). أدخل اسم التطبيق (GenHub)، وحدد بريدك الإلكتروني، واضبط الجمهور على خارجي، وبريد المطور الإلكتروني، وانقر فوق إنشاء.</value>
+    <value>انقر فوق 'فتح منصة المصادقة' بجانب هذه الخطوة. إذا رأيت 'Google auth platform not configured yet'، فانقر فوق 'Get started' (أو 'Configure consent screen'). أدخل اسم التطبيق (GenHub)، وحدد بريدك الإلكتروني، واضبط الجمهور على خارجي، وبريد المطور الإلكتروني، وانقر فوق إنشاء.</value>
   </data>
   <data name="Tools.PublisherStudio.Hosting.GDStep2Title" xml:space="preserve">
     <value>الخطوة 2: إنشاء تطبيق عبر 'تكوين المشروع'  [حاسم: قم بالتكوين أولاً]</value>
   </data>
   <data name="Tools.PublisherStudio.Hosting.GDStep3Desc" xml:space="preserve">
-    <value>ابحث عن 'Google Drive API' في شريط البحث العلوي وانقر فوق 'ENABLE'.</value>
+    <value>انقر فوق 'تفعيل Drive API' بجانب هذه الخطوة (أو ابحث عن 'Google Drive API' في شريط البحث العلوي) وانقر فوق 'ENABLE'. انتظر بضع دقائق قبل الاتصال.</value>
   </data>
   <data name="Tools.PublisherStudio.Hosting.GDStep4Desc" xml:space="preserve">
-    <value>في منصة مصادقة Google، انقر فوق 'Clients' (أو انقر فوق الزر رقم 2 أدناه). انقر فوق '+ Create client'. اضبط نوع التطبيق على 'Desktop app' (لا تتركه كـ 'Web application'!). سمه 'GenHub Desktop' وانقر فوق 'CREATE'. انسخ معرف العميل وسر العميل على الفور!</value>
+    <value>في منصة مصادقة Google، انقر فوق 'Clients' (أو انقر فوق 'فتح بيانات الاعتماد' بجانب هذه الخطوة). انقر فوق '+ Create client'. اضبط نوع التطبيق على 'Desktop app' (لا تتركه كـ 'Web application'!). سمه 'GenHub Desktop' وانقر فوق 'CREATE'. انسخ معرف العميل وسر العميل على الفور!</value>
   </data>
   <data name="Tools.PublisherStudio.Hosting.GDStep4Title" xml:space="preserve">
     <value>الخطوة 4: إنشاء معرف عميل Desktop OAuth  [حاسم: يجب تحديد 'Desktop app']</value>
   </data>
   <data name="Tools.PublisherStudio.Hosting.GDStep5Desc" xml:space="preserve">
-    <value>في منصة مصادقة Google، انقر فوق 'Audience' (أو الزر رقم 3 أدناه). ضمن 'Test users'، انقر فوق '+ ADD USERS'، وأدخل البريد الإلكتروني لحساب Google الخاص بك (مثلاً: Gmail الخاص بك)، وانقر فوق 'SAVE'. إذا تخطيت هذا، فستحظر Google التفويض مع Error 403: access_denied.</value>
+    <value>في منصة مصادقة Google، انقر فوق 'Audience' (أو انقر فوق 'فتح المستخدمين التجريبيين' بجانب هذه الخطوة). ضمن 'Test users'، انقر فوق '+ ADD USERS'، وأدخل البريد الإلكتروني لحساب Google الخاص بك (مثلاً: Gmail الخاص بك)، وانقر فوق 'SAVE'. إذا تخطيت هذا، فستحظر Google التفويض مع Error 403: access_denied.</value>
   </data>
   <data name="Tools.PublisherStudio.Hosting.GDStep5Title" xml:space="preserve">
     <value>الخطوة 5: إضافة حساب Google الخاص بك إلى المستخدمين التجريبيين  [حاسم: يصلح الخطأ 403 access_denied]</value>
@@ -10025,7 +10034,7 @@ GenHub هو مشغل ومدير حديث لألعاب **Command &amp; Conquer: G
     <value>غير متصل</value>
   </data>
   <data name="Tools.PublisherStudio.Hosting.OpenAuthPlatform" xml:space="preserve">
-    <value>1. فتح منصة مصادقة Google</value>
+    <value>فتح منصة المصادقة</value>
   </data>
   <data name="Tools.PublisherStudio.Hosting.OpenAuthWizardTip" xml:space="preserve">
     <value>فتح معالج تكوين منصة مصادقة Google / المشروع في متصفحك الافتراضي</value>
@@ -10037,13 +10046,19 @@ GenHub هو مشغل ومدير حديث لألعاب **Command &amp; Conquer: G
     <value>فتح مجلد التخزين /GenHub_Publisher للموفر في المتصفح</value>
   </data>
   <data name="Tools.PublisherStudio.Hosting.OpenCredentials" xml:space="preserve">
-    <value>2. فتح بيانات الاعتماد (Desktop Client ID)</value>
+    <value>فتح بيانات الاعتماد</value>
   </data>
   <data name="Tools.PublisherStudio.Hosting.OpenCredentialsTip" xml:space="preserve">
     <value>فتح صفحة بيانات اعتماد Google Cloud Console في متصفحك الافتراضي</value>
   </data>
+  <data name="Tools.PublisherStudio.Hosting.OpenDriveApi" xml:space="preserve">
+    <value>تفعيل Drive API</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.OpenDriveApiTip" xml:space="preserve">
+    <value>فتح صفحة تفعيل Google Drive API في المتصفح الافتراضي</value>
+  </data>
   <data name="Tools.PublisherStudio.Hosting.OpenTestUsers" xml:space="preserve">
-    <value>3. فتح الجمهور / المستخدمين التجريبيين (إصلاح 403)</value>
+    <value>فتح المستخدمين التجريبيين</value>
   </data>
   <data name="Tools.PublisherStudio.Hosting.OpenTestUsersTip" xml:space="preserve">
     <value>فتح صفحة الجمهور / المستخدمين التجريبيين في منصة مصادقة Google لتفويض حسابك وإصلاح أخطاء 403</value>

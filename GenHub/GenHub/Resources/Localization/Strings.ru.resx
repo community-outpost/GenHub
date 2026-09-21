@@ -4723,8 +4723,17 @@
   <data name="Common.SavingEllipsis" xml:space="preserve">
     <value>Сохранение...</value>
   </data>
+  <data name="Downloads.Subscription.CatalogsLabel" xml:space="preserve">
+    <value>Каталоги</value>
+  </data>
   <data name="Downloads.Subscription.NewCatalogBadge" xml:space="preserve">
     <value>+ Новый каталог</value>
+  </data>
+  <data name="Downloads.Subscription.NewPublisherBadge" xml:space="preserve">
+    <value>+ Новый издатель</value>
+  </data>
+  <data name="Downloads.Subscription.NewPublisherBadgeFormat" xml:space="preserve">
+    <value>+ Новый издатель • каталогов: {0}</value>
   </data>
   <data name="Profiles.AddLocalContent.AddContentButton" xml:space="preserve">
     <value>ДОБАВИТЬ КОНТЕНТ</value>
@@ -6860,13 +6869,13 @@ GenHub передает официальный идентификатор AppID 
     <value>Обновлено {0:yyyy-MM-dd}</value>
   </data>
   <data name="Settings.Section.CatalogSubscriptions" xml:space="preserve">
-    <value>Подписки каталогов</value>
+    <value>Подписки издателей</value>
   </data>
   <data name="Settings.Subscriptions.Description" xml:space="preserve">
-    <value>Управление подписками на каталоги контента.</value>
+    <value>Управление подписками на издателей и их каталоги контента.</value>
   </data>
   <data name="Settings.Subscriptions.EmptyState" xml:space="preserve">
-    <value>Активные подписки не найдены. Вы можете подписаться на каталоги по ссылкам «genhub://subscribe».</value>
+    <value>Активные подписки не найдены. Вы можете подписаться на издателей по ссылкам «genhub://subscribe».</value>
   </data>
   <data name="Settings.Subscriptions.LoadFailedFallback" xml:space="preserve">
     <value>Не удалось загрузить подписки</value>
@@ -6887,7 +6896,7 @@ GenHub передает официальный идентификатор AppID 
     <value>Произошла непредвиденная ошибка при обновлении.</value>
   </data>
   <data name="Settings.Subscriptions.RefreshedNotificationMessage" xml:space="preserve">
-    <value>Все подписанные каталоги успешно обновлены.</value>
+    <value>Все подписанные издатели успешно обновлены.</value>
   </data>
   <data name="Settings.Subscriptions.RefreshedNotificationTitle" xml:space="preserve">
     <value>Каталоги обновлены</value>
@@ -6923,7 +6932,7 @@ GenHub передает официальный идентификатор AppID 
     <value>Подписка удалена</value>
   </data>
   <data name="Settings.Subscriptions.Title" xml:space="preserve">
-    <value>Подписки каталогов</value>
+    <value>Подписки издателей</value>
   </data>
   <data name="Settings.Subscriptions.ToggleTrustAutomation" xml:space="preserve">
     <value>Переключить уровень доверия подписки</value>
@@ -9836,7 +9845,7 @@ GenHub передает официальный идентификатор AppID 
     <value>Руководство по настройке Google Drive Desktop OAuth (пошагово)</value>
   </data>
   <data name="Tools.PublisherStudio.Hosting.GDS1Step1" xml:space="preserve">
-    <value>1. Нажмите «1. Открыть Google Auth Platform» или «2. Открыть консоль учетных данных» ниже и войдите в свой аккаунт Google.</value>
+    <value>1. Используйте ссылки рядом с шагами ниже, чтобы открыть Google Cloud Console и войти в свой аккаунт Google.</value>
   </data>
   <data name="Tools.PublisherStudio.Hosting.GDS1Step2" xml:space="preserve">
     <value>2. В верхней панели навигации (рядом с «Google Cloud») нажмите на селектор проектов и выберите «NEW PROJECT».</value>
@@ -9851,7 +9860,7 @@ GenHub передает официальный идентификатор AppID 
     <value>Шаг 1: Создание проекта в Google Cloud</value>
   </data>
   <data name="Tools.PublisherStudio.Hosting.GDS2Step1" xml:space="preserve">
-    <value>1. Нажмите «1. Открыть Google Auth Platform» ниже. Если появится сообщение «Google auth platform not configured yet», нажмите синюю кнопку «Get started». (Если появится желтый баннер с запросом экрана согласия, нажмите «Configure consent screen»).</value>
+    <value>1. Нажмите «Открыть Auth Platform» рядом с этим шагом. Если появится сообщение «Google auth platform not configured yet», нажмите синюю кнопку «Get started». (Если появится желтый баннер с запросом экрана согласия, нажмите «Configure consent screen»).</value>
   </data>
   <data name="Tools.PublisherStudio.Hosting.GDS2Step2" xml:space="preserve">
     <value>2. Откроется мастер настройки проекта из 4 шагов:</value>
@@ -9875,16 +9884,16 @@ GenHub передает официальный идентификатор AppID 
     <value>Примечание: Google НЕ позволит создать учетные данные OAuth, пока в проекте не настроено приложение!</value>
   </data>
   <data name="Tools.PublisherStudio.Hosting.GDS3Step1" xml:space="preserve">
-    <value>1. В верхней строке поиска найдите «Google Drive API» и выберите его.</value>
+    <value>1. Нажмите «Включить Drive API» рядом с этим шагом (или найдите «Google Drive API» в верхней строке поиска).</value>
   </data>
   <data name="Tools.PublisherStudio.Hosting.GDS3Step2" xml:space="preserve">
-    <value>2. Нажмите синюю кнопку «ENABLE».</value>
+    <value>2. Нажмите синюю кнопку «ENABLE» и подождите несколько минут перед подключением. До включения API загрузки завершаются ошибкой 403.</value>
   </data>
   <data name="Tools.PublisherStudio.Hosting.GDS3Title" xml:space="preserve">
     <value>Шаг 3: Включение Google Drive API</value>
   </data>
   <data name="Tools.PublisherStudio.Hosting.GDS4Step1" xml:space="preserve">
-    <value>1. В Google Auth Platform перейдите в раздел «Clients» в меню слева (или нажмите «2. Открыть консоль учетных данных» ниже).</value>
+    <value>1. В Google Auth Platform перейдите в раздел «Clients» в меню слева (или нажмите «Открыть учетные данные» рядом с этим шагом).</value>
   </data>
   <data name="Tools.PublisherStudio.Hosting.GDS4Step2" xml:space="preserve">
     <value>2. Нажмите «+ Create client» (или «+ CREATE CREDENTIALS» &gt; «OAuth client ID»).</value>
@@ -9905,7 +9914,7 @@ GenHub передает официальный идентификатор AppID 
     <value>Шаг 4: Создание учетных данных OAuth для Desktop</value>
   </data>
   <data name="Tools.PublisherStudio.Hosting.GDS5Step1" xml:space="preserve">
-    <value>1. В Google Auth Platform откройте вкладку «Audience» в меню слева (или нажмите кнопку №3 ниже).</value>
+    <value>1. В Google Auth Platform откройте вкладку «Audience» в меню слева (или нажмите «Открыть тестовых пользователей» рядом с этим шагом).</value>
   </data>
   <data name="Tools.PublisherStudio.Hosting.GDS5Step2" xml:space="preserve">
     <value>2. В разделе «Test users» нажмите «+ ADD USERS», введите адрес вашей почты Google (Gmail) и нажмите «SAVE».</value>
@@ -9926,28 +9935,28 @@ GenHub передает официальный идентификатор AppID 
     <value>Шаг 6: Вставка и подключение в GenHub</value>
   </data>
   <data name="Tools.PublisherStudio.Hosting.GDStep1Desc" xml:space="preserve">
-    <value>Нажмите кнопку №1 ниже. В Google Cloud Console нажмите выбор проекта вверху &gt; «NEW PROJECT» &gt; назовите «GenHub Publisher» &gt; нажмите «CREATE». Затем выберите его в списке.</value>
+    <value>Откройте Google Cloud Console по одной из ссылок рядом с шагами ниже. Нажмите выбор проекта вверху &gt; «NEW PROJECT» &gt; назовите «GenHub Publisher» &gt; нажмите «CREATE». Затем выберите его в списке.</value>
   </data>
   <data name="Tools.PublisherStudio.Hosting.GDStep1Title" xml:space="preserve">
     <value>Шаг 1: Создайте проект Google Cloud</value>
   </data>
   <data name="Tools.PublisherStudio.Hosting.GDStep2Desc" xml:space="preserve">
-    <value>Нажмите кнопку №1 ниже («Open Google Auth Platform»). Если написано «Google auth platform not configured yet», нажмите «Get started» (или «Configure consent screen»). Введите имя (GenHub), email, выберите External, email разработчика и нажмите Create.</value>
+    <value>Нажмите «Открыть Auth Platform» рядом с этим шагом. Если написано «Google auth platform not configured yet», нажмите «Get started» (или «Configure consent screen»). Введите имя (GenHub), email, выберите External, email разработчика и нажмите Create.</value>
   </data>
   <data name="Tools.PublisherStudio.Hosting.GDStep2Title" xml:space="preserve">
     <value>Шаг 2: Создайте приложение через «Настройки проекта» [ВАЖНО: настройте сначала]</value>
   </data>
   <data name="Tools.PublisherStudio.Hosting.GDStep3Desc" xml:space="preserve">
-    <value>Найдите «Google Drive API» в верхней строке поиска и нажмите «ENABLE».</value>
+    <value>Нажмите «Включить Drive API» рядом с этим шагом (или найдите «Google Drive API» в верхней строке поиска) и нажмите «ENABLE». Подождите несколько минут перед подключением.</value>
   </data>
   <data name="Tools.PublisherStudio.Hosting.GDStep4Desc" xml:space="preserve">
-    <value>В Google Auth Platform перейдите в «Clients» (или кнопку №2 ниже). Нажмите «+ Create client». Выберите «Desktop app» (НЕ «Web application»!). Назовите «GenHub Desktop» и нажмите «CREATE». Сразу скопируйте Client ID и Client Secret!</value>
+    <value>В Google Auth Platform перейдите в «Clients» (или нажмите «Открыть учетные данные» рядом с этим шагом). Нажмите «+ Create client». Выберите «Desktop app» (НЕ «Web application»!). Назовите «GenHub Desktop» и нажмите «CREATE». Сразу скопируйте Client ID и Client Secret!</value>
   </data>
   <data name="Tools.PublisherStudio.Hosting.GDStep4Title" xml:space="preserve">
     <value>Шаг 4: Создайте Desktop OAuth Client ID [ВАЖНО: выберите «Desktop app»]</value>
   </data>
   <data name="Tools.PublisherStudio.Hosting.GDStep5Desc" xml:space="preserve">
-    <value>В Google Auth Platform перейдите в «Audience» (или кнопку №3 ниже). В «Test users» нажмите «+ ADD USERS», введите свой Google email и нажмите «SAVE». Без этого Google заблокирует вход с ошибкой 403: access_denied.</value>
+    <value>В Google Auth Platform перейдите в «Audience» (или нажмите «Открыть тестовых пользователей» рядом с этим шагом). В «Test users» нажмите «+ ADD USERS», введите свой Google email и нажмите «SAVE». Без этого Google заблокирует вход с ошибкой 403: access_denied.</value>
   </data>
   <data name="Tools.PublisherStudio.Hosting.GDStep5Title" xml:space="preserve">
     <value>Шаг 5: Добавьте аккаунт Google в тестовые пользователи [ВАЖНО: устраняет 403 access_denied]</value>
@@ -10025,7 +10034,7 @@ GenHub передает официальный идентификатор AppID 
     <value>Не подключено</value>
   </data>
   <data name="Tools.PublisherStudio.Hosting.OpenAuthPlatform" xml:space="preserve">
-    <value>1. Открыть Google Auth Platform</value>
+    <value>Открыть Auth Platform</value>
   </data>
   <data name="Tools.PublisherStudio.Hosting.OpenAuthWizardTip" xml:space="preserve">
     <value>Открыть мастер Google Auth Platform / Настройки проекта в браузере по умолчанию</value>
@@ -10037,13 +10046,19 @@ GenHub передает официальный идентификатор AppID 
     <value>Открыть папку хранилища /GenHub_Publisher поставщика в браузере</value>
   </data>
   <data name="Tools.PublisherStudio.Hosting.OpenCredentials" xml:space="preserve">
-    <value>2. Открыть учетные данные (Desktop Client ID)</value>
+    <value>Открыть учетные данные</value>
   </data>
   <data name="Tools.PublisherStudio.Hosting.OpenCredentialsTip" xml:space="preserve">
     <value>Открыть страницу учетных данных Google Cloud Console в браузере по умолчанию</value>
   </data>
+  <data name="Tools.PublisherStudio.Hosting.OpenDriveApi" xml:space="preserve">
+    <value>Включить Drive API</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.OpenDriveApiTip" xml:space="preserve">
+    <value>Открыть страницу включения Google Drive API в браузере по умолчанию</value>
+  </data>
   <data name="Tools.PublisherStudio.Hosting.OpenTestUsers" xml:space="preserve">
-    <value>3. Открыть Audience / Test Users (исправление 403)</value>
+    <value>Открыть тестовых пользователей</value>
   </data>
   <data name="Tools.PublisherStudio.Hosting.OpenTestUsersTip" xml:space="preserve">
     <value>Открыть страницу Audience / Test Users в Google Auth Platform для авторизации аккаунта и устранения ошибок 403</value>

@@ -52,4 +52,11 @@ public static class ImageCacheConstants
     /// </summary>
     [SuppressMessage("Minor Code Smell", "S1075:URIs should not be hardcoded", Justification = "ModDB requires its own fixed referrer to serve images and prevent hotlink blocking.")]
     public const string ModDbReferrerUrl = "https://www.moddb.com/";
+
+    /// <summary>
+    /// Deterministic placeholder image shown when content has no icon or thumbnail.
+    /// A fixed seed keeps the placeholder stable across cards and sessions.
+    /// </summary>
+    [SuppressMessage("Minor Code Smell", "S1075:URIs should not be hardcoded", Justification = "Stable placeholder image endpoint for content without artwork.")]
+    public const string DefaultContentImageUrl = "https://picsum.photos/seed/genhub/640/360";
 }

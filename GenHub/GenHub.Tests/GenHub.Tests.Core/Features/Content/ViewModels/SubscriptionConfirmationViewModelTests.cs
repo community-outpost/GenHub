@@ -321,6 +321,98 @@ public sealed class SubscriptionConfirmationViewModelTests : IDisposable
         Assert.Null(vm.ErrorMessage);
     }
 
+    /// <summary>
+    /// Verifies that subscribing via a publisher definition shows all catalogs, switches content
+    /// between them, and confirms against the selected catalog while preserving the definition URL.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task InitializeAsync_DefinitionWithTwoCatalogs_ShowsSelectorAndConfirmsSelectionAsync()
+    {
+        // Arrange: literal-IP URLs pass SSRF checks without DNS so the test stays hermetic.
+        const string definitionUrl = "https://93.184.216.34/publisher.json";
+        const string modsUrl = "https://93.184.216.34/mods.json";
+        const string mapsUrl = "https://93.184.216.34/maps.json";
+        var definitionJson = "{\"$schemaVersion\":1,\"publisher\":{\"id\":\"multi-pub\",\"name\":\"Multi Publisher\"},\"catalogs\":[{\"id\":\"mods\",\"name\":\"Mods\",\"url\":\"" + modsUrl + "\"},{\"id\":\"maps\",\"name\":\"Maps\",\"url\":\"" + mapsUrl + "\"}]}";
+
+        using var httpClient = new HttpClient(new MappedFakeHttpMessageHandler(new Dictionary<string, string>
+        {
+            [definitionUrl] = definitionJson,
+            [modsUrl] = "CATALOG_MODS",
+            [mapsUrl] = "CATALOG_MAPS",
+        }));
+
+        var modsCatalog = CreateSampleCatalog("multi-pub", "Multi Publisher");
+        var mapsCatalog = new PublisherCatalog
+        {
+            Publisher = new PublisherProfile { Id = "multi-pub", Name = "Multi Publisher" },
+            Content =
+            [
+                new CatalogContentItem
+                {
+                    Id = "map-1",
+                    Name = "Desert Map",
+                    ContentType = CoreContentType.Map,
+                    TargetGame = GameType.ZeroHour,
+                },
+            ],
+        };
+        _catalogParser
+            .Setup(p => p.ParseCatalogAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((string payload, CancellationToken ct) => OperationResult<PublisherCatalog>.CreateSuccess(
+                payload.Contains("CATALOG_MAPS", StringComparison.Ordinal) ? mapsCatalog : modsCatalog));
+
+        _subscriptionStore
+            .Setup(s => s.IsSubscribedAsync("multi-pub", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(false));
+        _subscriptionStore
+            .Setup(s => s.GetSubscriptionAsync("multi-pub", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<PublisherSubscription?>.CreateSuccess(null));
+        PublisherSubscription? savedSubscription = null;
+        _subscriptionStore
+            .Setup(s => s.AddSubscriptionAsync(It.IsAny<PublisherSubscription>(), It.IsAny<CancellationToken>()))
+            .Callback<PublisherSubscription, CancellationToken>((sub, ct) => savedSubscription = sub)
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+
+        var vm = new SubscriptionConfirmationViewModel(
+            definitionUrl,
+            _subscriptionStore.Object,
+            _catalogParser.Object,
+            httpClient,
+            _logger.Object);
+        bool? closeResult = null;
+        vm.RequestClose = res => closeResult = res;
+
+        // Act
+        await vm.InitializeAsync();
+
+        // Assert: both catalogs offered, first selected
+        Assert.True(vm.IsCatalogLoaded);
+        Assert.True(vm.IsDefinitionSubscription);
+        Assert.Equal(2, vm.DefinitionCatalogOptions.Count);
+        Assert.True(vm.ShowCatalogSelector);
+        Assert.Equal("+ New Publisher • 2 catalogs", vm.NewSourceBadgeText);
+        Assert.Equal(3, vm.ContentCount);
+
+        // Act: switch to the second catalog
+        vm.SelectDefinitionCatalog("maps");
+
+        // Assert: content reflects the selected catalog
+        Assert.Equal(1, vm.ContentCount);
+        Assert.Equal("Desert Map", vm.FilteredContentItems[0].Name);
+
+        // Act: confirm subscribes to the selected catalog
+        await vm.ConfirmCommand.ExecuteAsync(null);
+
+        // Assert
+        Assert.True(closeResult);
+        Assert.NotNull(savedSubscription);
+        Assert.Equal("multi-pub", savedSubscription.PublisherId);
+        Assert.Equal(mapsUrl, savedSubscription.CatalogUrl);
+        Assert.Equal(definitionUrl, savedSubscription.DefinitionUrl);
+        _subscriptionStore.Verify(s => s.AddSubscriptionAsync(It.IsAny<PublisherSubscription>(), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
     private static PublisherCatalog CreateSampleCatalog(string id, string name)
     {
         return new PublisherCatalog
@@ -367,6 +459,19 @@ public sealed class SubscriptionConfirmationViewModelTests : IDisposable
             return Task.FromResult(new HttpResponseMessage(System.Net.HttpStatusCode.OK)
             {
                 Content = new StringContent("{}"),
+            });
+        }
+    }
+
+    private sealed class MappedFakeHttpMessageHandler(Dictionary<string, string> responses) : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            var uri = request.RequestUri?.AbsoluteUri ?? string.Empty;
+            responses.TryGetValue(uri, out var body);
+            return Task.FromResult(new HttpResponseMessage(System.Net.HttpStatusCode.OK)
+            {
+                Content = new StringContent(body ?? "{}"),
             });
         }
     }

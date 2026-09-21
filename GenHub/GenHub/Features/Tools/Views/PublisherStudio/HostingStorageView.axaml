@@ -297,43 +297,33 @@
                                     <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.GDStep1Title}" FontWeight="SemiBold" FontSize="12" Foreground="{DynamicResource StatusInfoBrush}"/>
                                     <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.GDStep1Desc}" FontSize="11" Foreground="{DynamicResource TextSecondary}" TextWrapping="Wrap"/>
 
-                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.GDStep2Title}" FontWeight="SemiBold" FontSize="12" Foreground="{DynamicResource WarningHighlightBrush}"/>
+                                    <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                        <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.GDStep2Title}" FontWeight="SemiBold" FontSize="12" Foreground="{DynamicResource WarningHighlightBrush}" VerticalAlignment="Center"/>
+                                        <HyperlinkButton Content="{localization:Localize Tools.PublisherStudio.Hosting.OpenAuthPlatform}" Command="{Binding OpenGoogleAuthPlatformConsoleCommand}" ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Hosting.OpenAuthWizardTip}" Foreground="{DynamicResource AccentColorBrush}" FontSize="11" Padding="0" VerticalAlignment="Center"/>
+                                    </StackPanel>
                                     <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.GDStep2Desc}" FontSize="11" Foreground="{DynamicResource TextSecondary}" TextWrapping="Wrap"/>
 
-                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.GDS3Title}" FontWeight="SemiBold" FontSize="12" Foreground="{DynamicResource StatusInfoBrush}"/>
+                                    <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                        <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.GDS3Title}" FontWeight="SemiBold" FontSize="12" Foreground="{DynamicResource StatusInfoBrush}" VerticalAlignment="Center"/>
+                                        <HyperlinkButton Content="{localization:Localize Tools.PublisherStudio.Hosting.OpenDriveApi}" Command="{Binding OpenGoogleDriveApiConsoleCommand}" ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Hosting.OpenDriveApiTip}" Foreground="{DynamicResource AccentColorBrush}" FontSize="11" Padding="0" VerticalAlignment="Center"/>
+                                    </StackPanel>
                                     <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.GDStep3Desc}" FontSize="11" Foreground="{DynamicResource TextSecondary}" TextWrapping="Wrap"/>
 
-                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.GDStep4Title}" FontWeight="SemiBold" FontSize="12" Foreground="{DynamicResource StatusErrorBrush}"/>
+                                    <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                        <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.GDStep4Title}" FontWeight="SemiBold" FontSize="12" Foreground="{DynamicResource StatusErrorBrush}" VerticalAlignment="Center"/>
+                                        <HyperlinkButton Content="{localization:Localize Tools.PublisherStudio.Hosting.OpenCredentials}" Command="{Binding OpenGoogleCredentialsConsoleCommand}" ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Hosting.OpenCredentialsTip}" Foreground="{DynamicResource AccentColorBrush}" FontSize="11" Padding="0" VerticalAlignment="Center"/>
+                                    </StackPanel>
                                     <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.GDStep4Desc}" FontSize="11" Foreground="{DynamicResource WarningHighlightBrush}" TextWrapping="Wrap"/>
 
-                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.GDStep5Title}" FontWeight="SemiBold" FontSize="12" Foreground="{DynamicResource StatusErrorBrush}"/>
+                                    <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                        <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.GDStep5Title}" FontWeight="SemiBold" FontSize="12" Foreground="{DynamicResource StatusErrorBrush}" VerticalAlignment="Center"/>
+                                        <HyperlinkButton Content="{localization:Localize Tools.PublisherStudio.Hosting.OpenTestUsers}" Command="{Binding OpenGoogleAudienceConsoleCommand}" ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Hosting.OpenTestUsersTip}" Foreground="{DynamicResource AccentColorBrush}" FontSize="11" Padding="0" VerticalAlignment="Center"/>
+                                    </StackPanel>
                                     <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.GDStep5Desc}" FontSize="11" Foreground="{DynamicResource WarningHighlightBrush}" TextWrapping="Wrap"/>
 
                                     <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.GDStep6Title}" FontWeight="SemiBold" FontSize="12" Foreground="{DynamicResource StatusInfoBrush}"/>
                                     <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.GDStep6Desc}" FontSize="11" Foreground="{DynamicResource TextSecondary}" TextWrapping="Wrap"/>
                                 </StackPanel>
-
-                                <!-- Action buttons to consoles -->
-                                <WrapPanel Margin="0,4,0,0">
-                                    <Button Command="{Binding OpenGoogleAuthPlatformConsoleCommand}" Classes="small-glass-btn" Margin="0,0,10,6">
-                                        <StackPanel Orientation="Horizontal" Spacing="6">
-                                            <PathIcon Data="{StaticResource ExternalLinkIcon}" Width="12" Height="12" Foreground="{DynamicResource AccentColorBrush}"/>
-                                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.OpenAuthPlatform}" Foreground="{DynamicResource AccentColorBrush}" FontSize="12" FontWeight="SemiBold"/>
-                                        </StackPanel>
-                                    </Button>
-                                    <Button Command="{Binding OpenGoogleCredentialsConsoleCommand}" Classes="small-glass-btn" Margin="0,0,10,6">
-                                        <StackPanel Orientation="Horizontal" Spacing="6">
-                                            <PathIcon Data="{StaticResource ExternalLinkIcon}" Width="12" Height="12" Foreground="{DynamicResource AccentColorBrush}"/>
-                                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.OpenCredentials}" Foreground="{DynamicResource AccentColorBrush}" FontSize="12" FontWeight="SemiBold"/>
-                                        </StackPanel>
-                                    </Button>
-                                    <Button Command="{Binding OpenGoogleAudienceConsoleCommand}" Classes="small-glass-btn" Margin="0,0,0,6">
-                                        <StackPanel Orientation="Horizontal" Spacing="6">
-                                            <PathIcon Data="{StaticResource ExternalLinkIcon}" Width="12" Height="12" Foreground="{DynamicResource AccentColorBrush}"/>
-                                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.OpenTestUsers}" Foreground="{DynamicResource AccentColorBrush}" FontSize="12" FontWeight="SemiBold"/>
-                                        </StackPanel>
-                                    </Button>
-                                </WrapPanel>
 
                                 <!-- Inputs -->
                                 <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto" Margin="0,6,0,0">

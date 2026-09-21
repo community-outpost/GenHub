@@ -925,6 +925,14 @@ public partial class PublisherStudioViewModel(
                 PublishShareViewModel.HasDefinitionChanges = false;
             }
         };
+        PublishShareViewModel.DefinitionStaleCallback = () =>
+        {
+            HasDefinitionChanges = true;
+            if (PublishShareViewModel != null)
+            {
+                PublishShareViewModel.HasDefinitionChanges = true;
+            }
+        };
         await PublishShareViewModel.InitializeAsync();
         HasDefinitionChanges = !PublishShareViewModel.IsDefinitionPublished;
         PublishShareViewModel.HasDefinitionChanges = HasDefinitionChanges;

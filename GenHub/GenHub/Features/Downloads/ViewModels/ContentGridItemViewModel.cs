@@ -323,14 +323,14 @@ public sealed partial class ContentGridItemViewModel(
     public string ProviderName => SearchResult.ProviderName ?? string.Empty;
 
     /// <summary>
-    /// Gets the icon URL for the content.
+    /// Gets the icon URL for the content, falling back to a placeholder when missing.
     /// </summary>
-    public string? IconUrl => SearchResult.IconUrl;
+    public string IconUrl => ContentCardBadgeHelper.OrDefaultImage(SearchResult.IconUrl);
 
     /// <summary>
-    /// Gets the preferred card thumbnail URL (banner / screenshot / icon).
+    /// Gets the preferred card thumbnail URL (banner / screenshot / icon), falling back to a placeholder when missing.
     /// </summary>
-    public string? ThumbnailUrl => ContentCardBadgeHelper.GetThumbnailUrl(SearchResult);
+    public string ThumbnailUrl => ContentCardBadgeHelper.OrDefaultImage(ContentCardBadgeHelper.GetThumbnailUrl(SearchResult));
 
     /// <summary>
     /// Gets the publisher-defined accent color hex for this content, if any.
