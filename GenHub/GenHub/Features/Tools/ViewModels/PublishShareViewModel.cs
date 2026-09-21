@@ -1,6 +1,7 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using GenHub.Core.Constants;
+using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Interfaces.Publishers;
@@ -21,11 +22,10 @@ using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
+using System.Net.Http;
 using System.Security.Cryptography;
 using System.Text.Json;
 using System.Threading;
-using System.Net.Http;
-using GenHub.Core.Helpers;
 using System.Threading.Tasks;
 
 namespace GenHub.Features.Tools.ViewModels;
@@ -55,10 +55,6 @@ public partial class PublishShareViewModel(
     IHostingCredentialStore? credentialStore = null,
     Action<string>? browserLauncher = null) : ObservableObject, IDisposable
 {
-    private static readonly HttpClient SharedHttpClient = new()
-    {
-        Timeout = TimeSpan.FromSeconds(30),
-    };
     /// <summary>
     /// Artwork slots that can reference local image files in content metadata.
     /// </summary>
@@ -161,6 +157,11 @@ public partial class PublishShareViewModel(
     /// The remaining band covers the catalog JSON upload.
     /// </summary>
     private const int PendingUploadProgressBand = 80;
+
+    private static readonly HttpClient SharedHttpClient = new()
+    {
+        Timeout = TimeSpan.FromSeconds(30),
+    };
 
     private readonly Dictionary<string, HostingState> _hostingStates = new(StringComparer.OrdinalIgnoreCase);
     private HostingState? _currentHostingState;
@@ -895,6 +896,45 @@ public partial class PublishShareViewModel(
         OnPropertyChanged(nameof(IncompatibleArtifactsWarningMessage));
     }
 
+    /// <summary>
+    /// Filters the hosted assets collection according to the active category filter and search text.
+    /// </summary>
+    public void ApplyHostedAssetFilter()
+    {
+        FilteredHostedAssets.Clear();
+
+        var filter = InventoryCategoryFilter ?? "All";
+        var search = InventorySearchText?.Trim() ?? string.Empty;
+
+        var items = HostedAssets.AsEnumerable();
+
+        if (string.Equals(filter, "Definition", StringComparison.OrdinalIgnoreCase))
+        {
+            items = items.Where(a => a.IsDefinition);
+        }
+        else if (string.Equals(filter, "Catalog", StringComparison.OrdinalIgnoreCase))
+        {
+            items = items.Where(a => a.IsCatalog);
+        }
+        else if (string.Equals(filter, "Artifact", StringComparison.OrdinalIgnoreCase))
+        {
+            items = items.Where(a => a.IsArtifact);
+        }
+
+        if (!string.IsNullOrEmpty(search))
+        {
+            items = items.Where(a =>
+                (!string.IsNullOrEmpty(a.Name) && a.Name.Contains(search, StringComparison.OrdinalIgnoreCase)) ||
+                (!string.IsNullOrEmpty(a.Category) && a.Category.Contains(search, StringComparison.OrdinalIgnoreCase)) ||
+                (!string.IsNullOrEmpty(a.Location) && a.Location.Contains(search, StringComparison.OrdinalIgnoreCase)));
+        }
+
+        foreach (var item in items)
+        {
+            FilteredHostedAssets.Add(item);
+        }
+    }
+
     /// <inheritdoc />
     public void Dispose()
     {
@@ -1030,6 +1070,21 @@ public partial class PublishShareViewModel(
     {
         return release.Artifacts.FirstOrDefault(a =>
             string.Equals(a.Filename, fileName, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static string EnsureDirectDownloadUrl(string url)
+    {
+        if (string.IsNullOrWhiteSpace(url))
+        {
+            return url;
+        }
+
+        if (url.Contains("dropbox.com", StringComparison.OrdinalIgnoreCase) && url.Contains("dl=0", StringComparison.OrdinalIgnoreCase))
+        {
+            return url.Replace("dl=0", "dl=1");
+        }
+
+        return url;
     }
 
     private string GetLocalizedString(string key, string defaultValue) =>
@@ -4816,47 +4871,9 @@ public partial class PublishShareViewModel(
     partial void OnInventorySearchTextChanged(string value) => ApplyHostedAssetFilter();
 
     /// <summary>
-    /// Filters the hosted assets collection according to the active category filter and search text.
-    /// </summary>
-    public void ApplyHostedAssetFilter()
-    {
-        FilteredHostedAssets.Clear();
-
-        var filter = InventoryCategoryFilter ?? "All";
-        var search = InventorySearchText?.Trim() ?? string.Empty;
-
-        var items = HostedAssets.AsEnumerable();
-
-        if (string.Equals(filter, "Definition", StringComparison.OrdinalIgnoreCase))
-        {
-            items = items.Where(a => a.IsDefinition);
-        }
-        else if (string.Equals(filter, "Catalog", StringComparison.OrdinalIgnoreCase))
-        {
-            items = items.Where(a => a.IsCatalog);
-        }
-        else if (string.Equals(filter, "Artifact", StringComparison.OrdinalIgnoreCase))
-        {
-            items = items.Where(a => a.IsArtifact);
-        }
-
-        if (!string.IsNullOrEmpty(search))
-        {
-            items = items.Where(a =>
-                (!string.IsNullOrEmpty(a.Name) && a.Name.Contains(search, StringComparison.OrdinalIgnoreCase)) ||
-                (!string.IsNullOrEmpty(a.Category) && a.Category.Contains(search, StringComparison.OrdinalIgnoreCase)) ||
-                (!string.IsNullOrEmpty(a.Location) && a.Location.Contains(search, StringComparison.OrdinalIgnoreCase)));
-        }
-
-        foreach (var item in items)
-        {
-            FilteredHostedAssets.Add(item);
-        }
-    }
-
-    /// <summary>
     /// Sets the current category filter for the hosted asset inventory.
     /// </summary>
+    /// <param name="filter">The category filter name.</param>
     [RelayCommand]
     private void SetInventoryFilter(string filter)
     {
@@ -4866,8 +4883,10 @@ public partial class PublishShareViewModel(
     /// <summary>
     /// Loads a cloud definition or catalog asset directly into the current project.
     /// </summary>
+    /// <param name="asset">The hosted asset item to load.</param>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     [RelayCommand]
-    public async Task LoadAssetToProjectAsync(HostedAssetItemViewModel? asset)
+    private async Task LoadAssetToProjectAsync(HostedAssetItemViewModel? asset)
     {
         if (asset == null || string.IsNullOrWhiteSpace(asset.Url))
         {
@@ -4932,16 +4951,16 @@ public partial class PublishShareViewModel(
         }
 
         // Apply publisher profile to current project
-        project.Publisher = definition.Publisher;
         if (project.Catalog != null)
         {
             project.Catalog.Publisher = definition.Publisher;
         }
+
         project.ProviderDefinitionFileName = asset.Name;
 
-        if (definition.Referrals != null)
+        if (definition.Referrals != null && project.Catalog != null)
         {
-            project.Referrals = definition.Referrals;
+            project.Catalog.Referrals = definition.Referrals;
         }
 
         if (definition.Tags != null)
@@ -4974,22 +4993,22 @@ public partial class PublishShareViewModel(
                         var catFileName = Path.GetFileName(new Uri(catRef.Url).LocalPath);
                         if (string.IsNullOrEmpty(catFileName) || !catFileName.EndsWith(".json", StringComparison.OrdinalIgnoreCase))
                         {
-                            catFileName = $"catalog-{pubCat.Id}.json";
+                            catFileName = $"catalog-{catRef.Id}.json";
                         }
 
-                        var existingNamedCat = project.Catalogs.FirstOrDefault(c => c.Id == pubCat.Id);
+                        var existingNamedCat = project.Catalogs.FirstOrDefault(c => c.Id == catRef.Id);
                         if (existingNamedCat != null)
                         {
                             existingNamedCat.Catalog = pubCat;
                             existingNamedCat.FileName = catFileName;
-                            existingNamedCat.Name = pubCat.Name ?? pubCat.Id;
+                            existingNamedCat.Name = catRef.Name ?? catRef.Id;
                         }
                         else
                         {
                             project.Catalogs.Add(new NamedCatalog
                             {
-                                Id = pubCat.Id,
-                                Name = pubCat.Name ?? pubCat.Id,
+                                Id = catRef.Id,
+                                Name = catRef.Name ?? catRef.Id,
                                 FileName = catFileName,
                                 Catalog = pubCat,
                             });
@@ -5032,7 +5051,7 @@ public partial class PublishShareViewModel(
 
         notificationService?.ShowSuccess(
             GetLocalizedString("Tools.PublisherStudio.Hosting.LoadedDefinitionSuccessTitle", "Definition Loaded"),
-            FormatLocalizedString("Tools.PublisherStudio.Hosting.LoadedDefinitionSuccessFormat", "Successfully loaded publisher definition \"{0}\" and {1} catalog(s).", definition.Publisher.Name ?? asset.Name, loadedCatalogsCount),
+            FormatLocalizedString("Tools.PublisherStudio.Hosting.LoadedDefinitionSuccessFormat", "Successfully loaded publisher definition '{0}' and {1} catalog(s).", definition.Publisher.Name ?? asset.Name, loadedCatalogsCount),
             autoDismissMs: 4000);
     }
 
@@ -5065,7 +5084,7 @@ public partial class PublishShareViewModel(
             return;
         }
 
-        if (pubCat == null || string.IsNullOrWhiteSpace(pubCat.Id))
+        if (pubCat == null)
         {
             notificationService?.ShowError(
                 GetLocalizedString("Tools.PublisherStudio.Hosting.LoadFailedTitle", "Load Failed"),
@@ -5076,22 +5095,34 @@ public partial class PublishShareViewModel(
         var catFileName = asset.Name;
         if (string.IsNullOrEmpty(catFileName))
         {
-            catFileName = $"catalog-{pubCat.Id}.json";
+            catFileName = HostingConstants.DefaultCatalogFileName;
         }
 
-        var existingNamedCat = project.Catalogs.FirstOrDefault(c => c.Id == pubCat.Id);
+        var catId = "main";
+        if (catFileName.StartsWith("catalog-", StringComparison.OrdinalIgnoreCase) && catFileName.EndsWith(".json", StringComparison.OrdinalIgnoreCase) && catFileName.Length > 13)
+        {
+            catId = catFileName[8..^5];
+        }
+        else if (catFileName.EndsWith(".json", StringComparison.OrdinalIgnoreCase) && !string.Equals(catFileName, "catalog.json", StringComparison.OrdinalIgnoreCase))
+        {
+            catId = Path.GetFileNameWithoutExtension(catFileName);
+        }
+
+        var catName = char.ToUpperInvariant(catId[0]) + catId[1..];
+
+        var existingNamedCat = project.Catalogs.FirstOrDefault(c => string.Equals(c.Id, catId, StringComparison.OrdinalIgnoreCase) || string.Equals(c.FileName, catFileName, StringComparison.OrdinalIgnoreCase));
         if (existingNamedCat != null)
         {
             existingNamedCat.Catalog = pubCat;
             existingNamedCat.FileName = catFileName;
-            existingNamedCat.Name = pubCat.Name ?? pubCat.Id;
+            catName = existingNamedCat.Name;
         }
         else
         {
             project.Catalogs.Add(new NamedCatalog
             {
-                Id = pubCat.Id,
-                Name = pubCat.Name ?? pubCat.Id,
+                Id = catId,
+                Name = catName,
                 FileName = catFileName,
                 Catalog = pubCat,
             });
@@ -5101,9 +5132,9 @@ public partial class PublishShareViewModel(
         _currentHostingState ??= GetOrCreateHostingState(SelectedHostingProvider?.ProviderId ?? HostingConstants.UnknownProviderId);
         MergeCloudCatalog(new CatalogHostingInfo
         {
-            CatalogId = pubCat.Id,
+            CatalogId = catId,
             FileName = catFileName,
-            CatalogName = pubCat.Name ?? pubCat.Id,
+            CatalogName = catName,
             Url = asset.Url,
             FileSize = asset.FileSize,
             LastUpdated = asset.LastUpdated != DateTime.MinValue ? asset.LastUpdated : DateTime.UtcNow,
@@ -5125,15 +5156,17 @@ public partial class PublishShareViewModel(
 
         notificationService?.ShowSuccess(
             GetLocalizedString("Tools.PublisherStudio.Hosting.LoadedCatalogSuccessTitle", "Catalog Loaded"),
-            FormatLocalizedString("Tools.PublisherStudio.Hosting.LoadedCatalogSuccessFormat", "Successfully loaded catalog \"{0}\" into project.", pubCat.Name ?? pubCat.Id),
+            FormatLocalizedString("Tools.PublisherStudio.Hosting.LoadedCatalogSuccessFormat", "Successfully loaded catalog '{0}' into project.", catName),
             autoDismissMs: 4000);
     }
 
     /// <summary>
     /// Adds a discovered cloud artifact binary directly into the active catalog release.
     /// </summary>
+    /// <param name="asset">The hosted asset item to add.</param>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     [RelayCommand]
-    public async Task AddArtifactToActiveCatalogAsync(HostedAssetItemViewModel? asset)
+    private async Task AddArtifactToActiveCatalogAsync(HostedAssetItemViewModel? asset)
     {
         if (asset == null || string.IsNullOrWhiteSpace(asset.Url))
         {
@@ -5164,8 +5197,7 @@ public partial class PublishShareViewModel(
             {
                 Id = stem.ToLowerInvariant().Replace(' ', '-'),
                 Name = stem,
-                Type = ContentType.Game,
-                Category = "General",
+                ContentType = ContentType.Mod,
                 Description = stem,
                 Releases = [],
             };
@@ -5196,6 +5228,7 @@ public partial class PublishShareViewModel(
             {
                 existingArt.Sha256 = asset.Sha256;
             }
+
             if (asset.FileSize > 0)
             {
                 existingArt.Size = asset.FileSize;
@@ -5232,23 +5265,8 @@ public partial class PublishShareViewModel(
 
         notificationService?.ShowSuccess(
             GetLocalizedString("Tools.PublisherStudio.Hosting.ArtifactAddedTitle", "Artifact Added"),
-            FormatLocalizedString("Tools.PublisherStudio.Hosting.ArtifactAddedToCatalogFormat", "Added \"{0}\" to catalog \"{1}\".", fileName, ActiveCatalog.Name),
+            FormatLocalizedString("Tools.PublisherStudio.Hosting.ArtifactAddedToCatalogFormat", "Added '{0}' to catalog '{1}'.", fileName, ActiveCatalog.Name),
             autoDismissMs: 4000);
-    }
-
-    private static string EnsureDirectDownloadUrl(string url)
-    {
-        if (string.IsNullOrWhiteSpace(url))
-        {
-            return url;
-        }
-
-        if (url.Contains("dropbox.com", StringComparison.OrdinalIgnoreCase) && url.Contains("dl=0", StringComparison.OrdinalIgnoreCase))
-        {
-            return url.Replace("dl=0", "dl=1");
-        }
-
-        return url;
     }
 
     private async Task<string?> DownloadStringFromUrlAsync(string url)

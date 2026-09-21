@@ -1,8 +1,8 @@
-using System.Collections.ObjectModel;
 using GenHub.Core.Constants;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Publishers;
 using GenHub.Features.Tools.ViewModels;
+using System.Collections.ObjectModel;
 using Xunit;
 
 namespace GenHub.Tests.Core.Features.Tools.ViewModels;
@@ -12,6 +12,11 @@ namespace GenHub.Tests.Core.Features.Tools.ViewModels;
 /// </summary>
 public class PublisherStudioHostingDiscoveryAndLoadTests
 {
+    /// <summary>
+    /// Tests that <see cref="HostingConstants.IsPublisherDefinitionFileName"/> properly identifies publisher definition files.
+    /// </summary>
+    /// <param name="fileName">The file name to test.</param>
+    /// <param name="expected">The expected classification result.</param>
     [Theory]
     [InlineData("publisher.json", true)]
     [InlineData("publisher-prod.json", true)]
@@ -28,6 +33,11 @@ public class PublisherStudioHostingDiscoveryAndLoadTests
         Assert.Equal(expected, result);
     }
 
+    /// <summary>
+    /// Tests that <see cref="HostingConstants.IsCatalogFileName"/> properly identifies catalog manifest files.
+    /// </summary>
+    /// <param name="fileName">The file name to test.</param>
+    /// <param name="expected">The expected classification result.</param>
     [Theory]
     [InlineData("catalog.json", true)]
     [InlineData("catalog-main.json", true)]
@@ -42,6 +52,9 @@ public class PublisherStudioHostingDiscoveryAndLoadTests
         Assert.Equal(expected, result);
     }
 
+    /// <summary>
+    /// Tests that <see cref="HostedAssetItemViewModel"/> configured as a Definition sets expected UI flags.
+    /// </summary>
     [Fact]
     public void HostedAssetItemViewModel_DefinitionKind_SetsCorrectProperties()
     {
@@ -60,6 +73,9 @@ public class PublisherStudioHostingDiscoveryAndLoadTests
         Assert.False(vm.CanAddToCatalog);
     }
 
+    /// <summary>
+    /// Tests that <see cref="HostedAssetItemViewModel"/> configured as a Catalog sets expected UI flags.
+    /// </summary>
     [Fact]
     public void HostedAssetItemViewModel_CatalogKind_SetsCorrectProperties()
     {
@@ -78,6 +94,9 @@ public class PublisherStudioHostingDiscoveryAndLoadTests
         Assert.False(vm.CanAddToCatalog);
     }
 
+    /// <summary>
+    /// Tests that <see cref="HostedAssetItemViewModel"/> configured as an Artifact sets expected UI flags.
+    /// </summary>
     [Fact]
     public void HostedAssetItemViewModel_ArtifactKind_SetsCorrectProperties()
     {
@@ -96,6 +115,9 @@ public class PublisherStudioHostingDiscoveryAndLoadTests
         Assert.True(vm.CanAddToCatalog);
     }
 
+    /// <summary>
+    /// Tests that <see cref="HostingState"/> preserves and exposes multiple discovered definition files.
+    /// </summary>
     [Fact]
     public void HostingState_DefinitionsList_TracksMultipleDefinitions()
     {

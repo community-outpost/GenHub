@@ -47,6 +47,24 @@ public partial class ReferralsViewModel(
     [ObservableProperty]
     private bool _isEditing;
 
+    /// <summary>
+    /// Reloads the referrals list from the current project.
+    /// </summary>
+    public void LoadFromProject()
+    {
+        Referrals.Clear();
+        var refs = project?.Catalog?.Referrals;
+        if (refs != null)
+        {
+            foreach (var r in refs)
+            {
+                Referrals.Add(r);
+            }
+        }
+
+        SelectedReferral = Referrals.FirstOrDefault();
+    }
+
     partial void OnSelectedReferralChanged(PublisherReferral? value)
     {
         if (value != null)
@@ -164,23 +182,6 @@ public partial class ReferralsViewModel(
 
         logger.LogInformation("Deleted referral: {PublisherId}", publisherId);
 
-        SelectedReferral = Referrals.FirstOrDefault();
-    }
-
-    /// <summary>
-    /// Reloads the referrals list from the current project.
-    /// </summary>
-    public void LoadFromProject()
-    {
-        Referrals.Clear();
-        var refs = project?.Referrals ?? project?.Catalog?.Referrals;
-        if (refs != null)
-        {
-            foreach (var r in refs)
-            {
-                Referrals.Add(r);
-            }
-        }
         SelectedReferral = Referrals.FirstOrDefault();
     }
 }

@@ -105,17 +105,17 @@ public partial class HostedAssetItemViewModel : ObservableObject
     private string? _sha256;
 
     /// <summary>
-    /// Gets whether this asset is a publisher definition.
+    /// Gets a value indicating whether this asset is a publisher definition.
     /// </summary>
     public bool IsDefinition => AssetKind == HostedAssetKind.Definition;
 
     /// <summary>
-    /// Gets whether this asset is a catalog manifest.
+    /// Gets a value indicating whether this asset is a catalog manifest.
     /// </summary>
     public bool IsCatalog => AssetKind == HostedAssetKind.Catalog || (AssetKind == HostedAssetKind.CloudFile && Name.Contains("catalog", StringComparison.OrdinalIgnoreCase));
 
     /// <summary>
-    /// Gets whether this asset is an artifact or binary release file.
+    /// Gets a value indicating whether this asset is an artifact or binary release file.
     /// </summary>
     public bool IsArtifact => AssetKind == HostedAssetKind.Artifact || (AssetKind == HostedAssetKind.CloudFile && !Name.Contains("catalog", StringComparison.OrdinalIgnoreCase));
 

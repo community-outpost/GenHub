@@ -105,6 +105,23 @@ public partial class PublisherProfileViewModel(
         return new ValidationResult(ValidationResourceResolver.FormatMessage("Tools.PublisherStudio.Validation.ValidContactEmail", "Contact email must be a valid email address."));
     }
 
+    /// <summary>
+    /// Reloads the view model fields from the current project.
+    /// </summary>
+    public void LoadFromProject()
+    {
+        var pub = project?.Catalog?.Publisher;
+        PublisherId = pub?.Id ?? string.Empty;
+        PublisherName = pub?.Name ?? string.Empty;
+        AvatarUrl = pub?.AvatarUrl ?? string.Empty;
+        WebsiteUrl = pub?.WebsiteUrl ?? string.Empty;
+        SupportUrl = pub?.SupportUrl ?? string.Empty;
+        ContactEmail = pub?.ContactEmail ?? string.Empty;
+        Description = pub?.Description ?? string.Empty;
+        TagsString = project?.Tags != null ? string.Join(", ", project.Tags) : string.Empty;
+        ClearErrors();
+    }
+
     partial void OnPublisherIdChanged(string value) => MarkDirty();
 
     partial void OnPublisherNameChanged(string value) => MarkDirty();
@@ -188,22 +205,5 @@ public partial class PublisherProfileViewModel(
                 $"Failed to save: {ex.Message}",
                 NotificationDurations.Long);
         }
-    }
-
-    /// <summary>
-    /// Reloads the view model fields from the current project.
-    /// </summary>
-    public void LoadFromProject()
-    {
-        var pub = project?.Publisher ?? project?.Catalog?.Publisher;
-        PublisherId = pub?.Id ?? string.Empty;
-        PublisherName = pub?.Name ?? string.Empty;
-        AvatarUrl = pub?.AvatarUrl ?? string.Empty;
-        WebsiteUrl = pub?.WebsiteUrl ?? string.Empty;
-        SupportUrl = pub?.SupportUrl ?? string.Empty;
-        ContactEmail = pub?.ContactEmail ?? string.Empty;
-        Description = pub?.Description ?? string.Empty;
-        TagsString = project?.Tags != null ? string.Join(", ", project.Tags) : string.Empty;
-        ClearErrors();
     }
 }
