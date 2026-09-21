@@ -2,9 +2,17 @@
              xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:localization="clr-namespace:GenHub.Common.Markup"
+             xmlns:material="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
              xmlns:views="clr-namespace:GenHub.Features.Tools.WndEditor.Views"
              xmlns:vm="clr-namespace:GenHub.Features.Tools.WndEditor.ViewModels"
              x:Class="GenHub.Features.Tools.WndEditor.Views.WndEditorView">
+  <UserControl.KeyBindings>
+    <KeyBinding Gesture="Ctrl+Add" Command="{Binding ZoomInCommand}"/>
+    <KeyBinding Gesture="Ctrl+OemPlus" Command="{Binding ZoomInCommand}"/>
+    <KeyBinding Gesture="Ctrl+Subtract" Command="{Binding ZoomOutCommand}"/>
+    <KeyBinding Gesture="Ctrl+OemMinus" Command="{Binding ZoomOutCommand}"/>
+    <KeyBinding Gesture="Ctrl+D0" Command="{Binding ResetZoomCommand}"/>
+  </UserControl.KeyBindings>
   <Grid RowDefinitions="Auto,*">
     <Border Grid.Row="0"
             Background="{DynamicResource CardBackground}"
@@ -74,18 +82,44 @@
                    VerticalAlignment="Center" HorizontalAlignment="Center"
                    TextTrimming="CharacterEllipsis" Margin="12,0"/>
         <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
-          <TextBlock Text="{localization:Localize Tools.WndEditor.Canvas.Zoom}"
-                     FontSize="11" Foreground="{DynamicResource TextSecondary}"
-                     VerticalAlignment="Center"/>
-          <Slider Minimum="0.25" Maximum="2" Value="{Binding Zoom, Mode=TwoWay}"
-                  Width="120" VerticalAlignment="Center"
-                  ToolTip.Tip="{localization:Localize Tools.WndEditor.Canvas.ZoomTooltip}"/>
+          <ToggleButton IsChecked="{Binding IsPanMode, Mode=TwoWay}"
+                        Padding="8,4"
+                        Background="{DynamicResource SurfaceElevatedBrush}"
+                        BorderBrush="{DynamicResource BorderBrush}"
+                        BorderThickness="1" CornerRadius="6"
+                        ToolTip.Tip="{localization:Localize Tools.WndEditor.Canvas.PanTooltip}">
+            <material:MaterialIcon Kind="HandBackLeft" Width="14" Height="14"/>
+          </ToggleButton>
+          <Button Command="{Binding ZoomOutCommand}"
+                  Padding="8,4"
+                  Background="{DynamicResource SurfaceElevatedBrush}"
+                  BorderBrush="{DynamicResource BorderBrush}"
+                  BorderThickness="1" CornerRadius="6"
+                  ToolTip.Tip="{localization:Localize Tools.WndEditor.Canvas.ZoomOutTooltip}">
+            <material:MaterialIcon Kind="MagnifyMinus" Width="14" Height="14"/>
+          </Button>
+          <Button Command="{Binding ResetZoomCommand}"
+                  Padding="8,4" MinWidth="52"
+                  Background="Transparent"
+                  BorderBrush="{DynamicResource BorderBrush}"
+                  BorderThickness="1" CornerRadius="6"
+                  Content="{Binding ZoomDisplayText}"
+                  FontSize="11"
+                  ToolTip.Tip="{localization:Localize Tools.WndEditor.Canvas.ZoomResetTooltip}"/>
+          <Button Command="{Binding ZoomInCommand}"
+                  Padding="8,4"
+                  Background="{DynamicResource SurfaceElevatedBrush}"
+                  BorderBrush="{DynamicResource BorderBrush}"
+                  BorderThickness="1" CornerRadius="6"
+                  ToolTip.Tip="{localization:Localize Tools.WndEditor.Canvas.ZoomInTooltip}">
+            <material:MaterialIcon Kind="MagnifyPlus" Width="14" Height="14"/>
+          </Button>
         </StackPanel>
       </Grid>
     </Border>
 
     <Grid Grid.Row="1">
-      <Grid ColumnDefinitions="300,4,*,4,380" IsVisible="{Binding HasDocument}">
+      <Grid ColumnDefinitions="320,4,*,4,380" IsVisible="{Binding HasDocument}">
         <Border Grid.Column="0"
                 Background="{DynamicResource CardBackground}"
                 BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
@@ -119,10 +153,12 @@
                         Background="{DynamicResource SurfaceElevatedBrush}">
                   <TreeView ItemsSource="{Binding RootNodes}"
                             SelectedItem="{Binding SelectedNode, Mode=TwoWay}"
-                            BorderThickness="0" Background="Transparent">
+                            BorderThickness="0" Background="Transparent"
+                            ScrollViewer.HorizontalScrollBarVisibility="Auto">
                     <TreeView.Styles>
                       <Style Selector="TreeViewItem">
                         <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}"/>
+                        <Setter Property="HorizontalAlignment" Value="Left"/>
                       </Style>
                     </TreeView.Styles>
                     <TreeView.ItemTemplate>
@@ -252,22 +288,38 @@
                 BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
                 CornerRadius="10" Padding="14" ClipToBounds="True">
           <Grid RowDefinitions="Auto,*">
-            <TextBlock Grid.Row="0"
-                       Text="{localization:Localize Tools.WndEditor.Pane.Preview}"
-                       FontWeight="Bold" FontSize="14"
-                       Foreground="{DynamicResource TextPrimary}"
-                       Margin="0,0,0,10"/>
+            <Grid Grid.Row="0" ColumnDefinitions="Auto,*" Margin="0,0,0,10">
+              <TextBlock Grid.Column="0"
+                         Text="{localization:Localize Tools.WndEditor.Pane.Preview}"
+                         FontWeight="Bold" FontSize="14"
+                         Foreground="{DynamicResource TextPrimary}"
+                         VerticalAlignment="Center"/>
+              <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6"
+                          HorizontalAlignment="Right" VerticalAlignment="Center">
+                <TextBlock Text="{localization:Localize Tools.WndEditor.Assets.Label}"
+                           FontSize="11" Foreground="{DynamicResource TextSecondary}"
+                           VerticalAlignment="Center"/>
+                <ComboBox ItemsSource="{Binding AvailableInstallations}"
+                          SelectedItem="{Binding SelectedAssetInstallation, Mode=TwoWay}"
+                          DisplayMemberBinding="{Binding DisplayName}"
+                          MinWidth="200" FontSize="11"
+                          PlaceholderText="{localization:Localize Tools.WndEditor.Assets.SelectorWatermark}"
+                          ToolTip.Tip="{localization:Localize Tools.WndEditor.Assets.SelectorTooltip}"/>
+              </StackPanel>
+            </Grid>
             <Border Grid.Row="1"
                     BorderBrush="{DynamicResource BorderBrush}"
                     BorderThickness="1" CornerRadius="8"
                     Background="{DynamicResource SurfaceElevatedBrush}"
                     ClipToBounds="True">
-              <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+              <ScrollViewer x:Name="CanvasScrollViewer" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
                 <Panel x:Name="CanvasHost"
                        Background="Transparent"
+                       Cursor="{Binding CanvasCursor}"
                        PointerPressed="OnCanvasHostPointerPressed"
                        PointerMoved="OnCanvasPointerMoved"
-                       PointerReleased="OnCanvasPointerReleased">
+                       PointerReleased="OnCanvasPointerReleased"
+                       PointerWheelChanged="OnCanvasWheelChanged">
                   <ItemsControl ItemsSource="{Binding CanvasItems}">
                     <ItemsControl.ItemsPanel>
                       <ItemsPanelTemplate>
@@ -287,6 +339,11 @@
                                   Background="{DynamicResource SurfaceHoverBrush}"
                                   BorderBrush="{DynamicResource BorderBrush}"
                                   BorderThickness="1" CornerRadius="2"/>
+                          <Image Width="{Binding Width}" Height="{Binding Height}"
+                                 Source="{Binding Image}"
+                                 Stretch="Fill"
+                                 IsVisible="{Binding HasImage}"
+                                 IsHitTestVisible="False"/>
                           <Border Width="{Binding Width}" Height="{Binding Height}"
                                   IsVisible="{Binding IsSelected}"
                                   BorderBrush="{DynamicResource AccentBrush}"

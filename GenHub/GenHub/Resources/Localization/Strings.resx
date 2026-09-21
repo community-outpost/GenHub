@@ -7287,11 +7287,29 @@ GenHub supports four file linking strategies under **Settings -&gt; Game Configu
   <data name="Tools.WndEditor.Tree.Delete" xml:space="preserve">
     <value>Delete</value>
   </data>
-  <data name="Tools.WndEditor.Canvas.Zoom" xml:space="preserve">
-    <value>Zoom</value>
+  <data name="Tools.WndEditor.Color.PickTooltip" xml:space="preserve">
+    <value>Pick a color</value>
   </data>
-  <data name="Tools.WndEditor.Canvas.ZoomTooltip" xml:space="preserve">
-    <value>Zoom the preview canvas</value>
+  <data name="Tools.WndEditor.Canvas.PanTooltip" xml:space="preserve">
+    <value>Pan the canvas</value>
+  </data>
+  <data name="Tools.WndEditor.Canvas.ZoomInTooltip" xml:space="preserve">
+    <value>Zoom in (Ctrl + +)</value>
+  </data>
+  <data name="Tools.WndEditor.Canvas.ZoomOutTooltip" xml:space="preserve">
+    <value>Zoom out (Ctrl + -)</value>
+  </data>
+  <data name="Tools.WndEditor.Canvas.ZoomResetTooltip" xml:space="preserve">
+    <value>Reset zoom to 100% (Ctrl + 0)</value>
+  </data>
+  <data name="Tools.WndEditor.Assets.Label" xml:space="preserve">
+    <value>Game assets</value>
+  </data>
+  <data name="Tools.WndEditor.Assets.SelectorWatermark" xml:space="preserve">
+    <value>Select a game installation</value>
+  </data>
+  <data name="Tools.WndEditor.Assets.SelectorTooltip" xml:space="preserve">
+    <value>Game installation used for canvas image previews</value>
   </data>
   <data name="Tools.WndEditor.Properties.Delete" xml:space="preserve">
     <value>Delete</value>

@@ -548,6 +548,77 @@ public static class WndConstants
     }
 
     /// <summary>
+    /// Mapped image lookup constants mirroring the engine asset chain:
+    /// DrawData IMAGE names resolve through Data\INI\MappedImages definitions
+    /// to texture pages under Art\Textures.
+    /// </summary>
+    public static class MappedImages
+    {
+        /// <summary>Mapped image definition block tag.</summary>
+        public const string BlockTag = "MappedImage";
+
+        /// <summary>Block terminator tag.</summary>
+        public const string EndTag = "End";
+
+        /// <summary>Texture file field.</summary>
+        public const string TextureField = "Texture";
+
+        /// <summary>Source rectangle field.</summary>
+        public const string CoordsField = "Coords";
+
+        /// <summary>Status flags field.</summary>
+        public const string StatusField = "Status";
+
+        /// <summary>Status flag marking 90 degree clockwise packed content.</summary>
+        public const string RotatedStatus = "ROTATED_90_CLOCKWISE";
+
+        /// <summary>Left coordinate attribute.</summary>
+        public const string LeftAttribute = "Left";
+
+        /// <summary>Top coordinate attribute.</summary>
+        public const string TopAttribute = "Top";
+
+        /// <summary>Right coordinate attribute.</summary>
+        public const string RightAttribute = "Right";
+
+        /// <summary>Bottom coordinate attribute.</summary>
+        public const string BottomAttribute = "Bottom";
+
+        /// <summary>INI comment prefix.</summary>
+        public const char CommentPrefix = ';';
+
+        /// <summary>Key/value separator.</summary>
+        public const char KeySeparator = '=';
+
+        /// <summary>Coordinate attribute separator.</summary>
+        public const char AttributeSeparator = ':';
+
+        /// <summary>Virtual directory holding mapped image definitions.</summary>
+        public const string DefinitionsDirectory = "Data\\INI\\MappedImages";
+
+        /// <summary>Texture detail folder name prefix.</summary>
+        public const string TextureSizePrefix = "TextureSize_";
+
+        /// <summary>Virtual directory holding GUI texture pages.</summary>
+        public const string TexturesDirectory = "Art\\Textures";
+
+        /// <summary>Default language folder for localized texture lookup.</summary>
+        public const string DefaultLanguage = "english";
+
+        /// <summary>DirectDraw Surface texture extension.</summary>
+        public const string TextureExtensionDds = ".dds";
+
+        /// <summary>Truevision TGA texture extension.</summary>
+        public const string TextureExtensionTga = ".tga";
+
+        /// <summary>JPEG texture extension.</summary>
+        public const string TextureExtensionJpg = ".jpg";
+
+        /// <summary>Texture page extensions probed in order.</summary>
+        public static readonly string[] TextureExtensions = [TextureExtensionDds, TextureExtensionTga, TextureExtensionJpg];
+    }
+
+    /// <summary>
     /// Text color component labels.
     /// </summary>
     public static class TextColorKeys
@@ -692,6 +763,9 @@ public static class WndConstants
 
         /// <summary>Default canvas zoom factor.</summary>
         public const double DefaultZoom = 1.0;
+
+        /// <summary>Multiplicative zoom step for wheel, button, and keyboard zoom.</summary>
+        public const double ZoomStepFactor = 1.2;
 
         /// <summary>Minimum canvas width in game units.</summary>
         public const double MinCanvasWidth = 800.0;

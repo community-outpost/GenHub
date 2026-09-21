@@ -1,15 +1,20 @@
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
+using Avalonia.Input;
+using Avalonia.Media.Imaging;
 using Avalonia.Platform.Storage;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
+using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Interfaces.Tools.WndEditor;
+using GenHub.Core.Models.GameInstallations;
 using GenHub.Core.Models.Tools.WndEditor;
+using GenHub.Features.Tools.ModBuilder.Models;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
@@ -29,8 +34,12 @@ public sealed partial class WndEditorViewModel(
     INotificationService notificationService,
     ILocalizationService localizationService,
     IDialogService dialogService,
+    IGameInstallationService gameInstallationService,
+    IWndImageAssetService imageAssetService,
     ILogger<WndEditorViewModel> logger) : ObservableObject
 {
+    private sealed record AssetRoots(string BaseRoot, string? OverrideRoot);
+
     private readonly Stack<WndEditAction> _undoStack = new();
     private readonly Stack<WndEditAction> _redoStack = new();
     private WndDocument? _document;
@@ -39,6 +48,11 @@ public sealed partial class WndEditorViewModel(
     private WndCanvasItemViewModel? _dragItem;
     private Point _dragStart;
     private WndScreenRect? _dragOriginal;
+    private IReadOnlyList<GameInstallation> _installations = [];
+    private Dictionary<string, Bitmap> _previewBitmaps = new(StringComparer.OrdinalIgnoreCase);
+    private CancellationTokenSource? _previewCts;
+    private int _previewGeneration;
+    private bool _installationsLoaded;
 
     /// <summary>
     /// Gets the root tree nodes of the edited document.
@@ -54,6 +68,11 @@ public sealed partial class WndEditorViewModel(
     /// Gets the canvas items rendered from window geometry.
     /// </summary>
     public ObservableCollection<WndCanvasItemViewModel> CanvasItems { get; } = [];
+
+    /// <summary>
+    /// Gets the game installations available as asset sources.
+    /// </summary>
+    public ObservableCollection<GameInstallationOption> AvailableInstallations { get; } = [];
 
     /// <summary>
     /// Gets the document title with a modification marker.
@@ -78,6 +97,16 @@ public sealed partial class WndEditorViewModel(
     /// Gets the canvas height in device-independent pixels.
     /// </summary>
     public double CanvasHeight => _canvasBaseHeight * Zoom;
+
+    /// <summary>
+    /// Gets the zoom factor as a display percentage.
+    /// </summary>
+    public string ZoomDisplayText => $"{Zoom:P0}";
+
+    /// <summary>
+    /// Gets the canvas cursor, showing a hand while the pan tool is active.
+    /// </summary>
+    public Cursor? CanvasCursor => IsPanMode ? new Cursor(StandardCursorType.Hand) : null;
 
     /// <summary>
     /// Gets or sets whether the document has unsaved changes.
@@ -106,7 +135,21 @@ public sealed partial class WndEditorViewModel(
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(CanvasWidth))]
     [NotifyPropertyChangedFor(nameof(CanvasHeight))]
+    [NotifyPropertyChangedFor(nameof(ZoomDisplayText))]
     private double _zoom = WndConstants.Editor.DefaultZoom;
+
+    /// <summary>
+    /// Gets or sets whether the pan tool is active instead of window selection.
+    /// </summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanvasCursor))]
+    private bool _isPanMode;
+
+    /// <summary>
+    /// Gets or sets the installation used as the canvas asset source.
+    /// </summary>
+    [ObservableProperty]
+    private GameInstallationOption? _selectedAssetInstallation;
 
     /// <summary>
     /// Gets or sets the typed editors for the selected window.
@@ -166,6 +209,8 @@ public sealed partial class WndEditorViewModel(
         }
 
         await InvokeOnUIThreadAsync(() => AdoptDocument(result.Data, filePath)).ConfigureAwait(false);
+        await EnsureInstallationsLoadedAsync(cancellationToken).ConfigureAwait(false);
+        RefreshAssetPreviews();
         logger.LogInformation("Opened window definition file {Path}", filePath);
         return true;
     }
@@ -177,7 +222,7 @@ public sealed partial class WndEditorViewModel(
     /// <param name="filePath">The optional source path recorded on the document.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>True when the content parsed successfully.</returns>
-    public Task<bool> LoadFromTextAsync(string content, string? filePath, CancellationToken cancellationToken = default)
+    public async Task<bool> LoadFromTextAsync(string content, string? filePath, CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
         var result = wndDocumentService.ParseText(content, filePath);
@@ -187,11 +232,13 @@ public sealed partial class WndEditorViewModel(
                 localizationService.GetString("Tools.WndEditor.Open.FailureTitle"),
                 localizationService.GetString("Tools.WndEditor.Open.FailureMessage", result.FirstError ?? string.Empty),
                 NotificationDurations.Long);
-            return Task.FromResult(false);
+            return false;
         }
 
-        AdoptDocument(result.Data, filePath);
-        return Task.FromResult(true);
+        await InvokeOnUIThreadAsync(() => AdoptDocument(result.Data, filePath)).ConfigureAwait(false);
+        await EnsureInstallationsLoadedAsync(cancellationToken).ConfigureAwait(false);
+        RefreshAssetPreviews();
+        return true;
     }
 
     /// <summary>
@@ -395,6 +442,40 @@ public sealed partial class WndEditorViewModel(
         return MatchesWindowsFilter(window, filter) || window.Children.Any(child => SubtreeMatchesFilter(child, filter));
     }
 
+    private static IReadOnlyCollection<string> CollectPreviewImageNames(WndDocument document)
+    {
+        var names = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var window in EnumerateWindows(document.Windows))
+        {
+            var name = PreviewImageName(window);
+            if (name != null)
+            {
+                names.Add(name);
+            }
+        }
+
+        return names;
+    }
+
+    private static string? PreviewImageName(WndWindow window)
+    {
+        var raw = window.GetProperty(WndConstants.PropertyKeys.EnabledDrawData);
+        if (!WndDrawDataSet.TryParse(raw, out var set) || set == null)
+        {
+            return null;
+        }
+
+        foreach (var entry in set.Entries)
+        {
+            if (!entry.IsEmpty && !string.IsNullOrWhiteSpace(entry.Image))
+            {
+                return entry.Image.Trim();
+            }
+        }
+
+        return null;
+    }
+
     private static void ApplyProperties(WndWindow window, IReadOnlyList<WndProperty> properties)
     {
         window.Properties.Clear();
@@ -429,6 +510,8 @@ public sealed partial class WndEditorViewModel(
             AdoptDocument(document, null);
             IsModified = true;
         }).ConfigureAwait(false);
+        await EnsureInstallationsLoadedAsync(cancellationToken).ConfigureAwait(false);
+        RefreshAssetPreviews();
         logger.LogInformation("Created new window definition document");
     }
 
@@ -588,6 +671,33 @@ public sealed partial class WndEditorViewModel(
         _undoStack.Push(action);
         IsModified = true;
         RefreshUndoCommands();
+    }
+
+    /// <summary>
+    /// Zooms the canvas in one step.
+    /// </summary>
+    [RelayCommand]
+    private void ZoomIn()
+    {
+        Zoom = Math.Min(Zoom * WndConstants.Editor.ZoomStepFactor, WndConstants.Editor.MaxZoom);
+    }
+
+    /// <summary>
+    /// Zooms the canvas out one step.
+    /// </summary>
+    [RelayCommand]
+    private void ZoomOut()
+    {
+        Zoom = Math.Max(Zoom / WndConstants.Editor.ZoomStepFactor, WndConstants.Editor.MinZoom);
+    }
+
+    /// <summary>
+    /// Resets the canvas zoom to the default factor.
+    /// </summary>
+    [RelayCommand]
+    private void ResetZoom()
+    {
+        Zoom = WndConstants.Editor.DefaultZoom;
     }
 
     /// <summary>
@@ -787,6 +897,12 @@ public sealed partial class WndEditorViewModel(
         RebuildCanvas();
     }
 
+    partial void OnSelectedAssetInstallationChanged(GameInstallationOption? value)
+    {
+        _ = value;
+        RefreshAssetPreviews();
+    }
+
     private async Task<bool> ConfirmDiscardUnsavedAsync(CancellationToken cancellationToken)
     {
         if (!IsModified || !HasDocument)
@@ -959,6 +1075,7 @@ public sealed partial class WndEditorViewModel(
                 Y = rect.UpperLeftY * Zoom,
                 Width = rect.Width * Zoom,
                 Height = rect.Height * Zoom,
+                Image = FindPreviewBitmap(window),
             };
             CanvasItems.Add(item);
             maxWidth = Math.Max(maxWidth, rect.BottomRightX);
@@ -1094,6 +1211,10 @@ public sealed partial class WndEditorViewModel(
         }
 
         RebuildCanvas();
+        if (PreviewImageName(window) is string imageName && !_previewBitmaps.ContainsKey(imageName))
+        {
+            RefreshAssetPreviews();
+        }
     }
 
     private void SyncCanvasSelection()
@@ -1128,5 +1249,166 @@ public sealed partial class WndEditorViewModel(
         }
 
         return null;
+    }
+
+    private async Task EnsureInstallationsLoadedAsync(CancellationToken cancellationToken)
+    {
+        if (_installationsLoaded)
+        {
+            return;
+        }
+
+        try
+        {
+            var result = await gameInstallationService.GetAllInstallationsAsync(cancellationToken).ConfigureAwait(false);
+            if (!result.Success || result.Data == null)
+            {
+                logger.LogDebug("Game installation lookup failed: {Error}", result.FirstError);
+                return;
+            }
+
+            _installations = result.Data;
+            await InvokeOnUIThreadAsync(() => PopulateAssetInstallations(result.Data)).ConfigureAwait(false);
+            _installationsLoaded = true;
+        }
+        catch (OperationCanceledException ex)
+        {
+            logger.LogDebug(ex, "Game installation lookup was canceled");
+        }
+    }
+
+    private void PopulateAssetInstallations(IReadOnlyList<GameInstallation> installations)
+    {
+        AvailableInstallations.Clear();
+        foreach (var installation in installations)
+        {
+            if (installation.HasGenerals && !string.IsNullOrEmpty(installation.GeneralsPath))
+            {
+                AvailableInstallations.Add(new GameInstallationOption
+                {
+                    DisplayName = $"Generals ({installation.InstallationType})",
+                    Path = installation.GeneralsPath,
+                });
+            }
+
+            if (installation.HasZeroHour && !string.IsNullOrEmpty(installation.ZeroHourPath))
+            {
+                AvailableInstallations.Add(new GameInstallationOption
+                {
+                    DisplayName = $"Zero Hour ({installation.InstallationType})",
+                    Path = installation.ZeroHourPath,
+                });
+            }
+        }
+
+        SelectedAssetInstallation = AvailableInstallations.FirstOrDefault(IsZeroHourPath) ?? AvailableInstallations.FirstOrDefault();
+    }
+
+    private bool IsZeroHourPath(GameInstallationOption option)
+    {
+        return _installations.Any(installation =>
+            string.Equals(option.Path, installation.ZeroHourPath, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private AssetRoots ResolveAssetRoots(GameInstallationOption selection)
+    {
+        foreach (var installation in _installations)
+        {
+            if (!string.IsNullOrEmpty(installation.ZeroHourPath)
+                && string.Equals(selection.Path, installation.ZeroHourPath, StringComparison.OrdinalIgnoreCase))
+            {
+                return !string.IsNullOrEmpty(installation.GeneralsPath) && installation.HasGenerals
+                    ? new AssetRoots(installation.GeneralsPath, installation.ZeroHourPath)
+                    : new AssetRoots(installation.ZeroHourPath, null);
+            }
+
+            if (!string.IsNullOrEmpty(installation.GeneralsPath)
+                && string.Equals(selection.Path, installation.GeneralsPath, StringComparison.OrdinalIgnoreCase))
+            {
+                return new AssetRoots(installation.GeneralsPath, null);
+            }
+        }
+
+        return new AssetRoots(selection.Path, null);
+    }
+
+    private Bitmap? FindPreviewBitmap(WndWindow window)
+    {
+        var name = PreviewImageName(window);
+        return name != null && _previewBitmaps.TryGetValue(name, out var bitmap) ? bitmap : null;
+    }
+
+    private void RefreshAssetPreviews()
+    {
+        _previewCts?.Cancel();
+        _previewCts?.Dispose();
+        _previewCts = null;
+        if (_document == null || SelectedAssetInstallation == null)
+        {
+            return;
+        }
+
+        var cts = new CancellationTokenSource();
+        _previewCts = cts;
+        _ = LoadAssetPreviewsAsync(cts.Token, ++_previewGeneration);
+    }
+
+    private async Task LoadAssetPreviewsAsync(CancellationToken cancellationToken, int generation)
+    {
+        try
+        {
+            var document = _document;
+            var selection = SelectedAssetInstallation;
+            if (document == null || selection == null)
+            {
+                return;
+            }
+
+            var roots = ResolveAssetRoots(selection);
+            var projectDirectory = string.IsNullOrEmpty(FilePath) ? null : Path.GetDirectoryName(FilePath);
+            var names = CollectPreviewImageNames(document);
+            var result = await imageAssetService.GetImagesAsync(names, roots.BaseRoot, roots.OverrideRoot, projectDirectory, cancellationToken).ConfigureAwait(false);
+            if (!result.Success || result.Data == null || generation != _previewGeneration)
+            {
+                return;
+            }
+
+            await InvokeOnUIThreadAsync(() => ApplyPreviewBitmaps(result.Data, generation)).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException ex)
+        {
+            logger.LogDebug(ex, "Asset preview load was superseded or canceled");
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Asset preview load failed");
+        }
+    }
+
+    private void ApplyPreviewBitmaps(IReadOnlyDictionary<string, byte[]> images, int generation)
+    {
+        if (generation != _previewGeneration)
+        {
+            return;
+        }
+
+        var previous = _previewBitmaps;
+        var bitmaps = new Dictionary<string, Bitmap>(StringComparer.OrdinalIgnoreCase);
+        foreach (var (name, png) in images)
+        {
+            using var stream = new MemoryStream(png);
+            bitmaps[name] = new Bitmap(stream);
+        }
+
+        _previewBitmaps = bitmaps;
+        foreach (var item in CanvasItems)
+        {
+            item.Image = FindPreviewBitmap(item.Window);
+        }
+
+        foreach (var old in previous.Values)
+        {
+            old.Dispose();
+        }
     }
 }

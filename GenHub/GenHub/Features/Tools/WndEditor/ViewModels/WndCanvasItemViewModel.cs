@@ -1,3 +1,4 @@
+using Avalonia.Media.Imaging;
 using CommunityToolkit.Mvvm.ComponentModel;
 using GenHub.Core.Constants;
 using GenHub.Core.Models.Tools.WndEditor;
@@ -60,4 +61,16 @@ public sealed partial class WndCanvasItemViewModel : ObservableObject
     /// </summary>
     [ObservableProperty]
     private bool _isSelected;
+
+    /// <summary>
+    /// Gets or sets the game asset preview image, or null when unresolved.
+    /// </summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasImage))]
+    private Bitmap? _image;
+
+    /// <summary>
+    /// Gets a value indicating whether a preview image is available.
+    /// </summary>
+    public bool HasImage => Image != null;
 }

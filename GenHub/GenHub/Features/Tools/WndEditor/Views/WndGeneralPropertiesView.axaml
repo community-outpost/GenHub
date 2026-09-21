@@ -3,6 +3,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:localization="clr-namespace:GenHub.Common.Markup"
              xmlns:vm="clr-namespace:GenHub.Features.Tools.WndEditor.ViewModels"
+             xmlns:cp="clr-namespace:Avalonia.Controls;assembly=Avalonia.Controls.ColorPicker"
              x:Class="GenHub.Features.Tools.WndEditor.Views.WndGeneralPropertiesView">
   <UserControl.Resources>
     <DataTemplate x:Key="DrawEntryTemplate" x:DataType="vm:WndDrawDataEntryViewModel">
@@ -20,16 +21,36 @@
       </Border>
     </DataTemplate>
     <DataTemplate x:Key="RgbaTemplate" x:DataType="vm:WndRgbaViewModel">
-      <Grid ColumnDefinitions="Auto,*,Auto,*,Auto,*,Auto,*">
-        <TextBlock Grid.Column="0" Text="R" FontSize="11" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center" Margin="0,0,4,0"/>
-        <NumericUpDown Grid.Column="1" Value="{Binding Red, Mode=TwoWay, UpdateSourceTrigger=LostFocus}" Minimum="0" Maximum="255" Increment="1" FontSize="11" Margin="0,0,6,0"/>
-        <TextBlock Grid.Column="2" Text="G" FontSize="11" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center" Margin="0,0,4,0"/>
-        <NumericUpDown Grid.Column="3" Value="{Binding Green, Mode=TwoWay, UpdateSourceTrigger=LostFocus}" Minimum="0" Maximum="255" Increment="1" FontSize="11" Margin="0,0,6,0"/>
-        <TextBlock Grid.Column="4" Text="B" FontSize="11" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center" Margin="0,0,4,0"/>
-        <NumericUpDown Grid.Column="5" Value="{Binding Blue, Mode=TwoWay, UpdateSourceTrigger=LostFocus}" Minimum="0" Maximum="255" Increment="1" FontSize="11" Margin="0,0,6,0"/>
-        <TextBlock Grid.Column="6" Text="A" FontSize="11" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center" Margin="0,0,4,0"/>
-        <NumericUpDown Grid.Column="7" Value="{Binding Alpha, Mode=TwoWay, UpdateSourceTrigger=LostFocus}" Minimum="0" Maximum="255" Increment="1" FontSize="11"/>
-      </Grid>
+      <Button HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch"
+              Padding="6"
+              Background="{DynamicResource SurfaceElevatedBrush}"
+              BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="6"
+              ToolTip.Tip="{localization:Localize Tools.WndEditor.Color.PickTooltip}">
+        <Button.Flyout>
+          <Flyout Placement="BottomEdgeAlignedLeft"
+                  Opened="OnColorFlyoutOpened" Closed="OnColorFlyoutClosed">
+            <cp:ColorView Color="{Binding SelectedColor, Mode=TwoWay}"
+                          ColorSpectrumShape="Ring"
+                          IsAlphaEnabled="True"
+                          IsAlphaVisible="True"
+                          IsHexInputVisible="True"
+                          IsColorComponentsVisible="True"
+                          IsComponentSliderVisible="True"
+                          IsComponentTextInputVisible="True"
+                          IsColorPaletteVisible="False"
+                          IsColorPreviewVisible="True"
+                          Width="300"/>
+          </Flyout>
+        </Button.Flyout>
+        <Grid ColumnDefinitions="Auto,*" VerticalAlignment="Center">
+          <Border Grid.Column="0" Width="30" Height="20" CornerRadius="4"
+                  Background="{Binding SwatchBrush}"
+                  BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                  Margin="0,0,8,0"/>
+          <TextBlock Grid.Column="1" Text="{Binding HexValue}" FontSize="11"
+                     Foreground="{DynamicResource TextPrimary}" VerticalAlignment="Center"/>
+        </Grid>
+      </Button>
     </DataTemplate>
     <DataTemplate x:Key="FlagTemplate" x:DataType="vm:WndFlagViewModel">
       <CheckBox Content="{Binding Name}" IsChecked="{Binding IsChecked, Mode=TwoWay}" FontSize="11" MinWidth="130" Margin="0,2,8,2"/>

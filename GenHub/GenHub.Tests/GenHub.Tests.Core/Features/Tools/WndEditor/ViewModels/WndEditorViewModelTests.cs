@@ -1,15 +1,26 @@
 using Avalonia;
+using Avalonia.Headless.XUnit;
+using Avalonia.Input;
+using Avalonia.Threading;
 using FluentAssertions;
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
+using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Interfaces.Notifications;
+using GenHub.Core.Interfaces.Tools.WndEditor;
+using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.GameInstallations;
+using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Tools.WndEditor;
 using GenHub.Features.Tools.WndEditor.Services;
 using GenHub.Features.Tools.WndEditor.ViewModels;
 using Microsoft.Extensions.Logging;
 using Moq;
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace GenHub.Tests.Core.Features.Tools.WndEditor.ViewModels;
@@ -36,6 +47,8 @@ public sealed class WndEditorViewModelTests : IDisposable
     private readonly Mock<INotificationService> _mockNotificationService;
     private readonly Mock<ILocalizationService> _mockLocalizationService;
     private readonly Mock<IDialogService> _mockDialogService;
+    private readonly Mock<IGameInstallationService> _mockGameInstallService;
+    private readonly Mock<IWndImageAssetService> _mockImageAssetService;
     private readonly WndEditorViewModel _viewModel;
     private readonly string _tempDirectory;
 
@@ -47,18 +60,34 @@ public sealed class WndEditorViewModelTests : IDisposable
         _mockNotificationService = new Mock<INotificationService>();
         _mockLocalizationService = new Mock<ILocalizationService>();
         _mockDialogService = new Mock<IDialogService>();
+        _mockGameInstallService = new Mock<IGameInstallationService>();
+        _mockImageAssetService = new Mock<IWndImageAssetService>();
         _mockLocalizationService
             .Setup(s => s.GetString(It.IsAny<string>(), It.IsAny<object?[]>()))
             .Returns((string key, object?[] args) => key);
         _mockDialogService
             .Setup(s => s.ShowConfirmationAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string?>()))
             .ReturnsAsync(true);
+        _mockGameInstallService
+            .Setup(s => s.GetAllInstallationsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IReadOnlyList<GameInstallation>>.CreateSuccess([]));
+        _mockImageAssetService
+            .Setup(s => s.GetImagesAsync(
+                It.IsAny<IReadOnlyCollection<string>>(),
+                It.IsAny<string>(),
+                It.IsAny<string?>(),
+                It.IsAny<string?>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IReadOnlyDictionary<string, byte[]>>.CreateSuccess(
+                new Dictionary<string, byte[]>(StringComparer.OrdinalIgnoreCase)));
         var documentService = new WndDocumentService(Mock.Of<ILogger<WndDocumentService>>());
         _viewModel = new WndEditorViewModel(
             documentService,
             _mockNotificationService.Object,
             _mockLocalizationService.Object,
             _mockDialogService.Object,
+            _mockGameInstallService.Object,
+            _mockImageAssetService.Object,
             Mock.Of<ILogger<WndEditorViewModel>>());
         _tempDirectory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
         Directory.CreateDirectory(_tempDirectory);
@@ -591,5 +620,142 @@ public sealed class WndEditorViewModelTests : IDisposable
         // Assert
         _viewModel.RootNodes.Should().ContainSingle();
         _viewModel.RootNodes[0].IsHidden.Should().Be(expectedIsHidden);
+    }
+
+    /// <summary>
+    /// Tests that zoom commands step by the configured factor and clamp to range.
+    /// </summary>
+    [Fact]
+    public void ZoomCommands_StepByFactor()
+    {
+        // Act
+        _viewModel.ZoomInCommand.Execute(null);
+
+        // Assert
+        _viewModel.Zoom.Should().BeApproximately(WndConstants.Editor.DefaultZoom * WndConstants.Editor.ZoomStepFactor, 0.0001);
+
+        // Act
+        _viewModel.ZoomOutCommand.Execute(null);
+        _viewModel.ZoomOutCommand.Execute(null);
+
+        // Assert
+        _viewModel.Zoom.Should().BeApproximately(WndConstants.Editor.DefaultZoom / WndConstants.Editor.ZoomStepFactor, 0.0001);
+
+        // Act
+        _viewModel.ResetZoomCommand.Execute(null);
+
+        // Assert
+        _viewModel.Zoom.Should().Be(WndConstants.Editor.DefaultZoom);
+        _viewModel.ZoomDisplayText.Should().Be($"{WndConstants.Editor.DefaultZoom:P0}");
+    }
+
+    /// <summary>
+    /// Tests that pan mode is off by default and switches the canvas cursor to a hand.
+    /// </summary>
+    [AvaloniaFact]
+    public void PanMode_TogglesHandCursor()
+    {
+        // Assert
+        _viewModel.IsPanMode.Should().BeFalse();
+        _viewModel.CanvasCursor.Should().BeNull();
+
+        // Act
+        _viewModel.IsPanMode = true;
+
+        // Assert
+        _viewModel.CanvasCursor.Should().NotBeNull();
+        _viewModel.CanvasCursor!.ToString().Should().Be(new Cursor(StandardCursorType.Hand).ToString());
+    }
+
+    /// <summary>
+    /// Tests that installations populate asset options and prefer Zero Hour.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task Installations_Populate_PreferringZeroHour()
+    {
+        // Arrange
+        var generalsDir = Path.Combine(_tempDirectory, "Generals");
+        var zeroHourDir = Path.Combine(_tempDirectory, "ZeroHour");
+        Directory.CreateDirectory(generalsDir);
+        Directory.CreateDirectory(zeroHourDir);
+        var installation = new GameInstallation(_tempDirectory, GameInstallationType.Steam)
+        {
+            HasGenerals = true,
+            GeneralsPath = generalsDir,
+            HasZeroHour = true,
+            ZeroHourPath = zeroHourDir,
+        };
+        _mockGameInstallService
+            .Setup(s => s.GetAllInstallationsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IReadOnlyList<GameInstallation>>.CreateSuccess([installation]));
+
+        // Act
+        await _viewModel.LoadFromTextAsync(SampleDocument, null);
+
+        // Assert
+        _viewModel.AvailableInstallations.Should().HaveCount(2);
+        _viewModel.SelectedAssetInstallation.Should().NotBeNull();
+        _viewModel.SelectedAssetInstallation!.Path.Should().Be(zeroHourDir);
+    }
+
+    /// <summary>
+    /// Tests that resolved asset previews are applied to matching canvas items.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [AvaloniaFact]
+    public async Task Previews_Apply_WhenServiceResolves()
+    {
+        // Arrange
+        const string redPixelPng = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
+        var entries = new List<WndDrawDataEntry> { new("MenuButton", WndRgbaColor.White, WndRgbaColor.White) };
+        while (entries.Count < WndConstants.DrawData.EntryCount)
+        {
+            entries.Add(WndDrawDataEntry.Empty);
+        }
+
+        var doc =
+            "FILE_VERSION = 2;\n" +
+            "WINDOW\n" +
+            "  WINDOWTYPE = PUSHBUTTON;\n" +
+            "  SCREENRECT = UPPERLEFT: 0 0, BOTTOMRIGHT: 100 40, CREATIONRESOLUTION: 800 600;\n" +
+            $"  ENABLEDDRAWDATA = {new WndDrawDataSet(entries)};\n" +
+            "END\n";
+        _mockImageAssetService
+            .Setup(s => s.GetImagesAsync(
+                It.IsAny<IReadOnlyCollection<string>>(),
+                It.IsAny<string>(),
+                It.IsAny<string?>(),
+                It.IsAny<string?>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IReadOnlyDictionary<string, byte[]>>.CreateSuccess(
+                new Dictionary<string, byte[]>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["MenuButton"] = Convert.FromBase64String(redPixelPng),
+                }));
+        var gameDir = Path.Combine(_tempDirectory, "Game");
+        Directory.CreateDirectory(gameDir);
+        var installation = new GameInstallation(gameDir, GameInstallationType.Steam)
+        {
+            HasZeroHour = true,
+            ZeroHourPath = gameDir,
+        };
+        _mockGameInstallService
+            .Setup(s => s.GetAllInstallationsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IReadOnlyList<GameInstallation>>.CreateSuccess([installation]));
+
+        // Act
+        await _viewModel.LoadFromTextAsync(doc, null);
+
+        // Assert
+        _viewModel.CanvasItems.Should().ContainSingle();
+        for (var attempt = 0; attempt < 200 && !_viewModel.CanvasItems[0].HasImage; attempt++)
+        {
+            Dispatcher.UIThread.RunJobs(null);
+            await Task.Delay(20);
+        }
+
+        _viewModel.CanvasItems[0].HasImage.Should().BeTrue();
+        _viewModel.CanvasItems[0].Image.Should().NotBeNull();
     }
 }

@@ -7189,11 +7189,29 @@ GenHub هو مشغل ومدير حديث لألعاب **Command &amp; Conquer: G
   <data name="Tools.WndEditor.Tree.Delete" xml:space="preserve">
     <value>حذف</value>
   </data>
-  <data name="Tools.WndEditor.Canvas.Zoom" xml:space="preserve">
-    <value>تكبير</value>
+  <data name="Tools.WndEditor.Color.PickTooltip" xml:space="preserve">
+    <value>اختر لونًا</value>
   </data>
-  <data name="Tools.WndEditor.Canvas.ZoomTooltip" xml:space="preserve">
-    <value>تكبير لوحة المعاينة</value>
+  <data name="Tools.WndEditor.Canvas.PanTooltip" xml:space="preserve">
+    <value>تحريك اللوحة</value>
+  </data>
+  <data name="Tools.WndEditor.Canvas.ZoomInTooltip" xml:space="preserve">
+    <value>تكبير (Ctrl + +)</value>
+  </data>
+  <data name="Tools.WndEditor.Canvas.ZoomOutTooltip" xml:space="preserve">
+    <value>تصغير (Ctrl + -)</value>
+  </data>
+  <data name="Tools.WndEditor.Canvas.ZoomResetTooltip" xml:space="preserve">
+    <value>إعادة التكبير إلى 100% (Ctrl + 0)</value>
+  </data>
+  <data name="Tools.WndEditor.Assets.Label" xml:space="preserve">
+    <value>أصول اللعبة</value>
+  </data>
+  <data name="Tools.WndEditor.Assets.SelectorWatermark" xml:space="preserve">
+    <value>حدد نسخة اللعبة</value>
+  </data>
+  <data name="Tools.WndEditor.Assets.SelectorTooltip" xml:space="preserve">
+    <value>نسخة اللعبة المستخدمة لمعاينات الصور على اللوحة</value>
   </data>
   <data name="Tools.WndEditor.Properties.Delete" xml:space="preserve">
     <value>حذف</value>
