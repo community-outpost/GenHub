@@ -4,6 +4,7 @@ import type { NetworkDetail, NetworkSummary, OnlineEnv, PublicMember, RoomMember
 import { allowRequest } from "./ratelimit";
 import type { RateCounter } from "./ratelimit";
 import { verifyToken } from "./tokens";
+import { verifyPassword } from "./passwords";
 import { OUTCOME_DIRECT, OUTCOME_FAILED, OUTCOME_RELAY, sanitizeText } from "./validation";
 
 interface AbuseReport {
@@ -371,7 +372,7 @@ export class PresenceRoom {
       region: meta.region,
       hostDisplayName: meta.hostDisplayName,
       quality: aggregateQuality(members),
-      requiresPassword: false,
+      requiresPassword: meta.verifier.length > 0,
       isPublic: meta.isPublic,
       lastHeartbeatUtc: new Date().toISOString(),
     };
@@ -539,9 +540,8 @@ export class PresenceRoom {
     });
   }
 
-  // Ban and capacity gates. Returning members bypass the capacity gate
-  // (they already hold a slot) but never the ban gate. Passwords are removed:
-  // lobbies are open.
+  // Ban, capacity, and password gates. Returning members bypass the capacity
+  // gate (they already hold a slot) but never the ban or password gates.
   private async rejectJoin(meta: RoomMeta, members: RoomMember[], body: JoinBody): Promise<Response | null> {
     const bans = await this.loadBans();
     const bannedIps = await this.loadBannedIps();
@@ -554,6 +554,9 @@ export class PresenceRoom {
     // instead of reassigning overlay IPs that members still hold.
     if (!returning && (members.length >= meta.slotsMax || meta.nextSlot >= MAX_OVERLAY_SLOT)) {
       return json({ error: "Network full", code: "online.network-full" }, 409);
+    }
+    if (meta.verifier.length > 0 && !(await verifyPassword(body.password, meta.verifier, this.env.PASSWORD_PEPPER))) {
+      return json({ error: "Wrong password", code: "online.wrong-password" }, 401);
     }
     return null;
   }
@@ -686,7 +689,7 @@ export class PresenceRoom {
       slotsUsed: members.length,
       slotsMax: meta.slotsMax,
       ...this.expectedProfile(meta),
-      requiresPassword: false,
+      requiresPassword: meta.verifier.length > 0,
       hostPresent: members.some((m) => m.isHost),
     };
     return json(detail);

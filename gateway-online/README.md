@@ -66,8 +66,10 @@ directory reads per minute, overlay subnet, TURN URIs.
 
 ## Policies
 
-- Passwords are removed: every lobby is open. The wire fields stay for backward
-  compatibility but the edge never stores or verifies a credential.
+- Lobby passwords are optional (empty means open, minimum 4 characters when
+  set). The edge stores only a PBKDF2-SHA256 verifier salted with the
+  server-side `PASSWORD_PEPPER` and rejects wrong passwords with
+  `online.wrong-password` (401).
 - Display strings are control-character sanitized; JSON bodies are capped at
   8 KiB; directory reads are rate-limited per IP.
 - Bans bind to the anonymous session identity (see `docs/dev/online.md`).
@@ -90,8 +92,7 @@ npx wrangler dev
 
 ## Notes
 
-- Passwords were removed; join rate limiting is per network + IP inside the
-  room object.
+- Join rate limiting is per network + IP inside the room object.
 - `adapterConfig.overlay` is `"pending-selection"` until the sidecar lands (see
   `docs/dev/overlay-spike.md`: userspace TUN + TURN-relayed UDP mesh). The
   payload is versioned (`v: 0`) so the client can keep treating it as opaque.

@@ -56,7 +56,7 @@ of failing silently.
    `gateway-online/coturn/turnserver.conf.sample`) and set `TURN_URIS` in
    `wrangler.jsonc`.
 5. Redeploy after every edge change (`npm run deploy`): clients speaking to a
-   stale edge see stale lobbies, password prompts that no longer exist, and
+   stale edge see stale lobbies, missing password prompts, and
    blank expected profiles.
 
 ## Join flow
@@ -64,8 +64,8 @@ of failing silently.
 1. `POST /v1/sessions/anonymous` mints a short-lived session (no user database).
 2. `GET /v1/networks` returns metadata only: no member lists, no endpoints.
    Non-members can never learn underlay IPs from the directory.
-3. `POST /v1/networks/{id}/join` checks slots and bans (passwords are removed;
-   every lobby is open), then returns a grant, an overlay
+3. `POST /v1/networks/{id}/join` checks slots, bans, and the lobby password
+   when one is set, then returns a grant, an overlay
    IP, an opaque adapter config, the initial roster, and the expected profile
    block. Joiners advertise their own profile fingerprint with the join.
 4. The client brings the platform adapter up (skipped while the edge reports
@@ -127,10 +127,13 @@ enforcement, until an optional account layer exists.
 
 ## Password policy
 
-Passwords are removed: every lobby is open and anyone can join any network.
-The wire fields stay for backward compatibility but the edge never stores or
-verifies a credential. Display strings are control-character sanitized; JSON
-bodies are capped at 8 KiB.
+Lobby passwords are optional: an empty password means an open lobby, while a
+password of at least 4 characters (`MIN_PASSWORD_LENGTH`) protects the lobby.
+The edge stores only a PBKDF2-SHA256 verifier salted with the server-side
+`PASSWORD_PEPPER` (never the password itself), advertises
+`requiresPassword` in the directory and detail responses, and rejects wrong
+passwords with `online.wrong-password` (401). Display strings are
+control-character sanitized; JSON bodies are capped at 8 KiB.
 
 ## Local development
 

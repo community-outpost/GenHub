@@ -2,7 +2,9 @@ import type { NetworkSummary, OnlineEnv, PublicMember } from "./env";
 import { bearerToken, mintJoinGrant, mintSessionToken, verifyToken } from "./tokens";
 import type { JoinGrantClaims, SessionClaims } from "./tokens";
 import { mintTurnCredentials, parseTurnUris } from "./turn";
+import { createVerifier } from "./passwords";
 import {
+  MIN_PASSWORD_LENGTH,
   defaultDisplayName,
   parseCreateNetwork,
   parseEndpoint,
@@ -284,10 +286,13 @@ const handleCreate = async (request: Request, env: OnlineEnv): Promise<Response>
     return error("Too many networks", 429, "online.rate-limited");
   }
 
+  if (input.password.length > 0 && input.password.length < MIN_PASSWORD_LENGTH) {
+    return error("Password too short", 400, "online.password-too-short");
+  }
+
   const networkId = crypto.randomUUID();
   const displayName = input.displayName.length > 0 ? input.displayName : defaultDisplayName(session.sub);
-  // Passwords are removed: lobbies are open, so no verifier is ever stored.
-  const verifier = "";
+  const verifier = input.password.length >= MIN_PASSWORD_LENGTH ? await createVerifier(input.password, env.PASSWORD_PEPPER) : "";
   const initRes = await roomStub(env, networkId).fetch("https://room/internal/init", {
     method: "POST",
     body: JSON.stringify({
