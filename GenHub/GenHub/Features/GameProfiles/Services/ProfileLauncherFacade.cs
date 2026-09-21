@@ -989,7 +989,9 @@ public class ProfileLauncherFacade(
             LaunchOperationResult<GameLaunchInfo> launchResult;
             try
             {
-                launchResult = await gameLauncher.LaunchProfileAsync(profile, progress: launchProgress, skipUserDataCleanup: skipUserDataCleanup, additionalArguments: additionalArguments, cancellationToken: cancellationToken, networkIpOverride: networkIpOverride);
+                launchResult = networkIpOverride is null
+                    ? await gameLauncher.LaunchProfileAsync(profile, progress: launchProgress, skipUserDataCleanup: skipUserDataCleanup, additionalArguments: additionalArguments, cancellationToken: cancellationToken)
+                    : await gameLauncher.LaunchProfileAsync(profile, progress: launchProgress, skipUserDataCleanup: skipUserDataCleanup, additionalArguments: additionalArguments, cancellationToken: cancellationToken, networkIpOverride: networkIpOverride);
             }
             finally
             {

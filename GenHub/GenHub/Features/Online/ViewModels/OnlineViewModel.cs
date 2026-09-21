@@ -1095,7 +1095,7 @@ public sealed partial class OnlineViewModel(
             return;
         }
 
-        if (!mesh.Success || mesh.Data is null || mesh.Data.AllReachable)
+        if (mesh is null || !mesh.Success || mesh.Data is null || mesh.Data.AllReachable)
         {
             return;
         }

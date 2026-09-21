@@ -582,6 +582,8 @@ public sealed class OnlineNetworkServiceTests
     {
         // Arrange
         var p2p = new Mock<IP2PConnectionService>(MockBehavior.Strict);
+        p2p.Setup(p => p.StopListeningAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(GenHub.Core.Models.Results.OperationResult<bool>.CreateSuccess(true));
         var adapter = new Mock<IVirtualLanAdapter>();
         adapter.Setup(a => a.BringUpAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(GenHub.Core.Models.Results.OperationResult<bool>.CreateSuccess(true));
