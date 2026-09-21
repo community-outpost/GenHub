@@ -137,7 +137,7 @@ public class ProfileLauncherFacade(
                 return await LaunchToolProfileAsync(profile, profileId, cancellationToken);
             }
 
-            return await LaunchGameProfileAsync(profile, profileId, skipUserDataCleanup, additionalArguments, cancellationToken);
+            return await LaunchGameProfileAsync(profile, profileId, skipUserDataCleanup, additionalArguments, cancellationToken, networkIpOverride);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -848,7 +848,8 @@ public class ProfileLauncherFacade(
         string profileId,
         bool skipUserDataCleanup,
         IReadOnlyDictionary<string, string>? additionalArguments,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        string? networkIpOverride = null)
     {
         try
         {

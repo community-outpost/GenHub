@@ -2058,7 +2058,7 @@
     <value>Network password</value>
   </data>
   <data name="Online.Join.PrivacyNotice" xml:space="preserve">
-    <value>Traffic is always relayed: your real IP address is never shared with lobby members.</value>
+    <value>Direct connection is attempted first; your public endpoint is shared with lobby members only when STUN succeeds, falling back to an encrypted relay.</value>
   </data>
   <data name="Online.Join.ProfileHint" xml:space="preserve">
     <value>Advertised to the lobby and used for Play. Leave on auto-match to pick the closest setup.</value>

@@ -1835,7 +1835,7 @@
     <value>Название сети</value>
   </data>
   <data name="Online.Create.PasswordWatermark" xml:space="preserve">
-    <value>Пароль (необязателен для частной)</value>
+    <value>Пароль (необязателен для частной сети)</value>
   </data>
   <data name="Online.Create.PasswordHint" xml:space="preserve">
     <value>Необязательно. Оставьте поле пустым для открытого лобби. Если пароль указан, он должен содержать минимум 4 символа.</value>
@@ -2054,10 +2054,10 @@
     <value>Пароль сети</value>
   </data>
   <data name="Online.Join.PrivacyNotice" xml:space="preserve">
-    <value>Трафик всегда идёт через ретранслятор: ваш реальный IP-адрес никогда не передаётся участникам лобби.</value>
+    <value>Сначала выполняется попытка прямого подключения; публичный адрес виден участникам только при успешном STUN, иначе используется зашифрованный ретранслятор.</value>
   </data>
   <data name="Online.Join.ProfileHint" xml:space="preserve">
-    <value>Показывается лобби и используется для запуска. Оставьте автоподбор, чтобы выбрать ближайшую конфигурацию.</value>
+    <value>Профиль отображается в лобби и используется для запуска. Оставьте автоподбор, чтобы выбрать ближайшую конфигурацию.</value>
   </data>
   <data name="Online.Join.SuccessMessage" xml:space="preserve">
     <value>Подключено с IP оверлея {0}. Откройте LAN-лобби в игре.</value>

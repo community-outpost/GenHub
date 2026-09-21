@@ -511,7 +511,7 @@ public class GameLauncher(
             };
             await launchRegistry.RegisterLaunchAsync(placeholderLaunchInfo);
             logger.LogDebug("Registered placeholder launch {LaunchId} for profile {ProfileId} to prevent deletion during launch", launchId, profile.Id);
-            return await LaunchProfileAsync(profile, skipUserDataCleanup, additionalArguments, progress, launchId, cancellationToken);
+            return await LaunchProfileAsync(profile, skipUserDataCleanup, additionalArguments, progress, launchId, cancellationToken, networkIpOverride);
         }
         finally
         {
@@ -1272,7 +1272,8 @@ public class GameLauncher(
         GameProfile profile,
         IProgress<LaunchProgress>? progress,
         string launchId,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        string? networkIpOverride = null)
     {
         progress?.Report(new LaunchProgress { Phase = LaunchPhase.ValidatingProfile, PercentComplete = 0 });
         progress?.Report(new LaunchProgress { Phase = LaunchPhase.ResolvingContent, PercentComplete = 10 });
@@ -1288,7 +1289,7 @@ public class GameLauncher(
 
         var manifests = resolutionResult.Data;
         logger.LogDebug("[GameLauncher] Applying profile settings to Options.ini before workspace preparation");
-        await ApplyProfileSettingsToIniOptionsAsync(profile);
+        await ApplyProfileSettingsToIniOptionsAsync(profile, networkIpOverride);
 
         progress?.Report(new LaunchProgress { Phase = LaunchPhase.PreparingWorkspace, PercentComplete = 20 });
 
@@ -1344,7 +1345,7 @@ public class GameLauncher(
         return adjusted;
     }
 
-    private async Task<LaunchOperationResult<GameLaunchInfo>> LaunchProfileAsync(GameProfile profile, bool skipUserDataCleanup, IReadOnlyDictionary<string, string>? additionalArguments, IProgress<LaunchProgress>? progress, string launchId, CancellationToken cancellationToken)
+    private async Task<LaunchOperationResult<GameLaunchInfo>> LaunchProfileAsync(GameProfile profile, bool skipUserDataCleanup, IReadOnlyDictionary<string, string>? additionalArguments, IProgress<LaunchProgress>? progress, string launchId, CancellationToken cancellationToken, string? networkIpOverride = null)
     {
         IDisposable? steamInstallationLock = null;
 
@@ -1353,7 +1354,7 @@ public class GameLauncher(
             logger.LogInformation("[GameLauncher] === Starting launch for profile '{ProfileName}' (ID: {ProfileId}) ===", profile.Name, profile.Id);
             cancellationToken.ThrowIfCancellationRequested();
 
-            var preflightResult = await PrepareManifestsAndPreflightAsync(profile, progress, launchId, cancellationToken);
+            var preflightResult = await PrepareManifestsAndPreflightAsync(profile, progress, launchId, cancellationToken, networkIpOverride);
             if (!preflightResult.Success || preflightResult.Data == null)
             {
                 return LaunchOperationResult<GameLaunchInfo>.CreateFailure(

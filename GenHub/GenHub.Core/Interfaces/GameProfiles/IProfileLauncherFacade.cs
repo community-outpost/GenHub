@@ -31,6 +31,7 @@ public interface IProfileLauncherFacade
     /// <param name="skipUserDataCleanup">Whether to skip cleanup of user data files (maps, etc.) from other profiles.</param>
     /// <param name="additionalArguments">Optional transient command line arguments to merge with profile launch options.</param>
     /// <param name="cancellationToken">A cancellation token to observe while waiting for the task to complete.</param>
+    /// <param name="networkIpOverride">Optional LAN IP written to Options.ini instead of the profile's stored address.</param>
     /// <remarks>
     /// The <paramref name="skipUserDataCleanup"/> parameter is deliberately non-defaulted to prevent
     /// ambiguous overload resolution (CS0121) with the 3-parameter overload.

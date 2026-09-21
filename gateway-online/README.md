@@ -92,6 +92,6 @@ npx wrangler dev
 
 - Passwords were removed; join rate limiting is per network + IP inside the
   room object.
-- `adapterConfig.overlay` is `"pending-selection"` until the Phase 0 overlay spike
-  picks Nebula / ZeroTier / NetBird. The payload is versioned (`v: 0`) so the
-  client can keep treating it as opaque.
+- `adapterConfig.overlay` is `"pending-selection"` until the sidecar lands (see
+  `docs/dev/overlay-spike.md`: userspace TUN + TURN-relayed UDP mesh). The
+  payload is versioned (`v: 0`) so the client can keep treating it as opaque.

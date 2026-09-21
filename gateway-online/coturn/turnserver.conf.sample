@@ -21,6 +21,26 @@ max-port=51160
 # connect game clients to each other.
 no-loopback-peers
 no-multicast-peers
+# Peer access control: coturn allows any peer address with no matching rule,
+# so deny private, loopback-adjacent, and reserved ranges explicitly. Relay
+# peers are addressed by their public allocation addresses, never by the
+# 10.42.0.0/20 overlay IPs, so denying 10.0.0.0/8 blocks nothing legit.
+denied-peer-ip=0.0.0.0-0.255.255.255
+denied-peer-ip=10.0.0.0-10.255.255.255
+denied-peer-ip=100.64.0.0-100.127.255.255
+denied-peer-ip=127.0.0.0-127.255.255.255
+denied-peer-ip=169.254.0.0-169.254.255.255
+denied-peer-ip=172.16.0.0-172.31.255.255
+denied-peer-ip=192.168.0.0-192.168.255.255
+denied-peer-ip=198.18.0.0-198.19.255.255
+denied-peer-ip=240.0.0.0-255.255.255.255
+denied-peer-ip=::1
+denied-peer-ip=fc00::-fdff:ffff:ffff:ffff:ffff:ffff:ffff:ffff
+denied-peer-ip=fe80::-febf:ffff:ffff:ffff:ffff:ffff:ffff:ffff
+# Game traffic is UDP only; bound relay abuse cost with quotas.
+no-tcp-relay
+user-quota=12
+total-quota=1200
 fingerprint
 # Relay-only by product design: no direct peer-to-peer hole punching.
 no-cli

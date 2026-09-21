@@ -795,7 +795,7 @@ public sealed class OnlineNetworkService(
     private async Task<OnlineMeshPeerResult> ProbeMemberAsync(OnlineMember member, CancellationToken cancellationToken)
     {
         var reachable = false;
-        if (IPEndPoint.TryParse(member.Endpoint, out var target) && target is not null)
+        if (IPEndPoint.TryParse(member.Endpoint, out var target))
         {
             var probe = await p2p.ProbePeerAsync(target.Address.ToString(), target.Port, cancellationToken);
             reachable = probe.Success && probe.Data;
