@@ -4314,9 +4314,7 @@ public sealed class ContentDetailViewModelTests
 
         // Act
         WeakReferenceMessenger.Default.Send(new ContentLibraryClearedMessage());
-
-        // Allow UI thread dispatcher to process posted ResetDownloadState work
-        await Task.Delay(100);
+        Avalonia.Threading.Dispatcher.UIThread.RunJobs();
 
         // Assert
         Assert.False(viewModel.IsDownloaded);

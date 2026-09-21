@@ -1782,9 +1782,7 @@ public class DownloadsBrowserViewModelTests
 
         // Act
         WeakReferenceMessenger.Default.Send(new ContentLibraryClearedMessage());
-
-        // Wait briefly for UI thread dispatcher execution
-        await Task.Delay(100);
+        Avalonia.Threading.Dispatcher.UIThread.RunJobs();
 
         // Assert: ContentItems is cleared because manifests were wiped
         Assert.Empty(viewModel.ContentItems);

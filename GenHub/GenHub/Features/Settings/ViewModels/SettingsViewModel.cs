@@ -23,6 +23,7 @@ using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameInstallations;
 using GenHub.Core.Models.GameProfile;
 using GenHub.Core.Models.GitHub;
+using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Providers;
 using GenHub.Core.Models.Storage;
 using GenHub.Core.Models.Theming;
@@ -2153,31 +2154,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
                 var count = manifests.Count;
                 var orderedIds = manifests.Select(m => m.Id.Value).ToList();
                 var deletedIds = orderedIds.ToHashSet(StringComparer.OrdinalIgnoreCase);
-                var removedCount = 0;
-
-                try
-                {
-                    foreach (var manifest in manifests)
-                    {
-                        cancellationToken.ThrowIfCancellationRequested();
-                        await _manifestPool.RemoveManifestAsync(manifest.Id, cancellationToken: cancellationToken);
-                        removedCount++;
-                    }
-
-                    await ScrubDeletedManifestIdsFromProfilesAsync(deletedIds, showToast, cancellationToken);
-                }
-                catch (OperationCanceledException ex)
-                {
-                    await ScrubPartiallyRemovedManifestsAsync(orderedIds, removedCount, showToast, ex);
-                    throw;
-                }
-                finally
-                {
-                    if (removedCount > 0 || count == 0)
-                    {
-                        NotifyContentLibraryCleared();
-                    }
-                }
+                await RemoveManifestsAndScrubProfilesAsync(manifests, orderedIds, deletedIds, showToast, cancellationToken);
 
                 if (showToast)
                 {
@@ -2200,6 +2177,49 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             if (showToast)
             {
                 _notificationService.ShowError("Deletion Failed", $"Failed to delete manifests: {ex.Message}", 5000);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Removes the specified manifests from the manifest pool, scrubs their IDs from profiles,
+    /// and broadcasts the library cleared notification.
+    /// </summary>
+    /// <param name="manifests">The manifests to remove.</param>
+    /// <param name="orderedIds">The manifest IDs in removal order.</param>
+    /// <param name="deletedIds">The set of deleted manifest IDs for profile scrubbing.</param>
+    /// <param name="showToast">Whether to show toast notifications for scrub failures.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    private async Task RemoveManifestsAndScrubProfilesAsync(
+        IReadOnlyList<ContentManifest> manifests,
+        IReadOnlyList<string> orderedIds,
+        HashSet<string> deletedIds,
+        bool showToast,
+        CancellationToken cancellationToken)
+    {
+        var removedCount = 0;
+        try
+        {
+            foreach (var manifest in manifests)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                await _manifestPool.RemoveManifestAsync(manifest.Id, cancellationToken: cancellationToken);
+                removedCount++;
+            }
+
+            await ScrubDeletedManifestIdsFromProfilesAsync(deletedIds, showToast, cancellationToken);
+        }
+        catch (OperationCanceledException ex)
+        {
+            await ScrubPartiallyRemovedManifestsAsync(orderedIds, removedCount, showToast, ex);
+            throw;
+        }
+        finally
+        {
+            if (removedCount > 0 || manifests.Count == 0)
+            {
+                NotifyContentLibraryCleared();
             }
         }
     }

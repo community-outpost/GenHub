@@ -1259,12 +1259,9 @@ public sealed partial class DownloadsBrowserViewModel(
             {
                 if (_browseCache.TryGetValue(PublisherTypeConstants.Downloaded, out var state))
                 {
-                    foreach (var item in state.Items)
+                    foreach (var item in state.Items.Where(item => !ContentItems.Contains(item)))
                     {
-                        if (!ContentItems.Contains(item))
-                        {
-                            item.Dispose();
-                        }
+                        item.Dispose();
                     }
 
                     _browseCache.Remove(PublisherTypeConstants.Downloaded);
