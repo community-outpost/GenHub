@@ -644,6 +644,15 @@ public class ConfigurationLoaderService(ILogger<ConfigurationLoaderService> logg
 
             ExtractBundleConfigFiles(root, projectDir, result);
 
+            // The editor persists manifests to the conventional file without
+            // rewriting bundleConfigs, so always probe for it alongside the
+            // explicitly listed configs (samples ship per-variant manifests).
+            var manifestsPath = Path.Combine(projectDir, configsDirName, ModBuilderConstants.BundleManifestsConfigFileName);
+            if (File.Exists(manifestsPath) && !result.Contains(manifestsPath, StringComparer.OrdinalIgnoreCase))
+            {
+                result.Add(manifestsPath);
+            }
+
             if (result.Count == 0)
             {
                 DiscoverCandidateConfigFiles(projectDir, configsDirName, result);
@@ -712,6 +721,7 @@ public class ConfigurationLoaderService(ILogger<ConfigurationLoaderService> logg
 
         AddFileIfExists(Path.Combine(candidateDir, ModBuilderConstants.BundleItemsConfigFileName), result);
         AddFileIfExists(Path.Combine(candidateDir, ModBuilderConstants.BundlePacksConfigFileName), result);
+        AddFileIfExists(Path.Combine(candidateDir, ModBuilderConstants.BundleManifestsConfigFileName), result);
     }
 
     private static void AddFileIfExists(string filePath, List<string> result)

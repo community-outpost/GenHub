@@ -79,6 +79,82 @@ public class SampleProjectService(
 
     internal sealed record LemonBigOutcome(LemonBigRole? Role, bool VerificationFailed);
 
+    /// <summary>
+    /// Tracks overall acquisition progress across sequential sample downloads and
+    /// forwards it to a single persistent notification scope. All methods are safe
+    /// to call when no scope is attached.
+    /// </summary>
+    internal sealed class SampleAcquisitionTracker
+    {
+        private readonly DownloadNotificationScope? _scope;
+        private readonly object _lock = new();
+        private double _fraction;
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="SampleAcquisitionTracker"/> class.
+        /// </summary>
+        /// <param name="scope">The persistent notification scope receiving overall progress, if any.</param>
+        public SampleAcquisitionTracker(DownloadNotificationScope? scope)
+        {
+            _scope = scope;
+        }
+
+        /// <summary>
+        /// Gets or sets the total number of planned downloads for this acquisition.
+        /// </summary>
+        public int TotalDownloads { get; set; } = 1;
+
+        /// <summary>
+        /// Sets the total number of planned downloads for this acquisition.
+        /// </summary>
+        /// <param name="totalDownloads">The total number of planned downloads.</param>
+        public void SetTotalDownloads(int totalDownloads)
+        {
+            TotalDownloads = totalDownloads;
+        }
+
+        /// <summary>
+        /// Reports live progress of one download slot.
+        /// </summary>
+        /// <param name="assetLabel">The human readable asset label.</param>
+        /// <param name="slotIndex">The zero-based download slot index.</param>
+        /// <param name="slotFraction">The completed fraction of this slot between 0.0 and 1.0.</param>
+        public void ReportDownload(string assetLabel, int slotIndex, double slotFraction)
+        {
+            lock (_lock)
+            {
+                _fraction = (slotIndex + Math.Clamp(slotFraction, 0, 1)) / TotalDownloads;
+                _scope?.ReportFraction(_fraction, $"Downloading {assetLabel}...");
+            }
+        }
+
+        /// <summary>
+        /// Marks one download slot complete.
+        /// </summary>
+        /// <param name="assetLabel">The human readable asset label.</param>
+        /// <param name="slotIndex">The zero-based download slot index.</param>
+        public void ReportDownloadComplete(string assetLabel, int slotIndex)
+        {
+            lock (_lock)
+            {
+                _fraction = (slotIndex + 1.0) / TotalDownloads;
+                _scope?.ReportFraction(_fraction, $"{assetLabel} downloaded.");
+            }
+        }
+
+        /// <summary>
+        /// Updates the status text while keeping the current fraction.
+        /// </summary>
+        /// <param name="phase">The current acquisition phase description.</param>
+        public void ReportPhase(string phase)
+        {
+            lock (_lock)
+            {
+                _scope?.ReportFraction(_fraction, phase);
+            }
+        }
+    }
+
     private static readonly string[] SampleProjectNames =
     [
         "GeneralsGamePatch2",
@@ -241,30 +317,42 @@ public class SampleProjectService(
 
         var canonicalName = ResolveCanonicalProjectName(projectName, projectDir);
 
+        // One persistent toast tracks the whole acquisition; per-download scopes
+        // below only add their green terminal toasts so downloads stay visible
+        // one by one without stacking pinned toasts.
+        using var overallScope = CreateAcquisitionScope(canonicalName);
+        var tracker = new SampleAcquisitionTracker(overallScope);
+        var innerProgress = progress;
+        var linkedProgress = new Progress<string>(phase =>
+        {
+            innerProgress?.Report(phase);
+            tracker.ReportPhase(phase);
+        });
+
         OperationResult<bool> result;
         try
         {
             switch (canonicalName)
             {
                 case GeneralsGamePatch2Name:
-                    result = await AcquireGeneralsGamePatch2AssetsAsync(gameFilesDir, cacheDir, progress, cancellationToken).ConfigureAwait(false);
+                    result = await AcquireGeneralsGamePatch2AssetsAsync(gameFilesDir, cacheDir, linkedProgress, cancellationToken, tracker).ConfigureAwait(false);
                     break;
 
                 case ImprovedMenusName:
-                    result = await AcquireImprovedMenusAssetsAsync(gameFilesDir, cacheDir, progress, cancellationToken).ConfigureAwait(false);
+                    result = await AcquireImprovedMenusAssetsAsync(gameFilesDir, cacheDir, linkedProgress, cancellationToken, tracker).ConfigureAwait(false);
                     break;
 
                 case LemonControlBarName:
-                    result = await AcquireLemonControlBarAssetsAsync(gameFilesDir, cacheDir, progress, cancellationToken).ConfigureAwait(false);
+                    result = await AcquireLemonControlBarAssetsAsync(gameFilesDir, cacheDir, linkedProgress, cancellationToken, tracker).ConfigureAwait(false);
                     break;
 
                 case LeikezeHotkeysName:
-                    result = await AcquireLeikezeHotkeysAssetsAsync(gameFilesDir, cacheDir, progress, cancellationToken).ConfigureAwait(false);
+                    result = await AcquireLeikezeHotkeysAssetsAsync(gameFilesDir, cacheDir, linkedProgress, cancellationToken, tracker).ConfigureAwait(false);
                     break;
 
                 case HotkeysName:
                 case CustomIconsName:
-                    result = await AcquireHotkeysAssetsAsync(gameFilesDir, cacheDir, progress, cancellationToken).ConfigureAwait(false);
+                    result = await AcquireHotkeysAssetsAsync(gameFilesDir, cacheDir, linkedProgress, cancellationToken, tracker).ConfigureAwait(false);
                     break;
 
                 default:
@@ -276,21 +364,37 @@ public class SampleProjectService(
             if (!result.Success)
             {
                 CleanupNewlyCreatedFiles(gameFilesDir, preExistingFiles);
+                overallScope?.CompleteFailure(result.FirstError);
+                return result;
             }
 
+            overallScope?.CompleteSuccess();
             return result;
         }
         catch (OperationCanceledException)
         {
             CleanupNewlyCreatedFiles(gameFilesDir, preExistingFiles);
+            overallScope?.CompleteCanceled();
             throw;
         }
         catch (Exception ex)
         {
             CleanupNewlyCreatedFiles(gameFilesDir, preExistingFiles);
             logger.LogError(ex, "Failed to download and extract sample assets for {ProjectName}", projectName);
-            return OperationResult<bool>.CreateFailure($"Failed to acquire sample assets for {projectName}: {ex.Message}");
+            var failure = OperationResult<bool>.CreateFailure($"Failed to acquire sample assets for {projectName}: {ex.Message}");
+            overallScope?.CompleteFailure(failure.FirstError);
+            return failure;
         }
+    }
+
+    private DownloadNotificationScope? CreateAcquisitionScope(string contentName)
+    {
+        if (notificationService == null)
+        {
+            return null;
+        }
+
+        return new DownloadNotificationScope(notificationService, contentName, localization: localizationService);
     }
 
     private static string ResolveCanonicalProjectName(string projectName, string projectDir)
@@ -539,10 +643,13 @@ public class SampleProjectService(
         long minLength,
         string assetLabel,
         CancellationToken cancellationToken,
-        string? expectedSha256 = null)
+        string? expectedSha256 = null,
+        SampleAcquisitionTracker? tracker = null,
+        int slotIndex = 0)
     {
         if (await CheckCachedAssetValidAsync(cachePath, minLength, expectedSha256, cancellationToken).ConfigureAwait(false))
         {
+            tracker?.ReportDownloadComplete(assetLabel, slotIndex);
             return OperationResult<bool>.CreateSuccess(true);
         }
 
@@ -557,8 +664,14 @@ public class SampleProjectService(
             providerName,
             assetLabel));
 
+        // Terminal-only scope: the overall acquisition toast owns the pinned
+        // progress, this scope only adds the green per-download toast.
         using var downloadScope = notificationService != null
-            ? new DownloadNotificationScope(notificationService, assetLabel, localization: localizationService)
+            ? new DownloadNotificationScope(
+                notificationService,
+                assetLabel,
+                new DownloadNotificationOptions(ShowStartToast: false),
+                localization: localizationService)
             : null;
 
         var tempPath = $"{cachePath}.tmp_{Guid.NewGuid():N}";
@@ -567,6 +680,7 @@ public class SampleProjectService(
             var downloadProgress = new Progress<DownloadProgress>(dp =>
             {
                 downloadScope?.Report(dp);
+                tracker?.ReportDownload(assetLabel, slotIndex, dp.Percentage / 100.0);
                 WeakReferenceMessenger.Default.Send(new ContentDownloadProgressMessage(
                     contentKey,
                     contentId,
@@ -603,6 +717,7 @@ public class SampleProjectService(
 
             File.Move(tempPath, cachePath, overwrite: true);
 
+            tracker?.ReportDownloadComplete(assetLabel, slotIndex);
             WeakReferenceMessenger.Default.Send(new ContentDownloadCompletedMessage(
                 contentKey, contentId, providerName, assetLabel, true));
             downloadScope?.CompleteSuccess();
@@ -643,8 +758,10 @@ public class SampleProjectService(
         string gameFilesDir,
         string cacheDir,
         IProgress<string>? progress,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        SampleAcquisitionTracker? tracker = null)
     {
+        tracker?.SetTotalDownloads(1);
         progress?.Report("Downloading GeneralsGamePatch2 patch archive...");
         logger.LogInformation("Downloading GeneralsGamePatch2 asset from {Url}", ModBuilderConstants.SampleProjects.GeneralsGamePatch2Url);
 
@@ -654,7 +771,8 @@ public class SampleProjectService(
             zipCachePath,
             100_000,
             "GeneralsGamePatch2 Core INI",
-            cancellationToken).ConfigureAwait(false);
+            cancellationToken,
+            tracker: tracker).ConfigureAwait(false);
 
         if (!downloadResult.Success)
         {
@@ -841,7 +959,9 @@ public class SampleProjectService(
         string gameFilesDir,
         string? releaseDir,
         IProgress<string>? progress,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        SampleAcquisitionTracker? tracker = null,
+        int slotIndex = 0)
     {
         try
         {
@@ -852,7 +972,9 @@ public class SampleProjectService(
                 spec.ZipPath,
                 500_000,
                 spec.AssetLabel,
-                cancellationToken).ConfigureAwait(false);
+                cancellationToken,
+                tracker: tracker,
+                slotIndex: slotIndex).ConfigureAwait(false);
 
             if (!result.Success)
             {
@@ -945,8 +1067,10 @@ public class SampleProjectService(
         string gameFilesDir,
         string cacheDir,
         IProgress<string>? progress,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        SampleAcquisitionTracker? tracker = null)
     {
+        tracker?.SetTotalDownloads(3);
         progress?.Report("Downloading Improved Menus widescreen releases (EN, RU, ES)...");
         logger.LogInformation("Downloading Improved Menus English asset from {Url}", ModBuilderConstants.SampleProjects.ImprovedMenusEnglishUrl);
 
@@ -964,7 +1088,8 @@ public class SampleProjectService(
             enZipPath,
             1_000_000,
             "Improved Menus English",
-            cancellationToken).ConfigureAwait(false);
+            cancellationToken,
+            tracker: tracker).ConfigureAwait(false);
 
         if (!enResult.Success)
         {
@@ -988,7 +1113,9 @@ public class SampleProjectService(
             gameFilesDir,
             releaseDir,
             progress,
-            cancellationToken).ConfigureAwait(false);
+            cancellationToken,
+            tracker,
+            1).ConfigureAwait(false);
 
         // 3. Spanish variant
         await AcquireSecondaryLanguageVariantAsync(
@@ -1001,7 +1128,9 @@ public class SampleProjectService(
             gameFilesDir,
             releaseDir,
             progress,
-            cancellationToken).ConfigureAwait(false);
+            cancellationToken,
+            tracker,
+            2).ConfigureAwait(false);
 
         logger.LogInformation("Successfully unpacked Improved Menus variants into {Dir}", gameFilesDir);
         return OperationResult<bool>.CreateSuccess(true);
@@ -1271,8 +1400,10 @@ public class SampleProjectService(
         string gameFilesDir,
         string cacheDir,
         IProgress<string>? progress,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        SampleAcquisitionTracker? tracker = null)
     {
+        tracker?.SetTotalDownloads(4);
         progress?.Report("Downloading Lemon Control Bar resolutions...");
         var projectDir = Path.GetDirectoryName(gameFilesDir);
         var releaseDir = string.IsNullOrEmpty(projectDir) ? null : Path.Combine(projectDir, ModBuilderConstants.DefaultReleaseDir);
@@ -1290,6 +1421,7 @@ public class SampleProjectService(
         };
 
         var primarySucceeded = false;
+        var downloadIndex = 0;
         foreach (var res in resolutions)
         {
             progress?.Report($"Downloading Lemon Control Bar ({res.Resolution})...");
@@ -1299,7 +1431,10 @@ public class SampleProjectService(
                 zipPath,
                 500_000,
                 $"Lemon Control Bar {res.Resolution}",
-                cancellationToken).ConfigureAwait(false);
+                cancellationToken,
+                tracker: tracker,
+                slotIndex: downloadIndex).ConfigureAwait(false);
+            downloadIndex++;
 
             if (!dlResult.Success)
             {
@@ -1476,8 +1611,10 @@ public class SampleProjectService(
         string gameFilesDir,
         string cacheDir,
         IProgress<string>? progress,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        SampleAcquisitionTracker? tracker = null)
     {
+        tracker?.SetTotalDownloads(1);
         progress?.Report("Downloading Leikeze Hotkeys archive...");
         logger.LogInformation("Downloading Leikeze Hotkeys asset from {Url}", ModBuilderConstants.SampleProjects.LeikezeHotkeysUrl);
 
@@ -1488,7 +1625,8 @@ public class SampleProjectService(
             100_000,
             "Leikeze Hotkeys",
             cancellationToken,
-            ModBuilderConstants.SampleProjects.LeikezeHotkeysSha256).ConfigureAwait(false);
+            ModBuilderConstants.SampleProjects.LeikezeHotkeysSha256,
+            tracker).ConfigureAwait(false);
 
         if (!downloadResult.Success)
         {
@@ -1564,8 +1702,10 @@ public class SampleProjectService(
         string gameFilesDir,
         string cacheDir,
         IProgress<string>? progress,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        SampleAcquisitionTracker? tracker = null)
     {
+        tracker?.SetTotalDownloads(2);
         progress?.Report("Downloading Legionnaire Hotkeys and Indicators...");
         logger.LogInformation("Downloading Hotkeys assets from Community Outpost ({HlegUrl}, {HlenUrl})", ModBuilderConstants.SampleProjects.HotkeysHlegUrl, ModBuilderConstants.SampleProjects.HotkeysHlenUrl);
 
@@ -1576,7 +1716,8 @@ public class SampleProjectService(
             10_000,
             "Hotkeys hleg",
             cancellationToken,
-            ModBuilderConstants.SampleProjects.HotkeysHlegSha256).ConfigureAwait(false);
+            ModBuilderConstants.SampleProjects.HotkeysHlegSha256,
+            tracker).ConfigureAwait(false);
 
         if (!hlegResult.Success)
         {
@@ -1590,7 +1731,9 @@ public class SampleProjectService(
             1_000_000,
             "Hotkeys hlen",
             cancellationToken,
-            ModBuilderConstants.SampleProjects.HotkeysHlenSha256).ConfigureAwait(false);
+            ModBuilderConstants.SampleProjects.HotkeysHlenSha256,
+            tracker,
+            1).ConfigureAwait(false);
 
         if (!hlenResult.Success)
         {

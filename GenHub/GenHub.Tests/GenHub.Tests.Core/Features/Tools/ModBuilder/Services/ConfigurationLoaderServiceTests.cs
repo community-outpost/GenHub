@@ -889,6 +889,28 @@ public sealed class ConfigurationLoaderServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task LoadProjectConfigurationAsync_WithUnlistedManifestsFile_LoadsManifests()
+    {
+        // Arrange: .mbproj lists only items and packs, but the conventional
+        // manifests file exists alongside them (sample template layout).
+        var projectDir = Path.Combine(_tempDirectory, "ManifestProbe");
+        var configDir = Path.Combine(projectDir, "config");
+        Directory.CreateDirectory(configDir);
+        var projectPath = Path.Combine(projectDir, "ManifestProbe.mbproj");
+        await File.WriteAllTextAsync(projectPath, "{ \"name\": \"ManifestProbe\", \"directories\": { \"configs\": \"config\" }, \"bundleConfigs\": [ \"config/ModBundleItems.json\", \"config/ModBundlePacks.json\" ] }");
+        await File.WriteAllTextAsync(Path.Combine(configDir, "ModBundleItems.json"), "{ \"BundleItems\": [ { \"Name\": \"ItemA\" } ] }");
+        await File.WriteAllTextAsync(Path.Combine(configDir, "ModBundlePacks.json"), "{ \"BundlePacks\": [ { \"Name\": \"PackA\", \"Items\": [ \"ItemA\" ] } ] }");
+        await File.WriteAllTextAsync(Path.Combine(configDir, "ModBundleManifests.json"), "{ \"BundleManifests\": [ { \"Name\": \"Variant One\", \"Packs\": [ \"PackA\" ] }, { \"Name\": \"Variant Two\", \"Packs\": [ \"PackA\" ] } ] }");
+
+        // Act
+        var loadedConfig = await _service.LoadProjectConfigurationAsync(projectPath);
+
+        // Assert
+        loadedConfig.Should().NotBeNull();
+        loadedConfig!.Manifests.Select(m => m.Name).Should().BeEquivalentTo("Variant One", "Variant Two");
+    }
+
+    [Fact]
     public void ValidateConfiguration_WithManifestReferencingUnknownPack_ReturnsError()
     {
         // Arrange

@@ -493,4 +493,76 @@ public class ModBuilderViewModelTests : IDisposable
 
         Assert.True(ModBuilderViewModel.ShouldUpdateSampleConfigFile("LemonControlBar", missing));
     }
+
+    [Fact]
+    public void ShouldRefreshSampleManifestsFile_WithMissingFile_ReturnsTrue()
+    {
+        var template = Path.Combine(_tempDir, "ManifestTemplate", "config", "ModBundleManifests.json");
+        var missing = Path.Combine(_tempDir, "ManifestMissing", "config", "ModBundleManifests.json");
+
+        Assert.True(ModBuilderViewModel.ShouldRefreshSampleManifestsFile("ImprovedMenus", template, missing));
+    }
+
+    [Fact]
+    public async Task ShouldRefreshSampleManifestsFile_WithNonManifestsFile_ReturnsFalseAsync()
+    {
+        var configDir = Path.Combine(_tempDir, "ManifestOther", "config");
+        Directory.CreateDirectory(configDir);
+        var template = Path.Combine(configDir, "ModBundlePacks.json");
+        await File.WriteAllTextAsync(template, "{ \"BundlePacks\": [] }");
+
+        Assert.False(ModBuilderViewModel.ShouldRefreshSampleManifestsFile("ImprovedMenus", template, template));
+    }
+
+    [Fact]
+    public async Task ShouldRefreshSampleManifestsFile_WithGeneratedDefault_ReturnsTrueAsync()
+    {
+        var configDir = Path.Combine(_tempDir, "ManifestDefault", "config");
+        Directory.CreateDirectory(configDir);
+        var template = Path.Combine(configDir, "template.json");
+        var target = Path.Combine(configDir, "ModBundleManifests.json");
+        await File.WriteAllTextAsync(template, "{ \"BundleManifests\": [ { \"Name\": \"Improved Menus (English)\" }, { \"Name\": \"Improved Menus (Russian)\" } ] }");
+        await File.WriteAllTextAsync(target, "{ \"BundleManifests\": [ { \"Name\": \"ImprovedMenus\", \"Packs\": [ \"A\", \"B\" ] } ] }");
+
+        Assert.True(ModBuilderViewModel.ShouldRefreshSampleManifestsFile("ImprovedMenus", template, target));
+    }
+
+    [Fact]
+    public async Task ShouldRefreshSampleManifestsFile_WithUserCustomizedManifests_ReturnsFalseAsync()
+    {
+        var configDir = Path.Combine(_tempDir, "ManifestCustom", "config");
+        Directory.CreateDirectory(configDir);
+        var template = Path.Combine(configDir, "template.json");
+        var target = Path.Combine(configDir, "ModBundleManifests.json");
+        await File.WriteAllTextAsync(template, "{ \"BundleManifests\": [ { \"Name\": \"Improved Menus (English)\" }, { \"Name\": \"Improved Menus (Russian)\" } ] }");
+        await File.WriteAllTextAsync(target, "{ \"BundleManifests\": [ { \"Name\": \"My Custom Menus\" } ] }");
+
+        Assert.False(ModBuilderViewModel.ShouldRefreshSampleManifestsFile("ImprovedMenus", template, target));
+    }
+
+    [Fact]
+    public async Task ShouldRefreshSampleManifestsFile_WithSingleVariantTemplate_ReturnsFalseAsync()
+    {
+        var configDir = Path.Combine(_tempDir, "ManifestSingle", "config");
+        Directory.CreateDirectory(configDir);
+        var template = Path.Combine(configDir, "template.json");
+        var target = Path.Combine(configDir, "ModBundleManifests.json");
+        await File.WriteAllTextAsync(template, "{ \"BundleManifests\": [ { \"Name\": \"Hotkeys\" } ] }");
+        await File.WriteAllTextAsync(target, "{ \"BundleManifests\": [ { \"Name\": \"Hotkeys\" } ] }");
+
+        Assert.False(ModBuilderViewModel.ShouldRefreshSampleManifestsFile("Hotkeys", template, target));
+    }
+
+    [Fact]
+    public async Task ShouldRefreshSampleManifestsFile_WithCorruptTarget_ReturnsFalseAsync()
+    {
+        var configDir = Path.Combine(_tempDir, "ManifestCorrupt", "config");
+        Directory.CreateDirectory(configDir);
+        var template = Path.Combine(configDir, "template.json");
+        var target = Path.Combine(configDir, "ModBundleManifests.json");
+        await File.WriteAllTextAsync(template, "{ \"BundleManifests\": [ { \"Name\": \"A\" }, { \"Name\": \"B\" } ] }");
+        await File.WriteAllTextAsync(target, "{ not valid json");
+
+        Assert.False(ModBuilderViewModel.ShouldRefreshSampleManifestsFile("ImprovedMenus", template, target));
+    }
 }

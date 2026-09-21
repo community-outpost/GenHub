@@ -1355,9 +1355,7 @@ public partial class ModBuilderViewModel(
         var assetResult = await sampleProjectService.EnsureSampleAssetsAsync(projectDir, sampleId, progress, cancellationToken).ConfigureAwait(false);
         if (!assetResult.Success)
         {
-            notificationService.ShowError(
-                localizationService.GetString("Tools.ModBuilder.Notification.AssetAcquisitionFailed.Title"),
-                localizationService.GetString("Tools.ModBuilder.Notification.AssetAcquisitionFailed.Message", assetResult.FirstError));
+            // The acquisition scope already showed the terminal failure toast.
             AppendBuildLog($"Sample asset acquisition failed: {assetResult.FirstError}");
             return false;
         }
@@ -1459,6 +1457,66 @@ public partial class ModBuilderViewModel(
             content.Contains("\"/", StringComparison.Ordinal);
     }
 
+    internal static bool ShouldRefreshSampleManifestsFile(string sampleId, string templateFile, string targetFile)
+    {
+        if (!Path.GetFileName(targetFile).Equals(ModBuilderConstants.BundleManifestsConfigFileName, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        if (!File.Exists(targetFile))
+        {
+            return true;
+        }
+
+        try
+        {
+            var targetNames = ReadBundleManifestNames(targetFile);
+            if (targetNames.Count != 1 || !targetNames[0].Equals(sampleId, StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+
+            // A single manifest named after the sample is the auto-created
+            // default; refresh it when the template defines real variants.
+            return ReadBundleManifestNames(templateFile).Count > 1;
+        }
+        catch (IOException)
+        {
+            return false;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return false;
+        }
+        catch (JsonException)
+        {
+            return false;
+        }
+    }
+
+    private static List<string> ReadBundleManifestNames(string path)
+    {
+        using var doc = JsonDocument.Parse(File.ReadAllText(path));
+        var names = new List<string>();
+        if (doc.RootElement.ValueKind == JsonValueKind.Object &&
+            doc.RootElement.TryGetProperty("BundleManifests", out var manifests) &&
+            manifests.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var manifest in manifests.EnumerateArray())
+            {
+                if (manifest.ValueKind == JsonValueKind.Object &&
+                    manifest.TryGetProperty("Name", out var nameEl) &&
+                    nameEl.GetString() is { Length: > 0 } name)
+                {
+                    names.Add(name);
+                }
+            }
+        }
+
+        return names;
+    }
+
     private static bool IsImprovedMenusConfigStale(string sampleId, string content, bool isItemsFile, bool isPacksFile)
     {
         if (!sampleId.Equals(ModBuilderConstants.ImprovedMenusSampleName, StringComparison.OrdinalIgnoreCase))
@@ -1557,7 +1615,8 @@ public partial class ModBuilderViewModel(
             foreach (var configFile in Directory.GetFiles(templateConfigDir, "*.json"))
             {
                 var targetFile = Path.Combine(userConfigDir, Path.GetFileName(configFile));
-                if (ShouldUpdateSampleConfigFile(sampleId, targetFile))
+                if (ShouldUpdateSampleConfigFile(sampleId, targetFile) ||
+                    ShouldRefreshSampleManifestsFile(sampleId, configFile, targetFile))
                 {
                     File.Copy(configFile, targetFile, overwrite: true);
                 }
@@ -1667,7 +1726,7 @@ public partial class ModBuilderViewModel(
                 var assetResult = await sampleProjectService.EnsureSampleAssetsAsync(projectDir, sampleId, progress, cts.Token).ConfigureAwait(false);
                 if (!assetResult.Success)
                 {
-                    notificationService.ShowError(localizationService.GetString("Tools.ModBuilder.Notification.AssetAcquisitionFailed.Title"), localizationService.GetString("Tools.ModBuilder.Notification.AssetAcquisitionFailed.Message", assetResult.FirstError));
+                    // The acquisition scope already showed the terminal failure toast.
                     AppendBuildLog($"Sample asset acquisition failed: {assetResult.FirstError}");
                     return;
                 }
