@@ -1,8 +1,10 @@
 using GenHub.Core.Constants;
+using GenHub.Core.Helpers;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Validation;
 using GenHub.Core.Models.Workspace;
+using GenHub.Core.Services.Tools.Checksum;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
@@ -30,7 +32,12 @@ public static class WorkspaceCompatibilityHelper
         WorkspaceConfiguration configuration,
         ILogger logger)
     {
-        if (!OperatingSystem.IsWindows())
+        // Cross-platform: runs on every preparation and every workspace reuse, on all operating
+        // systems. It is a no-op unless the launcher configured a supplemental archive root, so
+        // existing callers are unaffected.
+        EnsureSupplementalArchives(workspaceInfo, configuration, logger);
+
+        if (!IsWindowsTarget(workspaceInfo, configuration))
         {
             return;
         }
@@ -91,6 +98,385 @@ public static class WorkspaceCompatibilityHelper
         // Final fallback - use RelativePath with BaseInstallationPath
         return Path.Combine(configuration.BaseInstallationPath, file.RelativePath);
     }
+
+    /// <summary>
+    /// Determines whether a base Generals archive is safe to link as a supplemental asset archive for Zero Hour.
+    /// Excludes archives that contain game logic, patches, INIs, window definitions, shaders, copy protection,
+    /// or localized language string tables which would override or conflict with Zero Hour's own definitions,
+    /// causing engine crashes or missing Zero Hour UI strings.
+    /// </summary>
+    /// <param name="candidatePathOrName">The archive file name or absolute path.</param>
+    /// <returns><c>true</c> if the archive is safe to mount in Zero Hour; otherwise <c>false</c>.</returns>
+    public static bool IsSafeSupplementalArchive(string? candidatePathOrName)
+    {
+        if (string.IsNullOrWhiteSpace(candidatePathOrName))
+        {
+            return false;
+        }
+
+        var name = Path.GetFileName(candidatePathOrName);
+
+        // Never link Zero Hour archives from a supplemental root
+        if (name.EndsWith(GameClientConstants.ZeroHourArchiveExtensionSuffix, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        // Substring matching is deliberate: patch-era variants (PatchINI.big, PatchWindow.big,
+        // PatchData.big) must be caught without enumerating every retail filename, and a
+        // skipped community archive costs missing optional content while a linked unsafe one
+        // costs an engine crash.
+        if (GameClientConstants.UnsafeSupplementalArchiveMarkers.Any(
+            marker => name.Contains(marker, StringComparison.OrdinalIgnoreCase)))
+        {
+            return false;
+        }
+
+        // Language archives (e.g. English.big, German.big) contain base generals.csf string tables.
+        // Zero Hour ships complete string tables in *ZH.big (e.g. EnglishZH.big). Linking the base
+        // language archive causes SAGE to load the base generals.csf first alphabetically, wiping out
+        // Zero Hour specific GUI strings (GUI:StartingMoney, GUI:LimitSuperweapons, GUI:StartingMoneyFormat, etc.).
+        // Note: Audio and speech variants (AudioEnglish.big, SpeechEnglish.big) do not contain CSF tables
+        // and are safe to link.
+        var baseNameWithoutExtension = Path.GetFileNameWithoutExtension(name);
+        if (GameClientConstants.UnsafeSupplementalLanguageArchiveNames.Any(
+            lang => string.Equals(baseNameWithoutExtension, lang, StringComparison.OrdinalIgnoreCase)))
+        {
+            return false;
+        }
+
+        // Deep archive inspection: if the file exists on disk, inspect its directory index.
+        // Any archive containing .csf string tables, .wnd window layouts, or .ini definitions
+        // must never be linked as a supplemental archive. TryReadIndex already converts I/O,
+        // corruption, and format failures into a false return, so when the index cannot be
+        // read only the filename checks above apply.
+        if (File.Exists(candidatePathOrName) &&
+            BigArchiveReader.TryReadIndex(candidatePathOrName, out var index) &&
+            index.Keys.Any(entry => GameClientConstants.UnsafeSupplementalArchiveEntryExtensions.Any(
+                extension => entry.EndsWith(extension, StringComparison.OrdinalIgnoreCase))))
+        {
+            return false;
+        }
+
+        return true;
+    }
+
+    /// <summary>
+    /// Enumerates the top-level retail archives a supplemental root provides, matched the same way
+    /// the engine mounts them: <c>*.big</c>, case-insensitive, non-recursive.
+    /// </summary>
+    /// <remarks>
+    /// This is the single enumeration both the workspace linker and the delta reconciler consume,
+    /// so the files treated as supplemental content are identical in both places. Names map to
+    /// their canonical on-disk source paths so callers never reconstruct a source from workspace
+    /// casing, which may differ on case-sensitive filesystems. A missing root is reported as an
+    /// empty map rather than an error; only an unreadable one fails, so the caller can warn
+    /// instead of silently launching without the archives.
+    /// </remarks>
+    /// <param name="supplementalRoot">The supplemental archive root, or null when none is configured.</param>
+    /// <param name="archives">The on-disk archive filenames mapped to their full source paths, compared case-insensitively.</param>
+    /// <param name="logger">Optional logger receiving an informational entry per deliberately skipped archive.</param>
+    /// <returns><c>true</c> when the root was enumerated or is absent; <c>false</c> when it exists but could not be read.</returns>
+    public static bool TryGetSupplementalArchives(string? supplementalRoot, out IReadOnlyDictionary<string, string> archives, ILogger? logger = null)
+    {
+        var names = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        if (string.IsNullOrWhiteSpace(supplementalRoot))
+        {
+            archives = names;
+            return true;
+        }
+
+        try
+        {
+            // Enumerate deterministically: on a case-sensitive filesystem the root may hold
+            // both "Textures.big" and "textures.big", and TryAdd keeps whichever arrives
+            // first. Ordering pins the same canonical source for the linker and the
+            // reconciler on every run instead of churning on enumeration order.
+            foreach (var path in Directory.EnumerateFiles(supplementalRoot, RetailArchiveConstants.ArchiveSearchPattern, RetailArchiveConstants.ArchiveSearch)
+                .OrderBy(candidate => candidate, StringComparer.Ordinal))
+            {
+                var fileName = Path.GetFileName(path);
+                if (IsSafeSupplementalArchive(path))
+                {
+                    names.TryAdd(fileName, path);
+                }
+                else
+                {
+                    // Informational, not debug: a skip deliberately costs content (see
+                    // IsSafeSupplementalArchive), so a missing-content report is only
+                    // diagnosable when the skipped names are visible in default logs.
+                    logger?.LogInformation("Skipping unsafe supplemental archive {FileName} from {Root}", fileName, supplementalRoot);
+                }
+            }
+
+            archives = names;
+            return true;
+        }
+        catch (DirectoryNotFoundException)
+        {
+            // A missing root yields nothing, so the map is already empty.
+            archives = names;
+            return true;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            archives = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Determines whether a symbolic link target resides directly inside the given root directory.
+    /// Relative targets can never match: supplemental links are always created with absolute
+    /// targets, so a relative target proves foreign ownership.
+    /// </summary>
+    /// <param name="linkTarget">The link target as stored in the link.</param>
+    /// <param name="root">The root directory to test against.</param>
+    /// <returns><c>true</c> when the target is an absolute path inside <paramref name="root"/>.</returns>
+    internal static bool IsLinkTargetUnderRoot(string? linkTarget, string root)
+    {
+        if (!Path.IsPathRooted(linkTarget))
+        {
+            return false;
+        }
+
+        return string.Equals(
+            NormalizeLinkPath(Path.GetDirectoryName(linkTarget)),
+            NormalizeLinkPath(root),
+            PathHelper.PathComparison);
+    }
+
+    /// <summary>
+    /// Determines whether the workspace is targeting a Windows executable either via direct host OS or compatibility runner.
+    /// </summary>
+    private static bool IsWindowsTarget(WorkspaceInfo workspaceInfo, WorkspaceConfiguration configuration)
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            return true;
+        }
+
+        var launchExecutable = !string.IsNullOrWhiteSpace(workspaceInfo.ExecutablePath)
+            ? workspaceInfo.ExecutablePath
+            : configuration.GameClient?.ExecutablePath;
+
+        if (string.IsNullOrWhiteSpace(launchExecutable))
+        {
+            launchExecutable = configuration.Manifests
+                .SelectMany(m => m.Files ?? [])
+                .Select(f => f.RelativePath)
+                .FirstOrDefault(CommandLineHelper.IsWindowsExecutable);
+        }
+
+        return CommandLineHelper.IsWindowsExecutable(launchExecutable);
+    }
+
+    /// <summary>
+    /// Links the supplemental root's top-level archives into the workspace root and removes links
+    /// left over from a root that no longer provides them.
+    /// </summary>
+    /// <remarks>
+    /// Existing workspace entries always win: a supplemental archive is only created when nothing
+    /// occupies its name, and reconciliation only touches links pointing into the supplemental
+    /// root — never regular files and never foreign links — so manifest content, mods, and user
+    /// files cannot be removed or shadowed by this step.
+    /// <para>
+    /// Linking applies only when the resolved workspace executable is a Windows binary: the native
+    /// engine resolves its archive roots from the environment instead. The check runs against the
+    /// workspace-resolved path — the exact string the runner will wrap — because workspace aliasing
+    /// may rewrite the client's declared entry point (e.g. <c>game.dat</c> to <c>generals.exe</c>).
+    /// </para>
+    /// </remarks>
+    /// <param name="workspaceInfo">The workspace info.</param>
+    /// <param name="configuration">The workspace configuration.</param>
+    /// <param name="logger">Logger instance.</param>
+    private static void EnsureSupplementalArchives(
+        WorkspaceInfo workspaceInfo,
+        WorkspaceConfiguration configuration,
+        ILogger logger)
+    {
+        var supplementalRoot = configuration.SupplementalArchiveRoot;
+        if (string.IsNullOrWhiteSpace(supplementalRoot))
+        {
+            return;
+        }
+
+        var launchExecutable = !string.IsNullOrWhiteSpace(workspaceInfo.ExecutablePath)
+            ? workspaceInfo.ExecutablePath
+            : configuration.GameClient?.ExecutablePath;
+        if (!CommandLineHelper.IsWindowsExecutable(launchExecutable))
+        {
+            logger.LogDebug(
+                "Skipping supplemental archives for non-Windows executable {Executable} in workspace {Workspace}",
+                launchExecutable,
+                workspaceInfo.WorkspacePath);
+            return;
+        }
+
+        if (!TryGetSupplementalArchives(supplementalRoot, out var desiredArchives, logger))
+        {
+            logger.LogWarning("Supplemental archive root could not be read: {Root}", supplementalRoot);
+            workspaceInfo.ValidationIssues.Add(new ValidationIssue(
+                $"Supplemental archive root could not be read: {supplementalRoot}",
+                ValidationSeverity.Warning));
+            return;
+        }
+
+        var created = LinkMissingSupplementalArchives(workspaceInfo.WorkspacePath, desiredArchives, workspaceInfo, logger);
+        var removed = ReconcileStaleSupplementalLinks(workspaceInfo.WorkspacePath, supplementalRoot, desiredArchives, logger);
+        workspaceInfo.FileCount += created - removed;
+    }
+
+    /// <summary>
+    /// Creates workspace-root links for every desired archive that has no entry yet.
+    /// </summary>
+    /// <remarks>
+    /// Existing entries are matched case-insensitively: on a case-sensitive filesystem a
+    /// workspace-owned <c>textures.big</c> must still win over a supplemental
+    /// <c>Textures.big</c> instead of gaining a second entry.
+    /// </remarks>
+    /// <returns>The number of links created.</returns>
+    private static int LinkMissingSupplementalArchives(
+        string workspacePath,
+        IReadOnlyDictionary<string, string> desiredArchives,
+        WorkspaceInfo workspaceInfo,
+        ILogger logger)
+    {
+        HashSet<string> existingNames;
+        try
+        {
+            existingNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var entry in Directory.EnumerateFileSystemEntries(workspacePath, "*", SearchOption.TopDirectoryOnly))
+            {
+                var name = Path.GetFileName(entry);
+                if (!string.IsNullOrEmpty(name))
+                {
+                    existingNames.Add(name);
+                }
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            logger.LogWarning(ex, "Failed to enumerate workspace root {Workspace} for supplemental archives", workspacePath);
+            workspaceInfo.ValidationIssues.Add(new ValidationIssue(
+                $"Failed to enumerate workspace root {workspacePath} for supplemental archives: {ex.Message}",
+                ValidationSeverity.Warning));
+            return 0;
+        }
+
+        var created = 0;
+        foreach (var (name, sourcePath) in desiredArchives)
+        {
+            if (existingNames.Contains(name))
+            {
+                continue;
+            }
+
+            var targetPath = Path.Combine(workspacePath, name);
+            try
+            {
+                LinkFileOrCopy(sourcePath, targetPath, name, logger);
+                created++;
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                logger.LogWarning(ex, "Failed to materialize supplemental archive {Name} from {Source} to {Target}", name, sourcePath, targetPath);
+                workspaceInfo.ValidationIssues.Add(new ValidationIssue(
+                    $"Failed to materialize supplemental archive {name}: {ex.Message}",
+                    ValidationSeverity.Warning));
+            }
+        }
+
+        return created;
+    }
+
+    /// <summary>
+    /// Repairs supplemental links whose target is stale and deletes those the root no longer provides.
+    /// </summary>
+    /// <remarks>
+    /// Only links pointing into the supplemental root are ever touched. A link owned by a manifest,
+    /// a mod, or the user may share a supplemental archive's name (a mod overriding a retail archive
+    /// under a link-based strategy does exactly that), so name alone never establishes ownership.
+    /// </remarks>
+    /// <returns>The number of stale entries removed without replacement.</returns>
+    private static int ReconcileStaleSupplementalLinks(
+        string workspacePath,
+        string supplementalRoot,
+        IReadOnlyDictionary<string, string> desiredArchives,
+        ILogger logger)
+    {
+        string[] entries;
+        try
+        {
+            entries = Directory.GetFiles(workspacePath, "*", SearchOption.TopDirectoryOnly);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            logger.LogDebug(ex, "Failed to enumerate workspace root for supplemental reconciliation: {Workspace}", workspacePath);
+            return 0;
+        }
+
+        var removed = 0;
+        foreach (var entry in entries)
+        {
+            try
+            {
+                if (ReconcileSupplementalEntry(entry, supplementalRoot, desiredArchives, logger))
+                {
+                    removed++;
+                }
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                logger.LogDebug(ex, "Failed to reconcile supplemental entry {Entry}; it will be retried on the next launch", entry);
+            }
+        }
+
+        return removed;
+    }
+
+    /// <returns><c>true</c> when the entry was removed without replacement; otherwise, <c>false</c>.</returns>
+    private static bool ReconcileSupplementalEntry(
+        string entry,
+        string supplementalRoot,
+        IReadOnlyDictionary<string, string> desiredArchives,
+        ILogger logger)
+    {
+        var linkTarget = new FileInfo(entry).LinkTarget;
+        if (linkTarget is null || !IsLinkTargetUnderRoot(linkTarget, supplementalRoot))
+        {
+            return false;
+        }
+
+        var name = Path.GetFileName(entry);
+        if (!desiredArchives.TryGetValue(name, out var expectedSource))
+        {
+            File.Delete(entry);
+            logger.LogDebug("Removed stale supplemental link {Entry} targeting {Target}", entry, linkTarget);
+            return true;
+        }
+
+        if (string.Equals(NormalizeLinkPath(linkTarget), NormalizeLinkPath(expectedSource), PathHelper.PathComparison) &&
+            File.Exists(entry))
+        {
+            return false;
+        }
+
+        File.Delete(entry);
+        try
+        {
+            LinkFileOrCopy(expectedSource, entry, name, logger);
+            return false;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            logger.LogDebug(ex, "Failed to relink supplemental entry {Entry}; it will be retried on the next launch", entry);
+            return true;
+        }
+    }
+
+    private static string NormalizeLinkPath(string? path) =>
+        (path ?? string.Empty).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
 
     private static void EnsureDrmMarkerDirectory(string workspacePath, WorkspaceInfo workspaceInfo, ILogger logger)
     {
@@ -189,49 +575,45 @@ public static class WorkspaceCompatibilityHelper
 
         if (string.Equals(directoryName, GameClientConstants.CoreDirectory, StringComparison.OrdinalIgnoreCase))
         {
-            CopyCoreDirectoryFallback(workspaceInfo, directoryName, sourcePath, targetPath, logger);
+            CopyCoreDirectoryFallback(workspaceInfo, sourcePath, targetPath, logger);
+            return;
         }
-        else
-        {
-            logger.LogWarning("Failed to create symbolic link or junction for {Directory} directory at {Target}; skipping materialization to avoid freezing UI with large directory copy", directoryName, targetPath);
-            workspaceInfo.ValidationIssues.Add(new ValidationIssue(
-                $"Failed to create symbolic link or junction for {directoryName} directory at {targetPath}",
-                ValidationSeverity.Warning));
-        }
+
+        logger.LogWarning("Failed to link {Directory} directory from {Source} to {Target}", directoryName, sourcePath, targetPath);
+        workspaceInfo.ValidationIssues.Add(new ValidationIssue(
+            $"Failed to link {directoryName} directory to workspace",
+            ValidationSeverity.Warning));
     }
 
     private static void CopyCoreDirectoryFallback(
         WorkspaceInfo workspaceInfo,
-        string directoryName,
         string sourcePath,
         string targetPath,
         ILogger logger)
     {
-        // Core contains critical DRM and activation libraries (Activation.dll, ~2MB total).
-        // If symlink and junction fail, copy files directly so retail/EA/Steam client does not crash with 0xC0000135.
         try
         {
             Directory.CreateDirectory(targetPath);
-            foreach (var file in Directory.GetFiles(sourcePath, "*", SearchOption.AllDirectories))
+            foreach (var file in Directory.EnumerateFiles(sourcePath, "*", SearchOption.AllDirectories))
             {
-                var relativeFile = Path.GetRelativePath(sourcePath, file);
-                var destFile = Path.Combine(targetPath, relativeFile);
-                var destDir = Path.GetDirectoryName(destFile);
+                var relative = Path.GetRelativePath(sourcePath, file);
+                var dest = Path.Combine(targetPath, relative);
+                var destDir = Path.GetDirectoryName(dest);
                 if (!string.IsNullOrEmpty(destDir))
                 {
                     Directory.CreateDirectory(destDir);
                 }
 
-                File.Copy(file, destFile, overwrite: true);
+                File.Copy(file, dest, overwrite: true);
             }
 
-            logger.LogInformation("Copied {Directory} directory contents from {Source} to {Target} as fallback", directoryName, sourcePath, targetPath);
+            logger.LogInformation("Copied {Directory} directory files from {Source} to {Target} as fallback", GameClientConstants.CoreDirectory, sourcePath, targetPath);
         }
         catch (Exception copyEx) when (copyEx is IOException or UnauthorizedAccessException)
         {
-            logger.LogWarning(copyEx, "Failed to copy {Directory} directory to {Target}", directoryName, targetPath);
+            logger.LogWarning(copyEx, "Failed to copy {Directory} directory from {Source} to {Target} as fallback", GameClientConstants.CoreDirectory, sourcePath, targetPath);
             workspaceInfo.ValidationIssues.Add(new ValidationIssue(
-                $"Failed to copy fallback {directoryName} directory contents to {targetPath}: {copyEx.Message}",
+                $"Failed to copy {GameClientConstants.CoreDirectory} directory to workspace: {copyEx.Message}",
                 ValidationSeverity.Warning));
         }
     }
@@ -269,16 +651,27 @@ public static class WorkspaceCompatibilityHelper
         }
     }
 
-    private static void MaterializeDirect3DWrapperFile(string sourcePath, string targetPath, ILogger logger)
+    private static void MaterializeDirect3DWrapperFile(string sourcePath, string targetPath, ILogger logger) =>
+        LinkFileOrCopy(sourcePath, targetPath, GameClientConstants.Direct3D8WrapperDll, logger);
+
+    /// <summary>
+    /// Materializes one compatibility file as a symbolic link, falling back to a copy when the
+    /// filesystem or the process cannot create links.
+    /// </summary>
+    /// <param name="sourcePath">The file to link or copy from.</param>
+    /// <param name="targetPath">The workspace path to create.</param>
+    /// <param name="label">The display name used in log messages.</param>
+    /// <param name="logger">Logger instance.</param>
+    private static void LinkFileOrCopy(string sourcePath, string targetPath, string label, ILogger logger)
     {
         try
         {
             File.CreateSymbolicLink(targetPath, sourcePath);
-            logger.LogInformation("Linked {Dll} from {Source} to {Target}", GameClientConstants.Direct3D8WrapperDll, sourcePath, targetPath);
+            logger.LogInformation("Linked {Label} from {Source} to {Target}", label, sourcePath, targetPath);
         }
         catch (Exception symlinkEx)
         {
-            logger.LogDebug(symlinkEx, "Failed to create symlink for {Dll}, falling back to copy: {Target}", GameClientConstants.Direct3D8WrapperDll, targetPath);
+            logger.LogDebug(symlinkEx, "Failed to create symlink for {Label}, falling back to copy: {Target}", label, targetPath);
             try
             {
                 File.Delete(targetPath);
@@ -289,7 +682,7 @@ public static class WorkspaceCompatibilityHelper
             }
 
             File.Copy(sourcePath, targetPath, overwrite: true);
-            logger.LogInformation("Copied {Dll} from {Source} to {Target}", GameClientConstants.Direct3D8WrapperDll, sourcePath, targetPath);
+            logger.LogInformation("Copied {Label} from {Source} to {Target}", label, sourcePath, targetPath);
         }
     }
 

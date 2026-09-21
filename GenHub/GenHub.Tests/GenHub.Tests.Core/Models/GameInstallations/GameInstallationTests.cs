@@ -890,6 +890,33 @@ public class GameInstallationTests
     }
 
     /// <summary>
+    /// Verifies that BundledGeneralsPath resolves the ZH_Generals directory even when its
+    /// on-disk casing differs, which case-sensitive filesystems would otherwise miss.
+    /// </summary>
+    [Fact]
+    public void GameInstallation_BundledGeneralsPath_ReturnsPath_WhenZhGeneralsDirectoryCaseDiffers()
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), "GenHubCaseVariantBundledZhTest_" + Guid.NewGuid().ToString("N"));
+        var zhGeneralsDir = Path.Combine(tempDir, GameClientConstants.ZhGeneralsDirectory.ToLowerInvariant());
+        Directory.CreateDirectory(zhGeneralsDir);
+        try
+        {
+            File.WriteAllText(Path.Combine(zhGeneralsDir, "Textures.big"), "archive");
+
+            var installation = new GameInstallation(tempDir, GameInstallationType.Steam, NullLogger<GameInstallation>.Instance);
+            installation.SetPaths(null, tempDir);
+
+            Assert.True(
+                string.Equals(zhGeneralsDir, installation.BundledGeneralsPath, StringComparison.OrdinalIgnoreCase),
+                $"Expected {zhGeneralsDir} but got {installation.BundledGeneralsPath ?? "(null)"}.");
+        }
+        finally
+        {
+            Directory.Delete(tempDir, true);
+        }
+    }
+
+    /// <summary>
     /// Verifies that the IGameInstallation default implementations resolve the bundled and
     /// effective Generals paths through the shared helpers. A bare implementer is used on
     /// purpose: casting a GameInstallation would dispatch to its own overrides and never

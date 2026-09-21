@@ -4,6 +4,7 @@ using GenHub.Core.Models.Launching;
 using GenHub.Features.Launching;
 using Microsoft.Extensions.Logging.Abstractions;
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using Xunit;
@@ -153,10 +154,12 @@ public sealed class WineRunnerTests : IDisposable
     }
 
     /// <summary>
-    /// Verifies the native Options.ini is mirrored into the prefix user documents.
+    /// Verifies the native Options.ini is mirrored into both prefix user documents folders.
+    /// Plain Wine reads "My Documents" while Proton reads "Documents", and a fresh managed
+    /// prefix has neither, so guessing one would silently drop the profile's settings.
     /// </summary>
     [Fact]
-    public void ResolveCommand_WithNativeOptionsIni_MirrorsItIntoPrefixUserDocuments()
+    public void ResolveCommand_WithNativeOptionsIni_MirrorsItIntoBothPrefixUserDocuments()
     {
         // Arrange
         var binDirectory = CreateDirectory("bin");
@@ -178,18 +181,20 @@ public sealed class WineRunnerTests : IDisposable
         // Assert
         Assert.True(result.Success, result.AllErrors);
         var mirrored = Directory.GetFiles(prefixPath, "Options.ini", SearchOption.AllDirectories);
-        var mirroredPath = Assert.Single(mirrored);
-        Assert.Equal("native-settings", File.ReadAllText(mirroredPath));
-        Assert.Contains(WineConstants.DriveCDirectoryName, mirroredPath);
-        Assert.Contains(WineConstants.DocumentsDirectoryName, mirroredPath);
-        Assert.Contains(MapManagerConstants.ZeroHourDataDirectoryName, mirroredPath);
+        Assert.Equal(2, mirrored.Length);
+        Assert.All(mirrored, mirroredPath => Assert.Equal("native-settings", File.ReadAllText(mirroredPath)));
+        Assert.Contains(mirrored, mirroredPath => mirroredPath.Contains(WineConstants.MyDocumentsDirectoryName));
+        Assert.Contains(
+            mirrored,
+            mirroredPath => !mirroredPath.Contains(WineConstants.MyDocumentsDirectoryName) && mirroredPath.Contains(WineConstants.DocumentsDirectoryName));
     }
 
     /// <summary>
-    /// Verifies that when only the Documents folder exists in the prefix, Options.ini is mirrored into Documents.
+    /// Verifies that when only the standard Documents folder exists in the prefix, the missing
+    /// My Documents folder is created and Options.ini is mirrored into both.
     /// </summary>
     [Fact]
-    public void ResolveCommand_WithOnlyDocumentsDirectoryExisting_MirrorsIntoDocuments()
+    public void ResolveCommand_WithOnlyDocumentsDirectoryExisting_MirrorsIntoBothDocumentsFolders()
     {
         // Arrange
         var binDirectory = CreateDirectory("bin");
@@ -220,16 +225,20 @@ public sealed class WineRunnerTests : IDisposable
         // Assert
         Assert.True(result.Success, result.AllErrors);
         var mirrored = Directory.GetFiles(prefixPath, "Options.ini", SearchOption.AllDirectories);
-        var mirroredPath = Assert.Single(mirrored);
-        Assert.Equal("docs-only-settings", File.ReadAllText(mirroredPath));
-        Assert.Contains(WineConstants.DocumentsDirectoryName, mirroredPath);
+        Assert.Equal(2, mirrored.Length);
+        Assert.All(mirrored, mirroredPath => Assert.Equal("docs-only-settings", File.ReadAllText(mirroredPath)));
+        Assert.Contains(mirrored, mirroredPath => mirroredPath.Contains(WineConstants.MyDocumentsDirectoryName));
+        Assert.Contains(
+            mirrored,
+            mirroredPath => !mirroredPath.Contains(WineConstants.MyDocumentsDirectoryName) && mirroredPath.Contains(WineConstants.DocumentsDirectoryName));
     }
 
     /// <summary>
-    /// Verifies that when only the legacy My Documents folder exists in the prefix, Options.ini is mirrored into My Documents.
+    /// Verifies that when only the legacy My Documents folder exists in the prefix, the missing
+    /// Documents folder is created and Options.ini is mirrored into both.
     /// </summary>
     [Fact]
-    public void ResolveCommand_WithOnlyLegacyMyDocumentsExisting_MirrorsIntoMyDocuments()
+    public void ResolveCommand_WithOnlyLegacyMyDocumentsExisting_MirrorsIntoBothDocumentsFolders()
     {
         // Arrange
         var binDirectory = CreateDirectory("bin");
@@ -260,16 +269,19 @@ public sealed class WineRunnerTests : IDisposable
         // Assert
         Assert.True(result.Success, result.AllErrors);
         var mirrored = Directory.GetFiles(prefixPath, "Options.ini", SearchOption.AllDirectories);
-        var mirroredPath = Assert.Single(mirrored);
-        Assert.Equal("legacy-settings", File.ReadAllText(mirroredPath));
-        Assert.Contains(WineConstants.MyDocumentsDirectoryName, mirroredPath);
+        Assert.Equal(2, mirrored.Length);
+        Assert.All(mirrored, mirroredPath => Assert.Equal("legacy-settings", File.ReadAllText(mirroredPath)));
+        Assert.Contains(mirrored, mirroredPath => mirroredPath.Contains(WineConstants.MyDocumentsDirectoryName));
+        Assert.Contains(
+            mirrored,
+            mirroredPath => !mirroredPath.Contains(WineConstants.MyDocumentsDirectoryName) && mirroredPath.Contains(WineConstants.DocumentsDirectoryName));
     }
 
     /// <summary>
-    /// Verifies that when both Documents and My Documents exist, Documents is preferred.
+    /// Verifies that when both Documents and My Documents exist, Options.ini is mirrored into both.
     /// </summary>
     [Fact]
-    public void ResolveCommand_WithBothDocumentsAndMyDocumentsExisting_PrefersDocuments()
+    public void ResolveCommand_WithBothDocumentsAndMyDocumentsExisting_MirrorsIntoBoth()
     {
         // Arrange
         var binDirectory = CreateDirectory("bin");
@@ -300,13 +312,17 @@ public sealed class WineRunnerTests : IDisposable
         // Assert
         Assert.True(result.Success, result.AllErrors);
         var mirrored = Directory.GetFiles(prefixPath, "Options.ini", SearchOption.AllDirectories);
-        var mirroredPath = Assert.Single(mirrored);
-        Assert.Equal("both-settings", File.ReadAllText(mirroredPath));
-        Assert.Contains(WineConstants.DocumentsDirectoryName, mirroredPath);
+        Assert.Equal(2, mirrored.Length);
+        Assert.All(mirrored, mirroredPath => Assert.Equal("both-settings", File.ReadAllText(mirroredPath)));
+        Assert.Contains(mirrored, mirroredPath => mirroredPath.Contains(WineConstants.MyDocumentsDirectoryName));
+        Assert.Contains(
+            mirrored,
+            mirroredPath => !mirroredPath.Contains(WineConstants.MyDocumentsDirectoryName) && mirroredPath.Contains(WineConstants.DocumentsDirectoryName));
     }
 
     /// <summary>
-    /// Verifies a newer prefix Options.ini (for example edited in-game) is never overwritten.
+    /// Verifies a newer prefix Options.ini (for example edited in-game) is never overwritten,
+    /// in either documents folder.
     /// </summary>
     [Fact]
     public void ResolveCommand_WithNewerPrefixOptionsIni_PreservesIt()
@@ -327,16 +343,308 @@ public sealed class WineRunnerTests : IDisposable
         };
 
         Assert.True(runner.ResolveCommand(configuration).Success);
-        var mirroredPath = Assert.Single(Directory.GetFiles(prefixPath, "Options.ini", SearchOption.AllDirectories));
-        File.WriteAllText(mirroredPath, "in-game-settings");
-        File.SetLastWriteTimeUtc(mirroredPath, DateTime.UtcNow.AddHours(1));
+        var mirroredPaths = Directory.GetFiles(prefixPath, "Options.ini", SearchOption.AllDirectories);
+        Assert.Equal(2, mirroredPaths.Length);
+        foreach (var mirroredPath in mirroredPaths)
+        {
+            File.WriteAllText(mirroredPath, "in-game-settings");
+            File.SetLastWriteTimeUtc(mirroredPath, DateTime.UtcNow.AddHours(1));
+        }
 
         // Act
         var result = runner.ResolveCommand(configuration);
 
         // Assert
         Assert.True(result.Success, result.AllErrors);
-        Assert.Equal("in-game-settings", File.ReadAllText(mirroredPath));
+        Assert.All(mirroredPaths, mirroredPath => Assert.Equal("in-game-settings", File.ReadAllText(mirroredPath)));
+    }
+
+    /// <summary>
+    /// Verifies that in a Proton prefix (e.g. Steam compatdata), Options.ini is mirrored
+    /// into steamuser's Documents and My Documents folders.
+    /// </summary>
+    [Fact]
+    public void ResolveCommand_WithProtonPrefix_MirrorsIntoSteamUserDocumentsFolders()
+    {
+        // Arrange
+        var binDirectory = CreateDirectory("bin");
+        File.WriteAllText(Path.Combine(binDirectory, "wine"), "fake wine");
+        var prefixPath = Path.Combine(_tempDirectory, "steamapps", "compatdata", "1273270", "pfx");
+        var runner = CreateRunner([binDirectory], prefixPath);
+        var nativeOptionsPath = Path.Combine(CreateDirectory("userdata-proton"), "Options.ini");
+        File.WriteAllText(nativeOptionsPath, "proton-settings");
+        var configuration = new GameLaunchConfiguration
+        {
+            ExecutablePath = Path.Combine(_tempDirectory, "game", "generals.exe"),
+            GameType = GameType.ZeroHour,
+            NativeOptionsIniPath = nativeOptionsPath,
+        };
+
+        // Act
+        var result = runner.ResolveCommand(configuration);
+
+        // Assert
+        Assert.True(result.Success, result.AllErrors);
+        var steamUserDocs = Path.Combine(
+            prefixPath,
+            WineConstants.DriveCDirectoryName,
+            WineConstants.PrefixUsersDirectoryName,
+            WineConstants.ProtonUserName,
+            WineConstants.DocumentsDirectoryName,
+            MapManagerConstants.ZeroHourDataDirectoryName,
+            "Options.ini");
+        var steamUserMyDocs = Path.Combine(
+            prefixPath,
+            WineConstants.DriveCDirectoryName,
+            WineConstants.PrefixUsersDirectoryName,
+            WineConstants.ProtonUserName,
+            WineConstants.MyDocumentsDirectoryName,
+            MapManagerConstants.ZeroHourDataDirectoryName,
+            "Options.ini");
+
+        Assert.True(File.Exists(steamUserDocs));
+        Assert.True(File.Exists(steamUserMyDocs));
+        Assert.Equal("proton-settings", File.ReadAllText(steamUserDocs));
+        Assert.Equal("proton-settings", File.ReadAllText(steamUserMyDocs));
+    }
+
+    /// <summary>
+    /// Verifies that Proton's tracked-files marker is probed in the compatdata root next to
+    /// the prefix directory: a prefix path without "compatdata" still mirrors into
+    /// steamuser's folders when the marker sits in the parent directory.
+    /// </summary>
+    [Fact]
+    public void ResolveCommand_WithTrackedFilesNextToPrefix_MirrorsIntoSteamUserDocumentsFolders()
+    {
+        // Arrange
+        var binDirectory = CreateDirectory("bin");
+        File.WriteAllText(Path.Combine(binDirectory, "wine"), "fake wine");
+        var compatRoot = CreateDirectory("compat-root");
+        File.WriteAllText(Path.Combine(compatRoot, WineConstants.ProtonTrackedFilesMarker), "tracked");
+        var prefixPath = Path.Combine(compatRoot, "pfx");
+        var runner = CreateRunner([binDirectory], prefixPath);
+        var nativeOptionsPath = Path.Combine(CreateDirectory("userdata-tracked"), "Options.ini");
+        File.WriteAllText(nativeOptionsPath, "tracked-settings");
+        var configuration = new GameLaunchConfiguration
+        {
+            ExecutablePath = Path.Combine(_tempDirectory, "game", "generals.exe"),
+            GameType = GameType.ZeroHour,
+            NativeOptionsIniPath = nativeOptionsPath,
+        };
+
+        // Act
+        var result = runner.ResolveCommand(configuration);
+
+        // Assert
+        Assert.True(result.Success, result.AllErrors);
+        var steamUserDocs = Path.Combine(
+            prefixPath,
+            WineConstants.DriveCDirectoryName,
+            WineConstants.PrefixUsersDirectoryName,
+            WineConstants.ProtonUserName,
+            WineConstants.DocumentsDirectoryName,
+            MapManagerConstants.ZeroHourDataDirectoryName,
+            "Options.ini");
+
+        Assert.True(File.Exists(steamUserDocs));
+        Assert.Equal("tracked-settings", File.ReadAllText(steamUserDocs));
+    }
+
+    /// <summary>
+    /// Verifies that if the native Options.ini does not exist on disk, a baseline Options.ini
+    /// is bootstrapped using the configured resolution arguments and mirrored into the prefix.
+    /// </summary>
+    [Fact]
+    public void ResolveCommand_WithMissingNativeOptionsIni_BootstrapsBaselineOptionsIni()
+    {
+        // Arrange
+        var binDirectory = CreateDirectory("bin");
+        File.WriteAllText(Path.Combine(binDirectory, "wine"), "fake wine");
+        var prefixPath = Path.Combine(_tempDirectory, "prefix-bootstrap");
+        var runner = CreateRunner([binDirectory], prefixPath);
+        var nativeOptionsPath = Path.Combine(CreateDirectory("userdata-bootstrap"), "Options.ini");
+        var configuration = new GameLaunchConfiguration
+        {
+            ExecutablePath = Path.Combine(_tempDirectory, "game", "generals.exe"),
+            GameType = GameType.ZeroHour,
+            NativeOptionsIniPath = nativeOptionsPath,
+            Arguments = new Dictionary<string, string>
+            {
+                ["-xres"] = "1920",
+                ["-yres"] = "1080",
+            },
+        };
+
+        // Act
+        var result = runner.ResolveCommand(configuration);
+
+        // Assert
+        Assert.True(result.Success, result.AllErrors);
+        Assert.True(File.Exists(nativeOptionsPath));
+        var content = File.ReadAllText(nativeOptionsPath);
+        Assert.Contains("Resolution = 1920 1080", content);
+
+        var mirrored = Directory.GetFiles(prefixPath, "Options.ini", SearchOption.AllDirectories);
+        Assert.NotEmpty(mirrored);
+        Assert.All(mirrored, path => Assert.Contains("Resolution = 1920 1080", File.ReadAllText(path)));
+    }
+
+    /// <summary>
+    /// Verifies that configuration environment variables are forwarded to the resolved Wine command.
+    /// </summary>
+    [Fact]
+    public void ResolveCommand_WithCustomEnvironmentVariables_PreservesThem()
+    {
+        // Arrange
+        var binDirectory = CreateDirectory("bin");
+        File.WriteAllText(Path.Combine(binDirectory, "wine"), "fake wine");
+        var prefixPath = Path.Combine(_tempDirectory, "prefix-env");
+        var runner = CreateRunner([binDirectory], prefixPath);
+        var configuration = new GameLaunchConfiguration
+        {
+            ExecutablePath = Path.Combine(_tempDirectory, "game", "generals.exe"),
+            EnvironmentVariables = new Dictionary<string, string>
+            {
+                ["CNC_GENERALS_INSTALLPATH"] = @"C:\Generals",
+                ["CUSTOM_LAUNCH_FLAG"] = "1",
+            },
+        };
+
+        // Act
+        var result = runner.ResolveCommand(configuration);
+
+        // Assert
+        Assert.True(result.Success, result.AllErrors);
+        Assert.NotNull(result.Data);
+        Assert.Equal(@"C:\Generals", result.Data.EnvironmentVariables["CNC_GENERALS_INSTALLPATH"]);
+        Assert.Equal("1", result.Data.EnvironmentVariables["CUSTOM_LAUNCH_FLAG"]);
+        Assert.Equal(prefixPath, result.Data.EnvironmentVariables[WineConstants.PrefixEnvironmentVariable]);
+    }
+
+    /// <summary>
+    /// Verifies that when d3d8.dll exists in the working directory, WINEDLLOVERRIDES is set to d3d8=n,b.
+    /// </summary>
+    [Fact]
+    public void ResolveCommand_WithDirect3DWrapper_ConfiguresWineDllOverrides()
+    {
+        // Arrange
+        var binDirectory = CreateDirectory("bin");
+        File.WriteAllText(Path.Combine(binDirectory, "wine"), "fake wine");
+        var gameDir = CreateDirectory("game-d3d8");
+        File.WriteAllText(Path.Combine(gameDir, GameClientConstants.Direct3D8WrapperDll), "fake d3d8 wrapper");
+        var prefixPath = Path.Combine(_tempDirectory, "prefix-d3d8");
+        var runner = CreateRunner([binDirectory], prefixPath);
+        var configuration = new GameLaunchConfiguration
+        {
+            ExecutablePath = Path.Combine(gameDir, "generals.exe"),
+            WorkingDirectory = gameDir,
+        };
+
+        // Act
+        var result = runner.ResolveCommand(configuration);
+
+        // Assert
+        Assert.True(result.Success, result.AllErrors);
+        Assert.NotNull(result.Data);
+        Assert.Equal(WineConstants.Direct3D8DllOverride, result.Data.EnvironmentVariables[WineConstants.DllOverridesEnvironmentVariable]);
+    }
+
+    /// <summary>
+    /// Verifies that existing DLL overrides are preserved and d3d8=n,b is appended when d3d8.dll is present.
+    /// </summary>
+    [Fact]
+    public void ResolveCommand_WithExistingDllOverridesAndDirect3DWrapper_AppendsOverride()
+    {
+        // Arrange
+        var binDirectory = CreateDirectory("bin");
+        File.WriteAllText(Path.Combine(binDirectory, "wine"), "fake wine");
+        var gameDir = CreateDirectory("game-d3d8-existing");
+        File.WriteAllText(Path.Combine(gameDir, GameClientConstants.Direct3D8WrapperDll), "fake d3d8 wrapper");
+        var prefixPath = Path.Combine(_tempDirectory, "prefix-d3d8-append");
+        var runner = CreateRunner([binDirectory], prefixPath);
+        var configuration = new GameLaunchConfiguration
+        {
+            ExecutablePath = Path.Combine(gameDir, "generals.exe"),
+            WorkingDirectory = gameDir,
+            EnvironmentVariables = new Dictionary<string, string>
+            {
+                [WineConstants.DllOverridesEnvironmentVariable] = "mshtml=d",
+            },
+        };
+
+        // Act
+        var result = runner.ResolveCommand(configuration);
+
+        // Assert
+        Assert.True(result.Success, result.AllErrors);
+        Assert.NotNull(result.Data);
+        Assert.Equal($"mshtml=d;{WineConstants.Direct3D8DllOverride}", result.Data.EnvironmentVariables[WineConstants.DllOverridesEnvironmentVariable]);
+    }
+
+    /// <summary>
+    /// Verifies that an override for a different DLL whose name merely contains d3d8 does not
+    /// suppress the wrapper override: d3d8 is matched as an exact DLL name, not a substring.
+    /// </summary>
+    [Fact]
+    public void ResolveCommand_WithD3D8SubstringOverrideAndDirect3DWrapper_AppendsOverride()
+    {
+        // Arrange
+        var binDirectory = CreateDirectory("bin");
+        File.WriteAllText(Path.Combine(binDirectory, "wine"), "fake wine");
+        var gameDir = CreateDirectory("game-d3d8-proxy");
+        File.WriteAllText(Path.Combine(gameDir, GameClientConstants.Direct3D8WrapperDll), "fake d3d8 wrapper");
+        var prefixPath = Path.Combine(_tempDirectory, "prefix-d3d8-proxy");
+        var runner = CreateRunner([binDirectory], prefixPath);
+        var configuration = new GameLaunchConfiguration
+        {
+            ExecutablePath = Path.Combine(gameDir, "generals.exe"),
+            WorkingDirectory = gameDir,
+            EnvironmentVariables = new Dictionary<string, string>
+            {
+                [WineConstants.DllOverridesEnvironmentVariable] = "d3d8proxy=n",
+            },
+        };
+
+        // Act
+        var result = runner.ResolveCommand(configuration);
+
+        // Assert
+        Assert.True(result.Success, result.AllErrors);
+        Assert.NotNull(result.Data);
+        Assert.Equal($"d3d8proxy=n;{WineConstants.Direct3D8DllOverride}", result.Data.EnvironmentVariables[WineConstants.DllOverridesEnvironmentVariable]);
+    }
+
+    /// <summary>
+    /// Verifies that a user override naming d3d8 inside a comma-separated DLL group is respected
+    /// and the wrapper override is not appended a second time.
+    /// </summary>
+    [Fact]
+    public void ResolveCommand_WithGroupedD3D8OverrideAndDirect3DWrapper_PreservesOverride()
+    {
+        // Arrange
+        var binDirectory = CreateDirectory("bin");
+        File.WriteAllText(Path.Combine(binDirectory, "wine"), "fake wine");
+        var gameDir = CreateDirectory("game-d3d8-grouped");
+        File.WriteAllText(Path.Combine(gameDir, GameClientConstants.Direct3D8WrapperDll), "fake d3d8 wrapper");
+        var prefixPath = Path.Combine(_tempDirectory, "prefix-d3d8-grouped");
+        var runner = CreateRunner([binDirectory], prefixPath);
+        var configuration = new GameLaunchConfiguration
+        {
+            ExecutablePath = Path.Combine(gameDir, "generals.exe"),
+            WorkingDirectory = gameDir,
+            EnvironmentVariables = new Dictionary<string, string>
+            {
+                [WineConstants.DllOverridesEnvironmentVariable] = "mshtml=d;D3D8,ddraw=n",
+            },
+        };
+
+        // Act
+        var result = runner.ResolveCommand(configuration);
+
+        // Assert
+        Assert.True(result.Success, result.AllErrors);
+        Assert.NotNull(result.Data);
+        Assert.Equal("mshtml=d;D3D8,ddraw=n", result.Data.EnvironmentVariables[WineConstants.DllOverridesEnvironmentVariable]);
     }
 
     /// <summary>

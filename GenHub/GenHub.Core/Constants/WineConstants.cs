@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+
 namespace GenHub.Core.Constants;
 
 /// <summary>
@@ -13,6 +15,15 @@ public static class WineConstants
 
     /// <summary>Environment variable selecting the Wine prefix.</summary>
     public const string PrefixEnvironmentVariable = "WINEPREFIX";
+
+    /// <summary>Environment variable configuring Wine DLL overrides.</summary>
+    public const string DllOverridesEnvironmentVariable = "WINEDLLOVERRIDES";
+
+    /// <summary>Direct3D 8 wrapper DLL name as Wine matches it in WINEDLLOVERRIDES entries.</summary>
+    public const string Direct3D8DllName = "d3d8";
+
+    /// <summary>Default DLL override for Direct3D 8 wrappers (native, then builtin).</summary>
+    public const string Direct3D8DllOverride = Direct3D8DllName + "=n,b";
 
     /// <summary>Process PATH environment variable used for binary lookup.</summary>
     public const string PathEnvironmentVariable = "PATH";
@@ -32,8 +43,26 @@ public static class WineConstants
     /// <summary>Legacy Windows Documents folder name inside older Wine prefixes ("My Documents").</summary>
     public const string MyDocumentsDirectoryName = "My Documents";
 
+    /// <summary>Standard user profile directory name used in Proton prefixes ("steamuser").</summary>
+    public const string ProtonUserName = "steamuser";
+
     /// <summary>Fallback prefix user name when the login name is unusable as a directory name.</summary>
     public const string FallbackPrefixUserName = "user";
+
+    /// <summary>Steam compatdata directory marker identifying a Proton-managed prefix path.</summary>
+    public const string CompatDataDirectoryMarker = "compatdata";
+
+    /// <summary>Proton marker file tracked in a compatdata root, next to the pfx prefix directory.</summary>
+    public const string ProtonTrackedFilesMarker = "tracked_files";
+
+    /// <summary>Fallback resolution width written when bootstrapping a missing native Options.ini.</summary>
+    public const int BootstrapResolutionWidth = 1024;
+
+    /// <summary>Fallback resolution height written when bootstrapping a missing native Options.ini.</summary>
+    public const int BootstrapResolutionHeight = 768;
+
+    /// <summary>Conservative static LOD value written when bootstrapping a missing native Options.ini.</summary>
+    public const string BootstrapIdealStaticGameLOD = "Low";
 
     /// <summary>Wine drive prefix mapped to the host filesystem root (Proton uses the same mapping).</summary>
     public const string HostRootDrivePrefix = "Z:";
@@ -43,4 +72,13 @@ public static class WineConstants
 
     /// <summary>CrossOver bundled Wine binary absolute path on macOS.</summary>
     public const string CrossOverWineBinaryPath = "/Applications/CrossOver.app/Contents/SharedSupport/CrossOver/bin/wine";
+
+    /// <summary>Windows system profile directory names never targeted when mirroring user settings.</summary>
+    public static readonly IReadOnlyList<string> ExcludedPrefixUserNames =
+    [
+        "Public",
+        "Default",
+        "Default User",
+        "All Users",
+    ];
 }

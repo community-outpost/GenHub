@@ -3,6 +3,7 @@ using GenHub.Core.Interfaces.Workspace;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Workspace;
+using GenHub.Features.Workspace.Strategies;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
@@ -184,6 +185,18 @@ public class WorkspaceReconciler(ILogger<WorkspaceReconciler> logger, IFileOpera
             }
         }
 
+        // Supplemental archives are workspace content that no manifest names: without this exclusion
+        // every launch would report them as orphans and force a full workspace recreation.
+        if (!WorkspaceCompatibilityHelper.TryGetSupplementalArchives(
+            configuration.SupplementalArchiveRoot,
+            out var supplementalArchives,
+            logger))
+        {
+            logger.LogWarning(
+                "Supplemental archive root could not be read: {Root}. Already-linked supplemental archives will be treated as orphans for this run, forcing one workspace recreation.",
+                configuration.SupplementalArchiveRoot);
+        }
+
         // Determine files to remove (exist in workspace but not in manifests)
         foreach (var relativePath in existingFiles)
         {
@@ -199,6 +212,11 @@ public class WorkspaceReconciler(ILogger<WorkspaceReconciler> logger, IFileOpera
                 // If this is generals.exe and generals.exe is not explicitly in manifests, check if it was created
                 // as a compatibility alias for another custom executable/entrypoint, so it is not treated as an orphan.
                 if (string.Equals(relativePath, GameClientConstants.GeneralsExecutable, StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                if (await IsSupplementalArchiveFileAsync(workspacePath, relativePath, configuration.SupplementalArchiveRoot, supplementalArchives, forceFullVerification, cancellationToken))
                 {
                     continue;
                 }
@@ -227,6 +245,44 @@ public class WorkspaceReconciler(ILogger<WorkspaceReconciler> logger, IFileOpera
         return deltas;
     }
 
+    /// <summary>
+    /// Compares two streams chunk by chunk. Each chunk is filled fully before comparing:
+    /// stream reads may legally short-read, and comparing two independently short-read
+    /// buffers would both misalign every later chunk and report identical files as different.
+    /// </summary>
+    /// <param name="first">The first stream to compare.</param>
+    /// <param name="second">The second stream to compare.</param>
+    /// <param name="cancellationToken">A cancellation token.</param>
+    /// <returns><c>true</c> when both streams have identical contents; otherwise, <c>false</c>.</returns>
+    internal static async Task<bool> StreamsHaveIdenticalContentAsync(
+        Stream first,
+        Stream second,
+        CancellationToken cancellationToken)
+    {
+        var firstBuffer = new byte[IoConstants.FileHashBufferSize];
+        var secondBuffer = new byte[IoConstants.FileHashBufferSize];
+
+        while (true)
+        {
+            var firstRead = await first.ReadAtLeastAsync(firstBuffer, firstBuffer.Length, throwOnEndOfStream: false, cancellationToken);
+            var secondRead = await second.ReadAtLeastAsync(secondBuffer, secondBuffer.Length, throwOnEndOfStream: false, cancellationToken);
+            if (firstRead != secondRead)
+            {
+                return false;
+            }
+
+            if (firstRead == 0)
+            {
+                return true;
+            }
+
+            if (!firstBuffer.AsSpan(0, firstRead).SequenceEqual(secondBuffer.AsSpan(0, secondRead)))
+            {
+                return false;
+            }
+        }
+    }
+
     private static bool IsOptionalOrSkippedFile(string relativePath)
     {
         var fileName = Path.GetFileName(relativePath.Replace('\\', '/'));
@@ -242,6 +298,105 @@ public class WorkspaceReconciler(ILogger<WorkspaceReconciler> logger, IFileOpera
                fileName.EndsWith(WorkspaceConstants.TmpFileExtension, StringComparison.OrdinalIgnoreCase) ||
                string.Equals(fileName, WorkspaceConstants.LaunchReceiptFile, StringComparison.OrdinalIgnoreCase) ||
                string.Equals(fileName, WorkspaceConstants.ReleaseCrashInfoFile, StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// Compares two files chunk by chunk so arbitrarily large archives are never loaded
+    /// fully into memory, mirroring the manifest path's streaming hash verification.
+    /// </summary>
+    /// <param name="firstPath">The first file to compare.</param>
+    /// <param name="secondPath">The second file to compare.</param>
+    /// <param name="cancellationToken">A cancellation token.</param>
+    /// <returns><c>true</c> when both files have identical contents; otherwise, <c>false</c>.</returns>
+    private static async Task<bool> FilesHaveIdenticalContentAsync(
+        string firstPath,
+        string secondPath,
+        CancellationToken cancellationToken)
+    {
+        var options = new FileStreamOptions
+        {
+            Mode = FileMode.Open,
+            Access = FileAccess.Read,
+            Share = FileShare.Read,
+            BufferSize = IoConstants.FileHashBufferSize,
+            Options = FileOptions.Asynchronous | FileOptions.SequentialScan,
+        };
+
+        await using var first = new FileStream(firstPath, options);
+        await using var second = new FileStream(secondPath, options);
+        return await StreamsHaveIdenticalContentAsync(first, second, cancellationToken);
+    }
+
+    private async Task<bool> IsSupplementalArchiveFileAsync(
+        string workspacePath,
+        string relativePath,
+        string? supplementalRoot,
+        IReadOnlyDictionary<string, string> supplementalArchives,
+        bool forceFullVerification,
+        CancellationToken cancellationToken)
+    {
+        if (supplementalArchives.Count == 0 || string.IsNullOrWhiteSpace(supplementalRoot))
+        {
+            return false;
+        }
+
+        if (relativePath.IndexOfAny([Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar]) >= 0)
+        {
+            return false;
+        }
+
+        if (!supplementalArchives.TryGetValue(relativePath, out var sourcePath))
+        {
+            return false;
+        }
+
+        var workspaceFile = Path.Combine(workspacePath, relativePath);
+        var linkTarget = new FileInfo(workspaceFile).LinkTarget;
+        if (linkTarget is not null)
+        {
+            // A link pointing outside the current root is either foreign content or a leftover
+            // from a previous root: it must not be mistaken for this root's archive, so it stays
+            // a removal candidate and a recreation cleans it up.
+            return WorkspaceCompatibilityHelper.IsLinkTargetUnderRoot(linkTarget, supplementalRoot);
+        }
+
+        // A regular file or hardlink carrying a supplemental name is only expected when it still
+        // matches its source: anything else is a stale orphan (e.g. a disabled mod's override)
+        // that must be removed rather than shadow the base archive indefinitely.
+        return await SupplementalCopyMatchesAsync(workspaceFile, sourcePath, forceFullVerification, cancellationToken);
+    }
+
+    private async Task<bool> SupplementalCopyMatchesAsync(
+        string workspaceFile,
+        string sourcePath,
+        bool forceFullVerification,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var workspaceInfo = new FileInfo(workspaceFile);
+            var sourceInfo = new FileInfo(sourcePath);
+            if (!sourceInfo.Exists || workspaceInfo.Length != sourceInfo.Length)
+            {
+                return false;
+            }
+
+            // Mirror FileNeedsUpdateAsync: hashing every reconciliation is too expensive for
+            // multi-hundred-megabyte archives, so size-matching large files are trusted while
+            // small ones are compared byte for byte. A forced full verification compares
+            // everything instead, since there is no manifest hash to check against.
+            if (workspaceInfo.Length >= SmallFileThreshold && !forceFullVerification)
+            {
+                return true;
+            }
+
+            return await FilesHaveIdenticalContentAsync(workspaceFile, sourcePath, cancellationToken);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            logger.LogWarning(ex, "Failed to compare supplemental file {WorkspaceFile} with {Source}; it will be treated as stale for this run", workspaceFile, sourcePath);
+            return false;
+        }
     }
 
     /// <summary>

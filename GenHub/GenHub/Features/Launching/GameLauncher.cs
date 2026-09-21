@@ -27,6 +27,7 @@ using System.Buffers;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -67,6 +68,81 @@ public class GameLauncher(
         var semaphore = _profileLaunchLocks.GetOrAdd(profileId, _ => new SemaphoreSlim(1, 1));
         await semaphore.WaitAsync(cancellationToken);
         return new SemaphoreReleaser(semaphore);
+    }
+
+    /// <summary>
+    /// Resolves the supplemental archive root to configure on a workspace, applying the
+    /// Windows gate: on Windows the registry resolves both roots, so no root is configured.
+    /// This is the single entry point workspace builders use; the pure resolution below stays
+    /// operating-system agnostic so its precedence rules are testable on every platform.
+    /// </summary>
+    /// <param name="gameType">The game being launched.</param>
+    /// <param name="effectiveGeneralsArchivePath">The effective base Generals archive root, if any.</param>
+    /// <param name="profileEnvironment">The profile's environment variables, if any.</param>
+    /// <returns>The supplemental archive root as an absolute path, or <c>null</c> when the launch needs none.</returns>
+    internal static string? ResolveSupplementalArchiveRootForWorkspace(
+        GameType gameType,
+        string? effectiveGeneralsArchivePath,
+        IReadOnlyDictionary<string, string>? profileEnvironment) =>
+        OperatingSystem.IsWindows()
+            ? null
+            : ResolveSupplementalArchiveRoot(gameType, effectiveGeneralsArchivePath, profileEnvironment);
+
+    /// <summary>
+    /// Resolves the supplemental archive root whose top-level archives are linked into the workspace.
+    /// </summary>
+    /// <remarks>
+    /// Only Zero Hour needs this: it mounts the base Generals archives in addition to its own.
+    /// A profile-level <c>CNC_GENERALS_INSTALLPATH</c> override wins over the installation root,
+    /// mirroring <c>AddArchiveRoot</c>: it names the root actually used. Whether the archives get
+    /// linked is decided separately at link time against the resolved workspace executable, which
+    /// is the exact path <see cref="WineRunner"/> will wrap; the client's declared path cannot be
+    /// used here because workspace aliasing may rewrite it (e.g. <c>game.dat</c> to
+    /// <c>generals.exe</c>). Workspace builders call
+    /// <see cref="ResolveSupplementalArchiveRootForWorkspace"/> instead, which applies the
+    /// <see cref="OperatingSystem.IsWindows"/> gate on top of this resolution.
+    /// </remarks>
+    /// <param name="gameType">The game being launched.</param>
+    /// <param name="effectiveGeneralsArchivePath">The effective base Generals archive root, if any.</param>
+    /// <param name="profileEnvironment">The profile's environment variables, if any.</param>
+    /// <returns>The supplemental archive root as an absolute path, or <c>null</c> when the launch needs none.</returns>
+    internal static string? ResolveSupplementalArchiveRoot(
+        GameType gameType,
+        string? effectiveGeneralsArchivePath,
+        IReadOnlyDictionary<string, string>? profileEnvironment)
+    {
+        if (gameType != GameType.ZeroHour)
+        {
+            return null;
+        }
+
+        string? root = null;
+        if (profileEnvironment?.TryGetValue(RetailArchiveConstants.GeneralsInstallPathVariable, out var configured) == true &&
+            !string.IsNullOrWhiteSpace(configured))
+        {
+            root = configured;
+        }
+        else if (!string.IsNullOrWhiteSpace(effectiveGeneralsArchivePath))
+        {
+            root = effectiveGeneralsArchivePath;
+        }
+
+        if (root is null)
+        {
+            return null;
+        }
+
+        // Pin the root to an absolute path: link targets are stored verbatim, and a relative
+        // target would be classified as foreign on every subsequent run. Unusable values
+        // resolve to null so launch validation reports them instead of failing here.
+        try
+        {
+            return Path.GetFullPath(root);
+        }
+        catch (Exception ex) when (ex is ArgumentException or NotSupportedException or IOException)
+        {
+            return null;
+        }
     }
 
     private async Task<IDisposable> AcquireSteamInstallationLockAsync(
@@ -737,6 +813,15 @@ public class GameLauncher(
             return null;
         }
 
+        // A relative root is never coherent: GenHub resolves it against its own working
+        // directory while the engine resolves it against the workspace, so one of the two
+        // always reads the wrong directory. Refuse loudly instead of mounting nothing.
+        if (!Path.IsPathRooted(root))
+        {
+            return $"The retail archive root for {variableName} must be an absolute path: {root}. " +
+                   "A relative path resolves against a different directory for the launcher and the engine, so the game would mount nothing.";
+        }
+
         // The probe is the enumeration itself: Directory.Exists returns false for an
         // unreadable root as well as a missing one, which would report a permission
         // problem as missing content. Only DirectoryNotFoundException means absence.
@@ -752,7 +837,7 @@ public class GameLauncher(
             return $"The retail archive root for {variableName} does not exist: {root}. " +
                    "The engine would abort during initialisation with a generic crash naming nothing, so the launch was stopped.";
         }
-        catch (Exception ex) when (ex is UnauthorizedAccessException or IOException)
+        catch (Exception ex) when (ex is UnauthorizedAccessException or IOException or ArgumentException)
         {
             return $"The retail archive root for {variableName} could not be read: {root} ({ex.Message}).";
         }
@@ -870,6 +955,38 @@ public class GameLauncher(
         return $"{key} {formattedValue}";
     }
 
+    private static (int Width, int Height) TryReadResolutionFromOptionsIni(string filePath)
+    {
+        try
+        {
+            foreach (var line in File.ReadLines(filePath))
+            {
+                var trimmed = line.Trim();
+                if (trimmed.StartsWith(GameSettingsIniConstants.ResolutionKey, StringComparison.OrdinalIgnoreCase))
+                {
+                    var parts = trimmed.Split('=', 2);
+                    if (parts.Length == 2)
+                    {
+                        var dims = parts[1].Trim().Split(new[] { ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries);
+                        if (dims.Length >= 2 &&
+                            int.TryParse(dims[0], NumberStyles.Integer, CultureInfo.InvariantCulture, out var width) &&
+                            int.TryParse(dims[1], NumberStyles.Integer, CultureInfo.InvariantCulture, out var height) &&
+                            width > 0 && height > 0)
+                        {
+                            return (width, height);
+                        }
+                    }
+                }
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
+        {
+            // Non-critical: gracefully fall back
+        }
+
+        return (0, 0);
+    }
+
     private async Task<LaunchOperationResult<GameLaunchInfo>> LaunchProfileAsync(GameProfile profile, bool skipUserDataCleanup, IReadOnlyDictionary<string, string>? additionalArguments, IProgress<LaunchProgress>? progress, string launchId, CancellationToken cancellationToken)
     {
         IDisposable? steamInstallationLock = null;
@@ -918,6 +1035,7 @@ public class GameLauncher(
                 profile,
                 manifests,
                 gameClient,
+                installation,
                 actualInstallationPath,
                 dynamicWorkspacePath,
                 isSteamLaunch,
@@ -1040,6 +1158,7 @@ public class GameLauncher(
         GameProfile profile,
         List<ContentManifest> manifests,
         GenHub.Core.Models.GameClients.GameClient gameClient,
+        GameInstallation installation,
         string actualInstallationPath,
         string dynamicWorkspacePath,
         bool isSteamLaunch,
@@ -1062,6 +1181,7 @@ public class GameLauncher(
                 profile,
                 manifests,
                 gameClient,
+                installation,
                 actualInstallationPath,
                 dynamicWorkspacePath,
                 isSteamLaunch,
@@ -1087,6 +1207,36 @@ public class GameLauncher(
         }
     }
 
+    private void ApplyResolutionFromNativeOptionsIni(GameProfile profile, Dictionary<string, string> arguments)
+    {
+        if (arguments.ContainsKey(GameClientConstants.XResolutionArgument)
+            && arguments.ContainsKey(GameClientConstants.YResolutionArgument))
+        {
+            return;
+        }
+
+        var nativeOptionsPath = TryGetNativeOptionsIniPath(profile.GameClient?.GameType);
+        if (string.IsNullOrEmpty(nativeOptionsPath) || !File.Exists(nativeOptionsPath))
+        {
+            return;
+        }
+
+        var (width, height) = TryReadResolutionFromOptionsIni(nativeOptionsPath);
+        TryApplyResolutionArgument(arguments, GameClientConstants.XResolutionArgument, width);
+        TryApplyResolutionArgument(arguments, GameClientConstants.YResolutionArgument, height);
+    }
+
+    private void TryApplyResolutionArgument(Dictionary<string, string> arguments, string argumentName, int value)
+    {
+        if (value <= 0 || arguments.ContainsKey(argumentName))
+        {
+            return;
+        }
+
+        arguments[argumentName] = value.ToString(CultureInfo.InvariantCulture);
+        logger.LogInformation("[GameLauncher] Added {Argument} argument from Options.ini: {Value}", argumentName, value);
+    }
+
     private async Task<OperationResult<(GameLaunchConfiguration LaunchConfig, SteamLaunchPrepResult? SteamPrep, string? SteamAppId)>> PrepareLaunchConfigurationAndProxyAsync(
         GameProfile profile,
         GameInstallation installation,
@@ -1105,6 +1255,8 @@ public class GameLauncher(
         }
 
         var arguments = argsResult.Data;
+        ApplyResolutionFromNativeOptionsIni(profile, arguments);
+
         SteamLaunchPrepResult? steamPrep = null;
         string? steamAppId = null;
 
@@ -1145,6 +1297,7 @@ public class GameLauncher(
         GameProfile profile,
         List<ContentManifest> manifests,
         GenHub.Core.Models.GameClients.GameClient gameClient,
+        GameInstallation installation,
         string actualInstallationPath,
         string dynamicWorkspacePath,
         bool isSteamLaunch,
@@ -1164,6 +1317,7 @@ public class GameLauncher(
             WorkspaceRootPath = dynamicWorkspacePath,
             BaseInstallationPath = actualInstallationPath,
             ManifestSourcePaths = manifestSourcePaths,
+            SupplementalArchiveRoot = ResolveSupplementalArchiveRootForWorkspace(gameClient.GameType, installation.EffectiveGeneralsArchivePath, profile.EnvironmentVariables),
         };
         logger.LogDebug("[GameLauncher] BaseInstallationPath set to: {Path}", workspaceConfig.BaseInstallationPath);
 
@@ -1595,10 +1749,22 @@ public class GameLauncher(
             }
         }
 
-        if (profile.VideoWindowed == true && !arguments.ContainsKey("-win"))
+        if (profile.VideoWindowed == true && !arguments.ContainsKey(GameClientConstants.WindowedArgument))
         {
-            arguments["-win"] = string.Empty;
-            logger.LogInformation("[GameLauncher] Added -win argument for windowed mode");
+            arguments[GameClientConstants.WindowedArgument] = string.Empty;
+            logger.LogInformation("[GameLauncher] Added {Argument} argument for windowed mode", GameClientConstants.WindowedArgument);
+        }
+
+        if (profile.VideoResolutionWidth > 0 && !arguments.ContainsKey(GameClientConstants.XResolutionArgument))
+        {
+            arguments[GameClientConstants.XResolutionArgument] = profile.VideoResolutionWidth.Value.ToString(CultureInfo.InvariantCulture);
+            logger.LogInformation("[GameLauncher] Added {Argument} argument: {Width}", GameClientConstants.XResolutionArgument, profile.VideoResolutionWidth.Value);
+        }
+
+        if (profile.VideoResolutionHeight > 0 && !arguments.ContainsKey(GameClientConstants.YResolutionArgument))
+        {
+            arguments[GameClientConstants.YResolutionArgument] = profile.VideoResolutionHeight.Value.ToString(CultureInfo.InvariantCulture);
+            logger.LogInformation("[GameLauncher] Added {Argument} argument: {Height}", GameClientConstants.YResolutionArgument, profile.VideoResolutionHeight.Value);
         }
 
         return OperationResult<Dictionary<string, string>>.CreateSuccess(arguments);

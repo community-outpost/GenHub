@@ -89,6 +89,74 @@ public class RetailArchiveRootValidationTests : IDisposable
     }
 
     /// <summary>
+    /// A relative root is refused loudly: GenHub resolves it against its own working
+    /// directory while the engine resolves it against the workspace, so one of the two
+    /// always reads the wrong directory and the game would mount nothing.
+    /// </summary>
+    [Fact]
+    public void Validate_WithRelativeRoot_RejectsWithAbsolutePathError()
+    {
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        {
+            return;
+        }
+
+        var error = Validate(InstallationWithZeroHour(Path.Combine("relative", "generals")));
+
+        Assert.NotNull(error);
+        Assert.Contains("must be an absolute path", error);
+    }
+
+    /// <summary>
+    /// A relative profile override is rejected the same way: the engine would resolve it
+    /// against the workspace while the launcher validated a different directory.
+    /// </summary>
+    [Fact]
+    public void Validate_WithRelativeProfileOverride_RejectsWithAbsolutePathError()
+    {
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        {
+            return;
+        }
+
+        var zeroHour = CreateRoot("zh-relative-override", withArchive: true);
+        var environment = new Dictionary<string, string>
+        {
+            [RetailArchiveConstants.ZeroHourInstallPathVariable] = Path.Combine("relative", "generals"),
+        };
+
+        var error = ValidateWithEnvironment(environment, InstallationWithZeroHour(zeroHour));
+
+        Assert.NotNull(error);
+        Assert.Contains("must be an absolute path", error);
+    }
+
+    /// <summary>
+    /// A lexically unusable override (embedded NUL) is reported as a read failure naming
+    /// the root, not a generic launch failure: enumeration throws ArgumentException past
+    /// the missing and unreadable filters.
+    /// </summary>
+    [Fact]
+    public void Validate_WithLexicallyInvalidOverride_ReportsTheReadFailure()
+    {
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        {
+            return;
+        }
+
+        var zeroHour = CreateRoot("zh-invalid-override", withArchive: true);
+        var environment = new Dictionary<string, string>
+        {
+            [RetailArchiveConstants.ZeroHourInstallPathVariable] = Path.Combine(_tempDir, "invalid\0path"),
+        };
+
+        var error = ValidateWithEnvironment(environment, InstallationWithZeroHour(zeroHour));
+
+        Assert.NotNull(error);
+        Assert.Contains("could not be read", error);
+    }
+
+    /// <summary>
     /// An unreadable root is reported rather than treated as archive-free, so the message
     /// points at the permission rather than at the content.
     /// </summary>
@@ -417,9 +485,12 @@ public class RetailArchiveRootValidationTests : IDisposable
     // Zero Hour throughout: these fixtures declare only a Zero Hour path, and validation is
     // scoped to the launching game so the sibling Generals root is deliberately untouched.
     private static string? Validate(GameInstallation installation) =>
+        ValidateWithEnvironment(new Dictionary<string, string>(), installation);
+
+    private static string? ValidateWithEnvironment(Dictionary<string, string> environment, GameInstallation installation) =>
         (string?)typeof(GameLauncher)
             .GetMethod("ValidateRetailArchiveRoots", BindingFlags.NonPublic | BindingFlags.Static)!
-            .Invoke(null, [new Dictionary<string, string>(), installation, GameType.ZeroHour]);
+            .Invoke(null, [environment, installation, GameType.ZeroHour]);
 
     private static GameInstallation InstallationWithZeroHour(string? zeroHourPath)
     {
