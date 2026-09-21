@@ -4700,6 +4700,7 @@ public sealed class ReplayDirectoryServiceTests
     [InlineData("1.213262.generalsonline.gameclient.zerohour", "1.213262.generalsonline.gameclient.30hz", false)]
     [InlineData("1.213262.generalsonline.gameclient.zerohour", "1.213262.thesuperhackers.gameclient.zerohour", false)]
     [InlineData("1.213262.generalsonline.gameclient.zerohour", "1.213262.generalsonline.mappack.quickmatchmaps", false)]
+    [InlineData("1.213262.generalsonline.gameclient.zerohour", "1.213262.generalsonline.gameclient.generals-generalsonline-60hz", false)]
     [InlineData("1.213262.generalsonline.gameclient.zerohour", "not-a-manifest-id", false)]
     public void IsGeneralsOnlineGameClientVariantMatch_MatchesExpectedPairs(string requiredId, string candidateId, bool expected)
     {
@@ -4719,6 +4720,7 @@ public sealed class ReplayDirectoryServiceTests
     [InlineData("1.213262.generalsonline.gameclient.60hz", null, true)]
     [InlineData("1.0.generalsonline.gameclient.zerohour-generalsonline-60hz", "021326_QFE2", true)]
     [InlineData("1.0.generalsonline.gameclient.zerohour-generalsonline-60hz", null, false)]
+    [InlineData("1.0.generalsonline.gameclient.generals-generalsonline-60hz", "021326_QFE2", false)]
     public void IsClientManifestMatch_GeneralsOnlineVariants_RespectsVersionGate(string candidateId, string? candidateVersion, bool expected)
     {
         Assert.Equal(

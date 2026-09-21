@@ -2009,7 +2009,9 @@ public sealed class ReplayDirectoryService(
         }
 
         // Compound detector ids such as "zerohour-generalsonline-60hz" denote the same family.
-        return contentName.EndsWith(GeneralsOnlineConstants.Compound60HzContentNameSuffix, StringComparison.OrdinalIgnoreCase);
+        // The game prefix anchors matching to Zero Hour so Generals-family compounds never match.
+        return contentName.StartsWith(ManifestConstants.ZeroHourContentName, StringComparison.OrdinalIgnoreCase)
+            && contentName.EndsWith(GeneralsOnlineConstants.Compound60HzContentNameSuffix, StringComparison.OrdinalIgnoreCase);
     }
 
     private static bool IsRetailFallbackInstalled(GameType gameVersion, HashSet<string> acquiredIds)
