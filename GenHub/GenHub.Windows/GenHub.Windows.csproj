@@ -1,4 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
+    <Import Project="..\Directory.Publish.props" />
+
     <PropertyGroup>
         <OutputType>WinExe</OutputType>
         <TargetFramework>net8.0-windows</TargetFramework>
@@ -52,6 +54,7 @@
         <!-- Build-order-only: guarantees the proxy binary exists before BuildProxyLauncher packs it. -->
         <ProjectReference Include="..\GenHub.ProxyLauncher\GenHub.ProxyLauncher.csproj">
             <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+            <Private>false</Private>
             <SkipGetTargetFrameworkProperties>true</SkipGetTargetFrameworkProperties>
         </ProjectReference>
     </ItemGroup>
