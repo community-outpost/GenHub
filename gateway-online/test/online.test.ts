@@ -809,6 +809,77 @@ describe("online edge", () => {
     socket?.close();
   });
 
+  it("broadcasts profile-changed on a name-only switch", async () => {
+    const host = await session();
+    const created = await createNetwork(host, {
+      expectedProfileFingerprint: "opf1|zh-104|mod-a",
+      expectedProfileName: "Before",
+    });
+    const res = await SELF.fetch(`${BASE}/v1/networks/${created.networkId}/presence?ticket=${created.grant}`, {
+      headers: { Upgrade: "websocket" },
+    });
+    expect(res.status).toBe(101);
+    const socket = res.webSocket;
+    expect(socket).not.toBeNull();
+    socket?.accept();
+    const messages: string[] = [];
+    socket?.addEventListener("message", (event: MessageEvent) => {
+      messages.push(String(event.data));
+    });
+    // Drain the opening roster before patching.
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
+    // Same fingerprint, new name: still a profile change members must hear.
+    const patch = await SELF.fetch(`${BASE}/v1/networks/${created.networkId}`, {
+      method: "PATCH",
+      headers: { ...auth(created.grant), "Content-Type": "application/json" },
+      body: JSON.stringify({ expectedProfileName: "After" }),
+    });
+    expect(patch.status).toBe(200);
+
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    const events = messages
+      .map((raw) => JSON.parse(raw) as { type: string; event?: string })
+      .filter((msg) => msg.type === "event" && msg.event === "profile-changed");
+    expect(events).toHaveLength(1);
+    socket?.close();
+  });
+
+  it("stays silent on a description-only patch", async () => {
+    const host = await session();
+    const created = await createNetwork(host, {
+      expectedProfileFingerprint: "opf1|zh-104|mod-a",
+      expectedProfileName: "Setup",
+    });
+    const res = await SELF.fetch(`${BASE}/v1/networks/${created.networkId}/presence?ticket=${created.grant}`, {
+      headers: { Upgrade: "websocket" },
+    });
+    expect(res.status).toBe(101);
+    const socket = res.webSocket;
+    expect(socket).not.toBeNull();
+    socket?.accept();
+    const messages: string[] = [];
+    socket?.addEventListener("message", (event: MessageEvent) => {
+      messages.push(String(event.data));
+    });
+    // Drain the opening roster before patching.
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
+    const patch = await SELF.fetch(`${BASE}/v1/networks/${created.networkId}`, {
+      method: "PATCH",
+      headers: { ...auth(created.grant), "Content-Type": "application/json" },
+      body: JSON.stringify({ description: "New house rules" }),
+    });
+    expect(patch.status).toBe(200);
+
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    const events = messages
+      .map((raw) => JSON.parse(raw) as { type: string; event?: string })
+      .filter((msg) => msg.type === "event" && msg.event === "profile-changed");
+    expect(events).toHaveLength(0);
+    socket?.close();
+  });
+
   it("updates member fingerprints from heartbeat advertisements", async () => {
     const host = await session();
     const created = await createNetwork(host);

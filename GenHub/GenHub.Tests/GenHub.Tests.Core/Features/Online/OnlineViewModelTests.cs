@@ -590,7 +590,7 @@ public class OnlineViewModelTests
         // Assert
         Assert.Equal(OnlineProfileMatch.Mismatch, vm.ProfileMatchState);
         Assert.Equal("Online.Detail.MatchDetailMismatch", vm.ProfileMatchDetail);
-        Assert.StartsWith("opf2|Generals|1.08|generals-client|", advertised[0], StringComparison.Ordinal);
+        Assert.StartsWith("opf3|Generals|1.08|generals-client|", advertised[0], StringComparison.Ordinal);
     }
 
     private static async Task WaitForAsync(Func<bool> condition, int timeoutMs = 5000)
@@ -643,7 +643,7 @@ public class OnlineViewModelTests
         {
             Id = "net-1",
             Name = "Lobby",
-            ExpectedProfileFingerprint = "opf2|ZeroHour|1.04|zerohour-client|not-a-real-hash",
+            ExpectedProfileFingerprint = "opf3|ZeroHour|1.04|zerohour-client|not-a-real-hash",
             ExpectedProfileName = "Host Setup",
             ExpectedGameClientId = "ZeroHour|1.04|zerohour-client",
             ExpectedContentIds = ["mod-a", "mod-b"],
