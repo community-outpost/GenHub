@@ -98,7 +98,7 @@ public class GameProfileSettingsViewModelTests
 
         // Assert
         Assert.Equal("New Profile", vm.Name);
-        Assert.Equal("A new game profile", vm.Description);
+        Assert.Equal(string.Empty, vm.Description);
         Assert.Equal("#1976D2", vm.ColorValue);
         Assert.Equal(WorkspaceStrategy.HardLink, vm.SelectedWorkspaceStrategy);
         Assert.NotEmpty(vm.AvailableGameInstallations);

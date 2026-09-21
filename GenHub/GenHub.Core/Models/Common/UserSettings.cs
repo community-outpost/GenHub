@@ -24,6 +24,18 @@ public class UserSettings
     /// <summary>Gets or sets a value indicating whether the main window is maximized.</summary>
     public bool IsMaximized { get; set; }
 
+    /// <summary>Gets or sets the profile settings window width in pixels.</summary>
+    public double? ProfileSettingsWindowWidth { get; set; }
+
+    /// <summary>Gets or sets the profile settings window height in pixels.</summary>
+    public double? ProfileSettingsWindowHeight { get; set; }
+
+    /// <summary>Gets or sets a value indicating whether the profile settings window is maximized.</summary>
+    public bool? ProfileSettingsWindowIsMaximized { get; set; }
+
+    /// <summary>Gets or sets the profile settings sidebar width in pixels.</summary>
+    public double? ProfileSettingsSidebarWidth { get; set; }
+
     /// <summary>Gets or sets the workspace path where all game files are stored.</summary>
     public string? WorkspacePath { get; set; }
 
@@ -203,6 +215,10 @@ public class UserSettings
             WindowWidth = WindowWidth,
             WindowHeight = WindowHeight,
             IsMaximized = IsMaximized,
+            ProfileSettingsWindowWidth = ProfileSettingsWindowWidth,
+            ProfileSettingsWindowHeight = ProfileSettingsWindowHeight,
+            ProfileSettingsWindowIsMaximized = ProfileSettingsWindowIsMaximized,
+            ProfileSettingsSidebarWidth = ProfileSettingsSidebarWidth,
             WorkspacePath = WorkspacePath,
             LastUsedProfileId = LastUsedProfileId,
             LastSelectedTab = LastSelectedTab,

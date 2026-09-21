@@ -22,6 +22,7 @@ public partial class GameSettingsView : UserControl
     ];
 
     private SectionScrollSpy<SettingsCategory>? _scrollSpy;
+    private IDisposable? _sidebarWidthSubscription;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="GameSettingsView"/> class.
@@ -38,6 +39,23 @@ public partial class GameSettingsView : UserControl
     protected override void OnLoaded(RoutedEventArgs e)
     {
         base.OnLoaded(e);
+
+        var grid = this.FindControl<Grid>("RootGrid");
+        if (grid != null && grid.ColumnDefinitions.Count > 0)
+        {
+            var sidebarCol = grid.ColumnDefinitions[0];
+            sidebarCol.Width = new GridLength(GameProfileSettingsWindow.SavedSidebarWidth);
+            _sidebarWidthSubscription?.Dispose();
+            _sidebarWidthSubscription = sidebarCol.GetObservable(ColumnDefinition.WidthProperty)
+                .Subscribe(w =>
+                {
+                    if (w.IsAbsolute && w.Value > 0 && Math.Abs(w.Value - GameProfileSettingsWindow.SavedSidebarWidth) > 0.5)
+                    {
+                        GameProfileSettingsWindow.UpdateSidebarWidth(w.Value);
+                    }
+                });
+            GameProfileSettingsWindow.SidebarWidthChanged += OnSidebarWidthChanged;
+        }
 
         var scrollViewer = this.FindControl<ScrollViewer>("SettingsScrollViewer");
         if (scrollViewer == null)
@@ -73,6 +91,10 @@ public partial class GameSettingsView : UserControl
     {
         base.OnUnloaded(e);
 
+        GameProfileSettingsWindow.SidebarWidthChanged -= OnSidebarWidthChanged;
+        _sidebarWidthSubscription?.Dispose();
+        _sidebarWidthSubscription = null;
+
         _scrollSpy?.Dispose();
         _scrollSpy = null;
 
@@ -93,6 +115,19 @@ public partial class GameSettingsView : UserControl
         }
 
         return null;
+    }
+
+    private void OnSidebarWidthChanged(object? sender, double newWidth)
+    {
+        var grid = this.FindControl<Grid>("RootGrid");
+        if (grid != null && grid.ColumnDefinitions.Count > 0)
+        {
+            var col = grid.ColumnDefinitions[0];
+            if (col.Width.IsAbsolute && Math.Abs(col.Width.Value - newWidth) > 0.5)
+            {
+                col.Width = new GridLength(newWidth);
+            }
+        }
     }
 
     private void OnScrollToSectionRequested(string sectionName)

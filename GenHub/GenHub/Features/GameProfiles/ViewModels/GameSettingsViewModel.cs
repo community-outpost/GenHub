@@ -151,7 +151,46 @@ public partial class GameSettingsViewModel(
     }
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsZeroHour))]
     private GameType _selectedGameType;
+
+    /// <summary>
+    /// Gets a value indicating whether the selected game is Zero Hour.
+    /// </summary>
+    public bool IsZeroHour => SelectedGameType == GameType.ZeroHour;
+
+    [ObservableProperty]
+    private bool _isTheSuperHackersVisible = true;
+
+    [ObservableProperty]
+    private bool _isGeneralsOnlineVisible = true;
+
+    /// <summary>
+    /// Gets a value indicating whether custom camera settings should be shown (for non-GeneralsOnline profiles).
+    /// </summary>
+    public bool IsCustomCameraVisible => !IsGeneralsOnlineVisible;
+
+    /// <summary>
+    /// Updates the visibility of client-specific setting categories based on active client flags.
+    /// </summary>
+    /// <param name="isTheSuperHackers">Whether TheSuperHackers client is enabled.</param>
+    /// <param name="isGeneralsOnline">Whether GeneralsOnline client is enabled.</param>
+    public void UpdateApplicableClientVisibility(bool isTheSuperHackers, bool isGeneralsOnline)
+    {
+        IsTheSuperHackersVisible = isTheSuperHackers;
+        IsGeneralsOnlineVisible = isGeneralsOnline;
+        OnPropertyChanged(nameof(IsCustomCameraVisible));
+
+        if (!IsTheSuperHackersVisible && SelectedCategory == SettingsCategory.TheSuperHackers)
+        {
+            SelectedCategory = SettingsCategory.Video;
+        }
+
+        if (!IsGeneralsOnlineVisible && SelectedCategory == SettingsCategory.GeneralsOnline)
+        {
+            SelectedCategory = SettingsCategory.Video;
+        }
+    }
 
     private SettingsCategory _selectedCategory = SettingsCategory.Video;
 
@@ -415,6 +454,31 @@ public partial class GameSettingsViewModel(
     [ObservableProperty]
     private int _goChatFontSize = GameSettingsGeneralsOnlineConstants.DefaultChatFontSize;
 
+    // ===== Custom Camera Settings (Non-GeneralsOnline) =====
+    [ObservableProperty]
+    private float _cameraHeight = GameSettingsConstants.Camera.DefaultHeight;
+
+    [ObservableProperty]
+    private float _cameraMaxHeight = GameSettingsConstants.Camera.DefaultMaxHeight;
+
+    [ObservableProperty]
+    private float _cameraMinHeight = GameSettingsConstants.Camera.DefaultMinHeight;
+
+    [ObservableProperty]
+    private float _cameraPitch = GameSettingsConstants.Camera.DefaultPitch;
+
+    /// <summary>
+    /// Resets camera settings to standard game engine defaults.
+    /// </summary>
+    [RelayCommand]
+    private void ResetCameraDefaults()
+    {
+        CameraHeight = GameSettingsConstants.Camera.DefaultHeight;
+        CameraMaxHeight = GameSettingsConstants.Camera.DefaultMaxHeight;
+        CameraMinHeight = GameSettingsConstants.Camera.DefaultMinHeight;
+        CameraPitch = GameSettingsConstants.Camera.DefaultPitch;
+    }
+
     // Camera settings
     [ObservableProperty]
     private float _goCameraMaxHeightOnlyWhenLobbyHost = 310.0f;
@@ -604,6 +668,12 @@ public partial class GameSettingsViewModel(
             GoSocialNotificationPlayerSendsRequestGameplay = GoSocialNotificationPlayerSendsRequestGameplay,
             GoSocialNotificationPlayerSendsRequestMenus = GoSocialNotificationPlayerSendsRequestMenus,
             GameSpyIPAddress = GameSpyIPAddress,
+
+            // Camera settings
+            CameraHeight = CameraHeight,
+            CameraMaxHeight = CameraMaxHeight,
+            CameraMinHeight = CameraMinHeight,
+            CameraPitch = CameraPitch,
         };
     }
 
@@ -943,6 +1013,7 @@ public partial class GameSettingsViewModel(
         LoadVideoAudioSettingsFromProfile(profile);
         LoadTshSettingsFromProfile(profile);
         LoadGeneralsOnlineSettingsFromProfile(profile);
+        LoadCameraSettingsFromProfile(profile);
 
         if (profile.GameSpyIPAddress != null) GameSpyIPAddress = profile.GameSpyIPAddress;
 
@@ -1035,6 +1106,14 @@ public partial class GameSettingsViewModel(
         {
             TshGameWindowTransitionSpeedMultiplier = speedVal;
         }
+    }
+
+    private void LoadCameraSettingsFromProfile(Core.Models.GameProfile.GameProfile profile)
+    {
+        CameraHeight = profile.CameraHeight ?? GameSettingsConstants.Camera.DefaultHeight;
+        CameraMaxHeight = profile.CameraMaxHeight ?? GameSettingsConstants.Camera.DefaultMaxHeight;
+        CameraMinHeight = profile.CameraMinHeight ?? GameSettingsConstants.Camera.DefaultMinHeight;
+        CameraPitch = profile.CameraPitch ?? GameSettingsConstants.Camera.DefaultPitch;
     }
 
     private void LoadGeneralsOnlineSettingsFromProfile(Core.Models.GameProfile.GameProfile profile)

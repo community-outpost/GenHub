@@ -257,6 +257,25 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
     }
 
     /// <summary>
+    /// Updates the visibility of client-specific setting categories based on active client flags in EnabledContent.
+    /// </summary>
+    public void UpdateApplicableClientVisibility()
+    {
+        var enabledClients = EnabledContent.Where(c => c.ContentType == ContentType.GameClient).ToList();
+        var hasGo = enabledClients.Any(c =>
+            (c.Publisher?.Contains("GeneralsOnline", StringComparison.OrdinalIgnoreCase) ?? false) ||
+            c.DisplayName.Contains("GeneralsOnline", StringComparison.OrdinalIgnoreCase) ||
+            c.ManifestId.Value.Contains("generalsonline", StringComparison.OrdinalIgnoreCase));
+        var hasTsh = enabledClients.Any(c =>
+            (c.Publisher?.Contains("SuperHackers", StringComparison.OrdinalIgnoreCase) ?? false) ||
+            c.DisplayName.Contains("SuperHackers", StringComparison.OrdinalIgnoreCase) ||
+            c.ManifestId.Value.Contains("thesuperhackers", StringComparison.OrdinalIgnoreCase) ||
+            c.ManifestId.Value.Contains("superhackers", StringComparison.OrdinalIgnoreCase));
+
+        GameSettingsViewModel?.UpdateApplicableClientVisibility(hasTsh, hasGo);
+    }
+
+    /// <summary>
     /// Refreshes the hotswap mode and updates item lock states if the profile running state has changed.
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
@@ -364,7 +383,7 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
         await LoadAvailableContentAsync();
     }
 
-    private static string NormalizeResourcePath(string? path, string defaultUri)
+    private static string NormalizeResourcePath(string? path, string defaultUri = "")
     {
         if (string.IsNullOrWhiteSpace(path)) return defaultUri;
         path = CoverPathMigrationHelper.MigrateLegacyCoverFilename(path);
@@ -712,11 +731,35 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
         {
             GameSettingsViewModel.SelectedGameType = value.GameType;
         }
+
+        var newDefaultIcon = NormalizeResourcePath(_profileResourceService?.GetDefaultIconPath(value.GameType.ToString()));
+        var generalsIcon = NormalizeResourcePath(_profileResourceService?.GetDefaultIconPath("Generals"));
+        var zeroHourIcon = NormalizeResourcePath(_profileResourceService?.GetDefaultIconPath("ZeroHour"));
+
+        if (string.IsNullOrEmpty(IconPath) ||
+            string.Equals(IconPath, generalsIcon, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(IconPath, zeroHourIcon, StringComparison.OrdinalIgnoreCase))
+        {
+            if (!string.IsNullOrEmpty(newDefaultIcon))
+            {
+                IconPath = newDefaultIcon;
+            }
+        }
+
+        if (!IsInitializing && string.IsNullOrEmpty(CurrentProfileId) && (string.IsNullOrWhiteSpace(Name) || Name == ProfileConstants.DefaultProfileName))
+        {
+            Name = value.DisplayName;
+        }
     }
 
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Mutates SelectedGameInstallation and instance collections in partial view model")]
     private void ClearInstallationSelection()
     {
+        if (!IsInitializing && string.IsNullOrEmpty(CurrentProfileId) && (Name == SelectedGameInstallation?.DisplayName || string.IsNullOrWhiteSpace(Name)))
+        {
+            Name = ProfileConstants.DefaultProfileName;
+        }
+
         foreach (var item in AvailableGameInstallations)
         {
             item.IsEnabled = false;
@@ -727,6 +770,15 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
         {
             existing.IsEnabled = false;
             EnabledContent.Remove(existing);
+        }
+
+        var generalsIcon = NormalizeResourcePath(_profileResourceService?.GetDefaultIconPath("Generals"));
+        var zeroHourIcon = NormalizeResourcePath(_profileResourceService?.GetDefaultIconPath("ZeroHour"));
+        if (string.IsNullOrEmpty(IconPath) ||
+            string.Equals(IconPath, generalsIcon, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(IconPath, zeroHourIcon, StringComparison.OrdinalIgnoreCase))
+        {
+            IconPath = generalsIcon ?? string.Empty;
         }
     }
 
@@ -815,7 +867,7 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
         var existingItems = EnabledContent.Where(e => e.ContentType == contentItem.ContentType).ToList();
         foreach (var existing in existingItems)
         {
-            if (existing.ContentType == ContentType.GameClient && Name == existing.DisplayName)
+            if ((existing.ContentType is ContentType.GameClient or ContentType.GameInstallation) && Name == existing.DisplayName)
             {
                 Name = ProfileConstants.DefaultProfileName;
             }
@@ -871,10 +923,13 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
         StatusMessage = $"Enabled {contentItem.DisplayName}";
         _logger?.LogInformation("Enabled content {ContentName} for profile", contentItem.DisplayName);
 
-        if (contentItem.ContentType == ContentType.GameClient && Name == ProfileConstants.DefaultProfileName)
+        if ((contentItem.ContentType is ContentType.GameClient or ContentType.GameInstallation) &&
+            (Name == ProfileConstants.DefaultProfileName || string.IsNullOrWhiteSpace(Name)))
         {
             Name = contentItem.DisplayName;
         }
+
+        UpdateApplicableClientVisibility();
     }
 
     private async Task HandleRootOperationCompletionAsync(ContentDisplayItem contentItem, List<string> autoResolved, CancellationToken cancellationToken = default)

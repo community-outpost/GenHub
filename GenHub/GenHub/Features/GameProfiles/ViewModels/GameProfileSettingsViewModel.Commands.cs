@@ -161,6 +161,17 @@ public partial class GameProfileSettingsViewModel
                 continue;
             }
 
+            if (newItems.Any(existing =>
+                string.Equals(existing.ManifestId.Value, coreItem.ManifestId, StringComparison.OrdinalIgnoreCase) ||
+                (existing.ContentType == coreItem.ContentType &&
+                 existing.GameType == coreItem.GameType &&
+                 string.Equals(existing.DisplayName, coreItem.DisplayName, StringComparison.OrdinalIgnoreCase) &&
+                 string.Equals(existing.Publisher, coreItem.Publisher, StringComparison.OrdinalIgnoreCase) &&
+                 string.Equals(existing.Version, coreItem.Version, StringComparison.OrdinalIgnoreCase))))
+            {
+                continue;
+            }
+
             try
             {
                 newItems.Add(ConvertToViewModelContentDisplayItem(coreItem));
@@ -305,11 +316,18 @@ public partial class GameProfileSettingsViewModel
         var itemToRemove = EnabledContent.FirstOrDefault(e => e.ManifestId.Value == contentItem.ManifestId.Value);
         if (itemToRemove != null)
         {
+            if (Name == itemToRemove.DisplayName)
+            {
+                var remainingClientOrInstall = EnabledContent.FirstOrDefault(e => e.ContentType is ContentType.GameClient or ContentType.GameInstallation && e.ManifestId.Value != itemToRemove.ManifestId.Value);
+                Name = remainingClientOrInstall?.DisplayName ?? ProfileConstants.DefaultProfileName;
+            }
+
             itemToRemove.IsEnabled = false;
             EnabledContent.Remove(itemToRemove);
 
             UpdateAvailableContentOnDisable(itemToRemove);
             UpdateSelectedInstallationOnDisable(itemToRemove);
+            UpdateApplicableClientVisibility();
 
             StatusMessage = $"Disabled {itemToRemove.DisplayName}";
             _logger?.LogInformation("Disabled content {ContentName} from profile", itemToRemove.DisplayName);
@@ -348,6 +366,23 @@ public partial class GameProfileSettingsViewModel
         {
             SelectedGameInstallation = null;
             _logger?.LogInformation("Cleared SelectedGameInstallation");
+
+            var remainingInstallation = EnabledContent.FirstOrDefault(e => e.ContentType == ContentType.GameInstallation && e.ManifestId.Value != itemToRemove.ManifestId.Value);
+            if (remainingInstallation != null)
+            {
+                SelectedGameInstallation = remainingInstallation;
+            }
+            else
+            {
+                var generalsIcon = NormalizeResourcePath(_profileResourceService?.GetDefaultIconPath("Generals"));
+                var zeroHourIcon = NormalizeResourcePath(_profileResourceService?.GetDefaultIconPath("ZeroHour"));
+                if (string.IsNullOrEmpty(IconPath) ||
+                    string.Equals(IconPath, generalsIcon, StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(IconPath, zeroHourIcon, StringComparison.OrdinalIgnoreCase))
+                {
+                    IconPath = generalsIcon ?? string.Empty;
+                }
+            }
         }
         else if (itemToRemove.ContentType is ContentType.GameClient or ContentType.Mod &&
                  SelectedGameInstallation != null &&

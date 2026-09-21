@@ -127,7 +127,38 @@ public class WindowsInstallationDetector(ILogger<WindowsInstallationDetector> lo
         var programFiles = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles);
         var programFilesX86 = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86);
 
-        var possiblePaths = new[]
+        // First check common EA Games parent directories for co-located retail installations
+        var parentFolders = new[]
+        {
+            Path.Combine(programFiles, GameClientConstants.EaGamesParentDirectoryName),
+            Path.Combine(programFilesX86, GameClientConstants.EaGamesParentDirectoryName),
+        };
+
+        foreach (var parentFolder in parentFolders)
+        {
+            if (Directory.Exists(parentFolder))
+            {
+                var generalsPath = Path.Combine(parentFolder, GameClientConstants.GeneralsRetailDirectoryName);
+                var zeroHourPath = Path.Combine(parentFolder, GameClientConstants.ZeroHourRetailDirectoryName);
+
+                var hasGenerals = Directory.Exists(generalsPath) && InstallationExtensions.HasValidGeneralsExecutable(generalsPath);
+                var hasZeroHour = Directory.Exists(zeroHourPath) && InstallationExtensions.HasValidZeroHourExecutable(zeroHourPath);
+
+                if (hasGenerals || hasZeroHour)
+                {
+                    var installation = new GameInstallation(parentFolder, GameInstallationType.Retail, null);
+                    installation.SetPaths(hasGenerals ? generalsPath : null, hasZeroHour ? zeroHourPath : null);
+                    retailInstalls.Add(installation);
+                    logger.LogInformation(
+                        "Detected Retail installation at {ParentFolder} (Generals: {HasGenerals}, ZeroHour: {HasZeroHour})",
+                        parentFolder,
+                        hasGenerals,
+                        hasZeroHour);
+                }
+            }
+        }
+
+        var possibleStandalonePaths = new[]
         {
             Path.Combine(programFiles, GameClientConstants.EaGamesParentDirectoryName, GameClientConstants.GeneralsRetailDirectoryName),
             Path.Combine(programFilesX86, GameClientConstants.EaGamesParentDirectoryName, GameClientConstants.GeneralsRetailDirectoryName),
@@ -135,55 +166,29 @@ public class WindowsInstallationDetector(ILogger<WindowsInstallationDetector> lo
             Path.Combine(programFilesX86, GameClientConstants.EaGamesParentDirectoryName, GameClientConstants.ZeroHourRetailDirectoryName),
         };
 
-        foreach (var basePath in possiblePaths)
+        foreach (var basePath in possibleStandalonePaths)
         {
             if (Directory.Exists(basePath))
             {
-                // Check if this is a "flat" installation (base path IS the game directory)
-                // This is common for "ZH" folders or custom repacks
-                var zeroHourExecutables = new[]
+                // Skip if already covered by an EA Games parent installation
+                if (retailInstalls.Any(r =>
+                    string.Equals(r.GeneralsPath, basePath, StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(r.ZeroHourPath, basePath, StringComparison.OrdinalIgnoreCase)))
                 {
-                    GameClientConstants.ZeroHourExecutable,
-                    GameClientConstants.GeneralsExecutable,
-                    GameClientConstants.SuperHackersZeroHourExecutable,
-                };
-
-                // If check for valid ZH executables in the root
-                if (zeroHourExecutables.Any(exe => File.Exists(Path.Combine(basePath, exe))))
-                {
-                    // Check if standard subdirectories exist. If NOT, then assume flat install.
-                    bool hasGeneralsSubdir = Directory.Exists(Path.Combine(basePath, GameClientConstants.GeneralsDirectoryName));
-                    bool hasZeroHourSubdir = Directory.Exists(Path.Combine(basePath, GameClientConstants.ZeroHourDirectoryName));
-
-                    if (!hasGeneralsSubdir && !hasZeroHourSubdir)
-                    {
-                        var installation = new GameInstallation(basePath, GameInstallationType.Retail, null);
-
-                        // For a flat install, both paths point to the base path (assuming merged)
-                        // Or just set ZeroHour if only ZH is present.
-                        // Safe bet: If generals.exe exists, assume base path covers both capabilities in a flat structure.
-                        installation.SetPaths(basePath, basePath);
-
-                        retailInstalls.Add(installation);
-                        logger.LogInformation("Detected standalone/flat Retail installation at {BasePath}", basePath);
-                        continue;
-                    }
+                    continue;
                 }
 
-                // Standard detection: check for subdirectories
-                var generalsPath = Path.Combine(basePath, GameClientConstants.GeneralsDirectoryName);
-                var zeroHourPath = Path.Combine(basePath, GameClientConstants.ZeroHourDirectoryName);
+                var installation = new GameInstallation(basePath, GameInstallationType.Retail, null);
+                installation.Fetch();
 
-                var hasGenerals = Directory.Exists(generalsPath);
-                var hasZeroHour = Directory.Exists(zeroHourPath);
-
-                if (hasGenerals || hasZeroHour)
+                if (installation.HasGenerals || installation.HasZeroHour)
                 {
-                    var installation = new GameInstallation(basePath, GameInstallationType.Retail, null);
-                    installation.SetPaths(hasGenerals ? generalsPath : null, hasZeroHour ? zeroHourPath : null);
-
                     retailInstalls.Add(installation);
-                    logger.LogInformation("Detected Retail installation at {BasePath} with {GeneralsCount} Generals and {ZeroHourCount} Zero Hour", basePath, hasGenerals ? 1 : 0, hasZeroHour ? 1 : 0);
+                    logger.LogInformation(
+                        "Detected standalone Retail installation at {BasePath} (Generals: {HasGenerals}, ZeroHour: {HasZeroHour})",
+                        basePath,
+                        installation.HasGenerals,
+                        installation.HasZeroHour);
                 }
             }
         }

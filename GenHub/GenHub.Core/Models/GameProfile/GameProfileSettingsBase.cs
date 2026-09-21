@@ -208,7 +208,21 @@ public class GameProfileSettingsBase
     /// <summary>Gets or sets the chat font size (GO).</summary>
     public int? GoChatFontSize { get; set; }
 
-    // ===== Camera Settings =====
+    // ===== Camera Settings (Non-GeneralsOnline) =====
+
+    /// <summary>Gets or sets the initial camera height.</summary>
+    public float? CameraHeight { get; set; }
+
+    /// <summary>Gets or sets the maximum camera height (zoom out limit).</summary>
+    public float? CameraMaxHeight { get; set; }
+
+    /// <summary>Gets or sets the minimum camera height (zoom in limit).</summary>
+    public float? CameraMinHeight { get; set; }
+
+    /// <summary>Gets or sets the camera pitch angle in degrees.</summary>
+    public float? CameraPitch { get; set; }
+
+    // ===== Camera Settings (GeneralsOnline) =====
 
     /// <summary>Gets or sets the camera max height (GO).</summary>
     public float? GoCameraMaxHeightOnlyWhenLobbyHost { get; set; }
@@ -234,7 +248,7 @@ public class GameProfileSettingsBase
     /// <summary>Gets or sets the render FPS limit (GO).</summary>
     public int? GoRenderFpsLimit { get; set; }
 
-    /// <summary>Gets or sets a value indicating whether to limit framerate (GO).</summary>
+    /// <summary>Gets or sets a value indicating whether framerate is limited (GO).</summary>
     public bool? GoRenderLimitFramerate { get; set; }
 
     /// <summary>Gets or sets a value indicating whether to show stats overlay (GO).</summary>

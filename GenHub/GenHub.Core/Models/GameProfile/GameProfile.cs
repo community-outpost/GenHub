@@ -287,7 +287,21 @@ public class GameProfile : IGameProfile
     /// <summary>Gets or sets a value indicating whether to launch using Steam integration (generals.exe) or standalone (game.dat). Only applicable for Steam installations.</summary>
     public bool? UseSteamLaunch { get; set; } = false;
 
-    // Camera settings
+    // Camera settings (Non-GeneralsOnline)
+
+    /// <summary>Gets or sets the initial camera height.</summary>
+    public float? CameraHeight { get; set; }
+
+    /// <summary>Gets or sets the maximum camera height (zoom out limit).</summary>
+    public float? CameraMaxHeight { get; set; }
+
+    /// <summary>Gets or sets the minimum camera height (zoom in limit).</summary>
+    public float? CameraMinHeight { get; set; }
+
+    /// <summary>Gets or sets the camera pitch angle in degrees.</summary>
+    public float? CameraPitch { get; set; }
+
+    // Camera settings (GeneralsOnline)
 
     /// <summary>Gets or sets the camera maximum height when lobby host (GO).</summary>
     public float? GoCameraMaxHeightOnlyWhenLobbyHost { get; set; }

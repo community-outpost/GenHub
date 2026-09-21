@@ -58,7 +58,7 @@ public class GameClientDetector(
             if (inst.HasGenerals && !string.IsNullOrEmpty(inst.GeneralsPath) && Directory.Exists(inst.GeneralsPath))
             {
                 // First, detect the standard installation client (priority over GeneralsOnline for auto-selection)
-                var (version, actualExePath) = await DetectVersionFromInstallationAsync(inst.GeneralsPath, GameType.Generals, cancellationToken);
+                var (version, actualExePath) = await DetectVersionFromInstallationAsync(inst.GeneralsPath, GameType.Generals, inst.InstallationType, cancellationToken);
                 if (File.Exists(actualExePath))
                 {
                     var generalsVersion = new GameClient
@@ -86,7 +86,7 @@ public class GameClientDetector(
 
             if (inst.HasZeroHour && !string.IsNullOrEmpty(inst.ZeroHourPath) && Directory.Exists(inst.ZeroHourPath))
             {
-                var (version, actualExePath) = await DetectVersionFromInstallationAsync(inst.ZeroHourPath, GameType.ZeroHour, cancellationToken);
+                var (version, actualExePath) = await DetectVersionFromInstallationAsync(inst.ZeroHourPath, GameType.ZeroHour, inst.InstallationType, cancellationToken);
                 if (File.Exists(actualExePath))
                 {
                     var zeroHourVersion = new GameClient
@@ -472,14 +472,25 @@ public class GameClientDetector(
     /// </summary>
     /// <param name="installationPath">The installation directory path.</param>
     /// <param name="gameType">The type of game (Generals or ZeroHour).</param>
+    /// <param name="installationType">Optional installation type to resolve platform-specific versions.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>A tuple containing the detected version string and the actual executable path found, or (GameClientConstants.UnknownVersion, original path) if not recognized.</returns>
-    private async Task<(string Version, string ExecutablePath)> DetectVersionFromInstallationAsync(string installationPath, GameType gameType, CancellationToken cancellationToken)
+    private async Task<(string Version, string ExecutablePath)> DetectVersionFromInstallationAsync(
+        string installationPath,
+        GameType gameType,
+        GameInstallationType? installationType,
+        CancellationToken cancellationToken)
     {
         var hashResult = await DetectVersionFromHashAsync(installationPath, gameType, cancellationToken);
         if (hashResult.HasValue)
         {
-            return hashResult.Value;
+            var detectedVersion = hashResult.Value.Version;
+            if (installationType == GameInstallationType.Steam && gameType == GameType.Generals && detectedVersion == "1.08")
+            {
+                detectedVersion = GameClientConstants.LatestSteamGeneralsVersion;
+            }
+
+            return (detectedVersion, hashResult.Value.ExecutablePath);
         }
 
         var defaultExecutableName = gameType == GameType.Generals
@@ -492,7 +503,7 @@ public class GameClientDetector(
         }
 
         var fallbackVersion = DetectVersionFromFileVersionInfo(defaultPath, defaultExecutableName, gameType);
-        fallbackVersion = NormalizeGenericVersion(fallbackVersion, gameType);
+        fallbackVersion = NormalizeGenericVersion(fallbackVersion, gameType, installationType);
 
         logger.LogInformation(
             "Using {ExecutableName} with version {Version} for {GameType}",
@@ -599,8 +610,20 @@ public class GameClientDetector(
         return GameClientConstants.UnknownVersion;
     }
 
-    private string NormalizeGenericVersion(string fallbackVersion, GameType gameType)
+    private string NormalizeGenericVersion(string fallbackVersion, GameType gameType, GameInstallationType? installationType = null)
     {
+        if (installationType == GameInstallationType.Steam && gameType == GameType.Generals)
+        {
+            if (fallbackVersion == GameClientConstants.UnknownVersion || fallbackVersion == "1.0" || fallbackVersion == "1.00" || fallbackVersion == "0.0" || fallbackVersion == "0.0.0.0" || fallbackVersion == "1.08")
+            {
+                logger.LogInformation(
+                    "Normalized generic Steam Generals version '{OldVersion}' to '{NewVersion}'",
+                    fallbackVersion,
+                    GameClientConstants.LatestSteamGeneralsVersion);
+                return GameClientConstants.LatestSteamGeneralsVersion;
+            }
+        }
+
         if (fallbackVersion == GameClientConstants.UnknownVersion || fallbackVersion == "1.0" || fallbackVersion == "1.00" || fallbackVersion == "0.0" || fallbackVersion == "0.0.0.0")
         {
             var oldVersion = fallbackVersion;

@@ -34,9 +34,9 @@
         </Style>
     </UserControl.Styles>
 
-    <Grid>
+    <Grid x:Name="RootGrid">
         <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="190" MinWidth="68" MaxWidth="300" />
+            <ColumnDefinition Width="140" MinWidth="58" MaxWidth="300" />
             <ColumnDefinition Width="4" />
             <ColumnDefinition Width="*" MinWidth="0" />
         </Grid.ColumnDefinitions>

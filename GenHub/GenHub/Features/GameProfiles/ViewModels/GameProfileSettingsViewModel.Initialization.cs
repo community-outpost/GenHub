@@ -39,7 +39,7 @@ public partial class GameProfileSettingsViewModel
             IsHotswapMode = false;
             OnPropertyChanged(nameof(CanShareProfile));
             Name = ProfileConstants.DefaultProfileName;
-            Description = "A new game profile";
+            Description = string.Empty;
             ColorValue = ProfileSharingConstants.DefaultThemeColor;
             SelectedWorkspaceStrategy = GetDefaultWorkspaceStrategy();
             SelectedContentType = ContentType.GameClient;
@@ -71,6 +71,7 @@ public partial class GameProfileSettingsViewModel
             GameSettingsViewModel.ColorValue = ColorValue;
 
             await GameSettingsViewModel.InitializeForProfileAsync(null, null, SelectedGameInstallation?.GameType);
+            UpdateApplicableClientVisibility();
 
             StatusMessage = string.Empty;
         }
@@ -163,6 +164,7 @@ public partial class GameProfileSettingsViewModel
             await RefreshVisibleFiltersAsync();
 
             SelectInitialGameInstallation(profile);
+            UpdateApplicableClientVisibility();
 
             StatusMessage = string.Empty;
         }

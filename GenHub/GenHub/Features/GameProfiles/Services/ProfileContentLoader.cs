@@ -76,6 +76,15 @@ public class ProfileContentLoader(
                     if (baseClient is null) continue;
 
                     var item = CreateInstallationDisplayItem(installation, baseClient, gameType);
+                    if (result.Any(r => r.ManifestId == item.ManifestId ||
+                                       (r.GameType == item.GameType &&
+                                        r.InstallationType == item.InstallationType &&
+                                        string.Equals(r.DisplayName, item.DisplayName, StringComparison.OrdinalIgnoreCase) &&
+                                        string.Equals(r.Version, item.Version, StringComparison.OrdinalIgnoreCase))))
+                    {
+                        continue;
+                    }
+
                     result.Add(item);
 
                     logger.LogDebug(
@@ -568,6 +577,15 @@ public class ProfileContentLoader(
 
         foreach (var manifest in casGameClients)
         {
+            if (result.Any(r => r.ManifestId == manifest.Id.Value ||
+                               (r.ContentType == ContentType.GameClient &&
+                                r.GameType == manifest.TargetGame &&
+                                string.Equals(r.DisplayName, manifest.Name, StringComparison.OrdinalIgnoreCase) &&
+                                string.Equals(r.Version, manifest.Version, StringComparison.OrdinalIgnoreCase))))
+            {
+                continue;
+            }
+
             result.Add(CreateManifestDisplayItem(manifest));
 
             logger.LogDebug(

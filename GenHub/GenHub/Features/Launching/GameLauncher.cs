@@ -21,6 +21,7 @@ using GenHub.Core.Models.Launching;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Workspace;
+using GenHub.Core.Services.Tools.Checksum;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Buffers;
@@ -30,6 +31,8 @@ using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -1373,6 +1376,8 @@ public class GameLauncher(
             HandleVideoSkipEaLogo(workspaceInfo.WorkspacePath);
         }
 
+        await ApplyCameraSettingsAsync(profile, workspaceInfo.WorkspacePath, actualInstallationPath, cancellationToken);
+
         return OperationResult<WorkspaceInfo>.CreateSuccess(workspaceInfo);
     }
 
@@ -1692,6 +1697,10 @@ public class GameLauncher(
             Path.Combine(workspacePath, "Data", "English", "Movies", "EA_LOGO.BIK"),
             Path.Combine(workspacePath, "Movies", "EA_LOGO.BIK"),
             Path.Combine(workspacePath, "data", "movies", "EA_LOGO.BIK"),
+            Path.Combine(workspacePath, "Data", "Movies", "EA_LOGO640.BIK"),
+            Path.Combine(workspacePath, "Data", "English", "Movies", "EA_LOGO640.BIK"),
+            Path.Combine(workspacePath, "Movies", "EA_LOGO640.BIK"),
+            Path.Combine(workspacePath, "data", "movies", "EA_LOGO640.BIK"),
         };
 
         logger.LogInformation("[GameLauncher] Skip EA Logo enabled - checking workspace: {WorkspacePath}", workspacePath);
@@ -2014,5 +2023,169 @@ public class GameLauncher(
             ? localized
             : ProfileValidationConstants.MissingCasObjectsMessage;
         return await casService.VerifyRequiredCasContentAvailableAsync(manifests, messageFormat, LogMissingCasFile, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Applies profile camera height and pitch settings to GameData.ini in the workspace for non-GeneralsOnline profiles.
+    /// If the profile has no custom camera settings, any previously generated GenHub camera override is cleaned up.
+    /// </summary>
+    private async Task ApplyCameraSettingsAsync(
+        GameProfile profile,
+        string workspacePath,
+        string actualInstallationPath,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            if (profile.IsGeneralsOnlineProfile())
+            {
+                return;
+            }
+
+            var iniDir = Path.Combine(workspacePath, "Data", "INI");
+            var iniPath = Path.Combine(iniDir, "GameData.ini");
+
+            if (profile.HasCustomCameraSettings())
+            {
+                string? iniContent = null;
+                if (File.Exists(iniPath))
+                {
+                    iniContent = await File.ReadAllTextAsync(iniPath, cancellationToken);
+                }
+                else
+                {
+                    iniContent = TryExtractGameDataIniFromBig(workspacePath) ??
+                                 TryExtractGameDataIniFromBig(actualInstallationPath);
+                }
+
+                if (string.IsNullOrEmpty(iniContent))
+                {
+                    iniContent = "GameData\r\nEnd\r\n";
+                }
+
+                var updatedContent = UpdateGameDataCameraSettings(
+                    iniContent,
+                    profile.CameraHeight,
+                    profile.CameraMaxHeight,
+                    profile.CameraMinHeight,
+                    profile.CameraPitch);
+
+                Directory.CreateDirectory(iniDir);
+                await File.WriteAllTextAsync(iniPath, "; GenHub Camera Override\r\n" + updatedContent, cancellationToken);
+                logger.LogInformation("[GameLauncher] Applied custom camera settings to {IniPath}", iniPath);
+            }
+            else
+            {
+                if (File.Exists(iniPath))
+                {
+                    var lines = await File.ReadAllLinesAsync(iniPath, cancellationToken);
+                    var firstLine = lines.Length > 0 ? lines[0] : null;
+                    if (firstLine != null && firstLine.StartsWith("; GenHub Camera Override", StringComparison.OrdinalIgnoreCase))
+                    {
+                        File.Delete(iniPath);
+                        logger.LogInformation("[GameLauncher] Removed GenHub camera override from {IniPath} to restore default camera settings", iniPath);
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "[GameLauncher] Failed to apply camera settings for profile {ProfileId}", profile.Id);
+        }
+    }
+
+    private string? TryExtractGameDataIniFromBig(string searchDirectory)
+    {
+        if (string.IsNullOrWhiteSpace(searchDirectory) || !Directory.Exists(searchDirectory))
+        {
+            return null;
+        }
+
+        var candidateFiles = new List<string>();
+        var inizh = Path.Combine(searchDirectory, "INIZH.big");
+        if (File.Exists(inizh)) candidateFiles.Add(inizh);
+        var ini = Path.Combine(searchDirectory, "INI.big");
+        if (File.Exists(ini)) candidateFiles.Add(ini);
+
+        try
+        {
+            foreach (var file in Directory.EnumerateFiles(searchDirectory, "*.big", SearchOption.TopDirectoryOnly))
+            {
+                if (!candidateFiles.Contains(file, StringComparer.OrdinalIgnoreCase))
+                {
+                    candidateFiles.Add(file);
+                }
+            }
+        }
+        catch
+        {
+            // Non-critical directory enumeration fallback
+        }
+
+        foreach (var bigPath in candidateFiles)
+        {
+            if (BigArchiveReader.TryReadIndex(bigPath, out var entries))
+            {
+                var entry = entries.Values.FirstOrDefault(e => e.Path.EndsWith("gamedata.ini", StringComparison.OrdinalIgnoreCase));
+                if (entry != null)
+                {
+                    try
+                    {
+                        var data = BigArchiveReader.ReadEntryData(entry);
+                        return Encoding.UTF8.GetString(data);
+                    }
+                    catch (Exception ex)
+                    {
+                        logger.LogDebug(ex, "[GameLauncher] Failed to read GameData.ini entry from {BigPath}", bigPath);
+                    }
+                }
+            }
+        }
+
+        return null;
+    }
+
+    private string UpdateGameDataCameraSettings(
+        string content,
+        float? cameraHeight,
+        float? cameraMaxHeight,
+        float? cameraMinHeight,
+        float? cameraPitch)
+    {
+        if (content.StartsWith("; GenHub Camera Override\r\n", StringComparison.OrdinalIgnoreCase))
+        {
+            content = content.Substring("; GenHub Camera Override\r\n".Length);
+        }
+        else if (content.StartsWith("; GenHub Camera Override\n", StringComparison.OrdinalIgnoreCase))
+        {
+            content = content.Substring("; GenHub Camera Override\n".Length);
+        }
+
+        content = UpdateOrInsertIniValue(content, "CameraHeight", cameraHeight ?? GameSettingsConstants.Camera.DefaultHeight);
+        content = UpdateOrInsertIniValue(content, "MaxCameraHeight", cameraMaxHeight ?? GameSettingsConstants.Camera.DefaultMaxHeight);
+        content = UpdateOrInsertIniValue(content, "MinCameraHeight", cameraMinHeight ?? GameSettingsConstants.Camera.DefaultMinHeight);
+        content = UpdateOrInsertIniValue(content, "CameraPitch", cameraPitch ?? GameSettingsConstants.Camera.DefaultPitch);
+
+        return content;
+    }
+
+    private string UpdateOrInsertIniValue(string content, string key, float value)
+    {
+        var formattedVal = value.ToString("0.0#", CultureInfo.InvariantCulture);
+        var pattern = @"^([ \t]*" + Regex.Escape(key) + @"[ \t]*=[ \t]*)[^\r\n]*";
+        var regex = new Regex(pattern, RegexOptions.Multiline | RegexOptions.IgnoreCase);
+
+        if (regex.IsMatch(content))
+        {
+            return regex.Replace(content, "${1}" + formattedVal, 1);
+        }
+
+        var gameDataHeader = new Regex(@"^([ \t]*GameData[ \t]*\r?\n)", RegexOptions.Multiline | RegexOptions.IgnoreCase);
+        if (gameDataHeader.IsMatch(content))
+        {
+            return gameDataHeader.Replace(content, "${1}  " + key + " = " + formattedVal + "\r\n", 1);
+        }
+
+        return content + "\r\nGameData\r\n  " + key + " = " + formattedVal + "\r\nEnd\r\n";
     }
 }

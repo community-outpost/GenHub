@@ -32,14 +32,14 @@
       "exeCrc": "0x1C96366F",
       "iniCrc": "0x5A8E12F0",
       "sha256": null,
-      "manifestId": "1.108.steam.gameclient.generals",
+      "manifestId": "1.109.steam.gameclient.generals",
       "publisher": "steam",
       "gameType": "Generals",
-      "version": "1.08",
+      "version": "1.09",
       "buildDate": "2003-02-11",
-      "description": "Official Steam Generals 1.08",
+      "description": "Official Steam Generals 1.09",
       "cdnUrl": null,
-      "dataPatchName": "Steam 1.08 INI"
+      "dataPatchName": "Steam 1.09 INI"
     },
     {
       "exeCrc": "0x27533BB0",
