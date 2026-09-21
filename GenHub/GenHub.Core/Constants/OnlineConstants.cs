@@ -129,6 +129,24 @@ public static class OnlineConstants
     public const string ErrorPasswordTooLong = "online.password-too-long";
 
     /// <summary>
+    /// Error code for a present-but-short network password.
+    /// </summary>
+    public const string ErrorPasswordTooShort = "online.password-too-short";
+
+    /// <summary>
+    /// Error code from older edge deployments that required a password for
+    /// public lobbies. Current edges allow passwordless lobbies.
+    /// </summary>
+    public const string ErrorPasswordRequired = "online.password-required";
+
+    /// <summary>
+    /// Directory entries older than this are corpses whose room died without
+    /// removing them. Mirrors the edge STALE_ENTRY_SECONDS filter so mixed
+    /// client/edge versions still hide dead lobbies.
+    /// </summary>
+    public const int DirectoryStaleSeconds = 3600;
+
+    /// <summary>
     /// Error code for a failed game launch from the Online tab.
     /// </summary>
     public const string ErrorLaunchFailed = "online.launch-failed";

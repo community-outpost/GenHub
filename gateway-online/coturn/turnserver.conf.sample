@@ -1,0 +1,20 @@
+# GenHub Online edge TURN relay sample.
+# Copy to turnserver.conf, replace ${COTURN_SECRET} with the value stored via
+# `wrangler secret put COTURN_SECRET`, then run: turnserver -c turnserver.conf
+listening-port=3478
+tls-listening-port=5349
+realm=genhub-online
+server-name=genhub-online
+# Ephemeral REST credentials minted by the edge (GET /v1/networks/{id}/turn).
+use-auth-secret
+static-auth-secret=${COTURN_SECRET}
+# Relay port range for game packet allocations.
+min-port=49160
+max-port=49200
+# Serve turns: with TLS for clients behind UDP-blocking NATs.
+# cert=/etc/coturn/fullchain.pem
+# pkey=/etc/coturn/privkey.pem
+# Relay-only by product design: no direct peer-to-peer hole punching.
+no-cli
+log-file=/var/log/coturn/turn.log
+simple-log

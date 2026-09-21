@@ -18,11 +18,22 @@ public sealed class OnlineNetworkServiceTests
 {
     private const string SessionJson = """{"token":"test-session-token"}""";
 
-    private const string DirectoryJson = """
+    private const string DirectoryJsonTemplate = """
         [
           {"id":"net-1","name":"Zero Hour EU","tags":["zerohour"],"slotsUsed":3,"slotsMax":8,
            "region":"EU","hostDisplayName":"Commander","quality":1,"requiresPassword":true,
-           "lastHeartbeatUtc":"2026-09-20T00:00:00Z"}
+           "lastHeartbeatUtc":"FRESH_TIMESTAMP"}
+        ]
+        """;
+
+    private const string StaleDirectoryJsonTemplate = """
+        [
+          {"id":"live","name":"Live Lobby","tags":[],"slotsUsed":2,"slotsMax":8,
+           "region":"EU","hostDisplayName":"Host","quality":2,"requiresPassword":false,
+           "lastHeartbeatUtc":"FRESH_TIMESTAMP"},
+          {"id":"corpse","name":"Dead Lobby","tags":[],"slotsUsed":1,"slotsMax":8,
+           "region":"EU","hostDisplayName":"Ghost","quality":1,"requiresPassword":true,
+           "lastHeartbeatUtc":"STALE_TIMESTAMP"}
         ]
         """;
 
@@ -135,7 +146,7 @@ public sealed class OnlineNetworkServiceTests
                     };
                 }
 
-                return JsonResponse(DirectoryJson);
+                return JsonResponse(FreshDirectoryJson());
             }
 
             return new HttpResponseMessage(HttpStatusCode.NotFound);
@@ -203,6 +214,42 @@ public sealed class OnlineNetworkServiceTests
         // Assert
         Assert.False(result.Success);
         Assert.Contains(OnlineConstants.ErrorServiceUnavailable, result.Errors);
+    }
+
+    /// <summary>
+    /// Tests that directory corpses older than the stale window are dropped.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task GetNetworksAsync_WithStaleEntries_ShouldDropThemAsync()
+    {
+        // Arrange: one live lobby plus one corpse whose room died a day ago.
+        var json = StaleDirectoryJsonTemplate
+            .Replace("FRESH_TIMESTAMP", DateTime.UtcNow.ToString("O"), StringComparison.Ordinal)
+            .Replace("STALE_TIMESTAMP", DateTime.UtcNow.AddDays(-1).ToString("O"), StringComparison.Ordinal);
+        var service = CreateService(CreateFactory(responder: request =>
+        {
+            var path = request.RequestUri?.AbsolutePath ?? string.Empty;
+            if (request.Method == HttpMethod.Post && path.EndsWith("/v1/sessions/anonymous", StringComparison.Ordinal))
+            {
+                return JsonResponse(SessionJson);
+            }
+
+            if (request.Method == HttpMethod.Get && path.EndsWith("/v1/networks", StringComparison.Ordinal))
+            {
+                return JsonResponse(json);
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.NotFound);
+        }));
+
+        // Act
+        var result = await service.GetNetworksAsync();
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.Single(result.Data);
+        Assert.Equal("live", result.Data[0].Id);
     }
 
     /// <summary>
@@ -593,7 +640,7 @@ public sealed class OnlineNetworkServiceTests
 
         if (request.Method == HttpMethod.Get && path.EndsWith("/v1/networks", StringComparison.Ordinal))
         {
-            return JsonResponse(DirectoryJson);
+            return JsonResponse(FreshDirectoryJson());
         }
 
         if (request.Method == HttpMethod.Post && path.EndsWith("/join", StringComparison.Ordinal))
@@ -626,6 +673,9 @@ public sealed class OnlineNetworkServiceTests
 
         return new HttpResponseMessage(HttpStatusCode.NotFound);
     }
+
+    private static string FreshDirectoryJson() =>
+        DirectoryJsonTemplate.Replace("FRESH_TIMESTAMP", DateTime.UtcNow.ToString("O"), StringComparison.Ordinal);
 
     private static HttpResponseMessage JsonResponse(string json)
     {

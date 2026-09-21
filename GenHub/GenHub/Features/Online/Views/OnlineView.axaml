@@ -154,6 +154,13 @@
                                            Foreground="{DynamicResource TextSecondary}" />
                             </StackPanel>
                         </Border>
+                        <Border Classes="badge" VerticalAlignment="Center"
+                                IsVisible="{Binding IsLobbyOnly}"
+                                ToolTip.Tip="{localization:Localize Online.Adapter.PendingMessage}">
+                            <TextBlock Text="{localization:Localize Online.Adapter.PendingTitle}"
+                                       FontSize="11"
+                                       Foreground="{DynamicResource TextSecondary}" />
+                        </Border>
                     </StackPanel>
                     <StackPanel Orientation="Horizontal" Spacing="8">
                         <TextBlock Text="{localization:Localize Online.Joined.OverlayIpLabel}"
@@ -167,6 +174,22 @@
                                 Content="{localization:Localize Online.Action.CopyIp}"
                                 Command="{Binding CopyOverlayIpCommand}"
                                 AutomationProperties.Name="{localization:Localize Online.Action.CopyIp}" />
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <TextBlock Text="{localization:Localize Online.Detail.PlayProfileLabel}"
+                                   Foreground="{DynamicResource TextSecondary}"
+                                   VerticalAlignment="Center" />
+                        <ComboBox ItemsSource="{Binding AvailableProfiles}"
+                                  SelectedItem="{Binding SelectedPlayProfile, Mode=TwoWay}"
+                                  PlaceholderText="{localization:Localize Online.Detail.LaunchProfilePlaceholder}"
+                                  MinWidth="220"
+                                  AutomationProperties.Name="{localization:Localize Online.Detail.PlayProfileLabel}">
+                            <ComboBox.ItemTemplate>
+                                <DataTemplate x:DataType="profiles:GameProfile">
+                                    <TextBlock Text="{Binding Name}" />
+                                </DataTemplate>
+                            </ComboBox.ItemTemplate>
+                        </ComboBox>
                     </StackPanel>
                     <StackPanel Orientation="Horizontal" Spacing="8">
                         <Button Classes="primary-btn"
@@ -353,12 +376,29 @@
                                 <TextBlock Text="{Binding SelectedPlayProfile.Name}"
                                            Foreground="{DynamicResource TextPrimary}" />
                             </StackPanel>
+                            <TextBlock Text="{Binding ProfileMatchDetail}"
+                                       Foreground="{DynamicResource TextMuted}"
+                                       TextWrapping="Wrap"
+                                       IsVisible="{Binding ProfileMatchDetail, Converter={StaticResource NullToVisibilityConverter}}" />
                         </StackPanel>
                     </Border>
 
                     <Border Classes="card" IsVisible="{Binding !IsJoined}">
                         <StackPanel Spacing="8">
                             <TextBlock Classes="section-title" Text="{localization:Localize Online.Join.Title}" />
+                            <TextBlock Classes="field-label" Text="{localization:Localize Online.Detail.PlayProfileLabel}" />
+                            <ComboBox ItemsSource="{Binding AvailableProfiles}"
+                                      SelectedItem="{Binding SelectedPlayProfile, Mode=TwoWay}"
+                                      PlaceholderText="{localization:Localize Online.Detail.LaunchProfilePlaceholder}"
+                                      HorizontalAlignment="Stretch"
+                                      AutomationProperties.Name="{localization:Localize Online.Detail.PlayProfileLabel}">
+                                <ComboBox.ItemTemplate>
+                                    <DataTemplate x:DataType="profiles:GameProfile">
+                                        <TextBlock Text="{Binding Name}" />
+                                    </DataTemplate>
+                                </ComboBox.ItemTemplate>
+                            </ComboBox>
+                            <TextBlock Classes="helper-text" Text="{localization:Localize Online.Join.ProfileHint}" />
                             <StackPanel Spacing="8" IsVisible="{Binding SelectedDetail.RequiresPassword, FallbackValue=True}">
                                 <TextBlock Classes="field-label" Text="{localization:Localize Online.Join.PasswordWatermark}" />
                                 <TextBox Classes="field"

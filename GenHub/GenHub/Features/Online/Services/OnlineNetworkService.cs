@@ -6,6 +6,7 @@ using GenHub.Core.Models.Results;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
@@ -104,7 +105,7 @@ public sealed class OnlineNetworkService(
 
             var networks = await response.Content.ReadFromJsonAsync<IReadOnlyList<OnlineNetworkSummary>>(
                 cancellationToken) ?? [];
-            return OperationResult<IReadOnlyList<OnlineNetworkSummary>>.CreateSuccess(networks);
+            return OperationResult<IReadOnlyList<OnlineNetworkSummary>>.CreateSuccess(DropStaleEntries(networks));
         }
         catch (HttpRequestException ex)
         {
@@ -376,6 +377,13 @@ public sealed class OnlineNetworkService(
 
         var url = string.Format(ApiConstants.OnlineBanFormat, Uri.EscapeDataString(join.NetworkId));
         return SendGrantMutationAsync(join.Grant, url, HttpMethod.Post, new { targetIp = overlayIp }, cancellationToken);
+    }
+
+    private static IReadOnlyList<OnlineNetworkSummary> DropStaleEntries(IReadOnlyList<OnlineNetworkSummary> networks)
+    {
+        var cutoff = DateTime.UtcNow.AddSeconds(-OnlineConstants.DirectoryStaleSeconds);
+        var fresh = networks.Where(n => n.LastHeartbeatUtc == default || n.LastHeartbeatUtc.ToUniversalTime() >= cutoff).ToList();
+        return fresh.Count == networks.Count ? networks : fresh;
     }
 
     private static OperationResult<bool> ValidateCreateRequest(OnlineCreateNetworkRequest request)

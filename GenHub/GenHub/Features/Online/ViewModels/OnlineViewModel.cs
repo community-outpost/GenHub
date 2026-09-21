@@ -63,6 +63,7 @@ public sealed partial class OnlineViewModel(
     [ObservableProperty]
     private ObservableCollection<OnlineNetworkSummary> _networks = [];
 
+    private bool _syncingPlayProfile;
     [ObservableProperty]
     private OnlineNetworkSummary? _selectedNetwork;
 
@@ -91,6 +92,12 @@ public sealed partial class OnlineViewModel(
 
     [ObservableProperty]
     private GameProfile? _selectedCreateProfile;
+    [ObservableProperty]
+    private string? _profileMatchDetail;
+
+    [ObservableProperty]
+    private bool _isLobbyOnly;
+
 
     [ObservableProperty]
     private GameProfile? _selectedHostProfile;
@@ -669,7 +676,7 @@ public sealed partial class OnlineViewModel(
             }
 
             ApplyExpectedProfile(expected);
-            SelectedPlayProfile = SelectedHostProfile;
+            SetPlayProfile(SelectedHostProfile);
             await AdvertiseSelectedProfileAsync(cancellationToken);
             IsHostPanelOpen = false;
             notificationService.ShowSuccess(
@@ -882,7 +889,9 @@ public sealed partial class OnlineViewModel(
         ExpectedProfileFingerprint = string.Empty;
         ExpectedGameClientId = string.Empty;
         ProfileMatchState = OnlineProfileMatch.Unknown;
-        SelectedPlayProfile = null;
+        ProfileMatchDetail = null;
+        IsLobbyOnly = false;
+        SetPlayProfile(null);
         SelectedHostProfile = null;
         HostDescription = string.Empty;
         IsHostPanelOpen = false;
@@ -951,11 +960,14 @@ public sealed partial class OnlineViewModel(
     {
         var config = networkService.CurrentJoin?.AdapterConfig ?? string.Empty;
         return OverlayConfigInspector.TryGetOverlayName(config) == OnlineConstants.OverlayPendingSelection;
+            OnlineConstants.ErrorPasswordTooShort => "Online.Error.PasswordTooShort",
+            OnlineConstants.ErrorPasswordRequired => "Online.Error.PasswordRequired",
     }
 
     private void NotifyAdapterState()
     {
-        if (networkService.AdapterState == OnlineAdapterState.Up)
+        IsLobbyOnly = networkService.AdapterState != OnlineAdapterState.Up;
+        if (!IsLobbyOnly)
         {
             return;
         }
@@ -998,6 +1010,9 @@ public sealed partial class OnlineViewModel(
             Action = () => reason = text,
         }).ToList();
         actions.Add(new DialogAction
+    private string GetString(string key, int first, int second) =>
+        localizationService?.GetString(key, first, second) ?? $"{key} ({first}, {second})";
+
         {
             Text = GetString("Common.Button.Cancel"),
             Style = NotificationActionStyle.Secondary,
@@ -1018,7 +1033,8 @@ public sealed partial class OnlineViewModel(
             SelectedDetail = null;
             ApplyExpectedProfile(null);
             ProfileMatchState = OnlineProfileMatch.Unknown;
-            SelectedPlayProfile = null;
+            ProfileMatchDetail = null;
+            SetPlayProfile(null);
 
             var result = await networkService.GetNetworkDetailAsync(network.Id, cancellationToken);
             if (cancellationToken.IsCancellationRequested)
@@ -1071,8 +1087,8 @@ public sealed partial class OnlineViewModel(
 
     private async Task AutoMatchProfileAsync(CancellationToken cancellationToken = default)
     {
-        SelectedPlayProfile = null;
-        ProfileMatchState = OnlineProfileMatch.Unknown;
+        SetPlayProfile(null);
+        ApplyMatch(OnlineProfileMatch.Unknown, null);
         if (string.IsNullOrEmpty(ExpectedProfileFingerprint))
         {
             return;
@@ -1086,12 +1102,65 @@ public sealed partial class OnlineViewModel(
             string? bestFingerprint = null;
             foreach (var profile in AvailableProfiles)
             {
+    private void ApplyMatch(OnlineProfileMatch match, IReadOnlyList<string>? localContentIds)
+    {
+        ProfileMatchState = match;
+        if (string.IsNullOrEmpty(ExpectedProfileFingerprint))
+        {
+            ProfileMatchDetail = GetString("Online.Detail.MatchDetailAny");
+            return;
+        }
+
+        if (SelectedPlayProfile is null || localContentIds is null)
+        {
+            ProfileMatchDetail = GetString("Online.Detail.MatchDetailNoProfile");
+            return;
+        }
+
+        var shared = OnlineProfileMatcher.ScoreOverlap(_expectedContentIds, localContentIds);
+        ProfileMatchDetail = match switch
+        {
+            OnlineProfileMatch.Exact => null,
+            OnlineProfileMatch.SameClient => GetString("Online.Detail.MatchDetailSameClient", shared, _expectedContentIds.Count),
+            OnlineProfileMatch.Mismatch => GetString("Online.Detail.MatchDetailMismatch"),
+            _ => GetString("Online.Detail.MatchDetailNoProfile"),
+        };
+    }
+
+    private void SetPlayProfile(GameProfile? profile)
+    {
+        // Programmatic sets must not retrigger the picker handler: the callers
+        // already re-match and advertise as part of their own flow.
+        _syncingPlayProfile = true;
+        try
+        {
+            SelectedPlayProfile = profile;
+        }
+        finally
+        {
+            _syncingPlayProfile = false;
+        }
+    }
+
+    private async Task RefreshMatchAfterPickerChangeAsync()
+    {
+        try
+        {
+            // Presence advertisements carry no scoped token; the re-match is uncancellable.
+            await UpdateMatchAndAdvertiseAsync(CancellationToken.None);
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Failed to re-match the selected launch profile.");
+        }
+    }
+
                 cancellationToken.ThrowIfCancellationRequested();
                 var setup = await DescribeProfileAsync(profile, cancellationToken);
                 if (string.Equals(setup.Fingerprint, ExpectedProfileFingerprint, StringComparison.Ordinal))
                 {
-                    SelectedPlayProfile = profile;
-                    ProfileMatchState = OnlineProfileMatch.Exact;
+                    SetPlayProfile(profile);
+                    ApplyMatch(OnlineProfileMatch.Exact, setup.GameplayContentIds);
                     return;
                 }
 
@@ -1101,6 +1170,7 @@ public sealed partial class OnlineViewModel(
                     continue;
                 }
 
+            IReadOnlyList<string>? bestContentIds = null;
                 var overlap = OnlineProfileMatcher.ScoreOverlap(_expectedContentIds, setup.GameplayContentIds);
                 if (best is null || overlap > bestOverlap)
                 {
@@ -1112,18 +1182,21 @@ public sealed partial class OnlineViewModel(
 
             if (best is not null)
             {
-                SelectedPlayProfile = best;
-                ProfileMatchState = OnlineProfileMatcher.Compare(
-                    ExpectedProfileFingerprint,
-                    ExpectedGameClientId,
-                    bestFingerprint ?? string.Empty,
-                    OnlineProfileMatcher.GetGameClientKey(best));
+                SetPlayProfile(best);
+                ApplyMatch(
+                    OnlineProfileMatcher.Compare(
+                        ExpectedProfileFingerprint,
+                        ExpectedGameClientId,
+                        bestFingerprint ?? string.Empty,
+                        OnlineProfileMatcher.GetGameClientKey(best)),
+                    bestContentIds);
             }
             else if (AvailableProfiles.Count > 0)
             {
-                ProfileMatchState = OnlineProfileMatch.Mismatch;
+                ApplyMatch(OnlineProfileMatch.Mismatch, null);
             }
         }
+                    bestContentIds = setup.GameplayContentIds;
         catch (OperationCanceledException)
         {
             throw;
@@ -1143,11 +1216,13 @@ public sealed partial class OnlineViewModel(
         else
         {
             var setup = await DescribeProfileAsync(SelectedPlayProfile, cancellationToken);
-            ProfileMatchState = OnlineProfileMatcher.Compare(
-                ExpectedProfileFingerprint,
-                ExpectedGameClientId,
-                setup.Fingerprint,
-                setup.ClientKey);
+            ApplyMatch(
+                OnlineProfileMatcher.Compare(
+                    ExpectedProfileFingerprint,
+                    ExpectedGameClientId,
+                    setup.Fingerprint,
+                    setup.ClientKey),
+                setup.GameplayContentIds);
         }
 
         await AdvertiseSelectedProfileAsync(cancellationToken);
@@ -1359,6 +1434,23 @@ public sealed partial class OnlineViewModel(
 
     partial void OnIsCurrentUserHostChanged(bool value)
     {
+    partial void OnSelectedPlayProfileChanged(GameProfile? value)
+    {
+        if (_syncingPlayProfile)
+        {
+            return;
+        }
+
+        if (!IsJoined && SelectedDetail is null)
+        {
+            return;
+        }
+
+        // Safe to detach: the refresh reports its own errors, and picker
+        // changes outlive any scoped token, so matching is uncancellable.
+        _ = RefreshMatchAfterPickerChangeAsync();
+    }
+
         SaveNetworkCommand.NotifyCanExecuteChanged();
         ToggleHostPanelCommand.NotifyCanExecuteChanged();
         BanMemberCommand.NotifyCanExecuteChanged();

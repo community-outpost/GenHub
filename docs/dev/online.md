@@ -51,8 +51,12 @@ of failing silently.
    `wrangler secret put COTURN_SECRET`
 3. Verify the public hostname matches `ApiConstants.DefaultOnlineEdgeBaseUrl`;
    update the constant if the `workers.dev` subdomain differs.
-4. Point a coturn instance at `COTURN_SECRET` (`static-auth-secret`) and set
-   `TURN_URIS` in `wrangler.jsonc`.
+4. Point a coturn instance at `COTURN_SECRET` (`static-auth-secret`, sample in
+   `gateway-online/coturn/turnserver.conf.sample`) and set `TURN_URIS` in
+   `wrangler.jsonc`.
+5. Redeploy after every edge change (`npm run deploy`): clients speaking to a
+   stale edge see stale lobbies, password rejections on open lobbies, and
+   blank expected profiles.
 
 ## Join flow
 

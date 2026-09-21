@@ -3,7 +3,10 @@ using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Interfaces.Online;
+using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.GameClients;
 using GenHub.Core.Models.GameProfile;
+using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Online;
 using GenHub.Core.Models.Results;
 using GenHub.Features.Online.ViewModels;
@@ -510,6 +513,146 @@ public class OnlineViewModelTests
 
         // Assert
         Assert.NotNull(vm.SelectedMember);
+    }
+
+    /// <summary>
+    /// Tests that an older edge demanding a password maps to the password message, not a connectivity error.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task CreateNetworkAsync_WithPasswordRequired_ShouldToastPasswordMessageAsync()
+    {
+        // Arrange
+        var network = new Mock<IOnlineNetworkService>();
+        network.Setup(n => n.CreateNetworkAsync(It.IsAny<OnlineCreateNetworkRequest>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<OnlineJoinResult>.CreateFailure(OnlineConstants.ErrorPasswordRequired));
+        var profiles = new Mock<IGameProfileManager>();
+        profiles.Setup(p => p.GetAllProfilesAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<IReadOnlyList<GameProfile>>.CreateSuccess([]));
+        var notifications = new Mock<INotificationService>();
+        var vm = CreateViewModel(network.Object, notifications.Object, profiles: profiles.Object);
+        vm.CreateName = "Lobby";
+        vm.CreatePassword = string.Empty;
+        vm.CreateIsPublic = true;
+
+        // Act
+        await vm.CreateNetworkAsync();
+
+        // Assert
+        Assert.False(vm.IsJoined);
+        notifications.Verify(
+            n => n.ShowError(It.IsAny<string>(), "Online.Error.PasswordRequired", It.IsAny<int?>(), It.IsAny<bool>()),
+            Times.Once);
+    }
+
+    /// <summary>
+    /// Tests that a same-client auto-match shows the shared mod counts.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task SelectNetwork_WithSameClientProfile_ShouldShowModCountsAsync()
+    {
+        // Arrange
+        var profile = ProfileWithClient("profile-1", "Zero Hour", GameType.ZeroHour, "zerohour-client", "1.04", "mod-a", "mod-x");
+        var vm = CreateViewModelWithDetail(profile, out _);
+
+        // Act
+        vm.SelectedNetwork = new OnlineNetworkSummary { Id = "net-1", Name = "Lobby" };
+        await WaitForAsync(() => vm.SelectedPlayProfile is not null);
+
+        // Assert
+        Assert.Equal(OnlineProfileMatch.SameClient, vm.ProfileMatchState);
+        Assert.Equal("Online.Detail.MatchDetailSameClient (1, 2)", vm.ProfileMatchDetail);
+    }
+
+    /// <summary>
+    /// Tests that picking another launch profile re-matches and re-advertises it.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task SelectedPlayProfile_WhenChangedAfterDetail_ShouldReAdvertiseAsync()
+    {
+        // Arrange
+        var zeroHour = ProfileWithClient("profile-1", "Zero Hour", GameType.ZeroHour, "zerohour-client", "1.04", "mod-a", "mod-x");
+        var generals = ProfileWithClient("profile-2", "Generals", GameType.Generals, "generals-client", "1.08", "mod-a");
+        var advertised = new List<string>();
+        var vm = CreateViewModelWithDetail(zeroHour, out var network, generals);
+        network.Setup(n => n.SetLocalProfileAdvertisement(It.IsAny<string>(), It.IsAny<string>()))
+            .Callback<string, string>((fingerprint, _) => advertised.Add(fingerprint));
+        vm.SelectedNetwork = new OnlineNetworkSummary { Id = "net-1", Name = "Lobby" };
+        await WaitForAsync(() => vm.SelectedPlayProfile is not null);
+        advertised.Clear();
+
+        // Act: the user overrides the auto-match from the launch-profile picker.
+        vm.SelectedPlayProfile = generals;
+        await WaitForAsync(() => advertised.Count > 0);
+
+        // Assert
+        Assert.Equal(OnlineProfileMatch.Mismatch, vm.ProfileMatchState);
+        Assert.Equal("Online.Detail.MatchDetailMismatch", vm.ProfileMatchDetail);
+        Assert.StartsWith("opf2|Generals|1.08|generals-client|", advertised[0], StringComparison.Ordinal);
+    }
+
+    private static async Task WaitForAsync(Func<bool> condition, int timeoutMs = 5000)
+    {
+        var deadline = DateTime.UtcNow.AddMilliseconds(timeoutMs);
+        while (!condition() && DateTime.UtcNow < deadline)
+        {
+            await Task.Delay(20);
+        }
+
+        Assert.True(condition(), "Timed out waiting for the background match.");
+    }
+
+    private static GameProfile ProfileWithClient(
+        string id,
+        string name,
+        GameType gameType,
+        string clientId,
+        string version,
+        params string[] contentIds)
+    {
+        return new GameProfile
+        {
+            Id = id,
+            Name = name,
+            GameClient = new GameClient
+            {
+                Id = clientId,
+                Name = name,
+                Version = version,
+                GameType = gameType,
+            },
+            EnabledContentIds = [.. contentIds],
+        };
+    }
+
+    private static OnlineViewModel CreateViewModelWithDetail(
+        GameProfile profile,
+        out Mock<IOnlineNetworkService> network,
+        params GameProfile[] extraProfiles)
+    {
+        var all = new List<GameProfile> { profile };
+        all.AddRange(extraProfiles);
+        var profiles = new Mock<IGameProfileManager>();
+        profiles.Setup(p => p.GetAllProfilesAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<IReadOnlyList<GameProfile>>.CreateSuccess(all));
+        profiles.Setup(p => p.GetAvailableContentAsync(It.IsAny<GameClient>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<IReadOnlyList<ContentManifest>>.CreateSuccess([]));
+        var detail = new OnlineNetworkDetail
+        {
+            Id = "net-1",
+            Name = "Lobby",
+            ExpectedProfileFingerprint = "opf2|ZeroHour|1.04|zerohour-client|not-a-real-hash",
+            ExpectedProfileName = "Host Setup",
+            ExpectedGameClientId = "ZeroHour|1.04|zerohour-client",
+            ExpectedContentIds = ["mod-a", "mod-b"],
+        };
+        var networkMock = new Mock<IOnlineNetworkService>();
+        networkMock.Setup(n => n.GetNetworkDetailAsync("net-1", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<OnlineNetworkDetail>.CreateSuccess(detail));
+        network = networkMock;
+        return CreateViewModel(networkMock.Object, profiles: profiles.Object);
     }
 
     private static OnlineViewModel CreateViewModel(
