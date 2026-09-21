@@ -7309,9 +7309,6 @@ GenHub передает официальный идентификатор AppID 
   <data name="Tools.WndEditor.Property.DuplicateKeyMessage" xml:space="preserve">
     <value>Выбранное окно уже содержит свойство {0}.</value>
   </data>
-  <data name="Tools.WndEditor.Error.LoadFailed" xml:space="preserve">
-    <value>Ошибка загрузки редактора WND</value>
-  </data>
   <data name="Tools.ModBuilder.BundleEditor.Title" xml:space="preserve">
     <value>Редактор пакетов сборок</value>
   </data>
