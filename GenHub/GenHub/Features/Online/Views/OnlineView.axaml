@@ -192,10 +192,33 @@
                         </ComboBox>
                     </StackPanel>
                     <StackPanel Orientation="Horizontal" Spacing="8">
+                        <TextBlock Text="{localization:Localize Online.Detail.ExpectedProfileLabel}"
+                                   Foreground="{DynamicResource TextSecondary}"
+                                   VerticalAlignment="Center" />
+                        <TextBlock Text="{Binding ExpectedProfileName}"
+                                   Foreground="{DynamicResource TextPrimary}"
+                                   VerticalAlignment="Center" />
+                        <Border Classes="badge" VerticalAlignment="Center">
+                            <TextBlock Text="{Binding ProfileMatchState, Converter={StaticResource OnlineProfileMatchTextConverter}}"
+                                       FontSize="11"
+                                       Foreground="{Binding ProfileMatchState, Converter={StaticResource OnlineProfileMatchBrushConverter}}" />
+                        </Border>
+                    </StackPanel>
+                    <TextBlock Text="{Binding ProfileMatchDetail}"
+                               Foreground="{DynamicResource TextMuted}"
+                               TextWrapping="Wrap"
+                               IsVisible="{Binding ProfileMatchDetail, Converter={StaticResource NullToVisibilityConverter}}" />
+                    <StackPanel Orientation="Horizontal" Spacing="8">
                         <Button Classes="primary-btn"
                                 Content="{localization:Localize Online.Action.Play}"
                                 Command="{Binding PlayCommand}"
+                                IsVisible="{Binding !IsGameRunning}"
                                 AutomationProperties.Name="{localization:Localize Online.Action.Play}" />
+                        <Button Classes="primary-btn"
+                                Content="{localization:Localize Online.Action.Stop}"
+                                Command="{Binding StopCommand}"
+                                IsVisible="{Binding IsGameRunning}"
+                                AutomationProperties.Name="{localization:Localize Online.Action.Stop}" />
                         <Button Classes="toolbar-btn"
                                 Content="{localization:Localize Online.Action.Leave}"
                                 Command="{Binding LeaveNetworkCommand}"
@@ -230,13 +253,6 @@
                              Text="{Binding CreateName, Mode=TwoWay}"
                              Watermark="{localization:Localize Online.Create.NameWatermark}"
                              MaxLength="64" />
-                    <TextBlock Classes="field-label" Text="{localization:Localize Online.Create.PasswordWatermark}" />
-                    <TextBox Classes="field"
-                             Text="{Binding CreatePassword, Mode=TwoWay}"
-                             PasswordChar="•"
-                             Watermark="{localization:Localize Online.Create.PasswordWatermark}"
-                             MaxLength="128" />
-                    <TextBlock Classes="helper-text" Text="{localization:Localize Online.Create.PasswordHint}" />
                     <TextBlock Classes="field-label" Text="{localization:Localize Online.Create.DescriptionWatermark}" />
                     <TextBox Classes="field"
                              Text="{Binding CreateDescription, Mode=TwoWay}"
@@ -302,10 +318,6 @@
                                 <DataTemplate x:DataType="models:OnlineNetworkSummary">
                                     <StackPanel Spacing="2" Margin="0,6">
                                         <StackPanel Orientation="Horizontal" Spacing="6">
-                                            <material:MaterialIcon Kind="Lock" Width="12" Height="12"
-                                                                   Foreground="{DynamicResource TextMuted}"
-                                                                   VerticalAlignment="Center"
-                                                                   IsVisible="{Binding RequiresPassword}" />
                                             <TextBlock Text="{Binding Name}"
                                                        FontWeight="SemiBold"
                                                        Foreground="{DynamicResource TextPrimary}"
@@ -399,14 +411,6 @@
                                 </ComboBox.ItemTemplate>
                             </ComboBox>
                             <TextBlock Classes="helper-text" Text="{localization:Localize Online.Join.ProfileHint}" />
-                            <StackPanel Spacing="8" IsVisible="{Binding SelectedDetail.RequiresPassword, FallbackValue=True}">
-                                <TextBlock Classes="field-label" Text="{localization:Localize Online.Join.PasswordWatermark}" />
-                                <TextBox Classes="field"
-                                         Text="{Binding JoinPassword, Mode=TwoWay}"
-                                         PasswordChar="•"
-                                         Watermark="{localization:Localize Online.Join.PasswordWatermark}"
-                                         MaxLength="128" />
-                            </StackPanel>
                             <TextBlock Classes="helper-text" Text="{localization:Localize Online.Join.PrivacyNotice}" />
                             <Button Classes="primary-btn"
                                     Content="{localization:Localize Online.Action.Join}"

@@ -97,7 +97,7 @@ describe("online edge", () => {
     const found = entries.find((e) => e.id === created.networkId);
     expect(found).toBeDefined();
     assertMetadataOnly(found as Record<string, unknown>);
-    expect(found).toMatchObject({ slotsUsed: 1, slotsMax: 4, requiresPassword: true });
+    expect(found).toMatchObject({ slotsUsed: 1, slotsMax: 4, requiresPassword: false });
   });
 
   it("keeps private lobbies out of the directory across join, heartbeat, and leave", async () => {
@@ -158,7 +158,7 @@ describe("online edge", () => {
     expect(res.status).toBe(200);
     const detail = (await res.json()) as Record<string, unknown>;
     assertMetadataOnly(detail);
-    expect(detail).toMatchObject({ slotsUsed: 1, requiresPassword: true, hostPresent: true });
+    expect(detail).toMatchObject({ slotsUsed: 1, requiresPassword: false, hostPresent: true });
   });
 
   it("allows public networks without a password", async () => {
@@ -181,15 +181,21 @@ describe("online edge", () => {
     expect(joined.status).toBe(200);
   });
 
-  it("rejects short passwords", async () => {
+  it("ignores passwords on create", async () => {
     const token = await session();
     const res = await SELF.fetch(`${BASE}/v1/networks`, {
       method: "POST",
       headers: { ...auth(token), "Content-Type": "application/json" },
-      body: JSON.stringify({ name: "Weak Lobby", password: "abc", slotsMax: 4, isPublic: true }),
+      body: JSON.stringify({ name: "Open Lobby", password: "abc", slotsMax: 4, isPublic: true }),
     });
-    expect(res.status).toBe(400);
-    expect(((await res.json()) as { code: string }).code).toBe("online.password-too-short");
+    expect(res.status).toBe(200);
+    const created = (await res.json()) as JoinResult;
+    expect(created.networkId.length).toBeGreaterThan(0);
+
+    const detailRes = await SELF.fetch(`${BASE}/v1/networks/${created.networkId}`, { headers: auth(token) });
+    expect(detailRes.status).toBe(200);
+    const detail = (await detailRes.json()) as Record<string, unknown>;
+    expect(detail.requiresPassword).toBe(false);
   });
 
   it("strips control characters from display strings", async () => {
@@ -249,7 +255,7 @@ describe("online edge", () => {
     expect(ban.status).toBe(403);
   });
 
-  it("rejects joins with a wrong password", async () => {
+  it("ignores passwords on join", async () => {
     const host = await session();
     const created = await createNetwork(host);
     const guest = await session();
@@ -259,8 +265,9 @@ describe("online edge", () => {
       headers: { ...auth(guest), "Content-Type": "application/json" },
       body: JSON.stringify({ password: "wrong-password", preferRelay: false }),
     });
-    expect(res.status).toBe(401);
-    expect(((await res.json()) as { code: string }).code).toBe("online.wrong-password");
+    expect(res.status).toBe(200);
+    const joined = (await res.json()) as JoinResult;
+    expect(joined.overlayIp.length).toBeGreaterThan(0);
   });
 
   it("joins members and assigns distinct overlay IPs", async () => {
@@ -378,6 +385,64 @@ describe("online edge", () => {
     });
     const roster = (await members.json()) as { members: { overlayIp: string; endpoint: string }[] };
     expect(roster.members.find((m) => m.overlayIp === joined.overlayIp)?.endpoint).toBe("");
+  });
+
+  it("never throttles heartbeats and aggregates connection outcomes", async () => {
+    const host = await session();
+    const created = await createNetwork(host);
+    const guest = await session();
+    const joinRes = await SELF.fetch(`${BASE}/v1/networks/${created.networkId}/join`, {
+      method: "POST",
+      headers: { ...auth(guest), "Content-Type": "application/json" },
+      body: JSON.stringify({ password: "secret-password" }),
+    });
+    expect(joinRes.status).toBe(200);
+    const joined = (await joinRes.json()) as JoinResult;
+
+    // Presence heartbeats (30s) must always fit inside the eviction window
+    // (90s): unlike joins and reports, heartbeats carry no rate limit, so a
+    // burst of retries after a network blip cannot evict the host. Six beats
+    // clear the strictest member limiter (5 reports) with margin.
+    for (let i = 0; i < 6; i++) {
+      const beat = await SELF.fetch(`${BASE}/v1/networks/${created.networkId}/heartbeat`, {
+        method: "POST",
+        headers: { ...auth(created.grant), "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      });
+      expect(beat.status).toBe(200);
+    }
+
+    const outsider = await session();
+    const denied = await SELF.fetch(`${BASE}/v1/networks/${created.networkId}/outcome`, {
+      method: "POST",
+      headers: { ...auth(outsider), "Content-Type": "application/json" },
+      body: JSON.stringify({ targetIp: joined.overlayIp, direct: true, outcome: "direct" }),
+    });
+    expect(denied.status).toBe(403);
+
+    const invalid = await SELF.fetch(`${BASE}/v1/networks/${created.networkId}/outcome`, {
+      method: "POST",
+      headers: { ...auth(created.grant), "Content-Type": "application/json" },
+      body: JSON.stringify({ targetIp: joined.overlayIp, direct: true, outcome: "maybe" }),
+    });
+    expect(invalid.status).toBe(400);
+
+    const first = await SELF.fetch(`${BASE}/v1/networks/${created.networkId}/outcome`, {
+      method: "POST",
+      headers: { ...auth(created.grant), "Content-Type": "application/json" },
+      body: JSON.stringify({ targetIp: joined.overlayIp, direct: true, outcome: "direct" }),
+    });
+    expect(first.status).toBe(200);
+    expect(((await first.json()) as { totals: { direct: number } }).totals.direct).toBe(1);
+
+    const second = await SELF.fetch(`${BASE}/v1/networks/${created.networkId}/outcome`, {
+      method: "POST",
+      headers: { ...auth(joined.grant), "Content-Type": "application/json" },
+      body: JSON.stringify({ targetIp: created.overlayIp, direct: true, outcome: "failed" }),
+    });
+    expect(second.status).toBe(200);
+    const totals = ((await second.json()) as { totals: { direct: number; relay: number; failed: number } }).totals;
+    expect(totals).toEqual({ direct: 1, relay: 0, failed: 1 });
   });
 
   it("rejects joins to a full network", async () => {
@@ -545,6 +610,12 @@ describe("online edge", () => {
   });
 
   it("rejects expired sessions and grants", async () => {
+    // Control: the same secret must produce an accepted token, otherwise the
+    // rejections below would only prove a signature mismatch.
+    const liveSession = await mintSessionToken("ghost", 3600, TEST_JWT_SECRET);
+    const live = await SELF.fetch(`${BASE}/v1/networks`, { headers: auth(liveSession) });
+    expect(live.status).toBe(200);
+
     const expiredSession = await mintSessionToken("ghost", -3600, TEST_JWT_SECRET);
     const directory = await SELF.fetch(`${BASE}/v1/networks`, { headers: auth(expiredSession) });
     expect(directory.status).toBe(401);

@@ -1,7 +1,7 @@
 # Online (virtual LAN)
 
-The Online tab lets players browse lobbies, create lobbies (with an optional
-password and an optional game profile), join them, and share one virtual LAN
+The Online tab lets players browse lobbies, create lobbies (with a required
+game profile), join them, and share one virtual LAN
 so Generals / Zero Hour LAN lobbies work without manual port forwarding. It
 replaces the RadminVPN/Hamachi + GameRanger combination with one integrated
 flow. Anyone can join any lobby; profile setup only controls match badges,
@@ -55,7 +55,7 @@ of failing silently.
    `gateway-online/coturn/turnserver.conf.sample`) and set `TURN_URIS` in
    `wrangler.jsonc`.
 5. Redeploy after every edge change (`npm run deploy`): clients speaking to a
-   stale edge see stale lobbies, password rejections on open lobbies, and
+   stale edge see stale lobbies, password prompts that no longer exist, and
    blank expected profiles.
 
 ## Join flow
@@ -63,8 +63,8 @@ of failing silently.
 1. `POST /v1/sessions/anonymous` mints a short-lived session (no user database).
 2. `GET /v1/networks` returns metadata only: no member lists, no endpoints.
    Non-members can never learn underlay IPs from the directory.
-3. `POST /v1/networks/{id}/join` checks the password (PBKDF2 verifier + pepper,
-   when the lobby has one), slots, and bans, then returns a grant, an overlay
+3. `POST /v1/networks/{id}/join` checks slots and bans (passwords are removed;
+   every lobby is open), then returns a grant, an overlay
    IP, an opaque adapter config, the initial roster, and the expected profile
    block. Joiners advertise their own profile fingerprint with the join.
 4. The client brings the platform adapter up (skipped while the edge reports
@@ -125,10 +125,10 @@ enforcement, until an optional account layer exists.
 
 ## Password policy
 
-Passwords are optional everywhere: public lobbies may run open, and private
-lobbies stay unlisted. A password that is set must be at least 4 characters.
-Display strings are control-character sanitized; JSON bodies are capped at
-8 KiB.
+Passwords are removed: every lobby is open and anyone can join any network.
+The wire fields stay for backward compatibility but the edge never stores or
+verifies a credential. Display strings are control-character sanitized; JSON
+bodies are capped at 8 KiB.
 
 ## Local development
 

@@ -54,6 +54,20 @@ public interface IP2PConnectionService
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Probes a peer with token-carrying punch packets and waits for an echo.
+    /// Peers echo any punch-prefixed datagram, so legacy bare punches are
+    /// answered too. Requires a running listener.
+    /// </summary>
+    /// <param name="ipAddress">The peer IP address.</param>
+    /// <param name="port">The peer port.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>True when the peer echoed a probe within the attempt budget.</returns>
+    Task<OperationResult<bool>> ProbePeerAsync(
+        string ipAddress,
+        int port,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Stops listening and releases all peer connections.
     /// </summary>
     /// <param name="cancellationToken">Cancellation token.</param>

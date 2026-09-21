@@ -25,4 +25,13 @@ public interface IOnlineLaunchService
         string networkName,
         string overlayIp = "",
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Stops the game previously launched through <see cref="PlayAsync"/>.
+    /// Stopping an already-stopped profile succeeds.
+    /// </summary>
+    /// <param name="profileId">The local profile identifier to stop.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The stop outcome.</returns>
+    Task<OperationResult<bool>> StopAsync(string profileId, CancellationToken cancellationToken = default);
 }

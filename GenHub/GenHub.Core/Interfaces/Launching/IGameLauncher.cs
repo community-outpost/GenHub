@@ -21,13 +21,15 @@ public interface IGameLauncher
     /// <param name="skipUserDataCleanup">Whether to skip cleanup of user data files (maps, etc.) from other profiles.</param>
     /// <param name="additionalArguments">Optional transient command line arguments to merge with profile launch options.</param>
     /// <param name="cancellationToken">A cancellation token to observe while waiting for the task to complete.</param>
+    /// <param name="networkIpOverride">Optional LAN IP written to Options.ini instead of the profile's stored address.</param>
     /// <returns>A <see cref="LaunchOperationResult{GameLaunchInfo}"/> representing the result of the launch operation.</returns>
     Task<LaunchOperationResult<GameLaunchInfo>> LaunchProfileAsync(
         string profileId,
         IProgress<LaunchProgress>? progress = null,
         bool skipUserDataCleanup = false,
         IReadOnlyDictionary<string, string>? additionalArguments = null,
-        CancellationToken cancellationToken = default);
+        CancellationToken cancellationToken = default,
+        string? networkIpOverride = null);
 
     /// <summary>
     /// Launches a game using the provided game profile object.
@@ -37,13 +39,15 @@ public interface IGameLauncher
     /// <param name="skipUserDataCleanup">Whether to skip cleanup of user data files (maps, etc.) from other profiles.</param>
     /// <param name="additionalArguments">Optional transient command line arguments to merge with profile launch options.</param>
     /// <param name="cancellationToken">A cancellation token to observe while waiting for the task to complete.</param>
+    /// <param name="networkIpOverride">Optional LAN IP written to Options.ini instead of the profile's stored address.</param>
     /// <returns>A <see cref="LaunchOperationResult{GameLaunchInfo}"/> representing the result of the launch operation.</returns>
     Task<LaunchOperationResult<GameLaunchInfo>> LaunchProfileAsync(
         GameProfile profile,
         IProgress<LaunchProgress>? progress = null,
         bool skipUserDataCleanup = false,
         IReadOnlyDictionary<string, string>? additionalArguments = null,
-        CancellationToken cancellationToken = default);
+        CancellationToken cancellationToken = default,
+        string? networkIpOverride = null);
 
     /// <summary>
     /// Terminates a running game instance by its launch ID.

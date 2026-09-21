@@ -79,7 +79,7 @@ public interface IOnlineNetworkService
     /// </summary>
     /// <param name="networkId">The network identifier.</param>
     /// <param name="password">The network password.</param>
-    /// <param name="preferRelay">When true, offer only relay candidates (hide direct endpoint). Defaults to relay for privacy.</param>
+    /// <param name="preferRelay">When true, offer only relay candidates (hide direct endpoint). Defaults to direct-first with relay fallback.</param>
     /// <param name="profileFingerprint">The local profile fingerprint advertised to the roster.</param>
     /// <param name="profileName">The local profile display name advertised to the roster.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
@@ -87,7 +87,7 @@ public interface IOnlineNetworkService
     Task<OperationResult<OnlineJoinResult>> JoinNetworkAsync(
         string networkId,
         string password,
-        bool preferRelay = true,
+        bool preferRelay = false,
         string profileFingerprint = "",
         string profileName = "",
         CancellationToken cancellationToken = default);
@@ -138,5 +138,15 @@ public interface IOnlineNetworkService
     /// <returns>The result of the ban operation.</returns>
     Task<OperationResult<bool>> BanMemberAsync(
         string overlayIp,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Probes every roster member with a direct endpoint and reports the
+    /// per-pair outcomes to the edge. Relay members publish no endpoint and
+    /// are skipped. Advisory only: callers warn on failures, never block.
+    /// </summary>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The per-peer probe outcomes.</returns>
+    Task<OperationResult<OnlineMeshCheckResult>> RunMeshCheckAsync(
         CancellationToken cancellationToken = default);
 }

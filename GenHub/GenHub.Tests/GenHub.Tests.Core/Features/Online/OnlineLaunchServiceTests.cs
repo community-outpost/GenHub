@@ -75,7 +75,7 @@ public class OnlineLaunchServiceTests
         manager.Setup(m => m.GetProfileAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(new GameProfile { Id = "p1", Name = "ZH" }));
         var facade = new Mock<IProfileLauncherFacade>();
-        facade.Setup(f => f.LaunchProfileAsync(It.IsAny<string>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
+        facade.Setup(f => f.LaunchProfileAsync(It.IsAny<string>(), It.IsAny<bool>(), It.IsAny<CancellationToken>(), It.IsAny<string>()))
             .ReturnsAsync(ProfileOperationResult<GameLaunchInfo>.CreateFailure("No game"));
         var service = new OnlineLaunchService(
             manager.Object,
@@ -103,7 +103,7 @@ public class OnlineLaunchServiceTests
         manager.Setup(m => m.GetProfileAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(new GameProfile { Id = "p1", Name = "ZH" }));
         var facade = new Mock<IProfileLauncherFacade>();
-        facade.Setup(f => f.LaunchProfileAsync(It.IsAny<string>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
+        facade.Setup(f => f.LaunchProfileAsync(It.IsAny<string>(), It.IsAny<bool>(), It.IsAny<CancellationToken>(), It.IsAny<string>()))
             .ReturnsAsync(ProfileOperationResult<GameLaunchInfo>.CreateSuccess(
                 new GameLaunchInfo { LaunchId = "l1", ProfileId = "p1", WorkspaceId = "w1", ProcessInfo = new GameProcessInfo() }));
         var settings = new Mock<IGameSettingsService>();
@@ -120,9 +120,10 @@ public class OnlineLaunchServiceTests
         Assert.True(result.Success);
         Assert.Equal("p1", result.Data.ProfileId);
         Assert.Equal("ZH", result.Data.ProfileName);
-        facade.Verify(f => f.LaunchProfileAsync("p1", false, It.IsAny<CancellationToken>()), Times.Once);
+        facade.Verify(f => f.LaunchProfileAsync("p1", false, It.IsAny<CancellationToken>(), "10.42.0.7"), Times.Once);
         settings.Verify(
-            s => s.SaveOptionsAsync(GameType.ZeroHour, It.Is<IniOptions>(o => o.Network.GameSpyIPAddress == "10.42.0.7")),
+            s => s.SaveOptionsAsync(GameType.ZeroHour, It.Is<IniOptions>(o =>
+                o.Network.GameSpyIPAddress == "10.42.0.7" && o.Network.IPAddress == "10.42.0.7")),
             Times.Once);
     }
 
@@ -138,7 +139,7 @@ public class OnlineLaunchServiceTests
         manager.Setup(m => m.GetProfileAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(new GameProfile { Id = "p1", Name = "ZH" }));
         var facade = new Mock<IProfileLauncherFacade>();
-        facade.Setup(f => f.LaunchProfileAsync(It.IsAny<string>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
+        facade.Setup(f => f.LaunchProfileAsync(It.IsAny<string>(), It.IsAny<bool>(), It.IsAny<CancellationToken>(), It.IsAny<string>()))
             .ReturnsAsync(ProfileOperationResult<GameLaunchInfo>.CreateSuccess(
                 new GameLaunchInfo { LaunchId = "l1", ProfileId = "p1", WorkspaceId = "w1", ProcessInfo = new GameProcessInfo() }));
         var settings = new Mock<IGameSettingsService>(MockBehavior.Strict);
@@ -150,6 +151,80 @@ public class OnlineLaunchServiceTests
         // Assert
         Assert.True(result.Success);
         settings.Verify(s => s.SaveOptionsAsync(It.IsAny<GameType>(), It.IsAny<IniOptions>()), Times.Never);
+        facade.Verify(f => f.LaunchProfileAsync("p1", false, It.IsAny<CancellationToken>(), null), Times.Once);
+    }
+
+    /// <summary>
+    /// Tests that stopping a profile delegates to the launcher facade.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task StopAsync_OnSuccess_ShouldSucceedAsync()
+    {
+        // Arrange
+        var facade = new Mock<IProfileLauncherFacade>();
+        facade.Setup(f => f.StopProfileAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<bool>.CreateSuccess(true));
+        var service = new OnlineLaunchService(
+            Mock.Of<IGameProfileManager>(),
+            facade.Object,
+            Mock.Of<IGameSettingsService>(),
+            Mock.Of<ILogger<OnlineLaunchService>>());
+
+        // Act
+        var result = await service.StopAsync("p1");
+
+        // Assert
+        Assert.True(result.Success);
+        facade.Verify(f => f.StopProfileAsync("p1", It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    /// <summary>
+    /// Tests that a failed stop maps to the stop-failed error code.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task StopAsync_WhenFacadeFails_ShouldFailAsync()
+    {
+        // Arrange
+        var facade = new Mock<IProfileLauncherFacade>();
+        facade.Setup(f => f.StopProfileAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<bool>.CreateFailure("No process"));
+        var service = new OnlineLaunchService(
+            Mock.Of<IGameProfileManager>(),
+            facade.Object,
+            Mock.Of<IGameSettingsService>(),
+            Mock.Of<ILogger<OnlineLaunchService>>());
+
+        // Act
+        var result = await service.StopAsync("p1");
+
+        // Assert
+        Assert.False(result.Success);
+        Assert.Contains(OnlineConstants.ErrorStopFailed, result.Errors);
+    }
+
+    /// <summary>
+    /// Tests that a blank profile id fails without touching the facade.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task StopAsync_WithBlankProfileId_ShouldFailAsync()
+    {
+        // Arrange
+        var facade = new Mock<IProfileLauncherFacade>(MockBehavior.Strict);
+        var service = new OnlineLaunchService(
+            Mock.Of<IGameProfileManager>(),
+            facade.Object,
+            Mock.Of<IGameSettingsService>(),
+            Mock.Of<ILogger<OnlineLaunchService>>());
+
+        // Act
+        var result = await service.StopAsync("  ");
+
+        // Assert
+        Assert.False(result.Success);
+        Assert.Contains(OnlineConstants.ErrorProfileMissing, result.Errors);
     }
 
     /// <summary>
@@ -164,7 +239,7 @@ public class OnlineLaunchServiceTests
         manager.Setup(m => m.GetProfileAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(new GameProfile { Id = "p1", Name = "ZH" }));
         var facade = new Mock<IProfileLauncherFacade>();
-        facade.Setup(f => f.LaunchProfileAsync(It.IsAny<string>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
+        facade.Setup(f => f.LaunchProfileAsync(It.IsAny<string>(), It.IsAny<bool>(), It.IsAny<CancellationToken>(), It.IsAny<string>()))
             .ReturnsAsync(ProfileOperationResult<GameLaunchInfo>.CreateSuccess(
                 new GameLaunchInfo { LaunchId = "l1", ProfileId = "p1", WorkspaceId = "w1", ProcessInfo = new GameProcessInfo() }));
         var settings = new Mock<IGameSettingsService>();
@@ -177,7 +252,7 @@ public class OnlineLaunchServiceTests
 
         // Assert
         Assert.True(result.Success);
-        facade.Verify(f => f.LaunchProfileAsync("p1", false, It.IsAny<CancellationToken>()), Times.Once);
+        facade.Verify(f => f.LaunchProfileAsync("p1", false, It.IsAny<CancellationToken>(), It.IsAny<string>()), Times.Once);
         settings.Verify(s => s.SaveOptionsAsync(It.IsAny<GameType>(), It.IsAny<IniOptions>()), Times.Never);
     }
 
@@ -193,7 +268,7 @@ public class OnlineLaunchServiceTests
         manager.Setup(m => m.GetProfileAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(new GameProfile { Id = "p1", Name = "ZH" }));
         var facade = new Mock<IProfileLauncherFacade>();
-        facade.Setup(f => f.LaunchProfileAsync(It.IsAny<string>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
+        facade.Setup(f => f.LaunchProfileAsync(It.IsAny<string>(), It.IsAny<bool>(), It.IsAny<CancellationToken>(), It.IsAny<string>()))
             .ReturnsAsync(ProfileOperationResult<GameLaunchInfo>.CreateSuccess(
                 new GameLaunchInfo { LaunchId = "l1", ProfileId = "p1", WorkspaceId = "w1", ProcessInfo = new GameProcessInfo() }));
         var settings = new Mock<IGameSettingsService>();
@@ -208,6 +283,6 @@ public class OnlineLaunchServiceTests
 
         // Assert
         Assert.True(result.Success);
-        facade.Verify(f => f.LaunchProfileAsync("p1", false, It.IsAny<CancellationToken>()), Times.Once);
+        facade.Verify(f => f.LaunchProfileAsync("p1", false, It.IsAny<CancellationToken>(), It.IsAny<string>()), Times.Once);
     }
 }

@@ -30,8 +30,9 @@ public interface IOnlinePresenceService
 
     /// <summary>
     /// Occurs when the join grant is proactively refreshed before expiry.
+    /// Carries the full cert, including the fresh overlay adapter config.
     /// </summary>
-    event EventHandler<string>? GrantRefreshed;
+    event EventHandler<OnlineCertResult>? GrantRefreshed;
 
     /// <summary>
     /// Occurs when the host switches the lobby's expected profile.
