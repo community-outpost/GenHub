@@ -79,7 +79,7 @@ internal class Program
     private static async Task<ProxyConfig?> LoadConfigAsync(string configPath)
     {
         var configJson = await File.ReadAllTextAsync(configPath);
-        return JsonSerializer.Deserialize<ProxyConfig>(configJson);
+        return JsonSerializer.Deserialize(configJson, ProxyJsonContext.Default.ProxyConfig);
     }
 
     private static bool ValidatePaths(string targetExecutable, string? workingDir)
@@ -466,7 +466,7 @@ internal class Program
         }
     }
 
-    private sealed class ProxyConfig
+    internal sealed class ProxyConfig
     {
         public string? TargetExecutable { get; set; }
 
