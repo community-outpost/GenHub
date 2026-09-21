@@ -134,6 +134,20 @@
     <SolidColorBrush x:Key="ErrorFillBrush" Color="{StaticResource ErrorFillColor}" />
     <SolidColorBrush x:Key="ErrorTextBrush" Color="{StaticResource ErrorTextColor}" />
 
+    <!-- Compatibility badges: muted so they sit back with the other profile card badges -->
+    <Color x:Key="CompatibilityRetailBorderColor">#2E7D5F</Color>
+    <Color x:Key="CompatibilityRetailBackgroundColor">#152E7D5F</Color>
+    <Color x:Key="CompatibilityRetailForegroundColor">#6BA287</Color>
+    <Color x:Key="CompatibilityNonRetailBorderColor">#8A6F3A</Color>
+    <Color x:Key="CompatibilityNonRetailBackgroundColor">#158A6F3A</Color>
+    <Color x:Key="CompatibilityNonRetailForegroundColor">#A89468</Color>
+    <SolidColorBrush x:Key="CompatibilityRetailBorderBrush" Color="{StaticResource CompatibilityRetailBorderColor}" />
+    <SolidColorBrush x:Key="CompatibilityRetailBackgroundBrush" Color="{StaticResource CompatibilityRetailBackgroundColor}" />
+    <SolidColorBrush x:Key="CompatibilityRetailForegroundBrush" Color="{StaticResource CompatibilityRetailForegroundColor}" />
+    <SolidColorBrush x:Key="CompatibilityNonRetailBorderBrush" Color="{StaticResource CompatibilityNonRetailBorderColor}" />
+    <SolidColorBrush x:Key="CompatibilityNonRetailBackgroundBrush" Color="{StaticResource CompatibilityNonRetailBackgroundColor}" />
+    <SolidColorBrush x:Key="CompatibilityNonRetailForegroundBrush" Color="{StaticResource CompatibilityNonRetailForegroundColor}" />
+
     <!-- Gradients and UI Elements -->
     <Color x:Key="PrimaryGradientStart">#E040FB</Color>
     <Color x:Key="PrimaryGradientEnd">#7C4DFF</Color>
@@ -204,6 +218,12 @@
     <Color x:Key="SidebarGlassBorder">#334527A0</Color> <!-- 20% Opacity Dark Purple Border (Subtle) -->
     <Color x:Key="SidebarGlowColor">#664527A0</Color> <!-- Subtle Glow -->
     <SolidColorBrush x:Key="SidebarGlassBorderBrush" Color="{StaticResource SidebarGlassBorder}" />
+
+    <!-- Transparent section cards over themed window backdrops (profile settings) -->
+    <Color x:Key="GlassCardBackground">#10FFFFFF</Color>
+    <Color x:Key="GlassCardBorder">#20FFFFFF</Color>
+    <SolidColorBrush x:Key="GlassCardBackgroundBrush" Color="{StaticResource GlassCardBackground}" />
+    <SolidColorBrush x:Key="GlassCardBorderBrush" Color="{StaticResource GlassCardBorder}" />
 
     <!-- Pure Blue-Purple Palette (NO PINK) -->
     <Color x:Key="PurpleAccentDark">#311B92</Color> <!-- Deep Dark Purple (Material Deep Purple 900) -->

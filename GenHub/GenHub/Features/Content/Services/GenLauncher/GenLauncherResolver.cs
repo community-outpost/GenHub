@@ -271,7 +271,7 @@ public class GenLauncherResolver(
             {
                 var fileName = Path.GetFileName(uri.LocalPath);
                 if (!string.IsNullOrWhiteSpace(fileName) &&
-                    !GenLauncherConstants.IsYamlDescriptorPath(fileName))
+                    GenLauncherConstants.IsUsableArchiveFileName(fileName))
                 {
                     return Uri.UnescapeDataString(fileName);
                 }

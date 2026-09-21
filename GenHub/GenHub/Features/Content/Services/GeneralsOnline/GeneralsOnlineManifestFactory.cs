@@ -108,6 +108,8 @@ public class GeneralsOnlineManifestFactory(
                 ThemeColor = GeneralsOnlineConstants.ThemeColor,
                 Tags = [.. tags, .. GetVariantTags(variantSuffix)],
                 ChangelogUrl = release.Changelog,
+                VariantGroupId = GeneralsOnlineVariantGrouping.BuildVariantGroupId(release.Version),
+                VariantFamilyName = GeneralsOnlineVariantGrouping.BuildVariantFamilyName(release.Version),
             },
             Files =
             [
@@ -381,6 +383,8 @@ public class GeneralsOnlineManifestFactory(
                 ThemeColor = GeneralsOnlineConstants.ThemeColor,
                 Tags = [.. GeneralsOnlineConstants.GameDataTags, .. GetVariantTags(GeneralsOnlineConstants.GameDataPatchSuffix)],
                 ChangelogUrl = release.Changelog,
+                VariantGroupId = GeneralsOnlineVariantGrouping.BuildVariantGroupId(release.Version),
+                VariantFamilyName = GeneralsOnlineVariantGrouping.BuildVariantFamilyName(release.Version),
             },
 
             // Files will be populated during extraction
@@ -436,6 +440,8 @@ public class GeneralsOnlineManifestFactory(
                 ThemeColor = GeneralsOnlineConstants.ThemeColor,
                 Tags = [.. GeneralsOnlineConstants.MapPackTags],
                 ChangelogUrl = release.Changelog,
+                VariantGroupId = GeneralsOnlineVariantGrouping.BuildVariantGroupId(release.Version),
+                VariantFamilyName = GeneralsOnlineVariantGrouping.BuildVariantFamilyName(release.Version),
             },
             Files = [], // Files will be populated during extraction
             Dependencies =
@@ -513,6 +519,8 @@ public class GeneralsOnlineManifestFactory(
                 Tags = [.. GeneralsOnlineConstants.Tags, .. GetVariantTags(GeneralsOnlineConstants.Variant60HzSuffix)],
                 ChangelogUrl = changelogUrl,
                 CoverUrl = GeneralsOnlineConstants.CoverSource,
+                VariantGroupId = GeneralsOnlineVariantGrouping.BuildVariantGroupId(version),
+                VariantFamilyName = GeneralsOnlineVariantGrouping.BuildVariantFamilyName(version),
             },
             Files = [],
             Dependencies = GeneralsOnlineDependencyBuilder.GetDependenciesFor60Hz(userVersion),
@@ -545,6 +553,8 @@ public class GeneralsOnlineManifestFactory(
                 ThemeColor = GeneralsOnlineConstants.ThemeColor,
                 Tags = [.. GeneralsOnlineConstants.MapPackTags, .. GetVariantTags(GeneralsOnlineConstants.QuickMatchMapPackSuffix)],
                 ChangelogUrl = changelogUrl,
+                VariantGroupId = GeneralsOnlineVariantGrouping.BuildVariantGroupId(version),
+                VariantFamilyName = GeneralsOnlineVariantGrouping.BuildVariantFamilyName(version),
             },
             Files = [],
             Dependencies =
@@ -577,6 +587,8 @@ public class GeneralsOnlineManifestFactory(
                 ThemeColor = GeneralsOnlineConstants.ThemeColor,
                 Tags = [.. GeneralsOnlineConstants.GameDataTags, .. GetVariantTags(GeneralsOnlineConstants.GameDataPatchSuffix)],
                 ChangelogUrl = changelogUrl,
+                VariantGroupId = GeneralsOnlineVariantGrouping.BuildVariantGroupId(version),
+                VariantFamilyName = GeneralsOnlineVariantGrouping.BuildVariantFamilyName(version),
             },
             Files = [],
             Dependencies = GeneralsOnlineDependencyBuilder.GetDependenciesForGameData(userVersion),

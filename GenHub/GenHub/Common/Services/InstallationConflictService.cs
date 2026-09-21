@@ -35,6 +35,16 @@ public class InstallationConflictService(
         return Task.Run(() => ExecuteConflictResolution(cancellationToken), cancellationToken);
     }
 
+    private static string BuildReinstallGuidance(string customPath)
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            return string.Format(CultureInfo.InvariantCulture, StorageMigrationConstants.DuplicateInstallationWindowsReinstallGuidanceFormat, customPath);
+        }
+
+        return StorageMigrationConstants.DuplicateInstallationGenericReinstallGuidance;
+    }
+
     private void ExecuteConflictResolution(CancellationToken cancellationToken)
     {
         var defaultRoot = StorageMigrationService.GetDefaultDataRoot();
@@ -273,6 +283,8 @@ public class InstallationConflictService(
         var message = imported
             ? string.Format(CultureInfo.InvariantCulture, StorageMigrationConstants.DuplicateInstallationAdoptedMessageFormat, customPath)
             : string.Format(CultureInfo.InvariantCulture, StorageMigrationConstants.DuplicateInstallationDetectedMessageFormat, customPath);
+
+        message = string.Concat(message, " ", BuildReinstallGuidance(customPath));
 
         notificationService.ShowWarning(
             StorageMigrationConstants.DuplicateInstallationDetectedTitle,

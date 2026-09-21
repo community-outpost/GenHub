@@ -1,4 +1,6 @@
+using GenHub.Common.Services;
 using GenHub.Core.Constants;
+using GenHub.Windows.Features.Storage;
 using Microsoft.Extensions.Logging;
 using Microsoft.Win32;
 using System;
@@ -29,13 +31,15 @@ public static class UriSchemeRegistrar
     private const string ClassesSubKey = @"Software\Classes\" + SchemeName;
 
     /// <summary>
-    /// Registers the <c>genhub://</c> scheme for the current user, pointing at the running
-    /// executable. Safe to call on every launch.
+    /// Registers the <c>genhub://</c> scheme for the current user, pointing at the canonical
+    /// installation launcher. When a duplicate installation conflict is active, the registered
+    /// custom installation is linked so an accidental default-location copy can never hijack
+    /// the scheme. Safe to call on every launch.
     /// </summary>
     /// <param name="logger">Optional logger for diagnostics.</param>
     public static void Register(ILogger? logger = null)
     {
-        var executablePath = Environment.ProcessPath;
+        var executablePath = ResolveCanonicalExecutablePath(logger);
         if (string.IsNullOrEmpty(executablePath) || !File.Exists(executablePath))
         {
             logger?.LogWarning("Could not register genhub:// scheme: executable path unavailable.");
@@ -89,5 +93,13 @@ public static class UriSchemeRegistrar
             // work via direct command-line invocation.
             logger?.LogWarning(ex, "Failed to register genhub:// scheme.");
         }
+    }
+
+    private static string? ResolveCanonicalExecutablePath(ILogger? logger)
+    {
+        var currentExePath = Environment.ProcessPath;
+        var registeredCustomPath = WindowsInstallationTracker.GetRegisteredCustomInstallPathStatic(logger);
+        var linkRoot = StorageMigrationService.ResolveLinkInstallRoot(registeredCustomPath);
+        return StorageMigrationService.ResolveLinkExecutablePath(linkRoot, currentExePath);
     }
 }

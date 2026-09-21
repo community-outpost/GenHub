@@ -1105,6 +1105,95 @@ public class StorageMigrationServiceTests : IDisposable
         }
     }
 
+    /// <summary>
+    /// Verifies that the link root resolves to the registered custom installation when a
+    /// duplicate installation conflict is active.
+    /// </summary>
+    [Fact]
+    public void ResolveLinkInstallRoot_WhenDuplicateConflictActive_ReturnsCustomRoot()
+    {
+        StorageMigrationService.SetCustomInstallRootOverrideForTesting(false);
+        StorageMigrationService.SetDefaultInstallRootOverrideForTesting(true);
+
+        var customDir = Path.Combine(_tempRoot, "LinkCustomInstall");
+        Directory.CreateDirectory(customDir);
+        File.WriteAllText(Path.Combine(customDir, StorageMigrationConstants.VelopackUpdateExe), "stub");
+
+        Assert.True(PathHelper.AreSamePath(customDir, StorageMigrationService.ResolveLinkInstallRoot(customDir)));
+    }
+
+    /// <summary>
+    /// Verifies that the link root falls back to the running installation root when no
+    /// custom installation is registered.
+    /// </summary>
+    [Fact]
+    public void ResolveLinkInstallRoot_WhenNoRegisteredPath_ReturnsRunningRoot()
+    {
+        StorageMigrationService.SetCustomInstallRootOverrideForTesting(false);
+
+        Assert.Equal(StorageMigrationService.GetSourceRootDirectory(), StorageMigrationService.ResolveLinkInstallRoot(null));
+    }
+
+    /// <summary>
+    /// Verifies that the link root stays on the running installation when running from a
+    /// custom install root, even if a custom path is registered.
+    /// </summary>
+    [Fact]
+    public void ResolveLinkInstallRoot_WhenRunningFromCustomRoot_ReturnsRunningRoot()
+    {
+        StorageMigrationService.SetCustomInstallRootOverrideForTesting(true);
+
+        var customDir = Path.Combine(_tempRoot, "LinkCustomRunning");
+        Directory.CreateDirectory(customDir);
+
+        Assert.Equal(StorageMigrationService.GetSourceRootDirectory(), StorageMigrationService.ResolveLinkInstallRoot(customDir));
+    }
+
+    /// <summary>
+    /// Verifies that the link executable prefers the root-level launcher matching the
+    /// current executable file name so links stay stable across updates.
+    /// </summary>
+    [Fact]
+    public void ResolveLinkExecutablePath_WhenRootLauncherExists_ReturnsRootLauncher()
+    {
+        var linkRoot = Path.Combine(_tempRoot, "LinkRoot");
+        Directory.CreateDirectory(linkRoot);
+        var rootLauncher = Path.Combine(linkRoot, "GenHub.Windows.exe");
+        File.WriteAllText(rootLauncher, "stub");
+        var versionedExe = Path.Combine(linkRoot, "app-0.0.1", "GenHub.Windows.exe");
+
+        Assert.Equal(rootLauncher, StorageMigrationService.ResolveLinkExecutablePath(linkRoot, versionedExe));
+    }
+
+    /// <summary>
+    /// Verifies that the link executable falls back to the current path when the root
+    /// does not contain a matching launcher.
+    /// </summary>
+    [Fact]
+    public void ResolveLinkExecutablePath_WhenRootLauncherMissing_FallsBackToCurrent()
+    {
+        var linkRoot = Path.Combine(_tempRoot, "LinkRootEmpty");
+        Directory.CreateDirectory(linkRoot);
+        var currentExe = Path.Combine(_tempRoot, "Other", "GenHub.Windows.exe");
+
+        Assert.Equal(currentExe, StorageMigrationService.ResolveLinkExecutablePath(linkRoot, currentExe));
+    }
+
+    /// <summary>
+    /// Verifies that the link executable resolves to null when the current path is missing.
+    /// </summary>
+    /// <param name="currentExePath">The current executable path under test.</param>
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    public void ResolveLinkExecutablePath_WhenCurrentPathMissing_ReturnsNull(string? currentExePath)
+    {
+        var linkRoot = Path.Combine(_tempRoot, "LinkRootNull");
+        Directory.CreateDirectory(linkRoot);
+
+        Assert.Null(StorageMigrationService.ResolveLinkExecutablePath(linkRoot, currentExePath));
+    }
+
     private StorageMigrationService CreateService()
     {
         return new StorageMigrationService(

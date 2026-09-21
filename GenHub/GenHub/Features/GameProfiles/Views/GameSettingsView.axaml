@@ -17,6 +17,17 @@
         <conv:EqualityConverter x:Key="EqualityConverter" />
     </UserControl.Resources>
 
+    <UserControl.Styles>
+        <!-- Transparent glass cards matching the Content tab -->
+        <Style Selector="Border.settings-card">
+            <Setter Property="Background" Value="{DynamicResource GlassCardBackgroundBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource GlassCardBorderBrush}" />
+        </Style>
+        <Style Selector="Border.settings-card:pointerover">
+            <Setter Property="BorderBrush" Value="{DynamicResource GlassCardBorderBrush}" />
+        </Style>
+    </UserControl.Styles>
+
     <Grid>
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="190" MinWidth="68" MaxWidth="300" />
@@ -180,31 +191,31 @@
                         <CheckBox Content="{localization:Localize GameSettings.Audio.AudioEnabled}" IsChecked="{Binding AudioEnabled}" FontWeight="SemiBold" Margin="0,0,0,8" />
 
                         <StackPanel IsEnabled="{Binding AudioEnabled}" Spacing="16">
-                            <Grid ColumnDefinitions="140,*,Auto">
-                                <TextBlock Text="{localization:Localize GameSettings.Audio.SoundVolume}" VerticalAlignment="Center" />
+                            <Grid ColumnDefinitions="180,*,Auto">
+                                <TextBlock Text="{localization:Localize GameSettings.Audio.SoundVolume}" VerticalAlignment="Center" TextWrapping="Wrap" />
                                 <Slider Grid.Column="1" Value="{Binding SoundVolume}" Minimum="0" Maximum="100" VerticalAlignment="Center" Margin="0,0,12,0" />
                                 <NumericUpDown Grid.Column="2" Value="{Binding SoundVolume}" Minimum="0" Maximum="100" Classes="slider-input" />
                             </Grid>
-                            <Grid ColumnDefinitions="140,*,Auto">
-                                <TextBlock Text="{localization:Localize GameSettings.Audio.ThreeDSoundVolume}" VerticalAlignment="Center" />
+                            <Grid ColumnDefinitions="180,*,Auto">
+                                <TextBlock Text="{localization:Localize GameSettings.Audio.ThreeDSoundVolume}" VerticalAlignment="Center" TextWrapping="Wrap" />
                                 <Slider Grid.Column="1" Value="{Binding ThreeDSoundVolume}" Minimum="0" Maximum="100" VerticalAlignment="Center" Margin="0,0,12,0" />
                                 <NumericUpDown Grid.Column="2" Value="{Binding ThreeDSoundVolume}" Minimum="0" Maximum="100" Classes="slider-input" />
                             </Grid>
-                            <Grid ColumnDefinitions="140,*,Auto">
-                                <TextBlock Text="{localization:Localize GameSettings.Audio.MusicVolume}" VerticalAlignment="Center" />
+                            <Grid ColumnDefinitions="180,*,Auto">
+                                <TextBlock Text="{localization:Localize GameSettings.Audio.MusicVolume}" VerticalAlignment="Center" TextWrapping="Wrap" />
                                 <Slider Grid.Column="1" Value="{Binding MusicVolume}" Minimum="0" Maximum="100" VerticalAlignment="Center" Margin="0,0,12,0" />
                                 <NumericUpDown Grid.Column="2" Value="{Binding MusicVolume}" Minimum="0" Maximum="100" Classes="slider-input" />
                             </Grid>
-                            <Grid ColumnDefinitions="140,*,Auto">
-                                <TextBlock Text="{localization:Localize GameSettings.Audio.SpeechVolume}" VerticalAlignment="Center" />
+                            <Grid ColumnDefinitions="180,*,Auto">
+                                <TextBlock Text="{localization:Localize GameSettings.Audio.SpeechVolume}" VerticalAlignment="Center" TextWrapping="Wrap" />
                                 <Slider Grid.Column="1" Value="{Binding SpeechVolume}" Minimum="0" Maximum="100" VerticalAlignment="Center" Margin="0,0,12,0" />
                                 <NumericUpDown Grid.Column="2" Value="{Binding SpeechVolume}" Minimum="0" Maximum="100" Classes="slider-input" />
                             </Grid>
 
                             <Separator Background="#20FFFFFF" Height="1" />
 
-                            <Grid ColumnDefinitions="140,*,Auto">
-                                <TextBlock Text="{localization:Localize GameSettings.Audio.AudioChannels}" VerticalAlignment="Center" />
+                            <Grid ColumnDefinitions="180,*,Auto">
+                                <TextBlock Text="{localization:Localize GameSettings.Audio.AudioChannels}" VerticalAlignment="Center" TextWrapping="Wrap" />
                                 <Slider Grid.Column="1" Value="{Binding NumSounds}" Minimum="16" Maximum="64" VerticalAlignment="Center" Margin="0,0,12,0" />
                                 <NumericUpDown Grid.Column="2" Value="{Binding NumSounds}" Minimum="16" Maximum="64" Classes="slider-input" />
                             </Grid>
@@ -222,11 +233,11 @@
 
                         <Grid Margin="0,0,0,12">
                             <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="140" MinWidth="0" />
+                                <ColumnDefinition Width="180" MinWidth="0" />
                                 <ColumnDefinition Width="*" MinWidth="0" />
                                 <ColumnDefinition Width="Auto" MinWidth="0" />
                             </Grid.ColumnDefinitions>
-                            <TextBlock Text="{localization:Localize GameSettings.Controls.ScrollSpeed}" VerticalAlignment="Center" />
+                            <TextBlock Text="{localization:Localize GameSettings.Controls.ScrollSpeed}" VerticalAlignment="Center" TextWrapping="Wrap" />
                             <Slider Grid.Column="1" Value="{Binding ScrollFactor}" Minimum="0" Maximum="200" VerticalAlignment="Center" Margin="0,0,12,0" />
                             <NumericUpDown Grid.Column="2" Value="{Binding ScrollFactor}" Minimum="0" Maximum="200" Classes="slider-input" />
                         </Grid>
@@ -243,8 +254,8 @@
 
                         <Separator Background="#20FFFFFF" Height="1" />
 
-                        <Grid ColumnDefinitions="140,*,Auto">
-                            <TextBlock Text="{localization:Localize GameSettings.Controls.GameTimeFontSize}" VerticalAlignment="Center" />
+                        <Grid ColumnDefinitions="180,*,Auto">
+                            <TextBlock Text="{localization:Localize GameSettings.Controls.GameTimeFontSize}" VerticalAlignment="Center" TextWrapping="Wrap" />
                             <Slider Grid.Column="1" Value="{Binding GameTimeFontSize}" Minimum="8" Maximum="24" VerticalAlignment="Center" Margin="10,0,12,0" />
                             <NumericUpDown Grid.Column="2" Value="{Binding GameTimeFontSize}" Minimum="8" Maximum="24" Classes="slider-input" />
                         </Grid>
@@ -312,13 +323,13 @@
 
                             <Separator Background="#15FFFFFF" Height="1" Margin="0,4" />
 
-                            <Grid ColumnDefinitions="140,*,Auto">
-                                <TextBlock Text="{localization:Localize GameSettings.Tsh.TransactionVolume}" VerticalAlignment="Center" />
+                            <Grid ColumnDefinitions="180,*,Auto">
+                                <TextBlock Text="{localization:Localize GameSettings.Tsh.TransactionVolume}" VerticalAlignment="Center" TextWrapping="Wrap" />
                                 <Slider Grid.Column="1" Value="{Binding TshMoneyTransactionVolume}" Minimum="0" Maximum="100" VerticalAlignment="Center" Margin="0,0,12,0" />
                                 <NumericUpDown Grid.Column="2" Value="{Binding TshMoneyTransactionVolume}" Minimum="0" Maximum="100" Classes="slider-input" />
                             </Grid>
-                            <Grid ColumnDefinitions="140,*,Auto">
-                                <TextBlock Text="{localization:Localize GameSettings.Tsh.TransitionSpeed}" VerticalAlignment="Center" />
+                            <Grid ColumnDefinitions="180,*,Auto">
+                                <TextBlock Text="{localization:Localize GameSettings.Tsh.TransitionSpeed}" VerticalAlignment="Center" TextWrapping="Wrap" />
                                 <Slider Grid.Column="1" Value="{Binding TshGameWindowTransitionSpeedMultiplier}" Minimum="1.0" Maximum="4.0" TickFrequency="0.05" IsSnapToTickEnabled="True" SmallChange="0.05" LargeChange="0.5" VerticalAlignment="Center" Margin="0,0,12,0" />
                                 <NumericUpDown Grid.Column="2" Value="{Binding TshGameWindowTransitionSpeedMultiplier}" Minimum="1.0" Maximum="4.0" Increment="0.05" FormatString="F2" Classes="slider-input" />
                             </Grid>
@@ -353,8 +364,8 @@
                                 <CheckBox Content="{localization:Localize GameSettings.Go.VerboseLogging}" IsChecked="{Binding GoDebugVerboseLogging}" Margin="0,0,24,8" />
                             </WrapPanel>
 
-                            <Grid ColumnDefinitions="140,*,Auto" IsEnabled="{Binding GoRenderLimitFramerate}">
-                                <TextBlock Text="{localization:Localize GameSettings.Go.EngineFpsLimit}" VerticalAlignment="Center" />
+                            <Grid ColumnDefinitions="180,*,Auto" IsEnabled="{Binding GoRenderLimitFramerate}">
+                                <TextBlock Text="{localization:Localize GameSettings.Go.EngineFpsLimit}" VerticalAlignment="Center" TextWrapping="Wrap" />
                                 <Slider Grid.Column="1" Value="{Binding GoRenderFpsLimit}" Minimum="30" Maximum="500" VerticalAlignment="Center" Margin="0,0,12,0" />
                                 <NumericUpDown Grid.Column="2" Value="{Binding GoRenderFpsLimit}" Minimum="30" Maximum="500" Classes="slider-input" />
                             </Grid>
@@ -362,18 +373,18 @@
                             <Separator Background="#15FFFFFF" Height="1" Margin="0,4" />
 
                             <TextBlock Text="{localization:Localize GameSettings.Go.CameraSettings}" FontWeight="SemiBold" FontSize="13" Opacity="0.8" />
-                            <Grid ColumnDefinitions="140,*,Auto" Margin="0,0,0,8">
-                                <TextBlock Text="{localization:Localize GameSettings.Go.MinCameraHeight}" VerticalAlignment="Center" />
+                            <Grid ColumnDefinitions="180,*,Auto" Margin="0,0,0,8">
+                                <TextBlock Text="{localization:Localize GameSettings.Go.MinCameraHeight}" VerticalAlignment="Center" TextWrapping="Wrap" />
                                 <Slider Grid.Column="1" Value="{Binding GoCameraMinHeight}" Minimum="50" Maximum="1000" VerticalAlignment="Center" Margin="0,0,12,0" />
                                 <NumericUpDown Grid.Column="2" Value="{Binding GoCameraMinHeight}" Minimum="50" Maximum="1000" Classes="slider-input" />
                             </Grid>
-                            <Grid ColumnDefinitions="140,*,Auto" Margin="0,0,0,8">
-                                <TextBlock Text="{localization:Localize GameSettings.Go.MaxCameraHeight}" VerticalAlignment="Center" />
+                            <Grid ColumnDefinitions="180,*,Auto" Margin="0,0,0,8">
+                                <TextBlock Text="{localization:Localize GameSettings.Go.MaxCameraHeight}" VerticalAlignment="Center" TextWrapping="Wrap" />
                                 <Slider Grid.Column="1" Value="{Binding GoCameraMaxHeightOnlyWhenLobbyHost}" Minimum="50" Maximum="1000" VerticalAlignment="Center" Margin="0,0,12,0" />
                                 <NumericUpDown Grid.Column="2" Value="{Binding GoCameraMaxHeightOnlyWhenLobbyHost}" Minimum="50" Maximum="1000" Classes="slider-input" />
                             </Grid>
-                            <Grid ColumnDefinitions="140,*,Auto">
-                                <TextBlock Text="{localization:Localize GameSettings.Go.CameraMoveSpeed}" VerticalAlignment="Center" />
+                            <Grid ColumnDefinitions="180,*,Auto">
+                                <TextBlock Text="{localization:Localize GameSettings.Go.CameraMoveSpeed}" VerticalAlignment="Center" TextWrapping="Wrap" />
                                 <Slider Grid.Column="1" Value="{Binding GoCameraMoveSpeedRatio}" Minimum="0.5" Maximum="5.0" VerticalAlignment="Center" Margin="10,0,12,0" />
                                 <NumericUpDown Grid.Column="2" Value="{Binding GoCameraMoveSpeedRatio}" Minimum="0.5" Maximum="5.0" Increment="0.1" Classes="slider-input" />
                             </Grid>

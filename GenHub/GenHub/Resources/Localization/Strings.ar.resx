@@ -7676,12 +7676,6 @@ GenHub هو مشغل ومدير حديث لألعاب **Command &amp; Conquer: G
   <data name="Downloads.ContentDetail.LoadingModDbDetailsMessage" xml:space="preserve">
     <value>يتم فتح نافذة متصفح لقراءة صفحة ModDB هذه. إذا طلبت التحقق، فأكمله هناك. وإلا فانتظر ولا تنقر فوق أي شيء في تلك النافذة — سيتم ملء التفاصيل تلقائيًا.</value>
   </data>
-  <data name="Downloads.ContentDetail.ModDbDownloadStartingTitle" xml:space="preserve">
-    <value>بدء تنزيل ModDB</value>
-  </data>
-  <data name="Downloads.ContentDetail.ModDbDownloadStartingMessage" xml:space="preserve">
-    <value>سيتم فتح نافذة متصفح لجلب هذا الملف. انتظر حتى ينتهي التنزيل ولا تنقر فوق أي شيء في تلك النافذة.</value>
-  </data>
   <data name="Downloads.ContentDetail.DownloadFailed" xml:space="preserve">
     <value>فشل التنزيل</value>
   </data>

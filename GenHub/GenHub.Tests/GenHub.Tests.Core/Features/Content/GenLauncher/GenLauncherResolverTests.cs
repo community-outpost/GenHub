@@ -149,6 +149,40 @@ public sealed class GenLauncherResolverTests
     }
 
     /// <summary>
+    /// Tests that ResolveAsync falls back to a slug-based archive name when the direct
+    /// download link is an extensionless endpoint URL such as a OneDrive "/embed" share link.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ResolveAsync_WithOneDriveEmbedLink_FallsBackToSlugArchiveName()
+    {
+        var factoryMock = new Mock<IHttpClientFactory>();
+        var parser = new GenLauncherCatalogParser(Mock.Of<ILogger<GenLauncherCatalogParser>>());
+        var loggerMock = new Mock<ILogger<GenLauncherResolver>>();
+
+        var resolver = new GenLauncherResolver(factoryMock.Object, parser, loggerMock.Object);
+
+        var searchResult = new ContentSearchResult
+        {
+            Id = "balance-patch",
+            Name = "Balance Patch",
+            Version = "2.999.06.5",
+            ContentType = ContentType.Patch,
+            TargetGame = GameType.ZeroHour,
+            SourceUrl = "https://onedrive.live.com/embed?cid=0A88C98986A457EB&resid=A88C98986A457EB%21135&authkey=AE2ADilQfRS431o",
+        };
+
+        var result = await resolver.ResolveAsync(searchResult, CancellationToken.None);
+
+        Assert.True(result.Success, result.FirstError);
+        Assert.NotNull(result.Data);
+
+        var manifest = result.Data;
+        Assert.Single(manifest.Files);
+        Assert.Equal("balance-patch.zip", manifest.Files[0].RelativePath);
+    }
+
+    /// <summary>
     /// Tests that ResolveAsync throws when discovered item is null.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>

@@ -22,4 +22,8 @@
         <EmbeddedResource Include="Assets\Registries\*.csv" />
         <EmbeddedResource Include="Assets\Registries\*.json" />
     </ItemGroup>
+
+    <ItemGroup>
+        <InternalsVisibleTo Include="GenHub.Tests.Core" />
+    </ItemGroup>
 </Project>

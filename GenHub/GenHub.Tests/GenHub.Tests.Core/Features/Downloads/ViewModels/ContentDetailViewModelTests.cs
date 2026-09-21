@@ -301,6 +301,45 @@ public sealed class ContentDetailViewModelTests
     }
 
     /// <summary>
+    /// Verifies that releases sharing an extensionless endpoint file name (for example
+    /// OneDrive "/embed" links) are not collapsed into a single row.
+    /// </summary>
+    [Fact]
+    public void PopulateReleases_WithSharedExtensionlessFilename_KeepsBothRows()
+    {
+        // Arrange
+        var parent = new ContentSearchResult
+        {
+            Id = "genlauncher-zerohour-rise-of-the-reds",
+            Name = "Rise of the Reds",
+            ProviderName = "genlauncher",
+            ContentType = ContentType.Mod,
+            TargetGame = GameType.ZeroHour,
+        };
+        var viewModel = CreateViewModel(parent, new Mock<IContentDownloadCoordinator>().Object);
+
+        var parentFile = new DownloadableFile(
+            Name: "Rise Of The Reds 1.87 Public Build 2.0",
+            Version: "1.87 Public Build 2.0",
+            DownloadUrl: "https://onedrive.live.com/embed?cid=AFB01C08E053A64E&resid=AFB01C08E053A64E%21593",
+            FileSectionType: FileSectionType.Downloads,
+            Filename: "embed");
+
+        var patchFile = new DownloadableFile(
+            Name: "Balance Patch",
+            Version: "2.999.06.5",
+            DownloadUrl: "https://onedrive.live.com/embed?cid=0A88C98986A457EB&resid=A88C98986A457EB%21135",
+            FileSectionType: FileSectionType.Downloads,
+            Filename: "embed");
+
+        // Act
+        viewModel.PopulateReleases([parentFile, patchFile]);
+
+        // Assert
+        Assert.Equal(2, viewModel.Releases.Count);
+    }
+
+    /// <summary>
     /// After download, changing the Type dropdown must rewrite the stored manifest so tools
     /// misclassified as Addon become Executable/ModdingTool and lose game-install requirements.
     /// </summary>
@@ -3956,6 +3995,71 @@ public sealed class ContentDetailViewModelTests
         Assert.Equal(manifestId, viewModel.SelectedDownloadableItem.DownloadedManifestId);
         Assert.False(viewModel.ShowDownloadButton, "ShowDownloadButton must be false when downloaded variant is selected");
         Assert.True(viewModel.ShowAddToProfileButton, "ShowAddToProfileButton must be true when downloaded variant is selected");
+    }
+
+    /// <summary>
+    /// Verifies that selecting a downloaded variant does not flip row state or bind the
+    /// variant's manifest when the variant name matches several same-named release rows:
+    /// the variant carries no version, so ambiguous siblings are indistinguishable and the
+    /// rows' own probes must resolve them. Selection still moves to the first match.
+    /// </summary>
+    [Fact]
+    public void SelectedVariant_WhenReleaseNameIsAmbiguous_DoesNotBindManifestToSiblingRow()
+    {
+        // Arrange
+        const string manifestId = "1.0.genlauncherzerohour.mod.riseofthereds187publicbuild20";
+        var parent = new ContentSearchResult
+        {
+            Id = "genlauncher-zerohour-riseofthereds",
+            Name = "Rise of the Reds",
+            ProviderName = "genlauncher",
+            ContentType = ContentType.Mod,
+            TargetGame = GameType.ZeroHour,
+        };
+
+        var stateService = new Mock<IContentStateService>();
+        stateService
+            .Setup(s => s.GetStateAsync(It.IsAny<ContentSearchResult>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ContentState.NotDownloaded);
+
+        var viewModel = CreateViewModel(
+            parent,
+            new Mock<IContentDownloadCoordinator>().Object,
+            contentStateService: stateService.Object);
+
+        viewModel.PopulateReleases(
+        [
+            new DownloadableFile(
+                Name: "Shared Title",
+                Version: "1.0",
+                DownloadUrl: "http://example.com/shared10.zip",
+                FileSectionType: FileSectionType.Downloads),
+            new DownloadableFile(
+                Name: "Shared Title",
+                Version: "2.0",
+                DownloadUrl: "http://example.com/shared20.zip",
+                FileSectionType: FileSectionType.Downloads),
+        ]);
+
+        var variant = new InstallableVariant
+        {
+            Name = "Shared Title",
+            ManifestId = manifestId,
+            CurrentState = ContentState.Downloaded,
+        };
+
+        viewModel.Variants.Add(variant);
+
+        // Act
+        viewModel.SelectedVariant = variant;
+
+        // Assert
+        Assert.NotNull(viewModel.SelectedDownloadableItem);
+        Assert.All(viewModel.Releases, row =>
+        {
+            Assert.False(row.IsDownloaded);
+            Assert.Null(row.DownloadedManifestId);
+        });
     }
 
     /// <summary>

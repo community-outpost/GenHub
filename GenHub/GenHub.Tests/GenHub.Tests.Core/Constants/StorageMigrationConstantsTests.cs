@@ -48,4 +48,27 @@ public class StorageMigrationConstantsTests
     {
         Assert.True(StorageMigrationConstants.DiskSpaceSafetyMarginBytes >= 50 * 1024 * 1024L);
     }
+
+    /// <summary>
+    /// Verifies that the duplicate installation notification copy names the running location,
+    /// the detected path placeholder, and the reinstall guidance.
+    /// </summary>
+    [Fact]
+    public void StorageMigrationConstants_DuplicateInstallationCopy_NamesLocationsAndGuidance()
+    {
+        Assert.Multiple(() =>
+        {
+            Assert.Equal("Duplicate Installation Detected", StorageMigrationConstants.DuplicateInstallationDetectedTitle);
+            Assert.Contains("{0}", StorageMigrationConstants.DuplicateInstallationAdoptedMessageFormat);
+            Assert.Contains("default folder", StorageMigrationConstants.DuplicateInstallationAdoptedMessageFormat);
+            Assert.Contains("copied to this installation", StorageMigrationConstants.DuplicateInstallationAdoptedMessageFormat);
+            Assert.Contains("{0}", StorageMigrationConstants.DuplicateInstallationDetectedMessageFormat);
+            Assert.Contains("default folder", StorageMigrationConstants.DuplicateInstallationDetectedMessageFormat);
+            Assert.Contains("{0}", StorageMigrationConstants.DuplicateInstallationWindowsReinstallGuidanceFormat);
+            Assert.Contains("--installto", StorageMigrationConstants.DuplicateInstallationWindowsReinstallGuidanceFormat);
+            Assert.Contains("duplicate copy", StorageMigrationConstants.DuplicateInstallationWindowsReinstallGuidanceFormat);
+            Assert.Contains("Migrate Installation", StorageMigrationConstants.DuplicateInstallationGenericReinstallGuidance);
+            Assert.Contains("duplicate copy", StorageMigrationConstants.DuplicateInstallationGenericReinstallGuidance);
+        });
+    }
 }

@@ -2,6 +2,7 @@ using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Providers;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.Parsers;
 using GenHub.Core.Models.Providers;
 using GenHub.Core.Models.Results.Content;
 using GenHub.Features.Content.Services.GenLauncher;
@@ -661,5 +662,102 @@ SimpleDownloadLink: 'http://cdn.example.com/redirect-mod.zip'
         var item = result.Data.Items.FirstOrDefault(i => i.Name == "Redirect Mod");
         Assert.NotNull(item);
         Assert.Equal(expectedSize, item.DownloadSize);
+    }
+
+    /// <summary>
+    /// Tests that OneDrive "/embed" share links fall back to name-based archive file names
+    /// so the parent mod and its patches keep distinct file names instead of collapsing to "embed".
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task DiscoverAsync_WhenDownloadLinksAreOneDriveEmbeds_UsesDistinctArchiveFileNames()
+    {
+        var mockHttp = new Mock<HttpMessageHandler>();
+
+        const string rootYaml = @"
+LauncherVersion: '1.0'
+modDatas:
+  - ModName: 'Rise of the Reds'
+    ModLink: 'https://example.com/rise-of-the-reds.yaml'
+    ModPatches:
+      - 'https://example.com/balance-patch.yaml'
+    ModAddons: []
+";
+
+        const string parentYaml = @"
+Name: 'Rise of the Reds'
+Version: '1.87 Public Build 2.0'
+ModificationType: 0
+SimpleDownloadLink: 'https://onedrive.live.com/embed?cid=AFB01C08E053A64E&resid=AFB01C08E053A64E%21593&authkey=AMJHOwXKTTTErrI'
+";
+
+        const string patchYaml = @"
+Name: 'Balance Patch'
+Version: '2.999.06.5'
+ModificationType: 2
+DependenceName: 'Rise of the Reds'
+SimpleDownloadLink: 'https://onedrive.live.com/embed?cid=0A88C98986A457EB&resid=A88C98986A457EB%21135&authkey=AE2ADilQfRS431o'
+";
+
+        mockHttp.Protected()
+            .Setup<Task<HttpResponseMessage>>(
+                "SendAsync",
+                ItExpr.Is<HttpRequestMessage>(r => r.Method == HttpMethod.Get && r.RequestUri!.ToString().Contains("ZH")),
+                ItExpr.IsAny<CancellationToken>())
+            .ReturnsAsync(new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(rootYaml),
+            });
+
+        mockHttp.Protected()
+            .Setup<Task<HttpResponseMessage>>(
+                "SendAsync",
+                ItExpr.Is<HttpRequestMessage>(r => r.Method == HttpMethod.Get && r.RequestUri!.ToString().Contains("rise-of-the-reds.yaml")),
+                ItExpr.IsAny<CancellationToken>())
+            .ReturnsAsync(new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(parentYaml),
+            });
+
+        mockHttp.Protected()
+            .Setup<Task<HttpResponseMessage>>(
+                "SendAsync",
+                ItExpr.Is<HttpRequestMessage>(r => r.Method == HttpMethod.Get && r.RequestUri!.ToString().Contains("balance-patch.yaml")),
+                ItExpr.IsAny<CancellationToken>())
+            .ReturnsAsync(new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(patchYaml),
+            });
+
+        var httpClient = new HttpClient(mockHttp.Object);
+        var mockFactory = new Mock<IHttpClientFactory>();
+        mockFactory.Setup(f => f.CreateClient(PublisherTypeConstants.GenLauncher)).Returns(httpClient);
+
+        var mockLoader = new Mock<IProviderDefinitionLoader>();
+        mockLoader.Setup(l => l.GetProvider(GenLauncherConstants.PublisherId)).Returns((ProviderDefinition?)null);
+
+        var parser = new GenLauncherCatalogParser(NullLogger<GenLauncherCatalogParser>.Instance);
+        var discoverer = new GenLauncherDiscoverer(
+            mockFactory.Object,
+            mockLoader.Object,
+            parser,
+            NullLogger<GenLauncherDiscoverer>.Instance);
+
+        var result = await discoverer.DiscoverAsync(
+            new ContentSearchQuery { TargetGame = GameType.ZeroHour },
+            CancellationToken.None);
+
+        Assert.True(result.Success);
+        Assert.NotNull(result.Data);
+
+        var parent = result.Data.Items.FirstOrDefault(i => i.Name == "Rise of the Reds");
+        Assert.NotNull(parent);
+        Assert.NotNull(parent.ParsedPageData);
+
+        var files = parent.ParsedPageData.Sections.OfType<DownloadableFile>().ToList();
+        Assert.Equal(2, files.Count);
+        Assert.DoesNotContain(files, f => string.Equals(f.Filename, "embed", StringComparison.OrdinalIgnoreCase));
+        Assert.Equal(2, files.Select(f => f.Filename).Distinct(StringComparer.OrdinalIgnoreCase).Count());
+        Assert.All(files, f => Assert.EndsWith(".zip", f.Filename, StringComparison.OrdinalIgnoreCase));
     }
 }

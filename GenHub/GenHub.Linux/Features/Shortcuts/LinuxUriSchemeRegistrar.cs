@@ -1,4 +1,6 @@
+using GenHub.Common.Services;
 using GenHub.Core.Constants;
+using GenHub.Linux.Features.Storage;
 using Microsoft.Extensions.Logging;
 using System;
 using System.ComponentModel;
@@ -17,15 +19,15 @@ public static class LinuxUriSchemeRegistrar
     private const int CommandTimeoutMs = 3000;
 
     /// <summary>
-    /// Registers the <c>genhub://</c> scheme and profile MIME type for the current Linux user desktop.
+    /// Registers the <c>genhub://</c> scheme and profile MIME type for the current Linux user desktop,
+    /// pointing at the canonical installation launcher. When a duplicate installation conflict is
+    /// active, the registered custom installation is linked so an accidental default-location copy
+    /// can never hijack the scheme.
     /// </summary>
     /// <param name="logger">Optional logger for diagnostics.</param>
     public static void Register(ILogger? logger = null)
     {
-        var appImagePath = Environment.GetEnvironmentVariable(CommandLineConstants.AppImageEnvVar);
-        var executablePath = (!string.IsNullOrWhiteSpace(appImagePath) && File.Exists(appImagePath))
-            ? appImagePath
-            : Environment.ProcessPath;
+        var executablePath = ResolveCanonicalExecutablePath(logger);
 
         if (string.IsNullOrEmpty(executablePath) || !File.Exists(executablePath))
         {
@@ -70,6 +72,22 @@ public static class LinuxUriSchemeRegistrar
         {
             logger?.LogWarning(ex, "Failed to register genhub:// scheme on Linux");
         }
+    }
+
+    private static string? ResolveCanonicalExecutablePath(ILogger? logger)
+    {
+        var appImagePath = Environment.GetEnvironmentVariable(CommandLineConstants.AppImageEnvVar);
+        var currentExePath = (!string.IsNullOrWhiteSpace(appImagePath) && File.Exists(appImagePath))
+            ? appImagePath
+            : Environment.ProcessPath;
+        string? registeredCustomPath = null;
+        if (OperatingSystem.IsLinux())
+        {
+            registeredCustomPath = LinuxInstallationTracker.GetRegisteredCustomInstallPathStatic(logger);
+        }
+
+        var linkRoot = StorageMigrationService.ResolveLinkInstallRoot(registeredCustomPath);
+        return StorageMigrationService.ResolveLinkExecutablePath(linkRoot, currentExePath);
     }
 
     [SuppressMessage("Security", "S4036:Make sure the executable exists, and provide an absolute path or configure PATH securely", Justification = "Resolves update-desktop-database from known trusted absolute paths on Linux.")]

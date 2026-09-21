@@ -140,6 +140,60 @@ public class GeneralsOnlineManifestFactoryTests : IDisposable
     }
 
     /// <summary>
+    /// Verifies that all three manifests of one release share a variant group id derived from
+    /// the full version (QFE included) so the library collapses them into one card.
+    /// </summary>
+    [Fact]
+    public void CreateManifests_SameRelease_SharesVersionVariantGroup()
+    {
+        // Arrange
+        var release = new GeneralsOnlineRelease
+        {
+            Version = "032926_QFE1",
+            ReleaseDate = DateTime.UtcNow,
+            PortableUrl = "https://example.com/GeneralsOnline_portable_032926_QFE1.zip",
+            PortableSize = 1048576,
+            Changelog = "https://example.com/changelog",
+        };
+
+        // Act
+        var manifests = _factory.CreateManifests(release);
+
+        // Assert
+        Assert.Equal(3, manifests.Count);
+        var groupIds = manifests.Select(m => m.Metadata?.VariantGroupId).Distinct().ToList();
+        Assert.Single(groupIds);
+        Assert.Equal("generalsonline-032926_qfe1", groupIds[0]);
+        Assert.All(manifests, m => Assert.Equal("Generals Online 032926_QFE1", m.Metadata?.VariantFamilyName));
+    }
+
+    /// <summary>
+    /// Verifies that different QFE builds of one date produce distinct variant groups.
+    /// </summary>
+    [Fact]
+    public void CreateManifests_DifferentQfe_ProducesDistinctVariantGroups()
+    {
+        // Arrange
+        GeneralsOnlineRelease CreateRelease(string version) => new()
+        {
+            Version = version,
+            ReleaseDate = DateTime.UtcNow,
+            PortableUrl = $"https://example.com/GeneralsOnline_portable_{version}.zip",
+            PortableSize = 1048576,
+            Changelog = "https://example.com/changelog",
+        };
+
+        // Act
+        var first = _factory.CreateManifests(CreateRelease("032926_QFE1"));
+        var second = _factory.CreateManifests(CreateRelease("032926_QFE2"));
+
+        // Assert
+        Assert.NotEqual(
+            first[0].Metadata?.VariantGroupId,
+            second[0].Metadata?.VariantGroupId);
+    }
+
+    /// <summary>
     /// Verifies that the GameData patch depends on the 60Hz GameClient and Zero Hour,
     /// while the 60Hz GameClient does not depend on the GameData patch (making GameData patch optional).
     /// </summary>

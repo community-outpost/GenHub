@@ -145,7 +145,7 @@ public class ModDBManifestFactory(
                 StageProgress = stageProgress,
             });
 
-            logger.LogInformation("Hashing file {Current}/{Total}: {RelativePath}", i + 1, allFiles.Count, relativePath);
+            logger.LogDebug("Hashing file {Current}/{Total}: {RelativePath}", i + 1, allFiles.Count, relativePath);
 
             files.Add(new ManifestFile
             {

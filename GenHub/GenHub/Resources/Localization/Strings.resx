@@ -7770,12 +7770,6 @@ Recovery Engine: Profile '{0}' supports checkpoint saves, replay resumption, and
   <data name="Downloads.ContentDetail.LoadingModDbDetailsMessage" xml:space="preserve">
     <value>A browser window is opening to read this ModDB page. If it asks for verification, complete it there. Otherwise wait and do not click anything in that window — details will fill in automatically.</value>
   </data>
-  <data name="Downloads.ContentDetail.ModDbDownloadStartingTitle" xml:space="preserve">
-    <value>ModDB download starting</value>
-  </data>
-  <data name="Downloads.ContentDetail.ModDbDownloadStartingMessage" xml:space="preserve">
-    <value>A browser window will open to fetch this file. Wait for the download to finish and do not click anything in that window.</value>
-  </data>
   <data name="Downloads.ContentDetail.DownloadFailed" xml:space="preserve">
     <value>Download failed</value>
   </data>
