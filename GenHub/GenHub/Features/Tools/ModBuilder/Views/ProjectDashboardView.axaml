@@ -72,6 +72,8 @@
       <Setter Property="CornerRadius" Value="12"/>
       <Setter Property="Padding" Value="24,20"/>
       <Setter Property="Cursor" Value="Hand"/>
+      <Setter Property="HorizontalAlignment" Value="Stretch"/>
+      <Setter Property="VerticalAlignment" Value="Stretch"/>
     </Style>
     <Style Selector="Button.card-action-btn:pointerover /template/ ContentPresenter">
       <Setter Property="Background" Value="{DynamicResource SurfaceHoverDarkBrush}"/>
@@ -106,6 +108,8 @@
       <Setter Property="BorderThickness" Value="0"/>
       <Setter Property="CornerRadius" Value="10"/>
       <Setter Property="Cursor" Value="Hand"/>
+      <Setter Property="HorizontalAlignment" Value="Stretch"/>
+      <Setter Property="VerticalAlignment" Value="Stretch"/>
     </Style>
     <Style Selector="Button.recent-project-btn:pointerover /template/ ContentPresenter">
       <Setter Property="Background" Value="{DynamicResource SurfaceHoverDarkBrush}"/>

@@ -318,7 +318,8 @@ public class ManifestGenerationService(
 
             var builderLogger = NullLogger<ContentManifestBuilder>.Instance;
             var builder = new ContentManifestBuilder(builderLogger, hashProvider, manifestIdService, downloadService, configurationProvider)
-                .WithBasicInfo(publisherId, contentName, manifestVersion)
+                .WithBasicInfo(publisherId, contentName, ToIdentityVersion(manifestVersion))
+                .WithVersion(manifestVersion ?? "0")
                 .WithContentType(contentType, targetGame);
 
             // Add dependencies
@@ -705,6 +706,28 @@ public class ManifestGenerationService(
 
         var unreadableList = FormatFileListWithEllipsis(skippedRequiredFiles);
         return $"{gameType} could not read {skippedRequiredFiles.Count} required file(s) (e.g. file lock, permissions, or symlink): {unreadableList}. Please verify permissions or close background processes.";
+    }
+
+    /// <summary>
+    /// Converts a display version string to the numeric identity version used in manifest IDs.
+    /// Plain integers pass through unchanged; dotted versions are normalized with the same
+    /// rules as release tags (for example "2.0.0" becomes "200" and "1.08" becomes "108").
+    /// </summary>
+    /// <param name="manifestVersion">The display version string.</param>
+    /// <returns>The numeric identity version string.</returns>
+    private static string? ToIdentityVersion(string? manifestVersion)
+    {
+        if (string.IsNullOrWhiteSpace(manifestVersion))
+        {
+            return manifestVersion;
+        }
+
+        if (int.TryParse(manifestVersion, NumberStyles.Integer, CultureInfo.InvariantCulture, out _))
+        {
+            return manifestVersion;
+        }
+
+        return ManifestIdGenerator.ExtractVersionFromTag(manifestVersion).ToString(CultureInfo.InvariantCulture);
     }
 
     /// <summary>

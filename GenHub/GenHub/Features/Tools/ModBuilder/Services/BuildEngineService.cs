@@ -631,9 +631,9 @@ public sealed class BuildEngineService(
     private static string GetBigFileName(BundleItem item)
     {
         var suffix = item.BigSuffix ?? string.Empty;
-        if (!suffix.EndsWith(".big", StringComparison.OrdinalIgnoreCase))
+        if (!suffix.EndsWith(ModBuilderConstants.BigExtension, StringComparison.OrdinalIgnoreCase))
         {
-            suffix += ".big";
+            suffix += ModBuilderConstants.BigExtension;
         }
 
         return $"{item.GetFullName()}{suffix}";
@@ -1114,6 +1114,8 @@ public sealed class BuildEngineService(
             {
                 var mismatchMsg = $"BIG archive SHA256 mismatch for {Path.GetFileName(packFilePath)}! Expected {manifest.Sha256}, got {builtSha256}";
                 logger.LogWarning("{MismatchMessage}", mismatchMsg);
+                _lastErrorMessage = mismatchMsg;
+                Interlocked.Increment(ref _filesFailed);
             }
         }
         catch (OperationCanceledException)

@@ -220,18 +220,6 @@
                        Foreground="{DynamicResource TextSecondary}"/>
           </StackPanel>
 
-          <!-- Default Options -->
-          <Separator Background="{DynamicResource BorderBrush}"/>
-
-          <CheckBox Content="{localization:Localize Tools.ModBuilder.Settings.CheckMultiProcessing}"
-                    IsChecked="{Binding EnableMultiProcessingByDefault}"
-                    Foreground="{DynamicResource TextPrimary}"
-                    ToolTip.Tip="{localization:Localize Tools.ModBuilder.Settings.TooltipMultiProcessing}"/>
-
-          <CheckBox Content="{localization:Localize Tools.ModBuilder.Settings.CheckVerboseLogging}"
-                    IsChecked="{Binding EnableVerboseLoggingByDefault}"
-                    Foreground="{DynamicResource TextPrimary}"
-                    ToolTip.Tip="{localization:Localize Tools.ModBuilder.Settings.TooltipVerboseLogging}"/>
         </StackPanel>
       </Border>
 

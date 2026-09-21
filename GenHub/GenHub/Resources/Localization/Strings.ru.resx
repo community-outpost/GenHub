@@ -7184,18 +7184,6 @@ GenHub передает официальный идентификатор AppID 
   <data name="Tools.ModBuilder.Settings.NoticeIoBufferSize" xml:space="preserve">
     <value>Больший буфер = выше производительность для больших файлов</value>
   </data>
-  <data name="Tools.ModBuilder.Settings.CheckMultiProcessing" xml:space="preserve">
-    <value>Включить многопроцессорность по умолчанию</value>
-  </data>
-  <data name="Tools.ModBuilder.Settings.TooltipMultiProcessing" xml:space="preserve">
-    <value>Использовать параллельную обработку для новых проектов</value>
-  </data>
-  <data name="Tools.ModBuilder.Settings.CheckVerboseLogging" xml:space="preserve">
-    <value>Включить подробное логирование по умолчанию</value>
-  </data>
-  <data name="Tools.ModBuilder.Settings.TooltipVerboseLogging" xml:space="preserve">
-    <value>Показывать подробную информацию о сборке для новых проектов</value>
-  </data>
   <data name="Tools.ModBuilder.Settings.UiPreferencesHeader" xml:space="preserve">
     <value>Настройки интерфейса</value>
   </data>
@@ -7645,33 +7633,6 @@ GenHub передает официальный идентификатор AppID 
   </data>
   <data name="Tools.ModBuilder.View.TooltipActionCreateManifest" xml:space="preserve">
     <value>Генерирует manifest.json и регистрирует мод в CAS GenHub для запуска в изолированных пространствах</value>
-  </data>
-  <data name="Tools.ModBuilder.View.BuildOptionsHeader" xml:space="preserve">
-    <value>Параметры сборки</value>
-  </data>
-  <data name="Tools.ModBuilder.View.OptionSingleBigPack" xml:space="preserve">
-    <value>Один пакет .BIG</value>
-  </data>
-  <data name="Tools.ModBuilder.View.TooltipOptionSingleBigPack" xml:space="preserve">
-    <value>Упаковать все элементы сборок в ОДИН архив .big вместо файла .zip (стиль GeneralsGamePatch)</value>
-  </data>
-  <data name="Tools.ModBuilder.View.OptionVerboseLogging" xml:space="preserve">
-    <value>Подробный лог</value>
-  </data>
-  <data name="Tools.ModBuilder.View.TooltipOptionVerboseLogging" xml:space="preserve">
-    <value>Выводит подробные сообщения конвейера и конвертации в окне журнала</value>
-  </data>
-  <data name="Tools.ModBuilder.View.OptionMultiProcessing" xml:space="preserve">
-    <value>Параллельная обработка</value>
-  </data>
-  <data name="Tools.ModBuilder.View.TooltipOptionMultiProcessing" xml:space="preserve">
-    <value>Обрабатывать конвертацию ресурсов параллельно на всех ядрах процессора</value>
-  </data>
-  <data name="Tools.ModBuilder.View.OptionPrintConfig" xml:space="preserve">
-    <value>Вывести конфигурацию</value>
-  </data>
-  <data name="Tools.ModBuilder.View.TooltipOptionPrintConfig" xml:space="preserve">
-    <value>Выводит итоговую конфигурацию в журнал перед сборкой</value>
   </data>
   <data name="Tools.ModBuilder.View.BuildOutputHeader" xml:space="preserve">
     <value>Вывод сборки</value>
@@ -10100,6 +10061,24 @@ GameFilesEdited/Data/INI/**/*.ini</value>
   </data>
   <data name="Tools.ModBuilder.View.TooltipManifests" xml:space="preserve">
     <value>Определить манифесты контента, группирующие пакеты сборок</value>
+  </data>
+  <data name="Tools.ModBuilder.BundleItemEditor.MatchingFiles.NoPatterns" xml:space="preserve">
+    <value>Шаблоны не заданы</value>
+  </data>
+  <data name="Tools.ModBuilder.BundleItemEditor.MatchingFiles.DirectoryNotFound" xml:space="preserve">
+    <value>Каталог файлов проекта не найден</value>
+  </data>
+  <data name="Tools.ModBuilder.BundleItemEditor.MatchingFiles.NoMatches" xml:space="preserve">
+    <value>Предупреждение: этим шаблонам сейчас не соответствует ни один файл</value>
+  </data>
+  <data name="Tools.ModBuilder.BundleItemEditor.MatchingFiles.MatchesOne" xml:space="preserve">
+    <value>В проекте совпадает {0} файл</value>
+  </data>
+  <data name="Tools.ModBuilder.BundleItemEditor.MatchingFiles.MatchesMany" xml:space="preserve">
+    <value>Совпадений в проекте: {0}</value>
+  </data>
+  <data name="Tools.ModBuilder.BundleItemEditor.MatchingFiles.CheckFailed" xml:space="preserve">
+    <value>Проверка совпадений: {0}</value>
   </data>
   <data name="GameProfiles.Notification.LaunchChanged.Title" xml:space="preserve">
     <value>Конфигурация запуска изменена</value>

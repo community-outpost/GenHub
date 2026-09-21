@@ -6,8 +6,10 @@ namespace GenHub.Tests.Core.Features.Tools.ModBuilder.ViewModels;
 
 using System;
 using System.IO;
+using GenHub.Core.Interfaces.Common;
 using GenHub.Features.Tools.ModBuilder.Services;
 using GenHub.Features.Tools.ModBuilder.ViewModels;
+using Moq;
 using Xunit;
 
 /// <summary>
@@ -16,6 +18,7 @@ using Xunit;
 public sealed class BundleItemEditorViewModelTests : IDisposable
 {
     private readonly string _tempDirectory;
+    private readonly Mock<ILocalizationService> _localizationServiceMock = new();
 
     public BundleItemEditorViewModelTests()
     {
@@ -25,12 +28,16 @@ public sealed class BundleItemEditorViewModelTests : IDisposable
         WriteFile("GameFilesEdited/Data/INI/a.ini");
         WriteFile("GameFilesEdited/Data/INI/b.ini");
         WriteFile("GameFilesEdited/Data/English/c.csf");
+
+        _localizationServiceMock
+            .Setup(l => l.GetString(It.IsAny<string>(), It.IsAny<object[]>()))
+            .Returns((string key, object?[] args) => key);
     }
 
     [Fact]
     public void RecalculateMatches_CountsGlobMatches()
     {
-        var viewModel = new BundleItemEditorViewModel();
+        var viewModel = new BundleItemEditorViewModel(_localizationServiceMock.Object);
         viewModel.SetPatterns(["GameFilesEdited/Data/INI/**/*.ini"]);
 
         viewModel.RecalculateMatches(_tempDirectory);
@@ -43,11 +50,11 @@ public sealed class BundleItemEditorViewModelTests : IDisposable
     {
         var snapshot = ProjectFileSnapshot.Create(_tempDirectory);
 
-        var withSnapshot = new BundleItemEditorViewModel();
+        var withSnapshot = new BundleItemEditorViewModel(_localizationServiceMock.Object);
         withSnapshot.SetPatterns(["GameFilesEdited/Data/**/*.ini", "GameFilesEdited/Data/English/c.csf"]);
         withSnapshot.RecalculateMatches(_tempDirectory, snapshot);
 
-        var withoutSnapshot = new BundleItemEditorViewModel();
+        var withoutSnapshot = new BundleItemEditorViewModel(_localizationServiceMock.Object);
         withoutSnapshot.SetPatterns(["GameFilesEdited/Data/**/*.ini", "GameFilesEdited/Data/English/c.csf"]);
         withoutSnapshot.RecalculateMatches(_tempDirectory);
 
@@ -64,7 +71,7 @@ public sealed class BundleItemEditorViewModelTests : IDisposable
         {
             var foreignSnapshot = ProjectFileSnapshot.Create(otherDir);
 
-            var viewModel = new BundleItemEditorViewModel();
+            var viewModel = new BundleItemEditorViewModel(_localizationServiceMock.Object);
             viewModel.SetPatterns(["GameFilesEdited/Data/INI/**/*.ini"]);
             viewModel.RecalculateMatches(_tempDirectory, foreignSnapshot);
 
@@ -79,19 +86,47 @@ public sealed class BundleItemEditorViewModelTests : IDisposable
     [Fact]
     public void RecalculateMatches_NoPatterns_ReportsEmpty()
     {
-        var viewModel = new BundleItemEditorViewModel();
+        var viewModel = new BundleItemEditorViewModel(_localizationServiceMock.Object);
 
         viewModel.RecalculateMatches(_tempDirectory);
 
         Assert.Equal(0, viewModel.MatchingFilesCount);
-        Assert.Equal("No patterns defined", viewModel.MatchingFilesSummary);
+        Assert.Equal("Tools.ModBuilder.BundleItemEditor.MatchingFiles.NoPatterns", viewModel.MatchingFilesSummary);
+    }
+
+    [Fact]
+    public void RecalculateMatches_WithMatches_ResolvesLocalizedSummaryWithCount()
+    {
+        var viewModel = new BundleItemEditorViewModel(_localizationServiceMock.Object);
+        viewModel.SetPatterns(["GameFilesEdited/Data/INI/**/*.ini"]);
+
+        viewModel.RecalculateMatches(_tempDirectory);
+
+        Assert.Equal(2, viewModel.MatchingFilesCount);
+        _localizationServiceMock.Verify(
+            l => l.GetString(
+                "Tools.ModBuilder.BundleItemEditor.MatchingFiles.MatchesMany",
+                It.Is<object[]>(args => args.Length == 1 && args[0] != null && args[0].Equals(2))),
+            Times.Once);
+
+        var singleViewModel = new BundleItemEditorViewModel(_localizationServiceMock.Object);
+        singleViewModel.SetPatterns(["GameFilesEdited/Data/English/c.csf"]);
+
+        singleViewModel.RecalculateMatches(_tempDirectory);
+
+        Assert.Equal(1, singleViewModel.MatchingFilesCount);
+        _localizationServiceMock.Verify(
+            l => l.GetString(
+                "Tools.ModBuilder.BundleItemEditor.MatchingFiles.MatchesOne",
+                It.Is<object[]>(args => args.Length == 1 && args[0] != null && args[0].Equals(1))),
+            Times.Once);
     }
 
     [Fact]
     public void AddPattern_UsesSnapshotForRecalculation()
     {
         var snapshot = ProjectFileSnapshot.Create(_tempDirectory);
-        var viewModel = new BundleItemEditorViewModel();
+        var viewModel = new BundleItemEditorViewModel(_localizationServiceMock.Object);
         viewModel.SetPatterns(["GameFilesEdited/Data/English/c.csf"], _tempDirectory, snapshot);
 
         viewModel.AddPattern("GameFilesEdited/Data/INI/**/*.ini", _tempDirectory, snapshot);
@@ -103,7 +138,7 @@ public sealed class BundleItemEditorViewModelTests : IDisposable
     public void AddPatterns_BulkAdd_RecalculatesOnceAndDedupes()
     {
         var snapshot = ProjectFileSnapshot.Create(_tempDirectory);
-        var viewModel = new BundleItemEditorViewModel();
+        var viewModel = new BundleItemEditorViewModel(_localizationServiceMock.Object);
         viewModel.SetPatterns(["GameFilesEdited/Data/English/c.csf"], _tempDirectory, snapshot);
 
         viewModel.AddPatterns(
@@ -118,7 +153,7 @@ public sealed class BundleItemEditorViewModelTests : IDisposable
     [Fact]
     public void AddPatterns_ReplacesDefaultWildcard()
     {
-        var viewModel = new BundleItemEditorViewModel();
+        var viewModel = new BundleItemEditorViewModel(_localizationServiceMock.Object);
         viewModel.SetPatterns(["GameFilesEdited/**/*.*"]);
 
         viewModel.AddPatterns(["GameFilesEdited/Data/INI/a.ini"]);
@@ -130,7 +165,7 @@ public sealed class BundleItemEditorViewModelTests : IDisposable
     [Fact]
     public void SetPatterns_RaisesSingleCollectionNotification()
     {
-        var viewModel = new BundleItemEditorViewModel();
+        var viewModel = new BundleItemEditorViewModel(_localizationServiceMock.Object);
         var notifications = 0;
         viewModel.PropertyChanged += (_, e) =>
         {

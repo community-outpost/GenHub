@@ -7278,18 +7278,6 @@ GenHub supports four file linking strategies under **Settings -&gt; Game Configu
   <data name="Tools.ModBuilder.Settings.NoticeIoBufferSize" xml:space="preserve">
     <value>Larger buffers = better performance for large files</value>
   </data>
-  <data name="Tools.ModBuilder.Settings.CheckMultiProcessing" xml:space="preserve">
-    <value>Enable Multi-Processing by Default</value>
-  </data>
-  <data name="Tools.ModBuilder.Settings.TooltipMultiProcessing" xml:space="preserve">
-    <value>Use parallel processing for new projects</value>
-  </data>
-  <data name="Tools.ModBuilder.Settings.CheckVerboseLogging" xml:space="preserve">
-    <value>Enable Verbose Logging by Default</value>
-  </data>
-  <data name="Tools.ModBuilder.Settings.TooltipVerboseLogging" xml:space="preserve">
-    <value>Show detailed build information for new projects</value>
-  </data>
   <data name="Tools.ModBuilder.Settings.UiPreferencesHeader" xml:space="preserve">
     <value>UI Preferences</value>
   </data>
@@ -7739,33 +7727,6 @@ GenHub supports four file linking strategies under **Settings -&gt; Game Configu
   </data>
   <data name="Tools.ModBuilder.View.TooltipActionCreateManifest" xml:space="preserve">
     <value>Generates manifest.json and registers the mod in GenHub CAS for launch in isolated workspaces</value>
-  </data>
-  <data name="Tools.ModBuilder.View.BuildOptionsHeader" xml:space="preserve">
-    <value>Build Options</value>
-  </data>
-  <data name="Tools.ModBuilder.View.OptionSingleBigPack" xml:space="preserve">
-    <value>Single .BIG Pack</value>
-  </data>
-  <data name="Tools.ModBuilder.View.TooltipOptionSingleBigPack" xml:space="preserve">
-    <value>Package all bundle items into ONE .big archive instead of a .zip file (GeneralsGamePatch style)</value>
-  </data>
-  <data name="Tools.ModBuilder.View.OptionVerboseLogging" xml:space="preserve">
-    <value>Verbose Logging</value>
-  </data>
-  <data name="Tools.ModBuilder.View.TooltipOptionVerboseLogging" xml:space="preserve">
-    <value>Prints detailed pipeline and conversion messages in the log window</value>
-  </data>
-  <data name="Tools.ModBuilder.View.OptionMultiProcessing" xml:space="preserve">
-    <value>Multi-Processing</value>
-  </data>
-  <data name="Tools.ModBuilder.View.TooltipOptionMultiProcessing" xml:space="preserve">
-    <value>Processes asset conversions in parallel using all CPU cores</value>
-  </data>
-  <data name="Tools.ModBuilder.View.OptionPrintConfig" xml:space="preserve">
-    <value>Print Config</value>
-  </data>
-  <data name="Tools.ModBuilder.View.TooltipOptionPrintConfig" xml:space="preserve">
-    <value>Outputs the resolved configuration to the log before building</value>
   </data>
   <data name="Tools.ModBuilder.View.BuildOutputHeader" xml:space="preserve">
     <value>Build Output</value>
@@ -10193,6 +10154,24 @@ Project structure ready. Edit files in GameFilesEdited folder.</value>
   </data>
   <data name="Tools.ModBuilder.View.TooltipManifests" xml:space="preserve">
     <value>Define content manifests that group bundle packs</value>
+  </data>
+  <data name="Tools.ModBuilder.BundleItemEditor.MatchingFiles.NoPatterns" xml:space="preserve">
+    <value>No patterns defined</value>
+  </data>
+  <data name="Tools.ModBuilder.BundleItemEditor.MatchingFiles.DirectoryNotFound" xml:space="preserve">
+    <value>Project files directory not found</value>
+  </data>
+  <data name="Tools.ModBuilder.BundleItemEditor.MatchingFiles.NoMatches" xml:space="preserve">
+    <value>Warning: 0 files currently match these patterns</value>
+  </data>
+  <data name="Tools.ModBuilder.BundleItemEditor.MatchingFiles.MatchesOne" xml:space="preserve">
+    <value>{0} file matches in project</value>
+  </data>
+  <data name="Tools.ModBuilder.BundleItemEditor.MatchingFiles.MatchesMany" xml:space="preserve">
+    <value>{0} files match in project</value>
+  </data>
+  <data name="Tools.ModBuilder.BundleItemEditor.MatchingFiles.CheckFailed" xml:space="preserve">
+    <value>Match check: {0}</value>
   </data>
   <data name="GameProfiles.Notification.LaunchChanged.Title" xml:space="preserve">
     <value>Launch Configuration Changed</value>

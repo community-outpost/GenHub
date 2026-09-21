@@ -15,21 +15,6 @@ public sealed class BuildSetup
     public BuildStep Step { get; set; }
 
     /// <summary>
-    /// Gets or sets a value indicating whether to enable verbose logging.
-    /// </summary>
-    public bool VerboseLogging { get; set; }
-
-    /// <summary>
-    /// Gets or sets a value indicating whether to enable multi-processing.
-    /// </summary>
-    public bool MultiProcessing { get; set; }
-
-    /// <summary>
-    /// Gets or sets a value indicating whether to print configuration.
-    /// </summary>
-    public bool PrintConfig { get; set; }
-
-    /// <summary>
     /// Gets or sets the absolute path to the project directory.
     /// </summary>
     public string? ProjectDir { get; set; }

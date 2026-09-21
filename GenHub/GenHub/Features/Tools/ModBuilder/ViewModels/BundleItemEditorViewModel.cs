@@ -1,5 +1,6 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using GenHub.Core.Constants;
+using GenHub.Core.Interfaces.Common;
 using GenHub.Features.Tools.ModBuilder.Services;
 using System;
 using System.Collections.Generic;
@@ -13,8 +14,15 @@ namespace GenHub.Features.Tools.ModBuilder.ViewModels;
 /// ViewModel for editing a bundle item.
 /// </summary>
 [System.Diagnostics.CodeAnalysis.SuppressMessage("SonarCloud", "S2325:Methods and properties that don't access instance data should be static", Justification = "Bound in XAML data templates")]
-public partial class BundleItemEditorViewModel : ObservableObject
+public partial class BundleItemEditorViewModel(ILocalizationService localizationService) : ObservableObject
 {
+    private const string NoPatternsKey = "Tools.ModBuilder.BundleItemEditor.MatchingFiles.NoPatterns";
+    private const string DirectoryNotFoundKey = "Tools.ModBuilder.BundleItemEditor.MatchingFiles.DirectoryNotFound";
+    private const string NoMatchesKey = "Tools.ModBuilder.BundleItemEditor.MatchingFiles.NoMatches";
+    private const string MatchesOneKey = "Tools.ModBuilder.BundleItemEditor.MatchingFiles.MatchesOne";
+    private const string MatchesManyKey = "Tools.ModBuilder.BundleItemEditor.MatchingFiles.MatchesMany";
+    private const string CheckFailedKey = "Tools.ModBuilder.BundleItemEditor.MatchingFiles.CheckFailed";
+
     private bool _isUpdatingInternally;
 
     /// <summary>
@@ -288,8 +296,8 @@ public partial class BundleItemEditorViewModel : ObservableObject
         {
             MatchingFilesCount = 0;
             MatchingFilesSummary = SourcePatternsList.Count == 0
-                ? "No patterns defined"
-                : "Project files directory not found";
+                ? localizationService.GetString(NoPatternsKey)
+                : localizationService.GetString(DirectoryNotFoundKey);
             return;
         }
 
@@ -301,14 +309,19 @@ public partial class BundleItemEditorViewModel : ObservableObject
             var count = effectiveSnapshot.CountMatches(SourcePatternsList.Select(item => item.Pattern));
 
             MatchingFilesCount = count;
-            var matchSuffix = count == 1 ? "file matches" : "files match";
-            MatchingFilesSummary = count == 0
-                ? "Warning: 0 files currently match these patterns"
-                : $"✓ {count} {matchSuffix} in project";
+            if (count == 0)
+            {
+                MatchingFilesSummary = localizationService.GetString(NoMatchesKey);
+            }
+            else
+            {
+                var matchesKey = count == 1 ? MatchesOneKey : MatchesManyKey;
+                MatchingFilesSummary = localizationService.GetString(matchesKey, count);
+            }
         }
         catch (Exception ex)
         {
-            MatchingFilesSummary = $"Match check: {ex.Message}";
+            MatchingFilesSummary = localizationService.GetString(CheckFailedKey, ex.Message);
         }
     }
 

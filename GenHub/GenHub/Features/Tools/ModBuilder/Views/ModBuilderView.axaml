@@ -347,30 +347,6 @@
               </StackPanel>
             </Border>
 
-            <!-- Build Options -->
-            <Border Background="{DynamicResource CardBackground}"
-                    BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
-                    CornerRadius="10" Padding="16">
-              <StackPanel Spacing="10">
-                <TextBlock Text="{localization:Localize Tools.ModBuilder.View.BuildOptionsHeader}" FontWeight="Bold" FontSize="13" Foreground="{DynamicResource TextPrimary}"/>
-                <Separator Background="{DynamicResource BorderBrush}" Height="1"/>
-                <Border Background="{DynamicResource SurfaceElevatedBrush}"
-                        BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
-                        CornerRadius="8" Padding="10">
-                  <StackPanel Spacing="6">
-                    <CheckBox Content="{localization:Localize Tools.ModBuilder.View.OptionSingleBigPack}" IsChecked="{Binding SingleBigPackMode}" Foreground="{DynamicResource TextPrimary}"
-                              ToolTip.Tip="{localization:Localize Tools.ModBuilder.View.TooltipOptionSingleBigPack}"/>
-                    <CheckBox Content="{localization:Localize Tools.ModBuilder.View.OptionVerboseLogging}" IsChecked="{Binding VerboseLogging}" Foreground="{DynamicResource TextPrimary}"
-                              ToolTip.Tip="{localization:Localize Tools.ModBuilder.View.TooltipOptionVerboseLogging}"/>
-                    <CheckBox Content="{localization:Localize Tools.ModBuilder.View.OptionMultiProcessing}" IsChecked="{Binding MultiProcessing}" Foreground="{DynamicResource TextPrimary}"
-                              ToolTip.Tip="{localization:Localize Tools.ModBuilder.View.TooltipOptionMultiProcessing}"/>
-                    <CheckBox Content="{localization:Localize Tools.ModBuilder.View.OptionPrintConfig}" IsChecked="{Binding PrintConfig}" Foreground="{DynamicResource TextPrimary}"
-                              ToolTip.Tip="{localization:Localize Tools.ModBuilder.View.TooltipOptionPrintConfig}"/>
-                  </StackPanel>
-                </Border>
-              </StackPanel>
-            </Border>
-
           </StackPanel>
         </ScrollViewer>
 

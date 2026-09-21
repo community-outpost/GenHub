@@ -31,6 +31,8 @@ public sealed class ProjectConfigService(
     IConfigurationProviderService? configurationProvider = null,
     ILocalizationService? localizationService = null) : IProjectConfigService
 {
+    private sealed record SampleBundleManifest(string Name, string Description, string[] Packs);
+
     private const string ProjectPathEmptyErrorKey = "Tools.ModBuilder.Project.Error.PathEmpty";
     private const string ProjectNameEmptyErrorKey = "Tools.ModBuilder.Project.Error.NameEmpty";
     private const string ProjectAlreadyExistsErrorKey = "Tools.ModBuilder.Project.Error.AlreadyExists";
@@ -1666,6 +1668,34 @@ public sealed class ProjectConfigService(
         return true;
     }
 
+    private async Task WriteSampleManifestsAsync(
+        string configsDir,
+        IReadOnlyList<SampleBundleManifest> manifests,
+        CancellationToken cancellationToken)
+    {
+        var manifestsPath = Path.Combine(configsDir, ModBuilderConstants.BundleManifestsConfigFileName);
+        if (File.Exists(manifestsPath))
+        {
+            return;
+        }
+
+        // Version, content type, and target game are intentionally omitted so the
+        // sample manifests inherit the project values; only the variant pack
+        // groupings are pinned here.
+        var bundleManifestsConfig = new
+        {
+            BundleManifests = manifests.Select(manifest => new
+            {
+                manifest.Name,
+                manifest.Description,
+                Packs = manifest.Packs,
+            }).ToArray(),
+        };
+
+        var manifestsJson = JsonSerializer.Serialize(bundleManifestsConfig, _jsonOptions);
+        await File.WriteAllTextAsync(manifestsPath, manifestsJson, cancellationToken).ConfigureAwait(false);
+    }
+
     private async Task CreateGeneralsGamePatch2SampleFilesAsync(
         ProjectDirectories directories,
         string configsDir,
@@ -1811,6 +1841,21 @@ public sealed class ProjectConfigService(
             var packsJson = JsonSerializer.Serialize(bundlePacksConfig, _jsonOptions);
             await File.WriteAllTextAsync(packsPath, packsJson, cancellationToken).ConfigureAwait(false);
         }
+
+        await WriteSampleManifestsAsync(configsDir, [
+            new SampleBundleManifest(
+                "Leikeze Hotkeys (ZH English)",
+                "Leikeze competitive hotkeys for Zero Hour (English)",
+                ["LeikezeHotkeys_ZH_EN"]),
+            new SampleBundleManifest(
+                "Leikeze Hotkeys (Generals English)",
+                "Leikeze competitive hotkeys for Generals (English)",
+                ["LeikezeHotkeys_Generals_EN"]),
+            new SampleBundleManifest(
+                "Leikeze Hotkeys (ZH German)",
+                "Leikeze competitive hotkeys for Zero Hour (German)",
+                ["LeikezeHotkeys_ZH_DE"]),
+        ], cancellationToken).ConfigureAwait(false);
     }
 
     private async Task CreateBasicModSampleFilesAsync(
@@ -2269,6 +2314,25 @@ public sealed class ProjectConfigService(
             var packsJson = JsonSerializer.Serialize(bundlePacksConfig, _jsonOptions);
             await File.WriteAllTextAsync(packsPath, packsJson, cancellationToken).ConfigureAwait(false);
         }
+
+        await WriteSampleManifestsAsync(configsDir, [
+            new SampleBundleManifest(
+                "Lemon Control Bar (720p)",
+                "Lemon Edition control bar for 720p (1280x720) displays",
+                ["LemonControlBar_Base", "LemonControlBar_Art1080", "LemonControlBar_Data1080", "LemonControlBar_720p"]),
+            new SampleBundleManifest(
+                "Lemon Control Bar (1080p)",
+                "Lemon Edition control bar for 1080p (1920x1080) displays",
+                ["LemonControlBar_Base", "LemonControlBar_Art1080", "LemonControlBar_Data1080", "LemonControlBar_1080p"]),
+            new SampleBundleManifest(
+                "Lemon Control Bar (1440p)",
+                "Lemon Edition control bar for 1440p (2560x1440) displays",
+                ["LemonControlBar_Base", "LemonControlBar_Art2160", "LemonControlBar_Data2160", "LemonControlBar_1440p"]),
+            new SampleBundleManifest(
+                "Lemon Control Bar (4K)",
+                "Lemon Edition control bar for 4K (3840x2160) displays",
+                ["LemonControlBar_Base", "LemonControlBar_Art2160", "LemonControlBar_Data2160", "LemonControlBar_4K"]),
+        ], cancellationToken).ConfigureAwait(false);
     }
 
     private async Task CreateImprovedMenusSampleFilesAsync(
@@ -2380,6 +2444,21 @@ public sealed class ProjectConfigService(
             var packsJson = JsonSerializer.Serialize(bundlePacksConfig, _jsonOptions);
             await File.WriteAllTextAsync(packsPath, packsJson, cancellationToken).ConfigureAwait(false);
         }
+
+        await WriteSampleManifestsAsync(configsDir, [
+            new SampleBundleManifest(
+                "Improved Menus (English)",
+                "Complete 16:9 widescreen menu overhaul, English variant",
+                ["ImprovedMenus_English"]),
+            new SampleBundleManifest(
+                "Improved Menus (Russian)",
+                "Complete 16:9 widescreen menu overhaul, Russian variant",
+                ["ImprovedMenus_Russian"]),
+            new SampleBundleManifest(
+                "Improved Menus (Spanish)",
+                "Complete 16:9 widescreen menu overhaul, Spanish variant",
+                ["ImprovedMenus_Spanish"]),
+        ], cancellationToken).ConfigureAwait(false);
 
         var menusDir = Path.Combine(projectDir, directories.GameFilesEdited, "window", "Menus");
         Directory.CreateDirectory(menusDir);

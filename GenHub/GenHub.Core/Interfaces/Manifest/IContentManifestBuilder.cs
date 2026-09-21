@@ -46,6 +46,13 @@ public interface IContentManifestBuilder
     IContentManifestBuilder WithBasicInfo(string publisherId, string contentName, string? manifestVersion);
 
     /// <summary>
+    /// Sets the display version without affecting the identity version used in the manifest ID.
+    /// </summary>
+    /// <param name="version">The display version string.</param>
+    /// <returns>The builder instance for chaining.</returns>
+    IContentManifestBuilder WithVersion(string version);
+
+    /// <summary>
     /// Sets basic content information for publisher content (used by external publishers).
     /// This overload is for developers, modders, mappers, and other publishers creating content manifests.
     /// </summary>

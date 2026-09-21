@@ -352,7 +352,8 @@ public partial class ConfigEditorViewModel(
     private static List<BundleItemEditorViewModel> PrecalculateBundleItems(
         IEnumerable<BundleItem>? items,
         string? projectDir,
-        ProjectFileSnapshot? snapshot)
+        ProjectFileSnapshot? snapshot,
+        ILocalizationService localizationService)
     {
         var viewModels = new List<BundleItemEditorViewModel>();
         if (items == null)
@@ -362,7 +363,7 @@ public partial class ConfigEditorViewModel(
 
         foreach (var item in items)
         {
-            viewModels.Add(CreateBundleItemEditorViewModel(item, projectDir, snapshot));
+            viewModels.Add(CreateBundleItemEditorViewModel(item, projectDir, snapshot, localizationService));
         }
 
         return viewModels;
@@ -371,11 +372,12 @@ public partial class ConfigEditorViewModel(
     private static BundleItemEditorViewModel CreateBundleItemEditorViewModel(
         BundleItem item,
         string? projectDir,
-        ProjectFileSnapshot? snapshot)
+        ProjectFileSnapshot? snapshot,
+        ILocalizationService localizationService)
     {
         var pattern = ResolveEditorPattern(item);
 
-        var itemVm = new BundleItemEditorViewModel
+        var itemVm = new BundleItemEditorViewModel(localizationService)
         {
             Name = item.Name,
             NamePrefix = item.NamePrefix,
@@ -455,7 +457,7 @@ public partial class ConfigEditorViewModel(
             : await Task.Run(() => ProjectFileSnapshot.Create(projectDir)).ConfigureAwait(false);
 
         var precalculatedItems = await Task.Run(
-            () => PrecalculateBundleItems(configuration.Items, projectDir, _fileSnapshot)).ConfigureAwait(false);
+            () => PrecalculateBundleItems(configuration.Items, projectDir, _fileSnapshot, localizationService)).ConfigureAwait(false);
 
         void LoadData()
         {
@@ -494,7 +496,7 @@ public partial class ConfigEditorViewModel(
     {
         foreach (var item in configuration.Items)
         {
-            BundleItems.Add(CreateBundleItemEditorViewModel(item, CurrentProject?.ProjectDir, _fileSnapshot));
+            BundleItems.Add(CreateBundleItemEditorViewModel(item, CurrentProject?.ProjectDir, _fileSnapshot, localizationService));
         }
     }
 
@@ -853,7 +855,7 @@ public partial class ConfigEditorViewModel(
     [RelayCommand]
     private void AddBundleItem()
     {
-        var newItem = new BundleItemEditorViewModel
+        var newItem = new BundleItemEditorViewModel(localizationService)
         {
             Name = $"NewBundleItem{BundleItems.Count + 1}",
             NamePrefix = string.Empty,

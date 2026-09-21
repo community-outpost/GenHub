@@ -78,12 +78,10 @@ public partial class ModBuilderViewModel(
     private const string ImportFailedTitleKey = "Tools.ModBuilder.Notification.ImportFailed.Title";
 
     private readonly Stopwatch _buildStopwatch = new();
-    private readonly Dictionary<string, (bool? Big, string? OutputFile)> _originalPackStates = new(StringComparer.OrdinalIgnoreCase);
     private readonly List<RecentProjectInfo> _allRecentProjects = [];
     private readonly StringBuilder _buildOutputBuilder = new();
     private CancellationTokenSource? _buildCancellationTokenSource;
     private CancellationTokenSource? _importCancellationTokenSource;
-    private bool _isPopulatingBundles;
     private bool _disposed;
     private bool _cultureSubscribed;
     private long _lastProgressTick;
@@ -360,47 +358,6 @@ public partial class ModBuilderViewModel(
     /// </summary>
     [ObservableProperty]
     private bool _createManifestEnabled = true;
-
-    /// <summary>
-    /// Gets or sets a value indicating whether verbose logging is enabled.
-    /// </summary>
-    [ObservableProperty]
-    private bool _verboseLogging;
-
-    /// <summary>
-    /// Gets or sets a value indicating whether multi-processing is enabled.
-    /// </summary>
-    [ObservableProperty]
-    private bool _multiProcessing = true;
-
-    /// <summary>
-    /// Gets or sets a value indicating whether configuration should be printed before build.
-    /// </summary>
-    [ObservableProperty]
-    private bool _printConfig;
-
-    /// <summary>
-    /// Gets or sets a value indicating whether bundle packs should be packaged into single .big archives instead of zip files.
-    /// </summary>
-    [ObservableProperty]
-    private bool _singleBigPackMode;
-
-    partial void OnSingleBigPackModeChanged(bool value)
-    {
-        if (_isPopulatingBundles)
-        {
-            return;
-        }
-
-        UpdatePacksForSingleBigMode(CurrentProject?.Configuration?.Packs, value);
-
-        foreach (var bundle in Bundles)
-        {
-            var matchingPack = CurrentProject?.Configuration?.Packs?.FirstOrDefault(p =>
-                string.Equals(p.Name, bundle.Name, StringComparison.OrdinalIgnoreCase));
-            bundle.IsBig = matchingPack?.IsBigPack ?? value;
-        }
-    }
 
     /// <summary>
     /// Gets or sets the file count.
@@ -2501,7 +2458,6 @@ public partial class ModBuilderViewModel(
             return;
         }
 
-        _originalPackStates.Clear();
         await InvokeOnUIThreadAsync(() =>
         {
             CurrentProject = null;
@@ -2671,10 +2627,6 @@ public partial class ModBuilderViewModel(
             {
                 pack.AllowBuild = bundleVm.IsSelected;
                 pack.Big = bundleVm.IsBig;
-            }
-            else
-            {
-                pack.Big = SingleBigPackMode;
             }
         }
     }
@@ -3347,19 +3299,12 @@ public partial class ModBuilderViewModel(
 
     private void PopulateProjectBundlesAndProperties(BuildConfiguration? config)
     {
-        _originalPackStates.Clear();
         Bundles.Clear();
 
         if (config?.Packs != null && config.Packs.Count > 0)
         {
-            var anyBig = false;
             foreach (var pack in config.Packs)
             {
-                if (pack.IsBigPack)
-                {
-                    anyBig = true;
-                }
-
                 Bundles.Add(new BundleItemViewModel
                 {
                     Name = pack.Name,
@@ -3367,16 +3312,6 @@ public partial class ModBuilderViewModel(
                     IsBig = pack.IsBigPack,
                     FileCount = pack.ItemNames?.Count ?? 0,
                 });
-            }
-
-            try
-            {
-                _isPopulatingBundles = true;
-                SingleBigPackMode = anyBig;
-            }
-            finally
-            {
-                _isPopulatingBundles = false;
             }
         }
         else if (config?.Items != null)
@@ -3711,68 +3646,6 @@ public partial class ModBuilderViewModel(
 
         OnPropertyChanged(nameof(HasRecentProjects));
         OnPropertyChanged(nameof(TotalProjects));
-    }
-
-    private void UpdatePacksForSingleBigMode(IEnumerable<BundlePack>? packs, bool singleBigMode)
-    {
-        if (packs == null)
-        {
-            return;
-        }
-
-        foreach (var pack in packs)
-        {
-            ApplyPackSingleBigMode(pack, singleBigMode, _originalPackStates);
-        }
-    }
-
-    private static void ApplyPackSingleBigMode(
-        BundlePack pack,
-        bool singleBigMode,
-        IDictionary<string, (bool? Big, string? OutputFile)>? originalStates = null)
-    {
-        if (singleBigMode)
-        {
-            if (pack.Big != false)
-            {
-                if (originalStates != null && !originalStates.ContainsKey(pack.Name))
-                {
-                    originalStates[pack.Name] = (pack.Big, pack.OutputFile);
-                }
-
-                pack.Big = true;
-                pack.OutputFile = ReplaceExtension(pack.OutputFile, ModBuilderConstants.ZipExtension, ModBuilderConstants.BigExtension);
-            }
-        }
-        else
-        {
-            if (pack.Big is false)
-            {
-                return;
-            }
-
-            if (originalStates is not null && originalStates.TryGetValue(pack.Name, out var original))
-            {
-                originalStates.Remove(pack.Name);
-                pack.Big = original.Big;
-                pack.OutputFile = original.OutputFile;
-            }
-            else if (pack.IsBigPack)
-            {
-                pack.Big = null;
-                pack.OutputFile = ReplaceExtension(pack.OutputFile, ModBuilderConstants.BigExtension, ModBuilderConstants.ZipExtension);
-            }
-        }
-    }
-
-    private static string? ReplaceExtension(string? filePath, string oldExt, string newExt)
-    {
-        if (!string.IsNullOrWhiteSpace(filePath) && filePath.EndsWith(oldExt, StringComparison.OrdinalIgnoreCase))
-        {
-            return Path.ChangeExtension(filePath, newExt).Replace('\\', '/');
-        }
-
-        return filePath;
     }
 
     /// <summary>

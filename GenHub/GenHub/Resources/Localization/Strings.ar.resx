@@ -7184,18 +7184,6 @@ GenHub هو مشغل ومدير حديث لألعاب **Command &amp; Conquer: G
   <data name="Tools.ModBuilder.Settings.NoticeIoBufferSize" xml:space="preserve">
     <value>مخازن مؤقتة أكبر = أداء أفضل للملفات الكبيرة</value>
   </data>
-  <data name="Tools.ModBuilder.Settings.CheckMultiProcessing" xml:space="preserve">
-    <value>تمكين المعالجة المتعددة افتراضياً</value>
-  </data>
-  <data name="Tools.ModBuilder.Settings.TooltipMultiProcessing" xml:space="preserve">
-    <value>استخدام المعالجة المتوازية للمشاريع الجديدة</value>
-  </data>
-  <data name="Tools.ModBuilder.Settings.CheckVerboseLogging" xml:space="preserve">
-    <value>تمكين التسجيل المفصل افتراضياً</value>
-  </data>
-  <data name="Tools.ModBuilder.Settings.TooltipVerboseLogging" xml:space="preserve">
-    <value>إظهار معلومات البناء التفصيلية للمشاريع الجديدة</value>
-  </data>
   <data name="Tools.ModBuilder.Settings.UiPreferencesHeader" xml:space="preserve">
     <value>تفضيلات واجهة المستخدم</value>
   </data>
@@ -7645,33 +7633,6 @@ GenHub هو مشغل ومدير حديث لألعاب **Command &amp; Conquer: G
   </data>
   <data name="Tools.ModBuilder.View.TooltipActionCreateManifest" xml:space="preserve">
     <value>ينشئ manifest.json ويسجل المود في GenHub CAS للإطلاق في مساحات عمل معزولة</value>
-  </data>
-  <data name="Tools.ModBuilder.View.BuildOptionsHeader" xml:space="preserve">
-    <value>خيارات البناء</value>
-  </data>
-  <data name="Tools.ModBuilder.View.OptionSingleBigPack" xml:space="preserve">
-    <value>حزمة .BIG واحدة</value>
-  </data>
-  <data name="Tools.ModBuilder.View.TooltipOptionSingleBigPack" xml:space="preserve">
-    <value>حزم كافة عناصر التجميع في أرشيف .big واحد بدلاً من ملف .zip (بأسلوب GeneralsGamePatch)</value>
-  </data>
-  <data name="Tools.ModBuilder.View.OptionVerboseLogging" xml:space="preserve">
-    <value>تسجيل مفصل</value>
-  </data>
-  <data name="Tools.ModBuilder.View.TooltipOptionVerboseLogging" xml:space="preserve">
-    <value>طباعة رسائل تفصيلية عن مسار المعالجة والتحويل في نافذة السجل</value>
-  </data>
-  <data name="Tools.ModBuilder.View.OptionMultiProcessing" xml:space="preserve">
-    <value>معالجة متعددة</value>
-  </data>
-  <data name="Tools.ModBuilder.View.TooltipOptionMultiProcessing" xml:space="preserve">
-    <value>معالجة تحويلات الأصول بالتوازي باستخدام كافة أنوية المعالج</value>
-  </data>
-  <data name="Tools.ModBuilder.View.OptionPrintConfig" xml:space="preserve">
-    <value>طباعة التكوين</value>
-  </data>
-  <data name="Tools.ModBuilder.View.TooltipOptionPrintConfig" xml:space="preserve">
-    <value>طباعة التكوين النهائي في السجل قبل بدء عملية البناء</value>
   </data>
   <data name="Tools.ModBuilder.View.BuildOutputHeader" xml:space="preserve">
     <value>مخرجات البناء</value>
@@ -10100,6 +10061,24 @@ GameFilesEdited/Data/INI/**/*.ini</value>
   </data>
   <data name="Tools.ModBuilder.View.TooltipManifests" xml:space="preserve">
     <value>تعريف بيانات المحتوى التي تجمع حزم التجميع</value>
+  </data>
+  <data name="Tools.ModBuilder.BundleItemEditor.MatchingFiles.NoPatterns" xml:space="preserve">
+    <value>لم يتم تعريف أي أنماط</value>
+  </data>
+  <data name="Tools.ModBuilder.BundleItemEditor.MatchingFiles.DirectoryNotFound" xml:space="preserve">
+    <value>تعذر العثور على دليل ملفات المشروع</value>
+  </data>
+  <data name="Tools.ModBuilder.BundleItemEditor.MatchingFiles.NoMatches" xml:space="preserve">
+    <value>تحذير: لا توجد ملفات مطابقة لهذه الأنماط حالياً</value>
+  </data>
+  <data name="Tools.ModBuilder.BundleItemEditor.MatchingFiles.MatchesOne" xml:space="preserve">
+    <value>يوجد {0} ملف مطابق في المشروع</value>
+  </data>
+  <data name="Tools.ModBuilder.BundleItemEditor.MatchingFiles.MatchesMany" xml:space="preserve">
+    <value>يوجد {0} ملفات مطابقة في المشروع</value>
+  </data>
+  <data name="Tools.ModBuilder.BundleItemEditor.MatchingFiles.CheckFailed" xml:space="preserve">
+    <value>فحص المطابقة: {0}</value>
   </data>
   <data name="GameProfiles.Notification.LaunchChanged.Title" xml:space="preserve">
     <value>تم تغيير إعدادات التشغيل</value>

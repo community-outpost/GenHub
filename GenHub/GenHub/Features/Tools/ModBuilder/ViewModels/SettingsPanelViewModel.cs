@@ -259,18 +259,6 @@ public partial class SettingsPanelViewModel : ObservableObject
     [ObservableProperty]
     private int _selectedBufferSize;
 
-    /// <summary>
-    /// Gets or sets a value indicating whether multi-processing is enabled by default.
-    /// </summary>
-    [ObservableProperty]
-    private bool _enableMultiProcessingByDefault = true;
-
-    /// <summary>
-    /// Gets or sets a value indicating whether verbose logging is enabled by default.
-    /// </summary>
-    [ObservableProperty]
-    private bool _enableVerboseLoggingByDefault;
-
     // ============================================
     // UI Preferences
     // ============================================
@@ -335,8 +323,6 @@ public partial class SettingsPanelViewModel : ObservableObject
         SelectedCompressionLevel = CompressionLevel.Fastest;
         SelectedThreadCount = Math.Max(1, Environment.ProcessorCount - 1);
         SelectedBufferSize = 64;
-        EnableMultiProcessingByDefault = true;
-        EnableVerboseLoggingByDefault = false;
         SelectedFontSize = 12;
         EnableAnimations = true;
         EnableAutoScroll = true;

@@ -1,4 +1,5 @@
 using FluentAssertions;
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Models.Tools.ModBuilder;
 using GenHub.Features.Tools.ModBuilder.Services;
@@ -632,5 +633,143 @@ public sealed class ProjectConfigServiceTests : IDisposable
         parsed.Should().NotBeNull();
         parsed!["BundleItems"]!.AsArray().Should().HaveCount(2);
         Directory.GetFiles(_tempDirectory, "*.tmp").Should().BeEmpty();
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task CreateProjectAsync_WithImprovedMenusTemplate_WritesLanguageVariantManifests(bool forceFallback)
+    {
+        // Arrange
+        using var isolation = TemplateIsolation.Create(forceFallback, _tempDirectory);
+        var projectDir = Path.Combine(_tempDirectory, "ImprovedMenus");
+        Directory.CreateDirectory(projectDir);
+        var projectPath = Path.Combine(projectDir, "ImprovedMenus.mbproj");
+
+        // Act
+        var result = await _service.CreateProjectAsync(projectPath, "ImprovedMenus", template: ProjectTemplate.ImprovedMenus);
+
+        // Assert
+        result.Success.Should().BeTrue();
+        var manifests = ReadSampleManifests(projectDir);
+        manifests.Should().HaveCount(3);
+        manifests.Should().ContainSingle(manifest =>
+            manifest.Name.Contains("English", StringComparison.OrdinalIgnoreCase) &&
+            manifest.Packs.SequenceEqual(new[] { "ImprovedMenus_English" }));
+        manifests.Should().ContainSingle(manifest =>
+            manifest.Name.Contains("Russian", StringComparison.OrdinalIgnoreCase) &&
+            manifest.Packs.SequenceEqual(new[] { "ImprovedMenus_Russian" }));
+        manifests.Should().ContainSingle(manifest =>
+            manifest.Name.Contains("Spanish", StringComparison.OrdinalIgnoreCase) &&
+            manifest.Packs.SequenceEqual(new[] { "ImprovedMenus_Spanish" }));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task CreateProjectAsync_WithLemonControlBarTemplate_WritesResolutionVariantManifests(bool forceFallback)
+    {
+        // Arrange
+        using var isolation = TemplateIsolation.Create(forceFallback, _tempDirectory);
+        var projectDir = Path.Combine(_tempDirectory, "LemonControlBar");
+        Directory.CreateDirectory(projectDir);
+        var projectPath = Path.Combine(projectDir, "LemonControlBar.mbproj");
+
+        // Act
+        var result = await _service.CreateProjectAsync(projectPath, "LemonControlBar", template: ProjectTemplate.LemonControlBar);
+
+        // Assert
+        result.Success.Should().BeTrue();
+        var manifests = ReadSampleManifests(projectDir);
+        manifests.Should().HaveCount(4);
+        AssertResolutionManifest(manifests, "720p", ["LemonControlBar_Base", "LemonControlBar_Art1080", "LemonControlBar_Data1080", "LemonControlBar_720p"]);
+        AssertResolutionManifest(manifests, "1080p", ["LemonControlBar_Base", "LemonControlBar_Art1080", "LemonControlBar_Data1080", "LemonControlBar_1080p"]);
+        AssertResolutionManifest(manifests, "1440p", ["LemonControlBar_Base", "LemonControlBar_Art2160", "LemonControlBar_Data2160", "LemonControlBar_1440p"]);
+        AssertResolutionManifest(manifests, "4K", ["LemonControlBar_Base", "LemonControlBar_Art2160", "LemonControlBar_Data2160", "LemonControlBar_4K"]);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task CreateProjectAsync_WithLeikezeHotkeysTemplate_WritesLanguageVariantManifests(bool forceFallback)
+    {
+        // Arrange
+        using var isolation = TemplateIsolation.Create(forceFallback, _tempDirectory);
+        var projectDir = Path.Combine(_tempDirectory, "LeikezeHotkeys");
+        Directory.CreateDirectory(projectDir);
+        var projectPath = Path.Combine(projectDir, "LeikezeHotkeys.mbproj");
+
+        // Act
+        var result = await _service.CreateProjectAsync(projectPath, "LeikezeHotkeys", template: ProjectTemplate.LeikezeHotkeys);
+
+        // Assert
+        result.Success.Should().BeTrue();
+        var manifests = ReadSampleManifests(projectDir);
+        manifests.Should().HaveCount(3);
+        manifests.Should().ContainSingle(manifest =>
+            manifest.Packs.SequenceEqual(new[] { "LeikezeHotkeys_ZH_EN" }));
+        manifests.Should().ContainSingle(manifest =>
+            manifest.Packs.SequenceEqual(new[] { "LeikezeHotkeys_Generals_EN" }));
+        manifests.Should().ContainSingle(manifest =>
+            manifest.Packs.SequenceEqual(new[] { "LeikezeHotkeys_ZH_DE" }));
+    }
+
+    private static void AssertResolutionManifest(
+        List<SampleManifestEntry> manifests,
+        string resolution,
+        string[] expectedPacks)
+    {
+        manifests.Should().ContainSingle(manifest =>
+            manifest.Name.Contains(resolution, StringComparison.OrdinalIgnoreCase) &&
+            manifest.Packs.OrderBy(pack => pack).SequenceEqual(expectedPacks.OrderBy(pack => pack)));
+    }
+
+    private static List<SampleManifestEntry> ReadSampleManifests(string projectDir)
+    {
+        var manifestsPath = Path.Combine(projectDir, "Configs", ModBuilderConstants.BundleManifestsConfigFileName);
+        File.Exists(manifestsPath).Should().BeTrue();
+        var json = File.ReadAllText(manifestsPath);
+        var document = JsonSerializer.Deserialize<SampleManifestsDocument>(
+            json,
+            new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+        document.Should().NotBeNull();
+        return document!.BundleManifests;
+    }
+
+    private sealed class SampleManifestsDocument
+    {
+        public List<SampleManifestEntry> BundleManifests { get; set; } = new();
+    }
+
+    private sealed class SampleManifestEntry
+    {
+        public string Name { get; set; } = string.Empty;
+
+        public List<string> Packs { get; set; } = new();
+    }
+
+    private sealed class TemplateIsolation : IDisposable
+    {
+        private readonly string _originalDirectory;
+        private readonly string? _originalEnvironment;
+
+        private TemplateIsolation(string isolatedDirectory)
+        {
+            _originalDirectory = Directory.GetCurrentDirectory();
+            _originalEnvironment = Environment.GetEnvironmentVariable("DOTNET_ENVIRONMENT");
+            Directory.SetCurrentDirectory(isolatedDirectory);
+            Environment.SetEnvironmentVariable("DOTNET_ENVIRONMENT", null);
+        }
+
+        public static TemplateIsolation? Create(bool forceFallback, string isolatedDirectory)
+        {
+            return forceFallback ? new TemplateIsolation(isolatedDirectory) : null;
+        }
+
+        public void Dispose()
+        {
+            Directory.SetCurrentDirectory(_originalDirectory);
+            Environment.SetEnvironmentVariable("DOTNET_ENVIRONMENT", _originalEnvironment);
+        }
     }
 }
