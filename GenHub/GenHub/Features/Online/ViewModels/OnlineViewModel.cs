@@ -266,7 +266,7 @@ public sealed partial class OnlineViewModel(
                 return;
             }
 
-            await ApplyJoinAsync(result.Data, cancellationToken);
+            await ApplyJoinAsync(result.Data, SelectedNetwork?.Name, cancellationToken);
             JoinPassword = string.Empty;
             notificationService.ShowSuccess(
                 GetString("Online.Join.SuccessTitle"),
@@ -404,7 +404,7 @@ public sealed partial class OnlineViewModel(
             }
 
             SelectedPlayProfile = SelectedCreateProfile;
-            await ApplyJoinAsync(result.Data, cancellationToken);
+            await ApplyJoinAsync(result.Data, CreateName.Trim(), cancellationToken);
             CreateName = string.Empty;
             CreatePassword = string.Empty;
             CreateDescription = string.Empty;
@@ -836,10 +836,10 @@ public sealed partial class OnlineViewModel(
         BanMemberCommand.NotifyCanExecuteChanged();
     }
 
-    private async Task ApplyJoinAsync(OnlineJoinResult join, CancellationToken cancellationToken)
+    private async Task ApplyJoinAsync(OnlineJoinResult join, string? knownName, CancellationToken cancellationToken)
     {
         IsJoined = true;
-        CurrentNetworkName = Networks.FirstOrDefault(n => n.Id == join.NetworkId)?.Name ?? join.NetworkId;
+        CurrentNetworkName = Networks.FirstOrDefault(n => n.Id == join.NetworkId)?.Name ?? knownName ?? join.NetworkId;
         ApplyExpectedProfile(new OnlineExpectedProfile
         {
             ExpectedProfileId = join.ExpectedProfileId,
