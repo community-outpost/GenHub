@@ -139,6 +139,18 @@ public sealed class SampleProjectServiceNotificationTests : IDisposable
     }
 
     [Fact]
+    public void SampleAcquisitionTracker_AcquireSlot_ReturnsSequentialIndexes()
+    {
+        // Arrange
+        var tracker = new SampleProjectService.SampleAcquisitionTracker(null);
+
+        // Act & Assert
+        tracker.AcquireSlot().Should().Be(0);
+        tracker.AcquireSlot().Should().Be(1);
+        tracker.AcquireSlot().Should().Be(2);
+    }
+
+    [Fact]
     public void SampleAcquisitionTracker_ReportDownload_ComputesOverallFraction()
     {
         // Arrange

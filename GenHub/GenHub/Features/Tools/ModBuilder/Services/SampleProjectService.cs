@@ -89,6 +89,7 @@ public class SampleProjectService(
         private readonly DownloadNotificationScope? _scope;
         private readonly object _lock = new();
         private double _fraction;
+        private int _nextSlot;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="SampleAcquisitionTracker"/> class.
@@ -111,6 +112,18 @@ public class SampleProjectService(
         public void SetTotalDownloads(int totalDownloads)
         {
             TotalDownloads = totalDownloads;
+        }
+
+        /// <summary>
+        /// Acquires the next zero-based download slot index in call order.
+        /// </summary>
+        /// <returns>The acquired slot index.</returns>
+        public int AcquireSlot()
+        {
+            lock (_lock)
+            {
+                return _nextSlot++;
+            }
         }
 
         /// <summary>
@@ -644,9 +657,9 @@ public class SampleProjectService(
         string assetLabel,
         CancellationToken cancellationToken,
         string? expectedSha256 = null,
-        SampleAcquisitionTracker? tracker = null,
-        int slotIndex = 0)
+        SampleAcquisitionTracker? tracker = null)
     {
+        var slotIndex = tracker?.AcquireSlot() ?? 0;
         if (await CheckCachedAssetValidAsync(cachePath, minLength, expectedSha256, cancellationToken).ConfigureAwait(false))
         {
             tracker?.ReportDownloadComplete(assetLabel, slotIndex);
@@ -960,8 +973,7 @@ public class SampleProjectService(
         string? releaseDir,
         IProgress<string>? progress,
         CancellationToken cancellationToken,
-        SampleAcquisitionTracker? tracker = null,
-        int slotIndex = 0)
+        SampleAcquisitionTracker? tracker = null)
     {
         try
         {
@@ -973,8 +985,7 @@ public class SampleProjectService(
                 500_000,
                 spec.AssetLabel,
                 cancellationToken,
-                tracker: tracker,
-                slotIndex: slotIndex).ConfigureAwait(false);
+                tracker: tracker).ConfigureAwait(false);
 
             if (!result.Success)
             {
@@ -1114,8 +1125,7 @@ public class SampleProjectService(
             releaseDir,
             progress,
             cancellationToken,
-            tracker,
-            1).ConfigureAwait(false);
+            tracker).ConfigureAwait(false);
 
         // 3. Spanish variant
         await AcquireSecondaryLanguageVariantAsync(
@@ -1129,8 +1139,7 @@ public class SampleProjectService(
             releaseDir,
             progress,
             cancellationToken,
-            tracker,
-            2).ConfigureAwait(false);
+            tracker).ConfigureAwait(false);
 
         logger.LogInformation("Successfully unpacked Improved Menus variants into {Dir}", gameFilesDir);
         return OperationResult<bool>.CreateSuccess(true);
@@ -1421,7 +1430,6 @@ public class SampleProjectService(
         };
 
         var primarySucceeded = false;
-        var downloadIndex = 0;
         foreach (var res in resolutions)
         {
             progress?.Report($"Downloading Lemon Control Bar ({res.Resolution})...");
@@ -1432,9 +1440,7 @@ public class SampleProjectService(
                 500_000,
                 $"Lemon Control Bar {res.Resolution}",
                 cancellationToken,
-                tracker: tracker,
-                slotIndex: downloadIndex).ConfigureAwait(false);
-            downloadIndex++;
+                tracker: tracker).ConfigureAwait(false);
 
             if (!dlResult.Success)
             {
@@ -1732,8 +1738,7 @@ public class SampleProjectService(
             "Hotkeys hlen",
             cancellationToken,
             ModBuilderConstants.SampleProjects.HotkeysHlenSha256,
-            tracker,
-            1).ConfigureAwait(false);
+            tracker).ConfigureAwait(false);
 
         if (!hlenResult.Success)
         {
