@@ -1,6 +1,7 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using GenHub.Core.Models.Tools.WndEditor;
 using System;
+using System.Diagnostics.CodeAnalysis;
 
 namespace GenHub.Features.Tools.WndEditor.ViewModels;
 
@@ -52,34 +53,36 @@ public sealed partial class WndRgbaViewModel : ObservableObject
     /// <summary>
     /// Gets the current color value.
     /// </summary>
+    [SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Instance property bound to RGBA color components.")]
     public WndRgbaColor Current => new(Red, Green, Blue, Alpha);
 
     partial void OnRedChanged(int value)
     {
         _ = value;
-        CommitChannel();
+        CommitChannel(nameof(Red));
     }
 
     partial void OnGreenChanged(int value)
     {
         _ = value;
-        CommitChannel();
+        CommitChannel(nameof(Green));
     }
 
     partial void OnBlueChanged(int value)
     {
         _ = value;
-        CommitChannel();
+        CommitChannel(nameof(Blue));
     }
 
     partial void OnAlphaChanged(int value)
     {
         _ = value;
-        CommitChannel();
+        CommitChannel(nameof(Alpha));
     }
 
-    private void CommitChannel()
+    private void CommitChannel(string channelName)
     {
+        _ = channelName;
         OnPropertyChanged(nameof(Current));
         _commit();
     }

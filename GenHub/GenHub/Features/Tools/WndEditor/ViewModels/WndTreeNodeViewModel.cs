@@ -3,6 +3,7 @@ using GenHub.Core.Constants;
 using GenHub.Core.Models.Tools.WndEditor;
 using System;
 using System.Collections.ObjectModel;
+using System.Linq;
 
 namespace GenHub.Features.Tools.WndEditor.ViewModels;
 
@@ -68,15 +69,7 @@ public sealed partial class WndTreeNodeViewModel : ObservableObject
         get
         {
             var status = WndStatusValue.ParseStatus(Window.GetProperty(WndConstants.PropertyKeys.Status));
-            foreach (var flag in status.Flags)
-            {
-                if (string.Equals(flag, WndConstants.StatusFlags.Hidden, StringComparison.OrdinalIgnoreCase))
-                {
-                    return true;
-                }
-            }
-
-            return false;
+            return status.Flags.Contains(WndConstants.StatusFlags.Hidden);
         }
     }
 

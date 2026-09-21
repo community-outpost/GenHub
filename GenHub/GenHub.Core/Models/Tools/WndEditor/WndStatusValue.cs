@@ -82,7 +82,9 @@ public sealed record WndStatusValue
         foreach (var token in value.Split(WndConstants.Syntax.FlagSeparator))
         {
             var trimmed = token.Trim();
-            if (trimmed.Length == 0 || string.Equals(trimmed, WndConstants.Syntax.NullFlags, StringComparison.OrdinalIgnoreCase))
+            if (trimmed.Length == 0
+                || string.Equals(trimmed, WndConstants.Syntax.NullFlags, StringComparison.OrdinalIgnoreCase)
+                || string.Equals(trimmed, WndConstants.Syntax.NoneFlags, StringComparison.OrdinalIgnoreCase))
             {
                 continue;
             }

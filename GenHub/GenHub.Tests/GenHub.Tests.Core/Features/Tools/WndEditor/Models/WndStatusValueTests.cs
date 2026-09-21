@@ -33,6 +33,7 @@ public sealed class WndStatusValueTests
     [InlineData("")]
     [InlineData("   ")]
     [InlineData("NULL")]
+    [InlineData("NONE")]
     public void ParseStatus_EmptyValue_HasNoFlags(string? value)
     {
         // Act

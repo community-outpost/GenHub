@@ -54,7 +54,7 @@ public static class WndValueTokenizer
     /// Formats a boolean in engine spelling.
     /// </summary>
     /// <param name="value">The value to format.</param>
-    /// <returns>yes or no.</returns>
+    /// <returns>1 or 0.</returns>
     public static string FormatBool(bool value)
     {
         return value ? WndConstants.Syntax.BoolTrue : WndConstants.Syntax.BoolFalse;
@@ -68,13 +68,17 @@ public static class WndValueTokenizer
     /// <returns>True when the token is a recognized boolean.</returns>
     public static bool TryParseBool(string? token, out bool value)
     {
-        if (string.Equals(token, WndConstants.Syntax.BoolTrue, StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(token, WndConstants.Syntax.BoolTrue, StringComparison.OrdinalIgnoreCase)
+            || string.Equals(token, "yes", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(token, "true", StringComparison.OrdinalIgnoreCase))
         {
             value = true;
             return true;
         }
 
-        if (string.Equals(token, WndConstants.Syntax.BoolFalse, StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(token, WndConstants.Syntax.BoolFalse, StringComparison.OrdinalIgnoreCase)
+            || string.Equals(token, "no", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(token, "false", StringComparison.OrdinalIgnoreCase))
         {
             value = false;
             return true;

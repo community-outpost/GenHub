@@ -69,7 +69,8 @@ public sealed record WndComboBoxData
             || !int.TryParse(tokens[5], out var maxDisplay)
             || !string.Equals(tokens[6], WndConstants.GadgetDataKeys.AsciiOnly, StringComparison.OrdinalIgnoreCase)
             || !WndValueTokenizer.TryParseBool(tokens[7], out var asciiOnly)
-            || !string.Equals(tokens[8], WndConstants.GadgetDataKeys.LettersAndNumbersOnly, StringComparison.OrdinalIgnoreCase)
+            || (!string.Equals(tokens[8], WndConstants.GadgetDataKeys.LettersAndNumbersOnly, StringComparison.OrdinalIgnoreCase)
+                && !string.Equals(tokens[8], "LETTERSANDNUMBERSONLY", StringComparison.OrdinalIgnoreCase))
             || !WndValueTokenizer.TryParseBool(tokens[9], out var lettersAndNumbersOnly))
         {
             return false;

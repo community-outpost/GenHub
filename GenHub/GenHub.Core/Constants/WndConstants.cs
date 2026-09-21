@@ -514,13 +514,16 @@ public static class WndConstants
         public const char Quote = '"';
 
         /// <summary>True boolean literal accepted by the engine.</summary>
-        public const string BoolTrue = "yes";
+        public const string BoolTrue = "1";
 
         /// <summary>False boolean literal accepted by the engine.</summary>
-        public const string BoolFalse = "no";
+        public const string BoolFalse = "0";
 
         /// <summary>Flag literal meaning no flags are set.</summary>
         public const string NullFlags = "NULL";
+
+        /// <summary>Flag literal meaning no flags are set (GUIEdit dialect).</summary>
+        public const string NoneFlags = "NONE";
     }
 
     /// <summary>
@@ -646,7 +649,10 @@ public static class WndConstants
         public const string MaxDisplay = "MAXDISPLAY";
 
         /// <summary>Combo box letters and numbers only label.</summary>
-        public const string LettersAndNumbersOnly = "LETTERSANDNUMBERSONLY";
+        public const string LettersAndNumbersOnly = "LETTERSANDNUMBERS";
+
+        /// <summary>List box column width percentage label emitted by GUIEdit.</summary>
+        public const string ColumnsWidthPercent = "COLUMNSWIDTH%";
 
         /// <summary>Radio button group label.</summary>
         public const string Group = "GROUP";

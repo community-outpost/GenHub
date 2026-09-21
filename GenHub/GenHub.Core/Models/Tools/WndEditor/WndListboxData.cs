@@ -21,6 +21,7 @@ public sealed record WndListboxData
     /// <param name="columns">The column count.</param>
     /// <param name="columnWidths">The column width percentages.</param>
     /// <param name="forceSelect">Whether an entry is always selected.</param>
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Major Code Smell", "S107:Methods should not have too many parameters", Justification = "Represents full Zero Hour LISTBOXDATA schema")]
     public WndListboxData(
         int length,
         bool autoScroll,
@@ -126,7 +127,7 @@ public sealed record WndListboxData
         {
             for (var i = 0; i < columns; i++)
             {
-                if (!reader.TakeLabel(WndConstants.GadgetDataKeys.Columns) || !reader.TakeInt(out var width))
+                if (!reader.TakeAnyLabel(WndConstants.GadgetDataKeys.ColumnsWidthPercent, WndConstants.GadgetDataKeys.Columns) || !reader.TakeInt(out var width))
                 {
                     return false;
                 }
@@ -170,7 +171,7 @@ public sealed record WndListboxData
         {
             foreach (var width in ColumnWidths)
             {
-                parts.Add(WndValueFormatter.Pair(WndConstants.GadgetDataKeys.Columns, width.ToString()));
+                parts.Add(WndValueFormatter.Pair(WndConstants.GadgetDataKeys.ColumnsWidthPercent, width.ToString()));
             }
         }
 
@@ -193,6 +194,23 @@ public sealed record WndListboxData
         public bool TakeLabel(string expected)
         {
             if (_index >= _tokens.Count || !string.Equals(_tokens[_index], expected, StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+
+            _index++;
+            return true;
+        }
+
+        public bool TakeAnyLabel(string first, string second)
+        {
+            if (_index >= _tokens.Count)
+            {
+                return false;
+            }
+
+            if (!string.Equals(_tokens[_index], first, StringComparison.OrdinalIgnoreCase)
+                && !string.Equals(_tokens[_index], second, StringComparison.OrdinalIgnoreCase))
             {
                 return false;
             }

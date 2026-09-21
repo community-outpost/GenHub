@@ -8,6 +8,7 @@ using GenHub.Core.Models.Tools.WndEditor;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 
 namespace GenHub.Features.Tools.WndEditor.ViewModels;
@@ -16,6 +17,7 @@ namespace GenHub.Features.Tools.WndEditor.ViewModels;
 /// Typed property editors for the selected window, organized like the reference editor:
 /// general properties, control specific data, other raw values, and raw text.
 /// </summary>
+[SuppressMessage("Major Code Smell", "S4144:Methods should not have identical implementations", Justification = "Generated property change partial methods dispatch UI edits.")]
 public sealed partial class WndWindowPropertiesViewModel : ObservableObject
 {
     private readonly IWndDocumentService _documentService;
@@ -320,42 +322,49 @@ public sealed partial class WndWindowPropertiesViewModel : ObservableObject
     /// <summary>
     /// Gets a value indicating whether the control is static text.
     /// </summary>
+    [SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Instance property bound to current control type for MVVM view binding.")]
     public bool IsStaticText => ControlKind == WndControlType.StaticText;
 
     /// <summary>
     /// Gets a value indicating whether the control is a text entry field.
     /// </summary>
+    [SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Instance property bound to current control type for MVVM view binding.")]
     public bool IsEntryField => ControlKind == WndControlType.EntryField;
 
     /// <summary>
     /// Gets a value indicating whether the control is a slider.
     /// </summary>
+    [SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Instance property bound to current control type for MVVM view binding.")]
     public bool IsSlider => ControlKind == WndControlType.HorzSlider || ControlKind == WndControlType.VertSlider;
 
     /// <summary>
     /// Gets a value indicating whether the control is a list box.
     /// </summary>
+    [SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Instance property bound to current control type for MVVM view binding.")]
     public bool IsListbox => ControlKind == WndControlType.ScrollListBox;
 
     /// <summary>
     /// Gets a value indicating whether the control is a combo box.
     /// </summary>
+    [SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Instance property bound to current control type for MVVM view binding.")]
     public bool IsComboBox => ControlKind == WndControlType.ComboBox;
 
     /// <summary>
     /// Gets a value indicating whether the control is a radio button.
     /// </summary>
+    [SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Instance property bound to current control type for MVVM view binding.")]
     public bool IsRadioButton => ControlKind == WndControlType.RadioButton;
 
     /// <summary>
     /// Gets a value indicating whether the control is a tab control.
     /// </summary>
+    [SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Instance property bound to current control type for MVVM view binding.")]
     public bool IsTabControl => ControlKind == WndControlType.TabControl;
 
     /// <summary>
     /// Gets a value indicating whether the control kind supports a typed data block.
     /// </summary>
-    public bool IsControlDataSupported => ControlDataKey() != null;
+    public bool IsControlDataSupported => ControlDataKey(ControlKind) != null;
 
     /// <summary>
     /// Gets a value indicating whether the missing data hint applies.
@@ -751,7 +760,7 @@ public sealed partial class WndWindowPropertiesViewModel : ObservableObject
         UnknownStatusFlags = string.Join(WndConstants.Syntax.FlagSeparator, status.UnknownTokens);
     }
 
-    private void RefreshFlagCollection(
+    private static void RefreshFlagCollection(
         ObservableCollection<WndFlagViewModel> collection,
         IReadOnlyList<string> names,
         WndStatusValue value,
@@ -852,12 +861,9 @@ public sealed partial class WndWindowPropertiesViewModel : ObservableObject
     private void RefreshOther()
     {
         OtherRows.Clear();
-        foreach (var property in Window.Properties)
+        foreach (var property in Window.Properties.Where(property => !_knownKeys.Contains(property.Key)))
         {
-            if (!_knownKeys.Contains(property.Key))
-            {
-                OtherRows.Add(new WndPropertyRowViewModel(property.Key, property.Value, _commitEdit));
-            }
+            OtherRows.Add(new WndPropertyRowViewModel(property.Key, property.Value, _commitEdit));
         }
     }
 
@@ -882,7 +888,7 @@ public sealed partial class WndWindowPropertiesViewModel : ObservableObject
         RefreshComboBoxData();
         RefreshRadioButtonData();
         RefreshTabControlData();
-        var controlDataKey = ControlDataKey();
+        var controlDataKey = ControlDataKey(ControlKind);
         HasControlData = controlDataKey != null && Window.GetProperty(controlDataKey) != null;
     }
 
@@ -1018,9 +1024,9 @@ public sealed partial class WndWindowPropertiesViewModel : ObservableObject
         }
     }
 
-    private string? ControlDataKey()
+    private static string? ControlDataKey(WndControlType kind)
     {
-        return ControlKind switch
+        return kind switch
         {
             WndControlType.StaticText => WndConstants.PropertyKeys.StaticTextData,
             WndControlType.EntryField => WndConstants.PropertyKeys.TextEntryData,
@@ -1129,39 +1135,21 @@ public sealed partial class WndWindowPropertiesViewModel : ObservableObject
         CommitUnlessSuppressed(CommitShortName);
     }
 
-    partial void OnUpperLeftXChanged(int value)
-    {
-        _ = value;
-        CommitUnlessSuppressed(CommitPosition);
-    }
+    partial void OnUpperLeftXChanged(int value) => CommitPositionProperty(nameof(UpperLeftX));
 
-    partial void OnUpperLeftYChanged(int value)
-    {
-        _ = value;
-        CommitUnlessSuppressed(CommitPosition);
-    }
+    partial void OnUpperLeftYChanged(int value) => CommitPositionProperty(nameof(UpperLeftY));
 
-    partial void OnBottomRightXChanged(int value)
-    {
-        _ = value;
-        CommitUnlessSuppressed(CommitPosition);
-    }
+    partial void OnBottomRightXChanged(int value) => CommitPositionProperty(nameof(BottomRightX));
 
-    partial void OnBottomRightYChanged(int value)
-    {
-        _ = value;
-        CommitUnlessSuppressed(CommitPosition);
-    }
+    partial void OnBottomRightYChanged(int value) => CommitPositionProperty(nameof(BottomRightY));
 
-    partial void OnCreationWidthChanged(int value)
-    {
-        _ = value;
-        CommitUnlessSuppressed(CommitPosition);
-    }
+    partial void OnCreationWidthChanged(int value) => CommitPositionProperty(nameof(CreationWidth));
 
-    partial void OnCreationHeightChanged(int value)
+    partial void OnCreationHeightChanged(int value) => CommitPositionProperty(nameof(CreationHeight));
+
+    private void CommitPositionProperty(string propertyName)
     {
-        _ = value;
+        _ = propertyName;
         CommitUnlessSuppressed(CommitPosition);
     }
 
@@ -1231,15 +1219,13 @@ public sealed partial class WndWindowPropertiesViewModel : ObservableObject
         CommitUnlessSuppressed(() => CommitQuoted(WndConstants.PropertyKeys.HeaderTemplate, HeaderTemplate));
     }
 
-    partial void OnImageOffsetXChanged(int value)
-    {
-        _ = value;
-        CommitUnlessSuppressed(CommitImageOffset);
-    }
+    partial void OnImageOffsetXChanged(int value) => CommitImageOffsetProperty(nameof(ImageOffsetX));
 
-    partial void OnImageOffsetYChanged(int value)
+    partial void OnImageOffsetYChanged(int value) => CommitImageOffsetProperty(nameof(ImageOffsetY));
+
+    private void CommitImageOffsetProperty(string propertyName)
     {
-        _ = value;
+        _ = propertyName;
         CommitUnlessSuppressed(CommitImageOffset);
     }
 
@@ -1249,135 +1235,71 @@ public sealed partial class WndWindowPropertiesViewModel : ObservableObject
         CommitUnlessSuppressed(CommitStaticTextData);
     }
 
-    partial void OnEntryMaxLenChanged(int value)
+    partial void OnEntryMaxLenChanged(int value) => CommitTextEntryProperty(nameof(EntryMaxLen));
+
+    partial void OnEntrySecretTextChanged(bool value) => CommitTextEntryProperty(nameof(EntrySecretText));
+
+    partial void OnEntryNumericalOnlyChanged(bool value) => CommitTextEntryProperty(nameof(EntryNumericalOnly));
+
+    partial void OnEntryAlphaNumericalOnlyChanged(bool value) => CommitTextEntryProperty(nameof(EntryAlphaNumericalOnly));
+
+    partial void OnEntryAsciiOnlyChanged(bool value) => CommitTextEntryProperty(nameof(EntryAsciiOnly));
+
+    private void CommitTextEntryProperty(string propertyName)
     {
-        _ = value;
+        _ = propertyName;
         CommitUnlessSuppressed(CommitTextEntryData);
     }
 
-    partial void OnEntrySecretTextChanged(bool value)
-    {
-        _ = value;
-        CommitUnlessSuppressed(CommitTextEntryData);
-    }
+    partial void OnSliderMinValueChanged(int value) => CommitSliderProperty(nameof(SliderMinValue));
 
-    partial void OnEntryNumericalOnlyChanged(bool value)
-    {
-        _ = value;
-        CommitUnlessSuppressed(CommitTextEntryData);
-    }
+    partial void OnSliderMaxValueChanged(int value) => CommitSliderProperty(nameof(SliderMaxValue));
 
-    partial void OnEntryAlphaNumericalOnlyChanged(bool value)
+    private void CommitSliderProperty(string propertyName)
     {
-        _ = value;
-        CommitUnlessSuppressed(CommitTextEntryData);
-    }
-
-    partial void OnEntryAsciiOnlyChanged(bool value)
-    {
-        _ = value;
-        CommitUnlessSuppressed(CommitTextEntryData);
-    }
-
-    partial void OnSliderMinValueChanged(int value)
-    {
-        _ = value;
+        _ = propertyName;
         CommitUnlessSuppressed(CommitSliderData);
     }
 
-    partial void OnSliderMaxValueChanged(int value)
-    {
-        _ = value;
-        CommitUnlessSuppressed(CommitSliderData);
-    }
+    partial void OnListLengthChanged(int value) => CommitListboxProperty(nameof(ListLength));
 
-    partial void OnListLengthChanged(int value)
+    partial void OnListAutoScrollChanged(bool value) => CommitListboxProperty(nameof(ListAutoScroll));
+
+    partial void OnListHasScrollIfAtEndChanged(bool value) => CommitListboxProperty(nameof(ListHasScrollIfAtEnd));
+
+    partial void OnListScrollIfAtEndChanged(bool value) => CommitListboxProperty(nameof(ListScrollIfAtEnd));
+
+    partial void OnListAutoPurgeChanged(bool value) => CommitListboxProperty(nameof(ListAutoPurge));
+
+    partial void OnListScrollBarChanged(bool value) => CommitListboxProperty(nameof(ListScrollBar));
+
+    partial void OnListMultiSelectChanged(bool value) => CommitListboxProperty(nameof(ListMultiSelect));
+
+    partial void OnListColumnsChanged(int value) => CommitListboxProperty(nameof(ListColumns));
+
+    partial void OnListColumnWidthsChanged(string value) => CommitListboxProperty(nameof(ListColumnWidths));
+
+    partial void OnListForceSelectChanged(bool value) => CommitListboxProperty(nameof(ListForceSelect));
+
+    private void CommitListboxProperty(string propertyName)
     {
-        _ = value;
+        _ = propertyName;
         CommitUnlessSuppressed(CommitListboxData);
     }
 
-    partial void OnListAutoScrollChanged(bool value)
-    {
-        _ = value;
-        CommitUnlessSuppressed(CommitListboxData);
-    }
+    partial void OnComboIsEditableChanged(bool value) => CommitComboBoxProperty(nameof(ComboIsEditable));
 
-    partial void OnListHasScrollIfAtEndChanged(bool value)
-    {
-        _ = value;
-        CommitUnlessSuppressed(CommitListboxData);
-    }
+    partial void OnComboMaxCharsChanged(int value) => CommitComboBoxProperty(nameof(ComboMaxChars));
 
-    partial void OnListScrollIfAtEndChanged(bool value)
-    {
-        _ = value;
-        CommitUnlessSuppressed(CommitListboxData);
-    }
+    partial void OnComboMaxDisplayChanged(int value) => CommitComboBoxProperty(nameof(ComboMaxDisplay));
 
-    partial void OnListAutoPurgeChanged(bool value)
-    {
-        _ = value;
-        CommitUnlessSuppressed(CommitListboxData);
-    }
+    partial void OnComboAsciiOnlyChanged(bool value) => CommitComboBoxProperty(nameof(ComboAsciiOnly));
 
-    partial void OnListScrollBarChanged(bool value)
-    {
-        _ = value;
-        CommitUnlessSuppressed(CommitListboxData);
-    }
+    partial void OnComboLettersAndNumbersOnlyChanged(bool value) => CommitComboBoxProperty(nameof(ComboLettersAndNumbersOnly));
 
-    partial void OnListMultiSelectChanged(bool value)
+    private void CommitComboBoxProperty(string propertyName)
     {
-        _ = value;
-        CommitUnlessSuppressed(CommitListboxData);
-    }
-
-    partial void OnListColumnsChanged(int value)
-    {
-        _ = value;
-        CommitUnlessSuppressed(CommitListboxData);
-    }
-
-    partial void OnListColumnWidthsChanged(string value)
-    {
-        _ = value;
-        CommitUnlessSuppressed(CommitListboxData);
-    }
-
-    partial void OnListForceSelectChanged(bool value)
-    {
-        _ = value;
-        CommitUnlessSuppressed(CommitListboxData);
-    }
-
-    partial void OnComboIsEditableChanged(bool value)
-    {
-        _ = value;
-        CommitUnlessSuppressed(CommitComboBoxData);
-    }
-
-    partial void OnComboMaxCharsChanged(int value)
-    {
-        _ = value;
-        CommitUnlessSuppressed(CommitComboBoxData);
-    }
-
-    partial void OnComboMaxDisplayChanged(int value)
-    {
-        _ = value;
-        CommitUnlessSuppressed(CommitComboBoxData);
-    }
-
-    partial void OnComboAsciiOnlyChanged(bool value)
-    {
-        _ = value;
-        CommitUnlessSuppressed(CommitComboBoxData);
-    }
-
-    partial void OnComboLettersAndNumbersOnlyChanged(bool value)
-    {
-        _ = value;
+        _ = propertyName;
         CommitUnlessSuppressed(CommitComboBoxData);
     }
 
@@ -1387,45 +1309,23 @@ public sealed partial class WndWindowPropertiesViewModel : ObservableObject
         CommitUnlessSuppressed(CommitRadioButtonData);
     }
 
-    partial void OnTabOrientationChanged(int value)
-    {
-        _ = value;
-        CommitUnlessSuppressed(CommitTabControlData);
-    }
+    partial void OnTabOrientationChanged(int value) => CommitTabControlProperty(nameof(TabOrientation));
 
-    partial void OnTabEdgeChanged(int value)
-    {
-        _ = value;
-        CommitUnlessSuppressed(CommitTabControlData);
-    }
+    partial void OnTabEdgeChanged(int value) => CommitTabControlProperty(nameof(TabEdge));
 
-    partial void OnTabWidthChanged(int value)
-    {
-        _ = value;
-        CommitUnlessSuppressed(CommitTabControlData);
-    }
+    partial void OnTabWidthChanged(int value) => CommitTabControlProperty(nameof(TabWidth));
 
-    partial void OnTabHeightChanged(int value)
-    {
-        _ = value;
-        CommitUnlessSuppressed(CommitTabControlData);
-    }
+    partial void OnTabHeightChanged(int value) => CommitTabControlProperty(nameof(TabHeight));
 
-    partial void OnTabCountChanged(int value)
-    {
-        _ = value;
-        CommitUnlessSuppressed(CommitTabControlData);
-    }
+    partial void OnTabCountChanged(int value) => CommitTabControlProperty(nameof(TabCount));
 
-    partial void OnTabPaneBorderChanged(int value)
-    {
-        _ = value;
-        CommitUnlessSuppressed(CommitTabControlData);
-    }
+    partial void OnTabPaneBorderChanged(int value) => CommitTabControlProperty(nameof(TabPaneBorder));
 
-    partial void OnTabPaneDisabledChanged(string value)
+    partial void OnTabPaneDisabledChanged(string value) => CommitTabControlProperty(nameof(TabPaneDisabled));
+
+    private void CommitTabControlProperty(string propertyName)
     {
-        _ = value;
+        _ = propertyName;
         CommitUnlessSuppressed(CommitTabControlData);
     }
 
@@ -1547,7 +1447,7 @@ public sealed partial class WndWindowPropertiesViewModel : ObservableObject
             return;
         }
 
-        var normalized = NormalizeColumnWidths(widths);
+        var normalized = NormalizeColumnWidths(widths, ListColumns);
         _commitEdit(
             WndConstants.PropertyKeys.ListboxData,
             new WndListboxData(
@@ -1587,15 +1487,15 @@ public sealed partial class WndWindowPropertiesViewModel : ObservableObject
             new WndTabControlData(TabOrientation, TabEdge, TabWidth, TabHeight, TabCount, TabPaneBorder, disabled).ToString());
     }
 
-    private List<int> NormalizeColumnWidths(List<int> widths)
+    private static List<int> NormalizeColumnWidths(List<int> widths, int columns)
     {
-        if (ListColumns <= 1)
+        if (columns <= 1)
         {
             return [];
         }
 
-        var normalized = widths.Take(ListColumns).ToList();
-        while (normalized.Count < ListColumns)
+        var normalized = widths.Take(columns).ToList();
+        while (normalized.Count < columns)
         {
             normalized.Add(0);
         }
