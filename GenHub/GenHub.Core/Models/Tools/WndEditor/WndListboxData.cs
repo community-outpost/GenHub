@@ -33,6 +33,14 @@ public sealed record WndListboxData
         IReadOnlyList<int> columnWidths,
         bool forceSelect)
     {
+        ArgumentNullException.ThrowIfNull(columnWidths);
+        if (columns > 1 && columnWidths.Count != columns)
+        {
+            throw new ArgumentException(
+                $"Column widths count ({columnWidths.Count}) must match columns ({columns}) when columns > 1.",
+                nameof(columnWidths));
+        }
+
         Length = length;
         AutoScroll = autoScroll;
         ScrollIfAtEnd = scrollIfAtEnd;
@@ -127,7 +135,7 @@ public sealed record WndListboxData
         {
             for (var i = 0; i < columns; i++)
             {
-                if (!reader.TakeAnyLabel(WndConstants.GadgetDataKeys.ColumnsWidthPercent, WndConstants.GadgetDataKeys.Columns) || !reader.TakeInt(out var width))
+                if (!reader.TakeLabel(WndConstants.GadgetDataKeys.ColumnsWidthPercent) || !reader.TakeInt(out var width))
                 {
                     return false;
                 }
@@ -194,23 +202,6 @@ public sealed record WndListboxData
         public bool TakeLabel(string expected)
         {
             if (_index >= _tokens.Count || !string.Equals(_tokens[_index], expected, StringComparison.OrdinalIgnoreCase))
-            {
-                return false;
-            }
-
-            _index++;
-            return true;
-        }
-
-        public bool TakeAnyLabel(string first, string second)
-        {
-            if (_index >= _tokens.Count)
-            {
-                return false;
-            }
-
-            if (!string.Equals(_tokens[_index], first, StringComparison.OrdinalIgnoreCase)
-                && !string.Equals(_tokens[_index], second, StringComparison.OrdinalIgnoreCase))
             {
                 return false;
             }

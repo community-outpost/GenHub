@@ -25,20 +25,12 @@ public sealed record WndDrawDataSet
     public IReadOnlyList<WndDrawDataEntry> Entries { get; }
 
     /// <summary>
-    /// Gets an empty nine-entry set.
+    /// Gets an empty single-entry set.
     /// </summary>
-    public static WndDrawDataSet Empty
-    {
-        get
-        {
-            var entries = new WndDrawDataEntry[WndConstants.DrawData.EntryCount];
-            Array.Fill(entries, WndDrawDataEntry.Empty);
-            return new WndDrawDataSet(entries);
-        }
-    }
+    public static WndDrawDataSet Empty => new([WndDrawDataEntry.Empty]);
 
     /// <summary>
-    /// Tries to parse a draw data property value.
+    /// Tries to parse a draw data property value. Accepts one or more 12-token entries.
     /// </summary>
     /// <param name="value">The raw property value.</param>
     /// <param name="set">The parsed set when successful.</param>
@@ -47,7 +39,13 @@ public sealed record WndDrawDataSet
     {
         set = null;
         var tokens = WndValueTokenizer.SplitTokens(value);
-        var entries = new List<WndDrawDataEntry>(WndConstants.DrawData.EntryCount);
+        if (tokens.Count == 0 || tokens.Count % WndConstants.DrawData.TokensPerEntry != 0)
+        {
+            return false;
+        }
+
+        var entryCount = tokens.Count / WndConstants.DrawData.TokensPerEntry;
+        var entries = new List<WndDrawDataEntry>(entryCount);
         var index = 0;
         while (index < tokens.Count)
         {
@@ -57,10 +55,10 @@ public sealed record WndDrawDataSet
             }
 
             entries.Add(entry);
-            index += 12;
+            index += WndConstants.DrawData.TokensPerEntry;
         }
 
-        if (entries.Count != WndConstants.DrawData.EntryCount)
+        if (entries.Count == 0)
         {
             return false;
         }

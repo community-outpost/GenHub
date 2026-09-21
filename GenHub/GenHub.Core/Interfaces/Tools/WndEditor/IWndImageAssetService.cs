@@ -25,4 +25,9 @@ public interface IWndImageAssetService
         string? overrideRoot,
         string? projectDirectory,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Invalidates cached asset indexes and decoded preview images.
+    /// </summary>
+    void InvalidateCache();
 }

@@ -65,6 +65,36 @@ public sealed class WndDocumentServiceStatementsTests
     }
 
     /// <summary>
+    /// Tests that statements with trailing inline comments parse successfully.
+    /// </summary>
+    [Fact]
+    public void ParseDocument_StatementWithTrailingComment_Parses()
+    {
+        // Act
+        var result = _service.ParseText("WINDOW\n  WINDOWTYPE = USER; // inline comment\nEND\n");
+
+        // Assert
+        result.Success.Should().BeTrue();
+        result.Data!.Windows[0].ControlTypeName.Should().Be("USER");
+    }
+
+    /// <summary>
+    /// Tests that multi-line statement errors report the starting line of the statement.
+    /// </summary>
+    [Fact]
+    public void ParseStatements_MultiLineStatementError_ReportsStartLine()
+    {
+        // Line 1: valid
+        // Line 2-3: invalid multi-line statement without separator
+        var content = "WINDOWTYPE = USER;\nSCREENRECT_NO_EQUALS\nINVALID_TOKEN;";
+        var result = _service.ParseStatements(content);
+
+        // Assert
+        result.Success.Should().BeFalse();
+        result.Errors.Should().Contain(e => e.Contains("Line 2"));
+    }
+
+    /// <summary>
     /// Tests that unknown flags are reported as warnings.
     /// </summary>
     [Fact]

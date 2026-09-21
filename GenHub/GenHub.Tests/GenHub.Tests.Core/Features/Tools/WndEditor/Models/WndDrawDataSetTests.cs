@@ -12,6 +12,28 @@ public sealed class WndDrawDataSetTests
     private const string EmptyEntry = "IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0";
 
     /// <summary>
+    /// Tests that a single-entry block parses.
+    /// </summary>
+    [Fact]
+    public void TryParse_SingleEntry_ParsesSet()
+    {
+        // Arrange
+        var value = "IMAGE: Circle_Small03_Black, COLOR: 0 0 128 255, BORDERCOLOR: 0 0 0 255";
+
+        // Act
+        var parsed = WndDrawDataSet.TryParse(value, out var set);
+
+        // Assert
+        parsed.Should().BeTrue();
+        set!.Entries.Should().HaveCount(1);
+        set.Entries[0].Should().Be(new WndDrawDataEntry(
+            "Circle_Small03_Black",
+            new WndRgbaColor(0, 0, 128, 255),
+            new WndRgbaColor(0, 0, 0, 255)));
+        set.Entries[0].IsEmpty.Should().BeFalse();
+    }
+
+    /// <summary>
     /// Tests that a nine-entry block parses.
     /// </summary>
     [Fact]
@@ -40,27 +62,6 @@ public sealed class WndDrawDataSetTests
     }
 
     /// <summary>
-    /// Tests that blocks with the wrong entry count return false.
-    /// </summary>
-    /// <param name="entryCount">The entry count under test.</param>
-    [Theory]
-    [InlineData(0)]
-    [InlineData(8)]
-    [InlineData(10)]
-    public void TryParse_WrongEntryCount_ReturnsFalse(int entryCount)
-    {
-        // Arrange
-        var value = string.Join(", ", Enumerable.Repeat(EmptyEntry, entryCount));
-
-        // Act
-        var parsed = WndDrawDataSet.TryParse(value, out var set);
-
-        // Assert
-        parsed.Should().BeFalse();
-        set.Should().BeNull();
-    }
-
-    /// <summary>
     /// Tests that invalid values return false.
     /// </summary>
     /// <param name="value">The value under test.</param>
@@ -68,6 +69,7 @@ public sealed class WndDrawDataSetTests
     [InlineData(null)]
     [InlineData("")]
     [InlineData("nonsense")]
+    [InlineData("IMAGE: NoImage, COLOR: 255 255 255 0")]
     public void TryParse_InvalidValue_ReturnsFalse(string? value)
     {
         // Act
@@ -96,16 +98,16 @@ public sealed class WndDrawDataSetTests
     }
 
     /// <summary>
-    /// Tests that the empty set carries nine empty entries.
+    /// Tests that the empty set carries a single empty entry.
     /// </summary>
     [Fact]
-    public void Empty_ContainsNineEmptyEntries()
+    public void Empty_ContainsSingleEmptyEntry()
     {
         // Act
         var set = WndDrawDataSet.Empty;
 
         // Assert
-        set.Entries.Should().HaveCount(9);
+        set.Entries.Should().HaveCount(1);
         set.Entries.Should().OnlyContain(entry => entry.IsEmpty);
     }
 }

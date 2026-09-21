@@ -534,6 +534,9 @@ public static class WndConstants
         /// <summary>Number of entries per draw data block (MAX_DRAW_DATA).</summary>
         public const int EntryCount = 9;
 
+        /// <summary>Number of tokens per draw data entry (IMAGE + name + COLOR + 4 RGBA + BORDERCOLOR + 4 RGBA = 12).</summary>
+        public const int TokensPerEntry = 12;
+
         /// <summary>Image name marking an empty draw data entry.</summary>
         public const string NoImage = "NoImage";
 
@@ -616,6 +619,9 @@ public static class WndConstants
 
         /// <summary>Texture page extensions probed in order.</summary>
         public static readonly string[] TextureExtensions = [TextureExtensionDds, TextureExtensionTga, TextureExtensionJpg];
+
+        /// <summary>Language folders probed for localized texture pages, in order.</summary>
+        public static readonly string[] TextureLanguages = ["english", "german", "french", "spanish", "italian"];
     }
 
     /// <summary>
@@ -787,5 +793,54 @@ public static class WndConstants
 
         /// <summary>Default font size shown when a window declares no font.</summary>
         public const int DefaultFontSize = 12;
+
+        /// <summary>Empty margin around canvas content in game units, keeping every document pannable.</summary>
+        public const double CanvasPadding = 400.0;
+    }
+
+    /// <summary>
+    /// Canvas preview constants mirroring engine gadget draw-data layouts
+    /// (GadgetPushButton.h and GadgetTextEntry.h in GeneralsGameCode).
+    /// </summary>
+    public static class Preview
+    {
+        /// <summary>Generic single-image draw-data index.</summary>
+        public const int DefaultImageIndex = 0;
+
+        /// <summary>Push button whole-image or left-cap index.</summary>
+        public const int ButtonImageIndex = 0;
+
+        /// <summary>Push button tiled middle-bar index.</summary>
+        public const int ButtonMiddleImageIndex = 5;
+
+        /// <summary>Push button right-cap index.</summary>
+        public const int ButtonRightImageIndex = 6;
+
+        /// <summary>Text entry left-cap index.</summary>
+        public const int TextEntryLeftImageIndex = 0;
+
+        /// <summary>Text entry right-cap index.</summary>
+        public const int TextEntryRightImageIndex = 1;
+
+        /// <summary>Text entry tiled middle-bar index.</summary>
+        public const int TextEntryCenterImageIndex = 2;
+
+        /// <summary>Texture detail size preferred for previews, matching typical creation resolutions.</summary>
+        public const int PreferredTextureSize = 800;
+
+        /// <summary>Hand-created mapped images directory name, winning over size-specific definitions.</summary>
+        public const string HandCreatedDirectory = "HandCreated";
+
+        /// <summary>Maximum composed preview width or height in pixels.</summary>
+        public const int MaxComposedDimension = 2048;
+
+        /// <summary>Maximum missing image names listed in the asset status tooltip.</summary>
+        public const int MaxMissingTooltipNames = 12;
+
+        /// <summary>Minimum content text size in device-independent pixels.</summary>
+        public const double MinContentFontSize = 9.0;
+
+        /// <summary>Opacity for windows carrying the hidden flag.</summary>
+        public const double HiddenOpacity = 0.35;
     }
 }

@@ -188,6 +188,36 @@ public sealed class WndDocumentService(ILogger<WndDocumentService> logger) : IWn
     {
         ArgumentNullException.ThrowIfNull(filePath);
         var stopwatch = Stopwatch.StartNew();
+
+        if (!File.Exists(filePath))
+        {
+            return OperationResult<bool>.CreateFailure($"Window definition file not found: {filePath}", stopwatch.Elapsed);
+        }
+
+        try
+        {
+            var bytes = await File.ReadAllBytesAsync(filePath, cancellationToken).ConfigureAwait(false);
+            var utf8Strict = new UTF8Encoding(false, throwOnInvalidBytes: true);
+            _ = utf8Strict.GetString(bytes);
+        }
+        catch (DecoderFallbackException)
+        {
+            logger.LogWarning("Refusing to format {Path}: non-UTF-8 or ANSI encoding detected", filePath);
+            return OperationResult<bool>.CreateFailure(
+                $"Cannot format file with non-UTF-8 or unsupported ANSI encoding: {filePath}",
+                stopwatch.Elapsed);
+        }
+        catch (IOException ex)
+        {
+            logger.LogError(ex, "Failed to read window definition file {Path}", filePath);
+            return OperationResult<bool>.CreateFailure($"Failed to read window definition file: {ex.Message}", stopwatch.Elapsed);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            logger.LogError(ex, "Access denied reading window definition file {Path}", filePath);
+            return OperationResult<bool>.CreateFailure($"Access denied reading window definition file: {ex.Message}", stopwatch.Elapsed);
+        }
+
         var parseResult = await ParseFileAsync(filePath, cancellationToken).ConfigureAwait(false);
         if (!parseResult.Success || parseResult.Data == null)
         {
@@ -195,6 +225,11 @@ public sealed class WndDocumentService(ILogger<WndDocumentService> logger) : IWn
         }
 
         var canonical = WriteDocument(parseResult.Data);
+        if (canonical.Contains('\uFFFD'))
+        {
+            return OperationResult<bool>.CreateFailure("Cannot format file containing replacement characters.", stopwatch.Elapsed);
+        }
+
         var directory = Path.GetDirectoryName(filePath);
         var tempPath = Path.Combine(directory ?? Path.GetTempPath(), Path.GetRandomFileName());
         try
@@ -299,6 +334,7 @@ public sealed class WndDocumentService(ILogger<WndDocumentService> logger) : IWn
         var inQuotes = false;
         var lineNumber = 1;
         var statementLine = 1;
+        var hasStatementContent = false;
         foreach (var ch in content)
         {
             if (ch == WndConstants.Syntax.Quote)
@@ -315,8 +351,14 @@ public sealed class WndDocumentService(ILogger<WndDocumentService> logger) : IWn
             {
                 statements.Add((current.ToString(), statementLine, true));
                 current.Clear();
-                statementLine = lineNumber;
+                hasStatementContent = false;
                 continue;
+            }
+
+            if (!hasStatementContent && !char.IsWhiteSpace(ch))
+            {
+                statementLine = lineNumber;
+                hasStatementContent = true;
             }
 
             current.Append(ch);
@@ -484,7 +526,7 @@ public sealed class WndDocumentService(ILogger<WndDocumentService> logger) : IWn
             return state.Errors.Count == 0;
         }
 
-        if (TryCloseChildren(state, line, ref childrenClosed))
+        if (TryCloseChildren(state, window, line, ref childrenClosed))
         {
             return true;
         }
@@ -525,7 +567,7 @@ public sealed class WndDocumentService(ILogger<WndDocumentService> logger) : IWn
         return false;
     }
 
-    private static bool TryCloseChildren(ParserState state, string line, ref bool childrenClosed)
+    private static bool TryCloseChildren(ParserState state, WndWindow window, string line, ref bool childrenClosed)
     {
         if (!string.Equals(line, WndConstants.BlockTags.EndAllChildren, StringComparison.Ordinal))
         {
@@ -534,6 +576,7 @@ public sealed class WndDocumentService(ILogger<WndDocumentService> logger) : IWn
 
         state.Advance();
         childrenClosed = true;
+        window.HasEndAllChildren = true;
         return true;
     }
 
@@ -584,6 +627,7 @@ public sealed class WndDocumentService(ILogger<WndDocumentService> logger) : IWn
     {
         var startLine = state.LineNumber;
         var accumulator = new StringBuilder();
+        var inQuotes = false;
 
         while (state.HasMore)
         {
@@ -594,18 +638,32 @@ public sealed class WndDocumentService(ILogger<WndDocumentService> logger) : IWn
                 return null;
             }
 
-            if (accumulator.Length > 0)
-            {
-                accumulator.Append('\n');
-            }
-
-            accumulator.Append(line);
             state.Advance();
 
-            if (line.EndsWith(WndConstants.Syntax.StatementTerminator))
+            for (var i = 0; i < line.Length; i++)
             {
-                return SplitStatement(accumulator.ToString(), state, startLine);
+                var ch = line[i];
+                if (ch == WndConstants.Syntax.Quote)
+                {
+                    inQuotes = !inQuotes;
+                }
+                else if (ch == WndConstants.Syntax.StatementTerminator && !inQuotes)
+                {
+                    var remainder = line.Substring(i + 1).Trim();
+                    if (remainder.Length > 0 && !remainder.StartsWith("//", StringComparison.Ordinal))
+                    {
+                        state.AddErrorAt(startLine, $"Unexpected trailing characters after statement terminator: '{remainder}'.");
+                        return null;
+                    }
+
+                    accumulator.Append(WndConstants.Syntax.StatementTerminator);
+                    return SplitStatement(accumulator.ToString(), state, startLine);
+                }
+
+                accumulator.Append(ch);
             }
+
+            accumulator.Append('\n');
         }
 
         state.AddErrorAt(startLine, "Unterminated statement, expected ';'.");
@@ -614,7 +672,10 @@ public sealed class WndDocumentService(ILogger<WndDocumentService> logger) : IWn
 
     private static WndProperty? SplitStatement(string statement, ParserState state, int startLine)
     {
-        var body = statement.Substring(0, statement.Length - 1);
+        var trimmed = statement.Trim();
+        var body = trimmed.EndsWith(WndConstants.Syntax.StatementTerminator)
+            ? trimmed.Substring(0, trimmed.Length - 1)
+            : trimmed;
         var separatorIndex = body.IndexOf(WndConstants.Syntax.KeyValueSeparator, StringComparison.Ordinal);
         if (separatorIndex < 0)
         {
@@ -657,7 +718,7 @@ public sealed class WndDocumentService(ILogger<WndDocumentService> logger) : IWn
             WriteWindow(builder, child, indentLevel + 1);
         }
 
-        if (window.Children.Count > 0)
+        if (window.Children.Count > 0 || window.HasEndAllChildren)
         {
             AppendLine(builder, indentLevel + 1, WndConstants.BlockTags.EndAllChildren);
         }

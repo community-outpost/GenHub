@@ -22,9 +22,20 @@ namespace GenHub.Features.Tools.WndEditor.Services;
 /// </summary>
 public sealed class WndImageAssetService(ILogger<WndImageAssetService> logger) : IWndImageAssetService
 {
+    private const int MaxCachedIndexes = 8;
+    private const int MaxCachedImages = 500;
+
     private readonly ConcurrentDictionary<string, AssetIndex> _indexes = new(StringComparer.OrdinalIgnoreCase);
     private readonly ConcurrentDictionary<string, byte[]> _imageCache = new(StringComparer.OrdinalIgnoreCase);
     private readonly SemaphoreSlim _indexLock = new(1, 1);
+
+    /// <inheritdoc />
+    public void InvalidateCache()
+    {
+        _imageCache.Clear();
+        _indexes.Clear();
+        logger.LogDebug("Invalidated asset image caches");
+    }
 
     /// <inheritdoc />
     public async Task<OperationResult<IReadOnlyDictionary<string, byte[]>>> GetImagesAsync(
@@ -52,15 +63,43 @@ public sealed class WndImageAssetService(ILogger<WndImageAssetService> logger) :
                 stopwatch.Elapsed);
         }
 
-        var index = await GetOrBuildIndexAsync(baseRoot, overrideRoot, projectDirectory, cancellationToken).ConfigureAwait(false);
-        var requests = CollectRequests(mappedImageNames, index);
-        var resolved = await Task.Run(() => DecodeRequests(requests, index, cancellationToken), cancellationToken).ConfigureAwait(false);
-        foreach (var (name, png) in resolved)
+        try
         {
-            _imageCache[CacheKey(index.Key, name)] = png;
-        }
+            var index = await GetOrBuildIndexAsync(baseRoot, overrideRoot, projectDirectory, cancellationToken).ConfigureAwait(false);
+            var requests = CollectRequests(mappedImageNames, index);
+            var resolved = await Task.Run(() => DecodeRequests(requests, index, cancellationToken), cancellationToken).ConfigureAwait(false);
+            if (_imageCache.Count > MaxCachedImages)
+            {
+                _imageCache.Clear();
+            }
 
-        return OperationResult<IReadOnlyDictionary<string, byte[]>>.CreateSuccess(resolved, stopwatch.Elapsed);
+            foreach (var (name, png) in resolved)
+            {
+                _imageCache[CacheKey(index.Key, name)] = png;
+            }
+
+            return OperationResult<IReadOnlyDictionary<string, byte[]>>.CreateSuccess(resolved, stopwatch.Elapsed);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (IOException ex)
+        {
+            logger.LogWarning(ex, "Failed to load preview assets from {Root}", baseRoot);
+            return OperationResult<IReadOnlyDictionary<string, byte[]>>.CreateFailure(
+                $"Failed to load preview assets: {ex.Message}",
+                empty,
+                stopwatch.Elapsed);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            logger.LogWarning(ex, "Access denied loading preview assets from {Root}", baseRoot);
+            return OperationResult<IReadOnlyDictionary<string, byte[]>>.CreateFailure(
+                $"Access denied loading preview assets: {ex.Message}",
+                empty,
+                stopwatch.Elapsed);
+        }
     }
 
     private static string IndexKey(string baseRoot, string? overrideRoot, string? projectDirectory)
@@ -71,6 +110,16 @@ public sealed class WndImageAssetService(ILogger<WndImageAssetService> logger) :
     private static string CacheKey(string indexKey, string name)
     {
         return string.Concat(indexKey, "|", name);
+    }
+
+    private static int DefinitionScore(string relativePath, int size)
+    {
+        if (relativePath.Contains(WndConstants.Preview.HandCreatedDirectory, StringComparison.OrdinalIgnoreCase))
+        {
+            return -1;
+        }
+
+        return size < 0 ? int.MaxValue : Math.Abs(size - WndConstants.Preview.PreferredTextureSize);
     }
 
     private static int ParseTextureSize(string relativePath)
@@ -91,13 +140,20 @@ public sealed class WndImageAssetService(ILogger<WndImageAssetService> logger) :
 
     private static IEnumerable<string> TextureCandidates(string texture)
     {
-        var stems = new[]
+        foreach (var language in WndConstants.MappedImages.TextureLanguages)
         {
-            string.Concat("Data\\", WndConstants.MappedImages.DefaultLanguage, "\\", WndConstants.MappedImages.TexturesDirectory, "\\", texture),
+            var stem = string.Concat("Data\\", language, "\\", WndConstants.MappedImages.TexturesDirectory, "\\", texture);
+            foreach (var extension in WndConstants.MappedImages.TextureExtensions)
+            {
+                yield return Path.ChangeExtension(stem, extension);
+            }
+        }
+
+        foreach (var stem in new[]
+        {
             string.Concat(WndConstants.MappedImages.TexturesDirectory, "\\", texture),
             texture,
-        };
-        foreach (var stem in stems)
+        })
         {
             foreach (var extension in WndConstants.MappedImages.TextureExtensions)
             {
@@ -168,6 +224,11 @@ public sealed class WndImageAssetService(ILogger<WndImageAssetService> logger) :
             }
 
             var built = await Task.Run(() => BuildIndex(key, baseRoot, overrideRoot, projectDirectory, cancellationToken), cancellationToken).ConfigureAwait(false);
+            if (_indexes.Count >= MaxCachedIndexes)
+            {
+                _indexes.Clear();
+            }
+
             _indexes[key] = built;
             return built;
         }
@@ -197,7 +258,7 @@ public sealed class WndImageAssetService(ILogger<WndImageAssetService> logger) :
             fileSystem.AddMod(projectDirectory);
         }
 
-        var images = new Dictionary<string, (WndMappedImage Image, int Size)>(StringComparer.OrdinalIgnoreCase);
+        var images = new Dictionary<string, (WndMappedImage Image, int Score, int Size)>(StringComparer.OrdinalIgnoreCase);
         foreach (var iniPath in fileSystem.FilesUnder(WndConstants.MappedImages.DefinitionsDirectory))
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -208,11 +269,14 @@ public sealed class WndImageAssetService(ILogger<WndImageAssetService> logger) :
             }
 
             var size = ParseTextureSize(iniPath);
+            var score = DefinitionScore(iniPath, size);
             foreach (var image in WndMappedImage.ParseDefinitions(Encoding.UTF8.GetString(bytes)))
             {
-                if (!images.TryGetValue(image.Name, out var incumbent) || size > incumbent.Size)
+                if (!images.TryGetValue(image.Name, out var incumbent)
+                    || score < incumbent.Score
+                    || (score == incumbent.Score && size > incumbent.Size))
                 {
-                    images[image.Name] = (image, size);
+                    images[image.Name] = (image, score, size);
                 }
             }
         }

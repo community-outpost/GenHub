@@ -28,6 +28,14 @@ public sealed record WndTabControlData
         int paneBorder,
         IReadOnlyList<bool> paneDisabled)
     {
+        ArgumentNullException.ThrowIfNull(paneDisabled);
+        if (paneDisabled.Count != tabCount)
+        {
+            throw new ArgumentException(
+                $"PaneDisabled count ({paneDisabled.Count}) must match tab count ({tabCount}).",
+                nameof(paneDisabled));
+        }
+
         TabOrientation = tabOrientation;
         TabEdge = tabEdge;
         TabWidth = tabWidth;
@@ -118,7 +126,7 @@ public sealed record WndTabControlData
             index++;
         }
 
-        if (index != tokens.Count)
+        if (index != tokens.Count || disabledCount != count)
         {
             return false;
         }

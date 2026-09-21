@@ -2,12 +2,14 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Input;
+using Avalonia.Media;
 using Avalonia.Media.Imaging;
 using Avalonia.Platform.Storage;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using GenHub.Core.Constants;
+using GenHub.Core.Extensions.GameInstallations;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Interfaces.Notifications;
@@ -15,6 +17,7 @@ using GenHub.Core.Interfaces.Tools.WndEditor;
 using GenHub.Core.Models.GameInstallations;
 using GenHub.Core.Models.Tools.WndEditor;
 using GenHub.Features.Tools.ModBuilder.Models;
+using GenHub.Features.Tools.WndEditor.Services;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
@@ -36,12 +39,14 @@ public sealed partial class WndEditorViewModel(
     IDialogService dialogService,
     IGameInstallationService gameInstallationService,
     IWndImageAssetService imageAssetService,
-    ILogger<WndEditorViewModel> logger) : ObservableObject
+    ILogger<WndEditorViewModel> logger) : ObservableObject, IDisposable
 {
     private sealed record AssetRoots(string BaseRoot, string? OverrideRoot);
 
     private readonly Stack<WndEditAction> _undoStack = new();
     private readonly Stack<WndEditAction> _redoStack = new();
+    private readonly Dictionary<string, Bitmap> _composedBitmaps = new(StringComparer.OrdinalIgnoreCase);
+    private readonly object _previewSync = new();
     private WndDocument? _document;
     private double _canvasBaseWidth = WndConstants.Editor.MinCanvasWidth;
     private double _canvasBaseHeight = WndConstants.Editor.MinCanvasHeight;
@@ -50,6 +55,7 @@ public sealed partial class WndEditorViewModel(
     private WndScreenRect? _dragOriginal;
     private IReadOnlyList<GameInstallation> _installations = [];
     private Dictionary<string, Bitmap> _previewBitmaps = new(StringComparer.OrdinalIgnoreCase);
+    private IReadOnlyDictionary<string, byte[]> _previewPngs = new Dictionary<string, byte[]>(StringComparer.OrdinalIgnoreCase);
     private CancellationTokenSource? _previewCts;
     private int _previewGeneration;
     private bool _installationsLoaded;
@@ -109,6 +115,16 @@ public sealed partial class WndEditorViewModel(
     public Cursor? CanvasCursor => IsPanMode ? new Cursor(StandardCursorType.Hand) : null;
 
     /// <summary>
+    /// Gets the scroll offset showing content origin, framing the padded canvas on load and zoom reset.
+    /// </summary>
+    public Vector CanvasContentOffset => new(WndConstants.Editor.CanvasPadding * Zoom, WndConstants.Editor.CanvasPadding * Zoom);
+
+    /// <summary>
+    /// Raised when the canvas should reframe on content origin (document opened or zoom reset).
+    /// </summary>
+    public event EventHandler? CanvasFramingRequested;
+
+    /// <summary>
     /// Gets or sets whether the document has unsaved changes.
     /// </summary>
     [ObservableProperty]
@@ -135,6 +151,7 @@ public sealed partial class WndEditorViewModel(
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(CanvasWidth))]
     [NotifyPropertyChangedFor(nameof(CanvasHeight))]
+    [NotifyPropertyChangedFor(nameof(CanvasContentOffset))]
     [NotifyPropertyChangedFor(nameof(ZoomDisplayText))]
     private double _zoom = WndConstants.Editor.DefaultZoom;
 
@@ -174,6 +191,18 @@ public sealed partial class WndEditorViewModel(
     /// </summary>
     [ObservableProperty]
     private bool _hasDocument;
+
+    /// <summary>
+    /// Gets or sets the resolved/total asset preview status text.
+    /// </summary>
+    [ObservableProperty]
+    private string _assetStatusText = string.Empty;
+
+    /// <summary>
+    /// Gets or sets the missing asset names tooltip, or null when nothing is missing.
+    /// </summary>
+    [ObservableProperty]
+    private string? _assetStatusTooltip;
 
     /// <summary>
     /// Gets a value indicating whether undo is available.
@@ -291,10 +320,10 @@ public sealed partial class WndEditorViewModel(
             _dragOriginal.CreationWidth,
             _dragOriginal.CreationHeight);
         _dragItem.Window.SetProperty(WndConstants.PropertyKeys.ScreenRect, moved.ToString());
-        _dragItem.X = moved.UpperLeftX * Zoom;
-        _dragItem.Y = moved.UpperLeftY * Zoom;
-        _dragItem.Width = moved.Width * Zoom;
-        _dragItem.Height = moved.Height * Zoom;
+        _dragItem.X = (moved.UpperLeftX + WndConstants.Editor.CanvasPadding) * Zoom;
+        _dragItem.Y = (moved.UpperLeftY + WndConstants.Editor.CanvasPadding) * Zoom;
+        _dragItem.Width = Math.Max(0, moved.Width) * Zoom;
+        _dragItem.Height = Math.Max(0, moved.Height) * Zoom;
     }
 
     /// <summary>
@@ -331,6 +360,24 @@ public sealed partial class WndEditorViewModel(
                 SyncAfterEdit(item.Window);
             }));
         SyncAfterEdit(item.Window);
+    }
+
+    /// <inheritdoc />
+    public void Dispose()
+    {
+        lock (_previewSync)
+        {
+            CancelAndDisposeCts(_previewCts);
+            _previewCts = null;
+        }
+
+        ClearComposedBitmaps();
+        foreach (var bitmap in _previewBitmaps.Values)
+        {
+            bitmap.Dispose();
+        }
+
+        _previewBitmaps.Clear();
     }
 
     private static TopLevel? GetTopLevel()
@@ -447,8 +494,7 @@ public sealed partial class WndEditorViewModel(
         var names = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var window in EnumerateWindows(document.Windows))
         {
-            var name = PreviewImageName(window);
-            if (name != null)
+            foreach (var name in WndPreviewPlanner.Plan(window).ReferencedImages)
             {
                 names.Add(name);
             }
@@ -457,23 +503,18 @@ public sealed partial class WndEditorViewModel(
         return names;
     }
 
-    private static string? PreviewImageName(WndWindow window)
+    private static IBrush? ToOverlayBrush(WndRgbaColor? color)
     {
-        var raw = window.GetProperty(WndConstants.PropertyKeys.EnabledDrawData);
-        if (!WndDrawDataSet.TryParse(raw, out var set) || set == null)
+        if (color == null || color.Alpha <= 0)
         {
             return null;
         }
 
-        foreach (var entry in set.Entries)
-        {
-            if (!entry.IsEmpty && !string.IsNullOrWhiteSpace(entry.Image))
-            {
-                return entry.Image.Trim();
-            }
-        }
-
-        return null;
+        return new SolidColorBrush(Color.FromArgb(
+            (byte)Math.Clamp(color.Alpha, 0, 255),
+            (byte)Math.Clamp(color.Red, 0, 255),
+            (byte)Math.Clamp(color.Green, 0, 255),
+            (byte)Math.Clamp(color.Blue, 0, 255)));
     }
 
     private static void ApplyProperties(WndWindow window, IReadOnlyList<WndProperty> properties)
@@ -698,6 +739,7 @@ public sealed partial class WndEditorViewModel(
     private void ResetZoom()
     {
         Zoom = WndConstants.Editor.DefaultZoom;
+        CanvasFramingRequested?.Invoke(this, EventArgs.Empty);
     }
 
     /// <summary>
@@ -963,8 +1005,12 @@ public sealed partial class WndEditorViewModel(
         _undoStack.Clear();
         _redoStack.Clear();
         RefreshUndoCommands();
+        ClearComposedBitmaps();
         SyncFilesDirectory(filePath);
+        AutoSelectAssetInstallation();
         RebuildAll();
+        RefreshAssetStatus();
+        CanvasFramingRequested?.Invoke(this, EventArgs.Empty);
     }
 
     private void SyncFilesDirectory(string? filePath)
@@ -1071,19 +1117,19 @@ public sealed partial class WndEditorViewModel(
             var item = new WndCanvasItemViewModel(window)
             {
                 IsSelected = window.Id == selectedId,
-                X = rect.UpperLeftX * Zoom,
-                Y = rect.UpperLeftY * Zoom,
-                Width = rect.Width * Zoom,
-                Height = rect.Height * Zoom,
-                Image = FindPreviewBitmap(window),
+                X = (rect.UpperLeftX + WndConstants.Editor.CanvasPadding) * Zoom,
+                Y = (rect.UpperLeftY + WndConstants.Editor.CanvasPadding) * Zoom,
+                Width = Math.Max(0, rect.Width) * Zoom,
+                Height = Math.Max(0, rect.Height) * Zoom,
             };
+            RefreshItemPreview(item);
             CanvasItems.Add(item);
             maxWidth = Math.Max(maxWidth, rect.BottomRightX);
             maxHeight = Math.Max(maxHeight, rect.BottomRightY);
         }
 
-        _canvasBaseWidth = maxWidth;
-        _canvasBaseHeight = maxHeight;
+        _canvasBaseWidth = maxWidth + (WndConstants.Editor.CanvasPadding * 2);
+        _canvasBaseHeight = maxHeight + (WndConstants.Editor.CanvasPadding * 2);
         OnPropertyChanged(nameof(CanvasWidth));
         OnPropertyChanged(nameof(CanvasHeight));
     }
@@ -1211,9 +1257,13 @@ public sealed partial class WndEditorViewModel(
         }
 
         RebuildCanvas();
-        if (PreviewImageName(window) is string imageName && !_previewBitmaps.ContainsKey(imageName))
+        foreach (var imageName in WndPreviewPlanner.Plan(window).ReferencedImages)
         {
-            RefreshAssetPreviews();
+            if (!_previewBitmaps.ContainsKey(imageName))
+            {
+                RefreshAssetPreviews();
+                break;
+            }
         }
     }
 
@@ -1286,7 +1336,7 @@ public sealed partial class WndEditorViewModel(
             {
                 AvailableInstallations.Add(new GameInstallationOption
                 {
-                    DisplayName = $"Generals ({installation.InstallationType})",
+                    DisplayName = $"Generals ({installation.InstallationType.GetDisplayName()})",
                     Path = installation.GeneralsPath,
                 });
             }
@@ -1295,19 +1345,67 @@ public sealed partial class WndEditorViewModel(
             {
                 AvailableInstallations.Add(new GameInstallationOption
                 {
-                    DisplayName = $"Zero Hour ({installation.InstallationType})",
+                    DisplayName = $"Zero Hour ({installation.InstallationType.GetDisplayName()})",
                     Path = installation.ZeroHourPath,
                 });
             }
         }
 
-        SelectedAssetInstallation = AvailableInstallations.FirstOrDefault(IsZeroHourPath) ?? AvailableInstallations.FirstOrDefault();
+        SelectedAssetInstallation = SelectBestAssetInstallation();
     }
 
     private bool IsZeroHourPath(GameInstallationOption option)
     {
         return _installations.Any(installation =>
             string.Equals(option.Path, installation.ZeroHourPath, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private GameInstallationOption? SelectBestAssetInstallation()
+    {
+        var containing = string.IsNullOrEmpty(FilePath) ? null : AvailableInstallations.FirstOrDefault(option => IsPathUnder(FilePath, option.Path));
+        return containing
+            ?? AvailableInstallations.FirstOrDefault(IsZeroHourPath)
+            ?? AvailableInstallations.FirstOrDefault();
+    }
+
+    private void AutoSelectAssetInstallation()
+    {
+        if (string.IsNullOrEmpty(FilePath) || AvailableInstallations.Count == 0)
+        {
+            return;
+        }
+
+        var containing = AvailableInstallations.FirstOrDefault(option => IsPathUnder(FilePath, option.Path));
+        if (containing != null && !ReferenceEquals(containing, SelectedAssetInstallation))
+        {
+            SelectedAssetInstallation = containing;
+        }
+    }
+
+    private static bool IsPathUnder(string filePath, string directory)
+    {
+        try
+        {
+            var fullFile = Path.GetFullPath(filePath);
+            var fullDirectory = Path.GetFullPath(directory).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+            return fullFile.StartsWith(fullDirectory + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase);
+        }
+        catch (IOException)
+        {
+            return false;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return false;
+        }
+        catch (ArgumentException)
+        {
+            return false;
+        }
+        catch (NotSupportedException)
+        {
+            return false;
+        }
     }
 
     private AssetRoots ResolveAssetRoots(GameInstallationOption selection)
@@ -1332,25 +1430,132 @@ public sealed partial class WndEditorViewModel(
         return new AssetRoots(selection.Path, null);
     }
 
-    private Bitmap? FindPreviewBitmap(WndWindow window)
+    private void RefreshItemPreview(WndCanvasItemViewModel item)
     {
-        var name = PreviewImageName(window);
-        return name != null && _previewBitmaps.TryGetValue(name, out var bitmap) ? bitmap : null;
+        var plan = WndPreviewPlanner.Plan(item.Window);
+        item.FillOverlay = ToOverlayBrush(plan.FillColor);
+        item.BorderOverlay = ToOverlayBrush(plan.BorderColor);
+        item.ContentText = plan.Text;
+        item.ContentTextBrush = ToOverlayBrush(plan.TextColor) ?? Brushes.White;
+        item.ContentFontSize = Math.Max(WndConstants.Preview.MinContentFontSize, plan.FontSize * Zoom);
+        item.ContentFontWeight = plan.FontBold ? FontWeight.Bold : FontWeight.Normal;
+        item.ContentTextAlignment = plan.TextCentered ? TextAlignment.Center : TextAlignment.Left;
+        item.CanvasOpacity = plan.IsHidden ? WndConstants.Preview.HiddenOpacity : 1.0;
+        item.Image = ResolvePlanImage(plan, item);
+    }
+
+    private Bitmap? ResolvePlanImage(WndPreviewPlan plan, WndCanvasItemViewModel item)
+    {
+        if (TryResolveThreePiece(plan, item, out var composed))
+        {
+            return composed;
+        }
+
+        if (!plan.IsThreePiece && plan.SingleImage != null && _previewBitmaps.TryGetValue(plan.SingleImage, out var single))
+        {
+            return single;
+        }
+
+        return null;
+    }
+
+    private bool TryResolveThreePiece(WndPreviewPlan plan, WndCanvasItemViewModel item, out Bitmap? bitmap)
+    {
+        bitmap = null;
+        if (!plan.IsThreePiece || plan.LeftImage == null || plan.CenterImage == null || plan.RightImage == null)
+        {
+            return false;
+        }
+
+        if (!item.Window.TryGetScreenRect(out var rect) || rect == null || rect.Width <= 0 || rect.Height <= 0)
+        {
+            return false;
+        }
+
+        return TryGetComposedBitmap(plan.LeftImage, plan.CenterImage, plan.RightImage, rect.Width, rect.Height, out bitmap);
+    }
+
+    private bool TryGetComposedBitmap(string left, string center, string right, int width, int height, out Bitmap? bitmap)
+    {
+        bitmap = null;
+        var key = string.Concat(left, "|", center, "|", right, "|", width, "x", height);
+        if (_composedBitmaps.TryGetValue(key, out var cached))
+        {
+            bitmap = cached;
+            return true;
+        }
+
+        if (!_previewPngs.TryGetValue(left, out var leftPng)
+            || !_previewPngs.TryGetValue(center, out var centerPng)
+            || !_previewPngs.TryGetValue(right, out var rightPng))
+        {
+            return false;
+        }
+
+        var composed = WndPreviewImageComposer.ComposeThreePiece(leftPng, centerPng, rightPng, width, height);
+        if (composed == null)
+        {
+            return false;
+        }
+
+        using var stream = new MemoryStream(composed);
+        bitmap = new Bitmap(stream);
+        _composedBitmaps[key] = bitmap;
+        return true;
+    }
+
+    private void ClearComposedBitmaps()
+    {
+        foreach (var bitmap in _composedBitmaps.Values)
+        {
+            bitmap.Dispose();
+        }
+
+        _composedBitmaps.Clear();
     }
 
     private void RefreshAssetPreviews()
     {
-        _previewCts?.Cancel();
-        _previewCts?.Dispose();
-        _previewCts = null;
-        if (_document == null || SelectedAssetInstallation == null)
+        CancellationTokenSource? toCancel;
+        CancellationTokenSource cts;
+        int generation;
+        lock (_previewSync)
+        {
+            toCancel = _previewCts;
+            _previewCts = null;
+            if (_document == null || SelectedAssetInstallation == null)
+            {
+                CancelAndDisposeCts(toCancel);
+                return;
+            }
+
+            cts = new CancellationTokenSource();
+            _previewCts = cts;
+            generation = ++_previewGeneration;
+        }
+
+        CancelAndDisposeCts(toCancel);
+        _ = LoadAssetPreviewsAsync(cts.Token, generation);
+    }
+
+    private static void CancelAndDisposeCts(CancellationTokenSource? cts)
+    {
+        if (cts == null)
         {
             return;
         }
 
-        var cts = new CancellationTokenSource();
-        _previewCts = cts;
-        _ = LoadAssetPreviewsAsync(cts.Token, ++_previewGeneration);
+        try
+        {
+            cts.Cancel();
+        }
+        catch (ObjectDisposedException)
+        {
+        }
+        finally
+        {
+            cts.Dispose();
+        }
     }
 
     private async Task LoadAssetPreviewsAsync(CancellationToken cancellationToken, int generation)
@@ -1365,7 +1570,7 @@ public sealed partial class WndEditorViewModel(
             }
 
             var roots = ResolveAssetRoots(selection);
-            var projectDirectory = string.IsNullOrEmpty(FilePath) ? null : Path.GetDirectoryName(FilePath);
+            var projectDirectory = ResolveProjectDirectory(FilePath, roots);
             var names = CollectPreviewImageNames(document);
             var result = await imageAssetService.GetImagesAsync(names, roots.BaseRoot, roots.OverrideRoot, projectDirectory, cancellationToken).ConfigureAwait(false);
             if (!result.Success || result.Data == null || generation != _previewGeneration)
@@ -1401,14 +1606,110 @@ public sealed partial class WndEditorViewModel(
         }
 
         _previewBitmaps = bitmaps;
+        _previewPngs = images;
+        ClearComposedBitmaps();
         foreach (var item in CanvasItems)
         {
-            item.Image = FindPreviewBitmap(item.Window);
+            RefreshItemPreview(item);
         }
 
         foreach (var old in previous.Values)
         {
             old.Dispose();
         }
+
+        RefreshAssetStatus();
+    }
+
+    private void RefreshAssetStatus()
+    {
+        if (_document == null)
+        {
+            AssetStatusText = string.Empty;
+            AssetStatusTooltip = null;
+            return;
+        }
+
+        if (SelectedAssetInstallation == null)
+        {
+            AssetStatusText = localizationService.GetString("Tools.WndEditor.Assets.SelectorWatermark");
+            AssetStatusTooltip = null;
+            return;
+        }
+
+        var names = CollectPreviewImageNames(_document);
+        if (names.Count == 0)
+        {
+            AssetStatusText = localizationService.GetString("Tools.WndEditor.Assets.EmptyStatus");
+            AssetStatusTooltip = null;
+            return;
+        }
+
+        var missing = names.Where(name => !_previewBitmaps.ContainsKey(name)).OrderBy(name => name, StringComparer.OrdinalIgnoreCase).ToList();
+        AssetStatusText = localizationService.GetString("Tools.WndEditor.Assets.ResolvedStatus", names.Count - missing.Count, names.Count);
+        AssetStatusTooltip = missing.Count == 0
+            ? null
+            : localizationService.GetString("Tools.WndEditor.Assets.MissingTooltip", FormatMissingNames(missing));
+    }
+
+    private string FormatMissingNames(IReadOnlyList<string> missing)
+    {
+        var shown = missing.Take(WndConstants.Preview.MaxMissingTooltipNames).ToList();
+        var text = string.Join(", ", shown);
+        if (missing.Count > shown.Count)
+        {
+            text = string.Concat(text, ", ", localizationService.GetString("Tools.WndEditor.Assets.MissingMore", missing.Count - shown.Count));
+        }
+
+        return text;
+    }
+
+    private static string? ResolveProjectDirectory(string? filePath, AssetRoots roots)
+    {
+        if (string.IsNullOrEmpty(filePath))
+        {
+            return null;
+        }
+
+        var directory = Path.GetDirectoryName(filePath);
+        if (string.IsNullOrEmpty(directory))
+        {
+            return null;
+        }
+
+        if (IsPathUnder(filePath, roots.BaseRoot)
+            || (roots.OverrideRoot != null && IsPathUnder(filePath, roots.OverrideRoot)))
+        {
+            return directory;
+        }
+
+        return FindModRoot(directory) ?? directory;
+    }
+
+    private static string? FindModRoot(string directory)
+    {
+        var current = directory;
+        for (var depth = 0; depth < 6 && !string.IsNullOrEmpty(current); depth++)
+        {
+            try
+            {
+                if (Directory.Exists(Path.Combine(current, "Data")))
+                {
+                    return current;
+                }
+            }
+            catch (IOException)
+            {
+                return null;
+            }
+            catch (UnauthorizedAccessException)
+            {
+                return null;
+            }
+
+            current = Path.GetDirectoryName(current) ?? string.Empty;
+        }
+
+        return null;
     }
 }

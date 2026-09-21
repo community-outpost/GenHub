@@ -110,10 +110,9 @@ public sealed class WndGadgetDataTests
         data.ColumnWidths.Should().Equal(60, 40);
         data.ToString().Should().Be(value);
 
-        // Dialect check: COLUMNS label for widths accepted
-        const string legacy = "LENGTH: 30, AUTOSCROLL: 0, AUTOPURGE: 0, SCROLLBAR: 1, MULTISELECT: 0, COLUMNS: 2, COLUMNS: 60, COLUMNS: 40, FORCESELECT: 0";
-        WndListboxData.TryParse(legacy, out var legacyData).Should().BeTrue();
-        legacyData!.ColumnWidths.Should().Equal(60, 40);
+        // Reject duplicate COLUMNS label used as width
+        const string malformed = "LENGTH: 30, AUTOSCROLL: 0, AUTOPURGE: 0, SCROLLBAR: 1, MULTISELECT: 0, COLUMNS: 2, COLUMNS: 60, COLUMNS: 40, FORCESELECT: 0";
+        WndListboxData.TryParse(malformed, out _).Should().BeFalse();
 
         WndListboxData.TryParse("LENGTH: 30", out _).Should().BeFalse();
     }
@@ -182,6 +181,36 @@ public sealed class WndGadgetDataTests
         legacyData!.PaneDisabled.Should().Equal(false, false);
 
         WndTabControlData.TryParse("TABORIENTATION: 0", out _).Should().BeFalse();
+    }
+
+    /// <summary>
+    /// Tests constructor validation for ListboxData column count mismatch.
+    /// </summary>
+    [Fact]
+    public void ListboxData_ConstructorMismatchedColumns_ThrowsArgumentException()
+    {
+        var act = () => new WndListboxData(30, false, null, false, true, false, 2, [60], false);
+        act.Should().Throw<System.ArgumentException>();
+    }
+
+    /// <summary>
+    /// Tests constructor validation for TabControlData pane disabled count mismatch.
+    /// </summary>
+    [Fact]
+    public void TabControlData_ConstructorMismatchedPaneDisabled_ThrowsArgumentException()
+    {
+        var act = () => new WndTabControlData(0, 0, 100, 20, 2, 1, [false]);
+        act.Should().Throw<System.ArgumentException>();
+    }
+
+    /// <summary>
+    /// Tests that TabControlData returns false when disabled count does not match tab count.
+    /// </summary>
+    [Fact]
+    public void TabControlData_MismatchedDisabledCount_ReturnsFalse()
+    {
+        const string malformed = "TABORIENTATION: 0, TABEDGE: 0, TABWIDTH: 100, TABHEIGHT: 20, TABCOUNT: 2, PANEBORDER: 1, PANEDISABLED: 1, 0";
+        WndTabControlData.TryParse(malformed, out _).Should().BeFalse();
     }
 
     /// <summary>

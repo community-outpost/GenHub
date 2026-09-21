@@ -41,6 +41,11 @@ public sealed class WndWindow
     public List<WndWindow> Children { get; } = [];
 
     /// <summary>
+    /// Gets or sets a value indicating whether this window had an explicit ENDALLCHILDREN tag in its source.
+    /// </summary>
+    public bool HasEndAllChildren { get; set; }
+
+    /// <summary>
     /// Gets the display name from the NAME property when present.
     /// </summary>
     public string? Name => GetProperty(WndConstants.PropertyKeys.Name);
@@ -79,7 +84,7 @@ public sealed class WndWindow
     /// <returns>The property value or null.</returns>
     public string? GetProperty(string key)
     {
-        return Properties.FirstOrDefault(p => string.Equals(p.Key, key, StringComparison.Ordinal))?.Value;
+        return Properties.FirstOrDefault(p => string.Equals(p.Key, key, StringComparison.OrdinalIgnoreCase))?.Value;
     }
 
     /// <summary>
@@ -89,7 +94,7 @@ public sealed class WndWindow
     /// <param name="value">The property value.</param>
     public void SetProperty(string key, string value)
     {
-        var index = Properties.FindIndex(p => string.Equals(p.Key, key, StringComparison.Ordinal));
+        var index = Properties.FindIndex(p => string.Equals(p.Key, key, StringComparison.OrdinalIgnoreCase));
         if (index >= 0)
         {
             Properties[index] = new WndProperty(key, value);
@@ -107,7 +112,7 @@ public sealed class WndWindow
     /// <returns>True when at least one property was removed.</returns>
     public bool RemoveProperty(string key)
     {
-        return Properties.RemoveAll(p => string.Equals(p.Key, key, StringComparison.Ordinal)) > 0;
+        return Properties.RemoveAll(p => string.Equals(p.Key, key, StringComparison.OrdinalIgnoreCase)) > 0;
     }
 
     /// <summary>

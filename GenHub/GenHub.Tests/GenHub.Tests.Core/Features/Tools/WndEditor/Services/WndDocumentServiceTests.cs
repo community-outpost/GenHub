@@ -302,6 +302,46 @@ public sealed class WndDocumentServiceTests : IDisposable
     }
 
     /// <summary>
+    /// Tests that formatting preserves ENDALLCHILDREN on childless windows when present in the source.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task FormatFileAsync_ChildlessWithEndAllChildren_PreservesEndAllChildren()
+    {
+        // Arrange
+        var path = Path.Combine(_tempDirectory, "Childless.wnd");
+        await File.WriteAllTextAsync(path, "FILE_VERSION = 2;\nWINDOW\n  WINDOWTYPE = USER;\n  ENDALLCHILDREN\nEND\n");
+
+        // Act
+        var result = await _service.FormatFileAsync(path);
+
+        // Assert
+        result.Success.Should().BeTrue();
+        var formatted = await File.ReadAllTextAsync(path);
+        formatted.Should().Contain("ENDALLCHILDREN");
+    }
+
+    /// <summary>
+    /// Tests that formatting refuses to overwrite files containing invalid non-UTF8 bytes.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task FormatFileAsync_NonUtf8AnsiFile_RefusesToOverwrite()
+    {
+        // Arrange
+        var path = Path.Combine(_tempDirectory, "Ansi.wnd");
+        var ansiBytes = new byte[] { (byte)'W', (byte)'I', (byte)'N', (byte)'D', (byte)'O', (byte)'W', 0xFF, 0xFE };
+        await File.WriteAllBytesAsync(path, ansiBytes);
+
+        // Act
+        var result = await _service.FormatFileAsync(path);
+
+        // Assert
+        result.Success.Should().BeFalse();
+        (await File.ReadAllBytesAsync(path)).Should().Equal(ansiBytes);
+    }
+
+    /// <summary>
     /// Tests that a valid document passes validation.
     /// </summary>
     [Fact]

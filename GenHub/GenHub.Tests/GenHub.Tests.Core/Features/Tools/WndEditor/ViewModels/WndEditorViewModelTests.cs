@@ -579,7 +579,7 @@ public sealed class WndEditorViewModelTests : IDisposable
         var properties = _viewModel.SelectedProperties!;
 
         // Assert
-        properties.EnabledDrawData.Should().HaveCount(9);
+        properties.EnabledDrawData.Should().HaveCount(1);
 
         // Act
         properties.EnabledDrawData[0].Image = "Circle_Small03_Black";
@@ -757,5 +757,252 @@ public sealed class WndEditorViewModelTests : IDisposable
 
         _viewModel.CanvasItems[0].HasImage.Should().BeTrue();
         _viewModel.CanvasItems[0].Image.Should().NotBeNull();
+    }
+
+    /// <summary>
+    /// Tests that canvas items are offset by padding so every document stays pannable.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task CanvasItems_OffsetByPadding()
+    {
+        // Act
+        await _viewModel.LoadFromTextAsync(SampleDocument, null);
+
+        // Assert
+        var item = _viewModel.CanvasItems.First(i => i.Window.ControlType == WndControlType.PushButton);
+        item.X.Should().Be((10 + WndConstants.Editor.CanvasPadding) * _viewModel.Zoom);
+        item.Y.Should().Be((20 + WndConstants.Editor.CanvasPadding) * _viewModel.Zoom);
+        _viewModel.CanvasWidth.Should().Be(800 + (WndConstants.Editor.CanvasPadding * 2));
+        _viewModel.CanvasHeight.Should().Be(600 + (WndConstants.Editor.CanvasPadding * 2));
+    }
+
+    /// <summary>
+    /// Tests that three-piece button art requests left, middle, and right images.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [AvaloniaFact]
+    public async Task Previews_RequestThreePieceNames()
+    {
+        // Arrange
+        var entries = new List<WndDrawDataEntry>();
+        for (var i = 0; i < WndConstants.DrawData.EntryCount; i++)
+        {
+            entries.Add(WndDrawDataEntry.Empty);
+        }
+
+        entries[0] = new WndDrawDataEntry("BtnLeft", WndRgbaColor.White, WndRgbaColor.White);
+        entries[5] = new WndDrawDataEntry("BtnMiddle", WndRgbaColor.White, WndRgbaColor.White);
+        entries[6] = new WndDrawDataEntry("BtnRight", WndRgbaColor.White, WndRgbaColor.White);
+        var doc =
+            "FILE_VERSION = 2;\n" +
+            "WINDOW\n" +
+            "  WINDOWTYPE = PUSHBUTTON;\n" +
+            "  SCREENRECT = UPPERLEFT: 0 0, BOTTOMRIGHT: 100 40, CREATIONRESOLUTION: 800 600;\n" +
+            $"  ENABLEDDRAWDATA = {new WndDrawDataSet(entries)};\n" +
+            "END\n";
+        IReadOnlyCollection<string>? requested = null;
+        _mockImageAssetService
+            .Setup(s => s.GetImagesAsync(
+                It.IsAny<IReadOnlyCollection<string>>(),
+                It.IsAny<string>(),
+                It.IsAny<string?>(),
+                It.IsAny<string?>(),
+                It.IsAny<CancellationToken>()))
+            .Callback<IReadOnlyCollection<string>, string, string?, string?, CancellationToken>((names, _, _, _, _) => requested = names)
+            .ReturnsAsync(OperationResult<IReadOnlyDictionary<string, byte[]>>.CreateSuccess(
+                new Dictionary<string, byte[]>(StringComparer.OrdinalIgnoreCase)));
+        SetupSingleInstallation();
+
+        // Act
+        await _viewModel.LoadFromTextAsync(doc, null);
+        for (var attempt = 0; attempt < 200 && requested == null; attempt++)
+        {
+            Dispatcher.UIThread.RunJobs(null);
+            await Task.Delay(20);
+        }
+
+        // Assert
+        requested.Should().NotBeNull();
+        requested.Should().BeEquivalentTo("BtnLeft", "BtnMiddle", "BtnRight");
+    }
+
+    /// <summary>
+    /// Tests that static text overlays its content without an image or fill.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [AvaloniaFact]
+    public async Task CanvasItems_StaticTextShowsContentOnly()
+    {
+        // Arrange
+        var doc =
+            "FILE_VERSION = 2;\n" +
+            "WINDOW\n" +
+            "  WINDOWTYPE = STATICTEXT;\n" +
+            "  SCREENRECT = UPPERLEFT: 0 0, BOTTOMRIGHT: 100 20, CREATIONRESOLUTION: 800 600;\n" +
+            "  TEXT = \"Hello\";\n" +
+            "END\n";
+
+        // Act
+        await _viewModel.LoadFromTextAsync(doc, null);
+
+        // Assert
+        _viewModel.CanvasItems.Should().ContainSingle();
+        var item = _viewModel.CanvasItems[0];
+        item.ContentText.Should().Be("Hello");
+        item.HasImage.Should().BeFalse();
+        item.HasFill.Should().BeFalse();
+        item.ShowNameTag.Should().BeFalse();
+    }
+
+    /// <summary>
+    /// Tests that generic windows without the IMAGE flag show their draw-data fill.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [AvaloniaFact]
+    public async Task CanvasItems_GenericWithoutImageFlagShowsFill()
+    {
+        // Arrange
+        var entries = new List<WndDrawDataEntry>
+        {
+            new("Backdrop", new WndRgbaColor(10, 20, 30, 255), new WndRgbaColor(40, 50, 60, 255)),
+        };
+        while (entries.Count < WndConstants.DrawData.EntryCount)
+        {
+            entries.Add(WndDrawDataEntry.Empty);
+        }
+
+        var doc =
+            "FILE_VERSION = 2;\n" +
+            "WINDOW\n" +
+            "  WINDOWTYPE = USER;\n" +
+            "  SCREENRECT = UPPERLEFT: 0 0, BOTTOMRIGHT: 100 40, CREATIONRESOLUTION: 800 600;\n" +
+            "  STATUS = ENABLED;\n" +
+            $"  ENABLEDDRAWDATA = {new WndDrawDataSet(entries)};\n" +
+            "END\n";
+
+        // Act
+        await _viewModel.LoadFromTextAsync(doc, null);
+
+        // Assert
+        _viewModel.CanvasItems.Should().ContainSingle();
+        var item = _viewModel.CanvasItems[0];
+        item.HasImage.Should().BeFalse();
+        item.HasFill.Should().BeTrue();
+        item.HasBorderOverlay.Should().BeTrue();
+    }
+
+    /// <summary>
+    /// Tests that the asset status reports resolved counts and missing names.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [AvaloniaFact]
+    public async Task AssetStatus_ReportsResolvedAndMissing()
+    {
+        // Arrange
+        const string redPixelPng = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
+        _mockLocalizationService
+            .Setup(s => s.GetString("Tools.WndEditor.Assets.ResolvedStatus", It.IsAny<object?[]>()))
+            .Returns((string _, object?[] args) => $"{args[0]} of {args[1]} images");
+        _mockLocalizationService
+            .Setup(s => s.GetString("Tools.WndEditor.Assets.MissingTooltip", It.IsAny<object?[]>()))
+            .Returns((string _, object?[] args) => $"Missing images: {args[0]}");
+        var doc =
+            "FILE_VERSION = 2;\n" +
+            "WINDOW\n" +
+            "  WINDOWTYPE = PUSHBUTTON;\n" +
+            "  SCREENRECT = UPPERLEFT: 0 0, BOTTOMRIGHT: 100 40, CREATIONRESOLUTION: 800 600;\n" +
+            $"  ENABLEDDRAWDATA = {DrawDataWith("Found", 0)};\n" +
+            "  CHILD\n" +
+            "  WINDOW\n" +
+            "    WINDOWTYPE = USER;\n" +
+            "    SCREENRECT = UPPERLEFT: 0 0, BOTTOMRIGHT: 50 20, CREATIONRESOLUTION: 800 600;\n" +
+            "    STATUS = ENABLED+IMAGE;\n" +
+            $"    ENABLEDDRAWDATA = {DrawDataWith("Lost", 0)};\n" +
+            "  END\n" +
+            "  ENDALLCHILDREN\n" +
+            "END\n";
+        _mockImageAssetService
+            .Setup(s => s.GetImagesAsync(
+                It.IsAny<IReadOnlyCollection<string>>(),
+                It.IsAny<string>(),
+                It.IsAny<string?>(),
+                It.IsAny<string?>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IReadOnlyDictionary<string, byte[]>>.CreateSuccess(
+                new Dictionary<string, byte[]>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["Found"] = Convert.FromBase64String(redPixelPng),
+                }));
+        SetupSingleInstallation();
+
+        // Act
+        await _viewModel.LoadFromTextAsync(doc, null);
+        for (var attempt = 0; attempt < 200 && !_viewModel.AssetStatusText.Contains("images", StringComparison.Ordinal); attempt++)
+        {
+            Dispatcher.UIThread.RunJobs(null);
+            await Task.Delay(20);
+        }
+
+        // Assert
+        _viewModel.AssetStatusText.Should().Be("1 of 2 images");
+        _viewModel.AssetStatusTooltip.Should().Be("Missing images: Lost");
+    }
+
+    /// <summary>
+    /// Tests that opening a file inside a Generals folder selects Generals assets over the Zero Hour default.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task AssetInstall_AutoSelectsInstallationContainingFile()
+    {
+        // Arrange
+        var generalsDir = Path.Combine(_tempDirectory, "Generals");
+        var zeroHourDir = Path.Combine(_tempDirectory, "ZeroHour");
+        Directory.CreateDirectory(generalsDir);
+        Directory.CreateDirectory(zeroHourDir);
+        var installation = new GameInstallation(_tempDirectory, GameInstallationType.Steam)
+        {
+            HasGenerals = true,
+            GeneralsPath = generalsDir,
+            HasZeroHour = true,
+            ZeroHourPath = zeroHourDir,
+        };
+        _mockGameInstallService
+            .Setup(s => s.GetAllInstallationsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IReadOnlyList<GameInstallation>>.CreateSuccess([installation]));
+
+        // Act
+        await _viewModel.LoadFromTextAsync(SampleDocument, Path.Combine(generalsDir, "Menu.wnd"));
+
+        // Assert
+        _viewModel.SelectedAssetInstallation.Should().NotBeNull();
+        _viewModel.SelectedAssetInstallation!.Path.Should().Be(generalsDir);
+    }
+
+    private static string DrawDataWith(string name, int index)
+    {
+        var entries = new List<WndDrawDataEntry>();
+        for (var i = 0; i < WndConstants.DrawData.EntryCount; i++)
+        {
+            entries.Add(WndDrawDataEntry.Empty);
+        }
+
+        entries[index] = new WndDrawDataEntry(name, WndRgbaColor.White, WndRgbaColor.White);
+        return new WndDrawDataSet(entries).ToString();
+    }
+
+    private void SetupSingleInstallation()
+    {
+        var gameDir = Path.Combine(_tempDirectory, "Game");
+        Directory.CreateDirectory(gameDir);
+        var installation = new GameInstallation(gameDir, GameInstallationType.Steam)
+        {
+            HasZeroHour = true,
+            ZeroHourPath = gameDir,
+        };
+        _mockGameInstallService
+            .Setup(s => s.GetAllInstallationsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IReadOnlyList<GameInstallation>>.CreateSuccess([installation]));
     }
 }
