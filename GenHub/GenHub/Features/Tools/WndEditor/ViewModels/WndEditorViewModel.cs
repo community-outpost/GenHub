@@ -40,9 +40,13 @@ public sealed partial class WndEditorViewModel(
     IDialogService dialogService,
     IGameInstallationService gameInstallationService,
     IWndImageAssetService imageAssetService,
+    IWndStringTableService stringTableService,
     ILogger<WndEditorViewModel> logger) : ObservableObject, IDisposable
 {
     private sealed record AssetRoots(string BaseRoot, string? OverrideRoot);
+
+    private const int MaxUndoHistory = 200;
+    private static readonly Cursor HandCursor = new(StandardCursorType.Hand);
 
     private readonly Stack<WndEditAction> _undoStack = new();
     private readonly Stack<WndEditAction> _redoStack = new();
@@ -57,6 +61,7 @@ public sealed partial class WndEditorViewModel(
     private IReadOnlyList<GameInstallation> _installations = [];
     private Dictionary<string, Bitmap> _previewBitmaps = new(StringComparer.OrdinalIgnoreCase);
     private IReadOnlyDictionary<string, byte[]> _previewPngs = new Dictionary<string, byte[]>(StringComparer.OrdinalIgnoreCase);
+    private IReadOnlyDictionary<string, string> _resolvedStrings = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
     private CancellationTokenSource? _previewCts;
     private int _previewGeneration;
     private bool _installationsLoaded;
@@ -115,7 +120,7 @@ public sealed partial class WndEditorViewModel(
     /// Gets the canvas cursor, showing a hand while the pan tool is active.
     /// </summary>
     [SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Instance property bound to UI in Avalonia XAML")]
-    public Cursor? CanvasCursor => IsPanMode ? new Cursor(StandardCursorType.Hand) : null;
+    public Cursor? CanvasCursor => IsPanMode ? HandCursor : null;
 
     /// <summary>
     /// Gets the scroll offset showing content origin, framing the padded canvas on load and zoom reset.
@@ -507,6 +512,26 @@ public sealed partial class WndEditorViewModel(
         return names;
     }
 
+    private static IReadOnlyCollection<string> CollectPreviewLabels(WndDocument document)
+    {
+        var labels = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var window in EnumerateWindows(document.Windows))
+        {
+            if (window.ControlType == WndControlType.EntryField)
+            {
+                continue;
+            }
+
+            var text = WndPreviewPlanner.Plan(window).Text;
+            if (!string.IsNullOrWhiteSpace(text))
+            {
+                labels.Add(text);
+            }
+        }
+
+        return labels;
+    }
+
     private static IBrush? ToOverlayBrush(WndRgbaColor? color)
     {
         if (color == null || color.Alpha <= 0)
@@ -646,9 +671,12 @@ public sealed partial class WndEditorViewModel(
         var localPath = file?.TryGetLocalPath();
         if (!string.IsNullOrEmpty(localPath))
         {
-            FilePath = localPath;
-            SyncFilesDirectory(localPath);
-            await WriteDocumentToFileAsync(localPath, cancellationToken);
+            var saved = await WriteDocumentToFileAsync(localPath, cancellationToken);
+            if (saved)
+            {
+                FilePath = localPath;
+                SyncFilesDirectory(localPath);
+            }
         }
     }
 
@@ -713,7 +741,7 @@ public sealed partial class WndEditorViewModel(
 
         var action = _redoStack.Pop();
         action.Redo();
-        _undoStack.Push(action);
+        PushUndoStack(action);
         IsModified = true;
         RefreshUndoCommands();
     }
@@ -965,23 +993,27 @@ public sealed partial class WndEditorViewModel(
             localizationService.GetString("Tools.WndEditor.UnsavedChanges.Cancel"));
     }
 
-    private async Task WriteDocumentToFileAsync(string filePath, CancellationToken cancellationToken)
+    private async Task<bool> WriteDocumentToFileAsync(string filePath, CancellationToken cancellationToken)
     {
         if (_document == null)
         {
-            return;
+            return false;
         }
 
         try
         {
             var text = wndDocumentService.WriteDocument(_document);
-            await File.WriteAllTextAsync(filePath, text, cancellationToken);
+            var directory = Path.GetDirectoryName(filePath);
+            var tempPath = Path.Combine(directory ?? Path.GetTempPath(), Path.GetRandomFileName());
+            await File.WriteAllTextAsync(tempPath, text, cancellationToken).ConfigureAwait(false);
+            File.Move(tempPath, filePath, overwrite: true);
             IsModified = false;
             notificationService.ShowSuccess(
                 localizationService.GetString("Tools.WndEditor.Save.SuccessTitle"),
                 localizationService.GetString("Tools.WndEditor.Save.SuccessMessage", Path.GetFileName(filePath)),
                 NotificationDurations.Medium);
             logger.LogInformation("Saved window definition file {Path}", filePath);
+            return true;
         }
         catch (IOException ex)
         {
@@ -990,6 +1022,7 @@ public sealed partial class WndEditorViewModel(
                 localizationService.GetString("Tools.WndEditor.Save.FailureTitle"),
                 localizationService.GetString("Tools.WndEditor.Save.FailureMessage", ex.Message),
                 NotificationDurations.Long);
+            return false;
         }
         catch (UnauthorizedAccessException ex)
         {
@@ -998,6 +1031,7 @@ public sealed partial class WndEditorViewModel(
                 localizationService.GetString("Tools.WndEditor.Save.FailureTitle"),
                 localizationService.GetString("Tools.WndEditor.Save.FailureMessage", ex.Message),
                 NotificationDurations.Long);
+            return false;
         }
     }
 
@@ -1031,9 +1065,23 @@ public sealed partial class WndEditorViewModel(
         }
     }
 
-    private void PushUndo(WndEditAction action)
+    private void PushUndoStack(WndEditAction action)
     {
         _undoStack.Push(action);
+        if (_undoStack.Count > MaxUndoHistory)
+        {
+            var kept = _undoStack.Take(MaxUndoHistory).Reverse().ToArray();
+            _undoStack.Clear();
+            foreach (var item in kept)
+            {
+                _undoStack.Push(item);
+            }
+        }
+    }
+
+    private void PushUndo(WndEditAction action)
+    {
+        PushUndoStack(action);
         _redoStack.Clear();
         IsModified = true;
         RefreshUndoCommands();
@@ -1059,6 +1107,25 @@ public sealed partial class WndEditorViewModel(
 
     private void RebuildTree()
     {
+        var collapsedIds = new HashSet<Guid>();
+        void CollectCollapsed(WndTreeNodeViewModel node)
+        {
+            if (!node.IsExpanded)
+            {
+                collapsedIds.Add(node.Window.Id);
+            }
+
+            foreach (var child in node.Children)
+            {
+                CollectCollapsed(child);
+            }
+        }
+
+        foreach (var root in RootNodes)
+        {
+            CollectCollapsed(root);
+        }
+
         RootNodes.Clear();
         if (_document == null)
         {
@@ -1068,7 +1135,7 @@ public sealed partial class WndEditorViewModel(
         var filter = WindowsFilter.Trim();
         foreach (var window in _document.Windows)
         {
-            var node = BuildTreeNode(window, null, filter);
+            var node = BuildTreeNode(window, null, filter, collapsedIds);
             if (node != null)
             {
                 RootNodes.Add(node);
@@ -1076,7 +1143,7 @@ public sealed partial class WndEditorViewModel(
         }
     }
 
-    private WndTreeNodeViewModel? BuildTreeNode(WndWindow window, WndTreeNodeViewModel? parent, string filter)
+    private WndTreeNodeViewModel? BuildTreeNode(WndWindow window, WndTreeNodeViewModel? parent, string filter, HashSet<Guid> collapsedIds)
     {
         if (filter.Length > 0 && !SubtreeMatchesFilter(window, filter))
         {
@@ -1086,7 +1153,7 @@ public sealed partial class WndEditorViewModel(
         var node = new WndTreeNodeViewModel(window, parent);
         foreach (var child in window.Children)
         {
-            var childNode = BuildTreeNode(child, node, filter);
+            var childNode = BuildTreeNode(child, node, filter, collapsedIds);
             if (childNode != null)
             {
                 node.Children.Add(childNode);
@@ -1096,6 +1163,10 @@ public sealed partial class WndEditorViewModel(
         if (filter.Length > 0)
         {
             node.IsExpanded = true;
+        }
+        else if (collapsedIds.Contains(window.Id))
+        {
+            node.IsExpanded = false;
         }
 
         return node;
@@ -1262,7 +1333,12 @@ public sealed partial class WndEditorViewModel(
         }
 
         RebuildCanvas();
-        if (WndPreviewPlanner.Plan(window).ReferencedImages.Any(imageName => !_previewBitmaps.ContainsKey(imageName)))
+        var plan = WndPreviewPlanner.Plan(window);
+        var missingImage = plan.ReferencedImages.Any(imageName => !_previewBitmaps.ContainsKey(imageName));
+        var missingLabel = plan.Text != null
+            && window.ControlType != WndControlType.EntryField
+            && !_resolvedStrings.ContainsKey(plan.Text);
+        if (missingImage || missingLabel)
         {
             RefreshAssetPreviews();
         }
@@ -1436,13 +1512,119 @@ public sealed partial class WndEditorViewModel(
         var plan = WndPreviewPlanner.Plan(item.Window);
         item.FillOverlay = ToOverlayBrush(plan.FillColor);
         item.BorderOverlay = ToOverlayBrush(plan.BorderColor);
-        item.ContentText = plan.Text;
+        item.ContentText = ResolveDisplayText(plan, item.Window);
         item.ContentTextBrush = ToOverlayBrush(plan.TextColor) ?? Brushes.White;
         item.ContentFontSize = Math.Max(WndConstants.Preview.MinContentFontSize, plan.FontSize * Zoom);
         item.ContentFontWeight = plan.FontBold ? FontWeight.Bold : FontWeight.Normal;
         item.ContentTextAlignment = plan.TextCentered ? TextAlignment.Center : TextAlignment.Left;
         item.CanvasOpacity = plan.IsHidden ? WndConstants.Preview.HiddenOpacity : 1.0;
         item.Image = ResolvePlanImage(plan, item);
+        RefreshItemGlyph(item, plan);
+        item.Overlays = ResolveOverlays(plan, item);
+    }
+
+    private IReadOnlyList<WndCanvasOverlayViewModel> ResolveOverlays(WndPreviewPlan plan, WndCanvasItemViewModel item)
+    {
+        if (plan.SubImages == null)
+        {
+            return [];
+        }
+
+        var overlays = new List<WndCanvasOverlayViewModel>();
+        AddScrollOverlays(plan.SubImages, item, overlays);
+        AddComboButtonOverlay(plan.SubImages, item, overlays);
+        AddSliderThumbOverlay(plan.SubImages, item, overlays);
+        return overlays;
+    }
+
+    private Bitmap? FindBitmap(string? name)
+    {
+        return name != null && _previewBitmaps.TryGetValue(name, out var bitmap) ? bitmap : null;
+    }
+
+    private void AddScrollOverlays(WndPreviewSubImages sub, WndCanvasItemViewModel item, List<WndCanvasOverlayViewModel> overlays)
+    {
+        var up = FindBitmap(sub.ScrollUp);
+        var down = FindBitmap(sub.ScrollDown);
+        var thumb = FindBitmap(sub.ScrollThumb);
+        var upHeight = up == null ? 0 : up.PixelSize.Height * Zoom;
+        var downHeight = down == null ? 0 : down.PixelSize.Height * Zoom;
+        if (up != null)
+        {
+            var width = up.PixelSize.Width * Zoom;
+            overlays.Add(new WndCanvasOverlayViewModel(up, item.Width - width, 0, width, upHeight));
+        }
+
+        if (down != null)
+        {
+            var width = down.PixelSize.Width * Zoom;
+            overlays.Add(new WndCanvasOverlayViewModel(down, item.Width - width, item.Height - downHeight, width, downHeight));
+        }
+
+        if (thumb != null && item.Height - upHeight - downHeight > 0)
+        {
+            var width = thumb.PixelSize.Width * Zoom;
+            overlays.Add(new WndCanvasOverlayViewModel(thumb, item.Width - width, upHeight, width, item.Height - upHeight - downHeight));
+        }
+    }
+
+    private void AddComboButtonOverlay(WndPreviewSubImages sub, WndCanvasItemViewModel item, List<WndCanvasOverlayViewModel> overlays)
+    {
+        if (sub.ComboButton == null || !_previewBitmaps.TryGetValue(sub.ComboButton, out var button))
+        {
+            return;
+        }
+
+        var width = button.PixelSize.Width * Zoom;
+        overlays.Add(new WndCanvasOverlayViewModel(button, item.Width - width, 0, width, item.Height));
+    }
+
+    private void AddSliderThumbOverlay(WndPreviewSubImages sub, WndCanvasItemViewModel item, List<WndCanvasOverlayViewModel> overlays)
+    {
+        if (sub.SliderThumb == null || !_previewBitmaps.TryGetValue(sub.SliderThumb, out var thumb))
+        {
+            return;
+        }
+
+        var width = thumb.PixelSize.Width * Zoom;
+        var height = thumb.PixelSize.Height * Zoom;
+        overlays.Add(new WndCanvasOverlayViewModel(thumb, (item.Width - width) / 2, (item.Height - height) / 2, width, height));
+    }
+
+    private void RefreshItemGlyph(WndCanvasItemViewModel item, WndPreviewPlan plan)
+    {
+        if (plan.GlyphImage == null || !_previewBitmaps.TryGetValue(plan.GlyphImage, out var glyph))
+        {
+            item.GlyphImage = null;
+            item.GlyphWidth = 0;
+            item.GlyphHeight = 0;
+            item.ContentTextPadding = new Thickness(4, 2);
+            return;
+        }
+
+        item.GlyphImage = glyph;
+        item.GlyphWidth = glyph.PixelSize.Width * Zoom;
+        item.GlyphHeight = glyph.PixelSize.Height * Zoom;
+        item.ContentTextPadding = new Thickness(
+            WndConstants.Preview.GlyphMargin + item.GlyphWidth + WndConstants.Preview.GlyphTextGap,
+            2,
+            4,
+            2);
+    }
+
+    private string? ResolveDisplayText(WndPreviewPlan plan, WndWindow window)
+    {
+        if (plan.Text == null || window.ControlType == WndControlType.EntryField)
+        {
+            return plan.Text;
+        }
+
+        if (_resolvedStrings.TryGetValue(plan.Text, out var localized) && !string.IsNullOrEmpty(localized))
+        {
+            return WndGameText.StripHotkeyMarkers(localized);
+        }
+
+        return plan.Text;
     }
 
     private Bitmap? ResolvePlanImage(WndPreviewPlan plan, WndCanvasItemViewModel item)
@@ -1473,13 +1655,14 @@ public sealed partial class WndEditorViewModel(
             return false;
         }
 
-        return TryGetComposedBitmap(plan.LeftImage, plan.CenterImage, plan.RightImage, rect.Width, rect.Height, out bitmap);
+        return TryGetComposedBitmap(plan.LeftImage, plan.CenterImage, plan.RightImage, rect.Width, rect.Height, plan.IsVerticalBar, out bitmap);
     }
 
-    private bool TryGetComposedBitmap(string left, string center, string right, int width, int height, out Bitmap? bitmap)
+    private bool TryGetComposedBitmap(string left, string center, string right, int width, int height, bool vertical, out Bitmap? bitmap)
     {
         bitmap = null;
-        var key = string.Concat(left, "|", center, "|", right, "|", width, "x", height);
+        var orientation = vertical ? "v" : "h";
+        var key = string.Concat(orientation, "|", left, "|", center, "|", right, "|", width, "x", height);
         if (_composedBitmaps.TryGetValue(key, out var cached))
         {
             bitmap = cached;
@@ -1493,7 +1676,9 @@ public sealed partial class WndEditorViewModel(
             return false;
         }
 
-        var composed = WndPreviewImageComposer.ComposeThreePiece(leftPng, centerPng, rightPng, width, height);
+        var composed = vertical
+            ? WndPreviewImageComposer.ComposeThreePieceVertical(leftPng, centerPng, rightPng, width, height)
+            : WndPreviewImageComposer.ComposeThreePiece(leftPng, centerPng, rightPng, width, height);
         if (composed == null)
         {
             return false;
@@ -1574,13 +1759,17 @@ public sealed partial class WndEditorViewModel(
             var roots = ResolveAssetRoots(selection);
             var projectDirectory = ResolveProjectDirectory(FilePath, roots);
             var names = CollectPreviewImageNames(document);
-            var result = await imageAssetService.GetImagesAsync(names, roots.BaseRoot, roots.OverrideRoot, projectDirectory, cancellationToken).ConfigureAwait(false);
-            if (!result.Success || result.Data == null || generation != _previewGeneration)
+            var labels = CollectPreviewLabels(document);
+            var images = await imageAssetService.GetImagesAsync(names, roots.BaseRoot, roots.OverrideRoot, projectDirectory, cancellationToken).ConfigureAwait(false);
+            var strings = await stringTableService.GetStringsAsync(labels, roots.BaseRoot, roots.OverrideRoot, projectDirectory, cancellationToken).ConfigureAwait(false);
+            if ((!images.Success && !strings.Success) || generation != _previewGeneration)
             {
                 return;
             }
 
-            await InvokeOnUIThreadAsync(() => ApplyPreviewBitmaps(result.Data, generation)).ConfigureAwait(false);
+            var bitmaps = images.Success ? images.Data : null;
+            var values = strings.Success ? strings.Data : null;
+            await InvokeOnUIThreadAsync(() => ApplyPreviews(bitmaps, values, generation)).ConfigureAwait(false);
         }
         catch (OperationCanceledException ex)
         {
@@ -1592,32 +1781,43 @@ public sealed partial class WndEditorViewModel(
         }
     }
 
-    private void ApplyPreviewBitmaps(IReadOnlyDictionary<string, byte[]> images, int generation)
+    private void ApplyPreviews(
+        IReadOnlyDictionary<string, byte[]>? images,
+        IReadOnlyDictionary<string, string>? strings,
+        int generation)
     {
         if (generation != _previewGeneration)
         {
             return;
         }
 
-        var previous = _previewBitmaps;
-        var bitmaps = new Dictionary<string, Bitmap>(StringComparer.OrdinalIgnoreCase);
-        foreach (var (name, png) in images)
+        if (images != null)
         {
-            using var stream = new MemoryStream(png);
-            bitmaps[name] = new Bitmap(stream);
+            var previous = _previewBitmaps;
+            var bitmaps = new Dictionary<string, Bitmap>(StringComparer.OrdinalIgnoreCase);
+            foreach (var (name, png) in images)
+            {
+                using var stream = new MemoryStream(png);
+                bitmaps[name] = new Bitmap(stream);
+            }
+
+            _previewBitmaps = bitmaps;
+            _previewPngs = images;
+            ClearComposedBitmaps();
+            foreach (var old in previous.Values)
+            {
+                old.Dispose();
+            }
         }
 
-        _previewBitmaps = bitmaps;
-        _previewPngs = images;
-        ClearComposedBitmaps();
+        if (strings != null)
+        {
+            _resolvedStrings = strings;
+        }
+
         foreach (var item in CanvasItems)
         {
             RefreshItemPreview(item);
-        }
-
-        foreach (var old in previous.Values)
-        {
-            old.Dispose();
         }
 
         RefreshAssetStatus();

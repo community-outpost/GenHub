@@ -12,6 +12,9 @@
     <KeyBinding Gesture="Ctrl+Subtract" Command="{Binding ZoomOutCommand}"/>
     <KeyBinding Gesture="Ctrl+OemMinus" Command="{Binding ZoomOutCommand}"/>
     <KeyBinding Gesture="Ctrl+D0" Command="{Binding ResetZoomCommand}"/>
+    <KeyBinding Gesture="Ctrl+Z" Command="{Binding UndoCommand}"/>
+    <KeyBinding Gesture="Ctrl+Y" Command="{Binding RedoCommand}"/>
+    <KeyBinding Gesture="Ctrl+Shift+Z" Command="{Binding RedoCommand}"/>
   </UserControl.KeyBindings>
   <Grid RowDefinitions="Auto,*">
     <Border Grid.Row="0"
@@ -87,7 +90,8 @@
                         Background="{DynamicResource SurfaceElevatedBrush}"
                         BorderBrush="{DynamicResource BorderBrush}"
                         BorderThickness="1" CornerRadius="6"
-                        ToolTip.Tip="{localization:Localize Tools.WndEditor.Canvas.PanTooltip}">
+                        ToolTip.Tip="{localization:Localize Tools.WndEditor.Canvas.PanTooltip}"
+                        AutomationProperties.Name="{localization:Localize Tools.WndEditor.Canvas.PanTooltip}">
             <material:MaterialIcon Kind="HandBackLeft" Width="14" Height="14"/>
           </ToggleButton>
           <Button Command="{Binding ZoomOutCommand}"
@@ -95,7 +99,8 @@
                   Background="{DynamicResource SurfaceElevatedBrush}"
                   BorderBrush="{DynamicResource BorderBrush}"
                   BorderThickness="1" CornerRadius="6"
-                  ToolTip.Tip="{localization:Localize Tools.WndEditor.Canvas.ZoomOutTooltip}">
+                  ToolTip.Tip="{localization:Localize Tools.WndEditor.Canvas.ZoomOutTooltip}"
+                  AutomationProperties.Name="{localization:Localize Tools.WndEditor.Canvas.ZoomOutTooltip}">
             <material:MaterialIcon Kind="MagnifyMinus" Width="14" Height="14"/>
           </Button>
           <Button Command="{Binding ResetZoomCommand}"
@@ -105,13 +110,15 @@
                   BorderThickness="1" CornerRadius="6"
                   Content="{Binding ZoomDisplayText}"
                   FontSize="11"
-                  ToolTip.Tip="{localization:Localize Tools.WndEditor.Canvas.ZoomResetTooltip}"/>
+                  ToolTip.Tip="{localization:Localize Tools.WndEditor.Canvas.ZoomResetTooltip}"
+                  AutomationProperties.Name="{localization:Localize Tools.WndEditor.Canvas.ZoomResetTooltip}"/>
           <Button Command="{Binding ZoomInCommand}"
                   Padding="8,4"
                   Background="{DynamicResource SurfaceElevatedBrush}"
                   BorderBrush="{DynamicResource BorderBrush}"
                   BorderThickness="1" CornerRadius="6"
-                  ToolTip.Tip="{localization:Localize Tools.WndEditor.Canvas.ZoomInTooltip}">
+                  ToolTip.Tip="{localization:Localize Tools.WndEditor.Canvas.ZoomInTooltip}"
+                  AutomationProperties.Name="{localization:Localize Tools.WndEditor.Canvas.ZoomInTooltip}">
             <material:MaterialIcon Kind="MagnifyPlus" Width="14" Height="14"/>
           </Button>
         </StackPanel>
@@ -366,9 +373,35 @@
                                   IsVisible="{Binding IsSelected}"
                                   BorderBrush="{DynamicResource AccentBrush}"
                                   BorderThickness="2" CornerRadius="2"/>
+                          <ItemsControl ItemsSource="{Binding Overlays}" IsHitTestVisible="False">
+                            <ItemsControl.ItemsPanel>
+                              <ItemsPanelTemplate>
+                                <Canvas Width="{Binding Width}" Height="{Binding Height}"/>
+                              </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemContainerTheme>
+                              <ControlTheme TargetType="ContentPresenter" x:DataType="vm:WndCanvasOverlayViewModel">
+                                <Setter Property="Canvas.Left" Value="{Binding X}"/>
+                                <Setter Property="Canvas.Top" Value="{Binding Y}"/>
+                              </ControlTheme>
+                            </ItemsControl.ItemContainerTheme>
+                            <ItemsControl.ItemTemplate>
+                              <DataTemplate x:DataType="vm:WndCanvasOverlayViewModel">
+                                <Image Source="{Binding Image}"
+                                       Width="{Binding Width}" Height="{Binding Height}"
+                                       Stretch="Fill" IsHitTestVisible="False"/>
+                              </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                          </ItemsControl>
+                          <Image Source="{Binding GlyphImage}"
+                                 Width="{Binding GlyphWidth}" Height="{Binding GlyphHeight}"
+                                 Margin="4,0,0,0"
+                                 VerticalAlignment="Center" HorizontalAlignment="Left"
+                                 IsVisible="{Binding HasGlyph}"
+                                 IsHitTestVisible="False"/>
                           <TextBlock Text="{Binding ContentText}"
                                      Width="{Binding Width}" Height="{Binding Height}"
-                                     Padding="4,2"
+                                     Padding="{Binding ContentTextPadding}"
                                      FontSize="{Binding ContentFontSize}"
                                      FontWeight="{Binding ContentFontWeight}"
                                      Foreground="{Binding ContentTextBrush}"
@@ -382,7 +415,14 @@
                                      Foreground="{DynamicResource TextSecondary}"
                                      TextTrimming="CharacterEllipsis"
                                      MaxWidth="{Binding Width}"
-                                     IsVisible="{Binding ShowNameTag}"
+                                     IsVisible="{Binding ShowPrimaryNameTag}"
+                                     IsHitTestVisible="False"/>
+                          <TextBlock Text="{Binding Label}"
+                                     Margin="4,2" FontSize="10" FontStyle="Italic"
+                                     Foreground="{DynamicResource TextMuted}"
+                                     TextTrimming="CharacterEllipsis"
+                                     MaxWidth="{Binding Width}"
+                                     IsVisible="{Binding ShowFallbackNameTag}"
                                      IsHitTestVisible="False"/>
                         </Panel>
                       </DataTemplate>

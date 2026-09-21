@@ -3,6 +3,7 @@ using GenHub.Core.Interfaces.Tools.WndEditor;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Tools.WndEditor;
 using GenHub.Core.Services.Tools.Checksum;
+using GenHub.Core.Services.Tools.WndEditor;
 using ImageMagick;
 using Microsoft.Extensions.Logging;
 using System;
@@ -241,18 +242,7 @@ public sealed class WndImageAssetService(ILogger<WndImageAssetService> logger) :
         string? projectDirectory,
         CancellationToken cancellationToken)
     {
-        var fileSystem = new SageVirtualFileSystem(baseRoot, false, logger, cancellationToken);
-        if (!string.IsNullOrWhiteSpace(overrideRoot)
-            && Directory.Exists(overrideRoot)
-            && !string.Equals(overrideRoot, baseRoot, StringComparison.OrdinalIgnoreCase))
-        {
-            fileSystem.AddSideload(overrideRoot);
-        }
-
-        if (!string.IsNullOrWhiteSpace(projectDirectory) && Directory.Exists(projectDirectory))
-        {
-            fileSystem.AddMod(projectDirectory);
-        }
+        var fileSystem = WndGameFileSystem.Open(baseRoot, overrideRoot, projectDirectory, logger, cancellationToken);
 
         var images = new Dictionary<string, (WndMappedImage Image, int Score, int Size)>(StringComparer.OrdinalIgnoreCase);
         foreach (var iniPath in fileSystem.FilesUnder(WndConstants.MappedImages.DefinitionsDirectory))

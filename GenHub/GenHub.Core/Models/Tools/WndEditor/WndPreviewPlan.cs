@@ -13,6 +13,9 @@ public sealed record WndPreviewPlan(
     string? LeftImage,
     string? CenterImage,
     string? RightImage,
+    string? GlyphImage,
+    WndPreviewSubImages? SubImages,
+    bool IsVerticalBar,
     WndRgbaColor? FillColor,
     WndRgbaColor? BorderColor,
     string? Text,
@@ -30,9 +33,23 @@ public sealed record WndPreviewPlan(
     /// <summary>
     /// Gets the distinct mapped image names referenced by this plan.
     /// </summary>
-    public IReadOnlyCollection<string> ReferencedImages =>
-        new[] { SingleImage, LeftImage, CenterImage, RightImage }
-            .Where(name => !string.IsNullOrWhiteSpace(name))
-            .Select(name => name!.Trim())
-            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+    public IReadOnlyCollection<string> ReferencedImages
+    {
+        get
+        {
+            var names = new[] { SingleImage, LeftImage, CenterImage, RightImage, GlyphImage }
+                .Where(name => !string.IsNullOrWhiteSpace(name))
+                .Select(name => name!.Trim())
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            if (SubImages != null)
+            {
+                foreach (var name in SubImages.ReferencedImages)
+                {
+                    names.Add(name);
+                }
+            }
+
+            return names;
+        }
+    }
 }

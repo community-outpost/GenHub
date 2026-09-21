@@ -49,6 +49,11 @@ public sealed record WndRgbaColor
     public static WndRgbaColor White => new(255, 255, 255, 255);
 
     /// <summary>
+    /// Gets transparent white, matching the engine undefined color (GAME_COLOR_UNDEFINED).
+    /// </summary>
+    public static WndRgbaColor Undefined => new(255, 255, 255, 0);
+
+    /// <summary>
     /// Tries to read four channel tokens starting at the given index.
     /// </summary>
     /// <param name="tokens">The token stream.</param>

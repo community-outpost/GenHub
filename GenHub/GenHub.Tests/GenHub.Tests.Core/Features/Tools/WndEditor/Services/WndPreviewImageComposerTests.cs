@@ -79,6 +79,30 @@ public sealed class WndPreviewImageComposerTests
     }
 
     /// <summary>
+    /// Tests that three pieces compose into a vertical bar with caps and tiled center.
+    /// </summary>
+    [Fact]
+    public void ComposeThreePieceVertical_TallBar_TilesCenterBetweenCaps()
+    {
+        // Arrange
+        var top = SolidPng(MagickColors.Red, 6, 10);
+        var center = SolidPng(MagickColors.Green, 6, 4);
+        var bottom = SolidPng(MagickColors.Blue, 6, 10);
+
+        // Act
+        var composed = WndPreviewImageComposer.ComposeThreePieceVertical(top, center, bottom, 6, 30);
+
+        // Assert
+        composed.Should().NotBeNull();
+        using var decoded = new MagickImage(composed!);
+        decoded.Width.Should().Be(6);
+        decoded.Height.Should().Be(30);
+        PixelAt(decoded, 3, 2).Should().Be(MagickColors.Red);
+        PixelAt(decoded, 3, 15).Should().Be(MagickColors.Green);
+        PixelAt(decoded, 3, 27).Should().Be(MagickColors.Blue);
+    }
+
+    /// <summary>
     /// Tests that invalid sizes return null instead of throwing.
     /// </summary>
     /// <param name="width">The target width.</param>

@@ -67,6 +67,11 @@ public sealed class WndEditorToolPlugin : IToolPlugin, IFileOpenTarget
     /// <inheritdoc />
     public void Dispose()
     {
+        if (_view?.DataContext is IDisposable disposableVm)
+        {
+            disposableVm.Dispose();
+        }
+
         _view = null;
         _serviceProvider = null;
     }

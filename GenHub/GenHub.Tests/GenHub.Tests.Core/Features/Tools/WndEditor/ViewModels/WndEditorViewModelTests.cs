@@ -49,6 +49,7 @@ public sealed class WndEditorViewModelTests : IDisposable
     private readonly Mock<IDialogService> _mockDialogService;
     private readonly Mock<IGameInstallationService> _mockGameInstallService;
     private readonly Mock<IWndImageAssetService> _mockImageAssetService;
+    private readonly Mock<IWndStringTableService> _mockStringTableService;
     private readonly WndEditorViewModel _viewModel;
     private readonly string _tempDirectory;
 
@@ -80,6 +81,16 @@ public sealed class WndEditorViewModelTests : IDisposable
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult<IReadOnlyDictionary<string, byte[]>>.CreateSuccess(
                 new Dictionary<string, byte[]>(StringComparer.OrdinalIgnoreCase)));
+        _mockStringTableService = new Mock<IWndStringTableService>();
+        _mockStringTableService
+            .Setup(s => s.GetStringsAsync(
+                It.IsAny<IReadOnlyCollection<string>>(),
+                It.IsAny<string>(),
+                It.IsAny<string?>(),
+                It.IsAny<string?>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IReadOnlyDictionary<string, string>>.CreateSuccess(
+                new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)));
         var documentService = new WndDocumentService(Mock.Of<ILogger<WndDocumentService>>());
         _viewModel = new WndEditorViewModel(
             documentService,
@@ -88,6 +99,7 @@ public sealed class WndEditorViewModelTests : IDisposable
             _mockDialogService.Object,
             _mockGameInstallService.Object,
             _mockImageAssetService.Object,
+            _mockStringTableService.Object,
             Mock.Of<ILogger<WndEditorViewModel>>());
         _tempDirectory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
         Directory.CreateDirectory(_tempDirectory);
@@ -579,7 +591,7 @@ public sealed class WndEditorViewModelTests : IDisposable
         var properties = _viewModel.SelectedProperties!;
 
         // Assert
-        properties.EnabledDrawData.Should().HaveCount(1);
+        properties.EnabledDrawData.Should().HaveCount(WndConstants.DrawData.EntryCount);
 
         // Act
         properties.EnabledDrawData[0].Image = "Circle_Small03_Black";
@@ -978,6 +990,198 @@ public sealed class WndEditorViewModelTests : IDisposable
         // Assert
         _viewModel.SelectedAssetInstallation.Should().NotBeNull();
         _viewModel.SelectedAssetInstallation!.Path.Should().Be(generalsDir);
+    }
+
+    /// <summary>
+    /// Tests that string-table labels resolve to localized text while entry fields stay literal.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [AvaloniaFact]
+    public async Task ContentText_ResolvesStringTableLabels()
+    {
+        // Arrange
+        var doc =
+            "FILE_VERSION = 2;\n" +
+            "WINDOW\n" +
+            "  WINDOWTYPE = PUSHBUTTON;\n" +
+            "  SCREENRECT = UPPERLEFT: 0 0, BOTTOMRIGHT: 100 40, CREATIONRESOLUTION: 800 600;\n" +
+            "  TEXT = \"GUI:Accept\";\n" +
+            "  CHILD\n" +
+            "  WINDOW\n" +
+            "    WINDOWTYPE = ENTRYFIELD;\n" +
+            "    SCREENRECT = UPPERLEFT: 0 0, BOTTOMRIGHT: 50 20, CREATIONRESOLUTION: 800 600;\n" +
+            "    TEXT = \"GUI:Accept\";\n" +
+            "  END\n" +
+            "  ENDALLCHILDREN\n" +
+            "END\n";
+        _mockStringTableService
+            .Setup(s => s.GetStringsAsync(
+                It.IsAny<IReadOnlyCollection<string>>(),
+                It.IsAny<string>(),
+                It.IsAny<string?>(),
+                It.IsAny<string?>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IReadOnlyDictionary<string, string>>.CreateSuccess(
+                new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["GUI:Accept"] = "&Accept",
+                }));
+        SetupSingleInstallation();
+
+        // Act
+        await _viewModel.LoadFromTextAsync(doc, null);
+        for (var attempt = 0; attempt < 200 && _viewModel.CanvasItems.First(i => i.Window.ControlType == WndControlType.PushButton).ContentText != "Accept"; attempt++)
+        {
+            Dispatcher.UIThread.RunJobs(null);
+            await Task.Delay(20);
+        }
+
+        // Assert
+        _viewModel.CanvasItems.First(i => i.Window.ControlType == WndControlType.PushButton).ContentText.Should().Be("Accept");
+        _viewModel.CanvasItems.First(i => i.Window.ControlType == WndControlType.EntryField).ContentText.Should().Be("GUI:Accept");
+    }
+
+    /// <summary>
+    /// Tests that check box glyphs attach and shift the text right.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [AvaloniaFact]
+    public async Task CanvasItems_CheckBoxGlyph_ShiftsText()
+    {
+        // Arrange
+        const string redPixelPng = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
+        var entries = new List<WndDrawDataEntry>();
+        for (var i = 0; i < WndConstants.DrawData.EntryCount; i++)
+        {
+            entries.Add(WndDrawDataEntry.Empty);
+        }
+
+        entries[1] = new WndDrawDataEntry("BoxGlyph", WndRgbaColor.White, WndRgbaColor.White);
+        var doc =
+            "FILE_VERSION = 2;\n" +
+            "WINDOW\n" +
+            "  WINDOWTYPE = CHECKBOX;\n" +
+            "  SCREENRECT = UPPERLEFT: 0 0, BOTTOMRIGHT: 100 20, CREATIONRESOLUTION: 800 600;\n" +
+            "  TEXT = \"Label\";\n" +
+            $"  ENABLEDDRAWDATA = {new WndDrawDataSet(entries)};\n" +
+            "END\n";
+        _mockImageAssetService
+            .Setup(s => s.GetImagesAsync(
+                It.IsAny<IReadOnlyCollection<string>>(),
+                It.IsAny<string>(),
+                It.IsAny<string?>(),
+                It.IsAny<string?>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IReadOnlyDictionary<string, byte[]>>.CreateSuccess(
+                new Dictionary<string, byte[]>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["BoxGlyph"] = Convert.FromBase64String(redPixelPng),
+                }));
+        SetupSingleInstallation();
+
+        // Act
+        await _viewModel.LoadFromTextAsync(doc, null);
+        for (var attempt = 0; attempt < 200 && !_viewModel.CanvasItems[0].HasGlyph; attempt++)
+        {
+            Dispatcher.UIThread.RunJobs(null);
+            await Task.Delay(20);
+        }
+
+        // Assert
+        var item = _viewModel.CanvasItems[0];
+        item.HasGlyph.Should().BeTrue();
+        item.ContentText.Should().Be("Label");
+        item.ContentTextPadding.Left.Should().BeGreaterThan(4);
+    }
+
+    /// <summary>
+    /// Tests that unnamed windows get muted fallback tags while named ones stay primary.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task CanvasItems_NameFallback_FlagsUnnamedWindows()
+    {
+        // Arrange
+        var doc =
+            "FILE_VERSION = 2;\n" +
+            "WINDOW\n" +
+            "  WINDOWTYPE = STATICTEXT;\n" +
+            "  SCREENRECT = UPPERLEFT: 0 0, BOTTOMRIGHT: 100 20, CREATIONRESOLUTION: 800 600;\n" +
+            "  CHILD\n" +
+            "  WINDOW\n" +
+            "    WINDOWTYPE = STATICTEXT;\n" +
+            "    SCREENRECT = UPPERLEFT: 0 0, BOTTOMRIGHT: 50 20, CREATIONRESOLUTION: 800 600;\n" +
+            "    NAME = Menu.wnd:Named;\n" +
+            "  END\n" +
+            "  ENDALLCHILDREN\n" +
+            "END\n";
+
+        // Act
+        await _viewModel.LoadFromTextAsync(doc, null);
+
+        // Assert
+        _viewModel.CanvasItems.Should().HaveCount(2);
+        _viewModel.CanvasItems[0].IsFallbackLabel.Should().BeTrue();
+        _viewModel.CanvasItems[0].ShowFallbackNameTag.Should().BeTrue();
+        _viewModel.CanvasItems[0].ShowPrimaryNameTag.Should().BeFalse();
+        _viewModel.CanvasItems[1].IsFallbackLabel.Should().BeFalse();
+        _viewModel.CanvasItems[1].ShowPrimaryNameTag.Should().BeTrue();
+        _viewModel.CanvasItems[1].ShowFallbackNameTag.Should().BeFalse();
+    }
+
+    /// <summary>
+    /// Tests that list box scrollbar overlays attach at the right edge.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [AvaloniaFact]
+    public async Task CanvasItems_ListboxScrollbar_AttachesOverlays()
+    {
+        // Arrange
+        const string redPixelPng = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
+        var up = DrawDataWith("ScrollUp", 0);
+        var down = DrawDataWith("ScrollDown", 0);
+        var thumb = DrawDataWith("ScrollThumb", 0);
+        var doc =
+            "FILE_VERSION = 2;\n" +
+            "WINDOW\n" +
+            "  WINDOWTYPE = SCROLLLISTBOX;\n" +
+            "  SCREENRECT = UPPERLEFT: 0 0, BOTTOMRIGHT: 100 60, CREATIONRESOLUTION: 800 600;\n" +
+            $"  LISTBOXENABLEDUPBUTTONDRAWDATA = {up};\n" +
+            $"  LISTBOXENABLEDDOWNBUTTONDRAWDATA = {down};\n" +
+            $"  LISTBOXENABLEDSLIDERDRAWDATA = {thumb};\n" +
+            "END\n";
+        _mockImageAssetService
+            .Setup(s => s.GetImagesAsync(
+                It.IsAny<IReadOnlyCollection<string>>(),
+                It.IsAny<string>(),
+                It.IsAny<string?>(),
+                It.IsAny<string?>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IReadOnlyDictionary<string, byte[]>>.CreateSuccess(
+                new Dictionary<string, byte[]>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["ScrollUp"] = Convert.FromBase64String(redPixelPng),
+                    ["ScrollDown"] = Convert.FromBase64String(redPixelPng),
+                    ["ScrollThumb"] = Convert.FromBase64String(redPixelPng),
+                }));
+        SetupSingleInstallation();
+
+        // Act
+        await _viewModel.LoadFromTextAsync(doc, null);
+        for (var attempt = 0; attempt < 200 && _viewModel.CanvasItems[0].Overlays.Count != 3; attempt++)
+        {
+            Dispatcher.UIThread.RunJobs(null);
+            await Task.Delay(20);
+        }
+
+        // Assert
+        var item = _viewModel.CanvasItems[0];
+        item.Overlays.Should().HaveCount(3);
+        item.Overlays[0].Y.Should().Be(0);
+        item.Overlays[1].Y.Should().Be(item.Height - item.Overlays[1].Height);
+        item.Overlays[2].Y.Should().Be(item.Overlays[0].Height);
+        item.Overlays[2].Height.Should().Be(item.Height - item.Overlays[0].Height - item.Overlays[1].Height);
+        item.Overlays.Should().OnlyContain(overlay => overlay.X + overlay.Width == item.Width);
     }
 
     private static string DrawDataWith(string name, int index)

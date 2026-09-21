@@ -43,6 +43,22 @@ public sealed class WndScreenRectTests
     }
 
     /// <summary>
+    /// Tests that case-insensitive labels parse successfully.
+    /// </summary>
+    [Fact]
+    public void TryParse_MixedCaseLabels_ParsesComponents()
+    {
+        // Act
+        var parsed = WndScreenRect.TryParse(
+            "UpperLeft: 15 25, BottomRight: 115 65, CreationResolution: 800 600",
+            out var rect);
+
+        // Assert
+        parsed.Should().BeTrue();
+        rect.Should().Be(new WndScreenRect(15, 25, 115, 65, 800, 600));
+    }
+
+    /// <summary>
     /// Tests that invalid values return false.
     /// </summary>
     /// <param name="value">The value under test.</param>

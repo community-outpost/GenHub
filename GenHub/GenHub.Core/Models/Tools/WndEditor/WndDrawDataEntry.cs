@@ -45,7 +45,7 @@ public sealed record WndDrawDataEntry
     /// <summary>
     /// Gets an empty entry.
     /// </summary>
-    public static WndDrawDataEntry Empty => new(WndConstants.DrawData.NoImage, WndRgbaColor.White, WndRgbaColor.White);
+    public static WndDrawDataEntry Empty => new(WndConstants.DrawData.NoImage, WndRgbaColor.Undefined, WndRgbaColor.Undefined);
 
     /// <summary>
     /// Tries to read one entry starting at the given token index.

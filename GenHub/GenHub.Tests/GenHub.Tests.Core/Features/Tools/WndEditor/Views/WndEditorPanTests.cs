@@ -206,6 +206,65 @@ public sealed class WndEditorPanTests
         }
     }
 
+    /// <summary>
+    /// Tests that Ctrl+Z undoes a canvas drag and Ctrl+Y redoes it.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [AvaloniaFact]
+    public async Task Canvas_CtrlZUndoRedo_RestoresDraggedPosition()
+    {
+        // Arrange
+        var viewModel = CreateEditorViewModel();
+        await viewModel.LoadFromTextAsync(
+            "FILE_VERSION = 2;\n" +
+            "WINDOW\n" +
+            "  WINDOWTYPE = PUSHBUTTON;\n" +
+            "  SCREENRECT = UPPERLEFT: 10 20, BOTTOMRIGHT: 110 60, CREATIONRESOLUTION: 800 600;\n" +
+            "END\n",
+            null);
+        var view = new WndEditorView { DataContext = viewModel };
+        var window = new Window { Width = 1400, Height = 900, Content = view };
+
+        try
+        {
+            window.Show();
+            Dispatcher.UIThread.RunJobs(null);
+            var focusTarget = view.GetVisualDescendants().OfType<Button>().FirstOrDefault();
+            focusTarget.Should().NotBeNull();
+            focusTarget!.Focus();
+            var item = viewModel.CanvasItems[0];
+            viewModel.BeginCanvasDrag(item, new Point(item.X, item.Y));
+            viewModel.UpdateCanvasDrag(new Point(item.X + 50, item.Y + 30));
+            viewModel.EndCanvasDrag();
+            viewModel.CanvasItems[0].Window.TryGetScreenRect(out var moved).Should().BeTrue();
+            moved!.UpperLeftX.Should().Be(60);
+
+            // Act
+            window.KeyPressQwerty(PhysicalKey.Z, RawInputModifiers.Control);
+            Dispatcher.UIThread.RunJobs(null);
+
+            // Assert
+            viewModel.CanvasItems[0].Window.TryGetScreenRect(out var undone).Should().BeTrue();
+            undone!.UpperLeftX.Should().Be(10);
+            undone.UpperLeftY.Should().Be(20);
+            viewModel.CanUndo.Should().BeFalse();
+            viewModel.CanRedo.Should().BeTrue();
+
+            // Act
+            window.KeyPressQwerty(PhysicalKey.Y, RawInputModifiers.Control);
+            Dispatcher.UIThread.RunJobs(null);
+
+            // Assert
+            viewModel.CanvasItems[0].Window.TryGetScreenRect(out var redone).Should().BeTrue();
+            redone!.UpperLeftX.Should().Be(60);
+            redone.UpperLeftY.Should().Be(50);
+        }
+        finally
+        {
+            window.Close();
+        }
+    }
+
     private static Point CenterOnWindow(ScrollViewer scroller, Window window)
     {
         var center = scroller.TranslatePoint(
@@ -228,6 +287,7 @@ public sealed class WndEditorPanTests
             Mock.Of<IDialogService>(),
             gameInstallService.Object,
             Mock.Of<IWndImageAssetService>(),
+            Mock.Of<IWndStringTableService>(),
             Mock.Of<ILogger<WndEditorViewModel>>());
     }
 

@@ -102,9 +102,21 @@ public sealed class WndDocumentService(ILogger<WndDocumentService> logger) : IWn
 
         try
         {
-            var content = await File.ReadAllTextAsync(filePath, cancellationToken).ConfigureAwait(false);
+            var bytes = await File.ReadAllBytesAsync(filePath, cancellationToken).ConfigureAwait(false);
+            var utf8Strict = new UTF8Encoding(false, throwOnInvalidBytes: true);
+            var content = utf8Strict.GetString(bytes);
+            if (content.Contains('�'))
+            {
+                return OperationResult<WndDocument>.CreateFailure($"File contains replacement characters: {filePath}");
+            }
+
             cancellationToken.ThrowIfCancellationRequested();
             return ParseText(content, filePath);
+        }
+        catch (DecoderFallbackException ex)
+        {
+            logger.LogWarning(ex, "Refusing to parse {Path}: non-UTF-8 or ANSI encoding detected", filePath);
+            return OperationResult<WndDocument>.CreateFailure($"Cannot parse file with non-UTF-8 or unsupported ANSI encoding: {filePath}");
         }
         catch (IOException ex)
         {
@@ -335,11 +347,27 @@ public sealed class WndDocumentService(ILogger<WndDocumentService> logger) : IWn
         var lineNumber = 1;
         var statementLine = 1;
         var hasStatementContent = false;
-        foreach (var ch in content)
+        for (var i = 0; i < content.Length; i++)
         {
+            var ch = content[i];
             if (ch == WndConstants.Syntax.Quote)
             {
                 inQuotes = !inQuotes;
+            }
+
+            if (!inQuotes && ch == '/' && i + 1 < content.Length && content[i + 1] == '/')
+            {
+                while (i < content.Length && content[i] != '\n')
+                {
+                    i++;
+                }
+
+                if (i < content.Length && content[i] == '\n')
+                {
+                    lineNumber++;
+                }
+
+                continue;
             }
 
             if (ch == '\n')

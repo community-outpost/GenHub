@@ -621,7 +621,7 @@ public static class WndConstants
         public static readonly string[] TextureExtensions = [TextureExtensionDds, TextureExtensionTga, TextureExtensionJpg];
 
         /// <summary>Language folders probed for localized texture pages, in order.</summary>
-        public static readonly string[] TextureLanguages = ["english", "german", "french", "spanish", "italian"];
+        public static readonly string[] TextureLanguages = ["english", "german", "french", "spanish", "italian", "russian", "polish", "brazilian", "japanese", "korean", "chinese"];
     }
 
     /// <summary>
@@ -825,6 +825,24 @@ public static class WndConstants
         /// <summary>Text entry tiled middle-bar index.</summary>
         public const int TextEntryCenterImageIndex = 2;
 
+        /// <summary>Check box and radio button unchecked-glyph index.</summary>
+        public const int BoxGlyphImageIndex = 1;
+
+        /// <summary>Slider trough left-cap or top-cap index.</summary>
+        public const int SliderLeftImageIndex = 0;
+
+        /// <summary>Slider trough right-cap or bottom-cap index.</summary>
+        public const int SliderRightImageIndex = 1;
+
+        /// <summary>Slider trough tiled middle-bar index.</summary>
+        public const int SliderCenterImageIndex = 2;
+
+        /// <summary>Glyph left margin in device-independent pixels.</summary>
+        public const double GlyphMargin = 4.0;
+
+        /// <summary>Gap between a glyph and its text in device-independent pixels.</summary>
+        public const double GlyphTextGap = 4.0;
+
         /// <summary>Texture detail size preferred for previews, matching typical creation resolutions.</summary>
         public const int PreferredTextureSize = 800;
 
@@ -842,5 +860,21 @@ public static class WndConstants
 
         /// <summary>Opacity for windows carrying the hidden flag.</summary>
         public const double HiddenOpacity = 0.35;
+    }
+
+    /// <summary>
+    /// Game string table constants. Both Generals and Zero Hour load
+    /// Data/&lt;Language&gt;/Generals.csf through the virtual file system.
+    /// </summary>
+    public static class StringTables
+    {
+        /// <summary>Game data directory containing localized string tables.</summary>
+        public const string DataDirectory = "Data";
+
+        /// <summary>Game string table file name shared by Generals and Zero Hour.</summary>
+        public const string FileName = "Generals.csf";
+
+        /// <summary>Languages probed for string tables, in order.</summary>
+        public static readonly string[] Languages = ["english", "german", "french", "spanish", "italian", "russian", "polish", "brazilian", "japanese", "korean", "chinese"];
     }
 }

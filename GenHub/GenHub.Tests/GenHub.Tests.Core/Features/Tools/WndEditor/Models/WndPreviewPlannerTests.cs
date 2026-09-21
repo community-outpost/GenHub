@@ -119,6 +119,29 @@ public sealed class WndPreviewPlannerTests
     }
 
     /// <summary>
+    /// Tests that check boxes plan an unchecked glyph from index one.
+    /// </summary>
+    /// <param name="controlType">The box control type.</param>
+    [Theory]
+    [InlineData(WndConstants.ControlTypes.CheckBox)]
+    [InlineData(WndConstants.ControlTypes.RadioButton)]
+    public void Plan_BoxControl_PlansGlyph(string controlType)
+    {
+        // Arrange
+        var window = new WndWindow { ControlTypeName = controlType };
+        window.SetProperty(WndConstants.PropertyKeys.EnabledDrawData, DrawDataWith(("BoxBack", 0), ("BoxGlyph", 1)));
+        window.SetProperty(WndConstants.PropertyKeys.Text, "\"Label\"");
+
+        // Act
+        var plan = WndPreviewPlanner.Plan(window);
+
+        // Assert
+        plan.GlyphImage.Should().Be("BoxGlyph");
+        plan.Text.Should().Be("Label");
+        plan.ReferencedImages.Should().Contain("BoxGlyph");
+    }
+
+    /// <summary>
     /// Tests that hidden windows are flagged for dimming.
     /// </summary>
     [Fact]
@@ -133,6 +156,122 @@ public sealed class WndPreviewPlannerTests
 
         // Assert
         plan.IsHidden.Should().BeTrue();
+    }
+
+    /// <summary>
+    /// Tests that list boxes plan scrollbar art from enabled sub-draw-data.
+    /// </summary>
+    [Fact]
+    public void Plan_Listbox_PlansScrollbarSubImages()
+    {
+        // Arrange
+        var window = new WndWindow { ControlTypeName = WndConstants.ControlTypes.ScrollListBox };
+        window.SetProperty(WndConstants.PropertyKeys.EnabledDrawData, DrawDataWith(("ListBack", 0)));
+        window.SetProperty(WndConstants.SubDrawDataKeys.ListboxEnabledUpButton, DrawDataWith(("ScrollUp", 0)));
+        window.SetProperty(WndConstants.SubDrawDataKeys.ListboxEnabledDownButton, DrawDataWith(("ScrollDown", 0)));
+        window.SetProperty(WndConstants.SubDrawDataKeys.ListboxEnabledSlider, DrawDataWith(("ScrollThumb", 0)));
+
+        // Act
+        var plan = WndPreviewPlanner.Plan(window);
+
+        // Assert
+        plan.SingleImage.Should().Be("ListBack");
+        plan.SubImages.Should().NotBeNull();
+        plan.SubImages!.ScrollUp.Should().Be("ScrollUp");
+        plan.SubImages.ScrollDown.Should().Be("ScrollDown");
+        plan.SubImages.ScrollThumb.Should().Be("ScrollThumb");
+        plan.ReferencedImages.Should().BeEquivalentTo("ListBack", "ScrollUp", "ScrollDown", "ScrollThumb");
+    }
+
+    /// <summary>
+    /// Tests that list boxes hide scrollbar art when the scrollbar flag is off.
+    /// </summary>
+    [Fact]
+    public void Plan_ListboxWithoutScrollBar_HidesScrollbar()
+    {
+        // Arrange
+        var window = new WndWindow { ControlTypeName = WndConstants.ControlTypes.ScrollListBox };
+        window.SetProperty(
+            WndConstants.PropertyKeys.ListboxData,
+            "LENGTH: 10, AUTOSCROLL: 0, AUTOPURGE: 0, SCROLLBAR: 0, MULTISELECT: 0, COLUMNS: 0, FORCESELECT: 0");
+        window.SetProperty(WndConstants.SubDrawDataKeys.ListboxEnabledUpButton, DrawDataWith(("ScrollUp", 0)));
+
+        // Act
+        var plan = WndPreviewPlanner.Plan(window);
+
+        // Assert
+        plan.SubImages.Should().NotBeNull();
+        plan.SubImages!.ScrollUp.Should().BeNull();
+    }
+
+    /// <summary>
+    /// Tests that combo boxes plan their drop-down button art.
+    /// </summary>
+    [Fact]
+    public void Plan_ComboBox_PlansDropDownButton()
+    {
+        // Arrange
+        var window = new WndWindow { ControlTypeName = WndConstants.ControlTypes.ComboBox };
+        window.SetProperty(WndConstants.PropertyKeys.EnabledDrawData, DrawDataWith(("ComboBack", 0)));
+        window.SetProperty(WndConstants.SubDrawDataKeys.ComboBoxDropDownButtonEnabled, DrawDataWith(("ComboButton", 0)));
+
+        // Act
+        var plan = WndPreviewPlanner.Plan(window);
+
+        // Assert
+        plan.SingleImage.Should().Be("ComboBack");
+        plan.SubImages.Should().NotBeNull();
+        plan.SubImages!.ComboButton.Should().Be("ComboButton");
+    }
+
+    /// <summary>
+    /// Tests that sliders plan a three-piece trough with indices zero, two, one.
+    /// </summary>
+    /// <param name="controlType">The slider control type.</param>
+    /// <param name="vertical">Whether the bar is vertical.</param>
+    [Theory]
+    [InlineData(WndConstants.ControlTypes.HorzSlider, false)]
+    [InlineData(WndConstants.ControlTypes.VertSlider, true)]
+    public void Plan_Slider_PlansThreePieceTrough(string controlType, bool vertical)
+    {
+        // Arrange
+        var window = new WndWindow { ControlTypeName = controlType };
+        window.SetProperty(WndConstants.PropertyKeys.EnabledDrawData, DrawDataWith(("TroughLeft", 0), ("TroughRight", 1), ("TroughCenter", 2)));
+        window.SetProperty(WndConstants.SubDrawDataKeys.SliderThumbEnabled, DrawDataWith(("Thumb", 0)));
+
+        // Act
+        var plan = WndPreviewPlanner.Plan(window);
+
+        // Assert
+        plan.IsThreePiece.Should().BeTrue();
+        plan.LeftImage.Should().Be("TroughLeft");
+        plan.CenterImage.Should().Be("TroughCenter");
+        plan.RightImage.Should().Be("TroughRight");
+        plan.IsVerticalBar.Should().Be(vertical);
+        plan.SubImages.Should().NotBeNull();
+        plan.SubImages!.SliderThumb.Should().Be("Thumb");
+    }
+
+    /// <summary>
+    /// Tests that gadget windows show index zero art without requiring the IMAGE flag.
+    /// </summary>
+    /// <param name="controlType">The gadget control type.</param>
+    [Theory]
+    [InlineData(WndConstants.ControlTypes.ScrollListBox)]
+    [InlineData(WndConstants.ControlTypes.ComboBox)]
+    [InlineData(WndConstants.ControlTypes.ProgressBar)]
+    public void Plan_GadgetWithoutImageFlag_ShowsIndexZero(string controlType)
+    {
+        // Arrange
+        var window = new WndWindow { ControlTypeName = controlType };
+        window.SetProperty(WndConstants.PropertyKeys.Status, "ENABLED");
+        window.SetProperty(WndConstants.PropertyKeys.EnabledDrawData, DrawDataWith(("Backdrop", 0)));
+
+        // Act
+        var plan = WndPreviewPlanner.Plan(window);
+
+        // Assert
+        plan.SingleImage.Should().Be("Backdrop");
     }
 
     private static string DrawDataWith(params (string Name, int Index)[] images)

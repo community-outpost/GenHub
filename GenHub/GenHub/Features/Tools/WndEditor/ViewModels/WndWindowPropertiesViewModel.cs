@@ -1057,6 +1057,15 @@ public sealed partial class WndWindowPropertiesViewModel : ObservableObject
             return;
         }
 
+        if (key.IndexOfAny([';', '\r', '\n', '"']) >= 0 || NewPropertyValue.IndexOfAny([';', '\r', '\n', '"']) >= 0)
+        {
+            _notificationService.ShowWarning(
+                _localizationService.GetString("Tools.WndEditor.Property.InvalidCharactersTitle"),
+                _localizationService.GetString("Tools.WndEditor.Property.InvalidCharactersMessage"),
+                NotificationDurations.Short);
+            return;
+        }
+
         if (Window.GetProperty(key) != null)
         {
             _notificationService.ShowWarning(

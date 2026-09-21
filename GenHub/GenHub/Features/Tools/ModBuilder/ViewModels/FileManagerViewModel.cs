@@ -918,6 +918,11 @@ public partial class FileManagerViewModel(
             _ => throw new ArgumentOutOfRangeException(nameof(operation)),
         };
 
+        if (IsLoading)
+        {
+            return;
+        }
+
         var wndFiles = CollectSelectedWndFiles();
         if (wndFiles.Count == 0)
         {
@@ -961,6 +966,18 @@ public partial class FileManagerViewModel(
                 await LoadProjectFilesAsync(cancellationToken).ConfigureAwait(false);
             }
 
+            void SetFinalStatus(string msg)
+            {
+                if (Application.Current == null || Dispatcher.UIThread.CheckAccess())
+                {
+                    StatusMessage = msg;
+                }
+                else
+                {
+                    Dispatcher.UIThread.Post(() => StatusMessage = msg);
+                }
+            }
+
             if (succeededCount == total)
             {
                 var message = localizationService.GetString(keys.SuccessMessage, succeededCount, total);
@@ -968,7 +985,7 @@ public partial class FileManagerViewModel(
                     localizationService.GetString(keys.SuccessTitle),
                     message,
                     NotificationDurations.Medium);
-                StatusMessage = message;
+                SetFinalStatus(message);
             }
             else
             {
@@ -977,13 +994,20 @@ public partial class FileManagerViewModel(
                     localizationService.GetString(keys.IssuesTitle),
                     message,
                     NotificationDurations.Long);
-                StatusMessage = message;
+                SetFinalStatus(message);
             }
         }
         catch (OperationCanceledException ex)
         {
             logger.LogInformation(ex, "WND file operation was cancelled");
-            StatusMessage = localizationService.GetString("Tools.ModBuilder.Wnd.OperationCancelled");
+            if (Application.Current == null || Dispatcher.UIThread.CheckAccess())
+            {
+                StatusMessage = localizationService.GetString("Tools.ModBuilder.Wnd.OperationCancelled");
+            }
+            else
+            {
+                Dispatcher.UIThread.Post(() => StatusMessage = localizationService.GetString("Tools.ModBuilder.Wnd.OperationCancelled"));
+            }
         }
         finally
         {

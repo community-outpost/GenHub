@@ -1,8 +1,10 @@
+using Avalonia;
 using Avalonia.Media;
 using Avalonia.Media.Imaging;
 using CommunityToolkit.Mvvm.ComponentModel;
 using GenHub.Core.Constants;
 using GenHub.Core.Models.Tools.WndEditor;
+using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 
 namespace GenHub.Features.Tools.WndEditor.ViewModels;
@@ -21,12 +23,18 @@ public sealed partial class WndCanvasItemViewModel : ObservableObject
         Window = window;
         var shortName = WndDecoratedName.Parse(window.GetProperty(WndConstants.PropertyKeys.Name)).ShortName;
         _label = string.IsNullOrWhiteSpace(shortName) ? window.ControlTypeName : shortName;
+        IsFallbackLabel = string.IsNullOrWhiteSpace(shortName);
     }
 
     /// <summary>
     /// Gets the represented window.
     /// </summary>
     public WndWindow Window { get; }
+
+    /// <summary>
+    /// Gets a value indicating whether the label falls back to the control type name.
+    /// </summary>
+    public bool IsFallbackLabel { get; }
 
     /// <summary>
     /// Gets or sets the canvas X position in device-independent pixels.
@@ -63,6 +71,8 @@ public sealed partial class WndCanvasItemViewModel : ObservableObject
     /// </summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ShowNameTag))]
+    [NotifyPropertyChangedFor(nameof(ShowPrimaryNameTag))]
+    [NotifyPropertyChangedFor(nameof(ShowFallbackNameTag))]
     private bool _isSelected;
 
     /// <summary>
@@ -117,6 +127,8 @@ public sealed partial class WndCanvasItemViewModel : ObservableObject
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasContentText))]
     [NotifyPropertyChangedFor(nameof(ShowNameTag))]
+    [NotifyPropertyChangedFor(nameof(ShowPrimaryNameTag))]
+    [NotifyPropertyChangedFor(nameof(ShowFallbackNameTag))]
     private string? _contentText;
 
     /// <summary>
@@ -129,6 +141,16 @@ public sealed partial class WndCanvasItemViewModel : ObservableObject
     /// Gets a value indicating whether the window-name tag shows (always without text, otherwise on selection).
     /// </summary>
     public bool ShowNameTag => !HasContentText || IsSelected;
+
+    /// <summary>
+    /// Gets a value indicating whether the named tag shows in the primary style.
+    /// </summary>
+    public bool ShowPrimaryNameTag => ShowNameTag && !IsFallbackLabel;
+
+    /// <summary>
+    /// Gets a value indicating whether the fallback control-type tag shows muted.
+    /// </summary>
+    public bool ShowFallbackNameTag => ShowNameTag && IsFallbackLabel;
 
     /// <summary>
     /// Gets or sets the control text brush.
@@ -153,6 +175,43 @@ public sealed partial class WndCanvasItemViewModel : ObservableObject
     /// </summary>
     [ObservableProperty]
     private TextAlignment _contentTextAlignment = TextAlignment.Center;
+
+    /// <summary>
+    /// Gets or sets the control text padding, shifted right when a glyph shows.
+    /// </summary>
+    [ObservableProperty]
+    private Thickness _contentTextPadding = new(4, 2);
+
+    /// <summary>
+    /// Gets or sets the check box or radio button glyph, or null when unresolved.
+    /// </summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasGlyph))]
+    private Bitmap? _glyphImage;
+
+    /// <summary>
+    /// Gets a value indicating whether a glyph is available.
+    /// </summary>
+    [SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Instance property bound to UI in Avalonia XAML")]
+    public bool HasGlyph => GlyphImage != null;
+
+    /// <summary>
+    /// Gets or sets the glyph width in device-independent pixels.
+    /// </summary>
+    [ObservableProperty]
+    private double _glyphWidth;
+
+    /// <summary>
+    /// Gets or sets the glyph height in device-independent pixels.
+    /// </summary>
+    [ObservableProperty]
+    private double _glyphHeight;
+
+    /// <summary>
+    /// Gets or sets the sub-gadget art overlays positioned inside the item.
+    /// </summary>
+    [ObservableProperty]
+    private IReadOnlyList<WndCanvasOverlayViewModel> _overlays = [];
 
     /// <summary>
     /// Gets or sets the item opacity, dimming windows the engine would hide.

@@ -150,7 +150,7 @@ public sealed record WndScreenRect
         }
 
         var key = component.Substring(0, separatorIndex).Trim();
-        if (!string.Equals(key, expectedKey, StringComparison.Ordinal))
+        if (!string.Equals(key, expectedKey, StringComparison.OrdinalIgnoreCase))
         {
             return false;
         }

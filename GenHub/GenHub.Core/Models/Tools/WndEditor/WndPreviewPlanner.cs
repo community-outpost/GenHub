@@ -30,7 +30,10 @@ public static class WndPreviewPlanner
         {
             WndControlType.PushButton or WndControlType.CommandButton => PlanButton(drawData, text, textColor, fontSize, fontBold, isHidden),
             WndControlType.EntryField => PlanTextEntry(drawData, text, textColor, fontSize, fontBold, isHidden),
-            WndControlType.StaticText => new WndPreviewPlan(null, null, null, null, null, null, text, textColor, fontSize, fontBold, textCentered, isHidden),
+            WndControlType.StaticText => new WndPreviewPlan(null, null, null, null, null, null, false, null, null, text, textColor, fontSize, fontBold, textCentered, isHidden),
+            WndControlType.ScrollListBox => PlanListbox(window, drawData, text, textColor, fontSize, fontBold, isHidden),
+            WndControlType.ComboBox => PlanComboBox(window, drawData, text, textColor, fontSize, fontBold, isHidden),
+            WndControlType.HorzSlider or WndControlType.VertSlider => PlanSlider(window, drawData, fontSize, isHidden),
             _ => PlanGeneric(drawData, hasImageFlag, text, textColor, fontSize, fontBold, textCentered, isHidden, window.ControlType),
         };
     }
@@ -49,11 +52,11 @@ public static class WndPreviewPlanner
         if (left != null && middle != null && right != null)
         {
             var fallback = EntryAt(drawData, WndConstants.Preview.ButtonImageIndex);
-            return new WndPreviewPlan(null, left, middle, right, fallback?.Color, fallback?.BorderColor, text, textColor, fontSize, fontBold, true, isHidden);
+            return new WndPreviewPlan(null, left, middle, right, null, null, false, fallback?.Color, fallback?.BorderColor, text, textColor, fontSize, fontBold, true, isHidden);
         }
 
         var single = EntryAt(drawData, WndConstants.Preview.ButtonImageIndex);
-        return new WndPreviewPlan(left, null, null, null, single?.Color, single?.BorderColor, text, textColor, fontSize, fontBold, true, isHidden);
+        return new WndPreviewPlan(left, null, null, null, null, null, false, single?.Color, single?.BorderColor, text, textColor, fontSize, fontBold, true, isHidden);
     }
 
     private static WndPreviewPlan PlanTextEntry(
@@ -70,11 +73,11 @@ public static class WndPreviewPlanner
         if (left != null && center != null && right != null)
         {
             var fallback = EntryAt(drawData, WndConstants.Preview.TextEntryLeftImageIndex);
-            return new WndPreviewPlan(null, left, center, right, fallback?.Color, fallback?.BorderColor, text, textColor, fontSize, fontBold, false, isHidden);
+            return new WndPreviewPlan(null, left, center, right, null, null, false, fallback?.Color, fallback?.BorderColor, text, textColor, fontSize, fontBold, false, isHidden);
         }
 
         var single = EntryAt(drawData, WndConstants.Preview.TextEntryLeftImageIndex);
-        return new WndPreviewPlan(left, null, null, null, single?.Color, single?.BorderColor, text, textColor, fontSize, fontBold, false, isHidden);
+        return new WndPreviewPlan(left, null, null, null, null, null, false, single?.Color, single?.BorderColor, text, textColor, fontSize, fontBold, false, isHidden);
     }
 
     [SuppressMessage("Major Code Smell", "S107:Methods should not have too many parameters", Justification = "Internal helper packaging full preview plan context")]
@@ -90,13 +93,18 @@ public static class WndPreviewPlanner
         WndControlType controlType)
     {
         var entry = EntryAt(drawData, WndConstants.Preview.DefaultImageIndex);
-        var single = hasImageFlag ? ImageAt(drawData, WndConstants.Preview.DefaultImageIndex) : null;
+        var needsImageFlag = controlType is WndControlType.User or WndControlType.Unknown or WndControlType.TabPane;
+        var single = hasImageFlag || !needsImageFlag ? ImageAt(drawData, WndConstants.Preview.DefaultImageIndex) : null;
         var drawsText = controlType is WndControlType.CheckBox or WndControlType.RadioButton;
+        var glyph = drawsText ? ImageAt(drawData, WndConstants.Preview.BoxGlyphImageIndex) : null;
         return new WndPreviewPlan(
             single,
             null,
             null,
             null,
+            glyph,
+            null,
+            false,
             entry?.Color,
             entry?.BorderColor,
             drawsText ? text : null,
@@ -105,6 +113,122 @@ public static class WndPreviewPlanner
             fontBold,
             textCentered,
             isHidden);
+    }
+
+    private static WndPreviewPlan PlanListbox(
+        WndWindow window,
+        WndDrawDataSet? drawData,
+        string? text,
+        WndRgbaColor? textColor,
+        int fontSize,
+        bool fontBold,
+        bool isHidden)
+    {
+        var entry = EntryAt(drawData, WndConstants.Preview.DefaultImageIndex);
+        var sub = new WndPreviewSubImages(
+            SubImageAt(window, WndConstants.SubDrawDataKeys.ListboxEnabledUpButton),
+            SubImageAt(window, WndConstants.SubDrawDataKeys.ListboxEnabledDownButton),
+            SubImageAt(window, WndConstants.SubDrawDataKeys.ListboxEnabledSlider),
+            null,
+            null);
+        if (!ShowsScrollBar(window))
+        {
+            sub = sub with { ScrollUp = null, ScrollDown = null, ScrollThumb = null };
+        }
+
+        return new WndPreviewPlan(
+            ImageAt(drawData, WndConstants.Preview.DefaultImageIndex),
+            null,
+            null,
+            null,
+            null,
+            sub,
+            false,
+            entry?.Color,
+            entry?.BorderColor,
+            text,
+            textColor,
+            fontSize,
+            fontBold,
+            false,
+            isHidden);
+    }
+
+    private static WndPreviewPlan PlanComboBox(
+        WndWindow window,
+        WndDrawDataSet? drawData,
+        string? text,
+        WndRgbaColor? textColor,
+        int fontSize,
+        bool fontBold,
+        bool isHidden)
+    {
+        var entry = EntryAt(drawData, WndConstants.Preview.DefaultImageIndex);
+        var sub = new WndPreviewSubImages(
+            null,
+            null,
+            null,
+            SubImageAt(window, WndConstants.SubDrawDataKeys.ComboBoxDropDownButtonEnabled),
+            null);
+        return new WndPreviewPlan(
+            ImageAt(drawData, WndConstants.Preview.DefaultImageIndex),
+            null,
+            null,
+            null,
+            null,
+            sub,
+            false,
+            entry?.Color,
+            entry?.BorderColor,
+            text,
+            textColor,
+            fontSize,
+            fontBold,
+            false,
+            isHidden);
+    }
+
+    private static WndPreviewPlan PlanSlider(
+        WndWindow window,
+        WndDrawDataSet? drawData,
+        int fontSize,
+        bool isHidden)
+    {
+        var left = ImageAt(drawData, WndConstants.Preview.SliderLeftImageIndex);
+        var right = ImageAt(drawData, WndConstants.Preview.SliderRightImageIndex);
+        var center = ImageAt(drawData, WndConstants.Preview.SliderCenterImageIndex);
+        var vertical = window.ControlType == WndControlType.VertSlider;
+        var sub = new WndPreviewSubImages(
+            null,
+            null,
+            null,
+            null,
+            SubImageAt(window, WndConstants.SubDrawDataKeys.SliderThumbEnabled));
+        if (left != null && center != null && right != null)
+        {
+            var fallback = EntryAt(drawData, WndConstants.Preview.SliderLeftImageIndex);
+            return new WndPreviewPlan(null, left, center, right, null, sub, vertical, fallback?.Color, fallback?.BorderColor, null, null, fontSize, false, false, isHidden);
+        }
+
+        var single = EntryAt(drawData, WndConstants.Preview.SliderLeftImageIndex);
+        return new WndPreviewPlan(left, null, null, null, null, sub, vertical, single?.Color, single?.BorderColor, null, null, fontSize, false, false, isHidden);
+    }
+
+    private static bool ShowsScrollBar(WndWindow window)
+    {
+        return !WndListboxData.TryParse(window.GetProperty(WndConstants.PropertyKeys.ListboxData), out var data)
+            || data == null
+            || data.ScrollBar;
+    }
+
+    private static string? SubImageAt(WndWindow window, string key)
+    {
+        if (!WndDrawDataSet.TryParse(window.GetProperty(key), out var set) || set == null)
+        {
+            return null;
+        }
+
+        return ImageAt(set, WndConstants.Preview.DefaultImageIndex);
     }
 
     private static string? PlanText(WndWindow window)
