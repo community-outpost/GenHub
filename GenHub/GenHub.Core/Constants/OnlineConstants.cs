@@ -184,9 +184,14 @@ public static class OnlineConstants
     public const string OverlayUnixBinary = "genhub-overlay";
 
     /// <summary>
-    /// Version prefix for online profile fingerprints.
+    /// Version prefix for online profile fingerprints (hash based).
     /// </summary>
-    public const string ProfileFingerprintPrefix = "opf1";
+    public const string ProfileFingerprintPrefix = "opf2";
+
+    /// <summary>
+    /// Maximum expected content ids published per lobby (mirrors the edge).
+    /// </summary>
+    public const int MaxExpectedContentIds = 32;
 
     /// <summary>
     /// Separator between fingerprint segments.

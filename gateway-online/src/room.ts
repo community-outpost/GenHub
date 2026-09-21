@@ -25,6 +25,32 @@ interface JoinBody {
   profileName?: string;
 }
 
+// Compares only the expected-profile block: description-only meta patches
+// must not trigger profile-changed broadcasts, but a rename or content
+// change without a fingerprint change still must.
+const sameExpectedProfile = (
+  before: {
+    expectedProfileId: string;
+    expectedProfileFingerprint: string;
+    expectedProfileName: string;
+    expectedGameClientId: string;
+    expectedContentIds: string[];
+  },
+  after: {
+    expectedProfileId: string;
+    expectedProfileFingerprint: string;
+    expectedProfileName: string;
+    expectedGameClientId: string;
+    expectedContentIds: string[];
+  }
+): boolean =>
+  before.expectedProfileId === after.expectedProfileId &&
+  before.expectedProfileFingerprint === after.expectedProfileFingerprint &&
+  before.expectedProfileName === after.expectedProfileName &&
+  before.expectedGameClientId === after.expectedGameClientId &&
+  before.expectedContentIds.length === after.expectedContentIds.length &&
+  before.expectedContentIds.every((id, index) => id === after.expectedContentIds[index]);
+
 const MAX_REPORTS = 50;
 const MAX_OVERLAY_SLOT = 16 * 254;
 const DEFAULT_PRESENCE_TIMEOUT = 90;
@@ -776,7 +802,7 @@ export class PresenceRoom {
     }
     await this.state.storage.put("meta", meta);
     const after = this.expectedProfile(meta);
-    if (before.expectedProfileFingerprint !== after.expectedProfileFingerprint || before.expectedProfileId !== after.expectedProfileId) {
+    if (!sameExpectedProfile(before, after)) {
       await this.broadcastEvent("profile-changed", after);
     }
     return json({ success: true, summary: await this.summary(meta, members) });
