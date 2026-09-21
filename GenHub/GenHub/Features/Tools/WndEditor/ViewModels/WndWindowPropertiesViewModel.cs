@@ -364,6 +364,7 @@ public sealed partial class WndWindowPropertiesViewModel : ObservableObject
     /// <summary>
     /// Gets a value indicating whether the control kind supports a typed data block.
     /// </summary>
+    [SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Instance property bound to current control type for MVVM view binding.")]
     public bool IsControlDataSupported => ControlDataKey(ControlKind) != null;
 
     /// <summary>

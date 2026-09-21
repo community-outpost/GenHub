@@ -69,7 +69,7 @@ public sealed partial class WndTreeNodeViewModel : ObservableObject
         get
         {
             var status = WndStatusValue.ParseStatus(Window.GetProperty(WndConstants.PropertyKeys.Status));
-            return status.Flags.Contains(WndConstants.StatusFlags.Hidden);
+            return status.Flags.Contains(WndConstants.StatusFlags.Hidden, StringComparer.OrdinalIgnoreCase);
         }
     }
 

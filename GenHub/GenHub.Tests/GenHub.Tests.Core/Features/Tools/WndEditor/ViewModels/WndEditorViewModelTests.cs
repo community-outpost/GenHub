@@ -562,4 +562,34 @@ public sealed class WndEditorViewModelTests : IDisposable
         parsed.Should().BeTrue();
         set!.Entries[0].Image.Should().Be("Circle_Small03_Black");
     }
+
+    /// <summary>
+    /// Tests that tree node IsHidden recognizes the hidden status flag case-insensitively.
+    /// </summary>
+    /// <param name="status">The status value under test.</param>
+    /// <param name="expectedIsHidden">Whether the node is expected to be marked hidden.</param>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Theory]
+    [InlineData("HIDDEN", true)]
+    [InlineData("hidden", true)]
+    [InlineData("Hidden", true)]
+    [InlineData("ENABLED+HIDDEN", true)]
+    [InlineData("ENABLED+hidden", true)]
+    [InlineData("ENABLED", false)]
+    [InlineData("NULL", false)]
+    public async Task TreeNode_IsHidden_IsCaseInsensitive(string status, bool expectedIsHidden)
+    {
+        // Arrange
+        var doc =
+            "FILE_VERSION = 2;\n" +
+            "WINDOW\n" +
+            "  WINDOWTYPE = USER;\n" +
+            $"  STATUS = {status};\n" +
+            "END\n";
+        await _viewModel.LoadFromTextAsync(doc, null);
+
+        // Assert
+        _viewModel.RootNodes.Should().ContainSingle();
+        _viewModel.RootNodes[0].IsHidden.Should().Be(expectedIsHidden);
+    }
 }
