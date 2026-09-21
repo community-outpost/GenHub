@@ -2381,6 +2381,7 @@ public class GameLauncher(
     /// This ensures the game launches with the settings configured for this specific profile.
     /// </summary>
     /// <param name="profile">The game profile containing the settings to apply.</param>
+    /// <param name="networkIpOverride">Optional LAN IP written to Options.ini instead of the profile's stored address.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
     private async Task ApplyProfileSettingsToIniOptionsAsync(GameProfile profile, string? networkIpOverride = null)
     {
