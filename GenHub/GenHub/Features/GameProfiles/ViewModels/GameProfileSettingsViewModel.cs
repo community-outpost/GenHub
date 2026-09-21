@@ -15,6 +15,7 @@ using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameProfile;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Workspace;
+using GenHub.Features.GameProfiles.Helpers;
 using GenHub.Features.GameProfiles.Services;
 using GenHub.Features.Notifications.Services;
 using GenHub.Features.Notifications.ViewModels;
@@ -366,11 +367,12 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
     private static string NormalizeResourcePath(string? path, string defaultUri)
     {
         if (string.IsNullOrWhiteSpace(path)) return defaultUri;
+        path = CoverPathMigrationHelper.MigrateLegacyCoverFilename(path);
         if (path.StartsWith(UriConstants.AvarUriScheme, StringComparison.OrdinalIgnoreCase)) return path;
         if (Uri.TryCreate(path, UriKind.Absolute, out _)) return path;
 
         // Add backward compatibility for old cover paths
-        // Images were renamed/moved: Assets/Images/china-poster.png → Assets/Covers/china-cover.png
+        // Images were renamed/moved: Assets/Images/china-poster.png → Assets/Covers/china-cover.jpg
         var normalizedPath = path;
         var legacyImagesPath = UriConstants.LegacyImagesBasePath;
         var coversPath = UriConstants.CoversDirectoryPath;

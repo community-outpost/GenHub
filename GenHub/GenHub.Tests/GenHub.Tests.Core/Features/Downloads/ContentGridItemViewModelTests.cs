@@ -145,7 +145,7 @@ public sealed class ContentGridItemViewModelTests
             Id = "bundle-test",
             Name = "Bundle Test",
             IconUrl = "avares://GenHub/Assets/Logos/publisher.png",
-            BannerUrl = "avares://GenHub/Assets/Covers/china-cover.png",
+            BannerUrl = "avares://GenHub/Assets/Covers/china-cover.jpg",
         };
 
         var viewModel = CreateViewModel(searchResult);

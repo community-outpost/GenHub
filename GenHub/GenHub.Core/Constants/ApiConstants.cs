@@ -218,4 +218,37 @@ public static class ApiConstants
     /// UserAgent string that mimics a standard web browser.
     /// </summary>
     public const string BrowserUserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
+
+    // NuGet
+
+    /// <summary>
+    /// Environment variable name for overriding the NuGet flat container base URL during local development/staging.
+    /// </summary>
+    public const string NuGetFlatContainerBaseUrlEnvVar = "GENHUB_NUGET_BASE_URL";
+
+    /// <summary>
+    /// Default base URL for the NuGet flat container feed.
+    /// </summary>
+    public const string DefaultNuGetFlatContainerBaseUrl = "https://api.nuget.org/v3-flatcontainer";
+
+    /// <summary>
+    /// Gets the active base URL for the NuGet flat container feed, checking environment variable overrides first.
+    /// </summary>
+    public static string NuGetFlatContainerBaseUrl =>
+        Environment.GetEnvironmentVariable(NuGetFlatContainerBaseUrlEnvVar) is { Length: > 0 } customUrl
+            ? customUrl.TrimEnd('/')
+            : DefaultNuGetFlatContainerBaseUrl;
+
+    /// <summary>
+    /// Builds the direct download URL for a NuGet package archive.
+    /// </summary>
+    /// <param name="packageId">The package id (for example, microsoft.playwright).</param>
+    /// <param name="version">The exact package version (for example, 1.55.0).</param>
+    /// <returns>The download URL for the .nupkg archive.</returns>
+    public static string GetNuGetPackageDownloadUrl(string packageId, string version)
+    {
+        var normalizedId = packageId.ToLowerInvariant();
+        var normalizedVersion = version.ToLowerInvariant();
+        return $"{NuGetFlatContainerBaseUrl}/{normalizedId}/{normalizedVersion}/{normalizedId}.{normalizedVersion}.nupkg";
+    }
 }

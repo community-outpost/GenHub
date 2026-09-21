@@ -725,17 +725,17 @@ public sealed class ProfileContentService(
         {
             if (publisherType == PublisherTypeConstants.TheSuperHackers)
             {
-                return $"{baseUri}/china-cover.png";
+                return $"{baseUri}/{UriConstants.ChinaCoverFilename}";
             }
 
             if (publisherType == CommunityOutpostConstants.PublisherType)
             {
-                return $"{baseUri}/gla-cover.png";
+                return $"{baseUri}/{UriConstants.GlaCoverFilename}";
             }
 
             if (publisherType == PublisherTypeConstants.GeneralsOnline)
             {
-                return $"{baseUri}/usa-cover.png";
+                return $"{baseUri}/{UriConstants.UsaCoverFilename}";
             }
         }
 

@@ -5,6 +5,7 @@ using GenHub.Core.Interfaces.Notifications;
 using Microsoft.Extensions.Logging;
 using Microsoft.Playwright;
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -34,21 +35,22 @@ internal sealed class ManagedChromiumRuntime(
     internal const string BrowserPathEnvironmentVariable = "PLAYWRIGHT_BROWSERS_PATH";
 
     /// <summary>
-    /// Environment variable used by Playwright to locate its driver binary (node.exe).
+    /// Environment variable used by Playwright to locate its driver directory.
+    /// Points at the directory containing the .playwright folder (not the node binary).
     /// </summary>
-    internal const string DriverPathEnvironmentVariable = "PLAYWRIGHT_DRIVER_PATH";
+    internal const string DriverSearchPathEnvironmentVariable = "PLAYWRIGHT_DRIVER_SEARCH_PATH";
 
     private readonly SemaphoreSlim _installLock = new(1, 1);
-    private string? _cachedDriverPath;
 
     /// <summary>
     /// Configures Playwright to resolve browsers only from GenHub's managed runtime directory.
+    /// Driver resolution needs no help: shipped drivers resolve from the application
+    /// directory by default, and the managed driver sets the search path when provisioned.
     /// </summary>
     public void ConfigureEnvironment()
     {
         Directory.CreateDirectory(runtimeDirectory);
         Environment.SetEnvironmentVariable(BrowserPathEnvironmentVariable, runtimeDirectory);
-        EnsureDriverEnvironmentVariable();
     }
 
     /// <summary>
@@ -206,25 +208,11 @@ internal sealed class ManagedChromiumRuntime(
         }
     }
 
-    private static async Task StopMonitorAsync(CancellationTokenSource monitorCts, Task? monitorTask)
-    {
-        if (monitorTask == null)
-        {
-            return;
-        }
-
-        try
-        {
-            await monitorCts.CancelAsync();
-            await monitorTask;
-        }
-        catch (OperationCanceledException)
-        {
-            // Expected when the monitor task responds to cancellation
-        }
-    }
-
-    private static string GetPlatformFolder()
+    /// <summary>
+    /// Gets the Playwright driver platform folder name for the current OS and architecture.
+    /// </summary>
+    /// <returns>The platform folder name (for example, win32_x64).</returns>
+    internal static string GetDriverPlatformFolder()
     {
         if (OperatingSystem.IsWindows())
         {
@@ -248,31 +236,113 @@ internal sealed class ManagedChromiumRuntime(
         return "win32_x64";
     }
 
-    private static string? FindDriverCandidateInDirectory(string dir, string platformFolder, string nodeBinaryName)
+    /// <summary>
+    /// Gets the Playwright driver node binary name for the current OS.
+    /// </summary>
+    /// <returns>The node binary file name.</returns>
+    internal static string GetDriverNodeBinaryName()
     {
-        if (string.IsNullOrWhiteSpace(dir) || !Directory.Exists(dir))
+        return OperatingSystem.IsWindows() ? "node.exe" : "node";
+    }
+
+    /// <summary>
+    /// Resolves an already available Playwright driver node executable, mirroring
+    /// Playwright's own resolution: the search path override, then the application
+    /// directory, then its grandparent (NuGet layout). Best-effort only: it checks
+    /// the node executable, not the driver package entry point, and a whitespace-only
+    /// search path is treated as unset rather than Playwright's fail-fast.
+    /// </summary>
+    /// <returns>The node executable path, or null when no driver was found.</returns>
+    internal static string? TryResolveDriverNodeExecutable()
+    {
+        var platformFolder = GetDriverPlatformFolder();
+        var nodeBinaryName = GetDriverNodeBinaryName();
+
+        var searchPath = Environment.GetEnvironmentVariable(DriverSearchPathEnvironmentVariable);
+        if (!string.IsNullOrWhiteSpace(searchPath))
+        {
+            return FindDriverNodeUnderDirectory(searchPath, platformFolder, nodeBinaryName);
+        }
+
+        var assemblyDirectory = AppContext.BaseDirectory;
+        if (!File.Exists(Path.Combine(assemblyDirectory, "Microsoft.Playwright.dll")))
+        {
+            assemblyDirectory = Path.GetDirectoryName(typeof(Playwright).Assembly.Location) ?? assemblyDirectory;
+        }
+
+        // Directory.GetParent keeps a trailing separator quirk (GetParent(".../app/") is
+        // ".../app"), so walk parents through DirectoryInfo exactly like Playwright does.
+        return FindDriverNodeUnderDirectory(assemblyDirectory, platformFolder, nodeBinaryName)
+            ?? FindDriverNodeUnderDirectory(new DirectoryInfo(assemblyDirectory).Parent?.Parent?.FullName, platformFolder, nodeBinaryName);
+    }
+
+    /// <summary>
+    /// Measures cumulative staged browser download bytes. Playwright streams each browser
+    /// archive to the OS temp directory (never the browsers path) and deletes it after
+    /// extraction, so per-file high-water marks keep completed phases counted.
+    /// </summary>
+    /// <param name="stagingDirectory">The directory holding Playwright's staged archives.</param>
+    /// <param name="highWaterMarks">The per-file high-water marks, updated in place.</param>
+    /// <returns>The cumulative staged bytes observed so far.</returns>
+    internal long MeasureStagedDownloadBytes(string stagingDirectory, Dictionary<string, long> highWaterMarks)
+    {
+        try
+        {
+            foreach (var filePath in Directory.EnumerateFiles(stagingDirectory, ModDBConstants.PlaywrightStagingDownloadPattern))
+            {
+                long length;
+                try
+                {
+                    length = new FileInfo(filePath).Length;
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                {
+                    logger.LogTrace(ex, "Transient error while measuring staged browser archive {FilePath}", filePath);
+                    continue;
+                }
+
+                var fileName = Path.GetFileName(filePath);
+                if (length > highWaterMarks.GetValueOrDefault(fileName))
+                {
+                    highWaterMarks[fileName] = length;
+                }
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            logger.LogTrace(ex, "Transient error while enumerating staged browser archives during installation");
+        }
+
+        return highWaterMarks.Values.Sum();
+    }
+
+    private static string? FindDriverNodeUnderDirectory(string? directory, string platformFolder, string nodeBinaryName)
+    {
+        if (string.IsNullOrWhiteSpace(directory))
         {
             return null;
         }
 
-        var candidate = Path.Combine(dir, ".playwright", "node", platformFolder, nodeBinaryName);
-        if (File.Exists(candidate))
+        var candidate = Path.Combine(directory, ".playwright", "node", platformFolder, nodeBinaryName);
+        return File.Exists(candidate) ? candidate : null;
+    }
+
+    private static async Task StopMonitorAsync(CancellationTokenSource monitorCts, Task? monitorTask)
+    {
+        if (monitorTask == null)
         {
-            return candidate;
+            return;
         }
 
-        var current = new DirectoryInfo(dir);
-        for (var depth = 0; depth < 4 && current.Parent != null; depth++)
+        try
         {
-            current = current.Parent;
-            candidate = Path.Combine(current.FullName, ".playwright", "node", platformFolder, nodeBinaryName);
-            if (File.Exists(candidate))
-            {
-                return candidate;
-            }
+            await monitorCts.CancelAsync();
+            await monitorTask;
         }
-
-        return null;
+        catch (OperationCanceledException)
+        {
+            // Expected when the monitor task responds to cancellation
+        }
     }
 
     private async Task MonitorProgressAsync(
@@ -280,6 +350,7 @@ internal sealed class ManagedChromiumRuntime(
         IBrowserType chromium,
         CancellationToken cancellationToken)
     {
+        var stagedHighWaterMarks = new Dictionary<string, long>(StringComparer.OrdinalIgnoreCase);
         using var periodicTimer = new PeriodicTimer(TimeSpan.FromSeconds(1));
         try
         {
@@ -293,30 +364,19 @@ internal sealed class ManagedChromiumRuntime(
                     continue;
                 }
 
-                try
+                var totalBytes = MeasureStagedDownloadBytes(Path.GetTempPath(), stagedHighWaterMarks);
+                if (totalBytes > 0)
                 {
-                    if (Directory.Exists(runtimeDirectory))
-                    {
-                        var dirInfo = new DirectoryInfo(runtimeDirectory);
-                        var totalBytes = dirInfo.EnumerateFiles("*", SearchOption.AllDirectories).Sum(fi => fi.Length);
-                        if (totalBytes > 0)
-                        {
-                            var fraction = Math.Clamp(totalBytes / ModDBConstants.ChromiumExpectedSizeBytes, 0.05, 0.90);
-                            var mbDownloaded = totalBytes / (1024.0 * 1024.0);
-                            var statusFormat = localizationService?.GetString("ModDB.ChromiumProgressStatusFormat")
-                                ?? ModDBConstants.ChromiumProgressStatusFormat;
-                            var status = string.Format(
-                                CultureInfo.CurrentCulture,
-                                statusFormat,
-                                mbDownloaded,
-                                ModDBConstants.ChromiumExpectedSizeMegabytes);
-                            scope.ReportFraction(fraction, status);
-                        }
-                    }
-                }
-                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-                {
-                    logger.LogTrace(ex, "Transient error while measuring runtime directory size during installation");
+                    var fraction = Math.Clamp(totalBytes / ModDBConstants.ChromiumExpectedSizeBytes, 0.05, 0.90);
+                    var mbDownloaded = totalBytes / (1024.0 * 1024.0);
+                    var statusFormat = localizationService?.GetString("ModDB.ChromiumProgressStatusFormat")
+                        ?? ModDBConstants.ChromiumProgressStatusFormat;
+                    var status = string.Format(
+                        CultureInfo.CurrentCulture,
+                        statusFormat,
+                        mbDownloaded,
+                        ModDBConstants.ChromiumExpectedSizeMegabytes);
+                    scope.ReportFraction(fraction, status);
                 }
             }
         }
@@ -324,46 +384,5 @@ internal sealed class ManagedChromiumRuntime(
         {
             // Expected when the installer finishes or is cancelled
         }
-    }
-
-    private void EnsureDriverEnvironmentVariable()
-    {
-        if (!string.IsNullOrWhiteSpace(_cachedDriverPath) && File.Exists(_cachedDriverPath))
-        {
-            Environment.SetEnvironmentVariable(DriverPathEnvironmentVariable, _cachedDriverPath);
-            return;
-        }
-
-        var existingDriverPath = Environment.GetEnvironmentVariable(DriverPathEnvironmentVariable);
-        if (!string.IsNullOrWhiteSpace(existingDriverPath) && File.Exists(existingDriverPath))
-        {
-            _cachedDriverPath = existingDriverPath;
-            return;
-        }
-
-        var platformFolder = GetPlatformFolder();
-        var nodeBinaryName = OperatingSystem.IsWindows() ? "node.exe" : "node";
-
-        var searchDirectories = new[]
-        {
-            AppContext.BaseDirectory,
-            AppDomain.CurrentDomain.BaseDirectory,
-            Path.GetDirectoryName(typeof(ManagedChromiumRuntime).Assembly.Location) ?? string.Empty,
-            Path.GetDirectoryName(Environment.ProcessPath) ?? string.Empty,
-        };
-
-        foreach (var dir in searchDirectories)
-        {
-            var candidate = FindDriverCandidateInDirectory(dir, platformFolder, nodeBinaryName);
-            if (candidate != null)
-            {
-                _cachedDriverPath = candidate;
-                Environment.SetEnvironmentVariable(DriverPathEnvironmentVariable, candidate);
-                logger.LogInformation("Resolved Playwright driver path: {DriverPath}", candidate);
-                return;
-            }
-        }
-
-        logger.LogWarning("Could not resolve Playwright driver node executable in any standard directory");
     }
 }

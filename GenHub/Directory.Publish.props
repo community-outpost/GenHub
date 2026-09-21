@@ -1,0 +1,21 @@
+<Project>
+  <!--
+    Shared publish hygiene for the GenHub platform heads (Windows, Linux, macOS).
+    Imported explicitly by each head; strips non-runtime files from Release publish
+    output. Build and test output is unaffected, so local debugging and CI test
+    diagnostics keep working.
+  -->
+  <Target Name="StripNonRuntimeFilesFromPublish" AfterTargets="ComputeFilesToPublish" Condition="'$(Configuration)' == 'Release'">
+    <ItemGroup>
+      <!-- Managed symbols and API documentation: useful for debugging, never at runtime. -->
+      <ResolvedFileToPublish Remove="@(ResolvedFileToPublish)" Condition="'%(Extension)' == '.pdb'" />
+      <ResolvedFileToPublish Remove="@(ResolvedFileToPublish)" Condition="'%(Extension)' == '.xml'" />
+
+      <!-- Self-contained diagnostic natives: crash-dump tooling that users never invoke. -->
+      <ResolvedFileToPublish Remove="@(ResolvedFileToPublish)" Condition="'%(Filename)' == 'createdump'" />
+      <ResolvedFileToPublish Remove="@(ResolvedFileToPublish)" Condition="'%(Filename)' == 'mscordbi'" />
+      <ResolvedFileToPublish Remove="@(ResolvedFileToPublish)" Condition="$([System.String]::Copy('%(Filename)').StartsWith('mscordaccore'))" />
+      <ResolvedFileToPublish Remove="@(ResolvedFileToPublish)" Condition="'%(Filename)' == 'Microsoft.DiaSymReader.Native.amd64'" />
+    </ItemGroup>
+  </Target>
+</Project>

@@ -157,7 +157,10 @@ public sealed class DownloadNotificationScope : IProgress<ContentAcquisitionProg
             status = value.Status;
         }
 
-        UpdatePinnedToast(clamped, status);
+        // Update producers may embed their own percentage (for example
+        // "Downloading artifact for PR #547 (ab47b8f)... 24%"). Prefixing the
+        // scaled total as well would show two conflicting figures.
+        UpdatePinnedToast(clamped, status, includePercentagePrefix: !StatusShowsPercentage(status));
     }
 
     /// <summary>
@@ -342,7 +345,12 @@ public sealed class DownloadNotificationScope : IProgress<ContentAcquisitionProg
         return Math.Clamp(value, 0, 100);
     }
 
-    private void UpdatePinnedToast(double clampedPercentage, string status)
+    private static bool StatusShowsPercentage(string status)
+    {
+        return status.TrimEnd().EndsWith('%');
+    }
+
+    private void UpdatePinnedToast(double clampedPercentage, string status, bool includePercentagePrefix = true)
     {
         var title = PinnedTitle;
 
@@ -364,11 +372,13 @@ public sealed class DownloadNotificationScope : IProgress<ContentAcquisitionProg
 
             _lastUpdateTimestamp = Stopwatch.GetTimestamp();
 
-            var message = Localize(
-                DownloadNotificationConstants.ProgressMessageKey,
-                DownloadNotificationConstants.ProgressMessageFormat,
-                ((int)clampedPercentage).ToString(CultureInfo.InvariantCulture),
-                status);
+            var message = includePercentagePrefix
+                ? Localize(
+                    DownloadNotificationConstants.ProgressMessageKey,
+                    DownloadNotificationConstants.ProgressMessageFormat,
+                    ((int)clampedPercentage).ToString(CultureInfo.InvariantCulture),
+                    status)
+                : status;
             _notifications.Update(_notificationId, message, title);
         }
     }

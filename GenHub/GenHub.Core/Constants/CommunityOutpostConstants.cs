@@ -47,7 +47,7 @@ public static class CommunityOutpostConstants
     /// <summary>
     /// Cover image source path for UI display.
     /// </summary>
-    public const string CoverSource = "/Assets/Covers/gla-cover.png";
+    public const string CoverSource = "/Assets/Covers/gla-cover.jpg";
 
     /// <summary>
     /// Theme color for Community Outpost content.

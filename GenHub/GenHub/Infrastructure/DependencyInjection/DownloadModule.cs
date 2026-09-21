@@ -55,6 +55,15 @@ public static class DownloadModule
             })
             .ConfigurePrimaryHttpMessageHandler(() => ImageCacheService.CreateSsrfSafeSocketsHttpHandler());
 
+        // Named client for on-demand Playwright driver downloads (config-driven timeout).
+        services.AddHttpClient(
+            ModDBConstants.PlaywrightDriverHttpClientName,
+            (serviceProvider, client) =>
+            {
+                var configProvider = serviceProvider.GetRequiredService<IConfigurationProviderService>();
+                ConfigureDownloadClient(client, configProvider);
+            });
+
         return services;
     }
 

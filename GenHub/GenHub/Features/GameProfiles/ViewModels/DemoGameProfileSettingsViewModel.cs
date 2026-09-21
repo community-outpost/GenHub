@@ -200,9 +200,9 @@ public partial class DemoGameProfileSettingsViewModel : GameProfileSettingsViewM
         AvailableCoversForSelection.Clear();
         AvailableCoversForSelection.Add(new ProfileResourceItem { Path = "avares://GenHub/Assets/Covers/zerohour-cover.png", DisplayName = "Zero Hour" });
         AvailableCoversForSelection.Add(new ProfileResourceItem { Path = "avares://GenHub/Assets/Covers/generals-cover.png", DisplayName = "Generals" });
-        AvailableCoversForSelection.Add(new ProfileResourceItem { Path = "avares://GenHub/Assets/Covers/usa-cover.png", DisplayName = "USA" });
-        AvailableCoversForSelection.Add(new ProfileResourceItem { Path = "avares://GenHub/Assets/Covers/china-cover.png", DisplayName = "China" });
-        AvailableCoversForSelection.Add(new ProfileResourceItem { Path = "avares://GenHub/Assets/Covers/gla-cover.png", DisplayName = "GLA" });
+        AvailableCoversForSelection.Add(new ProfileResourceItem { Path = "avares://GenHub/Assets/Covers/usa-cover.jpg", DisplayName = "USA" });
+        AvailableCoversForSelection.Add(new ProfileResourceItem { Path = "avares://GenHub/Assets/Covers/china-cover.jpg", DisplayName = "China" });
+        AvailableCoversForSelection.Add(new ProfileResourceItem { Path = "avares://GenHub/Assets/Covers/gla-cover.jpg", DisplayName = "GLA" });
 
         // 4. Default Enabled Content
         EnabledContent.Clear();

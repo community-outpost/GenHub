@@ -8069,6 +8069,9 @@ GenHub передает официальный идентификатор AppID 
   <data name="ModDB.ChromiumExtractingMessage" xml:space="preserve">
     <value>Распаковка и настройка среды выполнения Chromium...</value>
   </data>
+  <data name="ModDB.ChromiumProgressStatusFormat" xml:space="preserve">
+    <value>{0:F0} МБ / ~{1:F0} МБ</value>
+  </data>
   <data name="ModDB.ChromiumReadyTitle" xml:space="preserve">
     <value>Среда выполнения Chromium готова</value>
   </data>
@@ -8080,6 +8083,47 @@ GenHub передает официальный идентификатор AppID 
   </data>
   <data name="ModDB.ChromiumInstallFailedMessage" xml:space="preserve">
     <value>GenHub не удалось установить управляемую среду Chromium. Проверьте сетевое подключение и повторите попытку.</value>
+  </data>
+  <data name="ModDB.PlaywrightDriverRuntimeName" xml:space="preserve">
+    <value>Драйвер Playwright для ModDB</value>
+  </data>
+  <data name="ModDB.PlaywrightDriverInstallTitle" xml:space="preserve">
+    <value>Установка веб-драйвера</value>
+  </data>
+  <data name="ModDB.PlaywrightDriverDownloadingMessage" xml:space="preserve">
+    <value>Загрузка драйвера Playwright (~190 МБ)... Пожалуйста, подождите.</value>
+  </data>
+  <data name="ModDB.PlaywrightDriverExtractingMessage" xml:space="preserve">
+    <value>Извлечение драйвера Playwright...</value>
+  </data>
+  <data name="ModDB.PlaywrightDriverReadyTitle" xml:space="preserve">
+    <value>Веб-драйвер готов</value>
+  </data>
+  <data name="ModDB.PlaywrightDriverReadyMessage" xml:space="preserve">
+    <value>Драйвер Playwright успешно установлен.</value>
+  </data>
+  <data name="ModDB.PlaywrightDriverInstallFailedTitle" xml:space="preserve">
+    <value>Не удалось установить драйвер</value>
+  </data>
+  <data name="ModDB.PlaywrightDriverInstallFailedMessage" xml:space="preserve">
+    <value>GenHub не удалось установить управляемый драйвер Playwright. Проверьте сетевое подключение и повторите попытку.</value>
+  </data>
+  <data name="ModDB.PlaywrightDriverConsentTitle" xml:space="preserve">
+    <value>Установить веб-драйвер</value>
+  </data>
+  <data name="ModDB.PlaywrightDriverConsentConfirm" xml:space="preserve">
+    <value>Установить</value>
+  </data>
+  <data name="ModDB.PlaywrightDriverConsentMessage" xml:space="preserve">
+    <value>GenHub нужен веб-драйвер Playwright для загрузки содержимого ModDB. Он будет загружен один раз (~190 МБ) и сохранён локально.
+
+После готовности драйвера GenHub предложит установить среду браузера.
+
+Расположение установки:
+{0}</value>
+  </data>
+  <data name="ModDB.PlaywrightDriverProgressStatusFormat" xml:space="preserve">
+    <value>{0:F0} МБ / ~{1:F0} МБ</value>
   </data>
 
   <data name="Updates.Status.InstallationFailed" xml:space="preserve">

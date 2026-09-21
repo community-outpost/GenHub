@@ -8163,6 +8163,9 @@ Do you want to download and inspect this profile package?</value>
   <data name="ModDB.ChromiumExtractingMessage" xml:space="preserve">
     <value>Extracting and configuring Chromium runtime...</value>
   </data>
+  <data name="ModDB.ChromiumProgressStatusFormat" xml:space="preserve">
+    <value>{0:F0} MB / ~{1:F0} MB</value>
+  </data>
   <data name="ModDB.ChromiumReadyTitle" xml:space="preserve">
     <value>Chromium Runtime Ready</value>
   </data>
@@ -8174,6 +8177,47 @@ Do you want to download and inspect this profile package?</value>
   </data>
   <data name="ModDB.ChromiumInstallFailedMessage" xml:space="preserve">
     <value>GenHub could not install its managed Chromium runtime. Check your network connection and try again.</value>
+  </data>
+  <data name="ModDB.PlaywrightDriverRuntimeName" xml:space="preserve">
+    <value>ModDB Playwright Driver</value>
+  </data>
+  <data name="ModDB.PlaywrightDriverInstallTitle" xml:space="preserve">
+    <value>Installing Web Driver</value>
+  </data>
+  <data name="ModDB.PlaywrightDriverDownloadingMessage" xml:space="preserve">
+    <value>Downloading Playwright driver (~190 MB)... Please wait.</value>
+  </data>
+  <data name="ModDB.PlaywrightDriverExtractingMessage" xml:space="preserve">
+    <value>Extracting Playwright driver...</value>
+  </data>
+  <data name="ModDB.PlaywrightDriverReadyTitle" xml:space="preserve">
+    <value>Web Driver Ready</value>
+  </data>
+  <data name="ModDB.PlaywrightDriverReadyMessage" xml:space="preserve">
+    <value>Playwright driver installed successfully.</value>
+  </data>
+  <data name="ModDB.PlaywrightDriverInstallFailedTitle" xml:space="preserve">
+    <value>Driver Installation Failed</value>
+  </data>
+  <data name="ModDB.PlaywrightDriverInstallFailedMessage" xml:space="preserve">
+    <value>GenHub could not install its managed Playwright driver. Check your network connection and try again.</value>
+  </data>
+  <data name="ModDB.PlaywrightDriverConsentTitle" xml:space="preserve">
+    <value>Install Web Driver</value>
+  </data>
+  <data name="ModDB.PlaywrightDriverConsentConfirm" xml:space="preserve">
+    <value>Install</value>
+  </data>
+  <data name="ModDB.PlaywrightDriverConsentMessage" xml:space="preserve">
+    <value>GenHub needs the Playwright web driver to load ModDB content. It will be downloaded once (~190 MB) and stored locally.
+
+After the driver is ready, GenHub will ask to install the browser runtime next.
+
+Install location:
+{0}</value>
+  </data>
+  <data name="ModDB.PlaywrightDriverProgressStatusFormat" xml:space="preserve">
+    <value>{0:F0} MB / ~{1:F0} MB</value>
   </data>
   <data name="Updates.Status.InstallationFailed" xml:space="preserve">
     <value>Installation failed</value>

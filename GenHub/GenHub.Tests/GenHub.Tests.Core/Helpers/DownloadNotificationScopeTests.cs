@@ -1,6 +1,7 @@
 ﻿using GenHub.Core.Constants;
 using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Notifications;
+using GenHub.Core.Models.AppUpdate;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Notifications;
@@ -54,6 +55,48 @@ public sealed class DownloadNotificationScopeTests
             n => n.Update(
                 scope.NotificationId,
                 It.Is<string>(message => message.StartsWith("100% - ", StringComparison.Ordinal)),
+                It.IsAny<string>()),
+            Times.Once);
+    }
+
+    /// <summary>
+    /// Verifies that an update status with an embedded percentage is shown verbatim without a second prefix.
+    /// </summary>
+    [Fact]
+    public void Report_UpdateProgressWithEmbeddedPercentage_ShowsStatusVerbatim()
+    {
+        var notifications = new Mock<INotificationService>();
+        using var scope = new DownloadNotificationScope(notifications.Object, "GenHub");
+
+        scope.Report(new UpdateProgress
+        {
+            Status = "Downloading artifact for PR #547 (ab47b8f)... 24%",
+            PercentComplete = 7,
+        });
+
+        notifications.Verify(
+            n => n.Update(
+                scope.NotificationId,
+                "Downloading artifact for PR #547 (ab47b8f)... 24%",
+                It.IsAny<string>()),
+            Times.Once);
+    }
+
+    /// <summary>
+    /// Verifies that an update status without a percentage keeps the progress prefix.
+    /// </summary>
+    [Fact]
+    public void Report_UpdateProgressWithoutPercentage_KeepsProgressPrefix()
+    {
+        var notifications = new Mock<INotificationService>();
+        using var scope = new DownloadNotificationScope(notifications.Object, "GenHub");
+
+        scope.Report(new UpdateProgress { Status = "Extracting artifact...", PercentComplete = 30 });
+
+        notifications.Verify(
+            n => n.Update(
+                scope.NotificationId,
+                "30% - Extracting artifact...",
                 It.IsAny<string>()),
             Times.Once);
     }

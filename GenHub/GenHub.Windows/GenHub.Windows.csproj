@@ -1,4 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
+    <Import Project="..\Directory.Publish.props" />
+
     <PropertyGroup>
         <OutputType>WinExe</OutputType>
         <TargetFramework>net8.0-windows</TargetFramework>
@@ -9,6 +11,9 @@
         <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
         <GenerateDocumentationFile>true</GenerateDocumentationFile>
         <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+        <!-- Debug ships the Windows Playwright driver next to the binaries. Release keeps
+             the Directory.Build.props default (none): the driver downloads on demand. -->
+        <PlaywrightPlatform Condition="'$(Configuration)' != 'Release'">win-x64</PlaywrightPlatform>
     </PropertyGroup>
 
     <ItemGroup>
@@ -52,6 +57,7 @@
         <!-- Build-order-only: guarantees the proxy binary exists before BuildProxyLauncher packs it. -->
         <ProjectReference Include="..\GenHub.ProxyLauncher\GenHub.ProxyLauncher.csproj">
             <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+            <Private>false</Private>
             <SkipGetTargetFrameworkProperties>true</SkipGetTargetFrameworkProperties>
         </ProjectReference>
     </ItemGroup>

@@ -102,8 +102,8 @@ public class ContentCardBadgeHelperTests
         };
 
         Assert.Equal(PublisherInfoConstants.GeneralsOnline.LogoSource, ContentCardBadgeHelper.GetThumbnailUrl(generalsOnlineResult));
-        Assert.Equal("avares://GenHub/Assets/Covers/gla-cover.png", ContentCardBadgeHelper.GetThumbnailUrl(communityOutpostResult));
-        Assert.Equal("avares://GenHub/Assets/Covers/china-cover.png", ContentCardBadgeHelper.GetThumbnailUrl(superHackersResult));
+        Assert.Equal("avares://GenHub/Assets/Covers/gla-cover.jpg", ContentCardBadgeHelper.GetThumbnailUrl(communityOutpostResult));
+        Assert.Equal("avares://GenHub/Assets/Covers/china-cover.jpg", ContentCardBadgeHelper.GetThumbnailUrl(superHackersResult));
 
         var gitHubCover = ContentCardBadgeHelper.GetThumbnailUrl(gitHubResult);
         Assert.NotNull(gitHubCover);
@@ -199,10 +199,10 @@ public class ContentCardBadgeHelperTests
             VariantGroupId = "thesuperhackers.patch.latest",
         };
 
-        Assert.Equal("avares://GenHub/Assets/Covers/china-cover.png", ContentCardBadgeHelper.GetThumbnailUrl(gameClient));
-        Assert.Equal("avares://GenHub/Assets/Covers/gla-cover.png", ContentCardBadgeHelper.GetThumbnailUrl(patch));
-        Assert.Equal("avares://GenHub/Assets/Covers/china-cover.png", ContentCardBadgeHelper.GetThumbnailUrl(gitHubGameClient));
-        Assert.Equal("avares://GenHub/Assets/Covers/gla-cover.png", ContentCardBadgeHelper.GetThumbnailUrl(gitHubPatch));
+        Assert.Equal("avares://GenHub/Assets/Covers/china-cover.jpg", ContentCardBadgeHelper.GetThumbnailUrl(gameClient));
+        Assert.Equal("avares://GenHub/Assets/Covers/gla-cover.jpg", ContentCardBadgeHelper.GetThumbnailUrl(patch));
+        Assert.Equal("avares://GenHub/Assets/Covers/china-cover.jpg", ContentCardBadgeHelper.GetThumbnailUrl(gitHubGameClient));
+        Assert.Equal("avares://GenHub/Assets/Covers/gla-cover.jpg", ContentCardBadgeHelper.GetThumbnailUrl(gitHubPatch));
     }
 
     /// <summary>

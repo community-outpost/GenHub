@@ -1,4 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
+    <Import Project="..\Directory.Publish.props" />
+
     <PropertyGroup>
         <OutputType>Exe</OutputType>
         <!-- net9.0-linux doesn't exist for various reasons, so we have to use the generic net9.0 target framework -->
@@ -8,6 +10,9 @@
         <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
         <GenerateDocumentationFile>true</GenerateDocumentationFile>
         <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+        <!-- Debug ships the host Playwright driver (empty restores host detection).
+             Release keeps the Directory.Build.props default (none): on-demand download. -->
+        <PlaywrightPlatform Condition="'$(Configuration)' != 'Release'"></PlaywrightPlatform>
     </PropertyGroup>
 
     <ItemGroup>
@@ -35,6 +40,7 @@
         <!-- Build-order-only: guarantees the proxy binary exists before BuildProxyLauncher packs it. -->
         <ProjectReference Include="..\GenHub.ProxyLauncher\GenHub.ProxyLauncher.csproj">
             <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+            <Private>false</Private>
             <SkipGetTargetFrameworkProperties>true</SkipGetTargetFrameworkProperties>
         </ProjectReference>
     </ItemGroup>

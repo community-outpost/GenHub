@@ -105,6 +105,11 @@ public static class DirectoryNames
     public const string BrowserRuntime = "BrowserRuntime";
 
     /// <summary>
+    /// Directory for the app-owned Playwright driver (node executable plus driver package).
+    /// </summary>
+    public const string PlaywrightDriver = "PlaywrightDriver";
+
+    /// <summary>
     /// Directory for game movie assets.
     /// </summary>
     public const string Movies = "Movies";

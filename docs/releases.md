@@ -185,6 +185,10 @@ dotnet publish GenHub/GenHub.Windows/GenHub.Windows.csproj `
 # Navigate to publish directory
 cd publish
 
+# Prime the output directory with the previous release so vpk generates a delta
+# package (skip for the very first release). CI does this automatically.
+vpk download github --repoUrl "https://github.com/community-outpost/genhub" --outputDir Releases --pre
+
 # Create Velopack package (replace 1.0.0 with your version)
 vpk pack `
     --packId GenHub `

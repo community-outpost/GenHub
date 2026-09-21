@@ -528,4 +528,41 @@ public class GameProfileItemViewModelTests
         Assert.False(vm.IsRetailCompatible);
         Assert.Equal("Non-Retail Compatible", vm.CompatibilityBadgeText);
     }
+
+    /// <summary>
+    /// Verifies legacy PNG faction covers stored in profiles migrate to the re-encoded JPEG covers.
+    /// </summary>
+    /// <param name="legacyPath">The stored legacy path.</param>
+    /// <param name="expectedPath">The expected migrated path.</param>
+    [Theory]
+    [InlineData("avares://GenHub/Assets/Covers/china-cover.png", "avares://GenHub/Assets/Covers/china-cover.jpg")]
+    [InlineData("avares://GenHub/Assets/Covers/usa-cover.png", "avares://GenHub/Assets/Covers/usa-cover.jpg")]
+    [InlineData("avares://GenHub/Assets/Covers/gla-cover.png", "avares://GenHub/Assets/Covers/gla-cover.jpg")]
+    public void NormalizeCoverPath_LegacyPngCover_MigratesToJpeg(string legacyPath, string expectedPath)
+    {
+        Assert.Equal(expectedPath, GameProfileItemViewModel.NormalizeCoverPath(legacyPath));
+    }
+
+    /// <summary>
+    /// Verifies legacy poster paths migrate to the re-encoded JPEG covers.
+    /// </summary>
+    [Fact]
+    public void NormalizeCoverPath_LegacyPoster_MigratesToJpegCover()
+    {
+        Assert.Equal(
+            "avares://GenHub/Assets/Covers/china-cover.jpg",
+            GameProfileItemViewModel.NormalizeCoverPath("avares://GenHub/Assets/Images/china-poster.png"));
+    }
+
+    /// <summary>
+    /// Verifies current JPEG covers and empty paths pass through unchanged.
+    /// </summary>
+    [Fact]
+    public void NormalizeCoverPath_CurrentPaths_PassThroughUnchanged()
+    {
+        Assert.Equal(
+            "avares://GenHub/Assets/Covers/usa-cover.jpg",
+            GameProfileItemViewModel.NormalizeCoverPath("avares://GenHub/Assets/Covers/usa-cover.jpg"));
+        Assert.Equal(string.Empty, GameProfileItemViewModel.NormalizeCoverPath(string.Empty));
+    }
 }
