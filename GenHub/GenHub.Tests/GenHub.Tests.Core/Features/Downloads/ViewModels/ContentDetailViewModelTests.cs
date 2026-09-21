@@ -1,3 +1,4 @@
+using Avalonia.Headless.XUnit;
 using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
 using GenHub.Core.Constants;
@@ -2517,6 +2518,9 @@ public sealed class ContentDetailViewModelTests
         profileManager
             .Setup(manager => manager.GetAllProfilesAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(ProfileOperationResult<IReadOnlyList<GameProfile>>.CreateSuccess([]));
+        profileManager
+            .Setup(manager => manager.ScrubDeletedManifestReferencesAsync(It.IsAny<IEnumerable<string>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ProfileScrubResult>.CreateSuccess(new ProfileScrubResult(0, 0, [])));
 
         var dialogService = new Mock<IDialogService>();
         dialogService
@@ -2556,8 +2560,139 @@ public sealed class ContentDetailViewModelTests
         Assert.NotNull(removedId);
         Assert.Equal(manifestId, removedId.Value.Value);
         Assert.Equal(manifestId, deletedId);
+        profileManager.Verify(
+            manager => manager.ScrubDeletedManifestReferencesAsync(
+                It.Is<IEnumerable<string>>(ids => ids.Contains(manifestId)),
+                CancellationToken.None),
+            Times.Once);
         artworkService.Verify(
             service => service.PurgeArtworkAsync(manifestId, It.IsAny<CancellationToken>()),
+            Times.Once);
+        notifications.Verify(
+            n => n.ShowSuccess(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
+            Times.Once);
+    }
+
+    /// <summary>
+    /// Verifies that when scrubbing profile references fails after deleting a download, a warning notification is displayed.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task DeleteDownloadCommand_WhenScrubFails_ShowsWarningNotificationAsync()
+    {
+        // Arrange
+        const string manifestId = "1.20260901.custom.mod.test";
+        var searchResult = new ContentSearchResult
+        {
+            Id = manifestId,
+            Name = "Custom Mod",
+            ProviderName = "custom",
+            ContentType = ContentType.Mod,
+            TargetGame = GameType.ZeroHour,
+        };
+
+        var manifestPool = CreateManifestPoolMock(CreateDownloadedManifest(manifestId, "Custom Mod", ContentType.Mod));
+        manifestPool
+            .Setup(pool => pool.RemoveManifestAsync(It.IsAny<ManifestId>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+
+        var profileManager = new Mock<IGameProfileManager>();
+        profileManager
+            .Setup(manager => manager.GetAllProfilesAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<IReadOnlyList<GameProfile>>.CreateSuccess([]));
+        profileManager
+            .Setup(manager => manager.ScrubDeletedManifestReferencesAsync(It.IsAny<IEnumerable<string>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ProfileScrubResult>.CreateFailure("Storage locked"));
+
+        var dialogService = new Mock<IDialogService>();
+        dialogService
+            .Setup(dialog => dialog.ShowConfirmationAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string?>()))
+            .ReturnsAsync(true);
+
+        var notifications = new Mock<INotificationService>();
+        var viewModel = CreateViewModel(
+            searchResult,
+            new Mock<IContentDownloadCoordinator>().Object,
+            manifestPool: manifestPool.Object,
+            notificationService: notifications.Object,
+            profileManager: profileManager.Object,
+            dialogService: dialogService.Object);
+        viewModel.IsDownloaded = true;
+
+        // Act
+        await viewModel.DeleteDownloadCommand.ExecuteAsync(null);
+
+        // Assert
+        notifications.Verify(
+            n => n.ShowWarning(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
+            Times.Once);
+        notifications.Verify(
+            n => n.ShowSuccess(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
+            Times.Once);
+    }
+
+    /// <summary>
+    /// Verifies that when scrubbing profile references reports failed profiles, a warning notification is displayed.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task DeleteDownloadCommand_WhenScrubHasFailedProfiles_ShowsWarningNotificationAsync()
+    {
+        // Arrange
+        const string manifestId = "1.20260901.custom.mod.test";
+        var searchResult = new ContentSearchResult
+        {
+            Id = manifestId,
+            Name = "Custom Mod",
+            ProviderName = "custom",
+            ContentType = ContentType.Mod,
+            TargetGame = GameType.ZeroHour,
+        };
+
+        var manifestPool = CreateManifestPoolMock(CreateDownloadedManifest(manifestId, "Custom Mod", ContentType.Mod));
+        manifestPool
+            .Setup(pool => pool.RemoveManifestAsync(It.IsAny<ManifestId>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+
+        var profileManager = new Mock<IGameProfileManager>();
+        profileManager
+            .Setup(manager => manager.GetAllProfilesAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<IReadOnlyList<GameProfile>>.CreateSuccess([]));
+        profileManager
+            .Setup(manager => manager.ScrubDeletedManifestReferencesAsync(It.IsAny<IEnumerable<string>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ProfileScrubResult>.CreateSuccess(new ProfileScrubResult(1, 0, ["Locked Profile"])));
+
+        var dialogService = new Mock<IDialogService>();
+        dialogService
+            .Setup(dialog => dialog.ShowConfirmationAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string?>()))
+            .ReturnsAsync(true);
+
+        var notifications = new Mock<INotificationService>();
+        var viewModel = CreateViewModel(
+            searchResult,
+            new Mock<IContentDownloadCoordinator>().Object,
+            manifestPool: manifestPool.Object,
+            notificationService: notifications.Object,
+            profileManager: profileManager.Object,
+            dialogService: dialogService.Object);
+        viewModel.IsDownloaded = true;
+
+        // Act
+        await viewModel.DeleteDownloadCommand.ExecuteAsync(null);
+
+        // Assert
+        notifications.Verify(
+            n => n.ShowWarning(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
             Times.Once);
         notifications.Verify(
             n => n.ShowSuccess(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
@@ -4118,5 +4253,80 @@ public sealed class ContentDetailViewModelTests
         Assert.NotNull(matching);
         Assert.True(matching.IsDownloaded);
         Assert.Equal(manifestId, matching.DownloadedManifestId);
+    }
+
+    /// <summary>
+    /// Verifies that receiving ContentLibraryClearedMessage resets all download, release, and variant states
+    /// in the detail view back to NotDownloaded.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ContentLibraryClearedMessage_WhenReceived_ResetsAllDownloadAndVariantStatesAsync()
+    {
+        // Arrange
+        var searchResult = new ContentSearchResult
+        {
+            Id = "1.0.test.mod.detail",
+            Name = "Test Mod Detail",
+            ContentType = ContentType.Mod,
+            TargetGame = GameType.ZeroHour,
+        };
+
+        var coordinator = new Mock<IContentDownloadCoordinator>();
+        var stateServiceMock = new Mock<IContentStateService>();
+        stateServiceMock
+            .Setup(s => s.GetStateAsync(It.IsAny<ContentSearchResult>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ContentState.NotDownloaded);
+        stateServiceMock
+            .Setup(s => s.GetStateByManifestIdAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ContentState.NotDownloaded);
+
+        var viewModel = CreateViewModel(searchResult, coordinator.Object, contentStateService: stateServiceMock.Object);
+        viewModel.Initialize();
+
+        var variant = new InstallableVariant
+        {
+            Name = "Default",
+            ManifestId = "1.0.test.mod.detail",
+            CurrentState = ContentState.Downloaded,
+        };
+        viewModel.Variants.Add(variant);
+        viewModel.SelectedVariant = variant;
+
+        var release = new ReleaseItemViewModel
+        {
+            Id = "rel-1",
+            Name = "Release 1",
+            IsDownloaded = true,
+            IsUpdateAvailable = true,
+            DownloadedManifestId = "1.0.test.mod.detail",
+        };
+        viewModel.Releases.Add(release);
+        viewModel.SelectedDownloadableItem = release;
+
+        viewModel.IsDownloaded = true;
+        viewModel.IsUpdateAvailable = true;
+
+        Assert.True(viewModel.IsDownloaded);
+        Assert.True(viewModel.ShowAddToProfileButton);
+        Assert.True(viewModel.ShowDeleteButton);
+        Assert.False(viewModel.ShowDownloadButton);
+
+        // Act
+        WeakReferenceMessenger.Default.Send(new ContentLibraryClearedMessage());
+        Avalonia.Threading.Dispatcher.UIThread.RunJobs();
+
+        // Assert
+        Assert.False(viewModel.IsDownloaded);
+        Assert.False(viewModel.IsUpdateAvailable);
+        Assert.False(release.IsDownloaded);
+        Assert.False(release.IsUpdateAvailable);
+        Assert.Null(release.DownloadedManifestId);
+        Assert.Equal(ContentState.NotDownloaded, variant.CurrentState);
+        Assert.Equal(ContentState.NotDownloaded, viewModel.SelectedVariant.CurrentState);
+        Assert.True(viewModel.ShowDownloadButton);
+        Assert.False(viewModel.ShowUpdateButton);
+        Assert.False(viewModel.ShowAddToProfileButton);
+        Assert.False(viewModel.ShowDeleteButton);
     }
 }

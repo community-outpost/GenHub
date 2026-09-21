@@ -798,6 +798,10 @@ public class MockGameProfileManager(IReadOnlyList<GameProfile>? profiles = null)
     /// <inheritdoc/>
     public Task<ProfileOperationResult<IReadOnlyList<ContentManifest>>> GetAvailableContentAsync(GameClient gameClient, CancellationToken cancellationToken = default)
         => Task.FromResult(ProfileOperationResult<IReadOnlyList<ContentManifest>>.CreateSuccess([]));
+
+    /// <inheritdoc/>
+    public Task<OperationResult<ProfileScrubResult>> ScrubDeletedManifestReferencesAsync(IEnumerable<string> deletedManifestIds, CancellationToken cancellationToken = default)
+        => Task.FromResult(OperationResult<ProfileScrubResult>.CreateSuccess(new ProfileScrubResult(0, 0, [])));
 }
 
 /// <summary>

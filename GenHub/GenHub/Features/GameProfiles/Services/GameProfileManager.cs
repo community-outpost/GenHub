@@ -7,6 +7,7 @@ using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Interfaces.GameSettings;
 using GenHub.Core.Interfaces.Launching;
 using GenHub.Core.Interfaces.Manifest;
+using GenHub.Core.Messages;
 using GenHub.Core.Models.GameClients;
 using GenHub.Core.Models.GameProfile;
 using GenHub.Core.Models.Manifest;
@@ -249,10 +250,22 @@ public class GameProfileManager(
                 return OperationResult<bool>.CreateFailure("Profile ID cannot be empty");
             }
 
+            var profileResult = await profileRepository.LoadProfileAsync(profileId, cancellationToken);
+            var profileName = profileResult.Success ? profileResult.Data?.Name ?? string.Empty : string.Empty;
+
             var deleteResult = await profileRepository.DeleteProfileAsync(profileId, cancellationToken);
             if (deleteResult.Success)
             {
                 logger.LogInformation("Successfully deleted game profile with ID: {ProfileId}", profileId);
+                try
+                {
+                    WeakReferenceMessenger.Default.Send(new ProfileDeletedMessage(profileId, profileName));
+                }
+                catch (Exception ex)
+                {
+                    logger.LogWarning(ex, "Failed to publish profile deletion notification for {ProfileId}", profileId);
+                }
+
                 return OperationResult<bool>.CreateSuccess(true);
             }
 
@@ -325,6 +338,72 @@ public class GameProfileManager(
         {
             logger.LogError(ex, "An unexpected error occurred while getting available content for {GameType}.", gameClient?.GameType);
             return ProfileOperationResult<IReadOnlyList<ContentManifest>>.CreateFailure("An unexpected error occurred.");
+        }
+    }
+
+    /// <inheritdoc/>
+    public async Task<OperationResult<ProfileScrubResult>> ScrubDeletedManifestReferencesAsync(
+        IEnumerable<string> deletedManifestIds,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var deletedIdsSet = deletedManifestIds?
+                .Where(id => !string.IsNullOrWhiteSpace(id))
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+            if (deletedIdsSet == null || deletedIdsSet.Count == 0)
+            {
+                return OperationResult<ProfileScrubResult>.CreateSuccess(new ProfileScrubResult(0, 0, []));
+            }
+
+            var profilesResult = await profileRepository.LoadAllProfilesAsync(cancellationToken);
+            if (!profilesResult.Success || profilesResult.Data == null)
+            {
+                logger.LogWarning("Failed to enumerate profiles while scrubbing deleted manifest IDs: {Error}", profilesResult.FirstError);
+                return OperationResult<ProfileScrubResult>.CreateFailure(profilesResult.Errors);
+            }
+
+            var updatedCount = 0;
+            var deletedCount = 0;
+            var failedProfileNames = new List<string>();
+
+            foreach (var profile in profilesResult.Data)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                var (deleted, updated, failedName) = await ScrubSingleProfileAsync(profile, deletedIdsSet, cancellationToken);
+                if (deleted)
+                {
+                    deletedCount++;
+                }
+                else if (updated)
+                {
+                    updatedCount++;
+                }
+                else if (failedName != null)
+                {
+                    failedProfileNames.Add(failedName);
+                }
+            }
+
+            NotifyProfileListUpdatedIfChanged(logger, updatedCount, deletedCount);
+
+            logger.LogInformation(
+                "Scrubbed deleted manifest IDs: {UpdatedCount} profile(s) updated, {DeletedCount} orphaned profile(s) deleted",
+                updatedCount,
+                deletedCount);
+
+            return OperationResult<ProfileScrubResult>.CreateSuccess(
+                new ProfileScrubResult(updatedCount, deletedCount, failedProfileNames));
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "An unexpected error occurred while scrubbing deleted manifest references from profiles");
+            return OperationResult<ProfileScrubResult>.CreateFailure("An unexpected error occurred while scrubbing profiles.");
         }
     }
 
@@ -432,6 +511,87 @@ public class GameProfileManager(
 
         profile.Name = name;
         return null;
+    }
+
+    private static bool ReferencesDeletedManifests(GameProfile profile, HashSet<string> deletedIdsSet)
+    {
+        if (!string.IsNullOrWhiteSpace(profile.ToolContentId) && deletedIdsSet.Contains(profile.ToolContentId))
+        {
+            return true;
+        }
+
+        if (profile.EnabledContentIds != null && profile.EnabledContentIds.Any(id => deletedIdsSet.Contains(id)))
+        {
+            return true;
+        }
+
+        return profile.GameClient != null &&
+               !string.IsNullOrWhiteSpace(profile.GameClient.Id) &&
+               deletedIdsSet.Contains(profile.GameClient.Id);
+    }
+
+    private static bool IsProfileOrphaned(
+        GameProfile profile,
+        HashSet<string> deletedIdsSet,
+        IReadOnlyList<string> remainingContentIds)
+    {
+        if (!string.IsNullOrWhiteSpace(profile.ToolContentId) && deletedIdsSet.Contains(profile.ToolContentId))
+        {
+            return true;
+        }
+
+        if (!profile.IsToolProfile && string.IsNullOrWhiteSpace(profile.GameInstallationId))
+        {
+            return true;
+        }
+
+        if (remainingContentIds.Count == 0)
+        {
+            return true;
+        }
+
+        if (profile.GameClient != null &&
+            !string.IsNullOrWhiteSpace(profile.GameClient.Id) &&
+            deletedIdsSet.Contains(profile.GameClient.Id))
+        {
+            return true;
+        }
+
+        return IsCreatedWithContentOrphan(profile, remainingContentIds);
+    }
+
+    private static bool IsCreatedWithContentOrphan(GameProfile profile, IReadOnlyList<string> remainingContentIds)
+    {
+        if (profile.Description?.StartsWith(ProfileConstants.CreatedWithContentDescriptionPrefix, StringComparison.OrdinalIgnoreCase) != true)
+        {
+            return false;
+        }
+
+        bool hasCustomContentRemaining = remainingContentIds.Any(id =>
+            !id.Contains(ManifestConstants.GameInstallationManifestSegment, StringComparison.OrdinalIgnoreCase) &&
+            !id.Contains(ManifestConstants.GameClientManifestSegment, StringComparison.OrdinalIgnoreCase));
+
+        return !hasCustomContentRemaining;
+    }
+
+    private static void NotifyProfileListUpdatedIfChanged(
+        ILogger logger,
+        int updatedCount,
+        int deletedCount)
+    {
+        if (deletedCount == 0 && updatedCount == 0)
+        {
+            return;
+        }
+
+        try
+        {
+            WeakReferenceMessenger.Default.Send(new ProfileListUpdatedMessage());
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Failed to publish profile list update notification");
+        }
     }
 
     /// <summary>
@@ -652,7 +812,14 @@ public class GameProfileManager(
 
             // Send notification after successful update so UI can refresh
             // This is critical for GameProfileLauncherViewModel.RefreshSingleProfileAsync to work
-            WeakReferenceMessenger.Default.Send(new ProfileUpdatedMessage(profile));
+            try
+            {
+                WeakReferenceMessenger.Default.Send(new ProfileUpdatedMessage(profile));
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Failed to publish profile update notification for {ProfileId}", profile.Id);
+            }
         }
         else
         {
@@ -784,5 +951,48 @@ public class GameProfileManager(
                 profile.ActiveWorkspaceId);
             profile.ActiveWorkspaceId = string.Empty;
         }
+    }
+
+    private async Task<(bool Deleted, bool Updated, string? FailedName)> ScrubSingleProfileAsync(
+        GameProfile profile,
+        HashSet<string> deletedIdsSet,
+        CancellationToken cancellationToken)
+    {
+        if (!ReferencesDeletedManifests(profile, deletedIdsSet))
+        {
+            return (false, false, null);
+        }
+
+        var remainingContentIds = profile.EnabledContentIds?
+            .Where(id => !deletedIdsSet.Contains(id))
+            .ToList() ?? [];
+
+        if (IsProfileOrphaned(profile, deletedIdsSet, remainingContentIds))
+        {
+            logger.LogInformation("Deleting orphaned profile {ProfileName} ({ProfileId}) because its referenced manifests were deleted", profile.Name, profile.Id);
+            var deleteResult = await DeleteProfileAsync(profile.Id, cancellationToken);
+            if (deleteResult.Success)
+            {
+                return (true, false, null);
+            }
+
+            logger.LogWarning("Failed to delete orphaned profile {ProfileName} ({ProfileId}): {Error}", profile.Name, profile.Id, deleteResult.FirstError);
+            return (false, false, profile.Name);
+        }
+
+        logger.LogInformation("Scrubbing deleted manifest IDs from profile {ProfileName} ({ProfileId})", profile.Name, profile.Id);
+        var updateRequest = new UpdateProfileRequest
+        {
+            EnabledContentIds = remainingContentIds,
+        };
+
+        var updateResult = await UpdateProfileAsync(profile.Id, updateRequest, cancellationToken);
+        if (updateResult.Success)
+        {
+            return (false, true, null);
+        }
+
+        logger.LogWarning("Failed to update scrubbed profile {ProfileName} ({ProfileId}): {Error}", profile.Name, profile.Id, updateResult.FirstError);
+        return (false, false, profile.Name);
     }
 }

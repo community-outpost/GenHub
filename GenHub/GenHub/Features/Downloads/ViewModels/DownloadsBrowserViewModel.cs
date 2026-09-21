@@ -13,6 +13,7 @@ using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Interfaces.Parsers;
 using GenHub.Core.Interfaces.Providers;
 using GenHub.Core.Interfaces.Tools;
+using GenHub.Core.Messages;
 using GenHub.Core.Models.CommunityOutpost;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
@@ -267,6 +268,9 @@ public sealed partial class DownloadsBrowserViewModel(
             Publishers = CreateBuiltInPublishers(ResolveDownloadedContentLabel());
             InitializeFilterViewModels();
             contentStateService.ContentStateChanged += OnContentStateChanged;
+            WeakReferenceMessenger.Default.Register<ContentLibraryClearedMessage>(
+                this,
+                static (recipient, _) => ((DownloadsBrowserViewModel)recipient).OnContentLibraryCleared());
             _builtInPublishersInitialized = true;
         }
 
@@ -308,6 +312,7 @@ public sealed partial class DownloadsBrowserViewModel(
             // Unsubscribe from event handlers
             if (_builtInPublishersInitialized)
             {
+                WeakReferenceMessenger.Default.Unregister<ContentLibraryClearedMessage>(this);
                 contentStateService.ContentStateChanged -= OnContentStateChanged;
                 if (_localizationService != null)
                 {
@@ -1244,6 +1249,44 @@ public sealed partial class DownloadsBrowserViewModel(
         {
             logger.LogDebug(ex, "Failed to refresh downloaded content count");
         }
+    }
+
+    private void OnContentLibraryCleared()
+    {
+        RunOnUi(() =>
+        {
+            lock (_cacheLock)
+            {
+                if (_browseCache.TryGetValue(PublisherTypeConstants.Downloaded, out var state))
+                {
+                    foreach (var item in state.Items.Where(item => !ContentItems.Contains(item)))
+                    {
+                        item.Dispose();
+                    }
+
+                    _browseCache.Remove(PublisherTypeConstants.Downloaded);
+                }
+            }
+
+            if (string.Equals(SelectedPublisher?.PublisherId, PublisherTypeConstants.Downloaded, StringComparison.OrdinalIgnoreCase))
+            {
+                foreach (var item in ContentItems)
+                {
+                    item.Dispose();
+                }
+
+                ContentItems.Clear();
+                CurrentPage = 1;
+                CanLoadMore = false;
+                _ = RefreshContentAsync();
+            }
+            else
+            {
+                ReconcileReleaseUpdateStates(ContentItems);
+            }
+        });
+
+        _ = RefreshDownloadedContentCountAsync();
     }
 
     private void OnLocalizationChanged(object? sender, PropertyChangedEventArgs e)

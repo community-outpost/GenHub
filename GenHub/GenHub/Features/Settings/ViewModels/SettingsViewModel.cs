@@ -23,6 +23,7 @@ using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameInstallations;
 using GenHub.Core.Models.GameProfile;
 using GenHub.Core.Models.GitHub;
+using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Providers;
 using GenHub.Core.Models.Storage;
 using GenHub.Core.Models.Theming;
@@ -2153,24 +2154,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
                 var count = manifests.Count;
                 var orderedIds = manifests.Select(m => m.Id.Value).ToList();
                 var deletedIds = orderedIds.ToHashSet(StringComparer.OrdinalIgnoreCase);
-                var removedCount = 0;
-
-                try
-                {
-                    foreach (var manifest in manifests)
-                    {
-                        cancellationToken.ThrowIfCancellationRequested();
-                        await _manifestPool.RemoveManifestAsync(manifest.Id, cancellationToken: cancellationToken);
-                        removedCount++;
-                    }
-
-                    await ScrubDeletedManifestIdsFromProfilesAsync(deletedIds, showToast, cancellationToken);
-                }
-                catch (OperationCanceledException ex)
-                {
-                    await ScrubPartiallyRemovedManifestsAsync(orderedIds, removedCount, showToast, ex);
-                    throw;
-                }
+                await RemoveManifestsAndScrubProfilesAsync(manifests, orderedIds, deletedIds, showToast, cancellationToken);
 
                 if (showToast)
                 {
@@ -2198,6 +2182,64 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>
+    /// Removes the specified manifests from the manifest pool, scrubs their IDs from profiles,
+    /// and broadcasts the library cleared notification.
+    /// </summary>
+    /// <param name="manifests">The manifests to remove.</param>
+    /// <param name="orderedIds">The manifest IDs in removal order.</param>
+    /// <param name="deletedIds">The set of deleted manifest IDs for profile scrubbing.</param>
+    /// <param name="showToast">Whether to show toast notifications for scrub failures.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    private async Task RemoveManifestsAndScrubProfilesAsync(
+        IReadOnlyList<ContentManifest> manifests,
+        IReadOnlyList<string> orderedIds,
+        HashSet<string> deletedIds,
+        bool showToast,
+        CancellationToken cancellationToken)
+    {
+        var removedCount = 0;
+        try
+        {
+            foreach (var manifest in manifests)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                await _manifestPool.RemoveManifestAsync(manifest.Id, cancellationToken: cancellationToken);
+                removedCount++;
+            }
+
+            await ScrubDeletedManifestIdsFromProfilesAsync(deletedIds, showToast, cancellationToken);
+        }
+        catch (OperationCanceledException ex)
+        {
+            await ScrubPartiallyRemovedManifestsAsync(orderedIds, removedCount, showToast, ex);
+            throw;
+        }
+        finally
+        {
+            if (removedCount > 0 || manifests.Count == 0)
+            {
+                NotifyContentLibraryCleared();
+            }
+        }
+    }
+
+    /// <summary>
+    /// Broadcasts a message indicating that the content library was cleared.
+    /// </summary>
+    private void NotifyContentLibraryCleared()
+    {
+        try
+        {
+            WeakReferenceMessenger.Default.Send(new ContentLibraryClearedMessage());
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to broadcast ContentLibraryClearedMessage after manifest deletion");
+        }
+    }
+
+    /// <summary>
     /// Scrubs already-removed manifest IDs from profiles after a cancelled deletion, keeping profiles
     /// consistent with what was actually deleted. Does nothing when nothing was removed yet.
     /// </summary>
@@ -2220,12 +2262,12 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
 
     private async Task ScrubDeletedManifestIdsFromProfilesAsync(HashSet<string> deletedIds, bool showToast, CancellationToken cancellationToken = default)
     {
-        var profilesResult = await _profileManager.GetAllProfilesAsync(cancellationToken);
-        if (!profilesResult.Success || profilesResult.Data == null)
+        var scrubResult = await _profileManager.ScrubDeletedManifestReferencesAsync(deletedIds, cancellationToken);
+        if (!scrubResult.Success || scrubResult.Data == null)
         {
             _logger.LogWarning(
-                "Failed to enumerate profiles while scrubbing deleted manifest IDs: {Error}",
-                profilesResult.FirstError);
+                "Failed to scrub deleted manifest IDs from profiles: {Error}",
+                scrubResult.FirstError);
             if (showToast)
             {
                 var enumerationFormat = _localizationService?.GetString("Settings.Manifests.ScrubFailed.EnumerationMessage") ?? "The profile list could not be loaded, so deleted manifests may still be referenced by profiles. Those profiles may fail to launch until updated.";
@@ -2238,17 +2280,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             return;
         }
 
-        var failedProfileNames = new List<string>();
-        foreach (var profile in profilesResult.Data)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            var scrubbed = await ScrubDeletedManifestIdsFromProfileAsync(profile, deletedIds, cancellationToken);
-            if (!scrubbed)
-            {
-                failedProfileNames.Add(profile.Name);
-            }
-        }
-
+        var failedProfileNames = scrubResult.Data.FailedProfileNames;
         if (showToast && failedProfileNames.Count > 0)
         {
             var scrubFailedFormat = _localizationService?.GetString("Settings.Manifests.ScrubFailed.Message") ?? "Deleted manifests could not be removed from {0} profile(s): {1}. Those profiles may fail to launch until updated.";
@@ -2262,36 +2294,6 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     private string GetScrubFailedTitle()
     {
         return _localizationService?.GetString("Settings.Manifests.ScrubFailed.Title") ?? "Profile Update Incomplete";
-    }
-
-    private async Task<bool> ScrubDeletedManifestIdsFromProfileAsync(GameProfile profile, HashSet<string> deletedIds, CancellationToken cancellationToken = default)
-    {
-        if (profile.EnabledContentIds == null || !profile.EnabledContentIds.Any(id => deletedIds.Contains(id)))
-        {
-            return true;
-        }
-
-        var updatedContentIds = profile.EnabledContentIds
-            .Where(id => !deletedIds.Contains(id))
-            .ToList();
-
-        var updateRequest = new UpdateProfileRequest
-        {
-            EnabledContentIds = updatedContentIds,
-        };
-        var updateResult = await _profileManager.UpdateProfileAsync(profile.Id, updateRequest, cancellationToken);
-        if (!updateResult.Success)
-        {
-            _logger.LogWarning(
-                "Failed to scrub deleted manifest IDs from profile {ProfileName} ({ProfileId}): {Error}",
-                profile.Name,
-                profile.Id,
-                updateResult.FirstError);
-            return false;
-        }
-
-        _logger.LogInformation("Scrubbed deleted manifest IDs from profile {ProfileName} ({ProfileId})", profile.Name, profile.Id);
-        return true;
     }
 
     [RelayCommand]

@@ -2949,12 +2949,53 @@ public partial class ContentDetailViewModel(
 
     private void ResetDownloadState()
     {
-        Dispatcher.UIThread.Post(() =>
+        RunOnUiThread(() =>
         {
             IsDownloaded = false;
             IsUpdateAvailable = false;
             DownloadProgress = 0;
             DownloadStatusMessage = string.Empty;
+
+            if (SelectedDownloadableItem != null)
+            {
+                SelectedDownloadableItem.IsDownloaded = false;
+                SelectedDownloadableItem.IsUpdateAvailable = false;
+            }
+
+            if (SelectedVariant != null)
+            {
+                SelectedVariant.CurrentState = ContentState.NotDownloaded;
+            }
+
+            foreach (var variant in Variants)
+            {
+                variant.CurrentState = ContentState.NotDownloaded;
+            }
+
+            foreach (var release in Releases)
+            {
+                release.IsDownloaded = false;
+                release.IsUpdateAvailable = false;
+                release.DownloadedManifestId = null;
+            }
+
+            foreach (var addon in Addons)
+            {
+                addon.IsDownloaded = false;
+                addon.IsUpdateAvailable = false;
+            }
+
+            foreach (var component in BundleComponents)
+            {
+                component.ResetState();
+            }
+
+            OnPropertyChanged(nameof(ShowAddToProfileButton));
+            OnPropertyChanged(nameof(ShowDeleteButton));
+            OnPropertyChanged(nameof(ShowDownloadButton));
+            OnPropertyChanged(nameof(ShowUpdateButton));
+            OnPropertyChanged(nameof(CanDownload));
+            OnPropertyChanged(nameof(CanUpdate));
         });
     }
 
@@ -5619,6 +5660,38 @@ public partial class ContentDetailViewModel(
                 if (!purgeResult.Success)
                 {
                     logger.LogWarning("Deleted {ManifestId} but failed to purge its artwork: {Error}", manifestId, purgeResult.FirstError);
+                }
+            }
+
+            if (profileManager != null)
+            {
+                var scrubResult = await profileManager.ScrubDeletedManifestReferencesAsync([manifestId], CancellationToken.None);
+                if (!scrubResult.Success || scrubResult.Data == null)
+                {
+                    logger.LogWarning("Failed to scrub profile references after deleting {ManifestId}: {Error}", manifestId, scrubResult.FirstError);
+                    var enumerationFormat = GetLocalizedString(
+                        "Settings.Manifests.ScrubFailed.EnumerationMessage",
+                        "The profile list could not be loaded, so deleted manifests may still be referenced by profiles. Those profiles may fail to launch until updated.");
+                    notificationService.ShowWarning(
+                        GetLocalizedString("Settings.Manifests.ScrubFailed.Title", "Profile Update Incomplete"),
+                        enumerationFormat,
+                        NotificationDurations.Medium);
+                }
+                else if (scrubResult.Data.FailedProfileNames.Count > 0)
+                {
+                    var failedProfileNames = scrubResult.Data.FailedProfileNames;
+                    logger.LogWarning(
+                        "Failed to update {Count} profile(s) while scrubbing deleted manifest {ManifestId}: {FailedProfiles}",
+                        failedProfileNames.Count,
+                        manifestId,
+                        string.Join(", ", failedProfileNames));
+                    var scrubFailedFormat = GetLocalizedString(
+                        "Settings.Manifests.ScrubFailed.Message",
+                        "Deleted manifests could not be removed from {0} profile(s): {1}. Those profiles may fail to launch until updated.");
+                    notificationService.ShowWarning(
+                        GetLocalizedString("Settings.Manifests.ScrubFailed.Title", "Profile Update Incomplete"),
+                        string.Format(CultureInfo.InvariantCulture, scrubFailedFormat, failedProfileNames.Count, string.Join(", ", failedProfileNames)),
+                        NotificationDurations.Medium);
                 }
             }
 
