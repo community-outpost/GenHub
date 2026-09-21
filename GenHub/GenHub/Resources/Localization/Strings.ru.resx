@@ -8319,7 +8319,7 @@ GenHub передает официальный идентификатор AppID 
     <value>Не удалось загрузить список профилей, поэтому удалённые манифесты могут оставаться связанными с профилями. Эти профили могут не запускаться до обновления.</value>
   </data>
   <data name="Storage.DuplicateInstallation.Title" xml:space="preserve">
-    <value>Обнаружена повторяющаяся установка</value>
+    <value>Обнаружен дубликат установки</value>
     <comment>Duplicate installation notification title.</comment>
   </data>
   <data name="Storage.DuplicateInstallation.AdoptedMessage" xml:space="preserve">
@@ -8331,11 +8331,11 @@ GenHub передает официальный идентификатор AppID 
     <comment>Duplicate installation message when user data was not adopted. {0} is the detected custom installation path.</comment>
   </data>
   <data name="Storage.DuplicateInstallation.WindowsReinstallGuidance" xml:space="preserve">
-    <value>Чтобы вместо этого обновить предыдущее расположение, сначала удалите эту повторяющуюся копию через «Установку и удаление программ», затем переустановите с параметром --installto «{0}».</value>
+    <value>Чтобы вместо этого обновить предыдущее расположение, сначала удалите этот дубликат через «Установку и удаление программ», затем переустановите с параметром --installto «{0}».</value>
     <comment>Windows-only guidance appended to the duplicate installation message. {0} is the detected custom installation path.</comment>
   </data>
   <data name="Storage.DuplicateInstallation.GenericReinstallGuidance" xml:space="preserve">
-    <value>Чтобы сохранить одну установку, переустановите поверх предыдущего расположения или переместите эту установку в разделе Настройки &gt; Перенос установки, затем удалите оставшуюся повторяющуюся копию.</value>
+    <value>Чтобы сохранить одну установку, переустановите поверх предыдущего расположения или переместите эту установку в разделе Настройки &gt; Перенос установки, затем удалите оставшийся дубликат.</value>
     <comment>Cross-platform guidance appended to the duplicate installation message on non-Windows hosts.</comment>
   </data>
 </root>
