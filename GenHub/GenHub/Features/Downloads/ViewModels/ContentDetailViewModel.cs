@@ -4344,6 +4344,7 @@ public partial class ContentDetailViewModel(
                     {
                         varName = "Variant";
                     }
+
                     var axis = !string.IsNullOrWhiteSpace(art.VariantAxis) ? art.VariantAxis : "Variant";
                     Variants.Add(new InstallableVariant
                     {
