@@ -29,6 +29,7 @@ public sealed class WndEditorToolPlugin : IToolPlugin, IFileOpenTarget
         Version = ToolConstants.WndEditor.Version,
         Author = ToolConstants.WndEditor.Author,
         Description = ToolConstants.WndEditor.Description,
+        IconPath = ToolConstants.WndEditor.IconPath,
         Tags = [.. ToolConstants.WndEditor.Tags],
         IsBundled = ToolConstants.WndEditor.IsBundled,
     };

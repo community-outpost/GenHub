@@ -188,6 +188,11 @@ public static class ToolConstants
         public const string Description = "Visual editor for window definition (.wnd) menu layouts. Browse the hierarchy, edit properties, preview geometry, and save back to the game format.";
 
         /// <summary>
+        /// The icon path for the WND Editor tool.
+        /// </summary>
+        public const string IconPath = UriConstants.WndEditorIconUri;
+
+        /// <summary>
         /// Whether the WND Editor tool is bundled with the application.
         /// </summary>
         public const bool IsBundled = true;
