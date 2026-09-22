@@ -1,4 +1,5 @@
 using GenHub.Core.Interfaces.Online;
+using GenHub.Core.Services.Online;
 using GenHub.Features.Online.Services;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -24,6 +25,7 @@ public static class OnlineModule
         services.AddSingleton<IOnlinePresenceService, OnlinePresenceService>();
         services.AddSingleton<IOnlineLaunchService, OnlineLaunchService>();
         services.AddSingleton<IOverlaySidecarHost, OverlaySidecarHost>();
+        services.AddSingleton<ITunnelRunner, VirtualLanTunnelRunner>();
         services.AddSingleton<IP2PConnectionService, P2PConnectionService>();
         services.AddSingleton<IVirtualLanAdapter, NullVirtualLanAdapter>();
         return services;
