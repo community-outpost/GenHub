@@ -311,7 +311,7 @@ public class HostingCredentialStore(
             {
                 var output = process.StandardOutput.ReadToEnd();
                 process.WaitForExit(1000);
-                const string marker = ""IOPlatformUUID" = "";
+                const string marker = "\"IOPlatformUUID\" = \"";
                 var idx = output.IndexOf(marker, StringComparison.Ordinal);
                 if (idx >= 0)
                 {
