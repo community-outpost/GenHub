@@ -147,8 +147,9 @@ public class PublisherStudioHostingDiscoveryAndLoadTests
     /// <summary>
     /// Tests that attempting to load a cloud definition from an unsafe or loopback URL is rejected by SSRF protection.
     /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task LoadAssetFromCloud_UnsafeUrl_IsRejectedBySsrfProtection()
+    public async Task LoadAssetToProject_UnsafeUrl_IsRejectedBySsrfProtection()
     {
         var mockNotificationService = new Mock<INotificationService>();
         var project = new PublisherStudioProject { ProjectPath = "/test/path/project.json" };
@@ -166,12 +167,14 @@ public class PublisherStudioHostingDiscoveryAndLoadTests
             CanLoadToProject = true,
         };
 
-        await vm.LoadAssetFromCloudCommand.ExecuteAsync(unsafeAsset);
+        await vm.LoadAssetToProjectCommand.ExecuteAsync(unsafeAsset);
 
         mockNotificationService.Verify(
             n => n.ShowError(
                 It.IsAny<string>(),
-                It.Is<string>(msg => msg.Contains("empty", StringComparison.OrdinalIgnoreCase))),
+                It.Is<string>(msg => msg.Contains("empty", StringComparison.OrdinalIgnoreCase)),
+                It.IsAny<int?>(),
+                It.IsAny<bool>()),
             Times.Once);
     }
 }
