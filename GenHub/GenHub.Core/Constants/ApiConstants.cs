@@ -367,6 +367,24 @@ public static class ApiConstants
             ? customHost
             : DefaultOnlineStunHost;
 
+    /// <summary>
+    /// Environment variable name for overriding the virtual LAN relay hostname or IP.
+    /// </summary>
+    public const string OnlineRelayHostEnvVar = "GENHUB_ONLINE_RELAY_HOST";
+
+    /// <summary>
+    /// Default relay hostname or IP for virtual LAN fallback tunneling.
+    /// </summary>
+    public const string DefaultOnlineRelayHost = "152.70.171.121";
+
+    /// <summary>
+    /// Gets the active relay host, checking environment variable overrides first.
+    /// </summary>
+    public static string OnlineRelayHost =>
+        Environment.GetEnvironmentVariable(OnlineRelayHostEnvVar) is { Length: > 0 } customHost
+            ? customHost
+            : DefaultOnlineRelayHost;
+
     // User agents
 
     /// <summary>

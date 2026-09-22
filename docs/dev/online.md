@@ -43,6 +43,7 @@ of failing silently.
 | `GENHUB_ONLINE_PRIMARY_URL` | Primary edge URL override (e.g. self-hosted VPS) |
 | `GENHUB_ONLINE_FALLBACK_URL` | Backup edge URL for failover when primary is unreachable |
 | `GENHUB_ONLINE_STUN_HOST` | STUN hostname (default `stun.cloudflare.com`) |
+| `GENHUB_ONLINE_RELAY_HOST` | Fallback relay hostname or IP for virtual LAN tunneling |
 | `GENHUB_OVERLAY_BIN` | Overlay sidecar binary override (spike + power users) |
 
 ## Going live (maintainer checklist)
