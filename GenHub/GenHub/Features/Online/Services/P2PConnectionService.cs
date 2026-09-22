@@ -57,6 +57,7 @@ public sealed class P2PConnectionService(ILogger<P2PConnectionService> logger) :
             }
             catch (SocketException ex)
             {
+                _listener = null;
                 logger.LogWarning(ex, "Failed to bind P2P listener on port {Port}.", port);
                 return Task.FromResult(OperationResult<IPEndPoint>.CreateFailure("Failed to bind local port."));
             }

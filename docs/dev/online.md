@@ -96,13 +96,11 @@ member gets a toast plus a re-match.
 
 ## Privacy model
 
-Everyone sees servers; only joined members exchange packets. Direct connection
-is attempted first: members discover their public endpoint via STUN and publish
-it to lobby members for direct peer traffic. If STUN discovery fails or relay is
-preferred, traffic routes through an encrypted TURN relay where real IP addresses
-are never shared with peers. The edge drops any endpoint sent by a relay member
-on create, join, and heartbeat. Logs, toasts, and diagnostics scrub IPs via
-`OnlineLogScrubber`; toasts show overlay IPs or relay state only.
+Traffic routes through an encrypted TURN relay by default to protect player privacy;
+real IP addresses are never shared with peers. The edge drops any endpoint sent by
+a relay member on create, join, and heartbeat. Direct connection with STUN discovery
+can be optionally enabled by self-hosters or custom configurations. Logs, toasts,
+and diagnostics scrub IPs via `OnlineLogScrubber`; toasts show overlay IPs or relay state only.
 
 ## Lifecycle
 

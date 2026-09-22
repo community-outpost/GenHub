@@ -630,6 +630,10 @@ public sealed class OnlineNetworkServiceTests
     public async Task EnsureSessionAsync_WhenPrimaryEdgeFails_ShouldFailoverToBackupEdgeAsync()
     {
         // Arrange
+        const string primaryUrl = "https://primary-edge.test.invalid";
+        const string fallbackUrl = "https://backup-edge.test.invalid";
+        Environment.SetEnvironmentVariable(ApiConstants.OnlinePrimaryUrlEnvVar, primaryUrl);
+        Environment.SetEnvironmentVariable(ApiConstants.OnlineFallbackUrlEnvVar, fallbackUrl);
         ApiConstants.ResetActiveOnlineEdgeBaseUrl();
         var primaryAttempts = 0;
         var backupAttempts = 0;
@@ -640,14 +644,17 @@ public sealed class OnlineNetworkServiceTests
             var host = request.RequestUri?.Authority ?? string.Empty;
             if (request.RequestUri?.AbsolutePath.EndsWith("/v1/sessions/anonymous", StringComparison.Ordinal) == true)
             {
-                if (host.Contains("152.70.171.121", StringComparison.Ordinal))
+                if (host.Contains(new Uri(primaryUrl).Authority, StringComparison.Ordinal))
                 {
                     primaryAttempts++;
-                    throw new HttpRequestException("Primary VPS unreachable");
+                    throw new HttpRequestException("Primary edge unreachable");
                 }
 
-                backupAttempts++;
-                return JsonResponse(SessionJson);
+                if (host.Contains(new Uri(fallbackUrl).Authority, StringComparison.Ordinal))
+                {
+                    backupAttempts++;
+                    return JsonResponse(SessionJson);
+                }
             }
 
             return Route(request, HttpStatusCode.OK);
@@ -664,10 +671,12 @@ public sealed class OnlineNetworkServiceTests
             Assert.True(result.Success);
             Assert.True(primaryAttempts > 0, "Expected primary edge to be attempted first");
             Assert.True(backupAttempts > 0, "Expected backup edge to be attempted upon failover");
-            Assert.Equal(ApiConstants.FallbackOnlineEdgeBaseUrl, ApiConstants.ActiveOnlineEdgeBaseUrl);
+            Assert.Equal(fallbackUrl, ApiConstants.ActiveOnlineEdgeBaseUrl);
         }
         finally
         {
+            Environment.SetEnvironmentVariable(ApiConstants.OnlinePrimaryUrlEnvVar, null);
+            Environment.SetEnvironmentVariable(ApiConstants.OnlineFallbackUrlEnvVar, null);
             ApiConstants.ResetActiveOnlineEdgeBaseUrl();
         }
     }

@@ -1010,10 +1010,11 @@ public static class GameSettingsMapper
             options.Network.GameSpyIPAddress = profile.GameSpyIPAddress;
         }
 
-        if (!string.IsNullOrWhiteSpace(networkIpOverride))
+        if (!string.IsNullOrWhiteSpace(networkIpOverride) && System.Net.IPAddress.TryParse(networkIpOverride.Trim(), out var parsedIp))
         {
-            options.Network.GameSpyIPAddress = networkIpOverride;
-            options.Network.IPAddress = networkIpOverride;
+            var ipStr = parsedIp.ToString();
+            options.Network.GameSpyIPAddress = ipStr;
+            options.Network.IPAddress = ipStr;
         }
     }
 

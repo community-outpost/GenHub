@@ -27,6 +27,8 @@ export default defineWorkersConfig({
             PRESENCE_TIMEOUT_SECONDS: "90",
             JOIN_RATE_LIMIT: "10",
             JOIN_RATE_WINDOW_SECONDS: "600",
+            SESSION_RATE_LIMIT: "5",
+            SESSION_RATE_WINDOW_SECONDS: "60",
             MAX_NETWORKS_PER_IP: "100",
             OVERLAY_SUBNET: "10.42.0.0/20", // NOSONAR - private test overlay range
             TURN_URIS: "turn:turn.example.invalid:3478",

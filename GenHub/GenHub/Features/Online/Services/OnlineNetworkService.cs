@@ -428,7 +428,21 @@ public sealed class OnlineNetworkService(
     private static IReadOnlyList<OnlineNetworkSummary> DropStaleEntries(IReadOnlyList<OnlineNetworkSummary> networks)
     {
         var cutoff = DateTime.UtcNow.AddSeconds(-OnlineConstants.DirectoryStaleSeconds);
-        var fresh = networks.Where(n => n.LastHeartbeatUtc == default || n.LastHeartbeatUtc.ToUniversalTime() >= cutoff).ToList();
+        var fresh = networks.Where(n =>
+        {
+            if (n.LastHeartbeatUtc == default)
+            {
+                return true;
+            }
+
+            var utc = n.LastHeartbeatUtc.Kind switch
+            {
+                DateTimeKind.Utc => n.LastHeartbeatUtc,
+                DateTimeKind.Local => n.LastHeartbeatUtc.ToUniversalTime(),
+                _ => DateTime.SpecifyKind(n.LastHeartbeatUtc, DateTimeKind.Utc),
+            };
+            return utc >= cutoff;
+        }).ToList();
         return fresh.Count == networks.Count ? networks : fresh;
     }
 

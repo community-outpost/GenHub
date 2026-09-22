@@ -282,7 +282,7 @@ public sealed partial class OnlineViewModel(
         // The Join button stays enabled for the whole round-trip; a second
         // activation while one is in flight would mint a second membership
         // the client never tracks.
-        if (_joinInFlight)
+        if (!OnlineConstants.IsOnlineEnabled || _joinInFlight)
         {
             return;
         }
@@ -376,6 +376,11 @@ public sealed partial class OnlineViewModel(
     [RelayCommand]
     public async Task CreateNetworkAsync(CancellationToken cancellationToken = default)
     {
+        if (!OnlineConstants.IsOnlineEnabled)
+        {
+            return;
+        }
+
         // Creating while joined would orphan the active network: the second
         // bring-up fails and its teardown kills the live sidecar.
         if (IsJoined)
@@ -384,8 +389,9 @@ public sealed partial class OnlineViewModel(
             return;
         }
 
-        if (CreateName.Length < OnlineConstants.MinNetworkNameLength ||
-            CreateName.Length > OnlineConstants.MaxNetworkNameLength)
+        var trimmedName = CreateName.Trim();
+        if (trimmedName.Length < OnlineConstants.MinNetworkNameLength ||
+            trimmedName.Length > OnlineConstants.MaxNetworkNameLength)
         {
             ShowErrorToast(CreateErrorTitleKey, GetString("Online.Error.NameLength"));
             return;
@@ -481,6 +487,11 @@ public sealed partial class OnlineViewModel(
     [RelayCommand(CanExecute = nameof(CanPlay))]
     public async Task PlayAsync(CancellationToken cancellationToken = default)
     {
+        if (!OnlineConstants.IsOnlineEnabled)
+        {
+            return;
+        }
+
         try
         {
             IsLoading = true;
@@ -1181,6 +1192,7 @@ public sealed partial class OnlineViewModel(
 
             if (!result.Success)
             {
+                logger.LogWarning("Failed to load details for network {NetworkId}.", network.Id);
                 return;
             }
 

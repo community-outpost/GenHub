@@ -95,9 +95,11 @@ public sealed class P2PConnectionServiceTests : IDisposable
     {
         // Arrange
         await _service.StartListeningAsync(0);
+        using var peer = new System.Net.Sockets.UdpClient(new System.Net.IPEndPoint(System.Net.IPAddress.Loopback, 0));
+        var peerPort = ((System.Net.IPEndPoint)peer.Client.LocalEndPoint!).Port;
 
         // Act
-        var result = await _service.ConnectToPeerAsync("127.0.0.1", 4321);
+        var result = await _service.ConnectToPeerAsync("127.0.0.1", peerPort);
 
         // Assert
         Assert.True(result.Success);
