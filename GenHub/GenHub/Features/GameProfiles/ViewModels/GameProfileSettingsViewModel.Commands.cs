@@ -1051,9 +1051,9 @@ public partial class GameProfileSettingsViewModel
     private void SelectIcon(ProfileResourceItem? icon)
     {
         if (icon == null) return;
-        _isIconCustomized = true;
         SelectedIcon = icon;
         IconPath = icon.Path;
+        _isIconCustomized = true;
         _logger?.LogInformation("Selected icon: {DisplayName} ({Path})", icon.DisplayName, icon.Path);
     }
 
@@ -1061,9 +1061,9 @@ public partial class GameProfileSettingsViewModel
     private void SelectCover(ProfileResourceItem? cover)
     {
         if (cover == null) return;
-        _isCoverCustomized = true;
         SelectedCoverItem = cover;
         CoverPath = cover.Path;
+        _isCoverCustomized = true;
         _logger?.LogInformation("Selected cover: {DisplayName} ({Path})", cover.DisplayName, cover.Path);
     }
 
@@ -1097,9 +1097,9 @@ public partial class GameProfileSettingsViewModel
                 if (result.Count > 0)
                 {
                     var selectedFile = result[0];
-                    _isIconCustomized = true;
                     IconPath = selectedFile.Path.LocalPath;
                     SelectedIcon = null;
+                    _isIconCustomized = true;
                     _logger?.LogInformation("Selected custom icon: {Path}", IconPath);
                     StatusMessage = "Custom icon selected";
                 }
@@ -1142,9 +1142,9 @@ public partial class GameProfileSettingsViewModel
                 if (result.Count > 0)
                 {
                     var selectedFile = result[0];
-                    _isCoverCustomized = true;
                     CoverPath = selectedFile.Path.LocalPath;
                     SelectedCoverItem = null;
+                    _isCoverCustomized = true;
                     _logger?.LogInformation("Selected custom cover: {Path}", CoverPath);
                     StatusMessage = "Custom cover selected";
                 }
@@ -1160,7 +1160,6 @@ public partial class GameProfileSettingsViewModel
     [RelayCommand]
     private void RandomizeColor()
     {
-        _isColorCustomized = true;
         var colors = new List<string>
         {
             "#1976D2", "#388E3C", "#FBC02D", "#FF5722", "#7B1FA2",
@@ -1169,6 +1168,7 @@ public partial class GameProfileSettingsViewModel
         };
 
         ColorValue = colors[System.Security.Cryptography.RandomNumberGenerator.GetInt32(colors.Count)];
+        _isColorCustomized = true;
         if (GameSettingsViewModel != null)
         {
             GameSettingsViewModel.ColorValue = ColorValue;
@@ -1183,8 +1183,8 @@ public partial class GameProfileSettingsViewModel
     {
         if (!string.IsNullOrEmpty(color))
         {
-            _isColorCustomized = true;
             ColorValue = color;
+            _isColorCustomized = true;
             if (GameSettingsViewModel != null)
             {
                 GameSettingsViewModel.ColorValue = ColorValue;

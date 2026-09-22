@@ -13,6 +13,7 @@ using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Interfaces.UserData;
 using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.GameClients;
 using GenHub.Core.Models.GameProfile;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Workspace;
@@ -263,10 +264,10 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
     public void UpdateApplicableClientVisibility()
     {
         var enabledClients = EnabledContent.Where(c => c.ContentType == ContentType.GameClient).ToList();
-        var hasGo = enabledClients.Any(IsGeneralsOnlineItem) || (_originalProfile?.IsGeneralsOnlineProfile() == true);
-        var hasTsh = hasGo ||
-                     enabledClients.Any(c => IsTheSuperHackersClientItem(c, _originalProfile)) ||
-                     (_originalProfile != null && !ReplayCrcMatchingHelper.IsRetailCompatible(_originalProfile.GameClient));
+        var hasGo = enabledClients.Any(IsGeneralsOnlineItem) || (enabledClients.Count == 0 && _originalProfile?.IsGeneralsOnlineProfile() == true);
+        var hasTsh = !hasGo && (
+            enabledClients.Any(c => IsTheSuperHackersClientItem(c, _originalProfile)) ||
+            (enabledClients.Count == 0 && _originalProfile?.GameClient != null && IsTheSuperHackersGameClient(_originalProfile.GameClient)));
 
         GameSettingsViewModel?.UpdateApplicableClientVisibility(hasTsh, hasGo);
     }
@@ -571,6 +572,11 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
 
     private static bool IsTheSuperHackersClientItem(ContentDisplayItem item, GameProfile? profile)
     {
+        if (IsGeneralsOnlineItem(item))
+        {
+            return false;
+        }
+
         var client = item.GameClient ?? profile?.GameClient;
 
         var exePath = !string.IsNullOrEmpty(item.SourcePath) && item.SourcePath.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)
@@ -579,6 +585,52 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
 
         if (!string.IsNullOrEmpty(exePath) && System.IO.File.Exists(exePath))
         {
+            var sha = ReplayCrcMatchingHelper.GetCachedExeSha256(exePath);
+            if (!string.IsNullOrEmpty(sha))
+            {
+                return !ReplayCrcMatchingHelper.IsRetailExeSha256(sha);
+            }
+
+            var crc = ReplayCrcMatchingHelper.GetCachedExeCrc(exePath);
+            if (!string.IsNullOrEmpty(crc))
+            {
+                var isRetail = ReplayCrcMatchingHelper.IsZeroHourRetailExeCrc(crc) ||
+                               ReplayCrcMatchingHelper.IsGeneralsRetailExeCrc(crc);
+                return !isRetail;
+            }
+        }
+
+        if (client != null)
+        {
+            return IsTheSuperHackersGameClient(client);
+        }
+
+        if (IsRetailItemMetadata(item))
+        {
+            return false;
+        }
+
+        return false;
+    }
+
+    private static bool IsTheSuperHackersGameClient(GameClient client)
+    {
+        if (string.Equals(client.PublisherType, PublisherTypeConstants.GeneralsOnline, StringComparison.OrdinalIgnoreCase) ||
+            (!string.IsNullOrEmpty(client.Name) && client.Name.Contains(GeneralsOnlineConstants.ClientName, StringComparison.OrdinalIgnoreCase)) ||
+            (!string.IsNullOrEmpty(client.Id) && client.Id.Contains(PublisherTypeConstants.GeneralsOnline, StringComparison.OrdinalIgnoreCase)))
+        {
+            return false;
+        }
+
+        var exePath = ReplayCrcMatchingHelper.ResolveProfileFullExePath(client);
+        if (!string.IsNullOrEmpty(exePath) && System.IO.File.Exists(exePath))
+        {
+            var sha = ReplayCrcMatchingHelper.GetCachedExeSha256(exePath);
+            if (!string.IsNullOrEmpty(sha))
+            {
+                return !ReplayCrcMatchingHelper.IsRetailExeSha256(sha);
+            }
+
             var crc = ReplayCrcMatchingHelper.GetCachedExeCrc(exePath);
             if (!string.IsNullOrEmpty(crc))
             {
@@ -589,6 +641,36 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
         }
 
         return !ReplayCrcMatchingHelper.IsRetailCompatible(client);
+    }
+
+    private static bool IsRetailItemMetadata(ContentDisplayItem item)
+    {
+        var name = item.DisplayName ?? string.Empty;
+        var version = item.Version ?? string.Empty;
+        var id = item.ManifestId.Value ?? string.Empty;
+
+        if (CommunityOutpostConstants.IsBaseGameIdentifier(name) ||
+            CommunityOutpostConstants.IsBaseGameIdentifier(id))
+        {
+            return true;
+        }
+
+        if (version.StartsWith("1.04", StringComparison.OrdinalIgnoreCase) ||
+            version.StartsWith("1.05", StringComparison.OrdinalIgnoreCase) ||
+            version.StartsWith("1.08", StringComparison.OrdinalIgnoreCase) ||
+            version.StartsWith("1.09", StringComparison.OrdinalIgnoreCase))
+        {
+            var pub = item.Publisher ?? string.Empty;
+            return string.IsNullOrEmpty(pub) ||
+                   string.Equals(pub, PublisherTypeConstants.Steam, StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(pub, PublisherTypeConstants.Ea, StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(pub, PublisherTypeConstants.EaApp, StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(pub, PublisherTypeConstants.Retail, StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(pub, PublisherTypeConstants.CommunityOutpost, StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(pub, CommunityOutpostConstants.PublisherName, StringComparison.OrdinalIgnoreCase);
+        }
+
+        return false;
     }
 
     private ContentDisplayItem ConvertToViewModelContentDisplayItem(Core.Models.Content.ContentDisplayItem coreItem)

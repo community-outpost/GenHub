@@ -10,6 +10,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -20,7 +21,21 @@ namespace GenHub.Core.Helpers;
 /// </summary>
 public static class ReplayCrcMatchingHelper
 {
+    /// <summary>
+    /// Known SHA-256 hashes for official retail executables (Generals 1.08, 1.09 and Zero Hour 1.04, 1.05).
+    /// </summary>
+    public static readonly string[] RetailExeSha256Hashes =
+    [
+        "1c96366ff6a99f40863f6bbcfa8bf7622e8df1f80a474201e0e95e37c6416255", // Steam Generals 1.09
+        "69A39881179112A566CEF69573B20065CC868516C49AF0761F809EC57DA0BDBC", // EA App Generals 1.08
+        "7B075B9F0BAA9DF81651C0C9DD7D8C445454AE1B2452B928F4A1D9332E9CCECE", // Steam Zero Hour 1.04
+        "253FEBA0A5503CB4D49FD07463B17D3CC84731E583F9625CB90FCD8B5CAC0221", // EA App Zero Hour 1.04
+        "f37a4929f8d697104e99c2bcf46f8d833122c943afcd87fd077df641d344495b", // Retail Zero Hour 1.04
+        "420fba1dbdc4c14e2418c2b0d3010b9fac6f314eafa1f3a101805b8d98883ea1", // Community Outpost Zero Hour 1.05
+    ];
+
     private static readonly ConcurrentDictionary<string, (DateTime LastWriteTimeUtc, string Crc)> ExeCrcCache = new(StringComparer.OrdinalIgnoreCase);
+    private static readonly ConcurrentDictionary<string, (DateTime LastWriteTimeUtc, string Sha256)> ExeShaCache = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
     /// Normalizes a hexadecimal CRC string by trimming whitespace and optional '0x' prefix, converting to uppercase.
@@ -100,6 +115,55 @@ public static class ReplayCrcMatchingHelper
     }
 
     /// <summary>
+    /// Checks if a given SHA-256 string corresponds to known retail executables (Generals 1.08, 1.09, Zero Hour 1.04, 1.05).
+    /// </summary>
+    /// <param name="sha">SHA-256 string to test.</param>
+    /// <returns><c>true</c> if it matches a known retail executable SHA-256; otherwise, <c>false</c>.</returns>
+    public static bool IsRetailExeSha256(string? sha)
+    {
+        if (string.IsNullOrWhiteSpace(sha))
+        {
+            return false;
+        }
+
+        var normalized = sha.Trim();
+        return RetailExeSha256Hashes.Any(h => string.Equals(h, normalized, StringComparison.OrdinalIgnoreCase));
+    }
+
+    /// <summary>
+    /// Computes and caches the SHA-256 hash of an executable file on disk.
+    /// </summary>
+    /// <param name="exePath">The full path to the executable file.</param>
+    /// <returns>The hex-encoded SHA-256 hash, or null if the file does not exist or cannot be read.</returns>
+    public static string? GetCachedExeSha256(string? exePath)
+    {
+        if (string.IsNullOrEmpty(exePath) || !File.Exists(exePath))
+        {
+            return null;
+        }
+
+        try
+        {
+            var lastWrite = File.GetLastWriteTimeUtc(exePath);
+            if (ExeShaCache.TryGetValue(exePath, out var cached) && cached.LastWriteTimeUtc == lastWrite)
+            {
+                return cached.Sha256;
+            }
+
+            using var stream = File.OpenRead(exePath);
+            using var sha = SHA256.Create();
+            var hashBytes = sha.ComputeHash(stream);
+            var hash = Convert.ToHexString(hashBytes);
+            ExeShaCache[exePath] = (lastWrite, hash);
+            return hash;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    /// <summary>
     /// Determines whether two executable CRCs are equivalent across any supported retail game build or exact match.
     /// </summary>
     /// <param name="actualCrc">The calculated or actual executable CRC.</param>
@@ -170,7 +234,13 @@ public static class ReplayCrcMatchingHelper
                                   normalizedPub == PublisherTypeConstants.Steam ||
                                   normalizedPub == PublisherTypeConstants.Ea ||
                                   normalizedPub == PublisherTypeConstants.EaApp ||
-                                  normalizedPub == PublisherTypeConstants.Retail;
+                                  normalizedPub == PublisherTypeConstants.Retail ||
+                                  normalizedPub == "electronic arts" ||
+                                  normalizedPub == "ea" ||
+                                  normalizedPub == "ea app" ||
+                                  normalizedPub == "eaapp" ||
+                                  normalizedPub == "community outpost" ||
+                                  normalizedPub == PublisherTypeConstants.CommunityOutpost;
 
         if (!isOfficialPublisher && client.IsPublisherClient)
         {
@@ -179,6 +249,7 @@ public static class ReplayCrcMatchingHelper
 
         var ver = client.Version?.Trim() ?? string.Empty;
         var id = client.Id?.ToLowerInvariant() ?? string.Empty;
+        var name = client.Name?.Trim() ?? string.Empty;
 
         if (client.GameType == GameType.Generals)
         {
@@ -188,6 +259,8 @@ public static class ReplayCrcMatchingHelper
                    ver == "1.9" ||
                    id.Contains(".108.") ||
                    id.Contains(".109.") ||
+                   name.Contains("1.08", StringComparison.OrdinalIgnoreCase) ||
+                   name.Contains("1.09", StringComparison.OrdinalIgnoreCase) ||
                    !client.IsPublisherClient;
         }
 
@@ -199,6 +272,8 @@ public static class ReplayCrcMatchingHelper
                    ver == "1.5" ||
                    id.Contains(".104.") ||
                    id.Contains(".105.") ||
+                   name.Contains("1.04", StringComparison.OrdinalIgnoreCase) ||
+                   name.Contains("1.05", StringComparison.OrdinalIgnoreCase) ||
                    !client.IsPublisherClient;
         }
 
@@ -230,15 +305,20 @@ public static class ReplayCrcMatchingHelper
 
         if (TryGetCachedExeCrc(client, out var cachedCrc))
         {
-            if (IsZeroHourRetailExeCrc(cachedCrc))
-            {
-                return true;
-            }
-
-            return IsOfficialBaseClient(client);
+            return IsZeroHourRetailExeCrc(cachedCrc);
         }
 
-        return true;
+        var exePath = ResolveProfileFullExePath(client);
+        if (!string.IsNullOrEmpty(exePath) && File.Exists(exePath))
+        {
+            var sha = GetCachedExeSha256(exePath);
+            if (!string.IsNullOrEmpty(sha))
+            {
+                return IsRetailExeSha256(sha);
+            }
+        }
+
+        return IsOfficialBaseClient(client);
     }
 
     /// <summary>
@@ -271,15 +351,20 @@ public static class ReplayCrcMatchingHelper
 
             if (TryGetCachedExeCrc(client, out var cachedCrc))
             {
-                if (IsGeneralsRetailExeCrc(cachedCrc))
-                {
-                    return true;
-                }
-
-                return IsOfficialBaseClient(client);
+                return IsGeneralsRetailExeCrc(cachedCrc);
             }
 
-            return true;
+            var exePath = ResolveProfileFullExePath(client);
+            if (!string.IsNullOrEmpty(exePath) && File.Exists(exePath))
+            {
+                var sha = GetCachedExeSha256(exePath);
+                if (!string.IsNullOrEmpty(sha))
+                {
+                    return IsRetailExeSha256(sha);
+                }
+            }
+
+            return IsOfficialBaseClient(client);
         }
 
         return IsZeroHourRetailCompatible(client, enabledContentIds);
@@ -510,11 +595,12 @@ public static class ReplayCrcMatchingHelper
     }
 
     /// <summary>
-    /// Clears both executable and INI CRC caches.
+    /// Clears executable and INI CRC and SHA caches.
     /// </summary>
     public static void ClearCrcCaches()
     {
         ExeCrcCache.Clear();
+        ExeShaCache.Clear();
         GameCrcCalculatorService.ClearCache();
     }
 
