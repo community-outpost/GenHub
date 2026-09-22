@@ -12,6 +12,11 @@
     <KeyBinding Gesture="Ctrl+Subtract" Command="{Binding ZoomOutCommand}"/>
     <KeyBinding Gesture="Ctrl+OemMinus" Command="{Binding ZoomOutCommand}"/>
     <KeyBinding Gesture="Ctrl+D0" Command="{Binding ResetZoomCommand}"/>
+    <KeyBinding Gesture="Ctrl+N" Command="{Binding NewDocumentCommand}"/>
+    <KeyBinding Gesture="Ctrl+O" Command="{Binding OpenFolderWithDialogCommand}"/>
+    <KeyBinding Gesture="Ctrl+Shift+O" Command="{Binding OpenFileWithDialogCommand}"/>
+    <KeyBinding Gesture="Ctrl+S" Command="{Binding SaveFileCommand}"/>
+    <KeyBinding Gesture="Ctrl+Shift+S" Command="{Binding SaveFileAsWithDialogCommand}"/>
     <KeyBinding Gesture="Ctrl+Z" Command="{Binding UndoCommand}"/>
     <KeyBinding Gesture="Ctrl+Y" Command="{Binding RedoCommand}"/>
     <KeyBinding Gesture="Ctrl+Shift+Z" Command="{Binding RedoCommand}"/>
@@ -30,12 +35,19 @@
                   BorderThickness="1" CornerRadius="6"
                   Content="{localization:Localize Tools.WndEditor.Toolbar.New}"
                   FontSize="11" FontWeight="SemiBold"/>
+          <Button Command="{Binding OpenFolderWithDialogCommand}"
+                  Padding="8,4"
+                  Background="{DynamicResource SurfaceElevatedBrush}"
+                  BorderBrush="{DynamicResource BorderBrush}"
+                  BorderThickness="1" CornerRadius="6"
+                  Content="{localization:Localize Tools.WndEditor.Toolbar.OpenFolder}"
+                  FontSize="11" FontWeight="SemiBold"/>
           <Button Command="{Binding OpenFileWithDialogCommand}"
                   Padding="8,4"
                   Background="{DynamicResource SurfaceElevatedBrush}"
                   BorderBrush="{DynamicResource BorderBrush}"
                   BorderThickness="1" CornerRadius="6"
-                  Content="{localization:Localize Tools.WndEditor.Toolbar.Open}"
+                  Content="{localization:Localize Tools.WndEditor.Toolbar.OpenFile}"
                   FontSize="11" FontWeight="SemiBold"/>
           <Button Command="{Binding SaveFileCommand}"
                   IsEnabled="{Binding HasDocument}"
@@ -130,15 +142,40 @@
         <Border Grid.Column="0"
                 Background="{DynamicResource CardBackground}"
                 BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
-                CornerRadius="10" Padding="14" ClipToBounds="True">
-          <TabControl>
+                CornerRadius="10" Padding="10,8" ClipToBounds="True">
+          <TabControl SelectedIndex="{Binding LeftSidebarTabIndex, Mode=TwoWay}" Padding="0">
+            <TabControl.Styles>
+              <Style Selector="TabItem">
+                <Setter Property="FontSize" Value="12"/>
+                <Setter Property="FontWeight" Value="SemiBold"/>
+                <Setter Property="MinHeight" Value="24"/>
+                <Setter Property="Padding" Value="8,2,8,4"/>
+                <Setter Property="Margin" Value="0,0,6,0"/>
+                <Setter Property="Cursor" Value="Hand"/>
+                <Setter Property="Foreground" Value="{DynamicResource TextSecondary}"/>
+              </Style>
+              <Style Selector="TabItem:pointerover">
+                <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+              </Style>
+              <Style Selector="TabItem:selected">
+                <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+              </Style>
+              <Style Selector="TabItem /template/ Border#PART_SelectedPipe">
+                <Setter Property="Height" Value="2"/>
+                <Setter Property="CornerRadius" Value="1"/>
+                <Setter Property="Background" Value="{DynamicResource AccentBrush}"/>
+              </Style>
+              <Style Selector="TabItem:selected /template/ Border#PART_SelectedPipe">
+                <Setter Property="IsVisible" Value="True"/>
+              </Style>
+            </TabControl.Styles>
             <TabItem Header="{localization:Localize Tools.WndEditor.Tabs.Windows}">
               <Grid RowDefinitions="Auto,Auto,*,Auto">
                 <TextBox Grid.Row="0"
                          Text="{Binding WindowsFilter, Mode=TwoWay}"
                          Watermark="{localization:Localize Tools.WndEditor.Tree.FilterWatermark}"
-                         FontSize="11" Margin="0,8,0,6"/>
-                <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="6" Margin="0,0,0,6">
+                         FontSize="11" Margin="0,4,0,4"/>
+                <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="6" Margin="0,0,0,4">
                   <Button Command="{Binding ExpandAllNodesCommand}"
                           Padding="8,4"
                           Background="Transparent"
@@ -242,7 +279,7 @@
             </TabItem>
             <TabItem Header="{localization:Localize Tools.WndEditor.Tabs.Files}">
               <Grid RowDefinitions="Auto,Auto,*">
-                <Grid Grid.Row="0" ColumnDefinitions="Auto,Auto,*,Auto,Auto" Margin="0,8,0,6">
+                <Grid Grid.Row="0" ColumnDefinitions="Auto,Auto,*,Auto,Auto" Margin="0,4,0,4">
                   <Button Grid.Column="0"
                           Command="{Binding BrowseFilesDirectoryCommand}"
                           Padding="8,4"
@@ -283,7 +320,7 @@
                         Background="{DynamicResource SurfaceHoverBrush}"
                         BorderBrush="{DynamicResource BorderBrush}"
                         BorderThickness="1" CornerRadius="6"
-                        Padding="6,3" Margin="0,0,0,6"
+                        Padding="6,3" Margin="0,0,0,4"
                         ToolTip.Tip="{Binding FilesDirectory}">
                   <Grid ColumnDefinitions="Auto,*" VerticalAlignment="Center">
                     <material:MaterialIcon Grid.Column="0" Kind="Folder" Width="13" Height="13"
@@ -594,17 +631,42 @@
         <Border Grid.Column="4"
                 Background="{DynamicResource CardBackground}"
                 BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
-                CornerRadius="10" Padding="14" ClipToBounds="True">
+                CornerRadius="10" Padding="10,8" ClipToBounds="True">
           <Grid>
-            <TabControl IsVisible="{Binding SelectedNode, Converter={x:Static ObjectConverters.IsNotNull}}">
+            <TabControl IsVisible="{Binding SelectedNode, Converter={x:Static ObjectConverters.IsNotNull}}" Padding="0">
+              <TabControl.Styles>
+                <Style Selector="TabItem">
+                  <Setter Property="FontSize" Value="12"/>
+                  <Setter Property="FontWeight" Value="SemiBold"/>
+                  <Setter Property="MinHeight" Value="24"/>
+                  <Setter Property="Padding" Value="8,2,8,4"/>
+                  <Setter Property="Margin" Value="0,0,6,0"/>
+                  <Setter Property="Cursor" Value="Hand"/>
+                  <Setter Property="Foreground" Value="{DynamicResource TextSecondary}"/>
+                </Style>
+                <Style Selector="TabItem:pointerover">
+                  <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+                </Style>
+                <Style Selector="TabItem:selected">
+                  <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+                </Style>
+                <Style Selector="TabItem /template/ Border#PART_SelectedPipe">
+                  <Setter Property="Height" Value="2"/>
+                  <Setter Property="CornerRadius" Value="1"/>
+                  <Setter Property="Background" Value="{DynamicResource AccentBrush}"/>
+                </Style>
+                <Style Selector="TabItem:selected /template/ Border#PART_SelectedPipe">
+                  <Setter Property="IsVisible" Value="True"/>
+                </Style>
+              </TabControl.Styles>
               <TabItem Header="{localization:Localize Tools.WndEditor.Tabs.General}">
-                <views:WndGeneralPropertiesView DataContext="{Binding SelectedProperties}" Margin="0,8,0,0"/>
+                <views:WndGeneralPropertiesView DataContext="{Binding SelectedProperties}" Margin="0,4,0,0"/>
               </TabItem>
               <TabItem Header="{localization:Localize Tools.WndEditor.Tabs.Control}">
-                <views:WndControlPropertiesView DataContext="{Binding SelectedProperties}" Margin="0,8,0,0"/>
+                <views:WndControlPropertiesView DataContext="{Binding SelectedProperties}" Margin="0,4,0,0"/>
               </TabItem>
               <TabItem Header="{localization:Localize Tools.WndEditor.Tabs.Raw}">
-                <views:WndRawTextView DataContext="{Binding SelectedProperties}" Margin="0,8,0,0"/>
+                <views:WndRawTextView DataContext="{Binding SelectedProperties}" Margin="0,4,0,0"/>
               </TabItem>
             </TabControl>
             <StackPanel IsVisible="{Binding SelectedNode, Converter={x:Static ObjectConverters.IsNull}}"
@@ -636,12 +698,19 @@
                      Foreground="{DynamicResource TextSecondary}"
                      HorizontalAlignment="Center"/>
           <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
+            <Button Command="{Binding OpenFolderWithDialogCommand}"
+                    Padding="12,6"
+                    Background="{DynamicResource SurfaceElevatedBrush}"
+                    BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                    CornerRadius="6"
+                    Content="{localization:Localize Tools.WndEditor.Empty.OpenFolderButton}"
+                    FontSize="11" FontWeight="SemiBold"/>
             <Button Command="{Binding OpenFileWithDialogCommand}"
                     Padding="12,6"
                     Background="{DynamicResource SurfaceElevatedBrush}"
                     BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
                     CornerRadius="6"
-                    Content="{localization:Localize Tools.WndEditor.Empty.OpenButton}"
+                    Content="{localization:Localize Tools.WndEditor.Empty.OpenFileButton}"
                     FontSize="11" FontWeight="SemiBold"/>
             <Button Command="{Binding NewDocumentCommand}"
                     Padding="12,6"

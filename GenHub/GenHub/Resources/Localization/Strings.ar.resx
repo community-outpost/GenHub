@@ -7168,6 +7168,12 @@ GenHub هو مشغل ومدير حديث لألعاب **Command &amp; Conquer: G
   <data name="Tools.WndEditor.Toolbar.Open" xml:space="preserve">
     <value>فتح</value>
   </data>
+  <data name="Tools.WndEditor.Toolbar.OpenFolder" xml:space="preserve">
+    <value>فتح مجلد</value>
+  </data>
+  <data name="Tools.WndEditor.Toolbar.OpenFile" xml:space="preserve">
+    <value>فتح ملف</value>
+  </data>
   <data name="Tools.WndEditor.Toolbar.Save" xml:space="preserve">
     <value>حفظ</value>
   </data>
@@ -7250,6 +7256,12 @@ GenHub هو مشغل ومدير حديث لألعاب **Command &amp; Conquer: G
     <value>افتح ملف .wnd أو أنشئ مستندًا جديدًا لبدء التحرير.</value>
   </data>
   <data name="Tools.WndEditor.Empty.OpenButton" xml:space="preserve">
+    <value>فتح ملف</value>
+  </data>
+  <data name="Tools.WndEditor.Empty.OpenFolderButton" xml:space="preserve">
+    <value>فتح مجلد</value>
+  </data>
+  <data name="Tools.WndEditor.Empty.OpenFileButton" xml:space="preserve">
     <value>فتح ملف</value>
   </data>
   <data name="Tools.WndEditor.Empty.NewButton" xml:space="preserve">
@@ -7398,6 +7410,12 @@ GenHub هو مشغل ومدير حديث لألعاب **Command &amp; Conquer: G
   </data>
   <data name="Tools.WndEditor.FileDialog.FolderTitle" xml:space="preserve">
     <value>اختر مجلد تعريفات النوافذ</value>
+  </data>
+  <data name="Tools.WndEditor.Files.NoWndFilesTitle" xml:space="preserve">
+    <value>لا توجد ملفات WND</value>
+  </data>
+  <data name="Tools.WndEditor.Files.NoWndFilesMessage" xml:space="preserve">
+    <value>لم يتم العثور على ملفات تعريف النوافذ (.wnd) في المجلد المحدد.</value>
   </data>
   <data name="Tools.WndEditor.Files.Browse" xml:space="preserve">
     <value>تصفح...</value>

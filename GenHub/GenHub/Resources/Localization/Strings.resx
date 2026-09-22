@@ -7266,6 +7266,12 @@ GenHub supports four file linking strategies under **Settings -&gt; Game Configu
   <data name="Tools.WndEditor.Toolbar.Open" xml:space="preserve">
     <value>Open</value>
   </data>
+  <data name="Tools.WndEditor.Toolbar.OpenFolder" xml:space="preserve">
+    <value>Open Folder</value>
+  </data>
+  <data name="Tools.WndEditor.Toolbar.OpenFile" xml:space="preserve">
+    <value>Open File</value>
+  </data>
   <data name="Tools.WndEditor.Toolbar.Save" xml:space="preserve">
     <value>Save</value>
   </data>
@@ -7348,6 +7354,12 @@ GenHub supports four file linking strategies under **Settings -&gt; Game Configu
     <value>Open a .wnd file or create a new document to begin editing.</value>
   </data>
   <data name="Tools.WndEditor.Empty.OpenButton" xml:space="preserve">
+    <value>Open File</value>
+  </data>
+  <data name="Tools.WndEditor.Empty.OpenFolderButton" xml:space="preserve">
+    <value>Open Folder</value>
+  </data>
+  <data name="Tools.WndEditor.Empty.OpenFileButton" xml:space="preserve">
     <value>Open File</value>
   </data>
   <data name="Tools.WndEditor.Empty.NewButton" xml:space="preserve">
@@ -7496,6 +7508,12 @@ GenHub supports four file linking strategies under **Settings -&gt; Game Configu
   </data>
   <data name="Tools.WndEditor.FileDialog.FolderTitle" xml:space="preserve">
     <value>Choose a window definition folder</value>
+  </data>
+  <data name="Tools.WndEditor.Files.NoWndFilesTitle" xml:space="preserve">
+    <value>No WND Files</value>
+  </data>
+  <data name="Tools.WndEditor.Files.NoWndFilesMessage" xml:space="preserve">
+    <value>No window definition (.wnd) files found in the selected folder.</value>
   </data>
   <data name="Tools.WndEditor.Files.Browse" xml:space="preserve">
     <value>Browse...</value>

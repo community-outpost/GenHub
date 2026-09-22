@@ -1268,6 +1268,74 @@ public sealed class WndEditorViewModelTests : IDisposable
         defeatNode.IsCurrent.Should().BeTrue();
     }
 
+    /// <summary>
+    /// Tests that OpenFolderAsync populates the tree, switches to the Files tab, and opens the first WND file.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task OpenFolderAsync_WithValidDirectoryAndWndFiles_PopulatesFilesSwitchesTabAndOpensFirstFile()
+    {
+        // Arrange
+        var rootDir = Path.Combine(_tempDirectory, "ProjectFolder");
+        var subDir = Path.Combine(rootDir, "Sub", "Window");
+        Directory.CreateDirectory(subDir);
+
+        var firstWnd = Path.Combine(subDir, "Alpha.wnd");
+        var secondWnd = Path.Combine(subDir, "Beta.wnd");
+        File.WriteAllText(firstWnd, "FILE_VERSION = 2;\nWINDOW\n  SCREENRECT = UPPERLEFT: 0 0, BOTTOMRIGHT: 10 10, CREATIONRESOLUTION: 800 600;\nEND\n");
+        File.WriteAllText(secondWnd, "FILE_VERSION = 2;\nWINDOW\n  SCREENRECT = UPPERLEFT: 0 0, BOTTOMRIGHT: 20 20, CREATIONRESOLUTION: 800 600;\nEND\n");
+
+        // Act
+        var result = await _viewModel.OpenFolderAsync(rootDir);
+
+        // Assert
+        result.Should().BeTrue();
+        _viewModel.FilesDirectory.Should().Be(rootDir);
+        _viewModel.LeftSidebarTabIndex.Should().Be(1);
+        _viewModel.HasDocument.Should().BeTrue();
+        _viewModel.FilePath.Should().Be(firstWnd);
+
+        var alphaNode = _viewModel.Files[0].Children[0].Children[0].Children.First(c => c.Name == "Alpha");
+        alphaNode.IsCurrent.Should().BeTrue();
+    }
+
+    /// <summary>
+    /// Tests that OpenFolderAsync returns false when the specified folder does not exist.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task OpenFolderAsync_WithNonExistentDirectory_ReturnsFalse()
+    {
+        // Act
+        var result = await _viewModel.OpenFolderAsync(Path.Combine(_tempDirectory, "DoesNotExist"));
+
+        // Assert
+        result.Should().BeFalse();
+    }
+
+    /// <summary>
+    /// Tests that OpenFolderAsync shows info when no WND files are found in the directory.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task OpenFolderAsync_DirectoryWithNoWndFiles_ShowsInfoNotification()
+    {
+        // Arrange
+        var emptyDir = Path.Combine(_tempDirectory, "NoWndHere");
+        Directory.CreateDirectory(emptyDir);
+
+        // Act
+        var result = await _viewModel.OpenFolderAsync(emptyDir);
+
+        // Assert
+        result.Should().BeTrue();
+        _viewModel.FilesDirectory.Should().Be(emptyDir);
+        _viewModel.LeftSidebarTabIndex.Should().Be(1);
+        _mockNotificationService.Verify(
+            n => n.ShowInfo(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
+            Times.Once);
+    }
+
     private static string DrawDataWith(string name, int index)
     {
         var entries = new List<WndDrawDataEntry>();

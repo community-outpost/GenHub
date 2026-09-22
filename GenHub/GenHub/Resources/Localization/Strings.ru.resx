@@ -7168,6 +7168,12 @@ GenHub передает официальный идентификатор AppID 
   <data name="Tools.WndEditor.Toolbar.Open" xml:space="preserve">
     <value>Открыть</value>
   </data>
+  <data name="Tools.WndEditor.Toolbar.OpenFolder" xml:space="preserve">
+    <value>Открыть папку</value>
+  </data>
+  <data name="Tools.WndEditor.Toolbar.OpenFile" xml:space="preserve">
+    <value>Открыть файл</value>
+  </data>
   <data name="Tools.WndEditor.Toolbar.Save" xml:space="preserve">
     <value>Сохранить</value>
   </data>
@@ -7250,6 +7256,12 @@ GenHub передает официальный идентификатор AppID 
     <value>Откройте .wnd файл или создайте новый документ для редактирования.</value>
   </data>
   <data name="Tools.WndEditor.Empty.OpenButton" xml:space="preserve">
+    <value>Открыть файл</value>
+  </data>
+  <data name="Tools.WndEditor.Empty.OpenFolderButton" xml:space="preserve">
+    <value>Открыть папку</value>
+  </data>
+  <data name="Tools.WndEditor.Empty.OpenFileButton" xml:space="preserve">
     <value>Открыть файл</value>
   </data>
   <data name="Tools.WndEditor.Empty.NewButton" xml:space="preserve">
@@ -7398,6 +7410,12 @@ GenHub передает официальный идентификатор AppID 
   </data>
   <data name="Tools.WndEditor.FileDialog.FolderTitle" xml:space="preserve">
     <value>Выберите папку определений окон</value>
+  </data>
+  <data name="Tools.WndEditor.Files.NoWndFilesTitle" xml:space="preserve">
+    <value>Нет файлов WND</value>
+  </data>
+  <data name="Tools.WndEditor.Files.NoWndFilesMessage" xml:space="preserve">
+    <value>В выбранной папке не найдены файлы определений окон (.wnd).</value>
   </data>
   <data name="Tools.WndEditor.Files.Browse" xml:space="preserve">
     <value>Обзор...</value>

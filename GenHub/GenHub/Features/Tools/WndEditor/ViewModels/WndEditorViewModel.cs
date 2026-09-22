@@ -209,6 +209,12 @@ public sealed partial class WndEditorViewModel(
     private string _windowsFilter = string.Empty;
 
     /// <summary>
+    /// Gets or sets the active tab in the left sidebar (0 = Windows, 1 = Files).
+    /// </summary>
+    [ObservableProperty]
+    private int _leftSidebarTabIndex;
+
+    /// <summary>
     /// Gets or sets the directory listed in the file explorer.
     /// </summary>
     [ObservableProperty]
@@ -269,6 +275,42 @@ public sealed partial class WndEditorViewModel(
         await EnsureInstallationsLoadedAsync(cancellationToken).ConfigureAwait(false);
         RefreshAssetPreviews();
         logger.LogInformation("Opened window definition file {Path}", filePath);
+        return true;
+    }
+
+    /// <summary>
+    /// Opens a folder in the file explorer and optionally loads the first window definition file.
+    /// </summary>
+    /// <param name="folderPath">The path of the directory to open.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>True when the folder was opened.</returns>
+    public async Task<bool> OpenFolderAsync(string folderPath, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrEmpty(folderPath) || !Directory.Exists(folderPath))
+        {
+            return false;
+        }
+
+        FilesDirectory = folderPath;
+        LeftSidebarTabIndex = 1;
+
+        if (HasDocument && !string.IsNullOrEmpty(FilePath) && IsSubPathOf(FilePath, folderPath))
+        {
+            UpdateCurrentFileNode(FilePath);
+            return true;
+        }
+
+        var firstWnd = FindFirstWndFilePath(Files);
+        if (!string.IsNullOrEmpty(firstWnd))
+        {
+            return await OpenFileAsync(firstWnd, cancellationToken).ConfigureAwait(false);
+        }
+
+        notificationService.ShowInfo(
+            localizationService.GetString("Tools.WndEditor.Files.NoWndFilesTitle"),
+            localizationService.GetString("Tools.WndEditor.Files.NoWndFilesMessage"),
+            NotificationDurations.Medium);
+
         return true;
     }
 
@@ -605,6 +647,36 @@ public sealed partial class WndEditorViewModel(
     }
 
     /// <summary>
+    /// Opens a folder containing window definition files and loads its tree into the file explorer.
+    /// </summary>
+    [RelayCommand]
+    private async Task OpenFolderWithDialogAsync(CancellationToken cancellationToken = default)
+    {
+        var topLevel = GetTopLevel();
+        if (topLevel == null)
+        {
+            return;
+        }
+
+        var folders = await topLevel.StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
+        {
+            Title = localizationService.GetString("Tools.WndEditor.FileDialog.FolderTitle"),
+            AllowMultiple = false,
+        });
+        if (folders.Count == 0)
+        {
+            return;
+        }
+
+        var localPath = folders[0].TryGetLocalPath();
+        if (!string.IsNullOrEmpty(localPath))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            await OpenFolderAsync(localPath, cancellationToken);
+        }
+    }
+
+    /// <summary>
     /// Opens a window definition file chosen with a file dialog.
     /// </summary>
     [RelayCommand]
@@ -932,8 +1004,27 @@ public sealed partial class WndEditorViewModel(
         if (!string.IsNullOrEmpty(localPath))
         {
             cancellationToken.ThrowIfCancellationRequested();
-            FilesDirectory = localPath;
+            await OpenFolderAsync(localPath, cancellationToken);
         }
+    }
+
+    private static string? FindFirstWndFilePath(IEnumerable<WndFileTreeNodeViewModel> nodes)
+    {
+        foreach (var node in nodes)
+        {
+            if (node.IsFile)
+            {
+                return node.FullPath;
+            }
+
+            var childFile = FindFirstWndFilePath(node.Children);
+            if (childFile != null)
+            {
+                return childFile;
+            }
+        }
+
+        return null;
     }
 
     /// <summary>
