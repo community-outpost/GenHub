@@ -318,7 +318,7 @@ public static class ReplayCrcMatchingHelper
             }
         }
 
-        return IsOfficialBaseClient(client);
+        return true;
     }
 
     /// <summary>
@@ -364,7 +364,7 @@ public static class ReplayCrcMatchingHelper
                 }
             }
 
-            return IsOfficialBaseClient(client);
+            return true;
         }
 
         return IsZeroHourRetailCompatible(client, enabledContentIds);

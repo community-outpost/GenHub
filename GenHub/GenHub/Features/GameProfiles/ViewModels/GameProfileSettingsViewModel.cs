@@ -640,7 +640,7 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
             }
         }
 
-        return !ReplayCrcMatchingHelper.IsRetailCompatible(client);
+        return !ReplayCrcMatchingHelper.IsOfficialBaseClient(client);
     }
 
     private static bool IsRetailItemMetadata(ContentDisplayItem item)
