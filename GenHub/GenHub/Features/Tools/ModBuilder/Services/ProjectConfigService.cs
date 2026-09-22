@@ -2383,7 +2383,6 @@ public sealed class ProjectConfigService(
                         Name = ModBuilderConstants.MenuWindowsItemName,
                         SourceFiles = new[] { $"{directories.GameFilesEdited}/window/Menus/**/*.wnd" },
                         OutputFormat = "WINDOW",
-                        ManifestFile = ModBuilderConstants.ImprovedMenusEnglishManifestPath,
                         Description = "Widescreen adapted .wnd menu layout definitions (Common)",
                     },
                     new
@@ -2391,7 +2390,6 @@ public sealed class ProjectConfigService(
                         Name = ModBuilderConstants.MenuMappedImagesItemName,
                         SourceFiles = new[] { $"{directories.GameFilesEdited}/Data/INI/MappedImages/**/*.ini" },
                         OutputFormat = "INI",
-                        ManifestFile = ModBuilderConstants.ImprovedMenusEnglishManifestPath,
                         Description = "MappedImage coordinate definitions for widescreen menu textures (Common)",
                     },
                     new
@@ -2400,7 +2398,6 @@ public sealed class ProjectConfigService(
                         SourceFiles = new[] { $"{directories.GameFilesEdited}/Data/English/Art/Textures/**/*.tga", $"{directories.GameFilesEdited}/Data/English/Art/Textures/**/*.dds" },
                         OutputFormat = "RAW",
                         NoConvert = true,
-                        ManifestFile = ModBuilderConstants.ImprovedMenusEnglishManifestPath,
                         Description = "English high resolution menu backdrops and UI frame textures",
                     },
                     new
@@ -2409,7 +2406,6 @@ public sealed class ProjectConfigService(
                         SourceFiles = new[] { $"{directories.GameFilesEdited}/Data/Russian/Art/Textures/**/*.tga", $"{directories.GameFilesEdited}/Data/Russian/Art/Textures/**/*.dds" },
                         OutputFormat = "RAW",
                         NoConvert = true,
-                        ManifestFile = ModBuilderConstants.ImprovedMenusRussianManifestPath,
                         Description = "Russian high resolution menu backdrops and UI frame textures",
                     },
                     new
@@ -2418,7 +2414,6 @@ public sealed class ProjectConfigService(
                         SourceFiles = new[] { $"{directories.GameFilesEdited}/Data/Spanish/Art/Textures/**/*.tga", $"{directories.GameFilesEdited}/Data/Spanish/Art/Textures/**/*.dds" },
                         OutputFormat = "RAW",
                         NoConvert = true,
-                        ManifestFile = ModBuilderConstants.ImprovedMenusSpanishManifestPath,
                         Description = "Spanish high resolution menu backdrops and UI frame textures",
                     },
                 },

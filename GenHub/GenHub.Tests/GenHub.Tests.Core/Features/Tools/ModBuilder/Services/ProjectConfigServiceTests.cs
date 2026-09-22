@@ -692,6 +692,15 @@ public sealed class ProjectConfigServiceTests : IDisposable
         manifests.Should().ContainSingle(manifest =>
             manifest.Name.Contains("Spanish", StringComparison.OrdinalIgnoreCase) &&
             manifest.Packs.SequenceEqual(new[] { "ImprovedMenus_Spanish" }));
+
+        var itemsConfigPath = Path.Combine(projectDir, "Configs", ModBuilderConstants.BundleItemsConfigFileName);
+        File.Exists(itemsConfigPath).Should().BeTrue();
+        var itemsJson = await File.ReadAllTextAsync(itemsConfigPath);
+        using var itemsDoc = JsonDocument.Parse(itemsJson);
+        foreach (var itemElement in itemsDoc.RootElement.GetProperty("BundleItems").EnumerateArray())
+        {
+            itemElement.TryGetProperty("ManifestFile", out _).Should().BeFalse();
+        }
     }
 
     [Theory]

@@ -6,7 +6,6 @@
         "GameFilesEdited/window/Menus/**/*.wnd"
       ],
       "OutputFormat": "WINDOW",
-      "ManifestFile": "config/0_ImprovedMenusEnglish.big.manifest.json",
       "Description": "Widescreen adapted .wnd menu layout definitions (Common)"
     },
     {
@@ -15,7 +14,6 @@
         "GameFilesEdited/Data/INI/MappedImages/**/*.ini"
       ],
       "OutputFormat": "INI",
-      "ManifestFile": "config/0_ImprovedMenusEnglish.big.manifest.json",
       "Description": "MappedImage coordinate definitions for widescreen menu textures (Common)"
     },
     {
@@ -26,7 +24,6 @@
       ],
       "OutputFormat": "RAW",
       "NoConvert": true,
-      "ManifestFile": "config/0_ImprovedMenusEnglish.big.manifest.json",
       "Description": "English high resolution menu backdrops and UI frame textures"
     },
     {
@@ -37,7 +34,6 @@
       ],
       "OutputFormat": "RAW",
       "NoConvert": true,
-      "ManifestFile": "config/0_ImprovedMenusRussian.big.manifest.json",
       "Description": "Russian high resolution menu backdrops and UI frame textures"
     },
     {
@@ -48,7 +44,6 @@
       ],
       "OutputFormat": "RAW",
       "NoConvert": true,
-      "ManifestFile": "config/0_ImprovedMenusSpanish.big.manifest.json",
       "Description": "Spanish high resolution menu backdrops and UI frame textures"
     }
   ]
