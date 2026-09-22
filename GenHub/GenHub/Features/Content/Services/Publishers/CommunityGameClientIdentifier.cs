@@ -1,9 +1,9 @@
-using GenHub.Core.Models.Manifest;
 using GenHub.Core.Constants;
 using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.GameClients;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameClients;
+using GenHub.Core.Models.Manifest;
 using GenHub.Core.Utilities;
 using System;
 using System.IO;
