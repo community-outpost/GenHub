@@ -3,6 +3,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:localization="clr-namespace:GenHub.Common.Markup"
              xmlns:material="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
+             xmlns:mbModels="clr-namespace:GenHub.Features.Tools.ModBuilder.Models"
              xmlns:views="clr-namespace:GenHub.Features.Tools.WndEditor.Views"
              xmlns:vm="clr-namespace:GenHub.Features.Tools.WndEditor.ViewModels"
              x:Class="GenHub.Features.Tools.WndEditor.Views.WndEditorView"
@@ -498,10 +499,15 @@
                            VerticalAlignment="Center"/>
                 <ComboBox ItemsSource="{Binding AvailableInstallations}"
                           SelectedItem="{Binding SelectedAssetInstallation, Mode=TwoWay}"
-                          DisplayMemberBinding="{Binding DisplayName}"
                           MinWidth="200" FontSize="11"
                           PlaceholderText="{localization:Localize Tools.WndEditor.Assets.SelectorWatermark}"
-                          ToolTip.Tip="{localization:Localize Tools.WndEditor.Assets.SelectorTooltip}"/>
+                          ToolTip.Tip="{localization:Localize Tools.WndEditor.Assets.SelectorTooltip}">
+                  <ComboBox.ItemTemplate>
+                    <DataTemplate x:DataType="mbModels:GameInstallationOption">
+                      <TextBlock Text="{Binding DisplayName}" FontSize="11" VerticalAlignment="Center"/>
+                    </DataTemplate>
+                  </ComboBox.ItemTemplate>
+                </ComboBox>
               </StackPanel>
             </Grid>
             <Border Grid.Row="1"

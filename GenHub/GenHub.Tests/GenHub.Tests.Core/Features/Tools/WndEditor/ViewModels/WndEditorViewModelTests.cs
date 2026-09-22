@@ -1424,6 +1424,100 @@ public sealed class WndEditorViewModelTests : IDisposable
     }
 
     /// <summary>
+    /// Tests that single-token scheme headers are correctly extracted and matched.
+    /// </summary>
+    [Fact]
+    public void ParseControlBarSchemeIni_SingleTokenHeader_SelectsCorrectScheme()
+    {
+        // Arrange
+        const string ini =
+            "ControlBarSchemeChina\n" +
+            "  RightHUDImage ChinaLogo\n" +
+            "End\n" +
+            "ControlBarSchemeAmerica\n" +
+            "  RightHUDImage AmericaLogo\n" +
+            "End\n";
+
+        var dict = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+        // Act
+        WndEditorViewModel.ParseControlBarSchemeIni(ini, dict, "ControlBarSchemeAmerica");
+
+        // Assert
+        dict[WndConstants.ControlBarScheme.RightHUDKey].Should().Be("AmericaLogo");
+    }
+
+    /// <summary>
+    /// Tests that keys with prefixes matching keywords are not treated as block headers.
+    /// </summary>
+    [Fact]
+    public void ParseControlBarSchemeIni_KeyStartsWithSchemeOrImagePartPrefix_ParsedAsKeyValue()
+    {
+        // Arrange
+        const string ini =
+            "ControlBarSchemes = 5\n" +
+            "ImagePartsTotal = 10\n" +
+            "RightHUDImage = AmericaLogo\n";
+
+        var dict = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+        // Act
+        WndEditorViewModel.ParseControlBarSchemeIni(ini, dict);
+
+        // Assert
+        dict[WndConstants.ControlBarScheme.RightHUDKey].Should().Be("AmericaLogo");
+        dict.Should().NotContainKey("ControlBarSchemes");
+        dict.Should().NotContainKey("ImagePartsTotal");
+    }
+
+    /// <summary>
+    /// Tests that an inline ImagePart statement inside an open block does not reset the latch prematurely.
+    /// </summary>
+    [Fact]
+    public void ParseControlBarSchemeIni_RepeatedOrInlineImagePartInBlock_DoesNotResetLatchEarly()
+    {
+        // Arrange
+        const string ini =
+            "ControlBarScheme AmericaScheme\n" +
+            "  ImagePart\n" +
+            "    Position X:0 Y:0\n" +
+            "    ImagePart ImageName = InnerImage\n" +
+            "  End\n" +
+            "  RightHUDImage AfterEndLogo\n" +
+            "End\n";
+
+        var dict = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+        // Act
+        WndEditorViewModel.ParseControlBarSchemeIni(ini, dict);
+
+        // Assert
+        dict[WndConstants.ControlBarScheme.BackgroundMarkerKey].Should().Be("InnerImage");
+        dict[WndConstants.ControlBarScheme.RightHUDKey].Should().Be("AfterEndLogo");
+    }
+
+    /// <summary>
+    /// Tests that comment stripping does not truncate URLs or quoted comments.
+    /// </summary>
+    [Fact]
+    public void ParseControlBarSchemeIni_CommentStripping_PreservesUrlAndQuotedComments()
+    {
+        // Arrange
+        const string ini =
+            "RightHUDImage = \"SALogo;NotComment // StillNotComment\"\n" +
+            "OptionsButtonEnable = http://myserver.com/path // RealComment\n";
+
+        var dict = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+        // Act
+        WndEditorViewModel.ParseControlBarSchemeIni(ini, dict);
+
+        // Assert
+        dict[WndConstants.ControlBarScheme.RightHUDKey].Should().Be("SALogo;NotComment // StillNotComment");
+        dict[WndConstants.ControlBarScheme.ButtonOptionsKey].Should().Be("http://myserver.com/path");
+    }
+
+    /// <summary>
     /// Tests that inline ImagePart does not latch block mode, allowing subsequent flat keys to be parsed.
     /// </summary>
     [Fact]

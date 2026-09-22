@@ -15,12 +15,19 @@ public static class WndControlBarSchemeParser
         ["RightHUDImage"] = WndConstants.ControlBarScheme.RightHUDKey,
         ["RightHUD"] = WndConstants.ControlBarScheme.RightHUDKey,
         ["OptionsButtonEnable"] = WndConstants.ControlBarScheme.ButtonOptionsKey,
+        ["ButtonOptions"] = WndConstants.ControlBarScheme.ButtonOptionsKey,
         ["IdleWorkerButtonEnable"] = WndConstants.ControlBarScheme.ButtonIdleWorkerKey,
+        ["ButtonIdleWorker"] = WndConstants.ControlBarScheme.ButtonIdleWorkerKey,
         ["BuddyButtonEnable"] = WndConstants.ControlBarScheme.ButtonChatKey,
+        ["ButtonChat"] = WndConstants.ControlBarScheme.ButtonChatKey,
         ["BeaconButtonEnable"] = WndConstants.ControlBarScheme.ButtonPlaceBeaconKey,
+        ["ButtonPlaceBeacon"] = WndConstants.ControlBarScheme.ButtonPlaceBeaconKey,
         ["GeneralButtonEnable"] = WndConstants.ControlBarScheme.ButtonGeneralKey,
+        ["ButtonGeneral"] = WndConstants.ControlBarScheme.ButtonGeneralKey,
         ["UAttackButtonEnable"] = WndConstants.ControlBarScheme.ButtonUAttackKey,
+        ["ButtonUAttack"] = WndConstants.ControlBarScheme.ButtonUAttackKey,
         ["ExpBarForegroundImage"] = WndConstants.ControlBarScheme.ExpBarForegroundKey,
+        ["ExpBarForeground"] = WndConstants.ControlBarScheme.ExpBarForegroundKey,
         ["QueueButtonImage"] = WndConstants.ControlBarScheme.QueueButtonImageKey,
     };
 
@@ -62,16 +69,24 @@ public static class WndControlBarSchemeParser
                 continue;
             }
 
-            if (line.StartsWith(WndConstants.ControlBarScheme.SchemeKeyword, StringComparison.OrdinalIgnoreCase))
+            var tokens = line.Split([' ', '\t'], StringSplitOptions.RemoveEmptyEntries);
+            if (tokens.Length == 0)
             {
-                var schemeName = ParseSchemeName(line);
+                continue;
+            }
+
+            var firstToken = tokens[0];
+
+            if (IsSchemeBlockHeader(tokens, firstToken))
+            {
+                var schemeName = ParseSchemeName(tokens);
                 currentSchemeDict = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
                 schemes.Add((schemeName, currentSchemeDict));
                 inImagePart = false;
                 continue;
             }
 
-            if (string.Equals(line, WndConstants.ControlBarScheme.EndKeyword, StringComparison.OrdinalIgnoreCase))
+            if (string.Equals(firstToken, WndConstants.ControlBarScheme.EndKeyword, StringComparison.OrdinalIgnoreCase))
             {
                 if (inImagePart)
                 {
@@ -86,13 +101,21 @@ public static class WndControlBarSchemeParser
             }
 
             var target = currentSchemeDict ?? flatOverrides;
-            ProcessLine(line, target, ref inImagePart);
+            ProcessLine(line, tokens, target, ref inImagePart);
         }
     }
 
-    private static void ProcessLine(string line, Dictionary<string, string> target, ref bool inImagePart)
+    private static bool IsSchemeBlockHeader(string[] tokens, string firstToken)
     {
-        if (line.StartsWith(WndConstants.ControlBarScheme.ImagePartKeyword, StringComparison.OrdinalIgnoreCase))
+        return string.Equals(firstToken, WndConstants.ControlBarScheme.SchemeKeyword, StringComparison.OrdinalIgnoreCase) ||
+            (tokens.Length == 1 && firstToken.StartsWith(WndConstants.ControlBarScheme.SchemeKeyword, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static void ProcessLine(string line, string[] tokens, Dictionary<string, string> target, ref bool inImagePart)
+    {
+        var firstToken = tokens[0];
+
+        if (string.Equals(firstToken, WndConstants.ControlBarScheme.ImagePartKeyword, StringComparison.OrdinalIgnoreCase))
         {
             ProcessImagePartLine(line, target, ref inImagePart);
             return;
@@ -104,7 +127,7 @@ public static class WndControlBarSchemeParser
             return;
         }
 
-        ParseKeyValueLine(line, target);
+        ParseKeyValueLine(line, tokens, target);
     }
 
     private static void ProcessImagePartLine(string line, Dictionary<string, string> target, ref bool inImagePart)
@@ -112,14 +135,12 @@ public static class WndControlBarSchemeParser
         var imageNameIndex = line.IndexOf(WndConstants.ControlBarScheme.ImageNameKeyword, StringComparison.OrdinalIgnoreCase);
         if (imageNameIndex >= 0)
         {
-            // Inline ImagePart: extract image value and do NOT enter block mode
+            // Inline ImagePart: extract image value without leaving an existing outer ImagePart block
             var imageValue = ExtractValueAfterKey(line[imageNameIndex..], WndConstants.ControlBarScheme.ImageNameKeyword);
             if (!string.IsNullOrEmpty(imageValue))
             {
                 target[WndConstants.ControlBarScheme.BackgroundMarkerKey] = imageValue;
             }
-
-            inImagePart = false;
         }
         else
         {
@@ -139,7 +160,7 @@ public static class WndControlBarSchemeParser
         }
     }
 
-    private static void ParseKeyValueLine(string line, Dictionary<string, string> target)
+    private static void ParseKeyValueLine(string line, string[] tokens, Dictionary<string, string> target)
     {
         string key;
         string value;
@@ -152,7 +173,6 @@ public static class WndControlBarSchemeParser
         }
         else
         {
-            var tokens = line.Split([' ', '\t'], StringSplitOptions.RemoveEmptyEntries);
             if (tokens.Length < 2)
             {
                 return;
@@ -167,31 +187,62 @@ public static class WndControlBarSchemeParser
             return;
         }
 
-        var mappedKey = KeyMap.TryGetValue(key, out var mk) ? mk : key;
-        target[mappedKey] = value;
+        if (value.Length >= 2 && value.StartsWith('"') && value.EndsWith('"'))
+        {
+            value = value[1..^1];
+        }
+
+        if (KeyMap.TryGetValue(key, out var mappedKey))
+        {
+            target[mappedKey] = value;
+        }
     }
 
     private static string StripComment(string line)
     {
-        var commentIndex = line.IndexOf(';');
-        if (commentIndex >= 0)
+        var inQuotes = false;
+        for (var i = 0; i < line.Length; i++)
         {
-            line = line[..commentIndex];
-        }
+            var c = line[i];
+            if (c == '"')
+            {
+                inQuotes = !inQuotes;
+                continue;
+            }
 
-        var slashIndex = line.IndexOf("//", StringComparison.Ordinal);
-        if (slashIndex >= 0)
-        {
-            line = line[..slashIndex];
+            if (inQuotes)
+            {
+                continue;
+            }
+
+            if (c == ';')
+            {
+                return line[..i].Trim();
+            }
+
+            if (c == '/' && i + 1 < line.Length && line[i + 1] == '/')
+            {
+                // Preserve URL protocol markers (e.g. http://)
+                if (i > 0 && line[i - 1] == ':')
+                {
+                    continue;
+                }
+
+                return line[..i].Trim();
+            }
         }
 
         return line.Trim();
     }
 
-    private static string ParseSchemeName(string line)
+    private static string ParseSchemeName(string[] tokens)
     {
-        var parts = line.Split([' ', '\t'], StringSplitOptions.RemoveEmptyEntries);
-        return parts.Length > 1 ? parts[1] : string.Empty;
+        if (tokens.Length > 2 && (tokens[1] == "=" || tokens[1] == ":"))
+        {
+            return tokens[2];
+        }
+
+        return tokens.Length > 1 ? tokens[1] : tokens[0];
     }
 
     private static string ExtractValueAfterKey(string segment, string key)
@@ -204,7 +255,18 @@ public static class WndControlBarSchemeParser
 
         var afterKey = segment[(keyIdx + key.Length)..].TrimStart(':', '=', ' ', '\t').Trim();
         var tokens = afterKey.Split([' ', '\t'], StringSplitOptions.RemoveEmptyEntries);
-        return tokens.Length > 0 ? tokens[0] : string.Empty;
+        if (tokens.Length == 0)
+        {
+            return string.Empty;
+        }
+
+        var token = tokens[0];
+        if (token.Length >= 2 && token.StartsWith('"') && token.EndsWith('"'))
+        {
+            token = token[1..^1];
+        }
+
+        return token;
     }
 
     private static void SelectSchemeOverrides(
