@@ -138,19 +138,19 @@
     </Border>
 
     <Grid Grid.Row="1">
-      <Grid ColumnDefinitions="350,4,*,4,380" IsVisible="{Binding HasDocument}">
+      <Grid ColumnDefinitions="350,4,*,4,400" IsVisible="{Binding HasDocument}">
         <Border Grid.Column="0"
                 Background="{DynamicResource CardBackground}"
                 BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
-                CornerRadius="10" Padding="10,8" ClipToBounds="True">
+                CornerRadius="10" Padding="8,6" ClipToBounds="True">
           <TabControl SelectedIndex="{Binding LeftSidebarTabIndex, Mode=TwoWay}" Padding="0">
             <TabControl.Styles>
               <Style Selector="TabItem">
-                <Setter Property="FontSize" Value="12"/>
+                <Setter Property="FontSize" Value="11"/>
                 <Setter Property="FontWeight" Value="SemiBold"/>
-                <Setter Property="MinHeight" Value="24"/>
-                <Setter Property="Padding" Value="8,2,8,4"/>
-                <Setter Property="Margin" Value="0,0,6,0"/>
+                <Setter Property="MinHeight" Value="22"/>
+                <Setter Property="Padding" Value="6,2,6,3"/>
+                <Setter Property="Margin" Value="0,0,3,0"/>
                 <Setter Property="Cursor" Value="Hand"/>
                 <Setter Property="Foreground" Value="{DynamicResource TextSecondary}"/>
               </Style>
@@ -631,16 +631,16 @@
         <Border Grid.Column="4"
                 Background="{DynamicResource CardBackground}"
                 BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
-                CornerRadius="10" Padding="10,8" ClipToBounds="True">
+                CornerRadius="10" Padding="8,6" ClipToBounds="True">
           <Grid>
             <TabControl IsVisible="{Binding SelectedNode, Converter={x:Static ObjectConverters.IsNotNull}}" Padding="0">
               <TabControl.Styles>
                 <Style Selector="TabItem">
-                  <Setter Property="FontSize" Value="12"/>
+                  <Setter Property="FontSize" Value="11"/>
                   <Setter Property="FontWeight" Value="SemiBold"/>
-                  <Setter Property="MinHeight" Value="24"/>
-                  <Setter Property="Padding" Value="8,2,8,4"/>
-                  <Setter Property="Margin" Value="0,0,6,0"/>
+                  <Setter Property="MinHeight" Value="22"/>
+                  <Setter Property="Padding" Value="6,2,6,3"/>
+                  <Setter Property="Margin" Value="0,0,3,0"/>
                   <Setter Property="Cursor" Value="Hand"/>
                   <Setter Property="Foreground" Value="{DynamicResource TextSecondary}"/>
                 </Style>
@@ -660,13 +660,13 @@
                 </Style>
               </TabControl.Styles>
               <TabItem Header="{localization:Localize Tools.WndEditor.Tabs.General}">
-                <views:WndGeneralPropertiesView DataContext="{Binding SelectedProperties}" Margin="0,4,0,0"/>
+                <views:WndGeneralPropertiesView DataContext="{Binding SelectedProperties}" Margin="0,2,0,0"/>
               </TabItem>
               <TabItem Header="{localization:Localize Tools.WndEditor.Tabs.Control}">
-                <views:WndControlPropertiesView DataContext="{Binding SelectedProperties}" Margin="0,4,0,0"/>
+                <views:WndControlPropertiesView DataContext="{Binding SelectedProperties}" Margin="0,2,0,0"/>
               </TabItem>
               <TabItem Header="{localization:Localize Tools.WndEditor.Tabs.Raw}">
-                <views:WndRawTextView DataContext="{Binding SelectedProperties}" Margin="0,4,0,0"/>
+                <views:WndRawTextView DataContext="{Binding SelectedProperties}" Margin="0,2,0,0"/>
               </TabItem>
             </TabControl>
             <StackPanel IsVisible="{Binding SelectedNode, Converter={x:Static ObjectConverters.IsNull}}"

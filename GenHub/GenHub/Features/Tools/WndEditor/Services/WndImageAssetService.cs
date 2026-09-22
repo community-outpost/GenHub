@@ -116,9 +116,22 @@ public sealed class WndImageAssetService(ILogger<WndImageAssetService> logger) :
 
     private static int DefinitionScore(string relativePath, int size)
     {
-        if (relativePath.Contains(WndConstants.Preview.HandCreatedDirectory, StringComparison.OrdinalIgnoreCase))
+        var normalized = relativePath.Replace('/', '\\');
+        var isTrueHandCreatedDir = normalized.Contains(@"\MappedImages\HandCreated\", StringComparison.OrdinalIgnoreCase)
+            || normalized.StartsWith(@"Data\INI\MappedImages\HandCreated\", StringComparison.OrdinalIgnoreCase)
+            || normalized.StartsWith(@"MappedImages\HandCreated\", StringComparison.OrdinalIgnoreCase);
+
+        var isTextureSize = normalized.Contains(WndConstants.MappedImages.TextureSizePrefix, StringComparison.OrdinalIgnoreCase);
+
+        // SAGE engine loads HandCreated/ directory with INI_LOAD_OVERWRITE so high-res custom assets take precedence
+        if (isTrueHandCreatedDir && !isTextureSize)
         {
-            return -1;
+            return -100;
+        }
+
+        if (relativePath.Contains(WndConstants.Preview.HandCreatedDirectory, StringComparison.OrdinalIgnoreCase) && !isTextureSize)
+        {
+            return -10;
         }
 
         return size < 0 ? int.MaxValue : Math.Abs(size - WndConstants.Preview.PreferredTextureSize);
@@ -146,6 +159,8 @@ public sealed class WndImageAssetService(ILogger<WndImageAssetService> logger) :
         var baseName = Path.GetFileName(raw);
         var directExt = Path.GetExtension(raw);
         var baseWithoutExt = Path.GetFileNameWithoutExtension(raw);
+        var lowerBaseName = baseName.ToLowerInvariant();
+        var lowerWithoutExt = baseWithoutExt.ToLowerInvariant();
 
         var extensions = new[] { directExt, ".tga", ".dds", ".png", ".jpg", ".bmp" }
             .Where(ext => !string.IsNullOrWhiteSpace(ext))
@@ -157,10 +172,16 @@ public sealed class WndImageAssetService(ILogger<WndImageAssetService> logger) :
             raw,
             baseName,
             baseWithoutExt,
+            lowerBaseName,
+            lowerWithoutExt,
             string.Concat(DataPrefix, ArtTexturesPrefix, baseName),
             string.Concat(DataPrefix, ArtTexturesPrefix, baseWithoutExt),
+            string.Concat(DataPrefix, ArtTexturesPrefix, lowerBaseName),
+            string.Concat(DataPrefix, ArtTexturesPrefix, lowerWithoutExt),
             string.Concat(ArtTexturesPrefix, baseName),
             string.Concat(ArtTexturesPrefix, baseWithoutExt),
+            string.Concat(ArtTexturesPrefix, lowerBaseName),
+            string.Concat(ArtTexturesPrefix, lowerWithoutExt),
             string.Concat(DataPrefix, TexturesPrefix, baseName),
             string.Concat(DataPrefix, TexturesPrefix, baseWithoutExt),
             string.Concat(TexturesPrefix, baseName),
@@ -177,8 +198,12 @@ public sealed class WndImageAssetService(ILogger<WndImageAssetService> logger) :
         {
             candidateStems.Add(string.Concat(DataPrefix, language, "\\", WndConstants.MappedImages.TexturesDirectory, "\\", baseName));
             candidateStems.Add(string.Concat(DataPrefix, language, "\\", WndConstants.MappedImages.TexturesDirectory, "\\", baseWithoutExt));
+            candidateStems.Add(string.Concat(DataPrefix, language, "\\", WndConstants.MappedImages.TexturesDirectory, "\\", lowerBaseName));
+            candidateStems.Add(string.Concat(DataPrefix, language, "\\", WndConstants.MappedImages.TexturesDirectory, "\\", lowerWithoutExt));
             candidateStems.Add(string.Concat(DataPrefix, language, "\\", ArtTexturesPrefix, baseName));
             candidateStems.Add(string.Concat(DataPrefix, language, "\\", ArtTexturesPrefix, baseWithoutExt));
+            candidateStems.Add(string.Concat(DataPrefix, language, "\\", ArtTexturesPrefix, lowerBaseName));
+            candidateStems.Add(string.Concat(DataPrefix, language, "\\", ArtTexturesPrefix, lowerWithoutExt));
             candidateStems.Add(string.Concat(DataPrefix, language, "\\", TexturesPrefix, baseName));
             candidateStems.Add(string.Concat(DataPrefix, language, "\\", TexturesPrefix, baseWithoutExt));
             candidateStems.Add(string.Concat(DataPrefix, language, "\\", baseName));
@@ -191,6 +216,8 @@ public sealed class WndImageAssetService(ILogger<WndImageAssetService> logger) :
 
         candidateStems.Add(string.Concat(WndConstants.MappedImages.TexturesDirectory, "\\", baseName));
         candidateStems.Add(string.Concat(WndConstants.MappedImages.TexturesDirectory, "\\", baseWithoutExt));
+        candidateStems.Add(string.Concat(WndConstants.MappedImages.TexturesDirectory, "\\", lowerBaseName));
+        candidateStems.Add(string.Concat(WndConstants.MappedImages.TexturesDirectory, "\\", lowerWithoutExt));
 
         var returned = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
@@ -249,6 +276,10 @@ public sealed class WndImageAssetService(ILogger<WndImageAssetService> logger) :
             if (index.Images.TryGetValue(name.Trim(), out var image))
             {
                 requests[image.Name] = image;
+            }
+            else if (index.Alternates.TryGetValue(name.Trim(), out var list) && list.Count > 0)
+            {
+                requests[list[0].Name] = list[0];
             }
         }
 
@@ -319,24 +350,30 @@ public sealed class WndImageAssetService(ILogger<WndImageAssetService> logger) :
         }
 
         var images = new Dictionary<string, (WndMappedImage Image, int Score, int Size)>(StringComparer.OrdinalIgnoreCase);
+        var alternates = new Dictionary<string, List<WndMappedImage>>(StringComparer.OrdinalIgnoreCase);
         var processedInis = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         foreach (var dir in searchDirs)
         {
-            IndexDirectoryIniFiles(fileSystem, dir, images, processedInis, cancellationToken);
+            IndexDirectoryIniFiles(fileSystem, dir, images, alternates, processedInis, cancellationToken);
         }
 
         logger.LogInformation(
             "Indexed {Count} mapped images from {Root}",
             images.Count,
             string.IsNullOrWhiteSpace(overrideRoot) ? baseRoot : overrideRoot);
-        return new AssetIndex(key, fileSystem, images.ToDictionary(pair => pair.Key, pair => pair.Value.Image, StringComparer.OrdinalIgnoreCase));
+        return new AssetIndex(
+            key,
+            fileSystem,
+            images.ToDictionary(pair => pair.Key, pair => pair.Value.Image, StringComparer.OrdinalIgnoreCase),
+            alternates);
     }
 
     private static void IndexDirectoryIniFiles(
         SageVirtualFileSystem fileSystem,
         string directory,
         Dictionary<string, (WndMappedImage Image, int Score, int Size)> images,
+        Dictionary<string, List<WndMappedImage>> alternates,
         HashSet<string> processedInis,
         CancellationToken cancellationToken)
     {
@@ -348,14 +385,15 @@ public sealed class WndImageAssetService(ILogger<WndImageAssetService> logger) :
                 continue;
             }
 
-            IndexSingleIniFile(fileSystem, iniPath, images);
+            IndexSingleIniFile(fileSystem, iniPath, images, alternates);
         }
     }
 
     private static void IndexSingleIniFile(
         SageVirtualFileSystem fileSystem,
         string iniPath,
-        Dictionary<string, (WndMappedImage Image, int Score, int Size)> images)
+        Dictionary<string, (WndMappedImage Image, int Score, int Size)> images,
+        Dictionary<string, List<WndMappedImage>> alternates)
     {
         var bytes = fileSystem.Read(iniPath);
         if (bytes == null || bytes.Length == 0)
@@ -377,7 +415,28 @@ public sealed class WndImageAssetService(ILogger<WndImageAssetService> logger) :
                 || score < incumbent.Score
                 || (score == incumbent.Score && size >= incumbent.Size))
             {
+                if (incumbent.Image != null)
+                {
+                    if (!alternates.TryGetValue(image.Name, out var altList))
+                    {
+                        altList = [];
+                        alternates[image.Name] = altList;
+                    }
+
+                    altList.Add(incumbent.Image);
+                }
+
                 images[image.Name] = (image, score, size);
+            }
+            else
+            {
+                if (!alternates.TryGetValue(image.Name, out var altList))
+                {
+                    altList = [];
+                    alternates[image.Name] = altList;
+                }
+
+                altList.Add(image);
             }
         }
     }
@@ -400,6 +459,21 @@ public sealed class WndImageAssetService(ILogger<WndImageAssetService> logger) :
             }
 
             var texture = ReadTexture(index.FileSystem, image.Texture);
+            var selectedImage = image;
+
+            if (texture == null && index.Alternates.TryGetValue(name, out var altList))
+            {
+                foreach (var alt in altList)
+                {
+                    texture = ReadTexture(index.FileSystem, alt.Texture);
+                    if (texture != null)
+                    {
+                        selectedImage = alt;
+                        break;
+                    }
+                }
+            }
+
             if (texture == null)
             {
                 continue;
@@ -411,7 +485,7 @@ public sealed class WndImageAssetService(ILogger<WndImageAssetService> logger) :
                 groups[texture.Value.Path] = group;
             }
 
-            group.Images.Add(image);
+            group.Images.Add(selectedImage);
         }
 
         foreach (var group in groups.Values)
@@ -420,12 +494,11 @@ public sealed class WndImageAssetService(ILogger<WndImageAssetService> logger) :
             DecodeTextureGroup(group, resolved);
         }
 
-        // Direct texture fallback for standalone textures (e.g. mutiplayer_scorescreenuserinterface.tga, MainMenuBackground)
+        // Direct texture requests
         foreach (var name in allNames)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            if (string.IsNullOrWhiteSpace(name)
-                || string.Equals(name.Trim(), WndConstants.DrawData.NoImage, StringComparison.OrdinalIgnoreCase))
+            if (string.IsNullOrWhiteSpace(name))
             {
                 continue;
             }
@@ -550,7 +623,11 @@ public sealed class WndImageAssetService(ILogger<WndImageAssetService> logger) :
         }
     }
 
-    private sealed record AssetIndex(string Key, SageVirtualFileSystem FileSystem, IReadOnlyDictionary<string, WndMappedImage> Images);
+    private sealed record AssetIndex(
+        string Key,
+        SageVirtualFileSystem FileSystem,
+        IReadOnlyDictionary<string, WndMappedImage> Images,
+        IReadOnlyDictionary<string, List<WndMappedImage>> Alternates);
 
     private sealed record TextureGroup(string Path, byte[] Bytes, MagickFormat Format, List<WndMappedImage> Images);
 }

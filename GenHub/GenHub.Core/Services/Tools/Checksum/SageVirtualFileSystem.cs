@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Threading;
 
 namespace GenHub.Core.Services.Tools.Checksum;
@@ -163,6 +164,26 @@ public sealed class SageVirtualFileSystem
                 catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
                 {
                     _logger?.LogDebug(ex, "Failed to read loose file at {Path}; falling back to archive", loosePath);
+                }
+            }
+            else
+            {
+                var dir = Path.GetDirectoryName(loosePath);
+                var fileName = Path.GetFileName(loosePath);
+                if (!string.IsNullOrEmpty(dir) && Directory.Exists(dir))
+                {
+                    try
+                    {
+                        var match = Directory.GetFiles(dir).FirstOrDefault(f => string.Equals(Path.GetFileName(f), fileName, StringComparison.OrdinalIgnoreCase));
+                        if (match != null)
+                        {
+                            return File.ReadAllBytes(match);
+                        }
+                    }
+                    catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                    {
+                        _logger?.LogDebug(ex, "Failed case-insensitive loose read at {Path}", loosePath);
+                    }
                 }
             }
         }

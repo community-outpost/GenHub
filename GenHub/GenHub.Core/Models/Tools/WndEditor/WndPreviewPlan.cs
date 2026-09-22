@@ -23,7 +23,8 @@ public sealed record WndPreviewPlan(
     int FontSize,
     bool FontBold,
     bool TextCentered,
-    bool IsHidden)
+    bool IsHidden,
+    string? UnderlayImage = null)
 {
     /// <summary>
     /// Gets a value indicating whether a three-piece (left, tiled center, right) bar should be drawn.
@@ -37,7 +38,7 @@ public sealed record WndPreviewPlan(
     {
         get
         {
-            var names = new[] { SingleImage, LeftImage, CenterImage, RightImage, GlyphImage }
+            var names = new[] { SingleImage, LeftImage, CenterImage, RightImage, GlyphImage, UnderlayImage }
                 .Where(name => !string.IsNullOrWhiteSpace(name))
                 .Select(name => name!.Trim())
                 .ToHashSet(StringComparer.OrdinalIgnoreCase);

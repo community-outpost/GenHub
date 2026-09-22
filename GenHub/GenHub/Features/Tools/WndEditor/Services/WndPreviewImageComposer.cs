@@ -6,7 +6,8 @@ namespace GenHub.Features.Tools.WndEditor.Services;
 
 /// <summary>
 /// Composes three-piece button and text-entry bars (left cap, tiled center, right cap)
-/// the way the engine draws them (see W3DGadgetPushButtonImageDrawThree in GeneralsGameCode).
+/// the way the engine draws them (see W3DGadgetPushButtonImageDrawThree in GeneralsGameCode),
+/// as well as composite background and menu frame overlays.
 /// </summary>
 public static class WndPreviewImageComposer
 {
@@ -81,7 +82,7 @@ public static class WndPreviewImageComposer
             using var top = StretchToWidth(new MagickImage(topPng), width);
             using var center = StretchToWidth(new MagickImage(centerPng), width);
             using var bottom = StretchToWidth(new MagickImage(bottomPng), width);
-            if (top.Height == 0 || center.Height == 0 || bottom.Height == 0)
+            if (top.Width == 0 || center.Width == 0 || bottom.Width == 0)
             {
                 return null;
             }
@@ -96,6 +97,46 @@ public static class WndPreviewImageComposer
                 ComposeVerticalBar(canvas, top, center, bottom, height);
             }
 
+            return canvas.ToByteArray(MagickFormat.Png);
+        }
+        catch (MagickException)
+        {
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Composes an overlay image on top of a backdrop underlay stretched to the target dimensions.
+    /// </summary>
+    /// <param name="underlayPng">The backdrop underlay PNG bytes.</param>
+    /// <param name="overlayPng">The foreground overlay PNG bytes.</param>
+    /// <param name="width">The target width in pixels.</param>
+    /// <param name="height">The target height in pixels.</param>
+    /// <returns>The composed PNG bytes, or null when composition fails.</returns>
+    public static byte[]? ComposeUnderlay(byte[] underlayPng, byte[] overlayPng, int width, int height)
+    {
+        ArgumentNullException.ThrowIfNull(underlayPng);
+        ArgumentNullException.ThrowIfNull(overlayPng);
+        if (width <= 0 || height <= 0 || width > WndConstants.Preview.MaxComposedDimension || height > WndConstants.Preview.MaxComposedDimension)
+        {
+            return null;
+        }
+
+        try
+        {
+            using var canvas = new MagickImage(underlayPng);
+            if ((int)canvas.Width != width || (int)canvas.Height != height)
+            {
+                canvas.Resize(new MagickGeometry((uint)width, (uint)height) { IgnoreAspectRatio = true });
+            }
+
+            using var overlay = new MagickImage(overlayPng);
+            if ((int)overlay.Width != width || (int)overlay.Height != height)
+            {
+                overlay.Resize(new MagickGeometry((uint)width, (uint)height) { IgnoreAspectRatio = true });
+            }
+
+            canvas.Composite(overlay, 0, 0, CompositeOperator.Over);
             return canvas.ToByteArray(MagickFormat.Png);
         }
         catch (MagickException)

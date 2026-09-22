@@ -26,6 +26,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using System.Security;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -62,6 +63,7 @@ public sealed partial class WndEditorViewModel(
     private Dictionary<string, Bitmap> _previewBitmaps = new(StringComparer.OrdinalIgnoreCase);
     private IReadOnlyDictionary<string, byte[]> _previewPngs = new Dictionary<string, byte[]>(StringComparer.OrdinalIgnoreCase);
     private IReadOnlyDictionary<string, string> _resolvedStrings = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+    private IReadOnlyDictionary<string, string> _schemeOverrides = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
     private CancellationTokenSource? _previewCts;
     private int _previewGeneration;
     private bool _installationsLoaded;
@@ -559,12 +561,12 @@ public sealed partial class WndEditorViewModel(
         return MatchesWindowsFilter(window, filter) || window.Children.Any(child => SubtreeMatchesFilter(child, filter));
     }
 
-    private static IReadOnlyCollection<string> CollectPreviewImageNames(WndDocument document)
+    private static IReadOnlyCollection<string> CollectPreviewImageNames(WndDocument document, IReadOnlyDictionary<string, string>? overrides = null)
     {
         var names = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var window in EnumerateWindows(document.Windows))
         {
-            foreach (var name in WndPreviewPlanner.Plan(window).ReferencedImages)
+            foreach (var name in WndPreviewPlanner.Plan(window, overrides).ReferencedImages)
             {
                 names.Add(name);
             }
@@ -573,7 +575,7 @@ public sealed partial class WndEditorViewModel(
         return names;
     }
 
-    private static IReadOnlyCollection<string> CollectPreviewLabels(WndDocument document)
+    private static IReadOnlyCollection<string> CollectPreviewLabels(WndDocument document, IReadOnlyDictionary<string, string>? overrides = null)
     {
         var labels = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var window in EnumerateWindows(document.Windows))
@@ -583,7 +585,7 @@ public sealed partial class WndEditorViewModel(
                 continue;
             }
 
-            var text = WndPreviewPlanner.Plan(window).Text;
+            var text = WndPreviewPlanner.Plan(window, overrides).Text;
             if (!string.IsNullOrWhiteSpace(text))
             {
                 labels.Add(text);
@@ -1619,7 +1621,7 @@ public sealed partial class WndEditorViewModel(
         }
 
         RebuildCanvas();
-        var plan = WndPreviewPlanner.Plan(window);
+        var plan = WndPreviewPlanner.Plan(window, _schemeOverrides);
         var missingImage = plan.ReferencedImages.Any(imageName => !_previewBitmaps.ContainsKey(imageName));
         var missingLabel = plan.Text != null
             && window.ControlType != WndControlType.EntryField
@@ -1851,7 +1853,7 @@ public sealed partial class WndEditorViewModel(
 
     private void RefreshItemPreview(WndCanvasItemViewModel item)
     {
-        var plan = WndPreviewPlanner.Plan(item.Window);
+        var plan = WndPreviewPlanner.Plan(item.Window, _schemeOverrides);
         item.FillOverlay = ToOverlayBrush(plan.FillColor);
         item.BorderOverlay = ToOverlayBrush(plan.BorderColor);
         item.ContentText = ResolveDisplayText(plan, item.Window);
@@ -1976,12 +1978,60 @@ public sealed partial class WndEditorViewModel(
             return composed;
         }
 
-        if (!plan.IsThreePiece && plan.SingleImage != null && _previewBitmaps.TryGetValue(plan.SingleImage, out var single))
+        if (!plan.IsThreePiece && plan.SingleImage != null)
         {
-            return single;
+            if (plan.UnderlayImage != null && TryResolveUnderlay(plan.UnderlayImage, plan.SingleImage, item, out var underlayComposed))
+            {
+                return underlayComposed;
+            }
+
+            if (_previewBitmaps.TryGetValue(plan.SingleImage, out var single))
+            {
+                return single;
+            }
         }
 
         return null;
+    }
+
+    private bool TryResolveUnderlay(string underlay, string overlay, WndCanvasItemViewModel item, out Bitmap? bitmap)
+    {
+        bitmap = null;
+        if (!item.Window.TryGetScreenRect(out var rect) || rect == null || rect.Width <= 0 || rect.Height <= 0)
+        {
+            return false;
+        }
+
+        var key = string.Concat("underlay|", underlay, "|", overlay, "|", rect.Width, "x", rect.Height);
+        if (_composedBitmaps.TryGetValue(key, out var cached))
+        {
+            bitmap = cached;
+            return true;
+        }
+
+        if (!_previewPngs.TryGetValue(underlay, out var underlayPng) || !_previewPngs.TryGetValue(overlay, out var overlayPng))
+        {
+            return false;
+        }
+
+        var composed = WndPreviewImageComposer.ComposeUnderlay(underlayPng, overlayPng, rect.Width, rect.Height);
+        if (composed == null)
+        {
+            return false;
+        }
+
+        try
+        {
+            using var stream = new MemoryStream(composed);
+            bitmap = new Bitmap(stream);
+            _composedBitmaps[key] = bitmap;
+            return true;
+        }
+        catch (Exception ex) when (ex is IOException or ArgumentException)
+        {
+            logger.LogDebug(ex, "Failed to decode underlay bitmap {Underlay}+{Overlay}", underlay, overlay);
+            return false;
+        }
     }
 
     private bool TryResolveThreePiece(WndPreviewPlan plan, WndCanvasItemViewModel item, out Bitmap? bitmap)
@@ -2100,8 +2150,10 @@ public sealed partial class WndEditorViewModel(
 
             var roots = ResolveAssetRoots(selection);
             var projectDirectory = ResolveProjectDirectory(FilePath, roots);
-            var names = CollectPreviewImageNames(document);
-            var labels = CollectPreviewLabels(document);
+            var schemeOverrides = await Task.Run(() => ResolveSchemeOverrides(roots, projectDirectory, cancellationToken), cancellationToken).ConfigureAwait(false);
+            _schemeOverrides = schemeOverrides;
+            var names = CollectPreviewImageNames(document, _schemeOverrides);
+            var labels = CollectPreviewLabels(document, _schemeOverrides);
             var images = await assetService.Images.GetImagesAsync(names, roots.BaseRoot, roots.OverrideRoot, projectDirectory, cancellationToken).ConfigureAwait(false);
             var strings = await assetService.Strings.GetStringsAsync(labels, roots.BaseRoot, roots.OverrideRoot, projectDirectory, cancellationToken).ConfigureAwait(false);
             if ((!images.Success && !strings.Success) || generation != _previewGeneration)
@@ -2199,7 +2251,7 @@ public sealed partial class WndEditorViewModel(
             return;
         }
 
-        var names = CollectPreviewImageNames(_document);
+        var names = CollectPreviewImageNames(_document, _schemeOverrides);
         if (names.Count == 0)
         {
             AssetStatusText = localizationService.GetString("Tools.WndEditor.Assets.EmptyStatus");
@@ -2289,5 +2341,109 @@ public sealed partial class WndEditorViewModel(
         }
 
         return candidateWithGameFolders;
+    }
+
+    private IReadOnlyDictionary<string, string> ResolveSchemeOverrides(AssetRoots roots, string? projectDirectory, CancellationToken cancellationToken)
+    {
+        var result = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["BackgroundMarker"] = "AmericaProCommandBar",
+            ["RightHUD"] = "AmericaProLogo",
+            ["ButtonOptions"] = "AmericaProOptions",
+            ["ButtonIdleWorker"] = "AmericaProWorker",
+            ["ButtonChat"] = "AmericaProChat",
+            ["ButtonPlaceBeacon"] = "AmericaProBeacon",
+            ["ButtonGeneral"] = "AmericaProGeneral",
+            ["ButtonUAttack"] = "AmericaProUAttack",
+            ["ExpBarForeground"] = "AmericaProExpBar",
+            ["QueueButtonImage"] = "SCBigButton",
+            ["ShellMenuBackdrop"] = "MainMenuBackdrop",
+        };
+
+        try
+        {
+            var fs = WndGameFileSystem.Open(roots.BaseRoot, roots.OverrideRoot, projectDirectory, logger, cancellationToken);
+            var iniBytes = fs.Read(@"Data\INI\ControlBarScheme.ini") ?? fs.Read(@"INI\ControlBarScheme.ini");
+            if (iniBytes != null && iniBytes.Length > 0)
+            {
+                var text = Encoding.UTF8.GetString(iniBytes);
+                ParseControlBarSchemeIni(text, result);
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            logger.LogDebug(ex, "Failed to read ControlBarScheme.ini; using standard fallback scheme");
+        }
+
+        return result;
+    }
+
+    private static void ParseControlBarSchemeIni(string iniText, Dictionary<string, string> result)
+    {
+        var lines = iniText.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
+        foreach (var line in lines)
+        {
+            var trimmed = line.Trim();
+            if (trimmed.StartsWith(";") || trimmed.StartsWith("//"))
+            {
+                continue;
+            }
+
+            if (trimmed.StartsWith("ImagePart", StringComparison.OrdinalIgnoreCase))
+            {
+                var marker = "ImageName:";
+                var idx = trimmed.IndexOf(marker, StringComparison.OrdinalIgnoreCase);
+                if (idx >= 0)
+                {
+                    var imageName = trimmed.Substring(idx + marker.Length).Trim();
+                    if (!string.IsNullOrEmpty(imageName))
+                    {
+                        result["BackgroundMarker"] = imageName;
+                    }
+                }
+            }
+            else if (trimmed.Contains('='))
+            {
+                var parts = trimmed.Split('=', 2);
+                var key = parts[0].Trim();
+                var val = parts[1].Trim();
+                if (string.Equals(key, "RightHUDImage", StringComparison.OrdinalIgnoreCase))
+                {
+                    result["RightHUD"] = val;
+                }
+                else if (string.Equals(key, "OptionsButtonEnable", StringComparison.OrdinalIgnoreCase))
+                {
+                    result["ButtonOptions"] = val;
+                }
+                else if (string.Equals(key, "IdleWorkerButtonEnable", StringComparison.OrdinalIgnoreCase))
+                {
+                    result["ButtonIdleWorker"] = val;
+                }
+                else if (string.Equals(key, "BuddyButtonEnable", StringComparison.OrdinalIgnoreCase))
+                {
+                    result["ButtonChat"] = val;
+                }
+                else if (string.Equals(key, "BeaconButtonEnable", StringComparison.OrdinalIgnoreCase))
+                {
+                    result["ButtonPlaceBeacon"] = val;
+                }
+                else if (string.Equals(key, "GeneralButtonEnable", StringComparison.OrdinalIgnoreCase))
+                {
+                    result["ButtonGeneral"] = val;
+                }
+                else if (string.Equals(key, "UAttackButtonEnable", StringComparison.OrdinalIgnoreCase))
+                {
+                    result["ButtonUAttack"] = val;
+                }
+                else if (string.Equals(key, "ExpBarForegroundImage", StringComparison.OrdinalIgnoreCase))
+                {
+                    result["ExpBarForeground"] = val;
+                }
+                else if (string.Equals(key, "QueueButtonImage", StringComparison.OrdinalIgnoreCase))
+                {
+                    result["QueueButtonImage"] = val;
+                }
+            }
+        }
     }
 }

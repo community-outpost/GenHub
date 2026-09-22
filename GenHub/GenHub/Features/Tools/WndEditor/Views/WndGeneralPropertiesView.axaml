@@ -7,24 +7,24 @@
              x:Class="GenHub.Features.Tools.WndEditor.Views.WndGeneralPropertiesView">
   <UserControl.Resources>
     <DataTemplate x:Key="DrawEntryTemplate" x:DataType="vm:WndDrawDataEntryViewModel">
-      <Border Margin="0,2" Padding="6" CornerRadius="6" Background="{DynamicResource SurfaceHoverBrush}">
-        <StackPanel Spacing="4">
+      <Border Margin="0,1" Padding="4" CornerRadius="4" Background="{DynamicResource SurfaceHoverBrush}">
+        <StackPanel Spacing="2">
           <Grid ColumnDefinitions="Auto,*">
-            <TextBlock Grid.Column="0" Text="{Binding DisplayNumber}" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource AccentBrush}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+            <TextBlock Grid.Column="0" Text="{Binding DisplayNumber}" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource AccentBrush}" VerticalAlignment="Center" Margin="0,0,6,0"/>
             <TextBox Grid.Column="1" Text="{Binding Image, Mode=TwoWay, UpdateSourceTrigger=LostFocus}" FontSize="11" Watermark="{localization:Localize Tools.WndEditor.General.Draw.Image}"/>
           </Grid>
-          <TextBlock Text="{localization:Localize Tools.WndEditor.General.Draw.Color}" FontSize="10" Foreground="{DynamicResource TextMuted}"/>
+          <TextBlock Text="{localization:Localize Tools.WndEditor.General.Draw.Color}" FontSize="9" Foreground="{DynamicResource TextMuted}"/>
           <ContentControl Content="{Binding Color}" ContentTemplate="{StaticResource RgbaTemplate}"/>
-          <TextBlock Text="{localization:Localize Tools.WndEditor.General.Draw.Border}" FontSize="10" Foreground="{DynamicResource TextMuted}"/>
+          <TextBlock Text="{localization:Localize Tools.WndEditor.General.Draw.Border}" FontSize="9" Foreground="{DynamicResource TextMuted}"/>
           <ContentControl Content="{Binding BorderColor}" ContentTemplate="{StaticResource RgbaTemplate}"/>
         </StackPanel>
       </Border>
     </DataTemplate>
     <DataTemplate x:Key="RgbaTemplate" x:DataType="vm:WndRgbaViewModel">
       <Button HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch"
-              Padding="4"
+              Padding="4,2"
               Background="{DynamicResource SurfaceElevatedBrush}"
-              BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="6"
+              BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="4"
               ToolTip.Tip="{localization:Localize Tools.WndEditor.Color.PickTooltip}">
         <Button.Flyout>
           <Flyout Placement="BottomEdgeAlignedLeft"
@@ -43,33 +43,33 @@
           </Flyout>
         </Button.Flyout>
         <Grid ColumnDefinitions="Auto,*" VerticalAlignment="Center">
-          <Border Grid.Column="0" Width="26" Height="18" CornerRadius="4"
+          <Border Grid.Column="0" Width="22" Height="14" CornerRadius="3"
                   Background="{Binding SwatchBrush}"
                   BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
-                  Margin="0,0,8,0"/>
-          <TextBlock Grid.Column="1" Text="{Binding HexValue}" FontSize="11"
+                  Margin="0,0,6,0"/>
+          <TextBlock Grid.Column="1" Text="{Binding HexValue}" FontSize="10"
                      Foreground="{DynamicResource TextPrimary}" VerticalAlignment="Center"/>
         </Grid>
       </Button>
     </DataTemplate>
     <DataTemplate x:Key="FlagTemplate" x:DataType="vm:WndFlagViewModel">
-      <CheckBox Content="{Binding Name}" IsChecked="{Binding IsChecked, Mode=TwoWay}" FontSize="11" MinWidth="120" Margin="0,1,6,1"/>
+      <CheckBox Content="{Binding Name}" IsChecked="{Binding IsChecked, Mode=TwoWay}" FontSize="10" MinWidth="105" Margin="0,0,4,1"/>
     </DataTemplate>
   </UserControl.Resources>
   <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-    <StackPanel Spacing="4" Margin="2">
+    <StackPanel Spacing="1" Margin="0">
       <Expander Header="{localization:Localize Tools.WndEditor.General.Section.Identity}" Classes="compact" IsExpanded="True">
-        <StackPanel Spacing="5">
-          <Grid ColumnDefinitions="100,*">
+        <StackPanel Spacing="3">
+          <Grid ColumnDefinitions="80,*">
             <TextBlock Grid.Column="0" Text="{localization:Localize Tools.WndEditor.General.Name.Label}" FontSize="11" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center"/>
             <TextBox Grid.Column="1" Text="{Binding ShortName, Mode=TwoWay, UpdateSourceTrigger=LostFocus}" FontSize="11"/>
           </Grid>
           <TextBlock Text="{Binding DecoratedPreview}" FontSize="10" Foreground="{DynamicResource TextMuted}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding DecoratedPreview}"/>
-          <Grid ColumnDefinitions="100,*">
+          <Grid ColumnDefinitions="80,*">
             <TextBlock Grid.Column="0" Text="{localization:Localize Tools.WndEditor.General.Type.Label}" FontSize="11" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center"/>
             <ComboBox Grid.Column="1" ItemsSource="{Binding WindowTypeOptions}" SelectedItem="{Binding SelectedWindowType, Mode=TwoWay}" FontSize="11" HorizontalAlignment="Stretch"/>
           </Grid>
-          <TextBlock Text="{localization:Localize Tools.WndEditor.General.Style.Label}" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondary}"/>
+          <TextBlock Text="{localization:Localize Tools.WndEditor.General.Style.Label}" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondary}"/>
           <ItemsControl ItemsSource="{Binding StyleFlags}" ItemTemplate="{StaticResource FlagTemplate}">
             <ItemsControl.ItemsPanel>
               <ItemsPanelTemplate>
@@ -81,22 +81,22 @@
       </Expander>
 
       <Expander Header="{localization:Localize Tools.WndEditor.General.Section.Position}" Classes="compact" IsExpanded="True">
-        <StackPanel Spacing="5">
-          <TextBlock Text="{localization:Localize Tools.WndEditor.General.Position.UpperLeft}" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondary}"/>
+        <StackPanel Spacing="3">
+          <TextBlock Text="{localization:Localize Tools.WndEditor.General.Position.UpperLeft}" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondary}"/>
           <Grid ColumnDefinitions="Auto,*,Auto,*">
             <TextBlock Grid.Column="0" Text="X" FontSize="11" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center" Margin="0,0,4,0"/>
             <NumericUpDown Grid.Column="1" Value="{Binding UpperLeftX, Mode=TwoWay, UpdateSourceTrigger=LostFocus}" Minimum="-9999" Maximum="9999" Increment="1" FontSize="11" Margin="0,0,6,0"/>
             <TextBlock Grid.Column="2" Text="Y" FontSize="11" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center" Margin="0,0,4,0"/>
             <NumericUpDown Grid.Column="3" Value="{Binding UpperLeftY, Mode=TwoWay, UpdateSourceTrigger=LostFocus}" Minimum="-9999" Maximum="9999" Increment="1" FontSize="11"/>
           </Grid>
-          <TextBlock Text="{localization:Localize Tools.WndEditor.General.Position.BottomRight}" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondary}"/>
+          <TextBlock Text="{localization:Localize Tools.WndEditor.General.Position.BottomRight}" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondary}"/>
           <Grid ColumnDefinitions="Auto,*,Auto,*">
             <TextBlock Grid.Column="0" Text="X" FontSize="11" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center" Margin="0,0,4,0"/>
             <NumericUpDown Grid.Column="1" Value="{Binding BottomRightX, Mode=TwoWay, UpdateSourceTrigger=LostFocus}" Minimum="-9999" Maximum="9999" Increment="1" FontSize="11" Margin="0,0,6,0"/>
             <TextBlock Grid.Column="2" Text="Y" FontSize="11" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center" Margin="0,0,4,0"/>
             <NumericUpDown Grid.Column="3" Value="{Binding BottomRightY, Mode=TwoWay, UpdateSourceTrigger=LostFocus}" Minimum="-9999" Maximum="9999" Increment="1" FontSize="11"/>
           </Grid>
-          <TextBlock Text="{localization:Localize Tools.WndEditor.General.Position.Creation}" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondary}"/>
+          <TextBlock Text="{localization:Localize Tools.WndEditor.General.Position.Creation}" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondary}"/>
           <Grid ColumnDefinitions="Auto,*,Auto,*">
             <TextBlock Grid.Column="0" Text="W" FontSize="11" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center" Margin="0,0,4,0"/>
             <NumericUpDown Grid.Column="1" Value="{Binding CreationWidth, Mode=TwoWay, UpdateSourceTrigger=LostFocus}" Minimum="1" Maximum="9999" Increment="1" FontSize="11" Margin="0,0,6,0"/>
@@ -109,7 +109,7 @@
 
       <Expander Header="{localization:Localize Tools.WndEditor.General.Section.Status}" Classes="compact" IsExpanded="True">
         <StackPanel Spacing="4">
-          <TextBlock Text="{localization:Localize Tools.WndEditor.General.Status.Basic}" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondary}"/>
+          <TextBlock Text="{localization:Localize Tools.WndEditor.General.Status.Basic}" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondary}"/>
           <ItemsControl ItemsSource="{Binding BasicStatusFlags}" ItemTemplate="{StaticResource FlagTemplate}">
             <ItemsControl.ItemsPanel>
               <ItemsPanelTemplate>
@@ -117,7 +117,7 @@
               </ItemsPanelTemplate>
             </ItemsControl.ItemsPanel>
           </ItemsControl>
-          <TextBlock Text="{localization:Localize Tools.WndEditor.General.Status.Interaction}" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondary}"/>
+          <TextBlock Text="{localization:Localize Tools.WndEditor.General.Status.Interaction}" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondary}"/>
           <ItemsControl ItemsSource="{Binding InteractionStatusFlags}" ItemTemplate="{StaticResource FlagTemplate}">
             <ItemsControl.ItemsPanel>
               <ItemsPanelTemplate>
@@ -125,7 +125,7 @@
               </ItemsPanelTemplate>
             </ItemsControl.ItemsPanel>
           </ItemsControl>
-          <TextBlock Text="{localization:Localize Tools.WndEditor.General.Status.Misc}" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondary}"/>
+          <TextBlock Text="{localization:Localize Tools.WndEditor.General.Status.Misc}" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondary}"/>
           <ItemsControl ItemsSource="{Binding MiscStatusFlags}" ItemTemplate="{StaticResource FlagTemplate}">
             <ItemsControl.ItemsPanel>
               <ItemsPanelTemplate>
@@ -141,16 +141,16 @@
       </Expander>
 
       <Expander Header="{localization:Localize Tools.WndEditor.General.Section.Text}" Classes="compact" IsExpanded="False">
-        <StackPanel Spacing="5">
-          <Grid ColumnDefinitions="100,*">
+        <StackPanel Spacing="3">
+          <Grid ColumnDefinitions="80,*">
             <TextBlock Grid.Column="0" Text="{localization:Localize Tools.WndEditor.General.Text.Label}" FontSize="11" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center"/>
             <TextBox Grid.Column="1" Text="{Binding Text, Mode=TwoWay, UpdateSourceTrigger=LostFocus}" FontSize="11"/>
           </Grid>
-          <Grid ColumnDefinitions="100,*">
+          <Grid ColumnDefinitions="80,*">
             <TextBlock Grid.Column="0" Text="{localization:Localize Tools.WndEditor.General.Text.Tooltip}" FontSize="11" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center"/>
             <TextBox Grid.Column="1" Text="{Binding TooltipText, Mode=TwoWay, UpdateSourceTrigger=LostFocus}" FontSize="11"/>
           </Grid>
-          <Grid ColumnDefinitions="100,*">
+          <Grid ColumnDefinitions="80,*">
             <TextBlock Grid.Column="0" Text="{localization:Localize Tools.WndEditor.General.Text.TooltipDelay}" FontSize="11" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center"/>
             <NumericUpDown Grid.Column="1" Value="{Binding TooltipDelay, Mode=TwoWay, UpdateSourceTrigger=LostFocus}" Minimum="0" Maximum="100000" Increment="1" FontSize="11"/>
           </Grid>
@@ -158,12 +158,12 @@
       </Expander>
 
       <Expander Header="{localization:Localize Tools.WndEditor.General.Section.Font}" Classes="compact" IsExpanded="False">
-        <StackPanel Spacing="5">
-          <Grid ColumnDefinitions="100,*">
+        <StackPanel Spacing="3">
+          <Grid ColumnDefinitions="80,*">
             <TextBlock Grid.Column="0" Text="{localization:Localize Tools.WndEditor.General.Font.Name}" FontSize="11" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center"/>
             <TextBox Grid.Column="1" Text="{Binding FontName, Mode=TwoWay, UpdateSourceTrigger=LostFocus}" FontSize="11"/>
           </Grid>
-          <Grid ColumnDefinitions="100,*">
+          <Grid ColumnDefinitions="80,*">
             <TextBlock Grid.Column="0" Text="{localization:Localize Tools.WndEditor.General.Font.Size}" FontSize="11" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center"/>
             <NumericUpDown Grid.Column="1" Value="{Binding FontSize, Mode=TwoWay, UpdateSourceTrigger=LostFocus}" Minimum="1" Maximum="200" Increment="1" FontSize="11"/>
           </Grid>
@@ -172,16 +172,16 @@
       </Expander>
 
       <Expander Header="{localization:Localize Tools.WndEditor.General.Section.TextColors}" Classes="compact" IsExpanded="False">
-        <StackPanel Spacing="5">
-          <TextBlock Text="{localization:Localize Tools.WndEditor.General.Colors.Enabled}" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondary}"/>
+        <StackPanel Spacing="3">
+          <TextBlock Text="{localization:Localize Tools.WndEditor.General.Colors.Enabled}" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondary}"/>
           <ContentControl Content="{Binding EnabledTextColor}" ContentTemplate="{StaticResource RgbaTemplate}"/>
           <TextBlock Text="{localization:Localize Tools.WndEditor.General.Colors.EnabledBorder}" FontSize="10" Foreground="{DynamicResource TextMuted}"/>
           <ContentControl Content="{Binding EnabledTextBorderColor}" ContentTemplate="{StaticResource RgbaTemplate}"/>
-          <TextBlock Text="{localization:Localize Tools.WndEditor.General.Colors.Disabled}" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondary}"/>
+          <TextBlock Text="{localization:Localize Tools.WndEditor.General.Colors.Disabled}" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondary}"/>
           <ContentControl Content="{Binding DisabledTextColor}" ContentTemplate="{StaticResource RgbaTemplate}"/>
           <TextBlock Text="{localization:Localize Tools.WndEditor.General.Colors.DisabledBorder}" FontSize="10" Foreground="{DynamicResource TextMuted}"/>
           <ContentControl Content="{Binding DisabledTextBorderColor}" ContentTemplate="{StaticResource RgbaTemplate}"/>
-          <TextBlock Text="{localization:Localize Tools.WndEditor.General.Colors.Hilite}" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondary}"/>
+          <TextBlock Text="{localization:Localize Tools.WndEditor.General.Colors.Hilite}" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondary}"/>
           <ContentControl Content="{Binding HiliteTextColor}" ContentTemplate="{StaticResource RgbaTemplate}"/>
           <TextBlock Text="{localization:Localize Tools.WndEditor.General.Colors.HiliteBorder}" FontSize="10" Foreground="{DynamicResource TextMuted}"/>
           <ContentControl Content="{Binding HiliteTextBorderColor}" ContentTemplate="{StaticResource RgbaTemplate}"/>
@@ -189,28 +189,28 @@
       </Expander>
 
       <Expander Header="{localization:Localize Tools.WndEditor.General.Section.Callbacks}" Classes="compact" IsExpanded="False">
-        <StackPanel Spacing="5">
-          <Grid ColumnDefinitions="100,*">
+        <StackPanel Spacing="3">
+          <Grid ColumnDefinitions="80,*">
             <TextBlock Grid.Column="0" Text="{localization:Localize Tools.WndEditor.General.Callbacks.System}" FontSize="11" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center"/>
             <TextBox Grid.Column="1" Text="{Binding SystemCallback, Mode=TwoWay, UpdateSourceTrigger=LostFocus}" FontSize="11"/>
           </Grid>
-          <Grid ColumnDefinitions="100,*">
+          <Grid ColumnDefinitions="80,*">
             <TextBlock Grid.Column="0" Text="{localization:Localize Tools.WndEditor.General.Callbacks.Input}" FontSize="11" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center"/>
             <TextBox Grid.Column="1" Text="{Binding InputCallback, Mode=TwoWay, UpdateSourceTrigger=LostFocus}" FontSize="11"/>
           </Grid>
-          <Grid ColumnDefinitions="100,*">
+          <Grid ColumnDefinitions="80,*">
             <TextBlock Grid.Column="0" Text="{localization:Localize Tools.WndEditor.General.Callbacks.Tooltip}" FontSize="11" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center"/>
             <TextBox Grid.Column="1" Text="{Binding TooltipCallback, Mode=TwoWay, UpdateSourceTrigger=LostFocus}" FontSize="11"/>
           </Grid>
-          <Grid ColumnDefinitions="100,*">
+          <Grid ColumnDefinitions="80,*">
             <TextBlock Grid.Column="0" Text="{localization:Localize Tools.WndEditor.General.Callbacks.Draw}" FontSize="11" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center"/>
             <TextBox Grid.Column="1" Text="{Binding DrawCallback, Mode=TwoWay, UpdateSourceTrigger=LostFocus}" FontSize="11"/>
           </Grid>
-          <Grid ColumnDefinitions="100,*">
+          <Grid ColumnDefinitions="80,*">
             <TextBlock Grid.Column="0" Text="{localization:Localize Tools.WndEditor.General.Callbacks.HeaderTemplate}" FontSize="11" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center"/>
             <TextBox Grid.Column="1" Text="{Binding HeaderTemplate, Mode=TwoWay, UpdateSourceTrigger=LostFocus}" FontSize="11"/>
           </Grid>
-          <TextBlock Text="{localization:Localize Tools.WndEditor.General.Callbacks.ImageOffset}" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondary}"/>
+          <TextBlock Text="{localization:Localize Tools.WndEditor.General.Callbacks.ImageOffset}" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondary}"/>
           <Grid ColumnDefinitions="Auto,*,Auto,*">
             <TextBlock Grid.Column="0" Text="X" FontSize="11" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center" Margin="0,0,4,0"/>
             <NumericUpDown Grid.Column="1" Value="{Binding ImageOffsetX, Mode=TwoWay, UpdateSourceTrigger=LostFocus}" Minimum="-9999" Maximum="9999" Increment="1" FontSize="11" Margin="0,0,6,0"/>
@@ -235,12 +235,12 @@
       </Expander>
 
       <Expander Header="{localization:Localize Tools.WndEditor.General.Section.Other}" Classes="compact" IsExpanded="False">
-        <StackPanel Spacing="5">
+        <StackPanel Spacing="3">
           <ItemsControl ItemsSource="{Binding OtherRows}">
             <ItemsControl.ItemTemplate>
               <DataTemplate x:DataType="vm:WndPropertyRowViewModel">
                 <Grid ColumnDefinitions="100,*,Auto" Margin="0,2">
-                  <TextBlock Grid.Column="0" Text="{Binding Key}" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Key}"/>
+                  <TextBlock Grid.Column="0" Text="{Binding Key}" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Key}"/>
                   <TextBox Grid.Column="1" Text="{Binding Value, Mode=TwoWay, UpdateSourceTrigger=LostFocus}" FontSize="11" Margin="6,0"/>
                   <Button Grid.Column="2" Command="{Binding ElementName=GeneralRoot, Path=DataContext.DeletePropertyCommand}" CommandParameter="{Binding}" Padding="6,3" Background="Transparent" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="6" Content="{localization:Localize Tools.WndEditor.Properties.Delete}" FontSize="11" Foreground="{DynamicResource ErrorBrush}" VerticalAlignment="Center"/>
                 </Grid>

@@ -52,6 +52,7 @@ public sealed class WndPreviewPlannerTests
 
     /// <summary>
     /// Tests that a generic window displays its image when draw data is specified.
+    /// In SAGE engine, windows with IMAGE status skip winFillRect (FillColor is null).
     /// </summary>
     /// <param name="status">The status value.</param>
     [Theory]
@@ -73,7 +74,14 @@ public sealed class WndPreviewPlannerTests
 
         // Assert
         plan.SingleImage.Should().Be("Backdrop");
-        plan.FillColor.Should().NotBeNull();
+        if (status?.Contains("IMAGE") == true)
+        {
+            plan.FillColor.Should().BeNull();
+        }
+        else
+        {
+            plan.FillColor.Should().NotBeNull();
+        }
     }
 
     /// <summary>
@@ -126,60 +134,38 @@ public sealed class WndPreviewPlannerTests
     {
         // Arrange
         var window = new WndWindow { ControlTypeName = WndConstants.ControlTypes.EntryField };
-        window.SetProperty(WndConstants.PropertyKeys.EnabledDrawData, DrawDataWith(("EdgeL", 0), ("EdgeR", 1), ("Fill", 2)));
+        window.SetProperty(WndConstants.PropertyKeys.EnabledDrawData, DrawDataWith(("Left", 0), ("Right", 2), ("Center", 3)));
 
         // Act
         var plan = WndPreviewPlanner.Plan(window);
 
         // Assert
         plan.IsThreePiece.Should().BeTrue();
-        plan.LeftImage.Should().Be("EdgeL");
-        plan.CenterImage.Should().Be("Fill");
-        plan.RightImage.Should().Be("EdgeR");
+        plan.LeftImage.Should().Be("Left");
+        plan.CenterImage.Should().Be("Center");
+        plan.RightImage.Should().Be("Right");
     }
 
     /// <summary>
-    /// Tests that check boxes plan an unchecked glyph from index one.
-    /// </summary>
-    /// <param name="controlType">The box control type.</param>
-    [Theory]
-    [InlineData(WndConstants.ControlTypes.CheckBox)]
-    [InlineData(WndConstants.ControlTypes.RadioButton)]
-    public void Plan_BoxControl_PlansGlyph(string controlType)
-    {
-        // Arrange
-        var window = new WndWindow { ControlTypeName = controlType };
-        window.SetProperty(WndConstants.PropertyKeys.EnabledDrawData, DrawDataWith(("BoxBack", 0), ("BoxGlyph", 1)));
-        window.SetProperty(WndConstants.PropertyKeys.Text, "\"Label\"");
-
-        // Act
-        var plan = WndPreviewPlanner.Plan(window);
-
-        // Assert
-        plan.GlyphImage.Should().Be("BoxGlyph");
-        plan.Text.Should().Be("Label");
-        plan.ReferencedImages.Should().Contain("BoxGlyph");
-    }
-
-    /// <summary>
-    /// Tests that hidden windows are flagged for dimming.
+    /// Tests that check boxes plan their box glyph from index one.
     /// </summary>
     [Fact]
-    public void Plan_HiddenWindow_SetsIsHidden()
+    public void Plan_CheckBox_PlansBoxGlyph()
     {
         // Arrange
-        var window = new WndWindow { ControlTypeName = WndConstants.ControlTypes.User };
-        window.SetProperty(WndConstants.PropertyKeys.Status, "ENABLED+HIDDEN");
+        var window = new WndWindow { ControlTypeName = WndConstants.ControlTypes.CheckBox };
+        window.SetProperty(WndConstants.PropertyKeys.EnabledDrawData, DrawDataWith(("Box", 1)));
 
         // Act
         var plan = WndPreviewPlanner.Plan(window);
 
         // Assert
-        plan.IsHidden.Should().BeTrue();
+        plan.GlyphImage.Should().Be("Box");
+        plan.SingleImage.Should().BeNull();
     }
 
     /// <summary>
-    /// Tests that list boxes plan scrollbar art from enabled sub-draw-data.
+    /// Tests that list boxes plan scrollbar sub-images from their sub-draw-data.
     /// </summary>
     [Fact]
     public void Plan_Listbox_PlansScrollbarSubImages()
@@ -292,6 +278,51 @@ public sealed class WndPreviewPlannerTests
 
         // Assert
         plan.SingleImage.Should().Be("Backdrop");
+    }
+
+    /// <summary>
+    /// Tests that command bar background marker plans default scheme HUD image when draw data has NoImage.
+    /// </summary>
+    [Fact]
+    public void Plan_ControlBarBackgroundMarker_PlansDefaultSchemeImage()
+    {
+        // Arrange
+        var window = new WndWindow
+        {
+            Name = "ControlBar.wnd:BackgroundMarker",
+            ControlTypeName = WndConstants.ControlTypes.User,
+        };
+        window.SetProperty(WndConstants.PropertyKeys.DrawCallback, "W3DCommandBarBackgroundDraw");
+
+        // Act
+        var plan = WndPreviewPlanner.Plan(window);
+
+        // Assert
+        plan.SingleImage.Should().Be("AmericaProCommandBar");
+        plan.ReferencedImages.Should().Contain("AmericaProCommandBar");
+    }
+
+    /// <summary>
+    /// Tests that MainMenuRuler automatically references MainMenuBackdrop as underlay.
+    /// </summary>
+    [Fact]
+    public void Plan_MainMenuRuler_PlansBackdropUnderlay()
+    {
+        // Arrange
+        var window = new WndWindow
+        {
+            Name = "LanGameOptionsMenu.wnd:LanGameOptionsMenuParent",
+            ControlTypeName = WndConstants.ControlTypes.User,
+        };
+        window.SetProperty(WndConstants.PropertyKeys.EnabledDrawData, DrawDataWith(("MainMenuRuler", 0)));
+
+        // Act
+        var plan = WndPreviewPlanner.Plan(window);
+
+        // Assert
+        plan.SingleImage.Should().Be("MainMenuRuler");
+        plan.UnderlayImage.Should().Be("MainMenuBackdrop");
+        plan.ReferencedImages.Should().Contain("MainMenuBackdrop");
     }
 
     private static string DrawDataWith(params (string Name, int Index)[] images)

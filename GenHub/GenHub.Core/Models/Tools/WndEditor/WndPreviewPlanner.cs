@@ -1,5 +1,6 @@
 using GenHub.Core.Constants;
 using System;
+using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 
 namespace GenHub.Core.Models.Tools.WndEditor;
@@ -16,28 +17,32 @@ public static class WndPreviewPlanner
     /// Plans the preview presentation for a window.
     /// </summary>
     /// <param name="window">The WND window model to plan.</param>
+    /// <param name="windowImageOverrides">Optional mapped image overrides keyed by control or scheme name.</param>
     /// <returns>The computed preview plan.</returns>
-    public static WndPreviewPlan Plan(WndWindow window)
+    public static WndPreviewPlan Plan(WndWindow window, IReadOnlyDictionary<string, string>? windowImageOverrides = null)
     {
         ArgumentNullException.ThrowIfNull(window);
         WndDrawDataSet.TryParse(window.GetProperty(WndConstants.PropertyKeys.EnabledDrawData), out var drawData);
         var status = WndStatusValue.ParseStatus(window.GetProperty(WndConstants.PropertyKeys.Status));
         var isHidden = status.Flags.Contains(WndConstants.StatusFlags.Hidden, StringComparer.OrdinalIgnoreCase);
         var isSeeThru = status.Flags.Contains(WndConstants.StatusFlags.SeeThru, StringComparer.OrdinalIgnoreCase);
+        var isImageWindow = status.Flags.Contains(WndConstants.StatusFlags.Image, StringComparer.OrdinalIgnoreCase);
         var text = PlanText(window);
         var (textColor, fontSize, fontBold) = PlanTextStyle(window);
         var textCentered = IsCenteredText(window);
         var style = new WndTextStyle(text, textColor, fontSize, fontBold);
 
-        return window.ControlType switch
+        var plan = window.ControlType switch
         {
-            WndControlType.PushButton or WndControlType.CommandButton => PlanButton(drawData, text, textColor, fontSize, fontBold, isHidden, isSeeThru),
-            WndControlType.EntryField => PlanTextEntry(drawData, text, textColor, fontSize, fontBold, isHidden, isSeeThru),
-            WndControlType.ScrollListBox => PlanListbox(window, drawData, style, isHidden, isSeeThru),
-            WndControlType.ComboBox => PlanComboBox(window, drawData, style, isHidden, isSeeThru),
-            WndControlType.HorzSlider or WndControlType.VertSlider => PlanSlider(window, drawData, fontSize, isHidden, isSeeThru),
-            _ => PlanGeneric(drawData, text, textColor, fontSize, fontBold, textCentered, isHidden, isSeeThru, window.ControlType),
+            WndControlType.PushButton or WndControlType.CommandButton => PlanButton(drawData, text, textColor, fontSize, fontBold, isHidden, isSeeThru, isImageWindow),
+            WndControlType.EntryField => PlanTextEntry(drawData, text, textColor, fontSize, fontBold, isHidden, isSeeThru, isImageWindow),
+            WndControlType.ScrollListBox => PlanListbox(window, drawData, style, isHidden, isSeeThru, isImageWindow),
+            WndControlType.ComboBox => PlanComboBox(window, drawData, style, isHidden, isSeeThru, isImageWindow),
+            WndControlType.HorzSlider or WndControlType.VertSlider => PlanSlider(window, drawData, fontSize, isHidden, isSeeThru, isImageWindow),
+            _ => PlanGeneric(drawData, text, textColor, fontSize, fontBold, textCentered, isHidden, isSeeThru, isImageWindow, window.ControlType),
         };
+
+        return ApplySchemeAndBackdropContext(window, plan, windowImageOverrides);
     }
 
     private static WndPreviewPlan PlanButton(
@@ -47,7 +52,8 @@ public static class WndPreviewPlanner
         int fontSize,
         bool fontBold,
         bool isHidden,
-        bool isSeeThru)
+        bool isSeeThru,
+        bool isImageWindow)
     {
         var left = ImageAt(drawData, WndConstants.Preview.ButtonImageIndex);
         var middle = ImageAt(drawData, WndConstants.Preview.ButtonMiddleImageIndex);
@@ -55,11 +61,11 @@ public static class WndPreviewPlanner
         if (left != null && middle != null && right != null)
         {
             var fallback = EntryAt(drawData, WndConstants.Preview.ButtonImageIndex);
-            return new WndPreviewPlan(null, left, middle, right, null, null, false, ResolveFillColor(fallback, isSeeThru), ResolveBorderColor(fallback, isSeeThru), text, textColor, fontSize, fontBold, true, isHidden);
+            return new WndPreviewPlan(null, left, middle, right, null, null, false, ResolveFillColor(fallback, isSeeThru, isImageWindow), ResolveBorderColor(fallback, isSeeThru), text, textColor, fontSize, fontBold, true, isHidden);
         }
 
         var single = EntryAt(drawData, WndConstants.Preview.ButtonImageIndex);
-        return new WndPreviewPlan(left, null, null, null, null, null, false, ResolveFillColor(single, isSeeThru), ResolveBorderColor(single, isSeeThru), text, textColor, fontSize, fontBold, true, isHidden);
+        return new WndPreviewPlan(left, null, null, null, null, null, false, ResolveFillColor(single, isSeeThru, isImageWindow), ResolveBorderColor(single, isSeeThru), text, textColor, fontSize, fontBold, true, isHidden);
     }
 
     private static WndPreviewPlan PlanTextEntry(
@@ -69,7 +75,8 @@ public static class WndPreviewPlanner
         int fontSize,
         bool fontBold,
         bool isHidden,
-        bool isSeeThru)
+        bool isSeeThru,
+        bool isImageWindow)
     {
         var left = ImageAt(drawData, WndConstants.Preview.TextEntryLeftImageIndex);
         var right = ImageAt(drawData, WndConstants.Preview.TextEntryRightImageIndex);
@@ -77,11 +84,11 @@ public static class WndPreviewPlanner
         if (left != null && center != null && right != null)
         {
             var fallback = EntryAt(drawData, WndConstants.Preview.TextEntryLeftImageIndex);
-            return new WndPreviewPlan(null, left, center, right, null, null, false, ResolveFillColor(fallback, isSeeThru), ResolveBorderColor(fallback, isSeeThru), text, textColor, fontSize, fontBold, false, isHidden);
+            return new WndPreviewPlan(null, left, center, right, null, null, false, ResolveFillColor(fallback, isSeeThru, isImageWindow), ResolveBorderColor(fallback, isSeeThru), text, textColor, fontSize, fontBold, false, isHidden);
         }
 
         var single = EntryAt(drawData, WndConstants.Preview.TextEntryLeftImageIndex);
-        return new WndPreviewPlan(left, null, null, null, null, null, false, ResolveFillColor(single, isSeeThru), ResolveBorderColor(single, isSeeThru), text, textColor, fontSize, fontBold, false, isHidden);
+        return new WndPreviewPlan(left, null, null, null, null, null, false, ResolveFillColor(single, isSeeThru, isImageWindow), ResolveBorderColor(single, isSeeThru), text, textColor, fontSize, fontBold, false, isHidden);
     }
 
     [SuppressMessage("Major Code Smell", "S107:Methods should not have too many parameters", Justification = "Internal helper packaging full preview plan context")]
@@ -94,6 +101,7 @@ public static class WndPreviewPlanner
         bool textCentered,
         bool isHidden,
         bool isSeeThru,
+        bool isImageWindow,
         WndControlType controlType)
     {
         var entry = EntryAt(drawData, WndConstants.Preview.DefaultImageIndex);
@@ -110,7 +118,7 @@ public static class WndPreviewPlanner
             glyph,
             null,
             false,
-            ResolveFillColor(entry, isSeeThru),
+            ResolveFillColor(entry, isSeeThru, isImageWindow),
             ResolveBorderColor(entry, isSeeThru),
             drawsText ? text : null,
             textColor,
@@ -125,7 +133,8 @@ public static class WndPreviewPlanner
         WndDrawDataSet? drawData,
         WndTextStyle style,
         bool isHidden,
-        bool isSeeThru)
+        bool isSeeThru,
+        bool isImageWindow)
     {
         var entry = EntryAt(drawData, WndConstants.Preview.DefaultImageIndex);
         var sub = new WndPreviewSubImages(
@@ -148,7 +157,7 @@ public static class WndPreviewPlanner
             null,
             sub,
             false,
-            ResolveFillColor(entry, isSeeThru),
+            ResolveFillColor(entry, isSeeThru, isImageWindow),
             ResolveBorderColor(entry, isSeeThru),
             style.Text,
             style.TextColor,
@@ -163,7 +172,8 @@ public static class WndPreviewPlanner
         WndDrawDataSet? drawData,
         WndTextStyle style,
         bool isHidden,
-        bool isSeeThru)
+        bool isSeeThru,
+        bool isImageWindow)
     {
         var entry = EntryAt(drawData, WndConstants.Preview.DefaultImageIndex);
         var sub = new WndPreviewSubImages(
@@ -181,7 +191,7 @@ public static class WndPreviewPlanner
             null,
             sub,
             false,
-            ResolveFillColor(entry, isSeeThru),
+            ResolveFillColor(entry, isSeeThru, isImageWindow),
             ResolveBorderColor(entry, isSeeThru),
             style.Text,
             style.TextColor,
@@ -196,7 +206,8 @@ public static class WndPreviewPlanner
         WndDrawDataSet? drawData,
         int fontSize,
         bool isHidden,
-        bool isSeeThru)
+        bool isSeeThru,
+        bool isImageWindow)
     {
         var left = ImageAt(drawData, WndConstants.Preview.SliderLeftImageIndex);
         var right = ImageAt(drawData, WndConstants.Preview.SliderRightImageIndex);
@@ -211,16 +222,99 @@ public static class WndPreviewPlanner
         if (left != null && center != null && right != null)
         {
             var fallback = EntryAt(drawData, WndConstants.Preview.SliderLeftImageIndex);
-            return new WndPreviewPlan(null, left, center, right, null, sub, vertical, ResolveFillColor(fallback, isSeeThru), ResolveBorderColor(fallback, isSeeThru), null, null, fontSize, false, false, isHidden);
+            return new WndPreviewPlan(null, left, center, right, null, sub, vertical, ResolveFillColor(fallback, isSeeThru, isImageWindow), ResolveBorderColor(fallback, isSeeThru), null, null, fontSize, false, false, isHidden);
         }
 
         var single = EntryAt(drawData, WndConstants.Preview.SliderLeftImageIndex);
-        return new WndPreviewPlan(left, null, null, null, null, sub, vertical, ResolveFillColor(single, isSeeThru), ResolveBorderColor(single, isSeeThru), null, null, fontSize, false, false, isHidden);
+        return new WndPreviewPlan(left, null, null, null, null, sub, vertical, ResolveFillColor(single, isSeeThru, isImageWindow), ResolveBorderColor(single, isSeeThru), null, null, fontSize, false, false, isHidden);
     }
 
-    private static WndRgbaColor? ResolveFillColor(WndDrawDataEntry? entry, bool isSeeThru)
+    private static WndPreviewPlan ApplySchemeAndBackdropContext(
+        WndWindow window,
+        WndPreviewPlan plan,
+        IReadOnlyDictionary<string, string>? overrides)
     {
-        if (isSeeThru || entry == null || entry.IsEmpty)
+        var single = plan.SingleImage;
+        var underlay = plan.UnderlayImage;
+
+        var name = window.Name ?? string.Empty;
+        var drawCallback = window.GetProperty(WndConstants.PropertyKeys.DrawCallback) ?? string.Empty;
+        var isCommandBarBackground = drawCallback.Contains("W3DCommandBarBackgroundDraw", StringComparison.OrdinalIgnoreCase)
+            || name.EndsWith(":BackgroundMarker", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(name, "BackgroundMarker", StringComparison.OrdinalIgnoreCase);
+
+        if (string.IsNullOrWhiteSpace(single))
+        {
+            if (isCommandBarBackground)
+            {
+                single = ResolveOverrideOrFallback(overrides, "BackgroundMarker", "AmericaProCommandBar");
+            }
+            else if (name.EndsWith(":RightHUD", StringComparison.OrdinalIgnoreCase) || string.Equals(name, "RightHUD", StringComparison.OrdinalIgnoreCase))
+            {
+                single = ResolveOverrideOrFallback(overrides, "RightHUD", "AmericaProLogo");
+            }
+            else if (name.EndsWith(":ButtonOptions", StringComparison.OrdinalIgnoreCase))
+            {
+                single = ResolveOverrideOrFallback(overrides, "ButtonOptions", "AmericaProOptions");
+            }
+            else if (name.EndsWith(":ButtonIdleWorker", StringComparison.OrdinalIgnoreCase))
+            {
+                single = ResolveOverrideOrFallback(overrides, "ButtonIdleWorker", "AmericaProWorker");
+            }
+            else if (name.EndsWith(":ButtonChat", StringComparison.OrdinalIgnoreCase))
+            {
+                single = ResolveOverrideOrFallback(overrides, "ButtonChat", "AmericaProChat");
+            }
+            else if (name.EndsWith(":ButtonPlaceBeacon", StringComparison.OrdinalIgnoreCase))
+            {
+                single = ResolveOverrideOrFallback(overrides, "ButtonPlaceBeacon", "AmericaProBeacon");
+            }
+            else if (name.EndsWith(":ButtonGeneral", StringComparison.OrdinalIgnoreCase))
+            {
+                single = ResolveOverrideOrFallback(overrides, "ButtonGeneral", "AmericaProGeneral");
+            }
+            else if (name.EndsWith(":ButtonUAttack", StringComparison.OrdinalIgnoreCase))
+            {
+                single = ResolveOverrideOrFallback(overrides, "ButtonUAttack", "AmericaProUAttack");
+            }
+            else if (name.EndsWith(":ExpBarForeground", StringComparison.OrdinalIgnoreCase))
+            {
+                single = ResolveOverrideOrFallback(overrides, "ExpBarForeground", "AmericaProExpBar");
+            }
+            else if (name.Contains("ButtonCommand", StringComparison.OrdinalIgnoreCase) || name.Contains("CommandMarker", StringComparison.OrdinalIgnoreCase))
+            {
+                single = ResolveOverrideOrFallback(overrides, "QueueButtonImage", "SCBigButton");
+            }
+        }
+
+        if (string.Equals(single, "MainMenuRuler", StringComparison.OrdinalIgnoreCase))
+        {
+            underlay = ResolveOverrideOrFallback(overrides, "ShellMenuBackdrop", "MainMenuBackdrop");
+        }
+
+        if (single != plan.SingleImage || underlay != plan.UnderlayImage)
+        {
+            return plan with { SingleImage = single, UnderlayImage = underlay };
+        }
+
+        return plan;
+    }
+
+    private static string ResolveOverrideOrFallback(IReadOnlyDictionary<string, string>? overrides, string key, string fallback)
+    {
+        if (overrides != null && overrides.TryGetValue(key, out var val) && !string.IsNullOrWhiteSpace(val))
+        {
+            return val;
+        }
+
+        return fallback;
+    }
+
+    private static WndRgbaColor? ResolveFillColor(WndDrawDataEntry? entry, bool isSeeThru, bool isImageWindow)
+    {
+        // In SAGE engine (W3DGameWindow.cpp), windows with WIN_STATUS_IMAGE never call winFillRect;
+        // solid background fills only apply to windows without image status.
+        if (isSeeThru || isImageWindow || entry == null || entry.IsEmpty)
         {
             return null;
         }
