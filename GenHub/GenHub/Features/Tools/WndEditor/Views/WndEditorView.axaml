@@ -173,16 +173,21 @@
                         <Setter Property="MinHeight" Value="0"/>
                       </Style>
                       <Style Selector="TreeViewItem /template/ Panel#PART_ExpandCollapseChevronContainer">
-                        <Setter Property="Margin" Value="2,0,2,0"/>
+                        <Setter Property="Margin" Value="0,0,1,0"/>
                       </Style>
                       <Style Selector="TreeViewItem /template/ ToggleButton#PART_ExpandCollapseChevron">
                         <Setter Property="Width" Value="10"/>
                         <Setter Property="Height" Value="10"/>
                         <Setter Property="Margin" Value="0"/>
+                        <Setter Property="Padding" Value="0"/>
+                      </Style>
+                      <Style Selector="TreeViewItem /template/ ToggleButton#PART_ExpandCollapseChevron PathIcon">
+                        <Setter Property="Width" Value="8"/>
+                        <Setter Property="Height" Value="8"/>
                       </Style>
                       <Style Selector="TreeViewItem:empty /template/ Panel#PART_ExpandCollapseChevronContainer">
                         <Setter Property="Width" Value="10"/>
-                        <Setter Property="Margin" Value="2,0,2,0"/>
+                        <Setter Property="Margin" Value="0,0,1,0"/>
                       </Style>
                     </TreeView.Styles>
                     <TreeView.ItemTemplate>
@@ -313,16 +318,21 @@
                         <Setter Property="MinHeight" Value="0"/>
                       </Style>
                       <Style Selector="TreeViewItem /template/ Panel#PART_ExpandCollapseChevronContainer">
-                        <Setter Property="Margin" Value="2,0,2,0"/>
+                        <Setter Property="Margin" Value="0,0,1,0"/>
                       </Style>
                       <Style Selector="TreeViewItem /template/ ToggleButton#PART_ExpandCollapseChevron">
                         <Setter Property="Width" Value="10"/>
                         <Setter Property="Height" Value="10"/>
                         <Setter Property="Margin" Value="0"/>
+                        <Setter Property="Padding" Value="0"/>
+                      </Style>
+                      <Style Selector="TreeViewItem /template/ ToggleButton#PART_ExpandCollapseChevron PathIcon">
+                        <Setter Property="Width" Value="8"/>
+                        <Setter Property="Height" Value="8"/>
                       </Style>
                       <Style Selector="TreeViewItem:empty /template/ Panel#PART_ExpandCollapseChevronContainer">
                         <Setter Property="Width" Value="10"/>
-                        <Setter Property="Margin" Value="2,0,2,0"/>
+                        <Setter Property="Margin" Value="0,0,1,0"/>
                       </Style>
                     </TreeView.Styles>
                     <TreeView.ItemTemplate>
@@ -335,11 +345,11 @@
                                   Background="Transparent" BorderThickness="0"
                                   Padding="0" Margin="0"
                                   HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
-                            <Border Padding="2,2" CornerRadius="4" Background="Transparent">
+                            <Border Padding="1,2" CornerRadius="4" Background="Transparent">
                               <Grid ColumnDefinitions="Auto,*" VerticalAlignment="Center">
                                 <material:MaterialIcon Grid.Column="0" Kind="FolderOutline" Width="13" Height="13"
                                                        Foreground="{DynamicResource AccentBrush}"
-                                                       Margin="0,0,4,0" VerticalAlignment="Center"/>
+                                                       Margin="0,0,3,0" VerticalAlignment="Center"/>
                                 <TextBlock Grid.Column="1"
                                            Text="{Binding Name}"
                                            FontSize="11" FontWeight="SemiBold"
@@ -358,11 +368,11 @@
                                   Background="Transparent" BorderThickness="0"
                                   Padding="0" Margin="0"
                                   HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
-                            <Border Padding="2,2" CornerRadius="4" Background="Transparent">
+                            <Border Padding="1,2" CornerRadius="4" Background="Transparent">
                               <Grid ColumnDefinitions="Auto,*,Auto" VerticalAlignment="Center">
                                 <material:MaterialIcon Grid.Column="0" Kind="FileCodeOutline" Width="13" Height="13"
                                                        Foreground="{DynamicResource TextMuted}"
-                                                       Margin="0,0,4,0" VerticalAlignment="Center"/>
+                                                       Margin="0,0,3,0" VerticalAlignment="Center"/>
                                 <TextBlock Grid.Column="1"
                                            Text="{Binding Name}"
                                            FontSize="11"
