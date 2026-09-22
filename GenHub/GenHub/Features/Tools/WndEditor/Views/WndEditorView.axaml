@@ -162,9 +162,6 @@
                             SelectedItem="{Binding SelectedNode, Mode=TwoWay}"
                             BorderThickness="0" Background="Transparent"
                             ScrollViewer.HorizontalScrollBarVisibility="Disabled">
-                    <TreeView.Resources>
-                      <x:Double x:Key="TreeViewItemIndent">10</x:Double>
-                    </TreeView.Resources>
                     <TreeView.Styles>
                       <Style Selector="TreeViewItem">
                         <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}"/>
@@ -308,7 +305,6 @@
                             BorderThickness="0" Background="Transparent"
                             ScrollViewer.HorizontalScrollBarVisibility="Disabled">
                     <TreeView.Resources>
-                      <x:Double x:Key="TreeViewItemIndent">10</x:Double>
                       <SolidColorBrush x:Key="TreeViewItemBackgroundSelected" Color="Transparent"/>
                       <SolidColorBrush x:Key="TreeViewItemBackgroundSelectedPointerOver" Color="Transparent"/>
                       <SolidColorBrush x:Key="TreeViewItemBackgroundSelectedPressed" Color="Transparent"/>

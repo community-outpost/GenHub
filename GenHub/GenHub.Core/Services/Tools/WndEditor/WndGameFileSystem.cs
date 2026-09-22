@@ -1,3 +1,4 @@
+using GenHub.Core.Constants;
 using GenHub.Core.Services.Tools.Checksum;
 using Microsoft.Extensions.Logging;
 using System;
@@ -52,7 +53,7 @@ public static class WndGameFileSystem
         fileSystem.AddMod(projectDirectory);
 
         // Layer loose files in GameFilesEdited if present
-        var gameFilesEdited = Path.Combine(projectDirectory, "GameFilesEdited");
+        var gameFilesEdited = Path.Combine(projectDirectory, ModBuilderConstants.GameFilesEditedDir);
         if (Directory.Exists(gameFilesEdited))
         {
             fileSystem.AddMod(gameFilesEdited);
@@ -71,7 +72,7 @@ public static class WndGameFileSystem
 
     private static void LayerReleaseDirectories(SageVirtualFileSystem fileSystem, string directory)
     {
-        foreach (var releaseSub in new[] { ".Release", "Release" })
+        foreach (var releaseSub in new[] { ModBuilderConstants.DefaultReleaseDir, ModBuilderConstants.BuildConfigurationRelease })
         {
             var releaseDir = Path.Combine(directory, releaseSub);
             if (Directory.Exists(releaseDir))

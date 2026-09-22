@@ -28,4 +28,9 @@ public class GameInstallationOption
     /// Gets or sets the installation type (Steam, EA, etc.).
     /// </summary>
     public string InstallationType { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Gets or sets a value indicating whether this option is a Zero Hour installation.
+    /// </summary>
+    public bool IsZeroHour { get; set; }
 }

@@ -186,18 +186,18 @@ public sealed class SageVirtualFileSystem
     /// <summary>
     /// Finds all relative paths of .ini files under the specified directory path.
     /// </summary>
-    /// <param name="dir">The directory prefix (e.g. Data\INI\Object).</param>
+    /// <param name="dir">The directory prefix (e.g. Data\INI\Object), or empty string to match all.</param>
     /// <returns>A collection of matching relative file paths.</returns>
     public IReadOnlyList<string> FilesUnder(string dir)
     {
-        string normalizedDir = dir.TrimEnd('/', '\\').Replace('/', '\\');
+        string normalizedDir = (dir ?? string.Empty).TrimEnd('/', '\\').Replace('/', '\\');
         string fsDir = normalizedDir.Replace('\\', Path.DirectorySeparatorChar);
-        string prefix = normalizedDir.ToLowerInvariant() + "\\";
+        string prefix = string.IsNullOrEmpty(normalizedDir) ? string.Empty : normalizedDir.ToLowerInvariant() + "\\";
         var files = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
         foreach (string root in _looseRoots)
         {
-            string looseDir = Path.Combine(root, fsDir);
+            string looseDir = string.IsNullOrEmpty(normalizedDir) ? root : Path.Combine(root, fsDir);
             if (!Directory.Exists(looseDir))
             {
                 continue;
@@ -225,7 +225,8 @@ public sealed class SageVirtualFileSystem
 
         foreach (var (key, archivePair) in _archiveEntries)
         {
-            if (key.StartsWith(prefix, StringComparison.Ordinal) && key.EndsWith(SageChecksumConstants.IniFileExtension, StringComparison.Ordinal))
+            if ((string.IsNullOrEmpty(prefix) || key.StartsWith(prefix, StringComparison.Ordinal))
+                && key.EndsWith(SageChecksumConstants.IniFileExtension, StringComparison.Ordinal))
             {
                 files.TryAdd(key, archivePair.Entry.Path);
             }
@@ -254,7 +255,7 @@ public sealed class SageVirtualFileSystem
             else if (tier == incumbent.Tier)
             {
                 string incumbentBaseName = Path.GetFileName(incumbent.Entry.ArchivePath);
-                if (string.Compare(newBaseName, incumbentBaseName, StringComparison.OrdinalIgnoreCase) < 0)
+                if (string.Compare(newBaseName, incumbentBaseName, StringComparison.OrdinalIgnoreCase) > 0)
                 {
                     _archiveEntries[key] = (entry, tier);
                 }

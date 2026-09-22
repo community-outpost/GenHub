@@ -79,6 +79,27 @@ public sealed class WndMappedImageTests
     }
 
     /// <summary>
+    /// Tests that coords with spaces after colons and commas are parsed.
+    /// </summary>
+    [Fact]
+    public void ParseDefinitions_FlexibleCoordsFormatting_ParsesCorrectly()
+    {
+        // Arrange
+        const string content =
+            "MappedImage SpacedCoords\n" +
+            "  Texture = SpacedPage\n" +
+            "  Coords = Left: 15, Top: 25, Right: 115, Bottom: 65\n" +
+            "End\n";
+
+        // Act
+        var images = WndMappedImage.ParseDefinitions(content);
+
+        // Assert
+        images.Should().ContainSingle();
+        images[0].Should().Be(new WndMappedImage("SpacedCoords", "SpacedPage", 15, 25, 115, 65, false));
+    }
+
+    /// <summary>
     /// Tests that malformed blocks are skipped while valid ones parse.
     /// </summary>
     [Fact]

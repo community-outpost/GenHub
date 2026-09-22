@@ -51,15 +51,14 @@ public sealed class WndPreviewPlannerTests
     }
 
     /// <summary>
-    /// Tests that a generic window only shows its image with the IMAGE status flag.
+    /// Tests that a generic window displays its image when draw data is specified.
     /// </summary>
     /// <param name="status">The status value.</param>
-    /// <param name="expectImage">Whether the image is planned.</param>
     [Theory]
-    [InlineData("ENABLED+IMAGE", true)]
-    [InlineData("ENABLED", false)]
-    [InlineData(null, false)]
-    public void Plan_GenericWindow_GatesImageOnStatusFlag(string? status, bool expectImage)
+    [InlineData("ENABLED+IMAGE")]
+    [InlineData("ENABLED")]
+    [InlineData(null)]
+    public void Plan_GenericWindow_PlansImageRegardlessOfStatusImageFlag(string? status)
     {
         // Arrange
         var window = new WndWindow { ControlTypeName = WndConstants.ControlTypes.User };
@@ -73,12 +72,12 @@ public sealed class WndPreviewPlannerTests
         var plan = WndPreviewPlanner.Plan(window);
 
         // Assert
-        plan.SingleImage.Should().Be(expectImage ? "Backdrop" : null);
+        plan.SingleImage.Should().Be("Backdrop");
         plan.FillColor.Should().NotBeNull();
     }
 
     /// <summary>
-    /// Tests that static text plans a text overlay without images.
+    /// Tests that static text plans a text overlay without images when no draw data image is specified.
     /// </summary>
     [Fact]
     public void Plan_StaticText_PlansTextOnly()
@@ -96,6 +95,27 @@ public sealed class WndPreviewPlannerTests
         plan.TextCentered.Should().BeTrue();
         plan.SingleImage.Should().BeNull();
         plan.IsThreePiece.Should().BeFalse();
+    }
+
+    /// <summary>
+    /// Tests that static text with draw data plans both image and text.
+    /// </summary>
+    [Fact]
+    public void Plan_StaticText_WithDrawData_PlansImageAndText()
+    {
+        // Arrange
+        var window = new WndWindow { ControlTypeName = WndConstants.ControlTypes.StaticText };
+        window.SetProperty(WndConstants.PropertyKeys.Text, "\"Hello\"");
+        window.SetProperty(WndConstants.PropertyKeys.StaticTextData, "CENTERED: 1");
+        window.SetProperty(WndConstants.PropertyKeys.EnabledDrawData, DrawDataWith(("HeaderFrame", 0)));
+
+        // Act
+        var plan = WndPreviewPlanner.Plan(window);
+
+        // Assert
+        plan.Text.Should().Be("Hello");
+        plan.TextCentered.Should().BeTrue();
+        plan.SingleImage.Should().Be("HeaderFrame");
     }
 
     /// <summary>

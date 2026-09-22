@@ -26,6 +26,10 @@ public sealed class WndImageAssetService(ILogger<WndImageAssetService> logger) :
     private const int MaxCachedIndexes = 8;
     private const int MaxCachedImages = 500;
     private const string DataPrefix = "Data\\";
+    private const string ArtTexturesPrefix = @"Art\Textures\";
+    private const string TexturesPrefix = @"Textures\";
+    private const string WindowPrefix = @"Window\";
+    private const string WindowMenusPrefix = @"Window\Menus\";
 
     private readonly ConcurrentDictionary<string, AssetIndex> _indexes = new(StringComparer.OrdinalIgnoreCase);
     private readonly ConcurrentDictionary<string, byte[]> _imageCache = new(StringComparer.OrdinalIgnoreCase);
@@ -69,7 +73,7 @@ public sealed class WndImageAssetService(ILogger<WndImageAssetService> logger) :
         {
             var index = await GetOrBuildIndexAsync(baseRoot, overrideRoot, projectDirectory, cancellationToken).ConfigureAwait(false);
             var requests = CollectRequests(mappedImageNames, index);
-            var resolved = await Task.Run(() => DecodeRequests(requests, index, cancellationToken), cancellationToken).ConfigureAwait(false);
+            var resolved = await Task.Run(() => DecodeRequests(mappedImageNames, requests, index, cancellationToken), cancellationToken).ConfigureAwait(false);
             if (_imageCache.Count > MaxCachedImages)
             {
                 _imageCache.Clear();
@@ -143,7 +147,7 @@ public sealed class WndImageAssetService(ILogger<WndImageAssetService> logger) :
         var directExt = Path.GetExtension(raw);
         var baseWithoutExt = Path.GetFileNameWithoutExtension(raw);
 
-        var extensions = new[] { directExt, ".tga", ".dds", ".jpg", ".png", ".bmp" }
+        var extensions = new[] { directExt, ".tga", ".dds", ".png", ".jpg", ".bmp" }
             .Where(ext => !string.IsNullOrWhiteSpace(ext))
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
@@ -153,26 +157,36 @@ public sealed class WndImageAssetService(ILogger<WndImageAssetService> logger) :
             raw,
             baseName,
             baseWithoutExt,
-            string.Concat(DataPrefix, "Art\\Textures\\", baseName),
-            string.Concat(DataPrefix, "Art\\Textures\\", baseWithoutExt),
-            string.Concat("Art\\Textures\\", baseName),
-            string.Concat("Art\\Textures\\", baseWithoutExt),
-            string.Concat(DataPrefix, "Textures\\", baseName),
-            string.Concat(DataPrefix, "Textures\\", baseWithoutExt),
-            string.Concat("Textures\\", baseName),
-            string.Concat("Textures\\", baseWithoutExt),
+            string.Concat(DataPrefix, ArtTexturesPrefix, baseName),
+            string.Concat(DataPrefix, ArtTexturesPrefix, baseWithoutExt),
+            string.Concat(ArtTexturesPrefix, baseName),
+            string.Concat(ArtTexturesPrefix, baseWithoutExt),
+            string.Concat(DataPrefix, TexturesPrefix, baseName),
+            string.Concat(DataPrefix, TexturesPrefix, baseWithoutExt),
+            string.Concat(TexturesPrefix, baseName),
+            string.Concat(TexturesPrefix, baseWithoutExt),
+            string.Concat(WindowPrefix, baseName),
+            string.Concat(WindowPrefix, baseWithoutExt),
+            string.Concat(DataPrefix, WindowPrefix, baseName),
+            string.Concat(DataPrefix, WindowPrefix, baseWithoutExt),
+            string.Concat(WindowMenusPrefix, baseName),
+            string.Concat(WindowMenusPrefix, baseWithoutExt),
         };
 
         foreach (var language in WndConstants.MappedImages.TextureLanguages)
         {
             candidateStems.Add(string.Concat(DataPrefix, language, "\\", WndConstants.MappedImages.TexturesDirectory, "\\", baseName));
             candidateStems.Add(string.Concat(DataPrefix, language, "\\", WndConstants.MappedImages.TexturesDirectory, "\\", baseWithoutExt));
-            candidateStems.Add(string.Concat(DataPrefix, language, "\\Art\\Textures\\", baseName));
-            candidateStems.Add(string.Concat(DataPrefix, language, "\\Art\\Textures\\", baseWithoutExt));
-            candidateStems.Add(string.Concat(DataPrefix, language, "\\Textures\\", baseName));
-            candidateStems.Add(string.Concat(DataPrefix, language, "\\Textures\\", baseWithoutExt));
+            candidateStems.Add(string.Concat(DataPrefix, language, "\\", ArtTexturesPrefix, baseName));
+            candidateStems.Add(string.Concat(DataPrefix, language, "\\", ArtTexturesPrefix, baseWithoutExt));
+            candidateStems.Add(string.Concat(DataPrefix, language, "\\", TexturesPrefix, baseName));
+            candidateStems.Add(string.Concat(DataPrefix, language, "\\", TexturesPrefix, baseWithoutExt));
             candidateStems.Add(string.Concat(DataPrefix, language, "\\", baseName));
             candidateStems.Add(string.Concat(DataPrefix, language, "\\", baseWithoutExt));
+            candidateStems.Add(string.Concat(language, "\\", ArtTexturesPrefix, baseName));
+            candidateStems.Add(string.Concat(language, "\\", ArtTexturesPrefix, baseWithoutExt));
+            candidateStems.Add(string.Concat(language, "\\", TexturesPrefix, baseName));
+            candidateStems.Add(string.Concat(language, "\\", TexturesPrefix, baseWithoutExt));
         }
 
         candidateStems.Add(string.Concat(WndConstants.MappedImages.TexturesDirectory, "\\", baseName));
@@ -285,14 +299,24 @@ public sealed class WndImageAssetService(ILogger<WndImageAssetService> logger) :
     {
         var fileSystem = WndGameFileSystem.Open(baseRoot, overrideRoot, projectDirectory, logger, cancellationToken);
 
-        var searchDirs = new[]
+        var searchDirs = new List<string>
         {
+            string.Empty,
             WndConstants.MappedImages.DefinitionsDirectory, // "Data\\INI\\MappedImages"
             "INI\\MappedImages",
             "MappedImages",
             string.Concat(DataPrefix, "INI"),
             "INI",
         };
+
+        foreach (var language in WndConstants.MappedImages.TextureLanguages)
+        {
+            searchDirs.Add(string.Concat(DataPrefix, language, "\\MappedImages"));
+            searchDirs.Add(string.Concat(DataPrefix, language, "\\INI\\MappedImages"));
+            searchDirs.Add(string.Concat(DataPrefix, language, "\\INI"));
+            searchDirs.Add(string.Concat(language, "\\MappedImages"));
+            searchDirs.Add(string.Concat(language, "\\INI"));
+        }
 
         var images = new Dictionary<string, (WndMappedImage Image, int Score, int Size)>(StringComparer.OrdinalIgnoreCase);
         var processedInis = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -351,7 +375,7 @@ public sealed class WndImageAssetService(ILogger<WndImageAssetService> logger) :
         {
             if (!images.TryGetValue(image.Name, out var incumbent)
                 || score < incumbent.Score
-                || (score == incumbent.Score && size > incumbent.Size))
+                || (score == incumbent.Score && size >= incumbent.Size))
             {
                 images[image.Name] = (image, score, size);
             }
@@ -359,6 +383,7 @@ public sealed class WndImageAssetService(ILogger<WndImageAssetService> logger) :
     }
 
     private Dictionary<string, byte[]> DecodeRequests(
+        IReadOnlyCollection<string> allNames,
         Dictionary<string, WndMappedImage> requests,
         AssetIndex index,
         CancellationToken cancellationToken)
@@ -393,6 +418,52 @@ public sealed class WndImageAssetService(ILogger<WndImageAssetService> logger) :
         {
             cancellationToken.ThrowIfCancellationRequested();
             DecodeTextureGroup(group, resolved);
+        }
+
+        // Direct texture fallback for standalone textures (e.g. mutiplayer_scorescreenuserinterface.tga, MainMenuBackground)
+        foreach (var name in allNames)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (string.IsNullOrWhiteSpace(name)
+                || string.Equals(name.Trim(), WndConstants.DrawData.NoImage, StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            var trimmedName = name.Trim();
+            if (resolved.ContainsKey(trimmedName))
+            {
+                continue;
+            }
+
+            if (_imageCache.TryGetValue(CacheKey(index.Key, trimmedName), out var cachedDirect))
+            {
+                resolved[trimmedName] = cachedDirect;
+                continue;
+            }
+
+            var texture = ReadTexture(index.FileSystem, trimmedName);
+            if (texture == null)
+            {
+                continue;
+            }
+
+            try
+            {
+                var settings = texture.Value.Format != MagickFormat.Unknown
+                    ? new MagickReadSettings { Format = texture.Value.Format }
+                    : null;
+                using var page = settings != null
+                    ? new MagickImage(texture.Value.Bytes, settings)
+                    : new MagickImage(texture.Value.Bytes);
+                var png = page.ToByteArray(MagickFormat.Png);
+                resolved[trimmedName] = png;
+                _imageCache[CacheKey(index.Key, trimmedName)] = png;
+            }
+            catch (Exception ex) when (ex is MagickException or IOException)
+            {
+                logger.LogDebug(ex, "Failed to decode direct texture {Name} from {Path}", trimmedName, texture.Value.Path);
+            }
         }
 
         return resolved;

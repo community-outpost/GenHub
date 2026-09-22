@@ -223,6 +223,9 @@
   <data name="Common.Tooltip.MaximizeRestore" xml:space="preserve">
     <value>Развернуть / Восстановить</value>
   </data>
+  <data name="Common.Tooltip.NumericScrubber" xml:space="preserve">
+    <value>Нажмите для редактирования, перетащите по горизонтали для изменения значения (Shift: точно, Ctrl: грубо)</value>
+  </data>
   <data name="Common.Tooltip.Clear" xml:space="preserve">
     <value>Очистить поле</value>
   </data>

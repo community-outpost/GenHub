@@ -1,6 +1,7 @@
 using GenHub.Core.Constants;
 using System;
 using System.Collections.Generic;
+using System.Text.RegularExpressions;
 
 namespace GenHub.Core.Models.Tools.WndEditor;
 
@@ -8,7 +9,7 @@ namespace GenHub.Core.Models.Tools.WndEditor;
 /// A mapped image definition: a named source rectangle on a GUI texture page.
 /// Mirrors the engine MappedImage INI blocks under Data\INI\MappedImages.
 /// </summary>
-public sealed record WndMappedImage
+public sealed partial record WndMappedImage
 {
     /// <summary>
     /// Initializes a new instance of the <see cref="WndMappedImage"/> class.
@@ -147,6 +148,9 @@ public sealed record WndMappedImage
         return name.Length > 0;
     }
 
+    [GeneratedRegex(@"(?<attr>Left|Top|Right|Bottom)\s*[:=]\s*(?<val>-?\d+)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    private static partial Regex CoordsRegex();
+
     private sealed class BlockBuilder
     {
         private string? _name;
@@ -219,35 +223,36 @@ public sealed record WndMappedImage
 
         private void ApplyCoords(string value)
         {
-            var tokens = value.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
             var left = 0;
             var top = 0;
             var right = 0;
             var bottom = 0;
             var found = 0;
-            foreach (var token in tokens)
+
+            foreach (Match match in CoordsRegex().Matches(value))
             {
-                if (!TryParseAttribute(token, out var attribute, out var number))
+                var attr = match.Groups["attr"].Value;
+                if (!int.TryParse(match.Groups["val"].Value, out var number))
                 {
                     continue;
                 }
 
-                if (string.Equals(attribute, WndConstants.MappedImages.LeftAttribute, StringComparison.OrdinalIgnoreCase))
+                if (string.Equals(attr, WndConstants.MappedImages.LeftAttribute, StringComparison.OrdinalIgnoreCase))
                 {
                     left = number;
                     found++;
                 }
-                else if (string.Equals(attribute, WndConstants.MappedImages.TopAttribute, StringComparison.OrdinalIgnoreCase))
+                else if (string.Equals(attr, WndConstants.MappedImages.TopAttribute, StringComparison.OrdinalIgnoreCase))
                 {
                     top = number;
                     found++;
                 }
-                else if (string.Equals(attribute, WndConstants.MappedImages.RightAttribute, StringComparison.OrdinalIgnoreCase))
+                else if (string.Equals(attr, WndConstants.MappedImages.RightAttribute, StringComparison.OrdinalIgnoreCase))
                 {
                     right = number;
                     found++;
                 }
-                else if (string.Equals(attribute, WndConstants.MappedImages.BottomAttribute, StringComparison.OrdinalIgnoreCase))
+                else if (string.Equals(attr, WndConstants.MappedImages.BottomAttribute, StringComparison.OrdinalIgnoreCase))
                 {
                     bottom = number;
                     found++;
@@ -262,20 +267,6 @@ public sealed record WndMappedImage
                 _bottom = bottom;
                 _hasCoords = true;
             }
-        }
-
-        private static bool TryParseAttribute(string token, out string attribute, out int number)
-        {
-            attribute = string.Empty;
-            number = 0;
-            var separator = token.IndexOf(WndConstants.MappedImages.AttributeSeparator, StringComparison.Ordinal);
-            if (separator <= 0)
-            {
-                return false;
-            }
-
-            attribute = token[..separator];
-            return int.TryParse(token[(separator + 1)..], out number);
         }
     }
 }

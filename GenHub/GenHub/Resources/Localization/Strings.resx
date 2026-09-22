@@ -223,6 +223,9 @@
   <data name="Common.Tooltip.MaximizeRestore" xml:space="preserve">
     <value>Maximize / Restore</value>
   </data>
+  <data name="Common.Tooltip.NumericScrubber" xml:space="preserve">
+    <value>Click to edit, drag horizontally to scrub value (Shift: fine, Ctrl: coarse)</value>
+  </data>
   <data name="Common.Tooltip.Clear" xml:space="preserve">
     <value>Clear input</value>
   </data>

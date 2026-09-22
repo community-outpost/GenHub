@@ -25,6 +25,7 @@ using System.Collections.ObjectModel;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
+using System.Security;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -1076,7 +1077,7 @@ public sealed partial class WndEditorViewModel(
             return normalizedPath.StartsWith(normalizedBase + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)
                 || string.Equals(normalizedPath, normalizedBase, StringComparison.OrdinalIgnoreCase);
         }
-        catch (Exception)
+        catch (Exception ex) when (ex is ArgumentException or IOException or NotSupportedException or SecurityException)
         {
             return false;
         }
@@ -1211,7 +1212,7 @@ public sealed partial class WndEditorViewModel(
                 {
                     File.Delete(tempPath);
                 }
-                catch (Exception ex)
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
                 {
                     logger.LogDebug(ex, "Failed to clean up temporary file {Path}", tempPath);
                 }
@@ -1609,6 +1610,7 @@ public sealed partial class WndEditorViewModel(
                 {
                     DisplayName = $"Generals ({installation.InstallationType.GetDisplayName()})",
                     Path = installation.GeneralsPath,
+                    IsZeroHour = false,
                 });
             }
 
@@ -1618,6 +1620,7 @@ public sealed partial class WndEditorViewModel(
                 {
                     DisplayName = $"Zero Hour ({installation.InstallationType.GetDisplayName()})",
                     Path = installation.ZeroHourPath,
+                    IsZeroHour = true,
                 });
             }
         }
@@ -1635,6 +1638,7 @@ public sealed partial class WndEditorViewModel(
     {
         var containing = string.IsNullOrEmpty(FilePath) ? null : AvailableInstallations.FirstOrDefault(option => IsPathUnder(FilePath, option.Path));
         return containing
+            ?? AvailableInstallations.FirstOrDefault(option => option.IsZeroHour)
             ?? AvailableInstallations.FirstOrDefault(IsZeroHourPath)
             ?? AvailableInstallations.FirstOrDefault();
     }
@@ -1699,7 +1703,7 @@ public sealed partial class WndEditorViewModel(
         // If selection.Path is a Zero Hour folder without a matched installation, try finding Generals base
         var fallbackGenerals = _installations.FirstOrDefault(i => !string.IsNullOrEmpty(i.GeneralsPath) && i.HasGenerals);
         if (fallbackGenerals != null && !string.IsNullOrEmpty(fallbackGenerals.GeneralsPath)
-            && selection.DisplayName.Contains("Zero Hour", StringComparison.OrdinalIgnoreCase))
+            && (selection.IsZeroHour || IsZeroHourPath(selection)))
         {
             return new AssetRoots(fallbackGenerals.GeneralsPath, selection.Path);
         }
@@ -1739,14 +1743,14 @@ public sealed partial class WndEditorViewModel(
             var parent = Directory.GetParent(zeroHourPath)?.FullName;
             if (!string.IsNullOrEmpty(parent))
             {
-                var siblingGenerals = Path.Combine(parent, "Command & Conquer Generals");
+                var siblingGenerals = Path.Combine(parent, GameClientConstants.GeneralsRetailDirectoryName);
                 if (Directory.Exists(siblingGenerals))
                 {
                     return siblingGenerals;
                 }
             }
         }
-        catch (Exception)
+        catch (Exception ex) when (ex is ArgumentException or IOException or NotSupportedException or SecurityException or UnauthorizedAccessException)
         {
             // Fall back to ZeroHourPath
         }
@@ -2156,6 +2160,7 @@ public sealed partial class WndEditorViewModel(
     private static string? FindModRoot(string directory)
     {
         var current = directory;
+        string? candidateWithGameFolders = null;
         for (var depth = 0; depth < 8 && !string.IsNullOrEmpty(current); depth++)
         {
             try
@@ -2165,17 +2170,19 @@ public sealed partial class WndEditorViewModel(
                     return current;
                 }
 
-                if (Directory.Exists(Path.Combine(current, "GameFilesEdited")))
+                if (Directory.Exists(Path.Combine(current, ModBuilderConstants.GameFilesEditedDir)))
                 {
                     return current;
                 }
 
-                if (Directory.Exists(Path.Combine(current, "Data"))
+                if (candidateWithGameFolders == null &&
+                    (Directory.Exists(Path.Combine(current, WndConstants.StringTables.DataDirectory))
+                    || Directory.Exists(Path.Combine(current, "Window"))
                     || Directory.Exists(Path.Combine(current, "window"))
                     || Directory.Exists(Path.Combine(current, "Art"))
-                    || Directory.Exists(Path.Combine(current, "INI")))
+                    || Directory.Exists(Path.Combine(current, "INI"))))
                 {
-                    return current;
+                    candidateWithGameFolders = current;
                 }
             }
             catch (IOException)
@@ -2190,6 +2197,6 @@ public sealed partial class WndEditorViewModel(
             current = Path.GetDirectoryName(current) ?? string.Empty;
         }
 
-        return null;
+        return candidateWithGameFolders;
     }
 }

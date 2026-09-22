@@ -223,6 +223,9 @@
   <data name="Common.Tooltip.MaximizeRestore" xml:space="preserve">
     <value>تكبير / استعادة</value>
   </data>
+  <data name="Common.Tooltip.NumericScrubber" xml:space="preserve">
+    <value>انقر للتحرير، واسحب أفقياً لتعديل القيمة (Shift: دقيق، Ctrl: تقريبي)</value>
+  </data>
   <data name="Common.Tooltip.Clear" xml:space="preserve">
     <value>مسح الإدخال</value>
   </data>

@@ -1,6 +1,7 @@
 <Styles xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:controls="clr-namespace:GenHub.Common.Controls">
+        xmlns:controls="clr-namespace:GenHub.Common.Controls"
+        xmlns:localization="clr-namespace:GenHub.Common.Markup">
     <Design.PreviewWith>
         <Border Padding="20" Background="#08080C" Width="300">
             <StackPanel Spacing="10">
@@ -19,7 +20,7 @@
         <Setter Property="Background" Value="{DynamicResource SurfaceElevatedBrush}" />
         <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
         <Setter Property="MinHeight" Value="28" />
-        <Setter Property="ToolTip.Tip" Value="Click to edit, drag horizontally to scrub value (Shift: fine, Ctrl: coarse)" />
+        <Setter Property="ToolTip.Tip" Value="{localization:Localize Common.Tooltip.NumericScrubber}" />
     </Style>
 
     <Style Selector="NumericUpDown:pointerover">
