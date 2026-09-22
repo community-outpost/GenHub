@@ -1,3 +1,4 @@
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Online;
 using GenHub.Core.Models.Results;
 using Microsoft.Extensions.Logging;
@@ -23,8 +24,6 @@ public sealed class VirtualLanTunnelRunner(ILogger<VirtualLanTunnelRunner> logge
     private const int ZeroHourGamePort = 16000;
     private const int DefaultRelayPort = 8088;
     private const int KeepAliveIntervalSeconds = 15;
-    private const string DefaultRelayHost = "152.70.171.121"; // NOSONAR: Default private relay node fallback
-    private const string DefaultOverlayFallbackIp = "10.42.0.2"; // NOSONAR: Default virtual LAN IP fallback
 
     private readonly SemaphoreSlim _lock = new(1, 1);
     private UdpClient? _relayClient;
@@ -43,6 +42,13 @@ public sealed class VirtualLanTunnelRunner(ILogger<VirtualLanTunnelRunner> logge
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
 
+        var (parseSuccess, parsed) = await TryParseConfigAsync(adapterConfig, overlayIp, cancellationToken).ConfigureAwait(false);
+        if (!parseSuccess)
+        {
+            logger.LogWarning("Failed to parse adapter config for virtual LAN tunnel runner.");
+            return OperationResult<bool>.CreateFailure("Invalid adapter configuration.");
+        }
+
         await _lock.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
@@ -51,12 +57,6 @@ public sealed class VirtualLanTunnelRunner(ILogger<VirtualLanTunnelRunner> logge
             if (IsRunning)
             {
                 return OperationResult<bool>.CreateSuccess(true);
-            }
-
-            if (!TryParseConfig(adapterConfig, overlayIp, out var parsed))
-            {
-                logger.LogWarning("Failed to parse adapter config for virtual LAN tunnel runner.");
-                return OperationResult<bool>.CreateFailure("Invalid adapter configuration.");
             }
 
             _cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
@@ -81,6 +81,8 @@ public sealed class VirtualLanTunnelRunner(ILogger<VirtualLanTunnelRunner> logge
             {
                 logger.LogInformation(ex, "Zero Hour discovery port {Port} shared or already in use: {Message}", ZeroHourDiscoveryPort, ex.Message);
             }
+
+            ObjectDisposedException.ThrowIf(_disposed, this);
 
             IsRunning = true;
             logger.LogInformation(
@@ -158,10 +160,6 @@ public sealed class VirtualLanTunnelRunner(ILogger<VirtualLanTunnelRunner> logge
                     _lock.Release();
                 }
             }
-            else
-            {
-                StopInternalAsync().GetAwaiter().GetResult();
-            }
         }
         catch (ObjectDisposedException)
         {
@@ -173,9 +171,11 @@ public sealed class VirtualLanTunnelRunner(ILogger<VirtualLanTunnelRunner> logge
         }
     }
 
-    private static bool TryParseConfig(string adapterConfig, string overlayIp, out ParsedTunnelConfig config)
+    private static async Task<(bool Success, ParsedTunnelConfig Config)> TryParseConfigAsync(
+        string adapterConfig,
+        string overlayIp,
+        CancellationToken cancellationToken)
     {
-        config = default!;
         try
         {
             var json = ExtractJson(adapterConfig);
@@ -183,7 +183,7 @@ public sealed class VirtualLanTunnelRunner(ILogger<VirtualLanTunnelRunner> logge
             var root = doc.RootElement;
             if (root.ValueKind != JsonValueKind.Object)
             {
-                return false;
+                return (false, default!);
             }
 
             var networkIdStr = root.TryGetProperty("networkId", out var netProp) && netProp.ValueKind == JsonValueKind.String
@@ -199,16 +199,15 @@ public sealed class VirtualLanTunnelRunner(ILogger<VirtualLanTunnelRunner> logge
 
             if (!IPAddress.TryParse(ipStr, out var parsedIp))
             {
-                parsedIp = IPAddress.Parse(DefaultOverlayFallbackIp);
+                parsedIp = IPAddress.Parse(OnlineConstants.DefaultOverlayFallbackIp);
             }
 
-            var ep = ParseRelayEndpoint(root);
-            config = new ParsedTunnelConfig(networkIdStr, netBytes, parsedIp, parsedIp.GetAddressBytes(), ep);
-            return true;
+            var ep = await ParseRelayEndpointAsync(root, cancellationToken).ConfigureAwait(false);
+            return (true, new ParsedTunnelConfig(networkIdStr, netBytes, parsedIp, parsedIp.GetAddressBytes(), ep));
         }
         catch (Exception ex) when (ex is JsonException or ArgumentException or FormatException or InvalidOperationException)
         {
-            return false;
+            return (false, default!);
         }
     }
 
@@ -243,9 +242,9 @@ public sealed class VirtualLanTunnelRunner(ILogger<VirtualLanTunnelRunner> logge
         return netBytes;
     }
 
-    private static IPEndPoint ParseRelayEndpoint(JsonElement root)
+    private static async Task<IPEndPoint> ParseRelayEndpointAsync(JsonElement root, CancellationToken cancellationToken)
     {
-        var relayHost = DefaultRelayHost;
+        var relayHost = ApiConstants.OnlineRelayHost;
         var relayPort = DefaultRelayPort;
 
         if (root.TryGetProperty("relay", out var relayProp) && relayProp.ValueKind == JsonValueKind.Object)
@@ -269,7 +268,7 @@ public sealed class VirtualLanTunnelRunner(ILogger<VirtualLanTunnelRunner> logge
         {
             try
             {
-                var addresses = Dns.GetHostAddresses(relayHost);
+                var addresses = await Dns.GetHostAddressesAsync(relayHost, cancellationToken).ConfigureAwait(false);
                 ip = addresses.FirstOrDefault(a => a.AddressFamily == AddressFamily.InterNetwork)
                     ?? addresses.FirstOrDefault()
                     ?? throw new FormatException($"Cannot resolve host {relayHost}");

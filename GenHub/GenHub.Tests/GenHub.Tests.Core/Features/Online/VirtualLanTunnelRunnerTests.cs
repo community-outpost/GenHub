@@ -60,6 +60,40 @@ public class VirtualLanTunnelRunnerTests : IDisposable
     }
 
     /// <summary>
+    /// Tests that starting with a DNS hostname relay resolves asynchronously and starts.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task StartAsync_WithHostnameRelay_ShouldResolveEndpointAndStartAsync()
+    {
+        // Arrange
+        var configJson = """
+        {
+            "v": 1,
+            "overlay": "genhub-tun",
+            "networkId": "2c36769e-814b-4818-adbc-b42cedd00729",
+            "overlayIp": "10.42.0.2",
+            "relay": {
+                "host": "localhost",
+                "port": 58089
+            }
+        }
+        """;
+        var base64Config = Convert.ToBase64String(Encoding.UTF8.GetBytes(configJson));
+
+        // Act
+        var result = await _runner.StartAsync(base64Config, "10.42.0.2");
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.True(_runner.IsRunning);
+
+        var stopResult = await _runner.StopAsync();
+        Assert.True(stopResult.Success);
+        Assert.False(_runner.IsRunning);
+    }
+
+    /// <summary>
     /// Tests that starting an already running runner returns success idempotently.
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
@@ -72,7 +106,7 @@ public class VirtualLanTunnelRunnerTests : IDisposable
             "v": 1,
             "networkId": "2c36769e-814b-4818-adbc-b42cedd00729",
             "overlayIp": "10.42.0.2",
-            "relay": { "host": "127.0.0.1", "port": 58089 }
+            "relay": { "host": "127.0.0.1", "port": 58090 }
         }
         """;
         var base64 = Convert.ToBase64String(Encoding.UTF8.GetBytes(configJson));
@@ -103,6 +137,31 @@ public class VirtualLanTunnelRunnerTests : IDisposable
         // Assert
         Assert.False(result.Success);
         Assert.False(_runner.IsRunning);
+    }
+
+    /// <summary>
+    /// Tests that calling StartAsync on a disposed runner throws ObjectDisposedException.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task StartAsync_WhenDisposed_ThrowsObjectDisposedExceptionAsync()
+    {
+        // Arrange
+        _runner.Dispose();
+
+        // Act & Assert
+        await Assert.ThrowsAsync<ObjectDisposedException>(() => _runner.StartAsync("{}", "10.42.0.2"));
+    }
+
+    /// <summary>
+    /// Tests that calling Dispose multiple times is safe and idempotent.
+    /// </summary>
+    [Fact]
+    public void Dispose_WhenCalledMultipleTimes_IsIdempotent()
+    {
+        // Act & Assert
+        _runner.Dispose();
+        _runner.Dispose();
     }
 
     /// <inheritdoc/>

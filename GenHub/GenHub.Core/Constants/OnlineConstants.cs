@@ -227,6 +227,11 @@ public static class OnlineConstants
     public const string FingerprintListSeparator = ",";
 
     /// <summary>
+    /// Default virtual LAN IP fallback address.
+    /// </summary>
+    public const string DefaultOverlayFallbackIp = "10.42.0.2";
+
+    /// <summary>
     /// Default UDP port for STUN reflexive endpoint discovery.
     /// </summary>
     public const int StunPort = 3478;
