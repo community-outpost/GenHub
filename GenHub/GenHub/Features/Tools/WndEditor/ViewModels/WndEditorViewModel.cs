@@ -78,11 +78,21 @@ public sealed partial class WndEditorViewModel(
     /// <summary>
     /// Gets the directory name for display in the explorer.
     /// </summary>
-    public string? FilesDirectoryName => string.IsNullOrEmpty(FilesDirectory)
-        ? null
-        : Path.GetFileName(FilesDirectory.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)) is { Length: > 0 } name
-            ? name
-            : FilesDirectory;
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Observable property dependent on FilesDirectory")]
+    public string? FilesDirectoryName
+    {
+        get
+        {
+            if (string.IsNullOrEmpty(FilesDirectory))
+            {
+                return null;
+            }
+
+            var trimmed = FilesDirectory.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+            var fileName = Path.GetFileName(trimmed);
+            return string.IsNullOrEmpty(fileName) ? FilesDirectory : fileName;
+        }
+    }
 
     /// <summary>
     /// Gets the canvas items rendered from window geometry.
@@ -1676,38 +1686,7 @@ public sealed partial class WndEditorViewModel(
             if (!string.IsNullOrEmpty(installation.ZeroHourPath)
                 && string.Equals(selection.Path, installation.ZeroHourPath, StringComparison.OrdinalIgnoreCase))
             {
-                if (!string.IsNullOrEmpty(installation.GeneralsPath) && installation.HasGenerals)
-                {
-                    return new AssetRoots(installation.GeneralsPath, installation.ZeroHourPath);
-                }
-
-                // If this installation does not directly link Generals (e.g. Steam standalone),
-                // search for ANY detected Generals installation across all installations
-                var anyGenerals = _installations.FirstOrDefault(i => !string.IsNullOrEmpty(i.GeneralsPath) && i.HasGenerals);
-                if (anyGenerals != null && !string.IsNullOrEmpty(anyGenerals.GeneralsPath))
-                {
-                    return new AssetRoots(anyGenerals.GeneralsPath, installation.ZeroHourPath);
-                }
-
-                // Also check sibling directory (e.g. Steam: Command & Conquer Generals)
-                try
-                {
-                    var parent = Directory.GetParent(installation.ZeroHourPath)?.FullName;
-                    if (!string.IsNullOrEmpty(parent))
-                    {
-                        var siblingGenerals = Path.Combine(parent, "Command & Conquer Generals");
-                        if (Directory.Exists(siblingGenerals))
-                        {
-                            return new AssetRoots(siblingGenerals, installation.ZeroHourPath);
-                        }
-                    }
-                }
-                catch (Exception)
-                {
-                    // Fall back to ZeroHourPath
-                }
-
-                return new AssetRoots(installation.ZeroHourPath, null);
+                return ResolveZeroHourAssetRoots(installation);
             }
 
             if (!string.IsNullOrEmpty(installation.GeneralsPath)
@@ -1726,6 +1705,53 @@ public sealed partial class WndEditorViewModel(
         }
 
         return new AssetRoots(selection.Path, null);
+    }
+
+    private AssetRoots ResolveZeroHourAssetRoots(GameInstallation installation)
+    {
+        if (!string.IsNullOrEmpty(installation.GeneralsPath) && installation.HasGenerals)
+        {
+            return new AssetRoots(installation.GeneralsPath, installation.ZeroHourPath);
+        }
+
+        // If this installation does not directly link Generals (e.g. Steam standalone),
+        // search for ANY detected Generals installation across all installations
+        var anyGenerals = _installations.FirstOrDefault(i => !string.IsNullOrEmpty(i.GeneralsPath) && i.HasGenerals);
+        if (anyGenerals != null && !string.IsNullOrEmpty(anyGenerals.GeneralsPath))
+        {
+            return new AssetRoots(anyGenerals.GeneralsPath, installation.ZeroHourPath);
+        }
+
+        // Also check sibling directory (e.g. Steam: Command & Conquer Generals)
+        var siblingGenerals = FindSiblingGeneralsPath(installation.ZeroHourPath);
+        if (siblingGenerals != null)
+        {
+            return new AssetRoots(siblingGenerals, installation.ZeroHourPath);
+        }
+
+        return new AssetRoots(installation.ZeroHourPath, null);
+    }
+
+    private static string? FindSiblingGeneralsPath(string zeroHourPath)
+    {
+        try
+        {
+            var parent = Directory.GetParent(zeroHourPath)?.FullName;
+            if (!string.IsNullOrEmpty(parent))
+            {
+                var siblingGenerals = Path.Combine(parent, "Command & Conquer Generals");
+                if (Directory.Exists(siblingGenerals))
+                {
+                    return siblingGenerals;
+                }
+            }
+        }
+        catch (Exception)
+        {
+            // Fall back to ZeroHourPath
+        }
+
+        return null;
     }
 
     private void RefreshItemPreview(WndCanvasItemViewModel item)

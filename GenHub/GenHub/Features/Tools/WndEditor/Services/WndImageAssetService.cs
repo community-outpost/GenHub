@@ -25,6 +25,7 @@ public sealed class WndImageAssetService(ILogger<WndImageAssetService> logger) :
 {
     private const int MaxCachedIndexes = 8;
     private const int MaxCachedImages = 500;
+    private const string DataPrefix = "Data\\";
 
     private readonly ConcurrentDictionary<string, AssetIndex> _indexes = new(StringComparer.OrdinalIgnoreCase);
     private readonly ConcurrentDictionary<string, byte[]> _imageCache = new(StringComparer.OrdinalIgnoreCase);
@@ -180,9 +181,9 @@ public sealed class WndImageAssetService(ILogger<WndImageAssetService> logger) :
         var returned = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         // First yield any exact paths that already have extensions
-        foreach (var stem in candidateStems)
+        foreach (var stem in candidateStems.Where(s => !string.IsNullOrEmpty(Path.GetExtension(s))))
         {
-            if (!string.IsNullOrEmpty(Path.GetExtension(stem)) && returned.Add(stem))
+            if (returned.Add(stem))
             {
                 yield return stem;
             }
@@ -301,38 +302,7 @@ public sealed class WndImageAssetService(ILogger<WndImageAssetService> logger) :
 
         foreach (var dir in searchDirs)
         {
-            foreach (var iniPath in fileSystem.FilesUnder(dir))
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-                if (!iniPath.EndsWith(".ini", StringComparison.OrdinalIgnoreCase) || !processedInis.Add(iniPath))
-                {
-                    continue;
-                }
-
-                var bytes = fileSystem.Read(iniPath);
-                if (bytes == null || bytes.Length == 0)
-                {
-                    continue;
-                }
-
-                var text = Encoding.UTF8.GetString(bytes);
-                if (!text.Contains("MappedImage", StringComparison.OrdinalIgnoreCase))
-                {
-                    continue;
-                }
-
-                var size = ParseTextureSize(iniPath);
-                var score = DefinitionScore(iniPath, size);
-                foreach (var image in WndMappedImage.ParseDefinitions(text))
-                {
-                    if (!images.TryGetValue(image.Name, out var incumbent)
-                        || score < incumbent.Score
-                        || (score == incumbent.Score && size > incumbent.Size))
-                    {
-                        images[image.Name] = (image, score, size);
-                    }
-                }
-            }
+            IndexDirectoryIniFiles(fileSystem, dir, images, processedInis, cancellationToken);
         }
 
         logger.LogInformation(
@@ -340,6 +310,55 @@ public sealed class WndImageAssetService(ILogger<WndImageAssetService> logger) :
             images.Count,
             string.IsNullOrWhiteSpace(overrideRoot) ? baseRoot : overrideRoot);
         return new AssetIndex(key, fileSystem, images.ToDictionary(pair => pair.Key, pair => pair.Value.Image, StringComparer.OrdinalIgnoreCase));
+    }
+
+    private static void IndexDirectoryIniFiles(
+        SageVirtualFileSystem fileSystem,
+        string directory,
+        Dictionary<string, (WndMappedImage Image, int Score, int Size)> images,
+        HashSet<string> processedInis,
+        CancellationToken cancellationToken)
+    {
+        foreach (var iniPath in fileSystem.FilesUnder(directory))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (!iniPath.EndsWith(".ini", StringComparison.OrdinalIgnoreCase) || !processedInis.Add(iniPath))
+            {
+                continue;
+            }
+
+            IndexSingleIniFile(fileSystem, iniPath, images);
+        }
+    }
+
+    private static void IndexSingleIniFile(
+        SageVirtualFileSystem fileSystem,
+        string iniPath,
+        Dictionary<string, (WndMappedImage Image, int Score, int Size)> images)
+    {
+        var bytes = fileSystem.Read(iniPath);
+        if (bytes == null || bytes.Length == 0)
+        {
+            return;
+        }
+
+        var text = Encoding.UTF8.GetString(bytes);
+        if (!text.Contains("MappedImage", StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        var size = ParseTextureSize(iniPath);
+        var score = DefinitionScore(iniPath, size);
+        foreach (var image in WndMappedImage.ParseDefinitions(text))
+        {
+            if (!images.TryGetValue(image.Name, out var incumbent)
+                || score < incumbent.Score
+                || (score == incumbent.Score && size > incumbent.Size))
+            {
+                images[image.Name] = (image, score, size);
+            }
+        }
     }
 
     private Dictionary<string, byte[]> DecodeRequests(

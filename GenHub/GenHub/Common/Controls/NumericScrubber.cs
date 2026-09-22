@@ -80,7 +80,7 @@ public static class NumericScrubber
 
         var state = new ScrubberState(control);
         control.SetValue(StateProperty, state);
-        state.Attach();
+        state.AttachHandlers();
     }
 
     private static void Detach(NumericUpDown control)
@@ -88,7 +88,7 @@ public static class NumericScrubber
         var state = control.GetValue(StateProperty);
         if (state != null)
         {
-            state.Detach();
+            state.DetachHandlers();
             control.SetValue(StateProperty, null);
         }
     }
@@ -100,7 +100,7 @@ public static class NumericScrubber
         private bool _isPressed;
         private bool _isDragging;
 
-        public void Attach()
+        public void AttachHandlers()
         {
             control.AddHandler(InputElement.PointerPressedEvent, OnPointerPressed, RoutingStrategies.Tunnel);
             control.AddHandler(InputElement.PointerMovedEvent, OnPointerMoved, RoutingStrategies.Tunnel);
@@ -108,7 +108,7 @@ public static class NumericScrubber
             control.AddHandler(InputElement.PointerCaptureLostEvent, OnCaptureLost, RoutingStrategies.Tunnel);
         }
 
-        public void Detach()
+        public void DetachHandlers()
         {
             control.RemoveHandler(InputElement.PointerPressedEvent, OnPointerPressed);
             control.RemoveHandler(InputElement.PointerMovedEvent, OnPointerMoved);

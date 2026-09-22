@@ -889,6 +889,7 @@ public partial class FileManagerViewModel(
         }
     }
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Observable property dependent on instance state")]
     private bool CanRunWndOperation => !IsLoading;
 
     /// <summary>
@@ -928,6 +929,7 @@ public partial class FileManagerViewModel(
         _ => throw new ArgumentOutOfRangeException(nameof(operation)),
     };
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Mutates instance observable property StatusMessage")]
     private void SetStatusMessageSafe(string message)
     {
         if (Application.Current == null || Dispatcher.UIThread.CheckAccess())

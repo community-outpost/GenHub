@@ -10,6 +10,8 @@ namespace GenHub.Core.Models.Tools.WndEditor;
 /// </summary>
 public static class WndPreviewPlanner
 {
+    private sealed record WndTextStyle(string? Text, WndRgbaColor? TextColor, int FontSize, bool FontBold);
+
     /// <summary>
     /// Plans the preview presentation for a window.
     /// </summary>
@@ -26,14 +28,15 @@ public static class WndPreviewPlanner
         var text = PlanText(window);
         var (textColor, fontSize, fontBold) = PlanTextStyle(window);
         var textCentered = IsCenteredText(window);
+        var style = new WndTextStyle(text, textColor, fontSize, fontBold);
 
         return window.ControlType switch
         {
             WndControlType.PushButton or WndControlType.CommandButton => PlanButton(drawData, text, textColor, fontSize, fontBold, isHidden, isSeeThru),
             WndControlType.EntryField => PlanTextEntry(drawData, text, textColor, fontSize, fontBold, isHidden, isSeeThru),
             WndControlType.StaticText => new WndPreviewPlan(null, null, null, null, null, null, false, null, null, text, textColor, fontSize, fontBold, textCentered, isHidden),
-            WndControlType.ScrollListBox => PlanListbox(window, drawData, text, textColor, fontSize, fontBold, isHidden, isSeeThru),
-            WndControlType.ComboBox => PlanComboBox(window, drawData, text, textColor, fontSize, fontBold, isHidden, isSeeThru),
+            WndControlType.ScrollListBox => PlanListbox(window, drawData, style, isHidden, isSeeThru),
+            WndControlType.ComboBox => PlanComboBox(window, drawData, style, isHidden, isSeeThru),
             WndControlType.HorzSlider or WndControlType.VertSlider => PlanSlider(window, drawData, fontSize, isHidden, isSeeThru),
             _ => PlanGeneric(drawData, hasImageFlag, text, textColor, fontSize, fontBold, textCentered, isHidden, isSeeThru, window.ControlType),
         };
@@ -122,10 +125,7 @@ public static class WndPreviewPlanner
     private static WndPreviewPlan PlanListbox(
         WndWindow window,
         WndDrawDataSet? drawData,
-        string? text,
-        WndRgbaColor? textColor,
-        int fontSize,
-        bool fontBold,
+        WndTextStyle style,
         bool isHidden,
         bool isSeeThru)
     {
@@ -152,10 +152,10 @@ public static class WndPreviewPlanner
             false,
             ResolveFillColor(entry, image != null, isSeeThru),
             ResolveBorderColor(entry, isSeeThru),
-            text,
-            textColor,
-            fontSize,
-            fontBold,
+            style.Text,
+            style.TextColor,
+            style.FontSize,
+            style.FontBold,
             false,
             isHidden);
     }
@@ -163,10 +163,7 @@ public static class WndPreviewPlanner
     private static WndPreviewPlan PlanComboBox(
         WndWindow window,
         WndDrawDataSet? drawData,
-        string? text,
-        WndRgbaColor? textColor,
-        int fontSize,
-        bool fontBold,
+        WndTextStyle style,
         bool isHidden,
         bool isSeeThru)
     {
@@ -188,10 +185,10 @@ public static class WndPreviewPlanner
             false,
             ResolveFillColor(entry, image != null, isSeeThru),
             ResolveBorderColor(entry, isSeeThru),
-            text,
-            textColor,
-            fontSize,
-            fontBold,
+            style.Text,
+            style.TextColor,
+            style.FontSize,
+            style.FontBold,
             false,
             isHidden);
     }
