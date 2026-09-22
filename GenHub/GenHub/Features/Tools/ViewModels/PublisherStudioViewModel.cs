@@ -113,7 +113,7 @@ public partial class PublisherStudioViewModel(
     public bool IsSetupComplete =>
         (!string.IsNullOrWhiteSpace(CurrentProject?.Catalog?.Publisher?.Id) &&
         !string.IsNullOrWhiteSpace(CurrentProject?.Catalog?.Publisher?.Name)) ||
-        (PublishShareViewModel?.IsProviderAuthenticated == true);
+        (PublishShareViewModel?.IsProviderAuthenticated ?? false);
 
     /// <summary>
     /// Gets a value indicating whether the Referrals tab is visible/enabled.
