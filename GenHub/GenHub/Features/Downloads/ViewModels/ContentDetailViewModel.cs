@@ -4710,12 +4710,82 @@ public partial class ContentDetailViewModel(
         CancellationToken cancellationToken = default) =>
         DownloadFileCoreAsync(file, null, cancellationToken);
 
+    private ContentSearchResult? FindMatchingVariantSearchResult(DownloadableFile file)
+    {
+        if (variantSearchResults is null || variantSearchResults.Count == 0 || file is null)
+        {
+            return null;
+        }
+
+        // 1. Direct match on SelectedDownloadUrl or SourceUrl if non-empty
+        if (!string.IsNullOrWhiteSpace(file.DownloadUrl))
+        {
+            var matchByUrl = variantSearchResults.Values.FirstOrDefault(sr =>
+                string.Equals(sr.SelectedDownloadUrl, file.DownloadUrl, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(sr.SourceUrl, file.DownloadUrl, StringComparison.OrdinalIgnoreCase));
+            if (matchByUrl != null)
+            {
+                return matchByUrl;
+            }
+        }
+
+        // 2. Match by DetailsUrl if non-empty
+        if (!string.IsNullOrWhiteSpace(file.DetailsUrl))
+        {
+            var matchByDetails = variantSearchResults.Values.FirstOrDefault(sr =>
+                string.Equals(sr.SourceUrl, file.DetailsUrl, StringComparison.OrdinalIgnoreCase));
+            if (matchByDetails != null)
+            {
+                return matchByDetails;
+            }
+        }
+
+        // 3. Exact match by Name or Id
+        if (!string.IsNullOrWhiteSpace(file.Name))
+        {
+            var trimmedName = file.Name.Trim();
+            var matchByNameOrId = variantSearchResults.Values.FirstOrDefault(sr =>
+                string.Equals(sr.Name?.Trim(), trimmedName, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(sr.Id?.Trim(), trimmedName, StringComparison.OrdinalIgnoreCase));
+            if (matchByNameOrId != null)
+            {
+                return matchByNameOrId;
+            }
+        }
+
+        // 4. Exact match by Filename
+        if (!string.IsNullOrWhiteSpace(file.Filename))
+        {
+            var filenameWithoutExt = System.IO.Path.GetFileNameWithoutExtension(file.Filename).Trim();
+            var matchByFilename = variantSearchResults.Values.FirstOrDefault(sr =>
+                string.Equals(sr.Name?.Trim(), filenameWithoutExt, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(sr.Id?.Trim(), filenameWithoutExt, StringComparison.OrdinalIgnoreCase));
+            if (matchByFilename != null)
+            {
+                return matchByFilename;
+            }
+        }
+
+        return null;
+    }
+
     private async Task<bool> DownloadFileCoreAsync(
         DownloadableFile file,
         Action<ContentManifest>? onDownloadCompleted = null,
         CancellationToken cancellationToken = default)
     {
-        if (file == null || string.IsNullOrEmpty(file.DownloadUrl))
+        if (file == null)
+        {
+            logger.LogWarning("Cannot download file: file is null");
+            return false;
+        }
+
+        var matchingVariant = FindMatchingVariantSearchResult(file);
+        var canResolve = matchingVariant?.RequiresResolution == true ||
+                         searchResult.RequiresResolution ||
+                         !string.IsNullOrWhiteSpace(searchResult.ResolverId);
+
+        if (string.IsNullOrEmpty(file.DownloadUrl) && !canResolve)
         {
             logger.LogWarning("Cannot download file: invalid file or missing download URL");
             return false;
@@ -4723,7 +4793,10 @@ public partial class ContentDetailViewModel(
 
         try
         {
-            logger.LogInformation("Downloading individual file: {FileName} from {Url}", file.Name, file.DownloadUrl);
+            logger.LogInformation(
+                "Downloading individual file: {FileName} from {Url}",
+                file.Name,
+                !string.IsNullOrEmpty(file.DownloadUrl) ? file.DownloadUrl : "(resolver-backed)");
             return await ExecuteDownloadFlowAsync(CreateFileSearchResult(file), cancellationToken, onDownloadCompleted);
         }
         catch (Exception ex)
@@ -4743,6 +4816,9 @@ public partial class ContentDetailViewModel(
     {
         ArgumentNullException.ThrowIfNull(file);
 
+        var matchingVariant = FindMatchingVariantSearchResult(file);
+        var baseResult = matchingVariant ?? searchResult;
+
         ContentType fileContentType;
         if (overrideContentType.HasValue)
         {
@@ -4751,6 +4827,10 @@ public partial class ContentDetailViewModel(
         else if (SelectedDownloadableItem?.File == file)
         {
             fileContentType = SelectedDownloadableItem.ContentType;
+        }
+        else if (matchingVariant != null && matchingVariant.ContentType != ContentType.UnknownContentType)
+        {
+            fileContentType = matchingVariant.ContentType;
         }
         else if (!string.IsNullOrWhiteSpace(file.Category))
         {
@@ -4766,43 +4846,53 @@ public partial class ContentDetailViewModel(
         {
             rowVersion = file.Version;
         }
+        else if (!string.IsNullOrWhiteSpace(baseResult.Version))
+        {
+            rowVersion = baseResult.Version;
+        }
         else if (!string.IsNullOrWhiteSpace(searchResult.Version))
         {
             rowVersion = searchResult.Version;
         }
 
+        var rowId = matchingVariant != null && !string.IsNullOrWhiteSpace(matchingVariant.Id)
+            ? matchingVariant.Id
+            : CreateFileContentId(file);
+
         var rowSearchResult = new ContentSearchResult
         {
-            // A row download must not reuse the parent catalog ID. The coordinator publishes
-            // state for the supplied ID, so sharing it would incorrectly mark the parent as
-            // downloaded and make its Add to Profile action target whichever row finished last.
-            Id = CreateFileContentId(file),
-            Name = file.Name ?? file.DownloadUrl ?? UnknownValue,
+            // A row download must not reuse the parent catalog ID unless it is a specific variant/child ID.
+            // The coordinator publishes state for the supplied ID, so sharing the parent ID would incorrectly
+            // mark the parent as downloaded and make its Add to Profile action target whichever row finished last.
+            Id = rowId,
+            Name = file.Name ?? baseResult.Name ?? file.DownloadUrl ?? UnknownValue,
             Version = rowVersion,
-            ProviderName = searchResult.ProviderName,
+            ProviderName = baseResult.ProviderName ?? searchResult.ProviderName,
             ContentType = fileContentType,
-            TargetGame = searchResult.TargetGame,
-            LastUpdated = file.ReleaseDate ?? file.UploadDate ?? searchResult.LastUpdated,
+            TargetGame = baseResult.TargetGame != GameType.Unknown ? baseResult.TargetGame : searchResult.TargetGame,
+            LastUpdated = file.ReleaseDate ?? file.UploadDate ?? baseResult.LastUpdated ?? searchResult.LastUpdated,
 
             // Preserve the page URL for metadata and browser Referer handling. The selected
             // direct URL tells the resolver which already-discovered release to acquire.
-            SourceUrl = file.DetailsUrl ?? searchResult.SourceUrl,
-            SelectedDownloadUrl = file.DownloadUrl,
-            ParsedPageData = ParsedPage ?? searchResult.ParsedPageData,
-            ResolverId = searchResult.ResolverId,
+            SourceUrl = file.DetailsUrl ?? baseResult.SourceUrl ?? searchResult.SourceUrl,
+            SelectedDownloadUrl = file.DownloadUrl ?? baseResult.SelectedDownloadUrl,
+            ParsedPageData = ParsedPage ?? baseResult.ParsedPageData ?? searchResult.ParsedPageData,
+            ResolverId = baseResult.ResolverId ?? searchResult.ResolverId,
             RequiresResolution = true,
-            Data = searchResult.Data,
+            Data = baseResult.Data ?? searchResult.Data,
+            IconUrl = baseResult.IconUrl ?? searchResult.IconUrl,
+            VariantGroupId = baseResult.VariantGroupId ?? searchResult.VariantGroupId,
         };
 
-        // Copy resolver metadata (e.g. GitHub owner/tag, CommunityOutpost content code) so the
-        // provenance-aware state matcher and SuperHackers variant detection treat the row like
-        // the parent card.
-        foreach (var pair in searchResult.ResolverMetadata)
+        // Copy resolver metadata from baseResult (e.g. GitHub owner/tag, CommunityOutpost content code,
+        // or GenLauncher S3 folder prefix) so the provenance-aware state matcher and resolvers treat
+        // the row with the correct specific metadata.
+        foreach (var pair in baseResult.ResolverMetadata)
         {
             rowSearchResult.ResolverMetadata[pair.Key] = pair.Value;
         }
 
-        if (!string.IsNullOrEmpty(searchResult.Id))
+        if (!string.IsNullOrEmpty(searchResult.Id) && !rowSearchResult.ResolverMetadata.ContainsKey(ContentConstants.ParentContentIdMetadataKey))
         {
             rowSearchResult.ResolverMetadata[ContentConstants.ParentContentIdMetadataKey] = searchResult.Id;
         }
@@ -4812,7 +4902,7 @@ public partial class ContentDetailViewModel(
             rowSearchResult.ResolverMetadata[ContentConstants.ExplicitContentTypeMetadataKey] = ContentConstants.ExplicitContentTypeEnabledValue;
         }
 
-        if (ContentCardBadgeHelper.IsModDb(searchResult))
+        if (ContentCardBadgeHelper.IsModDb(baseResult))
         {
             var detailUrl = file.DetailsUrl ?? file.DownloadUrl;
             if (!string.IsNullOrWhiteSpace(detailUrl))
@@ -5030,14 +5120,19 @@ public partial class ContentDetailViewModel(
 
     private async Task ResolveRowStateAsync(IDownloadableRowViewModel row, DownloadableFile file)
     {
-        if (string.IsNullOrEmpty(file.DownloadUrl))
+        var matchingVariant = FindMatchingVariantSearchResult(file);
+        var canResolve = matchingVariant?.RequiresResolution == true ||
+                         searchResult.RequiresResolution ||
+                         !string.IsNullOrWhiteSpace(searchResult.ResolverId);
+
+        if (string.IsNullOrEmpty(file.DownloadUrl) && !canResolve)
         {
             return;
         }
 
         try
         {
-            if (row.FileSize <= 0)
+            if (row.FileSize <= 0 && !string.IsNullOrEmpty(file.DownloadUrl))
             {
                 _ = TryProbeRowFileSizeAsync(row, file.DownloadUrl, _cts.Token);
             }
