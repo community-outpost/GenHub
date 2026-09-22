@@ -47,7 +47,7 @@ public class OnlineViewModelTests
     }
 
     /// <summary>
-    /// Tests that consecutive refreshes on one view model both complete.
+    /// Tests that concurrent refreshes on one view model both complete safely through the refresh lock.
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Fact]
@@ -63,8 +63,7 @@ public class OnlineViewModelTests
         var vm = CreateViewModel(network.Object);
 
         // Act
-        await vm.RefreshNetworksAsync();
-        await vm.RefreshNetworksAsync();
+        await Task.WhenAll(vm.RefreshNetworksAsync(), vm.RefreshNetworksAsync());
 
         // Assert
         Assert.Single(vm.Networks);
@@ -520,7 +519,7 @@ public class OnlineViewModelTests
             n => n.CreateNetworkAsync(It.IsAny<OnlineCreateNetworkRequest>(), It.IsAny<CancellationToken>()),
             Times.Never);
         notifications.Verify(
-            n => n.ShowError(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
+            n => n.ShowError(It.IsAny<string>(), "Online.Error.AlreadyJoined", It.IsAny<int?>(), It.IsAny<bool>()),
             Times.Once);
     }
 

@@ -7,6 +7,7 @@ namespace GenHub.Core.Constants;
 /// API and network related constants.
 /// </summary>
 [SuppressMessage("Major Code Smell", "S1075:URIs should not be hardcoded", Justification = "Centralized fallback API constants and endpoint definitions.")]
+[SuppressMessage("Security", "S1313:Using hardcoded IP addresses is security-sensitive", Justification = "Centralized fallback API and relay endpoint definitions.")]
 public static class ApiConstants
 {
     // GitHub
@@ -375,7 +376,8 @@ public static class ApiConstants
     /// <summary>
     /// Default relay hostname or IP for virtual LAN fallback tunneling.
     /// </summary>
-    public const string DefaultOnlineRelayHost = "152.70.171.121";
+    [SuppressMessage("Security", "S1313:Using hardcoded IP addresses is security-sensitive", Justification = "Default community fallback relay endpoint.")]
+    public const string DefaultOnlineRelayHost = "152.70.171.121"; // NOSONAR
 
     /// <summary>
     /// Gets the active relay host, checking environment variable overrides first.

@@ -546,6 +546,17 @@ public sealed class OnlineNetworkService(
         (ex is HttpRequestException or TimeoutException ||
          (ex is OperationCanceledException && !cancellationToken.IsCancellationRequested));
 
+    private static async Task<bool> IsSessionExpiredResponseAsync(HttpResponseMessage response, CancellationToken cancellationToken)
+    {
+        if (response.StatusCode != HttpStatusCode.Unauthorized)
+        {
+            return false;
+        }
+
+        var code = await ReadUnauthorizedCodeAsync(response, cancellationToken);
+        return string.Equals(code, OnlineConstants.ErrorSessionRequired, StringComparison.Ordinal);
+    }
+
     private async Task<HttpResponseMessage?> SendWithSessionRetryAsync(
         Func<HttpClient, CancellationToken, Task<HttpResponseMessage>> send,
         CancellationToken cancellationToken)
@@ -593,19 +604,8 @@ public sealed class OnlineNetworkService(
             }
 
             logger.LogWarning(ex, "Initial online request failed and fallback attempt was unsuccessful: {Message}", ex.Message);
-            throw;
+            return null;
         }
-    }
-
-    private async Task<bool> IsSessionExpiredResponseAsync(HttpResponseMessage response, CancellationToken cancellationToken)
-    {
-        if (response.StatusCode != HttpStatusCode.Unauthorized)
-        {
-            return false;
-        }
-
-        var code = await ReadUnauthorizedCodeAsync(response, cancellationToken);
-        return string.Equals(code, OnlineConstants.ErrorSessionRequired, StringComparison.Ordinal);
     }
 
     private async Task<HttpResponseMessage?> RetrySendWithNewSessionAsync(
@@ -692,7 +692,7 @@ public sealed class OnlineNetworkService(
                 }
 
                 logger.LogWarning(ex, "Primary session request failed and fallback attempt was unsuccessful: {Message}", ex.Message);
-                throw;
+                return null;
             }
         }
         finally
@@ -730,7 +730,7 @@ public sealed class OnlineNetworkService(
         {
             logger.LogDebug(ex, "Fallback send failed: {Message}", ex.Message);
             ApiConstants.ResetActiveOnlineEdgeBaseUrl();
-            throw;
+            return null;
         }
 
         return null;
@@ -754,7 +754,7 @@ public sealed class OnlineNetworkService(
         {
             logger.LogDebug(ex, "Fallback session request failed: {Message}", ex.Message);
             ApiConstants.ResetActiveOnlineEdgeBaseUrl();
-            throw;
+            return null;
         }
     }
 
