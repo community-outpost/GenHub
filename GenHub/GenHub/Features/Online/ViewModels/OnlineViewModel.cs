@@ -1364,6 +1364,7 @@ public sealed partial class OnlineViewModel(
         return false;
     }
 
+    [SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Reads generated MVVM properties Sonar cannot see; part of profile matching instance flow.")]
     private bool IsLegacyProfileMatch(GameProfile profile)
     {
         if (!string.IsNullOrWhiteSpace(ExpectedProfileId) &&
@@ -1407,6 +1408,7 @@ public sealed partial class OnlineViewModel(
         return best;
     }
 
+    [SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Reads generated MVVM properties Sonar cannot see; part of profile matching instance flow.")]
     private bool IsCompatibleClient(string? clientKey) =>
         !string.IsNullOrEmpty(clientKey) &&
         string.Equals(clientKey, ExpectedGameClientId, StringComparison.Ordinal);

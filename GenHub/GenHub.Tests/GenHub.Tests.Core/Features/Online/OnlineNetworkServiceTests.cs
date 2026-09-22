@@ -655,7 +655,7 @@ public sealed class OnlineNetworkServiceTests
 
         try
         {
-            var service = CreateService(CreateFactory(handler));
+            var service = CreateService(CreateFactory(handler, responder: handler.Responder));
 
             // Act
             var result = await service.GetNetworksAsync();
@@ -710,7 +710,7 @@ public sealed class OnlineNetworkServiceTests
         Func<HttpRequestMessage, HttpResponseMessage>? responder = null)
     {
         handler ??= new CountingHandler();
-        handler.Responder = responder ?? (request => Route(request, joinStatus, onJoinBody, onCreateBody));
+        handler.Responder = responder ?? handler.Responder ?? (request => Route(request, joinStatus, onJoinBody, onCreateBody));
         var factory = new Mock<IHttpClientFactory>();
         factory.Setup(f => f.CreateClient(It.IsAny<string>()))
             .Returns(() =>
