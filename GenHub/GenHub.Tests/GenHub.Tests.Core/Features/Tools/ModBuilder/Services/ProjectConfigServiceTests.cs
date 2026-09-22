@@ -778,6 +778,68 @@ public sealed class ProjectConfigServiceTests : IDisposable
         public List<string> Packs { get; set; } = new();
     }
 
+    [Fact]
+    public async Task CreateProjectAsync_WhenProjectAlreadyExists_ReturnsFailure()
+    {
+        // Arrange
+        var projectPath = Path.Combine(_tempDirectory, "ExistingProject.mbproj");
+        await File.WriteAllTextAsync(projectPath, "{}");
+
+        // Act
+        var result = await _service.CreateProjectAsync(projectPath, "ExistingProject");
+
+        // Assert
+        result.Success.Should().BeFalse();
+        result.Errors.Should().Contain(e => e.Contains("already exists", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public async Task SaveProjectAsync_WhenProjectAlreadyExists_OverwritesSuccessfully()
+    {
+        // Arrange
+        var projectPath = Path.Combine(_tempDirectory, "OverwriteProject.mbproj");
+        await File.WriteAllTextAsync(projectPath, "{}");
+        var project = new ModBuilderProject { Name = "OverwriteProject" };
+
+        // Act
+        var result = await _service.SaveProjectAsync(projectPath, project);
+
+        // Assert
+        result.Success.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task RecentProjects_CaseInsensitiveMatch_HandlesDuplicatesAndRemoval()
+    {
+        // Arrange
+        var appDataDir = Path.Combine(_tempDirectory, "appdata_recent");
+        Directory.CreateDirectory(appDataDir);
+        var configMock = new Mock<IConfigurationProviderService>();
+        configMock.Setup(c => c.GetApplicationDataPath()).Returns(appDataDir);
+        var service = new ProjectConfigService(_mockLogger.Object, configMock.Object);
+
+        var projectPathLower = Path.Combine(_tempDirectory, "project.mbproj");
+        var projectPathUpper = Path.Combine(_tempDirectory, "PROJECT.MBPROJ");
+        await File.WriteAllTextAsync(projectPathLower, "{}");
+
+        // Act 1: Add lowercase, then add uppercase
+        await service.AddToRecentProjectsAsync(projectPathLower);
+        await service.AddToRecentProjectsAsync(projectPathUpper);
+        var recent = await service.GetRecentProjectsAsync();
+
+        // Assert 1: Only 1 entry (case-insensitively deduped)
+        recent.Success.Should().BeTrue();
+        recent.Data.Should().HaveCount(1);
+
+        // Act 2: Remove using different casing
+        var removeResult = await service.RemoveFromRecentProjectsAsync(projectPathLower);
+
+        // Assert 2: Project removed completely
+        removeResult.Success.Should().BeTrue();
+        var afterRemove = await service.GetRecentProjectsAsync();
+        afterRemove.Data.Should().BeEmpty();
+    }
+
     private sealed class TemplateIsolation : IDisposable
     {
         private readonly string _originalDirectory;

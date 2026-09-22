@@ -113,7 +113,7 @@ public sealed class ExternalToolService(ILogger<ExternalToolService> logger) : I
                     if (!process.HasExited)
                     {
                         process.Kill(entireProcessTree: true);
-                        process.WaitForExit();
+                        await process.WaitForExitAsync(CancellationToken.None).ConfigureAwait(false);
                     }
                 }
                 catch (Exception killEx) when (killEx is InvalidOperationException or System.ComponentModel.Win32Exception)

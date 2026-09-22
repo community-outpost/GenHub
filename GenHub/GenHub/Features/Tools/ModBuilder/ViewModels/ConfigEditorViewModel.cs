@@ -763,6 +763,11 @@ public partial class ConfigEditorViewModel(
 
         if (confirmed)
         {
+            if (pickerVm.HasTruncatedNodes)
+            {
+                logger.LogWarning("Project item picker tree contained truncated directories due to access or I/O restrictions.");
+            }
+
             SelectedBundleItem.SetPatterns(dialog.ResultPatterns, CurrentProject.ProjectDir, _fileSnapshot);
             HasChanges = true;
         }
@@ -1016,7 +1021,12 @@ public partial class ConfigEditorViewModel(
                 .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
 
             Configuration.Items.Clear();
-            foreach (var itemVm in BundleItems)
+            var uniqueBundleItems = BundleItems
+                .Where(vm => !string.IsNullOrWhiteSpace(vm.Name))
+                .GroupBy(vm => vm.Name.Trim(), StringComparer.OrdinalIgnoreCase)
+                .Select(g => g.First());
+
+            foreach (var itemVm in uniqueBundleItems)
             {
                 existingItems.TryGetValue(itemVm.Name, out var existingItem);
                 var parsedFiles = ParseItemFiles(itemVm, existingItem, projectDir);
@@ -1039,7 +1049,12 @@ public partial class ConfigEditorViewModel(
             }
 
             Configuration.Packs.Clear();
-            foreach (var packVm in BundlePacks)
+            var uniqueBundlePacks = BundlePacks
+                .Where(vm => !string.IsNullOrWhiteSpace(vm.Name))
+                .GroupBy(vm => vm.Name.Trim(), StringComparer.OrdinalIgnoreCase)
+                .Select(g => g.First());
+
+            foreach (var packVm in uniqueBundlePacks)
             {
                 Configuration.Packs.Add(new BundlePack
                 {

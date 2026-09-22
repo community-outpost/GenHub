@@ -639,6 +639,90 @@ public sealed class BuildEngineService(
         return $"{item.GetFullName()}{suffix}";
     }
 
+    private static void ResetStagingDirectory(string stagingDir)
+    {
+        if (Directory.Exists(stagingDir))
+        {
+            Directory.Delete(stagingDir, true);
+        }
+
+        Directory.CreateDirectory(stagingDir);
+    }
+
+    private IProgress<double> CreateArchiveProgress(
+        IProgress<BuildProgress>? progress,
+        string itemName,
+        int currentItem,
+        int totalBigItems)
+    {
+        return new Progress<double>(p =>
+        {
+            var overallProgress = ((currentItem - 1) + p) / totalBigItems;
+            progress?.Report(new BuildProgress
+            {
+                CurrentStage = BuildStage.Compressing,
+                CurrentFile = $"{itemName}.big",
+                CurrentIndex = BuildIndex.BigBundleItem,
+                CurrentStep = $"Compressing {itemName}.big ({p:P0})",
+                ProcessedFiles = Volatile.Read(ref _filesProcessed),
+                PercentComplete = overallProgress * 100,
+                Percentage = overallProgress,
+            });
+        });
+    }
+
+    private async Task StageSingleBundleFileAsync(
+        BundleFile file,
+        string stagingDir,
+        string? buildDir,
+        CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+        var sourceFile = file.AbsSourceFile;
+        if (!File.Exists(sourceFile))
+        {
+            logger.LogWarning("File not found for BIG bundle: {FilePath}", sourceFile);
+            Interlocked.Increment(ref _filesFailed);
+            RecordFirstError($"File not found for BIG bundle: {sourceFile}");
+            return;
+        }
+
+        var targetRelPath = GetTargetRelativePath(file);
+        var (actualSource, finalTargetRelPath) = ResolveStagedSource(file, targetRelPath, buildDir);
+        if (ConversionOutputMissing(file, actualSource))
+        {
+            var message = $"Converted output missing for '{file.AbsSourceFile}'. Refusing to pack the source file.";
+            logger.LogError(message);
+            Interlocked.Increment(ref _filesFailed);
+            RecordFirstError(message);
+            return;
+        }
+
+        var targetStagedFile = Path.Combine(stagingDir, finalTargetRelPath);
+        if (!IsSubpathOf(stagingDir, targetStagedFile))
+        {
+            var escapeError = $"Refusing to stage '{actualSource}': target '{finalTargetRelPath}' escapes the staging directory. Check RelTargetFile for '..' or absolute paths.";
+            logger.LogWarning(ModBuilderConstants.EscapeErrorLogTemplate, escapeError);
+            Interlocked.Increment(ref _filesFailed);
+            RecordFirstError(escapeError);
+            return;
+        }
+
+        if (PathHelper.AreSamePath(actualSource, targetStagedFile))
+        {
+            logger.LogDebug("Skipping staging where source and target are the same file: {Path}", actualSource);
+            return;
+        }
+
+        EnsureDestinationDirectory(targetStagedFile);
+        var copySuccess = await CopyFileDirectlyAsync(actualSource, targetStagedFile, ct).ConfigureAwait(false);
+        if (!copySuccess)
+        {
+            Interlocked.Increment(ref _filesFailed);
+            RecordFirstError($"Failed to stage '{actualSource}' to '{targetStagedFile}'.");
+        }
+    }
+
     private async Task BuildSingleBigBundleItemAsync(
         BundleItem item,
         string bundlesDir,
@@ -661,12 +745,7 @@ public sealed class BuildEngineService(
             return;
         }
 
-        if (Directory.Exists(stagingDir))
-        {
-            Directory.Delete(stagingDir, true);
-        }
-
-        Directory.CreateDirectory(stagingDir);
+        ResetStagingDirectory(stagingDir);
 
         try
         {
@@ -687,54 +766,9 @@ public sealed class BuildEngineService(
 
             await Parallel.ForEachAsync(stagingFiles, parallelOptions, async (file, ct) =>
             {
-                ct.ThrowIfCancellationRequested();
-                var sourceFile = file.AbsSourceFile;
-                if (!File.Exists(sourceFile))
-                {
-                    logger.LogWarning("File not found for BIG bundle: {FilePath}", sourceFile);
-                    Interlocked.Increment(ref _filesFailed);
-                    RecordFirstError($"File not found for BIG bundle: {sourceFile}");
-                    return;
-                }
-
-                var targetRelPath = GetTargetRelativePath(file);
-                var (actualSource, finalTargetRelPath) = ResolveStagedSource(file, targetRelPath, buildDir);
-                if (ConversionOutputMissing(file, actualSource))
-                {
-                    var message = $"Converted output missing for '{file.AbsSourceFile}'. Refusing to pack the source file.";
-                    logger.LogError(message);
-                    Interlocked.Increment(ref _filesFailed);
-                    RecordFirstError(message);
-                    return;
-                }
-
-                var targetStagedFile = Path.Combine(stagingDir, finalTargetRelPath);
-                if (!IsSubpathOf(stagingDir, targetStagedFile))
-                {
-                    var escapeError = $"Refusing to stage '{actualSource}': target '{finalTargetRelPath}' escapes the staging directory. Check RelTargetFile for '..' or absolute paths.";
-                    logger.LogWarning(ModBuilderConstants.EscapeErrorLogTemplate, escapeError);
-                    Interlocked.Increment(ref _filesFailed);
-                    RecordFirstError(escapeError);
-                    return;
-                }
-
-                if (PathHelper.AreSamePath(actualSource, targetStagedFile))
-                {
-                    logger.LogDebug("Skipping staging where source and target are the same file: {Path}", actualSource);
-                    return;
-                }
-
-                EnsureDestinationDirectory(targetStagedFile);
-                var copySuccess = await CopyFileDirectlyAsync(actualSource, targetStagedFile, ct).ConfigureAwait(false);
-                if (!copySuccess)
-                {
-                    Interlocked.Increment(ref _filesFailed);
-                    RecordFirstError($"Failed to stage '{actualSource}' to '{targetStagedFile}'.");
-                    return;
-                }
-
+                await StageSingleBundleFileAsync(file, stagingDir, buildDir, ct).ConfigureAwait(false);
                 var processed = Interlocked.Increment(ref currentFile);
-                ReportBigBundleStagingProgress(progress, item.Name, actualSource, processed, totalFiles, currentItem, totalBigItems);
+                ReportBigBundleStagingProgress(progress, item.Name, file.AbsSourceFile, processed, totalFiles, currentItem, totalBigItems);
             }).ConfigureAwait(false);
 
             if (Volatile.Read(ref _filesFailed) > initialFailed)
@@ -743,21 +777,7 @@ public sealed class BuildEngineService(
                 return;
             }
 
-            var archiveProgress = new Progress<double>(p =>
-            {
-                var overallProgress = ((currentItem - 1) + p) / totalBigItems;
-                progress?.Report(new BuildProgress
-                {
-                    CurrentStage = BuildStage.Compressing,
-                    CurrentFile = $"{item.Name}.big",
-                    CurrentIndex = BuildIndex.BigBundleItem,
-                    CurrentStep = $"Compressing {item.Name}.big ({p:P0})",
-                    ProcessedFiles = Volatile.Read(ref _filesProcessed),
-                    PercentComplete = overallProgress * 100,
-                    Percentage = overallProgress,
-                });
-            });
-
+            var archiveProgress = CreateArchiveProgress(progress, item.Name, currentItem, totalBigItems);
             var manifestPath = ResolveItemManifestPath(item, projectDir);
             await CreateBigArchiveWithLoggingAsync(stagingDir, bigFilePath, item.Name, manifestPath, archiveProgress, cancellationToken).ConfigureAwait(false);
 
@@ -768,17 +788,7 @@ public sealed class BuildEngineService(
         }
         finally
         {
-            if (Directory.Exists(stagingDir))
-            {
-                try
-                {
-                    Directory.Delete(stagingDir, true);
-                }
-                catch (Exception ex)
-                {
-                    logger.LogDebug(ex, "Failed to clean up staging directory: {StagingDir}", stagingDir);
-                }
-            }
+            CleanupStagingDirectory(stagingDir);
         }
     }
 

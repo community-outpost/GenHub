@@ -178,6 +178,16 @@ public sealed class ProjectItemPickerViewModelTests : IDisposable
         Assert.DoesNotContain("GameFilesEdited/Data/INI/a.ini", generated);
     }
 
+    [Fact]
+    public async Task InitializeAsync_HasTruncatedNodes_DefaultsToFalse()
+    {
+        var viewModel = new ProjectItemPickerViewModel(_tempDirectory);
+        Assert.False(viewModel.HasTruncatedNodes);
+
+        await viewModel.InitializeAsync();
+        Assert.False(viewModel.HasTruncatedNodes);
+    }
+
     public void Dispose()
     {
         if (Directory.Exists(_tempDirectory))

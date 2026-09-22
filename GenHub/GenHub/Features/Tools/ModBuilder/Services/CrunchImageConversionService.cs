@@ -457,6 +457,7 @@ public class CrunchImageConversionService(
                     ms.Position = 0;
                     using var loaded = Image.Load(ms);
                     var resized = ImageProcessingHelper.ApplyResizeParameters(loaded, parameters);
+                    using var resizedLoadedScope = ReferenceEquals(resized, loaded) ? null : resized;
                     resized.SaveAsTga(targetTgaPath, new TgaEncoder
                     {
                         BitsPerPixel = TgaBitsPerPixel.Pixel32,
@@ -493,6 +494,7 @@ public class CrunchImageConversionService(
 
                 using var psdLoaded = Image.Load(msPsd);
                 var resizedPsd = ImageProcessingHelper.ApplyResizeParameters(psdLoaded, parameters);
+                using var resizedPsdScope = ReferenceEquals(resizedPsd, psdLoaded) ? null : resizedPsd;
                 resizedPsd.SaveAsTga(targetTgaPath, new TgaEncoder
                 {
                     BitsPerPixel = TgaBitsPerPixel.Pixel32,
@@ -510,6 +512,7 @@ public class CrunchImageConversionService(
 
             using var image = Image.Load(sourcePath);
             var resizedImage = ImageProcessingHelper.ApplyResizeParameters(image, parameters);
+            using var resizedImageScope = ReferenceEquals(resizedImage, image) ? null : resizedImage;
 
             cancellationToken.ThrowIfCancellationRequested();
 
@@ -550,6 +553,7 @@ public class CrunchImageConversionService(
 
         using var image = await Image.LoadAsync(sourcePath, cancellationToken).ConfigureAwait(false);
         var resizedImage = ImageProcessingHelper.ApplyResizeParameters(image, parameters);
+        using var resizedScope = ReferenceEquals(resizedImage, image) ? null : resizedImage;
 
         cancellationToken.ThrowIfCancellationRequested();
         await ImageProcessingHelper.SaveImageToTargetAsync(resizedImage, targetPath, targetExt, cancellationToken).ConfigureAwait(false);
@@ -579,6 +583,7 @@ public class CrunchImageConversionService(
                 ms.Position = 0;
                 using var loaded = await Image.LoadAsync(ms, cancellationToken).ConfigureAwait(false);
                 var resized = ImageProcessingHelper.ApplyResizeParameters(loaded, parameters);
+                using var resizedLoadedScope = ReferenceEquals(resized, loaded) ? null : resized;
                 await ImageProcessingHelper.SaveImageToTargetAsync(resized, targetPath, targetExt, cancellationToken).ConfigureAwait(false);
                 return true;
             }
@@ -610,6 +615,7 @@ public class CrunchImageConversionService(
 
             using var psdLoaded = await Image.LoadAsync(msCombined, cancellationToken).ConfigureAwait(false);
             var resizedPsd = ImageProcessingHelper.ApplyResizeParameters(psdLoaded, parameters);
+            using var resizedPsdScope = ReferenceEquals(resizedPsd, psdLoaded) ? null : resizedPsd;
             await ImageProcessingHelper.SaveImageToTargetAsync(resizedPsd, targetPath, targetExt, cancellationToken).ConfigureAwait(false);
             return true;
         }, cancellationToken).ConfigureAwait(false);

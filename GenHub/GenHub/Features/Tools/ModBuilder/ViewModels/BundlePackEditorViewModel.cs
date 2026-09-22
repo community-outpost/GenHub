@@ -3,6 +3,7 @@ using Avalonia.Platform.Storage;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Notifications;
 using GenHub.Features.Tools.ModBuilder.Models;
 using Microsoft.Extensions.Logging;
@@ -18,27 +19,11 @@ namespace GenHub.Features.Tools.ModBuilder.ViewModels;
 /// <summary>
 /// ViewModel for bundle pack editor dialog.
 /// </summary>
-public partial class BundlePackEditorViewModel : ObservableObject
+public partial class BundlePackEditorViewModel(
+    INotificationService notificationService,
+    ILogger<BundlePackEditorViewModel> logger,
+    ILocalizationService? localizationService = null) : ObservableObject
 {
-    private readonly INotificationService _notificationService;
-    private readonly ILogger<BundlePackEditorViewModel> _logger;
-
-    /// <summary>
-    /// Initializes a new instance of the <see cref="BundlePackEditorViewModel"/> class.
-    /// </summary>
-    /// <param name="notificationService">The notification service.</param>
-    /// <param name="logger">The logger.</param>
-    public BundlePackEditorViewModel(
-        INotificationService notificationService,
-        ILogger<BundlePackEditorViewModel> logger)
-    {
-        _notificationService = notificationService;
-        _logger = logger;
-
-        Files = [];
-        SelectedFiles = [];
-    }
-
     /// <summary>
     /// Gets or sets the bundle pack name.
     /// </summary>
@@ -60,12 +45,12 @@ public partial class BundlePackEditorViewModel : ObservableObject
     /// <summary>
     /// Gets the collection of files in the bundle.
     /// </summary>
-    public ObservableCollection<BundleFileInfo> Files { get; }
+    public ObservableCollection<BundleFileInfo> Files { get; } = [];
 
     /// <summary>
     /// Gets the collection of selected files.
     /// </summary>
-    public ObservableCollection<BundleFileInfo> SelectedFiles { get; }
+    public ObservableCollection<BundleFileInfo> SelectedFiles { get; } = [];
 
     /// <summary>
     /// Gets or sets the selected file for preview.
@@ -127,19 +112,24 @@ public partial class BundlePackEditorViewModel : ObservableObject
         {
             if (owner == null)
             {
-                _logger.LogWarning("No owner window provided for file picker");
+                logger.LogWarning("No owner window provided for file picker");
                 return;
             }
 
+            var pickerTitle = localizationService?.GetString("Tools.ModBuilder.BundlePack.PickerTitle") ?? "Add Files to Bundle";
+            var allFilesLabel = localizationService?.GetString("Tools.ModBuilder.Filter.AllFiles") ?? "All Files";
+            var imageFilesLabel = localizationService?.GetString("Tools.ModBuilder.Filter.ImageFiles") ?? "Image Files";
+            var textFilesLabel = localizationService?.GetString("Tools.ModBuilder.Filter.TextFiles") ?? "Text Files";
+
             var files = await owner.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
             {
-                Title = "Add Files to Bundle",
+                Title = pickerTitle,
                 AllowMultiple = true,
                 FileTypeFilter =
                 [
-                    new FilePickerFileType("All Files") { Patterns = ["*.*"] },
-                    new FilePickerFileType("Image Files") { Patterns = ["*.tga", "*.dds", "*.psd", "*.png", "*.jpg"] },
-                    new FilePickerFileType("Text Files") { Patterns = ["*.csf", "*.ini", "*.txt"] }
+                    new FilePickerFileType(allFilesLabel) { Patterns = ["*.*"] },
+                    new FilePickerFileType(imageFilesLabel) { Patterns = ["*.tga", "*.dds", "*.psd", "*.png", "*.jpg"] },
+                    new FilePickerFileType(textFilesLabel) { Patterns = ["*.csf", "*.ini", "*.txt"] }
                 ]
             });
 
@@ -175,17 +165,17 @@ public partial class BundlePackEditorViewModel : ObservableObject
                     HasChanges = true;
                 });
 
-                _notificationService.ShowSuccess(
-                    "Files Added",
-                    $"Added {files.Count} file(s) to bundle pack");
+                var title = localizationService?.GetString("Tools.ModBuilder.Notification.FilesAdded.Title") ?? "Files Added";
+                var msg = localizationService?.GetString("Tools.ModBuilder.Notification.FilesAdded.Message", files.Count) ?? $"Added {files.Count} file(s) to bundle pack";
+                notificationService.ShowSuccess(title, msg);
             }
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to add files to bundle pack");
-            _notificationService.ShowError(
-                "Add Files Failed",
-                $"Failed to add files: {ex.Message}");
+            logger.LogError(ex, "Failed to add files to bundle pack");
+            var title = localizationService?.GetString("Tools.ModBuilder.Notification.AddFilesFailed.Title") ?? "Add Files Failed";
+            var msg = localizationService?.GetString("Tools.ModBuilder.Notification.AddFilesFailed.Message", ex.Message) ?? $"Failed to add files: {ex.Message}";
+            notificationService.ShowError(title, msg);
         }
     }
 
@@ -219,9 +209,9 @@ public partial class BundlePackEditorViewModel : ObservableObject
         UpdateStatistics();
         HasChanges = true;
 
-        _notificationService.ShowSuccess(
-            "Files Removed",
-            $"Removed {filesToRemove.Count} file(s) from bundle pack");
+        var title = localizationService?.GetString("Tools.ModBuilder.Notification.FilesRemoved.Title") ?? "Files Removed";
+        var msg = localizationService?.GetString("Tools.ModBuilder.Notification.FilesRemoved.Message", filesToRemove.Count) ?? $"Removed {filesToRemove.Count} file(s) from bundle pack";
+        notificationService.ShowSuccess(title, msg);
     }
 
     /// <summary>
@@ -273,14 +263,16 @@ public partial class BundlePackEditorViewModel : ObservableObject
         var tgaFiles = Files.Where(f => f.FileType.Equals("TGA", StringComparison.OrdinalIgnoreCase)).ToList();
         if (tgaFiles.Count == 0)
         {
-            _notificationService.ShowInfo("No TGA Files", "No TGA files found to convert");
+            var title = localizationService?.GetString("Tools.ModBuilder.Notification.NoTgaFiles.Title") ?? "No TGA Files";
+            var msg = localizationService?.GetString("Tools.ModBuilder.Notification.NoTgaFiles.Message") ?? "No TGA files found to convert";
+            notificationService.ShowInfo(title, msg);
             return;
         }
 
         // This would trigger the actual conversion in the build engine
-        _notificationService.ShowInfo(
-            "Conversion Queued",
-            $"{tgaFiles.Count} TGA file(s) will be converted to DDS during build");
+        var queuedTitle = localizationService?.GetString("Tools.ModBuilder.Notification.ConversionQueued.Title") ?? "Conversion Queued";
+        var queuedMsg = localizationService?.GetString("Tools.ModBuilder.Notification.ConversionQueued.Message", tgaFiles.Count) ?? $"{tgaFiles.Count} TGA file(s) will be converted to DDS during build";
+        notificationService.ShowInfo(queuedTitle, queuedMsg);
     }
 
     /// <summary>
@@ -290,9 +282,9 @@ public partial class BundlePackEditorViewModel : ObservableObject
     private void Save()
     {
         HasChanges = false;
-        _notificationService.ShowSuccess(
-            "Bundle Pack Saved",
-            $"Changes to '{BundlePackName}' have been saved");
+        var title = localizationService?.GetString("Tools.ModBuilder.Notification.BundlePackSaved.Title") ?? "Bundle Pack Saved";
+        var msg = localizationService?.GetString("Tools.ModBuilder.Notification.BundlePackSaved.Message", BundlePackName) ?? $"Changes to '{BundlePackName}' have been saved";
+        notificationService.ShowSuccess(title, msg);
     }
 
     /// <summary>

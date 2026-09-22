@@ -103,6 +103,11 @@ public partial class ProjectItemPickerViewModel : ObservableObject
     private bool _isLoading = true;
 
     /// <summary>
+    /// Gets a value indicating whether any nodes in the tree were truncated due to access or I/O errors.
+    /// </summary>
+    public bool HasTruncatedNodes { get; private set; }
+
+    /// <summary>
     /// Initializes a new instance of the <see cref="ProjectItemPickerViewModel"/> class.
     /// The constructor is intentionally lightweight; call <see cref="InitializeAsync"/>
     /// to crawl the project and build the tree on a background thread.
@@ -382,9 +387,10 @@ public partial class ProjectItemPickerViewModel : ObservableObject
                 node.Children.Add(fileNode);
             }
         }
-        catch
+        catch (Exception ex) when (ex is UnauthorizedAccessException or IOException)
         {
-            // Ignore access errors on individual directories
+            // Ignore access or I/O errors on individual directories and flag truncation
+            HasTruncatedNodes = true;
         }
 
         return node;

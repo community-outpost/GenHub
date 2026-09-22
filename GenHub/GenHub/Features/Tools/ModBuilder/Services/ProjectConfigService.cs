@@ -144,8 +144,8 @@ public sealed class ProjectConfigService(
                     sw.Elapsed);
             }
 
-            // Save project file
-            var saveResult = await SaveProjectAsync(projectPath, project, cancellationToken).ConfigureAwait(false);
+            // Save project file (create-new semantics to prevent TOCTOU race)
+            var saveResult = await SaveProjectInternalAsync(projectPath, project, overwrite: false, cancellationToken).ConfigureAwait(false);
             if (!saveResult.Success)
             {
                 return ProjectOperationResult<ModBuilderProject>.CreateFailure(
@@ -271,10 +271,19 @@ public sealed class ProjectConfigService(
     }
 
     /// <inheritdoc />
-    public async Task<ProjectOperationResult<ModBuilderProject>> SaveProjectAsync(
+    public Task<ProjectOperationResult<ModBuilderProject>> SaveProjectAsync(
         string projectPath,
         ModBuilderProject project,
         CancellationToken cancellationToken = default)
+    {
+        return SaveProjectInternalAsync(projectPath, project, overwrite: true, cancellationToken);
+    }
+
+    private async Task<ProjectOperationResult<ModBuilderProject>> SaveProjectInternalAsync(
+        string projectPath,
+        ModBuilderProject project,
+        bool overwrite,
+        CancellationToken cancellationToken)
     {
         var sw = Stopwatch.StartNew();
 
@@ -304,7 +313,7 @@ public sealed class ProjectConfigService(
             // Update last modified timestamp
             project.LastModified = DateTime.UtcNow;
 
-            await AtomicWriteJsonFileAsync(projectPath, project, _jsonOptions, logger, cancellationToken).ConfigureAwait(false);
+            await AtomicWriteJsonFileAsync(projectPath, project, _jsonOptions, logger, cancellationToken, overwrite).ConfigureAwait(false);
 
             logger.LogInformation(
                 "Saved ModBuilder project '{ProjectName}' to {ProjectPath}",
@@ -317,6 +326,14 @@ public sealed class ProjectConfigService(
         catch (OperationCanceledException)
         {
             throw;
+        }
+        catch (IOException ex) when (!overwrite && File.Exists(projectPath))
+        {
+            logger.LogWarning(ex, "Project file already exists at: {ProjectPath}", projectPath);
+            sw.Stop();
+            return ProjectOperationResult<ModBuilderProject>.CreateFailure(
+                GetProjectError(ProjectAlreadyExistsErrorKey, "Project file already exists at: {0}", projectPath),
+                sw.Elapsed);
         }
         catch (Exception ex)
         {
@@ -539,7 +556,7 @@ public sealed class ProjectConfigService(
                     : new List<string>();
 
                 // Remove if already exists (to move to front)
-                recentProjects.Remove(projectPath);
+                recentProjects.RemoveAll(p => string.Equals(p, projectPath, StringComparison.OrdinalIgnoreCase));
 
                 // Add to front
                 recentProjects.Insert(0, projectPath);
@@ -597,7 +614,7 @@ public sealed class ProjectConfigService(
                 }
 
                 var recentProjects = recentProjectsResult.Data;
-                recentProjects.Remove(projectPath);
+                recentProjects.RemoveAll(p => string.Equals(p, projectPath, StringComparison.OrdinalIgnoreCase));
 
                 await SaveRecentProjectsAsync(recentProjects, cancellationToken).ConfigureAwait(false);
             }
@@ -2637,7 +2654,8 @@ public sealed class ProjectConfigService(
         T value,
         JsonSerializerOptions options,
         ILogger logger,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        bool overwrite = true)
     {
         var dir = Path.GetDirectoryName(filePath);
         if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
@@ -2667,8 +2685,12 @@ public sealed class ProjectConfigService(
             {
                 try
                 {
-                    File.Move(tempPath, filePath, overwrite: true);
+                    File.Move(tempPath, filePath, overwrite: overwrite);
                     break;
+                }
+                catch (IOException) when (!overwrite && File.Exists(filePath))
+                {
+                    throw;
                 }
                 catch (UnauthorizedAccessException ex) when (attempt < maxRetries)
                 {

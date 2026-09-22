@@ -1904,6 +1904,15 @@ public partial class ModBuilderViewModel(
             return;
         }
 
+        // Verify the directory actually belongs to a ModBuilder project before deleting known subdirectories
+        var configDir = Path.Combine(projectDir, ModBuilderConstants.ConfigDir);
+        var lowercaseConfigDir = Path.Combine(projectDir, ModBuilderConstants.LowercaseConfigDir);
+        var hasModBuilderConfig = Directory.Exists(configDir) || Directory.Exists(lowercaseConfigDir);
+        if (!hasModBuilderConfig)
+        {
+            return;
+        }
+
         // Delete known project-owned subdirectories if they exist
         var knownDirs = new[]
         {
@@ -2038,6 +2047,18 @@ public partial class ModBuilderViewModel(
             var projectName = Path.GetFileName(oldProjectDir);
             var userSamplesDir = Path.Combine(GetUserModBuilderDirectory(), ModBuilderConstants.SamplesDirectoryName);
             var targetDir = Path.Combine(userSamplesDir, projectName);
+            if (Directory.Exists(targetDir))
+            {
+                var counter = 1;
+                string candidate;
+                do
+                {
+                    candidate = Path.Combine(userSamplesDir, $"{projectName}_{counter++}");
+                }
+                while (Directory.Exists(candidate));
+                targetDir = candidate;
+            }
+
             var targetProjectPath = Path.Combine(targetDir, Path.GetFileName(oldProjectPath));
 
             if (Directory.Exists(oldProjectDir))
@@ -2994,7 +3015,7 @@ public partial class ModBuilderViewModel(
                 return 0;
             }
 
-            var editFolder = Path.Combine(projectDir, ModBuilderConstants.GameFilesEditedDir);
+            var editFolder = Path.Combine(projectDir, CurrentProject?.Directories?.GameFilesEdited ?? ModBuilderConstants.GameFilesEditedDir);
             if (Directory.Exists(editFolder))
             {
                 var fileCount = await Task.Run(

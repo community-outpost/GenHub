@@ -232,6 +232,7 @@ public class ImageConversionService(ILogger<ImageConversionService> logger) : II
 
             using var image = await Image.LoadAsync<Rgba32>(sourcePath, cancellationToken).ConfigureAwait(false);
             var resizedImage = ImageProcessingHelper.ApplyResizeParameters(image, parameters);
+            using var resizedScope = ReferenceEquals(resizedImage, image) ? null : resizedImage;
 
             cancellationToken.ThrowIfCancellationRequested();
 
@@ -271,6 +272,7 @@ public class ImageConversionService(ILogger<ImageConversionService> logger) : II
             }
 
             var resizedImage = ImageProcessingHelper.ApplyResizeParameters(image, parameters);
+            using var resizedScope = ReferenceEquals(resizedImage, image) ? null : resizedImage;
 
             cancellationToken.ThrowIfCancellationRequested();
             await ImageProcessingHelper.SaveImageToTargetAsync(resizedImage, targetPath, targetExt, cancellationToken).ConfigureAwait(false);
@@ -390,8 +392,10 @@ public class ImageConversionService(ILogger<ImageConversionService> logger) : II
         CancellationToken cancellationToken)
     {
         using var image = await Image.LoadAsync<Rgba32>(sourcePath, cancellationToken).ConfigureAwait(false);
-        using var resizedImage = ImageProcessingHelper.ApplyResizeParameters(image, parameters);
-        using var rgbaImage = resizedImage is Image<Rgba32> exact ? exact : resizedImage.CloneAs<Rgba32>();
+        var resizedImage = ImageProcessingHelper.ApplyResizeParameters(image, parameters);
+        using var resizedScope = ReferenceEquals(resizedImage, image) ? null : resizedImage;
+        var rgbaImage = resizedImage as Image<Rgba32> ?? resizedImage.CloneAs<Rgba32>();
+        using var rgbaScope = ReferenceEquals(rgbaImage, resizedImage) ? null : rgbaImage;
         var width = rgbaImage.Width;
         var height = rgbaImage.Height;
         var hasAlpha = ImageProcessingHelper.DetectAlpha(rgbaImage);
@@ -420,6 +424,7 @@ public class ImageConversionService(ILogger<ImageConversionService> logger) : II
 
             using var image = await Image.LoadAsync(sourcePath, cancellationToken).ConfigureAwait(false);
             var resizedImage = ImageProcessingHelper.ApplyResizeParameters(image, parameters);
+            using var resizedScope = ReferenceEquals(resizedImage, image) ? null : resizedImage;
 
             cancellationToken.ThrowIfCancellationRequested();
             await ImageProcessingHelper.SaveImageToTargetAsync(resizedImage, targetPath, Path.GetExtension(targetPath).ToLowerInvariant(), cancellationToken).ConfigureAwait(false);

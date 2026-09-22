@@ -377,4 +377,48 @@ public class ConfigEditorViewModelTests
             Directory.Delete(projectDir, recursive: true);
         }
     }
+
+    [Fact]
+    public async Task SaveAsync_DeduplicatesBundleItemsAndPacksByNameCaseInsensitively()
+    {
+        var projectDir = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        Directory.CreateDirectory(projectDir);
+        try
+        {
+            var project = new ModBuilderProject
+            {
+                Name = "DedupTest",
+                ProjectDir = projectDir,
+                Configuration = new BuildConfiguration
+                {
+                    Items =
+                    [
+                        new BundleItem { Name = "ItemA" },
+                        new BundleItem { Name = "itema" },
+                    ],
+                    Packs =
+                    [
+                        new BundlePack { Name = "PackA" },
+                        new BundlePack { Name = "PACKA" },
+                    ],
+                },
+            };
+
+            var viewModel = CreateViewModel();
+            await viewModel.InitializeAsync(project);
+
+            var locMock = new Mock<ILocalizationService>();
+            viewModel.BundleItems.Add(new BundleItemEditorViewModel(locMock.Object) { Name = "itema" });
+            viewModel.BundlePacks.Add(new BundlePackConfigViewModel { Name = "packa" });
+
+            await viewModel.SaveCommand.ExecuteAsync(null);
+
+            Assert.Single(project.Configuration.Items);
+            Assert.Single(project.Configuration.Packs);
+        }
+        finally
+        {
+            Directory.Delete(projectDir, recursive: true);
+        }
+    }
 }
