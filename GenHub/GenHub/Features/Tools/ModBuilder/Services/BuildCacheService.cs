@@ -169,14 +169,42 @@ public sealed class BuildCacheService(
 
             var cacheSnapshot = GetCacheSnapshot();
 
-            // Save as MessagePack format (10x faster than JSON)
+            if (cacheSnapshot.Count == 0)
+            {
+                logger.LogDebug("Skipping build cache save: cache snapshot is empty");
+                return true;
+            }
+
+            // Save as MessagePack format (10x faster than JSON) atomically via temp file
             var msgpackPath = Path.ChangeExtension(cachePath, ModBuilderConstants.MsgPackExtension);
-            await using var stream = File.Create(msgpackPath);
-            await MessagePackSerializer.SerializeAsync(
-                stream,
-                cacheSnapshot,
-                cancellationToken: cancellationToken)
-                .ConfigureAwait(false);
+            var tempPath = $"{msgpackPath}.tmp.{Guid.NewGuid():N}";
+            try
+            {
+                await using (var stream = File.Create(tempPath))
+                {
+                    await MessagePackSerializer.SerializeAsync(
+                        stream,
+                        cacheSnapshot,
+                        cancellationToken: cancellationToken)
+                        .ConfigureAwait(false);
+                }
+
+                File.Move(tempPath, msgpackPath, overwrite: true);
+            }
+            finally
+            {
+                if (File.Exists(tempPath))
+                {
+                    try
+                    {
+                        File.Delete(tempPath);
+                    }
+                    catch (Exception ex)
+                    {
+                        logger.LogWarning(ex, "Failed to clean up temporary cache file: {TempPath}", tempPath);
+                    }
+                }
+            }
 
             logger.LogInformation("Saved MessagePack build cache with {Count} entries to {CachePath}", cacheSnapshot.Count, msgpackPath);
             return true;

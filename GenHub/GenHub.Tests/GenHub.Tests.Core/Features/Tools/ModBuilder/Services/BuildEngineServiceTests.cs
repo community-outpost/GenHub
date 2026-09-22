@@ -398,6 +398,10 @@ public sealed class BuildEngineServiceTests : IDisposable
         _mockCacheService.Setup(x => x.DetermineFileStatus(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<Dictionary<string, object>>()))
             .Returns(BuildFileStatus.Unchanged);
 
+        var expectedOutputDir = Path.Combine(_tempDirectory, "output", ModBuilderConstants.RawBundleItemsSubdir);
+        Directory.CreateDirectory(expectedOutputDir);
+        await File.WriteAllTextAsync(Path.Combine(expectedOutputDir, "output.txt"), "content");
+
         // Act
         var result = await _service.ExecuteBuildAsync(project, configuration, selectedPacks, BuildStep.Build);
 
@@ -686,6 +690,15 @@ public sealed class BuildEngineServiceTests : IDisposable
 
         _mockFileConversionService.Setup(x => x.ConvertFileAsync(
             It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<IProgress<double>>(), It.IsAny<CancellationToken>()))
+            .Callback<string, string, string, IProgress<double>, CancellationToken>((_, target, _, _, _) =>
+            {
+                var dir = Path.GetDirectoryName(target);
+                if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
+                {
+                    Directory.CreateDirectory(dir);
+                }
+                File.WriteAllText(target, "dummy converted content");
+            })
             .ReturnsAsync(ConversionOperationResult.CreateSuccess());
 
         // Act
@@ -2150,5 +2163,175 @@ public sealed class BuildEngineServiceTests : IDisposable
         result.Success.Should().BeFalse();
         result.FirstError.Should().Contain("outside the build directories");
         Directory.Exists(Path.Combine(patchProjectDir, "evilpack")).Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task ExecuteBuildAsync_WithTgaBigBundleItem_StagesDdsInsteadOfTga()
+    {
+        // Arrange
+        var patchProjectDir = Path.Combine(_tempDirectory, "TgaBigItem");
+        var editedDir = Path.Combine(patchProjectDir, "GameFilesEdited");
+        var buildDir = Path.Combine(patchProjectDir, ".Build");
+        var releaseDir = Path.Combine(patchProjectDir, ".Release");
+
+        Directory.CreateDirectory(Path.Combine(editedDir, "Art", "Textures"));
+        var tgaFile = Path.Combine(editedDir, "Art", "Textures", "Unit.tga");
+        await File.WriteAllBytesAsync(tgaFile, new byte[] { 0x54, 0x47, 0x41 });
+
+        var project = new ModBuilderProject
+        {
+            Name = "TgaBigItem",
+            ProjectDir = patchProjectDir,
+            Directories = new ProjectDirectories
+            {
+                GameFilesEdited = editedDir,
+                Build = buildDir,
+                Release = releaseDir,
+            },
+            BundleConfigs = new List<string>(),
+        };
+
+        var configuration = new BuildConfiguration
+        {
+            Folders = new FolderConfiguration
+            {
+                AbsBuildDir = buildDir,
+                AbsReleaseDir = releaseDir,
+            },
+            Items = new List<BundleItem>
+            {
+                new()
+                {
+                    Name = "UnitTextures",
+                    IsBig = true,
+                    Files = new List<BundleFile>
+                    {
+                        new()
+                        {
+                            AbsSourceParent = patchProjectDir,
+                            AbsSourceFile = tgaFile,
+                            RelTargetFile = "Art/Textures/Unit.tga",
+                        },
+                    },
+                },
+            },
+            Packs = new List<BundlePack>(),
+        };
+
+        _mockCacheService.Setup(x => x.DetermineFileStatus(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<Dictionary<string, object>>()))
+            .Returns(BuildFileStatus.Added);
+
+        _mockFileConversionService.Setup(x => x.ConvertFileAsync(
+            It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<IProgress<double>>(), It.IsAny<CancellationToken>()))
+            .Callback<string, string, string, IProgress<double>, CancellationToken>((_, target, _, _, _) =>
+            {
+                var dir = Path.GetDirectoryName(target);
+                if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
+                {
+                    Directory.CreateDirectory(dir);
+                }
+                File.WriteAllBytes(target, new byte[] { 0x44, 0x44, 0x53 });
+            })
+            .ReturnsAsync(ConversionOperationResult.CreateSuccess());
+
+        bool? stagedDdsExists = null;
+        bool? stagedTgaExists = null;
+        _mockArchiveService.Setup(x => x.CreateBigArchiveAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<IProgress<double>?>(), It.IsAny<CancellationToken>()))
+            .Callback<string, string, IProgress<double>?, CancellationToken>((sourceDir, target, _, _) =>
+            {
+                var dir = Path.GetDirectoryName(target);
+                if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
+                {
+                    Directory.CreateDirectory(dir);
+                }
+                if (!File.Exists(target))
+                {
+                    File.WriteAllText(target, "dummy big content");
+                }
+                stagedDdsExists = File.Exists(Path.Combine(sourceDir, "Art", "Textures", "Unit.dds"));
+                stagedTgaExists = File.Exists(Path.Combine(sourceDir, "Art", "Textures", "Unit.tga"));
+            })
+            .ReturnsAsync(GenHub.Core.Models.Results.OperationResult<bool>.CreateSuccess(true));
+
+        // Act
+        var result = await _service.ExecuteBuildAsync(project, configuration, new List<string>(), BuildStep.Build);
+
+        // Assert
+        result.Success.Should().BeTrue(result.FirstError);
+        stagedDdsExists.Should().BeTrue("converted DDS asset must be staged into the Big archive");
+        stagedTgaExists.Should().BeFalse("unconverted TGA asset must not be staged into the Big archive");
+    }
+
+    [Fact]
+    public async Task ExecuteBuildAsync_WithMissingConvertedDds_FailsBuildAndRefusesToPackSource()
+    {
+        // Arrange
+        var patchProjectDir = Path.Combine(_tempDirectory, "MissingDdsBigItem");
+        var editedDir = Path.Combine(patchProjectDir, "GameFilesEdited");
+        var buildDir = Path.Combine(patchProjectDir, ".Build");
+        var releaseDir = Path.Combine(patchProjectDir, ".Release");
+
+        Directory.CreateDirectory(Path.Combine(editedDir, "Art", "Textures"));
+        var tgaFile = Path.Combine(editedDir, "Art", "Textures", "Unit.tga");
+        await File.WriteAllBytesAsync(tgaFile, new byte[] { 0x54, 0x47, 0x41 });
+
+        var project = new ModBuilderProject
+        {
+            Name = "MissingDdsBigItem",
+            ProjectDir = patchProjectDir,
+            Directories = new ProjectDirectories
+            {
+                GameFilesEdited = editedDir,
+                Build = buildDir,
+                Release = releaseDir,
+            },
+            BundleConfigs = new List<string>(),
+        };
+
+        var configuration = new BuildConfiguration
+        {
+            Folders = new FolderConfiguration
+            {
+                AbsBuildDir = buildDir,
+                AbsReleaseDir = releaseDir,
+            },
+            Items = new List<BundleItem>
+            {
+                new()
+                {
+                    Name = "UnitTextures",
+                    IsBig = true,
+                    Files = new List<BundleFile>
+                    {
+                        new()
+                        {
+                            AbsSourceParent = patchProjectDir,
+                            AbsSourceFile = tgaFile,
+                            RelTargetFile = "Art/Textures/Unit.tga",
+                        },
+                    },
+                },
+            },
+            Packs = new List<BundlePack>(),
+        };
+
+        _mockCacheService.Setup(x => x.DetermineFileStatus(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<Dictionary<string, object>>()))
+            .Returns(BuildFileStatus.Added);
+
+        // Simulate conversion claiming success but not actually writing the DDS file to disk
+        _mockFileConversionService.Setup(x => x.ConvertFileAsync(
+            It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<IProgress<double>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ConversionOperationResult.CreateSuccess());
+
+        // Act
+        var result = await _service.ExecuteBuildAsync(project, configuration, new List<string>(), BuildStep.Build);
+
+        // Assert
+        result.Success.Should().BeFalse("build must fail when expected converted asset is missing");
+        result.FirstError.Should().Contain("Unit.tga");
+        _mockArchiveService.Verify(
+            x => x.CreateBigArchiveAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<IProgress<double>?>(), It.IsAny<CancellationToken>()),
+            Times.Never,
+            "archive packing must not be called when converted asset is missing");
     }
 }

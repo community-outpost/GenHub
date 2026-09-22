@@ -270,7 +270,7 @@
 
                                       <!-- Delete Button -->
                                       <Button Grid.Column="3"
-                                              Command="{Binding [Window].((vm:ConfigEditorViewModel)DataContext).RemoveSourcePatternCommand}"
+                                              Command="{Binding $parent[Window].((vm:ConfigEditorViewModel)DataContext).RemoveSourcePatternCommand}"
                                               CommandParameter="{Binding .}"
                                               Background="Transparent" BorderThickness="0"
                                               Padding="6,4" CornerRadius="4" Cursor="Hand"

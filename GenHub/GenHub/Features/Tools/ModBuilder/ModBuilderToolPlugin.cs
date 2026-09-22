@@ -1,6 +1,7 @@
 using Avalonia.Controls;
 using Avalonia.Data;
 using Avalonia.Data.Converters;
+using Avalonia.Threading;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Tools;
 using GenHub.Core.Models.Tools;
@@ -50,8 +51,8 @@ public sealed class ModBuilderToolPlugin : IToolPlugin
         // Get ViewModel from DI
         var viewModel = _serviceProvider.GetRequiredService<ModBuilderViewModel>();
 
-        // Initialize the ViewModel
-        _ = Task.Run(async () =>
+        // Initialize the ViewModel on the UI thread
+        Dispatcher.UIThread.Post(async () =>
         {
             try
             {
@@ -59,7 +60,7 @@ public sealed class ModBuilderToolPlugin : IToolPlugin
             }
             catch (Exception ex)
             {
-                var logger = _serviceProvider.GetService<ILogger<ModBuilderToolPlugin>>();
+                var logger = _serviceProvider?.GetService<ILogger<ModBuilderToolPlugin>>();
                 logger?.LogError(ex, "Failed to initialize ModBuilder ViewModel");
             }
         });
@@ -76,7 +77,7 @@ public sealed class ModBuilderToolPlugin : IToolPlugin
             Control.IsVisibleProperty,
             new Binding(nameof(ModBuilderViewModel.IsProjectLoaded))
             {
-                Converter = new FuncValueConverter<bool, bool>(isLoaded => !isLoaded)
+                Converter = new FuncValueConverter<bool, bool>(isLoaded => !isLoaded),
             });
 
         // Bind modbuilder visibility to IsProjectLoaded
@@ -108,6 +109,11 @@ public sealed class ModBuilderToolPlugin : IToolPlugin
     /// <inheritdoc />
     public void Dispose()
     {
+        if (_rootControl?.DataContext is IDisposable disposable)
+        {
+            disposable.Dispose();
+        }
+
         _rootControl = null;
         _serviceProvider = null;
     }

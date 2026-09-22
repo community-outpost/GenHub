@@ -303,24 +303,14 @@
       </Border>
     </Grid>
 
-    <!-- Status Bar -->
-    <Border Grid.Row="3" Background="{DynamicResource SurfaceElevatedBrush}"
-            BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
-            CornerRadius="8" Padding="12,8" Margin="0,10,0,0">
-      <Grid ColumnDefinitions="Auto,*">
-        <ProgressBar Grid.Column="0"
-                     Value="{Binding ProgressPercentage}"
-                     IsIndeterminate="{Binding IsIndeterminateProgress}"
-                     MinWidth="160" Height="6" CornerRadius="3"
-                     Foreground="{DynamicResource AccentBrush}"
-                     Background="{DynamicResource SurfaceHoverBrush}"
-                     Margin="0,0,12,0"
-                     IsVisible="{Binding IsLoading}"/>
-
-        <TextBlock Grid.Column="1" Text="{Binding StatusMessage}"
-                   FontSize="12" Foreground="{DynamicResource TextSecondary}"
-                   TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
-      </Grid>
-    </Border>
+    <!-- Progress Indicator -->
+    <ProgressBar Grid.Row="3"
+                 Value="{Binding ProgressPercentage}"
+                 IsIndeterminate="{Binding IsIndeterminateProgress}"
+                 Height="4" CornerRadius="2"
+                 Foreground="{DynamicResource AccentBrush}"
+                 Background="{DynamicResource SurfaceHoverBrush}"
+                 Margin="0,8,0,0"
+                 IsVisible="{Binding IsLoading}"/>
   </Grid>
 </UserControl>

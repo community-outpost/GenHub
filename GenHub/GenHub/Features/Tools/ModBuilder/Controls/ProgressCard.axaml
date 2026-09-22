@@ -4,7 +4,9 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d" d:DesignWidth="400" d:DesignHeight="120"
-             x:Class="GenHub.Features.Tools.ModBuilder.Controls.ProgressCard">
+             xmlns:vm="clr-namespace:GenHub.Features.Tools.ModBuilder.ViewModels"
+             x:Class="GenHub.Features.Tools.ModBuilder.Controls.ProgressCard"
+             x:DataType="vm:ProgressCardViewModel">
 
   <UserControl.Resources>
     <ResourceDictionary>

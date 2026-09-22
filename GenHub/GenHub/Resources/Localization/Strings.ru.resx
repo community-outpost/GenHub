@@ -10086,6 +10086,24 @@ GameFilesEdited/Data/INI/**/*.ini</value>
   <data name="Tools.ModBuilder.BundleItemEditor.MatchingFiles.CheckFailed" xml:space="preserve">
     <value>Проверка совпадений: {0}</value>
   </data>
+  <data name="Tools.ModBuilder.Notification.FilesLoaded.Title" xml:space="preserve">
+    <value>Файлы загружены</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.FilesLoaded.Message" xml:space="preserve">
+    <value>Загружено файлов проекта: {0}</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.FilesAdded.Title" xml:space="preserve">
+    <value>Файлы добавлены</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.FilesAdded.Message" xml:space="preserve">
+    <value>Добавлено файлов в проект: {0}</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.FilesRemoved.Title" xml:space="preserve">
+    <value>Файлы удалены</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.FilesRemoved.Message" xml:space="preserve">
+    <value>Удалено файлов из проекта: {0}</value>
+  </data>
   <data name="GameProfiles.Notification.LaunchChanged.Title" xml:space="preserve">
     <value>Конфигурация запуска изменена</value>
   </data>

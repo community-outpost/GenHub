@@ -10179,6 +10179,24 @@ Project structure ready. Edit files in GameFilesEdited folder.</value>
   <data name="Tools.ModBuilder.BundleItemEditor.MatchingFiles.CheckFailed" xml:space="preserve">
     <value>Match check: {0}</value>
   </data>
+  <data name="Tools.ModBuilder.Notification.FilesLoaded.Title" xml:space="preserve">
+    <value>Files Loaded</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.FilesLoaded.Message" xml:space="preserve">
+    <value>Loaded {0} project files</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.FilesAdded.Title" xml:space="preserve">
+    <value>Files Added</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.FilesAdded.Message" xml:space="preserve">
+    <value>Added {0} file(s) to project</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.FilesRemoved.Title" xml:space="preserve">
+    <value>Files Removed</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.FilesRemoved.Message" xml:space="preserve">
+    <value>Removed {0} file(s) from project</value>
+  </data>
   <data name="GameProfiles.Notification.LaunchChanged.Title" xml:space="preserve">
     <value>Launch Configuration Changed</value>
   </data>

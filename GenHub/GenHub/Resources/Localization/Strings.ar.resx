@@ -10086,6 +10086,24 @@ GameFilesEdited/Data/INI/**/*.ini</value>
   <data name="Tools.ModBuilder.BundleItemEditor.MatchingFiles.CheckFailed" xml:space="preserve">
     <value>فحص المطابقة: {0}</value>
   </data>
+  <data name="Tools.ModBuilder.Notification.FilesLoaded.Title" xml:space="preserve">
+    <value>تم تحميل الملفات</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.FilesLoaded.Message" xml:space="preserve">
+    <value>تم تحميل {0} من ملفات المشروع</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.FilesAdded.Title" xml:space="preserve">
+    <value>تمت إضافة الملفات</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.FilesAdded.Message" xml:space="preserve">
+    <value>تمت إضافة {0} ملف(ملفات) إلى المشروع</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.FilesRemoved.Title" xml:space="preserve">
+    <value>تمت إزالة الملفات</value>
+  </data>
+  <data name="Tools.ModBuilder.Notification.FilesRemoved.Message" xml:space="preserve">
+    <value>تمت إزالة {0} ملف(ملفات) من المشروع</value>
+  </data>
   <data name="GameProfiles.Notification.LaunchChanged.Title" xml:space="preserve">
     <value>تم تغيير إعدادات التشغيل</value>
   </data>

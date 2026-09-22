@@ -4,6 +4,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.GameInstallations;
+using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Models.GameInstallations;
 using GenHub.Features.Tools.ModBuilder.Models;
@@ -26,7 +27,8 @@ namespace GenHub.Features.Tools.ModBuilder.ViewModels;
 public partial class FileManagerViewModel(
     IGameInstallationService gameInstallationService,
     INotificationService notificationService,
-    ILogger<FileManagerViewModel> logger) : ObservableObject, IDisposable
+    ILogger<FileManagerViewModel> logger,
+    ILocalizationService? localizationService = null) : ObservableObject, IDisposable
 {
     private readonly ConcurrentDictionary<string, (long Length, DateTime LastWriteTimeUtc, string Hash)> _fileHashCache = new(StringComparer.OrdinalIgnoreCase);
     private readonly SemaphoreSlim _loadLock = new(1, 1);
@@ -250,6 +252,9 @@ public partial class FileManagerViewModel(
             await LoadProjectFilesAsync(cancellationToken).ConfigureAwait(false);
 
             StatusMessage = $"Loaded {TotalFiles} project files";
+            var loadedTitle = localizationService?.GetString("Tools.ModBuilder.Notification.FilesLoaded.Title") ?? "Files Loaded";
+            var loadedMsg = localizationService?.GetString("Tools.ModBuilder.Notification.FilesLoaded.Message", TotalFiles) ?? $"Loaded {TotalFiles} project files";
+            notificationService.ShowSuccess(loadedTitle, loadedMsg);
         }
         catch (OperationCanceledException ex)
         {
@@ -729,7 +734,9 @@ public partial class FileManagerViewModel(
 
             await LoadProjectFilesAsync(cancellationToken).ConfigureAwait(false);
 
-            notificationService.ShowSuccess("Files Added", $"Added {copiedCount} file(s) to project");
+            var addedTitle = localizationService?.GetString("Tools.ModBuilder.Notification.FilesAdded.Title") ?? "Files Added";
+            var addedMsg = localizationService?.GetString("Tools.ModBuilder.Notification.FilesAdded.Message", copiedCount) ?? $"Added {copiedCount} file(s) to project";
+            notificationService.ShowSuccess(addedTitle, addedMsg);
             StatusMessage = $"Added {copiedCount} file(s)";
         }
         catch (OperationCanceledException ex)
@@ -776,7 +783,9 @@ public partial class FileManagerViewModel(
             Dispatcher.UIThread.Post(() => StatusMessage = $"Removed {fileList.Count} file(s) from project");
             await LoadProjectFilesAsync(cancellationToken).ConfigureAwait(false);
 
-            notificationService.ShowSuccess("Files Removed", $"Removed {fileList.Count} file(s) from project");
+            var removedTitle = localizationService?.GetString("Tools.ModBuilder.Notification.FilesRemoved.Title") ?? "Files Removed";
+            var removedMsg = localizationService?.GetString("Tools.ModBuilder.Notification.FilesRemoved.Message", fileList.Count) ?? $"Removed {fileList.Count} file(s) from project";
+            notificationService.ShowSuccess(removedTitle, removedMsg);
         }
         catch (OperationCanceledException ex)
         {

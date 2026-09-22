@@ -113,9 +113,10 @@ public sealed class ExternalToolService(ILogger<ExternalToolService> logger) : I
                     if (!process.HasExited)
                     {
                         process.Kill(entireProcessTree: true);
+                        process.WaitForExit();
                     }
                 }
-                catch
+                catch (Exception killEx) when (killEx is InvalidOperationException or System.ComponentModel.Win32Exception)
                 {
                     // Ignore failure killing already exited process
                 }

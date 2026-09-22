@@ -676,13 +676,16 @@ public sealed class BuildEngineService(
 
             CreateStagingDirectories(stagingFiles, stagingDir);
 
+            var buildDir = Path.GetDirectoryName(bundlesDir);
+            var initialFailed = Volatile.Read(ref _filesFailed);
+
             var parallelOptions = new ParallelOptions
             {
                 MaxDegreeOfParallelism = Math.Clamp(Environment.ProcessorCount, 2, 8),
                 CancellationToken = cancellationToken,
             };
 
-            await Parallel.ForEachAsync(stagingFiles, parallelOptions, (file, ct) =>
+            await Parallel.ForEachAsync(stagingFiles, parallelOptions, async (file, ct) =>
             {
                 ct.ThrowIfCancellationRequested();
                 var sourceFile = file.AbsSourceFile;
@@ -691,33 +694,54 @@ public sealed class BuildEngineService(
                     logger.LogWarning("File not found for BIG bundle: {FilePath}", sourceFile);
                     Interlocked.Increment(ref _filesFailed);
                     RecordFirstError($"File not found for BIG bundle: {sourceFile}");
-                    return ValueTask.CompletedTask;
+                    return;
                 }
 
                 var targetRelPath = GetTargetRelativePath(file);
-                var targetStagedFile = Path.Combine(stagingDir, targetRelPath);
+                var (actualSource, finalTargetRelPath) = ResolveStagedSource(file, targetRelPath, buildDir);
+                if (ConversionOutputMissing(file, actualSource))
+                {
+                    var message = $"Converted output missing for '{file.AbsSourceFile}'. Refusing to pack the source file.";
+                    logger.LogError(message);
+                    Interlocked.Increment(ref _filesFailed);
+                    RecordFirstError(message);
+                    return;
+                }
+
+                var targetStagedFile = Path.Combine(stagingDir, finalTargetRelPath);
                 if (!IsSubpathOf(stagingDir, targetStagedFile))
                 {
-                    var escapeError = $"Refusing to stage '{sourceFile}': target '{targetRelPath}' escapes the staging directory. Check RelTargetFile for '..' or absolute paths.";
+                    var escapeError = $"Refusing to stage '{actualSource}': target '{finalTargetRelPath}' escapes the staging directory. Check RelTargetFile for '..' or absolute paths.";
                     logger.LogWarning(ModBuilderConstants.EscapeErrorLogTemplate, escapeError);
                     Interlocked.Increment(ref _filesFailed);
                     RecordFirstError(escapeError);
-                    return ValueTask.CompletedTask;
+                    return;
                 }
 
-                if (PathHelper.AreSamePath(sourceFile, targetStagedFile))
+                if (PathHelper.AreSamePath(actualSource, targetStagedFile))
                 {
-                    logger.LogDebug("Skipping staging where source and target are the same file: {Path}", sourceFile);
-                    return ValueTask.CompletedTask;
+                    logger.LogDebug("Skipping staging where source and target are the same file: {Path}", actualSource);
+                    return;
                 }
 
-                File.Copy(sourceFile, targetStagedFile, true);
+                EnsureDestinationDirectory(targetStagedFile);
+                var copySuccess = await CopyFileDirectlyAsync(actualSource, targetStagedFile, ct).ConfigureAwait(false);
+                if (!copySuccess)
+                {
+                    Interlocked.Increment(ref _filesFailed);
+                    RecordFirstError($"Failed to stage '{actualSource}' to '{targetStagedFile}'.");
+                    return;
+                }
 
                 var processed = Interlocked.Increment(ref currentFile);
-                ReportBigBundleStagingProgress(progress, item.Name, sourceFile, processed, totalFiles, currentItem, totalBigItems);
-
-                return ValueTask.CompletedTask;
+                ReportBigBundleStagingProgress(progress, item.Name, actualSource, processed, totalFiles, currentItem, totalBigItems);
             }).ConfigureAwait(false);
+
+            if (Volatile.Read(ref _filesFailed) > initialFailed)
+            {
+                logger.LogWarning("Skipping BIG archive creation for bundle item {ItemName} due to staging failures", item.Name);
+                return;
+            }
 
             var archiveProgress = new Progress<double>(p =>
             {
@@ -1115,25 +1139,10 @@ public sealed class BuildEngineService(
             var packFileName = Path.GetFileName(packFilePath);
             if (manifest.EntryOrder.Count > 0 && TryReadBigEntryCount(packFilePath, out var entryCount) && entryCount != manifest.EntryOrder.Count)
             {
-                if (entryCount < manifest.EntryOrder.Count)
-                {
-                    // Subset archives (bundle items sharing a release manifest) can
-                    // never match the release hash, so skip them without warning.
-                    logger.LogDebug(
-                        "Skipping hash verification for {File}: {Built} entries is a subset of {Manifest} manifest entries",
-                        packFileName,
-                        entryCount,
-                        manifest.EntryOrder.Count);
-                }
-                else
-                {
-                    logger.LogWarning(
-                        "Archive {File} contains {Built} entries but the manifest lists {Manifest}; extra files were packed beyond the release set",
-                        packFileName,
-                        entryCount,
-                        manifest.EntryOrder.Count);
-                }
-
+                var countMismatchMsg = $"Archive {packFileName} contains {entryCount} entries but the manifest lists {manifest.EntryOrder.Count}; entry count mismatch";
+                logger.LogError("{MismatchMessage}", countMismatchMsg);
+                _lastErrorMessage = countMismatchMsg;
+                Interlocked.Increment(ref _filesFailed);
                 return;
             }
             progress?.Report(new BuildProgress
@@ -1170,7 +1179,10 @@ public sealed class BuildEngineService(
         }
         catch (Exception ex)
         {
-            logger.LogWarning(ex, "Failed to verify hash for built archive: {Path}", packFilePath);
+            var readErrorMsg = $"Failed to verify hash for built archive {packFilePath}: {ex.Message}";
+            logger.LogError(ex, "Failed to verify hash for built archive: {Path}", packFilePath);
+            _lastErrorMessage = readErrorMsg;
+            Interlocked.Increment(ref _filesFailed);
         }
     }
 
@@ -1221,7 +1233,7 @@ public sealed class BuildEngineService(
     {
         if (pack.IsBigPack)
         {
-            StageBigPackFiles(pack, items, paths.PackStagingDir, paths.BuildDir, progress, cancellationToken);
+            await StageBigPackFilesAsync(pack, items, paths.PackStagingDir, paths.BuildDir, progress, cancellationToken).ConfigureAwait(false);
         }
         else
         {
@@ -1229,7 +1241,7 @@ public sealed class BuildEngineService(
         }
     }
 
-    private void StageBigPackFiles(BundlePack pack, IReadOnlyList<BundleItem> items, string packStagingDir, string buildDir, IProgress<BuildProgress>? progress, CancellationToken cancellationToken)
+    private async Task StageBigPackFilesAsync(BundlePack pack, IReadOnlyList<BundleItem> items, string packStagingDir, string buildDir, IProgress<BuildProgress>? progress, CancellationToken cancellationToken)
     {
         var filesToStage = new List<(BundleFile File, string ItemName)>();
         foreach (var itemName in pack.ItemNames)
@@ -1288,14 +1300,14 @@ public sealed class BuildEngineService(
             Percentage = 0,
         });
 
-        Parallel.ForEach(dedupedPairs, new ParallelOptions
+        await Parallel.ForEachAsync(dedupedPairs, new ParallelOptions
         {
             MaxDegreeOfParallelism = Math.Clamp(Environment.ProcessorCount, 2, 8),
             CancellationToken = cancellationToken,
-        }, pair =>
+        }, async (pair, ct) =>
         {
-            cancellationToken.ThrowIfCancellationRequested();
-            StageBigPackFile(pair.File, packStagingDir, pack.Name, pair.ItemName, buildDir);
+            ct.ThrowIfCancellationRequested();
+            await StageBigPackFileAsync(pair.File, packStagingDir, pack.Name, pair.ItemName, buildDir, ct).ConfigureAwait(false);
 
             var staged = Interlocked.Increment(ref stagedCount);
             if (staged % ModBuilderConstants.StagingProgressReportInterval == 0 || staged == totalFiles)
@@ -1313,7 +1325,7 @@ public sealed class BuildEngineService(
                     Percentage = percent / 100,
                 });
             }
-        });
+        }).ConfigureAwait(false);
     }
 
     private (string Path, string TargetRelPath)? ProbeConvertedOutput(
@@ -1351,8 +1363,36 @@ public sealed class BuildEngineService(
             return (flatTarget, convertedRel);
         }
 
-        logger.LogWarning("Expected converted {Extension} output not found for {SourcePath}; falling back to raw source", targetExtension.ToUpperInvariant(), sourcePath);
+        logger.LogWarning("Expected converted {Extension} output not found for {SourcePath}", targetExtension.ToUpperInvariant(), sourcePath);
         return null;
+    }
+
+    private static bool ConversionOutputMissing(BundleFile file, string actualSource)
+    {
+        if (IsRawPassthrough(file))
+        {
+            return false;
+        }
+
+        var ext = Path.GetExtension(file.AbsSourceFile).ToLowerInvariant();
+        if (OutputFormatMatchesSource(file, ext))
+        {
+            return false;
+        }
+
+        if (ext is ModBuilderConstants.FileExtensions.Tga or ModBuilderConstants.FileExtensions.Png)
+        {
+            var actualExt = Path.GetExtension(actualSource).ToLowerInvariant();
+            return !string.Equals(actualExt, ModBuilderConstants.FileExtensions.Dds, StringComparison.OrdinalIgnoreCase);
+        }
+
+        if (ext == ModBuilderConstants.FileExtensions.Str)
+        {
+            var actualExt = Path.GetExtension(actualSource).ToLowerInvariant();
+            return !string.Equals(actualExt, ModBuilderConstants.FileExtensions.Csf, StringComparison.OrdinalIgnoreCase);
+        }
+
+        return false;
     }
 
     private (string Path, string TargetRelPath) ResolveStagedSource(
@@ -1407,7 +1447,7 @@ public sealed class BuildEngineService(
         return (sourcePath, targetRelPath);
     }
 
-    private void StageBigPackFile(BundleFile file, string packStagingDir, string packName, string itemName, string? buildDir = null)
+    private async Task StageBigPackFileAsync(BundleFile file, string packStagingDir, string packName, string itemName, string? buildDir, CancellationToken cancellationToken)
     {
         var sourcePath = file.AbsSourceFile;
         if (!File.Exists(sourcePath))
@@ -1420,6 +1460,14 @@ public sealed class BuildEngineService(
 
         var targetRelPath = GetTargetRelativePath(file);
         var (actualSource, finalTargetRelPath) = ResolveStagedSource(file, targetRelPath, buildDir);
+        if (ConversionOutputMissing(file, actualSource))
+        {
+            var message = $"Converted output missing for '{file.AbsSourceFile}'. Refusing to pack the source file.";
+            logger.LogError(message);
+            Interlocked.Increment(ref _filesFailed);
+            RecordFirstError(message);
+            return;
+        }
 
         var destPath = Path.Combine(packStagingDir, finalTargetRelPath);
         if (!IsSubpathOf(packStagingDir, destPath))
@@ -1438,7 +1486,14 @@ public sealed class BuildEngineService(
         }
 
         EnsureDestinationDirectory(destPath);
-        File.Copy(actualSource, destPath, true);
+        var copySuccess = await CopyFileDirectlyAsync(actualSource, destPath, cancellationToken).ConfigureAwait(false);
+        if (!copySuccess)
+        {
+            Interlocked.Increment(ref _filesFailed);
+            RecordFirstError($"Failed to stage '{actualSource}' to '{destPath}'.");
+            return;
+        }
+
         logger.LogDebug("Staged file {RelPath} for BIG pack {PackName}", finalTargetRelPath, packName);
     }
 
@@ -1461,7 +1516,7 @@ public sealed class BuildEngineService(
             }
             else
             {
-                StageRawBundleFiles(item, paths.PackStagingDir, pack.Name, paths.BuildDir, progress, cancellationToken);
+                await StageRawBundleFilesAsync(item, paths.PackStagingDir, pack.Name, paths.BuildDir, progress, cancellationToken).ConfigureAwait(false);
             }
 
             stagedItems++;
@@ -1537,6 +1592,14 @@ public sealed class BuildEngineService(
         }
 
         var (actualSource, finalRelPath) = ResolveStagedSource(file, relPath, buildDir);
+        if (ConversionOutputMissing(file, actualSource))
+        {
+            var message = $"Converted output missing for '{file.AbsSourceFile}'. Refusing to pack the source file.";
+            logger.LogError(message);
+            Interlocked.Increment(ref _filesFailed);
+            RecordFirstError(message);
+            return null;
+        }
 
         var destPath = Path.Combine(packStagingDir, finalRelPath);
         if (!IsSubpathOf(packStagingDir, destPath))
@@ -1557,7 +1620,7 @@ public sealed class BuildEngineService(
         return (actualSource, destPath, finalRelPath);
     }
 
-    private void StageRawBundleFiles(BundleItem item, string packStagingDir, string packName, string? buildDir = null, IProgress<BuildProgress>? progress = null, CancellationToken cancellationToken = default)
+    private async Task StageRawBundleFilesAsync(BundleItem item, string packStagingDir, string packName, string? buildDir = null, IProgress<BuildProgress>? progress = null, CancellationToken cancellationToken = default)
     {
         var totalFiles = item.Files.Count;
         var stagedCount = 0;
@@ -1572,7 +1635,14 @@ public sealed class BuildEngineService(
 
             var (actualSource, destPath, finalRelPath) = target.Value;
             EnsureDestinationDirectory(destPath);
-            File.Copy(actualSource, destPath, true);
+            var copySuccess = await CopyFileDirectlyAsync(actualSource, destPath, cancellationToken).ConfigureAwait(false);
+            if (!copySuccess)
+            {
+                Interlocked.Increment(ref _filesFailed);
+                RecordFirstError($"Failed to stage '{actualSource}' to '{destPath}'.");
+                continue;
+            }
+
             logger.LogDebug("Staged loose file {RelPath} for pack {PackName}", finalRelPath, packName);
 
             stagedCount++;
@@ -1622,10 +1692,11 @@ public sealed class BuildEngineService(
 
         var currentMd5 = await cacheService.ComputeOrReuseMd5Async(filePath, cancellationToken).ConfigureAwait(false);
         var status = cacheService.DetermineFileStatus(filePath, currentMd5, null);
+        var expectedOutputPath = GetExpectedOutputPath(filePath, stage, setup);
 
-        if (status is BuildFileStatus.Unchanged or BuildFileStatus.Irrelevant)
+        if (status is BuildFileStatus.Unchanged or BuildFileStatus.Irrelevant && File.Exists(expectedOutputPath))
         {
-            logger.LogDebug("Skipping unchanged/irrelevant file: {FilePath}", filePath);
+            logger.LogDebug("Skipping unchanged/irrelevant file with existing output: {FilePath}", filePath);
             var fileInfo = new FileInfo(filePath);
             var mtime = fileInfo.LastWriteTimeUtc.Subtract(DateTime.UnixEpoch).TotalSeconds;
             cacheService.AddFile(filePath, mtime, currentMd5);
@@ -1848,6 +1919,27 @@ public sealed class BuildEngineService(
         {
             BuildIndex.RawBundleItem => Path.Combine(buildDir, ModBuilderConstants.RawBundleItemsSubdir, relPath),
             _ => Path.Combine(buildDir, relPath),
+        };
+    }
+
+    private string GetExpectedOutputPath(string filePath, BuildIndex stage, BuildSetup setup)
+    {
+        var targetPath = GetTargetPathForFile(filePath, stage, setup);
+        var bundleFile = FindBundleFile(filePath);
+        var extension = Path.GetExtension(filePath).ToLowerInvariant();
+
+        if (IsRawPassthrough(bundleFile) || OutputFormatMatchesSource(bundleFile, extension))
+        {
+            return targetPath;
+        }
+
+        return extension switch
+        {
+            ModBuilderConstants.FileExtensions.Png or ModBuilderConstants.FileExtensions.Tga =>
+                Path.ChangeExtension(targetPath, ModBuilderConstants.FileExtensions.Dds),
+            ModBuilderConstants.FileExtensions.Str =>
+                Path.ChangeExtension(targetPath, ModBuilderConstants.FileExtensions.Csf),
+            _ => targetPath,
         };
     }
 
@@ -2246,7 +2338,7 @@ public sealed class BuildEngineService(
             }
             else
             {
-                StageRawBundleFiles(item, bundlesDir, item.Name, setup.Folders?.AbsBuildDir, progress, cancellationToken);
+                await StageRawBundleFilesAsync(item, bundlesDir, item.Name, setup.Folders?.AbsBuildDir, progress, cancellationToken).ConfigureAwait(false);
             }
         }
 

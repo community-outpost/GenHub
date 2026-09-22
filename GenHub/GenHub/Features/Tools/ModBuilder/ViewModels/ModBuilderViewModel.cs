@@ -425,11 +425,14 @@ public partial class ModBuilderViewModel(
 
     private void RefreshPublisherSamples()
     {
-        PublisherSampleProjects.Clear();
-        foreach (var item in BuildPublisherSamples())
+        PostToUIThread(() =>
         {
-            PublisherSampleProjects.Add(item);
-        }
+            PublisherSampleProjects.Clear();
+            foreach (var item in BuildPublisherSamples())
+            {
+                PublisherSampleProjects.Add(item);
+            }
+        });
     }
 
     private List<SampleProjectShowcaseItem> BuildPublisherSamples() =>
