@@ -19,6 +19,7 @@ public interface IWndImageAssetService
     /// <param name="projectDirectory">Optional mod project directory layered above game files.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <param name="additionalBigFiles">Optional additional .BIG archive files to load.</param>
+    /// <param name="isZeroHour">Whether the target game is Zero Hour.</param>
     /// <returns>Operation result with PNG bytes per resolved name; unresolved names are absent.</returns>
     Task<OperationResult<IReadOnlyDictionary<string, byte[]>>> GetImagesAsync(
         IReadOnlyCollection<string> mappedImageNames,
@@ -26,7 +27,8 @@ public interface IWndImageAssetService
         string? overrideRoot,
         string? projectDirectory,
         CancellationToken cancellationToken = default,
-        IReadOnlyCollection<string>? additionalBigFiles = null);
+        IReadOnlyCollection<string>? additionalBigFiles = null,
+        bool isZeroHour = false);
 
     /// <summary>
     /// Invalidates cached asset indexes and decoded preview images.

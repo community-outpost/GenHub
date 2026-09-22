@@ -50,7 +50,8 @@ public sealed class WndImageAssetService(ILogger<WndImageAssetService> logger) :
         string? overrideRoot,
         string? projectDirectory,
         CancellationToken cancellationToken = default,
-        IReadOnlyCollection<string>? additionalBigFiles = null)
+        IReadOnlyCollection<string>? additionalBigFiles = null,
+        bool isZeroHour = false)
     {
         ArgumentNullException.ThrowIfNull(mappedImageNames);
         ArgumentNullException.ThrowIfNull(baseRoot);
@@ -72,7 +73,7 @@ public sealed class WndImageAssetService(ILogger<WndImageAssetService> logger) :
 
         try
         {
-            var index = await GetOrBuildIndexAsync(baseRoot, overrideRoot, projectDirectory, cancellationToken, additionalBigFiles).ConfigureAwait(false);
+            var index = await GetOrBuildIndexAsync(baseRoot, overrideRoot, projectDirectory, cancellationToken, additionalBigFiles, isZeroHour).ConfigureAwait(false);
             var requests = CollectRequests(mappedImageNames, index);
             var resolved = await Task.Run(() => DecodeRequests(mappedImageNames, requests, index, cancellationToken), cancellationToken).ConfigureAwait(false);
             if (_imageCache.Count > MaxCachedImages)
@@ -105,10 +106,15 @@ public sealed class WndImageAssetService(ILogger<WndImageAssetService> logger) :
         }
     }
 
-    private static string IndexKey(string baseRoot, string? overrideRoot, string? projectDirectory, IReadOnlyCollection<string>? additionalBigFiles = null)
+    private static string IndexKey(
+        string baseRoot,
+        string? overrideRoot,
+        string? projectDirectory,
+        IReadOnlyCollection<string>? additionalBigFiles = null,
+        bool isZeroHour = false)
     {
         var extra = additionalBigFiles != null && additionalBigFiles.Count > 0 ? string.Join(";", additionalBigFiles) : string.Empty;
-        return string.Concat(baseRoot, "|", overrideRoot ?? string.Empty, "|", projectDirectory ?? string.Empty, "|", extra);
+        return string.Concat(baseRoot, "|", overrideRoot ?? string.Empty, "|", projectDirectory ?? string.Empty, "|", extra, "|", isZeroHour ? "ZH" : "GEN");
     }
 
     private static string CacheKey(string indexKey, string name)
@@ -116,8 +122,10 @@ public sealed class WndImageAssetService(ILogger<WndImageAssetService> logger) :
         return string.Concat(indexKey, "|", name);
     }
 
-    private static int DefinitionScore(string relativePath, int size)
+    private static int DefinitionScore(string relativePath, int size, SageFileTier tier)
     {
+        var tierBase = (int)tier * 1_000_000;
+
         var normalized = relativePath.Replace('/', '\\');
         var isTrueHandCreatedDir = normalized.Contains(@"\MappedImages\HandCreated\", StringComparison.OrdinalIgnoreCase)
             || normalized.StartsWith(@"Data\INI\MappedImages\HandCreated\", StringComparison.OrdinalIgnoreCase)
@@ -125,55 +133,45 @@ public sealed class WndImageAssetService(ILogger<WndImageAssetService> logger) :
 
         var isTextureSize = normalized.Contains(WndConstants.MappedImages.TextureSizePrefix, StringComparison.OrdinalIgnoreCase);
 
-        // SAGE engine loads HandCreated/ directory with INI_LOAD_OVERWRITE so high-res custom assets take precedence
+        var handCreatedBonus = 0;
         if (isTrueHandCreatedDir && !isTextureSize)
         {
-            return -100;
+            handCreatedBonus = 100_000;
         }
-
-        if (relativePath.Contains(WndConstants.Preview.HandCreatedDirectory, StringComparison.OrdinalIgnoreCase) && !isTextureSize)
+        else if (relativePath.Contains(WndConstants.Preview.HandCreatedDirectory, StringComparison.OrdinalIgnoreCase) && !isTextureSize)
         {
-            return -10;
+            handCreatedBonus = 10_000;
         }
 
-        return size < 0 ? int.MaxValue : Math.Abs(size - WndConstants.Preview.PreferredTextureSize);
+        var sizeBonus = size < 0 ? 0 : Math.Max(0, 1000 - Math.Abs(size - WndConstants.Preview.PreferredTextureSize));
+
+        return tierBase + handCreatedBonus + sizeBonus;
     }
 
     private static int ParseTextureSize(string relativePath)
     {
-        var marker = WndConstants.MappedImages.TextureSizePrefix;
-        var markerIndex = relativePath.IndexOf(marker, StringComparison.OrdinalIgnoreCase);
-        if (markerIndex < 0)
+        var normalized = relativePath.Replace('/', '\\');
+        var idx = normalized.IndexOf(WndConstants.MappedImages.TextureSizePrefix, StringComparison.OrdinalIgnoreCase);
+        if (idx < 0)
         {
             return -1;
         }
 
-        var digits = new string(relativePath
-            .Skip(markerIndex + marker.Length)
-            .TakeWhile(char.IsDigit)
-            .ToArray());
-        return int.TryParse(digits, out var size) ? size : -1;
+        var start = idx + WndConstants.MappedImages.TextureSizePrefix.Length;
+        var end = normalized.IndexOfAny(['\\', '.'], start);
+        var span = (end < 0 ? normalized[start..] : normalized[start..end]).Trim();
+        return int.TryParse(span, out var parsed) ? parsed : -1;
     }
 
     private static IEnumerable<string> TextureCandidates(string texture)
     {
-        var raw = texture.Trim();
-        var baseName = Path.GetFileName(raw);
-        var directExt = Path.GetExtension(raw);
-        var baseWithoutExt = Path.GetFileNameWithoutExtension(raw);
-
-        var extensions = new[] { directExt, ".tga", ".dds", ".png", ".jpg", ".bmp" }
-            .Where(ext => !string.IsNullOrWhiteSpace(ext))
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToList();
-
         var returned = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var baseName = Path.GetFileName(texture);
+        var baseWithoutExt = Path.GetFileNameWithoutExtension(texture);
 
-        var canonicalStems = new List<string>
+        var stems = new List<string>
         {
-            raw,
-            baseName,
-            baseWithoutExt,
+            texture,
             string.Concat(DataPrefix, ArtTexturesPrefix, baseName),
             string.Concat(DataPrefix, ArtTexturesPrefix, baseWithoutExt),
             string.Concat(ArtTexturesPrefix, baseName),
@@ -188,16 +186,15 @@ public sealed class WndImageAssetService(ILogger<WndImageAssetService> logger) :
             string.Concat(DataPrefix, WindowPrefix, baseWithoutExt),
             string.Concat(WindowMenusPrefix, baseName),
             string.Concat(WindowMenusPrefix, baseWithoutExt),
+            baseName,
+            baseWithoutExt,
         };
 
-        // Probe canonical stems first. ReadTexture returns on the first hit, so localized
-        // stems are never evaluated for standard assets.
-        foreach (var candidate in YieldStemVariants(canonicalStems, extensions, returned))
+        foreach (var candidate in YieldStemVariants(stems, WndConstants.MappedImages.TextureExtensions, returned))
         {
             yield return candidate;
         }
 
-        // Only if canonical probes fail, sweep localized directories
         var localizedStems = new List<string>();
         foreach (var language in WndConstants.MappedImages.TextureLanguages)
         {
@@ -211,7 +208,7 @@ public sealed class WndImageAssetService(ILogger<WndImageAssetService> logger) :
             localizedStems.Add(string.Concat(DataPrefix, language, "\\", baseWithoutExt));
         }
 
-        foreach (var candidate in YieldStemVariants(localizedStems, extensions, returned))
+        foreach (var candidate in YieldStemVariants(localizedStems, WndConstants.MappedImages.TextureExtensions, returned))
         {
             yield return candidate;
         }
@@ -238,15 +235,16 @@ public sealed class WndImageAssetService(ILogger<WndImageAssetService> logger) :
         }
     }
 
-    private static byte[]? CropToPng(MagickImage page, WndMappedImage image)
+    private static byte[] CropMappedImage(MagickImage page, WndMappedImage image)
     {
         var left = Math.Clamp(image.Left, 0, (int)page.Width);
         var top = Math.Clamp(image.Top, 0, (int)page.Height);
-        var right = Math.Clamp(image.Right, 0, (int)page.Width);
-        var bottom = Math.Clamp(image.Bottom, 0, (int)page.Height);
+        var right = Math.Clamp(image.Right, left, (int)page.Width);
+        var bottom = Math.Clamp(image.Bottom, top, (int)page.Height);
+
         if (right <= left || bottom <= top)
         {
-            return null;
+            return [];
         }
 
         using var cropped = (MagickImage)page.Clone();
@@ -288,9 +286,10 @@ public sealed class WndImageAssetService(ILogger<WndImageAssetService> logger) :
         string? overrideRoot,
         string? projectDirectory,
         CancellationToken cancellationToken,
-        IReadOnlyCollection<string>? additionalBigFiles = null)
+        IReadOnlyCollection<string>? additionalBigFiles = null,
+        bool isZeroHour = false)
     {
-        var key = IndexKey(baseRoot, overrideRoot, projectDirectory, additionalBigFiles);
+        var key = IndexKey(baseRoot, overrideRoot, projectDirectory, additionalBigFiles, isZeroHour);
         if (_indexes.TryGetValue(key, out var cached))
         {
             return cached;
@@ -304,7 +303,7 @@ public sealed class WndImageAssetService(ILogger<WndImageAssetService> logger) :
                 return cached;
             }
 
-            var built = await Task.Run(() => BuildIndex(key, baseRoot, overrideRoot, projectDirectory, cancellationToken, additionalBigFiles), cancellationToken).ConfigureAwait(false);
+            var built = await Task.Run(() => BuildIndex(key, baseRoot, overrideRoot, projectDirectory, cancellationToken, additionalBigFiles, isZeroHour), cancellationToken).ConfigureAwait(false);
             if (_indexes.Count >= MaxCachedIndexes)
             {
                 _indexes.Clear();
@@ -325,9 +324,10 @@ public sealed class WndImageAssetService(ILogger<WndImageAssetService> logger) :
         string? overrideRoot,
         string? projectDirectory,
         CancellationToken cancellationToken,
-        IReadOnlyCollection<string>? additionalBigFiles = null)
+        IReadOnlyCollection<string>? additionalBigFiles = null,
+        bool isZeroHour = false)
     {
-        var fileSystem = WndGameFileSystem.Open(baseRoot, overrideRoot, projectDirectory, logger, cancellationToken, additionalBigFiles);
+        var fileSystem = WndGameFileSystem.Open(baseRoot, overrideRoot, projectDirectory, logger, cancellationToken, additionalBigFiles, isZeroHour);
 
         var searchDirs = new List<string>
         {
@@ -358,9 +358,10 @@ public sealed class WndImageAssetService(ILogger<WndImageAssetService> logger) :
         }
 
         logger.LogInformation(
-            "Indexed {Count} mapped images from {Root}",
+            "Indexed {Count} mapped images for {Target} (fallback: {Fallback})",
             images.Count,
-            string.IsNullOrWhiteSpace(overrideRoot) ? baseRoot : overrideRoot);
+            baseRoot,
+            overrideRoot ?? "none");
         return new AssetIndex(
             key,
             fileSystem,
@@ -406,8 +407,9 @@ public sealed class WndImageAssetService(ILogger<WndImageAssetService> logger) :
             return;
         }
 
+        var tier = fileSystem.GetFileTier(iniPath) ?? SageFileTier.BaseGame;
         var size = ParseTextureSize(iniPath);
-        var score = DefinitionScore(iniPath, size);
+        var score = DefinitionScore(iniPath, size, tier);
         foreach (var image in WndMappedImage.ParseDefinitions(text))
         {
             IndexParsedImage(image, score, size, images, alternates);
@@ -438,7 +440,7 @@ public sealed class WndImageAssetService(ILogger<WndImageAssetService> logger) :
 
     private static bool IsBetterMatch(int score, int size, (WndMappedImage Image, int Score, int Size) incumbent)
     {
-        return score < incumbent.Score || (score == incumbent.Score && size >= incumbent.Size);
+        return score > incumbent.Score || (score == incumbent.Score && size >= incumbent.Size);
     }
 
     private static void AddAlternate(
@@ -452,97 +454,28 @@ public sealed class WndImageAssetService(ILogger<WndImageAssetService> logger) :
             alternates[name] = altList;
         }
 
-        altList.Add(image);
+        if (altList.Count < 5 && !altList.Any(a => string.Equals(a.Texture, image.Texture, StringComparison.OrdinalIgnoreCase)))
+        {
+            altList.Add(image);
+        }
     }
 
     private Dictionary<string, byte[]> DecodeRequests(
-        IReadOnlyCollection<string> allNames,
+        IReadOnlyCollection<string> names,
         Dictionary<string, WndMappedImage> requests,
         AssetIndex index,
         CancellationToken cancellationToken)
     {
         var resolved = new Dictionary<string, byte[]>(StringComparer.OrdinalIgnoreCase);
-        var groups = GroupMappedImageRequests(requests, index, resolved, cancellationToken);
+        var textureGroups = requests.Values.GroupBy(r => r.Texture, StringComparer.OrdinalIgnoreCase);
 
-        foreach (var group in groups.Values)
+        foreach (var group in textureGroups)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            DecodeTextureGroup(group, resolved);
+            DecodeTextureGroup(group.Key, group.ToList(), index, resolved);
         }
 
-        DecodeDirectTextureRequests(allNames, index, resolved, cancellationToken);
-
-        return resolved;
-    }
-
-    private Dictionary<string, TextureGroup> GroupMappedImageRequests(
-        Dictionary<string, WndMappedImage> requests,
-        AssetIndex index,
-        Dictionary<string, byte[]> resolved,
-        CancellationToken cancellationToken)
-    {
-        var groups = new Dictionary<string, TextureGroup>(StringComparer.OrdinalIgnoreCase);
-        foreach (var (name, image) in requests)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            if (_imageCache.TryGetValue(CacheKey(index.Key, name), out var cached))
-            {
-                resolved[name] = cached;
-                continue;
-            }
-
-            var resolvedMatch = ResolveImageTexture(name, image, index);
-            if (resolvedMatch == null)
-            {
-                continue;
-            }
-
-            var (texture, selectedImage) = resolvedMatch.Value;
-            if (!groups.TryGetValue(texture.Path, out var group))
-            {
-                group = new TextureGroup(texture.Path, texture.Bytes, texture.Format, []);
-                groups[texture.Path] = group;
-            }
-
-            group.Images.Add(selectedImage);
-        }
-
-        return groups;
-    }
-
-    private ((string Path, byte[] Bytes, MagickFormat Format) Texture, WndMappedImage SelectedImage)? ResolveImageTexture(
-        string name,
-        WndMappedImage image,
-        AssetIndex index)
-    {
-        var texture = ReadTexture(index.FileSystem, image.Texture);
-        if (texture != null)
-        {
-            return (texture.Value, image);
-        }
-
-        if (index.Alternates.TryGetValue(name, out var altList))
-        {
-            foreach (var alt in altList)
-            {
-                var altTexture = ReadTexture(index.FileSystem, alt.Texture);
-                if (altTexture != null)
-                {
-                    return (altTexture.Value, alt);
-                }
-            }
-        }
-
-        return null;
-    }
-
-    private void DecodeDirectTextureRequests(
-        IReadOnlyCollection<string> allNames,
-        AssetIndex index,
-        Dictionary<string, byte[]> resolved,
-        CancellationToken cancellationToken)
-    {
-        foreach (var name in allNames)
+        foreach (var name in names)
         {
             cancellationToken.ThrowIfCancellationRequested();
             if (string.IsNullOrWhiteSpace(name))
@@ -556,17 +489,51 @@ public sealed class WndImageAssetService(ILogger<WndImageAssetService> logger) :
                 continue;
             }
 
-            if (_imageCache.TryGetValue(CacheKey(index.Key, trimmedName), out var cachedDirect))
+            if (_imageCache.TryGetValue(CacheKey(index.Key, trimmedName), out var cached))
             {
-                resolved[trimmedName] = cachedDirect;
+                resolved[trimmedName] = cached;
                 continue;
             }
 
-            TryDecodeDirectTexture(trimmedName, index, resolved);
+            TryResolveDirectTexture(trimmedName, index, resolved);
+        }
+
+        return resolved;
+    }
+
+    private void DecodeTextureGroup(
+        string texture,
+        List<WndMappedImage> images,
+        AssetIndex index,
+        Dictionary<string, byte[]> resolved)
+    {
+        var textureData = ReadTexture(index.FileSystem, texture);
+        if (textureData == null)
+        {
+            logger.LogDebug("Texture {Texture} not found in game files", texture);
+            return;
+        }
+
+        try
+        {
+            var readSettings = new MagickReadSettings { Format = textureData.Value.Format };
+            using var page = new MagickImage(textureData.Value.Bytes, readSettings);
+            foreach (var img in images)
+            {
+                var png = CropMappedImage(page, img);
+                if (png.Length > 0)
+                {
+                    resolved[img.Name] = png;
+                }
+            }
+        }
+        catch (Exception ex) when (ex is MagickException or IOException)
+        {
+            logger.LogWarning(ex, "Failed to decode texture page {Texture} from {Path}", texture, textureData.Value.Path);
         }
     }
 
-    private void TryDecodeDirectTexture(
+    private void TryResolveDirectTexture(
         string trimmedName,
         AssetIndex index,
         Dictionary<string, byte[]> resolved)
@@ -579,13 +546,9 @@ public sealed class WndImageAssetService(ILogger<WndImageAssetService> logger) :
 
         try
         {
-            var settings = texture.Value.Format != MagickFormat.Unknown
-                ? new MagickReadSettings { Format = texture.Value.Format }
-                : null;
-            using var page = settings != null
-                ? new MagickImage(texture.Value.Bytes, settings)
-                : new MagickImage(texture.Value.Bytes);
-            var png = page.ToByteArray(MagickFormat.Png);
+            var readSettings = new MagickReadSettings { Format = texture.Value.Format };
+            using var image = new MagickImage(texture.Value.Bytes, readSettings);
+            var png = image.ToByteArray(MagickFormat.Png);
             resolved[trimmedName] = png;
             _imageCache[CacheKey(index.Key, trimmedName)] = png;
         }
@@ -597,14 +560,15 @@ public sealed class WndImageAssetService(ILogger<WndImageAssetService> logger) :
 
     private (string Path, byte[] Bytes, MagickFormat Format)? ReadTexture(SageVirtualFileSystem fileSystem, string texture)
     {
-        foreach (var candidate in TextureCandidates(texture.Trim()))
+        var trimmed = texture.Trim();
+        foreach (var candidate in TextureCandidates(trimmed))
         {
             try
             {
                 var bytes = fileSystem.Read(candidate);
-                if (bytes != null)
+                if (bytes != null && bytes.Length > 0 && TryDetectFormat(bytes, out var format))
                 {
-                    return (candidate, bytes, FormatForExtension(Path.GetExtension(candidate)));
+                    return (candidate, bytes, format);
                 }
             }
             catch (IOException ex)
@@ -617,63 +581,76 @@ public sealed class WndImageAssetService(ILogger<WndImageAssetService> logger) :
             }
         }
 
-        return null;
-    }
-
-    private static MagickFormat FormatForExtension(string extension)
-    {
-        if (string.Equals(extension, WndConstants.MappedImages.TextureExtensionDds, StringComparison.OrdinalIgnoreCase))
+        var fileName = Path.GetFileName(trimmed);
+        if (!string.IsNullOrWhiteSpace(fileName))
         {
-            return MagickFormat.Dds;
-        }
-
-        if (string.Equals(extension, WndConstants.MappedImages.TextureExtensionTga, StringComparison.OrdinalIgnoreCase))
-        {
-            return MagickFormat.Tga;
-        }
-
-        if (string.Equals(extension, WndConstants.MappedImages.TextureExtensionJpg, StringComparison.OrdinalIgnoreCase)
-            || string.Equals(extension, ".jpeg", StringComparison.OrdinalIgnoreCase))
-        {
-            return MagickFormat.Jpg;
-        }
-
-        if (string.Equals(extension, ".png", StringComparison.OrdinalIgnoreCase))
-        {
-            return MagickFormat.Png;
-        }
-
-        if (string.Equals(extension, ".bmp", StringComparison.OrdinalIgnoreCase))
-        {
-            return MagickFormat.Bmp;
-        }
-
-        return MagickFormat.Unknown;
-    }
-
-    private void DecodeTextureGroup(TextureGroup group, Dictionary<string, byte[]> resolved)
-    {
-        try
-        {
-            var settings = group.Format != MagickFormat.Unknown
-                ? new MagickReadSettings { Format = group.Format }
-                : null;
-            using var page = settings != null
-                ? new MagickImage(group.Bytes, settings)
-                : new MagickImage(group.Bytes);
-            foreach (var image in group.Images)
+            var candidates = new List<string> { fileName };
+            if (string.IsNullOrEmpty(Path.GetExtension(fileName)))
             {
-                var png = CropToPng(page, image);
-                if (png != null)
+                foreach (var ext in WndConstants.MappedImages.TextureExtensions)
                 {
-                    resolved[image.Name] = png;
+                    candidates.Add(string.Concat(fileName, ext));
+                }
+            }
+
+            foreach (var candidate in candidates)
+            {
+                var looseModBytes = fileSystem.TryReadModLooseFileByName(candidate);
+                if (looseModBytes != null && looseModBytes.Length > 0 && TryDetectFormat(looseModBytes, out var modFormat))
+                {
+                    return (candidate, looseModBytes, modFormat);
+                }
+
+                var archiveBytes = fileSystem.TryReadArchiveFileByName(candidate);
+                if (archiveBytes != null && archiveBytes.Length > 0 && TryDetectFormat(archiveBytes, out var archiveFormat))
+                {
+                    return (candidate, archiveBytes, archiveFormat);
                 }
             }
         }
-        catch (MagickException ex)
+
+        return null;
+    }
+
+    private static bool TryDetectFormat(byte[] bytes, out MagickFormat format)
+    {
+        format = MagickFormat.Unknown;
+        if (bytes == null || bytes.Length < 4)
         {
-            logger.LogDebug(ex, "Failed to decode texture {Path}", group.Path);
+            return false;
         }
+
+        // DDS magic: "DDS " (0x44, 0x44, 0x53, 0x20)
+        if (bytes[0] == 0x44 && bytes[1] == 0x44 && bytes[2] == 0x53 && bytes[3] == 0x20)
+        {
+            format = MagickFormat.Dds;
+            return true;
+        }
+
+        // PNG magic: 0x89, 'P', 'N', 'G'
+        if (bytes[0] == 0x89 && bytes[1] == 0x50 && bytes[2] == 0x4E && bytes[3] == 0x47)
+        {
+            format = MagickFormat.Png;
+            return true;
+        }
+
+        // JPEG magic: 0xFF, 0xD8, 0xFF
+        if (bytes[0] == 0xFF && bytes[1] == 0xD8 && bytes[2] == 0xFF)
+        {
+            format = MagickFormat.Jpg;
+            return true;
+        }
+
+        // BMP magic: 'B', 'M'
+        if (bytes[0] == 0x42 && bytes[1] == 0x4D)
+        {
+            format = MagickFormat.Bmp;
+            return true;
+        }
+
+        // Default SAGE texture format is TGA
+        format = MagickFormat.Tga;
+        return true;
     }
 
     private sealed record AssetIndex(
@@ -681,6 +658,4 @@ public sealed class WndImageAssetService(ILogger<WndImageAssetService> logger) :
         SageVirtualFileSystem FileSystem,
         IReadOnlyDictionary<string, WndMappedImage> Images,
         IReadOnlyDictionary<string, List<WndMappedImage>> Alternates);
-
-    private sealed record TextureGroup(string Path, byte[] Bytes, MagickFormat Format, List<WndMappedImage> Images);
 }

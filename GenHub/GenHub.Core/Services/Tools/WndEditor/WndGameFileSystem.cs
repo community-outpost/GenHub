@@ -19,12 +19,13 @@ public static class WndGameFileSystem
     /// <summary>
     /// Opens a virtual file system with override and mod layers applied.
     /// </summary>
-    /// <param name="baseRoot">The primary game root directory.</param>
-    /// <param name="overrideRoot">Optional higher-priority root layered over the base.</param>
+    /// <param name="baseRoot">The primary game root directory (Zero Hour if isZeroHour is true, otherwise Generals).</param>
+    /// <param name="overrideRoot">Optional fallback base root (e.g. Generals when Zero Hour is primary, or vice versa).</param>
     /// <param name="projectDirectory">Optional mod project directory layered above game files.</param>
     /// <param name="logger">The logger sink.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <param name="additionalBigFiles">Optional additional .BIG archive files to load.</param>
+    /// <param name="isZeroHour">Whether the target game is Zero Hour (expansion tier) or vanilla Generals.</param>
     /// <returns>The layered virtual file system.</returns>
     public static SageVirtualFileSystem Open(
         string baseRoot,
@@ -32,16 +33,58 @@ public static class WndGameFileSystem
         string? projectDirectory,
         ILogger logger,
         CancellationToken cancellationToken = default,
-        IReadOnlyCollection<string>? additionalBigFiles = null)
+        IReadOnlyCollection<string>? additionalBigFiles = null,
+        bool isZeroHour = false)
     {
         ArgumentNullException.ThrowIfNull(baseRoot);
         ArgumentNullException.ThrowIfNull(logger);
-        var fileSystem = new SageVirtualFileSystem(baseRoot, false, logger, cancellationToken);
-        if (!string.IsNullOrWhiteSpace(overrideRoot)
-            && Directory.Exists(overrideRoot)
-            && !string.Equals(overrideRoot, baseRoot, StringComparison.OrdinalIgnoreCase))
+
+        SageVirtualFileSystem fileSystem;
+
+        if (isZeroHour)
         {
-            fileSystem.AddSideload(overrideRoot);
+            if (!string.IsNullOrWhiteSpace(overrideRoot)
+                && Directory.Exists(overrideRoot)
+                && !string.Equals(overrideRoot, baseRoot, StringComparison.OrdinalIgnoreCase))
+            {
+                // overrideRoot is Generals base fallback; baseRoot is Zero Hour active target
+                fileSystem = new SageVirtualFileSystem(
+                    overrideRoot,
+                    isZeroHour: false,
+                    logger: logger,
+                    cancellationToken: cancellationToken,
+                    skipIniZhBig: false,
+                    initialTier: SageFileTier.BaseGame);
+
+                fileSystem.AddSideload(baseRoot);
+            }
+            else
+            {
+                fileSystem = new SageVirtualFileSystem(
+                    baseRoot,
+                    isZeroHour: true,
+                    logger: logger,
+                    cancellationToken: cancellationToken,
+                    skipIniZhBig: false,
+                    initialTier: SageFileTier.Expansion);
+            }
+        }
+        else
+        {
+            fileSystem = new SageVirtualFileSystem(
+                baseRoot,
+                isZeroHour: false,
+                logger: logger,
+                cancellationToken: cancellationToken,
+                skipIniZhBig: false,
+                initialTier: SageFileTier.BaseGame);
+
+            if (!string.IsNullOrWhiteSpace(overrideRoot)
+                && Directory.Exists(overrideRoot)
+                && !string.Equals(overrideRoot, baseRoot, StringComparison.OrdinalIgnoreCase))
+            {
+                fileSystem.AddSideload(overrideRoot);
+            }
         }
 
         if (!string.IsNullOrWhiteSpace(projectDirectory) && Directory.Exists(projectDirectory))
@@ -74,7 +117,7 @@ public static class WndGameFileSystem
         // Layer .Release and Release output folders containing packed .big archives
         LayerReleaseDirectories(fileSystem, projectDirectory);
 
-        // If projectDirectory is GameFilesEdited itself, also layer parent directory and parent's releases
+        // If projectDirectory is GameFilesEdited itself, also layer parent directory and parent's releases/archives
         var normalizedDir = Path.GetFullPath(projectDirectory).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
         var dirName = Path.GetFileName(normalizedDir);
         if (string.Equals(dirName, ModBuilderConstants.GameFilesEditedDir, StringComparison.OrdinalIgnoreCase))
@@ -82,8 +125,14 @@ public static class WndGameFileSystem
             var parent = Directory.GetParent(projectDirectory)?.FullName;
             if (!string.IsNullOrEmpty(parent) && Directory.Exists(parent))
             {
+                fileSystem.AddMod(parent);
                 LayerReleaseDirectories(fileSystem, parent);
+                MountAllBigArchives(fileSystem, parent);
             }
+        }
+        else
+        {
+            MountAllBigArchives(fileSystem, projectDirectory);
         }
     }
 
@@ -96,6 +145,25 @@ public static class WndGameFileSystem
             {
                 fileSystem.AddMod(releaseDir);
             }
+        }
+    }
+
+    private static void MountAllBigArchives(SageVirtualFileSystem fileSystem, string directory)
+    {
+        try
+        {
+            var bigFiles = Directory.GetFiles(directory, SageChecksumConstants.BigFileSearchPattern, SearchOption.AllDirectories);
+            Array.Sort(bigFiles, StringComparer.OrdinalIgnoreCase);
+            foreach (var bigFile in bigFiles)
+            {
+                fileSystem.AddMod(bigFile);
+            }
+        }
+        catch (IOException)
+        {
+        }
+        catch (UnauthorizedAccessException)
+        {
         }
     }
 }

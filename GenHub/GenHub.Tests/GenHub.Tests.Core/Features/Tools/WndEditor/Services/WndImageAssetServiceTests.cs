@@ -133,6 +133,111 @@ public sealed class WndImageAssetServiceTests : IDisposable
         result.Success.Should().BeFalse();
     }
 
+    /// <summary>
+    /// Tests that mod layer mapped image definitions override base game definitions.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task GetImagesAsync_ModTakesPrecedenceOverBaseGame()
+    {
+        // Arrange base
+        WriteMappedImages(
+            "MappedImage PriorityTest\n" +
+            "  Texture = BaseTexture\n" +
+            "  Coords = Left:0 Top:0 Right:4 Bottom:4\n" +
+            "  Status = NONE\n" +
+            "End\n");
+        WriteTexture("BaseTexture.tga", 4, 4);
+
+        // Arrange mod
+        var modDir = Path.Combine(Path.GetTempPath(), "GenHub_ModAssetTests_" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            var modIniDir = Path.Combine(modDir, "Data", "INI", "MappedImages");
+            var modArtDir = Path.Combine(modDir, "Art", "Textures");
+            Directory.CreateDirectory(modIniDir);
+            Directory.CreateDirectory(modArtDir);
+            var modIniContent =
+                "MappedImage PriorityTest\n" +
+                "  Texture = ModTexture\n" +
+                "  Coords = Left:0 Top:0 Right:2 Bottom:2\n" +
+                "  Status = NONE\n" +
+                "End\n";
+            File.WriteAllText(Path.Combine(modIniDir, "ModImages.ini"), modIniContent);
+
+            using (var blueImg = new MagickImage(MagickColors.Blue, 2, 2))
+            {
+                blueImg.Format = MagickFormat.Tga;
+                blueImg.Write(Path.Combine(modArtDir, "ModTexture.tga"));
+            }
+
+            // Act
+            var result = await _service.GetImagesAsync(["PriorityTest"], _gameRoot, null, modDir);
+
+            // Assert
+            result.Success.Should().BeTrue();
+            result.Data.Should().ContainKey("PriorityTest");
+            using var decoded = new MagickImage(result.Data!["PriorityTest"]);
+            decoded.Width.Should().Be(2);
+            decoded.Height.Should().Be(2);
+        }
+        finally
+        {
+            if (Directory.Exists(modDir))
+            {
+                Directory.Delete(modDir, true);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Tests that mod loose textures in arbitrary subdirectories resolve by filename.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task GetImagesAsync_ModLooseTextureByName_ResolvesDirectly()
+    {
+        var modDir = Path.Combine(Path.GetTempPath(), "GenHub_LooseAssetTests_" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            var deepDir = Path.Combine(modDir, "SubFolder", "DeepAssets");
+            var modIniDir = Path.Combine(modDir, "Data", "INI", "MappedImages");
+            Directory.CreateDirectory(deepDir);
+            Directory.CreateDirectory(modIniDir);
+
+            var looseIniContent =
+                "MappedImage LooseBtn\n" +
+                "  Texture = LooseTexture\n" +
+                "  Coords = Left:0 Top:0 Right:3 Bottom:3\n" +
+                "  Status = NONE\n" +
+                "End\n";
+            File.WriteAllText(Path.Combine(modIniDir, "LooseTest.ini"), looseIniContent);
+
+            using (var greenImg = new MagickImage(MagickColors.Green, 4, 4))
+            {
+                greenImg.Format = MagickFormat.Tga;
+                greenImg.Write(Path.Combine(deepDir, "LooseTexture.tga"));
+            }
+
+            // Act
+            var result = await _service.GetImagesAsync(["LooseBtn"], _gameRoot, null, modDir);
+
+            // Assert
+            result.Success.Should().BeTrue();
+            result.Data.Should().ContainKey("LooseBtn");
+            using var decoded = new MagickImage(result.Data!["LooseBtn"]);
+            decoded.Width.Should().Be(3);
+            decoded.Height.Should().Be(3);
+        }
+        finally
+        {
+            if (Directory.Exists(modDir))
+            {
+                Directory.Delete(modDir, true);
+            }
+        }
+    }
+
     private void WriteMappedImages(string content)
     {
         File.WriteAllText(Path.Combine(_gameRoot, "Data", "INI", "MappedImages", "TextureSize_512", "Test.ini"), content);

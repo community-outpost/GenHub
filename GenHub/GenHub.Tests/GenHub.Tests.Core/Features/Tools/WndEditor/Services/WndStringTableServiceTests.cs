@@ -138,6 +138,63 @@ public sealed class WndStringTableServiceTests : IDisposable
         result.Data.Should().BeEmpty();
     }
 
+    /// <summary>
+    /// Tests that ParseStrFile handles both single-line and multi-line .str syntax.
+    /// </summary>
+    [Fact]
+    public void ParseStrFile_SingleAndMultiLine_ParsesCorrectly()
+    {
+        // Arrange
+        var content =
+            "// Comment line\n" +
+            "GUI:Single \"Single Line Value\"\n" +
+            "GUI:Multi\n" +
+            "\"Line 1\n" +
+            "Line 2\"\n" +
+            "End\n";
+        var dict = new System.Collections.Generic.Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+        // Act
+        WndStringTableService.ParseStrFile(content, dict);
+
+        // Assert
+        dict.Should().ContainKey("GUI:Single").WhoseValue.Should().Be("Single Line Value");
+        dict.Should().ContainKey("GUI:Multi").WhoseValue.Should().Be("Line 1\nLine 2");
+    }
+
+    /// <summary>
+    /// Tests that a mod plain-text .str file overrides CSF string table entries.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task GetStringsAsync_ModStrFile_OverridesCsf()
+    {
+        // Arrange base CSF
+        WriteStrings(("GUI:Accept", "Base Accept"));
+
+        // Arrange mod .str
+        var modDir = Path.Combine(Path.GetTempPath(), "GenHub_ModStrTests_" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            Directory.CreateDirectory(modDir);
+            File.WriteAllText(Path.Combine(modDir, "generals.str"), "GUI:Accept \"Mod Accept\"\n");
+
+            // Act
+            var result = await _service.GetStringsAsync(["GUI:Accept"], _gameRoot, null, modDir);
+
+            // Assert
+            result.Success.Should().BeTrue();
+            result.Data.Should().Contain("GUI:Accept", "Mod Accept");
+        }
+        finally
+        {
+            if (Directory.Exists(modDir))
+            {
+                Directory.Delete(modDir, true);
+            }
+        }
+    }
+
     private void WriteStrings(params (string Label, string Value)[] entries)
     {
         var table = new CsfFile();

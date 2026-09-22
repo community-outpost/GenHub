@@ -1,6 +1,7 @@
 using GenHub.Core.Constants;
 using Microsoft.Extensions.Logging;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -9,17 +10,11 @@ using System.Threading;
 namespace GenHub.Core.Services.Tools.Checksum;
 
 /// <summary>
-/// Virtual file system that mirrors SAGE engine file resolution precedence (loose files > sideloads > BIG archives).
+/// In-memory virtual file system that layers game directory contents and .big archives
+/// to simulate how the SAGE engine resolves files at runtime.
 /// </summary>
 public sealed class SageVirtualFileSystem
 {
-    private enum ArchiveTier
-    {
-        BaseGame = 0,
-        Sideload = 1,
-        Mod = 2,
-    }
-
     private static readonly EnumerationOptions BigFileEnumerationOptions = new()
     {
         RecurseSubdirectories = true,
@@ -39,8 +34,10 @@ public sealed class SageVirtualFileSystem
         RecurseSubdirectories = false,
     };
 
-    private readonly List<string> _looseRoots = [];
-    private readonly Dictionary<string, (BigArchiveEntry Entry, ArchiveTier Tier)> _archiveEntries = new(StringComparer.OrdinalIgnoreCase);
+    private readonly List<(string Path, SageFileTier Tier)> _looseRoots = [];
+    private readonly Dictionary<string, (BigArchiveEntry Entry, SageFileTier Tier)> _archiveEntries = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, string> _modLooseFiles = new(StringComparer.OrdinalIgnoreCase);
+    private readonly ConcurrentDictionary<string, string?> _loosePathCache = new(StringComparer.OrdinalIgnoreCase);
     private readonly ILogger? _logger;
 
     /// <summary>
@@ -50,15 +47,19 @@ public sealed class SageVirtualFileSystem
     /// <param name="isZeroHour">Whether the target game is Zero Hour (generalsmd) or vanilla Generals.</param>
     /// <param name="logger">Optional logger for diagnostic tracing.</param>
     /// <param name="cancellationToken">Optional cancellation token.</param>
+    /// <param name="skipIniZhBig">Whether to skip INIZH.big during base archive discovery (used for CRC calculation).</param>
+    /// <param name="initialTier">The storage tier to assign to the primary game root files.</param>
     public SageVirtualFileSystem(
         string gameRoot,
         bool isZeroHour,
         ILogger? logger = null,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        bool skipIniZhBig = false,
+        SageFileTier initialTier = SageFileTier.BaseGame)
     {
         ArgumentNullException.ThrowIfNull(gameRoot);
         _logger = logger;
-        _looseRoots.Add(gameRoot);
+        _looseRoots.Add((gameRoot, initialTier));
 
         if (!Directory.Exists(gameRoot))
         {
@@ -77,17 +78,38 @@ public sealed class SageVirtualFileSystem
         {
             cancellationToken.ThrowIfCancellationRequested();
             string rel = Path.GetRelativePath(gameRoot, bigFile).Replace('/', '\\');
-            if (isZeroHour && rel.EndsWith(SageChecksumConstants.IniZhBigRelativePath, StringComparison.OrdinalIgnoreCase))
+            if (skipIniZhBig && isZeroHour && rel.EndsWith(SageChecksumConstants.IniZhBigRelativePath, StringComparison.OrdinalIgnoreCase))
             {
                 continue;
             }
 
-            AddArchive(bigFile, ArchiveTier.BaseGame);
+            AddArchive(bigFile, initialTier);
         }
     }
 
     /// <summary>
-    /// Adds a sideload directory or archive to the VFS.
+    /// Adds a base fallback directory to the VFS (e.g. Generals vanilla directory when Zero Hour is active).
+    /// Fallback assets are checked only when an asset does not exist in expansion or mod layers.
+    /// </summary>
+    /// <param name="path">Path to a directory.</param>
+    public void AddBaseFallback(string path)
+    {
+        if (string.IsNullOrWhiteSpace(path) || !Directory.Exists(path))
+        {
+            return;
+        }
+
+        _looseRoots.Insert(0, (path, SageFileTier.BaseGame));
+        var bigFiles = Directory.GetFiles(path, SageChecksumConstants.BigFileSearchPattern, BigFileEnumerationOptions);
+        Array.Sort(bigFiles, StringComparer.OrdinalIgnoreCase);
+        foreach (string bigFile in bigFiles)
+        {
+            AddArchive(bigFile, SageFileTier.BaseGame);
+        }
+    }
+
+    /// <summary>
+    /// Adds a sideload / expansion directory or archive to the VFS.
     /// </summary>
     /// <param name="path">Path to a directory or .big archive.</param>
     public void AddSideload(string path)
@@ -99,17 +121,17 @@ public sealed class SageVirtualFileSystem
 
         if (Directory.Exists(path))
         {
-            _looseRoots.Add(path);
+            _looseRoots.Add((path, SageFileTier.Expansion));
             var bigFiles = Directory.GetFiles(path, SageChecksumConstants.BigFileSearchPattern, BigFileEnumerationOptions);
             Array.Sort(bigFiles, StringComparer.OrdinalIgnoreCase);
             foreach (string bigFile in bigFiles)
             {
-                AddArchive(bigFile, ArchiveTier.Sideload);
+                AddArchive(bigFile, SageFileTier.Expansion);
             }
         }
         else if (File.Exists(path) && path.EndsWith(SageChecksumConstants.BigFileExtension, StringComparison.OrdinalIgnoreCase))
         {
-            AddArchive(path, ArchiveTier.Sideload);
+            AddArchive(path, SageFileTier.Expansion);
         }
         else
         {
@@ -118,7 +140,7 @@ public sealed class SageVirtualFileSystem
     }
 
     /// <summary>
-    /// Adds a mod directory or archive to the VFS with override priority.
+    /// Adds a mod directory or archive to the VFS with top override priority.
     /// </summary>
     /// <param name="path">Path to a directory or .big archive.</param>
     public void AddMod(string path)
@@ -130,17 +152,19 @@ public sealed class SageVirtualFileSystem
 
         if (Directory.Exists(path))
         {
-            _looseRoots.Add(path);
+            _looseRoots.Add((path, SageFileTier.Mod));
+            IndexModLooseDirectory(path);
+
             var bigFiles = Directory.GetFiles(path, SageChecksumConstants.BigFileSearchPattern, BigFileEnumerationOptions);
             Array.Sort(bigFiles, StringComparer.OrdinalIgnoreCase);
             foreach (string bigFile in bigFiles)
             {
-                AddArchive(bigFile, ArchiveTier.Mod);
+                AddArchive(bigFile, SageFileTier.Mod);
             }
         }
         else if (File.Exists(path) && path.EndsWith(SageChecksumConstants.BigFileExtension, StringComparison.OrdinalIgnoreCase))
         {
-            AddArchive(path, ArchiveTier.Mod);
+            AddArchive(path, SageFileTier.Mod);
         }
         else
         {
@@ -151,18 +175,19 @@ public sealed class SageVirtualFileSystem
     /// <summary>
     /// Reads the byte contents of a file by relative SAGE path.
     /// </summary>
-    /// <param name="relativePath">Relative file path (e.g. Data\INI\GameData.ini).</param>
+    /// <param name="relativePath">Relative file path (e.g. Data\\INI\\GameData.ini).</param>
     /// <returns>The file contents, or <c>null</c> if not found.</returns>
     public byte[]? Read(string relativePath)
     {
         string normalizedRel = relativePath.Replace('/', '\\');
         string fsRel = normalizedRel.Replace('\\', Path.DirectorySeparatorChar);
 
-        // Check loose roots in reverse order (later sideloads win)
+        // Check loose roots in reverse order (later sideloads and mods win)
         for (int i = _looseRoots.Count - 1; i >= 0; i--)
         {
-            string loosePath = Path.Combine(_looseRoots[i], fsRel);
-            var looseBytes = TryReadLoosePath(loosePath);
+            var (root, _) = _looseRoots[i];
+            string loosePath = Path.Combine(root, fsRel);
+            var looseBytes = TryReadLoosePath(loosePath, root, fsRel);
             if (looseBytes != null)
             {
                 return looseBytes;
@@ -173,9 +198,107 @@ public sealed class SageVirtualFileSystem
     }
 
     /// <summary>
+    /// Determines the priority tier of the specified file, checking loose roots and mounted archives.
+    /// </summary>
+    /// <param name="relativePath">The relative file path.</param>
+    /// <returns>The <see cref="SageFileTier"/>, or <c>null</c> if not found.</returns>
+    public SageFileTier? GetFileTier(string relativePath)
+    {
+        string normalizedRel = relativePath.Replace('/', '\\');
+        string fsRel = normalizedRel.Replace('\\', Path.DirectorySeparatorChar);
+
+        for (int i = _looseRoots.Count - 1; i >= 0; i--)
+        {
+            var (root, tier) = _looseRoots[i];
+            string loosePath = Path.Combine(root, fsRel);
+            if (File.Exists(loosePath) || TryResolveLoosePath(root, fsRel) != null)
+            {
+                return tier;
+            }
+        }
+
+        if (_archiveEntries.TryGetValue(normalizedRel.ToLowerInvariant(), out var archivePair))
+        {
+            return archivePair.Tier;
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Attempts to read a loose file from indexed mod directories by its filename alone.
+    /// </summary>
+    /// <param name="fileName">The filename of the asset (e.g. MainMenuBackdrop_16_9.tga).</param>
+    /// <returns>The file bytes if found; otherwise <c>null</c>.</returns>
+    public byte[]? TryReadModLooseFileByName(string fileName)
+    {
+        if (string.IsNullOrWhiteSpace(fileName))
+        {
+            return null;
+        }
+
+        if (_modLooseFiles.TryGetValue(fileName.ToLowerInvariant(), out var path) && File.Exists(path))
+        {
+            try
+            {
+                return File.ReadAllBytes(path);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                _logger?.LogDebug(ex, "Failed to read indexed mod loose file at {Path}", path);
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Searches mounted .BIG archives for an entry ending with the specified filename,
+    /// prioritizing higher tiers (Mod > Expansion > BaseGame).
+    /// </summary>
+    /// <param name="fileName">The filename of the asset.</param>
+    /// <returns>The file bytes if found; otherwise <c>null</c>.</returns>
+    public byte[]? TryReadArchiveFileByName(string fileName)
+    {
+        if (string.IsNullOrWhiteSpace(fileName))
+        {
+            return null;
+        }
+
+        var searchKey = fileName.ToLowerInvariant();
+        (BigArchiveEntry Entry, SageFileTier Tier)? bestMatch = null;
+
+        foreach (var (key, pair) in _archiveEntries)
+        {
+            if (key.EndsWith(searchKey, StringComparison.OrdinalIgnoreCase)
+                && (key.Length == searchKey.Length || key[key.Length - searchKey.Length - 1] == '\\'))
+            {
+                if (bestMatch == null || pair.Tier > bestMatch.Value.Tier)
+                {
+                    bestMatch = pair;
+                }
+            }
+        }
+
+        if (bestMatch.HasValue)
+        {
+            try
+            {
+                return BigArchiveReader.ReadEntryData(bestMatch.Value.Entry);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException)
+            {
+                _logger?.LogWarning(ex, "Failed to read archive entry for {FileName}", fileName);
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>
     /// Finds all relative paths of .ini files under the specified directory path.
     /// </summary>
-    /// <param name="dir">The directory prefix (e.g. Data\INI\Object), or empty string to match all.</param>
+    /// <param name="dir">The directory prefix (e.g. Data\\INI\\Object), or empty string to match all.</param>
     /// <returns>A collection of matching relative file paths.</returns>
     public IReadOnlyList<string> FilesUnder(string dir)
     {
@@ -184,7 +307,7 @@ public sealed class SageVirtualFileSystem
         string prefix = string.IsNullOrEmpty(normalizedDir) ? string.Empty : normalizedDir.ToLowerInvariant() + "\\";
         var files = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
-        foreach (string root in _looseRoots)
+        foreach (var (root, _) in _looseRoots)
         {
             CollectLooseIniFiles(root, fsDir, files);
         }
@@ -196,7 +319,27 @@ public sealed class SageVirtualFileSystem
         return result;
     }
 
-    private byte[]? TryReadLoosePath(string loosePath)
+    private void IndexModLooseDirectory(string directory)
+    {
+        try
+        {
+            var files = Directory.GetFiles(directory, "*.*", SearchOption.AllDirectories);
+            foreach (var file in files)
+            {
+                var name = Path.GetFileName(file).ToLowerInvariant();
+                _modLooseFiles.TryAdd(name, file);
+
+                var rel = Path.GetRelativePath(directory, file).Replace('/', '\\').ToLowerInvariant();
+                _modLooseFiles.TryAdd(rel, file);
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            _logger?.LogDebug(ex, "Failed to index mod loose directory {Directory}", directory);
+        }
+    }
+
+    private byte[]? TryReadLoosePath(string loosePath, string root, string fsRel)
     {
         if (File.Exists(loosePath))
         {
@@ -211,32 +354,62 @@ public sealed class SageVirtualFileSystem
             }
         }
 
-        return TryReadLooseCaseInsensitive(loosePath);
-    }
-
-    private byte[]? TryReadLooseCaseInsensitive(string loosePath)
-    {
-        var dir = Path.GetDirectoryName(loosePath);
-        var fileName = Path.GetFileName(loosePath);
-        if (string.IsNullOrEmpty(dir) || string.IsNullOrEmpty(fileName) || !Directory.Exists(dir) || fileName.Contains('*') || fileName.Contains('?'))
+        var resolved = TryResolveLoosePath(root, fsRel);
+        if (resolved != null)
         {
-            return null;
-        }
-
-        try
-        {
-            var match = Directory.GetFiles(dir, fileName, LooseCaseInsensitiveOptions).FirstOrDefault();
-            if (match != null)
+            try
             {
-                return File.ReadAllBytes(match);
+                return File.ReadAllBytes(resolved);
             }
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-        {
-            _logger?.LogDebug(ex, "Failed case-insensitive loose read at {Path}", loosePath);
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                _logger?.LogDebug(ex, "Failed to read resolved loose file at {Path}", resolved);
+            }
         }
 
         return null;
+    }
+
+    private string? TryResolveLoosePath(string root, string relativePath)
+    {
+        string cacheKey = string.Concat(root, "|", relativePath);
+        if (_loosePathCache.TryGetValue(cacheKey, out var cached))
+        {
+            return cached;
+        }
+
+        var direct = Path.Combine(root, relativePath.Replace('\\', Path.DirectorySeparatorChar));
+        if (File.Exists(direct))
+        {
+            _loosePathCache[cacheKey] = direct;
+            return direct;
+        }
+
+        // Walk path segments case-insensitively for Linux compatibility
+        string current = root;
+        var parts = relativePath.Split(new[] { '\\', '/' }, StringSplitOptions.RemoveEmptyEntries);
+        bool found = true;
+        foreach (var part in parts)
+        {
+            if (!Directory.Exists(current))
+            {
+                found = false;
+                break;
+            }
+
+            var match = Directory.EnumerateFileSystemEntries(current, part, LooseCaseInsensitiveOptions).FirstOrDefault();
+            if (match == null)
+            {
+                found = false;
+                break;
+            }
+
+            current = match;
+        }
+
+        var result = found && File.Exists(current) ? current : null;
+        _loosePathCache[cacheKey] = result;
+        return result;
     }
 
     private byte[]? TryReadArchiveEntry(string normalizedRel)
@@ -296,7 +469,7 @@ public sealed class SageVirtualFileSystem
         }
     }
 
-    private void AddArchive(string archivePath, ArchiveTier tier)
+    private void AddArchive(string archivePath, SageFileTier tier)
     {
         if (!BigArchiveReader.TryReadIndex(archivePath, out var entries))
         {

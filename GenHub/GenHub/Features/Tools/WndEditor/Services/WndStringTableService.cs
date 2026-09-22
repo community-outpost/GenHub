@@ -10,6 +10,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -39,7 +40,8 @@ public sealed class WndStringTableService(ILogger<WndStringTableService> logger)
         string? overrideRoot,
         string? projectDirectory,
         CancellationToken cancellationToken = default,
-        IReadOnlyCollection<string>? additionalBigFiles = null)
+        IReadOnlyCollection<string>? additionalBigFiles = null,
+        bool isZeroHour = false)
     {
         ArgumentNullException.ThrowIfNull(labels);
         ArgumentNullException.ThrowIfNull(baseRoot);
@@ -61,7 +63,7 @@ public sealed class WndStringTableService(ILogger<WndStringTableService> logger)
 
         try
         {
-            var table = await GetOrLoadTableAsync(baseRoot, overrideRoot, projectDirectory, cancellationToken, additionalBigFiles).ConfigureAwait(false);
+            var table = await GetOrLoadTableAsync(baseRoot, overrideRoot, projectDirectory, cancellationToken, additionalBigFiles, isZeroHour).ConfigureAwait(false);
             var resolved = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             foreach (var label in labels)
             {
@@ -91,10 +93,94 @@ public sealed class WndStringTableService(ILogger<WndStringTableService> logger)
         }
     }
 
-    private static string TableKey(string baseRoot, string? overrideRoot, string? projectDirectory, IReadOnlyCollection<string>? additionalBigFiles = null)
+    /// <summary>
+    /// Parses a SAGE .str plain-text string table and inserts entries into the target dictionary.
+    /// </summary>
+    /// <param name="strText">The plain text content of the .str file.</param>
+    /// <param name="target">The target dictionary into which to insert string mappings.</param>
+    internal static void ParseStrFile(string strText, Dictionary<string, string> target)
+    {
+        if (string.IsNullOrWhiteSpace(strText))
+        {
+            return;
+        }
+
+        var lines = strText.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries);
+        string? currentLabel = null;
+        var valueBuilder = new StringBuilder();
+        var readingValue = false;
+
+        foreach (var rawLine in lines)
+        {
+            var line = rawLine.Trim();
+            if (string.IsNullOrEmpty(line) || line.StartsWith("//") || line.StartsWith(";"))
+            {
+                continue;
+            }
+
+            if (!readingValue)
+            {
+                if (line.Equals("End", StringComparison.OrdinalIgnoreCase))
+                {
+                    currentLabel = null;
+                    continue;
+                }
+
+                // Check for single-line format: LABEL "Value"
+                var firstQuote = line.IndexOf('"');
+                var lastQuote = line.LastIndexOf('"');
+                if (firstQuote > 0 && lastQuote > firstQuote)
+                {
+                    var label = line[..firstQuote].Trim();
+                    var val = line[(firstQuote + 1)..lastQuote];
+                    target[label] = val;
+                    continue;
+                }
+
+                currentLabel = line;
+                readingValue = true;
+                valueBuilder.Clear();
+            }
+            else
+            {
+                if (line.Equals("End", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (!string.IsNullOrEmpty(currentLabel))
+                    {
+                        var val = valueBuilder.ToString().Trim();
+                        if (val.StartsWith('"') && val.EndsWith('"') && val.Length >= 2)
+                        {
+                            val = val[1..^1];
+                        }
+
+                        target[currentLabel] = val;
+                    }
+
+                    currentLabel = null;
+                    readingValue = false;
+                }
+                else
+                {
+                    if (valueBuilder.Length > 0)
+                    {
+                        valueBuilder.Append('\n');
+                    }
+
+                    valueBuilder.Append(line);
+                }
+            }
+        }
+    }
+
+    private static string TableKey(
+        string baseRoot,
+        string? overrideRoot,
+        string? projectDirectory,
+        IReadOnlyCollection<string>? additionalBigFiles = null,
+        bool isZeroHour = false)
     {
         var extra = additionalBigFiles != null && additionalBigFiles.Count > 0 ? string.Join(";", additionalBigFiles) : string.Empty;
-        return string.Concat(baseRoot, "|", overrideRoot ?? string.Empty, "|", projectDirectory ?? string.Empty, "|", extra);
+        return string.Concat(baseRoot, "|", overrideRoot ?? string.Empty, "|", projectDirectory ?? string.Empty, "|", extra, "|", isZeroHour ? "ZH" : "GEN");
     }
 
     private async Task<IReadOnlyDictionary<string, string>> GetOrLoadTableAsync(
@@ -102,9 +188,10 @@ public sealed class WndStringTableService(ILogger<WndStringTableService> logger)
         string? overrideRoot,
         string? projectDirectory,
         CancellationToken cancellationToken,
-        IReadOnlyCollection<string>? additionalBigFiles = null)
+        IReadOnlyCollection<string>? additionalBigFiles = null,
+        bool isZeroHour = false)
     {
-        var key = TableKey(baseRoot, overrideRoot, projectDirectory, additionalBigFiles);
+        var key = TableKey(baseRoot, overrideRoot, projectDirectory, additionalBigFiles, isZeroHour);
         if (_tables.TryGetValue(key, out var cached))
         {
             return cached;
@@ -118,7 +205,7 @@ public sealed class WndStringTableService(ILogger<WndStringTableService> logger)
                 return cached;
             }
 
-            var loaded = await Task.Run(() => LoadTable(baseRoot, overrideRoot, projectDirectory, cancellationToken, additionalBigFiles), cancellationToken).ConfigureAwait(false);
+            var loaded = await Task.Run(() => LoadTable(baseRoot, overrideRoot, projectDirectory, cancellationToken, additionalBigFiles, isZeroHour), cancellationToken).ConfigureAwait(false);
             if (_tables.Count >= MaxCachedTables)
             {
                 _tables.Clear();
@@ -134,17 +221,22 @@ public sealed class WndStringTableService(ILogger<WndStringTableService> logger)
     }
 
     /// <summary>
-    /// Probes game file systems for localized string tables in language order of preference.
+    /// Probes game file systems for localized string tables (.csf and .str) in language order of preference.
     /// In multilingual installations, the first successfully loaded table in <see cref="WndConstants.StringTables.Languages"/> wins.
+    /// Mod .str files supplement or override base game strings.
     /// </summary>
     private IReadOnlyDictionary<string, string> LoadTable(
         string baseRoot,
         string? overrideRoot,
         string? projectDirectory,
         CancellationToken cancellationToken,
-        IReadOnlyCollection<string>? additionalBigFiles = null)
+        IReadOnlyCollection<string>? additionalBigFiles = null,
+        bool isZeroHour = false)
     {
-        var fileSystem = WndGameFileSystem.Open(baseRoot, overrideRoot, projectDirectory, logger, cancellationToken, additionalBigFiles);
+        var fileSystem = WndGameFileSystem.Open(baseRoot, overrideRoot, projectDirectory, logger, cancellationToken, additionalBigFiles, isZeroHour);
+        var table = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+        // 1. Load base CSF string table
         foreach (var language in WndConstants.StringTables.Languages)
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -161,9 +253,14 @@ public sealed class WndStringTableService(ILogger<WndStringTableService> logger)
             try
             {
                 using var stream = new MemoryStream(bytes);
-                var table = CsfFile.Load(stream);
-                logger.LogInformation("Loaded {Count} strings from {Path}", table.Count, path);
-                return table.Strings;
+                var csf = CsfFile.Load(stream);
+                logger.LogInformation("Loaded {Count} strings from {Path}", csf.Count, path);
+                foreach (var (k, v) in csf.Strings)
+                {
+                    table[k] = v;
+                }
+
+                break;
             }
             catch (InvalidDataException ex)
             {
@@ -175,7 +272,34 @@ public sealed class WndStringTableService(ILogger<WndStringTableService> logger)
             }
         }
 
-        return new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        // 2. Load and overlay .str string tables (plain-text string tables)
+        foreach (var language in WndConstants.StringTables.Languages)
+        {
+            var strPath = Path.Combine(
+                WndConstants.StringTables.DataDirectory,
+                language,
+                "generals.str");
+            var strBytes = TryRead(fileSystem, strPath);
+            if (strBytes != null && strBytes.Length > 0)
+            {
+                ParseStrFile(Encoding.UTF8.GetString(strBytes), table);
+            }
+        }
+
+        var rootStrBytes = TryRead(fileSystem, "generals.str") ?? TryRead(fileSystem, "Data\\generals.str");
+        if (rootStrBytes != null && rootStrBytes.Length > 0)
+        {
+            ParseStrFile(Encoding.UTF8.GetString(rootStrBytes), table);
+        }
+
+        // Also check if any loose .str file exists in the mod
+        var modStr = fileSystem.TryReadModLooseFileByName("generals.str");
+        if (modStr != null && modStr.Length > 0)
+        {
+            ParseStrFile(Encoding.UTF8.GetString(modStr), table);
+        }
+
+        return table;
     }
 
     private byte[]? TryRead(SageVirtualFileSystem fileSystem, string path)

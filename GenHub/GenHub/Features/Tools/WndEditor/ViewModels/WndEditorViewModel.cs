@@ -45,7 +45,12 @@ public sealed partial class WndEditorViewModel(
     IWndEditorAssetService assetService,
     ILogger<WndEditorViewModel> logger) : ObservableObject, IDisposable
 {
-    private sealed record AssetRoots(string BaseRoot, string? OverrideRoot);
+    private sealed record AssetRoots(string TargetGameRoot, string? FallbackBaseRoot, bool IsZeroHour)
+    {
+        public string BaseRoot => TargetGameRoot;
+
+        public string? OverrideRoot => FallbackBaseRoot;
+    }
 
     private const int MaxUndoHistory = 200;
 
@@ -1986,16 +1991,6 @@ public sealed partial class WndEditorViewModel(
         AvailableInstallations.Clear();
         foreach (var installation in installations)
         {
-            if (installation.HasGenerals && !string.IsNullOrEmpty(installation.GeneralsPath))
-            {
-                AvailableInstallations.Add(new GameInstallationOption
-                {
-                    DisplayName = $"Generals ({installation.InstallationType.GetDisplayName()})",
-                    Path = installation.GeneralsPath,
-                    IsZeroHour = false,
-                });
-            }
-
             if (installation.HasZeroHour && !string.IsNullOrEmpty(installation.ZeroHourPath))
             {
                 AvailableInstallations.Add(new GameInstallationOption
@@ -2003,6 +1998,16 @@ public sealed partial class WndEditorViewModel(
                     DisplayName = $"Zero Hour ({installation.InstallationType.GetDisplayName()})",
                     Path = installation.ZeroHourPath,
                     IsZeroHour = true,
+                });
+            }
+
+            if (installation.HasGenerals && !string.IsNullOrEmpty(installation.GeneralsPath))
+            {
+                AvailableInstallations.Add(new GameInstallationOption
+                {
+                    DisplayName = $"Generals ({installation.InstallationType.GetDisplayName()})",
+                    Path = installation.GeneralsPath,
+                    IsZeroHour = false,
                 });
             }
         }
@@ -2027,15 +2032,15 @@ public sealed partial class WndEditorViewModel(
 
     private void AutoSelectAssetInstallation()
     {
-        if (string.IsNullOrEmpty(FilePath) || AvailableInstallations.Count == 0)
+        if (AvailableInstallations.Count == 0)
         {
             return;
         }
 
-        var containing = AvailableInstallations.FirstOrDefault(option => IsPathUnder(FilePath, option.Path));
-        if (containing != null && !ReferenceEquals(containing, SelectedAssetInstallation))
+        var best = SelectBestAssetInstallation();
+        if (best != null && !ReferenceEquals(best, SelectedAssetInstallation))
         {
-            SelectedAssetInstallation = containing;
+            SelectedAssetInstallation = best;
         }
     }
 
@@ -2078,7 +2083,7 @@ public sealed partial class WndEditorViewModel(
             if (!string.IsNullOrEmpty(installation.GeneralsPath)
                 && string.Equals(selection.Path, installation.GeneralsPath, StringComparison.OrdinalIgnoreCase))
             {
-                return new AssetRoots(installation.GeneralsPath, null);
+                return new AssetRoots(installation.GeneralsPath, null, false);
             }
         }
 
@@ -2087,17 +2092,23 @@ public sealed partial class WndEditorViewModel(
         if (fallbackGenerals != null && !string.IsNullOrEmpty(fallbackGenerals.GeneralsPath)
             && (selection.IsZeroHour || IsZeroHourPath(selection)))
         {
-            return new AssetRoots(fallbackGenerals.GeneralsPath, selection.Path);
+            return new AssetRoots(selection.Path, fallbackGenerals.GeneralsPath, true);
         }
 
-        return new AssetRoots(selection.Path, null);
+        var siblingGenerals = FindSiblingGeneralsPath(selection.Path);
+        if (siblingGenerals != null && (selection.IsZeroHour || IsZeroHourPath(selection)))
+        {
+            return new AssetRoots(selection.Path, siblingGenerals, true);
+        }
+
+        return new AssetRoots(selection.Path, null, selection.IsZeroHour || IsZeroHourPath(selection));
     }
 
     private AssetRoots ResolveZeroHourAssetRoots(GameInstallation installation)
     {
         if (!string.IsNullOrEmpty(installation.GeneralsPath) && installation.HasGenerals)
         {
-            return new AssetRoots(installation.GeneralsPath, installation.ZeroHourPath);
+            return new AssetRoots(installation.ZeroHourPath, installation.GeneralsPath, true);
         }
 
         // If this installation does not directly link Generals (e.g. Steam standalone),
@@ -2105,17 +2116,17 @@ public sealed partial class WndEditorViewModel(
         var anyGenerals = _installations.FirstOrDefault(i => !string.IsNullOrEmpty(i.GeneralsPath) && i.HasGenerals);
         if (anyGenerals != null && !string.IsNullOrEmpty(anyGenerals.GeneralsPath))
         {
-            return new AssetRoots(anyGenerals.GeneralsPath, installation.ZeroHourPath);
+            return new AssetRoots(installation.ZeroHourPath, anyGenerals.GeneralsPath, true);
         }
 
         // Also check sibling directory (e.g. Steam: Command & Conquer Generals)
         var siblingGenerals = FindSiblingGeneralsPath(installation.ZeroHourPath);
         if (siblingGenerals != null)
         {
-            return new AssetRoots(siblingGenerals, installation.ZeroHourPath);
+            return new AssetRoots(installation.ZeroHourPath, siblingGenerals, true);
         }
 
-        return new AssetRoots(installation.ZeroHourPath, null);
+        return new AssetRoots(installation.ZeroHourPath, null, true);
     }
 
     private static string? FindSiblingGeneralsPath(string zeroHourPath)
@@ -2480,8 +2491,8 @@ public sealed partial class WndEditorViewModel(
             _schemeOverrides = schemeOverrides;
             var names = CollectPreviewImageNames(document, _schemeOverrides);
             var labels = CollectPreviewLabels(document, _schemeOverrides);
-            var images = await assetService.Images.GetImagesAsync(names, roots.BaseRoot, roots.OverrideRoot, projectDirectory, cancellationToken, linkedBigs).ConfigureAwait(false);
-            var strings = await assetService.Strings.GetStringsAsync(labels, roots.BaseRoot, roots.OverrideRoot, projectDirectory, cancellationToken, linkedBigs).ConfigureAwait(false);
+            var images = await assetService.Images.GetImagesAsync(names, roots.BaseRoot, roots.OverrideRoot, projectDirectory, cancellationToken, linkedBigs, roots.IsZeroHour).ConfigureAwait(false);
+            var strings = await assetService.Strings.GetStringsAsync(labels, roots.BaseRoot, roots.OverrideRoot, projectDirectory, cancellationToken, linkedBigs, roots.IsZeroHour).ConfigureAwait(false);
             if ((!images.Success && !strings.Success) || generation != _previewGeneration)
             {
                 return;
@@ -2677,7 +2688,7 @@ public sealed partial class WndEditorViewModel(
     {
         var result = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {
-            [WndConstants.ControlBarScheme.BackgroundMarkerKey] = "InGameUIAmericaBase",
+            [WndConstants.ControlBarScheme.BackgroundMarkerKey] = roots.IsZeroHour ? "InGameUIAmericaBaseZH" : "InGameUIAmericaBase",
             [WndConstants.ControlBarScheme.RightHUDKey] = "SALogo",
             [WndConstants.ControlBarScheme.ButtonOptionsKey] = "SAOptions",
             [WndConstants.ControlBarScheme.ButtonIdleWorkerKey] = "SAWorker",
@@ -2691,7 +2702,7 @@ public sealed partial class WndEditorViewModel(
 
         try
         {
-            var fs = WndGameFileSystem.Open(roots.BaseRoot, roots.OverrideRoot, projectDirectory, logger, cancellationToken, additionalBigFiles);
+            var fs = WndGameFileSystem.Open(roots.BaseRoot, roots.OverrideRoot, projectDirectory, logger, cancellationToken, additionalBigFiles, roots.IsZeroHour);
             var iniBytes = fs.Read(WndConstants.ControlBarScheme.DataIniPath) ?? fs.Read(WndConstants.ControlBarScheme.IniPath);
             if (iniBytes != null && iniBytes.Length > 0)
             {
