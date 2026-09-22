@@ -53,11 +53,11 @@ public class LaunchExitMessagesTests
         try
         {
             CultureInfo.CurrentUICulture = CultureInfo.GetCultureInfo(cultureName);
-            Assert.Equal(expectedTitle, LaunchExitMessages.GetString("GameProfiles.Notification.ToolLaunchSuccess.Title", null));
-            Assert.Contains("Tool", LaunchExitMessages.GetString("GameProfiles.Notification.ToolLaunchSuccess.Message", null, "Tool"));
+            Assert.Equal(expectedTitle, LaunchExitMessages.GetString(ProfileValidationConstants.ToolLaunchSuccessTitleKey, null));
+            Assert.Contains("Tool", LaunchExitMessages.GetString(ProfileValidationConstants.ToolLaunchSuccessMessageKey, null, "Tool"));
 
             // Missing arguments trigger the same FormatException as an invalid translation placeholder.
-            Assert.Contains("{0}", LaunchExitMessages.GetString("GameProfiles.Notification.EarlyExit.WithCode", null));
+            Assert.Contains("{0}", LaunchExitMessages.GetString(ProfileValidationConstants.EarlyExitWithCodeKey, null));
         }
         finally
         {

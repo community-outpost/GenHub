@@ -540,8 +540,8 @@ public class ProfileLauncherFacade(
 
         logger.LogInformation("Tool launch {LaunchId} registered with process {ProcessId}", launchInfo.LaunchId, launchInfo.ProcessInfo.ProcessId);
         notificationService.ShowSuccess(
-            LaunchExitMessages.GetString("GameProfiles.Notification.ToolLaunchSuccess.Title", localizationService),
-            LaunchExitMessages.GetString("GameProfiles.Notification.ToolLaunchSuccess.Message", localizationService, profile.Name),
+            LaunchExitMessages.GetString(ProfileValidationConstants.ToolLaunchSuccessTitleKey, localizationService),
+            LaunchExitMessages.GetString(ProfileValidationConstants.ToolLaunchSuccessMessageKey, localizationService, profile.Name),
             NotificationDurations.Medium);
         WeakReferenceMessenger.Default.Send(new ProfileLaunchedMessage(profile.Id, launchInfo.ProcessInfo.ProcessId)
         {

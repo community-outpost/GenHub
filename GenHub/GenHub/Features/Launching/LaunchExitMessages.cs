@@ -19,8 +19,8 @@ internal static class LaunchExitMessages
     internal static string Describe(GameLaunchInfo launch, ILocalizationService? localization)
     {
         var key = launch.ExitCode.HasValue
-            ? "GameProfiles.Notification.EarlyExit.WithCode"
-            : "GameProfiles.Notification.EarlyExit.UnknownCode";
+            ? ProfileValidationConstants.EarlyExitWithCodeKey
+            : ProfileValidationConstants.EarlyExitUnknownCodeKey;
         object?[] arguments = launch.ExitCode.HasValue ? [launch.ExitCode.Value] : [];
         return GetString(key, localization, arguments);
     }
