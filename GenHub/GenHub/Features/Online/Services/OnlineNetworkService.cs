@@ -553,91 +553,71 @@ public sealed class OnlineNetworkService(
 
         using (first.Client)
         {
-            HttpResponseMessage? response = null;
-            try
-            {
-                // The default ResponseContentRead buffers before returning, so the
-                // response stays readable after its client is disposed.
-                response = await send(first.Client, cancellationToken);
-            }
-            catch (Exception ex) when (
-                !cancellationToken.IsCancellationRequested &&
-                (ex is HttpRequestException or TimeoutException || (ex is OperationCanceledException && !cancellationToken.IsCancellationRequested)))
-            {
-                var fallback = ApiConstants.FallbackOnlineEdgeBaseUrl;
-                if (!string.Equals(ApiConstants.OnlineEdgeBaseUrl, fallback, StringComparison.OrdinalIgnoreCase))
-                {
-                    logger.LogWarning(
-                        ex,
-                        "HTTP call against {Primary} failed; failing over to backup edge: {Fallback}",
-                        ApiConstants.OnlineEdgeBaseUrl,
-                        fallback);
-                    ApiConstants.ActiveOnlineEdgeBaseUrl = fallback;
-                    await InvalidateSessionAsync(first.Token, cancellationToken);
-
-                    try
-                    {
-                        var fallbackClient = await CreateAuthenticatedClientAsync(cancellationToken);
-                        if (fallbackClient.Client is not null)
-                        {
-                            using (fallbackClient.Client)
-                            {
-                                return await send(fallbackClient.Client, cancellationToken);
-                            }
-                        }
-                    }
-                    catch (Exception fallbackEx)
-                    {
-                        logger.LogError(
-                            fallbackEx,
-                            "Fallback edge {Fallback} also failed; resetting active online edge to primary.",
-                            fallback);
-                        ApiConstants.ResetActiveOnlineEdgeBaseUrl();
-                        throw;
-                    }
-                }
-                else
-                {
-                    logger.LogWarning(
-                        "HTTP call against {Primary} failed and no distinct fallback edge is configured (GENHUB_ONLINE_FALLBACK_URL).",
-                        ApiConstants.OnlineEdgeBaseUrl);
-                }
-
-                throw;
-            }
-
-            var transferred = false;
-            try
-            {
-                if (response.StatusCode != HttpStatusCode.Unauthorized
-                    || !string.Equals(
-                        await ReadUnauthorizedCodeAsync(response, cancellationToken),
-                        OnlineConstants.ErrorSessionRequired,
-                        StringComparison.Ordinal))
-                {
-                    transferred = true;
-                    return response;
-                }
-            }
-            finally
-            {
-                if (!transferred)
-                {
-                    response.Dispose();
-                }
-            }
-
-            await InvalidateSessionAsync(first.Token, cancellationToken);
-            var second = await CreateAuthenticatedClientAsync(cancellationToken);
-            if (second.Client is null)
+            var response = await TrySendInitialAsync(send, first.Client, first.Token, cancellationToken);
+            if (response is null)
             {
                 return null;
             }
 
-            using (second.Client)
+            if (!await IsSessionExpiredResponseAsync(response, cancellationToken))
             {
-                return await send(second.Client, cancellationToken);
+                return response;
             }
+
+            response.Dispose();
+            return await RetrySendWithNewSessionAsync(send, first.Token, cancellationToken);
+        }
+    }
+
+    private async Task<HttpResponseMessage?> TrySendInitialAsync(
+        Func<HttpClient, CancellationToken, Task<HttpResponseMessage>> send,
+        HttpClient client,
+        string? token,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await send(client, cancellationToken);
+        }
+        catch (Exception ex) when (IsNetworkFailoverCandidate(ex, cancellationToken))
+        {
+            var fallbackResponse = await TryFallbackSendAsync(send, token, cancellationToken);
+            if (fallbackResponse is not null)
+            {
+                return fallbackResponse;
+            }
+
+            logger.LogWarning(ex, "Initial online request failed and fallback attempt was unsuccessful: {Message}", ex.Message);
+            throw;
+        }
+    }
+
+    private async Task<bool> IsSessionExpiredResponseAsync(HttpResponseMessage response, CancellationToken cancellationToken)
+    {
+        if (response.StatusCode != HttpStatusCode.Unauthorized)
+        {
+            return false;
+        }
+
+        var code = await ReadUnauthorizedCodeAsync(response, cancellationToken);
+        return string.Equals(code, OnlineConstants.ErrorSessionRequired, StringComparison.Ordinal);
+    }
+
+    private async Task<HttpResponseMessage?> RetrySendWithNewSessionAsync(
+        Func<HttpClient, CancellationToken, Task<HttpResponseMessage>> send,
+        string? expiredToken,
+        CancellationToken cancellationToken)
+    {
+        await InvalidateSessionAsync(expiredToken, cancellationToken);
+        var second = await CreateAuthenticatedClientAsync(cancellationToken);
+        if (second.Client is null)
+        {
+            return null;
+        }
+
+        using (second.Client)
+        {
+            return await send(second.Client, cancellationToken);
         }
     }
 
@@ -698,47 +678,83 @@ public sealed class OnlineNetworkService(
                 _sessionToken = await RequestSessionTokenAsync(ApiConstants.OnlineEdgeBaseUrl, cancellationToken);
                 return _sessionToken;
             }
-            catch (Exception ex) when (
-                !cancellationToken.IsCancellationRequested &&
-                (ex is HttpRequestException or TimeoutException || (ex is OperationCanceledException && !cancellationToken.IsCancellationRequested)))
+            catch (Exception ex) when (IsNetworkFailoverCandidate(ex, cancellationToken))
             {
-                var fallback = ApiConstants.FallbackOnlineEdgeBaseUrl;
-                if (!string.Equals(ApiConstants.OnlineEdgeBaseUrl, fallback, StringComparison.OrdinalIgnoreCase))
+                var fallbackToken = await TryFallbackSessionAsync(cancellationToken);
+                if (fallbackToken is not null)
                 {
-                    logger.LogWarning(
-                        ex,
-                        "Primary Online edge at {Primary} failed; failing over to backup edge: {Fallback}",
-                        ApiConstants.OnlineEdgeBaseUrl,
-                        fallback);
-                    ApiConstants.ActiveOnlineEdgeBaseUrl = fallback;
-                    try
-                    {
-                        _sessionToken = await RequestSessionTokenAsync(fallback, cancellationToken);
-                        return _sessionToken;
-                    }
-                    catch (Exception fallbackEx)
-                    {
-                        logger.LogError(
-                            fallbackEx,
-                            "Fallback edge {Fallback} also failed to issue session; resetting active online edge to primary.",
-                            fallback);
-                        ApiConstants.ResetActiveOnlineEdgeBaseUrl();
-                        throw;
-                    }
-                }
-                else
-                {
-                    logger.LogWarning(
-                        "Primary Online edge at {Primary} failed and no distinct fallback edge is configured (GENHUB_ONLINE_FALLBACK_URL).",
-                        ApiConstants.OnlineEdgeBaseUrl);
+                    return fallbackToken;
                 }
 
+                logger.LogWarning(ex, "Primary session request failed and fallback attempt was unsuccessful: {Message}", ex.Message);
                 throw;
             }
         }
         finally
         {
             _sessionLock.Release();
+        }
+    }
+
+    private static bool IsNetworkFailoverCandidate(Exception ex, CancellationToken cancellationToken) =>
+        !cancellationToken.IsCancellationRequested &&
+        (ex is HttpRequestException or TimeoutException ||
+         (ex is OperationCanceledException && !cancellationToken.IsCancellationRequested));
+
+    private async Task<HttpResponseMessage?> TryFallbackSendAsync(
+        Func<HttpClient, CancellationToken, Task<HttpResponseMessage>> send,
+        string? priorToken,
+        CancellationToken cancellationToken)
+    {
+        var fallback = ApiConstants.FallbackOnlineEdgeBaseUrl;
+        if (string.Equals(ApiConstants.OnlineEdgeBaseUrl, fallback, StringComparison.OrdinalIgnoreCase))
+        {
+            return null;
+        }
+
+        ApiConstants.ActiveOnlineEdgeBaseUrl = fallback;
+        await InvalidateSessionAsync(priorToken, cancellationToken);
+
+        try
+        {
+            var fallbackClient = await CreateAuthenticatedClientAsync(cancellationToken);
+            if (fallbackClient.Client is not null)
+            {
+                using (fallbackClient.Client)
+                {
+                    return await send(fallbackClient.Client, cancellationToken);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogDebug(ex, "Fallback send failed: {Message}", ex.Message);
+            ApiConstants.ResetActiveOnlineEdgeBaseUrl();
+            throw;
+        }
+
+        return null;
+    }
+
+    private async Task<string?> TryFallbackSessionAsync(CancellationToken cancellationToken)
+    {
+        var fallback = ApiConstants.FallbackOnlineEdgeBaseUrl;
+        if (string.Equals(ApiConstants.OnlineEdgeBaseUrl, fallback, StringComparison.OrdinalIgnoreCase))
+        {
+            return null;
+        }
+
+        ApiConstants.ActiveOnlineEdgeBaseUrl = fallback;
+        try
+        {
+            _sessionToken = await RequestSessionTokenAsync(fallback, cancellationToken);
+            return _sessionToken;
+        }
+        catch (Exception ex)
+        {
+            logger.LogDebug(ex, "Fallback session request failed: {Message}", ex.Message);
+            ApiConstants.ResetActiveOnlineEdgeBaseUrl();
+            throw;
         }
     }
 

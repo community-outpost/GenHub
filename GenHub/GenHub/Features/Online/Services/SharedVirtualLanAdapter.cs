@@ -44,27 +44,23 @@ public sealed class SharedVirtualLanAdapter(
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
 
-        if (OverlayConfigInspector.TryGetOverlayName(adapterConfig) == OnlineConstants.OverlayPendingSelection)
-        {
-            // Expected pre-overlay state, not an error: the lobby (roster and
-            // presence) works while tunneling waits for the overlay selection.
-            logger.LogInformation("Overlay selection is pending; joined without tunneling.");
-            return OperationResult<bool>.CreateSuccess(true);
-        }
-
         await _lifecycleLock.WaitAsync(cancellationToken);
         try
         {
             ObjectDisposedException.ThrowIf(_disposed, this);
 
             SetState(OnlineAdapterState.Starting);
-            var start = await host.StartAsync(adapterConfig, locator, cancellationToken);
+            var isPending = OverlayConfigInspector.TryGetOverlayName(adapterConfig) == OnlineConstants.OverlayPendingSelection;
+            var start = isPending
+                ? OperationResult<SidecarInfo>.CreateFailure("Overlay selection is pending.")
+                : await host.StartAsync(adapterConfig, locator, cancellationToken);
+
             if (!start.Success)
             {
                 if (tunnelRunner != null)
                 {
                     logger.LogInformation(
-                        "Overlay sidecar not available ({Error}); falling back to in-process tunnel runner.",
+                        "Sidecar not active ({Reason}); activating in-process virtual LAN tunnel runner.",
                         start.Errors.Count > 0 ? start.Errors[0] : "not found");
 
                     var runnerStart = await tunnelRunner.StartAsync(adapterConfig, overlayIp, cancellationToken);
@@ -74,6 +70,15 @@ public sealed class SharedVirtualLanAdapter(
                         SetState(OnlineAdapterState.Up);
                         return OperationResult<bool>.CreateSuccess(true);
                     }
+
+                    logger.LogWarning("In-process tunnel runner start failed: {Error}", string.Join(", ", runnerStart.Errors));
+                }
+
+                if (isPending)
+                {
+                    logger.LogInformation("Overlay selection is pending; joined without tunneling.");
+                    SetState(OnlineAdapterState.Down);
+                    return OperationResult<bool>.CreateSuccess(true);
                 }
 
                 logger.LogWarning("Sidecar start failed.");
@@ -139,54 +144,19 @@ public sealed class SharedVirtualLanAdapter(
             return;
         }
 
+        _disposed = true;
         try
         {
-            if (_lifecycleLock.Wait(TimeSpan.FromSeconds(5)))
+            if (_lifecycleLock.Wait(TimeSpan.FromSeconds(5), CancellationToken.None))
             {
                 try
                 {
-                    if (_disposed)
-                    {
-                        return;
-                    }
-
-                    _disposed = true;
-                    if (State != OnlineAdapterState.Down)
-                    {
-                        SetState(OnlineAdapterState.Stopping);
-                        try
-                        {
-                            host.StopAsync(CancellationToken.None).GetAwaiter().GetResult();
-                        }
-                        catch (Exception ex)
-                        {
-                            logger.LogDebug(ex, "Host stop failed during adapter disposal: {Message}", ex.Message);
-                        }
-
-                        if (tunnelRunner?.IsRunning == true)
-                        {
-                            try
-                            {
-                                tunnelRunner.StopAsync(CancellationToken.None).GetAwaiter().GetResult();
-                            }
-                            catch (Exception ex)
-                            {
-                                logger.LogDebug(ex, "Tunnel runner stop failed during adapter disposal: {Message}", ex.Message);
-                            }
-                        }
-
-                        OverlayIp = null;
-                        SetState(OnlineAdapterState.Down);
-                    }
+                    TeardownSilently();
                 }
                 finally
                 {
                     _lifecycleLock.Release();
                 }
-            }
-            else
-            {
-                _disposed = true;
             }
         }
         catch (ObjectDisposedException)
@@ -196,6 +166,49 @@ public sealed class SharedVirtualLanAdapter(
         finally
         {
             _lifecycleLock.Dispose();
+        }
+    }
+
+    private void TeardownSilently()
+    {
+        if (State == OnlineAdapterState.Down)
+        {
+            return;
+        }
+
+        SetState(OnlineAdapterState.Stopping);
+        StopHostSilently();
+        StopTunnelRunnerSilently();
+        OverlayIp = null;
+        SetState(OnlineAdapterState.Down);
+    }
+
+    private void StopHostSilently()
+    {
+        try
+        {
+            host.StopAsync(CancellationToken.None).GetAwaiter().GetResult();
+        }
+        catch (Exception ex)
+        {
+            logger.LogDebug(ex, "Host stop failed during adapter disposal: {Message}", ex.Message);
+        }
+    }
+
+    private void StopTunnelRunnerSilently()
+    {
+        if (tunnelRunner?.IsRunning != true)
+        {
+            return;
+        }
+
+        try
+        {
+            tunnelRunner.StopAsync(CancellationToken.None).GetAwaiter().GetResult();
+        }
+        catch (Exception ex)
+        {
+            logger.LogDebug(ex, "Tunnel runner stop failed during adapter disposal: {Message}", ex.Message);
         }
     }
 

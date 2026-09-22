@@ -144,18 +144,13 @@ public sealed class VirtualLanTunnelRunner(ILogger<VirtualLanTunnelRunner> logge
             return;
         }
 
+        _disposed = true;
         try
         {
-            if (_lock.Wait(TimeSpan.FromSeconds(5)))
+            if (_lock.Wait(TimeSpan.FromSeconds(5), CancellationToken.None))
             {
                 try
                 {
-                    if (_disposed)
-                    {
-                        return;
-                    }
-
-                    _disposed = true;
                     StopInternalAsync().GetAwaiter().GetResult();
                 }
                 finally
@@ -165,7 +160,6 @@ public sealed class VirtualLanTunnelRunner(ILogger<VirtualLanTunnelRunner> logge
             }
             else
             {
-                _disposed = true;
                 StopInternalAsync().GetAwaiter().GetResult();
             }
         }
