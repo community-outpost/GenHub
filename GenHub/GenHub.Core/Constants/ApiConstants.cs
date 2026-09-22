@@ -231,6 +231,7 @@ public static class ApiConstants
 
     /// <summary>
     /// Default fallback base URL for the GenHub Online edge (Cloudflare Worker backup).
+    /// Defaults to the primary edge URL. When fallback equals primary, failover is skipped to avoid burning retry timeouts against the same unreachable host. Override via <see cref="OnlineFallbackUrlEnvVar"/>.
     /// </summary>
     public const string DefaultOnlineEdgeBaseUrl = "https://genhub-online-edge.mustafa2146.workers.dev";
 

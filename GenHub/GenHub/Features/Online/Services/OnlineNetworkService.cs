@@ -560,7 +560,9 @@ public sealed class OnlineNetworkService(
                 // response stays readable after its client is disposed.
                 response = await send(first.Client, cancellationToken);
             }
-            catch (HttpRequestException ex) when (!cancellationToken.IsCancellationRequested)
+            catch (Exception ex) when (
+                !cancellationToken.IsCancellationRequested &&
+                (ex is HttpRequestException or TimeoutException || (ex is OperationCanceledException && !cancellationToken.IsCancellationRequested)))
             {
                 var fallback = ApiConstants.FallbackOnlineEdgeBaseUrl;
                 if (!string.Equals(ApiConstants.OnlineEdgeBaseUrl, fallback, StringComparison.OrdinalIgnoreCase))
@@ -573,14 +575,32 @@ public sealed class OnlineNetworkService(
                     ApiConstants.ActiveOnlineEdgeBaseUrl = fallback;
                     await InvalidateSessionAsync(first.Token, cancellationToken);
 
-                    var fallbackClient = await CreateAuthenticatedClientAsync(cancellationToken);
-                    if (fallbackClient.Client is not null)
+                    try
                     {
-                        using (fallbackClient.Client)
+                        var fallbackClient = await CreateAuthenticatedClientAsync(cancellationToken);
+                        if (fallbackClient.Client is not null)
                         {
-                            return await send(fallbackClient.Client, cancellationToken);
+                            using (fallbackClient.Client)
+                            {
+                                return await send(fallbackClient.Client, cancellationToken);
+                            }
                         }
                     }
+                    catch (Exception fallbackEx)
+                    {
+                        logger.LogError(
+                            fallbackEx,
+                            "Fallback edge {Fallback} also failed; resetting active online edge to primary.",
+                            fallback);
+                        ApiConstants.ResetActiveOnlineEdgeBaseUrl();
+                        throw;
+                    }
+                }
+                else
+                {
+                    logger.LogWarning(
+                        "HTTP call against {Primary} failed and no distinct fallback edge is configured (GENHUB_ONLINE_FALLBACK_URL).",
+                        ApiConstants.OnlineEdgeBaseUrl);
                 }
 
                 throw;
@@ -678,7 +698,9 @@ public sealed class OnlineNetworkService(
                 _sessionToken = await RequestSessionTokenAsync(ApiConstants.OnlineEdgeBaseUrl, cancellationToken);
                 return _sessionToken;
             }
-            catch (HttpRequestException ex)
+            catch (Exception ex) when (
+                !cancellationToken.IsCancellationRequested &&
+                (ex is HttpRequestException or TimeoutException || (ex is OperationCanceledException && !cancellationToken.IsCancellationRequested)))
             {
                 var fallback = ApiConstants.FallbackOnlineEdgeBaseUrl;
                 if (!string.Equals(ApiConstants.OnlineEdgeBaseUrl, fallback, StringComparison.OrdinalIgnoreCase))
@@ -689,8 +711,26 @@ public sealed class OnlineNetworkService(
                         ApiConstants.OnlineEdgeBaseUrl,
                         fallback);
                     ApiConstants.ActiveOnlineEdgeBaseUrl = fallback;
-                    _sessionToken = await RequestSessionTokenAsync(fallback, cancellationToken);
-                    return _sessionToken;
+                    try
+                    {
+                        _sessionToken = await RequestSessionTokenAsync(fallback, cancellationToken);
+                        return _sessionToken;
+                    }
+                    catch (Exception fallbackEx)
+                    {
+                        logger.LogError(
+                            fallbackEx,
+                            "Fallback edge {Fallback} also failed to issue session; resetting active online edge to primary.",
+                            fallback);
+                        ApiConstants.ResetActiveOnlineEdgeBaseUrl();
+                        throw;
+                    }
+                }
+                else
+                {
+                    logger.LogWarning(
+                        "Primary Online edge at {Primary} failed and no distinct fallback edge is configured (GENHUB_ONLINE_FALLBACK_URL).",
+                        ApiConstants.OnlineEdgeBaseUrl);
                 }
 
                 throw;

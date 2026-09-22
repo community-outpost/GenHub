@@ -42,6 +42,8 @@ public sealed class SharedVirtualLanAdapter(
         string overlayIp,
         CancellationToken cancellationToken = default)
     {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+
         if (OverlayConfigInspector.TryGetOverlayName(adapterConfig) == OnlineConstants.OverlayPendingSelection)
         {
             // Expected pre-overlay state, not an error: the lobby (roster and
@@ -53,6 +55,8 @@ public sealed class SharedVirtualLanAdapter(
         await _lifecycleLock.WaitAsync(cancellationToken);
         try
         {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+
             SetState(OnlineAdapterState.Starting);
             var start = await host.StartAsync(adapterConfig, locator, cancellationToken);
             if (!start.Success)
@@ -82,16 +86,27 @@ public sealed class SharedVirtualLanAdapter(
         }
         finally
         {
-            _lifecycleLock.Release();
+            try
+            {
+                _lifecycleLock.Release();
+            }
+            catch (ObjectDisposedException)
+            {
+                // Disposed concurrently
+            }
         }
     }
 
     /// <inheritdoc/>
     public async Task<OperationResult<bool>> TearDownAsync(CancellationToken cancellationToken = default)
     {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+
         await _lifecycleLock.WaitAsync(cancellationToken);
         try
         {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+
             SetState(OnlineAdapterState.Stopping);
             await host.StopAsync(cancellationToken);
             if (tunnelRunner?.IsRunning == true)
@@ -105,7 +120,14 @@ public sealed class SharedVirtualLanAdapter(
         }
         finally
         {
-            _lifecycleLock.Release();
+            try
+            {
+                _lifecycleLock.Release();
+            }
+            catch (ObjectDisposedException)
+            {
+                // Disposed concurrently
+            }
         }
     }
 
@@ -117,10 +139,64 @@ public sealed class SharedVirtualLanAdapter(
             return;
         }
 
-        _disposed = true;
-        (host as IDisposable)?.Dispose();
-        tunnelRunner?.Dispose();
-        _lifecycleLock.Dispose();
+        try
+        {
+            if (_lifecycleLock.Wait(TimeSpan.FromSeconds(5)))
+            {
+                try
+                {
+                    if (_disposed)
+                    {
+                        return;
+                    }
+
+                    _disposed = true;
+                    if (State != OnlineAdapterState.Down)
+                    {
+                        SetState(OnlineAdapterState.Stopping);
+                        try
+                        {
+                            host.StopAsync(CancellationToken.None).GetAwaiter().GetResult();
+                        }
+                        catch (Exception ex)
+                        {
+                            logger.LogDebug(ex, "Host stop failed during adapter disposal: {Message}", ex.Message);
+                        }
+
+                        if (tunnelRunner?.IsRunning == true)
+                        {
+                            try
+                            {
+                                tunnelRunner.StopAsync(CancellationToken.None).GetAwaiter().GetResult();
+                            }
+                            catch (Exception ex)
+                            {
+                                logger.LogDebug(ex, "Tunnel runner stop failed during adapter disposal: {Message}", ex.Message);
+                            }
+                        }
+
+                        OverlayIp = null;
+                        SetState(OnlineAdapterState.Down);
+                    }
+                }
+                finally
+                {
+                    _lifecycleLock.Release();
+                }
+            }
+            else
+            {
+                _disposed = true;
+            }
+        }
+        catch (ObjectDisposedException)
+        {
+            // Already disposed
+        }
+        finally
+        {
+            _lifecycleLock.Dispose();
+        }
     }
 
     private void SetState(OnlineAdapterState next)

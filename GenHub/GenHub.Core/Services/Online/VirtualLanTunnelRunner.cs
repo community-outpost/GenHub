@@ -3,6 +3,7 @@ using GenHub.Core.Models.Results;
 using Microsoft.Extensions.Logging;
 using System;
 using System.IO;
+using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
@@ -45,6 +46,8 @@ public sealed class VirtualLanTunnelRunner(ILogger<VirtualLanTunnelRunner> logge
         await _lock.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+
             if (IsRunning)
             {
                 return OperationResult<bool>.CreateSuccess(true);
@@ -96,7 +99,14 @@ public sealed class VirtualLanTunnelRunner(ILogger<VirtualLanTunnelRunner> logge
         }
         finally
         {
-            _lock.Release();
+            try
+            {
+                _lock.Release();
+            }
+            catch (ObjectDisposedException)
+            {
+                // Disposed concurrently
+            }
         }
     }
 
@@ -108,12 +118,21 @@ public sealed class VirtualLanTunnelRunner(ILogger<VirtualLanTunnelRunner> logge
         await _lock.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+
             await StopInternalAsync().ConfigureAwait(false);
             return OperationResult<bool>.CreateSuccess(true);
         }
         finally
         {
-            _lock.Release();
+            try
+            {
+                _lock.Release();
+            }
+            catch (ObjectDisposedException)
+            {
+                // Disposed concurrently
+            }
         }
     }
 
@@ -125,9 +144,39 @@ public sealed class VirtualLanTunnelRunner(ILogger<VirtualLanTunnelRunner> logge
             return;
         }
 
-        _disposed = true;
-        StopInternalAsync().GetAwaiter().GetResult();
-        _lock.Dispose();
+        try
+        {
+            if (_lock.Wait(TimeSpan.FromSeconds(5)))
+            {
+                try
+                {
+                    if (_disposed)
+                    {
+                        return;
+                    }
+
+                    _disposed = true;
+                    StopInternalAsync().GetAwaiter().GetResult();
+                }
+                finally
+                {
+                    _lock.Release();
+                }
+            }
+            else
+            {
+                _disposed = true;
+                StopInternalAsync().GetAwaiter().GetResult();
+            }
+        }
+        catch (ObjectDisposedException)
+        {
+            // Already disposed
+        }
+        finally
+        {
+            _lock.Dispose();
+        }
     }
 
     private static bool TryParseConfig(string adapterConfig, string overlayIp, out ParsedTunnelConfig config)
@@ -138,12 +187,18 @@ public sealed class VirtualLanTunnelRunner(ILogger<VirtualLanTunnelRunner> logge
             var json = ExtractJson(adapterConfig);
             using var doc = JsonDocument.Parse(json);
             var root = doc.RootElement;
+            if (root.ValueKind != JsonValueKind.Object)
+            {
+                return false;
+            }
 
-            var networkIdStr = root.TryGetProperty("networkId", out var netProp) ? netProp.GetString() ?? string.Empty : string.Empty;
+            var networkIdStr = root.TryGetProperty("networkId", out var netProp) && netProp.ValueKind == JsonValueKind.String
+                ? netProp.GetString() ?? string.Empty
+                : string.Empty;
             var netBytes = ParseNetworkIdBytes(networkIdStr);
 
             var ipStr = overlayIp;
-            if (string.IsNullOrWhiteSpace(ipStr) && root.TryGetProperty("overlayIp", out var ipProp))
+            if (string.IsNullOrWhiteSpace(ipStr) && root.TryGetProperty("overlayIp", out var ipProp) && ipProp.ValueKind == JsonValueKind.String)
             {
                 ipStr = ipProp.GetString() ?? string.Empty;
             }
@@ -157,11 +212,7 @@ public sealed class VirtualLanTunnelRunner(ILogger<VirtualLanTunnelRunner> logge
             config = new ParsedTunnelConfig(networkIdStr, netBytes, parsedIp, parsedIp.GetAddressBytes(), ep);
             return true;
         }
-        catch (JsonException)
-        {
-            return false;
-        }
-        catch (ArgumentException)
+        catch (Exception ex) when (ex is JsonException or ArgumentException or FormatException or InvalidOperationException)
         {
             return false;
         }
@@ -205,9 +256,13 @@ public sealed class VirtualLanTunnelRunner(ILogger<VirtualLanTunnelRunner> logge
 
         if (root.TryGetProperty("relay", out var relayProp) && relayProp.ValueKind == JsonValueKind.Object)
         {
-            if (relayProp.TryGetProperty("host", out var hostProp) && !string.IsNullOrWhiteSpace(hostProp.GetString()))
+            if (relayProp.TryGetProperty("host", out var hostProp) && hostProp.ValueKind == JsonValueKind.String)
             {
-                relayHost = hostProp.GetString()!;
+                var hostStr = hostProp.GetString();
+                if (!string.IsNullOrWhiteSpace(hostStr))
+                {
+                    relayHost = hostStr;
+                }
             }
 
             if (relayProp.TryGetProperty("port", out var portProp) && portProp.TryGetInt32(out var p))
@@ -216,7 +271,22 @@ public sealed class VirtualLanTunnelRunner(ILogger<VirtualLanTunnelRunner> logge
             }
         }
 
-        return new IPEndPoint(IPAddress.Parse(relayHost), relayPort);
+        if (!IPAddress.TryParse(relayHost, out var ip))
+        {
+            try
+            {
+                var addresses = Dns.GetHostAddresses(relayHost);
+                ip = addresses.FirstOrDefault(a => a.AddressFamily == AddressFamily.InterNetwork)
+                    ?? addresses.FirstOrDefault()
+                    ?? throw new FormatException($"Cannot resolve host {relayHost}");
+            }
+            catch (SocketException ex)
+            {
+                throw new FormatException($"Failed to resolve relay host {relayHost}", ex);
+            }
+        }
+
+        return new IPEndPoint(ip, relayPort);
     }
 
     private static bool IsValidRelayPacket(byte[] data, ParsedTunnelConfig config, out bool isBroadcast, out int payloadLength)
@@ -252,6 +322,40 @@ public sealed class VirtualLanTunnelRunner(ILogger<VirtualLanTunnelRunner> logge
         return payloadLength > 0;
     }
 
+    private static async Task CancelTokenSourceSilentlyAsync(CancellationTokenSource? cts)
+    {
+        if (cts == null)
+        {
+            return;
+        }
+
+        try
+        {
+            await cts.CancelAsync().ConfigureAwait(false);
+        }
+        catch (ObjectDisposedException)
+        {
+            // Already canceled
+        }
+    }
+
+    private static async Task AwaitCancellationSilentlyAsync(Task? task)
+    {
+        if (task == null)
+        {
+            return;
+        }
+
+        try
+        {
+            await task.ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is OperationCanceledException or SocketException or ObjectDisposedException)
+        {
+            // Task canceled cleanly
+        }
+    }
+
     private async Task StopInternalAsync()
     {
         if (!IsRunning && _cts == null)
@@ -259,17 +363,7 @@ public sealed class VirtualLanTunnelRunner(ILogger<VirtualLanTunnelRunner> logge
             return;
         }
 
-        if (_cts != null)
-        {
-            try
-            {
-                await _cts.CancelAsync().ConfigureAwait(false);
-            }
-            catch (ObjectDisposedException)
-            {
-                // Already canceled
-            }
-        }
+        await CancelTokenSourceSilentlyAsync(_cts).ConfigureAwait(false);
 
         _relayClient?.Dispose();
         _relayClient = null;
@@ -277,47 +371,14 @@ public sealed class VirtualLanTunnelRunner(ILogger<VirtualLanTunnelRunner> logge
         _broadcastListener?.Dispose();
         _broadcastListener = null;
 
-        if (_relayReceiveTask != null)
-        {
-            try
-            {
-                await _relayReceiveTask.ConfigureAwait(false);
-            }
-            catch (Exception ex) when (ex is OperationCanceledException or SocketException or ObjectDisposedException)
-            {
-                // Task canceled cleanly
-            }
+        await AwaitCancellationSilentlyAsync(_relayReceiveTask).ConfigureAwait(false);
+        _relayReceiveTask = null;
 
-            _relayReceiveTask = null;
-        }
+        await AwaitCancellationSilentlyAsync(_broadcastReceiveTask).ConfigureAwait(false);
+        _broadcastReceiveTask = null;
 
-        if (_broadcastReceiveTask != null)
-        {
-            try
-            {
-                await _broadcastReceiveTask.ConfigureAwait(false);
-            }
-            catch (Exception ex) when (ex is OperationCanceledException or SocketException or ObjectDisposedException)
-            {
-                // Task canceled cleanly
-            }
-
-            _broadcastReceiveTask = null;
-        }
-
-        if (_keepAliveTask != null)
-        {
-            try
-            {
-                await _keepAliveTask.ConfigureAwait(false);
-            }
-            catch (Exception ex) when (ex is OperationCanceledException or SocketException or ObjectDisposedException)
-            {
-                // Task canceled cleanly
-            }
-
-            _keepAliveTask = null;
-        }
+        await AwaitCancellationSilentlyAsync(_keepAliveTask).ConfigureAwait(false);
+        _keepAliveTask = null;
 
         _cts?.Dispose();
         _cts = null;

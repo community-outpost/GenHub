@@ -31,7 +31,7 @@ public class SharedVirtualLanAdapterTests : IDisposable
     }
 
     /// <summary>
-    /// Tests that a pending-selection config joins successfully without starting the sidecar.
+    /// Tests that a pending-selection config without a tunnel runner joins successfully and remains Down.
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Fact]
@@ -52,6 +52,37 @@ public class SharedVirtualLanAdapterTests : IDisposable
         Assert.True(result.Success);
         Assert.Equal(OnlineAdapterState.Down, adapter.State);
         host.Verify(h => h.StartAsync(It.IsAny<string>(), It.IsAny<IOverlaySidecarLocator>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    /// <summary>
+    /// Tests that a pending-selection config with a tunnel runner starts the runner and transitions to Up.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task BringUpAsync_WithPendingSelectionAndTunnelRunner_ShouldStartTunnelRunnerAndTransitionToUpAsync()
+    {
+        // Arrange
+        var host = new Mock<IOverlaySidecarHost>(MockBehavior.Strict);
+        var runner = new Mock<ITunnelRunner>();
+        runner.Setup(r => r.StartAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+
+        using var adapter = new SharedVirtualLanAdapter(
+            host.Object,
+            Mock.Of<IOverlaySidecarLocator>(),
+            Mock.Of<ILogger<SharedVirtualLanAdapter>>(),
+            runner.Object);
+        var pending = Convert.ToBase64String(Encoding.UTF8.GetBytes("""{"v":0,"overlay":"pending-selection"}"""));
+
+        // Act
+        var result = await adapter.BringUpAsync(pending, "10.42.0.7");
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.Equal(OnlineAdapterState.Up, adapter.State);
+        Assert.Equal("10.42.0.7", adapter.OverlayIp);
+        host.Verify(h => h.StartAsync(It.IsAny<string>(), It.IsAny<IOverlaySidecarLocator>(), It.IsAny<CancellationToken>()), Times.Never);
+        runner.Verify(r => r.StartAsync(pending, "10.42.0.7", It.IsAny<CancellationToken>()), Times.Once);
     }
 
     /// <summary>
