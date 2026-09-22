@@ -418,13 +418,13 @@ public sealed class GameBinaryInspectorTests : IDisposable
 
         file[peOffset] = (byte)'P';
         file[peOffset + 1] = (byte)'E';
-        BitConverter.GetBytes((ushort)2).CopyTo(file, peOffset + 6);
+        BitConverter.GetBytes(2us).CopyTo(file, peOffset + 6);
         BitConverter.GetBytes((ushort)optionalSize).CopyTo(file, peOffset + 20);
-        BitConverter.GetBytes((ushort)0x10B).CopyTo(file, peOffset + 24);
+        BitConverter.GetBytes(0x10Bus).CopyTo(file, peOffset + 24);
 
         Encoding.ASCII.GetBytes(".textbss").CopyTo(file, tableOffset);
-        BitConverter.GetBytes((uint)0).CopyTo(file, tableOffset + 16);
-        BitConverter.GetBytes((uint)0).CopyTo(file, tableOffset + 20);
+        BitConverter.GetBytes(0u).CopyTo(file, tableOffset + 16);
+        BitConverter.GetBytes(0u).CopyTo(file, tableOffset + 20);
 
         var section2Offset = tableOffset + GameBinaryConstants.PeSectionHeaderStride;
         Encoding.ASCII.GetBytes(".text").CopyTo(file, section2Offset);
