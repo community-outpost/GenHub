@@ -153,26 +153,26 @@ public sealed class WndImageAssetService(ILogger<WndImageAssetService> logger) :
             raw,
             baseName,
             baseWithoutExt,
-            string.Concat("Data\\Art\\Textures\\", baseName),
-            string.Concat("Data\\Art\\Textures\\", baseWithoutExt),
+            string.Concat(DataPrefix, "Art\\Textures\\", baseName),
+            string.Concat(DataPrefix, "Art\\Textures\\", baseWithoutExt),
             string.Concat("Art\\Textures\\", baseName),
             string.Concat("Art\\Textures\\", baseWithoutExt),
-            string.Concat("Data\\Textures\\", baseName),
-            string.Concat("Data\\Textures\\", baseWithoutExt),
+            string.Concat(DataPrefix, "Textures\\", baseName),
+            string.Concat(DataPrefix, "Textures\\", baseWithoutExt),
             string.Concat("Textures\\", baseName),
             string.Concat("Textures\\", baseWithoutExt),
         };
 
         foreach (var language in WndConstants.MappedImages.TextureLanguages)
         {
-            candidateStems.Add(string.Concat("Data\\", language, "\\", WndConstants.MappedImages.TexturesDirectory, "\\", baseName));
-            candidateStems.Add(string.Concat("Data\\", language, "\\", WndConstants.MappedImages.TexturesDirectory, "\\", baseWithoutExt));
-            candidateStems.Add(string.Concat("Data\\", language, "\\Art\\Textures\\", baseName));
-            candidateStems.Add(string.Concat("Data\\", language, "\\Art\\Textures\\", baseWithoutExt));
-            candidateStems.Add(string.Concat("Data\\", language, "\\Textures\\", baseName));
-            candidateStems.Add(string.Concat("Data\\", language, "\\Textures\\", baseWithoutExt));
-            candidateStems.Add(string.Concat("Data\\", language, "\\", baseName));
-            candidateStems.Add(string.Concat("Data\\", language, "\\", baseWithoutExt));
+            candidateStems.Add(string.Concat(DataPrefix, language, "\\", WndConstants.MappedImages.TexturesDirectory, "\\", baseName));
+            candidateStems.Add(string.Concat(DataPrefix, language, "\\", WndConstants.MappedImages.TexturesDirectory, "\\", baseWithoutExt));
+            candidateStems.Add(string.Concat(DataPrefix, language, "\\Art\\Textures\\", baseName));
+            candidateStems.Add(string.Concat(DataPrefix, language, "\\Art\\Textures\\", baseWithoutExt));
+            candidateStems.Add(string.Concat(DataPrefix, language, "\\Textures\\", baseName));
+            candidateStems.Add(string.Concat(DataPrefix, language, "\\Textures\\", baseWithoutExt));
+            candidateStems.Add(string.Concat(DataPrefix, language, "\\", baseName));
+            candidateStems.Add(string.Concat(DataPrefix, language, "\\", baseWithoutExt));
         }
 
         candidateStems.Add(string.Concat(WndConstants.MappedImages.TexturesDirectory, "\\", baseName));
@@ -181,12 +181,9 @@ public sealed class WndImageAssetService(ILogger<WndImageAssetService> logger) :
         var returned = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         // First yield any exact paths that already have extensions
-        foreach (var stem in candidateStems.Where(s => !string.IsNullOrEmpty(Path.GetExtension(s))))
+        foreach (var stem in candidateStems.Where(s => !string.IsNullOrEmpty(Path.GetExtension(s)) && returned.Add(s)))
         {
-            if (returned.Add(stem))
-            {
-                yield return stem;
-            }
+            yield return stem;
         }
 
         // Then yield with extensions
@@ -293,7 +290,7 @@ public sealed class WndImageAssetService(ILogger<WndImageAssetService> logger) :
             WndConstants.MappedImages.DefinitionsDirectory, // "Data\\INI\\MappedImages"
             "INI\\MappedImages",
             "MappedImages",
-            "Data\\INI",
+            string.Concat(DataPrefix, "INI"),
             "INI",
         };
 
