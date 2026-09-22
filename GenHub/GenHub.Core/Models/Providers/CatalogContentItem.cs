@@ -72,6 +72,13 @@ public class CatalogContentItem
     public List<CatalogDependency> Addons { get; set; } = [];
 
     /// <summary>
+    /// Gets or sets explicit addon releases (e.g., maps, patches, UI changes, AI changes) associated with this content item.
+    /// Each addon release behaves like a release with its own version, artifacts, media, and dependencies.
+    /// </summary>
+    [JsonPropertyName("addonReleases")]
+    public List<ContentRelease> AddonReleases { get; set; } = [];
+
+    /// <summary>
     /// Gets or sets the content ID that this addon extends (for Addon type).
     /// Format: "contentId" for same catalog, or "publisherId/contentId" for cross-publisher.
     /// </summary>

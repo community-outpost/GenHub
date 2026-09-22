@@ -26,6 +26,9 @@ public class PublisherStudioDialogService(
     GenHub.Core.Interfaces.Common.ILocalizationService? localizationService = null) : IPublisherStudioDialogService
 {
     /// <inheritdoc/>
+    public Func<string, (string Name, string Url, long Size)?>? DuplicateAssetLookup { get; set; }
+
+    /// <inheritdoc/>
     public async Task<bool> ShowConfirmationAsync(
         string title,
         string message,
@@ -57,12 +60,12 @@ public class PublisherStudioDialogService(
     }
 
     /// <inheritdoc/>
-    public async Task<CatalogContentItem?> ShowAddContentDialogAsync(string? initialPath = null)
+    public async Task<CatalogContentItem?> ShowAddContentDialogAsync(string? initialPath = null, PublisherCatalog? catalog = null)
     {
         return await ShowDialogAsync<AddContentDialogViewModel, AddContentDialogView, CatalogContentItem>(
             callback =>
             {
-                var vm = new AddContentDialogViewModel(res => callback(res!), this, localizationService);
+                var vm = new AddContentDialogViewModel(res => callback(res!), this, localizationService, catalog);
                 if (!string.IsNullOrWhiteSpace(initialPath))
                 {
                     vm.PopulateFromPath(initialPath);
@@ -73,10 +76,10 @@ public class PublisherStudioDialogService(
     }
 
     /// <inheritdoc/>
-    public async Task<CatalogContentItem?> ShowEditContentDialogAsync(CatalogContentItem existing)
+    public async Task<CatalogContentItem?> ShowEditContentDialogAsync(CatalogContentItem existing, PublisherCatalog? catalog = null)
     {
         return await ShowDialogAsync<AddContentDialogViewModel, AddContentDialogView, CatalogContentItem>(
-            callback => new AddContentDialogViewModel(existing, res => callback(res!), this, localizationService));
+            callback => new AddContentDialogViewModel(existing, res => callback(res!), this, localizationService, catalog));
     }
 
     /// <inheritdoc/>
@@ -91,6 +94,20 @@ public class PublisherStudioDialogService(
     {
         return await ShowDialogAsync<AddReleaseDialogViewModel, AddReleaseDialogView, ContentRelease>(
             callback => new AddReleaseDialogViewModel(existing, parent, catalog, callback, this, localizationService));
+    }
+
+    /// <inheritdoc/>
+    public async Task<ContentRelease?> ShowAddAddonDialogAsync(CatalogContentItem contentItem, PublisherCatalog catalog)
+    {
+        return await ShowDialogAsync<AddReleaseDialogViewModel, AddReleaseDialogView, ContentRelease>(
+           callback => new AddReleaseDialogViewModel(contentItem, catalog, callback, this, localizationService, isAddon: true));
+    }
+
+    /// <inheritdoc/>
+    public async Task<ContentRelease?> ShowEditAddonDialogAsync(ContentRelease existing, CatalogContentItem parent, PublisherCatalog catalog)
+    {
+        return await ShowDialogAsync<AddReleaseDialogViewModel, AddReleaseDialogView, ContentRelease>(
+            callback => new AddReleaseDialogViewModel(existing, parent, catalog, callback, this, localizationService, isAddon: true));
     }
 
     /// <inheritdoc/>

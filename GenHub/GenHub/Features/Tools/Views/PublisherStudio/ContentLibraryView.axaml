@@ -192,8 +192,25 @@
                     </Button>
                 </Grid>
 
+                <!-- Content Items Drop Zone -->
+                <Border x:Name="ContentItemsDropZone"
+                        Grid.Row="2"
+                        DragDrop.AllowDrop="True"
+                        BorderBrush="{DynamicResource GlassBorderBrush}"
+                        BorderThickness="1"
+                        CornerRadius="8"
+                        Background="{DynamicResource GlassFillSubtleBrush}"
+                        Padding="10"
+                        Margin="16,0,16,10"
+                        Cursor="Hand">
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="8">
+                        <PathIcon Data="{StaticResource AddIcon}" Width="14" Height="14" Foreground="{DynamicResource AccentColorBrush}"/>
+                        <TextBlock Text="{localization:Localize Tools.PublisherStudio.Library.DragDropContentHint}" FontWeight="Medium" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Border>
+
                 <!-- Content Items List -->
-                <ListBox Grid.Row="2"
+                <ListBox Grid.Row="3"
                          ItemsSource="{Binding FilteredContent}"
                          SelectedItem="{Binding SelectedContent}"
                          Background="Transparent"
@@ -527,6 +544,81 @@
                                         </Button>
                                     </Grid>
 
+                                    <!-- Drop zone for Addons -->
+                                    <Border x:Name="AddonsDropZone"
+                                            DragDrop.AllowDrop="True"
+                                            BorderBrush="{DynamicResource GlassBorderBrush}"
+                                            BorderThickness="1"
+                                            CornerRadius="8"
+                                            Background="{DynamicResource GlassFillBrush}"
+                                            Padding="12"
+                                            Cursor="Hand">
+                                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="8">
+                                            <PathIcon Data="{StaticResource AddIcon}" Width="14" Height="14" Foreground="{DynamicResource AccentColorBrush}"/>
+                                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Library.DragDropAddonHint}" FontWeight="Medium" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                    </Border>
+
+                                    <!-- Rich Addon Releases List -->
+                                    <ItemsControl ItemsSource="{Binding AddonReleases}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate DataType="models:ContentRelease">
+                                                <Border Background="{DynamicResource GlassFillSubtleBrush}"
+                                                        BorderBrush="{DynamicResource GlassBorderBrush}"
+                                                        BorderThickness="1"
+                                                        CornerRadius="8"
+                                                        Padding="16,12"
+                                                        Margin="0,0,0,8">
+                                                    <Grid ColumnDefinitions="Auto,*,Auto,Auto,Auto">
+                                                        <PathIcon Grid.Column="0"
+                                                                  Data="{StaticResource ContentIcon}"
+                                                                  Width="16" Height="16"
+                                                                  Foreground="{DynamicResource AccentColorBrush}"
+                                                                  Margin="0,0,12,0"
+                                                                  VerticalAlignment="Center"/>
+                                                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                                            <TextBlock Text="{Binding Title}"
+                                                                       FontWeight="SemiBold"
+                                                                       FontSize="14"
+                                                                       Foreground="{DynamicResource TextPrimary}"/>
+                                                            <TextBlock Text="{Binding Version, StringFormat='Version: {0}'}"
+                                                                       FontSize="12"
+                                                                       Foreground="{DynamicResource TextSecondary}"/>
+                                                        </StackPanel>
+                                                        <Border Grid.Column="2"
+                                                                Background="{DynamicResource AccentBadgeBackgroundBrush}"
+                                                                CornerRadius="4"
+                                                                Padding="6,2"
+                                                                Margin="0,0,12,0"
+                                                                VerticalAlignment="Center"
+                                                                IsVisible="{Binding Category, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                                                            <TextBlock Text="{Binding Category}"
+                                                                       FontSize="11"
+                                                                       FontWeight="SemiBold"
+                                                                       Foreground="{DynamicResource AccentColorBrush}"/>
+                                                        </Border>
+                                                        <Button Grid.Column="3"
+                                                                Command="{Binding #RootView.((vm:ContentLibraryViewModel)DataContext).EditAddonCommand}"
+                                                                CommandParameter="{Binding}"
+                                                                Classes="glass-icon-btn"
+                                                                Margin="0,0,6,0"
+                                                                ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Library.EditAddonTooltip}">
+                                                            <PathIcon Data="{StaticResource EditIcon}" Width="14" Height="14" Foreground="{DynamicResource AccentColorBrush}"/>
+                                                        </Button>
+                                                        <Button Grid.Column="4"
+                                                                Command="{Binding #RootView.((vm:ContentLibraryViewModel)DataContext).DeleteAddonCommand}"
+                                                                CommandParameter="{Binding}"
+                                                                Classes="glass-icon-btn"
+                                                                ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Library.DeleteAddonTooltip}">
+                                                            <PathIcon Data="{StaticResource DeleteIcon}" Width="14" Height="14" Foreground="{DynamicResource ErrorBrush}"/>
+                                                        </Button>
+                                                    </Grid>
+                                                </Border>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+
+                                    <!-- Legacy External Dependencies List (if any) -->
                                     <ItemsControl ItemsSource="{Binding Addons}">
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate>
@@ -626,6 +718,21 @@
                                             </StackPanel>
                                         </Button>
                                     </Grid>
+
+                                    <!-- Releases Drop Zone -->
+                                    <Border x:Name="ReleasesDropZone"
+                                            DragDrop.AllowDrop="True"
+                                            BorderBrush="{DynamicResource GlassBorderBrush}"
+                                            BorderThickness="1"
+                                            CornerRadius="8"
+                                            Background="{DynamicResource GlassFillBrush}"
+                                            Padding="12"
+                                            Cursor="Hand">
+                                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="8">
+                                            <PathIcon Data="{StaticResource AddIcon}" Width="14" Height="14" Foreground="{DynamicResource AccentColorBrush}"/>
+                                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Library.DragDropReleaseHint}" FontWeight="Medium" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                    </Border>
 
                                     <!-- Releases List -->
                                     <ItemsControl ItemsSource="{Binding Releases, Converter={StaticResource ReleaseOrderingConverter}}">

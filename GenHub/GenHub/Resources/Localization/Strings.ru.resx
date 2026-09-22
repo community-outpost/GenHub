@@ -13109,6 +13109,54 @@ GameFilesEdited/Data/INI/**/*.ini</value>
   <data name="Tools.PublisherStudio.Library.BadgeBundle" xml:space="preserve">
     <value>КОМПЛЕКТ</value>
   </data>
+  <data name="Tools.PublisherStudio.Library.DragDropContentHint" xml:space="preserve">
+    <value>(перетащите для добавления контента)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.DragDropAddonHint" xml:space="preserve">
+    <value>(перетащите для добавления аддона)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.DragDropReleaseHint" xml:space="preserve">
+    <value>(перетащите для добавления релиза)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.EditAddonTooltip" xml:space="preserve">
+    <value>Редактировать аддон</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.DeleteAddonTooltip" xml:space="preserve">
+    <value>Удалить аддон</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.DragDropImagesHint" xml:space="preserve">
+    <value>(перетащите файлы изображений сюда)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.BulkScreenshotsPlaceholder" xml:space="preserve">
+    <value>Ссылки: по одной на строку&#x0a;https://example.com/screenshot1.png&#x0a;https://example.com/screenshot2.png</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.ReleaseChangelogPlaceholder" xml:space="preserve">
+    <value>Примечания к выпуску этой версии...</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.SingleBundleOption" xml:space="preserve">
+    <value>Один пакет (все артефакты)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.VariantsOption" xml:space="preserve">
+    <value>Варианты (пользователь выбирает один)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.DragDropFilesHint" xml:space="preserve">
+    <value>(перетащите файлы для загрузки)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.ReleaseMediaHeader" xml:space="preserve">
+    <value>Медиа релиза (изображения и видео обновления)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.DragDropReleaseImagesHint" xml:space="preserve">
+    <value>(перетащите изображения сюда)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Release.AddonTitle" xml:space="preserve">
+    <value>Название аддона</value>
+  </data>
+  <data name="Tools.PublisherStudio.Release.AddonTitlePlaceholder" xml:space="preserve">
+    <value>напр., Lemon Edition ZH Control Bar 1920x1080</value>
+  </data>
+  <data name="Tools.PublisherStudio.Release.AddonCategory" xml:space="preserve">
+    <value>Категория аддона</value>
+  </data>
   <data name="GameProfiles.Notification.UnexpectedExit.Title" xml:space="preserve">
     <value>Игра неожиданно завершилась</value>
   </data>

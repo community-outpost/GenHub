@@ -11,6 +11,18 @@ namespace GenHub.Core.Models.Providers;
 public class ContentRelease
 {
     /// <summary>
+    /// Gets or sets an optional display title or name for this release or addon (e.g., "HD Texture Pack", "Maps Expansion").
+    /// </summary>
+    [JsonPropertyName("title")]
+    public string? Title { get; set; }
+
+    /// <summary>
+    /// Gets or sets an optional category or addon type (e.g., "Map", "Patch", "UI", "AI", "Music", "Skin", "Addon").
+    /// </summary>
+    [JsonPropertyName("category")]
+    public string? Category { get; set; }
+
+    /// <summary>
     /// Gets or sets the version string (e.g., "1.0.0", "2.1-beta").
     /// </summary>
     [JsonPropertyName("version")]

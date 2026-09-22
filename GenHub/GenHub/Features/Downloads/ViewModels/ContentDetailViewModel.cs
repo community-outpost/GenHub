@@ -3665,28 +3665,63 @@ public partial class ContentDetailViewModel(
 
     private void PopulateCatalogAddons(CatalogContentItem catalogItem)
     {
-        if (catalogItem.Addons is not { Count: > 0 })
+        var hasAddonReleases = catalogItem.AddonReleases is { Count: > 0 };
+        var hasLegacyAddons = catalogItem.Addons is { Count: > 0 };
+
+        if (!hasAddonReleases && !hasLegacyAddons)
         {
             return;
         }
 
         Addons.Clear();
-        foreach (var addonDep in catalogItem.Addons)
-        {
-            var file = new DownloadableFile(
-                Name: !string.IsNullOrWhiteSpace(addonDep.ContentId) ? addonDep.ContentId : "Addon",
-                DownloadUrl: addonDep.DefinitionUrl ?? addonDep.CatalogUrl ?? string.Empty,
-                SizeBytes: null,
-                UploadDate: null,
-                Version: addonDep.VersionConstraint,
-                Category: Enum.TryParse<ContentType>(addonDep.ContentType, true, out var parsedType) ? parsedType.GetDisplayName() : addonDep.ContentType,
-                Uploader: addonDep.PublisherId ?? searchResult.AuthorName,
-                Filename: addonDep.ContentId,
-                Description: $"Addon dependency for {catalogItem.Name}",
-                FileSectionType: FileSectionType.Addons);
 
-            var addonItem = CreateAddonItemViewModel(file);
-            Addons.Add(addonItem);
+        if (hasAddonReleases)
+        {
+            foreach (var addonRel in catalogItem.AddonReleases)
+            {
+                var primary = addonRel.Artifacts.FirstOrDefault(a => a.IsPrimary) ?? addonRel.Artifacts.FirstOrDefault();
+                var name = !string.IsNullOrWhiteSpace(addonRel.Title) ? addonRel.Title : (primary?.Filename ?? $"Addon v{addonRel.Version}");
+                var url = primary?.DownloadUrl ?? string.Empty;
+                var size = addonRel.Artifacts.Sum(a => a.Size);
+                var category = !string.IsNullOrWhiteSpace(addonRel.Category) ? addonRel.Category : "Addon";
+                var description = !string.IsNullOrWhiteSpace(addonRel.Changelog) ? addonRel.Changelog : $"Addon for {catalogItem.Name}";
+
+                var file = new DownloadableFile(
+                    Name: name,
+                    DownloadUrl: url,
+                    SizeBytes: size > 0 ? size : null,
+                    UploadDate: addonRel.ReleaseDate,
+                    Version: addonRel.Version,
+                    Category: category,
+                    Uploader: searchResult.AuthorName,
+                    Filename: primary?.Filename ?? $"{name}.zip",
+                    Description: description,
+                    FileSectionType: FileSectionType.Addons);
+
+                var addonItem = CreateAddonItemViewModel(file);
+                Addons.Add(addonItem);
+            }
+        }
+
+        if (hasLegacyAddons)
+        {
+            foreach (var addonDep in catalogItem.Addons)
+            {
+                var file = new DownloadableFile(
+                    Name: !string.IsNullOrWhiteSpace(addonDep.ContentId) ? addonDep.ContentId : "Addon",
+                    DownloadUrl: addonDep.DefinitionUrl ?? addonDep.CatalogUrl ?? string.Empty,
+                    SizeBytes: null,
+                    UploadDate: null,
+                    Version: addonDep.VersionConstraint,
+                    Category: Enum.TryParse<ContentType>(addonDep.ContentType, true, out var parsedType) ? parsedType.GetDisplayName() : addonDep.ContentType,
+                    Uploader: addonDep.PublisherId ?? searchResult.AuthorName,
+                    Filename: addonDep.ContentId,
+                    Description: $"Addon dependency for {catalogItem.Name}",
+                    FileSectionType: FileSectionType.Addons);
+
+                var addonItem = CreateAddonItemViewModel(file);
+                Addons.Add(addonItem);
+            }
         }
 
         OnPropertyChanged(nameof(HasAddons));
@@ -3696,27 +3731,108 @@ public partial class ContentDetailViewModel(
     private void PopulateCatalogMedia(CatalogContentItem catalogItem)
     {
         var videoList = new List<Video>();
+        var seenVideos = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        void AddVideo(string? url, string title)
+        {
+            if (string.IsNullOrWhiteSpace(url) || !seenVideos.Add(url))
+            {
+                return;
+            }
+
+            videoList.Add(new Video(
+                Title: title,
+                ThumbnailUrl: catalogItem.Metadata?.BannerUrl ?? searchResult.IconUrl ?? string.Empty,
+                EmbedUrl: url,
+                Platform: "Web"));
+        }
+
         if (!string.IsNullOrWhiteSpace(catalogItem.Metadata?.VideoUrl))
         {
-            videoList.Add(new Video(
-                Title: $"{catalogItem.Name} Preview",
-                ThumbnailUrl: catalogItem.Metadata.BannerUrl ?? searchResult.IconUrl ?? string.Empty,
-                EmbedUrl: catalogItem.Metadata.VideoUrl,
-                Platform: "Web"));
+            AddVideo(catalogItem.Metadata.VideoUrl, $"{catalogItem.Name} Preview");
+        }
+
+        if (catalogItem.Metadata?.VideoUrls != null)
+        {
+            var idx = 1;
+            foreach (var vid in catalogItem.Metadata.VideoUrls)
+            {
+                AddVideo(vid, $"{catalogItem.Name} Showcase {idx++}");
+            }
+        }
+
+        if (catalogItem.Releases != null)
+        {
+            foreach (var rel in catalogItem.Releases)
+            {
+                if (rel.VideoUrls == null) continue;
+                var rIdx = 1;
+                foreach (var vid in rel.VideoUrls)
+                {
+                    AddVideo(vid, $"{catalogItem.Name} v{rel.Version} Video {rIdx++}");
+                }
+            }
+        }
+
+        if (catalogItem.AddonReleases != null)
+        {
+            foreach (var addon in catalogItem.AddonReleases)
+            {
+                if (addon.VideoUrls == null) continue;
+                var aIdx = 1;
+                foreach (var vid in addon.VideoUrls)
+                {
+                    AddVideo(vid, $"{addon.Title ?? "Addon"} Video {aIdx++}");
+                }
+            }
         }
 
         Videos = videoList.ToObservableCollection();
 
         var imageList = new List<Image>();
+        var seenImages = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        void AddImage(string? url, string title)
+        {
+            if (string.IsNullOrWhiteSpace(url) || !seenImages.Add(url)) return;
+            imageList.Add(new Image(
+                Title: title,
+                ThumbnailUrl: url,
+                FullSizeUrl: url));
+        }
+
         if (catalogItem.Metadata?.ScreenshotUrls != null)
         {
             var shotIndex = 1;
             foreach (var shot in catalogItem.Metadata.ScreenshotUrls)
             {
-                imageList.Add(new Image(
-                    Title: $"Screenshot {shotIndex++}",
-                    ThumbnailUrl: shot,
-                    FullSizeUrl: shot));
+                AddImage(shot, $"Screenshot {shotIndex++}");
+            }
+        }
+
+        if (catalogItem.Releases != null)
+        {
+            foreach (var rel in catalogItem.Releases)
+            {
+                if (rel.ImageUrls == null) continue;
+                var rShotIndex = 1;
+                foreach (var shot in rel.ImageUrls)
+                {
+                    AddImage(shot, $"{catalogItem.Name} v{rel.Version} Screenshot {rShotIndex++}");
+                }
+            }
+        }
+
+        if (catalogItem.AddonReleases != null)
+        {
+            foreach (var addon in catalogItem.AddonReleases)
+            {
+                if (addon.ImageUrls == null) continue;
+                var aShotIndex = 1;
+                foreach (var shot in addon.ImageUrls)
+                {
+                    AddImage(shot, $"{addon.Title ?? "Addon"} Screenshot {aShotIndex++}");
+                }
             }
         }
 

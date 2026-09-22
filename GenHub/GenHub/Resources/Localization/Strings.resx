@@ -13207,6 +13207,54 @@ Project structure ready. Edit files in GameFilesEdited folder.</value>
   <data name="Tools.PublisherStudio.Library.BadgeBundle" xml:space="preserve">
     <value>BUNDLE</value>
   </data>
+  <data name="Tools.PublisherStudio.Library.DragDropContentHint" xml:space="preserve">
+    <value>(drag &amp; drop to add content)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.DragDropAddonHint" xml:space="preserve">
+    <value>(drag &amp; drop to add addon)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.DragDropReleaseHint" xml:space="preserve">
+    <value>(drag &amp; drop to add release)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.EditAddonTooltip" xml:space="preserve">
+    <value>Edit Addon</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.DeleteAddonTooltip" xml:space="preserve">
+    <value>Delete Addon</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.DragDropImagesHint" xml:space="preserve">
+    <value>(drag &amp; drop image files here)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.BulkScreenshotsPlaceholder" xml:space="preserve">
+    <value>Bulk URLs: one per line&#x0a;https://example.com/screenshot1.png&#x0a;https://example.com/screenshot2.png</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.ReleaseChangelogPlaceholder" xml:space="preserve">
+    <value>Changelog notes for this version...</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.SingleBundleOption" xml:space="preserve">
+    <value>Single Bundle (all artifacts)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.VariantsOption" xml:space="preserve">
+    <value>Variants (user chooses one)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.DragDropFilesHint" xml:space="preserve">
+    <value>(drag &amp; drop to upload files)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.ReleaseMediaHeader" xml:space="preserve">
+    <value>Release Media (Update-Specific Images &amp; Videos)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.DragDropReleaseImagesHint" xml:space="preserve">
+    <value>(drag &amp; drop images here)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Release.AddonTitle" xml:space="preserve">
+    <value>Addon Title</value>
+  </data>
+  <data name="Tools.PublisherStudio.Release.AddonTitlePlaceholder" xml:space="preserve">
+    <value>e.g. Lemon Edition ZH Control Bar 1920x1080</value>
+  </data>
+  <data name="Tools.PublisherStudio.Release.AddonCategory" xml:space="preserve">
+    <value>Addon Category</value>
+  </data>
   <data name="GameProfiles.Notification.UnexpectedExit.Title" xml:space="preserve">
     <value>Game Exited Unexpectedly</value>
   </data>

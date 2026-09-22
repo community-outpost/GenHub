@@ -7,6 +7,7 @@ using GenHub.Core.Models.Publishers;
 using GenHub.Features.Tools.Interfaces;
 using Microsoft.Extensions.Logging;
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Threading.Tasks;
@@ -227,6 +228,64 @@ public partial class ContentLibraryViewModel(
         RefreshSelectedContent();
         OnPropertyChanged(nameof(CatalogSummaryText));
         OnPropertyChanged(nameof(ActiveCatalogNeedsPublish));
+    }
+
+    /// <summary>
+    /// Handles dropped files onto the Addon section.
+    /// </summary>
+    /// <param name="paths">The dropped file or directory paths.</param>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    public async Task AddAddonWithPathsAsync(IEnumerable<string> paths)
+    {
+        if (SelectedContent == null)
+        {
+            return;
+        }
+
+        var created = await dialogService.ShowAddAddonDialogAsync(SelectedContent, activeCatalog.Catalog);
+        if (created != null)
+        {
+            SelectedContent.AddonReleases.Add(created);
+            RefreshSelectedContent();
+            MarkProjectAndCatalogDirty();
+            if (parentViewModel != null)
+            {
+                await parentViewModel.SaveProjectAsync();
+            }
+        }
+    }
+
+    /// <summary>
+    /// Handles dropped files onto the Release section.
+    /// </summary>
+    /// <param name="paths">The dropped file or directory paths.</param>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    public async Task AddReleaseWithPathsAsync(IEnumerable<string> paths)
+    {
+        if (SelectedContent == null)
+        {
+            return;
+        }
+
+        var created = await dialogService.ShowAddReleaseDialogAsync(SelectedContent, activeCatalog.Catalog);
+        if (created != null)
+        {
+            if (created.IsLatest)
+            {
+                foreach (var rel in SelectedContent.Releases)
+                {
+                    rel.IsLatest = false;
+                }
+            }
+
+            SelectedContent.Releases.Add(created);
+            RefreshSelectedContent();
+            MarkProjectAndCatalogDirty();
+            if (parentViewModel != null)
+            {
+                await parentViewModel.SaveProjectAsync();
+            }
+        }
     }
 
     private void MarkProjectAndCatalogDirty()
@@ -497,15 +556,18 @@ public partial class ContentLibraryViewModel(
     /// <summary>
     /// Adds an addon dependency to the selected content item.
     /// </summary>
+    /// <summary>
+    /// Adds an addon release to the selected content item.
+    /// </summary>
     [RelayCommand]
     private async Task AddAddonAsync()
     {
         if (SelectedContent == null) return;
 
-        var dependency = await dialogService.ShowAddDependencyDialogAsync(activeCatalog.Catalog, SelectedContent);
-        if (dependency != null)
+        var newAddon = await dialogService.ShowAddAddonDialogAsync(SelectedContent, activeCatalog.Catalog);
+        if (newAddon != null)
         {
-            SelectedContent.Addons.Add(dependency);
+            SelectedContent.AddonReleases.Add(newAddon);
             RefreshSelectedContent();
 
             MarkProjectAndCatalogDirty();
@@ -514,12 +576,70 @@ public partial class ContentLibraryViewModel(
                 await parentViewModel.SaveProjectAsync();
             }
 
-            logger.LogInformation("Added addon to {ContentId} in catalog: {CatalogId}: {DependencyId}", SelectedContent.Id, activeCatalog.Id, dependency.ContentId);
+            logger.LogInformation("Added addon {AddonTitle} (v{Version}) to {ContentId} in catalog: {CatalogId}", newAddon.Title, newAddon.Version, SelectedContent.Id, activeCatalog.Id);
         }
     }
 
     /// <summary>
-    /// Removes an addon dependency from the selected content item.
+    /// Edits an addon release on the selected content item.
+    /// </summary>
+    [RelayCommand]
+    private async Task EditAddonAsync(ContentRelease? addon)
+    {
+        if (SelectedContent == null || addon == null) return;
+
+        var edited = await dialogService.ShowEditAddonDialogAsync(addon, SelectedContent, activeCatalog.Catalog);
+        if (edited != null)
+        {
+            var index = SelectedContent.AddonReleases.IndexOf(addon);
+            if (index >= 0)
+            {
+                SelectedContent.AddonReleases[index] = edited;
+            }
+
+            RefreshSelectedContent();
+            MarkProjectAndCatalogDirty();
+            if (parentViewModel != null)
+            {
+                await parentViewModel.SaveProjectAsync();
+            }
+
+            logger.LogInformation("Updated addon {AddonTitle} (v{Version}) on {ContentId}", edited.Title, edited.Version, SelectedContent.Id);
+        }
+    }
+
+    /// <summary>
+    /// Deletes an addon release from the selected content item.
+    /// </summary>
+    [RelayCommand]
+    private async Task DeleteAddonAsync(ContentRelease? addon)
+    {
+        if (SelectedContent == null || addon == null) return;
+
+        var title = GetLocalizedString("Tools.PublisherStudio.Addon.DeleteTitle", "Delete Addon");
+        var message = string.Format(
+            GetLocalizedString(
+                "Tools.PublisherStudio.Addon.DeleteMessageFormat",
+                "Are you sure you want to delete addon '{0}'? This will also remove its artifacts and cannot be undone."),
+            addon.Title ?? addon.Version);
+
+        var confirmed = await dialogService.ShowConfirmationAsync(title, message);
+        if (!confirmed) return;
+
+        if (!SelectedContent.AddonReleases.Remove(addon)) return;
+
+        RefreshSelectedContent();
+        MarkProjectAndCatalogDirty();
+        if (parentViewModel != null)
+        {
+            await parentViewModel.SaveProjectSilentAsync();
+        }
+
+        logger.LogInformation("Deleted addon {AddonTitle} from {ContentId}", addon.Title, SelectedContent.Id);
+    }
+
+    /// <summary>
+    /// Removes a legacy addon dependency from the selected content item.
     /// </summary>
     [RelayCommand]
     private async Task RemoveAddonAsync(CatalogDependency? dependency)
@@ -535,7 +655,7 @@ public partial class ContentLibraryViewModel(
             await parentViewModel.SaveProjectAsync();
         }
 
-        logger.LogInformation("Removed addon {DependencyId} from {ContentId}", dependency.ContentId, SelectedContent.Id);
+        logger.LogInformation("Removed addon dependency {DependencyId} from {ContentId}", dependency.ContentId, SelectedContent.Id);
     }
 
     /// <summary>

@@ -262,20 +262,112 @@
                             </ItemsControl>
                         </StackPanel>
 
-                        <!-- Screenshots -->
-                        <StackPanel Spacing="4">
+                        <!-- Screenshots Section -->
+                        <StackPanel Spacing="6" Margin="0,4,0,0">
                             <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.Screenshots}" Classes="label"/>
+                            <Border x:Name="ContentMediaDropZone"
+                                    DragDrop.AllowDrop="True"
+                                    BorderBrush="{DynamicResource GlassBorderBrush}"
+                                    BorderThickness="1"
+                                    CornerRadius="8"
+                                    Background="{DynamicResource GlassFillSubtleBrush}"
+                                    Padding="12"
+                                    Cursor="Hand">
+                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="8">
+                                    <PathIcon Data="{StaticResource DocumentIcon}" Width="14" Height="14" Foreground="{DynamicResource AccentColorBrush}"/>
+                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.DragDropImagesHint}" FontWeight="Medium" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Border>
+
+                            <!-- Screenshots List -->
+                            <ItemsControl ItemsSource="{Binding Screenshots}" IsVisible="{Binding Screenshots.Count}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border Background="{DynamicResource GlassFillSubtleBrush}"
+                                                BorderBrush="{DynamicResource GlassBorderBrush}"
+                                                BorderThickness="1"
+                                                CornerRadius="6"
+                                                Padding="8,4"
+                                                Margin="0,0,0,4">
+                                            <Grid ColumnDefinitions="*,Auto">
+                                                <TextBlock Text="{Binding}" VerticalAlignment="Center" FontSize="12" TextTrimming="CharacterEllipsis"/>
+                                                <Button Grid.Column="1"
+                                                        Command="{Binding #RootView.((vm:AddContentDialogViewModel)DataContext).RemoveScreenshotCommand}"
+                                                        CommandParameter="{Binding}"
+                                                        Background="Transparent"
+                                                        BorderThickness="0"
+                                                        Padding="4"
+                                                        Cursor="Hand">
+                                                    <PathIcon Data="{StaticResource CloseIcon}" Width="10" Height="10" Foreground="{DynamicResource StatusErrorBrush}"/>
+                                                </Button>
+                                            </Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+
+                            <!-- Add Screenshot URL Input -->
+                            <Grid ColumnDefinitions="*,Auto" Margin="0,2,0,0">
+                                <TextBox Text="{Binding NewScreenshotUrl, Mode=TwoWay}"
+                                         Watermark="https://example.com/screenshot.png"
+                                         Margin="0,0,6,0"/>
+                                <Button Grid.Column="1"
+                                        Content="{localization:Localize Common.Button.Add}"
+                                        Command="{Binding AddScreenshotCommand}"
+                                        Background="{DynamicResource GlassStrongBrush}"
+                                        Padding="12,6"
+                                        CornerRadius="6"/>
+                            </Grid>
+
+                            <!-- Bulk Screenshot URLs Input -->
                             <TextBox Text="{Binding ScreenshotUrlsInput, Mode=TwoWay}"
                                      AcceptsReturn="True"
-                                     Height="65"
-                                     Watermark="https://example.com/screenshot1.png&#x0a;https://example.com/screenshot2.png"/>
+                                     Height="60"
+                                     Watermark="{localization:Localize Tools.PublisherStudio.Content.BulkScreenshotsPlaceholder}"/>
                         </StackPanel>
 
-                        <!-- Video Preview URL -->
-                        <StackPanel Spacing="4">
+                        <!-- Videos Section -->
+                        <StackPanel Spacing="6" Margin="0,4,0,0">
                             <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.VideoUrl}" Classes="label"/>
-                            <TextBox Text="{Binding VideoUrl, Mode=TwoWay}"
-                                     Watermark="https://www.youtube.com/watch?v=..."/>
+                            <!-- Videos List -->
+                            <ItemsControl ItemsSource="{Binding Videos}" IsVisible="{Binding Videos.Count}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border Background="{DynamicResource GlassFillSubtleBrush}"
+                                                BorderBrush="{DynamicResource GlassBorderBrush}"
+                                                BorderThickness="1"
+                                                CornerRadius="6"
+                                                Padding="8,4"
+                                                Margin="0,0,0,4">
+                                            <Grid ColumnDefinitions="*,Auto">
+                                                <TextBlock Text="{Binding}" VerticalAlignment="Center" FontSize="12" TextTrimming="CharacterEllipsis"/>
+                                                <Button Grid.Column="1"
+                                                        Command="{Binding #RootView.((vm:AddContentDialogViewModel)DataContext).RemoveVideoCommand}"
+                                                        CommandParameter="{Binding}"
+                                                        Background="Transparent"
+                                                        BorderThickness="0"
+                                                        Padding="4"
+                                                        Cursor="Hand">
+                                                    <PathIcon Data="{StaticResource CloseIcon}" Width="10" Height="10" Foreground="{DynamicResource StatusErrorBrush}"/>
+                                                </Button>
+                                            </Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+
+                            <!-- Add Video URL Input -->
+                            <Grid ColumnDefinitions="*,Auto" Margin="0,2,0,0">
+                                <TextBox Text="{Binding NewVideoUrl, Mode=TwoWay}"
+                                         Watermark="https://www.youtube.com/watch?v=..."
+                                         Margin="0,0,6,0"/>
+                                <Button Grid.Column="1"
+                                        Content="{localization:Localize Common.Button.Add}"
+                                        Command="{Binding AddVideoCommand}"
+                                        Background="{DynamicResource GlassStrongBrush}"
+                                        Padding="12,6"
+                                        CornerRadius="6"/>
+                            </Grid>
                         </StackPanel>
                     </StackPanel>
                 </Expander>
@@ -311,6 +403,87 @@
                                     <TextBox Text="{Binding PackageFilename}" Watermark="{localization:Localize Tools.PublisherStudio.Content.PackageFilenamePlaceholder}"/>
                                 </StackPanel>
                             </Grid>
+
+                            <!-- Changelog -->
+                            <StackPanel Spacing="4">
+                                <TextBlock Text="{localization:Localize Tools.PublisherStudio.Release.Changelog}" Classes="label"/>
+                                <TextBox Text="{Binding ReleaseChangelog, Mode=TwoWay}"
+                                         AcceptsReturn="True"
+                                         Height="60"
+                                         Watermark="{localization:Localize Tools.PublisherStudio.Content.ReleaseChangelogPlaceholder}"/>
+                            </StackPanel>
+
+                            <!-- Delivery Mode -->
+                            <StackPanel Spacing="4">
+                                <TextBlock Text="{localization:Localize Tools.PublisherStudio.Release.ArtifactDeliveryMode}" Classes="label"/>
+                                <StackPanel Orientation="Horizontal" Spacing="24">
+                                    <RadioButton Content="{localization:Localize Tools.PublisherStudio.Content.SingleBundleOption}"
+                                                 IsChecked="{Binding BundleArtifacts, Mode=TwoWay}"
+                                                 Foreground="{DynamicResource TextPrimary}"/>
+                                    <RadioButton Content="{localization:Localize Tools.PublisherStudio.Content.VariantsOption}"
+                                                 IsChecked="{Binding IsVariantsMode, Mode=TwoWay}"
+                                                 Foreground="{DynamicResource TextPrimary}"/>
+                                </StackPanel>
+                            </StackPanel>
+
+                            <!-- Drop Zone for Initial Release -->
+                            <Border x:Name="InitialReleaseDropZone"
+                                    DragDrop.AllowDrop="True"
+                                    BorderBrush="{DynamicResource GlassBorderBrush}"
+                                    BorderThickness="1"
+                                    CornerRadius="8"
+                                    Background="{DynamicResource GlassFillSubtleBrush}"
+                                    Padding="12"
+                                    Cursor="Hand">
+                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="8">
+                                    <PathIcon Data="{StaticResource AddIcon}" Width="14" Height="14" Foreground="{DynamicResource AccentColorBrush}"/>
+                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.DragDropFilesHint}" FontWeight="Medium" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Border>
+
+                            <!-- Explicit Artifacts Section -->
+                            <StackPanel Spacing="6" Margin="0,4,0,0">
+                                <Grid ColumnDefinitions="*,Auto">
+                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Release.Artifacts}" Classes="label" VerticalAlignment="Center"/>
+                                    <Button Grid.Column="1"
+                                            Content="{localization:Localize Tools.PublisherStudio.Release.AddArtifact}"
+                                            Command="{Binding AddArtifactCommand}"
+                                            Background="{DynamicResource GlassFillBrush}"
+                                            BorderBrush="{DynamicResource GlassBorderBrush}"
+                                            BorderThickness="1"
+                                            CornerRadius="6"
+                                            Padding="10,4"
+                                            FontSize="12"/>
+                                </Grid>
+                                <ItemsControl ItemsSource="{Binding ReleaseArtifacts}" IsVisible="{Binding ReleaseArtifacts.Count}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border Background="{DynamicResource GlassFillSubtleBrush}"
+                                                    BorderBrush="{DynamicResource GlassBorderBrush}"
+                                                    BorderThickness="1"
+                                                    CornerRadius="6"
+                                                    Padding="10,6"
+                                                    Margin="0,0,0,4">
+                                                <Grid ColumnDefinitions="*,Auto">
+                                                    <StackPanel Spacing="2">
+                                                        <TextBlock Text="{Binding Filename}" FontWeight="SemiBold" FontSize="12"/>
+                                                        <TextBlock Text="{Binding DownloadUrl}" FontSize="11" Foreground="{DynamicResource TextSecondary}" TextTrimming="CharacterEllipsis"/>
+                                                    </StackPanel>
+                                                    <Button Grid.Column="1"
+                                                            Command="{Binding #RootView.((vm:AddContentDialogViewModel)DataContext).RemoveArtifactCommand}"
+                                                            CommandParameter="{Binding}"
+                                                            Background="Transparent"
+                                                            BorderThickness="0"
+                                                            Padding="4"
+                                                            Cursor="Hand">
+                                                        <PathIcon Data="{StaticResource CloseIcon}" Width="10" Height="10" Foreground="{DynamicResource StatusErrorBrush}"/>
+                                                    </Button>
+                                                </Grid>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
 
                             <!-- Hosting Mode Radio Buttons -->
                             <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.DownloadSource}" Classes="label" Margin="0,4,0,0"/>
@@ -412,6 +585,87 @@
                                            TextWrapping="Wrap"
                                            IsVisible="{Binding IsMultiFileStaging}"/>
                                 <ProgressBar IsIndeterminate="True" Height="2" IsVisible="{Binding IsComputingHash}" Margin="0,4,0,0"/>
+                            </StackPanel>
+
+                            <!-- Release Media (Images & Videos) -->
+                            <Expander Background="{DynamicResource GlassFillSubtleBrush}"
+                                      BorderBrush="{DynamicResource GlassBorderBrush}"
+                                      BorderThickness="1"
+                                      CornerRadius="6"
+                                      Padding="8"
+                                      Margin="0,4,0,0"
+                                      HorizontalAlignment="Stretch"
+                                      HorizontalContentAlignment="Stretch">
+                                <Expander.Header>
+                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.ReleaseMediaHeader}" Classes="label"/>
+                                </Expander.Header>
+                                <StackPanel Spacing="8" Margin="0,4,0,0">
+                                    <Border x:Name="ReleaseMediaDropZone"
+                                            DragDrop.AllowDrop="True"
+                                            BorderBrush="{DynamicResource GlassBorderBrush}"
+                                            BorderThickness="1"
+                                            CornerRadius="6"
+                                            Background="{DynamicResource GlassFillBrush}"
+                                            Padding="10"
+                                            Cursor="Hand">
+                                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="8">
+                                            <PathIcon Data="{StaticResource DocumentIcon}" Width="14" Height="14" Foreground="{DynamicResource AccentColorBrush}"/>
+                                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.DragDropReleaseImagesHint}" FontWeight="Medium" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                    </Border>
+                                    <TextBox Text="{Binding ReleaseImageUrlsInput, Mode=TwoWay}"
+                                             AcceptsReturn="True"
+                                             Height="50"
+                                             Watermark="{localization:Localize Tools.PublisherStudio.Release.ReleaseImages}"/>
+                                    <TextBox Text="{Binding ReleaseVideoUrlsInput, Mode=TwoWay}"
+                                             AcceptsReturn="True"
+                                             Height="50"
+                                             Watermark="{localization:Localize Tools.PublisherStudio.Release.ReleaseVideos}"/>
+                                </StackPanel>
+                            </Expander>
+
+                            <!-- Release Dependencies -->
+                            <StackPanel Spacing="6" Margin="0,4,0,0">
+                                <Grid ColumnDefinitions="*,Auto">
+                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Release.Dependencies}" Classes="label" VerticalAlignment="Center"/>
+                                    <Button Grid.Column="1"
+                                            Content="{localization:Localize Tools.PublisherStudio.Release.AddDependency}"
+                                            Command="{Binding AddReleaseDependencyCommand}"
+                                            Background="{DynamicResource GlassFillBrush}"
+                                            BorderBrush="{DynamicResource GlassBorderBrush}"
+                                            BorderThickness="1"
+                                            CornerRadius="6"
+                                            Padding="10,4"
+                                            FontSize="12"/>
+                                </Grid>
+                                <ItemsControl ItemsSource="{Binding ReleaseDependencies}" IsVisible="{Binding ReleaseDependencies.Count}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border Background="{DynamicResource GlassFillSubtleBrush}"
+                                                    BorderBrush="{DynamicResource GlassBorderBrush}"
+                                                    BorderThickness="1"
+                                                    CornerRadius="6"
+                                                    Padding="8,4"
+                                                    Margin="0,0,0,4">
+                                                <Grid ColumnDefinitions="*,Auto">
+                                                    <StackPanel Spacing="2">
+                                                        <TextBlock Text="{Binding ContentId}" FontWeight="SemiBold" FontSize="12"/>
+                                                        <TextBlock Text="{Binding VersionConstraint}" FontSize="11" Foreground="{DynamicResource TextSecondary}"/>
+                                                    </StackPanel>
+                                                    <Button Grid.Column="1"
+                                                            Command="{Binding #RootView.((vm:AddContentDialogViewModel)DataContext).RemoveReleaseDependencyCommand}"
+                                                            CommandParameter="{Binding}"
+                                                            Background="Transparent"
+                                                            BorderThickness="0"
+                                                            Padding="4"
+                                                            Cursor="Hand">
+                                                        <PathIcon Data="{StaticResource CloseIcon}" Width="10" Height="10" Foreground="{DynamicResource StatusErrorBrush}"/>
+                                                    </Button>
+                                                </Grid>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
                             </StackPanel>
                         </StackPanel>
                     </StackPanel>

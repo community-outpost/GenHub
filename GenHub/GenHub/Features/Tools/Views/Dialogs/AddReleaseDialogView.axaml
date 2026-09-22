@@ -10,7 +10,6 @@
              x:Name="Root"
              DragDrop.AllowDrop="True">
 
-
     <UserControl.Styles>
         <Style Selector="TextBox">
             <Setter Property="Background" Value="{DynamicResource GlassFillBrush}"/>
@@ -96,6 +95,22 @@
                 <!-- Info -->
                 <TextBlock Text="{Binding ContentName}" FontWeight="Bold" Opacity="0.5" Foreground="{DynamicResource TextPrimary}"/>
 
+                <!-- Addon Specific Fields -->
+                <StackPanel Spacing="8" IsVisible="{Binding IsAddonMode}">
+                    <StackPanel Orientation="Horizontal" Spacing="4">
+                        <TextBlock Text="{localization:Localize Tools.PublisherStudio.Release.AddonTitle}" Classes="label"/>
+                        <TextBlock Text="*" Foreground="{DynamicResource StatusErrorBrush}"/>
+                    </StackPanel>
+                    <TextBox Text="{Binding Title}" Watermark="{localization:Localize Tools.PublisherStudio.Release.AddonTitlePlaceholder}"/>
+                </StackPanel>
+
+                <StackPanel Spacing="8" IsVisible="{Binding IsAddonMode}">
+                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Release.AddonCategory}" Classes="label"/>
+                    <ComboBox ItemsSource="{Binding AvailableAddonCategories}"
+                              SelectedItem="{Binding Category}"
+                              HorizontalAlignment="Stretch"/>
+                </StackPanel>
+
                 <!-- Version -->
                 <StackPanel Spacing="8">
                     <StackPanel Orientation="Horizontal" Spacing="4">
@@ -147,6 +162,21 @@
                         </Button>
                     </Grid>
 
+                    <!-- Dedicated Artifacts Drop Zone -->
+                    <Border x:Name="ArtifactsDropZone"
+                            DragDrop.AllowDrop="True"
+                            BorderBrush="{DynamicResource GlassBorderBrush}"
+                            BorderThickness="1"
+                            CornerRadius="8"
+                            Background="{DynamicResource GlassFillSubtleBrush}"
+                            Padding="12"
+                            Cursor="Hand">
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="8">
+                            <PathIcon Data="{StaticResource DocumentIcon}" Width="14" Height="14" Foreground="{DynamicResource AccentColorBrush}"/>
+                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.DragDropFilesHint}" FontSize="12" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Border>
+
                     <ListBox ItemsSource="{Binding Artifacts}" MinHeight="60">
                          <ListBox.ItemTemplate>
                              <DataTemplate>
@@ -168,6 +198,7 @@
                          </ListBox.ItemTemplate>
                     </ListBox>
                     <TextBlock Text="{localization:Localize Tools.PublisherStudio.Release.ArtifactRequired}" FontSize="11" Foreground="{DynamicResource StatusErrorBrush}" IsVisible="{Binding !Artifacts.Count}"/>
+
                     <!-- Mode: Bundle vs Variants -->
                     <Border Background="{DynamicResource GlassFillSubtleBrush}"
                             BorderBrush="{DynamicResource GlassBorderBrush}"
@@ -235,6 +266,22 @@
                 <!-- Release Media (Images & Videos) Section -->
                 <StackPanel Spacing="8">
                     <TextBlock Text="{localization:Localize Tools.PublisherStudio.Library.MediaAndTheme}" Classes="label"/>
+
+                    <!-- Dedicated Images Drop Zone -->
+                    <Border x:Name="ImagesDropZone"
+                            DragDrop.AllowDrop="True"
+                            BorderBrush="{DynamicResource GlassBorderBrush}"
+                            BorderThickness="1"
+                            CornerRadius="8"
+                            Background="{DynamicResource GlassFillSubtleBrush}"
+                            Padding="12"
+                            Cursor="Hand">
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="8">
+                            <PathIcon Data="{StaticResource ImageIcon}" Width="14" Height="14" Foreground="{DynamicResource AccentColorBrush}"/>
+                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.DragDropReleaseImagesHint}" FontSize="12" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Border>
+
                     <StackPanel Spacing="4">
                         <TextBlock Text="{localization:Localize Tools.PublisherStudio.Release.ReleaseImages}" Classes="label"/>
                         <TextBox Text="{Binding ImageUrlsInput, Mode=TwoWay}"

@@ -1,9 +1,9 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using GenHub.Common.Validation;
+using GenHub.Core.Constants;
 using GenHub.Core.Helpers;
 using GenHub.Core.Models.Providers;
-using GenHub.Core.Models.Publishers;
 using GenHub.Features.Tools.Interfaces;
 using System;
 using System.Collections.Generic;
@@ -18,22 +18,37 @@ using System.Threading.Tasks;
 namespace GenHub.Features.Tools.ViewModels.Dialogs;
 
 /// <summary>
-/// ViewModel for the Add/Edit Release dialog.
+/// ViewModel for the Add/Edit Release or Addon dialog.
 /// </summary>
 public partial class AddReleaseDialogViewModel(
     CatalogContentItem contentItem,
     PublisherCatalog catalog,
     Action<ContentRelease> onReleaseCreated,
     IPublisherStudioDialogService dialogService,
-    GenHub.Core.Interfaces.Common.ILocalizationService? localizationService = null) : ObservableValidator
+    GenHub.Core.Interfaces.Common.ILocalizationService? localizationService = null,
+    bool isAddon = false) : ObservableValidator
 {
+    private static readonly HashSet<string> ImageExtensions = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp", ".ico",
+    };
+
     private readonly string? _originalVersion;
+
+    [ObservableProperty]
+    private bool _isAddonMode = isAddon;
+
+    [ObservableProperty]
+    private string _title = string.Empty;
+
+    [ObservableProperty]
+    private string _category = "Addon";
 
     [ObservableProperty]
     [NotifyDataErrorInfo]
     [LocalizedRequired("Tools.PublisherStudio.Validation.VersionRequired", "Version is required")]
     [LocalizedRegularExpression(@"^\d+\.\d+(\.\d+)?(-[a-zA-Z0-9.]+)?$", "Tools.PublisherStudio.Validation.VersionPattern", "Version format: X.Y or X.Y.Z or X.Y.Z-tag (e.g. 1.0, 2.1.0, 1.0.0-beta)")]
-    private string _version = GetNextVersion(contentItem?.Releases ?? []);
+    private string _version = GetNextVersion(isAddon ? (contentItem?.AddonReleases ?? []) : (contentItem?.Releases ?? []));
 
     [ObservableProperty]
     private DateTimeOffset _releaseDate = DateTimeOffset.UtcNow;
@@ -62,22 +77,6 @@ public partial class AddReleaseDialogViewModel(
     [ObservableProperty]
     private string _videoUrlsInput = string.Empty;
 
-    partial void OnIsVariantsModeChanged(bool value)
-    {
-        if (BundleArtifacts == value)
-        {
-            BundleArtifacts = !value;
-        }
-    }
-
-    partial void OnBundleArtifactsChanged(bool value)
-    {
-        if (IsVariantsMode == value)
-        {
-            IsVariantsMode = !value;
-        }
-    }
-
     [ObservableProperty]
     private string? _validationError;
 
@@ -91,29 +90,49 @@ public partial class AddReleaseDialogViewModel(
     private bool _isEditMode;
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="AddReleaseDialogViewModel"/> class in edit mode,
-    /// pre-populated with an existing release's data.
+    /// Gets the list of available categories for addons.
     /// </summary>
-    /// <param name="existing">The existing release to edit.</param>
+    public IReadOnlyList<string> AvailableAddonCategories { get; } =
+    [
+        "Addon",
+        "Map",
+        "Patch",
+        "UI",
+        "AI",
+        "Music",
+        "Skin",
+        "Tools",
+        "Other",
+    ];
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="AddReleaseDialogViewModel"/> class in edit mode,
+    /// pre-populated with an existing release or addon's data.
+    /// </summary>
+    /// <param name="existing">The existing release or addon to edit.</param>
     /// <param name="contentItem">The content item the release belongs to.</param>
     /// <param name="catalog">The publisher catalog.</param>
     /// <param name="onReleaseCreated">Callback invoked when release is successfully saved.</param>
     /// <param name="dialogService">The dialog service.</param>
     /// <param name="localizationService">Optional localization service.</param>
+    /// <param name="isAddon">True if editing an addon; false if editing a release.</param>
     public AddReleaseDialogViewModel(
         ContentRelease existing,
         CatalogContentItem contentItem,
         PublisherCatalog catalog,
         Action<ContentRelease> onReleaseCreated,
         IPublisherStudioDialogService dialogService,
-        GenHub.Core.Interfaces.Common.ILocalizationService? localizationService = null)
-        : this(contentItem, catalog, onReleaseCreated, dialogService, localizationService)
+        GenHub.Core.Interfaces.Common.ILocalizationService? localizationService = null,
+        bool isAddon = false)
+        : this(contentItem, catalog, onReleaseCreated, dialogService, localizationService, isAddon)
     {
         ArgumentNullException.ThrowIfNull(existing);
 
         IsEditMode = true;
         _originalVersion = existing.Version;
         Version = existing.Version;
+        Title = existing.Title ?? string.Empty;
+        Category = !string.IsNullOrWhiteSpace(existing.Category) ? existing.Category : "Addon";
         ReleaseDate = existing.ReleaseDate.HasValue ? new DateTimeOffset(DateTime.SpecifyKind(existing.ReleaseDate.Value, DateTimeKind.Utc)) : DateTimeOffset.UtcNow;
         IsLatest = existing.IsLatest;
         IsPrerelease = existing.IsPrerelease;
@@ -154,18 +173,22 @@ public partial class AddReleaseDialogViewModel(
     /// <summary>
     /// Gets the dialog title based on the current mode.
     /// </summary>
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Major Code Smell", "S2325:Make member static", Justification = "ViewModel property bound to XAML view")]
-    public string DialogTitle => IsEditMode
-        ? GetLocalizedString("Tools.PublisherStudio.Release.EditTitle", "Edit Release")
-        : GetLocalizedString("Tools.PublisherStudio.Release.AddTitle", "Add New Release");
+    public string DialogTitle => IsAddonMode
+        ? (IsEditMode
+            ? GetLocalizedString("Tools.PublisherStudio.Addon.EditTitle", "Edit Addon")
+            : GetLocalizedString("Tools.PublisherStudio.Addon.AddTitle", "Add Addon"))
+        : (IsEditMode
+            ? GetLocalizedString("Tools.PublisherStudio.Release.EditTitle", "Edit Release")
+            : GetLocalizedString("Tools.PublisherStudio.Release.AddTitle", "Add New Release"));
 
     /// <summary>
     /// Gets the submit button text based on the current mode.
     /// </summary>
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Major Code Smell", "S2325:Make member static", Justification = "ViewModel property bound to XAML view")]
     public string SubmitButtonText => IsEditMode
         ? GetLocalizedString("Tools.PublisherStudio.Common.SaveChanges", "Save Changes")
-        : GetLocalizedString("Tools.PublisherStudio.Release.CreateRelease", "Create Release");
+        : (IsAddonMode
+            ? GetLocalizedString("Tools.PublisherStudio.Addon.AddButton", "Add Addon")
+            : GetLocalizedString("Tools.PublisherStudio.Release.CreateRelease", "Create Release"));
 
     /// <summary>
     /// Gets the content item name for display in the dialog title.
@@ -173,18 +196,25 @@ public partial class AddReleaseDialogViewModel(
     public string ContentName => contentItem?.Name ?? string.Empty;
 
     /// <summary>
-    /// Gets the suggested next version based on existing releases.
+    /// Gets the suggested next version based on existing releases or addons.
     /// </summary>
-    public string SuggestedVersion => GetNextVersion(contentItem?.Releases ?? []);
+    public string SuggestedVersion => GetNextVersion(IsAddonMode ? (contentItem?.AddonReleases ?? []) : (contentItem?.Releases ?? []));
 
     /// <summary>
-    /// Creates artifacts from dropped file system paths, heuristically filling in
-    /// filename, size, SHA256 hash, and MIME content type for each entry.
-    /// Folders are added as ZIP archives that are packed during publish.
+    /// Determines whether the specified path has an image file extension.
     /// </summary>
-    /// <param name="paths">The dropped file or folder paths.</param>
+    /// <param name="path">The file path to check.</param>
+    /// <returns>True if the specified path has an image file extension; otherwise, false.</returns>
+    public static bool IsImageFile(string path) =>
+        !string.IsNullOrWhiteSpace(path) && ImageExtensions.Contains(Path.GetExtension(path));
+
+    /// <summary>
+    /// Adds dropped files or folders as artifacts, checking for duplicates against hosting provider.
+    /// </summary>
+    /// <param name="paths">The local file or directory paths dropped.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
-    public async Task AddArtifactsFromPathsAsync(IEnumerable<string> paths)
+    public async Task AddArtifactsFromPathsAsync(IEnumerable<string> paths, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(paths);
 
@@ -201,11 +231,11 @@ public partial class AddReleaseDialogViewModel(
 
             if (File.Exists(path))
             {
-                artifact = await BuildFileArtifactAsync(path, CancellationToken.None);
+                artifact = await BuildFileArtifactAsync(path, cancellationToken);
             }
             else if (Directory.Exists(path))
             {
-                artifact = await BuildFolderArtifactAsync(path, CancellationToken.None);
+                artifact = await BuildFolderArtifactAsync(path, cancellationToken);
             }
 
             if (artifact == null)
@@ -227,6 +257,76 @@ public partial class AddReleaseDialogViewModel(
         Validate();
     }
 
+    /// <summary>
+    /// Adds dropped image files to the release's image URLs, with duplicate checking against hosting provider.
+    /// </summary>
+    /// <param name="paths">The image file paths dropped.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    public async Task AddImagesFromPathsAsync(IEnumerable<string> paths, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(paths);
+
+        var existingUrls = ParseUrls(ImageUrlsInput);
+        foreach (var rawPath in paths)
+        {
+            if (string.IsNullOrWhiteSpace(rawPath))
+            {
+                continue;
+            }
+
+            var path = rawPath.Trim('"', '\'', ' ');
+            if (!File.Exists(path) || !IsImageFile(path))
+            {
+                continue;
+            }
+
+            var sha256 = string.Empty;
+            try
+            {
+                await using var stream = File.OpenRead(path);
+                using var hasher = SHA256.Create();
+                var hashBytes = await hasher.ComputeHashAsync(stream, cancellationToken);
+                sha256 = Convert.ToHexString(hashBytes).ToLowerInvariant();
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or OperationCanceledException)
+            {
+                sha256 = string.Empty;
+            }
+
+            var targetUrl = path;
+            if (!string.IsNullOrEmpty(sha256) && dialogService?.DuplicateAssetLookup != null)
+            {
+                var match = dialogService.DuplicateAssetLookup(sha256);
+                if (match.HasValue)
+                {
+                    var title = GetLocalizedString("Tools.PublisherStudio.Duplicate.Title", "Duplicate File Detected");
+                    var prompt = string.Format(
+                        GetLocalizedString(
+                            "Tools.PublisherStudio.Duplicate.MessageFormat",
+                            "We found an identical file already hosted on your provider:\n• Name: {0}\n• URL: {1}\n\nWould you like to use this existing hosted file instead of uploading a new copy?"),
+                        match.Value.Name,
+                        match.Value.Url);
+                    var confirmText = GetLocalizedString("Tools.PublisherStudio.Duplicate.UseExisting", "Use Existing File");
+                    var cancelText = GetLocalizedString("Tools.PublisherStudio.Duplicate.UploadNew", "Upload New Copy");
+
+                    var useExisting = await dialogService.ShowConfirmationAsync(title, prompt, confirmText, cancelText);
+                    if (useExisting)
+                    {
+                        targetUrl = match.Value.Url;
+                    }
+                }
+            }
+
+            if (!existingUrls.Contains(targetUrl, StringComparer.OrdinalIgnoreCase))
+            {
+                existingUrls.Add(targetUrl);
+            }
+        }
+
+        ImageUrlsInput = string.Join(Environment.NewLine, existingUrls);
+    }
+
     [GeneratedRegex(@"^(\d+)\.(\d+)\.(\d+)")]
     private static partial Regex VersionRegex();
 
@@ -237,7 +337,6 @@ public partial class AddReleaseDialogViewModel(
             return "1.0.0";
         }
 
-        // Find the highest version
         var versions = existingReleases
             .Select(r => ParseVersion(r.Version))
             .Where(v => v != null)
@@ -251,7 +350,6 @@ public partial class AddReleaseDialogViewModel(
             return "1.0.0";
         }
 
-        // Increment patch version
         var (major, minor, patch) = versions.Value;
         return $"{major}.{minor}.{patch + 1}";
     }
@@ -315,13 +413,31 @@ public partial class AddReleaseDialogViewModel(
         }
 
         return input
-            .Split(["\r\n", "\r", "\n", ","], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Split(new[] { "\r\n", "\r", "\n", "," }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
             .Where(u => !string.IsNullOrWhiteSpace(u))
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
     }
 
+    partial void OnIsVariantsModeChanged(bool value)
+    {
+        if (BundleArtifacts == value)
+        {
+            BundleArtifacts = !value;
+        }
+    }
+
+    partial void OnBundleArtifactsChanged(bool value)
+    {
+        if (IsVariantsMode == value)
+        {
+            IsVariantsMode = !value;
+        }
+    }
+
     partial void OnVersionChanged(string value) => Validate();
+
+    partial void OnTitleChanged(string value) => Validate();
 
     /// <summary>
     /// Applies the suggested next version based on existing releases.
@@ -342,7 +458,6 @@ public partial class AddReleaseDialogViewModel(
         var artifact = await dialogService.ShowAddArtifactDialogAsync();
         if (artifact != null)
         {
-            // If this is marked as primary, unmark others
             if (artifact.IsPrimary)
             {
                 foreach (var a in Artifacts)
@@ -360,7 +475,7 @@ public partial class AddReleaseDialogViewModel(
     {
         var fileInfo = new FileInfo(path);
         var filename = fileInfo.Name;
-        string sha256 = string.Empty;
+        var sha256 = string.Empty;
 
         try
         {
@@ -374,7 +489,7 @@ public partial class AddReleaseDialogViewModel(
             sha256 = string.Empty;
         }
 
-        return new ReleaseArtifact
+        var artifact = new ReleaseArtifact
         {
             Filename = filename,
             DownloadUrl = string.Empty,
@@ -384,6 +499,36 @@ public partial class AddReleaseDialogViewModel(
             IsPrimary = Artifacts.Count == 0,
             LocalFilePath = path,
         };
+
+        if (!string.IsNullOrEmpty(sha256) && dialogService?.DuplicateAssetLookup != null)
+        {
+            var match = dialogService.DuplicateAssetLookup(sha256);
+            if (match.HasValue)
+            {
+                var title = GetLocalizedString("Tools.PublisherStudio.Duplicate.Title", "Duplicate File Detected");
+                var prompt = string.Format(
+                    GetLocalizedString(
+                        "Tools.PublisherStudio.Duplicate.MessageFormat",
+                        "We found an identical file already hosted on your provider:\n• Name: {0}\n• URL: {1}\n\nWould you like to use this existing hosted file instead of uploading a new copy?"),
+                    match.Value.Name,
+                    match.Value.Url);
+                var confirmText = GetLocalizedString("Tools.PublisherStudio.Duplicate.UseExisting", "Use Existing File");
+                var cancelText = GetLocalizedString("Tools.PublisherStudio.Duplicate.UploadNew", "Upload New Copy");
+
+                var useExisting = await dialogService.ShowConfirmationAsync(title, prompt, confirmText, cancelText);
+                if (useExisting)
+                {
+                    artifact.DownloadUrl = match.Value.Url;
+                    artifact.LocalFilePath = null;
+                    if (match.Value.Size > 0)
+                    {
+                        artifact.Size = match.Value.Size;
+                    }
+                }
+            }
+        }
+
+        return artifact;
     }
 
     private async Task<ReleaseArtifact?> BuildFolderArtifactAsync(string path, CancellationToken cancellationToken)
@@ -410,11 +555,7 @@ public partial class AddReleaseDialogViewModel(
                 },
                 cancellationToken);
         }
-        catch (OperationCanceledException)
-        {
-            return null;
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or OperationCanceledException)
         {
             totalBytes = 0;
         }
@@ -425,7 +566,7 @@ public partial class AddReleaseDialogViewModel(
             DownloadUrl = string.Empty,
             Size = totalBytes,
             Sha256 = string.Empty,
-            ContentType = MimeTypeHelper.FromFileName(filename),
+            ContentType = HostingConstants.ZipContentType,
             IsPrimary = Artifacts.Count == 0,
             LocalFilePath = path,
         };
@@ -455,7 +596,6 @@ public partial class AddReleaseDialogViewModel(
         var dependency = await dialogService.ShowAddDependencyDialogAsync(catalog, contentItem);
         if (dependency != null)
         {
-            // Avoid duplicate dependencies for the same content
             var existing = Dependencies.FirstOrDefault(d =>
                 string.Equals(d.PublisherId, dependency.PublisherId, StringComparison.OrdinalIgnoreCase) &&
                 string.Equals(d.ContentId, dependency.ContentId, StringComparison.OrdinalIgnoreCase));
@@ -499,7 +639,7 @@ public partial class AddReleaseDialogViewModel(
     private void Cancel() => Close();
 
     /// <summary>
-    /// Creates the release if validation passes.
+    /// Creates the release or addon if validation passes.
     /// </summary>
     [RelayCommand]
     private void CreateRelease()
@@ -511,7 +651,6 @@ public partial class AddReleaseDialogViewModel(
             return;
         }
 
-        // Check for artifacts
         if (Artifacts.Count == 0)
         {
             ValidationError = GetLocalizedString(
@@ -528,20 +667,22 @@ public partial class AddReleaseDialogViewModel(
             return;
         }
 
-        // Check for duplicate version (skip check if version hasn't changed in edit mode)
-        var isDuplicateVersion = contentItem.Releases.Any(r => r.Version.Equals(Version, StringComparison.OrdinalIgnoreCase));
+        var releasesPool = IsAddonMode ? (contentItem?.AddonReleases ?? []) : (contentItem?.Releases ?? []);
+        var isDuplicateVersion = releasesPool.Any(r => r.Version.Equals(Version, StringComparison.OrdinalIgnoreCase));
         var isOriginalVersion = IsEditMode && _originalVersion != null && _originalVersion.Equals(Version, StringComparison.OrdinalIgnoreCase);
         if (isDuplicateVersion && !isOriginalVersion)
         {
             ValidationError = localizationService?.GetString(
                 "Tools.PublisherStudio.Release.DuplicateVersion",
-                Version) ?? $"Version {Version} already exists for this content";
+                Version) ?? $"Version {Version} already exists";
             IsValid = false;
             return;
         }
 
         var release = new ContentRelease
         {
+            Title = IsAddonMode && !string.IsNullOrWhiteSpace(Title) ? Title.Trim() : null,
+            Category = IsAddonMode && !string.IsNullOrWhiteSpace(Category) ? Category.Trim() : null,
             Version = Version.Trim(),
             ReleaseDate = ReleaseDate.UtcDateTime,
             IsLatest = IsLatest,
@@ -568,6 +709,11 @@ public partial class AddReleaseDialogViewModel(
         if (HasErrors)
         {
             errors.AddRange(GetErrors().Select(e => e.ErrorMessage ?? ValidationResourceResolver.FormatMessage("Tools.PublisherStudio.Validation.GenericError", "Validation error")));
+        }
+
+        if (IsAddonMode && string.IsNullOrWhiteSpace(Title))
+        {
+            errors.Add(GetLocalizedString("Tools.PublisherStudio.Addon.TitleRequired", "Addon title / name is required"));
         }
 
         if (Artifacts.Count == 0)

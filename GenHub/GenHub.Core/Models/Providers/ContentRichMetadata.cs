@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Text.Json.Serialization;
 
 namespace GenHub.Core.Models.Providers;
@@ -45,6 +46,12 @@ public class ContentRichMetadata
     /// </summary>
     [JsonPropertyName("videoUrl")]
     public string? VideoUrl { get; set; }
+
+    /// <summary>
+    /// Gets or sets a collection of video URLs (trailers, gameplay showcases).
+    /// </summary>
+    [JsonPropertyName("videoUrls")]
+    public List<string> VideoUrls { get; set; } = [];
 
     /// <summary>
     /// Gets or sets a documentation or wiki URL.

@@ -6,8 +6,8 @@ using System.Linq;
 namespace GenHub.Features.Tools.Views.Dialogs;
 
 /// <summary>
-/// View for adding a new release.
-/// Dropped files and folders are added as release artifacts with heuristically filled metadata.
+/// View for adding or editing a release or addon.
+/// Dropped files and folders are added as release artifacts or images with duplicate checking.
 /// </summary>
 public partial class AddReleaseDialogView : UserControl
 {
@@ -20,6 +20,20 @@ public partial class AddReleaseDialogView : UserControl
         DragDrop.SetAllowDrop(this, true);
         AddHandler(DragDrop.DragOverEvent, OnDragOver, handledEventsToo: true);
         AddHandler(DragDrop.DropEvent, OnDrop, handledEventsToo: true);
+
+        var artifactsZone = this.FindControl<Border>("ArtifactsDropZone");
+        if (artifactsZone != null)
+        {
+            artifactsZone.AddHandler(DragDrop.DragOverEvent, OnDragOver, handledEventsToo: true);
+            artifactsZone.AddHandler(DragDrop.DropEvent, OnArtifactsDrop, handledEventsToo: true);
+        }
+
+        var imagesZone = this.FindControl<Border>("ImagesDropZone");
+        if (imagesZone != null)
+        {
+            imagesZone.AddHandler(DragDrop.DragOverEvent, OnDragOver, handledEventsToo: true);
+            imagesZone.AddHandler(DragDrop.DropEvent, OnImagesDrop, handledEventsToo: true);
+        }
     }
 
     private static void OnDragOver(object? sender, DragEventArgs e)
@@ -35,14 +49,55 @@ public partial class AddReleaseDialogView : UserControl
         }
     }
 
-    private async void OnDrop(object? sender, DragEventArgs e)
+    private async void OnArtifactsDrop(object? sender, DragEventArgs e)
     {
-        if (!e.Data.Contains(DataFormats.Files))
+        if (!e.Data.Contains(DataFormats.Files) || DataContext is not AddReleaseDialogViewModel vm)
         {
             return;
         }
 
-        if (DataContext is not AddReleaseDialogViewModel vm)
+        var files = e.Data.GetFiles();
+        if (files == null) return;
+
+        var paths = files
+            .Select(f => f.Path?.LocalPath)
+            .Where(p => !string.IsNullOrWhiteSpace(p))
+            .Cast<string>()
+            .ToList();
+
+        if (paths.Count > 0)
+        {
+            e.Handled = true;
+            await vm.AddArtifactsFromPathsAsync(paths);
+        }
+    }
+
+    private async void OnImagesDrop(object? sender, DragEventArgs e)
+    {
+        if (!e.Data.Contains(DataFormats.Files) || DataContext is not AddReleaseDialogViewModel vm)
+        {
+            return;
+        }
+
+        var files = e.Data.GetFiles();
+        if (files == null) return;
+
+        var paths = files
+            .Select(f => f.Path?.LocalPath)
+            .Where(p => !string.IsNullOrWhiteSpace(p))
+            .Cast<string>()
+            .ToList();
+
+        if (paths.Count > 0)
+        {
+            e.Handled = true;
+            await vm.AddImagesFromPathsAsync(paths);
+        }
+    }
+
+    private async void OnDrop(object? sender, DragEventArgs e)
+    {
+        if (e.Handled || !e.Data.Contains(DataFormats.Files) || DataContext is not AddReleaseDialogViewModel vm)
         {
             return;
         }
@@ -61,8 +116,16 @@ public partial class AddReleaseDialogView : UserControl
 
         if (paths.Count > 0)
         {
-            await vm.AddArtifactsFromPathsAsync(paths);
             e.Handled = true;
+            var allImages = paths.All(AddReleaseDialogViewModel.IsImageFile);
+            if (allImages)
+            {
+                await vm.AddImagesFromPathsAsync(paths);
+            }
+            else
+            {
+                await vm.AddArtifactsFromPathsAsync(paths);
+            }
         }
     }
 }

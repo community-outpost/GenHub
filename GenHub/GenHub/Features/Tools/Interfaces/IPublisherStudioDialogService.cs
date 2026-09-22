@@ -1,5 +1,6 @@
 using GenHub.Core.Models.Providers;
 using GenHub.Core.Models.Publishers;
+using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
@@ -10,6 +11,12 @@ namespace GenHub.Features.Tools.Interfaces;
 /// </summary>
 public interface IPublisherStudioDialogService
 {
+    /// <summary>
+    /// Gets or sets an optional lookup function for duplicate hosted assets by SHA-256 hash.
+    /// Returns file name, URL, and size if an identical asset is already hosted.
+    /// </summary>
+    Func<string, (string Name, string Url, long Size)?>? DuplicateAssetLookup { get; set; }
+
     /// <summary>
     /// Shows a confirmation dialog.
     /// </summary>
@@ -43,15 +50,17 @@ public interface IPublisherStudioDialogService
     /// Shows the add content dialog to create a new content item.
     /// </summary>
     /// <param name="initialPath">Optional initial folder or file path to populate from.</param>
+    /// <param name="catalog">Optional parent catalog.</param>
     /// <returns>The created content item, or null if cancelled.</returns>
-    Task<CatalogContentItem?> ShowAddContentDialogAsync(string? initialPath = null);
+    Task<CatalogContentItem?> ShowAddContentDialogAsync(string? initialPath = null, PublisherCatalog? catalog = null);
 
     /// <summary>
     /// Shows the edit content dialog for an existing content item.
     /// </summary>
     /// <param name="existing">The existing content item to edit.</param>
+    /// <param name="catalog">Optional parent catalog.</param>
     /// <returns>The updated content item, or null if cancelled.</returns>
-    Task<CatalogContentItem?> ShowEditContentDialogAsync(CatalogContentItem existing);
+    Task<CatalogContentItem?> ShowEditContentDialogAsync(CatalogContentItem existing, PublisherCatalog? catalog = null);
 
     /// <summary>
     /// Shows the add release dialog for a content item.
@@ -69,6 +78,23 @@ public interface IPublisherStudioDialogService
     /// <param name="catalog">The parent catalog.</param>
     /// <returns>The updated release, or null if cancelled.</returns>
     Task<ContentRelease?> ShowEditReleaseDialogAsync(ContentRelease existing, CatalogContentItem parent, PublisherCatalog catalog);
+
+    /// <summary>
+    /// Shows the add addon dialog for a content item.
+    /// </summary>
+    /// <param name="contentItem">The parent content item.</param>
+    /// <param name="catalog">The parent catalog.</param>
+    /// <returns>The created addon release, or null if cancelled.</returns>
+    Task<ContentRelease?> ShowAddAddonDialogAsync(CatalogContentItem contentItem, PublisherCatalog catalog);
+
+    /// <summary>
+    /// Shows the edit addon dialog for an existing addon release.
+    /// </summary>
+    /// <param name="existing">The existing addon release.</param>
+    /// <param name="parent">The parent content item.</param>
+    /// <param name="catalog">The parent catalog.</param>
+    /// <returns>The updated addon release, or null if cancelled.</returns>
+    Task<ContentRelease?> ShowEditAddonDialogAsync(ContentRelease existing, CatalogContentItem parent, PublisherCatalog catalog);
 
     /// <summary>
     /// Shows the add artifact dialog to attach a file to a release.

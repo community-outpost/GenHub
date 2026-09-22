@@ -990,6 +990,82 @@ public partial class PublishShareViewModel(
         }
     }
 
+    /// <summary>
+    /// Searches known hosted assets across provider storage, hosting states, and project catalogs for a matching SHA-256 hash.
+    /// </summary>
+    /// <param name="sha256">The SHA-256 hash to find.</param>
+    /// <returns>The file name, download URL, and file size if found; otherwise, null.</returns>
+    public (string Name, string Url, long Size)? FindHostedAssetBySha256(string sha256)
+    {
+        if (string.IsNullOrWhiteSpace(sha256))
+        {
+            return null;
+        }
+
+        var hosted = HostedAssets.FirstOrDefault(a =>
+            !string.IsNullOrWhiteSpace(a.Url) &&
+            string.Equals(a.Sha256, sha256, StringComparison.OrdinalIgnoreCase));
+        if (hosted != null)
+        {
+            return (hosted.Name, hosted.Url, hosted.FileSize);
+        }
+
+        foreach (var state in _hostingStates.Values)
+        {
+            var art = state.Artifacts.FirstOrDefault(a =>
+                !string.IsNullOrWhiteSpace(a.Url) &&
+                string.Equals(a.Sha256, sha256, StringComparison.OrdinalIgnoreCase));
+            if (art != null)
+            {
+                return (art.FileName, art.Url, art.FileSize);
+            }
+        }
+
+        if (project?.Catalogs != null)
+        {
+            foreach (var namedCat in project.Catalogs)
+            {
+                if (namedCat.Catalog?.Content == null)
+                {
+                    continue;
+                }
+
+                foreach (var content in namedCat.Catalog.Content)
+                {
+                    if (content.Releases != null)
+                    {
+                        foreach (var release in content.Releases)
+                        {
+                            var match = release.Artifacts.FirstOrDefault(a =>
+                                !string.IsNullOrWhiteSpace(a.DownloadUrl) &&
+                                string.Equals(a.Sha256, sha256, StringComparison.OrdinalIgnoreCase));
+                            if (match != null)
+                            {
+                                return (match.Filename, match.DownloadUrl!, match.Size);
+                            }
+                        }
+                    }
+
+                    if (content.AddonReleases != null)
+                    {
+                        foreach (var addon in content.AddonReleases)
+                        {
+                            var match = addon.Artifacts.FirstOrDefault(a =>
+                                !string.IsNullOrWhiteSpace(a.DownloadUrl) &&
+                                string.Equals(a.Sha256, sha256, StringComparison.OrdinalIgnoreCase));
+                            if (match != null)
+                            {
+                                return (match.Filename, match.DownloadUrl!, match.Size);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        return null;
+    }
+
     /// <inheritdoc />
     public void Dispose()
     {

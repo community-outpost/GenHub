@@ -13109,6 +13109,54 @@ GameFilesEdited/Data/INI/**/*.ini</value>
   <data name="Tools.PublisherStudio.Library.BadgeBundle" xml:space="preserve">
     <value>الحزمة</value>
   </data>
+  <data name="Tools.PublisherStudio.Library.DragDropContentHint" xml:space="preserve">
+    <value>(اسحب وأفلت لإضافة محتوى)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.DragDropAddonHint" xml:space="preserve">
+    <value>(اسحب وأفلت لإضافة إضافة)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.DragDropReleaseHint" xml:space="preserve">
+    <value>(اسحب وأفلت لإضافة إصدار)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.EditAddonTooltip" xml:space="preserve">
+    <value>تعديل الإضافة</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.DeleteAddonTooltip" xml:space="preserve">
+    <value>حذف الإضافة</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.DragDropImagesHint" xml:space="preserve">
+    <value>(اسحب وأفلت ملفات الصور هنا)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.BulkScreenshotsPlaceholder" xml:space="preserve">
+    <value>روابط متعددة: رابط في كل سطر&#x0a;https://example.com/screenshot1.png&#x0a;https://example.com/screenshot2.png</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.ReleaseChangelogPlaceholder" xml:space="preserve">
+    <value>ملاحظات سجل التغييرات لهذا الإصدار...</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.SingleBundleOption" xml:space="preserve">
+    <value>حزمة واحدة (جميع الملفات)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.VariantsOption" xml:space="preserve">
+    <value>متغيرات (يختار المستخدم واحداً)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.DragDropFilesHint" xml:space="preserve">
+    <value>(اسحب وأفلت لرفع الملفات)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.ReleaseMediaHeader" xml:space="preserve">
+    <value>وسائط الإصدار (صور وفيديوهات خاصة بالتحديث)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.DragDropReleaseImagesHint" xml:space="preserve">
+    <value>(اسحب وأفلت الصور هنا)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Release.AddonTitle" xml:space="preserve">
+    <value>عنوان الإضافة</value>
+  </data>
+  <data name="Tools.PublisherStudio.Release.AddonTitlePlaceholder" xml:space="preserve">
+    <value>مثال: شريط تحكم Lemon Edition بدقة 1920x1080</value>
+  </data>
+  <data name="Tools.PublisherStudio.Release.AddonCategory" xml:space="preserve">
+    <value>فئة الإضافة</value>
+  </data>
   <data name="GameProfiles.Notification.UnexpectedExit.Title" xml:space="preserve">
     <value>خرجت اللعبة بشكل غير متوقع</value>
   </data>

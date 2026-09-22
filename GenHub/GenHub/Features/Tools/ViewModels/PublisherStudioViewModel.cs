@@ -1017,6 +1017,7 @@ public partial class PublisherStudioViewModel(
             }
         };
         PublishShareViewModel.ProjectReloadCallback = ReloadFromCurrentProjectAsync;
+        dialogService.DuplicateAssetLookup = sha => PublishShareViewModel?.FindHostedAssetBySha256(sha);
         await PublishShareViewModel.InitializeAsync();
         HasDefinitionChanges = !PublishShareViewModel.IsDefinitionPublished;
         PublishShareViewModel.HasDefinitionChanges = HasDefinitionChanges;

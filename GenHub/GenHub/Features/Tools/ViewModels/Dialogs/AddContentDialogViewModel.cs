@@ -26,7 +26,8 @@ namespace GenHub.Features.Tools.ViewModels.Dialogs;
 public partial class AddContentDialogViewModel(
     Action<CatalogContentItem?> onContentCreated,
     IPublisherStudioDialogService? dialogService = null,
-    GenHub.Core.Interfaces.Common.ILocalizationService? localizationService = null) : ObservableValidator, IDisposable
+    GenHub.Core.Interfaces.Common.ILocalizationService? localizationService = null,
+    PublisherCatalog? catalog = null) : ObservableValidator, IDisposable
 {
     /// <summary>
     /// A local file or folder staged for the initial release.
@@ -139,6 +140,48 @@ public partial class AddContentDialogViewModel(
     [ObservableProperty]
     private string _screenshotUrlsInput = string.Empty;
 
+    /// <summary>
+    /// Gets the list of screenshot URLs for the content item.
+    /// </summary>
+    public ObservableCollection<string> Screenshots { get; } = [];
+
+    /// <summary>
+    /// Gets the list of video URLs for the content item.
+    /// </summary>
+    public ObservableCollection<string> Videos { get; } = [];
+
+    [ObservableProperty]
+    private string? _newScreenshotUrl;
+
+    [ObservableProperty]
+    private string? _newVideoUrl;
+
+    // Rich Initial Release properties
+    [ObservableProperty]
+    private string? _releaseChangelog;
+
+    [ObservableProperty]
+    private bool _bundleArtifacts = true;
+
+    [ObservableProperty]
+    private bool _isVariantsMode;
+
+    /// <summary>
+    /// Gets explicitly added release artifacts.
+    /// </summary>
+    public ObservableCollection<ReleaseArtifact> ReleaseArtifacts { get; } = [];
+
+    /// <summary>
+    /// Gets release dependencies.
+    /// </summary>
+    public ObservableCollection<CatalogDependency> ReleaseDependencies { get; } = [];
+
+    [ObservableProperty]
+    private string? _releaseImageUrlsInput;
+
+    [ObservableProperty]
+    private string? _releaseVideoUrlsInput;
+
     [ObservableProperty]
     private bool _isValid;
 
@@ -183,12 +226,14 @@ public partial class AddContentDialogViewModel(
     /// <param name="onContentSaved">Callback invoked when content is successfully saved.</param>
     /// <param name="dialogService">Optional dialog service for browsing files.</param>
     /// <param name="localizationService">Optional localization service.</param>
+    /// <param name="catalog">Optional parent catalog.</param>
     public AddContentDialogViewModel(
         CatalogContentItem existing,
         Action<CatalogContentItem?> onContentSaved,
         IPublisherStudioDialogService? dialogService = null,
-        GenHub.Core.Interfaces.Common.ILocalizationService? localizationService = null)
-        : this(onContentSaved, dialogService, localizationService)
+        GenHub.Core.Interfaces.Common.ILocalizationService? localizationService = null,
+        PublisherCatalog? catalog = null)
+        : this(onContentSaved, dialogService, localizationService, catalog)
     {
         ArgumentNullException.ThrowIfNull(existing);
 
@@ -209,6 +254,32 @@ public partial class AddContentDialogViewModel(
         ScreenshotUrlsInput = existing.Metadata?.ScreenshotUrls is { Count: > 0 }
             ? string.Join(Environment.NewLine, existing.Metadata.ScreenshotUrls)
             : string.Empty;
+
+        if (existing.Metadata?.ScreenshotUrls != null)
+        {
+            foreach (var shot in existing.Metadata.ScreenshotUrls)
+            {
+                if (!string.IsNullOrWhiteSpace(shot))
+                {
+                    Screenshots.Add(shot);
+                }
+            }
+        }
+
+        if (existing.Metadata?.VideoUrls != null)
+        {
+            foreach (var vid in existing.Metadata.VideoUrls)
+            {
+                if (!string.IsNullOrWhiteSpace(vid))
+                {
+                    Videos.Add(vid);
+                }
+            }
+        }
+        else if (!string.IsNullOrWhiteSpace(existing.Metadata?.VideoUrl))
+        {
+            Videos.Add(existing.Metadata.VideoUrl);
+        }
     }
 
     /// <summary>
@@ -337,6 +408,209 @@ public partial class AddContentDialogViewModel(
     {
         ArgumentNullException.ThrowIfNull(paths);
         StagePaths(paths, autofill: true);
+    }
+
+    /// <summary>
+    /// Adds screenshots from dropped file paths with duplicate detection.
+    /// </summary>
+    /// <param name="paths">The dropped file or directory paths.</param>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    public async Task AddScreenshotsFromPathsAsync(IEnumerable<string> paths)
+    {
+        foreach (var path in paths)
+        {
+            if (string.IsNullOrWhiteSpace(path)) continue;
+            var cleanPath = path.Trim();
+            if (File.Exists(cleanPath))
+            {
+                string sha256 = string.Empty;
+                try
+                {
+                    using var stream = File.OpenRead(cleanPath);
+                    using var sha = SHA256.Create();
+                    var hashBytes = await sha.ComputeHashAsync(stream);
+                    sha256 = Convert.ToHexString(hashBytes).ToLowerInvariant();
+                }
+                catch
+                {
+                    // ignore
+                }
+
+                var targetUrl = cleanPath;
+                if (!string.IsNullOrEmpty(sha256) && dialogService?.DuplicateAssetLookup != null)
+                {
+                    var match = dialogService.DuplicateAssetLookup(sha256);
+                    if (match.HasValue)
+                    {
+                        var title = GetLocalizedString("Tools.PublisherStudio.Duplicate.Title", "Duplicate File Detected");
+                        var prompt = string.Format(
+                            GetLocalizedString(
+                                "Tools.PublisherStudio.Duplicate.MessageFormat",
+                                "We found an identical file already hosted on your provider:\n• Name: {0}\n• URL: {1}\n\nWould you like to use this existing hosted file instead of uploading a new copy?"),
+                            match.Value.Name,
+                            match.Value.Url);
+                        var confirmText = GetLocalizedString("Tools.PublisherStudio.Duplicate.UseExisting", "Use Existing File");
+                        var cancelText = GetLocalizedString("Tools.PublisherStudio.Duplicate.UploadNew", "Upload New Copy");
+
+                        var useExisting = await dialogService.ShowConfirmationAsync(title, prompt, confirmText, cancelText);
+                        if (useExisting)
+                        {
+                            targetUrl = match.Value.Url;
+                        }
+                    }
+                }
+
+                if (!Screenshots.Contains(targetUrl, StringComparer.OrdinalIgnoreCase))
+                {
+                    Screenshots.Add(targetUrl);
+                }
+            }
+            else if (Uri.TryCreate(cleanPath, UriKind.Absolute, out _))
+            {
+                if (!Screenshots.Contains(cleanPath, StringComparer.OrdinalIgnoreCase))
+                {
+                    Screenshots.Add(cleanPath);
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Adds release images from dropped paths with duplicate detection.
+    /// </summary>
+    /// <param name="paths">The dropped file or directory paths.</param>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    public async Task AddReleaseImagesFromPathsAsync(IEnumerable<string> paths)
+    {
+        var existing = ParseUrls(ReleaseImageUrlsInput);
+        foreach (var path in paths)
+        {
+            if (string.IsNullOrWhiteSpace(path)) continue;
+            var cleanPath = path.Trim();
+            if (File.Exists(cleanPath))
+            {
+                string sha256 = string.Empty;
+                try
+                {
+                    using var stream = File.OpenRead(cleanPath);
+                    using var sha = SHA256.Create();
+                    var hashBytes = await sha.ComputeHashAsync(stream);
+                    sha256 = Convert.ToHexString(hashBytes).ToLowerInvariant();
+                }
+                catch
+                {
+                    // ignore
+                }
+
+                var targetUrl = cleanPath;
+                if (!string.IsNullOrEmpty(sha256) && dialogService?.DuplicateAssetLookup != null)
+                {
+                    var match = dialogService.DuplicateAssetLookup(sha256);
+                    if (match.HasValue)
+                    {
+                        var title = GetLocalizedString("Tools.PublisherStudio.Duplicate.Title", "Duplicate File Detected");
+                        var prompt = string.Format(
+                            GetLocalizedString(
+                                "Tools.PublisherStudio.Duplicate.MessageFormat",
+                                "We found an identical file already hosted on your provider:\n• Name: {0}\n• URL: {1}\n\nWould you like to use this existing hosted file instead of uploading a new copy?"),
+                            match.Value.Name,
+                            match.Value.Url);
+                        var confirmText = GetLocalizedString("Tools.PublisherStudio.Duplicate.UseExisting", "Use Existing File");
+                        var cancelText = GetLocalizedString("Tools.PublisherStudio.Duplicate.UploadNew", "Upload New Copy");
+
+                        var useExisting = await dialogService.ShowConfirmationAsync(title, prompt, confirmText, cancelText);
+                        if (useExisting)
+                        {
+                            targetUrl = match.Value.Url;
+                        }
+                    }
+                }
+
+                if (!existing.Contains(targetUrl, StringComparer.OrdinalIgnoreCase))
+                {
+                    existing.Add(targetUrl);
+                }
+            }
+            else if (Uri.TryCreate(cleanPath, UriKind.Absolute, out _))
+            {
+                if (!existing.Contains(cleanPath, StringComparer.OrdinalIgnoreCase))
+                {
+                    existing.Add(cleanPath);
+                }
+            }
+        }
+
+        ReleaseImageUrlsInput = string.Join(Environment.NewLine, existing);
+    }
+
+    /// <summary>
+    /// Adds release artifacts from dropped paths with duplicate detection.
+    /// </summary>
+    /// <param name="paths">The dropped file or directory paths.</param>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    public async Task AddReleaseArtifactsFromPathsAsync(IEnumerable<string> paths)
+    {
+        foreach (var rawPath in paths)
+        {
+            if (string.IsNullOrWhiteSpace(rawPath)) continue;
+            var path = rawPath.Trim('"', '\x27', ' ');
+            if (File.Exists(path))
+            {
+                string sha256 = string.Empty;
+                try
+                {
+                    using var stream = File.OpenRead(path);
+                    using var sha = SHA256.Create();
+                    var hashBytes = await sha.ComputeHashAsync(stream);
+                    sha256 = Convert.ToHexString(hashBytes).ToLowerInvariant();
+                }
+                catch
+                {
+                    // ignore
+                }
+
+                if (!string.IsNullOrEmpty(sha256) && dialogService?.DuplicateAssetLookup != null)
+                {
+                    var match = dialogService.DuplicateAssetLookup(sha256);
+                    if (match.HasValue)
+                    {
+                        var title = GetLocalizedString("Tools.PublisherStudio.Duplicate.Title", "Duplicate File Detected");
+                        var prompt = string.Format(
+                            GetLocalizedString(
+                                "Tools.PublisherStudio.Duplicate.MessageFormat",
+                                "We found an identical file already hosted on your provider:\n• Name: {0}\n• URL: {1}\n\nWould you like to use this existing hosted file instead of uploading a new copy?"),
+                            match.Value.Name,
+                            match.Value.Url);
+                        var confirmText = GetLocalizedString("Tools.PublisherStudio.Duplicate.UseExisting", "Use Existing File");
+                        var cancelText = GetLocalizedString("Tools.PublisherStudio.Duplicate.UploadNew", "Upload New Copy");
+
+                        var useExisting = await dialogService.ShowConfirmationAsync(title, prompt, confirmText, cancelText);
+                        if (useExisting)
+                        {
+                            var art = new ReleaseArtifact
+                            {
+                                Filename = Path.GetFileName(path),
+                                DownloadUrl = match.Value.Url,
+                                LocalFilePath = null,
+                                Size = match.Value.Size > 0 ? match.Value.Size : new FileInfo(path).Length,
+                                Sha256 = sha256,
+                                ContentType = MimeTypeHelper.FromFileName(path),
+                                IsPrimary = ReleaseArtifacts.Count == 0 && StagedFiles.Count == 0,
+                            };
+                            ReleaseArtifacts.Add(art);
+                            IncludeInitialRelease = true;
+                            continue;
+                        }
+                    }
+                }
+            }
+
+            TryStagePath(path, autofill: false);
+        }
+
+        IncludeInitialRelease = true;
+        SyncPrimaryFromStaged();
+        Validate();
     }
 
     /// <inheritdoc />
@@ -548,6 +822,22 @@ public partial class AddContentDialogViewModel(
         _ = value;
         OnPropertyChanged(nameof(CanExtend));
         OnPropertyChanged(nameof(ShowAddonParentSelection));
+    }
+
+    partial void OnIsVariantsModeChanged(bool value)
+    {
+        if (value)
+        {
+            BundleArtifacts = false;
+        }
+    }
+
+    partial void OnBundleArtifactsChanged(bool value)
+    {
+        if (value)
+        {
+            IsVariantsMode = false;
+        }
     }
 
     partial void OnUseDirectUrlChanged(bool value)
@@ -1027,6 +1317,128 @@ public partial class AddContentDialogViewModel(
     }
 
     /// <summary>
+    /// Adds a screenshot URL to the content item.
+    /// </summary>
+    [RelayCommand]
+    private void AddScreenshot()
+    {
+        if (!string.IsNullOrWhiteSpace(NewScreenshotUrl))
+        {
+            var url = NewScreenshotUrl.Trim();
+            if (!Screenshots.Contains(url))
+            {
+                Screenshots.Add(url);
+            }
+
+            NewScreenshotUrl = string.Empty;
+        }
+    }
+
+    /// <summary>
+    /// Removes a screenshot URL from the content item.
+    /// </summary>
+    [RelayCommand]
+    private void RemoveScreenshot(string? url)
+    {
+        if (!string.IsNullOrWhiteSpace(url))
+        {
+            Screenshots.Remove(url);
+        }
+    }
+
+    /// <summary>
+    /// Adds a video URL to the content item.
+    /// </summary>
+    [RelayCommand]
+    private void AddVideo()
+    {
+        if (!string.IsNullOrWhiteSpace(NewVideoUrl))
+        {
+            var url = NewVideoUrl.Trim();
+            if (!Videos.Contains(url))
+            {
+                Videos.Add(url);
+            }
+
+            NewVideoUrl = string.Empty;
+        }
+    }
+
+    /// <summary>
+    /// Removes a video URL from the content item.
+    /// </summary>
+    [RelayCommand]
+    private void RemoveVideo(string? url)
+    {
+        if (!string.IsNullOrWhiteSpace(url))
+        {
+            Videos.Remove(url);
+        }
+    }
+
+    /// <summary>
+    /// Opens the artifact creation dialog to add an artifact to the initial release.
+    /// </summary>
+    [RelayCommand]
+    private async Task AddArtifactAsync()
+    {
+        if (dialogService == null) return;
+        var artifact = await dialogService.ShowAddArtifactDialogAsync();
+        if (artifact != null)
+        {
+            if (artifact.IsPrimary)
+            {
+                foreach (var a in ReleaseArtifacts) a.IsPrimary = false;
+            }
+
+            ReleaseArtifacts.Add(artifact);
+        }
+    }
+
+    /// <summary>
+    /// Removes an artifact from the initial release.
+    /// </summary>
+    [RelayCommand]
+    private void RemoveArtifact(ReleaseArtifact? artifact)
+    {
+        if (artifact != null)
+        {
+            ReleaseArtifacts.Remove(artifact);
+        }
+    }
+
+    /// <summary>
+    /// Opens the dependency selection dialog to add a dependency to the initial release.
+    /// </summary>
+    [RelayCommand]
+    private async Task AddReleaseDependencyAsync()
+    {
+        if (dialogService == null || catalog == null) return;
+        var tempItem = new CatalogContentItem { Id = ContentId ?? "new-item", Name = ContentName ?? "New Item" };
+        var dep = await dialogService.ShowAddDependencyDialogAsync(catalog, tempItem);
+        if (dep != null)
+        {
+            var existing = ReleaseDependencies.FirstOrDefault(d =>
+                string.Equals(d.PublisherId, dep.PublisherId, StringComparison.OrdinalIgnoreCase) &&
+                string.Equals(d.ContentId, dep.ContentId, StringComparison.OrdinalIgnoreCase));
+            if (existing != null) ReleaseDependencies.Remove(existing);
+            ReleaseDependencies.Add(dep);
+        }
+    }
+
+    /// <summary>
+    /// Removes a dependency from the initial release.
+    /// </summary>
+    [RelayCommand]
+    private void RemoveReleaseDependency(CatalogDependency? dep)
+    {
+        if (dep != null)
+        {
+            ReleaseDependencies.Remove(dep);
+        }
+    }
+
+    /// <summary>
     /// Applies the suggested content ID.
     /// </summary>
     [RelayCommand]
@@ -1233,37 +1645,66 @@ public partial class AddContentDialogViewModel(
         var banner = NormalizeArtworkValue(BannerArtwork);
         var backdrop = NormalizeArtworkValue(BackdropArtwork);
         var accent = NormalizeArtworkValue(AccentColor);
-        var video = NormalizeArtworkValue(VideoUrl);
-        var screenshots = ParseUrls(ScreenshotUrlsInput);
+        var singleVideo = NormalizeArtworkValue(VideoUrl);
         var source = _existingItem?.Metadata;
 
-        if (icon == null && banner == null && backdrop == null && accent == null && video == null && screenshots.Count == 0 && source == null)
+        var allScreenshots = new List<string>(Screenshots);
+        foreach (var s in ParseUrls(ScreenshotUrlsInput))
+        {
+            if (!allScreenshots.Contains(s, StringComparer.OrdinalIgnoreCase))
+            {
+                allScreenshots.Add(s);
+            }
+        }
+
+        var allVideos = new List<string>(Videos);
+        if (!string.IsNullOrWhiteSpace(singleVideo) && !allVideos.Contains(singleVideo, StringComparer.OrdinalIgnoreCase))
+        {
+            allVideos.Add(singleVideo);
+        }
+
+        if (icon == null && banner == null && backdrop == null && accent == null && allVideos.Count == 0 && allScreenshots.Count == 0 && source == null)
         {
             return null;
         }
 
         List<string> resolvedScreenshots;
-        if (screenshots.Count > 0)
+        if (allScreenshots.Count > 0)
         {
-            resolvedScreenshots = screenshots;
+            resolvedScreenshots = allScreenshots;
         }
-        else if (source?.ScreenshotUrls is { } shots)
+        else if (source?.ScreenshotUrls is { } sUrls)
         {
-            resolvedScreenshots = [.. shots];
+            resolvedScreenshots = [.. sUrls];
         }
         else
         {
             resolvedScreenshots = [];
         }
 
+        List<string> resolvedVideos;
+        if (allVideos.Count > 0)
+        {
+            resolvedVideos = allVideos;
+        }
+        else if (source?.VideoUrls is { } vUrls)
+        {
+            resolvedVideos = [.. vUrls];
+        }
+        else
+        {
+            resolvedVideos = [];
+        }
+
         return new ContentRichMetadata
         {
-            IconUrl = icon,
-            BannerUrl = banner,
-            BackdropUrl = backdrop,
-            AccentColor = accent,
+            IconUrl = icon ?? source?.IconUrl,
+            BannerUrl = banner ?? source?.BannerUrl,
+            BackdropUrl = backdrop ?? source?.BackdropUrl,
+            AccentColor = accent ?? source?.AccentColor,
             ScreenshotUrls = resolvedScreenshots,
-            VideoUrl = video ?? source?.VideoUrl,
+            VideoUrl = allVideos.FirstOrDefault() ?? source?.VideoUrl,
+            VideoUrls = resolvedVideos,
             DocumentationUrl = source?.DocumentationUrl,
             Author = source?.Author,
             License = source?.License,
@@ -1280,10 +1721,22 @@ public partial class AddContentDialogViewModel(
             Version = version,
             ReleaseDate = DateTime.UtcNow,
             IsLatest = true,
+            Changelog = string.IsNullOrWhiteSpace(ReleaseChangelog) ? null : ReleaseChangelog.Trim(),
+            BundleArtifacts = BundleArtifacts,
             Artifacts = [],
+            Dependencies = [.. ReleaseDependencies],
+            ImageUrls = ParseUrls(ReleaseImageUrlsInput),
+            VideoUrls = ParseUrls(ReleaseVideoUrlsInput),
         };
 
-        if (UseDirectUrl || StagedFiles.Count == 0)
+        if (ReleaseArtifacts.Count > 0)
+        {
+            foreach (var art in ReleaseArtifacts)
+            {
+                release.Artifacts.Add(art);
+            }
+        }
+        else if (UseDirectUrl || StagedFiles.Count == 0)
         {
             AttachSingleInitialArtifact(contentItem, release, version);
         }
