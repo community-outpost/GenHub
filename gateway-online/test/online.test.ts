@@ -27,8 +27,13 @@ interface JoinResult {
   expectedContentIds: string[];
 }
 
+let sessionCounter = 0;
 const session = async (): Promise<string> => {
-  const res = await SELF.fetch(`${BASE}/v1/sessions/anonymous`, { method: "POST" });
+  sessionCounter++;
+  const res = await SELF.fetch(`${BASE}/v1/sessions/anonymous`, {
+    method: "POST",
+    headers: { "CF-Connecting-IP": `192.0.2.${(sessionCounter % 200) + 1}` },
+  });
   expect(res.status).toBe(200);
   const body = (await res.json()) as { token: string };
   expect(body.token.length).toBeGreaterThan(0);
@@ -1017,28 +1022,50 @@ describe("online edge", () => {
     socket?.close();
   });
 
-  it("does not consume creation quota when password validation fails", { timeout: 20000 }, async () => {
+  it("does not consume creation quota when password validation fails", { timeout: 30000 }, async () => {
+    const quotaIp = "198.51.100.222";
     const host = await session();
-    for (let i = 0; i < 12; i++) {
-      const res = await SELF.fetch(`${BASE}/v1/networks`, {
-        method: "POST",
-        headers: { ...auth(host), "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: `short-pwd-${i}`,
-          password: "12",
-          slotsMax: 4,
-          displayName: "Host",
-        }),
-      });
-      expect(res.status).toBe(400);
-      expect(((await res.json()) as { code: string }).code).toBe("online.password-too-short");
+    const attempts = 105;
+    const batchSize = 15;
+
+    for (let i = 0; i < attempts; i += batchSize) {
+      const count = Math.min(batchSize, attempts - i);
+      const results = await Promise.all(
+        Array.from({ length: count }, (_, idx) =>
+          SELF.fetch(`${BASE}/v1/networks`, {
+            method: "POST",
+            headers: { ...auth(host), "Content-Type": "application/json", "CF-Connecting-IP": quotaIp },
+            body: JSON.stringify({
+              name: `short-pwd-${i + idx}`,
+              password: "12",
+              slotsMax: 4,
+              displayName: "Host",
+            }),
+          })
+        )
+      );
+      for (const res of results) {
+        expect(res.status).toBe(400);
+        expect(((await res.json()) as { code: string }).code).toBe("online.password-too-short");
+      }
     }
 
-    const valid = await createNetwork(host, { name: "valid-quota-net", password: "valid-password" });
+    const validRes = await SELF.fetch(`${BASE}/v1/networks`, {
+      method: "POST",
+      headers: { ...auth(host), "Content-Type": "application/json", "CF-Connecting-IP": quotaIp },
+      body: JSON.stringify({
+        name: "valid-quota-net",
+        password: "valid-password",
+        slotsMax: 4,
+        displayName: "Host",
+      }),
+    });
+    expect(validRes.status).toBe(200);
+    const valid = (await validRes.json()) as { overlayIp: string };
     expect(valid.overlayIp.length).toBeGreaterThan(0);
   });
 
-  it("closes older presence websocket when a new one connects for the same member", async () => {
+  it("closes older presence websocket when a new one connects for the same member", { timeout: 15000 }, async () => {
     const host = await session();
     const created = await createNetwork(host);
 
@@ -1064,13 +1091,21 @@ describe("online edge", () => {
     socket2?.close();
   });
 
-  it("enforces rate limits on session minting", async () => {
-    const res = await SELF.fetch(`${BASE}/v1/sessions/anonymous`, {
+  it("enforces rate limits on session minting", { timeout: 15000 }, async () => {
+    const testIp = "198.51.100.199";
+    for (let i = 0; i < 5; i++) {
+      const res = await SELF.fetch(`${BASE}/v1/sessions/anonymous`, {
+        method: "POST",
+        headers: { "CF-Connecting-IP": testIp },
+      });
+      expect(res.status).toBe(200);
+    }
+    const limited = await SELF.fetch(`${BASE}/v1/sessions/anonymous`, {
       method: "POST",
-      headers: { "CF-Connecting-IP": "198.51.100.100" },
+      headers: { "CF-Connecting-IP": testIp },
     });
-    expect(res.status).toBe(200);
-    const body = (await res.json()) as { token: string };
-    expect(body.token).toBeDefined();
+    expect(limited.status).toBe(429);
+    const body = (await limited.json()) as { code: string };
+    expect(body.code).toBe("online.rate-limited");
   });
 });

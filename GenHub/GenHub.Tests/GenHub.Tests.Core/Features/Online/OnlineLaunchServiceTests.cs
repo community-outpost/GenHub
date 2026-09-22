@@ -2,6 +2,7 @@ using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Interfaces.GameSettings;
 using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.GameClients;
 using GenHub.Core.Models.GameProfile;
 using GenHub.Core.Models.GameSettings;
 using GenHub.Core.Models.Launching;
@@ -122,8 +123,54 @@ public class OnlineLaunchServiceTests
         Assert.Equal("ZH", result.Data.ProfileName);
         facade.Verify(f => f.LaunchProfileAsync("p1", false, It.IsAny<CancellationToken>(), "10.42.0.7"), Times.Once);
         settings.Verify(
-            s => s.SaveOptionsAsync(GameType.ZeroHour, It.Is<IniOptions>(o =>
-                o.Network.GameSpyIPAddress == "10.42.0.7" && o.Network.IPAddress == "10.42.0.7")),
+            s => s.SaveOptionsAsync(
+                GameType.ZeroHour,
+                It.Is<IniOptions>(o =>
+                    o.Network.GameSpyIPAddress == "10.42.0.7" && o.Network.IPAddress == "10.42.0.7")),
+            Times.Once);
+    }
+
+    /// <summary>
+    /// Tests that playing a profile with a Generals game client saves options for Generals.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task PlayAsync_WithGeneralsClient_ShouldSaveOptionsForGeneralsAsync()
+    {
+        // Arrange
+        var profile = new GameProfile
+        {
+            Id = "p2",
+            Name = "Generals Profile",
+            GameClient = new GameClient { Id = "c1", GameType = GameType.Generals, Version = "1.08" },
+        };
+        var manager = new Mock<IGameProfileManager>();
+        manager.Setup(m => m.GetProfileAsync("p2", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(profile));
+        var facade = new Mock<IProfileLauncherFacade>();
+        facade.Setup(f => f.LaunchProfileAsync(It.IsAny<string>(), It.IsAny<bool>(), It.IsAny<CancellationToken>(), It.IsAny<string>()))
+            .ReturnsAsync(ProfileOperationResult<GameLaunchInfo>.CreateSuccess(
+                new GameLaunchInfo { LaunchId = "l2", ProfileId = "p2", WorkspaceId = "w1", ProcessInfo = new GameProcessInfo() }));
+        var settings = new Mock<IGameSettingsService>();
+        settings.Setup(s => s.LoadOptionsAsync(GameType.Generals))
+            .ReturnsAsync(OperationResult<IniOptions>.CreateSuccess(new IniOptions()));
+        settings.Setup(s => s.SaveOptionsAsync(GameType.Generals, It.IsAny<IniOptions>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+
+        var service = new OnlineLaunchService(manager.Object, facade.Object, settings.Object, Mock.Of<ILogger<OnlineLaunchService>>());
+
+        // Act
+        var result = await service.PlayAsync("p2", "Net", "10.42.0.8");
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.Equal("p2", result.Data.ProfileId);
+        facade.Verify(f => f.LaunchProfileAsync("p2", false, It.IsAny<CancellationToken>(), "10.42.0.8"), Times.Once);
+        settings.Verify(
+            s => s.SaveOptionsAsync(
+                GameType.Generals,
+                It.Is<IniOptions>(o =>
+                    o.Network.GameSpyIPAddress == "10.42.0.8" && o.Network.IPAddress == "10.42.0.8")),
             Times.Once);
     }
 

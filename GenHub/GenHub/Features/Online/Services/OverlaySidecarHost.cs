@@ -155,9 +155,9 @@ public sealed class OverlaySidecarHost(ILogger<OverlaySidecarHost> logger) : IOv
                     process.Kill(true);
                 }
             }
-            catch (InvalidOperationException)
+            catch (Exception ex) when (ex is InvalidOperationException or System.ComponentModel.Win32Exception)
             {
-                // Already exited.
+                // Already exited or access denied during teardown.
             }
             finally
             {
@@ -296,9 +296,9 @@ public sealed class OverlaySidecarHost(ILogger<OverlaySidecarHost> logger) : IOv
             {
                 process.Kill(true);
             }
-            catch (InvalidOperationException)
+            catch (Exception ex) when (ex is InvalidOperationException or System.ComponentModel.Win32Exception)
             {
-                // Already exited.
+                // Already exited or access denied during teardown.
             }
         });
 

@@ -48,7 +48,7 @@ public sealed record OnlineCreateNetworkRequest
     /// <summary>
     /// Gets a value indicating whether the host prefers relayed traffic.
     /// Relayed members publish no endpoint, hiding the public IP from peers.
-    /// Defaults to relay-preferred; the Online UI passes direct-first explicitly.
+    /// Defaults to relay-preferred (hiding the public IP from peers).
     /// </summary>
     [JsonPropertyName("preferRelay")]
     public bool PreferRelay { get; init; } = true;

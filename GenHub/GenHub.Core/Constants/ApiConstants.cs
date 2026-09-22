@@ -225,10 +225,9 @@ public static class ApiConstants
     public const string OnlineFallbackUrlEnvVar = "GENHUB_ONLINE_FALLBACK_URL";
 
     /// <summary>
-    /// Default primary base URL for the GenHub Online edge (self-hosted VPS instance).
+    /// Default primary base URL for the GenHub Online edge (Cloudflare Worker).
     /// </summary>
-    [SuppressMessage("Security", "S5332:Using http protocol is insecure. Use https instead.", Justification = "Direct IP endpoint for self-hosted VPS does not terminate TLS.")]
-    public const string DefaultPrimaryEdgeBaseUrl = "http://152.70.171.121:8787"; // NOSONAR
+    public const string DefaultPrimaryEdgeBaseUrl = "https://genhub-online-edge.mustafa2146.workers.dev";
 
     /// <summary>
     /// Default fallback base URL for the GenHub Online edge (Cloudflare Worker backup).

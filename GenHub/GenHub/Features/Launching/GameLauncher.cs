@@ -2428,12 +2428,13 @@ public class GameLauncher(
             if (profile.HasCustomSettings())
             {
                 logger.LogInformation("Applying profile custom settings to Options.ini for {GameType}", gameType);
-                GameSettingsMapper.ApplyToOptions(profile, options, networkIpOverride: networkIpOverride);
+                GameSettingsMapper.ApplyToOptions(profile, options, logger, networkIpOverride: networkIpOverride);
             }
-            else if (!string.IsNullOrWhiteSpace(networkIpOverride))
+            else if (!string.IsNullOrWhiteSpace(networkIpOverride) && System.Net.IPAddress.TryParse(networkIpOverride.Trim(), out var parsedIp))
             {
-                options.Network.GameSpyIPAddress = networkIpOverride;
-                options.Network.IPAddress = networkIpOverride;
+                var ipStr = parsedIp.ToString();
+                options.Network.GameSpyIPAddress = ipStr;
+                options.Network.IPAddress = ipStr;
             }
             else
             {

@@ -339,10 +339,10 @@ public sealed class OnlinePresenceService(
                 logger.LogWarning(ex, "Presence connection failed: {Message}", OnlineLogScrubber.Scrub(ex.Message));
             }
 
-            attempt++;
             try
             {
                 await Task.Delay(BackoffDelay(attempt), cancellationToken).ConfigureAwait(false);
+                attempt++;
             }
             catch (OperationCanceledException)
             {
@@ -363,9 +363,9 @@ public sealed class OnlinePresenceService(
                 string.Format(ApiConstants.OnlineCertFormat, Uri.EscapeDataString(networkId)));
             request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", grant);
             using var response = await client.SendAsync(request, cancellationToken).ConfigureAwait(false);
-            if (response.StatusCode == HttpStatusCode.Forbidden)
+            if (response.StatusCode is HttpStatusCode.Forbidden or HttpStatusCode.Unauthorized)
             {
-                // Removed or banned: the grant cannot be renewed.
+                // Removed, banned, or revoked session: the grant cannot be renewed.
                 return false;
             }
 

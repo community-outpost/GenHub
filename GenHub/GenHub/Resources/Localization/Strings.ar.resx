@@ -2054,7 +2054,7 @@
     <value>كلمة مرور الشبكة</value>
   </data>
   <data name="Online.Join.PrivacyNotice" xml:space="preserve">
-    <value>تتم محاولة الاتصال المباشر أولاً؛ تتم مشاركة عنوانك العام مع أعضاء الغرفة فقط عند نجاح STUN، مع الرجوع إلى مرحل مشفر خلاف ذلك.</value>
+    <value>يتم توجيه حركة المرور عبر مرحل مشفر لحماية خصوصية اللاعبين؛ لا تتم مشاركة عناوين IP الحقيقية أبداً مع الأقران.</value>
   </data>
   <data name="Online.Join.ProfileHint" xml:space="preserve">
     <value>يُعلن للردهة ويُستخدم للعب. اتركه على المطابقة التلقائية لاختيار أقرب إعداد.</value>

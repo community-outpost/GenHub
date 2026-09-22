@@ -677,7 +677,11 @@ const matchNetworkRoute = (pathname: string): { id: string; action: string } | n
   if (id === undefined) {
     return null;
   }
-  return { id: decodeURIComponent(id), action: action ?? "" };
+  try {
+    return { id: decodeURIComponent(id), action: action ?? "" };
+  } catch {
+    return null;
+  }
 };
 
 const dispatchNetworkRoute = async (

@@ -62,20 +62,22 @@ public class OnlineLogScrubberTests
     /// Tests that bearer tokens and grants are redacted.
     /// </summary>
     /// <param name="input">The input text.</param>
+    /// <param name="expectedSecret">The expected secret value that should not appear in the scrubbed output.</param>
     [Theory]
-    [InlineData("Authorization: Bearer abcdef123456")]
-    [InlineData("grant: secret-grant-token")]
-    [InlineData("password= hunter2 value")]
-    [InlineData("{\"password\":\"super-secret\"}")]
-    [InlineData("{\"grant\":\"eyJleHAiOjEyMw\"}")]
-    [InlineData("wss://edge/v1/networks/net-1/presence?ticket=secret-grant")]
-    public void Scrub_WithCredential_ShouldRedact(string input)
+    [InlineData("Authorization: Bearer abcdef123456", "abcdef123456")]
+    [InlineData("grant: secret-grant-token", "secret-grant-token")]
+    [InlineData("password= hunter2 value", "hunter2")]
+    [InlineData("{\"password\":\"super-secret\"}", "super-secret")]
+    [InlineData("{\"grant\":\"eyJleHAiOjEyMw\"}", "eyJleHAiOjEyMw")]
+    [InlineData("wss://edge/v1/networks/net-1/presence?ticket=secret-grant", "secret-grant")]
+    public void Scrub_WithCredential_ShouldRedact(string input, string expectedSecret)
     {
         // Act
         var result = OnlineLogScrubber.Scrub(input);
 
         // Assert
         Assert.Contains(OnlineLogScrubber.RedactedCredential, result);
+        Assert.DoesNotContain(expectedSecret, result);
     }
 
     /// <summary>
