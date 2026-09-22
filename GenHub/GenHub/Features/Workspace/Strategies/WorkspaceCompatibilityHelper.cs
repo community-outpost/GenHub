@@ -626,40 +626,9 @@ public static class WorkspaceCompatibilityHelper
         try
         {
             var d3d8TargetPath = Path.Combine(workspaceInfo.WorkspacePath, GameClientConstants.Direct3D8WrapperDll);
-            var manifestDeclaresD3D8 = configuration.Manifests != null && configuration.Manifests
-                .Any(m => (ManifestVariantResolver.ResolveFiles(m) ?? [])
-                    .Any(f => string.Equals(f.RelativePath, GameClientConstants.Direct3D8WrapperDll, StringComparison.OrdinalIgnoreCase) ||
-                              string.Equals(Path.GetFileName(f.RelativePath), GameClientConstants.Direct3D8WrapperDll, StringComparison.OrdinalIgnoreCase)));
-
-            if (!manifestDeclaresD3D8)
+            if (!ManifestDeclaresFile(configuration.Manifests, GameClientConstants.Direct3D8WrapperDll))
             {
-                if (File.Exists(d3d8TargetPath))
-                {
-                    try
-                    {
-                        File.Delete(d3d8TargetPath);
-                        logger.LogInformation("Removed unrequested {Dll} from workspace at {WorkspacePath}", GameClientConstants.Direct3D8WrapperDll, workspaceInfo.WorkspacePath);
-                    }
-                    catch (Exception ex)
-                    {
-                        logger.LogDebug(ex, "Failed to remove unrequested {Dll} from workspace at {WorkspacePath}", GameClientConstants.Direct3D8WrapperDll, workspaceInfo.WorkspacePath);
-                    }
-                }
-
-                var genToolUpdaterPath = Path.Combine(workspaceInfo.WorkspacePath, "GenToolUpdater.exe");
-                if (File.Exists(genToolUpdaterPath))
-                {
-                    try
-                    {
-                        File.Delete(genToolUpdaterPath);
-                        logger.LogInformation("Removed stale GenToolUpdater.exe from workspace at {WorkspacePath}", workspaceInfo.WorkspacePath);
-                    }
-                    catch (Exception ex)
-                    {
-                        logger.LogDebug(ex, "Failed to remove stale GenToolUpdater.exe from workspace at {WorkspacePath}", workspaceInfo.WorkspacePath);
-                    }
-                }
-
+                CleanUnrequestedDirect3D8Files(workspaceInfo.WorkspacePath, logger);
                 return;
             }
 
@@ -685,6 +654,45 @@ public static class WorkspaceCompatibilityHelper
             workspaceInfo.ValidationIssues.Add(new ValidationIssue(
                 $"Failed to materialize {GameClientConstants.Direct3D8WrapperDll} to workspace: {ex.Message}",
                 ValidationSeverity.Warning));
+        }
+    }
+
+    private static bool ManifestDeclaresFile(IEnumerable<ContentManifest>? manifests, string fileName)
+    {
+        if (manifests == null)
+        {
+            return false;
+        }
+
+        return manifests.Any(m => (ManifestVariantResolver.ResolveFiles(m) ?? [])
+            .Any(f => string.Equals(f.RelativePath, fileName, StringComparison.OrdinalIgnoreCase) ||
+                      string.Equals(Path.GetFileName(f.RelativePath), fileName, StringComparison.OrdinalIgnoreCase)));
+    }
+
+    private static void CleanUnrequestedDirect3D8Files(string workspacePath, ILogger logger)
+    {
+        var d3d8TargetPath = Path.Combine(workspacePath, GameClientConstants.Direct3D8WrapperDll);
+        TryDeleteWorkspaceFile(d3d8TargetPath, GameClientConstants.Direct3D8WrapperDll, logger);
+
+        var genToolUpdaterPath = Path.Combine(workspacePath, "GenToolUpdater.exe");
+        TryDeleteWorkspaceFile(genToolUpdaterPath, "GenToolUpdater.exe", logger);
+    }
+
+    private static void TryDeleteWorkspaceFile(string filePath, string description, ILogger logger)
+    {
+        if (!File.Exists(filePath))
+        {
+            return;
+        }
+
+        try
+        {
+            File.Delete(filePath);
+            logger.LogInformation("Removed unrequested {File} from workspace", description);
+        }
+        catch (Exception ex)
+        {
+            logger.LogDebug(ex, "Failed to remove unrequested {File} from workspace", description);
         }
     }
 

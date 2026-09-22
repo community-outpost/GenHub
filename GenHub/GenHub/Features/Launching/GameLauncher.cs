@@ -175,7 +175,7 @@ public class GameLauncher(
         try
         {
             var content = File.ReadAllText(mapCachePath);
-            if (System.Text.RegularExpressions.Regex.IsMatch(content, @":\s*-?nan\b", System.Text.RegularExpressions.RegexOptions.IgnoreCase))
+            if (System.Text.RegularExpressions.Regex.IsMatch(content, @":\s*-?nan\b", System.Text.RegularExpressions.RegexOptions.IgnoreCase, TimeSpan.FromSeconds(1)))
             {
                 logger?.LogWarning("[GameLauncher] Detected corrupted MapCache.ini containing NaN values at {MapCachePath}. Backing up and removing to prevent game startup crash.", mapCachePath);
                 var backupPath = mapCachePath + ".corrupt.bak";

@@ -1068,16 +1068,21 @@ public partial class MapManagerViewModel(
             }
             else
             {
-                var error = result.FirstError ?? "Unknown error";
-                notificationService.ShowError("Creation Failed", error);
-                StatusMessage = "Creation failed.";
+                var defaultError = GetLocalizedString("Maps.MapPack.Notification.UnknownError", "Unknown error");
+                var error = result.FirstError ?? defaultError;
+                notificationService.ShowError(
+                    GetLocalizedString("Maps.MapPack.Notification.CreationFailedTitle", MapManagerConstants.DefaultCreationFailedTitle),
+                    error);
+                StatusMessage = GetLocalizedString("Maps.MapPack.Status.CreationFailed", MapManagerConstants.DefaultCreationFailedStatus);
             }
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to create MapPack");
-            notificationService.ShowError("Creation Failed", ex.Message);
-            StatusMessage = "Creation failed.";
+            notificationService.ShowError(
+                GetLocalizedString("Maps.MapPack.Notification.CreationFailedTitle", MapManagerConstants.DefaultCreationFailedTitle),
+                ex.Message);
+            StatusMessage = GetLocalizedString("Maps.MapPack.Status.CreationFailed", MapManagerConstants.DefaultCreationFailedStatus);
         }
         finally
         {

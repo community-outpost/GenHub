@@ -141,6 +141,16 @@ public static class MapManagerConstants
     public const string UploadCategory = "maps";
 
     /// <summary>
+    /// Default title used for MapPack creation failure notifications.
+    /// </summary>
+    public const string DefaultCreationFailedTitle = "Creation Failed";
+
+    /// <summary>
+    /// Default status text used for MapPack creation failures.
+    /// </summary>
+    public const string DefaultCreationFailedStatus = "Creation failed.";
+
+    /// <summary>
     /// Allowed file extensions for map packages.
     /// </summary>
     public static readonly string[] AllowedExtensions = [".map", ".tga", ".ini", ".str", ".txt"];
