@@ -2544,13 +2544,14 @@ public sealed class ProjectConfigService(
         {
             var dir = Path.GetDirectoryName(path);
             var filename = Path.GetFileName(path);
-            if (!string.IsNullOrEmpty(dir) && !string.IsNullOrEmpty(filename) && Directory.Exists(dir))
+
+            // On case-sensitive filesystems, check if matching file exists with different casing
+            if (!string.IsNullOrEmpty(dir) &&
+                !string.IsNullOrEmpty(filename) &&
+                Directory.Exists(dir) &&
+                Directory.EnumerateFiles(dir).Any(f => string.Equals(Path.GetFileName(f), filename, StringComparison.OrdinalIgnoreCase)))
             {
-                // On case-sensitive filesystems, check if matching file exists with different casing
-                if (Directory.EnumerateFiles(dir).Any(f => string.Equals(Path.GetFileName(f), filename, StringComparison.OrdinalIgnoreCase)))
-                {
-                    return true;
-                }
+                return true;
             }
 
             var root = Path.GetPathRoot(path);
