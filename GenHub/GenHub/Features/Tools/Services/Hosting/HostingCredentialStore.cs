@@ -271,22 +271,19 @@ public class HostingCredentialStore(
     private static string? TryReadLinuxMachineId()
     {
         string[] candidates = ["/etc/machine-id", "/var/lib/dbus/machine-id"];
-        foreach (var candidatePath in candidates)
+        foreach (var candidatePath in candidates.Where(File.Exists))
         {
-            if (File.Exists(candidatePath))
+            try
             {
-                try
+                var id = File.ReadAllText(candidatePath).Trim();
+                if (!string.IsNullOrEmpty(id))
                 {
-                    var id = File.ReadAllText(candidatePath).Trim();
-                    if (!string.IsNullOrEmpty(id))
-                    {
-                        return id;
-                    }
+                    return id;
                 }
-                catch
-                {
-                    // Fallback to next candidate
-                }
+            }
+            catch
+            {
+                // Fallback to next candidate
             }
         }
 

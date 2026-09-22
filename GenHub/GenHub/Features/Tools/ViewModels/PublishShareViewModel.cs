@@ -12,6 +12,7 @@ using GenHub.Core.Models.Publishers;
 using GenHub.Core.Models.Results;
 using GenHub.Features.Tools.Interfaces;
 using GenHub.Features.Tools.Services.Hosting;
+using GenHub.Infrastructure.Services;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
@@ -163,10 +164,18 @@ public partial class PublishShareViewModel(
     /// </summary>
     private const int PendingUploadProgressBand = 80;
 
-    private static readonly HttpClient SharedHttpClient = new()
+    private static readonly HttpClient SharedHttpClient = new(
+        ImageCacheService.CreateSsrfSafeSocketsHttpHandler(
+            TimeSpan.FromSeconds(10),
+            TimeSpan.FromMinutes(5)))
     {
         Timeout = TimeSpan.FromSeconds(30),
     };
+
+    /// <summary>
+    /// Gets or sets an optional HttpClient override for unit testing.
+    /// </summary>
+    internal static HttpClient? HttpClientOverrideForTesting { get; set; }
 
     private readonly SemaphoreSlim _publishGate = new(1, 1);
     private readonly Dictionary<string, HostingState> _hostingStates = new(StringComparer.OrdinalIgnoreCase);
@@ -5606,18 +5615,25 @@ public partial class PublishShareViewModel(
     private async Task<string?> DownloadStringFromUrlAsync(string url)
     {
         var directUrl = EnsureDirectDownloadUrl(url);
+        if (!NetworkSecurityHelper.IsSafeUrl(directUrl, out var failureReason))
+        {
+            logger.LogWarning("Refusing to download string from unsafe or disallowed URL {Url}: {Reason}", directUrl, failureReason);
+            return null;
+        }
+
         try
         {
             using var request = new HttpRequestMessage(HttpMethod.Get, directUrl);
             request.Headers.Add("User-Agent", "GenHub/1.0");
-            using var response = await SharedHttpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, CancellationToken.None);
+            var client = HttpClientOverrideForTesting ?? SharedHttpClient;
+            using var response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, CancellationToken.None).ConfigureAwait(false);
             if (!response.IsSuccessStatusCode)
             {
                 logger.LogWarning("HTTP GET {Url} returned status code {StatusCode}", directUrl, response.StatusCode);
                 return null;
             }
 
-            return await response.Content.ReadAsStringAsync(CancellationToken.None);
+            return await response.Content.ReadAsStringAsync(CancellationToken.None).ConfigureAwait(false);
         }
         catch (Exception ex)
         {

@@ -1,8 +1,14 @@
 using GenHub.Core.Constants;
+using GenHub.Core.Interfaces.Notifications;
+using GenHub.Core.Interfaces.Publishers;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Publishers;
 using GenHub.Features.Tools.ViewModels;
+using Microsoft.Extensions.Logging.Abstractions;
+using Moq;
+using System;
 using System.Collections.ObjectModel;
+using System.Threading.Tasks;
 using Xunit;
 
 namespace GenHub.Tests.Core.Features.Tools.ViewModels;
@@ -136,5 +142,36 @@ public class PublisherStudioHostingDiscoveryAndLoadTests
         Assert.Equal(3, state.Definitions.Count);
         Assert.Equal("publisher.json", state.Definition.FileName);
         Assert.Contains(state.Definitions, d => d.FileName == "publisher-beta.json");
+    }
+
+    /// <summary>
+    /// Tests that attempting to load a cloud definition from an unsafe or loopback URL is rejected by SSRF protection.
+    /// </summary>
+    [Fact]
+    public async Task LoadAssetFromCloud_UnsafeUrl_IsRejectedBySsrfProtection()
+    {
+        var mockNotificationService = new Mock<INotificationService>();
+        var project = new PublisherStudioProject { ProjectPath = "/test/path/project.json" };
+        using var vm = new PublishShareViewModel(
+            project,
+            Mock.Of<IPublisherStudioService>(),
+            NullLogger.Instance,
+            notificationService: mockNotificationService.Object);
+
+        var unsafeAsset = new HostedAssetItemViewModel
+        {
+            Name = "publisher.json",
+            AssetKind = HostedAssetKind.Definition,
+            Url = "http://127.0.0.1:8080/secret/publisher.json",
+            CanLoadToProject = true,
+        };
+
+        await vm.LoadAssetFromCloudCommand.ExecuteAsync(unsafeAsset);
+
+        mockNotificationService.Verify(
+            n => n.ShowError(
+                It.IsAny<string>(),
+                It.Is<string>(msg => msg.Contains("empty", StringComparison.OrdinalIgnoreCase))),
+            Times.Once);
     }
 }

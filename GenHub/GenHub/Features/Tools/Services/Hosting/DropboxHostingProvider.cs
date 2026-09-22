@@ -746,14 +746,11 @@ public class DropboxHostingProvider(ILogger<DropboxHostingProvider> logger, IHtt
         var startPosition = fileStream.Position;
         var chunkResult = await UploadChunkedSessionCoreAsync(fileStream, targetPath, safeFileName, progress, cancellationToken).ConfigureAwait(false);
 
-        if (chunkResult.IsExpiredToken)
+        if (chunkResult.IsExpiredToken && await TryRefreshAccessTokenAsync(cancellationToken).ConfigureAwait(false))
         {
-            if (await TryRefreshAccessTokenAsync(cancellationToken).ConfigureAwait(false))
-            {
-                fileStream.Position = startPosition;
-                logger.LogInformation("Retrying chunked Dropbox upload of {File} after token refresh", safeFileName);
-                chunkResult = await UploadChunkedSessionCoreAsync(fileStream, targetPath, safeFileName, progress, cancellationToken).ConfigureAwait(false);
-            }
+            fileStream.Position = startPosition;
+            logger.LogInformation("Retrying chunked Dropbox upload of {File} after token refresh", safeFileName);
+            chunkResult = await UploadChunkedSessionCoreAsync(fileStream, targetPath, safeFileName, progress, cancellationToken).ConfigureAwait(false);
         }
 
         if (!chunkResult.Success)

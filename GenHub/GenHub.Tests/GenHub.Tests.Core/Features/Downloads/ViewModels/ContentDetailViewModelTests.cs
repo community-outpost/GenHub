@@ -4636,6 +4636,7 @@ public sealed class ContentDetailViewModelTests
         // Act
         WeakReferenceMessenger.Default.Send(new ContentLibraryClearedMessage());
         Avalonia.Threading.Dispatcher.UIThread.RunJobs();
+        await Task.Yield();
 
         // Assert
         Assert.False(viewModel.IsDownloaded);
