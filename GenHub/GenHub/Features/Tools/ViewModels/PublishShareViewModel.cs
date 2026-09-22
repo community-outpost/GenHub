@@ -237,8 +237,10 @@ public partial class PublishShareViewModel(
     [ObservableProperty]
     private bool _hasDefinitionChanges = true;
 
+    private readonly SemaphoreSlim _publishGate = new(1, 1);
     private System.Threading.CancellationTokenSource? _authCts;
     private CancellationTokenSource? _uploadCts;
+    private CancellationTokenSource? _activeUploadCts;
     private CancellationTokenSource? _scanCts;
     private CancellationTokenSource? _silentScanCts;
     private bool _isRestoringAuthentication;
@@ -602,30 +604,59 @@ public partial class PublishShareViewModel(
     /// Public so the studio shell can trigger definition uploads from its header button.
     /// </summary>
     /// <returns>The upload result.</returns>
+    private async Task<(bool Acquired, CancellationTokenSource? Cts)> TryBeginPublishAsync()
+    {
+        if (IsUploading || !await _publishGate.WaitAsync(0).ConfigureAwait(false))
+        {
+            return (false, null);
+        }
+
+        var cts = new CancellationTokenSource();
+        _activeUploadCts = cts;
+        IsUploading = true;
+        return (true, cts);
+    }
+
+    private void EndPublish(CancellationTokenSource? cts)
+    {
+        try
+        {
+            if (ReferenceEquals(_activeUploadCts, cts))
+            {
+                _activeUploadCts = null;
+            }
+
+            cts?.Dispose();
+        }
+        finally
+        {
+            IsUploading = false;
+            _publishGate.Release();
+        }
+    }
+
     [RelayCommand]
     public async Task<OperationResult<HostingUploadResult>> UploadProviderDefinitionAsync()
     {
-        if (IsUploading)
+        var (acquired, cts) = await TryBeginPublishAsync().ConfigureAwait(false);
+        if (!acquired || cts == null)
         {
             return OperationResult<HostingUploadResult>.CreateFailure(UploadAlreadyInProgressMessage);
         }
 
         if (SelectedHostingProvider == null)
         {
+            EndPublish(cts);
             return OperationResult<HostingUploadResult>.CreateFailure(PleaseSelectHostingProviderMessage);
         }
 
-        _uploadCts?.Dispose();
-        _uploadCts = new CancellationTokenSource();
-        var cancellationToken = _uploadCts.Token;
+        var cancellationToken = cts.Token;
         using var progressToast = BeginUploadProgressToast(
             GetLocalizedString("Tools.PublisherStudio.Publish.UploadStartedTitle", "Uploading"),
             GetLocalizedString("Tools.PublisherStudio.Publish.DefinitionUploadStarted", "Uploading provider definition..."));
 
         try
         {
-            IsUploading = true;
-
             // Cascade down: Publish all catalogs and their content items first
             var totalCatalogs = project.Catalogs.Count;
             var currentCatalog = 0;
@@ -664,9 +695,7 @@ public partial class PublishShareViewModel(
         }
         finally
         {
-            IsUploading = false;
-            _uploadCts?.Dispose();
-            _uploadCts = null;
+            EndPublish(cts);
         }
     }
 
@@ -1071,6 +1100,10 @@ public partial class PublishShareViewModel(
             _authCts?.Cancel();
             _authCts?.Dispose();
             _authCts = null;
+            _publishGate.Dispose();
+            _activeUploadCts?.Cancel();
+            _activeUploadCts?.Dispose();
+            _activeUploadCts = null;
             _uploadCts?.Cancel();
             _uploadCts?.Dispose();
             _uploadCts = null;
@@ -2270,16 +2303,20 @@ public partial class PublishShareViewModel(
     [RelayCommand]
     private async Task<OperationResult<HostingUploadResult>> UploadCatalogAsync()
     {
-        if (IsUploading)
+        var (acquired, cts) = await TryBeginPublishAsync().ConfigureAwait(false);
+        if (!acquired || cts == null)
         {
             return OperationResult<HostingUploadResult>.CreateFailure(UploadAlreadyInProgressMessage);
         }
 
-        _uploadCts?.Dispose();
-        _uploadCts = new CancellationTokenSource();
-        var cancellationToken = _uploadCts.Token;
-
-        return await UploadCatalogCoreAsync(cancellationToken, manageUploadingState: true);
+        try
+        {
+            return await UploadCatalogCoreAsync(cts.Token, manageUploadingState: false);
+        }
+        finally
+        {
+            EndPublish(cts);
+        }
     }
 
     private async Task<OperationResult<HostingUploadResult>?> ValidateUploadPreconditionsAsync(bool suppressNotification = false)
@@ -4016,7 +4053,8 @@ public partial class PublishShareViewModel(
     [RelayCommand]
     private async Task PublishCatalogAsync(NamedCatalog catalog)
     {
-        if (IsUploading)
+        var (acquired, cts) = await TryBeginPublishAsync().ConfigureAwait(false);
+        if (!acquired || cts == null)
         {
             notificationService?.ShowWarning(
                 GetLocalizedString(PublishWarningKey, PublishWarningDefaultMessage),
@@ -4034,13 +4072,11 @@ public partial class PublishShareViewModel(
                 "Publishing catalog '{0}'...",
                 catalog.Name));
 
-        _uploadCts?.Dispose();
-        _uploadCts = new CancellationTokenSource();
-        var cancellationToken = _uploadCts.Token;
+        var cancellationToken = cts.Token;
 
         try
         {
-            var uploadResult = await UploadCatalogCoreAsync(cancellationToken, manageUploadingState: true, suppressNotifications: true);
+            var uploadResult = await UploadCatalogCoreAsync(cancellationToken, manageUploadingState: false, suppressNotifications: true);
             if (!uploadResult.Success && cancellationToken.IsCancellationRequested)
             {
                 UploadStatusMessage = GetLocalizedString("Tools.PublisherStudio.Publish.UploadCanceled", "Upload canceled.");
@@ -4067,8 +4103,7 @@ public partial class PublishShareViewModel(
         {
             // Restore previous active catalog
             ActiveCatalog = previousActive;
-            _uploadCts?.Dispose();
-            _uploadCts = null;
+            EndPublish(cts);
         }
     }
 
@@ -4124,21 +4159,19 @@ public partial class PublishShareViewModel(
     [RelayCommand]
     private async Task PublishAllCatalogsAsync()
     {
-        if (IsUploading)
+        var (acquired, cts) = await TryBeginPublishAsync().ConfigureAwait(false);
+        if (!acquired || cts == null)
         {
             return;
         }
 
         if (!await ValidatePublishAllPreconditionsAsync())
         {
+            EndPublish(cts);
             return;
         }
 
-        _uploadCts?.Dispose();
-        _uploadCts = new CancellationTokenSource();
-        var cancellationToken = _uploadCts.Token;
-
-        IsUploading = true;
+        var cancellationToken = cts.Token;
         PublishCompleted = false;
         var publishedAny = false;
         var succeededCount = 0;
@@ -4201,9 +4234,7 @@ public partial class PublishShareViewModel(
         }
         finally
         {
-            IsUploading = false;
-            _uploadCts?.Dispose();
-            _uploadCts = null;
+            EndPublish(cts);
         }
     }
 
@@ -4886,11 +4917,16 @@ public partial class PublishShareViewModel(
             return;
         }
 
-        _uploadCts?.Dispose();
-        _uploadCts = new CancellationTokenSource();
-        var cancellationToken = _uploadCts.Token;
+        var (acquired, cts) = await TryBeginPublishAsync().ConfigureAwait(false);
+        if (!acquired || cts == null)
+        {
+            notificationService?.ShowWarning(
+                GetLocalizedString(PublishWarningKey, PublishWarningDefaultMessage),
+                UploadAlreadyInProgressMessage);
+            return;
+        }
 
-        IsUploading = true;
+        var cancellationToken = cts.Token;
         using var progressToast = BeginUploadProgressToast(
             GetLocalizedString("Tools.PublisherStudio.Publish.UploadStartedTitle", "Uploading"),
             FormatLocalizedString(
@@ -4942,9 +4978,7 @@ public partial class PublishShareViewModel(
         }
         finally
         {
-            IsUploading = false;
-            _uploadCts?.Dispose();
-            _uploadCts = null;
+            EndPublish(cts);
         }
     }
 
@@ -5093,17 +5127,18 @@ public partial class PublishShareViewModel(
     [RelayCommand]
     private void CancelUpload()
     {
-        if (IsUploading)
+        var cts = _activeUploadCts ?? _uploadCts;
+        try
         {
-            var cts = _uploadCts;
-            try
+            if (cts != null && !cts.IsCancellationRequested)
             {
-                cts?.Cancel();
+                cts.Cancel();
+                UploadStatusMessage = GetLocalizedString("Tools.PublisherStudio.Publish.PublishAllCanceled", "Publishing was canceled.");
             }
-            catch (ObjectDisposedException)
-            {
-                // Upload already completed or was disposed concurrently
-            }
+        }
+        catch (ObjectDisposedException)
+        {
+            // Upload already completed or was disposed concurrently
         }
     }
 

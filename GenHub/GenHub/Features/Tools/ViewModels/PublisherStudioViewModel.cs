@@ -291,6 +291,7 @@ public partial class PublisherStudioViewModel(
                 {
                     SelectedTabIndex = TabHostingStorage;
                 }
+
                 return;
             }
 
@@ -302,6 +303,7 @@ public partial class PublisherStudioViewModel(
                 {
                     SelectedTabIndex = TabHostingStorage;
                 }
+
                 return;
             }
 
@@ -311,6 +313,7 @@ public partial class PublisherStudioViewModel(
                 CurrentProject.ProjectPath = defaultPath;
                 await SaveProjectAsync();
             }
+
             SelectedTabIndex = TabHostingStorage;
         }
         catch (Exception ex)

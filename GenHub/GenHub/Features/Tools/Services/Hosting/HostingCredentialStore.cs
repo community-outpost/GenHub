@@ -2,6 +2,7 @@ using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Publishers;
 using Microsoft.Extensions.Logging;
 using System;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
@@ -22,6 +23,11 @@ public class HostingCredentialStore(
 {
     private static readonly byte[] Entropy = "GenHub.HostingCredentialStore.v1"u8.ToArray();
 
+    /// <summary>
+    /// Gets or sets an optional machine secret override for unit tests.
+    /// </summary>
+    internal static string? MachineSecretOverrideForTesting { get; set; }
+
     /// <inheritdoc />
     public async Task SaveCredentialAsync(string providerId, string credential, CancellationToken cancellationToken = default)
     {
@@ -36,6 +42,7 @@ public class HostingCredentialStore(
             return;
         }
 
+        byte[]? plainBytes = null;
         try
         {
             var filePath = GetCredentialFilePath(providerId);
@@ -56,7 +63,7 @@ public class HostingCredentialStore(
                 }
             }
 
-            var plainBytes = Encoding.UTF8.GetBytes(credential);
+            plainBytes = Encoding.UTF8.GetBytes(credential);
             byte[] encryptedBytes;
 
             if (OperatingSystem.IsWindows())
@@ -78,6 +85,13 @@ public class HostingCredentialStore(
         {
             throw new InvalidOperationException($"Failed to securely save credential for provider {providerId}", ex);
         }
+        finally
+        {
+            if (plainBytes != null)
+            {
+                CryptographicOperations.ZeroMemory(plainBytes);
+            }
+        }
     }
 
     /// <inheritdoc />
@@ -96,23 +110,38 @@ public class HostingCredentialStore(
                 return null;
             }
 
+            if (!OperatingSystem.IsWindows())
+            {
+                VerifySecureUnixPermissions(filePath);
+            }
+
             var encryptedBytes = await File.ReadAllBytesAsync(filePath, cancellationToken).ConfigureAwait(false);
             if (encryptedBytes.Length == 0)
             {
                 return null;
             }
 
-            byte[] plainBytes;
-            if (OperatingSystem.IsWindows())
+            byte[]? plainBytes = null;
+            try
             {
-                plainBytes = ProtectedData.Unprotect(encryptedBytes, Entropy, DataProtectionScope.CurrentUser);
-            }
-            else
-            {
-                plainBytes = DecryptNonWindows(encryptedBytes);
-            }
+                if (OperatingSystem.IsWindows())
+                {
+                    plainBytes = ProtectedData.Unprotect(encryptedBytes, Entropy, DataProtectionScope.CurrentUser);
+                }
+                else
+                {
+                    plainBytes = DecryptNonWindows(encryptedBytes);
+                }
 
-            return Encoding.UTF8.GetString(plainBytes);
+                return Encoding.UTF8.GetString(plainBytes);
+            }
+            finally
+            {
+                if (plainBytes != null)
+                {
+                    CryptographicOperations.ZeroMemory(plainBytes);
+                }
+            }
         }
         catch (OperationCanceledException)
         {
@@ -152,19 +181,26 @@ public class HostingCredentialStore(
     private static byte[] EncryptNonWindows(byte[] plainBytes)
     {
         var key = DeriveNonWindowsKey();
-        var nonce = new byte[12];
-        RandomNumberGenerator.Fill(nonce);
-        var tag = new byte[16];
-        var ciphertext = new byte[plainBytes.Length];
+        try
+        {
+            var nonce = new byte[12];
+            RandomNumberGenerator.Fill(nonce);
+            var tag = new byte[16];
+            var ciphertext = new byte[plainBytes.Length];
 
-        using var aesGcm = new AesGcm(key, 16);
-        aesGcm.Encrypt(nonce, plainBytes, ciphertext, tag);
+            using var aesGcm = new AesGcm(key, 16);
+            aesGcm.Encrypt(nonce, plainBytes, ciphertext, tag);
 
-        var result = new byte[12 + 16 + ciphertext.Length];
-        Buffer.BlockCopy(nonce, 0, result, 0, 12);
-        Buffer.BlockCopy(tag, 0, result, 12, 16);
-        Buffer.BlockCopy(ciphertext, 0, result, 28, ciphertext.Length);
-        return result;
+            var result = new byte[12 + 16 + ciphertext.Length];
+            Buffer.BlockCopy(nonce, 0, result, 0, 12);
+            Buffer.BlockCopy(tag, 0, result, 12, 16);
+            Buffer.BlockCopy(ciphertext, 0, result, 28, ciphertext.Length);
+            return result;
+        }
+        finally
+        {
+            CryptographicOperations.ZeroMemory(key);
+        }
     }
 
     private static byte[] DecryptNonWindows(byte[] encryptedBytes)
@@ -175,25 +211,136 @@ public class HostingCredentialStore(
         }
 
         var key = DeriveNonWindowsKey();
-        var nonce = new byte[12];
-        var tag = new byte[16];
-        var ciphertext = new byte[encryptedBytes.Length - 28];
+        try
+        {
+            var nonce = new byte[12];
+            var tag = new byte[16];
+            var ciphertext = new byte[encryptedBytes.Length - 28];
 
-        Buffer.BlockCopy(encryptedBytes, 0, nonce, 0, 12);
-        Buffer.BlockCopy(encryptedBytes, 12, tag, 0, 16);
-        Buffer.BlockCopy(encryptedBytes, 28, ciphertext, 0, ciphertext.Length);
+            Buffer.BlockCopy(encryptedBytes, 0, nonce, 0, 12);
+            Buffer.BlockCopy(encryptedBytes, 12, tag, 0, 16);
+            Buffer.BlockCopy(encryptedBytes, 28, ciphertext, 0, ciphertext.Length);
 
-        var plainBytes = new byte[ciphertext.Length];
-        using var aesGcm = new AesGcm(key, 16);
-        aesGcm.Decrypt(nonce, ciphertext, tag, plainBytes);
+            var plainBytes = new byte[ciphertext.Length];
+            using var aesGcm = new AesGcm(key, 16);
+            aesGcm.Decrypt(nonce, ciphertext, tag, plainBytes);
 
-        return plainBytes;
+            return plainBytes;
+        }
+        finally
+        {
+            CryptographicOperations.ZeroMemory(key);
+        }
     }
 
     private static byte[] DeriveNonWindowsKey()
     {
-        var keyMaterial = $"{Environment.UserName}@{Environment.MachineName}:GenHub-CredentialStore-Salt-2026";
-        return SHA256.HashData(Encoding.UTF8.GetBytes(keyMaterial));
+        var machineSecret = MachineSecretOverrideForTesting ?? GetMachineSecret();
+        var keyMaterial = $"{Environment.UserName}@{machineSecret}:GenHub-CredentialStore-Salt-2026";
+        var keyMaterialBytes = Encoding.UTF8.GetBytes(keyMaterial);
+        try
+        {
+            return SHA256.HashData(keyMaterialBytes);
+        }
+        finally
+        {
+            CryptographicOperations.ZeroMemory(keyMaterialBytes);
+        }
+    }
+
+    private static string GetMachineSecret()
+    {
+        if (File.Exists("/etc/machine-id"))
+        {
+            try
+            {
+                var id = File.ReadAllText("/etc/machine-id").Trim();
+                if (!string.IsNullOrEmpty(id))
+                {
+                    return id;
+                }
+            }
+            catch
+            {
+                // Fallback below
+            }
+        }
+
+        if (File.Exists("/var/lib/dbus/machine-id"))
+        {
+            try
+            {
+                var id = File.ReadAllText("/var/lib/dbus/machine-id").Trim();
+                if (!string.IsNullOrEmpty(id))
+                {
+                    return id;
+                }
+            }
+            catch
+            {
+                // Fallback below
+            }
+        }
+
+        if (OperatingSystem.IsMacOS())
+        {
+            try
+            {
+                var startInfo = new ProcessStartInfo
+                {
+                    FileName = "ioreg",
+                    Arguments = "-rd1 -c IOPlatformExpertDevice",
+                    RedirectStandardOutput = true,
+                    UseShellExecute = false,
+                    CreateNoWindow = true,
+                };
+                using var process = Process.Start(startInfo);
+                if (process != null)
+                {
+                    var output = process.StandardOutput.ReadToEnd();
+                    process.WaitForExit(1000);
+                    const string marker = "\"IOPlatformUUID\" = \"";
+                    var idx = output.IndexOf(marker, StringComparison.Ordinal);
+                    if (idx >= 0)
+                    {
+                        var start = idx + marker.Length;
+                        var end = output.IndexOf('"', start);
+                        if (end > start)
+                        {
+                            return output[start..end];
+                        }
+                    }
+                }
+            }
+            catch
+            {
+                // Fallback below
+            }
+        }
+
+        return Environment.MachineName;
+    }
+
+    private static void VerifySecureUnixPermissions(string filePath)
+    {
+        try
+        {
+            var mode = File.GetUnixFileMode(filePath);
+            var insecureBits = UnixFileMode.GroupRead | UnixFileMode.GroupWrite | UnixFileMode.GroupExecute |
+                               UnixFileMode.OtherRead | UnixFileMode.OtherWrite | UnixFileMode.OtherExecute;
+            if ((mode & insecureBits) != 0)
+            {
+                throw new InvalidOperationException($"Credential file {filePath} has insecure file permissions ({mode}). Group and Other access must be denied.");
+            }
+        }
+        catch (InvalidOperationException)
+        {
+            throw;
+        }
+        catch (Exception)
+        {
+            // On non-POSIX file systems (e.g. FAT/NTFS on Linux), GetUnixFileMode might fail or return default
+        }
     }
 
     private string GetCredentialFilePath(string providerId)

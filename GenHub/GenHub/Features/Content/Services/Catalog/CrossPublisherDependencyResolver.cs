@@ -92,23 +92,34 @@ public class CrossPublisherDependencyResolver(
 
             logger.LogDebug("Fetching external catalog from: {CatalogUrl}", catalogUrl);
 
-            var response = await httpClient.GetAsync(normalizedUrl, ct);
-            if (!response.IsSuccessStatusCode)
+            string catalogJson;
+            try
             {
-                logger.LogWarning("Failed to fetch external catalog from {CatalogUrl}: {StatusCode}", catalogUrl, response.StatusCode);
-                return OperationResult<PublisherCatalog>.CreateFailure(
-                    $"Failed to fetch external catalog: {response.StatusCode}");
+                catalogJson = await CatalogDocumentReader.ReadAsync(
+                    httpClient,
+                    normalizedUrl,
+                    CatalogConstants.MaxCatalogSizeBytes,
+                    ct).ConfigureAwait(false);
+            }
+            catch (ArgumentException ex)
+            {
+                logger.LogWarning(ex, "Invalid catalog URL or argument when fetching {CatalogUrl}", catalogUrl);
+                return OperationResult<PublisherCatalog>.CreateFailure(ex.Message);
+            }
+            catch (InvalidDataException ex)
+            {
+                logger.LogWarning(ex, "External catalog from {CatalogUrl} exceeded size limits", catalogUrl);
+                return OperationResult<PublisherCatalog>.CreateFailure(ex.Message);
+            }
+            catch (HttpRequestException ex)
+            {
+                logger.LogWarning(ex, "Failed to fetch external catalog from {CatalogUrl}", catalogUrl);
+                return OperationResult<PublisherCatalog>.CreateFailure($"Failed to fetch external catalog: {ex.Message}");
             }
 
-            var readResult = await ReadBoundedCatalogStringAsync(response, ct);
-            if (!readResult.Success || readResult.Data == null)
-            {
-                return OperationResult<PublisherCatalog>.CreateFailure(readResult.FirstError ?? "Failed to read external catalog.");
-            }
+            logger.LogDebug("Parsing fetched external catalog ({SizeBytes} bytes)", catalogJson.Length);
 
-            logger.LogDebug("Parsing fetched external catalog ({SizeBytes} bytes)", readResult.Data.Length);
-
-            var parseResult = await catalogParser.ParseCatalogAsync(readResult.Data, ct);
+            var parseResult = await catalogParser.ParseCatalogAsync(catalogJson, ct);
             if (!parseResult.Success || parseResult.Data == null)
             {
                 return OperationResult<PublisherCatalog>.CreateFailure(
@@ -259,35 +270,6 @@ public class CrossPublisherDependencyResolver(
         }
 
         return OperationResult<string>.CreateSuccess(normalizedUrl);
-    }
-
-    private static async Task<OperationResult<string>> ReadBoundedCatalogStringAsync(HttpResponseMessage response, CancellationToken ct)
-    {
-        if (response.Content.Headers.ContentLength > CatalogConstants.MaxCatalogSizeBytes)
-        {
-            return OperationResult<string>.CreateFailure(
-                $"External catalog exceeds maximum size of {CatalogConstants.MaxCatalogSizeBytes} bytes");
-        }
-
-        using var stream = await response.Content.ReadAsStreamAsync(ct);
-        using var memoryStream = new MemoryStream();
-        var buffer = new byte[HostingConstants.StreamCopyBufferSize];
-        long totalRead = 0;
-        var bytesRead = 0;
-
-        while ((bytesRead = await stream.ReadAsync(buffer.AsMemory(0, buffer.Length), ct)) > 0)
-        {
-            totalRead += bytesRead;
-            if (totalRead > CatalogConstants.MaxCatalogSizeBytes)
-            {
-                return OperationResult<string>.CreateFailure(
-                    $"External catalog exceeds maximum size of {CatalogConstants.MaxCatalogSizeBytes} bytes");
-            }
-
-            await memoryStream.WriteAsync(buffer.AsMemory(0, bytesRead), ct);
-        }
-
-        return OperationResult<string>.CreateSuccess(Encoding.UTF8.GetString(memoryStream.ToArray()));
     }
 
     private static bool TryParseDependencyId(string? id, out string publisherId, out string contentName)
