@@ -1145,7 +1145,7 @@ public partial class ContentDetailViewModel(
     /// </summary>
     public void PopulateReleasesFromVariants()
     {
-        if (Variants.Count == 0 || Releases.Count > 0)
+        if (Variants.Count == 0 || IsCatalogContent)
         {
             return;
         }
