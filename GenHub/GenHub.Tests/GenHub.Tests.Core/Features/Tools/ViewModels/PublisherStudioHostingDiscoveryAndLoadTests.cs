@@ -177,4 +177,86 @@ public class PublisherStudioHostingDiscoveryAndLoadTests
                 It.IsAny<bool>()),
             Times.Once);
     }
+
+    /// <summary>
+    /// Verifies that loading a definition follows HTTP 303 SeeOther redirects (such as Google Drive download URLs).
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task LoadAssetToProject_FollowsHttpSeeOtherRedirect_SuccessfullyLoadsDefinitionAsync()
+    {
+        var handler = new RedirectingHttpMessageHandler();
+        var client = new HttpClient(handler);
+        PublishShareViewModel.HttpClientOverrideForTesting = client;
+
+        try
+        {
+            var mockNotificationService = new Mock<INotificationService>();
+            var project = new PublisherStudioProject
+            {
+                ProjectPath = "/test/path/project.json",
+                Catalog = new PublisherCatalog(),
+            };
+
+            using var vm = new PublishShareViewModel(
+                project,
+                Mock.Of<IPublisherStudioService>(),
+                NullLogger.Instance,
+                notificationService: mockNotificationService.Object);
+
+            var asset = new HostedAssetItemViewModel
+            {
+                Name = "publisher.json",
+                AssetKind = HostedAssetKind.Definition,
+                Url = "https://drive.google.com/uc?export=download&id=redirect_test_id",
+                CanLoadToProject = true,
+            };
+
+            await vm.LoadAssetToProjectCommand.ExecuteAsync(asset);
+
+            Assert.Equal("Redirected Publisher", project.Catalog?.Publisher?.Name);
+            Assert.Equal("redirected_pub", project.Catalog?.Publisher?.Id);
+            mockNotificationService.Verify(
+                n => n.ShowSuccess(
+                    It.IsAny<string>(),
+                    It.Is<string>(msg => msg.Contains("Successfully loaded", StringComparison.OrdinalIgnoreCase)),
+                    It.IsAny<int?>(),
+                    It.IsAny<bool>()),
+                Times.Once);
+        }
+        finally
+        {
+            PublishShareViewModel.HttpClientOverrideForTesting = null;
+            client.Dispose();
+            handler.Dispose();
+        }
+    }
+
+    private sealed class RedirectingHttpMessageHandler : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            if (request.RequestUri?.ToString() == "https://drive.google.com/uc?export=download&id=redirect_test_id")
+            {
+                var redirectResponse = new HttpResponseMessage(System.Net.HttpStatusCode.SeeOther);
+                redirectResponse.Headers.Location = new Uri("https://drive.google.com/download/redirected_publisher.json");
+                return Task.FromResult(redirectResponse);
+            }
+
+            var definitionJson = """
+                {
+                    "publisher": {
+                        "id": "redirected_pub",
+                        "name": "Redirected Publisher"
+                    }
+                }
+                """;
+
+            var successResponse = new HttpResponseMessage(System.Net.HttpStatusCode.OK)
+            {
+                Content = new StringContent(definitionJson, System.Text.Encoding.UTF8, "application/json"),
+            };
+            return Task.FromResult(successResponse);
+        }
+    }
 }

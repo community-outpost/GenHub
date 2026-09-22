@@ -136,4 +136,33 @@ public sealed class PublisherStudioSetupUnlockTests : IDisposable
         _viewModel.SelectTabCommand.Execute(PublisherStudioViewModel.TabProfile);
         Assert.False(_viewModel.ShouldShowSetupOverlay);
     }
+
+    /// <summary>
+    /// Verifies that connecting a cloud hosting provider unlocks the studio tabs.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task CloudProviderConnected_NotifiesSetupCompleteSoTabsUnlockAsync()
+    {
+        await _viewModel.CreateNewProjectCommand.ExecuteAsync(null);
+        Assert.NotNull(_viewModel.PublishShareViewModel);
+        Assert.False(_viewModel.IsSetupComplete);
+
+        var notifiedProperties = new List<string?>();
+        _viewModel.PropertyChanged += (_, args) => notifiedProperties.Add(args.PropertyName);
+
+        var mockProvider = new Mock<IHostingProvider>();
+        mockProvider.Setup(p => p.ProviderId).Returns("test_cloud");
+        mockProvider.Setup(p => p.DisplayName).Returns("Test Cloud");
+        mockProvider.Setup(p => p.IsAuthenticated).Returns(true);
+
+        _viewModel.PublishShareViewModel.HostingProviders.Add(mockProvider.Object);
+        _viewModel.PublishShareViewModel.SelectedHostingProvider = mockProvider.Object;
+
+        _viewModel.PublishShareViewModel.AuthenticationChangedCallback?.Invoke();
+
+        Assert.True(_viewModel.IsSetupComplete);
+        Assert.Contains(nameof(PublisherStudioViewModel.IsSetupComplete), notifiedProperties);
+        Assert.Contains(nameof(PublisherStudioViewModel.ShouldShowSetupOverlay), notifiedProperties);
+    }
 }

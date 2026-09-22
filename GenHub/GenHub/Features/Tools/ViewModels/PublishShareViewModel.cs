@@ -12,6 +12,7 @@ using GenHub.Core.Models.Publishers;
 using GenHub.Core.Models.Results;
 using GenHub.Features.Tools.Interfaces;
 using GenHub.Features.Tools.Services.Hosting;
+using GenHub.Features.Content.Services.Catalog;
 using GenHub.Infrastructure.Services;
 using Microsoft.Extensions.Logging;
 using System;
@@ -507,6 +508,12 @@ public partial class PublishShareViewModel(
     public Action<int>? NavigateToTabCallback { get; set; }
 
     /// <summary>
+    /// Gets or sets the callback invoked when hosting provider authentication state changes.
+    /// Wired by the parent studio view model to update tab locks and setup state.
+    /// </summary>
+    public Action? AuthenticationChangedCallback { get; set; }
+
+    /// <summary>
     /// Gets the primary discovered publisher definition from cloud storage, if any.
     /// </summary>
     public HostedAssetItemViewModel? DiscoveredCloudDefinition =>
@@ -971,6 +978,7 @@ public partial class PublishShareViewModel(
         OnPropertyChanged(nameof(DiscoveredDefinitionFileName));
         OnPropertyChanged(nameof(ShowDiscoveredDefinitionBanner));
         OnPropertyChanged(nameof(ShowNoDefinitionBanner));
+        AuthenticationChangedCallback?.Invoke();
     }
 
     /// <summary>
@@ -1864,6 +1872,7 @@ public partial class PublishShareViewModel(
         OnPropertyChanged(nameof(ConnectButtonText));
         OnPropertyChanged(nameof(PublishButtonText));
         OnPropertyChanged(nameof(TargetDestinationDescription));
+        AuthenticationChangedCallback?.Invoke();
 
         notificationService?.ShowSuccess(GetLocalizedString("Tools.PublisherStudio.Publish.ConnectedTitle", "Connected"), FormatLocalizedString("Tools.PublisherStudio.Publish.ConnectedMessage", "Successfully connected to {0}. You can now publish your catalog.", SelectedHostingProvider?.DisplayName ?? "Provider"), autoDismissMs: 4000);
     }
@@ -1924,6 +1933,7 @@ public partial class PublishShareViewModel(
             OnPropertyChanged(nameof(ConnectButtonText));
             OnPropertyChanged(nameof(PublishButtonText));
             OnPropertyChanged(nameof(TargetDestinationDescription));
+            AuthenticationChangedCallback?.Invoke();
 
             logger.LogInformation("Signed out from {Provider}", SelectedHostingProvider.DisplayName);
         }
@@ -5623,17 +5633,12 @@ public partial class PublishShareViewModel(
 
         try
         {
-            using var request = new HttpRequestMessage(HttpMethod.Get, directUrl);
-            request.Headers.Add("User-Agent", "GenHub/1.0");
             var client = HttpClientOverrideForTesting ?? SharedHttpClient;
-            using var response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, CancellationToken.None).ConfigureAwait(false);
-            if (!response.IsSuccessStatusCode)
-            {
-                logger.LogWarning("HTTP GET {Url} returned status code {StatusCode}", directUrl, response.StatusCode);
-                return null;
-            }
-
-            return await response.Content.ReadAsStringAsync(CancellationToken.None).ConfigureAwait(false);
+            return await CatalogDocumentReader.ReadAsync(
+                client,
+                directUrl,
+                CatalogConstants.MaxCatalogSizeBytes,
+                CancellationToken.None).ConfigureAwait(false);
         }
         catch (Exception ex)
         {

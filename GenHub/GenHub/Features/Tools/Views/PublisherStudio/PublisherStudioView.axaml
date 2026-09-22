@@ -158,12 +158,11 @@
                             CornerRadius="10"
                             Padding="4">
                         <WrapPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                            <!-- Publisher Profile (visible once setup is complete) -->
+                            <!-- Publisher Profile (always accessible) -->
                             <Button Classes="nav-pill"
                                     Classes.active="{Binding SelectedTabIndex, Converter={StaticResource EqualityConverter}, ConverterParameter=0}"
                                     Command="{Binding SelectTabCommand}"
                                     CommandParameter="0"
-                                    IsVisible="{Binding IsSetupComplete}"
                                     ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Studio.TabProfileTooltip}">
                                 <StackPanel Orientation="Horizontal" Spacing="6">
                                     <PathIcon Data="{StaticResource PersonIcon}" Width="13" Height="13"/>
@@ -171,12 +170,11 @@
                                 </StackPanel>
                             </Button>
 
-                            <!-- Content Library (visible once setup is complete) -->
+                            <!-- Content Library -->
                             <Button Classes="nav-pill"
                                     Classes.active="{Binding SelectedTabIndex, Converter={StaticResource EqualityConverter}, ConverterParameter=1}"
                                     Command="{Binding SelectTabCommand}"
                                     CommandParameter="1"
-                                    IsVisible="{Binding IsSetupComplete}"
                                     IsEnabled="{Binding IsSetupComplete}"
                                     ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Studio.TabLibraryTooltip}">
                                 <StackPanel Orientation="Horizontal" Spacing="6">
@@ -211,12 +209,11 @@
                                 </StackPanel>
                             </Button>
 
-                            <!-- Publish & Share (visible once setup is complete) -->
+                            <!-- Publish & Share -->
                             <Button Classes="nav-pill"
                                     Classes.active="{Binding SelectedTabIndex, Converter={StaticResource EqualityConverter}, ConverterParameter=4}"
                                     Command="{Binding SelectTabCommand}"
                                     CommandParameter="4"
-                                    IsVisible="{Binding IsSetupComplete}"
                                     IsEnabled="{Binding IsSetupComplete}"
                                     ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Studio.TabPublishTooltip}">
                                 <StackPanel Orientation="Horizontal" Spacing="6">

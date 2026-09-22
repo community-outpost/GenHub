@@ -111,8 +111,9 @@ public partial class PublisherStudioViewModel(
     /// </summary>
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Major Code Smell", "S2325:Make member static", Justification = "ViewModel property bound in XAML")]
     public bool IsSetupComplete =>
-        !string.IsNullOrWhiteSpace(CurrentProject?.Catalog?.Publisher?.Id) &&
-        !string.IsNullOrWhiteSpace(CurrentProject?.Catalog?.Publisher?.Name);
+        (!string.IsNullOrWhiteSpace(CurrentProject?.Catalog?.Publisher?.Id) &&
+        !string.IsNullOrWhiteSpace(CurrentProject?.Catalog?.Publisher?.Name)) ||
+        (PublishShareViewModel?.IsProviderAuthenticated == true);
 
     /// <summary>
     /// Gets a value indicating whether the Referrals tab is visible/enabled.
@@ -1074,6 +1075,7 @@ public partial class PublisherStudioViewModel(
         };
         PublishShareViewModel.ProjectReloadCallback = ReloadFromCurrentProjectAsync;
         PublishShareViewModel.NavigateToTabCallback = tabIndex => SelectedTabIndex = tabIndex;
+        PublishShareViewModel.AuthenticationChangedCallback = RefreshSetupState;
         dialogService.DuplicateAssetLookup = sha => PublishShareViewModel?.FindHostedAssetBySha256(sha);
         await PublishShareViewModel.InitializeAsync();
         HasDefinitionChanges = !PublishShareViewModel.IsDefinitionPublished;
