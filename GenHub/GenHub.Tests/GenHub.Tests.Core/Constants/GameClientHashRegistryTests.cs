@@ -23,8 +23,8 @@ public class GameClientHashRegistryTests
         Assert.True(generalsInfo);
         Assert.NotNull(info);
         Assert.Equal(GameType.Generals, info.Value.GameType);
-        Assert.Equal("1.08", info.Value.Version);
-        Assert.Equal("EA/Steam", info.Value.Publisher);
+        Assert.Equal("1.09", info.Value.Version);
+        Assert.Equal("Steam", info.Value.Publisher);
         Assert.True(info.Value.IsOfficial);
 
         // Test Zero Hour 1.04 hash
@@ -54,7 +54,7 @@ public class GameClientHashRegistryTests
     {
         // Test Generals versions
         var generalsVersion = _registry.GetVersionFromHash("1c96366ff6a99f40863f6bbcfa8bf7622e8df1f80a474201e0e95e37c6416255", GameType.Generals);
-        Assert.Equal("1.08", generalsVersion);
+        Assert.Equal("1.09", generalsVersion);
 
         // Test Zero Hour versions
         var zh104Version = _registry.GetVersionFromHash("f37a4929f8d697104e99c2bcf46f8d833122c943afcd87fd077df641d344495b", GameType.ZeroHour);

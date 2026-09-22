@@ -71,6 +71,11 @@ public partial class App : Application
     private bool _startupArgsHandled;
 
     /// <summary>
+    /// Gets the application service provider.
+    /// </summary>
+    public static IServiceProvider? Services => (Current as App)?._serviceProvider;
+
+    /// <summary>
     /// Initializes a new instance of the <see cref="App"/> class with the specified service provider.
     /// </summary>
     /// <param name="serviceProvider">The application's service provider for dependency injection.</param>

@@ -18,6 +18,11 @@ namespace GenHub.Features.GameProfiles.ViewModels;
 public partial class GameProfileSettingsViewModel
 {
     /// <summary>
+    /// The default game type name representing Zero Hour.
+    /// </summary>
+    private const string ZeroHourName = "ZeroHour";
+
+    /// <summary>
     /// Initializes the view model for creating a new profile.
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
@@ -39,8 +44,12 @@ public partial class GameProfileSettingsViewModel
             IsHotswapMode = false;
             OnPropertyChanged(nameof(CanShareProfile));
             Name = ProfileConstants.DefaultProfileName;
-            Description = "A new game profile";
+            Description = string.Empty;
             ColorValue = ProfileSharingConstants.DefaultThemeColor;
+            _isNameCustomized = false;
+            _isColorCustomized = false;
+            _isIconCustomized = false;
+            _isCoverCustomized = false;
             SelectedWorkspaceStrategy = GetDefaultWorkspaceStrategy();
             SelectedContentType = ContentType.GameClient;
 
@@ -71,6 +80,7 @@ public partial class GameProfileSettingsViewModel
             GameSettingsViewModel.ColorValue = ColorValue;
 
             await GameSettingsViewModel.InitializeForProfileAsync(null, null, SelectedGameInstallation?.GameType);
+            UpdateApplicableClientVisibility();
 
             StatusMessage = string.Empty;
         }
@@ -163,6 +173,7 @@ public partial class GameProfileSettingsViewModel
             await RefreshVisibleFiltersAsync();
 
             SelectInitialGameInstallation(profile);
+            UpdateApplicableClientVisibility();
 
             StatusMessage = string.Empty;
         }
@@ -245,10 +256,10 @@ public partial class GameProfileSettingsViewModel
         Name = profile.Name;
         Description = profile.Description ?? string.Empty;
         ColorValue = profile.ThemeColor ?? ProfileSharingConstants.DefaultThemeColor;
-        var defaultIconPath = _profileResourceService?.GetDefaultIconPath(profile.GameClient?.GameType.ToString() ?? "ZeroHour")
+        var defaultIconPath = _profileResourceService?.GetDefaultIconPath(profile.GameClient?.GameType.ToString() ?? ZeroHourName)
             ?? Core.Constants.UriConstants.DefaultIconUri;
         IconPath = NormalizeResourcePath(profile.IconPath, defaultIconPath);
-        var defaultCoverPath = _profileResourceService?.GetDefaultCoverPath(profile.GameClient?.GameType.ToString() ?? "ZeroHour") ?? string.Empty;
+        var defaultCoverPath = _profileResourceService?.GetDefaultCoverPath(profile.GameClient?.GameType.ToString() ?? ZeroHourName) ?? string.Empty;
         CoverPath = NormalizeResourcePath(profile.CoverPath, defaultCoverPath);
         SelectedWorkspaceStrategy = profile.WorkspaceStrategy ?? GetDefaultWorkspaceStrategy();
         OriginalWorkspaceStrategy = profile.WorkspaceStrategy ?? GetDefaultWorkspaceStrategy();
@@ -259,8 +270,157 @@ public partial class GameProfileSettingsViewModel
         }
 
         CommandLineArguments = profile.CommandLineArguments ?? string.Empty;
-        LoadAvailableIconsAndCovers(profile.GameClient?.GameType.ToString() ?? "ZeroHour");
+        LoadAvailableIconsAndCovers(profile.GameClient?.GameType.ToString() ?? ZeroHourName);
         GameTypeFilter = profile.GameClient?.GameType ?? Core.Models.Enums.GameType.ZeroHour;
+
+        DetermineLoadedProfileCustomizationState(profile);
+    }
+
+    private void DetermineLoadedProfileCustomizationState(GameProfile profile)
+    {
+        _isNameCustomized = IsNameCustomizedByUser(profile);
+        _isColorCustomized = IsColorCustomizedByUser(profile);
+        _isIconCustomized = IsIconCustomizedByUser(profile);
+        _isCoverCustomized = IsCoverCustomizedByUser(profile);
+    }
+
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Helper for profile customization state")]
+    private bool IsNameCustomizedByUser(GameProfile profile)
+    {
+        if (string.IsNullOrWhiteSpace(profile.Name) ||
+            string.Equals(profile.Name, ProfileConstants.DefaultProfileName, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        if (profile.GameClient != null &&
+            string.Equals(profile.Name, profile.GameClient.Name, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        var trimmedName = profile.Name.Trim();
+
+        string[] standardExactNames =
+        [
+            "Generals",
+            "Zero Hour",
+            ZeroHourName,
+            "Command & Conquer: Generals",
+            "Command & Conquer Generals",
+            "Command & Conquer: Generals - Zero Hour",
+            "Command & Conquer Generals: Zero Hour",
+            "Command & Conquer Generals Zero Hour",
+            "The Super Hackers",
+            "SuperHackers",
+            "The Super Hackers - Zero Hour",
+            "SuperHackers - Zero Hour",
+            "The Super Hackers - Generals",
+            "SuperHackers - Generals",
+            "Generals Online",
+            "GeneralsOnline",
+            "Generals Online 60Hz",
+            "GeneralsOnline 60Hz",
+            "Generals Online 30Hz",
+            "GeneralsOnline 30Hz",
+            "Community Outpost",
+            "CommunityOutpost",
+        ];
+
+        var matchesStandardPattern = standardExactNames.Any(n => string.Equals(n, trimmedName, StringComparison.OrdinalIgnoreCase)) ||
+                                     IsStandardAutoGeneratedName(trimmedName);
+
+        if (matchesStandardPattern)
+        {
+            return false;
+        }
+
+        return true;
+    }
+
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Helper for profile customization state")]
+    private bool IsStandardAutoGeneratedName(string name)
+    {
+        return name.StartsWith("Generals v", StringComparison.OrdinalIgnoreCase) ||
+               name.StartsWith("Generals 1.", StringComparison.OrdinalIgnoreCase) ||
+               name.StartsWith("Zero Hour v", StringComparison.OrdinalIgnoreCase) ||
+               name.StartsWith("Zero Hour 1.", StringComparison.OrdinalIgnoreCase) ||
+               name.StartsWith("SuperHackers", StringComparison.OrdinalIgnoreCase) ||
+               name.StartsWith("GeneralsOnline", StringComparison.OrdinalIgnoreCase) ||
+               name.StartsWith("Generals Online", StringComparison.OrdinalIgnoreCase);
+    }
+
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Helper for profile customization state")]
+    private bool IsColorCustomizedByUser(GameProfile profile)
+    {
+        if (string.IsNullOrWhiteSpace(profile.ThemeColor))
+        {
+            return false;
+        }
+
+        string[] standardColors =
+        [
+            ProfileSharingConstants.DefaultThemeColor,
+            "#5E35B1",
+            UiConstants.GeneralsThemeColor,
+            UiConstants.ZeroHourThemeColor,
+            SuperHackersConstants.ZeroHourThemeColor,
+            SuperHackersConstants.GeneralsThemeColor,
+            "#D32F2F",
+            GeneralsOnlineConstants.ThemeColor,
+            "#0D47A1",
+            CommunityOutpostConstants.ThemeColor,
+            "#2E7D32",
+        ];
+
+        return !standardColors.Any(c => string.Equals(c, profile.ThemeColor, StringComparison.OrdinalIgnoreCase));
+    }
+
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Helper for profile customization state")]
+    private bool IsIconCustomizedByUser(GameProfile profile)
+    {
+        if (string.IsNullOrWhiteSpace(profile.IconPath))
+        {
+            return false;
+        }
+
+        string[] standardIconMarkers =
+        [
+            "generals-icon",
+            "zerohour-icon",
+            "generalshub-icon",
+            "thesuperhackers-logo",
+            "generalsonline-logo",
+            "communityoutpost-logo",
+            "steam-icon",
+            "eaapp-icon",
+            "origin-icon",
+        ];
+
+        return !standardIconMarkers.Any(m => profile.IconPath.Contains(m, StringComparison.OrdinalIgnoreCase));
+    }
+
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Helper for profile customization state")]
+    private bool IsCoverCustomizedByUser(GameProfile profile)
+    {
+        if (string.IsNullOrWhiteSpace(profile.CoverPath))
+        {
+            return false;
+        }
+
+        string[] standardCoverMarkers =
+        [
+            "generals-cover",
+            "zerohour-cover",
+            "china-cover",
+            "usa-cover",
+            "gla-cover",
+            "china-poster",
+            "usa-poster",
+            "gla-poster",
+        ];
+
+        return !standardCoverMarkers.Any(m => profile.CoverPath.Contains(m, StringComparison.OrdinalIgnoreCase));
     }
 
     private async Task SaveDefaultGameSettingsAsync(string profileId)

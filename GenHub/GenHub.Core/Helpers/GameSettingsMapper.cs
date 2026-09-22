@@ -191,6 +191,12 @@ public static class GameSettingsMapper
         profile.GoEnableSoundNotifications = request.GoEnableSoundNotifications;
         profile.GoChatFontSize = request.GoChatFontSize;
 
+        // Camera settings (Non-GeneralsOnline)
+        profile.CameraHeight = request.CameraHeight;
+        profile.CameraMaxHeight = request.CameraMaxHeight;
+        profile.CameraMinHeight = request.CameraMinHeight;
+        profile.CameraPitch = request.CameraPitch;
+
         // Camera settings
         profile.GoCameraMaxHeightOnlyWhenLobbyHost = request.GoCameraMaxHeightOnlyWhenLobbyHost;
         profile.GoCameraMinHeight = request.GoCameraMinHeight;
@@ -273,6 +279,11 @@ public static class GameSettingsMapper
 
         profile.GameSpyIPAddress = request.GameSpyIPAddress ?? profile.GameSpyIPAddress;
         profile.VideoSkipEALogo = request.VideoSkipEALogo ?? profile.VideoSkipEALogo;
+
+        profile.CameraHeight = request.CameraHeight ?? profile.CameraHeight;
+        profile.CameraMaxHeight = request.CameraMaxHeight ?? profile.CameraMaxHeight;
+        profile.CameraMinHeight = request.CameraMinHeight ?? profile.CameraMinHeight;
+        profile.CameraPitch = request.CameraPitch ?? profile.CameraPitch;
     }
 
     /// <summary>
@@ -346,6 +357,11 @@ public static class GameSettingsMapper
         target.GoEnableNotifications = source.GoEnableNotifications;
         target.GoEnableSoundNotifications = source.GoEnableSoundNotifications;
         target.GoChatFontSize = source.GoChatFontSize;
+
+        target.CameraHeight = source.CameraHeight;
+        target.CameraMaxHeight = source.CameraMaxHeight;
+        target.CameraMinHeight = source.CameraMinHeight;
+        target.CameraPitch = source.CameraPitch;
 
         target.GoCameraMaxHeightOnlyWhenLobbyHost = source.GoCameraMaxHeightOnlyWhenLobbyHost;
         target.GoCameraMinHeight = source.GoCameraMinHeight;

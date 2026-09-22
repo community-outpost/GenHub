@@ -410,6 +410,48 @@ public static class GameSettingsConstants
     }
 
     /// <summary>
+    /// Camera height, pitch, and zoom limits and default values for SAGE engine games.
+    /// </summary>
+    public static class Camera
+    {
+        /// <summary>Default initial camera height.</summary>
+        public const float DefaultHeight = 232.0f;
+
+        /// <summary>Default maximum camera height (zoom out).</summary>
+        public const float DefaultMaxHeight = 310.0f;
+
+        /// <summary>Default minimum camera height (zoom in).</summary>
+        public const float DefaultMinHeight = 120.0f;
+
+        /// <summary>Default camera pitch angle in degrees.</summary>
+        public const float DefaultPitch = 37.5f;
+
+        /// <summary>Default initial camera height alias.</summary>
+        public const float CameraHeightDefault = DefaultHeight;
+
+        /// <summary>Default maximum camera height alias.</summary>
+        public const float CameraMaxHeightDefault = DefaultMaxHeight;
+
+        /// <summary>Default minimum camera height alias.</summary>
+        public const float CameraMinHeightDefault = DefaultMinHeight;
+
+        /// <summary>Default camera pitch angle alias.</summary>
+        public const float CameraPitchDefault = DefaultPitch;
+
+        /// <summary>Minimum permissible camera height.</summary>
+        public const float MinHeightLimit = 50.0f;
+
+        /// <summary>Maximum permissible camera height.</summary>
+        public const float MaxHeightLimit = 1500.0f;
+
+        /// <summary>Minimum permissible camera pitch angle.</summary>
+        public const float MinPitchLimit = 10.0f;
+
+        /// <summary>Maximum permissible camera pitch angle.</summary>
+        public const float MaxPitchLimit = 89.0f;
+    }
+
+    /// <summary>
     /// Problematic resolutions that crash or distort Generals/Zero Hour.
     /// </summary>
     public static class ProblematicResolutions

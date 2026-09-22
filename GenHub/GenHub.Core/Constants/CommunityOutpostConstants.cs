@@ -332,7 +332,9 @@ public static class CommunityOutpostConstants
         }
 
         return value.Contains("Zero Hour 1.04", System.StringComparison.OrdinalIgnoreCase) ||
-               value.Contains("Generals 1.08", System.StringComparison.OrdinalIgnoreCase);
+               value.Contains("Zero Hour 1.05", System.StringComparison.OrdinalIgnoreCase) ||
+               value.Contains("Generals 1.08", System.StringComparison.OrdinalIgnoreCase) ||
+               value.Contains("Generals 1.09", System.StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary>

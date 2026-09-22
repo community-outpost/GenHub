@@ -154,8 +154,11 @@ public class AppConstantsTests
         // Act & Assert
         Assert.Multiple(() =>
         {
-            // Test Generals 1.08
+            // Test Generals 1.08 (EA App)
             Assert.Equal("1.08", registry.GetVersionFromHash(GameClientHashRegistry.Generals108HashPublic, GameType.Generals));
+
+            // Test Generals 1.09 (Steam)
+            Assert.Equal("1.09", registry.GetVersionFromHash(GameClientHashRegistry.Generals109HashPublic, GameType.Generals));
 
             // Test Zero Hour 1.04
             Assert.Equal("1.04", registry.GetVersionFromHash(GameClientHashRegistry.ZeroHour104HashPublic, GameType.ZeroHour));
@@ -168,8 +171,8 @@ public class AppConstantsTests
 
             // Test all known hashes are recognized
             Assert.True(registry.IsKnownHash(GameClientHashRegistry.Generals108HashPublic));
+            Assert.True(registry.IsKnownHash(GameClientHashRegistry.Generals109HashPublic));
             Assert.True(registry.IsKnownHash(GameClientHashRegistry.ZeroHour104HashPublic));
-
             Assert.True(registry.IsKnownHash(GameClientHashRegistry.ZeroHour105HashPublic));
 
             // Additional hash checks can be added here

@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "lastUpdated": "2026-09-19T01:31:47.016305+00:00",
-  "totalEntries": 140,
+  "totalEntries": 141,
   "mappings": [
     {
       "exeCrc": "0x401D89EA",
@@ -32,14 +32,14 @@
       "exeCrc": "0x1C96366F",
       "iniCrc": "0x5A8E12F0",
       "sha256": null,
-      "manifestId": "1.108.steam.gameclient.generals",
+      "manifestId": "1.109.steam.gameclient.generals",
       "publisher": "steam",
       "gameType": "Generals",
-      "version": "1.08",
+      "version": "1.09",
       "buildDate": "2003-02-11",
-      "description": "Official Steam Generals 1.08",
+      "description": "Official Steam Generals 1.09",
       "cdnUrl": null,
-      "dataPatchName": "Steam 1.08 INI"
+      "dataPatchName": "Steam 1.09 INI"
     },
     {
       "exeCrc": "0x27533BB0",
@@ -1716,6 +1716,21 @@
       "description": "Community Patch (TheSuperHackers Build) 23-07-2026",
       "cdnUrl": "https://legi.cc/patch/generalszh_23-07-2026.zip",
       "dataPatchName": "Vanilla 1.04 INI"
+    },
+    {
+      "exeCrc": "0x8F98E20A",
+      "iniCrc": "0x323577BD",
+      "sha256": null,
+      "manifestId": "1.108.ea.gameclient.generals",
+      "dataPatchManifestId": null,
+      "dataPatchName": "Vanilla 1.08 INI",
+      "publisher": "ea",
+      "gameType": "Generals",
+      "version": "1.08",
+      "buildDate": "2003-02-11",
+      "description": "Official EA App Generals 1.08",
+      "cdnUrl": null,
+      "dataPatchCdnUrl": null
     }
   ]
 }

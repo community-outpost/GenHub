@@ -151,7 +151,53 @@ public partial class GameSettingsViewModel(
     }
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsZeroHour))]
     private GameType _selectedGameType;
+
+    /// <summary>
+    /// Gets a value indicating whether the selected game is Zero Hour.
+    /// </summary>
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Accesses generated observable property SelectedGameType in partial view model")]
+    public bool IsZeroHour => SelectedGameType == GameType.ZeroHour;
+
+    [ObservableProperty]
+    private bool _isTheSuperHackersVisible = true;
+
+    [ObservableProperty]
+    private bool _isGeneralsOnlineVisible = true;
+
+    /// <summary>
+    /// Gets a value indicating whether custom camera settings should be shown (for non-GeneralsOnline profiles).
+    /// </summary>
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Accesses generated observable property IsGeneralsOnlineVisible in partial view model")]
+    public bool IsCustomCameraVisible => !IsGeneralsOnlineVisible;
+
+    /// <summary>
+    /// Updates the visibility of client-specific setting categories based on active client flags.
+    /// </summary>
+    /// <param name="isTheSuperHackers">Whether TheSuperHackers client is enabled.</param>
+    /// <param name="isGeneralsOnline">Whether GeneralsOnline client is enabled.</param>
+    public void UpdateApplicableClientVisibility(bool isTheSuperHackers, bool isGeneralsOnline)
+    {
+        IsTheSuperHackersVisible = isTheSuperHackers;
+        IsGeneralsOnlineVisible = isGeneralsOnline;
+        OnPropertyChanged(nameof(IsCustomCameraVisible));
+
+        if (isGeneralsOnline)
+        {
+            ResetCameraDefaults();
+        }
+
+        if (!IsTheSuperHackersVisible && SelectedCategory == SettingsCategory.TheSuperHackers)
+        {
+            SelectedCategory = SettingsCategory.Video;
+        }
+
+        if (!IsGeneralsOnlineVisible && SelectedCategory == SettingsCategory.GeneralsOnline)
+        {
+            SelectedCategory = SettingsCategory.Video;
+        }
+    }
 
     private SettingsCategory _selectedCategory = SettingsCategory.Video;
 
@@ -415,6 +461,100 @@ public partial class GameSettingsViewModel(
     [ObservableProperty]
     private int _goChatFontSize = GameSettingsGeneralsOnlineConstants.DefaultChatFontSize;
 
+    // ===== Custom Camera Settings (Non-GeneralsOnline) =====
+    [ObservableProperty]
+    private float _cameraHeight = GameSettingsConstants.Camera.DefaultHeight;
+
+    [ObservableProperty]
+    private float _cameraMaxHeight = GameSettingsConstants.Camera.DefaultMaxHeight;
+
+    [ObservableProperty]
+    private float _cameraMinHeight = GameSettingsConstants.Camera.DefaultMinHeight;
+
+    [ObservableProperty]
+    private float _cameraPitch = GameSettingsConstants.Camera.DefaultPitch;
+
+    partial void OnCameraHeightChanged(float value)
+    {
+        var rounded = MathF.Round(value);
+        if (Math.Abs(rounded - value) > 0.001f)
+        {
+            CameraHeight = rounded;
+            return;
+        }
+
+        if (CameraHeight > CameraMaxHeight)
+        {
+            CameraMaxHeight = CameraHeight;
+        }
+
+        if (CameraHeight < CameraMinHeight)
+        {
+            CameraMinHeight = CameraHeight;
+        }
+    }
+
+    partial void OnCameraMaxHeightChanged(float value)
+    {
+        var rounded = MathF.Round(value);
+        if (Math.Abs(rounded - value) > 0.001f)
+        {
+            CameraMaxHeight = rounded;
+            return;
+        }
+
+        if (CameraMaxHeight < CameraMinHeight)
+        {
+            CameraMinHeight = CameraMaxHeight;
+        }
+
+        if (CameraHeight > CameraMaxHeight)
+        {
+            CameraHeight = CameraMaxHeight;
+        }
+    }
+
+    partial void OnCameraMinHeightChanged(float value)
+    {
+        var rounded = MathF.Round(value);
+        if (Math.Abs(rounded - value) > 0.001f)
+        {
+            CameraMinHeight = rounded;
+            return;
+        }
+
+        if (CameraMinHeight > CameraMaxHeight)
+        {
+            CameraMaxHeight = CameraMinHeight;
+        }
+
+        if (CameraHeight < CameraMinHeight)
+        {
+            CameraHeight = CameraMinHeight;
+        }
+    }
+
+    partial void OnCameraPitchChanged(float value)
+    {
+        var rounded = MathF.Round(value * 2f) / 2f;
+        if (Math.Abs(rounded - value) > 0.001f)
+        {
+            CameraPitch = rounded;
+        }
+    }
+
+    /// <summary>
+    /// Resets camera settings to standard game engine defaults.
+    /// </summary>
+    [RelayCommand]
+    private void ResetCameraDefaults()
+    {
+        CameraHeight = GameSettingsConstants.Camera.DefaultHeight;
+        CameraMaxHeight = GameSettingsConstants.Camera.DefaultMaxHeight;
+        CameraMinHeight = GameSettingsConstants.Camera.DefaultMinHeight;
+        CameraPitch = GameSettingsConstants.Camera.DefaultPitch;
+    }
+
     // Camera settings
     [ObservableProperty]
     private float _goCameraMaxHeightOnlyWhenLobbyHost = 310.0f;
@@ -424,6 +564,33 @@ public partial class GameSettingsViewModel(
 
     [ObservableProperty]
     private float _goCameraMoveSpeedRatio = 1.5f;
+
+    partial void OnGoCameraMinHeightChanged(float value)
+    {
+        var rounded = MathF.Round(value);
+        if (Math.Abs(rounded - value) > 0.001f)
+        {
+            GoCameraMinHeight = rounded;
+        }
+    }
+
+    partial void OnGoCameraMaxHeightOnlyWhenLobbyHostChanged(float value)
+    {
+        var rounded = MathF.Round(value);
+        if (Math.Abs(rounded - value) > 0.001f)
+        {
+            GoCameraMaxHeightOnlyWhenLobbyHost = rounded;
+        }
+    }
+
+    partial void OnGoCameraMoveSpeedRatioChanged(float value)
+    {
+        var rounded = MathF.Round(value * 10f) / 10f;
+        if (Math.Abs(rounded - value) > 0.001f)
+        {
+            GoCameraMoveSpeedRatio = rounded;
+        }
+    }
 
     // Chat settings
     [ObservableProperty]
@@ -604,6 +771,12 @@ public partial class GameSettingsViewModel(
             GoSocialNotificationPlayerSendsRequestGameplay = GoSocialNotificationPlayerSendsRequestGameplay,
             GoSocialNotificationPlayerSendsRequestMenus = GoSocialNotificationPlayerSendsRequestMenus,
             GameSpyIPAddress = GameSpyIPAddress,
+
+            // Camera settings
+            CameraHeight = CameraHeight,
+            CameraMaxHeight = CameraMaxHeight,
+            CameraMinHeight = CameraMinHeight,
+            CameraPitch = CameraPitch,
         };
     }
 
@@ -943,6 +1116,7 @@ public partial class GameSettingsViewModel(
         LoadVideoAudioSettingsFromProfile(profile);
         LoadTshSettingsFromProfile(profile);
         LoadGeneralsOnlineSettingsFromProfile(profile);
+        LoadCameraSettingsFromProfile(profile);
 
         if (profile.GameSpyIPAddress != null) GameSpyIPAddress = profile.GameSpyIPAddress;
 
@@ -1035,6 +1209,15 @@ public partial class GameSettingsViewModel(
         {
             TshGameWindowTransitionSpeedMultiplier = speedVal;
         }
+    }
+
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Mutates generated observable properties in partial view model")]
+    private void LoadCameraSettingsFromProfile(Core.Models.GameProfile.GameProfile profile)
+    {
+        CameraHeight = MathF.Round(profile.CameraHeight ?? GameSettingsConstants.Camera.DefaultHeight);
+        CameraMaxHeight = MathF.Round(profile.CameraMaxHeight ?? GameSettingsConstants.Camera.DefaultMaxHeight);
+        CameraMinHeight = MathF.Round(profile.CameraMinHeight ?? GameSettingsConstants.Camera.DefaultMinHeight);
+        CameraPitch = MathF.Round((profile.CameraPitch ?? GameSettingsConstants.Camera.DefaultPitch) * 2f) / 2f;
     }
 
     private void LoadGeneralsOnlineSettingsFromProfile(Core.Models.GameProfile.GameProfile profile)

@@ -611,6 +611,14 @@
     <value>Используется модифицированный exe; несовместимо с версией 1.04</value>
     <comment>Tooltip for non-retail compatible profile badge</comment>
   </data>
+  <data name="GameProfiles.Tooltip.RetailCompatibleGenerals" xml:space="preserve">
+    <value>Совместимо с оригинальной версией Generals 1.08 / 1.09 (официальный exe)</value>
+    <comment>Tooltip for retail compatible Generals profile badge</comment>
+  </data>
+  <data name="GameProfiles.Tooltip.NonRetailCompatibleGenerals" xml:space="preserve">
+    <value>Используется модифицированный exe; несовместимо с версией Generals 1.08 / 1.09</value>
+    <comment>Tooltip for non-retail compatible Generals profile badge</comment>
+  </data>
   <data name="GameProfiles.Button.AddNewProfile" xml:space="preserve">
     <value>Добавить новый профиль</value>
     <comment>Button to create a new game profile</comment>
@@ -2398,7 +2406,7 @@
     <comment>Appearance settings section header.</comment>
   </data>
   <data name="Settings.Section.CAS" xml:space="preserve">
-    <value>🔗 Хранилище Content-Addressable Storage (CAS)</value>
+    <value>Хранилище Content-Addressable Storage (CAS)</value>
     <comment>Section header for CAS settings</comment>
   </data>
   <data name="Settings.Section.CasStorage" xml:space="preserve">
@@ -3702,7 +3710,7 @@
     <value>Аргументы командной строки</value>
   </data>
   <data name="GameProfiles.General.CommandLineArgumentsWatermark" xml:space="preserve">
-    <value>-win -quickstart -mod GenEvo</value>
+    <value>-win -quickstart</value>
   </data>
   <data name="GameProfiles.General.ThemeCustomization" xml:space="preserve">
     <value>Настройка темы</value>
@@ -3865,9 +3873,6 @@
   </data>
   <data name="GameSettings.Tsh.ObserverMode" xml:space="preserve">
     <value>Режим наблюдателя</value>
-  </data>
-  <data name="GameSettings.Tsh.SkipIntro" xml:space="preserve">
-    <value>Пропускать вступительные ролики</value>
   </data>
   <data name="GameSettings.Tsh.CursorCapture" xml:space="preserve">
     <value>Захват курсора в окне</value>
@@ -8381,5 +8386,177 @@ GenHub передает официальный идентификатор AppID 
   <data name="Storage.DuplicateInstallation.GenericReinstallGuidance" xml:space="preserve">
     <value>Чтобы сохранить одну установку, переустановите поверх предыдущего расположения или переместите эту установку в разделе Настройки &gt; Перенос установки, затем удалите оставшийся дубликат.</value>
     <comment>Cross-platform guidance appended to the duplicate installation message on non-Windows hosts.</comment>
+  </data>
+
+  <data name="GameSettings.Video.ResolutionToolTip" xml:space="preserve">
+    <value>Задает разрешение экрана в игре.</value>
+  </data>
+  <data name="GameSettings.Video.DetailLevelToolTip" xml:space="preserve">
+    <value>Общий уровень детализации графики.</value>
+  </data>
+  <data name="GameSettings.Video.TextureQualityToolTip" xml:space="preserve">
+    <value>Качество и фильтрация текстур в игре.</value>
+  </data>
+  <data name="GameSettings.Video.BrightnessToolTip" xml:space="preserve">
+    <value>Настройка яркости и уровня гаммы в игре.</value>
+  </data>
+  <data name="GameSettings.Video.AntiAliasingToolTip" xml:space="preserve">
+    <value>Сглаживание неровностей и краев трехмерных объектов.</value>
+  </data>
+  <data name="GameSettings.Video.MaxParticleCountToolTip" xml:space="preserve">
+    <value>Максимальное количество частиц, отображаемых одновременно.</value>
+  </data>
+  <data name="GameSettings.Video.WindowedModeToolTip" xml:space="preserve">
+    <value>Запуск игры в оконном режиме вместо полноэкранного.</value>
+  </data>
+  <data name="GameSettings.Video.DynamicLodToolTip" xml:space="preserve">
+    <value>Автоматическая регулировка детализации для поддержания частоты кадров.</value>
+  </data>
+  <data name="GameSettings.Video.3DShadowsToolTip" xml:space="preserve">
+    <value>Отображение динамических трехмерных теней боевых единиц и строений.</value>
+  </data>
+  <data name="GameSettings.Video.2DShadowsToolTip" xml:space="preserve">
+    <value>Отображение плоских теней под боевыми единицами.</value>
+  </data>
+  <data name="GameSettings.Video.CloudShadowsToolTip" xml:space="preserve">
+    <value>Отображение теней от движущихся облаков на местности.</value>
+  </data>
+  <data name="GameSettings.Video.ExtraGroundLightingToolTip" xml:space="preserve">
+    <value>Включение улучшенного освещения и подсветки ландшафта.</value>
+  </data>
+  <data name="GameSettings.Video.SmoothWaterBordersToolTip" xml:space="preserve">
+    <value>Плавное сглаживание границ воды с береговой линией.</value>
+  </data>
+  <data name="GameSettings.Video.BehindBuildingsToolTip" xml:space="preserve">
+    <value>Подсветка силуэтов боевых единиц, скрытых за зданиями.</value>
+  </data>
+  <data name="GameSettings.Video.HeatEffectsToolTip" xml:space="preserve">
+    <value>Отображение эффекта теплового преломления воздуха (только Zero Hour).</value>
+  </data>
+  <data name="GameSettings.Video.BuildingAnimationsToolTip" xml:space="preserve">
+    <value>Включение анимации баз и нейтральных строений.</value>
+  </data>
+  <data name="GameSettings.Video.ExtraAnimationsToolTip" xml:space="preserve">
+    <value>Включение анимации окружения, таких как флаги и антенны радаров.</value>
+  </data>
+  <data name="GameSettings.Video.ParticleEffectsToolTip" xml:space="preserve">
+    <value>Включение эффектов взрывов, огня и дыма.</value>
+  </data>
+  <data name="GameSettings.Video.ShowPropsToolTip" xml:space="preserve">
+    <value>Отображение декоративных объектов карты и элементов окружения.</value>
+  </data>
+  <data name="GameSettings.Video.ShowTreesToolTip" xml:space="preserve">
+    <value>Отображение деревьев и растительности на местности.</value>
+  </data>
+  <data name="GameSettings.Audio.SoundVolumeToolTip" xml:space="preserve">
+    <value>Громкость звуковых эффектов и взрывов.</value>
+  </data>
+  <data name="GameSettings.Audio.ThreeDSoundVolumeToolTip" xml:space="preserve">
+    <value>Громкость позиционного 3D-звука.</value>
+  </data>
+  <data name="GameSettings.Audio.MusicVolumeToolTip" xml:space="preserve">
+    <value>Громкость фоновой музыки.</value>
+  </data>
+  <data name="GameSettings.Audio.SpeechVolumeToolTip" xml:space="preserve">
+    <value>Громкость речи, ответов юнитов и диктора.</value>
+  </data>
+  <data name="GameSettings.Controls.ScrollSpeedToolTip" xml:space="preserve">
+    <value>Скорость перемещения камеры по карте.</value>
+  </data>
+  <data name="GameSettings.Controls.AlternateMouseSetupToolTip" xml:space="preserve">
+    <value>Перемещение правой кнопкой мыши и выбор юнитов левой кнопкой мыши.</value>
+  </data>
+  <data name="GameSettings.Controls.DoubleClickAttackToolTip" xml:space="preserve">
+    <value>Двойной щелчок по вражескому юниту для отдачи приказа об атаке.</value>
+  </data>
+  <data name="GameSettings.Controls.AutoRetaliationToolTip" xml:space="preserve">
+    <value>Автоматический ответный огонь юнитов при атаке противником.</value>
+  </data>
+  <data name="GameSettings.Controls.FastSendDelayToolTip" xml:space="preserve">
+    <value>Интервал отправки сетевых команд в миллисекундах.</value>
+  </data>
+  <data name="GameSettings.Controls.DrawScrollAnchorToolTip" xml:space="preserve">
+    <value>Отображение визуального индикатора при прокрутке средней кнопкой мыши.</value>
+  </data>
+  <data name="GameSettings.Controls.MoveScrollAnchorToolTip" xml:space="preserve">
+    <value>Перемещение якоря при перетаскивании средней кнопкой мыши.</value>
+  </data>
+  <data name="GameSettings.Controls.LanguageFilterToolTip" xml:space="preserve">
+    <value>Фильтрация нецензурных слов в сетевом чате.</value>
+  </data>
+  <data name="GameSettings.Controls.GameTimeFontSizeToolTip" xml:space="preserve">
+    <value>Размер шрифта для отображения игрового таймера.</value>
+  </data>
+  <data name="GameSettings.Tsh.ArchiveReplaysToolTip" xml:space="preserve">
+    <value>Автоматическое сохранение и архивирование повторов матчей.</value>
+  </data>
+  <data name="GameSettings.Tsh.ShowMoneyPerMinToolTip" xml:space="preserve">
+    <value>Отображение дохода в минуту в интерфейсе игрока.</value>
+  </data>
+  <data name="GameSettings.Tsh.ObserverModeToolTip" xml:space="preserve">
+    <value>Включение расширенных возможностей для наблюдателей и зрителей.</value>
+  </data>
+  <data name="GameSettings.Go.AutoLoginToolTip" xml:space="preserve">
+    <value>Автоматический вход в Generals Online при запуске.</value>
+  </data>
+  <data name="GameSettings.Go.RememberMeToolTip" xml:space="preserve">
+    <value>Сохранение учетных данных Generals Online.</value>
+  </data>
+  <data name="GameSettings.Go.ShowRanksToolTip" xml:space="preserve">
+    <value>Отображение рейтинга игроков в лобби игры.</value>
+  </data>
+  <data name="GameSettings.Go.FpsCapToolTip" xml:space="preserve">
+    <value>Ограничение максимальной частоты кадров.</value>
+  </data>
+  <data name="GameSettings.Go.StatsOverlayToolTip" xml:space="preserve">
+    <value>Отображение оверлея со статистикой сети и системы в игре.</value>
+  </data>
+  <data name="GameSettings.Go.ShowPingToolTip" xml:space="preserve">
+    <value>Отображение пинга игроков во время матча.</value>
+  </data>
+  <data name="GameSettings.Go.ShowFpsToolTip" xml:space="preserve">
+    <value>Отображение счетчика кадров в секунду (FPS) в реальном времени.</value>
+  </data>
+  <data name="GameSettings.Go.VerboseLoggingToolTip" xml:space="preserve">
+    <value>Запись подробных диагностических логов для устранения неполадок.</value>
+  </data>
+  <data name="GameSettings.Video.SkipIntro" xml:space="preserve">
+    <value>Пропуск вступительных видео (лого EA)</value>
+  </data>
+  <data name="GameSettings.Video.SkipIntroToolTip" xml:space="preserve">
+    <value>Пропускает вступительное видео с логотипом EA при запуске игры без изменения файлов игры.</value>
+  </data>
+  <data name="GameSettings.Camera.Title" xml:space="preserve">
+    <value>Настройки камеры</value>
+  </data>
+  <data name="GameSettings.Camera.Height" xml:space="preserve">
+    <value>Высота камеры по умолчанию</value>
+  </data>
+  <data name="GameSettings.Camera.HeightToolTip" xml:space="preserve">
+    <value>Начальная высота камеры при старте матча (По умолчанию: 232.0).</value>
+  </data>
+  <data name="GameSettings.Camera.MaxHeight" xml:space="preserve">
+    <value>Макс. высота камеры (Отдаление)</value>
+  </data>
+  <data name="GameSettings.Camera.MaxHeightToolTip" xml:space="preserve">
+    <value>Максимальная дистанция отдаления камеры (По умолчанию: 310.0).</value>
+  </data>
+  <data name="GameSettings.Camera.MinHeight" xml:space="preserve">
+    <value>Мин. высота камеры (Приближение)</value>
+  </data>
+  <data name="GameSettings.Camera.MinHeightToolTip" xml:space="preserve">
+    <value>Минимальная дистанция приближения камеры (По умолчанию: 120.0).</value>
+  </data>
+  <data name="GameSettings.Camera.Pitch" xml:space="preserve">
+    <value>Угол наклона камеры</value>
+  </data>
+  <data name="GameSettings.Camera.PitchToolTip" xml:space="preserve">
+    <value>Угол наклона камеры в градусах (По умолчанию: 37.5).</value>
+  </data>
+  <data name="GameSettings.Camera.ResetDefaults" xml:space="preserve">
+    <value>Сбросить по умолчанию</value>
+  </data>
+  <data name="GameSettings.Camera.ResetDefaultsToolTip" xml:space="preserve">
+    <value>Сбросить все параметры камеры к стандартным значениям движка.</value>
   </data>
 </root>

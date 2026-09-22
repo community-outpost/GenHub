@@ -21,6 +21,7 @@ public static class GameProfileExtensions
                HasCustomAudioSettings(profile) ||
                HasCustomTshSettings(profile) ||
                HasCustomGeneralsOnlineSettings(profile) ||
+               HasCustomCameraSettings(profile) ||
                HasCustomNetworkSettings(profile);
     }
 
@@ -51,6 +52,46 @@ public static class GameProfileExtensions
 
         return profile.EnabledContentIds?
             .Any(id => id.Contains(PublisherTypeConstants.GeneralsOnline, StringComparison.OrdinalIgnoreCase)) == true;
+    }
+
+    /// <summary>
+    /// Checks if a profile runs the TheSuperHackers client.
+    /// </summary>
+    /// <param name="profile">The game profile.</param>
+    /// <returns>True if the profile runs TheSuperHackers, false otherwise.</returns>
+    public static bool IsTheSuperHackersProfile(this GameProfile profile)
+    {
+        var publisherType = profile.GameClient?.PublisherType;
+        if (!string.IsNullOrWhiteSpace(publisherType))
+        {
+            return string.Equals(publisherType, PublisherTypeConstants.TheSuperHackers, StringComparison.OrdinalIgnoreCase);
+        }
+
+        if (profile.GameClient?.Name?.Contains(PublisherTypeConstants.TheSuperHackers, StringComparison.OrdinalIgnoreCase) == true)
+        {
+            return true;
+        }
+
+        return profile.EnabledContentIds?
+            .Any(id => id.Contains(PublisherTypeConstants.TheSuperHackers, StringComparison.OrdinalIgnoreCase)) == true;
+    }
+
+    /// <summary>
+    /// Checks if a profile has custom camera settings configured for non-GeneralsOnline profiles.
+    /// </summary>
+    /// <param name="profile">The game profile.</param>
+    /// <returns>True if any camera property is set and differs from the default, false otherwise.</returns>
+    public static bool HasCustomCameraSettings(this GameProfile profile)
+    {
+        if (profile.IsGeneralsOnlineProfile())
+        {
+            return false;
+        }
+
+        return (profile.CameraHeight.HasValue && Math.Abs(profile.CameraHeight.Value - GameSettingsConstants.Camera.DefaultHeight) > 0.01f) ||
+               (profile.CameraMaxHeight.HasValue && Math.Abs(profile.CameraMaxHeight.Value - GameSettingsConstants.Camera.DefaultMaxHeight) > 0.01f) ||
+               (profile.CameraMinHeight.HasValue && Math.Abs(profile.CameraMinHeight.Value - GameSettingsConstants.Camera.DefaultMinHeight) > 0.01f) ||
+               (profile.CameraPitch.HasValue && Math.Abs(profile.CameraPitch.Value - GameSettingsConstants.Camera.DefaultPitch) > 0.01f);
     }
 
     private static bool HasCustomVideoSettings(GameProfile profile)

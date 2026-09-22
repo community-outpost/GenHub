@@ -1096,11 +1096,14 @@ public partial class GameProfileItemViewModel : ViewModelBase
                 "GameProfiles.Badge.RetailCompatible",
                 "Retail Compatible");
             CompatibilityTooltip = profile.GameClient.GameType == GameType.Generals
-                ? "Compatible with retail 1.08 (EXE CRC match)"
+                ? LocalizationConverterHelper.GetLocalizedOrDefault(
+                    loc,
+                    "GameProfiles.Tooltip.RetailCompatibleGenerals",
+                    "Compatible with retail Generals 1.08 / 1.09 (official executable)")
                 : LocalizationConverterHelper.GetLocalizedOrDefault(
                     loc,
                     "GameProfiles.Tooltip.RetailCompatible",
-                    "Compatible with retail 1.04 (EXE CRC match)");
+                    "Compatible with retail 1.04 / 1.05 (official executable)");
         }
         else
         {
@@ -1108,10 +1111,15 @@ public partial class GameProfileItemViewModel : ViewModelBase
                 loc,
                 "GameProfiles.Badge.NonRetailCompatible",
                 "Non-Retail Compatible");
-            CompatibilityTooltip = LocalizationConverterHelper.GetLocalizedOrDefault(
-                loc,
-                "GameProfiles.Tooltip.NonRetailCompatible",
-                "Non-retail executable (different EXE CRC from 1.04)");
+            CompatibilityTooltip = profile.GameClient.GameType == GameType.Generals
+                ? LocalizationConverterHelper.GetLocalizedOrDefault(
+                    loc,
+                    "GameProfiles.Tooltip.NonRetailCompatibleGenerals",
+                    "Non-retail executable (different executable from Generals 1.08 / 1.09)")
+                : LocalizationConverterHelper.GetLocalizedOrDefault(
+                    loc,
+                    "GameProfiles.Tooltip.NonRetailCompatible",
+                    "Non-retail executable (different executable from 1.04 / 1.05)");
         }
     }
 

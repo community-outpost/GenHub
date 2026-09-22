@@ -454,6 +454,16 @@ public static class ReplayManagerConstants
     public const uint RetailGeneralsExeCrcSteamValue = 0x1C96366F;
 
     /// <summary>
+    /// Hexadecimal Exe CRC string representing retail Generals 1.08 EA App build ("0x8F98E20A").
+    /// </summary>
+    public const string RetailGeneralsExeCrcEaApp = "0x8F98E20A";
+
+    /// <summary>
+    /// Numeric Exe CRC representing retail Generals 1.08 EA App build (0x8F98E20A).
+    /// </summary>
+    public const uint RetailGeneralsExeCrcEaAppValue = 0x8F98E20A;
+
+    /// <summary>
     /// Composite content ID pattern for GeneralsOnline client content.
     /// </summary>
     public const string GeneralsOnlineContentIdPattern = "GeneralsOnline_{0}";

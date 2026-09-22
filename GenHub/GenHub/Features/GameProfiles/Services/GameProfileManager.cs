@@ -594,6 +594,56 @@ public class GameProfileManager(
         }
     }
 
+    private static bool IsRequestedClientAvailable(IReadOnlyList<GameClient> availableClients, GameClient requestedClient)
+    {
+        var isAvailable = availableClients.Any(c =>
+            c.IsEnabled &&
+            string.Equals(c.Id, requestedClient.Id, StringComparison.OrdinalIgnoreCase));
+        var isProviderClient = requestedClient.SourceType == Core.Models.Enums.ContentType.GameClient &&
+                               availableClients.Any(c => c.IsEnabled && c.GameType == requestedClient.GameType);
+
+        return isAvailable || isProviderClient;
+    }
+
+    private static GameClient? FindVersionCompatibleClient(IReadOnlyList<GameClient> availableClients, GameClient targetClient)
+    {
+        var hasTargetNumeric = GameVersionHelper.TryParseStrictNumericVersion(targetClient.Version, out var targetNumeric);
+        return availableClients.FirstOrDefault(c =>
+            c.IsEnabled &&
+            c.GameType == targetClient.GameType &&
+            (string.Equals(c.Version, targetClient.Version, StringComparison.OrdinalIgnoreCase) ||
+             (hasTargetNumeric &&
+              GameVersionHelper.TryParseStrictNumericVersion(c.Version, out var clientNumeric) &&
+              clientNumeric == targetNumeric)));
+    }
+
+    private static GameClient? FindMatchingAvailableClient(
+        IReadOnlyList<GameClient> availableClients,
+        GameProfile profile,
+        UpdateProfileRequest request)
+    {
+        var enabledContentIds = request.EnabledContentIds ?? profile.EnabledContentIds ?? [];
+        var matchedClient = availableClients.FirstOrDefault(c =>
+            c.IsEnabled && enabledContentIds.Contains(c.Id, StringComparer.OrdinalIgnoreCase));
+
+        if (matchedClient != null)
+        {
+            return matchedClient;
+        }
+
+        if (profile.GameClient != null)
+        {
+            return FindVersionCompatibleClient(availableClients, profile.GameClient);
+        }
+
+        if (request.EnabledContentIds == null)
+        {
+            return availableClients.FirstOrDefault(c => c.IsEnabled);
+        }
+
+        return null;
+    }
+
     /// <summary>
     /// Attempts to resolve a fallback game client from the profile installation when the request omits the game client,
     /// or validates client compatibility when the profile's installation is changing.
@@ -630,10 +680,7 @@ public class GameProfileManager(
         var availableClients = newInstallationResult.Data.AvailableGameClients;
         if (request.GameClient != null)
         {
-            var isCompatible = availableClients.Any(c =>
-                c.IsEnabled &&
-                string.Equals(c.Id, request.GameClient.Id, StringComparison.OrdinalIgnoreCase));
-            if (!isCompatible)
+            if (!IsRequestedClientAvailable(availableClients, request.GameClient))
             {
                 return ProfileOperationResult<GameProfile>.CreateFailure(
                     $"Game client '{request.GameClient.Id}' is not available in installation '{request.GameInstallationId}'.");
@@ -643,27 +690,7 @@ public class GameProfileManager(
             return null;
         }
 
-        var enabledContentIds = request.EnabledContentIds ?? profile.EnabledContentIds ?? [];
-        var matchedClient = availableClients.FirstOrDefault(c =>
-            c.IsEnabled && enabledContentIds.Contains(c.Id, StringComparer.OrdinalIgnoreCase));
-
-        if (matchedClient == null && profile.GameClient != null)
-        {
-            var hasTargetNumeric = GameVersionHelper.TryParseStrictNumericVersion(profile.GameClient.Version, out var targetNumeric);
-            matchedClient = availableClients.FirstOrDefault(c =>
-                c.IsEnabled &&
-                c.GameType == profile.GameClient.GameType &&
-                (string.Equals(c.Version, profile.GameClient.Version, StringComparison.OrdinalIgnoreCase) ||
-                 (hasTargetNumeric &&
-                  GameVersionHelper.TryParseStrictNumericVersion(c.Version, out var clientNumeric) &&
-                  clientNumeric == targetNumeric)));
-        }
-
-        if (matchedClient == null && profile.GameClient == null && request.EnabledContentIds == null)
-        {
-            matchedClient = availableClients.FirstOrDefault(c => c.IsEnabled);
-        }
-
+        var matchedClient = FindMatchingAvailableClient(availableClients, profile, request);
         if (matchedClient != null)
         {
             request.GameClient = matchedClient.Clone();

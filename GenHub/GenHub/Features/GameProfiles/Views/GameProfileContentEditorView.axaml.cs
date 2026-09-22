@@ -21,6 +21,7 @@ public partial class GameProfileContentEditorView : UserControl
 
     private SectionScrollSpy<ContentEditorCategory>? _scrollSpy;
     private GameProfileSettingsViewModel? _subscribedViewModel;
+    private SidebarWidthSynchronizer? _sidebarSynchronizer;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="GameProfileContentEditorView"/> class.
@@ -38,6 +39,9 @@ public partial class GameProfileContentEditorView : UserControl
     {
         base.OnLoaded(e);
 
+        _sidebarSynchronizer?.Dispose();
+        _sidebarSynchronizer = SidebarWidthSynchronizer.Attach(this.FindControl<Grid>("RootGrid"), ProfileSettingsTab.Content);
+
         EnsureScrollSpy();
         SubscribeViewModel();
     }
@@ -49,6 +53,9 @@ public partial class GameProfileContentEditorView : UserControl
     protected override void OnUnloaded(RoutedEventArgs e)
     {
         base.OnUnloaded(e);
+
+        _sidebarSynchronizer?.Dispose();
+        _sidebarSynchronizer = null;
 
         _scrollSpy?.Dispose();
         _scrollSpy = null;
@@ -144,9 +151,9 @@ public partial class GameProfileContentEditorView : UserControl
 
     private void OnSpySectionActivated(ContentEditorCategory category)
     {
-        if (DataContext is GameProfileSettingsViewModel vm && vm.SelectedContentEditorCategory != category)
+        if (DataContext is GameProfileSettingsViewModel vm)
         {
-            vm.UpdateContentEditorCategoryFromScroll(category);
+            vm.SelectedContentEditorCategory = category;
         }
     }
 }

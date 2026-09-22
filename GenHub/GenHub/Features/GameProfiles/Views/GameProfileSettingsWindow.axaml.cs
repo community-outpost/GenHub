@@ -1,22 +1,51 @@
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
+using Avalonia.Interactivity;
 using Avalonia.Markup.Xaml;
 using GenHub.Common.Helpers;
 using GenHub.Core.Constants;
+using GenHub.Core.Interfaces.Common;
 using GenHub.Features.GameProfiles.ViewModels;
+using Microsoft.Extensions.DependencyInjection;
 using System;
 
 namespace GenHub.Features.GameProfiles.Views;
 
 /// <summary>
-/// Interaction logic for <c>GameProfileSettingsWindow.axaml</c>.
+/// Window for managing game profile settings.
 /// </summary>
 public partial class GameProfileSettingsWindow : Window
 {
-    // Static fields to persist window size across instances
     private static double? _savedWidth;
     private static double? _savedHeight;
+    private static WindowState? _savedWindowState;
+    private bool _isClosing;
+
+    /// <summary>
+    /// Event raised when the sidebar width is adjusted by the user.
+    /// </summary>
+    public static event EventHandler<double>? SidebarWidthChanged;
+
+    /// <summary>
+    /// Gets or sets the persisted width of the profile settings sidebar.
+    /// </summary>
+    public static double SavedSidebarWidth { get; set; } = UiConstants.DefaultProfileSettingsSidebarWidth;
+
+    /// <summary>
+    /// Gets or sets the persisted width of the content editor sidebar.
+    /// </summary>
+    public static double? SavedContentSidebarWidth { get; set; }
+
+    /// <summary>
+    /// Gets or sets the persisted width of the general settings sidebar.
+    /// </summary>
+    public static double? SavedGeneralSidebarWidth { get; set; }
+
+    /// <summary>
+    /// Gets or sets the persisted width of the game settings sidebar.
+    /// </summary>
+    public static double? SavedGameSidebarWidth { get; set; }
 
     /// <summary>
     /// Initializes a new instance of the <see cref="GameProfileSettingsWindow"/> class.
@@ -35,8 +64,133 @@ public partial class GameProfileSettingsWindow : Window
         // Subscribe to property changes to save window size
         PropertyChanged += OnPropertyChanged;
 
-        // Refresh hotswap state when window is focused/activated
+        // Subscribe to window events
         Activated += OnWindowActivated;
+    }
+
+    /// <summary>
+    /// Gets the saved sidebar width for the specified tab.
+    /// </summary>
+    /// <param name="tab">The profile settings tab.</param>
+    /// <returns>The saved width, or null if using auto-sizing.</returns>
+    public static double? GetTabSidebarWidth(ProfileSettingsTab tab) =>
+        tab switch
+        {
+            ProfileSettingsTab.Content => SavedContentSidebarWidth,
+            ProfileSettingsTab.General => SavedGeneralSidebarWidth,
+            ProfileSettingsTab.Game => SavedGameSidebarWidth,
+            _ => null,
+        };
+
+    /// <summary>
+    /// Updates and persists the sidebar width for the specified tab.
+    /// </summary>
+    /// <param name="tab">The profile settings tab.</param>
+    /// <param name="width">The new sidebar width.</param>
+    public static void UpdateTabSidebarWidth(ProfileSettingsTab tab, double width)
+    {
+        if (width <= 0)
+        {
+            return;
+        }
+
+        switch (tab)
+        {
+            case ProfileSettingsTab.Content:
+                SavedContentSidebarWidth = width;
+                break;
+            case ProfileSettingsTab.General:
+                SavedGeneralSidebarWidth = width;
+                break;
+            case ProfileSettingsTab.Game:
+                SavedGameSidebarWidth = width;
+                break;
+        }
+
+        try
+        {
+            var userSettingsService = App.Services?.GetService<IUserSettingsService>();
+            userSettingsService?.Update(s =>
+            {
+                switch (tab)
+                {
+                    case ProfileSettingsTab.Content:
+                        s.ProfileSettingsContentSidebarWidth = width;
+                        break;
+                    case ProfileSettingsTab.General:
+                        s.ProfileSettingsGeneralSidebarWidth = width;
+                        break;
+                    case ProfileSettingsTab.Game:
+                        s.ProfileSettingsGameSidebarWidth = width;
+                        break;
+                }
+            });
+            _ = userSettingsService?.SaveAsync();
+        }
+        catch
+        {
+            // Ignore settings save errors in design-time or unit-test environments
+        }
+    }
+
+    /// <summary>
+    /// Resets the saved sidebar width for the specified tab to auto-sizing.
+    /// </summary>
+    /// <param name="tab">The profile settings tab.</param>
+    public static void ResetTabSidebarWidth(ProfileSettingsTab tab)
+    {
+        switch (tab)
+        {
+            case ProfileSettingsTab.Content:
+                SavedContentSidebarWidth = null;
+                break;
+            case ProfileSettingsTab.General:
+                SavedGeneralSidebarWidth = null;
+                break;
+            case ProfileSettingsTab.Game:
+                SavedGameSidebarWidth = null;
+                break;
+        }
+
+        try
+        {
+            var userSettingsService = App.Services?.GetService<IUserSettingsService>();
+            userSettingsService?.Update(s =>
+            {
+                switch (tab)
+                {
+                    case ProfileSettingsTab.Content:
+                        s.ProfileSettingsContentSidebarWidth = null;
+                        break;
+                    case ProfileSettingsTab.General:
+                        s.ProfileSettingsGeneralSidebarWidth = null;
+                        break;
+                    case ProfileSettingsTab.Game:
+                        s.ProfileSettingsGameSidebarWidth = null;
+                        break;
+                }
+            });
+            _ = userSettingsService?.SaveAsync();
+        }
+        catch
+        {
+            // Ignore settings save errors in design-time or unit-test environments
+        }
+    }
+
+    /// <summary>
+    /// Updates the persisted sidebar width and notifies all open views.
+    /// </summary>
+    /// <param name="width">The new sidebar width.</param>
+    public static void UpdateSidebarWidth(double width)
+    {
+        if (width <= 0)
+        {
+            return;
+        }
+
+        SavedSidebarWidth = width;
+        SidebarWidthChanged?.Invoke(null, width);
     }
 
     /// <summary>
@@ -64,9 +218,28 @@ public partial class GameProfileSettingsWindow : Window
     /// </summary>
     /// <param name="sender">The sender.</param>
     /// <param name="e">The event arguments.</param>
-    public void OnToggleFullscreenClick(object sender, Avalonia.Interactivity.RoutedEventArgs e)
+    public void OnToggleFullscreenClick(object? sender, RoutedEventArgs e)
     {
         WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
+    }
+
+    /// <inheritdoc/>
+    protected override void OnOpened(EventArgs e)
+    {
+        base.OnOpened(e);
+
+        if (_savedWindowState == WindowState.Maximized)
+        {
+            WindowState = WindowState.Maximized;
+        }
+    }
+
+    /// <inheritdoc/>
+    protected override void OnClosing(WindowClosingEventArgs e)
+    {
+        PersistWindowSettingsToDisk();
+        _isClosing = true;
+        base.OnClosing(e);
     }
 
     /// <summary>
@@ -82,10 +255,50 @@ public partial class GameProfileSettingsWindow : Window
             viewModel.CloseRequested -= OnCloseRequested;
         }
 
-        // Save window size before closing
-        SaveWindowSize();
-
         base.OnClosed(e);
+    }
+
+    private static void SetInitialDimensions(
+        double? width,
+        double? height,
+        bool? isMaximized,
+        double? sidebarWidth,
+        double? contentSidebarWidth = null,
+        double? generalSidebarWidth = null,
+        double? gameSidebarWidth = null)
+    {
+        _savedWidth ??= width;
+        _savedHeight ??= height;
+        if (!_savedWindowState.HasValue && isMaximized.HasValue)
+        {
+            _savedWindowState = isMaximized.Value ? WindowState.Maximized : WindowState.Normal;
+        }
+
+        if (sidebarWidth.HasValue)
+        {
+            SavedSidebarWidth = sidebarWidth.Value;
+        }
+
+        SavedContentSidebarWidth ??= contentSidebarWidth;
+        SavedGeneralSidebarWidth ??= generalSidebarWidth;
+        SavedGameSidebarWidth ??= gameSidebarWidth;
+    }
+
+    private static void RecordWindowDimensions(WindowState state, double width, double height)
+    {
+        if (state == WindowState.Maximized)
+        {
+            _savedWindowState = WindowState.Maximized;
+        }
+        else if (state == WindowState.Normal)
+        {
+            _savedWindowState = WindowState.Normal;
+            if (width > 0 && height > 0)
+            {
+                _savedWidth = width;
+                _savedHeight = height;
+            }
+        }
     }
 
     private async void OnWindowActivated(object? sender, EventArgs e)
@@ -130,35 +343,96 @@ public partial class GameProfileSettingsWindow : Window
     }
 
     /// <summary>
-    /// Handles property changes to save window size when it changes.
+    /// Handles property changes to track window size in memory without disk churn.
     /// </summary>
-    private void OnPropertyChanged(object? sender, Avalonia.AvaloniaPropertyChangedEventArgs e)
+    private void OnPropertyChanged(object? sender, AvaloniaPropertyChangedEventArgs e)
     {
-        if (e.Property == WidthProperty || e.Property == HeightProperty)
+        if (_isClosing)
         {
-            SaveWindowSize();
+            return;
+        }
+
+        if (e.Property == WidthProperty || e.Property == HeightProperty || e.Property == WindowStateProperty)
+        {
+            UpdateInMemoryWindowSize();
         }
     }
 
     /// <summary>
-    /// Restores the window size from saved static fields.
+    /// Restores the window size and state from saved static fields or user settings.
     /// </summary>
     private void RestoreWindowSize()
     {
+        try
+        {
+            var userSettingsService = App.Services?.GetService<IUserSettingsService>();
+            var settings = userSettingsService?.Get();
+            if (settings != null)
+            {
+                SetInitialDimensions(
+                    settings.ProfileSettingsWindowWidth,
+                    settings.ProfileSettingsWindowHeight,
+                    settings.ProfileSettingsWindowIsMaximized,
+                    settings.ProfileSettingsSidebarWidth,
+                    settings.ProfileSettingsContentSidebarWidth,
+                    settings.ProfileSettingsGeneralSidebarWidth,
+                    settings.ProfileSettingsGameSidebarWidth);
+            }
+        }
+        catch
+        {
+            // Fallback to defaults if settings service is unavailable
+        }
+
         Width = _savedWidth ?? UiConstants.DefaultProfileSettingsWidth;
         Height = _savedHeight ?? UiConstants.DefaultProfileSettingsHeight;
+        if (_savedWindowState.HasValue)
+        {
+            WindowState = _savedWindowState.Value;
+        }
     }
 
     /// <summary>
-    /// Saves the current window size to static fields.
+    /// Updates the static fields tracking the current window state and dimensions in memory.
     /// </summary>
-    private void SaveWindowSize()
+    private void UpdateInMemoryWindowSize()
     {
-        // Only save size if window is in normal state (not maximized or minimized)
-        if (WindowState == WindowState.Normal && Width > 0 && Height > 0)
+        RecordWindowDimensions(WindowState, Width, Height);
+    }
+
+    /// <summary>
+    /// Persists the current window size and sidebar dimensions to user settings on disk.
+    /// </summary>
+    private void PersistWindowSettingsToDisk()
+    {
+        UpdateInMemoryWindowSize();
+
+        try
         {
-            _savedWidth = Width;
-            _savedHeight = Height;
+            var userSettingsService = App.Services?.GetService<IUserSettingsService>();
+            userSettingsService?.Update(s =>
+            {
+                s.ProfileSettingsWindowIsMaximized = _savedWindowState == WindowState.Maximized;
+                if (_savedWidth.HasValue)
+                {
+                    s.ProfileSettingsWindowWidth = _savedWidth.Value;
+                }
+
+                if (_savedHeight.HasValue)
+                {
+                    s.ProfileSettingsWindowHeight = _savedHeight.Value;
+                }
+
+                s.ProfileSettingsSidebarWidth = SavedSidebarWidth;
+                s.ProfileSettingsContentSidebarWidth = SavedContentSidebarWidth;
+                s.ProfileSettingsGeneralSidebarWidth = SavedGeneralSidebarWidth;
+                s.ProfileSettingsGameSidebarWidth = SavedGameSidebarWidth;
+            });
+            _ = userSettingsService?.SaveAsync();
+        }
+        catch
+        {
+            // Ignore settings save errors in design-time or unit-test environments
         }
     }
 }

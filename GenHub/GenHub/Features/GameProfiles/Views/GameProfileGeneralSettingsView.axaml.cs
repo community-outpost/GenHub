@@ -22,6 +22,7 @@ public partial class GameProfileGeneralSettingsView : UserControl
 
     private SectionScrollSpy<GeneralSettingsCategory>? _scrollSpy;
     private GameProfileSettingsViewModel? _boundViewModel;
+    private SidebarWidthSynchronizer? _sidebarSynchronizer;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="GameProfileGeneralSettingsView"/> class.
@@ -38,6 +39,9 @@ public partial class GameProfileGeneralSettingsView : UserControl
     protected override void OnLoaded(RoutedEventArgs e)
     {
         base.OnLoaded(e);
+
+        _sidebarSynchronizer?.Dispose();
+        _sidebarSynchronizer = SidebarWidthSynchronizer.Attach(this.FindControl<Grid>("RootGrid"), ProfileSettingsTab.General);
 
         EnsureScrollSpy();
         if (DataContext is GameProfileSettingsViewModel vm)
@@ -72,6 +76,9 @@ public partial class GameProfileGeneralSettingsView : UserControl
     protected override void OnUnloaded(RoutedEventArgs e)
     {
         base.OnUnloaded(e);
+
+        _sidebarSynchronizer?.Dispose();
+        _sidebarSynchronizer = null;
 
         _scrollSpy?.Dispose();
         _scrollSpy = null;

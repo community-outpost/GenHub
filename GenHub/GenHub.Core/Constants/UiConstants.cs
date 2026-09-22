@@ -28,12 +28,12 @@ public static class UiConstants
     /// <summary>
     /// Default width for the profile settings sidebar in pixels.
     /// </summary>
-    public const double DefaultProfileSettingsSidebarWidth = 190;
+    public const double DefaultProfileSettingsSidebarWidth = 140;
 
     /// <summary>
     /// Minimum width for the profile settings sidebar (shows icons only) in pixels.
     /// </summary>
-    public const double MinProfileSettingsSidebarWidth = 68;
+    public const double MinProfileSettingsSidebarWidth = 58;
 
     /// <summary>
     /// Maximum width for the profile settings sidebar in pixels.

@@ -8,7 +8,7 @@ using System;
 namespace GenHub.Features.GameProfiles.Views;
 
 /// <summary>
-/// View for game settings (Options.ini) management with sidebar navigation and scroll spy.
+/// View for game configuration settings (Renderer, Audio, etc.).
 /// </summary>
 public partial class GameSettingsView : UserControl
 {
@@ -22,6 +22,7 @@ public partial class GameSettingsView : UserControl
     ];
 
     private SectionScrollSpy<SettingsCategory>? _scrollSpy;
+    private SidebarWidthSynchronizer? _sidebarSynchronizer;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="GameSettingsView"/> class.
@@ -38,6 +39,9 @@ public partial class GameSettingsView : UserControl
     protected override void OnLoaded(RoutedEventArgs e)
     {
         base.OnLoaded(e);
+
+        _sidebarSynchronizer?.Dispose();
+        _sidebarSynchronizer = SidebarWidthSynchronizer.Attach(this.FindControl<Grid>("RootGrid"), ProfileSettingsTab.Game);
 
         var scrollViewer = this.FindControl<ScrollViewer>("SettingsScrollViewer");
         if (scrollViewer == null)
@@ -72,6 +76,9 @@ public partial class GameSettingsView : UserControl
     protected override void OnUnloaded(RoutedEventArgs e)
     {
         base.OnUnloaded(e);
+
+        _sidebarSynchronizer?.Dispose();
+        _sidebarSynchronizer = null;
 
         _scrollSpy?.Dispose();
         _scrollSpy = null;

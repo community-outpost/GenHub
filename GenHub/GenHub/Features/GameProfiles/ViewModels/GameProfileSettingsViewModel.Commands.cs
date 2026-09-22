@@ -161,6 +161,17 @@ public partial class GameProfileSettingsViewModel
                 continue;
             }
 
+            if (newItems.Any(existing =>
+                string.Equals(existing.ManifestId.Value, coreItem.ManifestId, StringComparison.OrdinalIgnoreCase) ||
+                (existing.ContentType == coreItem.ContentType &&
+                 existing.GameType == coreItem.GameType &&
+                 string.Equals(existing.DisplayName, coreItem.DisplayName, StringComparison.OrdinalIgnoreCase) &&
+                 string.Equals(existing.Publisher, coreItem.Publisher, StringComparison.OrdinalIgnoreCase) &&
+                 string.Equals(existing.Version, coreItem.Version, StringComparison.OrdinalIgnoreCase))))
+            {
+                continue;
+            }
+
             try
             {
                 newItems.Add(ConvertToViewModelContentDisplayItem(coreItem));
@@ -310,6 +321,9 @@ public partial class GameProfileSettingsViewModel
 
             UpdateAvailableContentOnDisable(itemToRemove);
             UpdateSelectedInstallationOnDisable(itemToRemove);
+            UpdateApplicableClientVisibility();
+
+            ApplyPrimaryBranding();
 
             StatusMessage = $"Disabled {itemToRemove.DisplayName}";
             _logger?.LogInformation("Disabled content {ContentName} from profile", itemToRemove.DisplayName);
@@ -348,6 +362,12 @@ public partial class GameProfileSettingsViewModel
         {
             SelectedGameInstallation = null;
             _logger?.LogInformation("Cleared SelectedGameInstallation");
+
+            var remainingInstallation = EnabledContent.FirstOrDefault(e => e.ContentType == ContentType.GameInstallation && e.ManifestId.Value != itemToRemove.ManifestId.Value);
+            if (remainingInstallation != null)
+            {
+                SelectedGameInstallation = remainingInstallation;
+            }
         }
         else if (itemToRemove.ContentType is ContentType.GameClient or ContentType.Mod &&
                  SelectedGameInstallation != null &&
@@ -1033,6 +1053,7 @@ public partial class GameProfileSettingsViewModel
         if (icon == null) return;
         SelectedIcon = icon;
         IconPath = icon.Path;
+        _isIconCustomized = true;
         _logger?.LogInformation("Selected icon: {DisplayName} ({Path})", icon.DisplayName, icon.Path);
     }
 
@@ -1042,6 +1063,7 @@ public partial class GameProfileSettingsViewModel
         if (cover == null) return;
         SelectedCoverItem = cover;
         CoverPath = cover.Path;
+        _isCoverCustomized = true;
         _logger?.LogInformation("Selected cover: {DisplayName} ({Path})", cover.DisplayName, cover.Path);
     }
 
@@ -1077,6 +1099,7 @@ public partial class GameProfileSettingsViewModel
                     var selectedFile = result[0];
                     IconPath = selectedFile.Path.LocalPath;
                     SelectedIcon = null;
+                    _isIconCustomized = true;
                     _logger?.LogInformation("Selected custom icon: {Path}", IconPath);
                     StatusMessage = "Custom icon selected";
                 }
@@ -1121,6 +1144,7 @@ public partial class GameProfileSettingsViewModel
                     var selectedFile = result[0];
                     CoverPath = selectedFile.Path.LocalPath;
                     SelectedCoverItem = null;
+                    _isCoverCustomized = true;
                     _logger?.LogInformation("Selected custom cover: {Path}", CoverPath);
                     StatusMessage = "Custom cover selected";
                 }
@@ -1144,6 +1168,7 @@ public partial class GameProfileSettingsViewModel
         };
 
         ColorValue = colors[System.Security.Cryptography.RandomNumberGenerator.GetInt32(colors.Count)];
+        _isColorCustomized = true;
         if (GameSettingsViewModel != null)
         {
             GameSettingsViewModel.ColorValue = ColorValue;
@@ -1159,6 +1184,7 @@ public partial class GameProfileSettingsViewModel
         if (!string.IsNullOrEmpty(color))
         {
             ColorValue = color;
+            _isColorCustomized = true;
             if (GameSettingsViewModel != null)
             {
                 GameSettingsViewModel.ColorValue = ColorValue;
