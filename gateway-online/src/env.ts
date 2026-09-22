@@ -18,7 +18,10 @@ export interface OnlineEnv {
   REPORT_RATE_LIMIT?: string;
   REPORT_RATE_WINDOW_SECONDS?: string;
   OVERLAY_SUBNET?: string;
+  OVERLAY_NAME?: string;
   TURN_URIS?: string;
+  RELAY_HOST?: string;
+  RELAY_PORT?: string;
   SESSION_RATE_LIMIT?: string;
   SESSION_RATE_WINDOW_SECONDS?: string;
 }
@@ -98,4 +101,5 @@ export interface RoomMeta {
 
 export const QUALITY_UNKNOWN = 0;
 export const QUALITY_DIRECT = 1;
+
 export const QUALITY_RELAY = 2;

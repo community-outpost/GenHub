@@ -11,16 +11,18 @@ using System.Threading.Tasks;
 namespace GenHub.Features.Online.Services;
 
 /// <summary>
-/// Shared virtual LAN adapter orchestration backed by the overlay sidecar host.
+/// Shared virtual LAN adapter orchestration backed by the overlay sidecar host with in-process tunnel fallback.
 /// Platform modules compose this class with their own sidecar locator.
 /// </summary>
 /// <param name="host">The overlay sidecar host.</param>
 /// <param name="locator">The platform sidecar locator.</param>
 /// <param name="logger">The logger.</param>
+/// <param name="tunnelRunner">Optional in-process tunnel runner fallback.</param>
 public sealed class SharedVirtualLanAdapter(
     IOverlaySidecarHost host,
     IOverlaySidecarLocator locator,
-    ILogger<SharedVirtualLanAdapter> logger) : IVirtualLanAdapter, IDisposable
+    ILogger<SharedVirtualLanAdapter> logger,
+    ITunnelRunner? tunnelRunner = null) : IVirtualLanAdapter, IDisposable
 {
     private readonly SemaphoreSlim _lifecycleLock = new(1, 1);
     private bool _disposed;
@@ -55,6 +57,21 @@ public sealed class SharedVirtualLanAdapter(
             var start = await host.StartAsync(adapterConfig, locator, cancellationToken);
             if (!start.Success)
             {
+                if (tunnelRunner != null)
+                {
+                    logger.LogInformation(
+                        "Overlay sidecar not available ({Error}); falling back to in-process tunnel runner.",
+                        start.Errors.Count > 0 ? start.Errors[0] : "not found");
+
+                    var runnerStart = await tunnelRunner.StartAsync(adapterConfig, overlayIp, cancellationToken);
+                    if (runnerStart.Success)
+                    {
+                        OverlayIp = overlayIp;
+                        SetState(OnlineAdapterState.Up);
+                        return OperationResult<bool>.CreateSuccess(true);
+                    }
+                }
+
                 logger.LogWarning("Sidecar start failed.");
                 return Fail(start.Errors.Count > 0 ? start.Errors[0] : "Sidecar start failed.");
             }
@@ -77,6 +94,11 @@ public sealed class SharedVirtualLanAdapter(
         {
             SetState(OnlineAdapterState.Stopping);
             await host.StopAsync(cancellationToken);
+            if (tunnelRunner?.IsRunning == true)
+            {
+                await tunnelRunner.StopAsync(cancellationToken);
+            }
+
             OverlayIp = null;
             SetState(OnlineAdapterState.Down);
             return OperationResult<bool>.CreateSuccess(true);
@@ -96,19 +118,32 @@ public sealed class SharedVirtualLanAdapter(
         }
 
         _disposed = true;
+        (host as IDisposable)?.Dispose();
+        tunnelRunner?.Dispose();
         _lifecycleLock.Dispose();
     }
 
-    private OperationResult<bool> Fail(string message)
+    private void SetState(OnlineAdapterState next)
     {
-        SetState(OnlineAdapterState.Error);
-        SetState(OnlineAdapterState.Down);
-        return OperationResult<bool>.CreateFailure(message);
+        if (State == next)
+        {
+            return;
+        }
+
+        State = next;
+        try
+        {
+            StateChanged?.Invoke(this, next);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Virtual LAN adapter state change notification threw.");
+        }
     }
 
-    private void SetState(OnlineAdapterState state)
+    private OperationResult<bool> Fail(string error)
     {
-        State = state;
-        StateChanged?.Invoke(this, state);
+        SetState(OnlineAdapterState.Down);
+        return OperationResult<bool>.CreateFailure(error);
     }
 }

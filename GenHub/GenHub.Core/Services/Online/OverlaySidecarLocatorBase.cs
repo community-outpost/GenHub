@@ -7,7 +7,7 @@ using System.Text;
 namespace GenHub.Core.Services.Online;
 
 /// <summary>
-/// Base sidecar locator honoring the binary override and a single platform candidate path.
+/// Base sidecar locator honoring the binary override and platform candidate paths.
 /// </summary>
 public abstract class OverlaySidecarLocatorBase : IOverlaySidecarLocator
 {
@@ -28,6 +28,23 @@ public abstract class OverlaySidecarLocatorBase : IOverlaySidecarLocator
         if (!string.IsNullOrWhiteSpace(overridePath) && IsValidCandidate(overridePath))
         {
             return overridePath;
+        }
+
+        var appBase = AppContext.BaseDirectory;
+        if (!string.IsNullOrWhiteSpace(appBase) && CandidateSegments.Length > 0)
+        {
+            var binaryName = CandidateSegments[^1];
+            var localCandidate = Path.Combine(appBase, binaryName);
+            if (IsValidCandidate(localCandidate))
+            {
+                return localCandidate;
+            }
+
+            var subDirCandidate = Path.Combine(appBase, OnlineConstants.OverlaySubDir, binaryName);
+            if (IsValidCandidate(subDirCandidate))
+            {
+                return subDirCandidate;
+            }
         }
 
         var basePath = Environment.GetFolderPath(BaseFolder);
@@ -69,46 +86,27 @@ public abstract class OverlaySidecarLocatorBase : IOverlaySidecarLocator
     }
 
     /// <summary>
-    /// Determines whether the candidate path is a usable sidecar binary.
-    /// Unix platforms additionally require the executable bit.
+    /// Escapes an argument for safe quoting in a process start command line.
     /// </summary>
-    /// <param name="path">The candidate path.</param>
-    /// <returns>True when the binary can be launched.</returns>
-    protected virtual bool IsValidCandidate(string path)
+    /// <param name="value">The raw argument.</param>
+    /// <returns>The escaped argument.</returns>
+    protected static string EscapeArgument(string value)
     {
-        return File.Exists(path);
+        return value.Replace("\"", "\\\"");
     }
 
-    private static string EscapeArgument(string value)
+    private static bool IsValidCandidate(string path)
     {
-        // Quote-aware escaping for argv parsing: double backslashes ahead of
-        // a quote or the closing quote, and escape embedded quotes, so paths
-        // with quotes or trailing backslashes survive intact.
-        var builder = new StringBuilder();
-        var backslashes = 0;
-        foreach (var c in value)
+        if (!File.Exists(path))
         {
-            if (c == '\\')
-            {
-                backslashes++;
-                continue;
-            }
-
-            if (c == '"')
-            {
-                builder.Append('\\', (backslashes * 2) + 1);
-                builder.Append('"');
-            }
-            else
-            {
-                builder.Append('\\', backslashes);
-                builder.Append(c);
-            }
-
-            backslashes = 0;
+            return false;
         }
 
-        builder.Append('\\', backslashes * 2);
-        return builder.ToString();
+        if (OperatingSystem.IsWindows())
+        {
+            return true;
+        }
+
+        return HasExecutePermission(path);
     }
 }

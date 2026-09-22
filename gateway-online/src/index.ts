@@ -31,6 +31,7 @@ const DEFAULT_GRANT_TTL = 600;
 const DEFAULT_TURN_TTL = 1800;
 const DEFAULT_MAX_PER_IP = 10;
 const DEFAULT_SUBNET = "10.42.0.0/20"; // NOSONAR - private overlay range, never a routable target
+const DEFAULT_OVERLAY = "genhub-tun";
 const DEFAULT_DIRECTORY_PER_MIN = 600;
 const DEFAULT_SESSION_RATE_LIMIT = 600;
 const DEFAULT_SESSION_RATE_WINDOW_SECONDS = 60;
@@ -225,7 +226,8 @@ const roomMembership = async (
 export const buildAdapterConfig = async (
   env: OnlineEnv,
   networkId: string,
-  member: string
+  member: string,
+  overlayIp?: string
 ): Promise<string> => {
   const uris = parseTurnUris(env.TURN_URIS);
   const coturnSecret = secretOrEmpty(env.COTURN_SECRET);
@@ -240,10 +242,15 @@ export const buildAdapterConfig = async (
     }
   }
   const config = {
-    v: 0,
-    overlay: "pending-selection",
+    v: 1,
+    overlay: env.OVERLAY_NAME ?? DEFAULT_OVERLAY,
     subnet: env.OVERLAY_SUBNET ?? DEFAULT_SUBNET,
+    overlayIp: overlayIp ?? "",
     networkId,
+    relay: {
+      host: env.RELAY_HOST ?? "152.70.171.121",
+      port: numVar(env.RELAY_PORT, 8088),
+    },
     turn,
   };
   return btoa(JSON.stringify(config));
@@ -363,7 +370,7 @@ const handleCreate = async (request: Request, env: OnlineEnv): Promise<Response>
     grant,
     grantExpiresUtc: new Date(Date.now() + grantTtl * 1000).toISOString(),
     overlayIp: init.member.overlayIp,
-    adapterConfig: await buildAdapterConfig(env, networkId, session.sub),
+    adapterConfig: await buildAdapterConfig(env, networkId, session.sub, init.member.overlayIp),
     members: init.members,
     ...expectedProfileResponse(init.expectedProfile),
   });
@@ -433,7 +440,7 @@ const handleJoin = async (request: Request, env: OnlineEnv, networkId: string): 
     grant,
     grantExpiresUtc: new Date(Date.now() + grantTtl * 1000).toISOString(),
     overlayIp: payload.member.overlayIp,
-    adapterConfig: await buildAdapterConfig(env, networkId, session.sub),
+    adapterConfig: await buildAdapterConfig(env, networkId, session.sub, payload.member.overlayIp),
     members: payload.members ?? [],
     ...expectedProfileResponse(payload.expectedProfile),
   });
@@ -648,7 +655,7 @@ const handleOverlayCert = async (request: Request, env: OnlineEnv, networkId: st
   return json({
     grant: refreshed,
     grantExpiresUtc: new Date(Date.now() + grantTtl * 1000).toISOString(),
-    adapterConfig: await buildAdapterConfig(env, networkId, grant.sub),
+    adapterConfig: await buildAdapterConfig(env, networkId, grant.sub, grant.ip),
   });
 };
 
