@@ -13255,6 +13255,45 @@ Project structure ready. Edit files in GameFilesEdited folder.</value>
   <data name="Tools.PublisherStudio.Release.AddonCategory" xml:space="preserve">
     <value>Addon Category</value>
   </data>
+  <data name="Tools.PublisherStudio.Hosting.Step1Title" xml:space="preserve">
+    <value>Step 1: Connect Cloud Hosting</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.Step1Desc" xml:space="preserve">
+    <value>Connect your cloud hosting provider (Google Drive, Dropbox, or GitHub) to automatically discover and sync your existing publisher definition and catalogs, or to set up cloud hosting for a new publisher.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.ConfigureLocalProfile" xml:space="preserve">
+    <value>Configure Local Profile Instead</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.ConfigureLocalProfileTip" xml:space="preserve">
+    <value>Skip cloud sync and configure a publisher profile on this device</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DiscoveredDefinitionTitle" xml:space="preserve">
+    <value>Publisher Definition Discovered in Cloud</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DiscoveredDefinitionDesc" xml:space="preserve">
+    <value>An existing publisher definition was found in your cloud storage. Pull it into Publisher Studio to automatically import your publisher profile, catalogs, and releases.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.PullDefinitionAction" xml:space="preserve">
+    <value>Pull Definition into Studio</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.PullDefinitionTip" xml:space="preserve">
+    <value>Download and sync this publisher definition and all attached catalogs into Studio</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.NoDefinitionFoundTitle" xml:space="preserve">
+    <value>Connected to Cloud Storage</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.NoDefinitionFoundDesc" xml:space="preserve">
+    <value>No existing publisher definition was found in your cloud folder. You are connected and ready to create your publisher identity.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.CreateProfileBtn" xml:space="preserve">
+    <value>Create Publisher Profile</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.OrCreateNewProfile" xml:space="preserve">
+    <value>Or create new profile</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.OrCreateNewProfileTip" xml:space="preserve">
+    <value>Start with a brand new profile instead of pulling this definition</value>
+  </data>
   <data name="GameProfiles.Notification.UnexpectedExit.Title" xml:space="preserve">
     <value>Game Exited Unexpectedly</value>
   </data>

@@ -167,13 +167,105 @@
                 </Grid>
             </Border>
 
-            <!-- Not Connected Hint Banner -->
+            <!-- Onboarding Step 1: Connect Cloud Provider -->
             <Border IsVisible="{Binding !IsProviderAuthenticated}"
-                    Background="{DynamicResource StatusWarningBadgeBackgroundBrush}" BorderBrush="{DynamicResource WarningHighlightBrush}" BorderThickness="1" CornerRadius="8"
-                    Padding="14,10" Margin="0,0,0,20">
-                <Grid ColumnDefinitions="Auto,*">
-                    <PathIcon Grid.Column="0" Data="{StaticResource CloudStorageIcon}" Width="14" Height="14" Foreground="{DynamicResource WarningHighlightBrush}" Margin="0,0,10,0" VerticalAlignment="Center"/>
-                    <TextBlock Grid.Column="1" Text="{localization:Localize Tools.PublisherStudio.Hosting.NotConnectedHint}" FontSize="12" Foreground="{DynamicResource TextPrimary}" VerticalAlignment="Center" TextWrapping="Wrap"/>
+                    Classes="glass-card"
+                    BorderBrush="{DynamicResource AccentColorBrush}"
+                    BorderThickness="1.5"
+                    CornerRadius="10"
+                    Padding="18,14"
+                    Margin="0,0,0,20">
+                <Grid ColumnDefinitions="Auto,*,Auto">
+                    <Border Grid.Column="0" Width="38" Height="38" CornerRadius="8" Background="{DynamicResource PrimaryGradientBrush}" VerticalAlignment="Center" Margin="0,0,14,0">
+                        <PathIcon Data="{StaticResource CloudStorageIcon}" Width="18" Height="18" Foreground="White"/>
+                    </Border>
+                    <StackPanel Grid.Column="1" Spacing="3" VerticalAlignment="Center">
+                        <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.Step1Title}"
+                                   FontSize="14" FontWeight="Bold" Foreground="{DynamicResource TextPrimary}"/>
+                        <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.Step1Desc}"
+                                   FontSize="12" Foreground="{DynamicResource TextSecondary}" TextWrapping="Wrap"/>
+                    </StackPanel>
+                    <Button Grid.Column="2" Classes="glass-btn"
+                            Command="{Binding CreateNewProfileCommand}"
+                            VerticalAlignment="Center"
+                            Margin="14,0,0,0"
+                            ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Hosting.ConfigureLocalProfileTip}">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <PathIcon Data="{StaticResource PersonIcon}" Width="12" Height="12" Foreground="{DynamicResource TextSecondary}"/>
+                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.ConfigureLocalProfile}" FontSize="11" Foreground="{DynamicResource TextSecondary}"/>
+                        </StackPanel>
+                    </Button>
+                </Grid>
+            </Border>
+
+            <!-- Discovered Cloud Definition Sync Card -->
+            <Border IsVisible="{Binding ShowDiscoveredDefinitionBanner}"
+                    Background="{DynamicResource GlassFillSubtleBrush}"
+                    BorderBrush="{DynamicResource StatusSuccessBrush}"
+                    BorderThickness="1.5"
+                    CornerRadius="10"
+                    Padding="18,14"
+                    Margin="0,0,0,20">
+                <Grid ColumnDefinitions="Auto,*,Auto">
+                    <Border Grid.Column="0" Width="38" Height="38" CornerRadius="8" Background="{DynamicResource StatusSuccessBadgeBackgroundBrush}" BorderBrush="{DynamicResource StatusSuccessBrush}" BorderThickness="1" VerticalAlignment="Center" Margin="0,0,14,0">
+                        <PathIcon Data="{StaticResource ConfirmationCheckIcon}" Width="18" Height="18" Foreground="{DynamicResource StatusSuccessBrush}"/>
+                    </Border>
+                    <StackPanel Grid.Column="1" Spacing="3" VerticalAlignment="Center">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.DiscoveredDefinitionTitle}"
+                                       FontSize="14" FontWeight="Bold" Foreground="{DynamicResource TextPrimary}"/>
+                            <Border Classes="status-badge-active" VerticalAlignment="Center">
+                                <TextBlock Text="{Binding DiscoveredDefinitionFileName}" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource StatusSuccessBrush}"/>
+                            </Border>
+                        </StackPanel>
+                        <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.DiscoveredDefinitionDesc}"
+                                   FontSize="12" Foreground="{DynamicResource TextSecondary}" TextWrapping="Wrap"/>
+                    </StackPanel>
+                    <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center" Margin="14,0,0,0">
+                        <Button Classes="primary-btn"
+                                Command="{Binding PullPrimaryCloudDefinitionCommand}"
+                                ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Hosting.PullDefinitionTip}">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <PathIcon Data="{StaticResource DownloadIcon}" Width="14" Height="14" Foreground="White"/>
+                                <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.PullDefinitionAction}" FontSize="12" FontWeight="SemiBold" Foreground="White"/>
+                            </StackPanel>
+                        </Button>
+                        <Button Classes="glass-btn"
+                                Command="{Binding CreateNewProfileCommand}"
+                                ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Hosting.OrCreateNewProfileTip}">
+                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.OrCreateNewProfile}" FontSize="11" Foreground="{DynamicResource TextSecondary}"/>
+                        </Button>
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <!-- Connected But No Definition Found Card -->
+            <Border IsVisible="{Binding ShowNoDefinitionBanner}"
+                    Background="{DynamicResource GlassFillSubtleBrush}"
+                    BorderBrush="{DynamicResource GlassBorderStrongBrush}"
+                    BorderThickness="1"
+                    CornerRadius="10"
+                    Padding="18,14"
+                    Margin="0,0,0,20">
+                <Grid ColumnDefinitions="Auto,*,Auto">
+                    <Border Grid.Column="0" Width="38" Height="38" CornerRadius="8" Background="{DynamicResource GlassFillBrush}" VerticalAlignment="Center" Margin="0,0,14,0">
+                        <PathIcon Data="{StaticResource CloudStorageIcon}" Width="18" Height="18" Foreground="{DynamicResource AccentLightBrush}"/>
+                    </Border>
+                    <StackPanel Grid.Column="1" Spacing="3" VerticalAlignment="Center">
+                        <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.NoDefinitionFoundTitle}"
+                                   FontSize="14" FontWeight="Bold" Foreground="{DynamicResource TextPrimary}"/>
+                        <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.NoDefinitionFoundDesc}"
+                                   FontSize="12" Foreground="{DynamicResource TextSecondary}" TextWrapping="Wrap"/>
+                    </StackPanel>
+                    <Button Grid.Column="2" Classes="primary-btn"
+                            Command="{Binding CreateNewProfileCommand}"
+                            VerticalAlignment="Center"
+                            Margin="14,0,0,0">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <PathIcon Data="{StaticResource PersonIcon}" Width="14" Height="14" Foreground="White"/>
+                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.CreateProfileBtn}" FontSize="12" FontWeight="SemiBold" Foreground="White"/>
+                        </StackPanel>
+                    </Button>
                 </Grid>
             </Border>
 
@@ -427,11 +519,18 @@
                         <Button Classes="primary-btn"
                                 Command="{Binding AuthenticateCommand}"
                                 IsEnabled="{Binding !IsAuthenticating}"
+                                IsVisible="{Binding !IsProviderAuthenticated}"
                                 ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Hosting.ConnectProviderTip}">
                             <StackPanel Orientation="Horizontal" Spacing="8">
                                 <PathIcon Data="{StaticResource ConfirmationCheckIcon}" Width="14" Height="14" Foreground="{DynamicResource TextPrimary}"/>
                                 <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.ConnectProvider}" FontSize="12" Foreground="{DynamicResource TextPrimary}"/>
                             </StackPanel>
+                        </Button>
+
+                        <Button Classes="glass-btn"
+                                Command="{Binding SignOutCommand}"
+                                IsVisible="{Binding IsProviderAuthenticated}">
+                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.Disconnect}" FontSize="12" Foreground="{DynamicResource TextSecondary}"/>
                         </Button>
 
                         <Button Classes="glass-btn"

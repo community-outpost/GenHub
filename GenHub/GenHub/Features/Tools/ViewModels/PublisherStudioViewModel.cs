@@ -67,7 +67,7 @@ public partial class PublisherStudioViewModel(
     private PublisherStudioProject? _currentProject;
 
     [ObservableProperty]
-    private int _selectedTabIndex;
+    private int _selectedTabIndex = TabHostingStorage;
 
     [ObservableProperty]
     private bool _hasUnsavedChanges;
@@ -115,9 +115,19 @@ public partial class PublisherStudioViewModel(
         !string.IsNullOrWhiteSpace(CurrentProject?.Catalog?.Publisher?.Name);
 
     /// <summary>
-    /// Gets a value indicating whether the setup overlay should be shown.
+    /// Gets a value indicating whether the Referrals tab is visible/enabled.
+    /// Temporarily disabled.
     /// </summary>
-    public bool ShouldShowSetupOverlay => !IsSetupComplete && SelectedTabIndex != 0;
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Major Code Smell", "S2325:Make member static", Justification = "ViewModel property bound in XAML")]
+    public bool IsReferralsTabVisible => false;
+
+    /// <summary>
+    /// Gets a value indicating whether the setup overlay should be shown.
+    /// In the cloud-first workflow, users land on Hosting &amp; Storage to connect and sync their
+    /// definition or can choose manual profile configuration. The setup overlay only blocks
+    /// Content Library and Publish tabs when setup has not been completed.
+    /// </summary>
+    public bool ShouldShowSetupOverlay => !IsSetupComplete && SelectedTabIndex != TabHostingStorage && SelectedTabIndex != TabProfile;
 
     /// <summary>
     /// Gets localized status-bar text for the current project.
@@ -277,6 +287,10 @@ public partial class PublisherStudioViewModel(
             if (!string.IsNullOrEmpty(lastPath) && File.Exists(lastPath))
             {
                 await LoadProjectFromPathAsync(lastPath, announce: false);
+                if (!IsSetupComplete)
+                {
+                    SelectedTabIndex = TabHostingStorage;
+                }
                 return;
             }
 
@@ -284,6 +298,10 @@ public partial class PublisherStudioViewModel(
             if (File.Exists(defaultPath))
             {
                 await LoadProjectFromPathAsync(defaultPath, announce: false);
+                if (!IsSetupComplete)
+                {
+                    SelectedTabIndex = TabHostingStorage;
+                }
                 return;
             }
 
@@ -293,6 +311,7 @@ public partial class PublisherStudioViewModel(
                 CurrentProject.ProjectPath = defaultPath;
                 await SaveProjectAsync();
             }
+            SelectedTabIndex = TabHostingStorage;
         }
         catch (Exception ex)
         {
@@ -322,6 +341,10 @@ public partial class PublisherStudioViewModel(
         }
 
         SyncPublishShareCatalogs();
+
+        RefreshSetupState();
+        OnPropertyChanged(nameof(ProjectStatusText));
+        OnPropertyChanged(nameof(CatalogSummaryText));
 
         await Task.CompletedTask;
     }
@@ -516,14 +539,35 @@ public partial class PublisherStudioViewModel(
     [RelayCommand]
     private void SelectTab(object? parameter)
     {
+        int target = -1;
         if (parameter is int i)
         {
-            SelectedTabIndex = i;
+            target = i;
         }
         else if (parameter != null && int.TryParse(parameter.ToString(), out var parsed))
         {
-            SelectedTabIndex = parsed;
+            target = parsed;
         }
+
+        if (target < 0)
+        {
+            return;
+        }
+
+        // Temporarily disallow selecting Referrals tab
+        if (target == TabReferrals)
+        {
+            return;
+        }
+
+        // When setup is incomplete, only HostingStorage and Profile (for manual setup) are accessible
+        if (!IsSetupComplete && target != TabHostingStorage && target != TabProfile)
+        {
+            SelectedTabIndex = TabHostingStorage;
+            return;
+        }
+
+        SelectedTabIndex = target;
     }
 
     /// <summary>
@@ -532,7 +576,16 @@ public partial class PublisherStudioViewModel(
     [RelayCommand]
     private void GoToProfileTab()
     {
-        SelectedTabIndex = 0;
+        SelectedTabIndex = TabProfile;
+    }
+
+    /// <summary>
+    /// Navigates to the Hosting &amp; Storage tab.
+    /// </summary>
+    [RelayCommand]
+    private void GoToHostingTab()
+    {
+        SelectedTabIndex = TabHostingStorage;
     }
 
     /// <summary>
@@ -1017,6 +1070,7 @@ public partial class PublisherStudioViewModel(
             }
         };
         PublishShareViewModel.ProjectReloadCallback = ReloadFromCurrentProjectAsync;
+        PublishShareViewModel.NavigateToTabCallback = tabIndex => SelectedTabIndex = tabIndex;
         dialogService.DuplicateAssetLookup = sha => PublishShareViewModel?.FindHostedAssetBySha256(sha);
         await PublishShareViewModel.InitializeAsync();
         HasDefinitionChanges = !PublishShareViewModel.IsDefinitionPublished;

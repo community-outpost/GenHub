@@ -101,4 +101,39 @@ public sealed class PublisherStudioSetupUnlockTests : IDisposable
         Assert.Contains(nameof(PublisherStudioViewModel.IsSetupComplete), notifiedProperties);
         Assert.Contains(nameof(PublisherStudioViewModel.ShouldShowSetupOverlay), notifiedProperties);
     }
+
+    /// <summary>
+    /// Verifies that an incomplete project forces the studio to the Hosting tab and disables the Referrals tab.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task IncompleteSetup_ForcesHostingTab_AndDisablesReferralsAsync()
+    {
+        await _viewModel.CreateNewProjectCommand.ExecuteAsync(null);
+        Assert.False(_viewModel.IsSetupComplete);
+
+        // Should default to Hosting tab for cloud-first flow
+        Assert.Equal(PublisherStudioViewModel.TabHostingStorage, _viewModel.SelectedTabIndex);
+
+        // Referrals tab must be hidden/disabled
+        Assert.False(_viewModel.IsReferralsTabVisible);
+
+        // Attempting to navigate to Referrals must be blocked
+        _viewModel.SelectTabCommand.Execute(PublisherStudioViewModel.TabReferrals);
+        Assert.Equal(PublisherStudioViewModel.TabHostingStorage, _viewModel.SelectedTabIndex);
+
+        // Attempting to navigate to Content Library or Publish when setup is incomplete redirects to Hosting
+        _viewModel.SelectTabCommand.Execute(PublisherStudioViewModel.TabCatalogs);
+        Assert.Equal(PublisherStudioViewModel.TabHostingStorage, _viewModel.SelectedTabIndex);
+
+        _viewModel.SelectTabCommand.Execute(PublisherStudioViewModel.TabPublishShare);
+        Assert.Equal(PublisherStudioViewModel.TabHostingStorage, _viewModel.SelectedTabIndex);
+
+        // Hosting and Profile tabs are not blocked by the setup overlay
+        _viewModel.SelectTabCommand.Execute(PublisherStudioViewModel.TabHostingStorage);
+        Assert.False(_viewModel.ShouldShowSetupOverlay);
+
+        _viewModel.SelectTabCommand.Execute(PublisherStudioViewModel.TabProfile);
+        Assert.False(_viewModel.ShouldShowSetupOverlay);
+    }
 }

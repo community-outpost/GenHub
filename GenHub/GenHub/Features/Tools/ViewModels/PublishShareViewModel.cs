@@ -264,6 +264,11 @@ public partial class PublishShareViewModel(
     [ObservableProperty]
     private bool _isScanningStorage;
 
+    partial void OnIsScanningStorageChanged(bool value)
+    {
+        OnPropertyChanged(nameof(ShowNoDefinitionBanner));
+    }
+
     [ObservableProperty]
     private string _storageScanStatusMessage = string.Empty;
 
@@ -484,6 +489,40 @@ public partial class PublishShareViewModel(
     /// </summary>
     public string ProviderDisplayName => SelectedHostingProvider?.DisplayName
         ?? GetLocalizedString("Tools.PublisherStudio.Hosting.NotConnected", "Not Connected");
+
+    /// <summary>
+    /// Gets or sets the callback used to switch tabs in the parent studio view model.
+    /// </summary>
+    public Action<int>? NavigateToTabCallback { get; set; }
+
+    /// <summary>
+    /// Gets the primary discovered publisher definition from cloud storage, if any.
+    /// </summary>
+    public HostedAssetItemViewModel? DiscoveredCloudDefinition =>
+        HostedAssets.FirstOrDefault(a => a.IsDefinition && a.CanLoadToProject);
+
+    /// <summary>
+    /// Gets a value indicating whether an existing publisher definition was discovered in cloud storage.
+    /// </summary>
+    public bool HasDiscoveredCloudDefinition => DiscoveredCloudDefinition != null;
+
+    /// <summary>
+    /// Gets the file name of the discovered cloud definition.
+    /// </summary>
+    public string DiscoveredDefinitionFileName =>
+        DiscoveredCloudDefinition?.Name ?? HostingConstants.DefaultDefinitionFileName;
+
+    /// <summary>
+    /// Gets a value indicating whether the discovered cloud definition banner should be displayed.
+    /// Shown when authenticated and a definition was discovered in the cloud.
+    /// </summary>
+    public bool ShowDiscoveredDefinitionBanner => IsProviderAuthenticated && HasDiscoveredCloudDefinition;
+
+    /// <summary>
+    /// Gets a value indicating whether the "no cloud definition found" banner should be displayed.
+    /// Shown when authenticated, not currently scanning, and no definition was discovered.
+    /// </summary>
+    public bool ShowNoDefinitionBanner => IsProviderAuthenticated && !HasDiscoveredCloudDefinition && !IsScanningStorage;
 
     /// <summary>
     /// Gets or sets the callback used to persist the project after uploads mutate it.
@@ -920,6 +959,11 @@ public partial class PublishShareViewModel(
         ExternalCdnCount = cdnCount;
         ApplyHostedAssetFilter();
         OnPropertyChanged(nameof(HostedAssetsCountText));
+        OnPropertyChanged(nameof(DiscoveredCloudDefinition));
+        OnPropertyChanged(nameof(HasDiscoveredCloudDefinition));
+        OnPropertyChanged(nameof(DiscoveredDefinitionFileName));
+        OnPropertyChanged(nameof(ShowDiscoveredDefinitionBanner));
+        OnPropertyChanged(nameof(ShowNoDefinitionBanner));
     }
 
     /// <summary>
@@ -949,6 +993,8 @@ public partial class PublishShareViewModel(
         OnPropertyChanged(nameof(ExternalCdnArtifactsCount));
         OnPropertyChanged(nameof(HasIncompatibleArtifactsForProvider));
         OnPropertyChanged(nameof(IncompatibleArtifactsWarningMessage));
+        OnPropertyChanged(nameof(ShowDiscoveredDefinitionBanner));
+        OnPropertyChanged(nameof(ShowNoDefinitionBanner));
     }
 
     /// <summary>
@@ -1831,6 +1877,8 @@ public partial class PublishShareViewModel(
         OnPropertyChanged(nameof(TargetDestinationDescription));
         OnPropertyChanged(nameof(HasIncompatibleArtifactsForProvider));
         OnPropertyChanged(nameof(IncompatibleArtifactsWarningMessage));
+        OnPropertyChanged(nameof(ShowDiscoveredDefinitionBanner));
+        OnPropertyChanged(nameof(ShowNoDefinitionBanner));
     }
 
     /// <summary>
@@ -5071,6 +5119,31 @@ public partial class PublishShareViewModel(
     private void SetInventoryFilter(string filter)
     {
         InventoryCategoryFilter = filter;
+    }
+
+    /// <summary>
+    /// Pulls the primary discovered cloud publisher definition into the project.
+    /// </summary>
+    [RelayCommand]
+    private async Task PullPrimaryCloudDefinitionAsync()
+    {
+        var target = DiscoveredCloudDefinition;
+        if (target == null)
+        {
+            logger.LogWarning("No discovered cloud definition available to pull");
+            return;
+        }
+
+        await LoadAssetToProjectAsync(target);
+    }
+
+    /// <summary>
+    /// Navigates to the Publisher Profile tab to create a new profile from scratch.
+    /// </summary>
+    [RelayCommand]
+    private void CreateNewProfile()
+    {
+        NavigateToTabCallback?.Invoke(0);
     }
 
     /// <summary>

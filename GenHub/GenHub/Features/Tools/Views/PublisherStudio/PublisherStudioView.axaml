@@ -129,13 +129,11 @@
                 <Grid ColumnDefinitions="Auto,*,Auto">
                     <!-- Left: Studio Branding & Title -->
                     <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
-                        <Border Width="34" Height="34" CornerRadius="8"
-                                Background="{DynamicResource PSPrimaryGradient}">
-                            <Image Source="avares://GenHub/Assets/Icons/publisherstudio-icon.png"
-                                   Width="22" Height="22"
-                                   Stretch="Uniform"
-                                   RenderOptions.BitmapInterpolationMode="HighQuality"/>
-                        </Border>
+                        <Image Source="avares://GenHub/Assets/Icons/publisherstudio-icon.png"
+                               Width="34" Height="34"
+                               Stretch="Uniform"
+                               VerticalAlignment="Center"
+                               RenderOptions.BitmapInterpolationMode="HighQuality"/>
                         <StackPanel VerticalAlignment="Center">
                             <StackPanel Orientation="Horizontal" Spacing="6">
                                 <TextBlock Text="{localization:Localize Tools.PublisherStudio.Studio.Title}" FontWeight="Bold" FontSize="15" Foreground="White"/>
@@ -160,11 +158,12 @@
                             CornerRadius="10"
                             Padding="4">
                         <WrapPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                            <!-- Publisher Profile -->
+                            <!-- Publisher Profile (visible once setup is complete) -->
                             <Button Classes="nav-pill"
                                     Classes.active="{Binding SelectedTabIndex, Converter={StaticResource EqualityConverter}, ConverterParameter=0}"
                                     Command="{Binding SelectTabCommand}"
                                     CommandParameter="0"
+                                    IsVisible="{Binding IsSetupComplete}"
                                     ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Studio.TabProfileTooltip}">
                                 <StackPanel Orientation="Horizontal" Spacing="6">
                                     <PathIcon Data="{StaticResource PersonIcon}" Width="13" Height="13"/>
@@ -172,11 +171,12 @@
                                 </StackPanel>
                             </Button>
 
-                            <!-- Content Library -->
+                            <!-- Content Library (visible once setup is complete) -->
                             <Button Classes="nav-pill"
                                     Classes.active="{Binding SelectedTabIndex, Converter={StaticResource EqualityConverter}, ConverterParameter=1}"
                                     Command="{Binding SelectTabCommand}"
                                     CommandParameter="1"
+                                    IsVisible="{Binding IsSetupComplete}"
                                     IsEnabled="{Binding IsSetupComplete}"
                                     ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Studio.TabLibraryTooltip}">
                                 <StackPanel Orientation="Horizontal" Spacing="6">
@@ -185,12 +185,11 @@
                                 </StackPanel>
                             </Button>
 
-                            <!-- Hosting & Storage -->
+                            <!-- Hosting & Storage (cloud-first entry point - always visible and enabled) -->
                             <Button Classes="nav-pill"
                                     Classes.active="{Binding SelectedTabIndex, Converter={StaticResource EqualityConverter}, ConverterParameter=2}"
                                     Command="{Binding SelectTabCommand}"
                                     CommandParameter="2"
-                                    IsEnabled="{Binding IsSetupComplete}"
                                     ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Studio.TabHostingTooltip}">
                                 <StackPanel Orientation="Horizontal" Spacing="6">
                                     <PathIcon Data="{StaticResource CloudStorageIcon}" Width="13" Height="13"/>
@@ -198,12 +197,13 @@
                                 </StackPanel>
                             </Button>
 
-                            <!-- Referrals -->
+                            <!-- Referrals (temporarily disabled) -->
                             <Button Classes="nav-pill"
+                                    IsVisible="False"
+                                    IsEnabled="False"
                                     Classes.active="{Binding SelectedTabIndex, Converter={StaticResource EqualityConverter}, ConverterParameter=3}"
                                     Command="{Binding SelectTabCommand}"
                                     CommandParameter="3"
-                                    IsEnabled="{Binding IsSetupComplete}"
                                     ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Studio.TabReferralsTooltip}">
                                 <StackPanel Orientation="Horizontal" Spacing="6">
                                     <PathIcon Data="{StaticResource LinkIcon}" Width="13" Height="13"/>
@@ -211,11 +211,12 @@
                                 </StackPanel>
                             </Button>
 
-                            <!-- Publish & Share -->
+                            <!-- Publish & Share (visible once setup is complete) -->
                             <Button Classes="nav-pill"
                                     Classes.active="{Binding SelectedTabIndex, Converter={StaticResource EqualityConverter}, ConverterParameter=4}"
                                     Command="{Binding SelectTabCommand}"
                                     CommandParameter="4"
+                                    IsVisible="{Binding IsSetupComplete}"
                                     IsEnabled="{Binding IsSetupComplete}"
                                     ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Studio.TabPublishTooltip}">
                                 <StackPanel Orientation="Horizontal" Spacing="6">
@@ -300,12 +301,12 @@
                     <TabItem IsEnabled="{Binding IsSetupComplete}">
                         <views:ContentLibraryView DataContext="{Binding ContentLibraryViewModel}"/>
                     </TabItem>
-                    <!-- Tab 2: Hosting & Storage -->
-                    <TabItem IsEnabled="{Binding IsSetupComplete}">
+                    <!-- Tab 2: Hosting & Storage (cloud-first entry point - always enabled) -->
+                    <TabItem>
                         <views:HostingStorageView DataContext="{Binding PublishShareViewModel}"/>
                     </TabItem>
-                    <!-- Tab 3: Referrals -->
-                    <TabItem IsEnabled="{Binding IsSetupComplete}">
+                    <!-- Tab 3: Referrals (temporarily disabled) -->
+                    <TabItem IsEnabled="False" IsVisible="False">
                         <views:ReferralsView DataContext="{Binding ReferralsViewModel}"/>
                     </TabItem>
                     <!-- Tab 4: Publish & Share -->
@@ -347,16 +348,26 @@
                                            MaxWidth="340"/>
                             </StackPanel>
 
-                            <Button Classes="primary-btn"
-                                    HorizontalAlignment="Center"
-                                    Command="{Binding GoToProfileTabCommand}">
-                                <StackPanel Orientation="Horizontal" Spacing="8">
-                                    <PathIcon Data="{StaticResource PersonIcon}"
-                                              Width="14" Height="14"
-                                              Foreground="White"/>
-                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Studio.ConfigureProfile}" FontWeight="SemiBold" FontSize="13"/>
-                                </StackPanel>
-                            </Button>
+                            <StackPanel Orientation="Horizontal" Spacing="12" HorizontalAlignment="Center">
+                                <Button Classes="primary-btn"
+                                        Command="{Binding GoToHostingTabCommand}">
+                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                        <PathIcon Data="{StaticResource CloudStorageIcon}"
+                                                  Width="14" Height="14"
+                                                  Foreground="White"/>
+                                        <TextBlock Text="{localization:Localize Tools.PublisherStudio.Studio.TabHosting}" FontWeight="SemiBold" FontSize="13"/>
+                                    </StackPanel>
+                                </Button>
+                                <Button Classes="glass-btn"
+                                        Command="{Binding GoToProfileTabCommand}">
+                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                        <PathIcon Data="{StaticResource PersonIcon}"
+                                                  Width="14" Height="14"
+                                                  Foreground="{DynamicResource TextSecondary}"/>
+                                        <TextBlock Text="{localization:Localize Tools.PublisherStudio.Studio.ConfigureProfile}" FontWeight="SemiBold" FontSize="13" Foreground="{DynamicResource TextSecondary}"/>
+                                    </StackPanel>
+                                </Button>
+                            </StackPanel>
                         </StackPanel>
                     </Border>
                 </Border>
