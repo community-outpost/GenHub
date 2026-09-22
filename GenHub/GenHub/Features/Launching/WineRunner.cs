@@ -336,7 +336,7 @@ public class WineRunner(
                 resolutionLine = $"{GameSettingsIniConstants.ResolutionKey} = {xres} {yres}";
             }
 
-            File.WriteAllText(sourcePath, $"{resolutionLine}\r\n{GameSettingsIniConstants.IdealStaticGameLODKey} = {WineConstants.BootstrapIdealStaticGameLOD}\r\n");
+            File.WriteAllText(sourcePath, $"{resolutionLine}\r\n{GameSettingsIniConstants.IdealStaticGameLODKey} = {WineConstants.BootstrapIdealStaticGameLOD}\r\nIPAddress = 0.0.0.0\r\nGameSpyIPAddress = 0.0.0.0\r\nSendDelay = no\r\n");
             logger.LogInformation("Bootstrapped baseline Options.ini at {SourcePath}", sourcePath);
             return true;
         }

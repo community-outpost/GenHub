@@ -75,7 +75,7 @@ public class GameProcessManager(
                 if (isFlatpak)
                 {
                     logger.LogWarning("[Process] Flatpak provisioning failed: {Error}", runnerResult.FirstError);
-                    return OperationResult<GameProcessInfo>.CreateFailure(runnerResult.FirstError ?? "Flatpak provisioning failed");
+                    return OperationResult<GameProcessInfo>.CreateFailure(runnerResult.FirstError!);
                 }
 
                 logger.LogWarning("[Process] Compatibility runner could not resolve a launch command: {Error}", runnerResult.FirstError);
@@ -814,7 +814,7 @@ public class GameProcessManager(
         var provision = await flatpakProvisioner.EnsureInstalledAsync(configuration.ExecutablePath, cancellationToken);
         if (!provision.Success || string.IsNullOrWhiteSpace(provision.Data))
         {
-            return OperationResult<RunnerCommand>.CreateFailure(provision.FirstError ?? "Flatpak provisioning failed");
+            return OperationResult<RunnerCommand>.CreateFailure(provision.FirstError!);
         }
 
         var appId = provision.Data;
@@ -1081,7 +1081,6 @@ public class GameProcessManager(
             UseShellExecute = false,
             CreateNoWindow = false,
             RedirectStandardError = true,
-            RedirectStandardOutput = true,
         };
 
         ApplyEnvironmentVariables(processStartInfo, runnerCommand.EnvironmentVariables, "runner");

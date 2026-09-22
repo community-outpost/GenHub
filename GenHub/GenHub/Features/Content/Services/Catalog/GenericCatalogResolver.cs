@@ -9,6 +9,7 @@ using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Results.Content;
 using GenHub.Core.Services.Dependencies;
 using GenHub.Core.Utilities;
+using GenHub.Features.Content.Services.Helpers;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
@@ -843,7 +844,7 @@ public partial class GenericCatalogResolver(
                 relativePath: filename,
                 downloadUrl: artifact.DownloadUrl,
                 sourceType: ContentSourceType.RemoteDownload,
-                isExecutable: false,
+                isExecutable: GitHubInferenceHelper.IsExecutableFile(filename),
                 permissions: null);
             registeredCount++;
         }

@@ -374,7 +374,7 @@ public class GameClientDetector(
         // The platform discriminator keeps distinct community builds apart: without it, macOS and
         // Linux clients with the same publisher, game, and unknown version collapse to one identity
         // and alias each other (and their pool entries) through GameClient.Id.
-        var fallbackPublisherId = !string.IsNullOrWhiteSpace(gameClient.PublisherType) ? gameClient.PublisherType.ToLowerInvariant() : "scanned";
+        var fallbackPublisherId = !string.IsNullOrWhiteSpace(gameClient.PublisherType) ? gameClient.PublisherType.ToLowerInvariant() : ManifestConstants.ScannedPublisherId;
         var baseName = gameType == GameType.ZeroHour ? ManifestConstants.ZeroHourContentName : ManifestConstants.GeneralsContentName;
         var fallbackContentName = $"{baseName}-{GetClientPlatformDiscriminator(gameClient.ExecutablePath)}";
         int fallbackVersion = GameVersionHelper.NormalizeVersion(gameClient.Version);

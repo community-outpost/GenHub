@@ -96,6 +96,11 @@ public static class ManifestConstants
     public const string PublisherContentIdPrefix = "publisher";
 
     /// <summary>
+    /// Fallback publisher identifier for scanned game clients.
+    /// </summary>
+    public const string ScannedPublisherId = "scanned";
+
+    /// <summary>
     /// Tag for content validation status.
     /// </summary>
     public const string ValidationStatusTag = "ValidationStatus";

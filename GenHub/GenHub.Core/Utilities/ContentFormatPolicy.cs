@@ -48,7 +48,7 @@ public static class ContentFormatPolicy
     /// <returns><c>true</c> when the asset can be a download card on its own.</returns>
     public static bool IsContentAsset(string? fileName)
     {
-        if (!IsUnderstoodAsset(fileName))
+        if (!IsUnderstoodAsset(fileName) || IsDocumentationFileName(fileName))
         {
             return false;
         }
@@ -62,6 +62,23 @@ public static class ContentFormatPolicy
 
         return ContentFormatConstants.StandaloneContentExtensions
             .Any(extension => fileName.EndsWith(extension, StringComparison.OrdinalIgnoreCase));
+    }
+
+    /// <summary>
+    /// Determines whether an asset file name represents documentation rather than installable content.
+    /// </summary>
+    /// <param name="fileName">The asset file name.</param>
+    /// <returns><c>true</c> when the file name is recognized documentation.</returns>
+    public static bool IsDocumentationFileName(string? fileName)
+    {
+        if (string.IsNullOrWhiteSpace(fileName))
+        {
+            return false;
+        }
+
+        var bareName = Path.GetFileNameWithoutExtension(fileName);
+        return ContentFormatConstants.KnownDocumentationFileNames
+            .Any(doc => doc.Equals(bareName, StringComparison.OrdinalIgnoreCase));
     }
 
     /// <summary>

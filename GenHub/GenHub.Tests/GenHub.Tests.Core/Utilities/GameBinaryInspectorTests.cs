@@ -396,6 +396,49 @@ public sealed class GameBinaryInspectorTests : IDisposable
         Assert.NotEqual(GameBinaryRole.PackedStub, result.Data!.Role);
     }
 
+    /// <summary>
+    /// When a PE carries a .textbss section (raw pointer 0) before a real .text section,
+    /// inspection continues scanning and resolves the valid .text section.
+    /// </summary>
+    [Fact]
+    public void InspectBytes_TextBssBeforeValidTextSection_ScansSubsequentSection()
+    {
+        const int peOffset = 64;
+        const int optionalSize = 224;
+        const int rawPointer = 512;
+        var tableOffset = peOffset + 24 + optionalSize;
+
+        var text = TextPayload();
+        var markers = MarkerPayload(includeTitle: true, includeChallenge: true);
+
+        var file = new byte[rawPointer + text.Length + markers.Length];
+        file[0] = (byte)'M';
+        file[1] = (byte)'Z';
+        BitConverter.GetBytes(peOffset).CopyTo(file, 0x3C);
+
+        file[peOffset] = (byte)'P';
+        file[peOffset + 1] = (byte)'E';
+        BitConverter.GetBytes((ushort)2).CopyTo(file, peOffset + 6);
+        BitConverter.GetBytes((ushort)optionalSize).CopyTo(file, peOffset + 20);
+        BitConverter.GetBytes((ushort)0x10B).CopyTo(file, peOffset + 24);
+
+        Encoding.ASCII.GetBytes(".textbss").CopyTo(file, tableOffset);
+        BitConverter.GetBytes((uint)0).CopyTo(file, tableOffset + 16);
+        BitConverter.GetBytes((uint)0).CopyTo(file, tableOffset + 20);
+
+        var section2Offset = tableOffset + GameBinaryConstants.PeSectionHeaderStride;
+        Encoding.ASCII.GetBytes(".text").CopyTo(file, section2Offset);
+        BitConverter.GetBytes((uint)text.Length).CopyTo(file, section2Offset + 16);
+        BitConverter.GetBytes((uint)rawPointer).CopyTo(file, section2Offset + 20);
+
+        Buffer.BlockCopy(text, 0, file, rawPointer, text.Length);
+        Buffer.BlockCopy(markers, 0, file, rawPointer + text.Length, markers.Length);
+
+        var verdict = GameBinaryInspector.InspectBytes("GeneralsXZH.exe", file);
+        Assert.Equal(GameBinaryRole.Engine, verdict.Role);
+        Assert.Equal(GameType.ZeroHour, verdict.GameType);
+    }
+
     private static void AssertNativeMagicIdentifiesZeroHour(byte[] magic)
     {
         var bytes = Concat(magic, new byte[64], TitleBytes, [(byte)' '], ChallengeBytes);

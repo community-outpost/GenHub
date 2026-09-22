@@ -113,6 +113,10 @@ public class ContentFormatPolicyTests
     [InlineData("mod.big", true)]
     [InlineData("patch-notes.txt", false)]
     [InlineData("README.md", false)]
+    [InlineData("README", false)]
+    [InlineData("LICENSE", false)]
+    [InlineData("COPYING", false)]
+    [InlineData("CHANGELOG", false)]
     [InlineData("client.dmg", false)]
     public void IsContentAsset_MixedNames_FiltersDocumentation(string fileName, bool expected)
     {

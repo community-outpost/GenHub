@@ -183,6 +183,30 @@ public static class ContentFormatConstants
     ];
 
     /// <summary>
+    /// Common documentation file names (without extensions or with doc extensions) that should
+    /// not be treated as standalone content assets in metadata-only contexts.
+    /// </summary>
+    public static readonly string[] KnownDocumentationFileNames =
+    [
+        "license",
+        "licence",
+        "copying",
+        "readme",
+        "changelog",
+        "changes",
+        "authors",
+        "contributing",
+        "notice",
+        "install",
+        "history",
+        "news",
+        "todo",
+        "security",
+        "patch-notes",
+        "release-notes",
+    ];
+
+    /// <summary>
     /// Gets the localization resource key for the given rejected format extension.
     /// </summary>
     /// <param name="extension">The rejected file extension, including the leading dot.</param>

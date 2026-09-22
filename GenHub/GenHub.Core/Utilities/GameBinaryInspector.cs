@@ -472,9 +472,14 @@ public static class GameBinaryInspector
             var entry = header.Slice(tableOffset + (i * GameBinaryConstants.PeSectionHeaderStride), GameBinaryConstants.PeSectionHeaderStride);
             if (entry.Length >= TextSectionBytes.Length && entry.Slice(0, TextSectionBytes.Length).SequenceEqual(TextSectionBytes))
             {
-                rawSize = BitConverter.ToUInt32(entry.Slice(16, 4));
-                rawPointer = BitConverter.ToUInt32(entry.Slice(20, 4));
-                return rawSize > 0 && rawPointer > 0;
+                var candidateSize = BitConverter.ToUInt32(entry.Slice(16, 4));
+                var candidatePointer = BitConverter.ToUInt32(entry.Slice(20, 4));
+                if (candidateSize > 0 && candidatePointer > 0)
+                {
+                    rawSize = candidateSize;
+                    rawPointer = candidatePointer;
+                    return true;
+                }
             }
         }
 

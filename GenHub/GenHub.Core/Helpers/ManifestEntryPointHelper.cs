@@ -107,19 +107,19 @@ public static class ManifestEntryPointHelper
             return OperationResult<string?>.CreateSuccess(null);
         }
 
-        var detection = GameClientEntryDetector.DetectEntryPoint(extractedDirectory, cancellationToken);
-        if (!detection.Success)
-        {
-            return OperationResult<string?>.CreateFailure(
-                FormatFailure(localizationService, ManifestConstants.EntryPointDetectionFailedKey, ManifestConstants.EntryPointDetectionFailed, manifest.Id, detection));
-        }
-
         // Detection scans the whole payload, so it cannot produce one entry per
         // variant: fail loudly instead of assigning one variant's entry to another.
         if (missing.Count > 1)
         {
             return OperationResult<string?>.CreateFailure(
                 FormatFailure(localizationService, ManifestConstants.MultipleVariantsMissingEntryPointKey, ManifestConstants.MultipleVariantsMissingEntryPoint, manifest.Id, missing.Count));
+        }
+
+        var detection = GameClientEntryDetector.DetectEntryPoint(extractedDirectory, cancellationToken);
+        if (!detection.Success)
+        {
+            return OperationResult<string?>.CreateFailure(
+                FormatFailure(localizationService, ManifestConstants.EntryPointDetectionFailedKey, ManifestConstants.EntryPointDetectionFailed, manifest.Id, detection));
         }
 
         missing[0].EntryPoint = detection.RelativePath;

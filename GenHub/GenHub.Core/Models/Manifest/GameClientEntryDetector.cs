@@ -181,7 +181,7 @@ public static class GameClientEntryDetector
         if (macOsDirectory is not null)
         {
             var known = FilterKnownGameBinaries(GetFilesSafely(macOsDirectory))
-                .Where(p => !p.Equals(declaredPath, StringComparison.OrdinalIgnoreCase) && IsUnderRoot(payloadRoot, p))
+                .Where(p => !p.Equals(declaredPath, PathHelper.PathComparison) && IsUnderRoot(payloadRoot, p))
                 .ToList();
             if (known.Count == 1)
             {
@@ -428,7 +428,10 @@ public static class GameClientEntryDetector
             }
 
             var match = GetFilesSafely(macOsDirectory)
-                .FirstOrDefault(f => Path.GetFileName(f).Equals(fileName, StringComparison.OrdinalIgnoreCase));
+                .Where(f => Path.GetFileName(f).Equals(fileName, StringComparison.OrdinalIgnoreCase))
+                .OrderBy(f => f.Length)
+                .ThenBy(f => f, StringComparer.Ordinal)
+                .FirstOrDefault();
             if (match is not null)
             {
                 return match;
@@ -438,7 +441,10 @@ public static class GameClientEntryDetector
         try
         {
             return Directory.EnumerateFiles(bundleRoot, "*", RecursiveOptions)
-                .FirstOrDefault(f => Path.GetFileName(f).Equals(fileName, StringComparison.OrdinalIgnoreCase));
+                .Where(f => Path.GetFileName(f).Equals(fileName, StringComparison.OrdinalIgnoreCase))
+                .OrderBy(f => f.Length)
+                .ThenBy(f => f, StringComparer.Ordinal)
+                .FirstOrDefault();
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
         {
@@ -499,10 +505,13 @@ public static class GameClientEntryDetector
         var matches = new List<string>();
         try
         {
-            foreach (var file in Directory.EnumerateFiles(root, "*" + ContentFormatConstants.FlatpakExtension, RecursiveOptions))
+            foreach (var file in Directory.EnumerateFiles(root, "*", RecursiveOptions))
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                matches.Add(file);
+                if (file.EndsWith(ContentFormatConstants.FlatpakExtension, StringComparison.OrdinalIgnoreCase))
+                {
+                    matches.Add(file);
+                }
             }
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
