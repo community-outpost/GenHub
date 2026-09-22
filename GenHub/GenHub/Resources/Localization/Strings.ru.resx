@@ -10210,4 +10210,70 @@ GameFilesEdited/Data/INI/**/*.ini</value>
   <data name="GameProfiles.Notification.LaunchChanged.VariantsRemoved" xml:space="preserve">
     <value>Клиент игры больше не определяет варианты для разных платформ.</value>
   </data>
+  <data name="Maps.MapPack.Button.AddToProfile" xml:space="preserve">
+    <value>Добавить в профиль</value>
+  </data>
+  <data name="Maps.MapPack.Button.CreateAndAddToProfile" xml:space="preserve">
+    <value>Создать и добавить в профиль</value>
+  </data>
+  <data name="Maps.MapPack.ProfileSelection.ActionBadge" xml:space="preserve">
+    <value>Добавить</value>
+  </data>
+  <data name="Maps.MapPack.ProfileSelection.CreateCardSubtitle" xml:space="preserve">
+    <value>Создать новый профиль с этим набором карт</value>
+  </data>
+  <data name="Maps.MapPack.ProfileSelection.DialogTitle" xml:space="preserve">
+    <value>Добавить набор карт в профиль</value>
+  </data>
+  <data name="Maps.MapPack.ProfileSelection.HeaderSubtitle" xml:space="preserve">
+    <value>Выберите профиль для добавления «{0}» или создайте новый</value>
+  </data>
+  <data name="Maps.MapPack.ProfileSelection.HeaderTitle" xml:space="preserve">
+    <value>Добавить набор карт в профиль</value>
+  </data>
+  <data name="Maps.MapPack.Tooltip.AddToProfile" xml:space="preserve">
+    <value>Добавить этот набор карт в существующий профиль или создать новый профиль с ним.</value>
+  </data>
+  <data name="Maps.MapPack.Tooltip.CreateAndAddToProfile" xml:space="preserve">
+    <value>Создать этот набор карт и открыть окно выбора профиля для немедленного добавления.</value>
+  </data>
+  <data name="Maps.MapPack.Notification.AddError" xml:space="preserve">
+    <value>Произошла ошибка при добавлении набора карт в профиль.</value>
+  </data>
+  <data name="Maps.MapPack.Notification.CreationFailedTitle" xml:space="preserve">
+    <value>Сбой создания</value>
+  </data>
+  <data name="Maps.MapPack.Notification.DemoAddToProfile" xml:space="preserve">
+    <value>Добавляет выбранный набор карт в существующий игровой профиль или создает новый профиль с включенным набором карт.</value>
+  </data>
+  <data name="Maps.MapPack.Notification.DemoCreateAndAddToProfile" xml:space="preserve">
+    <value>Создает набор карт и открывает диалог выбора профиля для немедленного добавления в профиль.</value>
+  </data>
+  <data name="Maps.MapPack.Notification.InvalidInputMessage" xml:space="preserve">
+    <value>Пожалуйста, укажите имя и выберите карты.</value>
+  </data>
+  <data name="Maps.MapPack.Notification.InvalidInputTitle" xml:space="preserve">
+    <value>Недопустимый ввод</value>
+  </data>
+  <data name="Maps.MapPack.Notification.MissingManifestId" xml:space="preserve">
+    <value>У этого набора карт нет действительного идентификатора манифеста содержимого.</value>
+  </data>
+  <data name="Maps.MapPack.Notification.ProfileSelectionTitle" xml:space="preserve">
+    <value>Выбор профиля</value>
+  </data>
+  <data name="Maps.MapPack.Notification.UnableToOpenDialog" xml:space="preserve">
+    <value>Не удалось открыть диалоговое окно выбора профиля.</value>
+  </data>
+  <data name="Maps.MapPack.Notification.UnknownError" xml:space="preserve">
+    <value>Неизвестная ошибка</value>
+  </data>
+  <data name="Maps.MapPack.Status.CreatedSuccessfully" xml:space="preserve">
+    <value>Набор карт успешно создан.</value>
+  </data>
+  <data name="Maps.MapPack.Status.CreationFailed" xml:space="preserve">
+    <value>Сбой создания.</value>
+  </data>
+  <data name="Maps.MapPack.Status.Creating" xml:space="preserve">
+    <value>Создание набора карт...</value>
+  </data>
 </root>

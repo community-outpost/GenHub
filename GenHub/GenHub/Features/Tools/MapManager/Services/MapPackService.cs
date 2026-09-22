@@ -193,6 +193,8 @@ public sealed class MapPackService : IMapPackService
                 {
                     Id = m.Id,
                     Name = m.Name,
+                    Description = m.Metadata.Description,
+                    TargetGame = m.TargetGame,
                     MapFilePaths = m.Files.Select(f => f.RelativePath).ToList(),
                     CreatedDate = m.Metadata.ReleaseDate,
                     IsLoaded = false, // Managed by Profile system
