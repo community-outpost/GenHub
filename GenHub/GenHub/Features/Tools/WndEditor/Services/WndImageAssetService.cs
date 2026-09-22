@@ -186,8 +186,6 @@ public sealed class WndImageAssetService(ILogger<WndImageAssetService> logger) :
             string.Concat(DataPrefix, WindowPrefix, baseWithoutExt),
             string.Concat(WindowMenusPrefix, baseName),
             string.Concat(WindowMenusPrefix, baseWithoutExt),
-            string.Concat(WndConstants.MappedImages.TexturesDirectory, "\\", baseName),
-            string.Concat(WndConstants.MappedImages.TexturesDirectory, "\\", baseWithoutExt),
         };
 
         // Probe canonical stems first. ReadTexture returns on the first hit, so localized

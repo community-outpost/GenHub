@@ -48,13 +48,17 @@ public sealed partial class WndEditorViewModel(
     private sealed record AssetRoots(string BaseRoot, string? OverrideRoot);
 
     private const int MaxUndoHistory = 200;
-    private static readonly Cursor HandCursor = new(StandardCursorType.Hand);
+
     private static readonly EnumerationOptions SafeDirectoryEnumerationOptions = new()
     {
         AttributesToSkip = FileAttributes.Hidden | FileAttributes.ReparsePoint | FileAttributes.System,
         IgnoreInaccessible = true,
         RecurseSubdirectories = false,
     };
+
+    private static Cursor? _handCursor;
+
+    private static Cursor HandCursor => _handCursor ??= new(StandardCursorType.Hand);
 
     private readonly Stack<WndEditAction> _undoStack = new();
     private readonly Stack<WndEditAction> _redoStack = new();
@@ -457,6 +461,17 @@ public sealed partial class WndEditorViewModel(
         }
 
         _previewBitmaps.Clear();
+    }
+
+    /// <summary>
+    /// Parses a ControlBarScheme INI file and populates the given dictionary with scheme image overrides.
+    /// </summary>
+    /// <param name="iniText">The INI file content.</param>
+    /// <param name="result">The dictionary to populate with image overrides.</param>
+    /// <param name="preferredScheme">The optional preferred scheme name to match.</param>
+    internal static void ParseControlBarSchemeIni(string iniText, Dictionary<string, string> result, string? preferredScheme = WndConstants.ControlBarScheme.AmericaSchemeName)
+    {
+        WndControlBarSchemeParser.Parse(iniText, result, preferredScheme);
     }
 
     private static TopLevel? GetTopLevel()
@@ -1074,7 +1089,7 @@ public sealed partial class WndEditorViewModel(
                 var childNode = BuildDirectoryNode(subDir, currentPath, node, depth + 1);
                 if (childNode != null && childNode.Children.Count > 0)
                 {
-                    node.Children.Add(childNode);
+                    node.AddChild(childNode);
                 }
             }
         }
@@ -1100,7 +1115,7 @@ public sealed partial class WndEditorViewModel(
                     isCurrent: isCurrent,
                     parent: node);
 
-                node.Children.Add(fileNode);
+                node.AddChild(fileNode);
             }
         }
         catch (Exception ex) when (ex is UnauthorizedAccessException or IOException)
@@ -2334,17 +2349,16 @@ public sealed partial class WndEditorViewModel(
     {
         var result = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {
-            ["BackgroundMarker"] = "InGameUIAmericaBase",
-            ["RightHUD"] = "SALogo",
-            ["ButtonOptions"] = "SAOptions",
-            ["ButtonIdleWorker"] = "SAWorker",
-            ["ButtonChat"] = "SAChat",
-            ["ButtonPlaceBeacon"] = "SABeacon",
-            ["ButtonGeneral"] = "SAGeneral",
-            ["ButtonUAttack"] = "SAUAttackI",
-            ["ExpBarForeground"] = "SAExpBar",
-            ["QueueButtonImage"] = "SCBigButton",
-            ["ShellMenuBackdrop"] = "MainMenuBackdrop",
+            [WndConstants.ControlBarScheme.BackgroundMarkerKey] = "InGameUIAmericaBase",
+            [WndConstants.ControlBarScheme.RightHUDKey] = "SALogo",
+            [WndConstants.ControlBarScheme.ButtonOptionsKey] = "SAOptions",
+            [WndConstants.ControlBarScheme.ButtonIdleWorkerKey] = "SAWorker",
+            [WndConstants.ControlBarScheme.ButtonChatKey] = "SAChat",
+            [WndConstants.ControlBarScheme.ButtonPlaceBeaconKey] = "SABeacon",
+            [WndConstants.ControlBarScheme.ButtonGeneralKey] = "SAGeneral",
+            [WndConstants.ControlBarScheme.ButtonUAttackKey] = "SAUAttackI",
+            [WndConstants.ControlBarScheme.ExpBarForegroundKey] = "SAExpBar",
+            [WndConstants.ControlBarScheme.QueueButtonImageKey] = "SCBigButton",
         };
 
         try
@@ -2363,192 +2377,5 @@ public sealed partial class WndEditorViewModel(
         }
 
         return result;
-    }
-
-    private static readonly Dictionary<string, string> ControlBarKeyMap = new(StringComparer.OrdinalIgnoreCase)
-    {
-        ["RightHUDImage"] = "RightHUD",
-        ["OptionsButtonEnable"] = "ButtonOptions",
-        ["IdleWorkerButtonEnable"] = "ButtonIdleWorker",
-        ["BuddyButtonEnable"] = "ButtonChat",
-        ["BeaconButtonEnable"] = "ButtonPlaceBeacon",
-        ["GeneralButtonEnable"] = "ButtonGeneral",
-        ["UAttackButtonEnable"] = "ButtonUAttack",
-        ["ExpBarForegroundImage"] = "ExpBarForeground",
-        ["QueueButtonImage"] = "QueueButtonImage",
-    };
-
-    /// <summary>
-    /// Parses a ControlBarScheme INI file and populates the given dictionary with scheme image overrides.
-    /// </summary>
-    /// <param name="iniText">The INI file content.</param>
-    /// <param name="result">The dictionary to populate with image overrides.</param>
-    /// <param name="preferredScheme">The optional preferred scheme name to match.</param>
-    internal static void ParseControlBarSchemeIni(string iniText, Dictionary<string, string> result, string? preferredScheme = "ControlBarSchemeAmerica")
-    {
-        var lines = iniText.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
-        var schemes = new List<(string Name, Dictionary<string, string> Overrides)>();
-        Dictionary<string, string>? currentSchemeDict = null;
-        var flatOverrides = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-        var inImagePart = false;
-
-        foreach (var rawLine in lines)
-        {
-            var line = StripComments(rawLine).Trim();
-            if (string.IsNullOrEmpty(line))
-            {
-                continue;
-            }
-
-            var tokens = line.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
-            if (tokens.Length == 0)
-            {
-                continue;
-            }
-
-            var firstToken = tokens[0];
-
-            if (string.Equals(firstToken, "ControlBarScheme", StringComparison.OrdinalIgnoreCase))
-            {
-                var schemeName = tokens.Length > 1 ? tokens[1] : "Default";
-                currentSchemeDict = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-                schemes.Add((schemeName, currentSchemeDict));
-                inImagePart = false;
-                continue;
-            }
-
-            if (string.Equals(firstToken, "ImagePart", StringComparison.OrdinalIgnoreCase))
-            {
-                inImagePart = true;
-                ParseInlineImagePart(line, currentSchemeDict ?? flatOverrides);
-                continue;
-            }
-
-            if (string.Equals(firstToken, "End", StringComparison.OrdinalIgnoreCase))
-            {
-                if (inImagePart)
-                {
-                    inImagePart = false;
-                }
-                else
-                {
-                    currentSchemeDict = null;
-                }
-
-                continue;
-            }
-
-            var targetDict = currentSchemeDict ?? flatOverrides;
-
-            if (inImagePart)
-            {
-                if (string.Equals(firstToken, "ImageName", StringComparison.OrdinalIgnoreCase) ||
-                    firstToken.StartsWith("ImageName:", StringComparison.OrdinalIgnoreCase) ||
-                    firstToken.StartsWith("ImageName=", StringComparison.OrdinalIgnoreCase))
-                {
-                    var imageName = ExtractValueAfterKey(line, "ImageName");
-                    if (!string.IsNullOrEmpty(imageName))
-                    {
-                        targetDict["BackgroundMarker"] = imageName;
-                    }
-                }
-
-                continue;
-            }
-
-            string key;
-            string val;
-            if (line.Contains('='))
-            {
-                var parts = line.Split('=', 2);
-                key = parts[0].Trim();
-                val = parts[1].Trim();
-            }
-            else if (tokens.Length >= 2)
-            {
-                key = tokens[0];
-                val = tokens[1];
-            }
-            else
-            {
-                continue;
-            }
-
-            if (ControlBarKeyMap.TryGetValue(key, out var mappedKey))
-            {
-                targetDict[mappedKey] = val;
-            }
-        }
-
-        Dictionary<string, string>? selectedOverrides = null;
-        if (schemes.Count > 0)
-        {
-            selectedOverrides = schemes.Find(s =>
-                s.Name.Equals(preferredScheme, StringComparison.OrdinalIgnoreCase) ||
-                s.Name.Contains("America", StringComparison.OrdinalIgnoreCase)).Overrides;
-
-            selectedOverrides ??= schemes[0].Overrides;
-        }
-        else if (flatOverrides.Count > 0)
-        {
-            selectedOverrides = flatOverrides;
-        }
-
-        if (selectedOverrides != null)
-        {
-            foreach (var (k, v) in selectedOverrides)
-            {
-                result[k] = v;
-            }
-        }
-    }
-
-    private static string StripComments(string line)
-    {
-        var commentIdx = -1;
-        var semiIdx = line.IndexOf(';');
-        var slashIdx = line.IndexOf("//", StringComparison.Ordinal);
-
-        if (semiIdx >= 0 && slashIdx >= 0)
-        {
-            commentIdx = Math.Min(semiIdx, slashIdx);
-        }
-        else if (semiIdx >= 0)
-        {
-            commentIdx = semiIdx;
-        }
-        else if (slashIdx >= 0)
-        {
-            commentIdx = slashIdx;
-        }
-
-        return commentIdx >= 0 ? line[..commentIdx] : line;
-    }
-
-    private static void ParseInlineImagePart(string line, Dictionary<string, string> targetDict)
-    {
-        const string marker = "ImageName:";
-        var idx = line.IndexOf(marker, StringComparison.OrdinalIgnoreCase);
-        if (idx >= 0)
-        {
-            var imageName = line[(idx + marker.Length)..].Trim();
-            if (!string.IsNullOrEmpty(imageName))
-            {
-                targetDict["BackgroundMarker"] = imageName;
-            }
-        }
-    }
-
-    private static string ExtractValueAfterKey(string line, string keyName)
-    {
-        var idx = line.IndexOf(keyName, StringComparison.OrdinalIgnoreCase);
-        if (idx < 0)
-        {
-            return string.Empty;
-        }
-
-        var after = line[(idx + keyName.Length)..].TrimStart(':', '=', ' ', '\t').Trim();
-        var tokens = after.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
-        return tokens.Length > 0 ? tokens[0] : string.Empty;
     }
 }

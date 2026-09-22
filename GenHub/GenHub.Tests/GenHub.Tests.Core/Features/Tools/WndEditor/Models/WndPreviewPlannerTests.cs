@@ -147,13 +147,16 @@ public sealed class WndPreviewPlannerTests
     }
 
     /// <summary>
-    /// Tests that check boxes plan their box glyph from index one.
+    /// Tests that check boxes and radio buttons plan their box glyph from index one.
     /// </summary>
-    [Fact]
-    public void Plan_CheckBox_PlansBoxGlyph()
+    /// <param name="controlType">The control type under test.</param>
+    [Theory]
+    [InlineData(WndConstants.ControlTypes.CheckBox)]
+    [InlineData(WndConstants.ControlTypes.RadioButton)]
+    public void Plan_BoxControls_PlansBoxGlyph(string controlType)
     {
         // Arrange
-        var window = new WndWindow { ControlTypeName = WndConstants.ControlTypes.CheckBox };
+        var window = new WndWindow { ControlTypeName = controlType };
         window.SetProperty(WndConstants.PropertyKeys.EnabledDrawData, DrawDataWith(("Box", 1)));
 
         // Act
@@ -281,7 +284,7 @@ public sealed class WndPreviewPlannerTests
     }
 
     /// <summary>
-    /// Tests that command bar background marker plans default scheme HUD image when draw data has NoImage.
+    /// Tests that command bar background marker plans default scheme HUD image when SingleImage is null.
     /// </summary>
     [Fact]
     public void Plan_ControlBarBackgroundMarker_PlansDefaultSchemeImage()

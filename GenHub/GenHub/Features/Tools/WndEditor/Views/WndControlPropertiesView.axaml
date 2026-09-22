@@ -1,8 +1,9 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:localization="clr-namespace:GenHub.Common.Markup"
+             xmlns:vm="clr-namespace:GenHub.Features.Tools.WndEditor.ViewModels"
              x:Class="GenHub.Features.Tools.WndEditor.Views.WndControlPropertiesView"
-             x:CompileBindings="False">
+             x:DataType="vm:WndWindowPropertiesViewModel">
   <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
     <StackPanel Spacing="1" Margin="0">
       <Border IsVisible="{Binding !IsControlDataSupported}" Background="{DynamicResource CardBackground}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="6" Padding="8">

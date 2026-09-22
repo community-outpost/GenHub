@@ -5,7 +5,7 @@
              xmlns:vm="clr-namespace:GenHub.Features.Tools.WndEditor.ViewModels"
              xmlns:cp="clr-namespace:Avalonia.Controls;assembly=Avalonia.Controls.ColorPicker"
              x:Class="GenHub.Features.Tools.WndEditor.Views.WndGeneralPropertiesView"
-             x:CompileBindings="False">
+             x:DataType="vm:WndWindowPropertiesViewModel">
   <UserControl.Resources>
     <DataTemplate x:Key="DrawEntryTemplate" x:DataType="vm:WndDrawDataEntryViewModel">
       <Border Margin="0,1" Padding="4" CornerRadius="4" Background="{DynamicResource SurfaceHoverBrush}">
@@ -243,7 +243,7 @@
                 <Grid ColumnDefinitions="100,*,Auto" Margin="0,2">
                   <TextBlock Grid.Column="0" Text="{Binding Key}" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Key}"/>
                   <TextBox Grid.Column="1" Text="{Binding Value, Mode=TwoWay, UpdateSourceTrigger=LostFocus}" FontSize="11" Margin="6,0"/>
-                  <Button Grid.Column="2" Command="{Binding ElementName=GeneralRoot, Path=DataContext.DeletePropertyCommand}" CommandParameter="{Binding}" Padding="6,3" Background="Transparent" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="6" Content="{localization:Localize Tools.WndEditor.Properties.Delete}" FontSize="11" Foreground="{DynamicResource ErrorBrush}" VerticalAlignment="Center"/>
+                  <Button Grid.Column="2" x:CompileBindings="False" Command="{Binding ElementName=GeneralRoot, Path=DataContext.DeletePropertyCommand}" CommandParameter="{Binding}" Padding="6,3" Background="Transparent" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="6" Content="{localization:Localize Tools.WndEditor.Properties.Delete}" FontSize="11" Foreground="{DynamicResource ErrorBrush}" VerticalAlignment="Center"/>
                 </Grid>
               </DataTemplate>
             </ItemsControl.ItemTemplate>

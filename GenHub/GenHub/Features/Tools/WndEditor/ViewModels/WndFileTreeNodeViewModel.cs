@@ -1,4 +1,5 @@
 using CommunityToolkit.Mvvm.ComponentModel;
+using System;
 using System.Collections.ObjectModel;
 
 namespace GenHub.Features.Tools.WndEditor.ViewModels;
@@ -8,6 +9,8 @@ namespace GenHub.Features.Tools.WndEditor.ViewModels;
 /// </summary>
 public sealed partial class WndFileTreeNodeViewModel : ObservableObject
 {
+    private readonly ObservableCollection<WndFileTreeNodeViewModel> _children = [];
+
     [ObservableProperty]
     private bool _isExpanded = true;
 
@@ -34,6 +37,7 @@ public sealed partial class WndFileTreeNodeViewModel : ObservableObject
         IsDirectory = isDirectory;
         _isCurrent = isCurrent;
         Parent = parent;
+        Children = new(_children);
     }
 
     /// <summary>
@@ -69,5 +73,15 @@ public sealed partial class WndFileTreeNodeViewModel : ObservableObject
     /// <summary>
     /// Gets the child nodes.
     /// </summary>
-    public ObservableCollection<WndFileTreeNodeViewModel> Children { get; } = [];
+    public ReadOnlyObservableCollection<WndFileTreeNodeViewModel> Children { get; }
+
+    /// <summary>
+    /// Adds a child node to this directory node.
+    /// </summary>
+    /// <param name="child">The child node to add.</param>
+    public void AddChild(WndFileTreeNodeViewModel child)
+    {
+        ArgumentNullException.ThrowIfNull(child);
+        _children.Add(child);
+    }
 }

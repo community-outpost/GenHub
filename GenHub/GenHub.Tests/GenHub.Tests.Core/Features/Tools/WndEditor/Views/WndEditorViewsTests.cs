@@ -110,7 +110,7 @@ public sealed class WndEditorViewsTests
                 .FirstOrDefault(button => button.Flyout is Flyout flyout && flyout.Content is ColorView);
             swatch.Should().NotBeNull();
             var colorView = (ColorView)((Flyout)swatch!.Flyout!).Content!;
-            colorView.MaxWidth.Should().BeGreaterThanOrEqualTo(340);
+            colorView.MaxWidth.Should().Be(360);
         }
         finally
         {

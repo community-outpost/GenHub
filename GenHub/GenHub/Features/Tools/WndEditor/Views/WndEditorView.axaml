@@ -6,7 +6,7 @@
              xmlns:views="clr-namespace:GenHub.Features.Tools.WndEditor.Views"
              xmlns:vm="clr-namespace:GenHub.Features.Tools.WndEditor.ViewModels"
              x:Class="GenHub.Features.Tools.WndEditor.Views.WndEditorView"
-             x:CompileBindings="False">
+             x:DataType="vm:WndEditorViewModel">
   <UserControl.KeyBindings>
     <KeyBinding Gesture="Ctrl+Add" Command="{Binding ZoomInCommand}"/>
     <KeyBinding Gesture="Ctrl+OemPlus" Command="{Binding ZoomInCommand}"/>
@@ -22,6 +22,31 @@
     <KeyBinding Gesture="Ctrl+Y" Command="{Binding RedoCommand}"/>
     <KeyBinding Gesture="Ctrl+Shift+Z" Command="{Binding RedoCommand}"/>
   </UserControl.KeyBindings>
+  <UserControl.Styles>
+    <Style Selector="TabControl.compact-tabs TabItem">
+      <Setter Property="FontSize" Value="11"/>
+      <Setter Property="FontWeight" Value="SemiBold"/>
+      <Setter Property="MinHeight" Value="22"/>
+      <Setter Property="Padding" Value="6,2,6,3"/>
+      <Setter Property="Margin" Value="0,0,3,0"/>
+      <Setter Property="Cursor" Value="Hand"/>
+      <Setter Property="Foreground" Value="{DynamicResource TextSecondary}"/>
+    </Style>
+    <Style Selector="TabControl.compact-tabs TabItem:pointerover">
+      <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+    </Style>
+    <Style Selector="TabControl.compact-tabs TabItem:selected">
+      <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+    </Style>
+    <Style Selector="TabControl.compact-tabs TabItem /template/ Border#PART_SelectedPipe">
+      <Setter Property="Height" Value="2"/>
+      <Setter Property="CornerRadius" Value="1"/>
+      <Setter Property="Background" Value="{DynamicResource AccentBrush}"/>
+    </Style>
+    <Style Selector="TabControl.compact-tabs TabItem:selected /template/ Border#PART_SelectedPipe">
+      <Setter Property="IsVisible" Value="True"/>
+    </Style>
+  </UserControl.Styles>
   <Grid RowDefinitions="Auto,*">
     <Border Grid.Row="0"
             Background="{DynamicResource CardBackground}"
@@ -144,32 +169,7 @@
                 Background="{DynamicResource CardBackground}"
                 BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
                 CornerRadius="10" Padding="8,6" ClipToBounds="True">
-          <TabControl SelectedIndex="{Binding LeftSidebarTabIndex, Mode=TwoWay}" Padding="0">
-            <TabControl.Styles>
-              <Style Selector="TabItem">
-                <Setter Property="FontSize" Value="11"/>
-                <Setter Property="FontWeight" Value="SemiBold"/>
-                <Setter Property="MinHeight" Value="22"/>
-                <Setter Property="Padding" Value="6,2,6,3"/>
-                <Setter Property="Margin" Value="0,0,3,0"/>
-                <Setter Property="Cursor" Value="Hand"/>
-                <Setter Property="Foreground" Value="{DynamicResource TextSecondary}"/>
-              </Style>
-              <Style Selector="TabItem:pointerover">
-                <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
-              </Style>
-              <Style Selector="TabItem:selected">
-                <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
-              </Style>
-              <Style Selector="TabItem /template/ Border#PART_SelectedPipe">
-                <Setter Property="Height" Value="2"/>
-                <Setter Property="CornerRadius" Value="1"/>
-                <Setter Property="Background" Value="{DynamicResource AccentBrush}"/>
-              </Style>
-              <Style Selector="TabItem:selected /template/ Border#PART_SelectedPipe">
-                <Setter Property="IsVisible" Value="True"/>
-              </Style>
-            </TabControl.Styles>
+          <TabControl Classes="compact-tabs" SelectedIndex="{Binding LeftSidebarTabIndex, Mode=TwoWay}" Padding="0">
             <TabItem Header="{localization:Localize Tools.WndEditor.Tabs.Windows}">
               <Grid RowDefinitions="Auto,Auto,*,Auto">
                 <TextBox Grid.Row="0"
@@ -201,7 +201,7 @@
                             BorderThickness="0" Background="Transparent"
                             ScrollViewer.HorizontalScrollBarVisibility="Disabled">
                     <TreeView.Styles>
-                      <Style Selector="TreeViewItem">
+                      <Style Selector="TreeViewItem" x:DataType="vm:WndTreeNodeViewModel">
                         <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}"/>
                         <Setter Property="HorizontalAlignment" Value="Stretch"/>
                         <Setter Property="Padding" Value="0"/>
@@ -342,18 +342,8 @@
                   <TreeView ItemsSource="{Binding Files}"
                             BorderThickness="0" Background="Transparent"
                             ScrollViewer.HorizontalScrollBarVisibility="Disabled">
-                    <TreeView.Resources>
-                      <SolidColorBrush x:Key="TreeViewItemBackgroundSelected" Color="Transparent"/>
-                      <SolidColorBrush x:Key="TreeViewItemBackgroundSelectedPointerOver" Color="Transparent"/>
-                      <SolidColorBrush x:Key="TreeViewItemBackgroundSelectedPressed" Color="Transparent"/>
-                      <SolidColorBrush x:Key="TreeViewItemBackgroundSelectedDisabled" Color="Transparent"/>
-                      <SolidColorBrush x:Key="TreeViewItemBorderBrushSelected" Color="Transparent"/>
-                      <SolidColorBrush x:Key="TreeViewItemBorderBrushSelectedPointerOver" Color="Transparent"/>
-                      <SolidColorBrush x:Key="TreeViewItemBorderBrushSelectedPressed" Color="Transparent"/>
-                      <SolidColorBrush x:Key="TreeViewItemBorderBrushSelectedDisabled" Color="Transparent"/>
-                    </TreeView.Resources>
                     <TreeView.Styles>
-                      <Style Selector="TreeViewItem">
+                      <Style Selector="TreeViewItem" x:DataType="vm:WndFileTreeNodeViewModel">
                         <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}"/>
                         <Setter Property="HorizontalAlignment" Value="Stretch"/>
                         <Setter Property="Padding" Value="0"/>
@@ -420,7 +410,7 @@
                       <TreeDataTemplate ItemsSource="{Binding Children}" x:DataType="vm:WndFileTreeNodeViewModel">
                         <Panel>
                           <!-- Directory item -->
-                          <Button IsVisible="{Binding IsDirectory}"
+                          <Button IsVisible="{Binding IsDirectory}" x:CompileBindings="False"
                                   Command="{Binding ElementName=Root, Path=DataContext.ToggleFileDirectoryCommand}"
                                   CommandParameter="{Binding}"
                                   Background="Transparent" BorderThickness="0"
@@ -443,7 +433,7 @@
                           </Button>
 
                           <!-- File item -->
-                          <Button IsVisible="{Binding IsFile}"
+                          <Button IsVisible="{Binding IsFile}" x:CompileBindings="False"
                                   Command="{Binding ElementName=Root, Path=DataContext.OpenExplorerFileCommand}"
                                   CommandParameter="{Binding}"
                                   Background="Transparent" BorderThickness="0"
@@ -534,7 +524,7 @@
                       </ItemsPanelTemplate>
                     </ItemsControl.ItemsPanel>
                     <ItemsControl.ItemContainerTheme>
-                      <ControlTheme TargetType="ContentPresenter">
+                      <ControlTheme TargetType="ContentPresenter" x:DataType="vm:WndCanvasItemViewModel">
                         <Setter Property="Canvas.Left" Value="{Binding X}"/>
                         <Setter Property="Canvas.Top" Value="{Binding Y}"/>
                       </ControlTheme>
@@ -634,32 +624,7 @@
                 BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
                 CornerRadius="10" Padding="8,6" ClipToBounds="True">
           <Grid>
-            <TabControl IsVisible="{Binding SelectedNode, Converter={x:Static ObjectConverters.IsNotNull}}" Padding="0">
-              <TabControl.Styles>
-                <Style Selector="TabItem">
-                  <Setter Property="FontSize" Value="11"/>
-                  <Setter Property="FontWeight" Value="SemiBold"/>
-                  <Setter Property="MinHeight" Value="22"/>
-                  <Setter Property="Padding" Value="6,2,6,3"/>
-                  <Setter Property="Margin" Value="0,0,3,0"/>
-                  <Setter Property="Cursor" Value="Hand"/>
-                  <Setter Property="Foreground" Value="{DynamicResource TextSecondary}"/>
-                </Style>
-                <Style Selector="TabItem:pointerover">
-                  <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
-                </Style>
-                <Style Selector="TabItem:selected">
-                  <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
-                </Style>
-                <Style Selector="TabItem /template/ Border#PART_SelectedPipe">
-                  <Setter Property="Height" Value="2"/>
-                  <Setter Property="CornerRadius" Value="1"/>
-                  <Setter Property="Background" Value="{DynamicResource AccentBrush}"/>
-                </Style>
-                <Style Selector="TabItem:selected /template/ Border#PART_SelectedPipe">
-                  <Setter Property="IsVisible" Value="True"/>
-                </Style>
-              </TabControl.Styles>
+            <TabControl Classes="compact-tabs" IsVisible="{Binding SelectedNode, Converter={x:Static ObjectConverters.IsNotNull}}" Padding="0">
               <TabItem Header="{localization:Localize Tools.WndEditor.Tabs.General}">
                 <views:WndGeneralPropertiesView DataContext="{Binding SelectedProperties}" Margin="0,2,0,0"/>
               </TabItem>

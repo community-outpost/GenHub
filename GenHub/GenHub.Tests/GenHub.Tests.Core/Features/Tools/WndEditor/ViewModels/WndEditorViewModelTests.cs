@@ -1424,6 +1424,29 @@ public sealed class WndEditorViewModelTests : IDisposable
     }
 
     /// <summary>
+    /// Tests that inline ImagePart does not latch block mode, allowing subsequent flat keys to be parsed.
+    /// </summary>
+    [Fact]
+    public void ParseControlBarSchemeIni_InlineImagePart_DoesNotSwallowSubsequentLines()
+    {
+        // Arrange
+        const string ini =
+            "ImagePart ImageName = CustomHUDImage\n" +
+            "RightHUDImage = CustomLogo\n" +
+            "OptionsButtonEnable: CustomOptions\n";
+
+        var dict = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+        // Act
+        WndEditorViewModel.ParseControlBarSchemeIni(ini, dict);
+
+        // Assert
+        dict[WndConstants.ControlBarScheme.BackgroundMarkerKey].Should().Be("CustomHUDImage");
+        dict[WndConstants.ControlBarScheme.RightHUDKey].Should().Be("CustomLogo");
+        dict[WndConstants.ControlBarScheme.ButtonOptionsKey].Should().Be("CustomOptions");
+    }
+
+    /// <summary>
     /// Tests that ParseControlBarSchemeIni parses flat format with equals signs and inline comments.
     /// </summary>
     [Fact]

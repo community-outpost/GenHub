@@ -95,6 +95,10 @@ public static class NumericScrubber
 
     private sealed class ScrubberState(NumericUpDown control)
     {
+        private static Cursor? _dragCursor;
+
+        private static Cursor DragCursor => _dragCursor ??= new Cursor(StandardCursorType.SizeWestEast);
+
         private Point _startPoint;
         private decimal _startValue;
         private bool _isPressed;
@@ -152,13 +156,6 @@ public static class NumericScrubber
                 return;
             }
 
-            // If the inner text box already has focus for keyboard text editing, allow normal text selection
-            var textBox = control.FindDescendantOfType<TextBox>();
-            if (textBox != null && textBox.IsFocused)
-            {
-                return;
-            }
-
             _startPoint = e.GetPosition(control);
             _startValue = control.Value ?? 0m;
             _isPressed = true;
@@ -179,7 +176,8 @@ public static class NumericScrubber
             {
                 _isDragging = true;
                 e.Pointer.Capture(control);
-                control.Cursor = new Cursor(StandardCursorType.SizeWestEast);
+                control.Cursor = DragCursor;
+                control.Focus();
             }
 
             if (_isDragging)
@@ -232,10 +230,10 @@ public static class NumericScrubber
             }
             else
             {
-                // Click without drag: enter direct text editing mode and select all text
+                // Click without drag: enter direct text editing mode if not already focused
                 _isPressed = false;
                 var textBox = control.FindDescendantOfType<TextBox>();
-                if (textBox != null)
+                if (textBox != null && !textBox.IsFocused)
                 {
                     textBox.Focus();
                     textBox.SelectAll();

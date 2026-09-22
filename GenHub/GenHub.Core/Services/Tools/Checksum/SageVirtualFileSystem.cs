@@ -218,7 +218,7 @@ public sealed class SageVirtualFileSystem
     {
         var dir = Path.GetDirectoryName(loosePath);
         var fileName = Path.GetFileName(loosePath);
-        if (string.IsNullOrEmpty(dir) || string.IsNullOrEmpty(fileName) || !Directory.Exists(dir))
+        if (string.IsNullOrEmpty(dir) || string.IsNullOrEmpty(fileName) || !Directory.Exists(dir) || fileName.Contains('*') || fileName.Contains('?'))
         {
             return null;
         }

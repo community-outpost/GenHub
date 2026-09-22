@@ -892,7 +892,55 @@ public static class WndConstants
         /// <summary>Control bar scheme file name.</summary>
         public const string FileName = "ControlBarScheme.ini";
 
-        /// <summary>Standard virtual path to ControlBarScheme.ini under Data\INI.</summary>
+        /// <summary>Default America scheme name in retail Zero Hour.</summary>
+        public const string AmericaSchemeName = "ControlBarSchemeAmerica";
+
+        /// <summary>Fallback faction match token for America.</summary>
+        public const string AmericaFaction = "America";
+
+        /// <summary>Block header keyword for control bar schemes.</summary>
+        public const string SchemeKeyword = "ControlBarScheme";
+
+        /// <summary>Block keyword for image part definitions.</summary>
+        public const string ImagePartKeyword = "ImagePart";
+
+        /// <summary>Block terminator keyword.</summary>
+        public const string EndKeyword = "End";
+
+        /// <summary>Image name property keyword.</summary>
+        public const string ImageNameKeyword = "ImageName";
+
+        /// <summary>Override key name for background marker image.</summary>
+        public const string BackgroundMarkerKey = "BackgroundMarker";
+
+        /// <summary>Override key name for right HUD image.</summary>
+        public const string RightHUDKey = "RightHUD";
+
+        /// <summary>Override key name for options button image.</summary>
+        public const string ButtonOptionsKey = "ButtonOptions";
+
+        /// <summary>Override key name for idle worker button image.</summary>
+        public const string ButtonIdleWorkerKey = "ButtonIdleWorker";
+
+        /// <summary>Override key name for chat button image.</summary>
+        public const string ButtonChatKey = "ButtonChat";
+
+        /// <summary>Override key name for place beacon button image.</summary>
+        public const string ButtonPlaceBeaconKey = "ButtonPlaceBeacon";
+
+        /// <summary>Override key name for general button image.</summary>
+        public const string ButtonGeneralKey = "ButtonGeneral";
+
+        /// <summary>Override key name for under-attack button image.</summary>
+        public const string ButtonUAttackKey = "ButtonUAttack";
+
+        /// <summary>Override key name for experience bar foreground image.</summary>
+        public const string ExpBarForegroundKey = "ExpBarForeground";
+
+        /// <summary>Override key name for queue button image.</summary>
+        public const string QueueButtonImageKey = "QueueButtonImage";
+
+        /// <summary>Standard virtual path to ControlBarScheme.ini under Data\\INI.</summary>
         public static readonly string DataIniPath = $"{DataDirectory}\\{IniDirectory}\\{FileName}";
 
         /// <summary>Alternative virtual path to ControlBarScheme.ini under INI.</summary>
