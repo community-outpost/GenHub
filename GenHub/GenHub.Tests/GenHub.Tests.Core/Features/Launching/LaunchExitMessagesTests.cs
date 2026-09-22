@@ -39,4 +39,29 @@ public class LaunchExitMessagesTests
         launch.ExitCode = null;
         Assert.Contains(expected, LaunchExitMessages.Describe(launch, localization.Object));
     }
+
+    /// <summary>Standalone callers receive translated success messages and a safe formatting fallback.</summary>
+    /// <param name="cultureName">The requested UI culture.</param>
+    /// <param name="expectedTitle">The translated success title.</param>
+    [Theory]
+    [InlineData("en", "Tool Launched")]
+    [InlineData("ar", "تم تشغيل الأداة")]
+    [InlineData("ru", "Инструмент запущен")]
+    public void GetString_WithoutService_LocalizesAndToleratesInvalidArguments(string cultureName, string expectedTitle)
+    {
+        var originalCulture = CultureInfo.CurrentUICulture;
+        try
+        {
+            CultureInfo.CurrentUICulture = CultureInfo.GetCultureInfo(cultureName);
+            Assert.Equal(expectedTitle, LaunchExitMessages.GetString("GameProfiles.Notification.ToolLaunchSuccess.Title", null));
+            Assert.Contains("Tool", LaunchExitMessages.GetString("GameProfiles.Notification.ToolLaunchSuccess.Message", null, "Tool"));
+
+            // Missing arguments trigger the same FormatException as an invalid translation placeholder.
+            Assert.Contains("{0}", LaunchExitMessages.GetString("GameProfiles.Notification.EarlyExit.WithCode", null));
+        }
+        finally
+        {
+            CultureInfo.CurrentUICulture = originalCulture;
+        }
+    }
 }

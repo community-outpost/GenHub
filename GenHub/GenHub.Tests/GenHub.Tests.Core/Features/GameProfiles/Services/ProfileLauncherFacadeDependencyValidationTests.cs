@@ -24,6 +24,8 @@ using Moq;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Globalization;
+using System.Resources;
 using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
@@ -799,6 +801,7 @@ public sealed class ProfileLauncherFacadeDependencyValidationTests
             Assert.Equal(!exited, result.Success);
             Assert.NotNull(registered);
             Assert.Equal(identity, registered.ProcessInfo.ProcessInstanceId);
+            Assert.Equal("tool", registered.ProcessInfo.ExecutablePath);
             if (exited)
             {
                 Assert.Contains($"exit code {exitCode}", result.FirstError);
@@ -809,6 +812,7 @@ public sealed class ProfileLauncherFacadeDependencyValidationTests
             {
                 Assert.Equal(identity, Assert.Single(messages).ProcessInstanceId);
                 Assert.Same(info, result.Data!.ProcessInfo);
+                _notificationServiceMock.Verify(m => m.ShowSuccess("Tool Launched", "Successfully launched 'Tool'", NotificationDurations.Medium, It.IsAny<bool>()), Times.Once);
             }
 
             _launchRegistryMock.Verify(m => m.UnregisterLaunchAsync(It.IsAny<string>()), Times.Never);
@@ -852,8 +856,38 @@ public sealed class ProfileLauncherFacadeDependencyValidationTests
         _notificationServiceMock.Verify(m => m.ShowSuccess(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()), Times.Never);
     }
 
+    /// <summary>Unreadable diagnostics still produce a registered early exit and release the handle.</summary>
+    /// <returns>The async task.</returns>
+    [Fact]
+    public async Task CompleteToolLaunchAsync_UnavailableExitDiagnostics_RegistersUnknownExitAsync()
+    {
+        using var process = Process.GetCurrentProcess();
+        _gameProcessManagerMock.Setup(m => m.TrackProcess(process))
+            .Callback(process.Dispose)
+            .Returns((GameProcessInfo?)null);
+        GameLaunchInfo? registered = null;
+        _launchRegistryMock.Setup(m => m.RegisterLaunchAsync(It.IsAny<GameLaunchInfo>()))
+            .Callback<GameLaunchInfo>(launch => registered = launch)
+            .Returns(Task.CompletedTask);
+
+        var result = await CreateFacade().CompleteToolLaunchAsync(
+            process, new GameProfile { Id = "unreadable-tool", Name = "Tool" }, "workspace", "tool");
+
+        Assert.False(result.Success);
+        Assert.NotNull(registered);
+        Assert.Null(registered.ExitCode);
+        Assert.NotNull(registered.TerminatedAt);
+        Assert.False(registered.ProcessInfo.IsRunning);
+        Assert.Contains("before launch completed", result.FirstError);
+        _notificationServiceMock.Verify(m => m.ShowSuccess(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()), Times.Never);
+    }
+
     private ProfileLauncherFacade CreateFacade()
     {
+        var resources = new ResourceManager(LocalizationConstants.StringResourceBaseName, typeof(GameLauncher).Assembly);
+        var localization = new Mock<ILocalizationService>();
+        localization.Setup(m => m.GetString(It.IsAny<string>(), It.IsAny<object?[]>()))
+            .Returns<string, object?[]>((key, arguments) => string.Format(CultureInfo.InvariantCulture, resources.GetString(key, CultureInfo.InvariantCulture)!, arguments));
         return new ProfileLauncherFacade(
             _profileManagerMock.Object,
             _gameLauncherMock.Object,
@@ -871,6 +905,7 @@ public sealed class ProfileLauncherFacadeDependencyValidationTests
             _gameProcessManagerMock.Object,
             _symlinkCapabilityMock.Object,
             NullLogger<ProfileLauncherFacade>.Instance,
-            new DirectRunner(NullLogger<DirectRunner>.Instance));
+            new DirectRunner(NullLogger<DirectRunner>.Instance),
+            localizationService: localization.Object);
     }
 }

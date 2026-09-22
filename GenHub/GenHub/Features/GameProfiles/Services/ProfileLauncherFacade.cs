@@ -31,6 +31,7 @@ using GenHub.Features.Workspace;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -480,6 +481,11 @@ public class ProfileLauncherFacade(
     {
         var processId = process.Id;
         var tracked = gameProcessManager.TrackProcess(process);
+        if (tracked != null && string.IsNullOrWhiteSpace(tracked.ExecutablePath))
+        {
+            tracked.ExecutablePath = executablePath;
+        }
+
         var launchInfo = new GameLaunchInfo
         {
             LaunchId = Guid.NewGuid().ToString("N"),
@@ -495,10 +501,33 @@ public class ProfileLauncherFacade(
         if (tracked == null)
         {
             // Tracking declined an already-exited process; the caller still owns this handle.
-            launchInfo.ExitCode = process.ExitCode;
-            launchInfo.FailureReason = new GameProcessExitedEventArgs { ExitCode = launchInfo.ExitCode }.DescribeFailure();
-            launchInfo.TerminatedAt = process.ExitTime.ToUniversalTime();
-            process.Dispose();
+            try
+            {
+                try
+                {
+                    launchInfo.ExitCode = process.ExitCode;
+                }
+                catch (Exception ex) when (ex is InvalidOperationException or Win32Exception)
+                {
+                    logger.LogDebug(ex, "Unable to read exit code for tool process {ProcessId}", processId);
+                }
+
+                launchInfo.TerminatedAt = DateTime.UtcNow;
+                try
+                {
+                    launchInfo.TerminatedAt = process.ExitTime.ToUniversalTime();
+                }
+                catch (Exception ex) when (ex is InvalidOperationException or Win32Exception)
+                {
+                    logger.LogDebug(ex, "Unable to read exit time for tool process {ProcessId}", processId);
+                }
+
+                launchInfo.FailureReason = new GameProcessExitedEventArgs { ExitCode = launchInfo.ExitCode }.DescribeFailure();
+            }
+            finally
+            {
+                process.Dispose();
+            }
         }
 
         // Tracking may have published an exit before registration; drain it using the assigned identity.
@@ -511,8 +540,8 @@ public class ProfileLauncherFacade(
 
         logger.LogInformation("Tool launch {LaunchId} registered with process {ProcessId}", launchInfo.LaunchId, launchInfo.ProcessInfo.ProcessId);
         notificationService.ShowSuccess(
-            ProfileValidationConstants.ToolLaunchSuccessTitle,
-            $"Successfully launched '{profile.Name}'",
+            LaunchExitMessages.GetString("GameProfiles.Notification.ToolLaunchSuccess.Title", localizationService),
+            LaunchExitMessages.GetString("GameProfiles.Notification.ToolLaunchSuccess.Message", localizationService, profile.Name),
             NotificationDurations.Medium);
         WeakReferenceMessenger.Default.Send(new ProfileLaunchedMessage(profile.Id, launchInfo.ProcessInfo.ProcessId)
         {

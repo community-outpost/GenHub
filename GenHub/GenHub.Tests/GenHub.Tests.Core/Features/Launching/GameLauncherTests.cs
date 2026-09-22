@@ -23,6 +23,8 @@ using Microsoft.Extensions.Logging;
 using Moq;
 using System.Collections.Concurrent;
 using System.Diagnostics;
+using System.Globalization;
+using System.Resources;
 using System.Text.Json;
 
 namespace GenHub.Tests.Core.Features.Launching;
@@ -156,6 +158,10 @@ public class GameLauncherTests : IDisposable
                 return DependencyResolutionResult.CreateSuccess(idList, [], []);
             });
 
+        var resources = new ResourceManager(LocalizationConstants.StringResourceBaseName, typeof(GameLauncher).Assembly);
+        var localization = new Mock<ILocalizationService>();
+        localization.Setup(m => m.GetString(It.IsAny<string>(), It.IsAny<object?[]>()))
+            .Returns<string, object?[]>((key, arguments) => string.Format(CultureInfo.InvariantCulture, resources.GetString(key, CultureInfo.InvariantCulture)!, arguments));
         _gameLauncher = new GameLauncher(
             _loggerMock.Object,
             _profileManagerMock.Object,
@@ -171,7 +177,8 @@ public class GameLauncherTests : IDisposable
             _profileContentLinkerMock.Object,
             _steamLauncherMock.Object,
             _configurationProviderServiceMock.Object,
-            _launchReceiptServiceMock.Object);
+            _launchReceiptServiceMock.Object,
+            localization.Object);
     }
 
     /// <summary>

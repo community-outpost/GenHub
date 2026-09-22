@@ -1,9 +1,9 @@
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Launching;
-using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Events;
 using GenHub.Core.Models.Launching;
+using GenHub.Core.Models.Results;
 using GenHub.Features.GameProfiles.Infrastructure;
 using GenHub.Features.Launching;
 using Microsoft.Extensions.Logging;
