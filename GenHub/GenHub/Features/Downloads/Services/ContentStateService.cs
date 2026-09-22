@@ -40,6 +40,9 @@ public sealed partial class ContentStateService(
     private const string UnknownSegment = "unknown";
     private const string FileSchemePrefix = ContentConstants.FileContentIdPrefix;
     private const int MaxSessionDownloadsEntries = 1000;
+    private const string PlatformWindows = "windows";
+    private const string PlatformLinux = "linux";
+    private const string PlatformMacOS = "macos";
     private static readonly MmddyyQfeVersionScheme GeneralsOnlineVersionScheme = new();
 
     /// <summary>Matches any non-alphanumeric character, mirroring ManifestIdGenerator.Normalize.</summary>
@@ -63,6 +66,24 @@ public sealed partial class ContentStateService(
         ["pt"] = "portuguese",
         ["pl"] = "polish",
         ["uk"] = "ukrainian",
+    };
+
+    private static readonly char[] PlatformSegmentSeparators =
+    [
+        '-', '_', '.', ' ', '(', ')', '[', ']', '/', '\\',
+    ];
+
+    private static readonly Dictionary<string, string> PlatformTokenMap = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["windows"] = PlatformWindows,
+        ["win"] = PlatformWindows,
+        ["win32"] = PlatformWindows,
+        ["win64"] = PlatformWindows,
+        ["linux"] = PlatformLinux,
+        ["macos"] = PlatformMacOS,
+        ["mac"] = PlatformMacOS,
+        ["osx"] = PlatformMacOS,
+        ["darwin"] = PlatformMacOS,
     };
 
     /// <summary>
@@ -806,6 +827,123 @@ public sealed partial class ContentStateService(
         return segment;
     }
 
+    /// <summary>
+    /// Extracts the OS platform tokens (windows, linux, macos) named anywhere in the input.
+    /// Short aliases (win, mac, osx) only match as whole separator-delimited segments so
+    /// words like "winter" never qualify, while full OS words also match inside
+    /// separator-stripped identifiers such as manifest ID segments.
+    /// </summary>
+    /// <param name="input">The name, identifier, tag, or URL to inspect.</param>
+    /// <returns>The canonical platform tokens found, empty when none are named.</returns>
+    internal static HashSet<string> ExtractPlatformTokens(string? input)
+    {
+        var tokens = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        if (string.IsNullOrWhiteSpace(input))
+        {
+            return tokens;
+        }
+
+        foreach (var segment in input.Split(PlatformSegmentSeparators, StringSplitOptions.RemoveEmptyEntries))
+        {
+            if (PlatformTokenMap.TryGetValue(segment, out var canonical))
+            {
+                tokens.Add(canonical);
+            }
+        }
+
+        if (input.Contains(PlatformWindows, StringComparison.OrdinalIgnoreCase))
+        {
+            tokens.Add(PlatformWindows);
+        }
+
+        if (input.Contains(PlatformLinux, StringComparison.OrdinalIgnoreCase))
+        {
+            tokens.Add(PlatformLinux);
+        }
+
+        if (input.Contains(PlatformMacOS, StringComparison.OrdinalIgnoreCase))
+        {
+            tokens.Add(PlatformMacOS);
+        }
+
+        return tokens;
+    }
+
+    /// <summary>
+    /// Collects every OS platform token named by a catalog item across its display name,
+    /// identifier, asset metadata, tags, and download URL.
+    /// </summary>
+    /// <param name="item">The catalog item to inspect.</param>
+    /// <returns>The canonical platform tokens found, empty when none are named.</returns>
+    private static HashSet<string> CollectItemPlatforms(ContentSearchResult item)
+    {
+        var platforms = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        if (item.ResolverMetadata?.TryGetValue(GitHubConstants.AssetNameMetadataKey, out var assetName) == true)
+        {
+            platforms.UnionWith(ExtractPlatformTokens(assetName));
+        }
+
+        if (item.ResolverMetadata?.TryGetValue(CatalogConstants.SelectedVariantMetadataKey, out var selectedVariant) == true)
+        {
+            platforms.UnionWith(ExtractPlatformTokens(selectedVariant));
+        }
+
+        platforms.UnionWith(ExtractPlatformTokens(item.Name));
+        platforms.UnionWith(ExtractPlatformTokens(item.Id));
+        platforms.UnionWith(ExtractPlatformTokens(item.SelectedDownloadUrl));
+        foreach (var tag in item.Tags)
+        {
+            platforms.UnionWith(ExtractPlatformTokens(tag));
+        }
+
+        return platforms;
+    }
+
+    /// <summary>
+    /// Collects every OS platform token named by a stored manifest across its name,
+    /// identifier, selected variant, tags, and file paths.
+    /// </summary>
+    /// <param name="manifest">The stored manifest to inspect.</param>
+    /// <returns>The canonical platform tokens found, empty when none are named.</returns>
+    private static HashSet<string> CollectManifestPlatforms(ContentManifest manifest)
+    {
+        var platforms = ExtractPlatformTokens(manifest.Name);
+        platforms.UnionWith(ExtractPlatformTokens(manifest.Id.Value));
+        platforms.UnionWith(ExtractPlatformTokens(manifest.Metadata?.SelectedVariantId));
+        if (manifest.Metadata?.Tags != null)
+        {
+            foreach (var tag in manifest.Metadata.Tags)
+            {
+                platforms.UnionWith(ExtractPlatformTokens(tag));
+            }
+        }
+
+        if (manifest.Files != null)
+        {
+            foreach (var file in manifest.Files)
+            {
+                platforms.UnionWith(ExtractPlatformTokens(file.RelativePath));
+                platforms.UnionWith(ExtractPlatformTokens(file.DownloadUrl));
+            }
+        }
+
+        return platforms;
+    }
+
+    /// <summary>
+    /// Reports whether a stored manifest positively contradicts the requested item's OS
+    /// platform. Only disjoint non-empty platform sets conflict: universal manifests and
+    /// platform-less legacy content on either side never veto a match.
+    /// </summary>
+    /// <param name="itemPlatforms">The platforms named by the catalog item.</param>
+    /// <param name="manifest">The stored manifest candidate.</param>
+    /// <returns><see langword="true"/> when the manifest serves none of the requested platforms.</returns>
+    private static bool PlatformConflicts(HashSet<string> itemPlatforms, ContentManifest manifest)
+    {
+        var manifestPlatforms = CollectManifestPlatforms(manifest);
+        return manifestPlatforms.Count > 0 && !itemPlatforms.Overlaps(manifestPlatforms);
+    }
+
     private static bool CompareVersionStrings(
         string? prospectiveVersionStr,
         string? localVersionStr,
@@ -1197,6 +1335,24 @@ public sealed partial class ContentStateService(
         if (candidates.Count == 0)
         {
             return null;
+        }
+
+        var itemPlatforms = CollectItemPlatforms(item);
+        if (itemPlatforms.Count > 0)
+        {
+            var compatible = candidates.Where(m => !PlatformConflicts(itemPlatforms, m)).ToList();
+            if (compatible.Count == 0)
+            {
+                logger?.LogDebug(
+                    "Platform filter eliminated all {CandidateCount} candidates for content '{ContentName}' ({ContentId}) with requested platform '{Platforms}'",
+                    candidates.Count,
+                    item.Name,
+                    item.Id,
+                    string.Join(",", itemPlatforms));
+                return null;
+            }
+
+            candidates = compatible;
         }
 
         var itemVariant = ExtractVariantToken(item.Name)

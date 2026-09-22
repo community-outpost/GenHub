@@ -18,11 +18,17 @@ namespace GenHub.Core.Constants;
 /// </remarks>
 public static class RetailArchiveConstants
 {
-    /// <summary>Environment variable naming the Zero Hour retail directory.</summary>
+    /// <summary>Environment variable naming the Zero Hour retail directory (GeneralsGameCode / legacy GeneralsX).</summary>
     public const string ZeroHourInstallPathVariable = "CNC_ZH_INSTALLPATH";
 
-    /// <summary>Environment variable naming the Generals retail directory.</summary>
+    /// <summary>Environment variable naming the Generals retail directory (GeneralsGameCode / legacy GeneralsX).</summary>
     public const string GeneralsInstallPathVariable = "CNC_GENERALS_INSTALLPATH";
+
+    /// <summary>GeneralsX environment variable naming the Zero Hour retail/game directory.</summary>
+    public const string GeneralsXZeroHourInstallPathVariable = "CNC_GENERALS_ZH_PATH";
+
+    /// <summary>GeneralsX environment variable naming the base Generals retail/game directory.</summary>
+    public const string GeneralsXGeneralsInstallPathVariable = "CNC_GENERALS_PATH";
 
     /// <summary>
     /// Search pattern for the archives the engine mounts from a retail root.
@@ -62,5 +68,7 @@ public static class RetailArchiveConstants
     [
         ZeroHourInstallPathVariable,
         GeneralsInstallPathVariable,
+        GeneralsXZeroHourInstallPathVariable,
+        GeneralsXGeneralsInstallPathVariable,
     ];
 }

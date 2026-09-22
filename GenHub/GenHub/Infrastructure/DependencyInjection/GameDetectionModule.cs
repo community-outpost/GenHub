@@ -28,6 +28,7 @@ public static class GameDetectionModule
         // Register identifiers for local detection
         services.AddSingleton<IGameClientIdentifier, Features.Content.Services.GeneralsOnline.GeneralsOnlineClientIdentifier>();
         services.AddSingleton<IGameClientIdentifier, Features.Content.Services.Publishers.SuperHackersClientIdentifier>();
+        services.AddSingleton<IGameClientIdentifier, Features.Content.Services.Publishers.CommunityGameClientIdentifier>();
 
         // Register game client detector with dependencies
         services.AddSingleton<IGameClientDetector>(provider =>

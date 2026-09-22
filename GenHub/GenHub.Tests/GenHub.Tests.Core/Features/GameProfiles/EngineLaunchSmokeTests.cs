@@ -51,7 +51,8 @@ public class EngineLaunchSmokeTests : IDisposable
     private readonly GameProcessManager _processManager = new(
         NullLogger<GameProcessManager>.Instance,
         new DirectRunner(NullLogger<DirectRunner>.Instance),
-        Mock.Of<ILocalizationService>());
+        Mock.Of<ILocalizationService>(),
+        new FlatpakProvisioner(NullLogger<FlatpakProvisioner>.Instance));
 
     /// <summary>
     /// Initializes a new instance of the <see cref="EngineLaunchSmokeTests"/> class.

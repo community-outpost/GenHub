@@ -105,6 +105,17 @@ public class GameLauncherTests : IDisposable
         _storageLocationServiceMock.Setup(x => x.GetCasPoolPath(It.IsAny<GameInstallation>()))
             .Returns(@"C:\CAS");
 
+        // Setup manifest pool mock default
+        _manifestPoolMock.Setup(x => x.GetContentDirectoryAsync(It.IsAny<ManifestId>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<string?>.CreateSuccess(@"C:\Content\mock"));
+
+        // Setup steam launcher mock default
+        _steamLauncherMock.Setup(x => x.CleanupGameDirectoryAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+
         // Setup profile content linker mock
         _profileContentLinkerMock.Setup(x => x.PrepareProfileUserDataAsync(
                 It.IsAny<string>(),
@@ -1638,6 +1649,91 @@ public class GameLauncherTests : IDisposable
         }
 
         GC.SuppressFinalize(this);
+    }
+
+    /// <summary>
+    /// Verifies that when a profile has UseSteamLaunch set on a Steam installation, but its executable
+    /// uses a non-retail format, Steam integration is disabled before workspace preparation (ForceRecreate is false)
+    /// and Steam launcher proxy preparation is never invoked.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task LaunchProfileAsync_SteamInstallationWithNonRetailCandidateExecutable_DisablesSteamLaunchBeforeWorkspaceSetupAsync()
+    {
+        // Arrange
+        var profile = CreateTestProfile();
+        profile.UseSteamLaunch = true;
+        profile.GameClient = new GameClient
+        {
+            Id = "steam-client",
+            Name = "Steam Zero Hour",
+            ExecutablePath = "generals.exe",
+            GameType = GameType.ZeroHour,
+        };
+
+        var clientManifest = new ContentManifest
+        {
+            Id = "1.0.genhub.client.flatpak",
+            Name = "Flatpak Client",
+            ContentType = GenHub.Core.Models.Enums.ContentType.GameClient,
+            EntryPoint = "com.fbraz3.GeneralsXZH.flatpakref",
+            Files = [new ManifestFile { RelativePath = "com.fbraz3.GeneralsXZH.flatpakref", IsExecutable = true }],
+            TargetGame = GameType.ZeroHour,
+        };
+
+        ArrangeSuccessfulLaunch(profile);
+
+        var workspaceInfo = new WorkspaceInfo
+        {
+            Id = profile.Id,
+            WorkspacePath = @"C:\workspace",
+            ExecutablePath = @"C:\workspace\com.fbraz3.GeneralsXZH.flatpakref",
+        };
+        _workspaceManagerMock.Setup(x => x.PrepareWorkspaceAsync(It.IsAny<WorkspaceConfiguration>(), It.IsAny<IProgress<WorkspacePreparationProgress>>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<WorkspaceInfo>.CreateSuccess(workspaceInfo));
+
+        _manifestPoolMock.Setup(x => x.GetManifestAsync(It.IsAny<ManifestId>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentManifest?>.CreateSuccess(clientManifest));
+        _manifestPoolMock.Setup(x => x.GetContentDirectoryAsync(It.IsAny<ManifestId>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<string?>.CreateSuccess(@"C:\Content\flatpak"));
+
+        _dependencyResolverMock.Setup(x => x.ResolveDependenciesWithManifestsAsync(
+                It.IsAny<IEnumerable<string>>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(DependencyResolutionResult.CreateSuccess(TestContentIds, [clientManifest], []));
+
+        var processInfo = new GameProcessInfo { ProcessId = 123, ProcessName = "generals.exe" };
+        _processManagerMock.Setup(x => x.StartProcessAsync(It.IsAny<GameLaunchConfiguration>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<GameProcessInfo>.CreateSuccess(processInfo));
+
+        // Act
+        var result = await _gameLauncher.LaunchProfileAsync(profile.Id);
+
+        // Assert
+        Assert.True(result.Success, result.FirstError);
+
+        // Workspace setup should receive isSteamLaunch = false, so ForceRecreate is false
+        _workspaceManagerMock.Verify(
+            x => x.PrepareWorkspaceAsync(
+                It.Is<WorkspaceConfiguration>(cfg => !cfg.ForceRecreate),
+                It.IsAny<IProgress<WorkspacePreparationProgress>>(),
+                It.Is<bool>(skipCleanup => !skipCleanup),
+                It.IsAny<CancellationToken>()),
+            Times.Once);
+
+        // Steam proxy preparation must never be invoked for non-retail executable
+        _steamLauncherMock.Verify(
+            x => x.PrepareForProfileAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<IEnumerable<ContentManifest>>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string[]?>(),
+                It.IsAny<string?>(),
+                It.IsAny<CancellationToken>()),
+            Times.Never);
     }
 
     /// <summary>

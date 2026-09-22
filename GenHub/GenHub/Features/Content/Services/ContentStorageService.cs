@@ -214,11 +214,19 @@ public class ContentStorageService : IContentStorageService
         {
             // Check if any file requires CAS storage based on its source type
             // This covers content from any GitHub publisher (thesuperhackers, generalsonline, etc.)
-            return manifest.Files.Any(f =>
+            if (manifest.Files.Any(f =>
                 f.SourceType == ContentSourceType.ContentAddressable ||
                 f.SourceType == ContentSourceType.ExtractedPackage ||
                 f.SourceType == ContentSourceType.LocalFile ||
-                f.SourceType == ContentSourceType.Unknown);
+                f.SourceType == ContentSourceType.Unknown))
+            {
+                return true;
+            }
+
+            // A lone Flatpak bundle arrives as a RemoteDownload in transient staging,
+            // which is deleted after acquisition: without CAS persistence the source
+            // mapping dangles and the launch can never materialize the bundle.
+            return ManifestVariantResolver.IsLoneFlatpakBundle(manifest.Files);
         }
 
         // For other content types, check if files have source types that require CAS storage

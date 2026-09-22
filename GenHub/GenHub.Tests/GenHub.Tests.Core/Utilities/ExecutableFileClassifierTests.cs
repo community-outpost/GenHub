@@ -1,3 +1,4 @@
+using GenHub.Core.Models.Enums;
 using GenHub.Core.Utilities;
 using System;
 using System.IO;
@@ -248,5 +249,27 @@ public class ExecutableFileClassifierTests : IDisposable
     {
         Assert.True(ExecutableFileClassifier.RequiresExecutePermission("generalszh", null));
         Assert.True(ExecutableFileClassifier.IsLegacyLaunchCandidate("generalszh", null));
+    }
+
+    /// <summary>
+    /// Verifies a workspace-relative entry classifies by name even when a same-named
+    /// file exists in the working directory: content sniffing only applies to fully
+    /// qualified paths.
+    /// </summary>
+    [Fact]
+    public void DetectPlatform_RelativePathWithSameNamedFileInWorkingDirectory_ClassifiesByName()
+    {
+        var fileName = $"genhub-cwd-probe-{Guid.NewGuid():N}";
+        var collisionPath = Path.Combine(Environment.CurrentDirectory, fileName);
+        File.WriteAllBytes(collisionPath, [(byte)0x7F, (byte)'E', (byte)'L', (byte)'F']);
+
+        try
+        {
+            Assert.Equal(ExecutablePlatform.Unknown, ExecutableFileClassifier.DetectPlatform(fileName));
+        }
+        finally
+        {
+            File.Delete(collisionPath);
+        }
     }
 }

@@ -1,4 +1,5 @@
 using GenHub.Core.Constants;
+using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Models.Enums;
@@ -7,6 +8,7 @@ using GenHub.Core.Models.Providers;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Results.Content;
 using GenHub.Core.Services.Dependencies;
+using GenHub.Core.Utilities;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
@@ -24,7 +26,8 @@ namespace GenHub.Features.Content.Services.Catalog;
 /// </summary>
 public partial class GenericCatalogResolver(
     ILogger<GenericCatalogResolver> logger,
-    Func<IContentManifestBuilder> manifestBuilderFactory) : IContentResolver
+    Func<IContentManifestBuilder> manifestBuilderFactory,
+    ILocalizationService? localizationService = null) : IContentResolver
 {
     private readonly record struct ManifestResolutionContext(
         string DeclaredPublisherId,
@@ -88,8 +91,11 @@ public partial class GenericCatalogResolver(
 
             // ContentBundle (and other meta-packages) may ship no downloadable artifacts —
             // their payload is the dependency graph alone. Skip remote-file registration.
-            var primaryArtifact = release.Artifacts?.FirstOrDefault(a => a.IsPrimary)
-                ?? release.Artifacts?.FirstOrDefault();
+            // The primary is selected from installable artifacts only: a rejected primary
+            // (disk image, system package) must not drive naming or exclude usable variants.
+            var (prePartitionedUsable, _) = PartitionInstallableArtifacts(release, contentItem, localizationService);
+            var primaryArtifact = prePartitionedUsable.FirstOrDefault(a => a.IsPrimary)
+                ?? prePartitionedUsable.FirstOrDefault();
 
             var effectiveContentId = !string.IsNullOrWhiteSpace(primaryArtifact?.Variant)
                 ? $"{contentItem.Id}-{primaryArtifact.Variant.Trim()}"
@@ -115,11 +121,18 @@ public partial class GenericCatalogResolver(
                     screenshotUrls: contentItem.Metadata?.ScreenshotUrls?.ToList(),
                     changelogUrl: contentItem.Metadata?.DocumentationUrl ?? string.Empty);
 
-            var artifactHashes = await RegisterRemoteFilesAsync(
+            var remoteFilesResult = await RegisterRemoteFilesAsync(
                 builder,
                 release,
                 contentItem,
                 primaryArtifact);
+            if (!remoteFilesResult.Success || remoteFilesResult.Data is null)
+            {
+                return OperationResult<ContentManifest>.CreateFailure(
+                    remoteFilesResult.FirstError ?? "No installable artifacts in release.");
+            }
+
+            var artifactHashes = remoteFilesResult.Data;
 
             var dependencyError = AddDependencies(logger, builder, discoveredItem, release, contentItem, resolvedTargetGame);
             if (dependencyError != null)
@@ -732,65 +745,115 @@ public partial class GenericCatalogResolver(
         }
     }
 
-    private async Task<Dictionary<string, string>> RegisterRemoteFilesAsync(
+    /// <summary>
+    /// Splits release artifacts into installable content and guided rejections, so a disk
+    /// image or container package can never become a manifest file.
+    /// </summary>
+    private static (IReadOnlyList<ReleaseArtifact> Usable, IReadOnlyList<string> Rejections) PartitionInstallableArtifacts(ContentRelease release, CatalogContentItem contentItem, ILocalizationService? localizationService = null)
+    {
+        var usable = new List<ReleaseArtifact>();
+        var rejections = new List<string>();
+        foreach (var artifact in release.Artifacts ?? [])
+        {
+            // Classify both spellings: a sanitized GUID filename must not launder a real
+            // disk image or installer past the policy.
+            var rejection = ContentFormatPolicy.GetRejectionMessage(artifact.Filename, localizationService)
+                ?? ContentFormatPolicy.GetRejectionMessage(SanitizeArtifactFilename(artifact, contentItem), localizationService);
+            if (rejection is null)
+            {
+                usable.Add(artifact);
+            }
+            else
+            {
+                rejections.Add(rejection);
+            }
+        }
+
+        return (usable, rejections);
+    }
+
+    private static bool ShouldSkipVariant(ReleaseArtifact? primaryArtifact, ReleaseArtifact artifact)
+    {
+        // If primary artifact belongs to a specific variant on an axis, register it plus
+        // common artifacts: no variant axis, a different axis, or no variant label on
+        // the same axis. Same-axis artifacts with a different variant are excluded.
+        if (string.IsNullOrWhiteSpace(primaryArtifact?.VariantAxis) ||
+            string.IsNullOrWhiteSpace(artifact.VariantAxis))
+        {
+            return false;
+        }
+
+        return string.Equals(primaryArtifact.VariantAxis, artifact.VariantAxis, StringComparison.OrdinalIgnoreCase) &&
+               !string.IsNullOrWhiteSpace(artifact.Variant) &&
+               !string.Equals(primaryArtifact.Variant, artifact.Variant, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private async Task<OperationResult<Dictionary<string, string>>> RegisterRemoteFilesAsync(
         IContentManifestBuilder builder,
         ContentRelease release,
         CatalogContentItem contentItem,
         ReleaseArtifact? primaryArtifact)
     {
         var artifactHashes = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-        if (release.Artifacts is { Count: > 0 })
-        {
-            var usedFilenames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-
-            foreach (var artifact in release.Artifacts)
-            {
-                if (string.IsNullOrWhiteSpace(artifact.DownloadUrl))
-                {
-                    continue;
-                }
-
-                // If primary artifact belongs to a specific variant on an axis, register it plus
-                // common artifacts: no variant axis, a different axis, or no variant label on
-                // the same axis. Same-axis artifacts with a different variant are excluded.
-                if (!string.IsNullOrWhiteSpace(primaryArtifact?.VariantAxis) &&
-                    !string.IsNullOrWhiteSpace(artifact.VariantAxis) &&
-                    string.Equals(primaryArtifact.VariantAxis, artifact.VariantAxis, StringComparison.OrdinalIgnoreCase) &&
-                    !string.IsNullOrWhiteSpace(artifact.Variant) &&
-                    !string.Equals(primaryArtifact.Variant, artifact.Variant, StringComparison.OrdinalIgnoreCase))
-                {
-                    continue;
-                }
-
-                var baseFilename = SanitizeArtifactFilename(artifact, contentItem);
-                var filename = DisambiguateFilename(usedFilenames, baseFilename);
-                usedFilenames.Add(filename);
-
-                if (!string.IsNullOrWhiteSpace(artifact.Sha256))
-                {
-                    artifactHashes[filename] = artifact.Sha256;
-                }
-
-                logger.LogDebug(
-                    "Adding remote file {Filename} with download URL {Url}",
-                    filename,
-                    artifact.DownloadUrl);
-
-                await builder.AddRemoteFileAsync(
-                    relativePath: filename,
-                    downloadUrl: artifact.DownloadUrl,
-                    sourceType: ContentSourceType.RemoteDownload,
-                    isExecutable: false,
-                    permissions: null);
-            }
-        }
-        else
+        if (release.Artifacts is not { Count: > 0 })
         {
             logger.LogInformation(
                 "Content '{ContentName}' has no downloadable artifacts (dependency-only package)",
                 contentItem.Name);
+            return OperationResult<Dictionary<string, string>>.CreateSuccess(artifactHashes);
         }
 
-        return artifactHashes;
+        var (usableArtifacts, rejections) = PartitionInstallableArtifacts(release, contentItem, localizationService);
+        foreach (var rejection in rejections)
+        {
+            logger.LogWarning("Skipping uninstallable artifact for '{ContentName}': {Rejection}", contentItem.Name, rejection);
+        }
+
+        if (usableArtifacts.Count == 0)
+        {
+            return OperationResult<Dictionary<string, string>>.CreateFailure(
+                $"Release {release.Version} of '{contentItem.Name}' has no installable artifacts. {string.Join(" ", rejections)}");
+        }
+
+        var usedFilenames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var registeredCount = 0;
+
+        foreach (var artifact in usableArtifacts)
+        {
+            if (string.IsNullOrWhiteSpace(artifact.DownloadUrl) || ShouldSkipVariant(primaryArtifact, artifact))
+            {
+                continue;
+            }
+
+            var baseFilename = SanitizeArtifactFilename(artifact, contentItem);
+            var filename = DisambiguateFilename(usedFilenames, baseFilename);
+            usedFilenames.Add(filename);
+
+            if (!string.IsNullOrWhiteSpace(artifact.Sha256))
+            {
+                artifactHashes[filename] = artifact.Sha256;
+            }
+
+            logger.LogDebug(
+                "Adding remote file {Filename} with download URL {Url}",
+                filename,
+                artifact.DownloadUrl);
+
+            await builder.AddRemoteFileAsync(
+                relativePath: filename,
+                downloadUrl: artifact.DownloadUrl,
+                sourceType: ContentSourceType.RemoteDownload,
+                isExecutable: false,
+                permissions: null);
+            registeredCount++;
+        }
+
+        if (registeredCount == 0)
+        {
+            return OperationResult<Dictionary<string, string>>.CreateFailure(
+                $"Release {release.Version} of '{contentItem.Name}' declares {usableArtifacts.Count} installable artifact(s) but none could be registered (missing download URLs or variant filtering excluded them).");
+        }
+
+        return OperationResult<Dictionary<string, string>>.CreateSuccess(artifactHashes);
     }
 }

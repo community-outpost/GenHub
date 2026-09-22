@@ -565,4 +565,95 @@ public class GameProfileItemViewModelTests
             GameProfileItemViewModel.NormalizeCoverPath("avares://GenHub/Assets/Covers/usa-cover.jpg"));
         Assert.Equal(string.Empty, GameProfileItemViewModel.NormalizeCoverPath(string.Empty));
     }
+
+    /// <summary>
+    /// Verifies that IsSteamIntegrationSupported evaluates both Steam installation and Windows binary format.
+    /// </summary>
+    [Fact]
+    public void IsSteamIntegrationSupported_EvaluatesInstallationAndBinaryFormat()
+    {
+        // Steam installation with Windows executable
+        var steamRetailProfile = new GenHub.Core.Models.GameProfile.GameProfile
+        {
+            Id = "test-steam-retail",
+            Name = "Steam Retail",
+            GameInstallationId = "installation.steam.zerohour",
+            GameClient = new GenHub.Core.Models.GameClients.GameClient
+            {
+                Id = "steam",
+                ExecutablePath = "generals.exe",
+            },
+        };
+
+        var vmSteamRetail = new GameProfileItemViewModel("test-steam-retail", steamRetailProfile, null!, null!);
+        Assert.True(vmSteamRetail.IsSteamInstallation);
+        Assert.True(vmSteamRetail.IsSteamIntegrationSupported);
+
+        // Steam installation with non-retail format
+        var steamNonRetailProfile = new GenHub.Core.Models.GameProfile.GameProfile
+        {
+            Id = "test-steam-nonretail",
+            Name = "Steam Non-Retail",
+            GameInstallationId = "installation.steam.zerohour",
+            GameClient = new GenHub.Core.Models.GameClients.GameClient
+            {
+                Id = "steam-flatpak",
+                ExecutablePath = "com.fbraz3.GeneralsXZH.flatpakref",
+            },
+        };
+
+        var vmSteamNonRetail = new GameProfileItemViewModel("test-steam-nonretail", steamNonRetailProfile, null!, null!);
+        Assert.True(vmSteamNonRetail.IsSteamInstallation);
+        Assert.False(vmSteamNonRetail.IsSteamIntegrationSupported);
+
+        // Non-Steam installation
+        var nonSteamProfile = new GenHub.Core.Models.GameProfile.GameProfile
+        {
+            Id = "test-ea-retail",
+            Name = "EA Retail",
+            GameInstallationId = "installation.ea.zerohour",
+            GameClient = new GenHub.Core.Models.GameClients.GameClient
+            {
+                Id = "ea",
+                ExecutablePath = "generals.exe",
+            },
+        };
+
+        var vmNonSteam = new GameProfileItemViewModel("test-ea-retail", nonSteamProfile, null!, null!);
+        Assert.False(vmNonSteam.IsSteamInstallation);
+        Assert.False(vmNonSteam.IsSteamIntegrationSupported);
+    }
+
+    /// <summary>
+    /// Verifies that setting IsSteamInstallation notifies property change for IsSteamIntegrationSupported.
+    /// </summary>
+    [Fact]
+    public void SettingIsSteamInstallation_RaisesPropertyChangedForIsSteamIntegrationSupported()
+    {
+        var profile = new GenHub.Core.Models.GameProfile.GameProfile
+        {
+            Id = "test-notify",
+            Name = "Test Notify",
+            GameClient = new GenHub.Core.Models.GameClients.GameClient
+            {
+                Id = "test-client",
+                ExecutablePath = "generals.exe",
+            },
+        };
+
+        var vm = new GameProfileItemViewModel("test-notify", profile, null!, null!);
+        var notifiedProperties = new List<string>();
+        vm.PropertyChanged += (sender, args) =>
+        {
+            if (args.PropertyName != null)
+            {
+                notifiedProperties.Add(args.PropertyName);
+            }
+        };
+
+        vm.IsSteamInstallation = true;
+
+        Assert.Contains(nameof(GameProfileItemViewModel.IsSteamInstallation), notifiedProperties);
+        Assert.Contains(nameof(GameProfileItemViewModel.IsSteamIntegrationSupported), notifiedProperties);
+    }
 }

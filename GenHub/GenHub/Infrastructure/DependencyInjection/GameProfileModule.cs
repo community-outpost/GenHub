@@ -42,6 +42,7 @@ public static class GameProfileModule
         // Default launch runner: direct on Windows, Wine elsewhere. Platform hosts
         // replace this with their explicit runner.
         services.TryAddSingleton<IGameLaunchRunner>(CreateDefaultRunner);
+        services.AddSingleton<IFlatpakProvisioner, FlatpakProvisioner>();
 
         services.AddScoped<IProfileLauncherFacade, ProfileLauncherFacade>();
         services.AddScoped<IProfileEditorFacade, ProfileEditorFacade>();
@@ -82,9 +83,10 @@ public static class GameProfileModule
 
     private static IGameLaunchRunner CreateDefaultRunner(IServiceProvider provider)
     {
+        var localizationService = provider.GetService<ILocalizationService>();
         if (OperatingSystem.IsWindows())
         {
-            return new DirectRunner(provider.GetRequiredService<ILogger<DirectRunner>>());
+            return new DirectRunner(provider.GetRequiredService<ILogger<DirectRunner>>(), localizationService);
         }
 
         var appDataRoot = provider.GetRequiredService<IConfigurationProviderService>().GetRootAppDataPath();
@@ -96,7 +98,7 @@ public static class GameProfileModule
         var options = OperatingSystem.IsMacOS()
             ? WineRunnerOptions.MacOS(appDataRoot)
             : WineRunnerOptions.Linux(appDataRoot);
-        return new WineRunner(options, provider.GetRequiredService<ILogger<WineRunner>>());
+        return new WineRunner(options, provider.GetRequiredService<ILogger<WineRunner>>(), localizationService);
     }
 
     private static string GetProfilesDirectory(IConfigurationProviderService configProvider)

@@ -360,6 +360,113 @@ public class ReplayCrcMatchingHelperTests
         Assert.False(ReplayCrcMatchingHelper.IsZeroHourRetailCompatible(
             steamClient,
             new[] { "1.106.communityoutpost.patch.zerohour.nonretail" }));
+
+        var generalsXClient = new GameClient
+        {
+            Id = "1.100.fbraz3.gameclient.generalsxlinuxgeneralsxzh",
+            Name = "GeneralsXLinux-GeneralsXZH",
+            PublisherType = "github",
+            ExecutablePath = "Linux-GeneralsXZH.flatpak",
+            GameType = GameType.ZeroHour,
+        };
+        Assert.False(ReplayCrcMatchingHelper.IsZeroHourRetailCompatible(generalsXClient));
+        Assert.False(ReplayCrcMatchingHelper.IsRetailCompatible(generalsXClient));
+        Assert.True(ReplayCrcMatchingHelper.IsGeneralsXClient(generalsXClient));
+        Assert.True(ReplayCrcMatchingHelper.IsNonRetailEngineClient(generalsXClient));
+
+        var superHackersClient = new GameClient
+        {
+            Id = "1.100.thesuperhackers.gameclient.zerohour",
+            Name = "TheSuperHackers Zero Hour",
+            PublisherType = PublisherTypeConstants.TheSuperHackers,
+            ExecutablePath = "generalszh.exe",
+            GameType = GameType.ZeroHour,
+        };
+        Assert.False(ReplayCrcMatchingHelper.IsZeroHourRetailCompatible(superHackersClient));
+        Assert.False(ReplayCrcMatchingHelper.IsRetailCompatible(superHackersClient));
+        Assert.True(ReplayCrcMatchingHelper.IsLegacySuperHackersClient(superHackersClient));
+        Assert.True(ReplayCrcMatchingHelper.IsNonRetailEngineClient(superHackersClient));
+
+        var nameOnlySuperHackersClient = new GameClient
+        {
+            Id = "custom.legacy.client",
+            Name = "SuperHackers Build",
+            PublisherType = null,
+            ExecutablePath = "generalszh.exe",
+            GameType = GameType.ZeroHour,
+        };
+        Assert.False(ReplayCrcMatchingHelper.IsZeroHourRetailCompatible(nameOnlySuperHackersClient));
+        Assert.False(ReplayCrcMatchingHelper.IsRetailCompatible(nameOnlySuperHackersClient));
+        Assert.True(ReplayCrcMatchingHelper.IsLegacySuperHackersClient(nameOnlySuperHackersClient));
+        Assert.True(ReplayCrcMatchingHelper.IsNonRetailEngineClient(nameOnlySuperHackersClient));
+
+        var theSuperHackersNameClient = new GameClient
+        {
+            Id = "custom.legacy.client.2",
+            Name = "TheSuperHackers Zero Hour",
+            PublisherType = null,
+            ExecutablePath = "generalszh.exe",
+            GameType = GameType.ZeroHour,
+        };
+        Assert.False(ReplayCrcMatchingHelper.IsZeroHourRetailCompatible(theSuperHackersNameClient));
+        Assert.False(ReplayCrcMatchingHelper.IsRetailCompatible(theSuperHackersNameClient));
+        Assert.True(ReplayCrcMatchingHelper.IsLegacySuperHackersClient(theSuperHackersNameClient));
+        Assert.True(ReplayCrcMatchingHelper.IsNonRetailEngineClient(theSuperHackersNameClient));
+
+        var elfClient = new GameClient
+        {
+            Id = "custom-linux-zh",
+            Name = "Custom Linux Zero Hour",
+            PublisherType = "custom",
+            ExecutablePath = "/usr/bin/generalszh",
+            GameType = GameType.ZeroHour,
+        };
+        Assert.False(ReplayCrcMatchingHelper.IsZeroHourRetailCompatible(elfClient));
+        Assert.False(ReplayCrcMatchingHelper.IsRetailCompatible(elfClient));
+        Assert.True(ReplayCrcMatchingHelper.HasNonRetailExecutableFormat(elfClient));
+        Assert.True(ReplayCrcMatchingHelper.IsNonRetailEngineClient(elfClient));
+    }
+
+    /// <summary>
+    /// Verifies that Steam launch eligibility requires Steam installation and a Windows PE executable format.
+    /// </summary>
+    [Fact]
+    public void IsSteamLaunchEligible_EvaluatesInstallationTypeAndBinaryFormatCorrectly()
+    {
+        var windowsClient = new GameClient
+        {
+            Id = "win-zh",
+            Name = "Retail Zero Hour",
+            PublisherType = "retail",
+            ExecutablePath = "generals.exe",
+            GameType = GameType.ZeroHour,
+        };
+
+        var nonRetailClient = new GameClient
+        {
+            Id = "flatpak-zh",
+            Name = "Flatpak Zero Hour",
+            PublisherType = "flatpak",
+            ExecutablePath = "com.fbraz3.GeneralsXZH.flatpakref",
+            GameType = GameType.ZeroHour,
+        };
+
+        // Client overloads
+        Assert.True(ReplayCrcMatchingHelper.IsSteamLaunchEligible(GameInstallationType.Steam, windowsClient));
+        Assert.False(ReplayCrcMatchingHelper.IsSteamLaunchEligible(GameInstallationType.Steam, nonRetailClient));
+        Assert.False(ReplayCrcMatchingHelper.IsSteamLaunchEligible(GameInstallationType.EaApp, windowsClient));
+        Assert.False(ReplayCrcMatchingHelper.IsSteamLaunchEligible(GameInstallationType.CDISO, windowsClient));
+
+        // Bool flag overloads
+        Assert.True(ReplayCrcMatchingHelper.IsSteamLaunchEligible(true, windowsClient));
+        Assert.False(ReplayCrcMatchingHelper.IsSteamLaunchEligible(true, nonRetailClient));
+        Assert.False(ReplayCrcMatchingHelper.IsSteamLaunchEligible(false, windowsClient));
+
+        // Executable path overload
+        Assert.True(ReplayCrcMatchingHelper.IsSteamLaunchEligible(GameInstallationType.Steam, "generals.exe"));
+        Assert.False(ReplayCrcMatchingHelper.IsSteamLaunchEligible(GameInstallationType.Steam, "generals.flatpakref"));
+        Assert.False(ReplayCrcMatchingHelper.IsSteamLaunchEligible(GameInstallationType.Steam, "/usr/bin/generalszh"));
+        Assert.False(ReplayCrcMatchingHelper.IsSteamLaunchEligible(GameInstallationType.EaApp, "generals.exe"));
     }
 
     /// <summary>

@@ -9,6 +9,7 @@ using GenHub.Core.Models.GameClients;
 using GenHub.Core.Models.GameInstallations;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
+using GenHub.Core.Utilities;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
@@ -166,8 +167,32 @@ public class GameClientDetector(
         GameClient gameClient,
         CancellationToken cancellationToken = default)
     {
-        var isValid = !string.IsNullOrEmpty(gameClient.ExecutablePath) && File.Exists(gameClient.ExecutablePath);
-        return Task.FromResult(isValid);
+        if (string.IsNullOrEmpty(gameClient.ExecutablePath))
+        {
+            return Task.FromResult(false);
+        }
+
+        if (File.Exists(gameClient.ExecutablePath))
+        {
+            return Task.FromResult(true);
+        }
+
+        var isResolvableBundle = Directory.Exists(gameClient.ExecutablePath)
+            && gameClient.ExecutablePath.EndsWith(ContentFormatConstants.MacAppBundleExtension, StringComparison.OrdinalIgnoreCase)
+            && GameClientEntryDetector.ResolveBundleExecutableAbsolute(gameClient.ExecutablePath, cancellationToken) is not null;
+
+        return Task.FromResult(isResolvableBundle);
+    }
+
+    /// <summary>
+    /// Maps a client executable to a stable lowercase platform discriminator for manifest IDs.
+    /// </summary>
+    /// <param name="executablePath">The client executable path, if known.</param>
+    /// <returns><c>windows</c>, <c>linux</c>, <c>macos</c>, or <c>unknown</c>.</returns>
+    internal static string GetClientPlatformDiscriminator(string? executablePath)
+    {
+        var platform = ExecutableFileClassifier.DetectPlatform(executablePath ?? string.Empty);
+        return platform.ToString().ToLowerInvariant();
     }
 
     /// <summary>
@@ -180,6 +205,7 @@ public class GameClientDetector(
     private static string? ResolveGeneralsOnlineEntryPoint(IEnumerable<string> fileNames)
     {
         string? sixtyHertz = null;
+        string? unixClient = null;
 
         foreach (var fileName in fileNames)
         {
@@ -192,9 +218,14 @@ public class GameClientDetector(
             {
                 sixtyHertz = fileName;
             }
+
+            if (fileName.Equals(GameClientConstants.GeneralsOnlineUnixExecutable, StringComparison.OrdinalIgnoreCase))
+            {
+                unixClient = fileName;
+            }
         }
 
-        return sixtyHertz;
+        return sixtyHertz ?? unixClient;
     }
 
     /// <summary>
@@ -221,6 +252,136 @@ public class GameClientDetector(
         }
     }
 
+    private static GameClient CreateScannedClient(
+        string gameTypeName,
+        GameType gameType,
+        string executablePath,
+        string workingDirectory)
+    {
+        return new GameClient
+        {
+            Name = $"Scanned {gameTypeName} {GameClientConstants.UnknownVersion} ({Path.GetFileName(workingDirectory)})",
+            Id = string.Empty, // Will be set by manifest generation
+            Version = GameClientConstants.UnknownVersion,
+            ExecutablePath = executablePath,
+            GameType = gameType,
+            WorkingDirectory = workingDirectory,
+            InstallationId = string.Empty,
+            SourceType = ContentType.GameClient,
+        };
+    }
+
+    private static async Task<GameType> SniffSiblingEngineGameTypeAsync(string stubPath, CancellationToken cancellationToken)
+    {
+        var directory = Path.GetDirectoryName(stubPath);
+        if (directory is null)
+        {
+            return GameType.Unknown;
+        }
+
+        var candidate = Path.Combine(directory, GameClientConstants.SteamGameDatExecutable);
+        if (!candidate.TryGetFileCaseInsensitive(out var sibling) || string.IsNullOrEmpty(sibling))
+        {
+            return GameType.Unknown;
+        }
+
+        var inspection = await GameBinaryInspector.InspectAsync(sibling, cancellationToken);
+        return inspection.Success && inspection.Data is { } verdict ? verdict.GameType : GameType.Unknown;
+    }
+
+    /// <summary>
+    /// Builds publisher metadata from a game installation, if one backs the client.
+    /// </summary>
+    /// <param name="installation">The backing installation, if any.</param>
+    /// <returns>The publisher metadata, or <see langword="null"/> without an installation.</returns>
+    private static PublisherInfo? CreatePublisherInfo(GameInstallation? installation)
+    {
+        if (installation is null)
+        {
+            return null;
+        }
+
+        var (publisherName, website, supportUrl) = PublisherInfoConstants.GetPublisherInfo(installation.InstallationType);
+        return new PublisherInfo
+        {
+            Name = publisherName,
+            Website = website,
+            SupportUrl = supportUrl,
+            PublisherType = PublisherTypeConstants.FromInstallationType(installation.InstallationType),
+        };
+    }
+
+    /// <summary>
+    /// Adds the game installation dependency when an installation backs the client.
+    /// </summary>
+    /// <param name="manifest">The manifest to extend.</param>
+    /// <param name="gameType">The type of game.</param>
+    /// <param name="installation">The backing installation, if any.</param>
+    private static void AddInstallationDependency(ContentManifest manifest, GameType gameType, GameInstallation? installation)
+    {
+        // Fix for 1.04/1.08 auto-selection
+        if (installation is null)
+        {
+            return;
+        }
+
+        var dependencyName = gameType == GameType.ZeroHour
+            ? GameClientConstants.ZeroHourInstallationDependencyName
+            : GameClientConstants.GeneralsInstallationDependencyName;
+
+        var installDependency = new ContentDependency
+        {
+            Id = ManifestId.Create(ManifestConstants.DefaultContentDependencyId),
+            Name = dependencyName,
+            DependencyType = ContentType.GameInstallation,
+            InstallBehavior = DependencyInstallBehavior.RequireExisting,
+            CompatibleGameTypes = [gameType],
+            IsOptional = false,
+        };
+        manifest.Dependencies.Add(installDependency);
+    }
+
+    /// <summary>
+    /// Assigns a deterministic manifest ID, scoping standalone-client IDs by platform
+    /// so distinct community builds cannot alias the same identity.
+    /// </summary>
+    /// <param name="manifest">The manifest receiving the ID.</param>
+    /// <param name="gameClient">The scanned client.</param>
+    /// <param name="gameType">The type of game.</param>
+    /// <param name="installation">The backing installation, if any.</param>
+    private static void AssignManifestId(ContentManifest manifest, GameClient gameClient, GameType gameType, GameInstallation? installation)
+    {
+        // Use ManifestIdGenerator for deterministic client ID generation
+        if (installation is not null)
+        {
+            // Use publisher-based ID generation for GameClient with correct content type
+            var publisherId = installation.InstallationType.ToIdentifierString();
+            var contentName = gameType == GameType.ZeroHour ? ManifestConstants.ZeroHourContentName : ManifestConstants.GeneralsContentName;
+
+            // Convert version string to normalized integer format (e.g., "1.04" → 104, "1.08" → 108)
+            int normalizedVersion = GameVersionHelper.NormalizeVersion(gameClient.Version);
+            var clientIdResult = ManifestIdGenerator.GeneratePublisherContentId(publisherId, ContentType.GameClient, contentName, userVersion: normalizedVersion);
+            manifest.Id = ManifestId.Create(clientIdResult);
+            return;
+        }
+
+        if (!string.IsNullOrEmpty(manifest.Id.Value) && ManifestIdValidator.IsValid(manifest.Id.Value, out _))
+        {
+            return;
+        }
+
+        // For scanned/standalone clients without an existing valid ID, generate a valid 5-segment ID.
+        // The platform discriminator keeps distinct community builds apart: without it, macOS and
+        // Linux clients with the same publisher, game, and unknown version collapse to one identity
+        // and alias each other (and their pool entries) through GameClient.Id.
+        var fallbackPublisherId = !string.IsNullOrWhiteSpace(gameClient.PublisherType) ? gameClient.PublisherType.ToLowerInvariant() : "scanned";
+        var baseName = gameType == GameType.ZeroHour ? ManifestConstants.ZeroHourContentName : ManifestConstants.GeneralsContentName;
+        var fallbackContentName = $"{baseName}-{GetClientPlatformDiscriminator(gameClient.ExecutablePath)}";
+        int fallbackVersion = GameVersionHelper.NormalizeVersion(gameClient.Version);
+        var fallbackIdResult = ManifestIdGenerator.GeneratePublisherContentId(fallbackPublisherId, ContentType.GameClient, fallbackContentName, userVersion: fallbackVersion);
+        manifest.Id = ManifestId.Create(fallbackIdResult);
+    }
+
     /// <summary>
     /// Detects a game client from a specific executable file using hash analysis.
     /// </summary>
@@ -232,47 +393,50 @@ public class GameClientDetector(
     {
         try
         {
+            var bundle = ResolveApplicationBundle(executablePath, workingDirectory, cancellationToken);
+            if (bundle.Handled)
+            {
+                return bundle.Client;
+            }
+
             if (!File.Exists(executablePath))
                 return null;
 
-            var hash = await hashProvider.ComputeFileHashAsync(executablePath, cancellationToken);
-
-            // Try to detect version for both game types
-            var generalsVersion = hashRegistry.GetVersionFromHash(hash, GameType.Generals);
-            var zeroHourVersion = hashRegistry.GetVersionFromHash(hash, GameType.ZeroHour);
-            var detectedGameType = GameType.Unknown;
-            var detectedVersion = GameClientConstants.UnknownVersion;
-            if (!string.Equals(generalsVersion, GameClientConstants.UnknownVersion, StringComparison.OrdinalIgnoreCase))
+            // Tools and installers are excluded before hashing: WorldBuilder carries full
+            // engine markers and setup binaries carry branding, neither is a client.
+            if (GameBinaryInspector.ClassifyFileName(Path.GetFileName(executablePath)) is not null)
             {
-                detectedGameType = GameType.Generals;
-                detectedVersion = generalsVersion;
-            }
-            else if (!string.Equals(zeroHourVersion, GameClientConstants.UnknownVersion, StringComparison.OrdinalIgnoreCase))
-            {
-                detectedGameType = GameType.ZeroHour;
-                detectedVersion = zeroHourVersion;
-            }
-            else
-            {
-                detectedGameType = GameType.Unknown;
-                detectedVersion = GameClientConstants.UnknownVersion;
+                logger.LogDebug("Skipping tool or installer executable {ExecutablePath}", executablePath);
+                return null;
             }
 
-            if (detectedGameType != GameType.Unknown && !string.Equals(detectedVersion, GameClientConstants.UnknownVersion, StringComparison.OrdinalIgnoreCase))
+            // Broadened candidates (arbitrary names outside the registry) resolve
+            // publishers and reject non-clients before hashing, so a full hash pays
+            // only for files that still need hash-based version identification.
+            var fileName = Path.GetFileName(executablePath);
+            var isRegistryName = hashRegistry.PossibleExecutableNames.Contains(fileName, StringComparer.OrdinalIgnoreCase);
+            GameBinaryVerdict? preselected = null;
+            if (!isRegistryName)
             {
-                var gameTypeName = detectedGameType == GameType.Generals ? "Generals" : "Zero Hour";
-                logger.LogDebug("Detected {GameType} {Version} from {ExecutablePath} with hash {Hash}", gameTypeName, detectedVersion, executablePath, hash);
-                return new GameClient
+                var early = await ResolveBroadenedEarlyAsync(executablePath, workingDirectory, cancellationToken);
+                if (early.Client is not null)
                 {
-                    Name = $"Scanned {gameTypeName} {detectedVersion} ({Path.GetFileName(workingDirectory)})",
-                    Id = string.Empty, // Will be set by manifest generation
-                    Version = detectedVersion,
-                    ExecutablePath = executablePath,
-                    GameType = detectedGameType,
-                    WorkingDirectory = workingDirectory,
-                    InstallationId = string.Empty,
-                    SourceType = ContentType.GameClient,
-                };
+                    return early.Client;
+                }
+
+                if (early.Rejected)
+                {
+                    return null;
+                }
+
+                preselected = early.Verdict;
+            }
+
+            var hash = await hashProvider.ComputeFileHashAsync(executablePath, cancellationToken);
+            var retailClient = IdentifyRetailClient(executablePath, workingDirectory, hash);
+            if (retailClient is not null)
+            {
+                return retailClient;
             }
 
             // A publisher entry point is absent from the retail hash registry by definition, so an
@@ -280,31 +444,215 @@ public class GameClientDetector(
             // identifiers before falling back, otherwise the GeneralsOnline anti-cheat bootstrapper
             // is reported as Unknown Game with GameType.Generals and never matches the Zero Hour
             // launch path.
-            var identifiedClient = IdentifyPublisherClient(executablePath, workingDirectory);
+            var identifiedClient = isRegistryName ? IdentifyPublisherClient(executablePath, workingDirectory) : null;
             if (identifiedClient != null)
             {
                 return identifiedClient;
             }
 
-            // If hash is not recognized, create a generic entry for manual identification
-            logger.LogDebug("Unknown game executable found at {ExecutablePath} with hash {Hash}", executablePath, hash);
-            return new GameClient
-            {
-                Name = $"Unknown Game ({Path.GetFileName(workingDirectory)})",
-                Id = string.Empty, // Will be set by manifest generation
-                Version = GameClientConstants.UnknownVersion,
-                ExecutablePath = executablePath,
-                GameType = GameType.Generals, // Default assumption
-                WorkingDirectory = workingDirectory,
-                InstallationId = string.Empty,
-                SourceType = ContentType.GameClient,
-            };
+            // Binary sniffing sits between publisher identification and the generic
+            // fallback: hash-unknown engines (renamed builds, native ports) still carry
+            // engine markers, while launchers and stubs resolve below instead of becoming
+            // bogus Unknown Game entries.
+            return await DetectGameClientFromBinaryAsync(executablePath, workingDirectory, hash, preselected, cancellationToken);
         }
         catch (Exception ex)
         {
             logger.LogWarning(ex, "Failed to analyze executable {ExecutablePath}", executablePath);
             return null;
         }
+    }
+
+    /// <summary>
+    /// Resolves a macOS application bundle through the publisher identifiers.
+    /// Application bundles are directories without a hash, so publisher
+    /// identification runs directly instead of the file cascade.
+    /// </summary>
+    /// <param name="executablePath">The path to the executable file.</param>
+    /// <param name="workingDirectory">The working directory for the game client.</param>
+    /// <param name="cancellationToken">Cancels the bundle scan.</param>
+    /// <returns>Whether the path was a bundle directory, and the identified client if any.</returns>
+    private (bool Handled, GameClient? Client) ResolveApplicationBundle(string executablePath, string workingDirectory, CancellationToken cancellationToken)
+    {
+        if (!Directory.Exists(executablePath) || File.Exists(executablePath))
+        {
+            return (false, null);
+        }
+
+        if (!executablePath.EndsWith(ContentFormatConstants.MacAppBundleExtension, StringComparison.OrdinalIgnoreCase))
+        {
+            return (true, null);
+        }
+
+        if (GameClientEntryDetector.ResolveBundleExecutableAbsolute(executablePath, cancellationToken) is null)
+        {
+            logger.LogWarning("Application bundle has no resolvable executable: {ExecutablePath}", executablePath);
+            return (true, null);
+        }
+
+        return (true, IdentifyPublisherClient(executablePath, workingDirectory));
+    }
+
+    /// <summary>
+    /// Identifies a game client by matching its file hash against the retail registry.
+    /// </summary>
+    /// <param name="executablePath">The path to the executable file.</param>
+    /// <param name="workingDirectory">The working directory for the game client.</param>
+    /// <param name="hash">The already computed file hash.</param>
+    /// <returns>The retail client, or <see langword="null"/> when the hash is unrecognized.</returns>
+    private GameClient? IdentifyRetailClient(string executablePath, string workingDirectory, string hash)
+    {
+        // Try to detect version for both game types
+        var generalsVersion = hashRegistry.GetVersionFromHash(hash, GameType.Generals);
+        var zeroHourVersion = hashRegistry.GetVersionFromHash(hash, GameType.ZeroHour);
+        var detectedGameType = GameType.Unknown;
+        var detectedVersion = GameClientConstants.UnknownVersion;
+        if (!string.Equals(generalsVersion, GameClientConstants.UnknownVersion, StringComparison.OrdinalIgnoreCase))
+        {
+            detectedGameType = GameType.Generals;
+            detectedVersion = generalsVersion;
+        }
+        else if (!string.Equals(zeroHourVersion, GameClientConstants.UnknownVersion, StringComparison.OrdinalIgnoreCase))
+        {
+            detectedGameType = GameType.ZeroHour;
+            detectedVersion = zeroHourVersion;
+        }
+
+        if (detectedGameType == GameType.Unknown || string.Equals(detectedVersion, GameClientConstants.UnknownVersion, StringComparison.OrdinalIgnoreCase))
+        {
+            return null;
+        }
+
+        var gameTypeName = detectedGameType == GameType.Generals ? "Generals" : "Zero Hour";
+        logger.LogDebug("Detected {GameType} {Version} from {ExecutablePath} with hash {Hash}", gameTypeName, detectedVersion, executablePath, hash);
+        return new GameClient
+        {
+            Name = $"Scanned {gameTypeName} {detectedVersion} ({Path.GetFileName(workingDirectory)})",
+            Id = string.Empty, // Will be set by manifest generation
+            Version = detectedVersion,
+            ExecutablePath = executablePath,
+            GameType = detectedGameType,
+            WorkingDirectory = workingDirectory,
+            InstallationId = string.Empty,
+            SourceType = ContentType.GameClient,
+        };
+    }
+
+    /// <summary>
+    /// Resolves publisher clients and rejects non-clients before hashing, returning a
+    /// reusable verdict for engines that still need hash-based version identification.
+    /// </summary>
+    /// <param name="executablePath">The path to the executable file.</param>
+    /// <param name="workingDirectory">The working directory for the game client.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The publisher client, reusable verdict, or rejection flag.</returns>
+    private async Task<(GameClient? Client, GameBinaryVerdict? Verdict, bool Rejected)> ResolveBroadenedEarlyAsync(
+        string executablePath,
+        string workingDirectory,
+        CancellationToken cancellationToken)
+    {
+        var publisherClient = IdentifyPublisherClient(executablePath, workingDirectory);
+        if (publisherClient is not null)
+        {
+            return (publisherClient, null, false);
+        }
+
+        var preview = await GameBinaryInspector.InspectAsync(executablePath, cancellationToken);
+        if (preview is not { Success: true, Data: { } verdict })
+        {
+            return (null, null, false);
+        }
+
+        if (verdict.Role is GameBinaryRole.Tool or GameBinaryRole.Installer or GameBinaryRole.DotNetLauncher)
+        {
+            logger.LogDebug("Skipping {Role} executable {ExecutablePath} before hashing: {Reason}", verdict.Role, executablePath, verdict.Reason);
+            return (null, null, true);
+        }
+
+        return (null, verdict, false);
+    }
+
+    /// <summary>
+    /// Classifies a hash-unknown, publisher-unknown executable by inspecting its bytes.
+    /// </summary>
+    /// <param name="executablePath">The path to the executable file.</param>
+    /// <param name="workingDirectory">The working directory for the game client.</param>
+    /// <param name="hash">The already computed file hash, for logging.</param>
+    /// <param name="priorInspection">A verdict reused from the pre-hash gate, if any.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>A typed client, or null when the file is not a game client.</returns>
+    private async Task<GameClient?> DetectGameClientFromBinaryAsync(
+        string executablePath,
+        string workingDirectory,
+        string hash,
+        GameBinaryVerdict? priorInspection,
+        CancellationToken cancellationToken)
+    {
+        var inspection = priorInspection is not null
+            ? OperationResult<GameBinaryVerdict>.CreateSuccess(priorInspection)
+            : await GameBinaryInspector.InspectAsync(executablePath, cancellationToken);
+        if (inspection.Success && inspection.Data is { } verdict)
+        {
+            switch (verdict.Role)
+            {
+                case GameBinaryRole.Tool:
+                case GameBinaryRole.Installer:
+                case GameBinaryRole.DotNetLauncher:
+                    logger.LogDebug("Skipping {Role} executable {ExecutablePath}: {Reason}", verdict.Role, executablePath, verdict.Reason);
+                    return null;
+                case GameBinaryRole.PackedStub:
+                    {
+                        var siblingType = await SniffSiblingEngineGameTypeAsync(executablePath, cancellationToken);
+                        if (siblingType is GameType.ZeroHour or GameType.Generals)
+                        {
+                            var siblingName = siblingType == GameType.ZeroHour ? "Zero Hour" : "Generals";
+                            logger.LogDebug("Stub {ExecutablePath} resolves to a {Sibling} sibling engine", executablePath, siblingName);
+                            return CreateScannedClient(siblingName, siblingType, executablePath, workingDirectory);
+                        }
+
+                        break;
+                    }
+
+                case GameBinaryRole.Engine when verdict.GameType == GameType.ZeroHour:
+                    logger.LogDebug("Sniffed Zero Hour engine {ExecutablePath}: {Reason}", executablePath, verdict.Reason);
+                    return CreateScannedClient("Zero Hour", GameType.ZeroHour, executablePath, workingDirectory);
+                case GameBinaryRole.Engine when verdict.GameType == GameType.Generals:
+                    logger.LogDebug("Sniffed Generals engine {ExecutablePath}: {Reason}", executablePath, verdict.Reason);
+                    return CreateScannedClient("Generals", GameType.Generals, executablePath, workingDirectory);
+                default:
+                    break;
+            }
+        }
+
+        // Only historically gated names get an Unknown entry: broadened scan candidates
+        // without any evidence stay silent instead of flooding the scan.
+        if (!IsGatedScanCandidate(executablePath))
+        {
+            logger.LogDebug("Skipping unevidenced executable {ExecutablePath} with hash {Hash}", executablePath, hash);
+            return null;
+        }
+
+        // If hash is not recognized, create a generic entry for manual identification
+        logger.LogDebug("Unknown game executable found at {ExecutablePath} with hash {Hash}", executablePath, hash);
+        return new GameClient
+        {
+            Name = $"Unknown Game ({Path.GetFileName(workingDirectory)})",
+            Id = string.Empty, // Will be set by manifest generation
+            Version = GameClientConstants.UnknownVersion,
+            ExecutablePath = executablePath,
+            GameType = GameType.Generals, // Default assumption
+            WorkingDirectory = workingDirectory,
+            InstallationId = string.Empty,
+            SourceType = ContentType.GameClient,
+        };
+    }
+
+    private bool IsGatedScanCandidate(string executablePath)
+    {
+        var fileName = Path.GetFileName(executablePath);
+        return hashRegistry.PossibleExecutableNames.Contains(fileName, StringComparer.OrdinalIgnoreCase)
+            || fileName.EndsWith(ContentFormatConstants.FlatpakExtension, StringComparison.OrdinalIgnoreCase)
+            || (string.IsNullOrEmpty(Path.GetExtension(fileName)) && ExecutableFileClassifier.HasExecutableMagicBytes(executablePath));
     }
 
     /// <summary>
@@ -380,7 +728,14 @@ public class GameClientDetector(
                 return;
             }
 
-            if (!File.Exists(gameClient.ExecutablePath))
+            var manifestExecutable = gameClient.ExecutablePath;
+            if (Directory.Exists(manifestExecutable)
+                && manifestExecutable.EndsWith(ContentFormatConstants.MacAppBundleExtension, StringComparison.OrdinalIgnoreCase))
+            {
+                manifestExecutable = GameClientEntryDetector.ResolveBundleExecutableAbsolute(manifestExecutable);
+            }
+
+            if (manifestExecutable is null || !File.Exists(manifestExecutable))
             {
                 logger.LogError("GameClient executable not found at {ExecutablePath} - cannot generate manifest", gameClient.ExecutablePath);
                 gameClient.Id = Guid.NewGuid().ToString(); // Fallback
@@ -388,63 +743,17 @@ public class GameClientDetector(
             }
 
             // Determine publisher info from installation if available
-            PublisherInfo? publisherInfo = null;
-            if (installation != null)
-            {
-                var (publisherName, website, supportUrl) = PublisherInfoConstants.GetPublisherInfo(installation.InstallationType);
-                publisherInfo = new PublisherInfo
-                {
-                    Name = publisherName,
-                    Website = website,
-                    SupportUrl = supportUrl,
-                    PublisherType = PublisherTypeConstants.FromInstallationType(installation.InstallationType),
-                };
-            }
+            var publisherInfo = CreatePublisherInfo(installation);
 
             // Generate GameClient manifest with executable included
             var builder = await manifestGenerationService.CreateGameClientManifestAsync(
-                clientPath, gameType, gameClient.Name, gameClient.Version, gameClient.ExecutablePath, publisherInfo);
+                clientPath, gameType, gameClient.Name, gameClient.Version, manifestExecutable, publisherInfo);
 
             var manifest = builder.Build();
             manifest.ContentType = ContentType.GameClient;
 
-            // Add game installation dependency if installation is provided (Fix for 1.04/1.08 auto-selection)
-            if (installation != null)
-            {
-                var dependencyName = gameType == GameType.ZeroHour
-                    ? GameClientConstants.ZeroHourInstallationDependencyName
-                    : GameClientConstants.GeneralsInstallationDependencyName;
-
-                var installDependency = new ContentDependency
-                {
-                    Id = ManifestId.Create(ManifestConstants.DefaultContentDependencyId),
-                    Name = dependencyName,
-                    DependencyType = ContentType.GameInstallation,
-                    InstallBehavior = DependencyInstallBehavior.RequireExisting,
-                    CompatibleGameTypes = [gameType],
-                    IsOptional = false,
-                };
-                manifest.Dependencies.Add(installDependency);
-            }
-
-            // Use ManifestIdGenerator for deterministic client ID generation
-            if (installation != null)
-            {
-                // Use publisher-based ID generation for GameClient with correct content type
-                var publisherId = installation.InstallationType.ToIdentifierString();
-                var contentName = gameType == GameType.ZeroHour ? "zerohour" : "generals";
-
-                // Convert version string to normalized integer format (e.g., "1.04" → 104, "1.08" → 108)
-                int normalizedVersion = GameVersionHelper.NormalizeVersion(gameClient.Version);
-                var clientIdResult = ManifestIdGenerator.GeneratePublisherContentId(publisherId, ContentType.GameClient, contentName, userVersion: normalizedVersion);
-                manifest.Id = ManifestId.Create(clientIdResult);
-            }
-            else
-            {
-                // For scanned/standalone clients, generate ID based on path and hash
-                var fallbackId = $"scanned-{gameType.ToString().ToLowerInvariant()}-{Path.GetFileName(clientPath)}-{gameClient.Version}";
-                manifest.Id = ManifestId.Create(fallbackId);
-            }
+            AddInstallationDependency(manifest, gameType, installation);
+            AssignManifestId(manifest, gameClient, gameType, installation);
 
             // Add to pool
             var addResult = await contentManifestPool.AddManifestAsync(manifest, clientPath);
@@ -1022,7 +1331,16 @@ public class GameClientDetector(
                 foreach (var file in files)
                 {
                     var fileName = Path.GetFileName(file);
-                    if (!hashRegistry.PossibleExecutableNames.Contains(fileName, StringComparer.OrdinalIgnoreCase))
+
+                    // Arbitrarily named engines (renamed builds, recovery binaries) are
+                    // candidates too, gated by MZ magic; unevidenced ones stay silent at
+                    // detection time, and tools/installers are excluded by file name.
+                    var isCandidate = hashRegistry.PossibleExecutableNames.Contains(fileName, StringComparer.OrdinalIgnoreCase)
+                        || fileName.EndsWith(ContentFormatConstants.FlatpakExtension, StringComparison.OrdinalIgnoreCase)
+                        || (string.IsNullOrEmpty(Path.GetExtension(fileName)) && ExecutableFileClassifier.HasExecutableMagicBytes(file))
+                        || (fileName.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) && ExecutableFileClassifier.HasExecutableMagicBytes(file));
+
+                    if (!isCandidate)
                     {
                         continue;
                     }
@@ -1042,14 +1360,22 @@ public class GameClientDetector(
                 foreach (var subDir in Directory.EnumerateDirectories(currentDir))
                 {
                     var dirName = Path.GetFileName(subDir);
-                    if (!_excludedDirectories.Contains(dirName))
-                    {
-                        directoriesToProcess.Enqueue(subDir);
-                    }
-                    else
+                    if (_excludedDirectories.Contains(dirName))
                     {
                         logger.LogDebug("Skipping excluded directory during game client scan: {Directory}", subDir);
+                        continue;
                     }
+
+                    // Application bundles are single clients: report the bundle itself
+                    // and do not scan inside, otherwise the bundle and its inner binary
+                    // would identify as two clients.
+                    if (dirName.EndsWith(ContentFormatConstants.MacAppBundleExtension, StringComparison.OrdinalIgnoreCase))
+                    {
+                        results.Add(subDir);
+                        continue;
+                    }
+
+                    directoriesToProcess.Enqueue(subDir);
                 }
             }
             catch (Exception ex)

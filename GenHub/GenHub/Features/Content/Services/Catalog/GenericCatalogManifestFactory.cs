@@ -1,10 +1,12 @@
 using GenHub.Core.Constants;
+using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Utilities;
+using GenHub.Features.Content.Services.Helpers;
 using Microsoft.Extensions.Logging;
 using SharpCompress.Archives;
 using SharpCompress.Common;
@@ -26,7 +28,8 @@ public class GenericCatalogManifestFactory(
     IFileHashProvider hashProvider,
     ILogger<GenericCatalogManifestFactory> logger,
     IArchivePayloadProcessor archivePayloadProcessor,
-    IControlBarPackageProcessor? controlBarProcessor = null) : IPublisherManifestFactory
+    IControlBarPackageProcessor? controlBarProcessor = null,
+    ILocalizationService? localizationService = null) : IPublisherManifestFactory
 {
     /// <inheritdoc/>
     public string PublisherId => CatalogConstants.GenericCatalogResolverId;
@@ -175,18 +178,21 @@ public class GenericCatalogManifestFactory(
             updatedManifest.Version = CommunityOutpostCatalogConstants.DefaultMetadataVersion;
         }
 
-        if (string.IsNullOrWhiteSpace(updatedManifest.EntryPoint))
+        var entryResult = ManifestEntryPointHelper.BakeEntryPoint(updatedManifest, extractedDirectory, cancellationToken, localizationService);
+        if (!entryResult.Success)
         {
-            var entryPointResolution = ManifestVariantResolver.ResolveEntryPoint(updatedManifest);
-            if (entryPointResolution.Success)
-            {
-                updatedManifest.EntryPoint = entryPointResolution.RelativePath;
-                logger.LogInformation(
-                    "Inferred entry point '{EntryPoint}' for manifest {ManifestId} ({Reason})",
-                    updatedManifest.EntryPoint,
-                    updatedManifest.Id,
-                    entryPointResolution.Reason);
-            }
+            logger.LogWarning("Refusing game client manifest without a launch entry: {Error}", entryResult.FirstError);
+            return OperationResult<List<ContentManifest>>.CreateFailure(entryResult.FirstError ?? "Unable to determine the launch entry.");
+        }
+
+        await ManifestTargetGameApplier.ApplyBinaryTargetGameAsync(logger, updatedManifest, extractedDirectory, cancellationToken);
+
+        if (entryResult.Data is not null)
+        {
+            logger.LogInformation(
+                "Baked entry point '{EntryPoint}' for manifest {ManifestId}",
+                entryResult.Data,
+                updatedManifest.Id);
         }
 
         logger.LogInformation(

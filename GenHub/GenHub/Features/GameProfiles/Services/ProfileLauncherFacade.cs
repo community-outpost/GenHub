@@ -23,6 +23,7 @@ using GenHub.Core.Models.Notifications;
 using GenHub.Core.Models.Providers;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Workspace;
+using GenHub.Core.Utilities;
 using GenHub.Features.Content.Services.SuperHackers;
 using GenHub.Features.Launching;
 using GenHub.Features.Workspace;
@@ -1235,29 +1236,33 @@ public class ProfileLauncherFacade(
         IReadOnlyList<ContentManifest>? manifests,
         CancellationToken cancellationToken)
     {
+        var targetExecutable = await TryResolveAbsoluteTargetExecutableAsync(profile, manifests, cancellationToken);
+
+        var guardError = CheckLaunchTargetGuard(targetExecutable);
+        if (guardError is not null)
+        {
+            return guardError;
+        }
+
         if (launchRunner.CanLaunchWindowsExecutables())
         {
             return null;
         }
 
-        var targetExecutable = TryResolveTargetExecutable(profile, manifests);
         if (!string.IsNullOrWhiteSpace(targetExecutable) && !CommandLineHelper.IsWindowsExecutable(targetExecutable))
         {
             return null;
         }
 
-        if (profile.UseSteamLaunch == true && !string.IsNullOrWhiteSpace(profile.GameInstallationId))
+        var (steamBypass, steamError) = await CheckSteamLaunchBypassAsync(profile, cancellationToken);
+        if (steamError is not null)
         {
-            var installationResult = await installationService.GetInstallationAsync(profile.GameInstallationId, cancellationToken);
-            if (!installationResult.Success)
-            {
-                return installationResult.FirstError;
-            }
+            return steamError;
+        }
 
-            if (installationResult.Data?.InstallationType == GameInstallationType.Steam)
-            {
-                return null;
-            }
+        if (steamBypass)
+        {
+            return null;
         }
 
         return localizationService?.TryGetString(ProfileValidationConstants.MissingCompatibilityRunnerKey, out var localized) == true
@@ -1265,7 +1270,55 @@ public class ProfileLauncherFacade(
             : ProfileValidationConstants.MissingCompatibilityRunner;
     }
 
-    private string? TryResolveTargetExecutable(GameProfile profile, IReadOnlyList<ContentManifest>? manifests)
+    private string? CheckLaunchTargetGuard(string? targetExecutable)
+    {
+        if (string.IsNullOrWhiteSpace(targetExecutable))
+        {
+            return null;
+        }
+
+        if (targetExecutable.EndsWith(ContentFormatConstants.FlatpakExtension, StringComparison.OrdinalIgnoreCase))
+        {
+            // Linux provisions the bundle at launch; other hosts cannot run Flatpaks.
+            if (OperatingSystem.IsLinux())
+            {
+                return null;
+            }
+
+            var appId = FlatpakBundleHelper.TryExtractAppId(targetExecutable);
+            return appId is null
+                ? Localize(LaunchMessageConstants.FlatpakRequiresInstallUnknownIdKey, LaunchMessageConstants.FlatpakRequiresInstallUnknownId, targetExecutable)
+                : Localize(LaunchMessageConstants.FlatpakRequiresInstallKey, LaunchMessageConstants.FlatpakRequiresInstall, targetExecutable, appId);
+        }
+
+        return LaunchGuardMessages.GetCrossOsError(ExecutableFileClassifier.DetectPlatform(targetExecutable), localizationService);
+    }
+
+    private async Task<(bool Bypass, string? Error)> CheckSteamLaunchBypassAsync(GameProfile profile, CancellationToken cancellationToken)
+    {
+        if (profile.UseSteamLaunch != true || string.IsNullOrWhiteSpace(profile.GameInstallationId))
+        {
+            return (false, null);
+        }
+
+        var installationResult = await installationService.GetInstallationAsync(profile.GameInstallationId, cancellationToken);
+        if (!installationResult.Success)
+        {
+            return (false, installationResult.FirstError);
+        }
+
+        return (installationResult.Data?.InstallationType == GameInstallationType.Steam, null);
+    }
+
+    private string Localize(string key, string fallback, params object?[] arguments)
+    {
+        return LaunchGuardMessages.Localize(localizationService, key, fallback, arguments);
+    }
+
+    private async Task<string?> TryResolveAbsoluteTargetExecutableAsync(
+        GameProfile profile,
+        IReadOnlyList<ContentManifest>? manifests,
+        CancellationToken cancellationToken)
     {
         if (!string.IsNullOrWhiteSpace(profile.ExecutablePath))
         {
@@ -1279,51 +1332,71 @@ public class ProfileLauncherFacade(
             return profile.GameClient.ExecutablePath;
         }
 
-        var manifestTarget = TryResolveManifestTargetExecutable(manifests);
-        if (manifestTarget is not null)
+        var (targetManifest, relativePath) = TryResolveManifestTarget(manifests);
+        if (targetManifest is null || string.IsNullOrWhiteSpace(relativePath))
         {
-            return manifestTarget;
+            logger.LogDebug("[Launch] Could not resolve explicit target executable for profile {ProfileId}", profile.Id);
+            return null;
         }
 
-        logger.LogDebug("[Launch] Could not resolve explicit target executable for profile {ProfileId}", profile.Id);
-        return null;
+        // Resolve the manifest-relative entry to an absolute path so platform detection
+        // can sniff magic bytes: extensionless Unix binaries read as Unknown otherwise.
+        var contentDirectory = await manifestPool.GetContentDirectoryAsync(targetManifest.Id, cancellationToken);
+        if (contentDirectory?.Success == true && !string.IsNullOrWhiteSpace(contentDirectory.Data))
+        {
+            var contained = ContentPathPolicy.ResolveContainedFile(contentDirectory.Data, relativePath);
+            if (contained.Success && !string.IsNullOrWhiteSpace(contained.Data))
+            {
+                var absolutePath = contained.Data;
+                if (File.Exists(absolutePath) || Directory.Exists(absolutePath))
+                {
+                    logger.LogDebug("[Launch] Target executable resolved to absolute path: {AbsolutePath}", absolutePath);
+                    return absolutePath;
+                }
+            }
+        }
+
+        // No absolute target: return the declared entry so the guard still classifies
+        // it by name. Content sniffing only applies to fully qualified paths, so this
+        // never reads a same-named file from the process working directory.
+        return relativePath;
     }
 
-    private string? TryResolveManifestTargetExecutable(IReadOnlyList<ContentManifest>? manifests)
+    private (ContentManifest? Manifest, string? RelativePath) TryResolveManifestTarget(IReadOnlyList<ContentManifest>? manifests)
     {
         if (manifests is null)
         {
-            return null;
+            return (null, null);
         }
 
         var targetManifest = manifests.FirstOrDefault(m => m.ContentType == ContentType.GameClient)
             ?? manifests.FirstOrDefault(m => m.ContentType == ContentType.Executable || !string.IsNullOrWhiteSpace(m.EntryPoint));
         if (targetManifest is null)
         {
-            return null;
+            return (null, null);
         }
 
         var resolution = ManifestVariantResolver.ResolveEntryPoint(targetManifest);
         if (resolution.Success && !string.IsNullOrWhiteSpace(resolution.RelativePath))
         {
             logger.LogDebug("[Launch] Target executable resolved from manifest {ManifestId}: {RelativePath}", targetManifest.Id, resolution.RelativePath);
-            return resolution.RelativePath;
+            return (targetManifest, resolution.RelativePath);
         }
 
         var variant = ManifestVariantResolver.ResolveVariant(targetManifest);
         if (!string.IsNullOrWhiteSpace(variant?.EntryPoint))
         {
             logger.LogDebug("[Launch] Target executable resolved from variant entry point {ManifestId}: {EntryPoint}", targetManifest.Id, variant.EntryPoint);
-            return variant.EntryPoint;
+            return (targetManifest, variant.EntryPoint);
         }
 
         if (!string.IsNullOrWhiteSpace(targetManifest.EntryPoint))
         {
             logger.LogDebug("[Launch] Target executable resolved from manifest declared entry point {ManifestId}: {EntryPoint}", targetManifest.Id, targetManifest.EntryPoint);
-            return targetManifest.EntryPoint;
+            return (targetManifest, targetManifest.EntryPoint);
         }
 
-        return null;
+        return (null, null);
     }
 
     private async Task<ContentManifest?> TryRetrieveManifestAsync(

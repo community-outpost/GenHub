@@ -298,6 +298,33 @@ public sealed class ProfileLauncherFacadeRunnerValidationTests
         Assert.Contains(ProfileValidationConstants.MissingCompatibilityRunner, result.FirstError);
     }
 
+    /// <summary>
+    /// On Linux a Flatpak bundle target passes validation so the process manager
+    /// can provision it at launch.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task ValidateLaunchAsync_OnLinuxWithFlatpakTarget_PassesValidationAsync()
+    {
+        if (!OperatingSystem.IsLinux())
+        {
+            return;
+        }
+
+        // Arrange
+        ArrangePassingProfile(useSteamLaunch: false, executablePath: "Linux-GeneralsXZH.flatpak");
+        _launchRunnerMock
+            .Setup(r => r.CanLaunchWindowsExecutables())
+            .Returns(false);
+        var facade = CreateFacade(localizationService: null);
+
+        // Act
+        var result = await facade.ValidateLaunchAsync(ProfileId);
+
+        // Assert
+        Assert.True(result.Success, result.FirstError);
+    }
+
     private ProfileLauncherFacade CreateFacade(ILocalizationService? localizationService)
     {
         return new ProfileLauncherFacade(

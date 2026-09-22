@@ -1,5 +1,7 @@
 using GenHub.Core.Constants;
 using GenHub.Core.Extensions.GameInstallations;
+using GenHub.Core.Helpers;
+using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Launcher;
 using GenHub.Core.Models.Launching;
 using GenHub.Core.Models.Manifest;
@@ -46,13 +48,15 @@ public class SteamLauncher : ISteamLauncher
     private readonly ILogger<SteamLauncher> _logger;
     private readonly string? _proxySourcePathOverride;
     private readonly Func<string, string, CancellationToken, Task> _writeAllTextAsync;
+    private readonly ILocalizationService? _localizationService;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="SteamLauncher"/> class.
     /// </summary>
     /// <param name="logger">The logger.</param>
-    public SteamLauncher(ILogger<SteamLauncher> logger)
-        : this(logger, null, File.WriteAllTextAsync)
+    /// <param name="localizationService">Optional localization service.</param>
+    public SteamLauncher(ILogger<SteamLauncher> logger, ILocalizationService? localizationService = null)
+        : this(logger, null, File.WriteAllTextAsync, localizationService)
     {
     }
 
@@ -62,14 +66,17 @@ public class SteamLauncher : ISteamLauncher
     /// <param name="logger">The logger.</param>
     /// <param name="proxySourcePathOverride">An optional proxy source path override.</param>
     /// <param name="writeAllTextAsync">The text file writer.</param>
+    /// <param name="localizationService">Optional localization service.</param>
     internal SteamLauncher(
         ILogger<SteamLauncher> logger,
         string? proxySourcePathOverride,
-        Func<string, string, CancellationToken, Task> writeAllTextAsync)
+        Func<string, string, CancellationToken, Task> writeAllTextAsync,
+        ILocalizationService? localizationService = null)
     {
         _logger = logger;
         _proxySourcePathOverride = proxySourcePathOverride;
         _writeAllTextAsync = writeAllTextAsync;
+        _localizationService = localizationService;
     }
 
     /// <summary>
@@ -155,6 +162,16 @@ public class SteamLauncher : ISteamLauncher
             {
                 return OperationResult<SteamLaunchPrepResult>.CreateFailure(
                     $"Target executable not found: {effectiveTargetExecutable}. Workspace may not be properly prepared.");
+            }
+
+            if (ReplayCrcMatchingHelper.HasNonRetailExecutableFormat(effectiveTargetExecutable))
+            {
+                var message = LaunchGuardMessages.Localize(
+                    _localizationService,
+                    LaunchMessageConstants.SteamNonWindowsExecutableKey,
+                    LaunchMessageConstants.SteamNonWindowsExecutable,
+                    Path.GetFileName(effectiveTargetExecutable));
+                return OperationResult<SteamLaunchPrepResult>.CreateFailure(message);
             }
 
             var effectiveWorkingDirectory = string.IsNullOrEmpty(targetWorkingDirectory)

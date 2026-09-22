@@ -12,6 +12,7 @@ using GenHub.Features.Content.Services.GeneralsOnline;
 using GenHub.Features.GameClients;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
+using System.Text;
 
 namespace GenHub.Tests.Core.Features.GameClients;
 
@@ -26,6 +27,8 @@ public class GameClientDetectorTests : IDisposable
         GameClientConstants.GeneralsOnlineEacLauncherExecutable,
         GameClientConstants.GeneralsOnline60HzExecutable,
     ];
+
+    private static readonly byte[] MachOHeader = [0xFE, 0xED, 0xFA, 0xCE, 0x00, 0x00, 0x00, 0x00];
 
     private readonly Mock<IManifestGenerationService> _manifestGenerationServiceMock;
     private readonly Mock<IContentManifestPool> _contentManifestPoolMock;
@@ -210,6 +213,213 @@ public class GameClientDetectorTests : IDisposable
     }
 
     /// <summary>
+    /// An application bundle scans as one client rooted at the bundle; the scan
+    /// does not recurse inside and identify the inner binary separately.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task ScanDirectoryForGameClientsAsync_WithAppBundle_ReportsBundleOnceAsync()
+    {
+        // Arrange
+        var gameDir = Path.Combine(_tempDirectory, "MacGame");
+        var bundleDir = Path.Combine(gameDir, "GeneralsX.app");
+        var macOsDir = Path.Combine(bundleDir, "Contents", "MacOS");
+        Directory.CreateDirectory(macOsDir);
+        await File.WriteAllBytesAsync(Path.Combine(macOsDir, "GeneralsX"), MachOHeader);
+
+        var identifierMock = new Mock<IGameClientIdentifier>();
+        identifierMock.Setup(x => x.CanIdentify(It.IsAny<string>())).Returns(true);
+        identifierMock
+            .Setup(x => x.Identify(It.IsAny<string>()))
+            .Returns(new GameClientIdentification(
+                publisherId: "community",
+                variant: "macos",
+                displayName: "Community Zero Hour (macOS)",
+                gameType: GameType.ZeroHour,
+                localVersion: null));
+        var detector = new GameClientDetector(
+            _manifestGenerationServiceMock.Object,
+            _contentManifestPoolMock.Object,
+            _hashProviderMock.Object,
+            _hashRegistryMock.Object,
+            [identifierMock.Object],
+            NullLogger<GameClientDetector>.Instance);
+
+        var manifestBuilderMock = new Mock<IContentManifestBuilder>();
+        var manifest = new ContentManifest { Id = ManifestId.Create("1.0.test.gameclient.appbundle") };
+        manifestBuilderMock.Setup(x => x.Build()).Returns(manifest);
+        _manifestGenerationServiceMock.Setup(x => x.CreateGameClientManifestAsync(
+                It.IsAny<string>(), It.IsAny<GameType>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<PublisherInfo?>()))
+            .ReturnsAsync(manifestBuilderMock.Object);
+        _contentManifestPoolMock.Setup(x => x.AddManifestAsync(It.IsAny<ContentManifest>(), It.IsAny<string>(), It.IsAny<IProgress<ContentStorageProgress>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+
+        // Act
+        var result = await detector.ScanDirectoryForGameClientsAsync(_tempDirectory);
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.Single(result.Items);
+        Assert.Equal(bundleDir, result.Items[0].ExecutablePath);
+        Assert.Equal("1.0.test.gameclient.appbundle", result.Items[0].Id);
+        _manifestGenerationServiceMock.Verify(
+            x => x.CreateGameClientManifestAsync(
+                It.IsAny<string>(),
+                It.IsAny<GameType>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                Path.Combine(macOsDir, "GeneralsX"),
+                It.IsAny<PublisherInfo?>()),
+            Times.Once);
+        identifierMock.Verify(x => x.Identify(It.IsAny<string>()), Times.Once);
+    }
+
+    /// <summary>
+    /// An arbitrarily named engine carrying Zero Hour markers is typed by sniffing even
+    /// though no hash or publisher name recognizes it.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task ScanDirectoryForGameClientsAsync_RenamedZeroHourEngine_TypesBySniffingAsync()
+    {
+        // Arrange
+        var gameDir = Path.Combine(_tempDirectory, "Recovery");
+        Directory.CreateDirectory(gameDir);
+        var executablePath = Path.Combine(gameDir, "generalszh_mp-recovery.exe");
+        await File.WriteAllBytesAsync(executablePath, EngineBytes(withMarkers: true));
+        SetupManifestGeneration();
+
+        // Act
+        var result = await _detector.ScanDirectoryForGameClientsAsync(_tempDirectory);
+
+        // Assert
+        Assert.True(result.Success);
+        var client = Assert.Single(result.Items);
+        Assert.Equal(GameType.ZeroHour, client.GameType);
+        Assert.Equal(executablePath, client.ExecutablePath);
+        Assert.Contains("Scanned Zero Hour", client.Name);
+    }
+
+    /// <summary>
+    /// Tools are excluded by file name before sniffing, even with full engine markers.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task ScanDirectoryForGameClientsAsync_WorldBuilder_SkippedAsync()
+    {
+        // Arrange
+        var gameDir = Path.Combine(_tempDirectory, "Tools");
+        Directory.CreateDirectory(gameDir);
+        await File.WriteAllBytesAsync(Path.Combine(gameDir, "WorldBuilder.exe"), EngineBytes(withMarkers: true));
+
+        // Act
+        var result = await _detector.ScanDirectoryForGameClientsAsync(_tempDirectory);
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.Empty(result.Items);
+    }
+
+    /// <summary>
+    /// A broadened candidate without any evidence stays silent instead of becoming an
+    /// Unknown entry.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task ScanDirectoryForGameClientsAsync_UnevidencedExe_SkippedAsync()
+    {
+        // Arrange
+        var gameDir = Path.Combine(_tempDirectory, "Utils");
+        Directory.CreateDirectory(gameDir);
+        await File.WriteAllBytesAsync(Path.Combine(gameDir, "random-tool.exe"), EngineBytes(withMarkers: false));
+
+        // Act
+        var result = await _detector.ScanDirectoryForGameClientsAsync(_tempDirectory);
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.Empty(result.Items);
+    }
+
+    /// <summary>
+    /// A packed stub resolves its game type from the sibling engine while keeping the
+    /// stub as the launch target.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task ScanDirectoryForGameClientsAsync_PackedStubWithZeroHourSibling_TypesFromSiblingAsync()
+    {
+        // Arrange
+        var gameDir = Path.Combine(_tempDirectory, "Stubbed");
+        Directory.CreateDirectory(gameDir);
+        var stubPath = Path.Combine(gameDir, "generals.exe");
+        await File.WriteAllBytesAsync(stubPath, PackedStubBytes());
+        await File.WriteAllBytesAsync(Path.Combine(gameDir, "game.dat"), EngineBytes(withMarkers: true));
+        SetupManifestGeneration();
+
+        // Act
+        var result = await _detector.ScanDirectoryForGameClientsAsync(_tempDirectory);
+
+        // Assert
+        Assert.True(result.Success);
+        var client = Assert.Single(result.Items);
+        Assert.Equal(GameType.ZeroHour, client.GameType);
+        Assert.Equal(stubPath, client.ExecutablePath);
+    }
+
+    /// <summary>
+    /// An arbitrarily named engine carrying the Generals token is typed by sniffing even
+    /// though no hash or publisher name recognizes it.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task ScanDirectoryForGameClientsAsync_RenamedGeneralsEngine_TypesBySniffingAsync()
+    {
+        // Arrange
+        var gameDir = Path.Combine(_tempDirectory, "Recovery108");
+        Directory.CreateDirectory(gameDir);
+        var executablePath = Path.Combine(gameDir, "generals_backup_108.exe");
+        await File.WriteAllBytesAsync(executablePath, EngineBytes(withMarkers: false, withGeneralsToken: true));
+        SetupManifestGeneration();
+
+        // Act
+        var result = await _detector.ScanDirectoryForGameClientsAsync(_tempDirectory);
+
+        // Assert
+        Assert.True(result.Success);
+        var client = Assert.Single(result.Items);
+        Assert.Equal(GameType.Generals, client.GameType);
+        Assert.Equal(executablePath, client.ExecutablePath);
+        Assert.Contains("Scanned Generals", client.Name);
+    }
+
+    /// <summary>
+    /// A packed stub beside a Generals engine resolves to Generals while keeping the
+    /// stub as the launch target.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task ScanDirectoryForGameClientsAsync_PackedStubWithGeneralsSibling_TypesFromSiblingAsync()
+    {
+        // Arrange
+        var gameDir = Path.Combine(_tempDirectory, "StubbedGenerals");
+        Directory.CreateDirectory(gameDir);
+        var stubPath = Path.Combine(gameDir, "generals.exe");
+        await File.WriteAllBytesAsync(stubPath, PackedStubBytes());
+        await File.WriteAllBytesAsync(Path.Combine(gameDir, "game.dat"), EngineBytes(withMarkers: false, withGeneralsToken: true));
+        SetupManifestGeneration();
+
+        // Act
+        var result = await _detector.ScanDirectoryForGameClientsAsync(_tempDirectory);
+
+        // Assert
+        Assert.True(result.Success);
+        var client = Assert.Single(result.Items);
+        Assert.Equal(GameType.Generals, client.GameType);
+        Assert.Equal(stubPath, client.ExecutablePath);
+    }
+
+    /// <summary>
     /// Tests that ScanDirectoryForGameClientsAsync handles non-existent directories gracefully.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
@@ -261,6 +471,56 @@ public class GameClientDetectorTests : IDisposable
         var client = new GameClient
         {
             ExecutablePath = Path.Combine(_tempDirectory, "nonexistent.exe"),
+        };
+
+        // Act
+        var result = await _detector.ValidateGameClientAsync(client);
+
+        // Assert
+        Assert.False(result);
+    }
+
+    /// <summary>
+    /// Tests that ValidateGameClientAsync returns true for valid resolvable macOS app bundles.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ValidateGameClientAsync_WithValidMacAppBundle_ReturnsTrueAsync()
+    {
+        // Arrange
+        var gameDir = Path.Combine(_tempDirectory, "MacGameValid");
+        var bundleDir = Path.Combine(gameDir, "GeneralsX.app");
+        var macOsDir = Path.Combine(bundleDir, "Contents", "MacOS");
+        Directory.CreateDirectory(macOsDir);
+        await File.WriteAllBytesAsync(Path.Combine(macOsDir, "GeneralsX"), MachOHeader);
+
+        var client = new GameClient
+        {
+            ExecutablePath = bundleDir,
+        };
+
+        // Act
+        var result = await _detector.ValidateGameClientAsync(client);
+
+        // Assert
+        Assert.True(result);
+    }
+
+    /// <summary>
+    /// Tests that ValidateGameClientAsync returns false for empty unresolvable macOS app bundles.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ValidateGameClientAsync_WithEmptyMacAppBundle_ReturnsFalseAsync()
+    {
+        // Arrange
+        var gameDir = Path.Combine(_tempDirectory, "MacGameEmpty");
+        var bundleDir = Path.Combine(gameDir, "GeneralsEmpty.app");
+        Directory.CreateDirectory(bundleDir);
+
+        var client = new GameClient
+        {
+            ExecutablePath = bundleDir,
         };
 
         // Act
@@ -962,5 +1222,64 @@ public class GameClientDetectorTests : IDisposable
         }
 
         GC.SuppressFinalize(this);
+    }
+
+    private static byte[] EngineBytes(bool withMarkers, bool withGeneralsToken = false)
+    {
+        var bytes = new byte[512];
+        bytes[0] = (byte)'M';
+        bytes[1] = (byte)'Z';
+        if (withMarkers)
+        {
+            var title = Encoding.ASCII.GetBytes(GameBinaryConstants.ZeroHourTitle);
+            var menu = Encoding.ASCII.GetBytes(" " + GameBinaryConstants.ChallengeMenuMarker);
+            Buffer.BlockCopy(title, 0, bytes, 64, title.Length);
+            Buffer.BlockCopy(menu, 0, bytes, 64 + title.Length, menu.Length);
+        }
+
+        if (withGeneralsToken)
+        {
+            var token = Encoding.ASCII.GetBytes(" " + GameBinaryConstants.GeneralsEngineMarker);
+            Buffer.BlockCopy(token, 0, bytes, 256, token.Length);
+        }
+
+        return bytes;
+    }
+
+    private static byte[] PackedStubBytes()
+    {
+        var file = new byte[4608];
+        file[0] = (byte)'M';
+        file[1] = (byte)'Z';
+        ushort sectionCount = 1;
+        ushort optionalHeaderSize = 224;
+        ushort pe32Magic = 0x10B;
+        uint textVirtualSize = 4096;
+        uint textRawPointer = 512;
+        BitConverter.GetBytes(64).CopyTo(file, 0x3C);
+        file[64] = (byte)'P';
+        file[65] = (byte)'E';
+        BitConverter.GetBytes(sectionCount).CopyTo(file, 70);
+        BitConverter.GetBytes(optionalHeaderSize).CopyTo(file, 84);
+        BitConverter.GetBytes(pe32Magic).CopyTo(file, 88);
+        Encoding.ASCII.GetBytes(".text").CopyTo(file, 312);
+        BitConverter.GetBytes(textVirtualSize).CopyTo(file, 328);
+        BitConverter.GetBytes(textRawPointer).CopyTo(file, 332);
+        new Random(7).NextBytes(new Span<byte>(file, 512, 4096));
+        return file;
+    }
+
+    private void SetupManifestGeneration()
+    {
+        var manifestBuilderMock = new Mock<IContentManifestBuilder>();
+        var manifest = new ContentManifest { Id = ManifestId.Create("1.0.scanned.test.client") };
+        manifestBuilderMock.Setup(x => x.Build()).Returns(manifest);
+
+        _manifestGenerationServiceMock.Setup(x => x.CreateGameClientManifestAsync(
+                It.IsAny<string>(), It.IsAny<GameType>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<PublisherInfo?>()))
+            .ReturnsAsync(manifestBuilderMock.Object);
+
+        _contentManifestPoolMock.Setup(x => x.AddManifestAsync(It.IsAny<ContentManifest>(), It.IsAny<string>(), It.IsAny<IProgress<ContentStorageProgress>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
     }
 }

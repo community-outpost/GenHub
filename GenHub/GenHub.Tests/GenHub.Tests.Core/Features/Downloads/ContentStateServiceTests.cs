@@ -2284,6 +2284,109 @@ public class ContentStateServiceTests
         Assert.Null(await service.GetLocalManifestIdAsync(row172));
     }
 
+    /// <summary>
+    /// A GitHub multi-asset release (one card per OS asset) must resolve download state
+    /// per asset: with only the Linux asset installed, the Windows and macOS sibling
+    /// cards stay NotDownloaded instead of matching the Linux manifest by repository URL.
+    /// </summary>
+    /// <returns>A completed task.</returns>
+    [Fact]
+    public async Task GetStateAsync_GitHubOsAssetVariants_OnlyInstalledAssetResolvesDownloadedAsync()
+    {
+        const string owner = "fbraz3";
+        const string repo = "GeneralsX";
+        const string tag = "1.0.0";
+        const string repoUrl = "https://github.com/fbraz3/GeneralsX";
+        const string linuxManifestId = "1.100.fbraz3.gameclient.generalsxlinuxgeneralsxzh";
+
+        var storedLinux = new ContentManifest
+        {
+            Id = ManifestId.Create(linuxManifestId),
+            Name = "GeneralsXLinux-GeneralsXZH",
+            Version = tag,
+            ContentType = ContentType.GameClient,
+            TargetGame = GameType.ZeroHour,
+            OriginalProviderName = "GitHub",
+            OriginalContentId = linuxManifestId,
+            Publisher = new PublisherInfo
+            {
+                Name = owner,
+                PublisherType = PublisherTypeConstants.GitHub,
+                Website = "https://github.com/fbraz3",
+            },
+            Metadata = new ContentMetadata
+            {
+                ChangelogUrl = $"{repoUrl}/releases/tag/{tag}",
+                VariantGroupId = $"github.{owner}.{repo}.{tag}",
+                VariantFamilyName = repo,
+                Tags = ["github", "release", owner, "generalsx", "linux-generalsxzh"],
+            },
+            Files =
+            [
+                new ManifestFile
+                {
+                    RelativePath = "Linux-GeneralsXZH.flatpak",
+                    DownloadUrl = $"{repoUrl}/releases/download/{tag}/Linux-GeneralsXZH.flatpak",
+                    SourceType = ContentSourceType.RemoteDownload,
+                },
+            ],
+        };
+
+        var pool = new Mock<IContentManifestPool>();
+        pool.Setup(p => p.GetAllManifestsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<System.Collections.Generic.IEnumerable<ContentManifest>>.CreateSuccess([storedLinux]));
+        pool.Setup(p => p.IsManifestAcquiredAsync(It.Is<ManifestId>(m => m.Value == linuxManifestId), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+        pool.Setup(p => p.IsManifestAcquiredAsync(It.Is<ManifestId>(m => m.Value != linuxManifestId), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(false));
+
+        var service = new ContentStateService(pool.Object, NullLogger<ContentStateService>.Instance);
+
+        var linuxCard = CreateGitHubAssetCard(owner, repo, tag, "Linux-GeneralsXZH", "Linux-GeneralsXZH.flatpak", "generalsxlinuxgeneralsxzh");
+        var windowsCard = CreateGitHubAssetCard(owner, repo, tag, "Windows-GeneralsXZH", "Windows-GeneralsXZH.zip", "generalsxwindowsgeneralsxzh");
+        var macCard = CreateGitHubAssetCard(owner, repo, tag, "macOS-GeneralsXZH", "macOS-GeneralsXZH.zip", "generalsxmacosgeneralsxzh");
+
+        Assert.Equal(ContentState.Downloaded, await service.GetStateAsync(linuxCard));
+        Assert.Equal(linuxManifestId, await service.GetLocalManifestIdAsync(linuxCard));
+        Assert.Equal(ContentState.NotDownloaded, await service.GetStateAsync(windowsCard));
+        Assert.Null(await service.GetLocalManifestIdAsync(windowsCard));
+        Assert.Equal(ContentState.NotDownloaded, await service.GetStateAsync(macCard));
+        Assert.Null(await service.GetLocalManifestIdAsync(macCard));
+    }
+
+    private static ContentSearchResult CreateGitHubAssetCard(
+        string owner,
+        string repo,
+        string tag,
+        string assetVariant,
+        string assetName,
+        string idSegment)
+    {
+        var item = new ContentSearchResult
+        {
+            Id = $"1.100.{owner}.gameclient.{idSegment}",
+            Name = $"{repo} ({assetVariant})",
+            Version = tag,
+            AuthorName = owner,
+            ContentType = ContentType.GameClient,
+            TargetGame = GameType.ZeroHour,
+            ProviderName = "GitHub",
+            RequiresResolution = true,
+            ResolverId = GitHubConstants.GitHubReleaseResolverId,
+            SourceUrl = $"https://github.com/{owner}/{repo}",
+            LastUpdated = new DateTime(2026, 9, 16, 0, 34, 48, DateTimeKind.Utc),
+            VariantGroupId = $"github.{owner}.{repo}.{tag}",
+            VariantFamilyName = repo,
+        };
+        item.Tags.Add("genhub");
+        item.Tags.Add(assetVariant.ToLowerInvariant());
+        item.ResolverMetadata[GitHubConstants.OwnerMetadataKey] = owner;
+        item.ResolverMetadata[GitHubConstants.RepoMetadataKey] = repo;
+        item.ResolverMetadata[GitHubConstants.TagMetadataKey] = tag;
+        item.ResolverMetadata[GitHubConstants.AssetNameMetadataKey] = assetName;
+        return item;
+    }
+
     private static ContentSearchResult CreateSuperHackersCard(GameType gameType)
     {
         var item = new ContentSearchResult

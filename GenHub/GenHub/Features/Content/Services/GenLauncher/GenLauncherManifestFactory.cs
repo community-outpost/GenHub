@@ -1,8 +1,11 @@
 using GenHub.Core.Constants;
+using GenHub.Core.Helpers;
+using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
+using GenHub.Features.Content.Services.Helpers;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
@@ -21,9 +24,11 @@ namespace GenHub.Features.Content.Services.GenLauncher;
 /// </summary>
 /// <param name="archivePayloadProcessor">The archive payload processor.</param>
 /// <param name="logger">The logger instance.</param>
+/// <param name="localizationService">The localization service, or <see langword="null"/> for English failure messages.</param>
 public class GenLauncherManifestFactory(
     IArchivePayloadProcessor archivePayloadProcessor,
-    ILogger<GenLauncherManifestFactory> logger)
+    ILogger<GenLauncherManifestFactory> logger,
+    ILocalizationService? localizationService = null)
     : IPublisherManifestFactory
 {
     /// <inheritdoc/>
@@ -123,14 +128,14 @@ public class GenLauncherManifestFactory(
                 manifest.Files.Add(fileResult.Data);
             }
 
-            if (string.IsNullOrWhiteSpace(manifest.EntryPoint))
+            var entryResult = ManifestEntryPointHelper.BakeEntryPoint(manifest, extractedDirectory, cancellationToken, localizationService);
+            if (!entryResult.Success)
             {
-                var entryPointResolution = ManifestVariantResolver.ResolveEntryPoint(manifest);
-                if (entryPointResolution.Success)
-                {
-                    manifest.EntryPoint = entryPointResolution.RelativePath;
-                }
+                logger.LogWarning("Refusing game client manifest without a launch entry: {Error}", entryResult.FirstError);
+                return OperationResult<List<ContentManifest>>.CreateFailure(entryResult.FirstError ?? "Unable to determine the launch entry.");
             }
+
+            await ManifestTargetGameApplier.ApplyBinaryTargetGameAsync(logger, manifest, extractedDirectory, cancellationToken);
 
             return OperationResult<List<ContentManifest>>.CreateSuccess([manifest]);
         }

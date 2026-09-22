@@ -99,6 +99,7 @@ public static class ManifestVariantResolver
     /// </para>
     /// <list type="number">
     ///   <item><description>the declared entry point, on the variant or the manifest;</description></item>
+    ///   <item><description>the only file, when the manifest carries a lone Flatpak bundle;</description></item>
     ///   <item><description>the only file marked as needing the execute bit, if there is exactly one;</description></item>
     ///   <item><description>the only legacy launch candidate by extension, if there is exactly one;</description></item>
     ///   <item><description>otherwise fail, and report every candidate considered.</description></item>
@@ -124,6 +125,15 @@ public static class ManifestVariantResolver
             return ResolveDeclaredEntryPoint(manifest, files, declared);
         }
 
+        // Single-file Flatpak downloads never pass through payload extraction, so no
+        // entry point is baked for them. The lone bundle is unambiguous: resolving it
+        // lets the launch pipeline provision it instead of failing here and falling
+        // back to an unrelated executable.
+        if (IsLoneFlatpakBundle(files))
+        {
+            return EntryPointResolution.Resolved(files[0].RelativePath, "only Flatpak bundle");
+        }
+
         var executable = files
             .Where(f =>
                 f.IsExecutable
@@ -140,6 +150,20 @@ public static class ManifestVariantResolver
         return executable.Count == 0
             ? ResolveLegacyCandidates(manifest, files)
             : ResolvePrimaryExecutable(manifest, files, executable);
+    }
+
+    /// <summary>
+    /// Determines whether a file list is exactly one Flatpak bundle, the shape a
+    /// single-asset Flatpak download takes before content storage persists it.
+    /// </summary>
+    /// <param name="files">The files to inspect.</param>
+    /// <returns><c>true</c> when the list holds a single <c>.flatpak</c> file.</returns>
+    public static bool IsLoneFlatpakBundle(IReadOnlyList<ManifestFile> files)
+    {
+        ArgumentNullException.ThrowIfNull(files);
+
+        return files.Count == 1
+            && files[0].RelativePath.EndsWith(ContentFormatConstants.FlatpakExtension, StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary>
@@ -233,14 +257,6 @@ public static class ManifestVariantResolver
     private static bool IsPrimaryGameExecutable(string relativePath)
     {
         var fileName = System.IO.Path.GetFileName(relativePath.Replace('\\', '/'));
-        return string.Equals(fileName, GameClientConstants.GeneralsOnlineEacLauncherExecutable, StringComparison.OrdinalIgnoreCase)
-            || string.Equals(fileName, GameClientConstants.SuperHackersZeroHourExecutable, StringComparison.OrdinalIgnoreCase)
-            || string.Equals(fileName, GameClientConstants.SuperHackersGeneralsExecutable, StringComparison.OrdinalIgnoreCase)
-            || string.Equals(fileName, GameClientConstants.GeneralsExecutable, StringComparison.OrdinalIgnoreCase)
-            || string.Equals(fileName, GameClientConstants.SteamGameDatExecutable, StringComparison.OrdinalIgnoreCase)
-            || string.Equals(fileName, GameClientConstants.GameExecutable, StringComparison.OrdinalIgnoreCase)
-            || string.Equals(fileName, GameClientConstants.GeneralsOnline60HzExecutable, StringComparison.OrdinalIgnoreCase)
-            || string.Equals(fileName, GameClientConstants.GeneralsOnlineDefaultExecutable, StringComparison.OrdinalIgnoreCase)
-            || string.Equals(fileName, GameClientConstants.ContraExecutable, StringComparison.OrdinalIgnoreCase);
+        return GameClientConstants.ValidGameExecutableNames.Contains(fileName, StringComparer.OrdinalIgnoreCase);
     }
 }

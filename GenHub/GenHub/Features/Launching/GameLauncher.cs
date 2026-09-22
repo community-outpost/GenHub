@@ -900,6 +900,8 @@ public class GameLauncher(
 
         AddArchiveRoot(environment, RetailArchiveConstants.ZeroHourInstallPathVariable, installation.ZeroHourPath);
         AddArchiveRoot(environment, RetailArchiveConstants.GeneralsInstallPathVariable, installation.EffectiveGeneralsArchivePath);
+        AddArchiveRoot(environment, RetailArchiveConstants.GeneralsXZeroHourInstallPathVariable, installation.ZeroHourPath);
+        AddArchiveRoot(environment, RetailArchiveConstants.GeneralsXGeneralsInstallPathVariable, installation.EffectiveGeneralsArchivePath);
     }
 
     /// <summary>
@@ -1100,6 +1102,32 @@ public class GameLauncher(
         return (0, 0);
     }
 
+    /// <summary>
+    /// Attempts to resolve an executable relative path from the profile manifests before workspace setup.
+    /// </summary>
+    private static string? TryResolveManifestExecutablePath(IReadOnlyList<ContentManifest> manifests)
+    {
+        var gameClientManifest = manifests.FirstOrDefault(m => m.ContentType == ContentType.GameClient);
+        if (gameClientManifest != null)
+        {
+            var resolution = ManifestVariantResolver.ResolveEntryPoint(gameClientManifest);
+            return resolution.Success && !string.IsNullOrWhiteSpace(resolution.RelativePath)
+                ? resolution.RelativePath
+                : null;
+        }
+
+        var executableManifest = manifests.FirstOrDefault(m => m.ContentType == ContentType.Executable);
+        if (executableManifest != null)
+        {
+            var resolution = ManifestVariantResolver.ResolveEntryPoint(executableManifest);
+            return resolution.Success && !string.IsNullOrWhiteSpace(resolution.RelativePath)
+                ? resolution.RelativePath
+                : null;
+        }
+
+        return null;
+    }
+
     private static string UpdateGameDataCameraSettings(
         string content,
         float? cameraHeight,
@@ -1144,6 +1172,85 @@ public class GameLauncher(
         return content + "\r\nGameData\r\n  " + key + " = " + formattedVal + "\r\nEnd\r\n";
     }
 
+    /// <summary>
+    /// Validates dependencies, applies initial INI settings, and performs preflight CAS checks for the profile.
+    /// </summary>
+    private async Task<LaunchOperationResult<List<ContentManifest>>> PrepareManifestsAndPreflightAsync(
+        GameProfile profile,
+        IProgress<LaunchProgress>? progress,
+        string launchId,
+        CancellationToken cancellationToken)
+    {
+        progress?.Report(new LaunchProgress { Phase = LaunchPhase.ValidatingProfile, PercentComplete = 0 });
+        progress?.Report(new LaunchProgress { Phase = LaunchPhase.ResolvingContent, PercentComplete = 10 });
+
+        var resolutionResult = await ResolveContentManifestsAsync(profile, cancellationToken);
+        if (!resolutionResult.Success || resolutionResult.Data == null)
+        {
+            return LaunchOperationResult<List<ContentManifest>>.CreateFailure(
+                resolutionResult.FirstError ?? "Failed to resolve content dependencies.",
+                launchId,
+                profile.Id);
+        }
+
+        var manifests = resolutionResult.Data;
+        logger.LogDebug("[GameLauncher] Applying profile settings to Options.ini before workspace preparation");
+        await ApplyProfileSettingsToIniOptionsAsync(profile);
+
+        progress?.Report(new LaunchProgress { Phase = LaunchPhase.PreparingWorkspace, PercentComplete = 20 });
+
+        logger.LogDebug("[GameLauncher] Running CAS preflight check");
+        var casCheckResult = await PreflightCasCheckAsync(manifests, cancellationToken);
+        if (!casCheckResult.Success)
+        {
+            logger.LogError("[GameLauncher] CAS preflight check failed: {Error}", casCheckResult.FirstError);
+            return LaunchOperationResult<List<ContentManifest>>.CreateFailure(
+                casCheckResult.FirstError ?? "CAS preflight check failed",
+                launchId,
+                profile.Id);
+        }
+
+        logger.LogDebug("[GameLauncher] CAS preflight check passed");
+        return LaunchOperationResult<List<ContentManifest>>.CreateSuccess(manifests, launchId, profile.Id);
+    }
+
+    /// <summary>
+    /// Disables Steam integration if the profile's executable uses a non-retail or native platform format.
+    /// </summary>
+    private bool AdjustSteamLaunchForExecutable(bool isSteamLaunch, string profileId, string? executablePath)
+    {
+        if (isSteamLaunch && ReplayCrcMatchingHelper.HasNonRetailExecutableFormat(executablePath))
+        {
+            logger.LogInformation(
+                "[GameLauncher] Disabling Steam integration for profile {ProfileId} because executable '{Path}' uses a non-retail or native platform format",
+                profileId,
+                executablePath);
+            return false;
+        }
+
+        return isSteamLaunch;
+    }
+
+    /// <summary>
+    /// Re-evaluates Steam launch eligibility for the final resolved executable, releasing the lock if revoked.
+    /// </summary>
+    private bool ReevaluateSteamLaunch(
+        bool isSteamLaunch,
+        string profileId,
+        string finalExecutablePath,
+        ref IDisposable? steamInstallationLock)
+    {
+        var adjusted = AdjustSteamLaunchForExecutable(isSteamLaunch, profileId, finalExecutablePath);
+        if (isSteamLaunch && !adjusted)
+        {
+            steamInstallationLock?.Dispose();
+            steamInstallationLock = null;
+            return false;
+        }
+
+        return adjusted;
+    }
+
     private async Task<LaunchOperationResult<GameLaunchInfo>> LaunchProfileAsync(GameProfile profile, bool skipUserDataCleanup, IReadOnlyDictionary<string, string>? additionalArguments, IProgress<LaunchProgress>? progress, string launchId, CancellationToken cancellationToken)
     {
         IDisposable? steamInstallationLock = null;
@@ -1153,30 +1260,16 @@ public class GameLauncher(
             logger.LogInformation("[GameLauncher] === Starting launch for profile '{ProfileName}' (ID: {ProfileId}) ===", profile.Name, profile.Id);
             cancellationToken.ThrowIfCancellationRequested();
 
-            progress?.Report(new LaunchProgress { Phase = LaunchPhase.ValidatingProfile, PercentComplete = 0 });
-            progress?.Report(new LaunchProgress { Phase = LaunchPhase.ResolvingContent, PercentComplete = 10 });
-
-            var resolutionResult = await ResolveContentManifestsAsync(profile, cancellationToken);
-            if (!resolutionResult.Success || resolutionResult.Data == null)
+            var preflightResult = await PrepareManifestsAndPreflightAsync(profile, progress, launchId, cancellationToken);
+            if (!preflightResult.Success || preflightResult.Data == null)
             {
-                return LaunchOperationResult<GameLaunchInfo>.CreateFailure(resolutionResult.FirstError ?? "Failed to resolve content dependencies.", launchId, profile.Id);
+                return LaunchOperationResult<GameLaunchInfo>.CreateFailure(
+                    preflightResult.FirstError ?? "Failed to resolve content dependencies.",
+                    launchId,
+                    profile.Id);
             }
 
-            var manifests = resolutionResult.Data;
-            logger.LogDebug("[GameLauncher] Applying profile settings to Options.ini before workspace preparation");
-            await ApplyProfileSettingsToIniOptionsAsync(profile);
-
-            progress?.Report(new LaunchProgress { Phase = LaunchPhase.PreparingWorkspace, PercentComplete = 20 });
-
-            logger.LogDebug("[GameLauncher] Running CAS preflight check");
-            var casCheckResult = await PreflightCasCheckAsync(manifests, cancellationToken);
-            if (!casCheckResult.Success)
-            {
-                logger.LogError("[GameLauncher] CAS preflight check failed: {Error}", casCheckResult.FirstError);
-                return LaunchOperationResult<GameLaunchInfo>.CreateFailure(casCheckResult.FirstError ?? "CAS preflight check failed", launchId, profile.Id);
-            }
-
-            logger.LogDebug("[GameLauncher] CAS preflight check passed");
+            var manifests = preflightResult.Data;
 
             var manifestSourcePaths = await ManifestSourcePathResolver.ResolveManifestSourcePathsAsync(manifests, profile, manifestPool, logger, cancellationToken);
             var installResult = await ResolveInstallationAndPathsAsync(profile, cancellationToken);
@@ -1187,6 +1280,9 @@ public class GameLauncher(
             }
 
             var (installation, gameClient, actualInstallationPath, dynamicWorkspacePath, isSteamLaunch) = installResult.Data;
+
+            var candidateExecutable = TryResolveManifestExecutablePath(manifests) ?? gameClient.ExecutablePath;
+            isSteamLaunch = AdjustSteamLaunchForExecutable(isSteamLaunch, profile.Id, candidateExecutable);
 
             // Reconciliation removes the prior receipt, so compare it before preparation.
             var receiptDriftWarnings = new List<string>();
@@ -1214,14 +1310,6 @@ public class GameLauncher(
             var (workspaceInfo, acquiredLock) = workspaceSetupResult.Data;
             steamInstallationLock = acquiredLock;
 
-            if (workspaceInfo == null)
-            {
-                steamInstallationLock?.Dispose();
-                steamInstallationLock = null;
-                await launchRegistry.UnregisterLaunchAsync(launchId);
-                return LaunchOperationResult<GameLaunchInfo>.CreateFailure("Workspace preparation returned null workspace info", launchId, profile.Id);
-            }
-
             progress?.Report(new LaunchProgress { Phase = LaunchPhase.PreparingUserData, PercentComplete = 82 });
             var userDataPrepResult = await PrepareUserDataAsync(profile, manifests, skipUserDataCleanup, cancellationToken);
             if (!userDataPrepResult.Success)
@@ -1241,6 +1329,7 @@ public class GameLauncher(
             }
 
             var finalExecutablePath = executableResult.Data;
+            isSteamLaunch = ReevaluateSteamLaunch(isSteamLaunch, profile.Id, finalExecutablePath, ref steamInstallationLock);
 
             var prepResult = await PrepareLaunchConfigurationAndProxyAsync(
                 profile,
@@ -1829,7 +1918,7 @@ public class GameLauncher(
         }
 
         var dynamicWorkspacePath = storageLocationService.GetWorkspacePath(installation);
-        var isSteamLaunch = profile.UseSteamLaunch == true && installation.InstallationType == GameInstallationType.Steam;
+        var isSteamLaunch = profile.UseSteamLaunch == true && ReplayCrcMatchingHelper.IsSteamLaunchEligible(installation.InstallationType, gameClient);
 
         return OperationResult<(GameInstallation, GenHub.Core.Models.GameClients.GameClient, string, string, bool)>.CreateSuccess((installation, gameClient, actualInstallationPath, dynamicWorkspacePath, isSteamLaunch));
     }

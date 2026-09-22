@@ -126,4 +126,38 @@ public class GitHubInferenceHelperTests
         var result = GitHubInferenceHelper.IsExecutableFile(fileName);
         Assert.Equal(expected, result);
     }
+
+    /// <summary>
+    /// Per-asset typing is a downgrade only: strong patch/mod filename signals drop a
+    /// GameClient release to Patch/Mod for that asset.
+    /// </summary>
+    /// <param name="assetName">The asset file name.</param>
+    /// <param name="expected">Expected asset-level content type.</param>
+    [Theory]
+    [InlineData("ZH_Patch_v1.zip", ContentType.Patch)]
+    [InlineData("hotfix-macos.zip", ContentType.Patch)]
+    [InlineData("balance-mod.zip", ContentType.Mod)]
+    [InlineData("addon-pack.zip", ContentType.Mod)]
+    [InlineData("ZeroHour-mac-client.zip", ContentType.GameClient)]
+    [InlineData("generalsonlinezh.exe", ContentType.GameClient)]
+    [InlineData("modern-client.zip", ContentType.GameClient)]
+    [InlineData("prefix-client.zip", ContentType.GameClient)]
+    [InlineData("model-pack.zip", ContentType.GameClient)]
+    public void DowngradeClientTypeForAsset_GameClientRelease_AppliesDowngrade(string assetName, ContentType expected)
+    {
+        var result = GitHubInferenceHelper.DowngradeClientTypeForAsset(ContentType.GameClient, assetName);
+        Assert.Equal(expected, result);
+    }
+
+    /// <summary>
+    /// An asset name can never promote a non-client release into a game client.
+    /// </summary>
+    [Fact]
+    public void DowngradeClientTypeForAsset_NonClientRelease_PassesThroughUnchanged()
+    {
+        Assert.Equal(ContentType.Patch, GitHubInferenceHelper.DowngradeClientTypeForAsset(ContentType.Patch, "game-client-code.zip"));
+        Assert.Equal(ContentType.Mod, GitHubInferenceHelper.DowngradeClientTypeForAsset(ContentType.Mod, "generalsonlinezh.zip"));
+        Assert.Equal(ContentType.Addon, GitHubInferenceHelper.DowngradeClientTypeForAsset(ContentType.Addon, "client.zip"));
+        Assert.Equal(ContentType.GameClient, GitHubInferenceHelper.DowngradeClientTypeForAsset(ContentType.GameClient, null));
+    }
 }

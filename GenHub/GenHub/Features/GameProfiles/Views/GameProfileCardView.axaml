@@ -474,7 +474,7 @@
                                           IsChecked="{Binding UseSteamLaunch}"
                                           ToolTip.Tip="{localization:Localize GameProfiles.Card.Tooltip.SteamIntegration}"
                                           AutomationProperties.Name="{localization:Localize GameProfiles.Card.Tooltip.SteamIntegration}"
-                                          IsVisible="{Binding IsSteamInstallation}"
+                                          IsVisible="{Binding IsSteamIntegrationSupported}"
                                           Background="Transparent"
                                           Command="{Binding ToggleSteamLaunchCommand}"
                                           CommandParameter="{Binding}">

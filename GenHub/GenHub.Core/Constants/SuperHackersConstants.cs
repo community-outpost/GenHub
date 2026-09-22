@@ -19,6 +19,11 @@ public static class SuperHackersConstants
     public const string PublisherName = "TheSuperHackers";
 
     /// <summary>
+    /// Name marker token for identifying SuperHackers game clients.
+    /// </summary>
+    public const string NameMarker = "SuperHackers";
+
+    /// <summary>
     /// Description for the content provider.
     /// </summary>
     public const string ProviderDescription = "Weekly releases of Generals and Zero Hour game code from TheSuperHackers";

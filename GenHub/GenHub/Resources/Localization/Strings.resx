@@ -1241,6 +1241,94 @@
     <value>Missing {0} required CAS objects ({1}). Content must be downloaded before launching.</value>
     <comment>Error shown when required CAS objects are missing at launch, formatted with the missing object count and a sample list</comment>
   </data>
+  <data name="Launch.Compatibility.MacOSOnWindows" xml:space="preserve">
+    <value>Cannot launch macOS game client on Windows.</value>
+    <comment>Error shown when launching a macOS game client on Windows</comment>
+  </data>
+  <data name="Launch.Compatibility.LinuxOnWindows" xml:space="preserve">
+    <value>Cannot launch Linux game client on Windows.</value>
+    <comment>Error shown when launching a Linux game client on Windows</comment>
+  </data>
+  <data name="Launch.Compatibility.MacOSOnLinux" xml:space="preserve">
+    <value>Cannot launch macOS game client on Linux.</value>
+    <comment>Error shown when launching a macOS game client on Linux</comment>
+  </data>
+  <data name="Launch.Compatibility.LinuxOnMacOS" xml:space="preserve">
+    <value>Cannot launch Linux game client on macOS.</value>
+    <comment>Error shown when launching a Linux game client on macOS</comment>
+  </data>
+  <data name="Launch.Flatpak.RequiresInstall" xml:space="preserve">
+    <value>Cannot launch Flatpak bundle '{0}'. Install it with: flatpak install --user "{0}", then launch it with: flatpak run {1}.</value>
+    <comment>Guidance shown when a Flatpak bundle needs install-then-run outside GenHub</comment>
+  </data>
+  <data name="Launch.Flatpak.RequiresInstallUnknownId" xml:space="preserve">
+    <value>Cannot launch Flatpak bundle '{0}'. Install it with: flatpak install --user "{0}", then launch the application manually outside GenHub (GenHub cannot determine this bundle's application ID).</value>
+    <comment>Guidance shown when a Flatpak bundle needs install-then-run and its app ID is unknown</comment>
+  </data>
+  <data name="Launch.Flatpak.CliMissing" xml:space="preserve">
+    <value>Cannot launch Flatpak bundle '{0}': the Flatpak command line tools are not installed. Install Flatpak from https://flatpak.org/setup/ and try again.</value>
+    <comment>Error shown when a Flatpak bundle cannot launch because the Flatpak CLI is missing</comment>
+  </data>
+  <data name="Launch.Flatpak.InstallFailed" xml:space="preserve">
+    <value>Failed to install Flatpak bundle '{0}' ({1}): {2}</value>
+    <comment>Error shown when installing a Flatpak bundle fails</comment>
+  </data>
+  <data name="Launch.Bundle.Unresolvable" xml:space="preserve">
+    <value>Cannot launch application bundle '{0}': no executable could be resolved inside its Contents/MacOS folder.</value>
+    <comment>Error shown when an application bundle has no resolvable executable</comment>
+  </data>
+  <data name="Launch.Steam.NonWindowsExecutable" xml:space="preserve">
+    <value>Steam Proxy Launcher cannot run non-Windows executable format '{0}'. Steam integration requires a Windows executable.</value>
+    <comment>Error shown when Steam proxy launcher cannot launch a non-Windows executable</comment>
+  </data>
+  <data name="Manifest.EntryPoint.NotFoundInPayload" xml:space="preserve">
+    <value>Game client '{0}' declares entry point '{1}', which was not found in its payload.</value>
+  </data>
+  <data name="Manifest.EntryPoint.DetectionFailed" xml:space="preserve">
+    <value>Cannot determine the launch entry for game client '{0}': {1}</value>
+  </data>
+  <data name="Manifest.VariantEntryPoint.NotFoundInPayload" xml:space="preserve">
+    <value>Game client '{0}' declares variant entry point '{1}', which was not found in its payload.</value>
+  </data>
+  <data name="Manifest.VariantEntryPoint.MultipleMissing" xml:space="preserve">
+    <value>Game client '{0}' has {1} variants without a declared entry point; detection cannot resolve one entry per variant.</value>
+  </data>
+  <data name="ContentFormat.Rejection.CannotInstallDirectly" xml:space="preserve">
+    <value>'{0}' cannot be installed directly. {1}</value>
+    <comment>Guidance prefix shown when a file format cannot be directly installed by GenHub</comment>
+  </data>
+  <data name="ContentFormat.Rejection.Dmg" xml:space="preserve">
+    <value>Mount the .dmg with hdiutil (or Finder), then add the game folder or .app bundle as local content.</value>
+    <comment>Guidance shown when a .dmg file is rejected</comment>
+  </data>
+  <data name="ContentFormat.Rejection.Pkg" xml:space="preserve">
+    <value>Install the .pkg with the macOS installer first, then add the installed game folder as local content.</value>
+    <comment>Guidance shown when a .pkg file is rejected</comment>
+  </data>
+  <data name="ContentFormat.Rejection.Snap" xml:space="preserve">
+    <value>Install the snap with snapd outside GenHub; containerized apps cannot be materialized into a workspace.</value>
+    <comment>Guidance shown when a snap package is rejected</comment>
+  </data>
+  <data name="ContentFormat.Rejection.Deb" xml:space="preserve">
+    <value>Install the .deb with your system package manager first, then add the installed game folder as local content.</value>
+    <comment>Guidance shown when a .deb package is rejected</comment>
+  </data>
+  <data name="ContentFormat.Rejection.Rpm" xml:space="preserve">
+    <value>Install the .rpm with your system package manager first, then add the installed game folder as local content.</value>
+    <comment>Guidance shown when an .rpm package is rejected</comment>
+  </data>
+  <data name="ContentFormat.Rejection.Msi" xml:space="preserve">
+    <value>Run the .msi installer on Windows (or with Wine msiexec) first, then add the installed game folder as local content.</value>
+    <comment>Guidance shown when an .msi installer is rejected</comment>
+  </data>
+  <data name="ContentFormat.Rejection.Msix" xml:space="preserve">
+    <value>Install the .msix package on Windows first, then add the installed game folder as local content.</value>
+    <comment>Guidance shown when an .msix package is rejected</comment>
+  </data>
+  <data name="ContentFormat.Rejection.Default" xml:space="preserve">
+    <value>This format needs external tooling that GenHub does not run; install it first, then add the installed files as local content.</value>
+    <comment>Default guidance shown when an unhandled guided rejection format is rejected</comment>
+  </data>
   <data name="Maps.Button.ClearAllHistory" xml:space="preserve">
     <value>Clear All History</value>
   </data>
