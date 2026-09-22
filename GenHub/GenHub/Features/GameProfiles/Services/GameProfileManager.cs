@@ -594,28 +594,7 @@ public class GameProfileManager(
         }
     }
 
-    /// <summary>
-    /// Attempts to resolve a fallback game client from the profile installation when the request omits the game client,
-    /// or validates client compatibility when the profile's installation is changing.
-    /// </summary>
-    private async Task<ProfileOperationResult<GameProfile>?> ResolveFallbackGameClientAsync(
-        GameProfile profile,
-        UpdateProfileRequest request,
-        CancellationToken cancellationToken)
-    {
-        var isInstallationChanging = !string.IsNullOrEmpty(request.GameInstallationId) &&
-            !string.Equals(request.GameInstallationId, profile.GameInstallationId, StringComparison.OrdinalIgnoreCase);
-
-        if (isInstallationChanging)
-        {
-            return await HandleInstallationChangeClientResolutionAsync(profile, request, cancellationToken);
-        }
-
-        await ResolveClientForCurrentInstallationAsync(profile, request, cancellationToken);
-        return null;
-    }
-
-    private bool IsRequestedClientAvailable(IReadOnlyList<GameClient> availableClients, GameClient requestedClient)
+    private static bool IsRequestedClientAvailable(IReadOnlyList<GameClient> availableClients, GameClient requestedClient)
     {
         var isAvailable = availableClients.Any(c =>
             c.IsEnabled &&
@@ -626,7 +605,7 @@ public class GameProfileManager(
         return isAvailable || isProviderClient;
     }
 
-    private GameClient? FindVersionCompatibleClient(IReadOnlyList<GameClient> availableClients, GameClient targetClient)
+    private static GameClient? FindVersionCompatibleClient(IReadOnlyList<GameClient> availableClients, GameClient targetClient)
     {
         var hasTargetNumeric = GameVersionHelper.TryParseStrictNumericVersion(targetClient.Version, out var targetNumeric);
         return availableClients.FirstOrDefault(c =>
@@ -638,7 +617,7 @@ public class GameProfileManager(
               clientNumeric == targetNumeric)));
     }
 
-    private GameClient? FindMatchingAvailableClient(
+    private static GameClient? FindMatchingAvailableClient(
         IReadOnlyList<GameClient> availableClients,
         GameProfile profile,
         UpdateProfileRequest request)
@@ -662,6 +641,27 @@ public class GameProfileManager(
             return availableClients.FirstOrDefault(c => c.IsEnabled);
         }
 
+        return null;
+    }
+
+    /// <summary>
+    /// Attempts to resolve a fallback game client from the profile installation when the request omits the game client,
+    /// or validates client compatibility when the profile's installation is changing.
+    /// </summary>
+    private async Task<ProfileOperationResult<GameProfile>?> ResolveFallbackGameClientAsync(
+        GameProfile profile,
+        UpdateProfileRequest request,
+        CancellationToken cancellationToken)
+    {
+        var isInstallationChanging = !string.IsNullOrEmpty(request.GameInstallationId) &&
+            !string.Equals(request.GameInstallationId, profile.GameInstallationId, StringComparison.OrdinalIgnoreCase);
+
+        if (isInstallationChanging)
+        {
+            return await HandleInstallationChangeClientResolutionAsync(profile, request, cancellationToken);
+        }
+
+        await ResolveClientForCurrentInstallationAsync(profile, request, cancellationToken);
         return null;
     }
 

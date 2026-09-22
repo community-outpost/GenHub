@@ -747,6 +747,67 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
         return false;
     }
 
+    private static Core.Models.Enums.GameType ResolvePrimaryItemGameType(ContentDisplayItem primaryItem, Core.Models.Enums.GameType fallbackGameType = Core.Models.Enums.GameType.ZeroHour)
+    {
+        if (primaryItem.GameType != Core.Models.Enums.GameType.Unknown)
+        {
+            return primaryItem.GameType;
+        }
+
+        if (primaryItem.GameClient?.GameType is { } clientGameType and not Core.Models.Enums.GameType.Unknown)
+        {
+            return clientGameType;
+        }
+
+        return fallbackGameType != Core.Models.Enums.GameType.Unknown ? fallbackGameType : Core.Models.Enums.GameType.ZeroHour;
+    }
+
+    private static ProfileBranding? TryResolveSpecialPublisherBranding(string displayName, string publisher, string itemName, Core.Models.Enums.GameType gameType)
+    {
+        bool isTsh = publisher.Contains(SuperHackersConstants.PublisherName, StringComparison.OrdinalIgnoreCase) ||
+                     publisher.Contains(SuperHackersConstants.PublisherId, StringComparison.OrdinalIgnoreCase) ||
+                     publisher.Contains(PublisherTypeConstants.TheSuperHackers, StringComparison.OrdinalIgnoreCase) ||
+                     itemName.Contains(SuperHackersConstants.PublisherName, StringComparison.OrdinalIgnoreCase) ||
+                     itemName.Contains("SuperHackers", StringComparison.OrdinalIgnoreCase);
+
+        if (isTsh)
+        {
+            var color = gameType == Core.Models.Enums.GameType.Generals ? SuperHackersConstants.GeneralsThemeColor : SuperHackersConstants.ZeroHourThemeColor;
+            var cover = NormalizeResourcePath(SuperHackersConstants.ZeroHourCoverSource);
+            var icon = UriConstants.SuperHackersLogoUri;
+            return new ProfileBranding(displayName, color, icon, cover, gameType);
+        }
+
+        bool isGo = publisher.Contains(GeneralsOnlineConstants.PublisherName, StringComparison.OrdinalIgnoreCase) ||
+                    publisher.Contains(PublisherTypeConstants.GeneralsOnline, StringComparison.OrdinalIgnoreCase) ||
+                    itemName.Contains(GeneralsOnlineConstants.ClientName, StringComparison.OrdinalIgnoreCase) ||
+                    itemName.Contains("Generals Online", StringComparison.OrdinalIgnoreCase);
+
+        if (isGo)
+        {
+            var color = GeneralsOnlineConstants.ThemeColor;
+            var cover = NormalizeResourcePath(GeneralsOnlineConstants.CoverSource);
+            var icon = UriConstants.GeneralsOnlineLogoUri;
+            return new ProfileBranding(displayName, color, icon, cover, gameType);
+        }
+
+        bool isCo = publisher.Contains(CommunityOutpostConstants.PublisherName, StringComparison.OrdinalIgnoreCase) ||
+                    publisher.Contains(CommunityOutpostConstants.PublisherId, StringComparison.OrdinalIgnoreCase) ||
+                    publisher.Contains(PublisherTypeConstants.CommunityOutpost, StringComparison.OrdinalIgnoreCase) ||
+                    itemName.Contains("Community Outpost", StringComparison.OrdinalIgnoreCase) ||
+                    itemName.Contains("CommunityOutpost", StringComparison.OrdinalIgnoreCase);
+
+        if (isCo)
+        {
+            var color = CommunityOutpostConstants.ThemeColor;
+            var cover = NormalizeResourcePath(CommunityOutpostConstants.CoverSource);
+            var icon = CommunityOutpostConstants.LogoSource;
+            return new ProfileBranding(displayName, color, icon, cover, gameType);
+        }
+
+        return null;
+    }
+
     private ContentDisplayItem ConvertToViewModelContentDisplayItem(Core.Models.Content.ContentDisplayItem coreItem)
     {
         var (isLocked, canToggle) = GetItemHotswapState(IsHotswapMode, coreItem.ContentType, coreItem.Manifest);
@@ -990,67 +1051,6 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
         return new ProfileBranding(ProfileConstants.DefaultProfileName, fallbackColor, fallbackIcon, fallbackCover, fallbackGameType);
     }
 
-    private Core.Models.Enums.GameType ResolvePrimaryItemGameType(ContentDisplayItem primaryItem)
-    {
-        if (primaryItem.GameType != Core.Models.Enums.GameType.Unknown)
-        {
-            return primaryItem.GameType;
-        }
-
-        if (primaryItem.GameClient?.GameType is { } clientGameType and not Core.Models.Enums.GameType.Unknown)
-        {
-            return clientGameType;
-        }
-
-        return GameTypeFilter != Core.Models.Enums.GameType.Unknown ? GameTypeFilter : Core.Models.Enums.GameType.ZeroHour;
-    }
-
-    private ProfileBranding? TryResolveSpecialPublisherBranding(string displayName, string publisher, string itemName, Core.Models.Enums.GameType gameType)
-    {
-        bool isTsh = publisher.Contains(SuperHackersConstants.PublisherName, StringComparison.OrdinalIgnoreCase) ||
-                     publisher.Contains(SuperHackersConstants.PublisherId, StringComparison.OrdinalIgnoreCase) ||
-                     publisher.Contains(PublisherTypeConstants.TheSuperHackers, StringComparison.OrdinalIgnoreCase) ||
-                     itemName.Contains(SuperHackersConstants.PublisherName, StringComparison.OrdinalIgnoreCase) ||
-                     itemName.Contains("SuperHackers", StringComparison.OrdinalIgnoreCase);
-
-        if (isTsh)
-        {
-            var color = gameType == Core.Models.Enums.GameType.Generals ? SuperHackersConstants.GeneralsThemeColor : SuperHackersConstants.ZeroHourThemeColor;
-            var cover = NormalizeResourcePath(SuperHackersConstants.ZeroHourCoverSource);
-            var icon = UriConstants.SuperHackersLogoUri;
-            return new ProfileBranding(displayName, color, icon, cover, gameType);
-        }
-
-        bool isGo = publisher.Contains(GeneralsOnlineConstants.PublisherName, StringComparison.OrdinalIgnoreCase) ||
-                    publisher.Contains(PublisherTypeConstants.GeneralsOnline, StringComparison.OrdinalIgnoreCase) ||
-                    itemName.Contains(GeneralsOnlineConstants.ClientName, StringComparison.OrdinalIgnoreCase) ||
-                    itemName.Contains("Generals Online", StringComparison.OrdinalIgnoreCase);
-
-        if (isGo)
-        {
-            var color = GeneralsOnlineConstants.ThemeColor;
-            var cover = NormalizeResourcePath(GeneralsOnlineConstants.CoverSource);
-            var icon = UriConstants.GeneralsOnlineLogoUri;
-            return new ProfileBranding(displayName, color, icon, cover, gameType);
-        }
-
-        bool isCo = publisher.Contains(CommunityOutpostConstants.PublisherName, StringComparison.OrdinalIgnoreCase) ||
-                    publisher.Contains(CommunityOutpostConstants.PublisherId, StringComparison.OrdinalIgnoreCase) ||
-                    publisher.Contains(PublisherTypeConstants.CommunityOutpost, StringComparison.OrdinalIgnoreCase) ||
-                    itemName.Contains("Community Outpost", StringComparison.OrdinalIgnoreCase) ||
-                    itemName.Contains("CommunityOutpost", StringComparison.OrdinalIgnoreCase);
-
-        if (isCo)
-        {
-            var color = CommunityOutpostConstants.ThemeColor;
-            var cover = NormalizeResourcePath(CommunityOutpostConstants.CoverSource);
-            var icon = CommunityOutpostConstants.LogoSource;
-            return new ProfileBranding(displayName, color, icon, cover, gameType);
-        }
-
-        return null;
-    }
-
     private ProfileBranding ResolveStandardGameBranding(string displayName, Core.Models.Enums.GameType gameType)
     {
         if (gameType == Core.Models.Enums.GameType.Generals)
@@ -1081,7 +1081,7 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
             return ResolveFallbackBranding();
         }
 
-        var gameType = ResolvePrimaryItemGameType(primaryItem);
+        var gameType = ResolvePrimaryItemGameType(primaryItem, GameTypeFilter);
         var displayName = primaryItem.DisplayName;
         var publisher = primaryItem.Publisher ?? primaryItem.GameClient?.PublisherType ?? string.Empty;
         var itemName = primaryItem.DisplayName ?? primaryItem.GameClient?.Name ?? string.Empty;

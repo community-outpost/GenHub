@@ -209,84 +209,27 @@ public static class ReplayCrcMatchingHelper
     /// <returns><c>true</c> if an official base game client; otherwise, <c>false</c>.</returns>
     public static bool IsOfficialBaseClient(GameClient? client)
     {
-        if (client == null)
+        if (client == null || IsGeneralsOnlineClient(client) || IsLegacySuperHackersClient(client))
         {
             return false;
         }
 
-        if (IsGeneralsOnlineClient(client) || IsLegacySuperHackersClient(client))
+        if (!IsOfficialPublisher(client) && client.IsPublisherClient)
         {
             return false;
         }
 
-        var pub = client.PublisherType;
-        if (string.IsNullOrEmpty(pub) && !string.IsNullOrEmpty(client.Id))
-        {
-            var segments = client.Id.Split([ManifestConstants.ManifestIdSegmentSeparator], StringSplitOptions.None);
-            if (segments.Length >= 4)
-            {
-                pub = segments[2];
-            }
-        }
-
-        var normalizedPub = pub?.Trim().ToLowerInvariant() ?? string.Empty;
-        var isOfficialPublisher = string.IsNullOrEmpty(normalizedPub) ||
-                                  normalizedPub == PublisherTypeConstants.Steam ||
-                                  normalizedPub == PublisherTypeConstants.Ea ||
-                                  normalizedPub == PublisherTypeConstants.EaApp ||
-                                  normalizedPub == PublisherTypeConstants.Retail ||
-                                  normalizedPub == "electronic arts" ||
-                                  normalizedPub == "ea" ||
-                                  normalizedPub == "ea app" ||
-                                  normalizedPub == "eaapp" ||
-                                  normalizedPub == "community outpost" ||
-                                  normalizedPub == PublisherTypeConstants.CommunityOutpost;
-
-        if (!isOfficialPublisher && client.IsPublisherClient)
-        {
-            return false;
-        }
-
-        var ver = client.Version?.Trim() ?? string.Empty;
-        var id = client.Id?.ToLowerInvariant() ?? string.Empty;
-        var name = client.Name?.Trim() ?? string.Empty;
-
-        var isCommunityOutpostRetail = (string.Equals(normalizedPub, PublisherTypeConstants.CommunityOutpost, StringComparison.OrdinalIgnoreCase) ||
-                                       string.Equals(normalizedPub, "community outpost", StringComparison.OrdinalIgnoreCase)) &&
-                                       ((!string.IsNullOrEmpty(id) && id.Contains(".retail", StringComparison.OrdinalIgnoreCase)) ||
-                                        (!string.IsNullOrEmpty(name) && name.Contains("(Retail)", StringComparison.OrdinalIgnoreCase)));
-        if (isCommunityOutpostRetail)
+        if (IsCommunityOutpostRetailClient(client))
         {
             return true;
         }
 
-        if (client.GameType == GameType.Generals)
+        return client.GameType switch
         {
-            return ver.StartsWith("1.08", StringComparison.OrdinalIgnoreCase) ||
-                   ver.StartsWith("1.09", StringComparison.OrdinalIgnoreCase) ||
-                   ver == "1.8" ||
-                   ver == "1.9" ||
-                   id.Contains(".108.") ||
-                   id.Contains(".109.") ||
-                   name.Contains("1.08", StringComparison.OrdinalIgnoreCase) ||
-                   name.Contains("1.09", StringComparison.OrdinalIgnoreCase) ||
-                   !client.IsPublisherClient;
-        }
-
-        if (client.GameType == GameType.ZeroHour)
-        {
-            return ver.StartsWith("1.04", StringComparison.OrdinalIgnoreCase) ||
-                   ver.StartsWith("1.05", StringComparison.OrdinalIgnoreCase) ||
-                   ver == "1.4" ||
-                   ver == "1.5" ||
-                   id.Contains(".104.") ||
-                   id.Contains(".105.") ||
-                   name.Contains("1.04", StringComparison.OrdinalIgnoreCase) ||
-                   name.Contains("1.05", StringComparison.OrdinalIgnoreCase) ||
-                   !client.IsPublisherClient;
-        }
-
-        return !client.IsPublisherClient;
+            GameType.Generals => IsGeneralsRetailVersion(client),
+            GameType.ZeroHour => IsZeroHourRetailVersion(client),
+            _ => !client.IsPublisherClient,
+        };
     }
 
     /// <summary>
@@ -702,5 +645,90 @@ public static class ReplayCrcMatchingHelper
             (!string.IsNullOrEmpty(client.Id) && client.Id.Contains(PublisherTypeConstants.TheSuperHackers, StringComparison.OrdinalIgnoreCase))) &&
             !string.Equals(client.PublisherType, CommunityOutpostConstants.PublisherType, StringComparison.OrdinalIgnoreCase) &&
             (client.Name == null || !client.Name.Contains(CommunityOutpostConstants.ContentName, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static bool IsOfficialPublisher(GameClient client)
+    {
+        var pub = client.PublisherType;
+        if (string.IsNullOrEmpty(pub) && !string.IsNullOrEmpty(client.Id))
+        {
+            var segments = client.Id.Split([ManifestConstants.ManifestIdSegmentSeparator], StringSplitOptions.None);
+            if (segments.Length >= 4)
+            {
+                pub = segments[2];
+            }
+        }
+
+        var normalizedPub = pub?.Trim().ToLowerInvariant() ?? string.Empty;
+        return string.IsNullOrEmpty(normalizedPub) ||
+               normalizedPub == PublisherTypeConstants.Steam ||
+               normalizedPub == PublisherTypeConstants.Ea ||
+               normalizedPub == PublisherTypeConstants.EaApp ||
+               normalizedPub == PublisherTypeConstants.Retail ||
+               normalizedPub == "electronic arts" ||
+               normalizedPub == "ea" ||
+               normalizedPub == "ea app" ||
+               normalizedPub == "eaapp" ||
+               normalizedPub == "community outpost" ||
+               normalizedPub == PublisherTypeConstants.CommunityOutpost;
+    }
+
+    private static bool IsCommunityOutpostRetailClient(GameClient client)
+    {
+        var pub = client.PublisherType ?? string.Empty;
+        var isCoPublisher = string.Equals(pub, PublisherTypeConstants.CommunityOutpost, StringComparison.OrdinalIgnoreCase) ||
+                            string.Equals(pub, "community outpost", StringComparison.OrdinalIgnoreCase);
+
+        if (!isCoPublisher)
+        {
+            return false;
+        }
+
+        var id = client.Id ?? string.Empty;
+        var name = client.Name ?? string.Empty;
+        return id.Contains(".retail", StringComparison.OrdinalIgnoreCase) ||
+               name.Contains("(Retail)", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsGeneralsRetailVersion(GameClient client)
+    {
+        if (!client.IsPublisherClient)
+        {
+            return true;
+        }
+
+        var ver = client.Version?.Trim() ?? string.Empty;
+        var id = client.Id ?? string.Empty;
+        var name = client.Name ?? string.Empty;
+
+        return ver.StartsWith("1.08", StringComparison.OrdinalIgnoreCase) ||
+               ver.StartsWith("1.09", StringComparison.OrdinalIgnoreCase) ||
+               ver == "1.8" ||
+               ver == "1.9" ||
+               id.Contains(".108.", StringComparison.OrdinalIgnoreCase) ||
+               id.Contains(".109.", StringComparison.OrdinalIgnoreCase) ||
+               name.Contains("1.08", StringComparison.OrdinalIgnoreCase) ||
+               name.Contains("1.09", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsZeroHourRetailVersion(GameClient client)
+    {
+        if (!client.IsPublisherClient)
+        {
+            return true;
+        }
+
+        var ver = client.Version?.Trim() ?? string.Empty;
+        var id = client.Id ?? string.Empty;
+        var name = client.Name ?? string.Empty;
+
+        return ver.StartsWith("1.04", StringComparison.OrdinalIgnoreCase) ||
+               ver.StartsWith("1.05", StringComparison.OrdinalIgnoreCase) ||
+               ver == "1.4" ||
+               ver == "1.5" ||
+               id.Contains(".104.", StringComparison.OrdinalIgnoreCase) ||
+               id.Contains(".105.", StringComparison.OrdinalIgnoreCase) ||
+               name.Contains("1.04", StringComparison.OrdinalIgnoreCase) ||
+               name.Contains("1.05", StringComparison.OrdinalIgnoreCase);
     }
 }
