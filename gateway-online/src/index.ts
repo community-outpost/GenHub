@@ -303,7 +303,7 @@ const handleCreate = async (request: Request, env: OnlineEnv): Promise<Response>
   });
   const cap = capRes.ok ? ((await capRes.json()) as { allowed?: unknown }) : null;
   if (cap === null) {
-    return error("Directory unavailable", capRes.status === 503 ? 503 : 503, "online.service-unavailable");
+    return error("Directory unavailable", 503, "online.service-unavailable");
   }
   if (cap.allowed !== true) {
     return error("Too many networks", 429, "online.rate-limited");

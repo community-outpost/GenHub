@@ -227,7 +227,8 @@ public static class ApiConstants
     /// <summary>
     /// Default primary base URL for the GenHub Online edge (self-hosted VPS instance).
     /// </summary>
-    public const string DefaultPrimaryEdgeBaseUrl = "http://152.70.171.121:8787";
+    [SuppressMessage("Security", "S5332:Using http protocol is insecure. Use https instead.", Justification = "Direct IP endpoint for self-hosted VPS does not terminate TLS.")]
+    public const string DefaultPrimaryEdgeBaseUrl = "http://152.70.171.121:8787"; // NOSONAR
 
     /// <summary>
     /// Default fallback base URL for the GenHub Online edge (Cloudflare Worker backup).
@@ -248,12 +249,25 @@ public static class ApiConstants
     /// <summary>
     /// Gets the primary base URL for the Online edge.
     /// </summary>
-    public static string PrimaryOnlineEdgeBaseUrl =>
-        Environment.GetEnvironmentVariable(OnlinePrimaryUrlEnvVar) is { Length: > 0 } primaryUrl
-            ? primaryUrl.TrimEnd('/')
-            : (Environment.GetEnvironmentVariable(OnlineEdgeBaseUrlEnvVar) is { Length: > 0 } customUrl
-                ? customUrl.TrimEnd('/')
-                : DefaultPrimaryEdgeBaseUrl);
+    public static string PrimaryOnlineEdgeBaseUrl
+    {
+        get
+        {
+            var primaryUrl = Environment.GetEnvironmentVariable(OnlinePrimaryUrlEnvVar);
+            if (!string.IsNullOrEmpty(primaryUrl))
+            {
+                return primaryUrl.TrimEnd('/');
+            }
+
+            var customUrl = Environment.GetEnvironmentVariable(OnlineEdgeBaseUrlEnvVar);
+            if (!string.IsNullOrEmpty(customUrl))
+            {
+                return customUrl.TrimEnd('/');
+            }
+
+            return DefaultPrimaryEdgeBaseUrl;
+        }
+    }
 
     /// <summary>
     /// Gets the fallback/backup base URL for the Online edge.
