@@ -54,8 +54,16 @@ public class InstallationPathResolver(
                 "Successfully resolved installation path to: {ResolvedPath}",
                 resolvedPath);
 
-            var updatedInstallation = CreateResolvedInstallation(installation, resolvedPath);
-            return OperationResult<GameInstallation>.CreateSuccess(updatedInstallation);
+            try
+            {
+                var updatedInstallation = CreateResolvedInstallation(installation, resolvedPath);
+                return OperationResult<GameInstallation>.CreateSuccess(updatedInstallation);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                logger.LogWarning(ex, "Could not resolve installation path: {Path}", resolvedPath);
+                return OperationResult<GameInstallation>.CreateFailure(ex.Message);
+            }
         }
 
         logger.LogWarning(

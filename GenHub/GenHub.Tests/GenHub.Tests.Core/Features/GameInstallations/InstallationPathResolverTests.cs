@@ -3,7 +3,9 @@ using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameInstallations;
 using GenHub.Features.GameInstallations;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
+using Moq;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -152,6 +154,66 @@ public sealed class InstallationPathResolverTests : IDisposable
 
         Assert.True(result.Success);
         Assert.Same(installation, result.Data);
+    }
+
+    /// <summary>A directory becoming unreadable after discovery returns a failure, not an exception or false success.</summary>
+    /// <returns>The asynchronous test.</returns>
+    [Fact]
+    public async Task ResolveInstallationPathAsync_ArchivesBecomeUnreadable_ReturnsFailureAsync()
+    {
+        if (OperatingSystem.IsWindows() || Environment.UserName == "root")
+        {
+            return;
+        }
+
+        var searchRoot = Directory.CreateDirectory(Path.Combine(_tempDirectory, "search")).FullName;
+        var gameRoot = Directory.CreateDirectory(Path.Combine(searchRoot, "game")).FullName;
+        var generals = Directory.CreateDirectory(Path.Combine(gameRoot, GameClientConstants.GeneralsSubdirectoryName)).FullName;
+        File.WriteAllText(Path.Combine(generals, GameClientConstants.GeneralsIniBig), "archive");
+        var originalMode = File.GetUnixFileMode(generals);
+        var logger = new Mock<ILogger<InstallationPathResolver>>();
+        var denied = false;
+        logger.Setup(m => m.Log(
+                LogLevel.Information,
+                It.IsAny<EventId>(),
+                It.Is<It.IsAnyType>((state, _) => state.ToString()!.StartsWith("Successfully resolved installation path to:", StringComparison.Ordinal)),
+                It.IsAny<Exception?>(),
+                It.IsAny<Func<It.IsAnyType, Exception?, string>>()))
+            .Callback(new InvocationAction(_ =>
+            {
+                // Reproduce the permission race after search succeeds, before resolved paths are constructed.
+                if (!OperatingSystem.IsWindows())
+                {
+                    File.SetUnixFileMode(generals, UnixFileMode.None);
+                    denied = true;
+                }
+            }));
+        var resolver = new InstallationPathResolver(logger.Object, new TestSearchPathProvider(searchRoot));
+        var stale = new GameInstallation(Path.Combine(_tempDirectory, "missing"), GameInstallationType.Retail)
+        {
+            HasGenerals = true,
+        };
+
+        try
+        {
+            var result = await resolver.ResolveInstallationPathAsync(stale);
+            Assert.True(denied);
+            Assert.False(result.Success);
+            Assert.Null(result.Data);
+            Assert.False(string.IsNullOrWhiteSpace(result.FirstError));
+            logger.Verify(
+                m => m.Log(
+                    LogLevel.Warning,
+                    It.IsAny<EventId>(),
+                    It.IsAny<It.IsAnyType>(),
+                    It.IsAny<UnauthorizedAccessException>(),
+                    It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
+                Times.Once);
+        }
+        finally
+        {
+            File.SetUnixFileMode(generals, originalMode);
+        }
     }
 
     /// <summary>

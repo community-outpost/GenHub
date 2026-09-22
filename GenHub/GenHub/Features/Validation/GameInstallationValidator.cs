@@ -94,6 +94,7 @@ public class GameInstallationValidator(
     /// <param name="progress">Progress reporter for MVVM integration.</param>
     /// <param name="cancellationToken">A cancellation token.</param>
     /// <returns>A <see cref="ValidationResult"/> representing the outcome of the validation.</returns>
+    /// <exception cref="ArgumentOutOfRangeException">The game is neither Generals nor Zero Hour.</exception>
     public Task<ValidationResult> ValidateInstallationAsync(
         string installationPath,
         GameType gameType,
@@ -104,6 +105,11 @@ public class GameInstallationValidator(
         if (string.IsNullOrWhiteSpace(installationPath))
         {
             throw new ArgumentException("Installation path cannot be null or empty.", nameof(installationPath));
+        }
+
+        if (gameType is not (GameType.Generals or GameType.ZeroHour))
+        {
+            throw new ArgumentOutOfRangeException(nameof(gameType), gameType, "A supported game is required.");
         }
 
         return ValidateInstallationCoreAsync(

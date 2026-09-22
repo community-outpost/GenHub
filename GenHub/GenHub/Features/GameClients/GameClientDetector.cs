@@ -1259,8 +1259,6 @@ public class GameClientDetector(
                         m.ContentType == ContentType.GameClient &&
                         string.Equals(m.Publisher?.PublisherType, publisherId, StringComparison.OrdinalIgnoreCase) &&
                         (gameType == GameType.Unknown || m.TargetGame == gameType) &&
-
-                        // and their ID doesn't start with "1.0." (version 0)
                         GenHub.Core.Helpers.ManifestHelper.IsDownloadedManifest(m)),
             ];
 

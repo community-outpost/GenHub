@@ -60,6 +60,23 @@ public class GameInstallationValidatorTests
         _validator = new GameInstallationValidator(_loggerMock.Object, _manifestProviderMock.Object, _contentValidatorMock.Object, _hashProviderMock.Object);
     }
 
+    /// <summary>Unsupported game types fail before provider-dependent validation begins.</summary>
+    /// <param name="gameType">The unsupported game value.</param>
+    /// <returns>The asynchronous test.</returns>
+    [Theory]
+    [InlineData(GameType.Unknown)]
+    [InlineData((GameType)(-1))]
+    [InlineData((GameType)999)]
+    public async Task ValidateInstallationAsync_UnsupportedGame_RejectsArgumentAsync(GameType gameType)
+    {
+        var error = await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() =>
+            _validator.ValidateInstallationAsync(Path.GetTempPath(), gameType));
+        Assert.Equal("gameType", error.ParamName);
+        Assert.Equal(gameType, error.ActualValue);
+        _manifestProviderMock.VerifyNoOtherCalls();
+        _contentValidatorMock.VerifyNoOtherCalls();
+    }
+
     /// <summary>
     /// Verifies that progress is reported during validation.
     /// </summary>
