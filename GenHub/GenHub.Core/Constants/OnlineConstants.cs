@@ -1,10 +1,12 @@
 using System;
+using System.Diagnostics.CodeAnalysis;
 
 namespace GenHub.Core.Constants;
 
 /// <summary>
 /// Constants for the Online (virtual LAN) feature.
 /// </summary>
+[SuppressMessage("Security", "S1313:Using hardcoded IP addresses is security-sensitive", Justification = "Default RFC 1918 private overlay fallback IP.")]
 public static class OnlineConstants
 {
     /// <summary>
@@ -229,7 +231,8 @@ public static class OnlineConstants
     /// <summary>
     /// Default virtual LAN IP fallback address.
     /// </summary>
-    public const string DefaultOverlayFallbackIp = "10.42.0.2";
+    [SuppressMessage("Security", "S1313:Using hardcoded IP addresses is security-sensitive", Justification = "Default RFC 1918 private overlay fallback IP.")]
+    public const string DefaultOverlayFallbackIp = "10.42.0.2"; // NOSONAR
 
     /// <summary>
     /// Default UDP port for STUN reflexive endpoint discovery.
