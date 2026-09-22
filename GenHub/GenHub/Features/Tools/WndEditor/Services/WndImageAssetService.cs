@@ -159,29 +159,23 @@ public sealed class WndImageAssetService(ILogger<WndImageAssetService> logger) :
         var baseName = Path.GetFileName(raw);
         var directExt = Path.GetExtension(raw);
         var baseWithoutExt = Path.GetFileNameWithoutExtension(raw);
-        var lowerBaseName = baseName.ToLowerInvariant();
-        var lowerWithoutExt = baseWithoutExt.ToLowerInvariant();
 
         var extensions = new[] { directExt, ".tga", ".dds", ".png", ".jpg", ".bmp" }
             .Where(ext => !string.IsNullOrWhiteSpace(ext))
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
 
-        var candidateStems = new List<string>
+        var returned = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        var canonicalStems = new List<string>
         {
             raw,
             baseName,
             baseWithoutExt,
-            lowerBaseName,
-            lowerWithoutExt,
             string.Concat(DataPrefix, ArtTexturesPrefix, baseName),
             string.Concat(DataPrefix, ArtTexturesPrefix, baseWithoutExt),
-            string.Concat(DataPrefix, ArtTexturesPrefix, lowerBaseName),
-            string.Concat(DataPrefix, ArtTexturesPrefix, lowerWithoutExt),
             string.Concat(ArtTexturesPrefix, baseName),
             string.Concat(ArtTexturesPrefix, baseWithoutExt),
-            string.Concat(ArtTexturesPrefix, lowerBaseName),
-            string.Concat(ArtTexturesPrefix, lowerWithoutExt),
             string.Concat(DataPrefix, TexturesPrefix, baseName),
             string.Concat(DataPrefix, TexturesPrefix, baseWithoutExt),
             string.Concat(TexturesPrefix, baseName),
@@ -192,43 +186,49 @@ public sealed class WndImageAssetService(ILogger<WndImageAssetService> logger) :
             string.Concat(DataPrefix, WindowPrefix, baseWithoutExt),
             string.Concat(WindowMenusPrefix, baseName),
             string.Concat(WindowMenusPrefix, baseWithoutExt),
+            string.Concat(WndConstants.MappedImages.TexturesDirectory, "\\", baseName),
+            string.Concat(WndConstants.MappedImages.TexturesDirectory, "\\", baseWithoutExt),
         };
 
+        // Probe canonical stems first. ReadTexture returns on the first hit, so localized
+        // stems are never evaluated for standard assets.
+        foreach (var candidate in YieldStemVariants(canonicalStems, extensions, returned))
+        {
+            yield return candidate;
+        }
+
+        // Only if canonical probes fail, sweep localized directories
+        var localizedStems = new List<string>();
         foreach (var language in WndConstants.MappedImages.TextureLanguages)
         {
-            candidateStems.Add(string.Concat(DataPrefix, language, "\\", WndConstants.MappedImages.TexturesDirectory, "\\", baseName));
-            candidateStems.Add(string.Concat(DataPrefix, language, "\\", WndConstants.MappedImages.TexturesDirectory, "\\", baseWithoutExt));
-            candidateStems.Add(string.Concat(DataPrefix, language, "\\", WndConstants.MappedImages.TexturesDirectory, "\\", lowerBaseName));
-            candidateStems.Add(string.Concat(DataPrefix, language, "\\", WndConstants.MappedImages.TexturesDirectory, "\\", lowerWithoutExt));
-            candidateStems.Add(string.Concat(DataPrefix, language, "\\", ArtTexturesPrefix, baseName));
-            candidateStems.Add(string.Concat(DataPrefix, language, "\\", ArtTexturesPrefix, baseWithoutExt));
-            candidateStems.Add(string.Concat(DataPrefix, language, "\\", ArtTexturesPrefix, lowerBaseName));
-            candidateStems.Add(string.Concat(DataPrefix, language, "\\", ArtTexturesPrefix, lowerWithoutExt));
-            candidateStems.Add(string.Concat(DataPrefix, language, "\\", TexturesPrefix, baseName));
-            candidateStems.Add(string.Concat(DataPrefix, language, "\\", TexturesPrefix, baseWithoutExt));
-            candidateStems.Add(string.Concat(DataPrefix, language, "\\", baseName));
-            candidateStems.Add(string.Concat(DataPrefix, language, "\\", baseWithoutExt));
-            candidateStems.Add(string.Concat(language, "\\", ArtTexturesPrefix, baseName));
-            candidateStems.Add(string.Concat(language, "\\", ArtTexturesPrefix, baseWithoutExt));
-            candidateStems.Add(string.Concat(language, "\\", TexturesPrefix, baseName));
-            candidateStems.Add(string.Concat(language, "\\", TexturesPrefix, baseWithoutExt));
+            localizedStems.Add(string.Concat(DataPrefix, language, "\\", WndConstants.MappedImages.TexturesDirectory, "\\", baseName));
+            localizedStems.Add(string.Concat(DataPrefix, language, "\\", WndConstants.MappedImages.TexturesDirectory, "\\", baseWithoutExt));
+            localizedStems.Add(string.Concat(DataPrefix, language, "\\", ArtTexturesPrefix, baseName));
+            localizedStems.Add(string.Concat(DataPrefix, language, "\\", ArtTexturesPrefix, baseWithoutExt));
+            localizedStems.Add(string.Concat(DataPrefix, language, "\\", TexturesPrefix, baseName));
+            localizedStems.Add(string.Concat(DataPrefix, language, "\\", TexturesPrefix, baseWithoutExt));
+            localizedStems.Add(string.Concat(DataPrefix, language, "\\", baseName));
+            localizedStems.Add(string.Concat(DataPrefix, language, "\\", baseWithoutExt));
         }
 
-        candidateStems.Add(string.Concat(WndConstants.MappedImages.TexturesDirectory, "\\", baseName));
-        candidateStems.Add(string.Concat(WndConstants.MappedImages.TexturesDirectory, "\\", baseWithoutExt));
-        candidateStems.Add(string.Concat(WndConstants.MappedImages.TexturesDirectory, "\\", lowerBaseName));
-        candidateStems.Add(string.Concat(WndConstants.MappedImages.TexturesDirectory, "\\", lowerWithoutExt));
-
-        var returned = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-
-        // First yield any exact paths that already have extensions
-        foreach (var stem in candidateStems.Where(s => !string.IsNullOrEmpty(Path.GetExtension(s)) && returned.Add(s)))
+        foreach (var candidate in YieldStemVariants(localizedStems, extensions, returned))
         {
-            yield return stem;
+            yield return candidate;
+        }
+    }
+
+    private static IEnumerable<string> YieldStemVariants(IEnumerable<string> stems, IReadOnlyList<string> extensions, HashSet<string> returned)
+    {
+        var stemList = stems.Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        foreach (var stem in stemList)
+        {
+            if (!string.IsNullOrEmpty(Path.GetExtension(stem)) && returned.Add(stem))
+            {
+                yield return stem;
+            }
         }
 
-        // Then yield with extensions
-        foreach (var stem in candidateStems)
+        foreach (var stem in stemList)
         {
             foreach (var ext in extensions)
             {

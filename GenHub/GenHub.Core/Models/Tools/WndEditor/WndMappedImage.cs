@@ -149,7 +149,7 @@ public sealed partial record WndMappedImage
         return name.Length > 0;
     }
 
-    [GeneratedRegex(@"(?<attr>Left|Top|Right|Bottom)\s*[:=]\s*(?<val>-?\d+)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    [GeneratedRegex(@"\b(?<attr>Left|Top|Right|Bottom)\b\s*[:=]\s*(?<val>-?\d+)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex CoordsRegex();
 
     private sealed class BlockBuilder

@@ -877,4 +877,25 @@ public static class WndConstants
         /// <summary>Languages probed for string tables, in order.</summary>
         public static readonly string[] Languages = MappedImages.TextureLanguages;
     }
+
+    /// <summary>
+    /// Game ControlBarScheme INI constants.
+    /// </summary>
+    public static class ControlBarScheme
+    {
+        /// <summary>Data directory containing game INI files.</summary>
+        public const string DataDirectory = "Data";
+
+        /// <summary>INI directory name.</summary>
+        public const string IniDirectory = "INI";
+
+        /// <summary>Control bar scheme file name.</summary>
+        public const string FileName = "ControlBarScheme.ini";
+
+        /// <summary>Standard virtual path to ControlBarScheme.ini under Data\INI.</summary>
+        public static readonly string DataIniPath = $"{DataDirectory}\\{IniDirectory}\\{FileName}";
+
+        /// <summary>Alternative virtual path to ControlBarScheme.ini under INI.</summary>
+        public static readonly string IniPath = $"{IniDirectory}\\{FileName}";
+    }
 }

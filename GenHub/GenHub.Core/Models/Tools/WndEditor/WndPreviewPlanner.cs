@@ -336,8 +336,11 @@ public static class WndPreviewPlanner
             return null;
         }
 
-        // GUIEdit default dummy red tint (255, 0, 0)
-        if (entry.Color != null && entry.Color.Red == 255 && entry.Color.Green == 0 && entry.Color.Blue == 0)
+        // GUIEdit initializes newly created windows with an unconfigured sentinel red tint (255, 0, 0, 255).
+        // In SAGE layouts, unconfigured window templates frequently retain this default without an image.
+        // If the entry has no mapped image name, we treat pure opaque red (255, 0, 0, 255) as GUIEdit's dummy
+        // placeholder and suppress the fill so the window canvas remains transparent rather than drawing an opaque red box.
+        if (string.IsNullOrWhiteSpace(entry.Image) && entry.Color is { Red: 255, Green: 0, Blue: 0, Alpha: 255 })
         {
             return null;
         }

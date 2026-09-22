@@ -32,6 +32,13 @@ public sealed class SageVirtualFileSystem
         MatchCasing = MatchCasing.CaseInsensitive,
     };
 
+    private static readonly EnumerationOptions LooseCaseInsensitiveOptions = new()
+    {
+        MatchCasing = MatchCasing.CaseInsensitive,
+        IgnoreInaccessible = true,
+        RecurseSubdirectories = false,
+    };
+
     private readonly List<string> _looseRoots = [];
     private readonly Dictionary<string, (BigArchiveEntry Entry, ArchiveTier Tier)> _archiveEntries = new(StringComparer.OrdinalIgnoreCase);
     private readonly ILogger? _logger;
@@ -211,14 +218,14 @@ public sealed class SageVirtualFileSystem
     {
         var dir = Path.GetDirectoryName(loosePath);
         var fileName = Path.GetFileName(loosePath);
-        if (string.IsNullOrEmpty(dir) || !Directory.Exists(dir))
+        if (string.IsNullOrEmpty(dir) || string.IsNullOrEmpty(fileName) || !Directory.Exists(dir))
         {
             return null;
         }
 
         try
         {
-            var match = Directory.GetFiles(dir).FirstOrDefault(f => string.Equals(Path.GetFileName(f), fileName, StringComparison.OrdinalIgnoreCase));
+            var match = Directory.GetFiles(dir, fileName, LooseCaseInsensitiveOptions).FirstOrDefault();
             if (match != null)
             {
                 return File.ReadAllBytes(match);
@@ -307,7 +314,7 @@ public sealed class SageVirtualFileSystem
             else if (tier == incumbent.Tier)
             {
                 string incumbentBaseName = Path.GetFileName(incumbent.Entry.ArchivePath);
-                if (string.Compare(newBaseName, incumbentBaseName, StringComparison.OrdinalIgnoreCase) > 0)
+                if (string.Compare(newBaseName, incumbentBaseName, StringComparison.OrdinalIgnoreCase) < 0)
                 {
                     _archiveEntries[key] = (entry, tier);
                 }

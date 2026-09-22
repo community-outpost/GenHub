@@ -63,10 +63,15 @@ public static class WndGameFileSystem
         LayerReleaseDirectories(fileSystem, projectDirectory);
 
         // If projectDirectory is GameFilesEdited itself, also layer parent directory and parent's releases
-        var parent = Directory.GetParent(projectDirectory)?.FullName;
-        if (!string.IsNullOrEmpty(parent) && Directory.Exists(parent))
+        var normalizedDir = Path.GetFullPath(projectDirectory).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        var dirName = Path.GetFileName(normalizedDir);
+        if (string.Equals(dirName, ModBuilderConstants.GameFilesEditedDir, StringComparison.OrdinalIgnoreCase))
         {
-            LayerReleaseDirectories(fileSystem, parent);
+            var parent = Directory.GetParent(projectDirectory)?.FullName;
+            if (!string.IsNullOrEmpty(parent) && Directory.Exists(parent))
+            {
+                LayerReleaseDirectories(fileSystem, parent);
+            }
         }
     }
 

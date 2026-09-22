@@ -49,6 +49,12 @@ public sealed partial class WndEditorViewModel(
 
     private const int MaxUndoHistory = 200;
     private static readonly Cursor HandCursor = new(StandardCursorType.Hand);
+    private static readonly EnumerationOptions SafeDirectoryEnumerationOptions = new()
+    {
+        AttributesToSkip = FileAttributes.Hidden | FileAttributes.ReparsePoint | FileAttributes.System,
+        IgnoreInaccessible = true,
+        RecurseSubdirectories = false,
+    };
 
     private readonly Stack<WndEditAction> _undoStack = new();
     private readonly Stack<WndEditAction> _redoStack = new();
@@ -1042,8 +1048,14 @@ public sealed partial class WndEditorViewModel(
     private WndFileTreeNodeViewModel? BuildDirectoryNode(
         DirectoryInfo directoryInfo,
         string? currentPath,
-        WndFileTreeNodeViewModel? parent)
+        WndFileTreeNodeViewModel? parent,
+        int depth = 0)
     {
+        if (depth > 20)
+        {
+            return null;
+        }
+
         var node = new WndFileTreeNodeViewModel(
             directoryInfo.Name,
             directoryInfo.FullName,
@@ -1054,17 +1066,12 @@ public sealed partial class WndEditorViewModel(
         try
         {
             var subDirectories = directoryInfo
-                .EnumerateDirectories()
+                .EnumerateDirectories("*", SafeDirectoryEnumerationOptions)
                 .OrderBy(d => d.Name, StringComparer.OrdinalIgnoreCase);
 
             foreach (var subDir in subDirectories)
             {
-                if ((subDir.Attributes & FileAttributes.Hidden) != 0)
-                {
-                    continue;
-                }
-
-                var childNode = BuildDirectoryNode(subDir, currentPath, node);
+                var childNode = BuildDirectoryNode(subDir, currentPath, node, depth + 1);
                 if (childNode != null && childNode.Children.Count > 0)
                 {
                     node.Children.Add(childNode);
@@ -2343,7 +2350,7 @@ public sealed partial class WndEditorViewModel(
         try
         {
             var fs = WndGameFileSystem.Open(roots.BaseRoot, roots.OverrideRoot, projectDirectory, logger, cancellationToken);
-            var iniBytes = fs.Read(@"Data\INI\ControlBarScheme.ini") ?? fs.Read(@"INI\ControlBarScheme.ini");
+            var iniBytes = fs.Read(WndConstants.ControlBarScheme.DataIniPath) ?? fs.Read(WndConstants.ControlBarScheme.IniPath);
             if (iniBytes != null && iniBytes.Length > 0)
             {
                 var text = Encoding.UTF8.GetString(iniBytes);
