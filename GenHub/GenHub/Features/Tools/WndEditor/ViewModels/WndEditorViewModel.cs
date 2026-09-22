@@ -986,28 +986,7 @@ public sealed partial class WndEditorViewModel(
     [RelayCommand]
     private async Task BrowseFilesDirectoryAsync(CancellationToken cancellationToken = default)
     {
-        var topLevel = GetTopLevel();
-        if (topLevel == null)
-        {
-            return;
-        }
-
-        var folders = await topLevel.StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
-        {
-            Title = localizationService.GetString("Tools.WndEditor.FileDialog.FolderTitle"),
-            AllowMultiple = false,
-        });
-        if (folders.Count == 0)
-        {
-            return;
-        }
-
-        var localPath = folders[0].TryGetLocalPath();
-        if (!string.IsNullOrEmpty(localPath))
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            await OpenFolderAsync(localPath, cancellationToken);
-        }
+        await OpenFolderWithDialogAsync(cancellationToken);
     }
 
     private static string? FindFirstWndFilePath(IEnumerable<WndFileTreeNodeViewModel> nodes)
@@ -2378,72 +2357,63 @@ public sealed partial class WndEditorViewModel(
         return result;
     }
 
+    private static readonly Dictionary<string, string> ControlBarKeyMap = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["RightHUDImage"] = "RightHUD",
+        ["OptionsButtonEnable"] = "ButtonOptions",
+        ["IdleWorkerButtonEnable"] = "ButtonIdleWorker",
+        ["BuddyButtonEnable"] = "ButtonChat",
+        ["BeaconButtonEnable"] = "ButtonPlaceBeacon",
+        ["GeneralButtonEnable"] = "ButtonGeneral",
+        ["UAttackButtonEnable"] = "ButtonUAttack",
+        ["ExpBarForegroundImage"] = "ExpBarForeground",
+        ["QueueButtonImage"] = "QueueButtonImage",
+    };
+
     private static void ParseControlBarSchemeIni(string iniText, Dictionary<string, string> result)
     {
         var lines = iniText.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
         foreach (var line in lines)
         {
             var trimmed = line.Trim();
-            if (trimmed.StartsWith(";") || trimmed.StartsWith("//"))
+            if (trimmed.StartsWith(';') || trimmed.StartsWith("//", StringComparison.Ordinal))
             {
                 continue;
             }
 
             if (trimmed.StartsWith("ImagePart", StringComparison.OrdinalIgnoreCase))
             {
-                var marker = "ImageName:";
-                var idx = trimmed.IndexOf(marker, StringComparison.OrdinalIgnoreCase);
-                if (idx >= 0)
-                {
-                    var imageName = trimmed.Substring(idx + marker.Length).Trim();
-                    if (!string.IsNullOrEmpty(imageName))
-                    {
-                        result["BackgroundMarker"] = imageName;
-                    }
-                }
+                ParseControlBarImagePart(trimmed, result);
             }
             else if (trimmed.Contains('='))
             {
-                var parts = trimmed.Split('=', 2);
-                var key = parts[0].Trim();
-                var val = parts[1].Trim();
-                if (string.Equals(key, "RightHUDImage", StringComparison.OrdinalIgnoreCase))
-                {
-                    result["RightHUD"] = val;
-                }
-                else if (string.Equals(key, "OptionsButtonEnable", StringComparison.OrdinalIgnoreCase))
-                {
-                    result["ButtonOptions"] = val;
-                }
-                else if (string.Equals(key, "IdleWorkerButtonEnable", StringComparison.OrdinalIgnoreCase))
-                {
-                    result["ButtonIdleWorker"] = val;
-                }
-                else if (string.Equals(key, "BuddyButtonEnable", StringComparison.OrdinalIgnoreCase))
-                {
-                    result["ButtonChat"] = val;
-                }
-                else if (string.Equals(key, "BeaconButtonEnable", StringComparison.OrdinalIgnoreCase))
-                {
-                    result["ButtonPlaceBeacon"] = val;
-                }
-                else if (string.Equals(key, "GeneralButtonEnable", StringComparison.OrdinalIgnoreCase))
-                {
-                    result["ButtonGeneral"] = val;
-                }
-                else if (string.Equals(key, "UAttackButtonEnable", StringComparison.OrdinalIgnoreCase))
-                {
-                    result["ButtonUAttack"] = val;
-                }
-                else if (string.Equals(key, "ExpBarForegroundImage", StringComparison.OrdinalIgnoreCase))
-                {
-                    result["ExpBarForeground"] = val;
-                }
-                else if (string.Equals(key, "QueueButtonImage", StringComparison.OrdinalIgnoreCase))
-                {
-                    result["QueueButtonImage"] = val;
-                }
+                ParseControlBarKeyValue(trimmed, result);
             }
+        }
+    }
+
+    private static void ParseControlBarImagePart(string line, Dictionary<string, string> result)
+    {
+        const string marker = "ImageName:";
+        var idx = line.IndexOf(marker, StringComparison.OrdinalIgnoreCase);
+        if (idx >= 0)
+        {
+            var imageName = line.Substring(idx + marker.Length).Trim();
+            if (!string.IsNullOrEmpty(imageName))
+            {
+                result["BackgroundMarker"] = imageName;
+            }
+        }
+    }
+
+    private static void ParseControlBarKeyValue(string line, Dictionary<string, string> result)
+    {
+        var parts = line.Split('=', 2);
+        var key = parts[0].Trim();
+        var val = parts[1].Trim();
+        if (ControlBarKeyMap.TryGetValue(key, out var mappedKey))
+        {
+            result[mappedKey] = val;
         }
     }
 }

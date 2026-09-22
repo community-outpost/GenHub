@@ -1,6 +1,7 @@
 using GenHub.Core.Constants;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text.RegularExpressions;
 
 namespace GenHub.Core.Models.Tools.WndEditor;
@@ -229,10 +230,10 @@ public sealed partial record WndMappedImage
             var bottom = 0;
             var found = 0;
 
-            foreach (Match match in CoordsRegex().Matches(value))
+            foreach (var groups in CoordsRegex().Matches(value).Select(static m => m.Groups))
             {
-                var attr = match.Groups["attr"].Value;
-                if (!int.TryParse(match.Groups["val"].Value, out var number))
+                var attr = groups["attr"].Value;
+                if (!int.TryParse(groups["val"].Value, out var number))
                 {
                     continue;
                 }

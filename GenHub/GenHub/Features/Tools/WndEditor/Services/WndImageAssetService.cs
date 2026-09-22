@@ -411,34 +411,49 @@ public sealed class WndImageAssetService(ILogger<WndImageAssetService> logger) :
         var score = DefinitionScore(iniPath, size);
         foreach (var image in WndMappedImage.ParseDefinitions(text))
         {
-            if (!images.TryGetValue(image.Name, out var incumbent)
-                || score < incumbent.Score
-                || (score == incumbent.Score && size >= incumbent.Size))
-            {
-                if (incumbent.Image != null)
-                {
-                    if (!alternates.TryGetValue(image.Name, out var altList))
-                    {
-                        altList = [];
-                        alternates[image.Name] = altList;
-                    }
-
-                    altList.Add(incumbent.Image);
-                }
-
-                images[image.Name] = (image, score, size);
-            }
-            else
-            {
-                if (!alternates.TryGetValue(image.Name, out var altList))
-                {
-                    altList = [];
-                    alternates[image.Name] = altList;
-                }
-
-                altList.Add(image);
-            }
+            IndexParsedImage(image, score, size, images, alternates);
         }
+    }
+
+    private static void IndexParsedImage(
+        WndMappedImage image,
+        int score,
+        int size,
+        Dictionary<string, (WndMappedImage Image, int Score, int Size)> images,
+        Dictionary<string, List<WndMappedImage>> alternates)
+    {
+        if (!images.TryGetValue(image.Name, out var incumbent) || IsBetterMatch(score, size, incumbent))
+        {
+            if (incumbent.Image != null)
+            {
+                AddAlternate(alternates, image.Name, incumbent.Image);
+            }
+
+            images[image.Name] = (image, score, size);
+        }
+        else
+        {
+            AddAlternate(alternates, image.Name, image);
+        }
+    }
+
+    private static bool IsBetterMatch(int score, int size, (WndMappedImage Image, int Score, int Size) incumbent)
+    {
+        return score < incumbent.Score || (score == incumbent.Score && size >= incumbent.Size);
+    }
+
+    private static void AddAlternate(
+        Dictionary<string, List<WndMappedImage>> alternates,
+        string name,
+        WndMappedImage image)
+    {
+        if (!alternates.TryGetValue(name, out var altList))
+        {
+            altList = [];
+            alternates[name] = altList;
+        }
+
+        altList.Add(image);
     }
 
     private Dictionary<string, byte[]> DecodeRequests(
@@ -448,6 +463,25 @@ public sealed class WndImageAssetService(ILogger<WndImageAssetService> logger) :
         CancellationToken cancellationToken)
     {
         var resolved = new Dictionary<string, byte[]>(StringComparer.OrdinalIgnoreCase);
+        var groups = GroupMappedImageRequests(requests, index, resolved, cancellationToken);
+
+        foreach (var group in groups.Values)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            DecodeTextureGroup(group, resolved);
+        }
+
+        DecodeDirectTextureRequests(allNames, index, resolved, cancellationToken);
+
+        return resolved;
+    }
+
+    private Dictionary<string, TextureGroup> GroupMappedImageRequests(
+        Dictionary<string, WndMappedImage> requests,
+        AssetIndex index,
+        Dictionary<string, byte[]> resolved,
+        CancellationToken cancellationToken)
+    {
         var groups = new Dictionary<string, TextureGroup>(StringComparer.OrdinalIgnoreCase);
         foreach (var (name, image) in requests)
         {
@@ -458,43 +492,57 @@ public sealed class WndImageAssetService(ILogger<WndImageAssetService> logger) :
                 continue;
             }
 
-            var texture = ReadTexture(index.FileSystem, image.Texture);
-            var selectedImage = image;
-
-            if (texture == null && index.Alternates.TryGetValue(name, out var altList))
-            {
-                foreach (var alt in altList)
-                {
-                    texture = ReadTexture(index.FileSystem, alt.Texture);
-                    if (texture != null)
-                    {
-                        selectedImage = alt;
-                        break;
-                    }
-                }
-            }
-
-            if (texture == null)
+            var resolvedMatch = ResolveImageTexture(name, image, index);
+            if (resolvedMatch == null)
             {
                 continue;
             }
 
-            if (!groups.TryGetValue(texture.Value.Path, out var group))
+            var (texture, selectedImage) = resolvedMatch.Value;
+            if (!groups.TryGetValue(texture.Path, out var group))
             {
-                group = new TextureGroup(texture.Value.Path, texture.Value.Bytes, texture.Value.Format, []);
-                groups[texture.Value.Path] = group;
+                group = new TextureGroup(texture.Path, texture.Bytes, texture.Format, []);
+                groups[texture.Path] = group;
             }
 
             group.Images.Add(selectedImage);
         }
 
-        foreach (var group in groups.Values)
+        return groups;
+    }
+
+    private ((string Path, byte[] Bytes, MagickFormat Format) Texture, WndMappedImage SelectedImage)? ResolveImageTexture(
+        string name,
+        WndMappedImage image,
+        AssetIndex index)
+    {
+        var texture = ReadTexture(index.FileSystem, image.Texture);
+        if (texture != null)
         {
-            cancellationToken.ThrowIfCancellationRequested();
-            DecodeTextureGroup(group, resolved);
+            return (texture.Value, image);
         }
 
-        // Direct texture requests
+        if (index.Alternates.TryGetValue(name, out var altList))
+        {
+            foreach (var alt in altList)
+            {
+                var altTexture = ReadTexture(index.FileSystem, alt.Texture);
+                if (altTexture != null)
+                {
+                    return (altTexture.Value, alt);
+                }
+            }
+        }
+
+        return null;
+    }
+
+    private void DecodeDirectTextureRequests(
+        IReadOnlyCollection<string> allNames,
+        AssetIndex index,
+        Dictionary<string, byte[]> resolved,
+        CancellationToken cancellationToken)
+    {
         foreach (var name in allNames)
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -515,31 +563,37 @@ public sealed class WndImageAssetService(ILogger<WndImageAssetService> logger) :
                 continue;
             }
 
-            var texture = ReadTexture(index.FileSystem, trimmedName);
-            if (texture == null)
-            {
-                continue;
-            }
+            TryDecodeDirectTexture(trimmedName, index, resolved);
+        }
+    }
 
-            try
-            {
-                var settings = texture.Value.Format != MagickFormat.Unknown
-                    ? new MagickReadSettings { Format = texture.Value.Format }
-                    : null;
-                using var page = settings != null
-                    ? new MagickImage(texture.Value.Bytes, settings)
-                    : new MagickImage(texture.Value.Bytes);
-                var png = page.ToByteArray(MagickFormat.Png);
-                resolved[trimmedName] = png;
-                _imageCache[CacheKey(index.Key, trimmedName)] = png;
-            }
-            catch (Exception ex) when (ex is MagickException or IOException)
-            {
-                logger.LogDebug(ex, "Failed to decode direct texture {Name} from {Path}", trimmedName, texture.Value.Path);
-            }
+    private void TryDecodeDirectTexture(
+        string trimmedName,
+        AssetIndex index,
+        Dictionary<string, byte[]> resolved)
+    {
+        var texture = ReadTexture(index.FileSystem, trimmedName);
+        if (texture == null)
+        {
+            return;
         }
 
-        return resolved;
+        try
+        {
+            var settings = texture.Value.Format != MagickFormat.Unknown
+                ? new MagickReadSettings { Format = texture.Value.Format }
+                : null;
+            using var page = settings != null
+                ? new MagickImage(texture.Value.Bytes, settings)
+                : new MagickImage(texture.Value.Bytes);
+            var png = page.ToByteArray(MagickFormat.Png);
+            resolved[trimmedName] = png;
+            _imageCache[CacheKey(index.Key, trimmedName)] = png;
+        }
+        catch (Exception ex) when (ex is MagickException or IOException)
+        {
+            logger.LogDebug(ex, "Failed to decode direct texture {Name} from {Path}", trimmedName, texture.Value.Path);
+        }
     }
 
     private (string Path, byte[] Bytes, MagickFormat Format)? ReadTexture(SageVirtualFileSystem fileSystem, string texture)

@@ -1,7 +1,6 @@
 using GenHub.Core.Constants;
 using System;
 using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
 
 namespace GenHub.Core.Models.Tools.WndEditor;
 
@@ -34,12 +33,12 @@ public static class WndPreviewPlanner
 
         var plan = window.ControlType switch
         {
-            WndControlType.PushButton or WndControlType.CommandButton => PlanButton(drawData, text, textColor, fontSize, fontBold, isHidden, isSeeThru, isImageWindow),
-            WndControlType.EntryField => PlanTextEntry(drawData, text, textColor, fontSize, fontBold, isHidden, isSeeThru, isImageWindow),
+            WndControlType.PushButton or WndControlType.CommandButton => PlanButton(drawData, style, isHidden, isSeeThru, isImageWindow),
+            WndControlType.EntryField => PlanTextEntry(drawData, style, isHidden, isSeeThru, isImageWindow),
             WndControlType.ScrollListBox => PlanListbox(window, drawData, style, isHidden, isSeeThru, isImageWindow),
             WndControlType.ComboBox => PlanComboBox(window, drawData, style, isHidden, isSeeThru, isImageWindow),
             WndControlType.HorzSlider or WndControlType.VertSlider => PlanSlider(window, drawData, fontSize, isHidden, isSeeThru, isImageWindow),
-            _ => PlanGeneric(drawData, text, textColor, fontSize, fontBold, textCentered, isHidden, isSeeThru, isImageWindow, window.ControlType),
+            _ => PlanGeneric(drawData, style, textCentered, isHidden, isSeeThru, isImageWindow, window.ControlType),
         };
 
         return ApplySchemeAndBackdropContext(window, plan, windowImageOverrides);
@@ -47,10 +46,7 @@ public static class WndPreviewPlanner
 
     private static WndPreviewPlan PlanButton(
         WndDrawDataSet? drawData,
-        string? text,
-        WndRgbaColor? textColor,
-        int fontSize,
-        bool fontBold,
+        WndTextStyle style,
         bool isHidden,
         bool isSeeThru,
         bool isImageWindow)
@@ -61,19 +57,16 @@ public static class WndPreviewPlanner
         if (left != null && middle != null && right != null)
         {
             var fallback = EntryAt(drawData, WndConstants.Preview.ButtonImageIndex);
-            return new WndPreviewPlan(null, left, middle, right, null, null, false, ResolveFillColor(fallback, isSeeThru, isImageWindow), ResolveBorderColor(fallback, isSeeThru), text, textColor, fontSize, fontBold, true, isHidden);
+            return new WndPreviewPlan(null, left, middle, right, null, null, false, ResolveFillColor(fallback, isSeeThru, isImageWindow), ResolveBorderColor(fallback, isSeeThru), style.Text, style.TextColor, style.FontSize, style.FontBold, true, isHidden);
         }
 
         var single = EntryAt(drawData, WndConstants.Preview.ButtonImageIndex);
-        return new WndPreviewPlan(left, null, null, null, null, null, false, ResolveFillColor(single, isSeeThru, isImageWindow), ResolveBorderColor(single, isSeeThru), text, textColor, fontSize, fontBold, true, isHidden);
+        return new WndPreviewPlan(left, null, null, null, null, null, false, ResolveFillColor(single, isSeeThru, isImageWindow), ResolveBorderColor(single, isSeeThru), style.Text, style.TextColor, style.FontSize, style.FontBold, true, isHidden);
     }
 
     private static WndPreviewPlan PlanTextEntry(
         WndDrawDataSet? drawData,
-        string? text,
-        WndRgbaColor? textColor,
-        int fontSize,
-        bool fontBold,
+        WndTextStyle style,
         bool isHidden,
         bool isSeeThru,
         bool isImageWindow)
@@ -84,20 +77,16 @@ public static class WndPreviewPlanner
         if (left != null && center != null && right != null)
         {
             var fallback = EntryAt(drawData, WndConstants.Preview.TextEntryLeftImageIndex);
-            return new WndPreviewPlan(null, left, center, right, null, null, false, ResolveFillColor(fallback, isSeeThru, isImageWindow), ResolveBorderColor(fallback, isSeeThru), text, textColor, fontSize, fontBold, false, isHidden);
+            return new WndPreviewPlan(null, left, center, right, null, null, false, ResolveFillColor(fallback, isSeeThru, isImageWindow), ResolveBorderColor(fallback, isSeeThru), style.Text, style.TextColor, style.FontSize, style.FontBold, false, isHidden);
         }
 
         var single = EntryAt(drawData, WndConstants.Preview.TextEntryLeftImageIndex);
-        return new WndPreviewPlan(left, null, null, null, null, null, false, ResolveFillColor(single, isSeeThru, isImageWindow), ResolveBorderColor(single, isSeeThru), text, textColor, fontSize, fontBold, false, isHidden);
+        return new WndPreviewPlan(left, null, null, null, null, null, false, ResolveFillColor(single, isSeeThru, isImageWindow), ResolveBorderColor(single, isSeeThru), style.Text, style.TextColor, style.FontSize, style.FontBold, false, isHidden);
     }
 
-    [SuppressMessage("Major Code Smell", "S107:Methods should not have too many parameters", Justification = "Internal helper packaging full preview plan context")]
     private static WndPreviewPlan PlanGeneric(
         WndDrawDataSet? drawData,
-        string? text,
-        WndRgbaColor? textColor,
-        int fontSize,
-        bool fontBold,
+        WndTextStyle style,
         bool textCentered,
         bool isHidden,
         bool isSeeThru,
@@ -120,10 +109,10 @@ public static class WndPreviewPlanner
             false,
             ResolveFillColor(entry, isSeeThru, isImageWindow),
             ResolveBorderColor(entry, isSeeThru),
-            drawsText ? text : null,
-            textColor,
-            fontSize,
-            fontBold,
+            drawsText ? style.Text : null,
+            style.TextColor,
+            style.FontSize,
+            style.FontBold,
             textCentered,
             isHidden);
     }
@@ -239,52 +228,10 @@ public static class WndPreviewPlanner
 
         var name = window.Name ?? string.Empty;
         var drawCallback = window.GetProperty(WndConstants.PropertyKeys.DrawCallback) ?? string.Empty;
-        var isCommandBarBackground = drawCallback.Contains("W3DCommandBarBackgroundDraw", StringComparison.OrdinalIgnoreCase)
-            || name.EndsWith(":BackgroundMarker", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(name, "BackgroundMarker", StringComparison.OrdinalIgnoreCase);
 
         if (string.IsNullOrWhiteSpace(single))
         {
-            if (isCommandBarBackground)
-            {
-                single = ResolveOverrideOrFallback(overrides, "BackgroundMarker", "AmericaProCommandBar");
-            }
-            else if (name.EndsWith(":RightHUD", StringComparison.OrdinalIgnoreCase) || string.Equals(name, "RightHUD", StringComparison.OrdinalIgnoreCase))
-            {
-                single = ResolveOverrideOrFallback(overrides, "RightHUD", "AmericaProLogo");
-            }
-            else if (name.EndsWith(":ButtonOptions", StringComparison.OrdinalIgnoreCase))
-            {
-                single = ResolveOverrideOrFallback(overrides, "ButtonOptions", "AmericaProOptions");
-            }
-            else if (name.EndsWith(":ButtonIdleWorker", StringComparison.OrdinalIgnoreCase))
-            {
-                single = ResolveOverrideOrFallback(overrides, "ButtonIdleWorker", "AmericaProWorker");
-            }
-            else if (name.EndsWith(":ButtonChat", StringComparison.OrdinalIgnoreCase))
-            {
-                single = ResolveOverrideOrFallback(overrides, "ButtonChat", "AmericaProChat");
-            }
-            else if (name.EndsWith(":ButtonPlaceBeacon", StringComparison.OrdinalIgnoreCase))
-            {
-                single = ResolveOverrideOrFallback(overrides, "ButtonPlaceBeacon", "AmericaProBeacon");
-            }
-            else if (name.EndsWith(":ButtonGeneral", StringComparison.OrdinalIgnoreCase))
-            {
-                single = ResolveOverrideOrFallback(overrides, "ButtonGeneral", "AmericaProGeneral");
-            }
-            else if (name.EndsWith(":ButtonUAttack", StringComparison.OrdinalIgnoreCase))
-            {
-                single = ResolveOverrideOrFallback(overrides, "ButtonUAttack", "AmericaProUAttack");
-            }
-            else if (name.EndsWith(":ExpBarForeground", StringComparison.OrdinalIgnoreCase))
-            {
-                single = ResolveOverrideOrFallback(overrides, "ExpBarForeground", "AmericaProExpBar");
-            }
-            else if (name.Contains("ButtonCommand", StringComparison.OrdinalIgnoreCase) || name.Contains("CommandMarker", StringComparison.OrdinalIgnoreCase))
-            {
-                single = ResolveOverrideOrFallback(overrides, "QueueButtonImage", "SCBigButton");
-            }
+            single = ResolveSingleImageFallback(name, drawCallback, overrides);
         }
 
         if (string.Equals(single, "MainMenuRuler", StringComparison.OrdinalIgnoreCase))
@@ -300,6 +247,76 @@ public static class WndPreviewPlanner
         return plan;
     }
 
+    private static string? ResolveSingleImageFallback(
+        string name,
+        string drawCallback,
+        IReadOnlyDictionary<string, string>? overrides)
+    {
+        if (IsCommandBarBackground(name, drawCallback))
+        {
+            return ResolveOverrideOrFallback(overrides, "BackgroundMarker", "AmericaProCommandBar");
+        }
+
+        if (name.EndsWith(":RightHUD", StringComparison.OrdinalIgnoreCase) || string.Equals(name, "RightHUD", StringComparison.OrdinalIgnoreCase))
+        {
+            return ResolveOverrideOrFallback(overrides, "RightHUD", "AmericaProLogo");
+        }
+
+        return ResolveButtonOrMarkerFallback(name, overrides);
+    }
+
+    private static bool IsCommandBarBackground(string name, string drawCallback)
+    {
+        return drawCallback.Contains("W3DCommandBarBackgroundDraw", StringComparison.OrdinalIgnoreCase)
+            || name.EndsWith(":BackgroundMarker", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(name, "BackgroundMarker", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string? ResolveButtonOrMarkerFallback(string name, IReadOnlyDictionary<string, string>? overrides)
+    {
+        if (name.EndsWith(":ButtonOptions", StringComparison.OrdinalIgnoreCase))
+        {
+            return ResolveOverrideOrFallback(overrides, "ButtonOptions", "AmericaProOptions");
+        }
+
+        if (name.EndsWith(":ButtonIdleWorker", StringComparison.OrdinalIgnoreCase))
+        {
+            return ResolveOverrideOrFallback(overrides, "ButtonIdleWorker", "AmericaProWorker");
+        }
+
+        if (name.EndsWith(":ButtonChat", StringComparison.OrdinalIgnoreCase))
+        {
+            return ResolveOverrideOrFallback(overrides, "ButtonChat", "AmericaProChat");
+        }
+
+        if (name.EndsWith(":ButtonPlaceBeacon", StringComparison.OrdinalIgnoreCase))
+        {
+            return ResolveOverrideOrFallback(overrides, "ButtonPlaceBeacon", "AmericaProBeacon");
+        }
+
+        if (name.EndsWith(":ButtonGeneral", StringComparison.OrdinalIgnoreCase))
+        {
+            return ResolveOverrideOrFallback(overrides, "ButtonGeneral", "AmericaProGeneral");
+        }
+
+        if (name.EndsWith(":ButtonUAttack", StringComparison.OrdinalIgnoreCase))
+        {
+            return ResolveOverrideOrFallback(overrides, "ButtonUAttack", "AmericaProUAttack");
+        }
+
+        if (name.EndsWith(":ExpBarForeground", StringComparison.OrdinalIgnoreCase))
+        {
+            return ResolveOverrideOrFallback(overrides, "ExpBarForeground", "AmericaProExpBar");
+        }
+
+        if (name.Contains("ButtonCommand", StringComparison.OrdinalIgnoreCase) || name.Contains("CommandMarker", StringComparison.OrdinalIgnoreCase))
+        {
+            return ResolveOverrideOrFallback(overrides, "QueueButtonImage", "SCBigButton");
+        }
+
+        return null;
+    }
+
     private static string ResolveOverrideOrFallback(IReadOnlyDictionary<string, string>? overrides, string key, string fallback)
     {
         if (overrides != null && overrides.TryGetValue(key, out var val) && !string.IsNullOrWhiteSpace(val))
@@ -312,8 +329,8 @@ public static class WndPreviewPlanner
 
     private static WndRgbaColor? ResolveFillColor(WndDrawDataEntry? entry, bool isSeeThru, bool isImageWindow)
     {
-        // In SAGE engine (W3DGameWindow.cpp), windows with WIN_STATUS_IMAGE never call winFillRect;
-        // solid background fills only apply to windows without image status.
+        // In SAGE engine (W3DGameWindow.cpp), windows with WIN_STATUS_IMAGE never call winFillRect.
+        // Solid background fills only apply to windows without image status.
         if (isSeeThru || isImageWindow || entry == null || entry.IsEmpty)
         {
             return null;

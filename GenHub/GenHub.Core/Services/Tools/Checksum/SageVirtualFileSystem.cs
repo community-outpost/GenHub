@@ -155,39 +155,61 @@ public sealed class SageVirtualFileSystem
         for (int i = _looseRoots.Count - 1; i >= 0; i--)
         {
             string loosePath = Path.Combine(_looseRoots[i], fsRel);
-            if (File.Exists(loosePath))
+            var looseBytes = TryReadLoosePath(loosePath);
+            if (looseBytes != null)
             {
-                try
-                {
-                    return File.ReadAllBytes(loosePath);
-                }
-                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-                {
-                    _logger?.LogDebug(ex, "Failed to read loose file at {Path}; falling back to archive", loosePath);
-                }
-            }
-            else
-            {
-                var dir = Path.GetDirectoryName(loosePath);
-                var fileName = Path.GetFileName(loosePath);
-                if (!string.IsNullOrEmpty(dir) && Directory.Exists(dir))
-                {
-                    try
-                    {
-                        var match = Directory.GetFiles(dir).FirstOrDefault(f => string.Equals(Path.GetFileName(f), fileName, StringComparison.OrdinalIgnoreCase));
-                        if (match != null)
-                        {
-                            return File.ReadAllBytes(match);
-                        }
-                    }
-                    catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-                    {
-                        _logger?.LogDebug(ex, "Failed case-insensitive loose read at {Path}", loosePath);
-                    }
-                }
+                return looseBytes;
             }
         }
 
+        return TryReadArchiveEntry(normalizedRel);
+    }
+
+    private byte[]? TryReadLoosePath(string loosePath)
+    {
+        if (File.Exists(loosePath))
+        {
+            try
+            {
+                return File.ReadAllBytes(loosePath);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                _logger?.LogDebug(ex, "Failed to read loose file at {Path}; falling back to archive", loosePath);
+                return null;
+            }
+        }
+
+        return TryReadLooseCaseInsensitive(loosePath);
+    }
+
+    private byte[]? TryReadLooseCaseInsensitive(string loosePath)
+    {
+        var dir = Path.GetDirectoryName(loosePath);
+        var fileName = Path.GetFileName(loosePath);
+        if (string.IsNullOrEmpty(dir) || !Directory.Exists(dir))
+        {
+            return null;
+        }
+
+        try
+        {
+            var match = Directory.GetFiles(dir).FirstOrDefault(f => string.Equals(Path.GetFileName(f), fileName, StringComparison.OrdinalIgnoreCase));
+            if (match != null)
+            {
+                return File.ReadAllBytes(match);
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            _logger?.LogDebug(ex, "Failed case-insensitive loose read at {Path}", loosePath);
+        }
+
+        return null;
+    }
+
+    private byte[]? TryReadArchiveEntry(string normalizedRel)
+    {
         if (_archiveEntries.TryGetValue(normalizedRel.ToLowerInvariant(), out var archivePair))
         {
             try
@@ -197,7 +219,6 @@ public sealed class SageVirtualFileSystem
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException)
             {
                 _logger?.LogWarning(ex, "Failed to read archive entry {Key} from {ArchivePath}", archivePair.Entry.Path, archivePair.Entry.ArchivePath);
-                return null;
             }
         }
 
@@ -218,32 +239,46 @@ public sealed class SageVirtualFileSystem
 
         foreach (string root in _looseRoots)
         {
-            string looseDir = string.IsNullOrEmpty(normalizedDir) ? root : Path.Combine(root, fsDir);
-            if (!Directory.Exists(looseDir))
-            {
-                continue;
-            }
-
-            try
-            {
-                var discovered = Directory.GetFiles(looseDir, SageChecksumConstants.IniFileSearchPattern, IniFileEnumerationOptions);
-                foreach (string file in discovered)
-                {
-                    if (!file.EndsWith(SageChecksumConstants.IniFileExtension, StringComparison.OrdinalIgnoreCase))
-                    {
-                        continue;
-                    }
-
-                    string rel = Path.GetRelativePath(root, file).Replace('/', '\\');
-                    files[rel.ToLowerInvariant()] = rel;
-                }
-            }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-            {
-                _logger?.LogDebug(ex, "Failed to enumerate files in loose directory {Directory}", looseDir);
-            }
+            CollectLooseIniFiles(root, fsDir, files);
         }
 
+        CollectArchiveIniFiles(prefix, files);
+
+        var result = new List<string>(files.Values);
+        result.Sort(StringComparer.OrdinalIgnoreCase);
+        return result;
+    }
+
+    private void CollectLooseIniFiles(string root, string fsDir, Dictionary<string, string> files)
+    {
+        string looseDir = string.IsNullOrEmpty(fsDir) ? root : Path.Combine(root, fsDir);
+        if (!Directory.Exists(looseDir))
+        {
+            return;
+        }
+
+        try
+        {
+            var discovered = Directory.GetFiles(looseDir, SageChecksumConstants.IniFileSearchPattern, IniFileEnumerationOptions);
+            foreach (string file in discovered)
+            {
+                if (!file.EndsWith(SageChecksumConstants.IniFileExtension, StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                string rel = Path.GetRelativePath(root, file).Replace('/', '\\');
+                files[rel.ToLowerInvariant()] = rel;
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            _logger?.LogDebug(ex, "Failed to enumerate files in loose directory {Directory}", looseDir);
+        }
+    }
+
+    private void CollectArchiveIniFiles(string prefix, Dictionary<string, string> files)
+    {
         foreach (var (key, archivePair) in _archiveEntries)
         {
             if ((string.IsNullOrEmpty(prefix) || key.StartsWith(prefix, StringComparison.Ordinal))
@@ -252,10 +287,6 @@ public sealed class SageVirtualFileSystem
                 files.TryAdd(key, archivePair.Entry.Path);
             }
         }
-
-        var result = new List<string>(files.Values);
-        result.Sort(StringComparer.OrdinalIgnoreCase);
-        return result;
     }
 
     private void AddArchive(string archivePath, ArchiveTier tier)
