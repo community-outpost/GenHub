@@ -1635,6 +1635,85 @@ public class GameLauncherTests : IDisposable
     };
 
     /// <summary>
+    /// Verifies that TrySanitizeMapCacheFile purges corrupted MapCache.ini containing NaN values and creates a backup.
+    /// </summary>
+    [Fact]
+    public void TrySanitizeMapCacheFile_WithCorruptedNaNContent_PurgesFileAndCreatesBackup()
+    {
+        // Arrange
+        var tempDir = Path.Combine(Path.GetTempPath(), "genhub_mapcache_test_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tempDir);
+        var mapCachePath = Path.Combine(tempDir, "MapCache.ini");
+        var corruptContent = "MapCache c_test\\map.map\n  InitialCameraPosition = X:0.00 Y:-nan Z:0.00\nEND\n";
+        File.WriteAllText(mapCachePath, corruptContent);
+
+        try
+        {
+            // Act
+            var sanitized = GameLauncher.TrySanitizeMapCacheFile(mapCachePath);
+
+            // Assert
+            Assert.True(sanitized);
+            Assert.False(File.Exists(mapCachePath));
+            var backupPath = mapCachePath + ".corrupt.bak";
+            Assert.True(File.Exists(backupPath));
+            Assert.Equal(corruptContent, File.ReadAllText(backupPath));
+        }
+        finally
+        {
+            if (Directory.Exists(tempDir))
+            {
+                Directory.Delete(tempDir, recursive: true);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Verifies that TrySanitizeMapCacheFile leaves valid MapCache.ini untouched.
+    /// </summary>
+    [Fact]
+    public void TrySanitizeMapCacheFile_WithValidContent_LeavesFileIntact()
+    {
+        // Arrange
+        var tempDir = Path.Combine(Path.GetTempPath(), "genhub_mapcache_test_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tempDir);
+        var mapCachePath = Path.Combine(tempDir, "MapCache.ini");
+        var validContent = "MapCache c_test\\map.map\n  InitialCameraPosition = X:100.00 Y:200.00 Z:0.00\nEND\n";
+        File.WriteAllText(mapCachePath, validContent);
+
+        try
+        {
+            // Act
+            var sanitized = GameLauncher.TrySanitizeMapCacheFile(mapCachePath);
+
+            // Assert
+            Assert.False(sanitized);
+            Assert.True(File.Exists(mapCachePath));
+            Assert.False(File.Exists(mapCachePath + ".corrupt.bak"));
+        }
+        finally
+        {
+            if (Directory.Exists(tempDir))
+            {
+                Directory.Delete(tempDir, recursive: true);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Verifies that TrySanitizeMapCacheFile returns false when file does not exist.
+    /// </summary>
+    [Fact]
+    public void TrySanitizeMapCacheFile_WithNonExistentPath_ReturnsFalse()
+    {
+        // Act
+        var sanitized = GameLauncher.TrySanitizeMapCacheFile(Path.Combine(Path.GetTempPath(), "nonexistent_file_" + Guid.NewGuid().ToString("N")));
+
+        // Assert
+        Assert.False(sanitized);
+    }
+
+    /// <summary>
     /// Removes the temporary retail root.
     /// </summary>
     public void Dispose()

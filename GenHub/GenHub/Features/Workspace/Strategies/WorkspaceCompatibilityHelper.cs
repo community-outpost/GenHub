@@ -626,6 +626,43 @@ public static class WorkspaceCompatibilityHelper
         try
         {
             var d3d8TargetPath = Path.Combine(workspaceInfo.WorkspacePath, GameClientConstants.Direct3D8WrapperDll);
+            var manifestDeclaresD3D8 = configuration.Manifests != null && configuration.Manifests
+                .Any(m => (ManifestVariantResolver.ResolveFiles(m) ?? [])
+                    .Any(f => string.Equals(f.RelativePath, GameClientConstants.Direct3D8WrapperDll, StringComparison.OrdinalIgnoreCase) ||
+                              string.Equals(Path.GetFileName(f.RelativePath), GameClientConstants.Direct3D8WrapperDll, StringComparison.OrdinalIgnoreCase)));
+
+            if (!manifestDeclaresD3D8)
+            {
+                if (File.Exists(d3d8TargetPath))
+                {
+                    try
+                    {
+                        File.Delete(d3d8TargetPath);
+                        logger.LogInformation("Removed unrequested {Dll} from workspace at {WorkspacePath}", GameClientConstants.Direct3D8WrapperDll, workspaceInfo.WorkspacePath);
+                    }
+                    catch (Exception ex)
+                    {
+                        logger.LogDebug(ex, "Failed to remove unrequested {Dll} from workspace at {WorkspacePath}", GameClientConstants.Direct3D8WrapperDll, workspaceInfo.WorkspacePath);
+                    }
+                }
+
+                var genToolUpdaterPath = Path.Combine(workspaceInfo.WorkspacePath, "GenToolUpdater.exe");
+                if (File.Exists(genToolUpdaterPath))
+                {
+                    try
+                    {
+                        File.Delete(genToolUpdaterPath);
+                        logger.LogInformation("Removed stale GenToolUpdater.exe from workspace at {WorkspacePath}", workspaceInfo.WorkspacePath);
+                    }
+                    catch (Exception ex)
+                    {
+                        logger.LogDebug(ex, "Failed to remove stale GenToolUpdater.exe from workspace at {WorkspacePath}", workspaceInfo.WorkspacePath);
+                    }
+                }
+
+                return;
+            }
+
             if (File.Exists(d3d8TargetPath))
             {
                 return;
