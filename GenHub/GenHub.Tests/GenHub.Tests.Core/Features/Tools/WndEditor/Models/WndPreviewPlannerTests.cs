@@ -134,7 +134,7 @@ public sealed class WndPreviewPlannerTests
     {
         // Arrange
         var window = new WndWindow { ControlTypeName = WndConstants.ControlTypes.EntryField };
-        window.SetProperty(WndConstants.PropertyKeys.EnabledDrawData, DrawDataWith(("Left", 0), ("Right", 2), ("Center", 3)));
+        window.SetProperty(WndConstants.PropertyKeys.EnabledDrawData, DrawDataWith(("Left", WndConstants.Preview.TextEntryLeftImageIndex), ("Right", WndConstants.Preview.TextEntryRightImageIndex), ("Center", WndConstants.Preview.TextEntryCenterImageIndex)));
 
         // Act
         var plan = WndPreviewPlanner.Plan(window);
