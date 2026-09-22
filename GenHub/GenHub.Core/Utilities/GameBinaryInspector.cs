@@ -33,6 +33,57 @@ public static class GameBinaryInspector
     private static readonly byte[] TextSectionBytes = Encoding.ASCII.GetBytes(GameBinaryConstants.TextSectionName);
 
     /// <summary>
+    /// Inspects a file on disk synchronously, streaming it in chunks so large engines never load fully.
+    /// </summary>
+    /// <param name="path">Absolute path of the file to inspect.</param>
+    /// <returns>The role and game-type verdict, or a failure when the file cannot be read.</returns>
+    public static OperationResult<GameBinaryVerdict> Inspect(string path)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return OperationResult<GameBinaryVerdict>.CreateFailure("A file path is required for binary inspection.");
+        }
+
+        var gated = ApplyFileNameGates(path);
+        if (gated is not null)
+        {
+            return OperationResult<GameBinaryVerdict>.CreateSuccess(gated);
+        }
+
+        if (Directory.Exists(path))
+        {
+            return OperationResult<GameBinaryVerdict>.CreateFailure($"'{path}' is a directory, not a file.");
+        }
+
+        if (!File.Exists(path))
+        {
+            return OperationResult<GameBinaryVerdict>.CreateFailure($"File '{path}' does not exist.");
+        }
+
+        try
+        {
+            using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete, GameBinaryConstants.ScanChunkSize, useAsync: false);
+            var header = new byte[Math.Min(GameBinaryConstants.PeHeaderRetainSize, stream.Length)];
+            var headerRead = stream.ReadAtLeast(header.AsSpan(), header.Length, throwOnEndOfStream: false);
+
+            var magic = ClassifyMagic(new ReadOnlySpan<byte>(header, 0, headerRead));
+            if (!magic.IsExecutable)
+            {
+                return OperationResult<GameBinaryVerdict>.CreateSuccess(
+                    new GameBinaryVerdict(GameBinaryRole.NotExecutable, GameType.Unknown, "No executable magic bytes."));
+            }
+
+            var counts = SniffStream(stream);
+            var verdict = DecideFromBytes(magic.IsPe, header, headerRead, stream, counts);
+            return OperationResult<GameBinaryVerdict>.CreateSuccess(verdict);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
+        {
+            return OperationResult<GameBinaryVerdict>.CreateFailure($"Cannot inspect '{path}': {ex.Message}");
+        }
+    }
+
+    /// <summary>
     /// Inspects a file on disk, streaming it in chunks so large engines never load fully.
     /// </summary>
     /// <param name="path">Absolute path of the file to inspect.</param>
@@ -155,23 +206,52 @@ public static class GameBinaryInspector
 
     private static (bool IsExecutable, bool IsPe) ClassifyMagic(ReadOnlySpan<byte> bytes)
     {
-        if (bytes.Length >= 2 && bytes[0] == 0x4D && bytes[1] == 0x5A)
+        var platform = ExecutableFileClassifier.DetectPlatform(bytes);
+        return platform switch
         {
-            return (true, true);
+            ExecutablePlatform.Windows => (true, true),
+            ExecutablePlatform.Linux or ExecutablePlatform.MacOS => (true, false),
+            _ => (false, false),
+        };
+    }
+
+    private static (int Title, int ChallengeMenu, int Generals, int DotNet) SniffStream(FileStream stream)
+    {
+        var title = 0;
+        var challenge = 0;
+        var generals = 0;
+        var dotnet = 0;
+        var chunk = new byte[GameBinaryConstants.ScanChunkSize];
+        var overlap = new byte[GameBinaryConstants.ScanOverlapSize];
+        var window = new byte[GameBinaryConstants.ScanOverlapSize + GameBinaryConstants.ScanChunkSize];
+        var overlapUsed = 0;
+        long consumed = 0;
+
+        stream.Seek(0, SeekOrigin.Begin);
+        while (true)
+        {
+            var read = stream.Read(chunk.AsSpan());
+            if (read == 0)
+            {
+                break;
+            }
+
+            Buffer.BlockCopy(overlap, 0, window, 0, overlapUsed);
+            Buffer.BlockCopy(chunk, 0, window, overlapUsed, read);
+
+            var windowLength = overlapUsed + read;
+            var found = SniffWindow(window.AsSpan(0, windowLength), windowBase: consumed - overlapUsed, overlap: overlapUsed);
+            title += found.Title;
+            challenge += found.ChallengeMenu;
+            generals += found.Generals;
+            dotnet += found.DotNet;
+
+            consumed += read;
+            overlapUsed = Math.Min(GameBinaryConstants.ScanOverlapSize, overlapUsed + read);
+            Buffer.BlockCopy(window, windowLength - overlapUsed, overlap, 0, overlapUsed);
         }
 
-        if (bytes.Length >= 4
-            && bytes[0] == 0x7F && bytes[1] == (byte)'E' && bytes[2] == (byte)'L' && bytes[3] == (byte)'F')
-        {
-            return (true, false);
-        }
-
-        if (ExecutableFileClassifier.HasNativeExecutableMagicBytes(bytes))
-        {
-            return (true, false);
-        }
-
-        return (false, false);
+        return (title, challenge, generals, dotnet);
     }
 
     private static async Task<(int Title, int ChallengeMenu, int Generals, int DotNet)> SniffStreamAsync(FileStream stream, CancellationToken cancellationToken)

@@ -22,6 +22,8 @@ public static class PathHelper
         "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9",
     };
 
+    private static readonly char[] DirectorySeparators = [Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar];
+
     /// <summary>
     /// Gets the string comparison to use when comparing filesystem paths. Windows paths
     /// are compared case-insensitively; other platforms use conservative case-sensitive semantics.
@@ -89,7 +91,14 @@ public static class PathHelper
     {
         try
         {
-            return AreSamePath(FollowLinks(first), FollowLinks(second));
+            var canonicalFirst = CanonicalizePath(first);
+            var canonicalSecond = CanonicalizePath(second);
+            if (canonicalFirst is not null && canonicalSecond is not null)
+            {
+                return AreSamePath(canonicalFirst, canonicalSecond);
+            }
+
+            return AreSamePath(first, second);
         }
         catch (ArgumentException)
         {
@@ -256,26 +265,22 @@ public static class PathHelper
             var normalizedRoot = Path.GetFullPath(baseDirectory);
             var normalizedTarget = Path.GetFullPath(candidatePath);
 
-            return IsContained(normalizedRoot, normalizedTarget) &&
-                   IsContained(FollowLinks(normalizedRoot), FollowLinks(normalizedTarget));
+            if (!IsContained(normalizedRoot, normalizedTarget))
+            {
+                return false;
+            }
+
+            var canonicalRoot = CanonicalizePath(normalizedRoot) ?? normalizedRoot;
+            var canonicalTarget = CanonicalizePath(normalizedTarget);
+
+            if (canonicalTarget is null)
+            {
+                return false;
+            }
+
+            return IsContained(canonicalRoot, canonicalTarget);
         }
-        catch (IOException)
-        {
-            return false;
-        }
-        catch (UnauthorizedAccessException)
-        {
-            return false;
-        }
-        catch (SecurityException)
-        {
-            return false;
-        }
-        catch (NotSupportedException)
-        {
-            return false;
-        }
-        catch (ArgumentException)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SecurityException or NotSupportedException or ArgumentException)
         {
             return false;
         }
@@ -407,6 +412,61 @@ public static class PathHelper
         }
     }
 
+    /// <summary>
+    /// Resolves all symbolic links and intermediate link segments in <paramref name="path"/>,
+    /// returning the fully canonicalized absolute path, or <c>null</c> if resolution fails or a loop is detected.
+    /// </summary>
+    /// <param name="path">The path to canonicalize.</param>
+    /// <returns>The canonicalized path, or <c>null</c> if resolution fails or a loop is detected.</returns>
+    public static string? CanonicalizePath(string path)
+    {
+        string current;
+        try
+        {
+            current = Path.GetFullPath(path);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
+        {
+            return null;
+        }
+
+        // ResolveLinkTarget leaves intermediate directory links unresolved, so walk
+        // each segment and splice link targets until no links remain (bounded: chains
+        // longer than this are treated as cycles).
+        var seen = new HashSet<string>(PathComparer);
+        for (var guard = 0; guard < 40; guard++)
+        {
+            if (!seen.Add(current))
+            {
+                return null;
+            }
+
+            var resolved = ResolveFirstLinkSegment(current, out var failed);
+            if (failed)
+            {
+                return null;
+            }
+
+            if (resolved is null)
+            {
+                return current;
+            }
+
+            current = resolved;
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Checks whether <paramref name="path"/> is within or equal to <paramref name="root"/> after
+    /// canonicalizing all intermediate symbolic link segments.
+    /// </summary>
+    /// <param name="root">The root directory path.</param>
+    /// <param name="path">The candidate path.</param>
+    /// <returns><c>true</c> if candidate path is under root; otherwise <c>false</c>.</returns>
+    public static bool IsUnderRoot(string root, string path) => IsPathWithinDirectory(root, path);
+
     [SuppressMessage("Security", "S4036:Make sure the executable exists, and provide an absolute path or configure PATH securely", Justification = "Resolves standard desktop launch utilities (open, xdg-open) from PATH across heterogeneous Unix distributions.")]
     private static ProcessStartInfo? CreateRevealStartInfo(string filePath)
     {
@@ -479,146 +539,6 @@ public static class PathHelper
                !relative.StartsWith(".." + Path.DirectorySeparatorChar, StringComparison.Ordinal) &&
                !relative.StartsWith(".." + Path.AltDirectorySeparatorChar, StringComparison.Ordinal) &&
                !Path.IsPathRooted(relative);
-    }
-
-    private static string FollowLinks(string fullPath, int maxDepth = 32)
-    {
-        if (maxDepth <= 0)
-        {
-            return fullPath;
-        }
-
-        try
-        {
-            var normalized = Path.GetFullPath(fullPath);
-            var root = Path.GetPathRoot(normalized);
-            if (string.IsNullOrEmpty(root))
-            {
-                return normalized;
-            }
-
-            var relativeFromRoot = Path.GetRelativePath(root, normalized);
-            if (relativeFromRoot == "." || relativeFromRoot.Length == 0)
-            {
-                return root;
-            }
-
-            var segments = relativeFromRoot.Split(
-                [Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar],
-                StringSplitOptions.RemoveEmptyEntries);
-
-            var current = root;
-            foreach (var segment in segments)
-            {
-                current = Path.Combine(current, segment);
-
-                if (Directory.Exists(current) || File.Exists(current))
-                {
-                    FileSystemInfo info = Directory.Exists(current)
-                        ? new DirectoryInfo(current)
-                        : new FileInfo(current);
-
-                    var target = info.ResolveLinkTarget(returnFinalTarget: true);
-                    if (target != null)
-                    {
-                        current = FollowLinks(target.FullName, maxDepth - 1);
-                    }
-                }
-            }
-
-            return Path.GetFullPath(current);
-        }
-        catch (IOException)
-        {
-            return fullPath;
-        }
-        catch (UnauthorizedAccessException)
-        {
-            return fullPath;
-        }
-        catch (SecurityException)
-        {
-            return fullPath;
-        }
-    }
-
-    private static readonly char[] DirectorySeparators = [Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar];
-
-    /// <summary>
-    /// Resolves all symbolic links and intermediate link segments in <paramref name="path"/>,
-    /// returning the fully canonicalized absolute path, or <c>null</c> if resolution fails or a loop is detected.
-    /// </summary>
-    /// <param name="path">The path to canonicalize.</param>
-    /// <returns>The canonicalized path, or <c>null</c> if resolution fails or a loop is detected.</returns>
-    public static string? CanonicalizePath(string path)
-    {
-        string current;
-        try
-        {
-            current = Path.GetFullPath(path);
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
-        {
-            return null;
-        }
-
-        // ResolveLinkTarget leaves intermediate directory links unresolved, so walk
-        // each segment and splice link targets until no links remain (bounded: chains
-        // longer than this are treated as cycles).
-        var seen = new HashSet<string>(PathComparer);
-        for (var guard = 0; guard < 40; guard++)
-        {
-            if (!seen.Add(current))
-            {
-                return null;
-            }
-
-            var resolved = ResolveFirstLinkSegment(current, out var failed);
-            if (failed)
-            {
-                return null;
-            }
-
-            if (resolved is null)
-            {
-                return current;
-            }
-
-            current = resolved;
-        }
-
-        return null;
-    }
-
-    /// <summary>
-    /// Checks whether <paramref name="path"/> is within or equal to <paramref name="root"/> after
-    /// canonicalizing all intermediate symbolic link segments.
-    /// </summary>
-    /// <param name="root">The root directory path.</param>
-    /// <param name="path">The candidate path.</param>
-    /// <returns><c>true</c> if candidate path is under root; otherwise <c>false</c>.</returns>
-    public static bool IsUnderRoot(string root, string path)
-    {
-        try
-        {
-            var rootFull = Path.GetFullPath(root);
-            var pathFull = Path.GetFullPath(path);
-
-            var rootCanonical = CanonicalizePath(rootFull) ?? rootFull;
-            var pathCanonical = CanonicalizePath(pathFull);
-
-            if (pathCanonical is null)
-            {
-                return false;
-            }
-
-            return pathCanonical.Equals(rootCanonical, PathComparison)
-                || pathCanonical.StartsWith(rootCanonical.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) + Path.DirectorySeparatorChar, PathComparison);
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
-        {
-            return false;
-        }
     }
 
     private static string? ResolveFirstLinkSegment(string fullPath, out bool failed)

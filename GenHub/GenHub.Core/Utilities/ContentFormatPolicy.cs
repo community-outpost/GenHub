@@ -76,6 +76,12 @@ public static class ContentFormatPolicy
             return false;
         }
 
+        if (IsArchiveContainer(fileName)
+            || ContentFormatConstants.StandaloneContentExtensions.Any(ext => fileName.EndsWith(ext, StringComparison.OrdinalIgnoreCase)))
+        {
+            return false;
+        }
+
         var bareName = Path.GetFileNameWithoutExtension(fileName);
         return ContentFormatConstants.KnownDocumentationFileNames
             .Any(doc => doc.Equals(bareName, StringComparison.OrdinalIgnoreCase));

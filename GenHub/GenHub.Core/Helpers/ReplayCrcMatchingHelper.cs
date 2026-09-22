@@ -319,7 +319,7 @@ public static class ReplayCrcMatchingHelper
     {
         return (!string.IsNullOrEmpty(client.Id) && (client.Id.Contains(PublisherTypeConstants.GeneralsX, StringComparison.OrdinalIgnoreCase) || client.Id.Contains(PublisherTypeConstants.Fbraz3, StringComparison.OrdinalIgnoreCase))) ||
             (!string.IsNullOrEmpty(client.Name) && (client.Name.Contains(PublisherTypeConstants.GeneralsX, StringComparison.OrdinalIgnoreCase) || client.Name.Contains("generals x", StringComparison.OrdinalIgnoreCase))) ||
-            (!string.IsNullOrEmpty(client.ExecutablePath) && (client.ExecutablePath.Contains(PublisherTypeConstants.GeneralsX, StringComparison.OrdinalIgnoreCase) || client.ExecutablePath.EndsWith(ContentFormatConstants.FlatpakExtension, StringComparison.OrdinalIgnoreCase) || client.ExecutablePath.EndsWith(ContentFormatConstants.AppImageExtension, StringComparison.OrdinalIgnoreCase))) ||
+            (!string.IsNullOrEmpty(client.ExecutablePath) && client.ExecutablePath.Contains(PublisherTypeConstants.GeneralsX, StringComparison.OrdinalIgnoreCase)) ||
             string.Equals(client.PublisherType, PublisherTypeConstants.GeneralsX, StringComparison.OrdinalIgnoreCase) ||
             string.Equals(client.PublisherType, PublisherTypeConstants.Fbraz3, StringComparison.OrdinalIgnoreCase);
     }

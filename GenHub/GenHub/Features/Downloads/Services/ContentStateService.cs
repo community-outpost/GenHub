@@ -851,21 +851,6 @@ public sealed partial class ContentStateService(
             }
         }
 
-        if (input.Contains(PlatformWindows, StringComparison.OrdinalIgnoreCase))
-        {
-            tokens.Add(PlatformWindows);
-        }
-
-        if (input.Contains(PlatformLinux, StringComparison.OrdinalIgnoreCase))
-        {
-            tokens.Add(PlatformLinux);
-        }
-
-        if (input.Contains(PlatformMacOS, StringComparison.OrdinalIgnoreCase))
-        {
-            tokens.Add(PlatformMacOS);
-        }
-
         return tokens;
     }
 
@@ -918,13 +903,9 @@ public sealed partial class ContentStateService(
             }
         }
 
-        if (manifest.Files != null)
+        if (!string.IsNullOrWhiteSpace(manifest.EntryPoint))
         {
-            foreach (var file in manifest.Files)
-            {
-                platforms.UnionWith(ExtractPlatformTokens(file.RelativePath));
-                platforms.UnionWith(ExtractPlatformTokens(file.DownloadUrl));
-            }
+            platforms.UnionWith(ExtractPlatformTokens(manifest.EntryPoint));
         }
 
         return platforms;

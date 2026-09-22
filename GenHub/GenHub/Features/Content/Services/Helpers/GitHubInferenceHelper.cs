@@ -215,7 +215,7 @@ public static class GitHubInferenceHelper
             return releaseType;
         }
 
-        if (assetName.Contains("patch", StringComparison.OrdinalIgnoreCase)
+        if (ContainsPatchToken(assetName)
             || ContainsFixSignal(assetName))
         {
             return ContentType.Patch;
@@ -285,6 +285,26 @@ public static class GitHubInferenceHelper
 
         // Multi-game release if we detected both Generals and Zero Hour
         return detectedGames.Contains(GameType.Generals) && detectedGames.Contains(GameType.ZeroHour);
+    }
+
+    private static bool ContainsPatchToken(string assetName)
+    {
+        // Assets named client, engine, or patcher are client/tool artifacts rather than standalone patches,
+        // and words like "dispatch" must not trigger a patch downgrade.
+        if (assetName.Contains("client", StringComparison.OrdinalIgnoreCase)
+            || assetName.Contains("engine", StringComparison.OrdinalIgnoreCase)
+            || assetName.Contains("patcher", StringComparison.OrdinalIgnoreCase)
+            || assetName.Contains("dispatch", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        var tokens = assetName.Split(
+            ['.', '-', '_', ' ', '+'],
+            StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        return tokens.Any(token =>
+            token.Equals("patch", StringComparison.OrdinalIgnoreCase)
+                || token.Equals("patches", StringComparison.OrdinalIgnoreCase));
     }
 
     private static bool ContainsFixSignal(string assetName)

@@ -143,6 +143,10 @@ public class GitHubInferenceHelperTests
     [InlineData("modern-client.zip", ContentType.GameClient)]
     [InlineData("prefix-client.zip", ContentType.GameClient)]
     [InlineData("model-pack.zip", ContentType.GameClient)]
+    [InlineData("dispatch.zip", ContentType.GameClient)]
+    [InlineData("GenPatcher-v1.2.zip", ContentType.GameClient)]
+    [InlineData("community-patch-client.zip", ContentType.GameClient)]
+    [InlineData("patch-v1.4.zip", ContentType.Patch)]
     public void DowngradeClientTypeForAsset_GameClientRelease_AppliesDowngrade(string assetName, ContentType expected)
     {
         var result = GitHubInferenceHelper.DowngradeClientTypeForAsset(ContentType.GameClient, assetName);

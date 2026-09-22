@@ -192,7 +192,13 @@ public class GameClientDetector(
     internal static string GetClientPlatformDiscriminator(string? executablePath)
     {
         var platform = ExecutableFileClassifier.DetectPlatform(executablePath ?? string.Empty);
-        return platform.ToString().ToLowerInvariant();
+        return platform switch
+        {
+            ExecutablePlatform.Windows => "windows",
+            ExecutablePlatform.Linux => "linux",
+            ExecutablePlatform.MacOS => "macos",
+            _ => "unknown",
+        };
     }
 
     /// <summary>

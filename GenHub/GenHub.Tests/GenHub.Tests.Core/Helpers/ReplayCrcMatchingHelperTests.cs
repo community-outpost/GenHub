@@ -374,6 +374,17 @@ public class ReplayCrcMatchingHelperTests
         Assert.True(ReplayCrcMatchingHelper.IsGeneralsXClient(generalsXClient));
         Assert.True(ReplayCrcMatchingHelper.IsNonRetailEngineClient(generalsXClient));
 
+        var communityFlatpakClient = new GameClient
+        {
+            Id = "community.linux.client",
+            Name = "Community Linux Client",
+            PublisherType = PublisherTypeConstants.Community,
+            ExecutablePath = "game.flatpak",
+            GameType = GameType.ZeroHour,
+        };
+        Assert.False(ReplayCrcMatchingHelper.IsGeneralsXClient(communityFlatpakClient));
+        Assert.True(ReplayCrcMatchingHelper.IsNonRetailEngineClient(communityFlatpakClient));
+
         var superHackersClient = new GameClient
         {
             Id = "1.100.thesuperhackers.gameclient.zerohour",

@@ -590,16 +590,8 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
 
     private static bool IsSameOrChildOf(string candidatePath, string parentPath)
     {
-        if (candidatePath.Equals(parentPath, PathComparison))
-        {
-            return true;
-        }
-
-        var prefix = parentPath.EndsWith(Path.DirectorySeparatorChar) || parentPath.EndsWith(Path.AltDirectorySeparatorChar)
-            ? parentPath
-            : parentPath + Path.DirectorySeparatorChar;
-
-        return candidatePath.StartsWith(prefix, PathComparison);
+        return candidatePath.Equals(parentPath, PathComparison)
+            || PathHelper.IsPathWithinDirectory(parentPath, candidatePath);
     }
 
     private static bool WouldIntroduceCycle(
@@ -665,7 +657,7 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
 
     private static bool IsUnderRoot(string rootFull, string targetFull)
     {
-        return IsSameOrChildOf(targetFull, rootFull);
+        return PathHelper.IsPathWithinDirectory(rootFull, targetFull);
     }
 
     private static bool DeleteLink(string entry, bool isDirectory, ILogger? logger)

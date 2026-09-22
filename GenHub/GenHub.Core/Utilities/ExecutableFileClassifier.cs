@@ -201,10 +201,8 @@ public static class ExecutableFileClassifier
     /// <returns><c>true</c> when the header matches ELF or Mach-O magic.</returns>
     public static bool HasNativeExecutableMagicBytes(ReadOnlySpan<byte> header)
     {
-        // Native (Unix) executable magic is every supported format except Windows PE,
-        // which is matched by extension through the Windows entry path instead.
-        return HasExecutableMagicBytes(header)
-            && !(header.Length >= 2 && header[0] == 0x4D && header[1] == 0x5A);
+        var platform = DetectPlatform(header);
+        return platform is ExecutablePlatform.Linux or ExecutablePlatform.MacOS;
     }
 
     /// <summary>
@@ -253,47 +251,7 @@ public static class ExecutableFileClassifier
     /// <returns><c>true</c> when the header matches a known executable format.</returns>
     public static bool HasExecutableMagicBytes(ReadOnlySpan<byte> header)
     {
-        if (header.Length < 4)
-        {
-            return false;
-        }
-
-        // MZ: DOS/PE. Two bytes of magic, but anything shorter than four bytes cannot
-        // be a real executable of any kind, which the length gate above enforces.
-        if (header[0] == 0x4D && header[1] == 0x5A)
-        {
-            return true;
-        }
-
-        // ELF: 0x7F 'E' 'L' 'F'.
-        if (header[0] == 0x7F && header[1] == (byte)'E' && header[2] == (byte)'L' && header[3] == (byte)'F')
-        {
-            return true;
-        }
-
-        var magic = BinaryPrimitives.ReadUInt32BigEndian(header);
-
-        // Mach-O thin: MH_MAGIC / MH_MAGIC_64 and their byte-swapped forms.
-        if (magic is 0xFEEDFACE or 0xFEEDFACF or 0xCEFAEDFE or 0xCFFAEDFE)
-        {
-            return true;
-        }
-
-        // Mach-O universal (fat), 32-bit (FAT_MAGIC) and 64-bit (FAT_MAGIC_64) headers.
-        // Java class files share 0xCAFEBABE, so require the second word: a fat header's
-        // is the architecture count (tiny), a class file's is the class-file version
-        // (>= 45). The byte-swapped magics store the count byte-swapped as well.
-        if (magic is 0xCAFEBABE or 0xCAFEBABF && header.Length >= MagicHeaderLength)
-        {
-            return BinaryPrimitives.ReadUInt32BigEndian(header[4..]) < MaxPlausibleFatArchCount;
-        }
-
-        if (magic is 0xBEBAFECA or 0xBFBAFECA && header.Length >= MagicHeaderLength)
-        {
-            return BinaryPrimitives.ReadUInt32LittleEndian(header[4..]) < MaxPlausibleFatArchCount;
-        }
-
-        return false;
+        return DetectPlatform(header) != ExecutablePlatform.Unknown;
     }
 
     /// <summary>

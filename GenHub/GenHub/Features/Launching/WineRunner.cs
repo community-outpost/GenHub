@@ -117,6 +117,27 @@ public class WineRunner(
     /// <param name="documentsDirectoryName">The shell folder name ("Documents" or "My Documents").</param>
     /// <param name="dataDirectoryName">The game data directory name.</param>
     /// <returns><c>true</c> when the destination was written; otherwise, <c>false</c>.</returns>
+    private static void EnsureNetworkIpAddress(string iniPath)
+    {
+        try
+        {
+            if (!File.Exists(iniPath))
+            {
+                return;
+            }
+
+            var text = File.ReadAllText(iniPath);
+            if (!text.Contains("IPAddress", StringComparison.OrdinalIgnoreCase))
+            {
+                File.AppendAllText(iniPath, "\r\nIPAddress = 0.0.0.0\r\n");
+            }
+        }
+        catch
+        {
+            // Best-effort to prevent Winsock adapter enumeration hang under Wine.
+        }
+    }
+
     private static bool MirrorOptionsIniToShellFolder(string sourcePath, string userDirectory, string documentsDirectoryName, string dataDirectoryName)
     {
         var userDocuments = Path.Combine(userDirectory, documentsDirectoryName, dataDirectoryName);
@@ -336,7 +357,7 @@ public class WineRunner(
                 resolutionLine = $"{GameSettingsIniConstants.ResolutionKey} = {xres} {yres}";
             }
 
-            File.WriteAllText(sourcePath, $"{resolutionLine}\r\n{GameSettingsIniConstants.IdealStaticGameLODKey} = {WineConstants.BootstrapIdealStaticGameLOD}\r\nIPAddress = 0.0.0.0\r\nGameSpyIPAddress = 0.0.0.0\r\nSendDelay = no\r\n");
+            File.WriteAllText(sourcePath, $"{resolutionLine}\r\n{GameSettingsIniConstants.IdealStaticGameLODKey} = {WineConstants.BootstrapIdealStaticGameLOD}\r\nIPAddress = 0.0.0.0\r\n");
             logger.LogInformation("Bootstrapped baseline Options.ini at {SourcePath}", sourcePath);
             return true;
         }
@@ -359,6 +380,8 @@ public class WineRunner(
         {
             return;
         }
+
+        EnsureNetworkIpAddress(sourcePath);
 
         try
         {

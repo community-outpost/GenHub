@@ -631,12 +631,12 @@ public class GameProcessManager(
             return;
         }
 
-        if (!Directory.Exists(fullRoot) || binds.Any(kept => IsSameOrNestedPath(fullRoot, kept)))
+        if (!Directory.Exists(fullRoot) || binds.Any(kept => kept.Equals(fullRoot, PathHelper.PathComparison) || PathHelper.IsPathWithinDirectory(kept, fullRoot)))
         {
             return;
         }
 
-        binds.RemoveAll(kept => IsSameOrNestedPath(kept, fullRoot));
+        binds.RemoveAll(kept => kept.Equals(fullRoot, PathHelper.PathComparison) || PathHelper.IsPathWithinDirectory(fullRoot, kept));
         binds.Add(fullRoot);
     }
 
@@ -778,16 +778,6 @@ public class GameProcessManager(
             && configuration.ExecutablePath.EndsWith(ContentFormatConstants.FlatpakExtension, StringComparison.OrdinalIgnoreCase);
     }
 
-    private static bool IsSameOrNestedPath(string candidate, string root)
-    {
-        if (candidate.Equals(root, StringComparison.Ordinal))
-        {
-            return true;
-        }
-
-        var rootPrefix = root.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) + Path.DirectorySeparatorChar;
-        return candidate.StartsWith(rootPrefix, StringComparison.Ordinal);
-    }
 
     /// <summary>
     /// Reads a process's start time in UTC, or reports that it could not be read.

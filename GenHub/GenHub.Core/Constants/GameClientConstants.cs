@@ -196,6 +196,18 @@ public static class GameClientConstants
     /// </summary>
     public const string ZeroHourShortName = "Zero Hour";
 
+    /// <summary>Display name for Windows platform.</summary>
+    public const string PlatformWindowsDisplayName = "Windows";
+
+    /// <summary>Display name for Linux platform.</summary>
+    public const string PlatformLinuxDisplayName = "Linux";
+
+    /// <summary>Display name for macOS platform.</summary>
+    public const string PlatformMacOSDisplayName = "macOS";
+
+    /// <summary>Display name for cross-platform/generic platform.</summary>
+    public const string PlatformCrossPlatformDisplayName = "Cross-Platform";
+
     /// <summary>BrowserEngine.dll filename.</summary>
     public const string BrowserEngineDll = "BrowserEngine.dll";
 
