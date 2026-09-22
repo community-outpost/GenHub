@@ -541,6 +541,11 @@ public sealed class OnlineNetworkService(
         }
     }
 
+    private static bool IsNetworkFailoverCandidate(Exception ex, CancellationToken cancellationToken) =>
+        !cancellationToken.IsCancellationRequested &&
+        (ex is HttpRequestException or TimeoutException ||
+         (ex is OperationCanceledException && !cancellationToken.IsCancellationRequested));
+
     private async Task<HttpResponseMessage?> SendWithSessionRetryAsync(
         Func<HttpClient, CancellationToken, Task<HttpResponseMessage>> send,
         CancellationToken cancellationToken)
@@ -695,11 +700,6 @@ public sealed class OnlineNetworkService(
             _sessionLock.Release();
         }
     }
-
-    private static bool IsNetworkFailoverCandidate(Exception ex, CancellationToken cancellationToken) =>
-        !cancellationToken.IsCancellationRequested &&
-        (ex is HttpRequestException or TimeoutException ||
-         (ex is OperationCanceledException && !cancellationToken.IsCancellationRequested));
 
     private async Task<HttpResponseMessage?> TryFallbackSendAsync(
         Func<HttpClient, CancellationToken, Task<HttpResponseMessage>> send,

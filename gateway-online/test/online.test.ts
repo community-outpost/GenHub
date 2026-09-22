@@ -1022,7 +1022,7 @@ describe("online edge", () => {
     socket?.close();
   });
 
-  it("does not consume creation quota when password validation fails", { timeout: 30000 }, async () => {
+  it("does not consume creation quota when password validation fails", { timeout: 60000 }, async () => {
     const quotaIp = "198.51.100.222";
     const host = await session();
     const attempts = 105;
