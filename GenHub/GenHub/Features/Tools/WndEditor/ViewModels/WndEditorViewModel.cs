@@ -16,6 +16,7 @@ using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Interfaces.Tools.WndEditor;
 using GenHub.Core.Models.GameInstallations;
 using GenHub.Core.Models.Tools.WndEditor;
+using GenHub.Core.Services.Tools.WndEditor;
 using GenHub.Features.Tools.ModBuilder.Models;
 using GenHub.Features.Tools.WndEditor.Services;
 using Microsoft.Extensions.Logging;
