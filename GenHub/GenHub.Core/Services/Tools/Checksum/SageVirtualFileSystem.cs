@@ -165,6 +165,30 @@ public sealed class SageVirtualFileSystem
         return TryReadArchiveEntry(normalizedRel);
     }
 
+    /// <summary>
+    /// Finds all relative paths of .ini files under the specified directory path.
+    /// </summary>
+    /// <param name="dir">The directory prefix (e.g. Data\INI\Object), or empty string to match all.</param>
+    /// <returns>A collection of matching relative file paths.</returns>
+    public IReadOnlyList<string> FilesUnder(string dir)
+    {
+        string normalizedDir = (dir ?? string.Empty).TrimEnd('/', '\\').Replace('/', '\\');
+        string fsDir = normalizedDir.Replace('\\', Path.DirectorySeparatorChar);
+        string prefix = string.IsNullOrEmpty(normalizedDir) ? string.Empty : normalizedDir.ToLowerInvariant() + "\\";
+        var files = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (string root in _looseRoots)
+        {
+            CollectLooseIniFiles(root, fsDir, files);
+        }
+
+        CollectArchiveIniFiles(prefix, files);
+
+        var result = new List<string>(files.Values);
+        result.Sort(StringComparer.OrdinalIgnoreCase);
+        return result;
+    }
+
     private byte[]? TryReadLoosePath(string loosePath)
     {
         if (File.Exists(loosePath))
@@ -223,30 +247,6 @@ public sealed class SageVirtualFileSystem
         }
 
         return null;
-    }
-
-    /// <summary>
-    /// Finds all relative paths of .ini files under the specified directory path.
-    /// </summary>
-    /// <param name="dir">The directory prefix (e.g. Data\INI\Object), or empty string to match all.</param>
-    /// <returns>A collection of matching relative file paths.</returns>
-    public IReadOnlyList<string> FilesUnder(string dir)
-    {
-        string normalizedDir = (dir ?? string.Empty).TrimEnd('/', '\\').Replace('/', '\\');
-        string fsDir = normalizedDir.Replace('\\', Path.DirectorySeparatorChar);
-        string prefix = string.IsNullOrEmpty(normalizedDir) ? string.Empty : normalizedDir.ToLowerInvariant() + "\\";
-        var files = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-
-        foreach (string root in _looseRoots)
-        {
-            CollectLooseIniFiles(root, fsDir, files);
-        }
-
-        CollectArchiveIniFiles(prefix, files);
-
-        var result = new List<string>(files.Values);
-        result.Sort(StringComparer.OrdinalIgnoreCase);
-        return result;
     }
 
     private void CollectLooseIniFiles(string root, string fsDir, Dictionary<string, string> files)
