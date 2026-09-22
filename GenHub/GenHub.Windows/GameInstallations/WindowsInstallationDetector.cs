@@ -99,7 +99,9 @@ public class WindowsInstallationDetector(ILogger<WindowsInstallationDetector> lo
 
             // Check Retail installations
             logger.LogDebug("Checking Retail installations");
-            var retailInstalls = DetectRetailInstallations();
+            var retailInstalls = DetectRetailInstallations(
+                Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles),
+                Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86));
             installs.AddRange(retailInstalls);
 
             // Deduplicate installations based on actual game paths to prevent multiple sources claiming the same installation
@@ -145,12 +147,9 @@ public class WindowsInstallationDetector(ILogger<WindowsInstallationDetector> lo
         }
     }
 
-    private List<GameInstallation> DetectRetailInstallations()
+    private List<GameInstallation> DetectRetailInstallations(string programFiles, string programFilesX86)
     {
         var retailInstalls = new List<GameInstallation>();
-
-        var programFiles = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles);
-        var programFilesX86 = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86);
 
         // First check common EA Games parent directories for co-located retail installations
         var parentFolders = new[]
@@ -164,8 +163,8 @@ public class WindowsInstallationDetector(ILogger<WindowsInstallationDetector> lo
             var generalsPath = Path.Combine(parentFolder, GameClientConstants.GeneralsRetailDirectoryName);
             var zeroHourPath = Path.Combine(parentFolder, GameClientConstants.ZeroHourRetailDirectoryName);
 
-            var hasGenerals = Directory.Exists(generalsPath) && InstallationExtensions.HasValidGeneralsExecutable(generalsPath);
-            var hasZeroHour = Directory.Exists(zeroHourPath) && InstallationExtensions.HasValidZeroHourExecutable(zeroHourPath);
+            var hasGenerals = RetailArchiveClassifier.ClassifyArchivesSafely(generalsPath, logger).HasGeneralsArchives;
+            var hasZeroHour = RetailArchiveClassifier.ClassifyArchivesSafely(zeroHourPath, logger).HasZeroHourArchives;
 
             if (hasGenerals || hasZeroHour)
             {
