@@ -176,6 +176,7 @@ public class WorkspaceCompatibilityHelperTests : IDisposable
         {
             Id = "test-workspace",
             WorkspacePath = _workspaceDir,
+            ExecutablePath = Path.Combine(_workspaceDir, "generalszh.exe"),
         };
 
         var config = new WorkspaceConfiguration
@@ -219,6 +220,7 @@ public class WorkspaceCompatibilityHelperTests : IDisposable
         {
             Id = "test-workspace",
             WorkspacePath = _workspaceDir,
+            ExecutablePath = Path.Combine(_workspaceDir, "generalszh.exe"),
         };
 
         var config = new WorkspaceConfiguration

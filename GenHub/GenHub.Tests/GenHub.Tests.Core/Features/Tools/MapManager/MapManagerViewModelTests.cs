@@ -352,6 +352,14 @@ public sealed class MapManagerViewModelTests : IDisposable
             .Setup(s => s.GetAllMapPacksAsync())
             .ReturnsAsync(new List<MapPack>());
 
+        _mockProfileManager
+            .Setup(x => x.GetAllProfilesAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<IReadOnlyList<GameProfile>>.CreateSuccess([]));
+
+        _mockManifestPool
+            .Setup(x => x.GetAllManifestsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IEnumerable<ContentManifest>>.CreateSuccess([]));
+
         var profileVm = new ProfileSelectionViewModel(
             NullLogger<ProfileSelectionViewModel>.Instance,
             _mockProfileManager.Object,
@@ -376,5 +384,16 @@ public sealed class MapManagerViewModelTests : IDisposable
         // Assert
         Assert.True(dialogShown);
         Assert.Equal(string.Empty, _viewModel.NewMapPackName);
+        _mockMapPackService.Verify(
+            s => s.CreateCasMapPackAsync(
+                "New Pack",
+                GameType.ZeroHour,
+                It.IsAny<IEnumerable<MapFile>>(),
+                It.IsAny<IProgress<ContentStorageProgress>>(),
+                It.IsAny<CancellationToken>()),
+            Times.Once);
+        _mockNotificationService.Verify(
+            n => n.ShowError(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
+            Times.Never);
     }
 }

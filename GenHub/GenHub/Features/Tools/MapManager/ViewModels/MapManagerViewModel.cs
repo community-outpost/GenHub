@@ -1372,8 +1372,8 @@ public partial class MapManagerViewModel(
 
         if (serviceProvider != null)
         {
-            return serviceProvider.GetService(typeof(ProfileSelectionViewModel)) as ProfileSelectionViewModel
-                ?? ActivatorUtilities.CreateInstance<ProfileSelectionViewModel>(serviceProvider);
+            // Caller owns and disposes this instance.
+            return ActivatorUtilities.CreateInstance<ProfileSelectionViewModel>(serviceProvider);
         }
 
         return null;
