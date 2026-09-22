@@ -40,6 +40,8 @@ of failing silently.
 |----------|---------|
 | `GENHUB_ONLINE_ENABLED` | `0`/`false` disables the tab (default: enabled) |
 | `GENHUB_ONLINE_EDGE_URL` | Edge base URL (local dev: `http://127.0.0.1:8787`) |
+| `GENHUB_ONLINE_PRIMARY_URL` | Primary edge URL override (e.g. self-hosted VPS) |
+| `GENHUB_ONLINE_FALLBACK_URL` | Backup edge URL for failover when primary is unreachable |
 | `GENHUB_ONLINE_STUN_HOST` | STUN hostname (default `stun.cloudflare.com`) |
 | `GENHUB_OVERLAY_BIN` | Overlay sidecar binary override (spike + power users) |
 

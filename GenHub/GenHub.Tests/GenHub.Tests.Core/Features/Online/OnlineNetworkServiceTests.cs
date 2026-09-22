@@ -2,6 +2,7 @@ using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Online;
 using GenHub.Core.Models.Online;
 using GenHub.Features.Online.Services;
+using GenHub.Tests.Core.Collections;
 using Microsoft.Extensions.Logging;
 using Moq;
 using System.Net;
@@ -14,6 +15,7 @@ namespace GenHub.Tests.Core.Features.Online;
 /// <summary>
 /// Unit tests for <see cref="OnlineNetworkService"/>.
 /// </summary>
+[Collection(OnlineEnvironmentCollection.Name)]
 public sealed class OnlineNetworkServiceTests
 {
     private const string SessionJson = """{"token":"test-session-token"}""";
@@ -672,6 +674,118 @@ public sealed class OnlineNetworkServiceTests
             Assert.True(primaryAttempts > 0, "Expected primary edge to be attempted first");
             Assert.True(backupAttempts > 0, "Expected backup edge to be attempted upon failover");
             Assert.Equal(fallbackUrl, ApiConstants.ActiveOnlineEdgeBaseUrl);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable(ApiConstants.OnlinePrimaryUrlEnvVar, null);
+            Environment.SetEnvironmentVariable(ApiConstants.OnlineFallbackUrlEnvVar, null);
+            ApiConstants.ResetActiveOnlineEdgeBaseUrl();
+        }
+    }
+
+    /// <summary>
+    /// Tests that when the primary edge times out (TaskCanceledException), the client fails over to the backup edge.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task EnsureSessionAsync_WhenPrimaryEdgeTimesOut_ShouldFailoverToBackupEdgeAsync()
+    {
+        // Arrange
+        const string primaryUrl = "https://primary-edge-timeout.test.invalid";
+        const string fallbackUrl = "https://backup-edge-timeout.test.invalid";
+        Environment.SetEnvironmentVariable(ApiConstants.OnlinePrimaryUrlEnvVar, primaryUrl);
+        Environment.SetEnvironmentVariable(ApiConstants.OnlineFallbackUrlEnvVar, fallbackUrl);
+        ApiConstants.ResetActiveOnlineEdgeBaseUrl();
+        var primaryAttempts = 0;
+        var backupAttempts = 0;
+
+        var handler = new CountingHandler();
+        handler.Responder = request =>
+        {
+            var host = request.RequestUri?.Authority ?? string.Empty;
+            if (request.RequestUri?.AbsolutePath.EndsWith("/v1/sessions/anonymous", StringComparison.Ordinal) == true)
+            {
+                if (host.Contains(new Uri(primaryUrl).Authority, StringComparison.Ordinal))
+                {
+                    primaryAttempts++;
+                    throw new TaskCanceledException("Primary edge request timed out");
+                }
+
+                if (host.Contains(new Uri(fallbackUrl).Authority, StringComparison.Ordinal))
+                {
+                    backupAttempts++;
+                    return JsonResponse(SessionJson);
+                }
+            }
+
+            return Route(request, HttpStatusCode.OK);
+        };
+
+        try
+        {
+            var service = CreateService(CreateFactory(handler, responder: handler.Responder));
+
+            // Act
+            var result = await service.GetNetworksAsync();
+
+            // Assert
+            Assert.True(result.Success);
+            Assert.True(primaryAttempts > 0, "Expected primary edge to be attempted first");
+            Assert.True(backupAttempts > 0, "Expected backup edge to be attempted upon failover");
+            Assert.Equal(fallbackUrl, ApiConstants.ActiveOnlineEdgeBaseUrl);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable(ApiConstants.OnlinePrimaryUrlEnvVar, null);
+            Environment.SetEnvironmentVariable(ApiConstants.OnlineFallbackUrlEnvVar, null);
+            ApiConstants.ResetActiveOnlineEdgeBaseUrl();
+        }
+    }
+
+    /// <summary>
+    /// Tests that when the fallback edge also fails, the active online edge URL is reset back to primary.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task EnsureSessionAsync_WhenFallbackEdgeAlsoFails_ShouldResetActiveOnlineEdgeBaseUrlAsync()
+    {
+        // Arrange
+        const string primaryUrl = "https://primary-edge-fail.test.invalid";
+        const string fallbackUrl = "https://backup-edge-fail.test.invalid";
+        Environment.SetEnvironmentVariable(ApiConstants.OnlinePrimaryUrlEnvVar, primaryUrl);
+        Environment.SetEnvironmentVariable(ApiConstants.OnlineFallbackUrlEnvVar, fallbackUrl);
+        ApiConstants.ResetActiveOnlineEdgeBaseUrl();
+
+        var handler = new CountingHandler();
+        handler.Responder = request =>
+        {
+            var host = request.RequestUri?.Authority ?? string.Empty;
+            if (request.RequestUri?.AbsolutePath.EndsWith("/v1/sessions/anonymous", StringComparison.Ordinal) == true)
+            {
+                if (host.Contains(new Uri(primaryUrl).Authority, StringComparison.Ordinal))
+                {
+                    throw new HttpRequestException("Primary edge unreachable");
+                }
+
+                if (host.Contains(new Uri(fallbackUrl).Authority, StringComparison.Ordinal))
+                {
+                    throw new HttpRequestException("Fallback edge unreachable");
+                }
+            }
+
+            return Route(request, HttpStatusCode.OK);
+        };
+
+        try
+        {
+            var service = CreateService(CreateFactory(handler, responder: handler.Responder));
+
+            // Act
+            var result = await service.GetNetworksAsync();
+
+            // Assert
+            Assert.False(result.Success);
+            Assert.Equal(primaryUrl, ApiConstants.ActiveOnlineEdgeBaseUrl);
         }
         finally
         {

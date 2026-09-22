@@ -8,6 +8,12 @@ const rooms = new Map();
 
 server.on("error", (err) => {
   console.error("Relay server error:", err);
+  try {
+    server.close();
+  } catch {
+    // Ignore close errors during fatal error handling
+  }
+  process.exit(1);
 });
 
 server.on("message", (msg, rinfo) => {
