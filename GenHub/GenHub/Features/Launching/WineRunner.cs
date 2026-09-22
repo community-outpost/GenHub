@@ -142,7 +142,6 @@ public class WineRunner(
     /// <param name="documentsDirectoryName">The shell folder name ("Documents" or "My Documents").</param>
     /// <param name="dataDirectoryName">The game data directory name.</param>
     /// <returns><c>true</c> when the destination was written; otherwise, <c>false</c>.</returns>
-
     private static bool MirrorOptionsIniToShellFolder(string sourcePath, string userDirectory, string documentsDirectoryName, string dataDirectoryName)
     {
         var userDocuments = Path.Combine(userDirectory, documentsDirectoryName, dataDirectoryName);
