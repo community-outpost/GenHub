@@ -138,7 +138,7 @@
 
     <Grid x:Name="RootGrid">
         <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="140" MinWidth="58" MaxWidth="300" />
+            <ColumnDefinition Width="Auto" MinWidth="58" MaxWidth="350" />
             <ColumnDefinition Width="4" />
             <ColumnDefinition Width="*" MinWidth="0" />
         </Grid.ColumnDefinitions>
@@ -355,6 +355,9 @@
                                                     <Border Background="{DynamicResource AccentBadgeBackgroundBrush}" BorderBrush="{DynamicResource AccentBrush}" BorderThickness="1" CornerRadius="4" Padding="6,2" Margin="0,0,4,4"
                                                             IsVisible="{Binding Publisher, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
                                                         <TextBlock Text="{Binding Publisher}" FontSize="10" Foreground="{DynamicResource AccentLightBrush}" FontWeight="SemiBold" />
+                                                    </Border>
+                                                    <Border Background="{DynamicResource SurfaceHoverBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="4" Padding="6,2" Margin="0,0,4,4">
+                                                        <TextBlock Text="{Binding ContentType, Converter={x:Static conv:ContentTypeDisplayConverter.Instance}}" FontSize="10" Foreground="{DynamicResource TextSecondary}" />
                                                     </Border>
                                                     <Border Background="{DynamicResource SurfaceHoverBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="4" Padding="6,2" Margin="0,0,4,4"
                                                             IsVisible="{Binding HasDisplayVersion}">

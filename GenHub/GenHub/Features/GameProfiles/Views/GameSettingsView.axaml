@@ -30,7 +30,7 @@
 
     <Grid x:Name="RootGrid">
         <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="140" MinWidth="58" MaxWidth="300" />
+            <ColumnDefinition Width="Auto" MinWidth="58" MaxWidth="350" />
             <ColumnDefinition Width="4" />
             <ColumnDefinition Width="*" MinWidth="0" />
         </Grid.ColumnDefinitions>

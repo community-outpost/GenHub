@@ -41,7 +41,7 @@ public partial class GameSettingsView : UserControl
         base.OnLoaded(e);
 
         _sidebarSynchronizer?.Dispose();
-        _sidebarSynchronizer = SidebarWidthSynchronizer.Attach(this.FindControl<Grid>("RootGrid"));
+        _sidebarSynchronizer = SidebarWidthSynchronizer.Attach(this.FindControl<Grid>("RootGrid"), ProfileSettingsTab.Game);
 
         var scrollViewer = this.FindControl<ScrollViewer>("SettingsScrollViewer");
         if (scrollViewer == null)

@@ -332,10 +332,21 @@ public partial class GameProfileSettingsViewModel
             return false;
         }
 
-        if (profile.Description?.StartsWith("Auto-created profile", StringComparison.OrdinalIgnoreCase) == true &&
-            (trimmedName.StartsWith("Generals", StringComparison.OrdinalIgnoreCase) ||
-             trimmedName.StartsWith("Zero Hour", StringComparison.OrdinalIgnoreCase) ||
-             trimmedName.StartsWith("ZeroHour", StringComparison.OrdinalIgnoreCase)))
+        if (trimmedName.Contains("Generals Online", StringComparison.OrdinalIgnoreCase) ||
+            trimmedName.Contains("GeneralsOnline", StringComparison.OrdinalIgnoreCase) ||
+            trimmedName.Contains("The Super Hackers", StringComparison.OrdinalIgnoreCase) ||
+            trimmedName.Contains("SuperHackers", StringComparison.OrdinalIgnoreCase) ||
+            trimmedName.Contains("Community Outpost", StringComparison.OrdinalIgnoreCase) ||
+            trimmedName.Contains("CommunityOutpost", StringComparison.OrdinalIgnoreCase) ||
+            trimmedName.Contains("Command & Conquer", StringComparison.OrdinalIgnoreCase) ||
+            trimmedName.Contains("Zero Hour", StringComparison.OrdinalIgnoreCase) ||
+            trimmedName.Contains("ZeroHour", StringComparison.OrdinalIgnoreCase) ||
+            trimmedName.StartsWith("Generals", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        if (profile.Description?.StartsWith("Auto-created profile", StringComparison.OrdinalIgnoreCase) == true)
         {
             return false;
         }

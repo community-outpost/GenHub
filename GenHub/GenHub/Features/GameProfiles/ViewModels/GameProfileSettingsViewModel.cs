@@ -264,10 +264,28 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
     public void UpdateApplicableClientVisibility()
     {
         var enabledClients = EnabledContent.Where(c => c.ContentType == ContentType.GameClient).ToList();
-        var hasGo = enabledClients.Any(IsGeneralsOnlineItem) || (enabledClients.Count == 0 && _originalProfile?.IsGeneralsOnlineProfile() == true);
-        var hasTsh = !hasGo && (
-            enabledClients.Any(c => IsTheSuperHackersClientItem(c, _originalProfile)) ||
-            (enabledClients.Count == 0 && _originalProfile?.GameClient != null && IsTheSuperHackersGameClient(_originalProfile.GameClient)));
+        var activeInstallation = EnabledContent.FirstOrDefault(c => c.ContentType == ContentType.GameInstallation)
+            ?? (SelectedGameInstallation?.IsEnabled == true ? SelectedGameInstallation : null);
+
+        bool hasGo;
+        bool hasTsh;
+
+        if (enabledClients.Count > 0)
+        {
+            hasGo = enabledClients.Any(IsGeneralsOnlineItem);
+            hasTsh = hasGo || enabledClients.Any(c => IsTheSuperHackersClientItem(c, _originalProfile));
+        }
+        else if (activeInstallation != null)
+        {
+            hasGo = IsGeneralsOnlineItem(activeInstallation);
+            hasTsh = hasGo || IsTheSuperHackersClientItem(activeInstallation, _originalProfile);
+        }
+        else
+        {
+            hasGo = _originalProfile?.IsGeneralsOnlineProfile() == true;
+            hasTsh = hasGo || (_originalProfile?.IsTheSuperHackersProfile() == true) ||
+                     (_originalProfile?.GameClient != null && IsTheSuperHackersGameClient(_originalProfile.GameClient));
+        }
 
         GameSettingsViewModel?.UpdateApplicableClientVisibility(hasTsh, hasGo);
     }
@@ -540,10 +558,47 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
         }
     }
 
+    private static bool MatchesTheSuperHackersIdentifiers(string? id, string? publisher, string? name)
+    {
+        if (!string.IsNullOrEmpty(publisher))
+        {
+            if (string.Equals(publisher, PublisherTypeConstants.TheSuperHackers, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(publisher, PublisherTypeConstants.LegacySuperHackers, StringComparison.OrdinalIgnoreCase) ||
+                publisher.Contains(SuperHackersConstants.PublisherName, StringComparison.OrdinalIgnoreCase) ||
+                publisher.Contains("superhackers", StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        if (!string.IsNullOrEmpty(id))
+        {
+            if (id.Contains("thesuperhackers", StringComparison.OrdinalIgnoreCase) ||
+                id.Contains("superhackers", StringComparison.OrdinalIgnoreCase) ||
+                id.Contains("community-patch", StringComparison.OrdinalIgnoreCase) ||
+                id.Contains("communitypatch", StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        if (!string.IsNullOrEmpty(name))
+        {
+            if (name.Contains(SuperHackersConstants.PublisherName, StringComparison.OrdinalIgnoreCase) ||
+                name.Contains("superhackers", StringComparison.OrdinalIgnoreCase) ||
+                name.Contains("community patch", StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     private static bool IsGeneralsOnlineItem(ContentDisplayItem item)
     {
-        if (item.DisplayName.Contains(GeneralsOnlineConstants.ClientName, StringComparison.OrdinalIgnoreCase) ||
-            item.DisplayName.Contains(PublisherTypeConstants.GeneralsOnline, StringComparison.OrdinalIgnoreCase))
+        if (item.DisplayName?.Contains(GeneralsOnlineConstants.ClientName, StringComparison.OrdinalIgnoreCase) == true ||
+            item.DisplayName?.Contains(PublisherTypeConstants.GeneralsOnline, StringComparison.OrdinalIgnoreCase) == true)
         {
             return true;
         }
@@ -554,15 +609,12 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
             return true;
         }
 
-        if (item.ManifestId.Value.Contains(PublisherTypeConstants.GeneralsOnline, StringComparison.OrdinalIgnoreCase))
+        if (item.ManifestId.Value?.Contains(PublisherTypeConstants.GeneralsOnline, StringComparison.OrdinalIgnoreCase) == true)
         {
             return true;
         }
 
-        if (item.GameClient != null &&
-            ((!string.IsNullOrEmpty(item.GameClient.PublisherType) && item.GameClient.PublisherType.Contains(PublisherTypeConstants.GeneralsOnline, StringComparison.OrdinalIgnoreCase)) ||
-             (!string.IsNullOrEmpty(item.GameClient.Name) && item.GameClient.Name.Contains(GeneralsOnlineConstants.ClientName, StringComparison.OrdinalIgnoreCase)) ||
-             (!string.IsNullOrEmpty(item.GameClient.Id) && item.GameClient.Id.Contains(PublisherTypeConstants.GeneralsOnline, StringComparison.OrdinalIgnoreCase))))
+        if (item.GameClient != null && IsGeneralsOnlineGameClient(item.GameClient))
         {
             return true;
         }
@@ -570,9 +622,21 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
         return false;
     }
 
+    private static bool IsGeneralsOnlineGameClient(GameClient client)
+    {
+        return string.Equals(client.PublisherType, PublisherTypeConstants.GeneralsOnline, StringComparison.OrdinalIgnoreCase) ||
+            (!string.IsNullOrEmpty(client.Name) && client.Name.Contains(GeneralsOnlineConstants.ClientName, StringComparison.OrdinalIgnoreCase)) ||
+            (!string.IsNullOrEmpty(client.Id) && client.Id.Contains(PublisherTypeConstants.GeneralsOnline, StringComparison.OrdinalIgnoreCase));
+    }
+
     private static bool IsTheSuperHackersClientItem(ContentDisplayItem item, GameProfile? profile)
     {
         if (IsGeneralsOnlineItem(item))
+        {
+            return true;
+        }
+
+        if (IsRetailItemMetadata(item))
         {
             return false;
         }
@@ -586,18 +650,27 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
         if (!string.IsNullOrEmpty(exePath) && System.IO.File.Exists(exePath))
         {
             var sha = ReplayCrcMatchingHelper.GetCachedExeSha256(exePath);
-            if (!string.IsNullOrEmpty(sha))
+            if (!string.IsNullOrEmpty(sha) && ReplayCrcMatchingHelper.IsRetailExeSha256(sha))
             {
-                return !ReplayCrcMatchingHelper.IsRetailExeSha256(sha);
+                return false;
             }
 
             var crc = ReplayCrcMatchingHelper.GetCachedExeCrc(exePath);
-            if (!string.IsNullOrEmpty(crc))
+            if (!string.IsNullOrEmpty(crc) && (ReplayCrcMatchingHelper.IsZeroHourRetailExeCrc(crc) || ReplayCrcMatchingHelper.IsGeneralsRetailExeCrc(crc)))
             {
-                var isRetail = ReplayCrcMatchingHelper.IsZeroHourRetailExeCrc(crc) ||
-                               ReplayCrcMatchingHelper.IsGeneralsRetailExeCrc(crc);
-                return !isRetail;
+                return false;
             }
+
+            var fileName = System.IO.Path.GetFileName(exePath);
+            if (string.Equals(fileName, GameClientConstants.SuperHackersZeroHourExecutable, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        if (MatchesTheSuperHackersIdentifiers(item.ManifestId.Value, item.Publisher, item.DisplayName))
+        {
+            return true;
         }
 
         if (client != null)
@@ -605,19 +678,19 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
             return IsTheSuperHackersGameClient(client);
         }
 
-        if (IsRetailItemMetadata(item))
-        {
-            return false;
-        }
-
         return false;
     }
 
     private static bool IsTheSuperHackersGameClient(GameClient client)
     {
-        if (string.Equals(client.PublisherType, PublisherTypeConstants.GeneralsOnline, StringComparison.OrdinalIgnoreCase) ||
-            (!string.IsNullOrEmpty(client.Name) && client.Name.Contains(GeneralsOnlineConstants.ClientName, StringComparison.OrdinalIgnoreCase)) ||
-            (!string.IsNullOrEmpty(client.Id) && client.Id.Contains(PublisherTypeConstants.GeneralsOnline, StringComparison.OrdinalIgnoreCase)))
+        if (IsGeneralsOnlineGameClient(client))
+        {
+            return true;
+        }
+
+        if (ReplayCrcMatchingHelper.IsOfficialBaseClient(client) ||
+            CommunityOutpostConstants.IsBaseGameIdentifier(client.Name) ||
+            CommunityOutpostConstants.IsBaseGameIdentifier(client.Id))
         {
             return false;
         }
@@ -626,21 +699,30 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
         if (!string.IsNullOrEmpty(exePath) && System.IO.File.Exists(exePath))
         {
             var sha = ReplayCrcMatchingHelper.GetCachedExeSha256(exePath);
-            if (!string.IsNullOrEmpty(sha))
+            if (!string.IsNullOrEmpty(sha) && ReplayCrcMatchingHelper.IsRetailExeSha256(sha))
             {
-                return !ReplayCrcMatchingHelper.IsRetailExeSha256(sha);
+                return false;
             }
 
             var crc = ReplayCrcMatchingHelper.GetCachedExeCrc(exePath);
-            if (!string.IsNullOrEmpty(crc))
+            if (!string.IsNullOrEmpty(crc) && (ReplayCrcMatchingHelper.IsZeroHourRetailExeCrc(crc) || ReplayCrcMatchingHelper.IsGeneralsRetailExeCrc(crc)))
             {
-                var isRetail = ReplayCrcMatchingHelper.IsZeroHourRetailExeCrc(crc) ||
-                               ReplayCrcMatchingHelper.IsGeneralsRetailExeCrc(crc);
-                return !isRetail;
+                return false;
+            }
+
+            var fileName = System.IO.Path.GetFileName(exePath);
+            if (string.Equals(fileName, GameClientConstants.SuperHackersZeroHourExecutable, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
             }
         }
 
-        return !ReplayCrcMatchingHelper.IsOfficialBaseClient(client);
+        if (MatchesTheSuperHackersIdentifiers(client.Id, client.PublisherType, client.Name))
+        {
+            return true;
+        }
+
+        return false;
     }
 
     private static bool IsRetailItemMetadata(ContentDisplayItem item)
@@ -880,6 +962,7 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
         }
 
         ApplyPrimaryBranding();
+        UpdateApplicableClientVisibility();
     }
 
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Mutates SelectedGameInstallation and instance collections in partial view model")]
@@ -898,6 +981,7 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
         }
 
         ApplyPrimaryBranding();
+        UpdateApplicableClientVisibility();
     }
 
     private sealed record ProfileBranding(string Name, string Color, string IconPath, string CoverPath, Core.Models.Enums.GameType GameType);

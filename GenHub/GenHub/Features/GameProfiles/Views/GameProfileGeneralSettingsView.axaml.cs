@@ -41,7 +41,7 @@ public partial class GameProfileGeneralSettingsView : UserControl
         base.OnLoaded(e);
 
         _sidebarSynchronizer?.Dispose();
-        _sidebarSynchronizer = SidebarWidthSynchronizer.Attach(this.FindControl<Grid>("RootGrid"));
+        _sidebarSynchronizer = SidebarWidthSynchronizer.Attach(this.FindControl<Grid>("RootGrid"), ProfileSettingsTab.General);
 
         EnsureScrollSpy();
         if (DataContext is GameProfileSettingsViewModel vm)

@@ -40,7 +40,7 @@ public partial class GameProfileContentEditorView : UserControl
         base.OnLoaded(e);
 
         _sidebarSynchronizer?.Dispose();
-        _sidebarSynchronizer = SidebarWidthSynchronizer.Attach(this.FindControl<Grid>("RootGrid"));
+        _sidebarSynchronizer = SidebarWidthSynchronizer.Attach(this.FindControl<Grid>("RootGrid"), ProfileSettingsTab.Content);
 
         EnsureScrollSpy();
         SubscribeViewModel();
@@ -151,9 +151,9 @@ public partial class GameProfileContentEditorView : UserControl
 
     private void OnSpySectionActivated(ContentEditorCategory category)
     {
-        if (DataContext is GameProfileSettingsViewModel vm && vm.SelectedContentEditorCategory != category)
+        if (DataContext is GameProfileSettingsViewModel vm)
         {
-            vm.UpdateContentEditorCategoryFromScroll(category);
+            vm.SelectedContentEditorCategory = category;
         }
     }
 }

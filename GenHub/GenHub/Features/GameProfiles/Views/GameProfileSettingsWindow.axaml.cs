@@ -33,6 +33,21 @@ public partial class GameProfileSettingsWindow : Window
     public static double SavedSidebarWidth { get; set; } = UiConstants.DefaultProfileSettingsSidebarWidth;
 
     /// <summary>
+    /// Gets or sets the persisted width of the content editor sidebar.
+    /// </summary>
+    public static double? SavedContentSidebarWidth { get; set; }
+
+    /// <summary>
+    /// Gets or sets the persisted width of the general settings sidebar.
+    /// </summary>
+    public static double? SavedGeneralSidebarWidth { get; set; }
+
+    /// <summary>
+    /// Gets or sets the persisted width of the game settings sidebar.
+    /// </summary>
+    public static double? SavedGameSidebarWidth { get; set; }
+
+    /// <summary>
     /// Initializes a new instance of the <see cref="GameProfileSettingsWindow"/> class.
     /// </summary>
     public GameProfileSettingsWindow()
@@ -51,6 +66,116 @@ public partial class GameProfileSettingsWindow : Window
 
         // Subscribe to window events
         Activated += OnWindowActivated;
+    }
+
+    /// <summary>
+    /// Gets the saved sidebar width for the specified tab.
+    /// </summary>
+    /// <param name="tab">The profile settings tab.</param>
+    /// <returns>The saved width, or null if using auto-sizing.</returns>
+    public static double? GetTabSidebarWidth(ProfileSettingsTab tab) =>
+        tab switch
+        {
+            ProfileSettingsTab.Content => SavedContentSidebarWidth,
+            ProfileSettingsTab.General => SavedGeneralSidebarWidth,
+            ProfileSettingsTab.Game => SavedGameSidebarWidth,
+            _ => null,
+        };
+
+    /// <summary>
+    /// Updates and persists the sidebar width for the specified tab.
+    /// </summary>
+    /// <param name="tab">The profile settings tab.</param>
+    /// <param name="width">The new sidebar width.</param>
+    public static void UpdateTabSidebarWidth(ProfileSettingsTab tab, double width)
+    {
+        if (width <= 0)
+        {
+            return;
+        }
+
+        switch (tab)
+        {
+            case ProfileSettingsTab.Content:
+                SavedContentSidebarWidth = width;
+                break;
+            case ProfileSettingsTab.General:
+                SavedGeneralSidebarWidth = width;
+                break;
+            case ProfileSettingsTab.Game:
+                SavedGameSidebarWidth = width;
+                break;
+        }
+
+        try
+        {
+            var userSettingsService = App.Services?.GetService<IUserSettingsService>();
+            userSettingsService?.Update(s =>
+            {
+                switch (tab)
+                {
+                    case ProfileSettingsTab.Content:
+                        s.ProfileSettingsContentSidebarWidth = width;
+                        break;
+                    case ProfileSettingsTab.General:
+                        s.ProfileSettingsGeneralSidebarWidth = width;
+                        break;
+                    case ProfileSettingsTab.Game:
+                        s.ProfileSettingsGameSidebarWidth = width;
+                        break;
+                }
+            });
+            _ = userSettingsService?.SaveAsync();
+        }
+        catch
+        {
+            // Ignore settings save errors in design-time or unit-test environments
+        }
+    }
+
+    /// <summary>
+    /// Resets the saved sidebar width for the specified tab to auto-sizing.
+    /// </summary>
+    /// <param name="tab">The profile settings tab.</param>
+    public static void ResetTabSidebarWidth(ProfileSettingsTab tab)
+    {
+        switch (tab)
+        {
+            case ProfileSettingsTab.Content:
+                SavedContentSidebarWidth = null;
+                break;
+            case ProfileSettingsTab.General:
+                SavedGeneralSidebarWidth = null;
+                break;
+            case ProfileSettingsTab.Game:
+                SavedGameSidebarWidth = null;
+                break;
+        }
+
+        try
+        {
+            var userSettingsService = App.Services?.GetService<IUserSettingsService>();
+            userSettingsService?.Update(s =>
+            {
+                switch (tab)
+                {
+                    case ProfileSettingsTab.Content:
+                        s.ProfileSettingsContentSidebarWidth = null;
+                        break;
+                    case ProfileSettingsTab.General:
+                        s.ProfileSettingsGeneralSidebarWidth = null;
+                        break;
+                    case ProfileSettingsTab.Game:
+                        s.ProfileSettingsGameSidebarWidth = null;
+                        break;
+                }
+            });
+            _ = userSettingsService?.SaveAsync();
+        }
+        catch
+        {
+            // Ignore settings save errors in design-time or unit-test environments
+        }
     }
 
     /// <summary>
@@ -133,7 +258,14 @@ public partial class GameProfileSettingsWindow : Window
         base.OnClosed(e);
     }
 
-    private static void SetInitialDimensions(double? width, double? height, bool? isMaximized, double? sidebarWidth)
+    private static void SetInitialDimensions(
+        double? width,
+        double? height,
+        bool? isMaximized,
+        double? sidebarWidth,
+        double? contentSidebarWidth = null,
+        double? generalSidebarWidth = null,
+        double? gameSidebarWidth = null)
     {
         _savedWidth ??= width;
         _savedHeight ??= height;
@@ -146,6 +278,10 @@ public partial class GameProfileSettingsWindow : Window
         {
             SavedSidebarWidth = sidebarWidth.Value;
         }
+
+        SavedContentSidebarWidth ??= contentSidebarWidth;
+        SavedGeneralSidebarWidth ??= generalSidebarWidth;
+        SavedGameSidebarWidth ??= gameSidebarWidth;
     }
 
     private static void RecordWindowDimensions(WindowState state, double width, double height)
@@ -237,7 +373,10 @@ public partial class GameProfileSettingsWindow : Window
                     settings.ProfileSettingsWindowWidth,
                     settings.ProfileSettingsWindowHeight,
                     settings.ProfileSettingsWindowIsMaximized,
-                    settings.ProfileSettingsSidebarWidth);
+                    settings.ProfileSettingsSidebarWidth,
+                    settings.ProfileSettingsContentSidebarWidth,
+                    settings.ProfileSettingsGeneralSidebarWidth,
+                    settings.ProfileSettingsGameSidebarWidth);
             }
         }
         catch
@@ -285,6 +424,9 @@ public partial class GameProfileSettingsWindow : Window
                 }
 
                 s.ProfileSettingsSidebarWidth = SavedSidebarWidth;
+                s.ProfileSettingsContentSidebarWidth = SavedContentSidebarWidth;
+                s.ProfileSettingsGeneralSidebarWidth = SavedGeneralSidebarWidth;
+                s.ProfileSettingsGameSidebarWidth = SavedGameSidebarWidth;
             });
             _ = userSettingsService?.SaveAsync();
         }
