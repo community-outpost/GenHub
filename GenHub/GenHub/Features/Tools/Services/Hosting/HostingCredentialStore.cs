@@ -323,6 +323,11 @@ public class HostingCredentialStore(
 
     private static void VerifySecureUnixPermissions(string filePath)
     {
+        if (OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
         try
         {
             var mode = File.GetUnixFileMode(filePath);

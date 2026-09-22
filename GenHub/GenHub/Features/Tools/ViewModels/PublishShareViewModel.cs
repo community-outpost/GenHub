@@ -168,6 +168,7 @@ public partial class PublishShareViewModel(
         Timeout = TimeSpan.FromSeconds(30),
     };
 
+    private readonly SemaphoreSlim _publishGate = new(1, 1);
     private readonly Dictionary<string, HostingState> _hostingStates = new(StringComparer.OrdinalIgnoreCase);
     private HostingState? _currentHostingState;
 
@@ -237,7 +238,6 @@ public partial class PublishShareViewModel(
     [ObservableProperty]
     private bool _hasDefinitionChanges = true;
 
-    private readonly SemaphoreSlim _publishGate = new(1, 1);
     private System.Threading.CancellationTokenSource? _authCts;
     private CancellationTokenSource? _uploadCts;
     private CancellationTokenSource? _activeUploadCts;
@@ -604,37 +604,6 @@ public partial class PublishShareViewModel(
     /// Public so the studio shell can trigger definition uploads from its header button.
     /// </summary>
     /// <returns>The upload result.</returns>
-    private async Task<(bool Acquired, CancellationTokenSource? Cts)> TryBeginPublishAsync()
-    {
-        if (IsUploading || !await _publishGate.WaitAsync(0).ConfigureAwait(false))
-        {
-            return (false, null);
-        }
-
-        var cts = new CancellationTokenSource();
-        _activeUploadCts = cts;
-        IsUploading = true;
-        return (true, cts);
-    }
-
-    private void EndPublish(CancellationTokenSource? cts)
-    {
-        try
-        {
-            if (ReferenceEquals(_activeUploadCts, cts))
-            {
-                _activeUploadCts = null;
-            }
-
-            cts?.Dispose();
-        }
-        finally
-        {
-            IsUploading = false;
-            _publishGate.Release();
-        }
-    }
-
     [RelayCommand]
     public async Task<OperationResult<HostingUploadResult>> UploadProviderDefinitionAsync()
     {
@@ -2316,6 +2285,37 @@ public partial class PublishShareViewModel(
         finally
         {
             EndPublish(cts);
+        }
+    }
+
+    private async Task<(bool Acquired, CancellationTokenSource? Cts)> TryBeginPublishAsync()
+    {
+        if (IsUploading || !await _publishGate.WaitAsync(0).ConfigureAwait(false))
+        {
+            return (false, null);
+        }
+
+        var cts = new CancellationTokenSource();
+        _activeUploadCts = cts;
+        IsUploading = true;
+        return (true, cts);
+    }
+
+    private void EndPublish(CancellationTokenSource? cts)
+    {
+        try
+        {
+            if (ReferenceEquals(_activeUploadCts, cts))
+            {
+                _activeUploadCts = null;
+            }
+
+            cts?.Dispose();
+        }
+        finally
+        {
+            IsUploading = false;
+            _publishGate.Release();
         }
     }
 

@@ -30,6 +30,11 @@ namespace GenHub.Features.Tools.Services.Hosting;
 /// </remarks>
 public class DropboxHostingProvider(ILogger<DropboxHostingProvider> logger, IHttpClientFactory httpClientFactory, ILocalizationService? localizationService = null) : IHostingProvider, IDisposable
 {
+    /// <summary>
+    /// Chunk size for upload sessions (8 MB).
+    /// </summary>
+    public const int UploadChunkBytes = 8 * 1024 * 1024;
+
     private const string DropboxApiUrl = HostingConstants.DropboxApiUrl;
     private const string DropboxContentUrl = HostingConstants.DropboxContentUrl;
     private const string PublisherFolderPath = HostingConstants.DropboxDefaultPublisherFolder;
@@ -44,11 +49,6 @@ public class DropboxHostingProvider(ILogger<DropboxHostingProvider> logger, IHtt
     private DateTime _accessTokenExpiresAtUtc = DateTime.MinValue;
     private DropboxOAuthService? _oauthService;
     private bool _disposed;
-
-    /// <summary>
-    /// Chunk size for upload sessions (8 MB).
-    /// </summary>
-    public const int UploadChunkBytes = 8 * 1024 * 1024;
 
     /// <summary>
     /// Gets the maximum file size supported by the Dropbox simple upload endpoint (150 MB).
@@ -334,211 +334,6 @@ public class DropboxHostingProvider(ILogger<DropboxHostingProvider> logger, IHtt
             logger.LogError(ex, "Failed to upload {File} to Dropbox", fileName);
             return OperationResult<HostingUploadResult>.CreateFailure($"Dropbox upload error: {ex.Message}");
         }
-    }
-
-    private async Task<OperationResult<HostingUploadResult>> UploadSeekableChunkedAsync(
-        Stream fileStream,
-        string targetPath,
-        string safeFileName,
-        IProgress<int>? progress,
-        CancellationToken cancellationToken)
-    {
-        var startPosition = fileStream.Position;
-        var chunkResult = await UploadChunkedSessionCoreAsync(fileStream, targetPath, safeFileName, progress, cancellationToken).ConfigureAwait(false);
-
-        if (chunkResult.IsExpiredToken)
-        {
-            if (await TryRefreshAccessTokenAsync(cancellationToken).ConfigureAwait(false))
-            {
-                fileStream.Position = startPosition;
-                logger.LogInformation("Retrying chunked Dropbox upload of {File} after token refresh", safeFileName);
-                chunkResult = await UploadChunkedSessionCoreAsync(fileStream, targetPath, safeFileName, progress, cancellationToken).ConfigureAwait(false);
-            }
-        }
-
-        if (!chunkResult.Success)
-        {
-            return OperationResult<HostingUploadResult>.CreateFailure(chunkResult.Error ?? "Chunked upload failed");
-        }
-
-        progress?.Report(80);
-
-        var linkResult = await CreateSharedLinkAsync(targetPath, cancellationToken).ConfigureAwait(false);
-        if (!linkResult.Success)
-        {
-            return OperationResult<HostingUploadResult>.CreateFailure(linkResult);
-        }
-
-        var shareUrl = linkResult.Data;
-        var directDownloadUrl = ConvertToDirectDownloadUrl(shareUrl);
-        progress?.Report(100);
-
-        return OperationResult<HostingUploadResult>.CreateSuccess(new HostingUploadResult
-        {
-            FileId = chunkResult.FileId,
-            PublicUrl = shareUrl ?? string.Empty,
-            DirectDownloadUrl = directDownloadUrl,
-            FileSize = chunkResult.FileSize,
-        });
-    }
-
-    private async Task<OperationResult<HostingUploadResult>> UploadSeekableSmallAsync(
-        Stream fileStream,
-        string targetPath,
-        string safeFileName,
-        IProgress<int>? progress,
-        CancellationToken cancellationToken)
-    {
-        var startPosition = fileStream.Position;
-        var payload = new byte[fileStream.Length - startPosition];
-        await ReadChunkFullyAsync(fileStream, payload, payload.Length, cancellationToken).ConfigureAwait(false);
-
-        var uploadArgs = new
-        {
-            path = targetPath,
-            mode = "overwrite",
-            autorename = false,
-            mute = false,
-            strict_conflict = false,
-        };
-
-        using var request = CreateUploadRequest(uploadArgs, payload);
-        progress?.Report(30);
-
-        var response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
-        progress?.Report(70);
-
-        if (!response.IsSuccessStatusCode)
-        {
-            var errorContent = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
-            if (DropboxOAuthService.IsExpiredTokenError(response.StatusCode, errorContent))
-            {
-                (response, errorContent) = await TryRetryUploadAfterRefreshAsync(
-                    response,
-                    errorContent,
-                    uploadArgs,
-                    payload,
-                    safeFileName,
-                    cancellationToken).ConfigureAwait(false);
-            }
-
-            if (!response.IsSuccessStatusCode)
-            {
-                logger.LogError("Dropbox upload failed for {File}: {Status} {Error}", safeFileName, response.StatusCode, errorContent);
-                return OperationResult<HostingUploadResult>.CreateFailure($"Upload failed ({response.StatusCode}): {errorContent}");
-            }
-        }
-
-        var responseJson = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
-        using var doc = JsonDocument.Parse(responseJson);
-        var fileId = doc.RootElement.GetProperty("id").GetString() ?? safeFileName;
-        var fileSize = doc.RootElement.GetProperty("size").GetInt64();
-
-        progress?.Report(80);
-
-        var linkResult = await CreateSharedLinkAsync(targetPath, cancellationToken).ConfigureAwait(false);
-        if (!linkResult.Success)
-        {
-            return OperationResult<HostingUploadResult>.CreateFailure(linkResult);
-        }
-
-        var shareUrl = linkResult.Data;
-        var directDownloadUrl = ConvertToDirectDownloadUrl(shareUrl);
-        progress?.Report(100);
-
-        return OperationResult<HostingUploadResult>.CreateSuccess(new HostingUploadResult
-        {
-            FileId = fileId,
-            PublicUrl = shareUrl ?? string.Empty,
-            DirectDownloadUrl = directDownloadUrl,
-            FileSize = fileSize,
-        });
-    }
-
-    private async Task<OperationResult<HostingUploadResult>> UploadNonSeekableAsync(
-        Stream fileStream,
-        string targetPath,
-        string safeFileName,
-        IProgress<int>? progress,
-        CancellationToken cancellationToken)
-    {
-        using var bufferStream = new MemoryStream();
-        var tempBuffer = new byte[HostingConstants.StreamCopyBufferSize];
-        int read;
-
-        while ((read = await fileStream.ReadAsync(tempBuffer, cancellationToken).ConfigureAwait(false)) > 0)
-        {
-            if (bufferStream.Length + read > UploadChunkBytes)
-            {
-                return OperationResult<HostingUploadResult>.CreateFailure(
-                    $"File '{safeFileName}' is non-seekable and exceeds the 8 MB in-memory buffer limit. Use a seekable stream for larger uploads.");
-            }
-
-            await bufferStream.WriteAsync(tempBuffer.AsMemory(0, read), cancellationToken).ConfigureAwait(false);
-        }
-
-        var payload = bufferStream.ToArray();
-
-        var uploadArgs = new
-        {
-            path = targetPath,
-            mode = "overwrite",
-            autorename = false,
-            mute = false,
-            strict_conflict = false,
-        };
-
-        using var request = CreateUploadRequest(uploadArgs, payload);
-        progress?.Report(30);
-
-        var response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
-        progress?.Report(70);
-
-        if (!response.IsSuccessStatusCode)
-        {
-            var errorContent = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
-            if (DropboxOAuthService.IsExpiredTokenError(response.StatusCode, errorContent))
-            {
-                (response, errorContent) = await TryRetryUploadAfterRefreshAsync(
-                    response,
-                    errorContent,
-                    uploadArgs,
-                    payload,
-                    safeFileName,
-                    cancellationToken).ConfigureAwait(false);
-            }
-
-            if (!response.IsSuccessStatusCode)
-            {
-                logger.LogError("Dropbox upload failed for {File}: {Status} {Error}", safeFileName, response.StatusCode, errorContent);
-                return OperationResult<HostingUploadResult>.CreateFailure($"Upload failed ({response.StatusCode}): {errorContent}");
-            }
-        }
-
-        var responseJson = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
-        using var doc = JsonDocument.Parse(responseJson);
-        var fileId = doc.RootElement.GetProperty("id").GetString() ?? safeFileName;
-        var fileSize = doc.RootElement.GetProperty("size").GetInt64();
-
-        progress?.Report(80);
-
-        var linkResult = await CreateSharedLinkAsync(targetPath, cancellationToken).ConfigureAwait(false);
-        if (!linkResult.Success)
-        {
-            return OperationResult<HostingUploadResult>.CreateFailure(linkResult);
-        }
-
-        var shareUrl = linkResult.Data;
-        var directDownloadUrl = ConvertToDirectDownloadUrl(shareUrl);
-        progress?.Report(100);
-
-        return OperationResult<HostingUploadResult>.CreateSuccess(new HostingUploadResult
-        {
-            FileId = fileId,
-            PublicUrl = shareUrl ?? string.Empty,
-            DirectDownloadUrl = directDownloadUrl,
-            FileSize = fileSize,
-        });
     }
 
     /// <inheritdoc/>
@@ -917,6 +712,23 @@ public class DropboxHostingProvider(ILogger<DropboxHostingProvider> logger, IHtt
         return null;
     }
 
+    private static async Task<int> ReadChunkFullyAsync(Stream stream, byte[] buffer, int count, CancellationToken cancellationToken)
+    {
+        var totalRead = 0;
+        while (totalRead < count)
+        {
+            var read = await stream.ReadAsync(buffer.AsMemory(totalRead, count - totalRead), cancellationToken).ConfigureAwait(false);
+            if (read == 0)
+            {
+                break;
+            }
+
+            totalRead += read;
+        }
+
+        return totalRead;
+    }
+
     private sealed record ChunkedSessionResult(bool Success, string FileId, long FileSize, bool IsExpiredToken, string? Error)
     {
         public static ChunkedSessionResult Expired() => new(false, string.Empty, 0, true, "Expired access token");
@@ -924,6 +736,211 @@ public class DropboxHostingProvider(ILogger<DropboxHostingProvider> logger, IHtt
         public static ChunkedSessionResult Failed(string error) => new(false, string.Empty, 0, false, error);
 
         public static ChunkedSessionResult Succeeded(string fileId, long fileSize) => new(true, fileId, fileSize, false, null);
+    }
+
+    private async Task<OperationResult<HostingUploadResult>> UploadSeekableChunkedAsync(
+        Stream fileStream,
+        string targetPath,
+        string safeFileName,
+        IProgress<int>? progress,
+        CancellationToken cancellationToken)
+    {
+        var startPosition = fileStream.Position;
+        var chunkResult = await UploadChunkedSessionCoreAsync(fileStream, targetPath, safeFileName, progress, cancellationToken).ConfigureAwait(false);
+
+        if (chunkResult.IsExpiredToken)
+        {
+            if (await TryRefreshAccessTokenAsync(cancellationToken).ConfigureAwait(false))
+            {
+                fileStream.Position = startPosition;
+                logger.LogInformation("Retrying chunked Dropbox upload of {File} after token refresh", safeFileName);
+                chunkResult = await UploadChunkedSessionCoreAsync(fileStream, targetPath, safeFileName, progress, cancellationToken).ConfigureAwait(false);
+            }
+        }
+
+        if (!chunkResult.Success)
+        {
+            return OperationResult<HostingUploadResult>.CreateFailure(chunkResult.Error ?? "Chunked upload failed");
+        }
+
+        progress?.Report(80);
+
+        var linkResult = await CreateSharedLinkAsync(targetPath, cancellationToken).ConfigureAwait(false);
+        if (!linkResult.Success)
+        {
+            return OperationResult<HostingUploadResult>.CreateFailure(linkResult);
+        }
+
+        var shareUrl = linkResult.Data;
+        var directDownloadUrl = ConvertToDirectDownloadUrl(shareUrl);
+        progress?.Report(100);
+
+        return OperationResult<HostingUploadResult>.CreateSuccess(new HostingUploadResult
+        {
+            FileId = chunkResult.FileId,
+            PublicUrl = shareUrl ?? string.Empty,
+            DirectDownloadUrl = directDownloadUrl,
+            FileSize = chunkResult.FileSize,
+        });
+    }
+
+    private async Task<OperationResult<HostingUploadResult>> UploadSeekableSmallAsync(
+        Stream fileStream,
+        string targetPath,
+        string safeFileName,
+        IProgress<int>? progress,
+        CancellationToken cancellationToken)
+    {
+        var startPosition = fileStream.Position;
+        var payload = new byte[fileStream.Length - startPosition];
+        await ReadChunkFullyAsync(fileStream, payload, payload.Length, cancellationToken).ConfigureAwait(false);
+
+        var uploadArgs = new
+        {
+            path = targetPath,
+            mode = "overwrite",
+            autorename = false,
+            mute = false,
+            strict_conflict = false,
+        };
+
+        using var request = CreateUploadRequest(uploadArgs, payload);
+        progress?.Report(30);
+
+        var response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
+        progress?.Report(70);
+
+        if (!response.IsSuccessStatusCode)
+        {
+            var errorContent = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+            if (DropboxOAuthService.IsExpiredTokenError(response.StatusCode, errorContent))
+            {
+                (response, errorContent) = await TryRetryUploadAfterRefreshAsync(
+                    response,
+                    errorContent,
+                    uploadArgs,
+                    payload,
+                    safeFileName,
+                    cancellationToken).ConfigureAwait(false);
+            }
+
+            if (!response.IsSuccessStatusCode)
+            {
+                logger.LogError("Dropbox upload failed for {File}: {Status} {Error}", safeFileName, response.StatusCode, errorContent);
+                return OperationResult<HostingUploadResult>.CreateFailure($"Upload failed ({response.StatusCode}): {errorContent}");
+            }
+        }
+
+        var responseJson = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+        using var doc = JsonDocument.Parse(responseJson);
+        var fileId = doc.RootElement.GetProperty("id").GetString() ?? safeFileName;
+        var fileSize = doc.RootElement.GetProperty("size").GetInt64();
+
+        progress?.Report(80);
+
+        var linkResult = await CreateSharedLinkAsync(targetPath, cancellationToken).ConfigureAwait(false);
+        if (!linkResult.Success)
+        {
+            return OperationResult<HostingUploadResult>.CreateFailure(linkResult);
+        }
+
+        var shareUrl = linkResult.Data;
+        var directDownloadUrl = ConvertToDirectDownloadUrl(shareUrl);
+        progress?.Report(100);
+
+        return OperationResult<HostingUploadResult>.CreateSuccess(new HostingUploadResult
+        {
+            FileId = fileId,
+            PublicUrl = shareUrl ?? string.Empty,
+            DirectDownloadUrl = directDownloadUrl,
+            FileSize = fileSize,
+        });
+    }
+
+    private async Task<OperationResult<HostingUploadResult>> UploadNonSeekableAsync(
+        Stream fileStream,
+        string targetPath,
+        string safeFileName,
+        IProgress<int>? progress,
+        CancellationToken cancellationToken)
+    {
+        using var bufferStream = new MemoryStream();
+        var tempBuffer = new byte[HostingConstants.StreamCopyBufferSize];
+        int read;
+
+        while ((read = await fileStream.ReadAsync(tempBuffer, cancellationToken).ConfigureAwait(false)) > 0)
+        {
+            if (bufferStream.Length + read > UploadChunkBytes)
+            {
+                return OperationResult<HostingUploadResult>.CreateFailure(
+                    $"File '{safeFileName}' is non-seekable and exceeds the 8 MB in-memory buffer limit. Use a seekable stream for larger uploads.");
+            }
+
+            await bufferStream.WriteAsync(tempBuffer.AsMemory(0, read), cancellationToken).ConfigureAwait(false);
+        }
+
+        var payload = bufferStream.ToArray();
+
+        var uploadArgs = new
+        {
+            path = targetPath,
+            mode = "overwrite",
+            autorename = false,
+            mute = false,
+            strict_conflict = false,
+        };
+
+        using var request = CreateUploadRequest(uploadArgs, payload);
+        progress?.Report(30);
+
+        var response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
+        progress?.Report(70);
+
+        if (!response.IsSuccessStatusCode)
+        {
+            var errorContent = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+            if (DropboxOAuthService.IsExpiredTokenError(response.StatusCode, errorContent))
+            {
+                (response, errorContent) = await TryRetryUploadAfterRefreshAsync(
+                    response,
+                    errorContent,
+                    uploadArgs,
+                    payload,
+                    safeFileName,
+                    cancellationToken).ConfigureAwait(false);
+            }
+
+            if (!response.IsSuccessStatusCode)
+            {
+                logger.LogError("Dropbox upload failed for {File}: {Status} {Error}", safeFileName, response.StatusCode, errorContent);
+                return OperationResult<HostingUploadResult>.CreateFailure($"Upload failed ({response.StatusCode}): {errorContent}");
+            }
+        }
+
+        var responseJson = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+        using var doc = JsonDocument.Parse(responseJson);
+        var fileId = doc.RootElement.GetProperty("id").GetString() ?? safeFileName;
+        var fileSize = doc.RootElement.GetProperty("size").GetInt64();
+
+        progress?.Report(80);
+
+        var linkResult = await CreateSharedLinkAsync(targetPath, cancellationToken).ConfigureAwait(false);
+        if (!linkResult.Success)
+        {
+            return OperationResult<HostingUploadResult>.CreateFailure(linkResult);
+        }
+
+        var shareUrl = linkResult.Data;
+        var directDownloadUrl = ConvertToDirectDownloadUrl(shareUrl);
+        progress?.Report(100);
+
+        return OperationResult<HostingUploadResult>.CreateSuccess(new HostingUploadResult
+        {
+            FileId = fileId,
+            PublicUrl = shareUrl ?? string.Empty,
+            DirectDownloadUrl = directDownloadUrl,
+            FileSize = fileSize,
+        });
     }
 
     private async Task<ChunkedSessionResult> UploadChunkedSessionCoreAsync(
@@ -1056,23 +1073,6 @@ public class DropboxHostingProvider(ILogger<DropboxHostingProvider> logger, IHtt
         var fileId = doc.RootElement.GetProperty("id").GetString() ?? safeFileName;
         var fileSize = doc.RootElement.GetProperty("size").GetInt64();
         return ChunkedSessionResult.Succeeded(fileId, fileSize);
-    }
-
-    private static async Task<int> ReadChunkFullyAsync(Stream stream, byte[] buffer, int count, CancellationToken cancellationToken)
-    {
-        var totalRead = 0;
-        while (totalRead < count)
-        {
-            var read = await stream.ReadAsync(buffer.AsMemory(totalRead, count - totalRead), cancellationToken).ConfigureAwait(false);
-            if (read == 0)
-            {
-                break;
-            }
-
-            totalRead += read;
-        }
-
-        return totalRead;
     }
 
     private DropboxOAuthService GetOAuthService()
