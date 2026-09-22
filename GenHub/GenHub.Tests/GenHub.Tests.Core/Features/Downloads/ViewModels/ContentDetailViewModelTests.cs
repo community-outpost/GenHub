@@ -4259,9 +4259,8 @@ public sealed class ContentDetailViewModelTests
     /// Verifies that receiving ContentLibraryClearedMessage resets all download, release, and variant states
     /// in the detail view back to NotDownloaded.
     /// </summary>
-    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task ContentLibraryClearedMessage_WhenReceived_ResetsAllDownloadAndVariantStatesAsync()
+    public void ContentLibraryClearedMessage_WhenReceived_ResetsAllDownloadAndVariantStates()
     {
         // Arrange
         var searchResult = new ContentSearchResult
