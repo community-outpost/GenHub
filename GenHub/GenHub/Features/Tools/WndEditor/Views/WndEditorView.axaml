@@ -309,6 +309,14 @@
                             ScrollViewer.HorizontalScrollBarVisibility="Disabled">
                     <TreeView.Resources>
                       <x:Double x:Key="TreeViewItemIndent">10</x:Double>
+                      <SolidColorBrush x:Key="TreeViewItemBackgroundSelected" Color="Transparent"/>
+                      <SolidColorBrush x:Key="TreeViewItemBackgroundSelectedPointerOver" Color="Transparent"/>
+                      <SolidColorBrush x:Key="TreeViewItemBackgroundSelectedPressed" Color="Transparent"/>
+                      <SolidColorBrush x:Key="TreeViewItemBackgroundSelectedDisabled" Color="Transparent"/>
+                      <SolidColorBrush x:Key="TreeViewItemBorderBrushSelected" Color="Transparent"/>
+                      <SolidColorBrush x:Key="TreeViewItemBorderBrushSelectedPointerOver" Color="Transparent"/>
+                      <SolidColorBrush x:Key="TreeViewItemBorderBrushSelectedPressed" Color="Transparent"/>
+                      <SolidColorBrush x:Key="TreeViewItemBorderBrushSelectedDisabled" Color="Transparent"/>
                     </TreeView.Resources>
                     <TreeView.Styles>
                       <Style Selector="TreeViewItem">
@@ -316,6 +324,35 @@
                         <Setter Property="HorizontalAlignment" Value="Stretch"/>
                         <Setter Property="Padding" Value="0"/>
                         <Setter Property="MinHeight" Value="0"/>
+                        <Setter Property="Focusable" Value="False"/>
+                      </Style>
+                      <Style Selector="TreeViewItem /template/ Border#PART_LayoutRoot">
+                        <Setter Property="Focusable" Value="False"/>
+                        <Setter Property="Background" Value="Transparent"/>
+                        <Setter Property="BorderBrush" Value="Transparent"/>
+                      </Style>
+                      <Style Selector="TreeViewItem:selected /template/ Border#PART_LayoutRoot">
+                        <Setter Property="Background" Value="Transparent"/>
+                        <Setter Property="BorderBrush" Value="Transparent"/>
+                      </Style>
+                      <Style Selector="TreeViewItem:selected:pointerover /template/ Border#PART_LayoutRoot">
+                        <Setter Property="Background" Value="Transparent"/>
+                        <Setter Property="BorderBrush" Value="Transparent"/>
+                      </Style>
+                      <Style Selector="TreeViewItem:selected:focus /template/ Border#PART_LayoutRoot">
+                        <Setter Property="Background" Value="Transparent"/>
+                        <Setter Property="BorderBrush" Value="Transparent"/>
+                      </Style>
+                      <Style Selector="TreeViewItem:pressed:selected /template/ Border#PART_LayoutRoot">
+                        <Setter Property="Background" Value="Transparent"/>
+                        <Setter Property="BorderBrush" Value="Transparent"/>
+                      </Style>
+                      <Style Selector="TreeViewItem:disabled:selected /template/ Border#PART_LayoutRoot">
+                        <Setter Property="Background" Value="Transparent"/>
+                        <Setter Property="BorderBrush" Value="Transparent"/>
+                      </Style>
+                      <Style Selector="TreeViewItem:selected /template/ Border#PART_LayoutRoot > ContentPresenter#PART_HeaderPresenter">
+                        <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
                       </Style>
                       <Style Selector="TreeViewItem /template/ Panel#PART_ExpandCollapseChevronContainer">
                         <Setter Property="Margin" Value="0,0,1,0"/>
@@ -333,6 +370,16 @@
                       <Style Selector="TreeViewItem:empty /template/ Panel#PART_ExpandCollapseChevronContainer">
                         <Setter Property="Width" Value="10"/>
                         <Setter Property="Margin" Value="0,0,1,0"/>
+                      </Style>
+                      <Style Selector="TreeViewItem Button">
+                        <Setter Property="Background" Value="Transparent"/>
+                        <Setter Property="BorderThickness" Value="0"/>
+                      </Style>
+                      <Style Selector="TreeViewItem Button:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+                        <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}"/>
+                      </Style>
+                      <Style Selector="TreeViewItem Button:pressed /template/ ContentPresenter#PART_ContentPresenter">
+                        <Setter Property="Background" Value="{DynamicResource SurfaceElevatedBrush}"/>
                       </Style>
                     </TreeView.Styles>
                     <TreeView.ItemTemplate>
