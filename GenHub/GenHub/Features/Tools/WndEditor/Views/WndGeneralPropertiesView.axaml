@@ -4,7 +4,8 @@
              xmlns:localization="clr-namespace:GenHub.Common.Markup"
              xmlns:vm="clr-namespace:GenHub.Features.Tools.WndEditor.ViewModels"
              xmlns:cp="clr-namespace:Avalonia.Controls;assembly=Avalonia.Controls.ColorPicker"
-             x:Class="GenHub.Features.Tools.WndEditor.Views.WndGeneralPropertiesView">
+             x:Class="GenHub.Features.Tools.WndEditor.Views.WndGeneralPropertiesView"
+             x:CompileBindings="False">
   <UserControl.Resources>
     <DataTemplate x:Key="DrawEntryTemplate" x:DataType="vm:WndDrawDataEntryViewModel">
       <Border Margin="0,1" Padding="4" CornerRadius="4" Background="{DynamicResource SurfaceHoverBrush}">

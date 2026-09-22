@@ -5,7 +5,8 @@
              xmlns:material="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
              xmlns:views="clr-namespace:GenHub.Features.Tools.WndEditor.Views"
              xmlns:vm="clr-namespace:GenHub.Features.Tools.WndEditor.ViewModels"
-             x:Class="GenHub.Features.Tools.WndEditor.Views.WndEditorView">
+             x:Class="GenHub.Features.Tools.WndEditor.Views.WndEditorView"
+             x:CompileBindings="False">
   <UserControl.KeyBindings>
     <KeyBinding Gesture="Ctrl+Add" Command="{Binding ZoomInCommand}"/>
     <KeyBinding Gesture="Ctrl+OemPlus" Command="{Binding ZoomInCommand}"/>

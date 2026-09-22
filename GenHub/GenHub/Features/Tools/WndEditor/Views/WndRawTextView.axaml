@@ -1,7 +1,8 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:localization="clr-namespace:GenHub.Common.Markup"
-             x:Class="GenHub.Features.Tools.WndEditor.Views.WndRawTextView">
+             x:Class="GenHub.Features.Tools.WndEditor.Views.WndRawTextView"
+             x:CompileBindings="False">
   <Grid RowDefinitions="Auto,*,Auto">
     <TextBlock Grid.Row="0" Text="{localization:Localize Tools.WndEditor.Raw.Hint}" FontSize="10" Foreground="{DynamicResource TextMuted}" TextWrapping="Wrap" Margin="4,4,4,8"/>
     <Border Grid.Row="1" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="8" Background="{DynamicResource SurfaceElevatedBrush}">
