@@ -110,13 +110,9 @@ public class WineRunner(
     }
 
     /// <summary>
-    /// Copies the native Options.ini into one prefix user shell folder when the source is newer.
+    /// Ensures that IPAddress = 0.0.0.0 is present in the native Options.ini to prevent Winsock hang under Wine.
     /// </summary>
-    /// <param name="sourcePath">The native Options.ini path.</param>
-    /// <param name="userDirectory">The prefix user profile directory.</param>
-    /// <param name="documentsDirectoryName">The shell folder name ("Documents" or "My Documents").</param>
-    /// <param name="dataDirectoryName">The game data directory name.</param>
-    /// <returns><c>true</c> when the destination was written; otherwise, <c>false</c>.</returns>
+    /// <param name="iniPath">The Options.ini file path.</param>
     private static void EnsureNetworkIpAddress(string iniPath)
     {
         try
@@ -137,6 +133,15 @@ public class WineRunner(
             // Best-effort to prevent Winsock adapter enumeration hang under Wine.
         }
     }
+
+    /// <summary>
+    /// Copies the native Options.ini into one prefix user shell folder when the source is newer.
+    /// </summary>
+    /// <param name="sourcePath">The native Options.ini path.</param>
+    /// <param name="userDirectory">The prefix user profile directory.</param>
+    /// <param name="documentsDirectoryName">The shell folder name ("Documents" or "My Documents").</param>
+    /// <param name="dataDirectoryName">The game data directory name.</param>
+    /// <returns><c>true</c> when the destination was written; otherwise, <c>false</c>.</returns>
 
     private static bool MirrorOptionsIniToShellFolder(string sourcePath, string userDirectory, string documentsDirectoryName, string dataDirectoryName)
     {

@@ -778,7 +778,6 @@ public class GameProcessManager(
             && configuration.ExecutablePath.EndsWith(ContentFormatConstants.FlatpakExtension, StringComparison.OrdinalIgnoreCase);
     }
 
-
     /// <summary>
     /// Reads a process's start time in UTC, or reports that it could not be read.
     /// </summary>
