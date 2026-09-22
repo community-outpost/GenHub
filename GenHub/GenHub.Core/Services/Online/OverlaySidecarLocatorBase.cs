@@ -86,27 +86,46 @@ public abstract class OverlaySidecarLocatorBase : IOverlaySidecarLocator
     }
 
     /// <summary>
-    /// Escapes an argument for safe quoting in a process start command line.
+    /// Determines whether the candidate path is a usable sidecar binary.
+    /// Unix platforms additionally require the executable bit.
     /// </summary>
-    /// <param name="value">The raw argument.</param>
-    /// <returns>The escaped argument.</returns>
-    protected static string EscapeArgument(string value)
+    /// <param name="path">The candidate path.</param>
+    /// <returns>True when the binary can be launched.</returns>
+    protected virtual bool IsValidCandidate(string path)
     {
-        return value.Replace("\"", "\\\"");
+        return File.Exists(path);
     }
 
-    private static bool IsValidCandidate(string path)
+    private static string EscapeArgument(string value)
     {
-        if (!File.Exists(path))
+        // Quote-aware escaping for argv parsing: double backslashes ahead of
+        // a quote or the closing quote, and escape embedded quotes, so paths
+        // with quotes or trailing backslashes survive intact.
+        var builder = new StringBuilder();
+        var backslashes = 0;
+        foreach (var c in value)
         {
-            return false;
+            if (c == '\\')
+            {
+                backslashes++;
+                continue;
+            }
+
+            if (c == '"')
+            {
+                builder.Append('\\', (backslashes * 2) + 1);
+                builder.Append('"');
+            }
+            else
+            {
+                builder.Append('\\', backslashes);
+                builder.Append(c);
+            }
+
+            backslashes = 0;
         }
 
-        if (OperatingSystem.IsWindows())
-        {
-            return true;
-        }
-
-        return HasExecutePermission(path);
+        builder.Append('\\', backslashes * 2);
+        return builder.ToString();
     }
 }
